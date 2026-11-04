@@ -4099,7 +4099,8 @@
       "search": "la recherche dans les sources d'offres",
       "web_search": "la recherche sur le web",
       "read": "la lecture des offres",
-      "compute": "le calcul des scores de correspondance"
+      "compute": "le calcul des scores de correspondance",
+      "act": "la consultation de vos données"
     },
     "notCounted": "Elle n'est pas comptée dans vos recherches d'offres de la semaine.",
     "keptBeforeFailure_one": "L'offre trouvée avant l'échec est gardée.",
@@ -4880,7 +4881,9 @@
       "web_search": "Recherche web",
       "read": "Lecture",
       "compute": "Calcul",
-      "check": "Vérification"
+      "check": "Vérification",
+      "act": "Consulte vos données",
+      "propose": "Prépare une proposition"
     },
     "label": "Activité IA",
     "title": "Cette page",
@@ -4951,7 +4954,11 @@
         "compute_one": "{{count}} calcul",
         "compute_other": "{{count}} calculs",
         "check_one": "{{count}} vérification",
-        "check_other": "{{count}} vérifications"
+        "check_other": "{{count}} vérifications",
+        "act_one": "{{count}} élément consulté",
+        "act_other": "{{count}} éléments consultés",
+        "propose_one": "{{count}} proposition préparée",
+        "propose_other": "{{count}} propositions préparées"
       },
       "earlierSteps_one": "{{count}} étape terminée plus tôt",
       "earlierSteps_other": "{{count}} étapes terminées plus tôt",
@@ -5119,6 +5126,7 @@
       "lightValue": "Clair",
       "darkValue": "Sombre",
       "typography": "Typographie",
+      "activityGlyphs": "Glyphes d'Activité",
       "typeShown": "{{density}} · corps {{size}} px",
       "style": "Style",
       "sample": "Exemple",

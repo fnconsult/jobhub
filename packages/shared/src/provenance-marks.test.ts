@@ -69,6 +69,13 @@ describe("what AI Activity calls a step while it runs (#328)", () => {
     expect(stepLabel({ kind: "rules", activity: "compute", rule: "match_score", at })).toBe("compute");
   });
 
+  it("is « Consulte vos données » for a Coach Action that reads, « Prépare une proposition » for one that proposes (#726)", () => {
+    expect(stepLabel({ kind: "tool", activity: "act", tool: "job-site", at })).toBe("act");
+    expect(stepLabel({ kind: "tool", activity: "act", tool: "job-site", proposes: true, at })).toBe("propose");
+    expect(fr.aiActivity.steps.act).toBe("Consulte vos données");
+    expect(fr.aiActivity.steps.propose).toBe("Prépare une proposition");
+  });
+
   it("is a check for a Guardrail's, whatever its Activity", () => {
     expect(stepLabel({ kind: "ai", activity: "think", task: "guardrail", at })).toBe("check");
   });

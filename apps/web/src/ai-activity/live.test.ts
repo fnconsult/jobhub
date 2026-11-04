@@ -39,6 +39,23 @@ describe("AI Activity's live actions", () => {
     expect(action!.tokens).toBe(1500);
   });
 
+  it("a Coach Action's step (#726) shows its glyph, `act`, « Consulte vos données » or « Prépare une proposition », its Tool by name, no model, no token", () => {
+    // A Routes locales Tool (a Coach Action's group) arrives with #713: any Tool of the catalog stands for it here.
+    const [action] = apply(
+      replyStarted,
+      step("coach_reply:1", { type: "step_started", id: 1, step: { kind: "tool", activity: "act", tool: "job-site", at } }),
+      step("coach_reply:1", { type: "step_ended", id: 1, step: { kind: "tool", activity: "act", tool: "job-site", ms: 30, at, outcome: "ok", count: 1 } }),
+      step("coach_reply:1", { type: "step_started", id: 2, step: { kind: "tool", activity: "act", tool: "job-site", proposes: true, at } }),
+    );
+
+    expect(action!.steps).toEqual([
+      { id: 1, activity: "act", label: "act", running: false, outcome: "ok", model: null, tool: "Sites d'emploi", tokens: null, ms: 30, at, count: 1 },
+      { id: 2, activity: "act", label: "propose", running: true, outcome: null, model: null, tool: "Sites d'emploi", tokens: null, ms: null, at, count: null },
+    ]);
+    expect(action!.current).toMatchObject({ activity: "act", label: "propose" });
+    expect(action!.tokens).toBeNull();
+  });
+
   it("each step keeps its hour; an ended one, how many calls it folded (its result: « 12 pages lues »)", () => {
     const reading = "2026-10-24T08:00:02.000Z";
     const [action] = apply(

@@ -7,7 +7,7 @@ import { ease, ENTER_MS, GLYPHS, MAX_STROKES, mix, pathOf, phaseAt, POINTS, stro
 /**
  * The glyph of an Activity (ADR-0034, #314, #333): what a running step is doing, drawn in the line icons' style. `live`: the
  * step runs, so it moves (the brain's folds shift, the feather writes, the magnifier sweeps, the globe turns, the book turns
- * its pages, the ticks appear) and, when the next step's Activity takes its place, morphs into it, stroke by stroke, drawn
+ * its pages, the ticks appear, the pointer touches a card) and, when the next step's Activity takes its place, morphs into it, stroke by stroke, drawn
  * from JavaScript (activity-glyph-frames). Still under prefers-reduced-motion, and while not live. Decoration only, hidden
  * from screen readers: the step's label in words always sits beside it.
  */

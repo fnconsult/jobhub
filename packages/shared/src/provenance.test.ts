@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { byRules, joinProvenance, readProvenance, replyActivity, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
+import { byRules, joinProvenance, readProvenance, readProvenanceEvent, replyActivity, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
 
 const aiStep: ProvenanceStep = {
   kind: "ai",
@@ -104,6 +104,24 @@ describe("a Provenance read from its jsonb column", () => {
     ]);
   });
 
+  it("keeps a Coach Action's step (#726): its Activity `act`, and that it proposed, not only read", () => {
+    // Any Tool id of the catalog: the Routes locales Tools, a Coach Action's groups, arrive with #713.
+    const read: ProvenanceStep = { ...toolStep, activity: "act", count: 1 };
+    const proposed: ProvenanceStep = { ...read, proposes: true };
+    const stored = { ...provenance, steps: [aiStep, read, proposed] };
+    expect(readProvenance(stored)).toEqual(stored);
+  });
+
+  it("refuses a step said to propose that is not a Coach Action's (#726)", () => {
+    expect(readProvenance({ ...provenance, steps: [{ ...toolStep, proposes: true }] })).toBeNull();
+  });
+
+  it("sends a Coach Action's step live as it starts, proposing or reading, and refuses one said to propose that is not (#726)", () => {
+    const started = { type: "step_started", id: 1, step: { kind: "tool", activity: "act", tool: "job-site", proposes: true, at: toolStep.at } };
+    expect(readProvenanceEvent(started)).toEqual(started);
+    expect(readProvenanceEvent({ ...started, step: { ...started.step, activity: "read" } })).toBeNull();
+  });
+
   it("keeps a stopped step", () => {
     const stopped = { ...provenance, steps: [{ ...aiStep, outcome: "stopped" }] };
     expect(readProvenance(stopped)).toEqual(stopped);
@@ -116,7 +134,7 @@ describe("no field of a Provenance can hold a Candidate id, a cost or text", () 
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "ai" }>>().toEqualTypeOf<
       "kind" | "activity" | "task" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent" | "ms" | "at" | "outcome" | "count"
     >();
-    expectTypeOf<keyof Extract<ProvenanceStep, { kind: "tool" }>>().toEqualTypeOf<"kind" | "activity" | "tool" | "ms" | "at" | "outcome" | "count">();
+    expectTypeOf<keyof Extract<ProvenanceStep, { kind: "tool" }>>().toEqualTypeOf<"kind" | "activity" | "tool" | "proposes" | "ms" | "at" | "outcome" | "count">();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "rules" }>>().toEqualTypeOf<"kind" | "activity" | "rule" | "ms" | "at" | "outcome" | "count">();
     // @ts-expect-error no Candidate id
     const withCandidate: Provenance = { ...provenance, candidateId: "c0ffee00-0000-4000-8000-000000000000" };

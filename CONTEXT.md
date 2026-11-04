@@ -1028,7 +1028,7 @@ What one step of an AI action is doing, fixed in the code per step and by defaul
 _Avoid_: Status, phase, stage
 
 **Step label**:
-What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English.
+What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step.
 _Avoid_: Step name, status
 
 **Live action**:

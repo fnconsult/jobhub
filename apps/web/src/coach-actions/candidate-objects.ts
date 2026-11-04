@@ -5,15 +5,15 @@
  * to the room it is given by rule: the fullest telling that fits, else a shorter one (a Master CV without its job
  * descriptions, fewer Job Offers), else cut.
  */
-import { NO_INDUSTRY_REFERENCE, type IndustryReference } from "@jobhub/shared";
+import { NO_INDUSTRY_REFERENCE, type DocumentLanguage, type IndustryReference } from "@jobhub/shared";
 import type { Applications } from "../applications";
 import { applicationDetails, criteriaTextOf, cvText, day, estimateTokens, JOB_SEARCH_STATUS, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
 import type { JobDigests } from "../job-digests";
 import type { JobSearches } from "../job-searches";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
-import type { TailoredCvs } from "../tailored-cv";
-import type { TailoredDocuments } from "../tailored-documents";
+import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
+import type { OutreachChannel, TailoredDocuments } from "../tailored-documents";
 import type { CoachObjectReader, ReadObject } from "./reads";
 
 /** The domain modules the reads go through, each scoped to the Candidate. */
@@ -60,6 +60,28 @@ function resultsText(head: string, results: readonly ScoredResult[], maxTokens: 
   if (results.length === 0) return `${head}\nAucune offre trouvée.`;
   const lines = [...results].sort((a, b) => b.matchScore.score - a.matchScore.score).map((result) => `- [offre ${result.jobOffer.id}] ${scoredResultLine(result)}`);
   return fittedLines(`${head}\nOffres, meilleur score d'abord :`, lines, maxTokens, (count) => `(${count} autres offres, moins bien notées, ne sont pas montrées.)`);
+}
+
+const LANGUAGE: Record<DocumentLanguage, string> = { fr: "en français", en: "en anglais" };
+const OUTREACH_CHANNEL: Record<OutreachChannel, string> = { email: "e-mail", inmail: "InMail LinkedIn" };
+const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+/** A Tailored CV in one line, by rule: whether it is saved or proposed, when, its language and Match Scores; never its content. */
+function tailoredCvLine(tailoredCv: ApplicationTailoredCv | null): string {
+  const scores = ({ master, tailored }: { master: number; tailored: number }) => `score de correspondance ${master} avec le CV de référence, ${tailored} avec le CV adapté`;
+  const proposal = tailoredCv?.proposal;
+  const pending = proposal
+    ? ` Une proposition du ${day(proposal.proposedAt)} attend la relecture du candidat (${proposal.questions.filter((question) => question.answer === null).length} questions sans réponse, ${scores(proposal.matchScore)}).`
+    : "";
+  const saved = tailoredCv?.saved;
+  return `CV adapté : ${saved ? `enregistré le ${day(saved.savedAt)}, ${LANGUAGE[saved.language]}, ${scores(saved.matchScore)}.` : "aucun enregistré."}${pending}`;
+}
+
+/** A Cover Letter or Outreach Message in one line, by rule: when it was drafted and changed, its language and length; never its text. */
+function draftLine(label: string, drafted: string, changed: string, none: string, draft: { language: DocumentLanguage; text: string; draftedAt: Date; updatedAt: Date } | null, how = ""): string {
+  if (!draft) return `${label} : ${none}.`;
+  const edited = draft.updatedAt.getTime() > draft.draftedAt.getTime() ? `, ${changed} le ${day(draft.updatedAt)}` : "";
+  return `${label} : ${drafted} le ${day(draft.draftedAt)}${edited}, ${LANGUAGE[draft.language]}${how}, ${words(draft.text)} mots.`;
 }
 
 export function candidateObjects(sources: CandidateObjectSources): CoachObjectReader {
@@ -133,6 +155,19 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
           if (!jobDigest || !(await isActive(candidateId, jobDigest.profile.id))) return null;
           const head = `Job Digest (id ${jobDigest.id}) envoyé le ${day(jobDigest.sentAt)} pour le profil « ${jobDigest.profile.name} ».`;
           return { text: resultsText(head, jobDigest.results, maxTokens), pages: [routes.jobDigest(jobDigest.id)], untrusted: true };
+        }
+        case "tailored_documents": {
+          const application = await sources.applications.get(candidateId, id);
+          if (!application || !(await isActive(candidateId, application.profile.id))) return null;
+          const [drafts, tailoredCv] = await Promise.all([sources.tailoredDocuments.get(candidateId, id), sources.tailoredCvs.get(candidateId, id)]);
+          const text = [
+            // No word of the Job Offer (its title neither): nothing here is text the Candidate did not write.
+            `Documents adaptés de la candidature (id ${application.id}), profil « ${application.profile.name} ».`,
+            tailoredCvLine(tailoredCv),
+            draftLine("Lettre de motivation", "rédigée", "modifiée", "aucune", drafts?.coverLetter ?? null),
+            draftLine("Message d'approche", "rédigé", "modifié", "aucun", drafts?.outreachMessage ?? null, drafts?.outreachMessage ? ` par ${OUTREACH_CHANNEL[drafts.outreachMessage.channel]}` : ""),
+          ].join("\n");
+          return { text: fitted([text], maxTokens), pages: [routes.applicationSection(application.id, "documents")], untrusted: false };
         }
         default:
           return null;

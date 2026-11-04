@@ -335,3 +335,30 @@ describe("read_job_offer (#714)", () => {
     expect(await (await setUp(workspace(), "paul")).read("read_job_offer", { id: airbusOffer.id })).toEqual(NOT_FOUND);
   });
 });
+
+describe("read_tailored_documents (#714)", () => {
+  it("summarises an Application's Tailored Documents, never their text", async () => {
+    const { read, reply, recorder } = await setUp();
+
+    const { content, error } = await read("read_tailored_documents", { id: airbus.id });
+
+    expect(error).toBeUndefined();
+    expect(content).toContain("Documents adaptés de la candidature (id a-airbus), profil « Consultante finance ».");
+    expect(content).toContain("CV adapté : enregistré le 2026-10-29, en français, score de correspondance 61 avec le CV de référence, 78 avec le CV adapté.");
+    expect(content).toContain("Lettre de motivation : rédigée le 2026-10-29, modifiée le 2026-10-30, en français, 20 mots.");
+    expect(content).toContain("Message d'approche : aucun.");
+    expect(content).not.toContain("Madame, Monsieur");
+    expect(content).not.toContain("Airbus");
+    expect(content).not.toContain("consolidation IFRS, je souhaite");
+    expect(reply.narrowed).toBe(false);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus/documents"] }]);
+  });
+
+  it("is not_found for an Application of an Archived Profile, another Candidate's or an unknown id", async () => {
+    const { read } = await setUp();
+
+    expect(await read("read_tailored_documents", { id: archivedApplication.id })).toEqual(NOT_FOUND);
+    expect(await read("read_tailored_documents", { id: "a-unknown" })).toEqual(NOT_FOUND);
+    expect(await (await setUp(workspace(), "paul")).read("read_tailored_documents", { id: airbus.id })).toEqual(NOT_FOUND);
+  });
+});

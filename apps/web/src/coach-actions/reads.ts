@@ -104,5 +104,12 @@ export function readCoachActions(reader: CoachObjectReader): CoachAction[] {
       "job_digests",
       "Lit un Job Digest (sélection d'offres envoyée par e-mail) du candidat par son id : ses offres, meilleur score d'abord, chacune avec son id et les raisons de son score.",
     ),
+    readOne(
+      reader,
+      "read_tailored_documents",
+      "tailored_documents",
+      "documents",
+      "Résume les documents adaptés d'une candidature du candidat, par l'id de la candidature : CV adapté, lettre de motivation, message d'approche (dates, langue, longueur), jamais leur texte.",
+    ),
   ];
 }

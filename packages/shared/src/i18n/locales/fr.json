@@ -202,7 +202,8 @@
     "subject": "Votre lien de connexion à Jobbbox",
     "title": "Connectez-vous à Jobbbox",
     "action": "Me connecter à Jobbbox",
-    "validity": "Ce lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.",
+    "code": "Ou saisissez ce code dans l'app ou sur la page de connexion : {{code}}",
+    "validity": "Ce lien et ce code sont valables {{minutes}} minutes, une seule fois : utiliser l'un rend l'autre inutilisable.",
     "ignore": "Si vous n'avez pas demandé à vous connecter, ignorez simplement ce message.",
     "reason": "Vous recevez cet e-mail parce qu'un lien de connexion à Jobbbox a été demandé pour cette adresse."
   },

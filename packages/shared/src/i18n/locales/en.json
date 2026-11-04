@@ -202,7 +202,8 @@
     "subject": "Your Jobbbox sign-in link",
     "title": "Sign in to Jobbbox",
     "action": "Sign in to Jobbbox",
-    "validity": "This link is valid for {{minutes}} minutes and works only once.",
+    "code": "Or enter this code in the app or on the sign-in page: {{code}}",
+    "validity": "This link and this code are valid for {{minutes}} minutes, once: using one makes the other unusable.",
     "ignore": "If you did not ask to sign in, simply ignore this message.",
     "reason": "You receive this email because a sign-in link to Jobbbox was asked for this address."
   },

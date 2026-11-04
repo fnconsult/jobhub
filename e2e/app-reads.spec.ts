@@ -126,6 +126,9 @@ interface Seed {
 }
 
 /** A Candidate on Standard with two Profiles (one archived), an Application at « Entretien » with an Interview, and what hangs from them. */
+/** A done Job Search carries metrics like the worker's own (job-search-metrics.spec.ts checks every one in the database does). */
+const doneSearchMetrics = JSON.stringify({ funnel: { providerUrls: 2, fetched: 2, extracted: 2, alreadyStored: 0, afterDedup: 2, matched: 2 }, skipped: {}, costEur: 0, durationMs: 60_000 });
+
 async function seedCandidate(page: Page, email: string): Promise<Seed> {
   await subscribe(page, email, "standard");
   const profileId = await createProfile(page, "Directrice financière");
@@ -149,8 +152,8 @@ async function seedCandidate(page: Page, email: string): Promise<Seed> {
   const coachName = `Sophie Martin ${unique()}`;
   const stored = await withDatabase(async (db) => {
     const search = await db.query(
-      "INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, now(), now()) RETURNING id",
-      [candidate, profileId, [offerId, keptOfferId]],
+      "INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, now(), now(), $4) RETURNING id",
+      [candidate, profileId, [offerId, keptOfferId], doneSearchMetrics],
     );
     const digest = await db.query("INSERT INTO job_digest (candidate_id, profile_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, now()) RETURNING id", [candidate, profileId, [offerId]]);
     const coach = await db.query("INSERT INTO human_coach (name, email, booking_url, bio) VALUES ($1, $2, $3, 'Ancienne DRH.') RETURNING id", [
@@ -174,7 +177,12 @@ async function seedCandidate(page: Page, email: string): Promise<Seed> {
 
   // The archived Profile has its own Job Search and Job Digest, which the cards leave out.
   await withDatabase(async (db) => {
-    await db.query("INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, now(), now())", [candidate, archivedProfileId, [offerId]]);
+    await db.query("INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, now(), now(), $4)", [
+      candidate,
+      archivedProfileId,
+      [offerId],
+      doneSearchMetrics,
+    ]);
     await db.query("INSERT INTO job_digest (candidate_id, profile_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, now())", [candidate, archivedProfileId, [offerId]]);
   });
   const archived = await page.request.patch(`/api/profiles/${archivedProfileId}`, { headers: { origin }, data: { archived: true } });

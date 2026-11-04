@@ -143,6 +143,7 @@ jobs:
           path: |
             motions-work/**/out/
             motions-work/**/*-error.txt
+            motions-work/**/capture-failure.*
             motions-work/summary.md
             motions-work/manifest.json
             motions-work/voice-samples/

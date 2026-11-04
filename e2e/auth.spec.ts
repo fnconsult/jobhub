@@ -86,6 +86,38 @@ test.describe("magic-link sign-up and sign-in", () => {
     await someoneElse.close();
   });
 
+  // #570: a Visitor reading the site in English signs up in English: their sign-in email, then their account. A
+  // returning Candidate's link keeps their own Interface Language, whatever the page's.
+  test("a new person who signs up from the English sign-in page gets the email and the account in English", async ({ page, browser }) => {
+    const email = newAddress("claire.english");
+    await page.goto("/en");
+    await page.getByRole("link", { name: en.nav.signIn }).click();
+    await expect(page).toHaveURL(/\/en\/connexion$/);
+    await page.getByLabel(en.signIn.emailLabel).fill(email);
+    await page.getByRole("button", { name: en.signIn.submit }).click();
+    await expect(page.getByRole("status")).toHaveText(en.signIn.sent);
+
+    const message = await waitForEmail(email);
+    expect(message.subject).toBe(en.signInEmail.subject);
+    await page.goto(linkIn(message));
+    await expect(page).toHaveURL(`${origin}/compte`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.account.title);
+    await page.goto("/compte/preferences");
+    await expect(page.getByLabel(en.account.interfaceLanguage)).toHaveValue("en");
+
+    // Back on the French sign-in page, the same Candidate's email stays in their English, and so does the account.
+    const later = await browser.newContext({ baseURL: origin });
+    const again = await later.newPage();
+    await again.goto("/connexion");
+    await again.getByLabel(fr.signIn.emailLabel).fill(email);
+    await again.getByRole("button", { name: fr.signIn.submit }).click();
+    await expect(again.getByRole("status")).toHaveText(fr.signIn.sent);
+    const second = await waitForEmail(email, 1);
+    expect(second.subject).toBe(en.signInEmail.subject);
+    expect(linkIn(second)).not.toContain("interfaceLanguage");
+    await later.close();
+  });
+
   test("a returning Candidate signs back into the same account", async ({ page, browser }) => {
     const email = newAddress("returning");
     await signInWithMagicLink(page, email);

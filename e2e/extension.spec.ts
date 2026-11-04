@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import path from "node:path";
@@ -7,7 +7,7 @@ import { chromium, expect, test, type BrowserContext, type Page, type Worker } f
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
-import { e2eExtensionDir, unpackedExtensionId as idOf, watchSidePanel } from "./support/extension";
+import { buildE2eExtension, e2eExtensionDir, unpackedExtensionId as idOf, watchSidePanel } from "./support/extension";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 
@@ -15,18 +15,6 @@ const extensionDir = path.resolve("apps/extension/.output/chrome-mv3");
 const frCatalogue = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 
 const unpackedExtensionId = (dir: string) => idOf(realpathSync(dir));
-
-let e2eBuilt = false;
-/** Builds the extension against the e2e web server, whose EXTENSION_ORIGINS trusts exactly this build. */
-function buildE2eExtension() {
-  if (e2eBuilt) return;
-  execFileSync("npx", ["wxt", "build", "--mode", "e2e"], {
-    cwd: "apps/extension",
-    env: { ...process.env, WXT_WEB_ORIGIN: process.env.E2E_WEB_ORIGIN! },
-    stdio: "pipe",
-  });
-  e2eBuilt = true;
-}
 
 test.describe("browser extension", () => {
   let context: BrowserContext;
@@ -127,6 +115,9 @@ test.describe("browser extension", () => {
       ["/en/legal/confidentialite", "_blank"],
       ["/en/legal/cgu", "_blank"],
     ]);
+    // So does « J'ai déjà un compte · Se connecter » (#570): the sign-in page, and the account it creates, in English.
+    const signIn = page.getByRole("link", { name: frCatalogue.extension.analysis.signIn });
+    expect(new URL((await signIn.getAttribute("href"))!).pathname).toBe("/en/connexion");
   });
 
   test("the Side Panel follows the device's dark theme (#473), at AA, and switches with it", async () => {

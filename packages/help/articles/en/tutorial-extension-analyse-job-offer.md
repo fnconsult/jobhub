@@ -3,6 +3,7 @@ kind: tutorial
 audience: guest
 topic: extension
 title: Analyse a job offer with the extension, without an account
+motion: extension-analyser-offre
 synonyms: [analyse a job offer, analyze, match score, without an account, guest, try, extension, capture, does my cv match, test the extension]
 ---
 Without an account, the Jobbbox extension compares your CV with a job offer and computes its Match Score.

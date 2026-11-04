@@ -1,10 +1,44 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { realpathSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { BrowserContext } from "@playwright/test";
 
-/** Built by the extension spec against the e2e web server (`wxt build --mode e2e`). */
+/** Built by the extension spec, and the motions' captures (#570), against the e2e web server (`wxt build --mode e2e`). */
 export const e2eExtensionDir = path.join(realpathSync("apps/extension"), ".output/chrome-mv3-e2e");
+
+/**
+ * Builds the extension against the e2e web server, whose EXTENSION_ORIGINS trusts exactly this build: once per run of
+ * the suite (E2E_RUN_ID, playwright.config.ts), whichever spec asks first. The extension's specs and the motions'
+ * captures (#570) run in parallel workers: a lock keeps one from rebuilding the files the other's browser has loaded.
+ */
+export function buildE2eExtension(): void {
+  const lock = `${e2eExtensionDir}.lock`;
+  const marker = path.join(e2eExtensionDir, ".e2e-run");
+  const run = process.env.E2E_RUN_ID ?? String(process.pid);
+  mkdirSync(path.dirname(lock), { recursive: true });
+  const until = Date.now() + 5 * 60_000;
+  for (;;) {
+    try {
+      mkdirSync(lock);
+      break;
+    } catch {
+      if (Date.now() > until) throw new Error(`${lock} has been held for 5 minutes: remove it if no build is running`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+    }
+  }
+  try {
+    if (existsSync(marker) && readFileSync(marker, "utf8") === run) return;
+    execFileSync("npx", ["wxt", "build", "--mode", "e2e"], {
+      cwd: "apps/extension",
+      env: { ...process.env, WXT_WEB_ORIGIN: process.env.E2E_WEB_ORIGIN! },
+      stdio: "pipe",
+    });
+    writeFileSync(marker, run);
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
 
 /** Chromium derives an unpacked extension's id from the SHA-256 of its absolute path. */
 export function unpackedExtensionId(dir: string): string {

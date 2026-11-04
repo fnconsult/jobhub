@@ -21,8 +21,11 @@
  */
 import type { HelpLocale } from "./types";
 
-/** Who the capture is signed in as: the demo Candidate (the dedicated demo seed), or nobody (a Visitor's public pages). */
-export const MOTION_VIEWERS = ["candidate", "visitor"] as const;
+/**
+ * Who the capture is signed in as: the demo Candidate (the dedicated demo seed), nobody (a Visitor's public pages, who
+ * may sign up in the video), or a Guest of the browser extension (nobody signed in, the extension loaded: #570).
+ */
+export const MOTION_VIEWERS = ["candidate", "visitor", "guest"] as const;
 export type MotionViewer = (typeof MOTION_VIEWERS)[number];
 
 /** The ARIA roles a capture action may name an element by (Playwright's `getByRole`). */
@@ -62,14 +65,34 @@ export type MotionTarget = { by: "role"; role: MotionRole; name: string | null }
 /** One named capture action (Playwright), in the order the step plays them. */
 export type MotionAction =
   | { action: "goto"; path: string }
+  | { action: "goto"; page: MotionExtensionPage }
   | { action: "click"; target: MotionTarget }
   | { action: "hover"; target: MotionTarget }
   | { action: "fill"; target: MotionTarget; text: string }
   | { action: "press"; key: string }
   | { action: "scroll"; target: MotionTarget }
-  | { action: "zoom"; target: MotionTarget | null };
+  | { action: "zoom"; target: MotionTarget | null }
+  | { action: "select"; target: MotionTarget; option: string }
+  | { action: "upload"; target: MotionTarget; file: MotionDemoFile }
+  | { action: "open-email"; subject: string }
+  | { action: "pay"; target: MotionTarget };
 
-export const MOTION_ACTIONS = ["goto", "click", "hover", "fill", "press", "scroll", "zoom"] as const;
+export const MOTION_ACTIONS = ["goto", "click", "hover", "fill", "press", "scroll", "zoom", "select", "upload", "open-email", "pay"] as const;
+
+/**
+ * The files a capture may give a file input (`upload label "Glissez votre CV ici" "cv-claire-demo.pdf"`): the demo
+ * Candidate's CV, written by `packages/motions` from invented lines, never a real one.
+ */
+export const MOTION_DEMO_FILES = ["cv-claire-demo.pdf"] as const;
+export type MotionDemoFile = (typeof MOTION_DEMO_FILES)[number];
+
+/**
+ * The pages a Guest's video films outside the web app (#570): `@offre-de-demo`, an invented job offer on a job board
+ * the extension knows, served by the capture itself; `@panneau-extension`, the extension's Side Panel, shown beside
+ * that offer as Chrome shows it. Only a `guest` script goes there; they are no routes of the web app.
+ */
+export const MOTION_EXTENSION_PAGES = ["@offre-de-demo", "@panneau-extension"] as const;
+export type MotionExtensionPage = (typeof MOTION_EXTENSION_PAGES)[number];
 
 export interface MotionStep {
   /** Shown as the step's title in the video, and a heading of the transcript. */

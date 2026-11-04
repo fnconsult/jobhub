@@ -3,6 +3,7 @@ kind: tutorial
 audience: candidate
 topic: utiliser
 title: Transférer vos offres reçues par e-mail
+motion: transferer-offres-email
 synonyms: [email, e-mail, mail, réception par email, transfert, transférer, alerte, alertes emploi, alerte d'offres, gmail, outlook, icloud, orange, filtre, règle, adresse de transfert, recruteur, reçues par email, email intake]
 ---
 Vos alertes d'offres (sites d'emploi, sites carrière) et les messages de recruteurs peuvent arriver dans Jobbbox : transférez-les à votre adresse de transfert, et Jobbbox en tire des offres pour vos profils. Rien n'est fait dans votre messagerie à votre place.

@@ -3,6 +3,7 @@ kind: tutorial
 audience: guest
 topic: extension
 title: Create your account from the extension and keep your work
+motion: extension-creer-compte
 synonyms: [create an account, sign up, register, keep my job offer, keep my cv, guest, without an account, sign in, first profile, first application, don't lose]
 ---
 Without an account, your CV and the job offer are deleted at the latest 24 hours after your first analysis, or as soon as you close your browser. By creating your account, you keep them: your CV becomes your first profile, and the job offer your first application.

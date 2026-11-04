@@ -3,6 +3,7 @@ kind: tutorial
 audience: guest
 topic: extension
 title: Créer son compte depuis l'extension et garder son travail
+motion: extension-creer-compte
 synonyms: [créer un compte, inscription, s'inscrire, garder mon offre, garder mon cv, invité, sans compte, se connecter, premier profil, première candidature, ne pas perdre]
 ---
 Sans compte, votre CV et l'offre sont effacés au plus tard 24 heures après votre première analyse, ou dès que vous fermez votre navigateur. En créant votre compte, vous les gardez : votre CV devient votre premier profil, et l'offre votre première candidature.

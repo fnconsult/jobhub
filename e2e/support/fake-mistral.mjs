@@ -286,6 +286,26 @@ globalThis.fetch = async (input, init) => {
     // A CV holding "E2E_CV_SLOW" takes 30 s to read, or rejects at once when the Candidate stops it (#335).
     if (prompt.includes("E2E_CV_SLOW")) await answerAfter(30_000, input instanceof Request ? input.signal : init?.signal);
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");
+    // The motions' demo CV (#570, packages/motions/src/demo-seed.ts): read as it is written, so a video shows no other
+    // employer or school than the invented ones the dropped CV names.
+    if (prompt.includes("Fonderies Imaginaires")) {
+      content = JSON.stringify({
+        masterCv: {
+          fullName,
+          headline,
+          email: "claire.demo@exemple.invalid",
+          phone: "",
+          location: "Lyon",
+          summary: "Comptable confirmée, dix ans en PME industrielle : clôtures, fiscalité, trésorerie.",
+          experience: [{ title: "Comptable principale", employer: "Fonderies Imaginaires", location: "Lyon", period: "2016 – 2026", description: "Clôtures mensuelles et annuelles, déclarations fiscales, trésorerie." }],
+          education: [{ degree: "DCG", institution: "", year: "2015" }],
+          skills: ["Clôtures mensuelles", "Fiscalité", "Trésorerie", "SAP", "Excel"],
+          languages: [],
+        },
+        searchCriteria: { targetRole: headline, location: "Lyon" },
+      });
+      return completion(body, content);
+    }
     content = JSON.stringify({
       masterCv: {
         fullName,

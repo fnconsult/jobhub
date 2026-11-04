@@ -4,7 +4,7 @@ import { designTokens } from "@jobhub/shared/design/tokens";
 import { createI18n } from "@jobhub/shared/i18n";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const ROOT = join(__dirname, "..", "..", "..");
 const read = (...path: string[]) => readFileSync(join(ROOT, ...path), "utf8");
@@ -58,9 +58,21 @@ describe("Identity", () => {
     expect(buildProperties[1].android.minSdkVersion).toBe(24);
   });
 
-  // The criterion says iOS/iPadOS 15.1+; Expo SDK 58 requires 16.4, so the target is 16.4 until the product owner decides.
-  it("targets the oldest iOS the current Expo SDK supports (16.4), a deviation from 15.1 awaiting the product owner", () => {
+  // iOS/iPadOS 16.4+ on Expo SDK 58: the product owner's decision of 2026-11-04 (#683), recorded in ADR-0076.
+  it("targets iOS and iPadOS 16.4", () => {
     expect(expo.ios.deploymentTarget).toBe("16.4");
+  });
+
+  it("targets the iOS floor ADR-0076 states, so the decision and the build cannot drift apart", () => {
+    const adr = read("docs", "adr", "0076-native-app-a-companion-on-expo-same-api-and-session.md");
+    const floors = [...adr.matchAll(/iOS and iPadOS (\d+(?:\.\d+)?)\+/g)].map((match) => match[1]);
+    expect(floors.length).toBeGreaterThan(0);
+    expect(new Set(floors)).toEqual(new Set([expo.ios.deploymentTarget]));
+  });
+
+  it("targets exactly the iOS floor of the installed Expo native core, below which the build fails", () => {
+    const podspec = readFileSync(join(dirname(require.resolve("expo-modules-core/package.json")), "ExpoModulesCore.podspec"), "utf8");
+    expect(podspec.match(/:ios\s*=>\s*'([\d.]+)'/)?.[1]).toBe(expo.ios.deploymentTarget);
   });
 
   it("supports tablets, which rotate freely, and locks iPhones to portrait", () => {

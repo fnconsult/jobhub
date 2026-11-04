@@ -11,6 +11,8 @@ Sources : métadonnées et code publiés des paquets npm (registre npm, 2026-11-
 
 Décision à prendre avant de coder : soit viser iOS 16.4+ avec le SDK courant (modifier le critère « iOS/iPadOS 15.1+ »), soit épingler le SDK 55 (et sa fin de support à surveiller). Ne pas fixer `ios.deploymentTarget: 15.1` sur le SDK 58 : le build échouerait.
 
+**Tranché le 2026-11-04 par le product owner (commentaire de #683)** : iOS/iPadOS 16.4+ sur le SDK 58, pas d'épinglage du SDK 55. ADR-0076 et le critère « Identité » de #683 sont amendés en ce sens.
+
 ## Versions alignées avec le SDK 58 (`bundledNativeModules.json`)
 
 `expo-router ~58.0.30`, `expo-font ~58.0.11`, `expo-localization ~58.0.5`, `react-native-svg 15.16.0`.

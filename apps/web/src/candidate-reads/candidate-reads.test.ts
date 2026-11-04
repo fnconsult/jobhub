@@ -455,7 +455,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   });
 
   describe("Tailored Documents", () => {
-    it("gives an Application's Tailored Documents with their download links, the Outreach Message without a file", async () => {
+    it("gives an Application's Tailored Documents with their download links, the Outreach Message without a file but with its words", async () => {
       const id = await saveApplication(marie, await createProfile(marie));
       const proposed = await tailoredCvs.propose(marie, id, {});
       if (!proposed.ok) throw new Error(`fixture Tailored CV refused: ${JSON.stringify(proposed)}`);
@@ -465,6 +465,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       await tailoredDocuments.draft(marie, id, { document: "outreach_message" });
 
       const documents = overHttp(tailoredDocumentsResponseSchema, await reads.tailoredDocuments(marie, id));
+      const outreachMessage = (await tailoredDocuments.get(marie, id))!.outreachMessage!;
 
       expect(documents.documentLanguage).toBe("fr");
       expect(documents.documents).toEqual([
@@ -473,14 +474,16 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
           language: "fr",
           updatedAt: expect.any(String),
           downloads: { pdf: `/api/applications/${id}/tailored-cv/export?format=pdf&template=classic`, docx: `/api/applications/${id}/tailored-cv/export?format=docx&template=classic` },
+          message: null,
         },
         {
           kind: "cover_letter",
           language: "fr",
           updatedAt: expect.any(String),
           downloads: { pdf: `/api/applications/${id}/cover-letter/export?format=pdf&template=classic`, docx: `/api/applications/${id}/cover-letter/export?format=docx&template=classic` },
+          message: null,
         },
-        { kind: "outreach_message", language: "fr", updatedAt: expect.any(String), downloads: null },
+        { kind: "outreach_message", language: "fr", updatedAt: expect.any(String), downloads: null, message: { subject: outreachMessage.subject, text: outreachMessage.text } },
       ]);
     });
 

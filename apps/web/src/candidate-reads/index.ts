@@ -372,9 +372,21 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
         documentLanguage: drafts.documentLanguage,
         // Only what the Candidate has: the saved Tailored CV (never a proposal under review), the drafts written.
         documents: [
-          ...(saved ? [{ kind: "tailored_cv" as const, language: saved.language, updatedAt: iso(saved.savedAt), downloads: downloads(applicationId, "tailored_cv") }] : []),
-          ...(coverLetter ? [{ kind: "cover_letter" as const, language: coverLetter.language, updatedAt: iso(coverLetter.updatedAt), downloads: downloads(applicationId, "cover_letter") }] : []),
-          ...(outreachMessage ? [{ kind: "outreach_message" as const, language: outreachMessage.language, updatedAt: iso(outreachMessage.updatedAt), downloads: null }] : []),
+          ...(saved ? [{ kind: "tailored_cv" as const, language: saved.language, updatedAt: iso(saved.savedAt), downloads: downloads(applicationId, "tailored_cv"), message: null }] : []),
+          ...(coverLetter
+            ? [{ kind: "cover_letter" as const, language: coverLetter.language, updatedAt: iso(coverLetter.updatedAt), downloads: downloads(applicationId, "cover_letter"), message: null }]
+            : []),
+          ...(outreachMessage
+            ? [
+                {
+                  kind: "outreach_message" as const,
+                  language: outreachMessage.language,
+                  updatedAt: iso(outreachMessage.updatedAt),
+                  downloads: null,
+                  message: { subject: outreachMessage.subject, text: outreachMessage.text },
+                },
+              ]
+            : []),
         ],
       };
     },

@@ -238,7 +238,7 @@ function memorySection(memory: string[]): string {
 
 const CONTRACT_TYPE: Record<string, string> = { cdi: "CDI", cdd: "CDD", freelance: "freelance", interim: "intérim" };
 const REMOTE_WORK: Record<string, string> = { on_site: "sur site", hybrid: "hybride", full_remote: "télétravail complet" };
-const APPLICATION_STATUS: Record<ApplicationStatus, string> = {
+export const APPLICATION_STATUS: Record<ApplicationStatus, string> = {
   to_apply: "À postuler",
   applied: "Postulée",
   followed_up: "Relancée",
@@ -253,7 +253,7 @@ const APPLICATION_STATUS: Record<ApplicationStatus, string> = {
 const anyOf = (values: readonly string[]) => new Intl.ListFormat("fr", { type: "disjunction" }).format(values);
 
 /** Search Criteria in words, the Sectors and Domains by their French labels in `industries`. */
-const criteriaTextOf =
+export const criteriaTextOf =
   (industries: IndustryReference) =>
   (criteria: SearchCriteria): string => {
     const { sectors, domains } = industryLabels(criteria, industries, "fr");
@@ -275,7 +275,7 @@ function seniorityText(cv: CvContent): string {
   return years === undefined ? "inconnue (aucune expérience datée)" : `${years} ans d'expérience (d'après les dates du CV)`;
 }
 
-const day = (date: Date) => date.toISOString().slice(0, 10);
+export const day = (date: Date) => date.toISOString().slice(0, 10);
 
 /**
  * Replaces, in a text from the CV, the identity block's values the CV also writes elsewhere:
@@ -293,7 +293,7 @@ function identityScrubber(cv: CvContent): (text: string) => string {
 }
 
 /** The Master CV without the Candidate's identity: no identity block, and its values written elsewhere replaced; without its job descriptions when `descriptions` is false. */
-function cvText(cv: CvContent, { descriptions = true }: { descriptions?: boolean } = {}): string {
+export function cvText(cv: CvContent, { descriptions = true }: { descriptions?: boolean } = {}): string {
   const { headline, summary, experience, education, skills, languages } = withoutIdentity(cv);
   return identityScrubber(cv)(
     [
@@ -311,11 +311,11 @@ function cvText(cv: CvContent, { descriptions = true }: { descriptions?: boolean
   );
 }
 
-function jobOfferHeadline(jobOffer: Pick<JobOffer, "title" | "employer" | "location" | "expiredAt">): string {
+export function jobOfferHeadline(jobOffer: Pick<JobOffer, "title" | "employer" | "location" | "expiredAt">): string {
   return `${jobOffer.title}${jobOffer.employer ? ` chez ${jobOffer.employer}` : ""}${jobOffer.location ? ` (${jobOffer.location})` : ""}${jobOffer.expiredAt ? " [offre expirée]" : ""}`;
 }
 
-function jobOfferText(jobOffer: JobOffer): string {
+export function jobOfferText(jobOffer: JobOffer): string {
   const salary = jobOffer.salary ? [jobOffer.salary.min, jobOffer.salary.max].map((amount) => (amount === undefined ? "?" : `${amount} €`)).join(" – ") : "";
   return [
     `Offre : ${jobOfferHeadline(jobOffer)}`,
@@ -360,7 +360,7 @@ function matchScoreReasons({ breakdown }: MatchScore): string {
     .join(" ; ");
 }
 
-function matchScoreText(matchScore: MatchScore): string {
+export function matchScoreText(matchScore: MatchScore): string {
   return `Score de correspondance : ${scoreInWords(matchScore)} ; ${matchScoreReasons(matchScore)}`;
 }
 
@@ -369,7 +369,7 @@ function resultLine({ jobOffer, matchScore, applicationId }: { jobOffer: JobOffe
 }
 
 /** A Job Offer In view with its Match Score's reasons (#653). */
-const scoredResultLine = (result: Parameters<typeof resultLine>[0]) => `${resultLine(result)} — ${matchScoreReasons(result.matchScore)}`;
+export const scoredResultLine = (result: Parameters<typeof resultLine>[0]) => `${resultLine(result)} — ${matchScoreReasons(result.matchScore)}`;
 
 async function inViewText(
   sources: CoachSources,
@@ -416,8 +416,12 @@ async function inViewText(
 }
 
 function applicationText(application: Application): string {
+  return [`Le candidat consulte sa candidature avec le profil « ${application.profile.name} ».`, applicationDetails(application)].join("\n");
+}
+
+/** An Application told in full, but for which Profile it uses: its status, Interviews, Match Score with its reasons, and Job Offer. */
+export function applicationDetails(application: Application): string {
   return [
-    `Le candidat consulte sa candidature avec le profil « ${application.profile.name} ».`,
     `Statut : ${APPLICATION_STATUS[application.status]} depuis le ${day(application.statusChangedAt)} (enregistrée le ${day(application.createdAt)}).`,
     application.reportedUnavailableAt ? `Le candidat a signalé que l'offre n'est plus publiée (le ${day(application.reportedUnavailableAt)}).` : "",
     application.interviews.length
@@ -432,7 +436,7 @@ function applicationText(application: Application): string {
     .join("\n");
 }
 
-const JOB_SEARCH_STATUS = { searching: "en cours", done: "terminée", failed: "échouée", stopped: "arrêtée par le candidat" } as const;
+export const JOB_SEARCH_STATUS = { searching: "en cours", done: "terminée", failed: "échouée", stopped: "arrêtée par le candidat" } as const;
 
 /** The IN_VIEW_MATCH_SCORES best results, best first, one line each, saying how many more were left out. */
 function bestResultLines(results: readonly Parameters<typeof resultLine>[0][]): string[] {
@@ -459,7 +463,7 @@ const AGENDA_DAY = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE
 const AGENDA_WHEN = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** One Agenda Item in a line, its date and time in French time: "jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie". */
-function agendaLine(item: AgendaItem): string {
+export function agendaLine(item: AgendaItem): string {
   const what =
     item.kind === "interview"
       ? `entretien pour ${item.jobTitle}${item.employer ? ` chez ${item.employer}` : ""}${item.cancelledAt ? ` [annulé le ${AGENDA_DAY.format(item.cancelledAt)}]` : ""}`

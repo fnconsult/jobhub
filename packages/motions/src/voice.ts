@@ -59,7 +59,8 @@ type Fetch = typeof fetch;
 
 /** The voice the environment configures, or the local draft voice when no key is set. */
 export function voiceFromEnv(env: Env = process.env, fetcher: Fetch = fetch): Voice {
-  const named = env.MOTIONS_VOICE_PROVIDER as VoiceProviderId | undefined;
+  // An unset repository variable reaches the workflow as "": no provider named, as when it is absent (#570).
+  const named = (env.MOTIONS_VOICE_PROVIDER || undefined) as VoiceProviderId | undefined;
   if (named && !(VOICE_PROVIDERS as readonly string[]).includes(named)) throw new Error(`MOTIONS_VOICE_PROVIDER must be ${VOICE_PROVIDERS.join(", ")}`);
   const provider = named ?? (Object.keys(VOICE_KEYS) as (keyof typeof VOICE_KEYS)[]).find((id) => env[VOICE_KEYS[id]]) ?? "espeak";
   const voices = { fr: env.MOTIONS_VOICE_FR || CANDIDATE_VOICES[provider].fr[0]!, en: env.MOTIONS_VOICE_EN || CANDIDATE_VOICES[provider].en[0]! };

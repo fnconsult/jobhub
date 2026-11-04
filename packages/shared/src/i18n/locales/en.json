@@ -5732,6 +5732,16 @@
       "cancel": "Cancel",
       "locked": "Jobbbox is locked",
       "unlock": "Unlock"
+    },
+    "signIn": {
+      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app.",
+      "waiting": "Waiting for the link…",
+      "resend": "Send the link again",
+      "changeEmail": "Use another email address"
+    },
+    "secondStep": {
+      "intro": "Your account asks for a second step to finish signing in.",
+      "comingSoon": "It is coming to the app soon. Meanwhile, sign out or sign in on jobbbox.ai."
     }
   }
 }

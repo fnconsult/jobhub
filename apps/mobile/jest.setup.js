@@ -1,3 +1,4 @@
+/* global jest */
 // The app as a build of it runs (a bare build, app.json's config), which Jest's Expo Constants is not: its scheme names
 // the app's origin (@better-auth/expo, src/session).
 jest.mock("expo-constants", () => {

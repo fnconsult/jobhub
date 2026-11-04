@@ -69,6 +69,14 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
     return { kind: "signedIn", email: data.user.email };
   }
 
+  // One at a time: a session read that finds none must not forget the cookie a link has just brought.
+  let queue: Promise<unknown> = Promise.resolve();
+  const serial = <T>(operation: () => Promise<T>): Promise<T> => {
+    const result = queue.then(operation, operation);
+    queue = result.catch(() => undefined);
+    return result;
+  };
+
   return {
     async askLink(email) {
       try {
@@ -79,24 +87,27 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
       }
     },
 
-    async openLink(url) {
+    openLink(url) {
       const token = signInToken(url, baseURL);
-      if (!token) return null;
-      const { error } = await client.magicLink.verify({ query: { token } });
-      if (error) return { kind: "invalidLink" };
-      return current();
+      if (!token) return Promise.resolve(null);
+      return serial(async () => {
+        const { error } = await client.magicLink.verify({ query: { token } });
+        if (error) return { kind: "invalidLink" } as const;
+        return current();
+      });
     },
 
-    current,
+    current: () => serial(current),
 
-    async signOut() {
-      try {
-        await client.signOut();
-      } catch {
-        // Offline: the session stays on the web app until it expires or is revoked from Mon compte, never on the device.
-      }
-      await forget();
-    },
+    signOut: () =>
+      serial(async () => {
+        try {
+          await client.signOut();
+        } catch {
+          // Offline: the session stays on the web app until it expires or is revoked from Mon compte, never on the device.
+        }
+        await forget();
+      }),
   };
 }
 

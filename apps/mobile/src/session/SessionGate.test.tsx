@@ -1,0 +1,123 @@
+import { act, screen, userEvent } from "@testing-library/react-native";
+import { AppState, Text } from "react-native";
+import { renderInApp } from "../testing";
+import { Control } from "../ui/Control";
+import { createAppSession } from "./app-session";
+import { SessionGate, useSession } from "./SessionGate";
+import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "./testing";
+
+const EMAIL = "marie.dupont@example.fr";
+
+function SignedInPage() {
+  const { signOut } = useSession();
+  return <><Text>La conversation</Text><Control label="Se déconnecter" onPress={signOut} /></>;
+}
+
+function setUp() {
+  const web = fakeWebApp();
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch });
+  const render = (link: string | null = null) =>
+    renderInApp(
+      <SessionGate session={session} link={link}>
+        <SignedInPage />
+      </SessionGate>,
+    );
+  return { web, session, render };
+}
+
+/** The app comes back to the foreground, as after reading the email or using the web. */
+async function backToForeground() {
+  const listeners = (AppState.addEventListener as jest.Mock).mock.calls.filter(([event]) => event === "change").map(([, listener]) => listener);
+  await act(async () => listeners.forEach((listener) => listener("active")));
+}
+
+describe("SessionGate (#685)", () => {
+  it("asks the email, sends the link and waits for it", async () => {
+    const { web, render } = setUp();
+    await render();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Votre adresse e-mail"), EMAIL);
+    await user.press(screen.getByRole("button", { name: "Recevoir mon lien de connexion" }));
+
+    expect(await screen.findByText(/Nous avons envoyé un lien de connexion à marie\.dupont@example\.fr/)).toBeOnTheScreen();
+    expect(screen.getByText("En attente du lien…")).toBeOnTheScreen();
+    expect(web.emailed).toHaveLength(1);
+    expect(screen.queryByText("La conversation")).toBeNull();
+
+    await user.press(screen.getByRole("button", { name: "Changer d'adresse e-mail" }));
+    expect(screen.getByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+
+  it("says when the link cannot be sent", async () => {
+    const { web, render } = setUp();
+    await render();
+    web.setOffline(true);
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Votre adresse e-mail"), EMAIL);
+    await user.press(screen.getByRole("button", { name: "Recevoir mon lien de connexion" }));
+
+    expect(await screen.findByText("Une erreur est survenue. Vérifiez votre adresse e-mail et réessayez.")).toBeOnTheScreen();
+  });
+
+  it("opens the app signed in when the link opens it", async () => {
+    const { web, session, render } = setUp();
+    await session.askLink(EMAIL);
+
+    await render(web.linkFor(EMAIL));
+
+    expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+  });
+
+  it("says when the link is no longer valid, on the sign-in screen", async () => {
+    const { web, session, render } = setUp();
+    await session.askLink(EMAIL);
+    const link = web.linkFor(EMAIL);
+    await session.openLink(link);
+    await session.signOut();
+
+    await render(link);
+
+    expect(await screen.findByText("Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+
+  it("shows the second step as a step to take, from which one can sign out", async () => {
+    const { web, session, render } = setUp();
+    web.withSecondStep(EMAIL);
+    await session.askLink(EMAIL);
+
+    await render(web.linkFor(EMAIL));
+
+    expect(await screen.findByText("Vérification en deux étapes")).toBeOnTheScreen();
+    expect(screen.getByText("Votre compte demande une deuxième étape pour terminer la connexion.")).toBeOnTheScreen();
+    expect(screen.queryByText("La conversation")).toBeNull();
+    await userEvent.setup().press(screen.getByRole("button", { name: "Se déconnecter" }));
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect(web.sessionCount()).toBe(0);
+  });
+
+  it("signs out: the session revoked, back to sign-in", async () => {
+    const { web, session, render } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Se déconnecter" }));
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect(web.sessionCount()).toBe(0);
+  });
+
+  it("is back to sign-in once the session is revoked on the web, when the app comes back to the foreground", async () => {
+    const { web, session, render } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("La conversation");
+
+    web.revokeAll(EMAIL);
+    await backToForeground();
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+});

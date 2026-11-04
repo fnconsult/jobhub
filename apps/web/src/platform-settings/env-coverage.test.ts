@@ -73,6 +73,13 @@ describe("the guard on the Platform Settings", () => {
     expect(sourceFiles().some((file) => file.includes("/packages/motions/"))).toBe(false);
   });
 
+  it("scans the native app and the extension, whose build-time variables are settings only env holds (#703)", () => {
+    const files = sourceFiles();
+    expect(files.some((file) => file.includes("/apps/mobile/src/"))).toBe(true);
+    expect(files.some((file) => file.includes("/apps/extension/src/"))).toBe(true);
+    expect(ENV_ONLY_SETTINGS).toMatchObject({ EXPO_PUBLIC_SENTRY_DSN: { kind: "deployment", shown: false } });
+  });
+
   it("reads none of the variables it lists as no longer read, which are nothing else either (#396)", () => {
     const retired = Object.keys(RETIRED_SETTINGS);
     expect(retired.length).toBeGreaterThan(0);

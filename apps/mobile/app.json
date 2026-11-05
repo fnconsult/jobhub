@@ -5,7 +5,7 @@
     "scheme": "jobbbox",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
-    "extra": { "webOrigin": "https://jobbbox.ai" },
+    "updates": { "enabled": false },
     "ios": {
       "bundleIdentifier": "ai.jobbbox.app",
       "supportsTablet": true,

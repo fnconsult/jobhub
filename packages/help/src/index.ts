@@ -14,6 +14,7 @@ import { isNoticed } from "./legal-notices";
 import { legalTextVersionUrl, type LegalTextHistoryEntry, type LegalTextId, type LegalTextVersion, type LegalTextVersionRecord } from "./legal-texts";
 import { LEGAL_TEXT_REGISTRY, LEGAL_TEXT_VERSIONS } from "./legal-texts.generated";
 import type { ReleaseNote } from "./release-notes";
+export { STORE_WHATS_NEW_LIMIT, storeWhatsNew } from "./store-whats-new";
 import type { MotionScript } from "./motion-scripts";
 import { MOTION_SCRIPTS } from "./motions.generated";
 import { RELEASE_NOTES } from "./release-notes.generated";

@@ -5745,6 +5745,12 @@
     "attach": "Attach a link or a document",
     "send": "Send",
     "emptyScreen": "This screen is coming to the app soon.",
+    "update": {
+      "title": "Update Jobbbox",
+      "body": "This version of the app is no longer supported. Install the latest version to carry on.",
+      "openAppStore": "Open the App Store",
+      "openPlayStore": "Open Google Play"
+    },
     "homeTitle": "Home",
     "fichePlaceholder": "The Fiche will show the page's object here, its Sections, its Activity and its Results.",
     "activityPlaceholder": "Activity will show the page's context bar and AI Activity here.",

@@ -12,7 +12,8 @@ Depuis ADR-0063, une Version naît à sa Promotion, pas à un déploiement de st
 - **ne crée aucun tag**, aucune GitHub Release, et ne reconstitue aucune Version passée : c'est la Promotion (`docs/ops/promotion.md`), que seul le product owner lance, qui étiquette `vX.Y.Z` et publie la Release ;
 - **ne change pas la Version** : `main` porte déjà la prochaine (le `version` du `package.json` racine), et c'est la PR « Version suivante » ouverte par la Promotion qui la fait avancer. Ne modifiez aucun `package.json` ni `package-lock.json` ;
 - ne déploie **jamais la Production** (`target=production` est refusé aux agents, `scripts/hooks/no-promotion.mjs`) ;
-- ne touche pas au `.env` de staging : la configuration vient du Back Office (Platform Settings, Provider Secrets).
+- ne touche pas au `.env` de staging : la configuration vient du Back Office (Platform Settings, Provider Secrets) ;
+- **ne lance pas la build staging de l'app Jobbbox** (#704) : elle passe par `.github/workflows/mobile.yml` (EAS, TestFlight et test interne Play), que le product owner lance quand une build native est utile (`docs/ops/mobile.md`). Le skill la mentionne dans son rapport, il ne la lance pas.
 
 ## Arguments
 
@@ -89,4 +90,5 @@ En français, court :
 - **Déployé** (ou **À blanc : rien déployé**) : `$SHA` court, Version `$VERSION`, lien vers l'exécution du workflow ;
 - **Beta** : ce que répond `/api/health` (avant, et après en mode normal) ;
 - **Release Note** : la phrase de l'étape 3 ;
+- **App Jobbbox** : si ce déploiement change l'app (`git log --oneline <commit servi à l'étape 2>..$SHA -- apps/mobile packages/shared`), dites qu'une build staging de l'app est à faire, avec la commande pour le product owner, et ne la lancez pas : `gh workflow run mobile.yml -f profile=staging -f action=build` (ou `-f action=update -f message=…` pour un correctif JavaScript seul) ;
 - **Rappel** : aucun tag, aucune GitHub Release, Version inchangée ; la prochaine Version naîtra à la Promotion du product owner.

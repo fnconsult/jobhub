@@ -1,5 +1,5 @@
 import { Plus, Send, Square } from "lucide-react-native";
-import { useRef, useState, type ComponentRef } from "react";
+import { useRef, type ComponentRef, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { useKeyCommand } from "../keyboard/key-commands";
@@ -8,48 +8,57 @@ import { INTER, radius, space, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 
-export type Message = { id: string; from: "candidate" | "coach"; text: string };
-
 /** The conversation keeps a reading width, centred in its space (ADR-0070): 44rem. */
 const READING_REM = 44;
 /** How close to the end of the thread, in points, still counts as reading the latest message. */
 const AT_END_PT = 48;
 
-const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEvent) =>
-  contentOffset.y + layoutMeasurement.height >= contentSize.height - AT_END_PT;
+const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEvent) => contentOffset.y + layoutMeasurement.height >= contentSize.height - AT_END_PT;
 
 /**
- * A page's conversation with the AI Coach (ADR-0070): its thread, and at its foot the box, with « + » for a link or a
- * document and « Envoyer » or, while the reply streams, « Arrêter ». What it shows and sends is its caller's (#690
- * plugs it into `POST /api/coach`). Without network the box, « + » and « Envoyer » are disabled, and it says why (#701).
+ * A page's conversation with the AI Coach (ADR-0070), as it is drawn: its thread (`children`, at its reading width,
+ * following the latest message), and at its foot the box, with « + » for a link or a document and « Envoyer » or,
+ * while the reply is on its way, « Arrêter ». `aboveBox` (the suggestions, the help's articles) and `belowBox` (the
+ * Signalement links) sit around it. What it shows and sends is its caller's (CoachConversation). Without network the
+ * box, « + » and « Envoyer » are disabled, and it says why (#701).
  */
 export function Conversation({
-  messages,
+  draft,
+  onDraftChange,
   streaming,
   onSend,
   onStop,
   onAttach,
+  aboveBox,
+  belowBox,
+  inputRef,
+  children,
 }: {
-  messages: readonly Message[];
+  draft: string;
+  onDraftChange: (draft: string) => void;
   streaming: boolean;
+  /** The draft, trimmed, to send: its caller empties the box. */
   onSend: (text: string) => void;
   onStop: () => void;
   onAttach: () => void;
+  aboveBox?: ReactNode;
+  belowBox?: ReactNode;
+  /** The box, for its caller to put the focus in it. */
+  inputRef?: RefObject<ComponentRef<typeof TextInput> | null>;
+  children: ReactNode;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { fontScale } = useWindowDimensions();
   const online = useOnline();
-  const [draft, setDraft] = useState("");
   const thread = useRef<ComponentRef<typeof ScrollView>>(null);
   // Whether the person reads the latest message: the thread follows it as it grows (a message, the reply streaming), but
   // stays where they scrolled back to when the window changes and the messages wrap again (Split View, a foldable).
   const following = useRef(true);
   const send = () => {
     const text = draft.trim();
-    if (!text || !online) return;
+    if (!text || !online || streaming) return;
     onSend(text);
-    setDraft("");
     following.current = true;
   };
   // ⌘↩ (Ctrl on Android) sends, as « Envoyer » does; while the reply streams, the box offers « Arrêter » instead.
@@ -66,13 +75,10 @@ export function Conversation({
         onContentSizeChange={() => (following.current ? thread.current?.scrollToEnd({ animated: true }) : undefined)}
         contentContainerStyle={styles.thread}
       >
-        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>
-          {messages.map((message) => (
-            <Bubble key={message.id} message={message} />
-          ))}
-        </View>
+        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>{children}</View>
       </ScrollView>
       <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2], gap: space[1] }}>
+        {aboveBox}
         {online ? null : (
           <AppText variant="meta" tone="secondary">
             {t("mobile.offline.conversationDisabled")}
@@ -92,11 +98,12 @@ export function Conversation({
         >
           <Control label={t("mobile.attach")} icon={Plus} iconOnly disabled={!online} onPress={onAttach} />
           <TextInput
+            ref={inputRef}
             aria-label={t("coachPanel.messageLabel")}
             placeholder={t("coachPanel.messageLabel")}
             placeholderTextColor={colors.meta}
             value={draft}
-            onChangeText={setDraft}
+            onChangeText={onDraftChange}
             editable={online}
             aria-disabled={!online}
             multiline
@@ -117,27 +124,8 @@ export function Conversation({
             <Control label={t("mobile.send")} icon={Send} look="primary" disabled={!online} onPress={send} />
           )}
         </View>
+        {belowBox}
       </View>
-    </View>
-  );
-}
-
-function Bubble({ message }: { message: Message }) {
-  const { t } = useTranslation();
-  const { colors } = useTheme();
-  if (message.from === "candidate")
-    return (
-      <View style={{ alignSelf: "flex-end", maxWidth: "85%", padding: space[3], borderRadius: radius.card * 1.6, backgroundColor: colors.accentSoft }}>
-        <AppText>{message.text}</AppText>
-      </View>
-    );
-  // The coach's reply, under the words « Coach IA »: it says it is an AI at every width (AI Act art. 50(1)).
-  return (
-    <View style={{ gap: space[1] }}>
-      <AppText variant="meta" tone="meta">
-        {t("coachPanel.badge")}
-      </AppText>
-      <AppText>{message.text}</AppText>
     </View>
   );
 }

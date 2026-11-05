@@ -1,8 +1,11 @@
 /**
  * What a Signalement keeps of where it was sent from (#283): the page's path, never its query string or `#…`
  * (they can carry a search, an email address, a token), and the browser parsed to name, major version and operating
- * system (« Chrome 141, Mac »), never the raw user agent.
+ * system (« Chrome 141, Mac »), never the raw user agent; from the Jobbbox app, whose native fetch names neither, the app's
+ * version and system it states (« App Jobbbox 1.4.0, iOS 18.6 », #690).
  */
+
+import { appDeviceName, readAppDevice } from "@jobhub/shared";
 
 /** Longest path kept: Jobbbox's pages are far shorter. */
 const MAX_PATH_LENGTH = 300;
@@ -50,4 +53,13 @@ export function browserOf(userAgent: string | null | undefined): string | null {
   const browser = BROWSERS.map(([name, version]) => [name, version.exec(userAgent)?.[1]] as const).find(([, major]) => major);
   const system = SYSTEMS.find(([, test]) => test.test(userAgent))?.[0];
   return `${browser ? `${browser[0]} ${browser[1]}` : "Navigateur inconnu"}, ${system ?? "système inconnu"}`;
+}
+
+/**
+ * Where a Signalement was sent from, as it is kept: the Jobbbox app's version and system when it states them
+ * (`appDevice`, APP_DEVICE_HEADER), else the browser of the user agent. Null when neither says anything.
+ */
+export function whereSentFrom({ userAgent, appDevice }: { userAgent: string | null | undefined; appDevice?: string | null }): string | null {
+  const device = readAppDevice(appDevice);
+  return device ? appDeviceName(device) : browserOf(userAgent);
 }

@@ -716,6 +716,29 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect((await conversations.open(marie, sent.conversation.id))?.messages[1]).toEqual({ from: "coach", text: "J'ai lu cette offre.", jobOffer: { ...card, followed: true }, provenance: PROVENANCE, at: expect.any(String) });
   });
 
+  describe("a conversation that opens on a Job Offer the Candidate shared from another app (Share capture, #697)", () => {
+    it("is saved at once, the Candidate's message then the set reply with its Job Offer card, without the AI Coach", async () => {
+      const captured = await createJobOffers(database).capture({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" }, "candidate", { privateTo: marie });
+      if (!captured.ok) throw new Error("not captured");
+
+      const started = await conversations.startAbout(marie, captured.jobOffer, { message: "Offre partagée : DAF H/F", reply: "Je l'ai enregistrée.", provenance: PROVENANCE });
+
+      expect(started).toMatchObject({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), title: "DAF H/F", subject: null, profile: null });
+      expect(asked).toEqual([]);
+      const card = { id: captured.jobOffer.id, title: "DAF H/F", employer: "Groupe Seb", followed: false };
+      expect(await conversations.open(marie, started.id)).toMatchObject({
+        aiDisclosure: true,
+        messages: [
+          { from: "candidate", text: "Offre partagée : DAF H/F" },
+          { from: "coach", text: "Je l'ai enregistrée.", jobOffer: card, provenance: PROVENANCE },
+        ],
+      });
+      expect((await conversations.list(marie)).map((each) => each.id)).toEqual([started.id]);
+      expect(await conversations.repliesAbout(marie, { kind: "job_offer", id: captured.jobOffer.id })).toHaveLength(1);
+      expect(await conversations.open(jean, started.id)).toBeNull();
+    });
+  });
+
   it("names, when the conversation reopens, the Candidate's objects a reply's Coach Actions saw, as they are now, and no one else's (#788)", async () => {
     const jobOffers = createJobOffers(database);
     const captured = await jobOffers.capture({ source: { url: "https://carrieres.example.fr/cdg" }, title: "Contrôleuse de gestion", content: "Airbus recrute.", employer: "Airbus" });

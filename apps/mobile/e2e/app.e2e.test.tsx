@@ -22,12 +22,13 @@ const keyboard = () => mockKeyboard.current!;
 
 // The web app the app signs in to (#685), as its endpoints answer, and the address the system opens the app with.
 // Built when the app first asks for its session, once Expo Linking is the app's (below).
-const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession; webViews: { cookies: () => unknown[] } };
 jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: mockWeb.app.fetch });
+  mockWeb.webViews = memoryWebViewCookies();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: mockWeb.webViews, fetch: mockWeb.app.fetch });
   const { createApi } = jest.requireActual("../src/api/api");
   return { appSession: mockWeb.session, appApi: createApi({ baseURL: TEST_BASE_URL, cookie: () => mockWeb.session.cookie(), fetch: mockWeb.app.fetch }) };
 });
@@ -383,6 +384,44 @@ describe("Jobbbox app, signing in (#685)", () => {
     expect(mockWeb.app.recorded.filter((call) => call.path === "/api/account/acceptances")).toEqual([
       expect.objectContaining({ method: "POST", body: { text: "cgu", version: "2026-12-01", accepted: true }, client: "mobile" }),
     ]);
+  });
+
+  it("asks the EU AI Consent after sign-in when it is missing, and records it from the app (#689)", async () => {
+    await signedIn();
+    mockWeb.app.asks(EMAIL, { euAiConsentGiven: false });
+    await launch();
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Donner mon accord" }));
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+    expect(mockWeb.app.recorded.filter((call) => call.path === "/api/account/eu-ai-consent")).toEqual([expect.objectContaining({ method: "PUT", client: "mobile" })]);
+  });
+
+  it("opens a link leaving a WebView in the system's browser, not in the app, and keeps the session off it (#689)", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    await launch("/compte");
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Textes légaux" }));
+    const view = await screen.findByTestId("web-view");
+
+    const inside = view.props.onShouldStartLoadWithRequest({ url: `${mockWeb.app.baseURL}/legal/cgu`, isTopFrame: true, navigationType: "click" });
+    const outside = view.props.onShouldStartLoadWithRequest({ url: "https://example.com/autre", isTopFrame: true, navigationType: "click" });
+
+    expect(inside).toBe(true);
+    expect(outside).toBe(false);
+    expect(openURL).toHaveBeenCalledWith("https://example.com/autre");
+    expect(openURL).not.toHaveBeenCalledWith(expect.stringContaining(mockWeb.app.baseURL));
+    openURL.mockRestore();
+  });
+
+  it("lends the session to the WebView for the web host, and empties that cookie when signing out (#689)", async () => {
+    await launch("/compte");
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Mon abonnement" }));
+    await screen.findByTestId("web-view");
+    expect(mockWeb.webViews.cookies()).toEqual([expect.objectContaining({ url: mockWeb.app.baseURL })]);
+
+    await act(async () => void (await mockWeb.session.signOut()));
+
+    expect(mockWeb.webViews.cookies()).toEqual([]);
   });
 
   it("signs out from Mon compte, back to sign-in", async () => {

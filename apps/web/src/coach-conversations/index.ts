@@ -65,6 +65,7 @@ import type { GuardrailLanguage } from "../guardrails";
 import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
+import { countUse, migrateConsumption } from "../consumption";
 import { utcBefore } from "../database/before";
 
 /**
@@ -798,6 +799,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           ],
         );
         replySeq = String(inserted.rows[0]!.seq);
+        // One reply, one use of the AI Coach in Consumption (#799), however many Tool rounds it took.
+        await countUse(client, candidateId, "coach", sentAt);
       }
       await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
       await client.query("COMMIT");
@@ -937,6 +940,8 @@ export async function purgeStaleCoachConversations(database: Pick<Pool, "query">
 
 /** Creates or upgrades the Coach Conversation tables. Run after the Profile, Job Offer, Application, Job Search and Job Digest tables. Safe to run repeatedly. */
 export async function migrateCoachConversations(database: Pool): Promise<void> {
+  // Each AI Coach reply counts in Consumption (#799).
+  await migrateConsumption(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS coach_conversation (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

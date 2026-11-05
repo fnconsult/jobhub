@@ -10,6 +10,8 @@
  * changes. Callers get:
  *  - `setAgendaItemDate(client, item, change)`: sets the item's date in the
  *    caller's transaction, keeping a Reschedule when the change is one;
+ *  - `revertAgendaItemDate(client, item, before)`: puts the date back as it was before a change undone (#718), the
+ *    Reschedule that change recorded leaving no trace when undone within the hour;
  *  - `rescheduleHistories(database, table, ids)`: each item's Reschedule history, oldest first;
  *  - `migrateRescheduleHistory(database, table, ...)`: the item table's history table;
  *  - `dateChangeKind` and `firstPlannedAt`: the rule, and the date first planned.
@@ -99,6 +101,32 @@ export async function setAgendaItemDate(
       now,
     ]);
   }
+  return true;
+}
+
+/**
+ * Puts an Agenda Item's date back as it was before a change now undone (« Annuler » on a Coach proposal, #718): `to`, set
+ * at `dateSetAt`. Undone within the hour after it was made, the change leaves no trace: the Reschedule it recorded goes
+ * with it and the date is as if never changed; later, the change back is a Reschedule of its own (`setAgendaItemDate`), the
+ * first one kept. Run it in the caller's transaction, once the item is known to be the Candidate's. False when there is no such item.
+ */
+export async function revertAgendaItemDate(
+  client: Queryable,
+  item: { table: AgendaItemTable; id: string },
+  { to, dateSetAt, by, now }: { to: Date; dateSetAt: Date | null; by: RescheduledBy; now: Date },
+): Promise<boolean> {
+  const { rows } = await client.query<{ scheduled_at: Date | null; date_set_at: Date | null }>(
+    `SELECT scheduled_at, date_set_at FROM ${item.table} WHERE id = $1 FOR UPDATE`,
+    [item.id],
+  );
+  const row = rows[0];
+  if (!row) return false;
+  if (row.scheduled_at?.getTime() === to.getTime()) return true;
+  const withinTheHour = row.date_set_at !== null && now.getTime() - row.date_set_at.getTime() <= CORRECTION_WINDOW_MS;
+  if (!withinTheHour) return setAgendaItemDate(client, item, { to, by, now });
+  const history = HISTORY[item.table];
+  await client.query(`DELETE FROM ${history.table} WHERE ${history.item} = $1 AND changed_at = $2 AND new_at = $3`, [item.id, row.date_set_at, row.scheduled_at]);
+  await client.query(`UPDATE ${item.table} SET scheduled_at = $2, date_set_at = $3 WHERE id = $1`, [item.id, to, dateSetAt]);
   return true;
 }
 

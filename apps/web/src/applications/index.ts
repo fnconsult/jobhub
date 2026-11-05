@@ -26,6 +26,11 @@
  *      was entered or last changed is a Reschedule, kept in the Interview's Reschedule
  *      history; a Cancelled Interview stays, with its date of cancellation; removing one
  *      (an entry made by mistake) leaves no trace.
+ *      An Interview added, edited or cancelled from a Coach proposal (#718, ADR-0077) names the version it was proposed
+ *      from (adding one: the Application Status's, `statusOf`; changing one: the Interview's, `interviewOf`): moved on
+ *      since, a `conflict`, nothing changed; the Interview keeps its Origin, hidden, until the Candidate changes it
+ *      themselves. « Annuler » puts it back as it was (`restoreInterview`, or `removeInterview` for one added), from the
+ *      version applying it left: a Reschedule undone within the hour leaves no trace, later it stays in the history.
  * Every read and change is scoped to the Candidate; inputs are untrusted (they
  * come from the browser) and problems come back as results, never exceptions.
  * Applications are deleted with the account (ADR-0010), their Job Offers are kept.
@@ -33,10 +38,10 @@
 import { APPLICATION_STATUSES, INTERVIEW_FORMATS, scoreMatch, type ApplicationStatus, type InterviewFormat, type JobOffer, type MatchScore } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
-import { inTransaction } from "../database/pool";
+import { inTransaction, type Queryable } from "../database/pool";
 import type { JobOffers } from "../job-offers";
 import type { Profiles } from "../profiles";
-import { migrateRescheduleHistory, rescheduleHistories, setAgendaItemDate, type Reschedule } from "../reschedules";
+import { migrateRescheduleHistory, rescheduleHistories, revertAgendaItemDate, setAgendaItemDate, type Reschedule } from "../reschedules";
 import { readOrigin, type Origin } from "../origin";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -58,6 +63,18 @@ export interface Interview {
   cancelledAt: Date | null;
   /** Its Reschedule history, oldest first: every date change made more than an hour after the date was set. */
   reschedules: Reschedule[];
+  /** Set while it is as a Coach proposal the Candidate applied left it (#718): its Origin, shown only on demand. */
+  origin?: Origin;
+}
+
+/**
+ * An Interview as a change applied from a Coach proposal sees it (#718): its version, which every change to it moves, and
+ * when its date was entered or last changed (the hour a Reschedule undone leaves no trace within).
+ */
+export interface InterviewState {
+  interview: Interview;
+  version: string;
+  dateSetAt: Date | null;
 }
 
 export interface Application {
@@ -128,8 +145,11 @@ export type ApplicationChangeResult =
   /** Its Application Status moved on from the version the change named (#715). */
   | { ok: false; error: "conflict" };
 
-/** Interviews are added only to an Application at "Entretien" (`interview`). */
-export type AddInterviewResult = ApplicationChangeResult | { ok: false; error: "not_in_interview" };
+/** Interviews are added only to an Application at "Entretien" (`interview`). `interviewId`: the Interview added. */
+export type AddInterviewResult =
+  | { ok: true; application: Application; interviewId: string }
+  | Exclude<ApplicationChangeResult, { ok: true }>
+  | { ok: false; error: "not_in_interview" };
 
 export interface Applications {
   /** Saves a Job Offer as an Application ("À postuler"). `input`: { jobOfferId, profileId }. */
@@ -153,22 +173,37 @@ export interface Applications {
    * format?, place?, moveToInterview? }. Refused ("not_in_interview") unless the Application is at
    * "Entretien", or `moveToInterview` is true: the Application is then moved to "Entretien" and the
    * Interview added together, or neither is saved.
+   * From a Coach proposal (#718): `options.version`, the Application Status's it was proposed from (a `conflict` once moved
+   * on); `options.origin`, kept on the Interview and on the status it moves.
    */
-  addInterview(candidateId: string, applicationId: string, input: unknown): Promise<AddInterviewResult>;
+  addInterview(candidateId: string, applicationId: string, input: unknown, options?: ApplicationChangeOptions): Promise<AddInterviewResult>;
+  /** The Interview, its version and when its date was set (#718); null when it is not one of the Candidate's Application's. */
+  interviewOf(candidateId: string, applicationId: string, interviewId: string): Promise<InterviewState | null>;
   /**
    * Edits one of the Application's Interviews, changing only the fields `input` names:
    * { scheduledAt?, note?, durationMinutes?, format?, place? }, read as `addInterview` reads them
    * (null, or "", clears the duration or the format). Allowed whatever
    * the Application Status, like removing one: Interviews are kept when it moves on.
+   * From a Coach proposal (#718): `options.version`, the Interview's (`interviewOf`), a `conflict` once moved on;
+   * `options.origin`, what it then keeps. The Candidate's own change keeps none.
    */
-  editInterview(candidateId: string, applicationId: string, interviewId: string, input: unknown): Promise<ApplicationChangeResult>;
+  editInterview(candidateId: string, applicationId: string, interviewId: string, input: unknown, options?: ApplicationChangeOptions): Promise<ApplicationChangeResult>;
   /**
    * Cancels one of the Application's Interviews: it stays, with the date it was cancelled (kept when
-   * cancelled again). Allowed whatever the Application Status.
+   * cancelled again). Allowed whatever the Application Status. `options` as for `editInterview`.
    */
-  cancelInterview(candidateId: string, applicationId: string, interviewId: string): Promise<ApplicationChangeResult>;
-  /** Removes one of the Application's Interviews, entered by mistake: it leaves no trace, its Reschedule history neither. */
-  removeInterview(candidateId: string, applicationId: string, interviewId: string): Promise<ApplicationChangeResult>;
+  cancelInterview(candidateId: string, applicationId: string, interviewId: string, options?: ApplicationChangeOptions): Promise<ApplicationChangeResult>;
+  /**
+   * Removes one of the Application's Interviews, entered by mistake: it leaves no trace, its Reschedule history neither.
+   * `options.version`: only as it was then (« Annuler » an Interview added from a Coach proposal, #718).
+   */
+  removeInterview(candidateId: string, applicationId: string, interviewId: string, options?: Pick<ApplicationChangeOptions, "version">): Promise<ApplicationChangeResult>;
+  /**
+   * « Annuler » a change applied from a Coach proposal (#718): puts the Interview back as `before` was (its date, fields,
+   * cancellation and Origin), from `options.version`, the one applying it left (a `conflict` once moved on). Its date put
+   * back within the hour after the change leaves no trace; later, the change back is a Reschedule too.
+   */
+  restoreInterview(candidateId: string, applicationId: string, interviewId: string, before: InterviewState, options: { version: string }): Promise<ApplicationChangeResult>;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -311,6 +346,29 @@ const interviewEditSchema = z.object({
 const INTERVIEW_COLUMNS = { note: "note", durationMinutes: "duration_minutes", format: "format", place: "place" } as const;
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
+const CONFLICT = { ok: false, error: "conflict" } as const;
+
+/** An `interview` row as read. */
+interface InterviewRow {
+  id: string;
+  application_id: string;
+  scheduled_at: Date;
+  note: string;
+  duration_minutes: number | null;
+  format: InterviewFormat | null;
+  place: string;
+  cancelled_at: Date | null;
+  date_set_at: Date | null;
+  origin: unknown;
+}
+const INTERVIEW_COLUMNS_READ = "id, application_id, scheduled_at, note, duration_minutes, format, place, cancelled_at, date_set_at, origin";
+
+/** An Interview's version (#718): what it says, its date, fields and cancellation, so any change to it moves it. */
+const interviewVersion = (row: InterviewRow) =>
+  JSON.stringify([row.scheduled_at.toISOString(), row.note, row.duration_minutes, row.format, row.place, row.cancelled_at?.toISOString() ?? null]);
+
+/** The Origin a change stores: a Coach proposal's, or none (the Candidate's own). */
+const originJson = (options: ApplicationChangeOptions) => (options.origin ? JSON.stringify(options.origin) : null);
 const found = (application: Application | null): ApplicationChangeResult => (application ? { ok: true, application } : NOT_FOUND);
 
 interface ApplicationRow {
@@ -343,18 +401,8 @@ export function createApplications(
 ): Applications {
   /** The Interviews of each Application, oldest first. */
   async function interviewsOf(applicationIds: string[]): Promise<Map<string, Interview[]>> {
-    const { rows } = await database.query<{
-      id: string;
-      application_id: string;
-      scheduled_at: Date;
-      note: string;
-      duration_minutes: number | null;
-      format: InterviewFormat | null;
-      place: string;
-      cancelled_at: Date | null;
-    }>(
-      `SELECT id, application_id, scheduled_at, note, duration_minutes, format, place, cancelled_at
-         FROM interview WHERE application_id = ANY($1) ORDER BY scheduled_at, created_at`,
+    const { rows } = await database.query<InterviewRow>(
+      `SELECT ${INTERVIEW_COLUMNS_READ} FROM interview WHERE application_id = ANY($1) ORDER BY scheduled_at, created_at`,
       [applicationIds],
     );
     const histories = await rescheduleHistories(
@@ -363,18 +411,57 @@ export function createApplications(
       rows.map((row) => row.id),
     );
     const byApplication = new Map(applicationIds.map((applicationId) => [applicationId, [] as Interview[]]));
-    for (const row of rows)
-      byApplication.get(row.application_id)!.push({
-        id: row.id,
-        scheduledAt: row.scheduled_at,
-        note: row.note,
-        durationMinutes: row.duration_minutes,
-        format: row.format,
-        place: row.place,
-        cancelledAt: row.cancelled_at,
-        reschedules: histories.get(row.id)!,
-      });
+    for (const row of rows) byApplication.get(row.application_id)!.push(interviewFrom(row, histories.get(row.id)!));
     return byApplication;
+  }
+
+  function interviewFrom(row: InterviewRow, reschedules: Reschedule[]): Interview {
+    const interview: Interview = {
+      id: row.id,
+      scheduledAt: row.scheduled_at,
+      note: row.note,
+      durationMinutes: row.duration_minutes,
+      format: row.format,
+      place: row.place,
+      cancelledAt: row.cancelled_at,
+      reschedules,
+    };
+    const origin = readOrigin(row.origin);
+    if (origin) interview.origin = origin;
+    return interview;
+  }
+
+  /** The Candidate's Interview's row, locked for the caller's transaction; null when it is not theirs. */
+  async function lockedInterview(client: Queryable, candidateId: string, applicationId: string, interviewId: string): Promise<InterviewRow | null> {
+    if (!UUID.test(applicationId) || !UUID.test(interviewId)) return null;
+    const { rows } = await client.query<InterviewRow>(
+      `SELECT ${INTERVIEW_COLUMNS_READ.split(", ").map((column) => `i.${column}`).join(", ")}
+         FROM interview i JOIN application a ON a.id = i.application_id
+        WHERE i.id = $1 AND a.id = $2 AND a.candidate_id = $3 FOR UPDATE OF i`,
+      [interviewId, applicationId, candidateId],
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
+   * Runs `change` on the Candidate's Interview in one transaction, from `version` when one is named: not theirs, `not_found`;
+   * moved on from it, a `conflict`, nothing changed.
+   */
+  async function changeInterview(
+    candidateId: string,
+    applicationId: string,
+    interviewId: string,
+    version: string | undefined,
+    change: (client: Queryable, row: InterviewRow) => Promise<void>,
+  ): Promise<ApplicationChangeResult> {
+    const outcome = await inTransaction(database, async (client) => {
+      const row = await lockedInterview(client, candidateId, applicationId, interviewId);
+      if (!row) return NOT_FOUND;
+      if (version !== undefined && interviewVersion(row) !== version) return CONFLICT;
+      await change(client, row);
+      return null;
+    });
+    return outcome ?? found(await get(candidateId, applicationId));
   }
 
   async function applicationFrom(candidateId: string, row: ApplicationRow): Promise<Application> {
@@ -541,84 +628,90 @@ export function createApplications(
       return found(await get(candidateId, applicationId));
     },
 
-    async addInterview(candidateId, applicationId, input) {
+    async addInterview(candidateId, applicationId, input, options = {}) {
       const parsed = interviewSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!UUID.test(applicationId)) return NOT_FOUND;
-      const { rows } = await database.query<{ status: ApplicationStatus }>(
-        `SELECT status FROM application WHERE id = $1 AND candidate_id = $2`,
-        [applicationId, candidateId],
-      );
-      if (!rows[0]) return NOT_FOUND;
       const { scheduledAt, note, durationMinutes, format, place, moveToInterview } = parsed.data;
-      if (rows[0].status !== "interview" && !moveToInterview) return { ok: false, error: "not_in_interview" };
       // Moved to "Entretien" and the Interview added together, or neither.
-      const client = await database.connect();
-      try {
-        await client.query("BEGIN");
-        await client.query(
-          `UPDATE application SET status = 'interview', status_changed_at = now(), status_origin = NULL WHERE id = $1 AND candidate_id = $2 AND status <> 'interview'`,
+      const added = await inTransaction(database, async (client): Promise<Exclude<AddInterviewResult, { ok: true }> | { interviewId: string }> => {
+        const { rows } = await client.query<{ status: ApplicationStatus; version: string }>(
+          `SELECT status, ${STATUS_VERSION} AS version FROM application WHERE id = $1 AND candidate_id = $2 FOR UPDATE`,
           [applicationId, candidateId],
         );
+        if (!rows[0]) return NOT_FOUND;
+        // From a Coach proposal (#718): only from the status it was proposed from.
+        if (options.version !== undefined && rows[0].version !== options.version) return CONFLICT;
+        if (rows[0].status !== "interview" && !moveToInterview) return { ok: false, error: "not_in_interview" };
         await client.query(
-          `INSERT INTO interview (application_id, scheduled_at, date_set_at, note, duration_minutes, format, place) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [applicationId, scheduledAt, now(), note, durationMinutes, format, place],
+          `UPDATE application SET status = 'interview', status_changed_at = now(), status_origin = $3 WHERE id = $1 AND candidate_id = $2 AND status <> 'interview'`,
+          [applicationId, candidateId, originJson(options)],
         );
-        await client.query("COMMIT");
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
-      return found(await get(candidateId, applicationId));
-    },
-
-    async editInterview(candidateId, applicationId, interviewId, input) {
-      const parsed = interviewEditSchema.safeParse(input, { reportInput: true });
-      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
-      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
-      const { scheduledAt } = parsed.data;
-      const changes = (Object.keys(INTERVIEW_COLUMNS) as (keyof typeof INTERVIEW_COLUMNS)[]).filter((field) => parsed.data[field] !== undefined);
-      // Nothing named still checks the Interview is theirs.
-      const set = changes.length > 0 ? changes.map((field, index) => `${INTERVIEW_COLUMNS[field]} = $${index + 4}`).join(", ") : "id = i.id";
-      const edited = await inTransaction(database, async (client) => {
-        const { rowCount } = await client.query(
-          `UPDATE interview i SET ${set}
-             FROM application a
-            WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
-          [interviewId, applicationId, candidateId, ...changes.map((field) => parsed.data[field])],
+        const inserted = await client.query<{ id: string }>(
+          `INSERT INTO interview (application_id, scheduled_at, date_set_at, note, duration_minutes, format, place, origin) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+          [applicationId, scheduledAt, now(), note, durationMinutes, format, place, originJson(options)],
         );
-        if (rowCount === 0) return false;
-        if (scheduledAt !== undefined) await setAgendaItemDate(client, { table: "interview", id: interviewId }, { to: scheduledAt, by: "candidate", now: now() });
-        return true;
+        return { interviewId: inserted.rows[0]!.id };
       });
-      if (!edited) return NOT_FOUND;
-      return found(await get(candidateId, applicationId));
+      if (!("interviewId" in added)) return added;
+      const application = await get(candidateId, applicationId);
+      return application ? { ok: true, application, interviewId: added.interviewId } : NOT_FOUND;
     },
 
-    async cancelInterview(candidateId, applicationId, interviewId) {
-      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
-      // Cancelled again, it keeps the date it was first cancelled.
-      const { rowCount } = await database.query(
-        `UPDATE interview i SET cancelled_at = COALESCE(i.cancelled_at, $4)
-           FROM application a
-          WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
-        [interviewId, applicationId, candidateId, now()],
-      );
-      if (rowCount === 0) return NOT_FOUND;
-      return found(await get(candidateId, applicationId));
-    },
-
-    async removeInterview(candidateId, applicationId, interviewId) {
-      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
-      const { rowCount } = await database.query(
-        `DELETE FROM interview i USING application a
-          WHERE i.id = $1 AND i.application_id = a.id AND a.id = $2 AND a.candidate_id = $3`,
+    async interviewOf(candidateId, applicationId, interviewId) {
+      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return null;
+      const { rows } = await database.query<InterviewRow>(
+        `SELECT ${INTERVIEW_COLUMNS_READ.split(", ").map((column) => `i.${column}`).join(", ")}
+           FROM interview i JOIN application a ON a.id = i.application_id
+          WHERE i.id = $1 AND a.id = $2 AND a.candidate_id = $3`,
         [interviewId, applicationId, candidateId],
       );
-      if (rowCount === 0) return NOT_FOUND;
-      return found(await get(candidateId, applicationId));
+      const row = rows[0];
+      if (!row) return null;
+      const histories = await rescheduleHistories(database, "interview", [row.id]);
+      return { interview: interviewFrom(row, histories.get(row.id)!), version: interviewVersion(row), dateSetAt: row.date_set_at };
+    },
+
+    async editInterview(candidateId, applicationId, interviewId, input, options = {}) {
+      const parsed = interviewEditSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const { scheduledAt } = parsed.data;
+      const changes = (Object.keys(INTERVIEW_COLUMNS) as (keyof typeof INTERVIEW_COLUMNS)[]).filter((field) => parsed.data[field] !== undefined);
+      // The Origin goes with every change: a Coach proposal's, or none for the Candidate's own.
+      const set = [...changes.map((field, index) => `${INTERVIEW_COLUMNS[field]} = $${index + 3}`), `origin = $2`].join(", ");
+      return changeInterview(candidateId, applicationId, interviewId, options.version, async (client) => {
+        await client.query(`UPDATE interview SET ${set} WHERE id = $1`, [interviewId, originJson(options), ...changes.map((field) => parsed.data[field])]);
+        if (scheduledAt !== undefined) await setAgendaItemDate(client, { table: "interview", id: interviewId }, { to: scheduledAt, by: "candidate", now: now() });
+      });
+    },
+
+    async cancelInterview(candidateId, applicationId, interviewId, options = {}) {
+      // Cancelled again, it keeps the date it was first cancelled.
+      return changeInterview(candidateId, applicationId, interviewId, options.version, async (client) => {
+        await client.query(`UPDATE interview SET cancelled_at = COALESCE(cancelled_at, $2), origin = $3 WHERE id = $1`, [interviewId, now(), originJson(options)]);
+      });
+    },
+
+    async removeInterview(candidateId, applicationId, interviewId, options = {}) {
+      return changeInterview(candidateId, applicationId, interviewId, options.version, async (client) => {
+        await client.query(`DELETE FROM interview WHERE id = $1`, [interviewId]);
+      });
+    },
+
+    async restoreInterview(candidateId, applicationId, interviewId, before, { version }) {
+      const { interview } = before;
+      return changeInterview(candidateId, applicationId, interviewId, version, async (client) => {
+        await client.query(`UPDATE interview SET note = $2, duration_minutes = $3, format = $4, place = $5, cancelled_at = $6, origin = $7 WHERE id = $1`, [
+          interviewId,
+          interview.note,
+          interview.durationMinutes,
+          interview.format,
+          interview.place,
+          interview.cancelledAt,
+          interview.origin ? JSON.stringify(interview.origin) : null,
+        ]);
+        await revertAgendaItemDate(client, { table: "interview", id: interviewId }, { to: interview.scheduledAt, dateSetAt: before.dateSetAt, by: "candidate", now: now() });
+      });
     },
   };
 }
@@ -656,6 +749,9 @@ export async function migrateApplications(database: Pool): Promise<void> {
     -- Where the Application Status came from (#715): { origin: "coach_proposal", cardId, appliedAt } while a Coach
     -- proposal the Candidate applied gave it; null once they change it themselves.
     ALTER TABLE application ADD COLUMN IF NOT EXISTS status_origin jsonb;
+    -- Where an Interview's state came from (#718): { origin: "coach_proposal", cardId, appliedAt } while it is as a Coach
+    -- proposal the Candidate applied left it (added, Rescheduled, cancelled); null once they change it themselves.
+    ALTER TABLE interview ADD COLUMN IF NOT EXISTS origin jsonb;
   `);
   await migrateRescheduleHistory(database, "interview", { enteredAt: "created_at" });
 }

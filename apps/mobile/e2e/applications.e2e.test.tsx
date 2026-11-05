@@ -201,3 +201,56 @@ describe("An Application's page", () => {
     expect(await screen.findByText(/Cette candidature est introuvable/)).toBeOnTheScreen();
   });
 });
+
+/** The network goes, or comes back, as expo-network reports it. */
+const setNetwork = (connected: boolean) =>
+  act(() => {
+    mockNetwork.connected = connected;
+    for (const listener of mockNetwork.listeners) listener({ isConnected: connected });
+  });
+
+describe("An Application's status, changed from its Fiche", () => {
+  it("saves the status chosen with the web's route, says so, and Mes candidatures shows it", async () => {
+    await openFiche();
+    const user = userEvent.setup();
+    await user.press(button("Statut : Postulée"));
+    await user.press(screen.getByRole("radio", { name: "Entretien" }));
+
+    expect(await screen.findByText("Statut enregistré")).toBeOnTheScreen();
+    expect(web.writes).toEqual([{ method: "PATCH", path: "/api/applications/app_aeroline", body: { status: "interview" } }]);
+    expect(button("Statut : Entretien")).toBeOnTheScreen();
+    expect(web.application("app_aeroline").status).toBe("interview");
+
+    await user.press(button("Fermer"));
+    await user.press(screen.getByRole("link", { name: "Responsable qualité" }));
+    expect(await screen.findByText("Entretien · Score de correspondance 82 · Relance prête")).toBeOnTheScreen();
+  });
+
+  it("offers every Application Status, as the web does, the current one checked", async () => {
+    await openFiche();
+    await userEvent.setup().press(button("Statut : Postulée"));
+    const choices = screen.getAllByRole("radio");
+    expect(choices.map((choice) => choice.props.accessibilityLabel)).toEqual(["À postuler", "Postulée", "Relancée", "Entretien", "Offre reçue", "Acceptée", "Refusée", "Abandonnée"]);
+    expect(screen.getByRole("radio", { name: "Postulée", checked: true })).toBeOnTheScreen();
+  });
+
+  it("says when the web app could not save it, and keeps the status it has", async () => {
+    await openFiche();
+    web.failNextWrite = 500;
+    const user = userEvent.setup();
+    await user.press(button("Statut : Postulée"));
+    await user.press(screen.getByRole("radio", { name: "Refusée" }));
+
+    expect(await screen.findByText("L'enregistrement a échoué. Vérifiez votre connexion et réessayez.")).toBeOnTheScreen();
+    expect(button("Statut : Postulée")).toBeOnTheScreen();
+    expect(web.application("app_aeroline").status).toBe("applied");
+  });
+
+  it("changes nothing without network: it says so at once and sends nothing", async () => {
+    await openFiche();
+    await setNetwork(false);
+    expect(await screen.findByText("Hors ligne : rien ne s'enregistre avant le retour du réseau.")).toBeOnTheScreen();
+    expect(button("Statut : Postulée")).toBeDisabled();
+    expect(web.writes).toEqual([]);
+  });
+});

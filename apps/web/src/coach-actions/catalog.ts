@@ -1,23 +1,31 @@
 /**
  * The Coach Actions shipped (ADR-0077), group by group as each ticket delivers them, each one built on the domain module
- * its page's route calls, with its Eval Cases: the reads of every group (#714) and the Agenda's proposals (#718) so far.
- * The other groups' proposals arrive with their tickets (Candidatures, Profil, Recherches d'offres et Job Digests, Documents).
+ * its page's route calls, with its Eval Cases: the reads of every group (#714), the Agenda's proposals (#718) and the
+ * Candidatures proposals (#716) so far. The other groups' proposals arrive with their tickets (Profil, Recherches d'offres
+ * et Job Digests, Documents).
  *
- *   shippedCoachActions(candidateObjects(sources), { applications })   // the app's, over the Candidate's objects
- *   shippedCoachActions(NO_OBJECTS)                                     // on no one's data: every read and proposal finds nothing
+ *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
+ *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
  */
 import type { ApplicationChangeResult } from "../applications";
 import { agendaCoachActions, type AgendaApplications } from "./agenda";
+import { applicationCoachActions, type ApplicationActionSources } from "./applications";
 import { coachActionCatalog, type CoachAction } from "./index";
 import { readCoachActions, type CoachObjectReader } from "./reads";
 
-/** The domain modules the proposing Coach Actions apply through. */
-export interface CoachActionWrites {
-  applications: AgendaApplications;
-}
+/** The domain modules the proposals go through; a Job Offer's reach is the reads' (`objects`). */
+export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | "reachesJobOffer"> & {
+  applications: AgendaApplications & ApplicationActionSources["applications"];
+};
 
-export function shippedCoachActions(objects: CoachObjectReader, writes: CoachActionWrites = NO_WRITES): readonly CoachAction[] {
-  return coachActionCatalog([...readCoachActions(objects), ...agendaCoachActions(writes.applications)]);
+export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
+  // A Job Offer out of view is within reach when a read finds it: one of the Candidate's objects shows it.
+  const reachesJobOffer = async (candidateId: string, jobOfferId: string) => (await objects.read(candidateId, "job_offer", jobOfferId, 100)) !== null;
+  return coachActionCatalog([
+    ...readCoachActions(objects),
+    ...agendaCoachActions(domain.applications),
+    ...applicationCoachActions({ ...domain, reachesJobOffer }),
+  ]);
 }
 
 /** No one's objects: the index is empty and every read is not_found (an Eval Run's default, the guard tests). */
@@ -25,18 +33,24 @@ export const NO_OBJECTS: CoachObjectReader = { index: async () => [], read: asyn
 
 const NOT_FOUND: ApplicationChangeResult = { ok: false, error: "not_found" };
 
-/** No one's Applications: every proposal finds nothing to change (an Eval Run never runs one, the guard tests). */
-export const NO_WRITES: CoachActionWrites = {
+/** No one's domain: every proposal finds nothing to propose on (an Eval Run never runs one, the guard tests). */
+export const NO_DOMAIN: CoachActionDomain = {
   applications: {
-    list: async () => [],
+    save: async () => ({ ok: false, error: "not_found" }),
     get: async () => null,
+    list: async () => [],
     statusOf: async () => null,
+    profileOf: async () => null,
     interviewOf: async () => null,
     change: async () => NOT_FOUND,
+    removeIntact: async () => ({ ok: false, error: "not_found" }),
     addInterview: async () => NOT_FOUND,
     editInterview: async () => NOT_FOUND,
     cancelInterview: async () => NOT_FOUND,
     removeInterview: async () => NOT_FOUND,
     restoreInterview: async () => NOT_FOUND,
   },
+  profiles: { list: async () => [] },
+  jobOffers: { get: async () => null },
+  followUps: { sentOf: async () => null, markSent: async () => ({ ok: false, error: "not_found" }), unmarkSent: async () => ({ ok: false, error: "not_found" }) },
 };

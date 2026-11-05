@@ -13,19 +13,25 @@ const root = path.resolve(import.meta.dirname, "../..");
 const run = promisify(execFile);
 
 type Suite = { title: string; file: string; specs?: Spec[]; suites?: Suite[] };
-type Spec = { title: string; file: string; line: number; tests: { projectName: string }[] };
+type Spec = { title: string; file: string; tests: { projectName: string }[] };
 
-/** Every test `playwright test --list <args>` would run, as « project › file:line › titles ». */
-async function listed(args: string[]): Promise<Set<string>> {
+/**
+ * Every test `playwright test --list <args>` would run, as « project › file › titles », with how many tests have that
+ * name. No line numbers: with a cold transform cache, listings started side by side may map a test to another line.
+ */
+async function listed(args: string[]): Promise<Map<string, number>> {
   const { stdout } = await run(path.join(root, "node_modules/.bin/playwright"), ["test", "--list", "--reporter=json", ...args], {
     cwd: root,
     maxBuffer: 64 * 1024 * 1024,
   });
-  const ids = new Set<string>();
+  const ids = new Map<string, number>();
   const walk = (suite: Suite, titles: string[]) => {
     const inside = suite.title && suite.title !== suite.file ? [...titles, suite.title] : titles;
     for (const spec of suite.specs ?? []) {
-      for (const test of spec.tests) ids.add(`${test.projectName} › ${spec.file}:${spec.line} › ${[...inside, spec.title].join(" › ")}`);
+      for (const test of spec.tests) {
+        const id = `${test.projectName} › ${spec.file} › ${[...inside, spec.title].join(" › ")}`;
+        ids.set(id, (ids.get(id) ?? 0) + 1);
+      }
     }
     for (const child of suite.suites ?? []) walk(child, inside);
   };
@@ -63,15 +69,17 @@ describe("CI's e2e shards", () => {
     expect(others.slice(0, 2)).toEqual(["--project=plan-quotas --no-deps", "--project=plan-coach-context --no-deps"]);
   });
 
-  it("together run every test of the suite, each command some", { timeout: 180_000 }, async () => {
+  it("together run every test of the suite once, each command some", { timeout: 180_000 }, async () => {
     const [all, ...parts] = await Promise.all([listed([]), ...commands.map((command) => listed(command.args))]);
-    const union = new Set<string>();
+    const sharded = new Map<string, number>();
     parts.forEach((part, index) => {
       expect(part.size, commands[index].args.join(" ")).toBeGreaterThan(0);
-      for (const id of part) union.add(id);
+      for (const [id, count] of part) sharded.set(id, (sharded.get(id) ?? 0) + count);
     });
-    expect([...all].filter((id) => !union.has(id))).toEqual([]);
-    expect([...union].filter((id) => !all.has(id))).toEqual([]);
+    const differing = [...new Set([...all.keys(), ...sharded.keys()])]
+      .filter((id) => all.get(id) !== sharded.get(id))
+      .map((id) => `${id}: ${all.get(id) ?? 0} in the suite, ${sharded.get(id) ?? 0} in the shards`);
+    expect(differing).toEqual([]);
     expect(all.size).toBeGreaterThan(1000);
   });
 
@@ -80,7 +88,7 @@ describe("CI's e2e shards", () => {
     expect(plans).toHaveLength(2);
     for (const command of plans) {
       expect(command.args).toContain("--no-deps");
-      expect([...(await listed(command.args))].every((id) => /^plan-(quotas|coach-context) › /.test(id))).toBe(true);
+      expect([...(await listed(command.args)).keys()].every((id) => /^plan-(quotas|coach-context) › /.test(id))).toBe(true);
     }
   });
 });

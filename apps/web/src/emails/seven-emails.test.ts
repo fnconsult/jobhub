@@ -12,8 +12,8 @@ const greeting: Record<Locale, string> = { fr: "Bonjour,", en: "Hello," };
 /** What each email must say, in both parts, per language: facts from its sample, and its links. */
 const facts: Record<EmailName, Record<Locale, string[]>> = {
   signIn: {
-    fr: ["https://app.jobbbox.fr/api/auth/magic-link/verify?token=abc", "15 minutes", "Me connecter à Jobbbox"],
-    en: ["https://app.jobbbox.fr/api/auth/magic-link/verify?token=abc", "15 minutes", "Sign in to Jobbbox"],
+    fr: ["https://app.jobbbox.fr/api/auth/magic-link/verify?token=abc", "15 minutes", "Me connecter à Jobbbox", "saisissez ce code dans l'app ou sur la page de connexion : 428193"],
+    en: ["https://app.jobbbox.fr/api/auth/magic-link/verify?token=abc", "15 minutes", "Sign in to Jobbbox", "enter this code in the app or on the sign-in page: 428193"],
   },
   jobDigest: {
     fr: [

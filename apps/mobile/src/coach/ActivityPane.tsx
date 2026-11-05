@@ -35,9 +35,9 @@ function ContextBar() {
   const percent = Math.round(bar.share * 100);
   const figures = t("contextBar.figures", {
     messages: bar.messages,
-    maxMessages: bar.maxMessages,
+    maxMessages: bar.maxMessages ?? t("contextBar.unlimited"),
     tokens: formatTokens(bar.tokens, language),
-    maxTokens: formatTokens(bar.maxTokens, language),
+    maxTokens: bar.maxTokens === null ? t("contextBar.unlimited") : formatTokens(bar.maxTokens, language),
   });
   return (
     <View style={{ gap: space[2] }}>

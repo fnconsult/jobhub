@@ -190,6 +190,11 @@ export interface CallFacts {
   /** ok, or warning when the feature it served ran degraded (its warnings, or a reply it could not use). */
   outcome: Exclude<Outcome, "failed">;
   /**
+   * The id it is recorded under in AI Usage (`UsageEntry.id`), for what it served to link to its provider's counts (#731);
+   * with tools, the last turn's (the one that answered). Absent where no call of the AI layer made it.
+   */
+  callId?: string;
+  /**
    * What AI Usage recorded it cost, in €: its tokens and the fees of its billed units (a search call, a credit), each
    * at the price in use when it was made; a unit whose price is not known counts 0 (#403). What a run's budget spends.
    */
@@ -636,14 +641,16 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    * Records one call's usage without waiting for it: a usage log that throws, rejects or is slow
    * never fails nor delays the call. Its failure is only warned about.
    */
-  const log = (entry: Omit<UsageEntry, "at">) => {
+  const log = (entry: Omit<UsageEntry, "at" | "id">): string => {
+    const id = globalThis.crypto.randomUUID();
     const failed = (error: unknown) =>
       warn("AI usage not recorded", { task: entry.task, provider: entry.provider, error: error instanceof Error ? error.message : String(error) });
     try {
-      void Promise.resolve(options.usage.record({ ...entry, at: now() })).catch(failed);
+      void Promise.resolve(options.usage.record({ id, ...entry, at: now() })).catch(failed);
     } catch (error) {
       failed(error);
     }
+    return id;
   };
 
   /**
@@ -706,7 +713,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const outcome = warnings[0] ? "warning" : "ok";
     const tokensEur = costInEur({ ...priced, usage: output.usage }, prices);
     const tools = called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool, prices) }));
-    log({
+    const callId = log({
       ...base,
       model: output.model,
       ...output.usage,
@@ -718,7 +725,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       transcript: { ...said, reply: replyOf(output) },
     });
     const costEur = tools.reduce((sum, tool) => sum + (tool.costEur ?? 0), tokensEur);
-    return { output, endpoint: provider.endpoint, durationMs, outcome, costEur };
+    return { output, endpoint: provider.endpoint, durationMs, outcome, costEur, callId };
   }
 
   /** The warning of an `output` its feature cannot use (`CallNotes.unusable`), or null; a check that throws refuses it. */
@@ -1006,6 +1013,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           durationMs: turns.reduce((total, each) => total + each.durationMs, 0),
           outcome: turns.some((each) => each.outcome === "warning") ? "warning" : "ok",
           costEur: turns.reduce((total, each) => total + each.costEur, 0),
+          ...(turn.facts.callId ? { callId: turn.facts.callId } : {}),
           ...(identity ? { euAiConsent: true as const } : {}),
           ...(tools ? { tools: { supported, rounds, runs }, turns: turns.map(({ provider, model, usage }) => ({ provider, model, usage })) } : {}),
         };

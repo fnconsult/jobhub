@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
+import { coachActionsOn } from "@/coach-actions/on";
 import { getCoachMemory } from "@/coach-memory/server";
 
 const STATUS = { not_found: 404, unavailable: 503 } as const;
@@ -7,12 +8,15 @@ const STATUS = { not_found: 404, unavailable: 503 } as const;
 /**
  * What the AI Coach proposes to remember from one of the Candidate's Coach Conversations. Saves nothing:
  * the Candidate confirms each proposal (POST /api/coach/memory). Body: { conversationId }.
- * 200 { proposals: [{ kind, text }] } · 401 · 403 · 404 { error: "not_found" } · 503 { error: "unavailable" }
+ * While Coach Actions are on, the AI Coach proposes what to remember in its replies instead (`propose_coach_memory`, #719):
+ * 409 { error: "coach_actions" }.
+ * 200 { proposals: [{ kind, text }] } · 401 · 403 · 404 { error: "not_found" } · 409 { error: "coach_actions" } · 503 { error: "unavailable" }
  */
 export async function POST(request: Request) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (coachActionsOn()) return NextResponse.json({ error: "coach_actions" }, { status: 409 });
   const body = await request.json().catch(() => undefined);
   const conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
   const result = await getCoachMemory().propose(candidate.id, conversationId);

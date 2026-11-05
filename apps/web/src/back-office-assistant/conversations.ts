@@ -36,6 +36,7 @@ import { explainedSchema } from "./explained";
 import type { BackOfficeResource } from "../admin/access";
 import type { GuardrailLanguage } from "../guardrails";
 import type { AskingAdministrator, BackOfficeAssistant } from "./index";
+import { utcBefore } from "../database/before";
 
 export interface AssistantConversationSummary {
   id: string;
@@ -270,7 +271,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
  */
 export async function purgeStaleAssistantConversations(database: Pick<Pool, "query">, now: Date): Promise<number> {
   const { rowCount } = await database.query(
-    `DELETE FROM back_office_assistant_conversation WHERE last_message_at <= $1::timestamptz - make_interval(months => $2)`,
+    `DELETE FROM back_office_assistant_conversation WHERE last_message_at <= ${utcBefore("$1", "make_interval(months => $2)")}`,
     [now, RETENTION_MONTHS],
   );
   return rowCount ?? 0;

@@ -23,3 +23,4 @@ export * from "./france-travail";
 export * from "./api-version";
 export * from "./native-app";
 export * from "./context-bar";
+export * from "./sign-in-code";

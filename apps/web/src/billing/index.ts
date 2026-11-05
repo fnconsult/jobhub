@@ -16,7 +16,7 @@
  *    (the signed webhook reports each refund's fate through `onRefundChanged`)
  *  - who pays for a Plan?         `subscribersOf`
  *  - which Plans are there?       `plans`, and in the Back Office `createPlan`, `updatePlan`, `movePlan`
- *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office), `upgradeFor`
+ *  - what do the Plans allow?     `planQuotas`, `coachContextLimits` (ADR-0078), `setPlanQuotas` (back office), `upgradeFor`
  *  - what do the Plans cost?      `planPrices`
  * and `migrateBilling(database)` to create / upgrade its tables. Stripe, the
  * tables and week boundaries stay behind this seam.
@@ -25,12 +25,15 @@
  * tied to one Stripe product, and every price of that product is the Plan's.
  */
 import {
+  DEFAULT_COACH_CONTEXT_LIMITS,
   FREE_PLAN,
   JOB_DIGEST_FREQUENCIES,
   LIMITED_QUOTAS,
   WEEKLY_QUOTAS,
+  type CoachContextLimits,
   type LimitedQuota,
   type Plan,
+  type PlanLimits,
   type PlanFeature,
   type PlanQuotas,
   type WeeklyQuota,
@@ -286,6 +289,14 @@ export async function migrateBilling(database: Pool): Promise<void> {
       charged boolean NOT NULL DEFAULT false,
       ends_at timestamptz
     );
+    -- The Coach context limits of a Plan (ADR-0078, #731), beside its Plan Quotas: a Plan without a row has
+    -- DEFAULT_COACH_CONTEXT_LIMITS; a null limit is unlimited. The AI Coach reads at least the Candidate's message.
+    CREATE TABLE IF NOT EXISTS plan_coach_context (
+      plan text PRIMARY KEY REFERENCES plan (key),
+      coach_context_messages integer CHECK (coach_context_messages >= 1),
+      coach_context_tokens integer CHECK (coach_context_tokens >= 0),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
     CREATE TABLE IF NOT EXISTS quota_usage (
       candidate_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,
       quota text NOT NULL,
@@ -371,6 +382,16 @@ export async function migrateBilling(database: Pool): Promise<void> {
 }
 
 type QuotaRow = Record<(typeof COLUMNS)[keyof PlanQuotas], unknown>;
+
+type CoachContextRow = { coach_context_messages: number | null; coach_context_tokens: number | null };
+
+/** A Plan's Coach context limits from its `plan_coach_context` row: DEFAULT_COACH_CONTEXT_LIMITS when it has none (ADR-0078). */
+function coachContextFromRow(row: CoachContextRow | undefined): CoachContextLimits {
+  return row ? { coachContextMessages: row.coach_context_messages, coachContextTokens: row.coach_context_tokens } : { ...DEFAULT_COACH_CONTEXT_LIMITS };
+}
+
+/** Whether a change of a Plan's quotas sets its Coach context limits too: it names at least one. */
+const setsCoachContext = (quotas: Partial<CoachContextLimits>) => quotas.coachContextMessages !== undefined || quotas.coachContextTokens !== undefined;
 
 const QUOTA_COLUMNS = Object.values(COLUMNS).join(", ");
 
@@ -1015,6 +1036,12 @@ export function createBilling(config: BillingConfig) {
     return (await findPlan(database, await planOf(candidateId)))?.features.includes(feature) ?? false;
   }
 
+  /** One Plan's Coach context limits, its row locked with `lock` until `within`'s transaction ends. */
+  async function coachContextOf(plan: Plan, within: Queryable = database, lock = false): Promise<CoachContextLimits> {
+    const { rows } = await within.query<CoachContextRow>(`SELECT coach_context_messages, coach_context_tokens FROM plan_coach_context WHERE plan = $1${lock ? " FOR UPDATE" : ""}`, [plan]);
+    return coachContextFromRow(rows[0]);
+  }
+
   /** Every Plan's quotas, lowest rank first. */
   async function allPlanQuotas(): Promise<Record<Plan, PlanQuotas>> {
     const { rows } = await database.query("SELECT q.* FROM plan_quota q JOIN plan p ON p.key = q.plan ORDER BY p.rank");
@@ -1652,6 +1679,15 @@ export function createBilling(config: BillingConfig) {
     /** Every Plan's quotas, lowest rank first. */
     planQuotas: allPlanQuotas,
 
+    /** Every Plan's Coach context limits (ADR-0078), lowest rank first: DEFAULT_COACH_CONTEXT_LIMITS for a Plan with none stored. */
+    async coachContextLimits(): Promise<Record<Plan, CoachContextLimits>> {
+      const { rows } = await database.query<{ plan: Plan; stored: CoachContextRow | null }>(
+        `SELECT q.plan, CASE WHEN c.plan IS NULL THEN NULL ELSE to_jsonb(c) END AS stored
+           FROM plan_quota q JOIN plan p ON p.key = q.plan LEFT JOIN plan_coach_context c ON c.plan = q.plan ORDER BY p.rank`,
+      );
+      return Object.fromEntries(rows.map((row) => [row.plan, coachContextFromRow(row.stored ?? undefined)]));
+    },
+
     /**
      * Creates a Coupon (Back Office) from untrusted `input` (see coupons.ts `newCouponInput`): a Stripe
      * coupon on the eligible Plans' products, and its promotion code. Calls Stripe only, briefly: run it
@@ -1750,11 +1786,12 @@ export function createBilling(config: BillingConfig) {
     },
 
     /**
-     * Replaces one Plan's quotas (Back Office) and returns the ones it replaced; null for an unknown
+     * Replaces one Plan's quotas (Back Office), and its Coach context limits when `quotas` names them (ADR-0078; one left
+     * out keeps its value), and returns the ones it replaced, its Coach context limits included; null for an unknown
      * Plan. Applies at once to every Candidate on that Plan: a reduction on a paid Plan is scheduled
      * first, by the Quota Reductions module (#514), which calls this on its effective date. `within` runs it in the caller's transaction.
      */
-    async setPlanQuotas(plan: Plan, quotas: PlanQuotas, within: Queryable = database): Promise<PlanQuotas | null> {
+    async setPlanQuotas(plan: Plan, quotas: PlanQuotas & Partial<CoachContextLimits>, within: Queryable = database): Promise<PlanLimits | null> {
       const keys = Object.keys(COLUMNS) as (keyof PlanQuotas)[];
       const { rows } = await within.query(
         `UPDATE plan_quota p SET ${keys.map((key, index) => `${COLUMNS[key]} = $${index + 2}`).join(", ")}, updated_at = now()
@@ -1763,13 +1800,26 @@ export function createBilling(config: BillingConfig) {
          RETURNING previous.*`,
         [plan, ...keys.map((key) => quotas[key])],
       );
-      return rows[0] ? quotasFromRow(rows[0]) : null;
+      if (!rows[0]) return null;
+      const coachContext = await coachContextOf(plan, within, true);
+      if (setsCoachContext(quotas)) {
+        const after = { ...coachContext, ...Object.fromEntries(Object.entries(quotas).filter(([key, value]) => key in coachContext && value !== undefined)) } as CoachContextLimits;
+        await within.query(
+          `INSERT INTO plan_coach_context (plan, coach_context_messages, coach_context_tokens) VALUES ($1, $2, $3)
+           ON CONFLICT (plan) DO UPDATE SET coach_context_messages = $2, coach_context_tokens = $3, updated_at = now()`,
+          [plan, after.coachContextMessages, after.coachContextTokens],
+        );
+      }
+      return { ...quotasFromRow(rows[0]), ...coachContext };
     },
 
-    /** One Plan's quotas, its row locked until `within`'s transaction ends (a Quota Reduction is weighed against them); null for an unknown Plan. */
-    async lockPlanQuotas(plan: Plan, within: Queryable): Promise<PlanQuotas | null> {
+    /**
+     * One Plan's quotas and Coach context limits, its rows locked until `within`'s transaction ends (a Quota Reduction is weighed
+     * against them); null for an unknown Plan.
+     */
+    async lockPlanQuotas(plan: Plan, within: Queryable): Promise<PlanLimits | null> {
       const { rows } = await within.query("SELECT * FROM plan_quota WHERE plan = $1 FOR UPDATE", [plan]);
-      return rows[0] ? quotasFromRow(rows[0]) : null;
+      return rows[0] ? { ...quotasFromRow(rows[0]), ...(await coachContextOf(plan, within, true)) } : null;
     },
 
     /** Takes Plan Features off a Plan (a Quota Reduction, #514, on its effective date); returns its Plan Features before and after, or null for an unknown Plan. */
@@ -1782,7 +1832,7 @@ export function createBilling(config: BillingConfig) {
     },
 
     /**
-     * The Candidate's Plan, the Plan Quotas that apply to them, and the status
+     * The Candidate's Plan, the Plan Quotas that apply to them, its Coach context limits (`coachContext`, ADR-0078), and the status
      * Stripe last reported for their subscription (null if they never subscribed):
      * `past_due` while Stripe retries a failed payment, the Plan still kept (never on Free).
      * `endsAt` is when a paid Plan whose cancellation is scheduled ends (the
@@ -1802,7 +1852,7 @@ export function createBilling(config: BillingConfig) {
       const usedThisWeek = Object.fromEntries(
         WEEKLY_QUOTAS.map((quota) => [quota, (rows.find((row) => row.quota === quota)?.used as number | undefined) ?? 0]),
       ) as Record<WeeklyQuota, number>;
-      return { plan, stripeStatus, endsAt, quotas: await quotasOf(plan), usedThisWeek };
+      return { plan, stripeStatus, endsAt, quotas: await quotasOf(plan), coachContext: await coachContextOf(plan), usedThisWeek };
     },
   };
 }

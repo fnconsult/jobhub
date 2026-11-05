@@ -202,7 +202,8 @@
     "subject": "Votre lien de connexion à Jobbbox",
     "title": "Connectez-vous à Jobbbox",
     "action": "Me connecter à Jobbbox",
-    "validity": "Ce lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.",
+    "code": "Ou saisissez ce code dans l'app ou sur la page de connexion : {{code}}",
+    "validity": "Ce lien et ce code sont valables {{minutes}} minutes, une seule fois : utiliser l'un rend l'autre inutilisable.",
     "ignore": "Si vous n'avez pas demandé à vous connecter, ignorez simplement ce message.",
     "reason": "Vous recevez cet e-mail parce qu'un lien de connexion à Jobbbox a été demandé pour cette adresse."
   },
@@ -263,7 +264,15 @@
     "emailLabel": "Votre adresse e-mail",
     "submit": "Recevoir mon lien de connexion",
     "sending": "Envoi en cours…",
-    "sent": "C'est envoyé ! Ouvrez l'e-mail que nous venons de vous adresser et cliquez sur le lien pour vous connecter.",
+    "sent": "C'est envoyé ! Ouvrez l'e-mail que nous venons de vous adresser et cliquez sur le lien pour vous connecter, ou saisissez ci-dessous le code qu'il contient.",
+    "codeLabel": "Saisir le code reçu par e-mail",
+    "codeHint": "Les 6 chiffres écrits sous le lien.",
+    "codeSubmit": "Me connecter avec ce code",
+    "codeChecking": "Vérification…",
+    "codeWrong": "Ce code ne convient pas. Vérifiez-le et réessayez : au bout de 5 essais, il faut demander un nouvel e-mail.",
+    "codeExpired": "Ce code n'est plus valable. Demandez un nouvel e-mail.",
+    "codeTooManyTries": "Trop d'essais : ce code ne fonctionne plus. Demandez un nouvel e-mail.",
+    "resend": "Recevoir un nouvel e-mail",
     "or": "ou",
     "continueWith": "Continuer avec {{provider}}",
     "error": "Une erreur est survenue. Vérifiez votre adresse e-mail et réessayez.",
@@ -1289,7 +1298,9 @@
       "atsScores": "ATS Scores",
       "enrichedContacts": "Contacts enrichis",
       "jobDigest": "Job Digest",
-      "jobSearches": "Recherches d'offres"
+      "jobSearches": "Recherches d'offres",
+      "coachContextMessages": "Mémoire du coach (messages lus)",
+      "coachContextTokens": "Taille du contexte du coach"
     },
     "jobDigest": {
       "none": "Non compris",
@@ -1698,6 +1709,14 @@
           "reason": "Raison",
           "candidates": "Candidats concernés"
         }
+      },
+      "coachContext": {
+        "title": "Contexte du coach IA",
+        "intro": "Ce que le coach IA lit à chaque réponse : les derniers messages de la conversation et, au plus, ce nombre de jetons (estimés) de contexte. Vide pour illimité. Sans valeur enregistrée, une offre lit 40 messages et 12 000 jetons. Une baisse est une baisse de quota.",
+        "messages": "Messages lus par le coach IA",
+        "messagesHelp": "Au moins 1, ou vide pour illimité",
+        "tokens": "Plafond du contexte (jetons estimés)",
+        "tokensHelp": "Nombre, ou vide pour illimité"
       }
     },
     "coupons": {
@@ -2698,7 +2717,10 @@
       "warnings": "Avertissements",
       "noTechnical": "Aucun détail technique enregistré.",
       "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé.",
-      "ofRun": "Les appels IA d'un run de recherche d'offres : ceux de son candidat, de son début à une minute après sa fin."
+      "ofRun": "Les appels IA d'un run de recherche d'offres : ceux de son candidat, de son début à une minute après sa fin.",
+      "context": "Contexte estimé / mesuré",
+      "contextValue": "{{estimate}} / {{measure}} ({{gap}})",
+      "noContext": "—"
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",
@@ -5700,7 +5722,8 @@
     "title": "Contexte de la conversation",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
-    "clear": "Effacer la conversation"
+    "clear": "Effacer la conversation",
+    "unlimited": "illimité"
   },
   "microAnimation": {
     "show": "Voir comment",
@@ -5740,7 +5763,7 @@
       "unlock": "Déverrouiller"
     },
     "signIn": {
-      "sent": "Nous avons envoyé un lien de connexion à {{email}}. Ouvrez l'e-mail sur ce téléphone et touchez le lien : il vous connecte dans l'app.",
+      "sent": "Nous avons envoyé un lien de connexion à {{email}}. Ouvrez l'e-mail sur ce téléphone et touchez le lien : il vous connecte dans l'app. Vous le lisez sur un autre appareil ? Saisissez le code qu'il contient.",
       "waiting": "En attente du lien…",
       "resend": "Renvoyer le lien",
       "changeEmail": "Changer d'adresse e-mail"
@@ -5778,12 +5801,25 @@
     "fields": {
       "applicationStatus": "Statut de la candidature",
       "newInterview": "Nouvel entretien",
-      "interview": "Entretien"
+      "interview": "Entretien",
+      "application": "Candidature",
+      "applicationProfile": "Profil de la candidature",
+      "followUpSent": "Relance envoyée",
+      "profileStatus": "Statut du profil",
+      "coachMemory": "À retenir"
     },
     "interview": {
       "none": "Aucun",
       "cancelled": "Annulé",
       "minutes": "{{count}} min"
+    },
+    "values": {
+      "notSaved": "Offre non enregistrée",
+      "saved": "{{status}}, avec le profil « {{profile}} »",
+      "noFollowUp": "Aucune relance envoyée",
+      "followUps_one": "{{count}} relance envoyée",
+      "followUps_other": "{{count}} relances envoyées",
+      "followedUp": "{{sent}}, statut « {{status}} »"
     },
     "by": "Proposé par votre coach IA",
     "before": "Avant :",
@@ -5802,7 +5838,30 @@
       "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
       "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
-      "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page."
+      "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page.",
+      "noneAccepted": "Acceptez au moins un changement pour enregistrer, ou ignorez la proposition."
+    },
+    "masterCv": {
+      "version": "Version {{version}}",
+      "changes_one": "{{count}} changement à relire",
+      "changes_other": "{{count}} changements à relire"
+    },
+    "coachMemory": {
+      "before": "Pas encore retenu"
+    },
+    "quota": {
+      "profile": "Utilise un profil actif de votre forfait"
+    },
+    "review": {
+      "open": "Relire les changements",
+      "title": "Relire les changements : {{what}}",
+      "intro": "Acceptez ou refusez chaque changement que votre coach propose pour « {{name}} ». Seuls les changements acceptés sont enregistrés, en une nouvelle version de votre CV de référence ; un changement refusé garde ce qu'il dit.",
+      "before": "Avant",
+      "after": "Proposé",
+      "fromOffer": "Repris d'une de vos offres, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",
+      "save": "Enregistrer les changements acceptés",
+      "saved_one": "{{count}} changement enregistré",
+      "saved_other": "{{count}} changements enregistrés"
     }
   },
   "coachProposalsDisplay": {

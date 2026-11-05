@@ -112,7 +112,7 @@ describe("the AI Coach without Coach Actions", () => {
 
     expect(off.coachCalls()).toEqual(before.coachCalls());
     expect(off.coachCalls()[0]).not.toHaveProperty("tools");
-    expect(switchedOff).toEqual({ ...withoutActions, provenance: expect.anything() });
+    expect(switchedOff).toEqual({ ...withoutActions, provenance: expect.anything(), callId: expect.anything() });
     expect(switchedOff).not.toHaveProperty("proposals");
     expect(off.calls).toEqual([]);
   });
@@ -121,7 +121,7 @@ describe("the AI Coach without Coach Actions", () => {
     const before = setUp({ withActions: false });
     const none = setUp({ settings: { maxRounds: 0 } });
 
-    expect(await ask(none.coach)).toEqual({ ...(await ask(before.coach)), provenance: expect.anything() });
+    expect(await ask(none.coach)).toEqual({ ...(await ask(before.coach)), provenance: expect.anything(), callId: expect.anything() });
     expect(none.coachCalls()).toEqual(before.coachCalls());
   });
 });
@@ -152,6 +152,9 @@ describe("the AI Coach with Coach Actions, end to end on the fake provider", () 
     expect(first!.tools?.map((tool) => tool.name)).toEqual(["lire_candidature", "proposer_statut", "proposer_resume_cv"]);
     expect(first!.system).toContain("Ne dis jamais que tu as modifié");
     expect(first!.system).toContain("Tu ne supprimes jamais rien");
+    // The Profil group (#719): no Profile created nor deleted by the Coach, no fact the Master CV lacks.
+    expect(first!.system).toContain("/profils/nouveau");
+    expect(first!.system).toContain("jamais un élément, un chiffre ni un fait qu'il ne contient pas");
     if (!replied.ok) throw new Error("no reply");
     // The Coach Action ends within the coaching call that made it: its step comes first.
     expect(replied.provenance.steps).toEqual([

@@ -1,27 +1,32 @@
-import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, type Plan, type PlanQuotas } from "@jobhub/shared";
+import { JOB_DIGEST_FREQUENCIES, LIMITED_QUOTAS, type CoachContextLimits, type Plan, type PlanQuotas } from "@jobhub/shared";
 import * as z from "zod";
 
-/** The largest limit the plan_quota table can hold (Postgres `integer`). */
+/** The largest limit the plan_quota and plan_coach_context tables can hold (Postgres `integer`). */
 const MAX_LIMIT = 2_147_483_647;
 
-/** A limit field: a whole number from 0, or empty for unlimited. */
-const limit = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
-  z.union([z.null(), z.string().trim().regex(/^\d+$/).transform(Number).pipe(z.number().max(MAX_LIMIT))]),
-);
+/** A limit field: a whole number from `min`, or empty for unlimited. */
+const limitFrom = (min: number) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.union([z.null(), z.string().trim().regex(/^\d+$/).transform(Number).pipe(z.number().min(min).max(MAX_LIMIT))]),
+  );
+const limit = limitFrom(0);
 
 const schema = z.object({
   /** A Plan's key; billing ignores one that is no Plan. */
   plan: z.string().regex(/^[a-z][a-z0-9-]*$/),
   ...Object.fromEntries(LIMITED_QUOTAS.map((quota) => [quota, limit])),
   jobDigest: z.enum(JOB_DIGEST_FREQUENCIES),
+  /** The Coach context limits (ADR-0078): the AI Coach reads at least the Candidate's message. Absent from a form without them. */
+  coachContextMessages: limitFrom(1).optional(),
+  coachContextTokens: limit.optional(),
 });
 
-/** One Plan's quotas as submitted by the back-office form, or null if a value is invalid. */
-export function planQuotasFromForm(form: FormData): { plan: Plan; quotas: PlanQuotas } | null {
+/** One Plan's quotas, with its Coach context limits when the form has them, as submitted by the back-office form, or null if a value is invalid. */
+export function planQuotasFromForm(form: FormData): { plan: Plan; quotas: PlanQuotas & Partial<CoachContextLimits> } | null {
   const parsed = schema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return null;
-  const { plan, ...quotas } = parsed.data as { plan: Plan } & PlanQuotas;
+  const { plan, ...quotas } = parsed.data as { plan: Plan } & PlanQuotas & Partial<CoachContextLimits>;
   return { plan, quotas };
 }
 

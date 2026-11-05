@@ -21,7 +21,7 @@ const application = { jobTitle: "DAF H/F", applicationUrl: `${APP_URL}/candidatu
 /** Each of the eight emails in `language`, from sample data. */
 export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail> {
   return {
-    signIn: signInEmail({ url: `${APP_URL}/api/auth/magic-link/verify?token=abc`, minutes: 15 }, language),
+    signIn: signInEmail({ url: `${APP_URL}/api/auth/magic-link/verify?token=abc`, code: "428193", minutes: 15 }, language),
     jobDigest: jobDigestEmail(
       {
         profileName: "Directrice administrative et financière",

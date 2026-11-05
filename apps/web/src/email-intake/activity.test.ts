@@ -87,6 +87,20 @@ describe.skipIf(!connectionString)("Email intake in the Back Office's Activité:
     expect(await activity.receivedEmails({ period: "all" })).toEqual([]);
   });
 
+  it("are purged 24 months after the email arrived whatever the database's time zone, across a daylight-saving change", async () => {
+    await post(alertEmail(address)); // 27 October 2026, 09:30 UTC: winter time in Paris; 27 October 2028 is still summer time
+    await database.query(`DELETE FROM candidate WHERE id = $1`, [marie]);
+    const paris = await database.connect();
+    try {
+      await paris.query(`SET TIME ZONE 'Europe/Paris'`);
+
+      expect(await purgeEmailIntakeActivity(paris, new Date("2028-10-27T09:29:00Z"))).toEqual({ receivedEmails: 0, linkedMailboxEvents: 0 });
+      expect(await purgeEmailIntakeActivity(paris, new Date("2028-10-27T09:30:00Z"))).toEqual({ receivedEmails: 1, linkedMailboxEvents: 1 });
+    } finally {
+      paris.release(true);
+    }
+  });
+
   it("show what the reading made of an email: its kind, offers new and already stored, outcome and Guardrail", async () => {
     await post(alertEmail(address));
     const [email] = (await emailIntakeOf(database, marie)).receivedOfferEmails;

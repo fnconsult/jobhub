@@ -20,6 +20,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import type { Queryable } from "../database/pool";
 import type { ReceivedOfferEmailOutcome } from "./inbound";
+import { utcBefore } from "../database/before";
 
 /** How long the Back Office keeps a row of Emails reçus and a Linked mailbox event. */
 export const ACTIVITY_RETENTION_MONTHS = 24;
@@ -217,8 +218,8 @@ export async function recordLinkedMailboxEvent(client: Queryable, event: LinkedM
 
 /** Deletes the rows of Emails reçus and the Linked mailbox events ACTIVITY_RETENTION_MONTHS old or more. Safe to run again. */
 export async function purgeEmailIntakeActivity(database: Queryable, now: Date): Promise<{ receivedEmails: number; linkedMailboxEvents: number }> {
-  const receivedEmails = await database.query(`DELETE FROM received_email_activity WHERE received_at <= $1::timestamptz - make_interval(months => $2)`, [now, ACTIVITY_RETENTION_MONTHS]);
-  const linkedMailboxEvents = await database.query(`DELETE FROM linked_mailbox_event WHERE at <= $1::timestamptz - make_interval(months => $2)`, [now, ACTIVITY_RETENTION_MONTHS]);
+  const receivedEmails = await database.query(`DELETE FROM received_email_activity WHERE received_at <= ${utcBefore("$1", "make_interval(months => $2)")}`, [now, ACTIVITY_RETENTION_MONTHS]);
+  const linkedMailboxEvents = await database.query(`DELETE FROM linked_mailbox_event WHERE at <= ${utcBefore("$1", "make_interval(months => $2)")}`, [now, ACTIVITY_RETENTION_MONTHS]);
   return { receivedEmails: receivedEmails.rowCount ?? 0, linkedMailboxEvents: linkedMailboxEvents.rowCount ?? 0 };
 }
 

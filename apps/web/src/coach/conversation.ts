@@ -42,18 +42,27 @@ export interface JobOfferCard {
 /** Longest single message. */
 export const MAX_MESSAGE_LENGTH = 5000;
 
-// The Context bar's limits and figures, shared with the native app (#690): most messages the AI Coach answers from, the
-// ceiling of its context, and the bar itself.
-export { COACH_CONTEXT_MAX_TOKENS, contextBar, MAX_MESSAGES, type ContextBar, type ConversationContext } from "@jobhub/shared";
+// The Context bar's limits, categories and figures, shared with the native app (#690): most messages the AI Coach answers from
+// and the ceiling of its context on a Plan with none stored (ADR-0078), what a reply's context is made of, and the bar itself.
+export {
+  COACH_CONTEXT_MAX_TOKENS,
+  CONTEXT_CATEGORIES,
+  contextBar,
+  MAX_MESSAGES,
+  type ContextBar,
+  type ContextCategory,
+  type ContextSplit,
+  type ConversationContext,
+} from "@jobhub/shared";
 
 /** A rough token count (about 4 characters per token), enough to keep the context under its cap. */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-/** The last MAX_MESSAGES messages, starting with a Candidate message. */
-export function recentConversation<T extends CoachMessage>(messages: readonly T[]): T[] {
-  const recent = messages.slice(-MAX_MESSAGES);
+/** The last `limit` messages (all of them when null: unlimited), starting with a Candidate message. */
+export function recentConversation<T extends CoachMessage>(messages: readonly T[], limit: number | null = MAX_MESSAGES): T[] {
+  const recent = limit === null ? messages.slice() : limit > 0 ? messages.slice(-limit) : [];
   const start = recent.findIndex((message) => message.from === "candidate");
   return start === -1 ? [] : recent.slice(start);
 }

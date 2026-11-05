@@ -8,7 +8,7 @@
  * It never throws for a bad conversation or a failing provider: it answers
  * `{ ok: false, error: "invalid" | "unavailable" }`. What the AI Coach is told
  * (the Candidate summary, the Coach Memory, the item In view, the summaries,
- * within COACH_CONTEXT_MAX_TOKENS and without the Candidate's identity) is read
+ * within the `coachContextTokens` of the Candidate's Plan (`options.limits`, ADR-0078) and without the Candidate's identity) is read
  * here from the sources, scoped to the Candidate, so an id from someone else's
  * account adds nothing: see ./context. Task `coaching`, EU endpoints only (ADR-0007).
  *
@@ -53,15 +53,15 @@
 import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
 import { article } from "@jobhub/help";
 import { createI18n } from "@jobhub/shared/i18n";
-import { failureOf, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
+import { DEFAULT_COACH_CONTEXT_LIMITS, failureOf, type CoachContextLimits, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { untrustedInView, type CoachActions, type CoachProposal } from "../coach-actions";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
 import * as z from "zod";
 import { readReplyMarks, REPLY_MARKS_RULE } from "./reply-marks";
-import { asData, COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
-import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
+import { asData, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
+import { MAX_MESSAGE_LENGTH, recentConversation, type ContextSplit } from "./conversation";
 import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, MAX_PLAYBOOK_AGENTS, type PlaybookAdvice } from "./playbook-agents";
 
 export { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, estimateTokens, type CoachFocus, type CoachMemorySource, type CoachSources } from "./context";
@@ -112,6 +112,9 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
  * `contextTokens`: the estimate (estimateTokens) of the context the reply was written from, its system text and the messages
  * the AI Coach read (#607), what the Context bar counts; null (or absent) when the AI Coach wrote none (a Job Offer link's reply).
+ * `contextSplit`: that estimate by category (#731, ADR-0078), adding up to it; null (or absent) with it.
+ * `callId`: the AI call that wrote the reply (its AI Usage id, #731), whose provider's counts are read beside the estimate;
+ * null (or absent) when the AI Coach wrote none.
  * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
  * `proposals`: the changes the reply proposes through Coach Actions (#713), for the Candidate to apply; absent when it was
  * offered none (Coach Actions off), empty when it proposed none or its reply was not the one shown.
@@ -129,6 +132,8 @@ export type CoachReply =
       aboutJobbbox?: boolean;
       couldNotAnswer?: boolean;
       contextTokens?: number | null;
+      contextSplit?: ContextSplit | null;
+      callId?: string | null;
       proposals?: CoachProposal[];
     }
   | { ok: false; error: "invalid" }
@@ -142,6 +147,12 @@ export interface CoachReplyOptions {
   signal?: AbortSignal;
   /** Each step of the reply as it starts and ends (#328), for the Coach Panel to show live. */
   onEvent?: (event: ProvenanceEvent) => void;
+  /**
+   * The Coach context limits of the Candidate's Plan at the time of the reply (ADR-0078): the AI Coach reads the latest
+   * `coachContextMessages` messages and fits its context under `coachContextTokens`; null is unlimited.
+   * Default DEFAULT_COACH_CONTEXT_LIMITS (40 and 12 000), a Plan's with none stored.
+   */
+  limits?: CoachContextLimits;
 }
 
 export interface Coach {
@@ -175,21 +186,14 @@ export interface CoachOptions {
   coachActions?: Pick<CoachActions, "forReply">;
 }
 
-/**
- * Most messages accepted in one call. Coach Conversations send their recent
- * window (MAX_MESSAGES) plus the new message; anything longer, up to this bound,
- * is trimmed to that window rather than refused.
- */
-const MAX_MESSAGES_ACCEPTED = MAX_MESSAGES * 5;
-
 /** Room for the Sources the knowledge cites, in estimated tokens. */
 const SOURCES_MAX_TOKENS = 800;
 
 const inputSchema = z.object({
   messages: z
     .array(z.object({ from: z.enum(["candidate", "coach"]), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }))
+    // Any length: Coach Conversations send their window of the conversation, which the reply trims to the Plan's own.
     .min(1)
-    .max(MAX_MESSAGES_ACCEPTED)
     .refine((messages) => messages.at(-1)?.from === "candidate"),
   focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100) }).optional(),
   /** The Help Article the Candidate read just before asking (#342): only its id counts, its title is the help's own. */
@@ -229,7 +233,9 @@ const COACH_ACTIONS_RULES = `Coach Actions :
 - Tu ne modifies jamais rien toi-même : une modification que tu prépares est une proposition, que le candidat applique ou ignore sous ta réponse. Quand une modification l'aiderait, propose-la avec l'outil prévu plutôt que de seulement la décrire.
 - Ne dis jamais que tu as modifié, enregistré, créé ou supprimé quoi que ce soit : dis ce que tu proposes.
 - Ne propose une modification que si le candidat la demande ou qu'elle découle clairement de ce qu'il dit.
-- Tu ne supprimes jamais rien : quand le candidat demande de supprimer quelque chose, indique-lui la page qui le permet.`;
+- Tu ne supprimes jamais rien : quand le candidat demande de supprimer quelque chose, indique-lui la page qui le permet.
+- Tu ne crées ni ne supprimes de profil : un profil se crée depuis la page « Créer un profil » (/profils/nouveau), où tu peux l'accompagner ; il s'archive, il ne se supprime pas.
+- Une modification du CV de référence ne reprend que ce qu'il dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; demande au candidat ce qui manque.`;
 
 /** Told when untrusted text is In view (#713): the Coach Actions that copy text are not offered. */
 const NARROWED_RULE =
@@ -258,6 +264,24 @@ function jobOfferLinkReply(result: JobOfferLinkResult, language: GuardrailLangua
   return t(result.reason === "forbidden_site" ? "coachPanel.jobOfferLink.forbiddenSite" : result.reason === "unreadable" ? "coachPanel.jobOfferLink.unreadable" : "coachPanel.jobOfferLink.notAJobOffer");
 }
 
+/**
+ * A reply's context split by category (#731), adding up to its estimate (the system text's and the messages'): what the AI Coach is told
+ * of the Candidate (`profile`), the advice, the Sources and the messages, each estimated on its own; the instructions are the rest of
+ * the system text (persona, rules, Core Digest, the Help Article read, and what joins the parts).
+ */
+function contextSplitOf(parts: { system: string; profile: string; advice: string[]; sources: string; messages: { content: string }[] }): ContextSplit {
+  const profile = estimateTokens(parts.profile);
+  const advice = parts.advice.reduce((sum, text) => sum + estimateTokens(text), 0);
+  const sources = estimateTokens(parts.sources);
+  return {
+    messages: parts.messages.reduce((sum, message) => sum + estimateTokens(message.content), 0),
+    instructions: Math.max(0, estimateTokens(parts.system) - profile - advice - sources),
+    profile,
+    advice,
+    sources,
+  };
+}
+
 const costOf = (calls: GenerateResult[]) => ({
   inputTokens: calls.reduce((sum, call) => sum + call.usage.inputTokens, 0),
   outputTokens: calls.reduce((sum, call) => sum + call.usage.outputTokens, 0),
@@ -280,12 +304,15 @@ export function createCoach(deps: CoachDeps): Coach {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { signal, onEvent } = options;
+      const limits = options.limits ?? DEFAULT_COACH_CONTEXT_LIMITS;
+      /** The ceiling of the context, in estimated jetons: none when unlimited. */
+      const maxTokens = limits.coachContextTokens ?? Number.POSITIVE_INFINITY;
       // Whether the latest message went through the input Guardrails: they only ask for the reply once it has.
       let messagePassed = false;
       const stopped = () => ({ ok: false as const, error: "stopped" as const, messagePassed });
       if (signal?.aborted) return stopped();
       const { focus } = parsed.data;
-      const messages = recentConversation(parsed.data.messages).map((message) => ({
+      const messages = recentConversation(parsed.data.messages, limits.coachContextMessages).map((message) => ({
         role: message.from === "candidate" ? ("user" as const) : ("assistant" as const),
         content: message.text,
       }));
@@ -312,7 +339,7 @@ export function createCoach(deps: CoachDeps): Coach {
               ? choice.chosen.length * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS
               : estimateTokens(sourcesText(served, [served.coreDigest?.content ?? ""]));
           // And room for what Coach Actions read during the reply (#714): the context stays under the cap with its rounds.
-          const context = await contextOf(candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - readRoom - 4);
+          const context = await contextOf(candidateId, focus, maxTokens - estimateTokens(instructions) - reserved - readRoom - 4);
           const consulted = await Promise.all(
             choice.chosen.map((playbook) =>
               consultPlaybookAgent(recorder.aiFor("playbook_agent"), candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {
@@ -325,13 +352,16 @@ export function createCoach(deps: CoachDeps): Coach {
             ),
           );
           const advice = consulted.filter((each): each is PlaybookAdvice => each !== null);
-          const knowledge = [...advice.map(adviceText), sourcesText(served, [served.coreDigest?.content ?? "", ...advice.map((each) => each.advice)])].filter(Boolean);
+          const advised = advice.map(adviceText);
+          const sources = sourcesText(served, [served.coreDigest?.content ?? "", ...advice.map((each) => each.advice)]);
+          const system = [instructions, ...advised, sources, context, helpArticleText(parsed.data.helpArticle, options.language ?? "fr")].filter(Boolean).join("\n\n");
           return {
             served,
             choice,
             advice,
             skipped,
-            system: [instructions, ...knowledge, context, helpArticleText(parsed.data.helpArticle, options.language ?? "fr")].filter(Boolean).join("\n\n"),
+            system,
+            split: contextSplitOf({ system, profile: context, advice: advised, sources, messages }),
             // What a reply must never copy: the AI Coach's rules and the coaching knowledge it was given.
             secrets: [PERSONA, GROUNDING_RULES, served.coreDigest?.content ?? "", ...choice.chosen.map((playbook) => playbook.content)],
           };
@@ -355,7 +385,13 @@ export function createCoach(deps: CoachDeps): Coach {
         const write = async (feedback: string | null) => {
           // Offered afresh to each reply written: a reply written again proposes again, the first one's proposals dropped.
           const offered = deps.coachActions
-            ? await deps.coachActions.forReply(candidateId, { recorder, untrustedInView: untrustedInView(focus?.kind), language: options.language ?? "fr", ...(guard ? { guard } : {}) })
+            ? await deps.coachActions.forReply(candidateId, {
+                recorder,
+                untrustedInView: untrustedInView(focus?.kind),
+                language: options.language ?? "fr",
+                ...(focus ? { focus } : {}),
+                ...(guard ? { guard } : {}),
+              })
             : null;
           prepared ??= await prepare(offered?.readRoom ?? 0);
           const rules = offered ? [COACH_ACTIONS_RULES, ...(offered.narrowed ? [NARROWED_RULE] : [])].join("\n\n") : "";
@@ -433,7 +469,9 @@ export function createCoach(deps: CoachDeps): Coach {
           aboutJobbbox: !link && marks.aboutJobbbox,
           // Only a reply the AI Coach wrote and the Candidate sees: never a Guardrail message.
           couldNotAnswer: !link && guarded.outcome === "replied" && marks.couldNotAnswer,
-          contextTokens: prepared ? estimateTokens(prepared.system) + messages.reduce((sum, message) => sum + estimateTokens(message.content), 0) : null,
+          contextTokens: prepared ? estimateTokens(prepared.system) + prepared.split.messages : null,
+          contextSplit: prepared?.split ?? null,
+          callId: written.at(-1)?.callId ?? null,
           // Only with the reply the Candidate sees: a blocked one proposes nothing.
           ...(proposals ? { proposals: guarded.outcome === "replied" ? proposals : [] } : {}),
         };

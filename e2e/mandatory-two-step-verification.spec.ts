@@ -3,7 +3,7 @@ import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { fromNewAddress, requestSignInLink, signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId } from "./support/extension";
-import { emailsTo, linkIn, newAddress } from "./support/mailbox";
+import { codeIn, emailsTo, linkIn, newAddress } from "./support/mailbox";
 import { forgetTwoStepVerification, setUpTwoStepVerification, twoStepSetup } from "./support/two-step";
 
 // #665, ADR-0075: Two-step verification is mandatory for Administrators and Human Coaches. After a magic link, such an
@@ -49,6 +49,23 @@ async function expectOnlyTheSetup(page: Page, back: string) {
 }
 
 test.describe("Mandatory Two-step verification (#665)", () => {
+  // #686, ADR-0075: the second step applies after the sign-in email's code as after its link.
+  test("a super-admin signed in with the email's code has a pending session: only the setup is reached", async ({ page }) => {
+    await forgetTwoStepVerification(process.env.E2E_DATABASE_URL, SUPER_ADMIN);
+    const links = () => emailsTo(SUPER_ADMIN).filter((message) => message.subject === SIGN_IN_SUBJECT);
+    const already = links().length;
+    await fromNewAddress(page);
+    await page.goto("/connexion");
+    await requestSignInLink(page, SUPER_ADMIN);
+    await expect.poll(() => links().length).toBeGreaterThan(already);
+    await page.getByLabel(fr.signIn.codeLabel).fill(codeIn(links()[already]!));
+    await page.getByRole("button", { name: fr.signIn.codeSubmit }).click();
+
+    await expectOnlyTheSetup(page, "/compte");
+    await page.goto("/admin");
+    await expectOnlyTheSetup(page, "/admin");
+  });
+
   test("an ADMIN_EMAILS super-admin signed in by magic link sets it up before anything else, then reaches /admin, and cannot turn it off", async ({ page }) => {
     await forgetTwoStepVerification(process.env.E2E_DATABASE_URL, SUPER_ADMIN);
     await followMagicLink(page, SUPER_ADMIN);

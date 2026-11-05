@@ -35,6 +35,9 @@ import type { Pool, PoolClient } from "pg";
 import type { CoachFocus } from "../coach";
 import type { FieldError } from "../validation";
 
+/** What a card is about: an object In view, or the Candidate's Coach Memory (a Coach proposal to remember a fact, #719). */
+export type ActionCardFocus = CoachFocus | { kind: "coach_memory"; id: string };
+
 /** `undone`: applied, then put back with « Annuler » (#715). */
 export type ActionCardStatus = "pending" | "accepted" | "dismissed" | "undone";
 
@@ -46,7 +49,7 @@ export interface ActionCard {
   title: string;
   body: string;
   /** The page the card belongs on, or the object a thread's card is about. */
-  focus: CoachFocus;
+  focus: ActionCardFocus;
   /** What accepting it applies, read by the kind's handler. */
   payload: unknown;
   status: ActionCardStatus;
@@ -118,7 +121,7 @@ interface CardRow {
   kind: string;
   title: string;
   body: string;
-  focus_kind: CoachFocus["kind"];
+  focus_kind: ActionCardFocus["kind"];
   focus_id: string;
   payload: unknown;
   status: ActionCardStatus;
@@ -142,7 +145,7 @@ function cardFrom(row: CardRow): ActionCard {
     kind: row.kind,
     title: row.title,
     body: row.body,
-    focus: { kind: row.focus_kind, id: row.focus_id },
+    focus: { kind: row.focus_kind, id: row.focus_id } as ActionCardFocus,
     payload: row.payload,
     status: row.status,
     createdAt: row.created_at,
@@ -293,8 +296,8 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
   };
 }
 
-/** What a card can be about: the kinds In view (CoachFocus). */
-const FOCUS_KINDS = ["profile", "application", "job_offer", "job_search", "job_digest", "agenda"] as const;
+/** What a card can be about: the kinds In view (CoachFocus), and the Coach Memory (#719). */
+const FOCUS_KINDS = ["profile", "application", "job_offer", "job_search", "job_digest", "agenda", "coach_memory"] as const;
 
 /** Creates or upgrades the Action Card table. Run after the Candidate account tables. Safe to run repeatedly. */
 export async function migrateActionCards(database: Pool): Promise<void> {

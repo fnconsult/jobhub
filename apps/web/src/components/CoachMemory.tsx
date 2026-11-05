@@ -1,5 +1,6 @@
 "use client";
 
+import { useCoachActionsOn } from "@/components/coach-actions-on";
 import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, type CoachMemoryKind, type ProposedMemoryItem } from "@/coach-memory/kinds";
@@ -237,9 +238,12 @@ export function CoachMemoryView({ heading: given }: { heading?: RefObject<HTMLEl
 /**
  * Under a Coach Conversation: asks the AI Coach what to remember from it, then
  * lets the Candidate confirm or ignore each proposal. Only confirmed proposals
- * reach the Coach Memory; ignoring one saves nothing.
+ * reach the Coach Memory; ignoring one saves nothing. Replaced, while Coach Actions are on, by the AI Coach's own
+ * proposals in the thread (`propose_coach_memory`, #719): it shows nothing then.
  */
 export function CoachMemoryProposals({ conversationId }: { conversationId: string }) {
+  // With Coach Actions, the AI Coach proposes each fact on a card of its own under its reply (#719): no button.
+  const coachActions = useCoachActionsOn();
   const { t } = useTranslation();
   const id = useId();
   const [proposals, setProposals] = useState<ProposedMemoryItem[] | null>(null);
@@ -282,6 +286,7 @@ export function CoachMemoryProposals({ conversationId }: { conversationId: strin
     setNotice({ kind: "status", text: t("coachMemory.dismissed") });
   }
 
+  if (coachActions) return null;
   return (
     <section className="stack coach-memory-proposals" aria-labelledby={proposals?.length ? `${id}-heading` : undefined}>
       <button className="button" type="button" onClick={ask} disabled={asking}>

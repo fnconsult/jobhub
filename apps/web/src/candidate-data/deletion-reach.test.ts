@@ -93,14 +93,16 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
 
     expect(missing).toEqual([]);
     // The columns of a Coach proposal in the thread (#715) are said where they land: its card's reply, what was edited,
-    // its « Annuler »; the Origin an Application Status keeps.
+    // its « Annuler »; the Origin an Application Status and an Interview keep.
     const { rows } = await throwaway.pool.query<{ table: string; column: string }>(
       `SELECT table_name AS table, column_name AS column FROM information_schema.columns
-        WHERE table_schema = current_schema() AND ((table_name = 'action_card' AND column_name IN ('reply_seq', 'edited', 'undo', 'undone_at')) OR (table_name = 'application' AND column_name = 'status_origin'))`,
+        WHERE table_schema = current_schema() AND ((table_name = 'action_card' AND column_name IN ('reply_seq', 'edited', 'undo', 'undone_at')) OR (table_name = 'application' AND column_name = 'status_origin') OR (table_name = 'interview' AND column_name = 'origin'))`,
     );
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(6);
     expect(EXPORTED_TABLES.action_card).toMatch(/thread.*conversation.*before and after.*edited.*« Annuler »/);
     expect(EXPORTED_TABLES.application).toMatch(/Origin/);
+    // The Origin an Interview keeps (#718).
+    expect(EXPORTED_TABLES.interview).toMatch(/Origin/);
   });
 
   it("Jobbbox's operations record outlives the Candidate: their id is set to null and nothing hangs off it", () => {

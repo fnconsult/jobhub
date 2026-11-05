@@ -149,6 +149,20 @@ test.describe("the « Documents » Coach Actions: « Préparer », « Rédiger �
     expect(await proposals()).toHaveLength(1);
     // No « Annuler »: a launched action ends with Stop.
     await expect(card.getByRole("button", { name: texts.undo })).toHaveCount(0);
+
+    // Asked again while that proposal still waits for its review (#774): the card says it replaces it, answers included,
+    // and « Préparer » asks to confirm first; « Garder ma proposition » keeps it as it is.
+    const [reviewed] = await proposals();
+    await page.goto(`/candidatures/${applicationId}`);
+    await ask(page, "Refais une proposition de CV adapté.", "propose_tailored_cv");
+    const again = cardOf(page, tc.tailored);
+    await expect(again).toContainText(texts.values.replacesTailoredCvProposal, { timeout: 30_000 });
+    await again.getByRole("button", { name: texts.prepare, exact: true }).click();
+    await expect(again.getByRole("group", { name: texts.confirmReplaceProposal })).toBeVisible();
+    await expect(again.getByRole("button", { name: texts.confirmYesProposal })).toBeFocused();
+    await again.getByRole("button", { name: texts.confirmNoProposal, exact: true }).click();
+    expect(await proposals()).toEqual([reviewed]);
+    await expect(again.getByRole("button", { name: texts.prepare, exact: true })).toBeFocused();
   });
 
   test("« écris-moi une lettre » → a card, no letter drafted; a draft that exists is replaced only once confirmed", async ({ browser }) => {

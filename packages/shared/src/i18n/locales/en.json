@@ -6023,7 +6023,8 @@
       "draftOf": "Draft of {{date}}",
       "draftEdited": "Draft of {{date}}, edited since",
       "newDraft": "A draft written by your AI coach · {{language}}",
-      "replacesDraft": "Your current draft will be replaced, your edits included."
+      "replacesDraft": "Your current draft will be replaced, your edits included.",
+      "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included."
     },
     "quota": {
       "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
@@ -6042,6 +6043,9 @@
     "confirmReplace": "Replace your current draft, your edits included?",
     "confirmYes": "Replace and draft",
     "confirmNo": "Keep my draft",
+    "confirmReplaceProposal": "Replace your Tailored CV proposal under review, your answers included?",
+    "confirmYesProposal": "Replace and prepare",
+    "confirmNoProposal": "Keep my proposal",
     "runHint": "The document is in the application's documents; if it was stopped, nothing was kept.",
     "edit": "Edit before applying",
     "dismiss": "Ignore",

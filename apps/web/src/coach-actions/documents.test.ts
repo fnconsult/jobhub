@@ -4,7 +4,7 @@
  * the AI action its page runs (its route, its Task Playbook, its own Provenance), never written by the AI Coach itself.
  * A draft that exists is said to be replaced, edits included, and the Candidate confirms it; applied from the draft seen.
  */
-import type { DocumentLanguage } from "@jobhub/shared";
+import { scrubStoredText, type DocumentLanguage } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import type { Application } from "../applications";
 import type { ApplicationTailoredCv } from "../tailored-cv";
@@ -124,6 +124,22 @@ describe("the « Documents » Coach Actions (#721)", () => {
       expect(await action.apply!(change, applied())).toEqual({ ok: false, error: "conflict" });
       tailoredCv.proposal = null;
       expect(await action.apply!(change, applied())).toEqual({ ok: false, error: "conflict" });
+    });
+
+    it("keeps a version the reply's key check never takes for a credential: the md5 revision, cut short", async () => {
+      const { sources, tailoredCv } = world();
+      tailoredCv.proposal = { revision: "9e107d9d372bb6826bd81d3542a419d6" } as never;
+      const action = actionOf(sources, DOCUMENT_ACTIONS.tailoredCv);
+
+      const result = await action.run(action.schema.parse({}), onApplication());
+
+      expect((result as { data: ProposedChange }).data.version).toBe("9e107d9d372bb682");
+      // What the AI Coach reads back, copied into a reply, is not refused as a secret disclosure.
+      const read = JSON.stringify((result as { data: ProposedChange }).data);
+      expect(scrubStoredText(read)).toBe(read);
+      expect(await action.apply!((result as { data: ProposedChange }).data, applied())).toEqual({ ok: true });
+      tailoredCv.proposal = { revision: "0000000000000000aaaaaaaaaaaaaaaa" } as never;
+      expect(await action.apply!((result as { data: ProposedChange }).data, applied())).toEqual({ ok: false, error: "conflict" });
     });
 
     it("a card proposed with no proposal under review conflicts once one appears; one made before #774 (« any ») applies only without one", async () => {

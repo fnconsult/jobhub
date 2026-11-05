@@ -22,7 +22,7 @@ import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { Profiles } from "../profiles";
 import { routes, type ApplicationResult } from "../routes";
-import type { TailoredCvs } from "../tailored-cv";
+import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 import { OUTREACH_CHANNELS, type TailoredDocumentKind } from "../tailored-documents/kinds";
 import { defineCoachAction, type CoachAction, type CoachActionCall, type CoachActionResult, type ProposedChange } from "./index";
@@ -71,6 +71,14 @@ function versionOf(drafts: ApplicationDrafts, document: TailoredDocumentKind): s
   return draft ? draft.updatedAt.toISOString() : NO_DRAFT;
 }
 
+/**
+ * The version a Tailored CV card keeps (#774): the proposal under review's revision, cut to its first 16 characters, or
+ * NO_DRAFT. The revision is an md5 (32 hex characters), which the reply's key check (`scrubStoredText`) takes for a
+ * credential: copied into a reply from the tool result, it would have it refused as a secret disclosure. 16 hex
+ * characters still tell one proposal from the next.
+ */
+const proposalVersion = (state: Pick<ApplicationTailoredCv, "proposal">) => state.proposal?.revision.slice(0, 16) ?? NO_DRAFT;
+
 export function documentCoachActions(sources: DocumentActionSources): CoachAction[] {
   /** The Candidate's Application `applicationId`, unless it is an Archived Application (its Profile archived): out of reach. */
   async function reachable(candidateId: string, applicationId: string): Promise<Application | null> {
@@ -107,7 +115,7 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
         what: t("tailoredCv.tailored"),
         before: state.saved ? t("coachProposals.values.tailoredCvSaved", { date: longDate(call.language, state.saved.savedAt) }) : t("coachProposals.values.noTailoredCv"),
         after: t("coachProposals.values.tailoredCvProposal", { language: t(`tailoredDocuments.languages.${written}`) }),
-        version: state.proposal?.revision ?? NO_DRAFT,
+        version: proposalVersion(state),
         ...(state.proposal ? { replaces: t("coachProposals.values.replacesTailoredCvProposal") } : {}),
       };
       return { ok: true, data: change, pages: [change.target.href] };
@@ -119,7 +127,7 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
       // Proposed again, answered or saved since the card was made: not the proposal the Candidate confirmed replacing.
       // A card made before #774 saw « any »: it said nothing of a proposal under review, so it applies only without one.
       const seen = change.version === LEGACY_ANY ? NO_DRAFT : change.version;
-      return (state.proposal?.revision ?? NO_DRAFT) === seen ? { ok: true } : CONFLICT;
+      return proposalVersion(state) === seen ? { ok: true } : CONFLICT;
     },
   });
 

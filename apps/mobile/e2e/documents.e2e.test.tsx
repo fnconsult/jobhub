@@ -11,6 +11,30 @@ jest.setTimeout(60_000);
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
 
+// Signed in, as the app is once its magic link opened it (#685): the web app's endpoints faked at the session's fetch.
+const mockWeb = {} as { app: ReturnType<typeof import("../src/session/testing").fakeWebApp>; session: import("../src/session/app-session").AppSession };
+jest.mock("../src/session/instance", () => {
+  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { createAppSession } = jest.requireActual("../src/session/app-session");
+  mockWeb.app = fakeWebApp();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  return { appSession: mockWeb.session };
+});
+const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
+// Not hoisted: it replaces Expo Router's own mock (expo-router/testing-library), whose scheme is not the app's.
+jest.doMock("expo-linking", () => {
+  const { useSyncExternalStore } = jest.requireActual("react");
+  const subscribe = (listener: () => void) => (mockLink.listeners.add(listener), () => mockLink.listeners.delete(listener));
+  return { ...jest.requireActual("expo-linking"), useLinkingURL: () => useSyncExternalStore(subscribe, () => mockLink.current) };
+});
+const EMAIL = "marie.dupont@example.fr";
+async function signedIn() {
+  jest.requireMock("../src/session/instance");
+  if ((await mockWeb.session.current()).kind === "signedIn") return;
+  await mockWeb.session.askLink(EMAIL);
+  await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
+}
+
 const mockDownloads: { url: string; to: string; headers: Record<string, string> | undefined }[] = [];
 const mockPreview = jest.fn<Promise<void>, [string, unknown]>(async () => {});
 const mockShare = jest.fn<Promise<void>, [string, unknown]>(async () => {});
@@ -48,6 +72,7 @@ const button = (name: string | RegExp) => screen.getByRole("button", { name });
 const CV_PDF = "file:///cache/CV adapté – Aéroline · Responsable qualité.pdf";
 
 async function openFiche() {
+  await signedIn();
   await renderRouter("./src/app", { initialUrl: "/candidatures/a1" });
   await userEvent.setup().press(button("Fiche"));
 }
@@ -158,7 +183,8 @@ describe("Tailored Documents, read only", () => {
 describe("Tailored Documents, on a tablet", () => {
   it("opens the document in the Work Pane column beside the conversation and the Fiche", async () => {
     setWindow(IPAD_LANDSCAPE);
-    await renderRouter("./src/app", { initialUrl: "/candidatures/a1" });
+    await signedIn();
+  await renderRouter("./src/app", { initialUrl: "/candidatures/a1" });
     await userEvent.setup().press(button("CV adapté"));
 
     expect(mockPreview).toHaveBeenCalledWith(CV_PDF, { title: "CV adapté", mimeType: "application/pdf" });

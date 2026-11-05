@@ -11,6 +11,30 @@ jest.setTimeout(60_000);
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
 
+// Signed in, as the app is once its magic link opened it (#685): the web app's endpoints faked at the session's fetch.
+const mockWeb = {} as { app: ReturnType<typeof import("../src/session/testing").fakeWebApp>; session: import("../src/session/app-session").AppSession };
+jest.mock("../src/session/instance", () => {
+  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { createAppSession } = jest.requireActual("../src/session/app-session");
+  mockWeb.app = fakeWebApp();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  return { appSession: mockWeb.session };
+});
+const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
+// Not hoisted: it replaces Expo Router's own mock (expo-router/testing-library), whose scheme is not the app's.
+jest.doMock("expo-linking", () => {
+  const { useSyncExternalStore } = jest.requireActual("react");
+  const subscribe = (listener: () => void) => (mockLink.listeners.add(listener), () => mockLink.listeners.delete(listener));
+  return { ...jest.requireActual("expo-linking"), useLinkingURL: () => useSyncExternalStore(subscribe, () => mockLink.current) };
+});
+const EMAIL = "marie.dupont@example.fr";
+async function signedIn() {
+  jest.requireMock("../src/session/instance");
+  if ((await mockWeb.session.current()).kind === "signedIn") return;
+  await mockWeb.session.askLink(EMAIL);
+  await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
+}
+
 type WebViewProps = { source: { uri: string; headers?: Record<string, string> }; onShouldStartLoadWithRequest: (request: { url: string }) => boolean; children?: ReactNode };
 const mockWebViews: WebViewProps[] = [];
 jest.mock("react-native-webview", () => ({
@@ -31,6 +55,7 @@ const button = (name: string | RegExp) => screen.getByRole("button", { name });
 const lastWebView = () => mockWebViews.at(-1)!;
 
 async function openProfileFiche() {
+  await signedIn();
   await renderRouter("./src/app", { initialUrl: "/profils/p1" });
   await userEvent.setup().press(button("Fiche"));
 }
@@ -42,7 +67,8 @@ beforeEach(() => {
 
 describe("Profiles, to read", () => {
   it("lists the Profiles in Mon compte, each leading to its page", async () => {
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await signedIn();
+  await renderRouter("./src/app", { initialUrl: "/compte" });
     expect(screen.getByText("Profils")).toBeOnTheScreen();
     await userEvent.setup().press(screen.getByRole("link", { name: "Qualité aéronautique" }));
     expect(screen).toHavePathname("/profils/p1");
@@ -66,7 +92,8 @@ describe("Profiles, to read", () => {
   });
 
   it("says a Search Criterion left empty is not specified, and an ATS Score not yet computed", async () => {
-    await renderRouter("./src/app", { initialUrl: "/profils/p2" });
+    await signedIn();
+  await renderRouter("./src/app", { initialUrl: "/profils/p2" });
     await userEvent.setup().press(button("Fiche"));
     expect(screen.getByText("Lieux : Non précisé")).toBeOnTheScreen();
     expect(screen.getByText(/^Pas encore calculé/)).toBeOnTheScreen();
@@ -93,7 +120,8 @@ describe("Profiles, « Modifier » on the web", () => {
 
   it("opens it in the Work Pane column on a tablet, beside the conversation", async () => {
     setWindow(IPAD_LANDSCAPE);
-    await renderRouter("./src/app", { initialUrl: "/profils/p1" });
+    await signedIn();
+  await renderRouter("./src/app", { initialUrl: "/profils/p1" });
     await userEvent.setup().press(button("Modifier le profil"));
 
     expect(screen.getByTestId("webview")).toBeOnTheScreen();

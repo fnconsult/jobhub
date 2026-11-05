@@ -14,4 +14,6 @@ Your searches are listed there in the card « Your job searches by profile »: w
 
 Each search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.
 
+Your coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.
+
 In the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page.

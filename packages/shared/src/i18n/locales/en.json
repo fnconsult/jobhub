@@ -5490,7 +5490,8 @@
       "extension": "Extension",
       "coach-ia": "AI Coach",
       "confidentialite": "Privacy",
-      "accessibilite": "Accessibility"
+      "accessibilite": "Accessibility",
+      "recherche": "Job search"
     },
     "changes": {
       "new": "New",
@@ -5803,7 +5804,10 @@
       "applicationProfile": "Application's profile",
       "followUpSent": "Follow-up sent",
       "profileStatus": "Profile status",
-      "coachMemory": "To remember"
+      "coachMemory": "To remember",
+      "jobSearch": "Job search",
+      "jobSearchStop": "Stopping the search",
+      "jobDigest": "Job Digest"
     },
     "interview": {
       "none": "None",
@@ -5816,19 +5820,34 @@
       "noFollowUp": "No follow-up sent",
       "followUps_one": "{{count}} follow-up sent",
       "followUps_other": "{{count}} follow-ups sent",
-      "followedUp": "{{sent}}, status “{{status}}”"
+      "followedUp": "{{sent}}, status “{{status}}”",
+      "noSearch": "No search run yet",
+      "lastSearch": "Last search on {{date}}",
+      "searchOn": "On the profile's criteria: {{criteria}}",
+      "searching": "Running since {{time}}",
+      "stopped": "Stopped, the job offers already found kept",
+      "noDigest": "No Job Digest"
+    },
+    "quota": {
+      "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
+      "jobSearchNone": "Your {{limit}} searches this week are used",
+      "jobSearchUnlimited": "Unlimited searches with your plan",
+      "profile": "Uses one active profile of your plan"
     },
     "by": "Proposed by your AI coach",
     "before": "Before:",
     "after": "after:",
     "changeOf": "{{what}}:",
     "apply": "Apply",
+    "launch": "Launch",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
     "undo": "Undo",
     "editTitle": "Edit before applying: {{what}}",
     "editIntro": "The page's form, filled in with your coach's proposal for “{{name}}”. What you change here is kept if you close the pane.",
     "applied": "Applied by you at {{time}}",
+    "launched": "Launched by you at {{time}}",
+    "launchedHint": "Follow it in AI activity; “Stop” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
     "problems": {
@@ -5845,9 +5864,6 @@
     },
     "coachMemory": {
       "before": "Not remembered yet"
-    },
-    "quota": {
-      "profile": "Uses one active profile of your plan"
     },
     "review": {
       "open": "Review the changes",

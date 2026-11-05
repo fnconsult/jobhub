@@ -7,7 +7,9 @@
  *    - the Candidate's side, per Profile: `settings` (opted in or not, the
  *      frequency they picked and the one their Plan allows, the latest Job
  *      Digests), `subscribe` (opt in, or change the frequency: daily or weekly,
- *      refused above the Plan's) and `unsubscribe`; `get` one Job Digest for its
+ *      refused above the Plan's), `allows` (what `subscribe` would refuse,
+ *      recording nothing: an AI Coach proposal's Upgrade prompt, #720) and
+ *      `unsubscribe`; `get` one Job Digest for its
  *      page, its Job Offers ranked by Match Score;
  *    - the email's side: `unsubscribeByToken`, for the unsubscribe link and
  *      the one-click List-Unsubscribe header (RFC 8058). No session needed:
@@ -171,6 +173,11 @@ export interface JobDigests {
    * "weekly"; untrusted), or changes it. Refused above the Plan's frequency.
    */
   subscribe(candidateId: string, profileId: string, frequency: unknown): Promise<SubscribeResult>;
+  /**
+   * Whether `subscribe` would accept `frequency` for this Profile now, or its refusal, recording nothing (#720): what an
+   * AI Coach proposal says before the Candidate applies it, the Upgrade prompt in place of « Appliquer » when refused.
+   */
+  allows(candidateId: string, profileId: string, frequency: unknown): Promise<{ ok: true } | Exclude<SubscribeResult, { ok: true }>>;
   /** Opts out of the Job Digest of a Profile. */
   unsubscribe(candidateId: string, profileId: string): Promise<void>;
   /** Opts out with the token of an email's unsubscribe link. False when the token names no opt-in (any more). */
@@ -390,6 +397,25 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     };
   }
 
+  /** The Profile `subscribe` would opt in at `frequency`, or why it would refuse. */
+  async function subscribable(
+    candidateId: string,
+    profileId: string,
+    frequency: unknown,
+  ): Promise<{ refused: Exclude<SubscribeResult, { ok: true }>; profile?: never } | { refused?: never; profile: Profile; frequency: ChosenFrequency }> {
+    const profile = await ownProfile(candidateId, profileId);
+    if (!profile) return { refused: { ok: false, error: "not_found" } };
+    if (profile.archived) return { refused: { ok: false, error: "archived" } };
+    if (!isChosenFrequency(frequency)) return { refused: { ok: false, error: "invalid_frequency" } };
+    const { plan, frequency: planFrequency } = await planOf(candidateId);
+    if (planFrequency === "none") return { refused: { ok: false, error: "not_included", ...(await planUpgrade(plan)) } };
+    if (rank(frequency) > rank(planFrequency)) {
+      const { planName, upgradeTo, upgradeToName } = await planUpgrade(plan, frequency);
+      return { refused: { ok: false, error: "above_plan", plan, planName, planFrequency, upgradeTo, upgradeToName } };
+    }
+    return { profile, frequency };
+  }
+
   /** The Job Offers this Profile was already shown: in its Job Digests or Job Searches (done, stopped or failed: all show what they kept), or saved by the Candidate. */
   async function shownTo(candidateId: string, profileId: string): Promise<Set<string>> {
     const [{ rows }, saved] = await Promise.all([
@@ -494,17 +520,12 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       return profile ? settingsOf(candidateId, profile) : null;
     },
 
+    allows: async (candidateId, profileId, frequency) => (await subscribable(candidateId, profileId, frequency)).refused ?? { ok: true },
+
     async subscribe(candidateId, profileId, frequency) {
-      const profile = await ownProfile(candidateId, profileId);
-      if (!profile) return { ok: false, error: "not_found" };
-      if (profile.archived) return { ok: false, error: "archived" };
-      if (!isChosenFrequency(frequency)) return { ok: false, error: "invalid_frequency" };
-      const { plan, frequency: planFrequency } = await planOf(candidateId);
-      if (planFrequency === "none") return { ok: false, error: "not_included", ...(await planUpgrade(plan)) };
-      if (rank(frequency) > rank(planFrequency)) {
-        const { planName, upgradeTo, upgradeToName } = await planUpgrade(plan, frequency);
-        return { ok: false, error: "above_plan", plan, planName, planFrequency, upgradeTo, upgradeToName };
-      }
+      const checked = await subscribable(candidateId, profileId, frequency);
+      if (checked.refused) return checked.refused;
+      const { profile } = checked;
       // Opting in again counts from now, so it is not due before the next 07:00 that comes after it.
       await database.query(
         `INSERT INTO job_digest_subscription (profile_id, candidate_id, unsubscribe_token, subscribed_at, frequency) VALUES ($1, $2, $3, $4, $5)
@@ -512,7 +533,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
            frequency = EXCLUDED.frequency,
            subscribed_at = CASE WHEN job_digest_subscription.unsubscribed_at IS NULL THEN job_digest_subscription.subscribed_at ELSE EXCLUDED.subscribed_at END,
            unsubscribed_at = NULL`,
-        [profile.id, candidateId, newToken(), now(), frequency],
+        [profile.id, candidateId, newToken(), now(), checked.frequency],
       );
       return { ok: true, settings: await settingsOf(candidateId, profile) };
     },

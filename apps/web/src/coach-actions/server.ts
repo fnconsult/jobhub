@@ -18,6 +18,7 @@ import { candidateObjects } from "./candidate-objects";
 import { shippedCoachActions } from "./catalog";
 import { e2eCoachActions } from "./e2e-catalog";
 import { createCoachActions, type CoachAction, type CoachActions } from "./index";
+import { jobSearchQuotaOf } from "./job-searches";
 import { coachActionsSettings } from "./settings";
 
 let instance: CoachActions | undefined;
@@ -35,8 +36,8 @@ async function offersOf(candidateId: string, profileId: string): Promise<string[
 }
 
 /**
- * The catalogue shipped, over the Candidate's objects through the domain modules the pages' routes use (#714, #716, #718),
- * its proposals applied through them (#719).
+ * The catalogue shipped, over the Candidate's objects through the domain modules the pages' routes use (#714, #716, #718,
+ * #720), its proposals applied through them (#719, #720).
  */
 function shipped(): readonly CoachAction[] {
   return shippedCoachActions(
@@ -74,6 +75,9 @@ function shipped(): readonly CoachAction[] {
         profileUpgradePrompt: async (candidateId, language) => profileUpgradePrompt(getBilling(), getProfiles(), candidateId, language),
         industries: readIndustryReference,
       },
+      jobSearches: getJobSearches(),
+      jobDigests: getJobDigests(),
+      jobSearchQuota: jobSearchQuotaOf(getBilling()),
     },
   );
 }

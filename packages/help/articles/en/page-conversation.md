@@ -8,7 +8,7 @@ route: /conversations/[id]
 ---
 This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Does this answer your question? » lets you say so.
 
-Write in the message box at the foot of the page. While the coach is replying, « Stop » interrupts its reply.
+Write in the message box, always in view at the foot of the page. While the coach is replying, « Stop » interrupts its reply. A reply shows from its first line; when it is long, scroll the conversation to read it to the end. The conversation scrolls on its own, under the top bar: the fiche and the item open beside it (a section, a result) stay in place and each scrolls on its own.
 
 To rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays.
 

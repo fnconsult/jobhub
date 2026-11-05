@@ -547,24 +547,8 @@ textarea.input {
   border: 0;
 }
 
-/* A reply (#464): its Activity's glyph, then its words, the Provenance line and the feedback under them. */
-:is(.coach-panel, .page-conversation) .chat-coach:has(> .activity-glyph) {
-  display: grid;
-  grid-template-columns: 1.25em minmax(0, 1fr);
-  column-gap: var(--space-3);
-  align-items: start;
-}
-
-:is(.coach-panel, .page-conversation) .chat-coach > .activity-glyph {
-  grid-row: 1 / span 9;
-  margin-top: 0.2em;
-}
-
-:is(.coach-panel, .page-conversation)
-  .chat-coach:has(> .activity-glyph)
-  > :not(.activity-glyph, .visually-hidden) {
-  grid-column: 2;
-}
+/* A reply once it is there (#788): its words the thread's full width, no glyph in the margin; then what the AI Coach
+   consulted, the Provenance line, its Action Cards and the feedback under them. */
 
 /*
  * No author is shown (#317, #327): the Candidate's own words sit in bubbles at least 3:1 against the panel (ADR-0009
@@ -587,13 +571,120 @@ textarea.input {
   border-color: var(--color-text);
 }
 
-/* A reply on its way (#328): the step under way, its Activity's glyph beside its label, in place of a « thinking » notice. */
+/* A reply on its way (#328, #788, variante A), where it will be: one glyph on the left, morphing from step to step, and a
+   line for each Coach Action (ticked once done, a small accent dot while under way), the step under way last. */
+.coach-panel-live {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: start;
+  margin: var(--space-3) 0 0;
+}
+
+.coach-panel-live > .activity-glyph {
+  margin-top: 0.1em;
+}
+
+.coach-panel-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .coach-panel-step {
   display: flex;
   gap: var(--space-2);
   align-items: center;
-  margin: var(--space-3) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
+}
+
+.coach-panel-step-dot {
+  flex: none;
+  width: 0.4em;
+  height: 0.4em;
+  margin: 0 0.3em;
+  background: var(--color-accent);
+  border-radius: 50%;
+}
+
+.coach-panel-step-done {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-text-meta);
+}
+
+.coach-panel-step-done svg,
+.coach-tools-consulted-done svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* « Le coach a consulté N éléments de Jobbbox » (#788): quiet, the toolbox's small glyph, opening on each element; a
+   control, so at body size (ADR-0057). */
+.coach-tools-consulted {
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.coach-tools-consulted > summary {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  cursor: pointer;
+}
+
+.coach-tools-consulted .activity-glyph {
+  width: 1.1em;
+  height: 1.1em;
+  stroke: var(--color-text-meta);
+}
+
+.coach-tools-consulted > ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0 0 0 var(--space-6);
+  list-style: none;
+}
+
+.coach-tools-consulted li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.coach-tools-consulted-done {
+  display: inline-flex;
+}
+
+/* A reply just arrived (#788): its words one by one, about 28 a second, each fading in at its place (nothing moves), then
+   what follows it. All at once under reduced motion; the page never marks a reply from the history so. */
+.chat-revealing .coach-word {
+  animation: coach-word-in 240ms ease-out both;
+  animation-delay: calc(var(--word) * 36ms);
+}
+
+.chat-revealing > :not(.visually-hidden, p, ol, ul, .chat-blocked-label) {
+  animation: coach-word-in 240ms ease-out both;
+  animation-delay: calc(var(--reply-words) * 36ms);
+}
+
+@keyframes coach-word-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-revealing .coach-word,
+  .chat-revealing > * {
+    animation: none;
+  }
 }
 
 .activity-glyph {

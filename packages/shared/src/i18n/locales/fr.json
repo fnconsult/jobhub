@@ -1033,6 +1033,20 @@
     "stopped": "Réponse arrêtée",
     "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
     "thinking": "Votre coach rédige sa réponse…",
+    "consulted": {
+      "summary_one": "Le coach a consulté {{count}} élément de Jobbbox",
+      "summary_other": "Le coach a consulté {{count}} éléments de Jobbbox",
+      "pages": {
+        "application": "Candidature",
+        "applications": "Vos candidatures",
+        "profile": "Profil",
+        "job_search": "Recherche d'offres",
+        "job_searches": "Vos recherches d'offres",
+        "job_offer": "Offre",
+        "job_digest": "Job Digest",
+        "job_digests": "Vos Job Digests"
+      }
+    },
     "errors": {
       "unavailable": "Votre coach ne peut pas répondre pour le moment. Réessayez dans quelques instants.",
       "invalid": "Ce message n'a pas pu être envoyé. Raccourcissez-le et réessayez."

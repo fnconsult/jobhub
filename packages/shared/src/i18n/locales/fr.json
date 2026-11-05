@@ -5916,6 +5916,7 @@
       "open": "Relire les changements",
       "title": "Relire les changements : {{what}}",
       "intro": "Acceptez ou refusez chaque changement que votre coach propose pour « {{name}} ». Seuls les changements acceptés sont enregistrés, en une nouvelle version de votre CV de référence ; un changement refusé garde ce qu'il dit.",
+      "pending": "Chaque changement attend votre « Accepter » ou votre « Refuser » : aucun n'est accepté d'avance.",
       "before": "Avant",
       "after": "Proposé",
       "fromOffer": "Repris d'une de vos offres, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",

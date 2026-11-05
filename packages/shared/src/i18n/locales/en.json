@@ -5916,6 +5916,7 @@
       "open": "Review the changes",
       "title": "Review the changes: {{what}}",
       "intro": "Accept or reject each change your coach proposes for “{{name}}”. Only the accepted changes are saved, as a new version of your Master CV; a rejected change keeps what it says.",
+      "pending": "Each change waits for your “Accept” or “Reject”: none is accepted in advance.",
       "before": "Before",
       "after": "Proposed",
       "fromOffer": "Taken from one of your job offers, not in your Master CV: {{words}}. Keep it only if it is true.",

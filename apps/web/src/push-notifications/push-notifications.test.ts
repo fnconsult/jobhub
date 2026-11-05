@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createPushNotifications, migratePushNotifications, type PushNotifications } from "./index";
+import { createPushNotifications, migratePushNotifications, pushNotificationsOf, PUSH_NOTIFICATIONS_QUEUE, type PushNotifications } from "./index";
 import type { PushDevice, PushOutcome, PushPlatform, PushSender } from "./senders";
 import type { PushMessage } from "./messages";
 
@@ -212,5 +212,37 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       expect(JSON.stringify(rows)).not.toContain(IPHONE);
       expect(JSON.stringify(rows)).not.toContain(marie.id);
     });
+  });
+
+  describe("the Data export", () => {
+    it("holds the person's devices (platform, language, dates), never their token, and the switches they changed", async () => {
+      const marie = await signIn("marie@example.fr");
+      await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
+      await push.setEnabled(marie.id, "job_digest", false);
+      const exported = await pushNotificationsOf(database, marie.id);
+      expect(exported).toEqual({
+        devices: [{ platform: "ios", language: "fr", registeredAt: clock.now, lastSeenAt: clock.now }],
+        switches: [{ event: "job_digest", enabled: false, changedAt: clock.now }],
+      });
+      expect(JSON.stringify(exported)).not.toContain(IPHONE);
+    });
+  });
+});
+
+describe("queueing a Push notification for the worker", () => {
+  it("queues the person, the notification and the platform, sending nothing itself", async () => {
+    const queued: { name: string; data: object }[] = [];
+    const push = createPushNotifications({} as Pool, { senders: () => ({}), queue: { send: async (name, data) => void queued.push({ name, data }) } });
+    await push.notify("cand_marie", { event: "job_digest", jobDigestId: "digest-1" });
+    await push.notify("cand_admin", { event: "test" }, { platform: "android" });
+    expect(queued).toEqual([
+      { name: PUSH_NOTIFICATIONS_QUEUE, data: { personId: "cand_marie", notification: { event: "job_digest", jobDigestId: "digest-1" } } },
+      { name: PUSH_NOTIFICATIONS_QUEUE, data: { personId: "cand_admin", notification: { event: "test" }, platform: "android" } },
+    ]);
+  });
+
+  it("refuses to queue without a queue: the worker's side never queues", async () => {
+    const push = createPushNotifications({} as Pool, { senders: () => ({}) });
+    await expect(push.notify("cand_marie", { event: "test" })).rejects.toThrow(/queue/);
   });
 });

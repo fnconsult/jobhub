@@ -9,6 +9,7 @@
  *    and moves it to the account signed in on the device now.
  *  - `devices`: the person's devices, without their token (Rappels, the Data export).
  *  - `settings` and `setEnabled`: one switch per event in Mon compte's Rappels Section, each on until switched off.
+ *  - `notify`: the web app's side. Queues one notification for the worker, which sends it (`send`).
  *  - `send`: the worker's side. One notification to each of the person's devices whose session is still valid, for an
  *    event they did not switch off, in the device's language, through its platform's provider. A failure is kept with
  *    its Failure Reason, platform and event (never the token, the account nor the text), for FAILURE_RETENTION_DAYS.
@@ -16,7 +17,7 @@
 import { isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import type { PushFailureReason } from "@jobhub/shared";
 import type { Pool } from "pg";
-import { isPushEvent, PUSH_EVENT_IDS, type PushEvent, type PushNotification, type PushNotificationEvent } from "./catalog";
+import { isPushEvent, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, type PushNotification, type PushNotificationEvent } from "./catalog";
 import { pushMessage } from "./messages";
 import { PUSH_ENVIRONMENTS, PUSH_PLATFORMS, type PushEnvironment, type PushOutcome, type PushPlatform, type PushSender } from "./senders";
 
@@ -39,6 +40,8 @@ export interface PushNotificationsDeps {
   now?: () => Date;
   /** Where a failure's technical message goes (the worker's log). Default: nowhere. */
   log?: (line: string) => void;
+  /** The worker's job queue, which `notify` queues on (the web app's). Without it, `notify` throws. */
+  queue?: { send(name: string, data: object): Promise<void> };
 }
 
 /** A device, as the person sees it: never its token. */
@@ -74,6 +77,8 @@ export interface PushNotifications {
   /** Each event's switch: on unless switched off. */
   settings(personId: string): Promise<Record<PushEvent, boolean>>;
   setEnabled(personId: string, event: PushEvent, enabled: boolean): Promise<void>;
+  /** Queues `notification` for the worker to send to the person's devices (only those of `platform` when given). */
+  notify(personId: string, notification: PushNotification, options?: { platform?: PushPlatform }): Promise<void>;
   /**
    * Sends `notification` to the person's devices (only those of `platform` when given); the test whatever the switches.
    * How many it reached, how many failed, and how many of those were removed for a token no longer valid.
@@ -129,13 +134,7 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
       await database.query(`DELETE FROM push_device WHERE candidate_id = $1 AND token = $2`, [personId, token.trim()]);
     },
 
-    async devices(personId) {
-      const { rows } = await database.query<PushDeviceSummary>(
-        `SELECT platform, language, registered_at AS "registeredAt", last_seen_at AS "lastSeenAt" FROM push_device WHERE candidate_id = $1 ORDER BY registered_at, id`,
-        [personId],
-      );
-      return rows;
-    },
+    devices: (personId) => devicesOf(database, personId),
 
     async settings(personId) {
       const { rows } = await database.query<{ event: string; enabled: boolean }>(`SELECT event, enabled FROM push_notification_setting WHERE candidate_id = $1`, [personId]);
@@ -151,6 +150,11 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
          WHERE push_notification_setting.enabled <> EXCLUDED.enabled`,
         [personId, event, enabled, now()],
       );
+    },
+
+    async notify(personId, notification, options = {}) {
+      if (!deps.queue) throw new Error("Push notifications: no job queue to queue a notification on");
+      await deps.queue.send(PUSH_NOTIFICATIONS_QUEUE, { personId, notification, ...(options.platform ? { platform: options.platform } : {}) });
     },
 
     async send(personId, notification, options = {}) {
@@ -199,6 +203,34 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
       return rows;
     },
   };
+}
+
+/** A person's Push notifications, as their Data export holds them: never a device's token. */
+export interface ExportedPushNotifications {
+  /** Their devices, first registered first: platform, the app's language, when registered and last seen. */
+  devices: PushDeviceSummary[];
+  /** Each event they switched in Rappels, on or off, and when; an event never switched is on. */
+  switches: { event: string; enabled: boolean; changedAt: Date }[];
+}
+
+async function devicesOf(database: Pick<Pool, "query">, personId: string): Promise<PushDeviceSummary[]> {
+  const { rows } = await database.query<PushDeviceSummary>(
+    `SELECT platform, language, registered_at AS "registeredAt", last_seen_at AS "lastSeenAt" FROM push_device WHERE candidate_id = $1 ORDER BY registered_at, id`,
+    [personId],
+  );
+  return rows;
+}
+
+/** The person's Push notifications for their Data export. */
+export async function pushNotificationsOf(database: Pick<Pool, "query">, personId: string): Promise<ExportedPushNotifications> {
+  const [devices, switches] = await Promise.all([
+    devicesOf(database, personId),
+    database.query<ExportedPushNotifications["switches"][number]>(
+      `SELECT event, enabled, changed_at AS "changedAt" FROM push_notification_setting WHERE candidate_id = $1 ORDER BY event`,
+      [personId],
+    ),
+  ]);
+  return { devices, switches: switches.rows };
 }
 
 /** Deletes the failures older than FAILURE_RETENTION_DAYS; how many. */

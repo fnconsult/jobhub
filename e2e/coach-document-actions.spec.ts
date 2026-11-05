@@ -185,7 +185,7 @@ test.describe("the « Documents » Coach Actions: « Préparer », « Rédiger �
     await card.getByRole("button", { name: texts.draft, exact: true }).click();
     await card.getByRole("button", { name: texts.confirmYes, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/candidatures/${applicationId}/documents\\?resultat=lettre$`), { timeout: 30_000 });
-    await expect(workPaneOf(page, fr.tailoredDocuments.coverLetter.title)).toBeVisible();
+    await expect(workPaneOf(page, new RegExp(`^${fr.tailoredDocuments.coverLetter.title}$`))).toBeVisible();
     await expect.poll(async () => (await draftsOf(applicationId))[0]?.text).not.toBe("Ma lettre, retouchée à la main.");
   });
 });

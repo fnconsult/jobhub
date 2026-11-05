@@ -5893,7 +5893,7 @@
     "editIntro": "Le formulaire de la page, pré-rempli avec la proposition de votre coach pour « {{name}} ». Ce que vous changez ici est gardé si vous fermez le volet.",
     "applied": "Appliqué par vous à {{time}}",
     "launched": "Lancé par vous à {{time}}",
-    "launchedHint": "Suivez-la dans Activité IA ; « Arrêter » l'interrompt.",
+    "launchedHint": "Suivez-la dans Activité IA ; « Arrêter la recherche d'offres » l'interrompt.",
     "dismissed": "Ignoré",
     "undone": "Annulé à {{time}}",
     "problems": {

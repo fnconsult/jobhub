@@ -5893,7 +5893,7 @@
     "editIntro": "The page's form, filled in with your coach's proposal for “{{name}}”. What you change here is kept if you close the pane.",
     "applied": "Applied by you at {{time}}",
     "launched": "Launched by you at {{time}}",
-    "launchedHint": "Follow it in AI activity; “Stop” ends it.",
+    "launchedHint": "Follow it in AI activity; “Stop the job search” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
     "problems": {

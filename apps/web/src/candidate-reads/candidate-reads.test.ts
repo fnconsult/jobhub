@@ -30,6 +30,9 @@ import { createTailoredCvs, type TailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments, type TailoredDocuments } from "../tailored-documents";
 import { createCandidateReads, type CandidateReads } from "./index";
 
+/** The estimate of the AI Coach's context by category, as the reply in the tests says it (#731). */
+const CONTEXT_SPLIT = { messages: 40, instructions: 2_000, profile: 900, advice: 300, sources: 60 };
+
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
   headline: "Directrice financière",
@@ -165,7 +168,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
     tailoredDocuments = createTailoredDocuments(database, { applications, profiles, ai });
     // The AI Coach's reply, by rules in the tests: what is saved with it is what the app reads.
     const coach = {
-      reply: async () => ({ ok: true as const, reply: "Voici mes conseils.", outcome: "replied" as const, cost: null, playbooks: [], consultations: [], provenance: rulesProvenance("ats_score", { at: NOW }) }),
+      reply: async () => ({ ok: true as const, reply: "Voici mes conseils.", outcome: "replied" as const, cost: null, playbooks: [], consultations: [], provenance: rulesProvenance("ats_score", { at: NOW }), contextTokens: 3_300, contextSplit: CONTEXT_SPLIT }),
     };
     conversations = createCoachConversations(database, { coach, profiles, now: () => NOW });
     reads = createCandidateReads({
@@ -530,6 +533,16 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
         expect.objectContaining({ from: "coach", text: "Voici mes conseils.", at: NOW.toISOString(), provenance: expect.objectContaining({ v: 1 }) }),
       ]);
       expect(overHttp(coachConversationResponseSchema, await reads.coachConversation(marie, id)).conversation?.id).toBe(id);
+    });
+
+    it("gives a reopened conversation its Context bar as the reply said it: the Plan's Coach context limits and the split (#731)", async () => {
+      const subject = { kind: "menu", id: "applications" };
+      const id = await send(marie, { subject, message: "Laquelle relancer ?" });
+      // A Plan with none stored: what every Candidate had before they were Plan limits (ADR-0078).
+      const context = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: CONTEXT_SPLIT };
+
+      expect(overHttp(coachConversationResponseSchema, await reads.coachConversation(marie, id)).conversation?.context).toEqual(context);
+      expect(overHttp(coachConversationResponseSchema, await reads.coachConversationOfSubject(marie, subject)).conversation?.context).toEqual(context);
     });
 
     it("refuses a Subject it does not know, and never gives a Candidate another Candidate's conversation", async () => {

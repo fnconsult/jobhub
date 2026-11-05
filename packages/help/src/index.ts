@@ -39,6 +39,8 @@ export { CONTACT_EMAIL_TOKEN, fillContactEmail } from "./contact";
 export { routeAddresses } from "./route-addresses";
 export { addDays, earliestNoticedEffective, isNoticed, LEGAL_NOTICE_DAYS, legalNoticesDue, NOTICED_LEGAL_TEXTS, privacyChangeInEffect } from "./legal-notices";
 export {
+  MOTION_DEMO_FILES,
+  MOTION_EXTENSION_PAGES,
   MOTION_FILES,
   MOTION_MEDIA_ORIGIN,
   motionFileKey,
@@ -49,6 +51,8 @@ export {
   routeMatches,
   SYNTHETIC_VOICE,
   type MotionAction,
+  type MotionDemoFile,
+  type MotionExtensionPage,
   type MotionFile,
   type MotionScript,
   type MotionStep,

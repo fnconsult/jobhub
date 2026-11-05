@@ -2992,7 +2992,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "tester l'extension"
       ],
       "route": null,
-      "motion": null,
+      "motion": "extension-analyser-offre",
       "microAnimations": [],
       "body": "Sans compte, l'extension Jobbbox compare votre CV à une offre d'emploi et calcule son Match Score.\n\n1. Ouvrez la page d'une offre d'emploi, puis cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ».\n2. Le panneau de l'extension s'ouvre à droite et montre l'offre capturée.\n3. Glissez votre CV dans « Glissez votre CV ici », ou cliquez sur « Choisir un fichier » pour le choisir.\n4. Cliquez sur « Calculer mon Match Score », en bas du panneau.\n5. Le score s'affiche sur 100, avec le « Détail du Match Score » : pour chaque critère, ce qui correspond et ce qui ne correspond pas.\n6. Pour comparer un autre CV, cliquez sur « Utiliser un autre CV ». Pour tout effacer, cliquez sur « Effacer mes données maintenant »."
     },
@@ -3044,7 +3044,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "débuter"
       ],
       "route": null,
-      "motion": null,
+      "motion": "commencer",
       "microAnimations": [],
       "body": "Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\n1. Cliquez sur « Se connecter », en haut de chaque page publique. Sur « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ».\n2. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuite.\n3. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n4. Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ».\n5. Votre coach vous accueille dans la conversation. Si vous avez un CV, déposez-le dans la carte « J'ai un CV » (PDF ou Word .docx, 10 Mo maximum) puis cliquez sur « Lire mon CV ». Sinon, cliquez sur « Répondre aux questions de mon coach », au-dessus de la zone de message, et répondez-y dans cette zone : une question à la fois, une dizaine de minutes.\n6. Dans le volet qui s'ouvre à côté de la conversation, vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu », corrigez ce qui doit l'être, puis cliquez sur « Enregistrer mon profil ».\n\nVotre premier profil est prêt : votre coach peut chercher des offres pour vous."
     },
@@ -3123,7 +3123,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "ne pas perdre"
       ],
       "route": null,
-      "motion": null,
+      "motion": "extension-creer-compte",
       "microAnimations": [],
       "body": "Sans compte, votre CV et l'offre sont effacés au plus tard 24 heures après votre première analyse, ou dès que vous fermez votre navigateur. En créant votre compte, vous les gardez : votre CV devient votre premier profil, et l'offre votre première candidature.\n\n1. Dans le panneau de l'extension, une fois votre Match Score calculé, cliquez sur « Créer mon compte et garder cette offre ». Jobbbox s'ouvre dans un nouvel onglet.\n2. Saisissez « Votre adresse e-mail », puis cliquez sur « Recevoir mon lien de connexion ».\n3. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes : votre compte est créé, sans mot de passe.\n4. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n5. Revenez à l'onglet de l'offre : le panneau de l'extension se met à jour tout seul. Votre CV est devenu votre profil, et l'offre est enregistrée dans vos candidatures, au statut « À postuler ».\n6. Cliquez sur « Voir ma candidature » pour l'ouvrir dans Jobbbox.\n\nSi vous avez déjà un compte, le même bouton vous connecte à votre compte, avec le même lien reçu par e-mail ; avant le calcul du score, « J'ai déjà un compte · Se connecter » mène à la même page. Le tutoriel « Enregistrer une offre avec l'extension » explique la suite."
     },
@@ -3258,7 +3258,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "tailored cv"
       ],
       "route": null,
-      "motion": null,
+      "motion": "postuler-cv-adapte",
       "microAnimations": [],
       "body": "Votre coach adapte votre CV de référence à une offre, sans jamais rien inventer. Vous vérifiez chaque changement avant de l'enregistrer, puis vous postulez vous-même.\n\n1. Ouvrez la candidature, puis sa rubrique « Documents ».\n2. Cliquez sur « Proposer un CV adapté ». Quand « Proposition prête : vérifiez les changements avant d'enregistrer. » s'affiche, le score de correspondance avant et après est indiqué.\n3. Si l'offre demande ce que votre CV ne montre pas, répondez aux « Questions du coach » : « Oui, je l'ai » ou « Non ». Un point n'est ajouté que si vous confirmez l'avoir.\n4. Sous « Changements par rapport au CV de référence », cliquez sur « Accepter » ou « Refuser » pour chaque changement. Un changement refusé garde ce que dit votre CV de référence.\n5. Cliquez sur « Enregistrer le CV adapté ». Il remplace le CV adapté déjà enregistré pour cette candidature, s'il y en a un.\n6. Sous « Télécharger ce CV adapté », choisissez un modèle de CV, puis « Télécharger en PDF » ou « Télécharger en Word (.docx) ».\n7. Envoyez votre candidature vous-même, sur le site de l'offre ou par e-mail : Jobbbox n'envoie rien à votre place.\n8. Dans la fiche de la candidature, mettez le « Statut » à « Postulée ». Si elle reste sans réponse, votre coach vous proposera une relance.\n\nLa lettre de motivation se prépare dans la même rubrique, avec « Rédiger la lettre »."
     },
@@ -3363,7 +3363,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rétractation"
       ],
       "route": null,
-      "motion": null,
+      "motion": "reserver-seance-coach",
       "microAnimations": [],
       "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. Vous payez d'abord, puis vous choisissez votre créneau.\n\n1. Dans le menu, ouvrez « Mes coachs humains ».\n2. Sous « Choisir un coach », cliquez sur « Réserver une séance avec … » pour le coach de votre choix.\n3. Sur la page « Votre commande », vérifiez le récapitulatif, puis cochez « J'accepte les CGV (version du …) ». La case qui demande que le service commence immédiatement est facultative.\n4. Cliquez sur « Passer au paiement », puis payez sur la page sécurisée de Stripe, notre prestataire de paiement. La confirmation de votre commande vous est envoyée par e-mail.\n5. De retour dans Jobbbox, « Paiement reçu. Choisissez maintenant le créneau de votre séance. » s'affiche. Cliquez sur « Choisir mon créneau avec … sur Cal.com » et réservez votre créneau.\n6. Revenez dans Jobbbox et cliquez sur « J'ai réservé : saisir la date ». Saisissez la « Date et heure de la séance (heure de Paris) » et, si vous l'avez, le « Lien de la visio (facultatif) », puis cliquez sur « Enregistrer ».\n7. La séance rejoint votre agenda. Si vous avez saisi le lien de la visio, le jour venu, cliquez sur « Rejoindre la visio avec … », dans « Mes coachs humains », sous « Mes séances payées ».\n\nTant qu'une séance n'a pas de date, elle attend dans « À planifier », dans votre agenda. Pendant les 14 jours qui suivent le paiement, et tant que la séance n'a pas eu lieu, vous pouvez vous rétracter depuis la séance, dans votre agenda."
     },
@@ -3426,7 +3426,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "email intake"
       ],
       "route": null,
-      "motion": null,
+      "motion": "transferer-offres-email",
       "microAnimations": [],
       "body": "Vos alertes d'offres (sites d'emploi, sites carrière) et les messages de recruteurs peuvent arriver dans Jobbbox : transférez-les à votre adresse de transfert, et Jobbbox en tire des offres pour vos profils. Rien n'est fait dans votre messagerie à votre place.\n\n1. Dans Mon compte, ouvrez la rubrique « Réception par email », puis cliquez sur « Configurer le transfert pas à pas ».\n2. À la question « Quelle messagerie reçoit vos alertes d'offres ? », choisissez la vôtre, puis cliquez sur « Continuer ».\n3. Lisez ce qui est lu et ce qui est gardé, puis cliquez sur « Activer et continuer ». La date d'activation est enregistrée.\n4. Cliquez sur « Copier l'adresse » : c'est votre adresse de transfert, à vous seul.\n5. Avec Gmail, sur un ordinateur, ajoutez cette adresse de transfert dans les paramètres de Gmail, comme le guide l'indique. Jobbbox reçoit le code de confirmation de Gmail et vous le montre : saisissez-le dans Gmail, ou cliquez sur « Confirmer avec le lien de Gmail ». Créez ensuite le filtre Gmail qui transfère seulement vos alertes à cette adresse, jamais tout votre courrier.\n6. Avec Outlook.com ou iCloud Mail, sur un ordinateur, créez la règle que décrit le guide, qui transfère seulement vos alertes à cette adresse. Avec Orange et les autres messageries, transférez vos alertes à la main, depuis l'une de « Vos adresses d'envoi ».\n7. Attendez votre prochaine alerte, ou transférez-en une à la main : « Premier email reçu le … » confirme que le transfert marche. Cela peut prendre quelques minutes, parfois plus.\n8. Ouvrez la page Recherches d'offres : les offres de vos emails arrivent dans « Reçues par email », sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60.\n\nSi une de vos alertes est ignorée comme « Expéditeur non reconnu », cliquez sur « C'est une alerte d'offres » : son expéditeur est reconnu pour vous à partir de son prochain email. Pour arrêter, cliquez sur « Désactiver » dans la rubrique « Réception par email » : l'adresse cesse aussitôt de fonctionner, et les offres déjà reçues restent."
     },
@@ -6402,7 +6402,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "test the extension"
       ],
       "route": null,
-      "motion": null,
+      "motion": "extension-analyser-offre",
       "microAnimations": [],
       "body": "Without an account, the Jobbbox extension compares your CV with a job offer and computes its Match Score.\n\n1. Open a job offer's page, then click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar: if it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page ».\n2. The extension's panel opens on the right and shows the captured job offer.\n3. Drop your CV in « Drop your CV here », or click « Choose a file » to pick it.\n4. Click « Compute my Match Score », at the foot of the panel.\n5. The score shows out of 100, with the « Match Score breakdown »: for each criterion, what matches and what does not.\n6. To compare another CV, click « Use another CV ». To delete everything, click « Delete my data now »."
     },
@@ -6426,7 +6426,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "applied"
       ],
       "route": null,
-      "motion": null,
+      "motion": "postuler-cv-adapte",
       "microAnimations": [],
       "body": "Your coach tailors your Master CV to a job offer, never inventing anything. You check each change before saving it, then you apply yourself.\n\n1. Open the application, then its « Documents » section.\n2. Click « Propose a tailored CV ». When « Proposal ready: check the changes before saving. » shows, the match score before and after is given.\n3. If the job offer asks for what your CV does not show, answer « The coach's questions »: « Yes, I have it » or « No ». A point is added only if you confirm you have it.\n4. Under « Changes from the reference CV », click « Accept » or « Reject » for each change. A rejected change keeps what your Master CV says.\n5. Click « Save the tailored CV ». It replaces the tailored CV already saved for this application, if there is one.\n6. Under « Download this tailored CV », choose a CV template, then « Download as PDF » or « Download as Word (.docx) ».\n7. Send your application yourself, on the job offer's site or by email: Jobbbox sends nothing on your behalf.\n8. In the application's fiche, set the « Status » to « Applied ». If it gets no answer, your coach will suggest a follow-up.\n\nThe cover letter is prepared in the same section, with « Draft the letter »."
     },
@@ -6453,7 +6453,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "withdrawal"
       ],
       "route": null,
-      "motion": null,
+      "motion": "reserver-seance-coach",
       "microAnimations": [],
       "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. You pay first, then you pick your time.\n\n1. In the menu, open « My human coaches ».\n2. Under « Choose a coach », click « Book a session with … » for the coach of your choice.\n3. On the « Your order » page, check the summary, then tick « I accept the terms of sale (version of …) ». The box asking for the service to start at once is optional.\n4. Click « Go to payment », then pay on the secure page of Stripe, our payment provider. Your order confirmation is sent to you by email.\n5. Back in Jobbbox, « Payment received. Now pick the time of your session. » shows. Click « Pick my time with … on Cal.com » and book your time.\n6. Come back to Jobbbox and click « I've booked: enter the date ». Enter the « Session date and time (Paris time) » and, if you have it, the « Video call link (optional) », then click « Save ».\n7. The session joins your agenda. If you entered the video call link, on the day, click « Join the video call with … », in « My human coaches », under « My paid sessions ».\n\nWhile a session has no date, it waits in « To schedule », in your agenda. During the 14 days after payment, and as long as the session has not taken place, you can withdraw from the session, in your agenda."
     },
@@ -6506,7 +6506,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "don't lose"
       ],
       "route": null,
-      "motion": null,
+      "motion": "extension-creer-compte",
       "microAnimations": [],
       "body": "Without an account, your CV and the job offer are deleted at the latest 24 hours after your first analysis, or as soon as you close your browser. By creating your account, you keep them: your CV becomes your first profile, and the job offer your first application.\n\n1. In the extension's panel, once your Match Score is computed, click « Create my account and keep this job offer ». Jobbbox opens in a new tab.\n2. Enter « Your email address », then click « Send me a sign-in link ».\n3. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes: your account is created, without a password.\n4. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n5. Go back to the job offer's tab: the extension's panel updates by itself. Your CV has become your profile, and the job offer is saved in your applications, as “To apply”.\n6. Click « See my application » to open it in Jobbbox.\n\nIf you already have an account, the same button signs you in to your account, with the same link sent by email; before the score is computed, « I already have an account · Sign in » leads to the same page. The tutorial « Save a job offer with the extension » explains what comes next."
     },
@@ -6591,7 +6591,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "received by email"
       ],
       "route": null,
-      "motion": null,
+      "motion": "transferer-offres-email",
       "microAnimations": [],
       "body": "Your job alerts (job boards, careers sites) and recruiters' messages can reach Jobbbox: forward them to your forwarding address, and Jobbbox draws job offers from them for your profiles. Nothing is done in your mailbox on your behalf.\n\n1. In My account, open the « Email intake » section, then click « Set up forwarding step by step ».\n2. At « Which mailbox gets your job alerts? », choose yours, then click « Continue ».\n3. Read what is read and what is kept, then click « Switch on and continue ». The date you switched it on is recorded.\n4. Click « Copy the address »: it is your forwarding address, yours alone.\n5. With Gmail, on a computer, add this forwarding address in Gmail's settings, as the guide shows. Jobbbox receives Gmail's confirmation code and shows it to you: enter it in Gmail, or click « Confirm with Gmail's link ». Then create the Gmail filter that forwards only your alerts to this address, never all your mail.\n6. With Outlook.com or iCloud Mail, on a computer, create the rule the guide describes, which forwards only your alerts to this address. With Orange and other mailboxes, forward your alerts by hand, from one of « Your sending addresses ».\n7. Wait for your next alert, or forward one by hand: « First email received on … » confirms forwarding works. It can take a few minutes, sometimes longer.\n8. Open the Job searches page: the job offers from your emails arrive in « Received by email », under the profile they match best, or in « Unclassified » when no profile reaches 60.\n\nIf one of your alerts is ignored as « Unrecognised sender », click « It's a job alert »: its sender is recognised for you from its next email. To stop, click « Switch off » in the « Email intake » section: the address stops working at once, and the job offers already received stay."
     },
@@ -6615,7 +6615,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "first steps"
       ],
       "route": null,
-      "motion": null,
+      "motion": "commencer",
       "microAnimations": [],
       "body": "A profile is a job you are aiming for: a master CV and search criteria. Your coach uses it to look for offers and prepare your applications.\n\n1. Click « Sign in », at the top of every public page. On « Sign in to Jobbbox », enter « Your email address » then click « Send me a sign-in link ».\n2. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan.\n3. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n4. In My account, under Profiles, click « Create my first profile ».\n5. Your coach welcomes you in the conversation. If you have a CV, drop it in the « I have a CV » card (PDF or Word .docx, 10 MB maximum) then click « Read my CV ». Otherwise, click « Answer my coach's questions », above the message box, and answer in that box: one question at a time, about ten minutes.\n6. In the pane that opens beside the conversation, check your CV and search criteria, such as the « Target role » and the « Location », correct what needs it, then click « Save my profile ».\n\nYour first profile is ready: your coach can look for offers for you."
     },

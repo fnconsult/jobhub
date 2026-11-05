@@ -15,7 +15,7 @@
  * session was signed in are decided here, on every OAuth callback (see signInHooks).
  */
 import { APP_ORIGIN, type ExternalApiLog } from "@jobhub/shared";
-import { DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
+import { DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES, type Locale } from "@jobhub/shared/i18n";
 import { expo } from "@better-auth/expo";
 import { passkey } from "@better-auth/passkey";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
@@ -113,6 +113,7 @@ const NO_SIGN_IN: SignInSetup = { configuration: { providers: [], requireSsoForA
 type HookContext = {
   path?: string;
   params?: Record<string, string | undefined>;
+  request?: Request;
   redirect(url: string): unknown;
   context: { internalAdapter: { findUserById(id: string): Promise<{ id: string; email: string; emailVerified: boolean } | null> } };
 } | null;
@@ -128,6 +129,19 @@ async function currentOAuthState(): Promise<Record<string, unknown> | null> {
 
 /** The provider a hook runs for: the one whose OAuth callback this is, if any. */
 const providerOf = (ctx: HookContext): string | null => (ctx?.path?.startsWith("/callback/") ? (ctx.params?.id ?? null) : null);
+
+/**
+ * The parameter a sign-up's magic link carries the language of the page it was asked from (#570): the new account
+ * starts in that Interface Language, wherever the link is opened. A returning Candidate's link carries none.
+ */
+export const SIGN_UP_LANGUAGE_PARAM = "interfaceLanguage";
+
+/** The Interface Language a magic link asks a new account to start in, if any. */
+function signUpLanguageOf(ctx: HookContext): Locale | null {
+  if (!ctx?.path?.startsWith("/magic-link/verify") || !ctx.request) return null;
+  const language = new URL(ctx.request.url).searchParams.get(SIGN_UP_LANGUAGE_PARAM);
+  return isSupportedLocale(language) ? language : null;
+}
 
 /**
  * Better Auth's database hooks that apply the sign-in policy (sign-in-providers/policy.ts)
@@ -204,6 +218,8 @@ export function signInHooks(signIn: SignInSetup, baseURL: string, secondStepRequ
       create: {
         before: async (user: { email: string; emailVerified: boolean }, ctx: HookContext) => {
           const providerId = providerOf(ctx);
+          const language = signUpLanguageOf(ctx);
+          if (language) return { data: { interfaceLanguage: language } };
           if (!providerId || !ctx) return undefined;
           // A provider not trusted for linking proves nothing about the address, whatever it
           // claims: the account starts unverified (no ADMIN_EMAILS standing), until a magic link.
@@ -270,6 +286,13 @@ export function signInHooks(signIn: SignInSetup, baseURL: string, secondStepRequ
  */
 async function verifiedWhileLinking(): Promise<{ emailVerified?: true }> {
   return (await currentOAuthState())?.link ? { emailVerified: true } : {};
+}
+
+/** `url` (a magic link) asking a new account to start in `language`. */
+function withSignUpLanguage(url: string, language: Locale): string {
+  const link = new URL(url);
+  link.searchParams.set(SIGN_UP_LANGUAGE_PARAM, language);
+  return link.toString();
 }
 
 /** The endpoints that take a provider's ID token straight from the client, instead of the redirect. */
@@ -361,13 +384,16 @@ function authOptions(config: AuthConfig) {
       magicLink({
         expiresIn: MAGIC_LINK_MINUTES * 60,
         storeToken: "hashed",
-        sendMagicLink: async ({ email, url }, ctx) => {
-          // A returning Candidate reads the email in their Interface Language.
+        sendMagicLink: async ({ email, url, metadata }, ctx) => {
+          // A returning Candidate reads the email in their Interface Language; a new one in the language of the page
+          // they asked from (#570), which their link carries so the account starts in it.
           const found = await ctx?.context.internalAdapter.findUserByEmail(email);
-          const language = (found?.user as Record<string, unknown> | undefined)?.interfaceLanguage;
+          const language = found ? (found.user as Record<string, unknown>).interfaceLanguage : metadata?.language;
+          const locale = isSupportedLocale(language) ? language : DEFAULT_LOCALE;
           // Asked from the native app: a link the app opens, by a universal link or an App Link (app-sign-in.ts).
-          const link = emailedMagicLink(url, config.baseURL);
-          await config.mailer.send({ to: email, ...signInEmail({ url: link, minutes: MAGIC_LINK_MINUTES }, isSupportedLocale(language) ? language : DEFAULT_LOCALE) });
+          const appLink = emailedMagicLink(url, config.baseURL);
+          const link = appLink !== url || found || locale === DEFAULT_LOCALE ? appLink : withSignUpLanguage(url, locale);
+          await config.mailer.send({ to: email, ...signInEmail({ url: link, minutes: MAGIC_LINK_MINUTES }, locale) });
         },
       }),
       // Passkeys (#664, ADR-0075), added in Mon compte as a second step: never a way to sign in (PASSKEY_PATHS_REFUSED).

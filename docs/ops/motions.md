@@ -28,7 +28,7 @@ publishes nothing.
 | --- | --- |
 | Plan | chooses the motions (`plan.json`), reading `manifest.json` from the bucket |
 | Narrate | the voice reads each sentence; ffprobe measures it |
-| Capture | builds the app, migrates a throwaway Postgres, signs the demo Candidate in and seeds the demo data through the app's API, then films each script in French and in English at 1280 × 720 (`npx playwright test --project=motions`) |
+| Capture | builds the app (and the extension, for a Guest's videos), migrates a throwaway Postgres, signs a demo Candidate in and seeds the demo data through the app's API, then films each script in French and in English at 1280 × 720 (`npx playwright test --project=motions`) |
 | Render | Remotion composes the MP4 (title card, zooms, step titles, voice, no music), writes the WebVTT captions and the transcript (« Voix de synthèse ») from the same script, and the poster |
 | Publish | uploads `<script>/<langue>/<hash du script>/<rendu>/{video.mp4, captions.vtt, transcript.md, poster.jpg}`, `<rendu>` being the render's time (`20261102T090000Z`: a page a script films can change while its text does not), cached a year since a folder never changes, then `manifest.json` (cached 60 s), which names the version each script shows in each language; a broken motion keeps its previous entry |
 
@@ -70,9 +70,43 @@ The bucket's CORS (`packages/motions/bucket/cors.json`) lets the pages read the 
 
 ## Writing a Motion Script
 
-See `packages/help/src/motion-scripts.ts`. A `##` heading per step; its capture actions as list lines (`goto /path`,
-`click <role> "<name>"`, `hover`, `fill <role|label> "<name>" "<text>"`, `press <Key>`, `scroll`, `zoom <target>`,
-`zoom off`); then its narration, which says everything shown on screen. The build refuses a script without its
-translation, one whose English steps or actions differ from the French ones, a Tutorial whose `motion` names no script,
-a script no Tutorial names, and a route that is no page of the web app. Keep a video between 30 and 90 s: the run warns
-outside.
+See `packages/help/src/motion-scripts.ts`. A `##` heading per step; its capture actions as list lines; then its
+narration, which says everything shown on screen. The build refuses a script without its translation, one whose English
+steps or actions differ from the French ones, a Tutorial whose `motion` names no script, a script no Tutorial names, and
+a route that is no page of the web app. Keep a video between 30 and 90 s: the run warns outside.
+
+| Action | What it does |
+| --- | --- |
+| `goto /path` | opens a page of the web app (`/en/…` for a Visitor's English page) |
+| `click`, `hover`, `scroll`, `zoom <target>`, `zoom off` | on an element: `button « … »` (a role and its name), `label « … »`, `text « … »`; a link that opens a new tab carries on in the filmed one |
+| `fill <target> « text »` | types it; a date or a time is given as the field's value (`2027-03-16T10:00`) |
+| `select <target> « option »` | chooses an option of a list (« Statut ») |
+| `press <Key>` | a key |
+| `upload <target> « cv-claire-demo.pdf »` | gives the demo CV to a file input (`MOTION_DEMO_FILES`) |
+| `open-email « subject »` | shows the last email the address typed before received, as a mail client shows it; its link leads back to the app |
+| `pay <target>` | clicks « Passer au paiement » and pays in Stripe's test mode; the video goes on where Stripe sends the Candidate back, without Stripe's page |
+| `goto @offre-de-demo`, `goto @panneau-extension` | a Guest's script (`viewer: guest`): the invented job offer, and the extension's Side Panel beside it |
+
+`viewer:` says who is filmed: `candidate` (the default: a demo Candidate signed in, with a Profile and three
+Applications), `visitor` (nobody: the video may sign up, with an address of its own at `motions.jobbbox.test`), or `guest`
+(nobody, the extension loaded). A `guest` script that films no page of the web app declares `routes: []`; a change to the
+extension's Side Panel (`apps/extension/entrypoints/sidepanel/`) or its badge flags its scripts « Motion à régénérer ».
+Each capture has its own demo Candidate: one video never sees what another changed.
+
+The six videos (#570), each with its Tutorial:
+
+| Script | Tutorial | Filmed as |
+| --- | --- | --- |
+| `commencer` | « Commencer : de l'inscription à votre premier profil » | a Visitor who signs up |
+| `extension-analyser-offre` | « Analyser une offre avec l'extension, sans compte » | a Guest |
+| `postuler-cv-adapte` | « Postuler avec un CV adapté » | the demo Candidate |
+| `transferer-offres-email` | « Transférer vos offres reçues par e-mail » | the demo Candidate |
+| `reserver-seance-coach` | « Réserver et payer une séance avec un coach humain » | the demo Candidate, the demo Human Coach added by the run's Administrator, paid in Stripe's test mode |
+| `extension-creer-compte` | « Créer son compte depuis l'extension et garder son travail » | a Guest who signs up |
+
+A broken capture leaves `capture-failure.png` and `capture-failure.aria.txt` (the page's accessibility tree) beside its
+error in the run's « motions » artifact: the element's new name is usually there. CI films every script in both
+languages on each pull request (`e2e/motions.spec.ts`), with short pauses, so a renamed label breaks there first.
+
+The extension speaks French to a Guest whatever the browser's language: the English videos of a Guest show the French
+panel until it is signed in, and their actions name its French labels.

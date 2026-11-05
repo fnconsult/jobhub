@@ -27,14 +27,15 @@ export function SignInForm({
   /** Off where a magic link would not do (Require SSO for Administrators): the providers alone. */
   magicLink?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [status, setStatus] = useState<Status>("idle");
 
   async function requestLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const email = String(new FormData(event.currentTarget).get("email") ?? "").trim();
     setStatus("sending");
-    const { error } = await authClient.signIn.magicLink({ email, callbackURL, errorCallbackURL: errorURL });
+    // The page's language: a new account's sign-in email and Interface Language follow it (#570).
+    const { error } = await authClient.signIn.magicLink({ email, callbackURL, errorCallbackURL: errorURL, metadata: { language: i18n.language } });
     setStatus(error ? "error" : "sent");
   }
 

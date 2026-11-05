@@ -21,7 +21,11 @@ folder standing for the bucket.
 ## Demo data only
 
 The captures run on the throwaway database of the run, on a fictitious Candidate (`src/demo-seed.ts`: « Claire Démo »,
-invented employers, `*.jobbbox.test` and `*.invalid` addresses), never on real data. So the narration sent to the voice
+invented employers, `*.jobbbox.test` and `*.invalid` addresses), never on real data. So are her CV (`DEMO_CV_LINES`, the
+PDF a video drops in), the Human Coach she books (« Sophie Démo »), and the job offer a Guest analyses
+(`DEMO_JOB_OFFER`: « Maison Verlaine (démo) », served by the capture itself, marked « Offre de démonstration »). The AI
+is the e2e suite's fake (`e2e/support/fake-mistral.mjs`), which reads the demo CV as written; Stripe is its fake API in
+test mode; the sign-in email is read from the server's log. So the narration sent to the voice
 provider holds nothing personal: its key is a CI secret, neither a Tool nor a Recipient (ADR-0066). No language model is
 called: the voice reads the reviewed script as written.
 

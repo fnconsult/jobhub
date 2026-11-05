@@ -15,12 +15,16 @@ import { fileURLToPath } from "node:url";
 import { HelpContentError, parseFrontmatter, type HelpContent } from "./content";
 import {
   MOTION_ACTIONS,
+  MOTION_DEMO_FILES,
+  MOTION_EXTENSION_PAGES,
   MOTION_ROLES,
   MOTION_VIEWERS,
   routeMatches,
   UNNAMED_ROLES,
   withoutEnglishPrefix,
   type MotionAction,
+  type MotionDemoFile,
+  type MotionExtensionPage,
   type MotionRole,
   type MotionScript,
   type MotionStep,
@@ -104,7 +108,8 @@ export function parseMotionScript(id: string, locale: HelpLocale, markdown: stri
   const routes = frontmatter.routes;
   if (!title) problems.push("title is missing");
   if (!(MOTION_VIEWERS as readonly string[]).includes(viewer)) problems.push(`viewer must be ${MOTION_VIEWERS.join(" or ")}`);
-  if (!Array.isArray(routes) || routes.length === 0) problems.push("routes is missing: the app's routes the video films, [/candidatures, /candidatures/[id]]");
+  // A Guest's video may film the extension alone (#570): no page of the web app, `routes: []`.
+  if (!Array.isArray(routes) || (routes.length === 0 && viewer !== "guest")) problems.push("routes is missing: the app's routes the video films, [/candidatures, /candidatures/[id]]");
   else for (const route of routes) if (!route.startsWith("/") || /[?#]/.test(route)) problems.push(`route ${route} must be a path starting with /, with no query`);
 
   const steps: MotionStep[] = [];
@@ -132,9 +137,13 @@ export function parseMotionScript(id: string, locale: HelpLocale, markdown: stri
   else if (steps[0]!.actions[0]?.action !== "goto") problems.push("the first step starts with « - goto <path> »");
 
   for (const step of steps)
-    for (const action of step.actions)
-      if (action.action === "goto" && Array.isArray(routes) && !routes.some((route) => routeMatches(route, action.path)))
+    for (const action of step.actions) {
+      if (action.action !== "goto") continue;
+      if ("page" in action) {
+        if (viewer !== "guest") problems.push(`step « ${step.title} »: goto ${action.page} films the extension, for a « viewer: guest » script only`);
+      } else if (Array.isArray(routes) && !routes.some((route) => routeMatches(route, action.path)))
         problems.push(`step « ${step.title} »: goto ${action.path} is in none of the routes it declares`);
+    }
 
   const script: MotionScript = {
     id,
@@ -154,7 +163,12 @@ export function parseAction(line: string): MotionAction | string {
   const rest = restWords.join(" ");
   switch (verb) {
     case "goto":
-      return /^\/\S*$/.test(rest) ? { action: "goto", path: rest } : `goto takes a path starting with /: « ${line} »`;
+      if ((MOTION_EXTENSION_PAGES as readonly string[]).includes(rest)) return { action: "goto", page: rest as MotionExtensionPage };
+      return /^\/\S*$/.test(rest) ? { action: "goto", path: rest } : `goto takes a path starting with /, or ${MOTION_EXTENSION_PAGES.join(" or ")}: « ${line} »`;
+    case "open-email": {
+      const quoted = quotedStrings(rest);
+      return quoted.length === 1 && quoted[0]!.raw === rest.trim() ? { action: "open-email", subject: quoted[0]!.text } : `open-email takes the email's subject, quoted: « ${line} »`;
+    }
     case "press":
       return /^\S+$/.test(rest) ? { action: "press", key: rest } : `press takes one key (Enter, Tab…): « ${line} »`;
     case "zoom":
@@ -162,15 +176,25 @@ export function parseAction(line: string): MotionAction | string {
     // falls through: zoom on a target
     case "click":
     case "hover":
+    case "pay":
     case "scroll": {
       const target = parseTarget(rest);
       return typeof target === "string" ? `${target}: « ${line} »` : { action: verb, target };
     }
-    case "fill": {
+    case "fill":
+    case "select": {
       const quoted = quotedStrings(rest);
       const filled = quoted.at(-1);
-      const target = filled === undefined ? "fill needs the text to type, quoted" : parseTarget(rest.slice(0, rest.lastIndexOf(filled.raw)).trim());
-      return typeof target === "string" ? `${target}: « ${line} »` : { action: "fill", target, text: filled!.text };
+      const target = filled === undefined ? `${verb} needs the ${verb === "fill" ? "text to type" : "option to choose"}, quoted` : parseTarget(rest.slice(0, rest.lastIndexOf(filled.raw)).trim());
+      if (typeof target === "string") return `${target}: « ${line} »`;
+      return verb === "fill" ? { action: "fill", target, text: filled!.text } : { action: "select", target, option: filled!.text };
+    }
+    case "upload": {
+      const quoted = quotedStrings(rest);
+      const file = quoted.at(-1);
+      if (!file || !(MOTION_DEMO_FILES as readonly string[]).includes(file.text)) return `upload gives a demo file, ${MOTION_DEMO_FILES.join(" or ")}: « ${line} »`;
+      const target = parseTarget(rest.slice(0, rest.lastIndexOf(file.raw)).trim());
+      return typeof target === "string" ? `${target}: « ${line} »` : { action: "upload", target, file: file.text as MotionDemoFile };
     }
     default:
       return `unknown capture action « ${verb} »: one of ${MOTION_ACTIONS.join(", ")}`;
@@ -211,8 +235,9 @@ function translationProblems(french: MotionScript, english: MotionScript): strin
 
 /** An action without its words: `click button`, `goto /aide` (an English page's `/en` left out). */
 function actionShape(action: MotionAction): string {
-  if (action.action === "goto") return `goto ${withoutEnglishPrefix(action.path)}`;
+  if (action.action === "goto") return `goto ${"page" in action ? action.page : withoutEnglishPrefix(action.path)}`;
   if (action.action === "press") return `press ${action.key}`;
+  if (action.action === "open-email") return "open-email";
   const target = action.target;
   return `${action.action} ${target === null ? "off" : target.by === "role" ? target.role : target.by}`;
 }

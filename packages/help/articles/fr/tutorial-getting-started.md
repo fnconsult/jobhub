@@ -3,6 +3,7 @@ kind: tutorial
 audience: visitor
 topic: decouvrir
 title: "Commencer : de l'inscription à votre premier profil"
+motion: commencer
 synonyms: [commencer, démarrer, inscription, s'inscrire, créer un compte, premier profil, créer un profil, déposer mon cv, premiers pas, débuter]
 ---
 Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.

@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
@@ -113,10 +113,12 @@ test.describe("Explainer Videos in the Help Centre (#568)", () => {
 
   test.beforeAll(async () => {
     media = await mediaServer();
+    // The Help Centre's own scripts (#570), and this test's two.
+    const scripts = readdirSync(path.join(helpDir, "motions/fr")).filter((file) => file.endsWith(".md")).length + 2;
     for (const [file, text] of Object.entries(FILES)) writeFileSync(path.join(helpDir, file), text);
     const built = spawnSync("npm", ["run", "build", "-w", "@jobhub/help"], { encoding: "utf8" });
     expect(built.status, built.stdout + built.stderr).toBe(0);
-    expect(built.stdout).toContain("Motion Scripts: 2 in French and English");
+    expect(built.stdout).toContain(`Motion Scripts: ${scripts} in French and English`);
     server = await startServer(568, { HELP_MEDIA_ORIGIN: media.origin }, "dev");
   });
   test.afterAll(async () => {

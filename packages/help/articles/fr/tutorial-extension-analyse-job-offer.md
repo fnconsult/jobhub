@@ -3,6 +3,7 @@ kind: tutorial
 audience: guest
 topic: extension
 title: Analyser une offre avec l'extension, sans compte
+motion: extension-analyser-offre
 synonyms: [analyser une offre, match score, score de correspondance, sans compte, invité, essayer, extension, capturer, mon cv correspond-il, tester l'extension]
 ---
 Sans compte, l'extension Jobbbox compare votre CV à une offre d'emploi et calcule son Match Score.

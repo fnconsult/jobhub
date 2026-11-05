@@ -7,7 +7,7 @@ import { ReadState } from "../screens/ReadState";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
-import { applicationFormats, matchScoreInWords } from "./application-formats";
+import { applicationFormats, matchScoreInWords, siteOf } from "./application-formats";
 import { Interviews } from "./Interviews";
 import { Property } from "./Property";
 
@@ -78,7 +78,7 @@ function JobOffer({ application }: { application: ApplicationResponse }) {
       {jobOffer.expiredAt ? <AppText tone="warn">{t("jobOffer.expired", { date: formats.date(jobOffer.expiredAt) })}</AppText> : null}
       {jobOffer.url ? (
         <Control
-          label={t("jobOffer.sourceLink", { site: new URL(jobOffer.url).hostname.replace(/^www\./, "") })}
+          label={t("jobOffer.sourceLink", { site: siteOf(jobOffer.url) })}
           icon={ExternalLink}
           look="secondary"
           onPress={() => void Linking.openURL(jobOffer.url!).catch(() => undefined)}

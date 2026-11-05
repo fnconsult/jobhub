@@ -26,3 +26,12 @@ export type ApplicationFormats = ReturnType<typeof applicationFormats>;
 
 /** « 82 / 100 », or « Non calculable »: never 0 / 100 for a Match Score with nothing to compare (#94). */
 export const matchScoreInWords = (matchScore: number | null, t: TFunction) => (matchScore === null ? t("matchScore.notComputable") : t("matchScore.score", { score: matchScore }));
+
+/** The site a Job Offer's address is on, « welcometothejungle.com »; the address itself when it is not one. */
+export function siteOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}

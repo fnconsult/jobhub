@@ -13,7 +13,7 @@ import { radius, space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
-import { applicationFormats, matchScoreInWords } from "./application-formats";
+import { applicationFormats, matchScoreInWords, siteOf } from "./application-formats";
 import { ApplicationSection, APP_SECTIONS, type AppSection } from "./ApplicationSections";
 import { Property } from "./Property";
 import { StatusField } from "./StatusField";
@@ -61,9 +61,6 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 
 /** The Section the card's Match Score leads to, its breakdown. */
 const MATCH_SCORE: AppSection = "correspondance";
-
-/** The site an offer's address is on: « welcometothejungle.com ». */
-const siteOf = (url: string) => new URL(url).hostname.replace(/^www\./, "");
 
 /** The Application at a glance, first in its Fiche: its Job Offer, then its properties, its status changed in place. */
 function ApplicationCard({ application }: { application: ApplicationResponse }) {

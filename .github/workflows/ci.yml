@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# A run takes some fifteen jobs: a pull request's newer push cancels its older run, which would only hold runners. Every
+# commit on main keeps its own run: deploy.yml deploys a commit CI has passed on.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Lint, typecheck and the unit tests, beside the e2e shards: they used to run first, in the one `check` job.
   static:

@@ -112,6 +112,21 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Retention | Until the session ends on the device, however it ends: signing out deletes the folder before the session is dropped, and so does the app finding the session revoked from Mon compte or expired (at launch, when it comes back to the foreground, or at a read answered 401), and any new sign-in, before it shows anything (#695). Not while the web app cannot be reached and a session is still stored, which may still be valid; with none stored, it is deleted all the same. The system may delete it sooner when the device runs low on storage. Uninstalling the app removes it. In the meantime a document changed on the web is downloaded again over its earlier file, under the same name. |
 | Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds (« Applications and their documents »). |
 
+## CV files joined in the Jobbbox app (ADR-0076, #696)
+
+| | |
+| --- | --- |
+| Purpose | Read a CV the Candidate joins to a conversation in the app (« + », « Joindre un CV », or a PDF or Word file dropped on the box on a tablet) into a draft Master CV and Search Criteria, then save it as a Profile when they ask (« Créer le profil »). The same reading as the web's form: the processing is « Master CV, Profiles and CV reading »; this entry covers the copy on the device. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). Storage on the device strictly necessary to the service the Candidate asks for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Candidates using the app; people named in their CV (a former employer, a referee). |
+| Data | The CV file the Candidate picked or dropped (PDF or .docx, 10 MB at most): the whole document, under its own name. A file over 10 MB or of another format is refused on the device and never sent. « Coller un lien d'offre » reads the clipboard only when the Candidate chooses it, and sends only the link found there, as a Coach message (« Coach Conversations »); the rest of the clipboard is neither kept nor sent. |
+| Source | The system's document picker (expo-document-picker, which copies the chosen file into the app's cache), or another app on the tablet the file is dragged from (`apps/mobile/modules/drop-target`, which copies it into the app's cache: `tmp/dropped/` on iOS, `cache/dropped/` on Android). |
+| Who can read it | Anyone who can open the app on the unlocked device, while the copy exists. The web app reads the file to answer `POST /api/cv/draft` and keeps neither the file nor what it read until « Créer le profil ». |
+| Processors | Those of « Master CV, Profiles and CV reading » for the reading; on the device, none. |
+| Storage | The app's cache on the device, not encrypted beyond the system's own file encryption. |
+| Retention | Deleted by the app as soon as the reading ends (read, refused by the server, or stopped) or the file is refused before sending (`apps/mobile/src/attach/use-attach.tsx`); the system may delete it sooner. Uninstalling the app removes it. The draft read stays in the app's memory only, until the conversation is left or « Créer le profil » saves it. |
+| Rights | Nothing to erase on the device once read; the Profile saved is erased as any Profile. |
+
 ## EAS Update in the Jobbbox app (ADR-0076, ADR-0079, #704)
 
 _**Off** in the builds (`apps/mobile/app.json`, `updates.enabled: false`) until a privacy policy version names Expo: a new recipient outside the EU is a substantial change, the version and its notice come first (ADR-0064). « Légal : » #762 holds the draft clauses and the choice between Expo and an update server in the EU. `apps/mobile/e2e/delivery.e2e.test.ts` refuses to switch it on before; `.github/workflows/mobile.yml` refuses to publish an update while it is off._

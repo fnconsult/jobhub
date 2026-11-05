@@ -61,6 +61,7 @@
       ],
       ["expo-local-authentication", { "faceIDPermission": "Jobbbox utilise Face ID pour se déverrouiller quand « Verrouiller l'app » est activé dans ses réglages." }],
       "expo-secure-store",
+      ["expo-notifications", { "defaultChannel": "default", "mode": "production" }],
       [
         "expo-build-properties",
         {

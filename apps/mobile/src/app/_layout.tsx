@@ -27,6 +27,8 @@ import { ClearConversation } from "../coach/ClearConversation";
 import { PageConversationProvider } from "../coach/page-conversation";
 import { usePortraitOnPhones } from "../orientation";
 import { appFetch, appSession } from "../session/instance";
+import { AppPush, AppPushDevice } from "../push/app-push";
+import { showNotificationsInForeground } from "../push/device";
 import { SessionGate } from "../session/SessionGate";
 import { PaneContent } from "../screens/PaneContent";
 import { Shell } from "../shell/Shell";
@@ -35,6 +37,8 @@ const DEVICE = { storage: deviceStorage, network: deviceNetwork };
 
 // Crash reports start before anything else draws, in release builds whose configuration carries the DSN (#703).
 startCrashReports({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN, development: __DEV__ });
+// A Push notification arriving while the app is open shows as a banner (#699).
+showNotificationsInForeground();
 
 /** The box stays above the keyboard: iOS lays the page out again, Android resizes the window itself. */
 const KEYBOARD = Platform.OS === "ios" ? "padding" : undefined;
@@ -43,7 +47,8 @@ const KEYBOARD = Platform.OS === "ios" ? "padding" : undefined;
  * The app's root: Inter loaded (its three weights alone, bundled with the app), the device's language, the system's
  * theme, the session (signed out, the sign-in screen; #685), the read cache kept on the device, the optional app lock over
  * the signed-in app (#702), the legal steps after sign-in (the CGU to accept, the privacy policy's change, the EU AI
- * Consent; #689), then the shell around every page.
+ * Consent; #689), the Push notifications (the device registered, forgotten at sign-out, a notification tapped opening
+ * its page, asked for in context; #699), then the shell around every page.
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
@@ -56,13 +61,17 @@ export default function RootLayout() {
   return (
     <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE} session={appSession} fetch={appFetch}>
       <StatusBar style="auto" />
-      <SessionGate session={appSession} link={link} forgetOnDevice={forgetDocuments}>
-        <AppLock>
-          <LegalSteps>
-            <AppShell />
-          </LegalSteps>
-        </AppLock>
-      </SessionGate>
+      <AppPushDevice>
+        <SessionGate session={appSession} link={link} forgetOnDevice={forgetDocuments}>
+          <AppLock>
+            <LegalSteps>
+              <AppPush>
+                <AppShell />
+              </AppPush>
+            </LegalSteps>
+          </AppLock>
+        </SessionGate>
+      </AppPushDevice>
     </AppProviders>
   );
 }

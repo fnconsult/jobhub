@@ -5960,6 +5960,33 @@
       "failed": "Ceci n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
       "retry": "Réessayer",
       "offline": "Hors ligne : ceci se chargera dès le retour du réseau."
+    },
+    "push": {
+      "channel": "Notifications",
+      "ask": {
+        "jobSearch": {
+          "title": "Être prévenu des nouveaux résultats ?",
+          "body": "Votre recherche continue sans vous : Jobbbox peut vous notifier dès qu'elle trouve des offres, même l'app fermée."
+        },
+        "interview": {
+          "title": "Être prévenu la veille de vos rendez-vous ?",
+          "body": "Jobbbox peut vous rappeler vos entretiens et séances la veille à 18:00, en plus de l'e-mail si vous le recevez."
+        },
+        "privacy": "Une notification ne nomme jamais une entreprise, un poste ni une personne : le détail s'affiche une fois l'app ouverte. Vous choisissez ce qui vous est envoyé dans Mon compte, Rappels.",
+        "allow": "Activer les notifications",
+        "notNow": "Pas maintenant"
+      },
+      "settings": {
+        "refused": {
+          "ios": "Les notifications de Jobbbox sont refusées sur cet appareil. Pour les recevoir, ouvrez les Réglages, touchez Notifications, puis Jobbbox, et activez « Autoriser les notifications ».",
+          "android": "Les notifications de Jobbbox sont refusées sur cet appareil. Pour les recevoir, ouvrez les paramètres de l'appareil, puis Applications, Jobbbox, Notifications, et activez-les."
+        },
+        "openSettings": {
+          "ios": "Ouvrir les Réglages",
+          "android": "Ouvrir les paramètres"
+        },
+        "declined": "Les notifications de l'app ne sont pas activées sur cet appareil : les choix ci-dessous s'appliqueront dès que vous les activerez."
+      }
     }
   },
   "coachProposals": {

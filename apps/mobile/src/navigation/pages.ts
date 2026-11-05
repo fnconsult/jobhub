@@ -28,6 +28,8 @@ export const paths = {
   accountSections: "/compte/rubriques",
   accountSecurity: "/compte/securite",
   accountData: "/compte/donnees",
+  /** Rappels: the reminders and the Push notifications' switches, the web's; the device's own permission above it (#699). */
+  accountReminders: "/compte/rappels",
   accountDeletion: "/compte/supprimer",
   subscription: "/abonnement",
   legal: "/legal",

@@ -64,6 +64,16 @@ async function reasonIn(response: Response): Promise<string> {
   return typeof body?.reason === "string" ? body.reason : `HTTP ${response.status}`;
 }
 
+/** Whether the `.p8` can sign a provider token with its Key ID and Team ID: the Provider Secret's connection test, which calls no one. */
+export function checkApnsKey(key: string, keyId: string, teamId: string): { ok: true } | { ok: false; detail: string } {
+  try {
+    providerToken(createPrivateKey(apnsKeyOf(key)), keyId, teamId, new Date());
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export function createApnsSender(config: ApnsConfig): PushSender {
   const now = config.now ?? (() => new Date());
   const key = createPrivateKey(apnsKeyOf(config.key));

@@ -20,7 +20,7 @@ import { isPushEvent, PUSH_EVENT_IDS, type PushEvent, type PushNotification, typ
 import { pushMessage } from "./messages";
 import { PUSH_ENVIRONMENTS, PUSH_PLATFORMS, type PushEnvironment, type PushOutcome, type PushPlatform, type PushSender } from "./senders";
 
-export { PUSH_EVENTS, PUSH_EVENT_IDS, isPushEvent, pushEventsFor, type PushAudience, type PushEvent, type PushNotification } from "./catalog";
+export { PUSH_EVENTS, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, isPushEvent, pushEventsFor, pushNotificationOf, type PushAudience, type PushEvent, type PushNotification } from "./catalog";
 export { pushMessage, type PushMessage } from "./messages";
 export { PUSH_PLATFORMS, type PushPlatform, type PushSender, type PushOutcome, type PushDevice } from "./senders";
 

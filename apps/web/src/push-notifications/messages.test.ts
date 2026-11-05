@@ -84,3 +84,20 @@ describe("a Push notification's deep link (the app fetches the rest once opened)
     for (const notification of Object.values(ONE_OF_EACH)) expect(pushMessage(notification, "en").path).toBe(pushMessage(notification, "fr").path);
   });
 });
+
+describe("a notification as a queued job carries it", () => {
+  it("is read back as its event and its object's id, nothing more", async () => {
+    const { pushNotificationOf } = await import("./catalog");
+    for (const notification of Object.values(ONE_OF_EACH)) expect(pushNotificationOf(JSON.parse(JSON.stringify(notification)))).toEqual(notification);
+    expect(pushNotificationOf({ event: "job_search_results", jobSearchId: JOB_SEARCH, title: "DAF chez Acme Industrie" })).toEqual(ONE_OF_EACH.job_search_results);
+  });
+
+  it("is refused for an unknown event, a missing or odd id", async () => {
+    const { pushNotificationOf } = await import("./catalog");
+    expect(pushNotificationOf({ event: "spam" })).toBeNull();
+    expect(pushNotificationOf({ event: "toString" })).toBeNull();
+    expect(pushNotificationOf({ event: "job_digest" })).toBeNull();
+    expect(pushNotificationOf({ event: "coach_review", applicationId: "../admin" })).toBeNull();
+    expect(pushNotificationOf(null)).toBeNull();
+  });
+});

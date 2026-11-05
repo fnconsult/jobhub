@@ -3242,6 +3242,7 @@
         "contact_enrichment": "Enrichissement de contacts",
         "billing": "Facturation",
         "mail": "E-mail",
+        "push": "Notifications de l'app",
         "sign_in": "Connexion",
         "geolocation": "Géolocalisation",
         "reference_data": "Référentiels",

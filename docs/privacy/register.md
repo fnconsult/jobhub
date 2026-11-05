@@ -29,6 +29,8 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | `brevo-api` | Transactional emails |
 | `brevo-smtp` | Transactional emails |
 | `email-intake` | Email intake |
+| `apns` | Push notifications of the app |
+| `fcm` | Push notifications of the app |
 | `google` | Candidate accounts and sign-in |
 | `apple` | Candidate accounts and sign-in |
 | `microsoft` | Candidate accounts and sign-in |
@@ -350,6 +352,21 @@ _**Off** in the builds (`apps/mobile/app.json`, `updates.enabled: false`) until 
 | Retention | Until the person turns the lock off, or removes the app. The lock also turns itself off when the device no longer has Face ID, a fingerprint or a code to unlock with. |
 | Rights | Changed or erased by the person at any time, in Réglages de l'app. Jobbbox holds nothing of it to give or erase. |
 | Security | While the lock is on, the app switcher shows the app blurred (iOS) or blank (Android, `FLAG_SECURE`, which also refuses screenshots and screen recording in the app). |
+
+## Push notifications of the app (#698, ADR-0076)
+
+| | |
+| --- | --- |
+| Purpose | Show on the lock screen of a phone or tablet where the Jobbbox app is signed in the events the person did not switch off in Mon compte › Rappels: for a Candidate, new Job Search results, a new Job Digest, the Appointment Reminder, a Coach Review, a Coaching Session's date changed by the coach, a Follow-up due; for a Human Coach, Coach Access granted, a Coaching Session paid, one moved or cancelled by the Candidate. A super-admin can send a test notification to their own devices from the Back Office › Outils. |
+| Legal basis | Performance of the service the person asks for (GDPR art. 6(1)(b)): the device is registered only once the person let the app notify them (asked in context by the system, never at first launch), and each event has its switch. Storing the token on the device and reading it is strictly necessary to the feature asked for (ePrivacy art. 5(3), exemption). |
+| People concerned | Candidates and Human Coaches who use the app and allowed its notifications. Super-admins, for the test. |
+| Data | The device: its account, the session signed in on it, its platform (iOS or Android), its APNs environment, its **device token** (the identifier Apple or Google gave the app for that device), the app's language, when it was registered and last seen. One switch per event and when it changed. Each notification's text is fixed per event and **never names a company, a job or a person** (« Nouveaux résultats pour une recherche »); it carries the path of the object it opens (its id, never its content), and the app reads the rest once opened. A notification that did not reach a device is kept with its event, platform, Failure Reason and HTTP status, without token, account or text. |
+| Source | The app (the token its platform gave it, at each start while signed in); the person, by the switches. |
+| Who can read it | The person (their devices' count in Rappels, their Data export). Nobody reads a token: it is never shown, nor exported. Super-admins read the failures' counts on the Tools' pages. |
+| Processors | Apple (APNs, `apns`) for iOS and iPadOS, Google (Firebase Cloud Messaging, `fcm`) for Android, each sent the device token and the notification's text, directly by Jobbbox's worker (no Expo Push service, ADR-0076). Both outside the EU; the entity, the place of processing and what the transfer rests on are to be confirmed (not established in the catalog), and the privacy policy must name them before the app is published (issue #706). |
+| Storage | The `push_device`, `push_notification_setting` and `push_notification_failure` tables in the app's Postgres database (EU). |
+| Retention | A device: until its session signs out or is revoked, the account is deleted, or Apple or Google answer that its token is no longer valid; a device whose session expired is sent nothing. A switch: as long as the account. A failure: 90 days. |
+| Rights | Switches changed at any time in Mon compte › Rappels; the notifications can also be turned off in the device's settings. The devices (platform, language, dates, never the token) and the switches are in the Data export; all is deleted with the account. |
 
 ## Livraison: the delivery status (Back Office)
 

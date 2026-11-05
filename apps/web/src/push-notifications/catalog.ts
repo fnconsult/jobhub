@@ -50,3 +50,31 @@ export type PushNotification =
 
 /** What a notification's event is: one of the catalogue's, or the test. */
 export type PushNotificationEvent = PushNotification["event"];
+
+/** The worker's queue a Push notification is sent from: { personId, notification, platform? }. */
+export const PUSH_NOTIFICATIONS_QUEUE = "push-notifications.send";
+
+/** Which id each event's notification carries, by its field's name; none for an event about no one object. */
+const ID_FIELD: Record<PushNotificationEvent, "jobSearchId" | "jobDigestId" | "applicationId" | "candidateId" | null> = {
+  job_search_results: "jobSearchId",
+  job_digest: "jobDigestId",
+  appointment_reminder: null,
+  coach_review: "applicationId",
+  coaching_session_changed: null,
+  follow_up_due: "applicationId",
+  coach_access_granted: "candidateId",
+  coaching_session_paid: null,
+  coaching_session_changed_by_candidate: null,
+  test: null,
+};
+
+/** A notification as a queued job carries it (untrusted), or null when it is not one: its event and its object's id, nothing more. */
+export function pushNotificationOf(value: unknown): PushNotification | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { event } = value as { event?: unknown };
+  if (typeof event !== "string" || !Object.hasOwn(ID_FIELD, event)) return null;
+  const field = ID_FIELD[event as PushNotificationEvent];
+  if (!field) return { event } as PushNotification;
+  const id = (value as Record<string, unknown>)[field];
+  return typeof id === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(id) ? ({ event, [field]: id } as PushNotification) : null;
+}

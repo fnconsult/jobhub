@@ -328,6 +328,8 @@ export const ENV_ONLY_SETTINGS = {
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
   // The native app's domain association files (#685, ADR-0076): its Apple team and its Android signing certificates.
   APPLE_TEAM_ID: { kind: "deployment", shown: false },
+  // The Key ID of the .p8 key APNs' Push notifications are signed with (APNS_AUTH_KEY, #698); with APPLE_TEAM_ID.
+  APNS_KEY_ID: { kind: "deployment", shown: false },
   ANDROID_CERT_SHA256: { kind: "deployment", shown: false },
   WXT_WEB_ORIGIN: { kind: "deployment", shown: false },
   // The web app the native app's builds call (apps/mobile/src/web-app-url.ts, #685, #704), as WXT_WEB_ORIGIN the extension's.

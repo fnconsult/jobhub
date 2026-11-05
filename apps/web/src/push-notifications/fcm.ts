@@ -92,6 +92,30 @@ async function fcmErrorOf(response: Response): Promise<{ code: string; message: 
   return { code, message: body?.error?.message ?? "" };
 }
 
+/** An access token for FCM, asked of Google with the service account's signed JWT; throws a GoogleRefusal when refused. */
+async function requestAccessToken(account: ServiceAccount, fetch: FetchLike, at: Date): Promise<{ token: string; expiresInSeconds: number }> {
+  const response = await fetch(account.tokenUri, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: assertion(account, at) }).toString(),
+  });
+  const body = (await response.json().catch(() => null)) as { access_token?: string; expires_in?: number; error?: string; error_description?: string } | null;
+  if (!response.ok || typeof body?.access_token !== "string") {
+    throw new GoogleRefusal(response.status, `OAuth: ${[body?.error ?? `HTTP ${response.status}`, body?.error_description].filter(Boolean).join(" ")}`);
+  }
+  return { token: body.access_token, expiresInSeconds: body.expires_in ?? 3600 };
+}
+
+/** Whether Google gives the service account an access token for FCM: the Provider Secret's connection test. */
+export async function checkFcmServiceAccount(json: string, fetch: FetchLike): Promise<{ ok: true } | { ok: false; detail: string }> {
+  try {
+    await requestAccessToken(serviceAccountOf(json), fetch, new Date());
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, detail: error instanceof Error ? error.message : error instanceof GoogleRefusal ? error.message : String(error) };
+  }
+}
+
 export function createFcmSender(config: FcmConfig): PushSender {
   const now = config.now ?? (() => new Date());
   const account = serviceAccountOf(config.serviceAccount);
@@ -100,16 +124,8 @@ export function createFcmSender(config: FcmConfig): PushSender {
   async function accessToken(fresh = false): Promise<string> {
     const at = now();
     if (!fresh && cached && at.getTime() < cached.until) return cached.token;
-    const response = await config.fetch(account.tokenUri, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: assertion(account, at) }).toString(),
-    });
-    const body = (await response.json().catch(() => null)) as { access_token?: string; expires_in?: number; error?: string; error_description?: string } | null;
-    if (!response.ok || typeof body?.access_token !== "string") {
-      throw new GoogleRefusal(response.status, `OAuth: ${[body?.error ?? `HTTP ${response.status}`, body?.error_description].filter(Boolean).join(" ")}`);
-    }
-    cached = { token: body.access_token, until: at.getTime() + (body.expires_in ?? 3600) * 1000 - EXPIRY_MARGIN_MS };
+    const granted = await requestAccessToken(account, config.fetch, at);
+    cached = { token: granted.token, until: at.getTime() + granted.expiresInSeconds * 1000 - EXPIRY_MARGIN_MS };
     return cached.token;
   }
 

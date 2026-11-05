@@ -3,14 +3,14 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My account
-synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, coach proposals, form, card, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key]
+synonyms: [account, app, iPhone, Android, delete my account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, coach proposals, form, card, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key, notifications, app notifications, push notifications]
 route: /compte
 ---
 My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Security, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.
 
 Profiles lists your active profiles, then the archived ones. Subscription shows your plan and how much of it you used this week: it has its own article, My subscription.
 
-In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.
+In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments, then « App notifications »: one switch per event the Jobbbox app can show on the lock screen of your phone or tablet (« New results of a job search », « New Job Digest », « Reminder the day before an appointment », « Review left by your coach », « Coaching session date changed by your coach », « Follow-up due »; for a human coach, « Your coach space » too). Each is on until you switch it off, and is saved as soon as you change it. The section says how many devices notifications are sent to: none until you allow notifications in the app. A notification never names a company, a job or a person; the details show once the app is open. The reminder email is still sent as you set it.
 
 Email intake lets you receive in Jobbbox the offers from your job alerts and from recruiters' messages. « Switch email intake on » gives you your forwarding address: forward those emails to it, « Copy the address » copies it, and « Set up forwarding step by step » guides you to do so from your mailbox. Only the text of forwarded emails is read, never their attachments. « Replace the address » gives you a new one and « Switch off » stops email intake: the old address stops working at once, the offers already received stay. In « Your sending addresses », add the addresses you forward from by hand; in « Your alert senders », add the address of an alert Jobbbox does not recognise yet, or switch off, for yourself alone, a sender « Recognised by Jobbbox ». The offers received show in « Received by email », on the Job searches page.
 
@@ -37,6 +37,10 @@ Tools offers the Jobbbox Chrome extension.
 My feedback lists the bugs, ideas and questions you sent the Jobbbox team, newest first, with their status (« Sent », « Read by the team » or « Done ») and the « Reply from the Jobbbox team ». Opening the section clears your feedback notifications. « Delete » removes a piece of feedback: the team no longer sees it. With none sent yet, « Report a problem » and « Suggest an idea » let you send one.
 
 My data lets you download all your data or delete your account.
+
+In the Jobbbox app, on iPhone, iPad or Android, open the menu, then « My account ». Its sections show as on the website, already signed in: « All sections », « Security », where you also set up two-step verification, « My data », « My subscription » and « Legal texts ». « Delete my account » opens your account's deletion directly, and « Sign out » signs you out of the app, on this device. In the app, « My subscription » shows your plan and « Manage my subscription on jobbbox.ai », which opens the website in your browser: the app shows no price and nothing is bought in it. A link to another website also opens in your browser, and « Download all my data » offers to save or share the file. For a coach, « My coach space » shows in the menu and opens their coach space.
+
+When a new version of the terms of use has to be accepted, the app shows it to you after you sign in, before anything else: read it, tick the box, then « Accept and continue ». The app likewise shows you, once, the change to the privacy policy, and offers European AI as long as you have not given your consent: « Give my consent », or « Later » to go on without it.
 
 Under each section, « Jobbbox version » gives the version you are using, for example 0.1.0. On the beta, it is followed by the exact change served, for example 0.1.0 (main·3f9c2a1): quote it if you report a problem.
 

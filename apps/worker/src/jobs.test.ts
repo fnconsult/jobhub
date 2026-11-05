@@ -26,7 +26,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -761,6 +761,47 @@ describe("the Appointment Reminders job", () => {
     const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
     const sendDue = vi.fn(async () => Promise.reject(missingTable));
     await expect(createJobs({ ...otherDeps, database: noDatabase, appointmentReminders: { sendDue } })[APPOINTMENT_REMINDERS]!.handler({})).resolves.toBeUndefined();
+  });
+});
+
+describe("the Push notifications job (#698)", () => {
+  it("sends one notification to the person's devices, saying how it went", async () => {
+    const logs: string[] = [];
+    const send = vi.fn(async () => ({ sent: 2, failed: 1, removed: 1 }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, pushNotifications: { send }, log: (line) => logs.push(line) })[PUSH_NOTIFICATIONS_SEND]!;
+
+    await job.handler({ personId: "cand_marie", notification: { event: "job_search_results", jobSearchId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" } });
+    await job.handler({ personId: "cand_admin", notification: { event: "test" }, platform: "ios" });
+
+    expect(send.mock.calls).toEqual([
+      ["cand_marie", { event: "job_search_results", jobSearchId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" }, {}],
+      ["cand_admin", { event: "test" }, { platform: "ios" }],
+    ]);
+    expect(logs).toEqual([
+      "[push-notifications] job_search_results: 2 sent, 1 failed (1 device removed)",
+      "[push-notifications] test: 2 sent, 1 failed (1 device removed)",
+    ]);
+  });
+
+  it("drops a job that names no person or no event it knows, and is not retried: a notification late is no use", async () => {
+    const logs: string[] = [];
+    const send = vi.fn(async () => ({ sent: 0, failed: 0, removed: 0 }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, pushNotifications: { send }, log: (line) => logs.push(line) })[PUSH_NOTIFICATIONS_SEND]!;
+    await job.handler({ notification: { event: "test" } });
+    await job.handler({ personId: "cand_marie", notification: { event: "spam" } });
+    await job.handler({ personId: "cand_marie", notification: { event: "test" }, platform: "windows" });
+    expect(send).not.toHaveBeenCalled();
+    expect(logs).toHaveLength(3);
+    expect(job.retry).toEqual({ limit: 0, delaySeconds: 0 });
+  });
+
+  it("deletes the failures 90 days old, nightly", async () => {
+    const query = vi.fn(async () => ({ rows: [], rowCount: 4 }));
+    const logs: string[] = [];
+    const job = createJobs({ ...otherDeps, database: { query } as unknown as JobsDeps["database"], log: (line) => logs.push(line) })[PUSH_FAILURES_PURGE]!;
+    expect(job.cron).toBeDefined();
+    await job.handler({});
+    expect(logs).toEqual(["[push-notifications] 4 failure(s) purged, 90 days after"]);
   });
 });
 

@@ -52,6 +52,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Plans and Plan Quotas are up to date");
     expect(first.stdout).toContain("Job Searches are up to date");
     expect(first.stdout).toContain("Human Coaches, Coach Access and Coaching Sessions are up to date");
+    expect(first.stdout).toContain("Push notifications' devices and switches are up to date");
     expect(first.stdout).toContain("Job Digests are up to date");
     expect(first.stdout).toContain("Coach Conversations are up to date");
     expect(first.stdout).toContain("Coach Memory is up to date");
@@ -149,6 +150,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "profile",
         "provider_api_access", // issue #400: what each France Travail API answered its latest connection test
         "provider_secret", // issue #208: Provider Secrets, encrypted
+        "push_device", // issue #698: the devices the Jobbbox app registered for push notifications, each tied to its session
+        "push_notification_failure", // issue #698: the push notifications that did not reach a device, no Candidate, no token
+        "push_notification_setting", // issue #698: the push notification events a Candidate switched in Mon compte's Rappels
         "quota_usage",
         "received_email_activity", // issue #449: Activité › Emails reçus, one row per Received offer email, no Candidate, kept 24 months
         "received_offer_email", // issue #442: each email Email intake took, its outcome and sender's domain; its text encrypted, 72 hours at most
@@ -300,6 +304,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // The one-time privacy policy notice (issue #547) follows its Candidate.
         { from_table: "privacy_change_seen", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
+        // Push notifications (issue #698): a device goes with its account and with the session signed in on it; the
+        // switches go with their Candidate; the failures name no one.
+        { from_table: "push_device", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "push_device", from_column: "session_id", to_table: "session" },
+        { from_table: "push_notification_setting", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         // Email intake (issue #442): the Received offer emails go with their Candidate; each points to its row of
         // Activité › Emails reçus (issue #449), which names no one and outlives them.

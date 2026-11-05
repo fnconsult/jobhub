@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AI_CALL_FAILURE_REASONS, AI_CALL_WARNINGS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, GUARDRAIL_FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH, TOOL_CALL_FAILURE_REASONS } from "./failure-reasons";
+import { AI_CALL_FAILURE_REASONS, AI_CALL_WARNINGS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, GUARDRAIL_FAILURE_REASONS, failureOf, isFailureReason, PUSH_FAILURE_REASONS, TECHNICAL_REASON_MAX_LENGTH, TOOL_CALL_FAILURE_REASONS } from "./failure-reasons";
 import { failureReasonWording } from "./i18n";
 
 /** Shaped like the AI layer's errors (packages/ai/src/errors.ts), which this module cannot import. */
@@ -136,8 +136,11 @@ describe("Failure Reason catalog", () => {
       "invalid_verdict",
       "provider_error",
       "invalid_input",
+      "device_token_invalid",
       "other",
     ]);
+    expect(failureReasonWording("device_token_invalid")).toBe("Jeton d'appareil invalide : appareil retiré");
+    expect(failureReasonWording("device_token_invalid", "en")).toBe("Invalid device token: device removed");
     expect(failureReasonWording("invalid_input")).toBe("Appel refusé : outil inconnu ou arguments invalides");
     expect(failureReasonWording("invalid_input", "en")).toBe("Call refused: unknown tool or invalid arguments");
     expect(failureReasonWording("guardrail_timeout")).toBe("Contrôle trop long");
@@ -193,6 +196,11 @@ describe("Failure Reason catalog", () => {
       "already_handled",
       "other",
     ]);
+  });
+
+  it("tells why a Push notification did not reach a device, none of them a Back Office attempt's but its key missing (#698)", () => {
+    expect(PUSH_FAILURE_REASONS).toEqual(["provider_unavailable", "provider_rejected", "rate_limited", "key_missing", "device_token_invalid", "other"]);
+    expect(BACK_OFFICE_FAILURE_REASONS).not.toContain("device_token_invalid");
   });
 
   it("tells why a Tool call of our own was refused: a Coach Action unknown, not offered or given invalid arguments (#713)", () => {

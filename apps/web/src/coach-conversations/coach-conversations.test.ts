@@ -742,6 +742,45 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect((await conversations.open(marie, sent.conversation.id))?.messages[1]).toEqual({ from: "coach", text: "J'ai lu cette offre.", jobOffer: { ...card, followed: true }, provenance: PROVENANCE, at: expect.any(String) });
   });
 
+  it("names, when the conversation reopens, the Candidate's objects a reply's Coach Actions saw, as they are now, and no one else's (#788)", async () => {
+    const jobOffers = createJobOffers(database);
+    const captured = await jobOffers.capture({ source: { url: "https://carrieres.example.fr/cdg" }, title: "Contrôleuse de gestion", content: "Airbus recrute.", employer: "Airbus" });
+    if (!captured.ok) throw new Error("not captured");
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Contrôleuse de gestion", locations: ["Toulouse"] } });
+    if (!profile.ok) throw new Error("no profile");
+    const saved = await createApplications(database, { jobOffers, profiles: createProfiles(database) }).save(marie, { jobOfferId: captured.jobOffer.id, profileId: profile.profile.id });
+    if (!saved.ok) throw new Error("not saved");
+    const jeans = await createProfiles(database).create(jean, { masterCv, searchCriteria: { targetRole: "Comptable", locations: ["Lille"] } });
+    if (!jeans.ok) throw new Error("no profile");
+    const applicationHref = `/candidatures/${saved.application.id}`;
+    const seenProvenance: Provenance = {
+      ...PROVENANCE,
+      steps: [
+        ...PROVENANCE.steps,
+        { kind: "tool", activity: "act", tool: "applications", action: "list_objects", seen: [{ type: "application", count: 1 }], ms: 4, at: PROVENANCE.startedAt, outcome: "ok", count: 1 },
+        {
+          kind: "tool",
+          activity: "act",
+          tool: "applications",
+          action: "read_application",
+          seen: [{ type: "application", href: applicationHref }, { type: "profile", href: `/profils/${profile.profile.id}` }, { type: "profile", href: `/profils/${jeans.profile.id}` }],
+          ms: 4,
+          at: PROVENANCE.startedAt,
+          outcome: "ok",
+          count: 1,
+        },
+      ],
+    };
+    coachReply = () => ({ ok: true, reply: "Votre candidature avance.", outcome: "replied", cost: cost(0.01), provenance: seenProvenance, playbooks: [], consultations: [] });
+    const sent = await conversations.send(marie, { message: "Où en est Airbus ?" });
+    if (!sent.ok) throw new Error("refused");
+
+    const reply = (await conversations.open(marie, sent.conversation.id))!.messages[1]!;
+    expect(reply.provenance).toEqual(seenProvenance);
+    // Jean's Profile, on Marie's reply, is never named.
+    expect(reply.seenNames).toEqual({ [applicationHref]: "Airbus · Contrôleuse de gestion", [`/profils/${profile.profile.id}`]: profile.profile.name });
+  });
+
   describe("each reply's Provenance and focus (#327, ADR-0034)", () => {
     const applicationId = "33333333-3333-4333-8333-333333333333";
 

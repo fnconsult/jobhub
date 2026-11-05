@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
 import { useState } from "react";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -109,6 +110,15 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     renderInFrench(<Thread card={applied({ id: "22222222-2222-4222-8222-222222222222" })} />);
     await userEvent.click(within(screen.getAllByRole("article")[1]!).getByRole("button", { name: "Annuler" }));
     expect(within(screen.getAllByRole("article")[1]!).getByRole("status").textContent).toMatch(/^Annulé à \d\d:\d\d$/);
+  });
+
+  it("« Annuler » that left the Application Status as it was says so on the card (#770)", async () => {
+    answers = [{ status: 200, body: { status: "undone", card: applied({ status: "undone", undoneAt: "2026-11-04T17:25:00.000Z", undoable: false, undoNote: "status_kept" }) } }];
+    renderInFrench(<Thread card={applied()} />);
+
+    await userEvent.click(button("Annuler"));
+
+    expect(within(card()).getByRole("status").textContent).toMatch(/^Annulé à \d\d:\d\d Le statut de la candidature avait changé depuis : il est laissé tel quel\.$/);
   });
 
   it("refuses « Appliquer » when the object changed since the proposal: it says so, the card still waits", async () => {
@@ -382,5 +392,30 @@ describe("a card about the Coach Memory (#719)", () => {
     const shown = screen.getByRole("article", { name: /À retenir/ });
     expect(within(shown).getByRole("heading", { level: 4 }).textContent).toBe("À retenir · Mémoire du coach");
     expect(within(shown).queryByRole("link")).toBeNull();
+  });
+});
+
+describe("the Action Card on the Design System (#788)", () => {
+  const stylesheet = () => readFileSync("apps/web/src/components/CoachProposalCard.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const ruleOf = (selector: string) => new RegExp(`(?:^|\\})\\s*${selector.replace(/[.$]/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(stylesheet())?.[1] ?? "";
+
+  it("is a Card, its title in the card's head, its buttons small Design System Buttons: primary, secondary, quiet", () => {
+    renderInFrench(<Thread />);
+
+    expect(card().classList.contains("ds-card")).toBe(true);
+    expect(card().querySelector(".ds-card__head")!.contains(within(card()).getByRole("heading", { level: 4 }))).toBe(true);
+    expect(within(card()).getAllByRole("button").map((each) => each.className)).toEqual([
+      "ds-button ds-button--primary ds-button--sm",
+      "ds-button ds-button--secondary ds-button--sm",
+      "ds-button ds-button--quiet ds-button--sm",
+    ]);
+  });
+
+  it("takes only the width it needs, 34rem at most; no accent edge of its own: the Card's border, radius and shadow", () => {
+    const rule = ruleOf(".coach-proposal-card");
+    expect(rule).toMatch(/width:\s*fit-content/);
+    expect(rule).toMatch(/max-width:\s*min\(100%,\s*34rem\)/);
+    expect(stylesheet()).not.toMatch(/border-left/);
+    expect(rule).not.toMatch(/(?:^|;|\s)(background|border|border-radius|box-shadow)\s*:/);
   });
 });

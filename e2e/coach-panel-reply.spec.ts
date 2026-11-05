@@ -40,18 +40,17 @@ test.describe("a conversation's replies", () => {
     expect(shown).not.toMatch(/\b(tu|ton|ta|tes)\b/i);
   });
 
-  test("a reply is unframed text after its Activity glyph; the Candidate's own words are an accent bubble (#464)", async ({ page }) => {
+  test("a reply is unframed text, the thread's full width, no glyph once there (#464, #788); the Candidate's own words are an accent bubble", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-glyph"));
     await openCoachAndAsk(page, "E2E_COACH_MARKDOWN Quel est le poste que je vise ?");
 
     const answer = coachPanel(page).getByRole("listitem").filter({ hasText: "Directrice des opérations" });
-    const glyph = answer.locator(":scope > svg.activity-glyph");
-    await expect(glyph).toBeVisible();
-    await expect(glyph).toHaveAttribute("aria-hidden", "true");
-    // The glyph first, the reply's words beside it, on its right.
-    const glyphBox = (await glyph.boundingBox())!;
-    const textBox = (await answer.locator("strong", { hasText: "Directrice des opérations" }).boundingBox())!;
-    expect(glyphBox.x + glyphBox.width).toBeLessThanOrEqual(textBox.x);
+    await expect(answer).toBeVisible();
+    // No glyph in the margin (#788): its words start at the reply's left edge.
+    await expect(answer.locator(":scope > svg.activity-glyph")).toHaveCount(0);
+    const answerBox = (await answer.boundingBox())!;
+    const textBox = (await answer.locator("p").first().boundingBox())!;
+    expect(Math.round(textBox.x)).toBe(Math.round(answerBox.x));
     // Unframed: no border, no fill of its own.
     const frame = await answer.evaluate((li) => {
       const style = getComputedStyle(li);

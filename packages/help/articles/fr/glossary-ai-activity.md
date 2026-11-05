@@ -14,7 +14,7 @@ Pendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs »,
 - « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;
 - « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;
 - « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;
-- « Consulte vos données » et « Prépare une proposition » : le pointeur qui touche une carte, quand le coach lit vos candidatures, votre agenda ou votre profil, ou vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».
+- « Consulte vos données » et « Prépare une proposition » : la boîte à outils qui s'ouvre, d'où sort une clé quand le coach lit vos candidatures, votre agenda ou votre profil, une petite carte quand il vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».
 
 Si vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.
 

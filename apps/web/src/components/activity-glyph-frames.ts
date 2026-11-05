@@ -11,11 +11,12 @@
  *   web_search   magnifier → globe (it turns) → book (its pages turn)
  *   read         the book turning its pages
  *   compute      the ticks appearing one by one (rules, no AI)
- *   act          the pointer touching a card: it comes closer, the card sinks, a check appears (a Coach Action, no AI)
+ *   act          the toolbox (a Coach Action, no AI, #788): its lid lifts, a key comes out, turns, goes back down, the lid
+ *                closes; a card comes out in place of the key for a Coach Action that proposes (`glyphOf(act, propose)`)
  *
  * Pure: no DOM, so it is tested on its own.
  */
-import type { Activity } from "@jobhub/shared";
+import type { Activity, StepLabel } from "@jobhub/shared";
 
 /** One frame: its paths, how long it holds (ms), then how long it takes to morph into the next (ms, MORPH_MS by default). */
 export interface Frame {
@@ -116,26 +117,39 @@ const COMPUTE: Frame[] = [
   { d: TASKS, ms: 260 },
 ];
 
-// The card, from (x0, y0) to (x1, y1), its corners rounded: an object of the Candidate (an Application, an Interview…).
-const card = (x0: number, y0: number, x1: number, y1: number) => {
-  const at = (value: number) => +value.toFixed(2);
-  return `M${at(x0 + 2)} ${at(y0)}h${at(x1 - x0 - 4)}a2 2 0 0 1 2 2v${at(y1 - y0 - 4)}a2 2 0 0 1-2 2H${at(x0 + 2)}a2 2 0 0 1-2-2V${at(y0 + 2)}a2 2 0 0 1 2-2z`;
+// The toolbox (#788, the product owner's choice on the prototype, replacing #726's pointer and card): its body, the
+// compartments' line, the clasp, the lid and its handle. The lid lifts on its left hinge, then closes.
+const BOX = ["M3 10.5h18v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z", "M3 14h7.5M13.5 14H21", "M10.5 12.8h3v2.4h-3z"];
+const LID_CLOSED = ["M3 10.5l1.1-2.7a1.5 1.5 0 0 1 1.4-.9h13a1.5 1.5 0 0 1 1.4.9l1.1 2.7", "M9.2 6.9V5.3a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1v1.6"];
+const LID_OPEN = ["M3 10.5l.4-3a1.5 1.5 0 0 1 1.2-1.2l12.8-3.3a1.5 1.5 0 0 1 1.7.6l1.4 2.4", "M8.7 5.3l-.4-1.5a1 1 0 0 1 .7-1.2l3.5-.9a1 1 0 0 1 1.2.7l.4 1.5"];
+const CLOSED = [...BOX, ...LID_CLOSED];
+const OPEN = [...BOX, ...LID_OPEN];
+const at2 = (value: number) => +value.toFixed(2);
+// The key over the right compartment: its bow centred on (x, y), its shaft and bit turned `turn` degrees from pointing down.
+const key = (x: number, y: number, turn = 0) => {
+  const angle = (turn * Math.PI) / 180;
+  const point = (dx: number, dy: number) => `${at2(x + dx * Math.cos(angle) - dy * Math.sin(angle))} ${at2(y + dx * Math.sin(angle) + dy * Math.cos(angle))}`;
+  return [`M${at2(x)} ${at2(y - 1.4)}a1.4 1.4 0 1 0 0 2.8a1.4 1.4 0 1 0 0-2.8z`, `M${point(0, 1.4)}L${point(0, 5.6)}L${point(1.3, 5.6)}L${point(1.3, 4.5)}L${point(0, 4.5)}`];
 };
-const CARD = card(2.5, 4, 17.5, 15);
-// Pressed, it sinks: a little smaller, into the page.
-const CARD_PRESSED = card(3.1, 4.6, 16.9, 14.4);
-const CARD_CHECK = "M5.5 9.8l2 2 3.8-3.8";
-// The pointer, its tip at (x, y), drawn with relative commands, so it moves whole.
-const pointer = (x: number, y: number) => `M${x} ${y}v8.4l2.1-2 1.7 3.6 1.5-.7-1.7-3.5h2.9z`;
-const POINTER_TOUCHING = pointer(13, 10.5);
-// A Coach Action: the pointer comes closer, touches the card, the card sinks under it, then a check appears on it: it
-// reads or proposes on the Candidate's object. Each frame keeps the card, then the pointer, so each stroke morphs into
-// its own; the check grows in last.
+// The card, 5.2 by 5, its top left corner at (x, y), a line of text on it: a proposal (an Action Card).
+const proposal = (x: number, y: number) => [`M${at2(x)} ${at2(y)}h5.2v5h-5.2z`, `M${at2(x + 1.1)} ${at2(y + 1.8)}h3`, `M${at2(x + 1.1)} ${at2(y + 3.2)}h2`];
+// A read: the lid lifts, a key comes out, turns, goes back down, the lid closes. A proposal: a card comes out instead.
 const ACT: Frame[] = [
-  { d: [CARD, pointer(16, 13.5)], ms: 140, morph: 320 },
-  { d: [CARD, POINTER_TOUCHING], ms: 60, morph: 140 },
-  { d: [CARD_PRESSED, pointer(13.3, 10.8)], ms: 80, morph: 180 },
-  { d: [CARD, POINTER_TOUCHING, CARD_CHECK], ms: 360, morph: 300 },
+  { d: CLOSED, ms: 140, morph: 240 },
+  { d: OPEN, ms: 20, morph: 200 },
+  { d: [...OPEN, ...key(16.5, 10)], ms: 0, morph: 220 },
+  { d: [...OPEN, ...key(16.5, 6)], ms: 40, morph: 200 },
+  { d: [...OPEN, ...key(16.5, 6, -90)], ms: 140, morph: 200 },
+  { d: [...OPEN, ...key(16.5, 10)], ms: 0, morph: 200 },
+  { d: OPEN, ms: 20, morph: 240 },
+];
+const ACT_PROPOSE: Frame[] = [
+  { d: CLOSED, ms: 140, morph: 240 },
+  { d: OPEN, ms: 20, morph: 200 },
+  { d: [...OPEN, ...proposal(13.9, 8.6)], ms: 0, morph: 260 },
+  { d: [...OPEN, ...proposal(13.9, 3.6)], ms: 300, morph: 240 },
+  { d: [...OPEN, ...proposal(13.9, 8.6)], ms: 0, morph: 200 },
+  { d: OPEN, ms: 20, morph: 240 },
 ];
 
 export const GLYPHS: Record<Activity, { frames: readonly Frame[]; still: readonly string[] }> = {
@@ -148,9 +162,17 @@ export const GLYPHS: Record<Activity, { frames: readonly Frame[]; still: readonl
   web_search: { frames: WEB_SEARCH, still: globe(6) },
   read: { frames: READ, still: BOOK_OPEN },
   compute: { frames: COMPUTE, still: TASKS },
-  // Still, the card checked under the pointer: what tells a Coach Action from compute's ticks.
-  act: { frames: ACT, still: ACT[3]!.d },
+  // Still, the closed toolbox: what tells a Coach Action from compute's ticks.
+  act: { frames: ACT, still: CLOSED },
 };
+
+/** A Coach Action that proposes (its step's label `propose`): the toolbox, a card coming out in place of the key. */
+const PROPOSE_GLYPH = { frames: ACT_PROPOSE, still: CLOSED };
+
+/** The glyph a step draws: its Activity's, the toolbox with a card for a Coach Action that proposes (#788). */
+export function glyphOf(activity: Activity, label?: StepLabel): (typeof GLYPHS)[Activity] {
+  return activity === "act" && label === "propose" ? PROPOSE_GLYPH : GLYPHS[activity];
+}
 
 /** A frame's strokes: each of its paths split at every move, so each stroke is one line to sample. */
 export function strokesOf(d: readonly string[]): string[] {

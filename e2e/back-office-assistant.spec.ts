@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
@@ -51,6 +51,19 @@ async function ask(page: Page, text: string) {
 /** The last message of the conversation (a reply holds lists of its own: only the messages count). */
 const lastReply = (page: Page) => assistant(page).getByRole("list", { name: assistantTexts.messagesLabel }).locator("> li").last();
 
+/**
+ * A reply's glyph sits in the margin, its words beside it (#464): the glyph left of the text, the text's first line level
+ * with it, not on a line under it. #788 took the glyph off the AI Coach's replies only; the assistant keeps its own.
+ */
+async function expectGlyphBesideWords(reply: Locator) {
+  const glyph = await reply.locator("> svg.activity-glyph").boundingBox();
+  const words = await reply.locator("> p").first().boundingBox();
+  expect(glyph, "the reply's glyph").not.toBeNull();
+  expect(words, "the reply's words").not.toBeNull();
+  expect(words!.x, "the words start right of the glyph").toBeGreaterThanOrEqual(glyph!.x + glyph!.width);
+  expect(words!.y, "the words start level with the glyph, not under it").toBeLessThan(glyph!.y + glyph!.height);
+}
+
 test.describe("Back Office Assistant", () => {
   test("a super-admin asks from any Back Office page and gets answers grounded in Back Office data, without secrets or addresses", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
@@ -76,6 +89,7 @@ test.describe("Back Office Assistant", () => {
     await ask(page, question);
 
     await expect(lastReply(page)).toContainText("E2E: system prompt");
+    await expectGlyphBesideWords(lastReply(page));
     const prompt = await systemPromptShown(show);
     expect(prompt).toContain("Quotas des offres (Plan Quotas)");
     expect(prompt).toContain("Match Scores par semaine");

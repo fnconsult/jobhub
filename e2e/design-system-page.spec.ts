@@ -176,13 +176,13 @@ test.describe("Design System page's screenshots (#463)", () => {
       await expect(preview(page)).toHaveAttribute("data-theme", theme, { timeout: 20_000 });
       const glyphs = preview(page).locator("[data-activity-glyphs]");
       await expect(glyphs.locator("svg.activity-glyph")).toHaveCount(ACTIVITIES.length);
-      await expect(glyphs.locator('svg.activity-glyph[data-activity="act"] path')).toHaveCount(3);
+      await expect(glyphs.locator('svg.activity-glyph[data-activity="act"] path')).toHaveCount(5);
       await settled(page);
       if (comparesScreenshots()) await expect(glyphs).toHaveScreenshot(`activity-glyphs-${theme}.png`);
       await page.close();
     });
   }
-  // #726 acceptance: the `act` glyph is drawn (3 strokes, within MAX_STROKES), named by its Step labels in words, and its
+  // #726 acceptance: the `act` glyph is drawn (#788: the closed toolbox, 5 paths, within MAX_STROKES), named by its Step labels in words, and its
   // stroke reads against the page in each theme (ADR-0009: a graphic needs 3:1, WCAG 1.4.11).
   for (const theme of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
     test(`the "act" glyph is labelled and contrasts with the page in ${theme}`, async () => {
@@ -193,7 +193,7 @@ test.describe("Design System page's screenshots (#463)", () => {
       const item = preview(page).locator("[data-activity-glyphs] li", { has: page.locator('svg[data-activity="act"]') });
       await expect(item).toContainText(fr.aiActivity.steps.act);
       await expect(item).toContainText(fr.aiActivity.steps.propose);
-      await expect(item.locator("svg path")).toHaveCount(3);
+      await expect(item.locator("svg path")).toHaveCount(5);
       const ratio = await item.locator("svg").evaluate((svg) => {
         const channels = (css: string) => (css.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
         const luminance = ([r, g, b]: number[]) => {

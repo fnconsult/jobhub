@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { newAddress } from "./support/mailbox";

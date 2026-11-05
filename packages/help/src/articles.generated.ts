@@ -356,7 +356,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
+      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nVotre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-master-cv-editor",
@@ -888,7 +888,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Recherches d'offres » est une conversation avec votre coach IA, la même à chaque visite. Votre coach y cherche des offres d'emploi selon les critères de recherche d'un profil.\n\nVos recherches y sont listées dans la carte « Vos recherches par profil » : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs. « Voir les offres reçues par email », en bas de la carte, ouvre « Reçues par email » à côté de la conversation.\n\n« Reçues par email » montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance ; enregistrez-la comme une offre trouvée par une recherche. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
+      "body": "« Recherches d'offres » est une conversation avec votre coach IA, la même à chaque visite. Votre coach y cherche des offres d'emploi selon les critères de recherche d'un profil.\n\nVos recherches y sont listées dans la carte « Vos recherches par profil » : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs. « Voir les offres reçues par email », en bas de la carte, ouvre « Reçues par email » à côté de la conversation.\n\n« Reçues par email » montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance ; enregistrez-la comme une offre trouvée par une recherche. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nVotre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise (par exemple 1 recherche sur 5 cette semaine) ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-withdrawal",
@@ -2083,6 +2083,65 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Non. L'aide ne fait appel à aucune IA pour vous répondre : ses articles sont relus et publiés par l'équipe Jobbbox, et la recherche les trouve à partir de vos mots. Elle fonctionne même quand l'IA est indisponible et ne compte dans aucun quota.\n\nSeul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.\n\nToute l'aide est aussi dans le centre d'aide, ouvert sans compte : « Mon compte », en bas du menu, puis « Aide », sous « Aide et légal ». Un article ouvert à côté de la conversation propose « Ouvrir dans le centre d'aide ».\n\nSi votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."
+    },
+    {
+      "id": "faq-app-two-step-verification",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "La vérification en deux étapes dans l'app",
+      "synonyms": [
+        "vérification en deux étapes",
+        "double authentification",
+        "2fa",
+        "mfa",
+        "code",
+        "application d'authentification",
+        "code de secours",
+        "clé d'accès",
+        "passkey",
+        "Face ID",
+        "Touch ID",
+        "empreinte",
+        "app",
+        "application",
+        "téléphone",
+        "tablette",
+        "connexion"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Si votre compte a la vérification en deux étapes, l'app Jobbbox vous la demande après chaque connexion par lien magique, comme le site, et avant d'ouvrir quoi que ce soit d'autre. Saisissez le code à 6 chiffres de votre application d'authentification dans « Code de l'application », puis touchez « Vérifier ». Sans votre application, touchez « Utiliser un code de secours » et saisissez l'un de vos codes de secours : chacun ne sert qu'une fois.\n\nSi votre compte a une clé d'accès, touchez « Utiliser une clé d'accès » : votre téléphone vous demande Face ID, votre empreinte ou votre clé de sécurité. Une clé d'accès créée sur jobbbox.ai fonctionne dans l'app quand elle est synchronisée sur votre téléphone (trousseau iCloud, gestionnaire de mots de passe Google). Une clé d'un autre compte est refusée, et la connexion attend toujours sa deuxième étape. Sur un appareil Android antérieur à la version 9, seuls les codes sont proposés.\n\nLes règles sont celles du site : après 5 codes erronés de suite, les codes sont refusés pendant 15 minutes, et l'app vous dit à quelle heure réessayer. L'app ne garde ni vos codes ni votre clé d'accès. Pour activer la vérification en deux étapes, ajouter une clé d'accès ou renouveler vos codes de secours, passez par la rubrique « Sécurité » de Mon compte. « Se déconnecter » reste possible à tout moment."
+    },
+    {
+      "id": "faq-coach-app-two-step-verification",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "La vérification en deux étapes dans l'app",
+      "synonyms": [
+        "vérification en deux étapes",
+        "double authentification",
+        "2fa",
+        "mfa",
+        "obligatoire",
+        "configurer",
+        "application d'authentification",
+        "code de secours",
+        "clé d'accès",
+        "app",
+        "application",
+        "téléphone",
+        "tablette",
+        "coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Comme coach, la vérification en deux étapes vous est demandée dans l'app Jobbbox comme sur le site, après chaque connexion par lien magique. Saisissez le code de votre application d'authentification dans « Code de l'application » et touchez « Vérifier », ou touchez « Utiliser un code de secours », ou « Utiliser une clé d'accès » si votre compte en a une.\n\nSi votre compte n'a encore aucun facteur, l'app vous propose « Configurer la vérification ». La configuration s'ouvre dans une page de jobbbox.ai, dans l'app : scannez le QR code avec votre application, saisissez le code qu'elle affiche dans « Code affiché par l'application », touchez « Confirmer », puis gardez vos 10 codes de secours et touchez « J'ai gardé mes codes ». L'app revient alors d'elle-même et ouvre votre compte. « Fermer » vous ramène à l'écran de la deuxième étape si vous voulez la faire plus tard.\n\nLes limites de tentatives et la réinitialisation par l'équipe Jobbbox sont celles du site. L'app ne garde ni vos codes ni votre clé d'accès."
     },
     {
       "id": "faq-tablet-keyboard-shortcuts",
@@ -4117,7 +4176,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
+      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nYour coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
     },
     {
       "id": "page-job-searches",
@@ -4143,7 +4202,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job searches » is a conversation with your AI coach, the same one every visit. There your coach searches for job offers that meet a profile's search criteria.\n\nYour searches are listed there in the card « Your job searches by profile »: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several. « See the job offers received by email », at the bottom of the card, opens « Received by email » beside the conversation.\n\n« Received by email » shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score; save it as you would a job offer found by a search. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
+      "body": "« Job searches » is a conversation with your AI coach, the same one every visit. There your coach searches for job offers that meet a profile's search criteria.\n\nYour searches are listed there in the card « Your job searches by profile »: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several. « See the job offers received by email », at the bottom of the card, opens « Received by email » beside the conversation.\n\n« Received by email » shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score; save it as you would a job offer found by a search. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nYour coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
     },
     {
       "id": "page-account",
@@ -5776,6 +5835,64 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "In the Jobbbox app, open the menu, then « App settings » below « My account », and turn on « Lock the app ». The app asks for Face ID, your fingerprint or the device's code at once, to check that you will be able to unlock it.\n\nOnce the lock is on, the app locks when it stays 5 minutes or more in the background, and each time it starts. To come back, pass Face ID or your fingerprint; after several failures, the device's code takes over. If you cancel, tap « Unlock » to try again. While the lock is on, the app's content is hidden in the app switcher; on Android, screenshots of the app are blocked too.\n\nThis setting applies to this device only: it is not on the website nor on another phone, and nothing is sent to Jobbbox. It is not Two-step verification: your sign-in does not change. Your face and fingerprint are checked by the device's system (iOS or Android); Jobbbox receives and keeps nothing of them.\n\nIf the device has no Face ID, fingerprint or code, the lock cannot be turned on: set one up first in the device's settings."
+    },
+    {
+      "id": "faq-app-two-step-verification",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Two-step verification in the app",
+      "synonyms": [
+        "two-step verification",
+        "two-factor authentication",
+        "2fa",
+        "mfa",
+        "code",
+        "authenticator app",
+        "backup code",
+        "passkey",
+        "Face ID",
+        "Touch ID",
+        "fingerprint",
+        "app",
+        "application",
+        "phone",
+        "tablet",
+        "sign in"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "If your account has two-step verification, the Jobbbox app asks for it after each sign-in by magic link, as the website does, and before opening anything else. Enter the 6-digit code from your authenticator app in « App code », then tap « Verify ». Without your app, tap « Use a backup code » and enter one of your backup codes: each one works only once.\n\nIf your account has a passkey, tap « Use a passkey »: your phone asks for Face ID, your fingerprint or your security key. A passkey created on jobbbox.ai works in the app when it is synced to your phone (iCloud Keychain, Google Password Manager). A passkey of another account is refused, and the sign-in still waits for its second step. On an Android device older than version 9, only the codes are offered.\n\nThe rules are the website's: after 5 wrong codes in a row, codes are refused for 15 minutes, and the app tells you when to try again. The app keeps neither your codes nor your passkey. To turn on two-step verification, add a passkey or renew your backup codes, go to the « Security » section of My account. « Sign out » stays possible at any time."
+    },
+    {
+      "id": "faq-coach-app-two-step-verification",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Two-step verification in the app",
+      "synonyms": [
+        "two-step verification",
+        "two-factor authentication",
+        "2fa",
+        "mfa",
+        "mandatory",
+        "set up",
+        "authenticator app",
+        "backup code",
+        "passkey",
+        "app",
+        "application",
+        "phone",
+        "tablet",
+        "coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "As a coach, you are asked for two-step verification in the Jobbbox app as on the website, after each sign-in by magic link. Enter the code from your authenticator app in « App code » and tap « Verify », or tap « Use a backup code », or « Use a passkey » if your account has one.\n\nIf your account has no factor yet, the app offers « Set up verification ». The setup opens in a page of jobbbox.ai, inside the app: scan the QR code with your app, enter the code it shows in « Code the app shows », tap « Confirm », then keep your 10 backup codes and tap « I have kept my codes ». The app then comes back by itself and opens your account. « Close » takes you back to the second step's screen if you want to do it later.\n\nThe attempt limits and the reset by the Jobbbox team are the website's. The app keeps neither your codes nor your passkey."
     },
     {
       "id": "faq-nouveautes-email-unsubscribe",

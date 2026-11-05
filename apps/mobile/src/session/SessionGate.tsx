@@ -1,13 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
-import { AppState, Platform, ScrollView, TextInput, View, type TextInputProps } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppState, Platform, View, type TextInputProps } from "react-native";
 import { useForgetReads } from "../offline/read-cache";
-import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
+import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import type { AppSession, SessionState } from "./app-session";
+import { GateError, GateField, GateScreen } from "./GateScreen";
+import { SecondStepScreen } from "./SecondStepScreen";
 
 const SIGNED_OUT: SessionState = { kind: "signedOut" };
 
@@ -28,7 +29,8 @@ export const useSession = () => useContext(SessionContext);
 
 /**
  * The app behind its session (#685, ADR-0076): signed out, the native sign-in screen (an email, the link sent, then
- * waiting for it, or its code typed, #686); pending its second step (ADR-0075), that step to take (asked natively in its own ticket); signed in,
+ * waiting for it, or its code typed, #686); pending its second step (ADR-0075), that step, native (SecondStepScreen,
+ * #688), whether the session came by link or by code; signed in,
  * `children`. `link` is the address the app was last opened with (a universal link or an App Link): a magic link
  * signs in. The session is asked again each time the app comes back to the foreground, so a revocation from Mon compte
  * on the web signs the app out at that request.
@@ -76,12 +78,16 @@ export function SessionGate({
     [forgetSession],
   );
 
+  const settle = useCallback((outcome: SessionState) => void startSession(outcome), [startSession]);
+
   const refresh = useCallback(
     () =>
-      session.current().then(setState, () =>
-        // Offline: as it was; signed out if nothing is known yet (the session stays in secure storage for the next time).
-        setState((current) => current ?? UNKNOWN_OFFLINE),
-      ),
+      session.current().then(setState, async () => {
+        // Offline: as it was; signed out if nothing is known yet, the session staying in secure storage for the next
+        // time. With no session stored there is none to be valid: signed out, and what the device kept is forgotten.
+        const stored = await session.cookie().catch(() => "");
+        setState((current) => current ?? (stored ? UNKNOWN_OFFLINE : SIGNED_OUT));
+      }),
     [session],
   );
 
@@ -108,49 +114,38 @@ export function SessionGate({
 
   const value = useMemo<SessionContextValue>(
     () => ({
-      // What the device kept for the session is forgotten once it has ended (forgetSession, above).
+      // ADR-0076: what the device kept is forgotten before the session is dropped, so a sign-out cut short (the app
+      // killed) never leaves it without its session. The screens go first, so none reads again in between. From the
+      // app and from the second step alike.
       signOut: async () => {
+        setState(null);
+        await forgetSession();
         await session.signOut();
         setState(SIGNED_OUT);
       },
       checkSession: () => void refresh(),
     }),
-    [session, refresh],
+    [session, refresh, forgetSession],
   );
 
   if (!state) return null;
   return (
     <SessionContext.Provider value={value}>
-      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStep onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={(outcome) => void startSession(outcome)} />}
+      {state.kind === "signedIn" ? (
+        children
+      ) : state.kind === "secondStep" ? (
+        // The second step taken, the session starts afresh, as any sign-in does: nothing of an earlier one shows.
+        <SecondStepScreen session={session} onSettled={settle} onSignOut={value.signOut} />
+      ) : (
+        <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={settle} />
+      )}
     </SessionContext.Provider>
-  );
-}
-
-const CENTRED = { flexGrow: 1, justifyContent: "center", padding: space[4] } as const;
-
-/** A screen of its own, before the shell: the safe areas, a reading width, centred. */
-function GateScreen({ title, children }: { title: string; children: ReactNode }) {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ ...CENTRED, paddingTop: insets.top + space[4], paddingBottom: insets.bottom + space[4] }}
-      keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}
-    >
-      <View style={{ width: "100%", maxWidth: 28 * 16, alignSelf: "center", gap: space[4] }}>
-        <AppText variant="h1">{title}</AppText>
-        {children}
-      </View>
-    </ScrollView>
   );
 }
 
 type Step = { kind: "form"; error: boolean } | { kind: "sending" } | { kind: "sent"; email: string; refusal?: SignInCodeRefusal; checking?: boolean };
 const FORM: Step = { kind: "form", error: false };
 const SENDING: Step = { kind: "sending" };
-/** With the keyboard up, a tap on « Recevoir mon lien de connexion » presses it rather than only closing the keyboard. */
-const TAPS_REACH_CONTROLS = "handled";
 /** The email field, as the system's keyboard and autofill read it. */
 const EMAIL_FIELD = {
   autoCapitalize: "none",
@@ -209,16 +204,13 @@ function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppS
   if (step.kind === "sent") {
     return (
       <GateScreen title={t("signIn.title")}>
-        {linkInvalid ? <SignInError message={t("signIn.linkError")} /> : null}
+        {linkInvalid ? <GateError message={t("signIn.linkError")} /> : null}
         <View role="status">
           <AppText>{t("mobile.signIn.sent", { email: step.email })}</AppText>
         </View>
         <AppText tone="secondary">{t("mobile.signIn.waiting")}</AppText>
-        <View style={{ gap: space[2] }}>
-          <AppText weight="semiBold">{t("signIn.codeLabel")}</AppText>
-          <FieldInput label={t("signIn.codeLabel")} value={code} onChangeText={setCode} onSubmitEditing={() => void enterCode(step.email)} editable={!step.checking} {...CODE_FIELD} />
-        </View>
-        {step.refusal ? <SignInError message={t(step.refusal)} /> : null}
+        <GateField label={t("signIn.codeLabel")} value={code} onChangeText={setCode} onSubmitEditing={() => void enterCode(step.email)} editable={!step.checking} {...CODE_FIELD} />
+        {step.refusal ? <GateError message={t(step.refusal)} /> : null}
         <Control look="primary" label={step.checking ? t("signIn.codeChecking") : t("signIn.codeSubmit")} onPress={() => void enterCode(step.email)} />
         <View style={{ gap: space[2] }}>
           <Control look="secondary" label={t("mobile.signIn.resend")} onPress={() => void send()} />
@@ -233,54 +225,9 @@ function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppS
   return (
     <GateScreen title={t("signIn.title")}>
       <AppText tone="secondary">{t("signIn.introWithoutProviders")}</AppText>
-      {error ? <SignInError message={error} /> : null}
-      <View style={{ gap: space[2] }}>
-        <AppText weight="semiBold">{t("signIn.emailLabel")}</AppText>
-        <FieldInput label={t("signIn.emailLabel")} value={email} onChangeText={setEmail} onSubmitEditing={() => void send()} editable={!sending} {...EMAIL_FIELD} />
-      </View>
+      {error ? <GateError message={error} /> : null}
+      <GateField label={t("signIn.emailLabel")} value={email} onChangeText={setEmail} onSubmitEditing={() => void send()} editable={!sending} {...EMAIL_FIELD} />
       <Control look="primary" label={sending ? t("signIn.sending") : t("signIn.submit")} onPress={() => void send()} />
-    </GateScreen>
-  );
-}
-
-/** A text field of the sign-in screen, named by `label` (written above it). */
-function FieldInput({ label, ...props }: TextInputProps & { label: string }) {
-  const { colors } = useTheme();
-  return (
-    <TextInput
-      aria-label={label}
-      {...props}
-      style={{
-        minHeight: TARGET,
-        paddingHorizontal: space[3],
-        borderWidth: 1,
-        borderColor: colors.borderStrong,
-        borderRadius: radius.control,
-        fontFamily: INTER.regular,
-        fontSize: type.fontSize.body,
-        color: colors.text,
-      }}
-    />
-  );
-}
-
-/** What went wrong with the sign-in, read out as it appears. */
-function SignInError({ message }: { message: string }) {
-  return (
-    <View role="alert">
-      <AppText tone="danger">{message}</AppText>
-    </View>
-  );
-}
-
-/** A session pending its second step (ADR-0075): the step to take; asked natively in the second step's own ticket. */
-function SecondStep({ onSignOut }: { onSignOut: () => Promise<void> }) {
-  const { t } = useTranslation();
-  return (
-    <GateScreen title={t("twoStep.secondStep.title")}>
-      <AppText>{t("mobile.secondStep.intro")}</AppText>
-      <AppText tone="secondary">{t("mobile.secondStep.comingSoon")}</AppText>
-      <Control look="secondary" label={t("twoStep.secondStep.signOut")} onPress={() => void onSignOut()} />
     </GateScreen>
   );
 }

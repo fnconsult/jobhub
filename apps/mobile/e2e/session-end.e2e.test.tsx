@@ -32,7 +32,7 @@ jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey() });
   return { appSession: mockWeb.session };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
@@ -110,6 +110,35 @@ afterEach(async () => {
   release();
   await act(() => setNetwork(true));
   jest.restoreAllMocks();
+});
+
+describe("« Se déconnecter »", () => {
+  it("empties the read cache, in memory and on the device, and the documents, before the session is dropped (ADR-0076)", async () => {
+    await renderRouter("./src/app", { initialUrl: "/candidatures/app_marie" });
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
+    await act(async () => router.navigate("/compte"));
+    expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
+    await saved();
+    expect(await keptOnDevice()).toContain("Rhône Distribution");
+    mockForgotten.documents = 0;
+
+    // What the device still holds the moment the session is dropped: were the app killed then, it would stay.
+    const dropSession = mockWeb.session.signOut;
+    const atSignOut: { kept?: string; documents?: number } = {};
+    jest.spyOn(mockWeb.session, "signOut").mockImplementation(async () => {
+      atSignOut.kept ??= await keptOnDevice();
+      atSignOut.documents ??= mockForgotten.documents;
+      return dropSession();
+    });
+    await userEvent.setup().press(screen.getByRole("button", { name: "Se déconnecter" }));
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+
+    expect(atSignOut.kept).toBe("");
+    expect(atSignOut.documents).toBeGreaterThan(0);
+    // Nothing was left in memory to be saved again afterwards.
+    await saved();
+    expect(await keptOnDevice()).toBe("");
+  });
 });
 
 describe("a session revoked on the web, then another Candidate signing in on the device", () => {
@@ -203,5 +232,49 @@ describe("a session found ended", () => {
     await saved();
     mockWeb.app.setOffline(false);
     expect(await keptOnDevice()).toContain("Rhône Distribution");
+  });
+});
+
+describe("a session pending its second step (#688)", () => {
+  it("leaving the second step for the app shows the Candidate nothing of the previous one's", async () => {
+    await renderRouter("./src/app", { initialUrl: "/compte" });
+    expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
+    mockWeb.app.revokeAll(MARIE);
+    await backToForeground();
+    await screen.findByLabelText("Votre adresse e-mail");
+
+    mockWeb.app.withSecondStep(PAUL);
+    await signInInApp(PAUL);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Code de l'application"), mockWeb.app.appCode());
+    expect(screen.queryByText("Supply chain à Lyon", { includeHiddenElements: true })).toBeNull();
+    hold();
+    await user.press(screen.getByRole("button", { name: "Vérifier" }));
+    await act(async () => router.navigate("/compte"));
+
+    expect(await screen.findByText("Chargement…")).toBeOnTheScreen();
+    expect(screen.queryByText("Supply chain à Lyon", { includeHiddenElements: true })).toBeNull();
+    await act(async () => release());
+    expect(await screen.findByRole("link", { name: "Comptabilité à Nantes" })).toBeOnTheScreen();
+    expect(screen.queryByText("Supply chain à Lyon", { includeHiddenElements: true })).toBeNull();
+  });
+
+  it("signing out from the second step, the session staying pending, forgets what the device kept", async () => {
+    await renderRouter("./src/app", { initialUrl: "/candidatures/app_marie" });
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
+    await saved();
+    expect(await keptOnDevice()).toContain("Rhône Distribution");
+    mockForgotten.documents = 0;
+
+    // Another account's link opened in the running app: its session is pending its second step.
+    mockWeb.app.withSecondStep(PAUL);
+    await signInInApp(PAUL);
+    expect(await screen.findByLabelText("Code de l'application")).toBeOnTheScreen();
+    await userEvent.setup().press(screen.getByRole("button", { name: "Se déconnecter" }));
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    await saved();
+    expect(await keptOnDevice()).not.toContain("Rhône Distribution");
+    expect(mockForgotten.documents).toBeGreaterThan(0);
   });
 });

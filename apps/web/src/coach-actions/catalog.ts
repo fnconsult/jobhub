@@ -1,8 +1,8 @@
 /**
  * The Coach Actions shipped (ADR-0077), group by group as each ticket delivers them, each one built on the domain module
  * its page's route calls, with its Eval Cases: the reads of every group (#714), the Agenda's proposals (#718), the
- * Candidatures proposals (#716) and the Profil group's proposals (#719) so far. The other groups' proposals arrive with
- * their tickets (Recherches d'offres et Job Digests, Documents).
+ * Candidatures proposals (#716), the Profil group's proposals (#719) and the Recherches d'offres and Job Digests proposals
+ * (#720) so far. The other groups' proposals arrive with their tickets (Documents).
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -12,14 +12,17 @@ import { agendaCoachActions, type AgendaApplications } from "./agenda";
 import { applicationCoachActions, type ApplicationActionSources } from "./applications";
 import { coachActionCatalog, type CoachAction } from "./index";
 import { profileCoachActions, type ProfileActionSources } from "./profile";
+import { searchCoachActions, type SearchActionSources } from "./job-searches";
 import { readCoachActions, type CoachObjectReader } from "./reads";
 
 /** The domain modules the proposals go through; a Job Offer's reach is the reads' (`objects`). */
-export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | "reachesJobOffer"> & {
-  applications: AgendaApplications & ApplicationActionSources["applications"];
-  /** The Profil group's: Search Criteria, Master CV, archive and restore, Coach Memory. */
-  profile: ProfileActionSources;
-};
+export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | "reachesJobOffer" | "profiles"> &
+  Omit<SearchActionSources, "profiles"> & {
+    applications: AgendaApplications & ApplicationActionSources["applications"];
+    profiles: ApplicationActionSources["profiles"] & SearchActionSources["profiles"];
+    /** The Profil group's: Search Criteria, Master CV, archive and restore, Coach Memory. */
+    profile: ProfileActionSources;
+  };
 
 export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
   // A Job Offer out of view is within reach when a read finds it: one of the Candidate's objects shows it.
@@ -29,6 +32,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...agendaCoachActions(domain.applications),
     ...applicationCoachActions({ ...domain, reachesJobOffer }),
     ...profileCoachActions(domain.profile),
+    ...searchCoachActions(domain),
   ]);
 }
 
@@ -54,8 +58,23 @@ export const NO_DOMAIN: CoachActionDomain = {
     removeInterview: async () => NOT_FOUND,
     restoreInterview: async () => NOT_FOUND,
   },
-  profiles: { list: async () => [] },
+  profiles: { list: async () => [], get: async () => null },
   jobOffers: { get: async () => null },
+  jobSearches: {
+    start: async () => ({ ok: false, error: "not_found" }),
+    stop: async () => ({ ok: false, error: "not_found" }),
+    get: async () => null,
+    latest: async () => null,
+    searching: async () => null,
+  },
+  jobDigests: {
+    settings: async () => null,
+    allows: async () => ({ ok: false, error: "not_found" }),
+    subscribe: async () => ({ ok: false, error: "not_found" }),
+    unsubscribe: async () => {},
+    get: async () => null,
+  },
+  jobSearchQuota: async () => ({ used: 0, limit: 0, refusal: null }),
   followUps: { sentOf: async () => null, markSent: async () => ({ ok: false, error: "not_found" }), unmarkSent: async () => ({ ok: false, error: "not_found" }) },
   profile: {
     profiles: {

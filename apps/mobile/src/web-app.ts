@@ -14,10 +14,14 @@ export const webAppAddress = (path: string) => new URL(path, WEB_APP_URL).toStri
  */
 export const webAppHeaders = (): Record<string, string> => ({ [API_VERSION_HEADER]: String(API_VERSION), [API_CLIENT_HEADER]: MOBILE_CLIENT });
 
-/** Whether `url` is on the web app, the one address a WebView opens (ADR-0076); any other opens in the system browser. */
-export function isOnWebApp(url: string): boolean {
+/**
+ * Whether `url` is on the web app (`webApp`, the build's own unless given): its origin alone, scheme, host and port, never
+ * a subdomain or a look-alike. The one rule for every address the app gives the session to: a WebView opens it (ADR-0076,
+ * src/web and src/web-pages), a Tailored Document is downloaded from it (#695); any other opens in the system browser.
+ */
+export function isOnWebApp(url: string, webApp: string = WEB_APP_URL): boolean {
   try {
-    return new URL(url).origin === new URL(WEB_APP_URL).origin;
+    return new URL(url).origin === new URL(webApp).origin;
   } catch {
     return false;
   }

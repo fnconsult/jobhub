@@ -16,7 +16,9 @@
       },
       "associatedDomains": [
         "applinks:jobbbox.ai",
-        "applinks:staging.jobbbox.ai"
+        "applinks:staging.jobbbox.ai",
+        "webcredentials:jobbbox.ai",
+        "webcredentials:staging.jobbbox.ai"
       ]
     },
     "android": {

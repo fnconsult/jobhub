@@ -1,5 +1,15 @@
-// The WebView, a native view Jest has no binary for: a plain View named by its title. A test that needs what it loads
-// mocks it with its own factory (e2e/profiles.e2e.test.tsx).
-import { View } from "react-native";
+// A WebView in tests: its props kept for the test to drive as the page would (src/testing-device.ts), its address shown.
+import { useEffect } from "react";
+import { Text } from "react-native";
+import { fakeWebView } from "../src/testing-device";
 
-export const WebView = ({ accessibilityLabel }: { accessibilityLabel?: string }) => <View testID="webview" accessibilityLabel={accessibilityLabel} />;
+const show = (props: Record<string, unknown>) => void (fakeWebView.shown = props);
+const hide = (props: Record<string, unknown>) => void (fakeWebView.shown === props && (fakeWebView.shown = null));
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function WebView(props: Record<string, any>) {
+  show(props);
+  useEffect(() => () => hide(props), [props]);
+  return <Text testID="web-view">{props.source?.uri}</Text>;
+}
+export default WebView;

@@ -52,7 +52,7 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
 
   it("carry the session, as its cookie, so the web app reads them as the signed-in Candidate's", async () => {
     const web = fakeWebApp();
-    const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch });
+    const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: web.deviceWithoutPasskey() });
     await session.askLink("marie.dupont@example.fr");
     await session.openLink(web.linkFor("marie.dupont@example.fr"));
     const { fetch, calls } = server(200, []);

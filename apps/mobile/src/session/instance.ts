@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { WEB_APP_URL } from "../web-app-url";
 import { createAppSession, type SessionStorage } from "./app-session";
+import { devicePasskeys } from "./device-passkeys";
 
 /** The web app the app signs in to, as it calls it (src/web-app-url.ts). */
 export { WEB_APP_URL };
@@ -15,5 +16,5 @@ const storage: SessionStorage = {
   deleteItemAsync: (key) => SecureStore.deleteItemAsync(key, options),
 };
 
-/** The app's one session, on the web app the app calls (web-app-url.ts). */
-export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage });
+/** The app's one session, on the web app the app calls (web-app-url.ts), its second step by the device's passkeys. */
+export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys });

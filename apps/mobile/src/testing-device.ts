@@ -22,3 +22,28 @@ export const fakeDevice = {
   },
 };
 fakeDevice.reset();
+
+/** A cookie as the WebView's store holds it (@preeternal/react-native-cookie-manager). */
+export interface WebViewCookie {
+  url: string;
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+}
+
+/**
+ * The WebViews' side of the device (apps/mobile/__mocks__): the cookies their store holds, and the WebView shown last,
+ * whose props a test drives as the page would (a navigation, a link). Every test starts from `fakeWebView.reset()`.
+ */
+export const fakeWebView = {
+  cookies: [] as WebViewCookie[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  shown: null as null | Record<string, any>,
+  reset() {
+    this.cookies = [];
+    this.shown = null;
+  },
+};

@@ -100,7 +100,7 @@ test.describe("@jobhub/help package", () => {
       writeFileSync(fragment, "---\nkind: new\ntags: [blog]\n---\n## fr\n- Une ligne pour les Candidats.\n\n## en\n- A line for Candidates.\n");
       const unknownTag = build();
       expect(unknownTag.status).not.toBe(0);
-      expect(unknownTag.stdout + unknownTag.stderr).toContain("unreleased/999999.md: tag blog is not one of candidature, extension, coach-ia, confidentialite, accessibilite");
+      expect(unknownTag.stdout + unknownTag.stderr).toContain("unreleased/999999.md: tag blog is not one of candidature, extension, coach-ia, confidentialite, accessibilite, recherche");
       // Refused before anything is written.
       expect(readFileSync(generated, "utf8")).toBe(articles);
 

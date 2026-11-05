@@ -59,7 +59,7 @@ describe("readReleaseNoteFragments — the fragments waiting in releases/unrelea
   it.each([
     ["no English line", fragment({ en: "" }), "unreleased/601.md: its en line is missing: every fragment is written in French and in English"],
     ["no French line", fragment({ fr: "" }), "unreleased/601.md: its fr line is missing"],
-    ["a tag outside the list", fragment({ tags: "[candidature, blog]" }), "unreleased/601.md: tag blog is not one of candidature, extension, coach-ia, confidentialite, accessibilite"],
+    ["a tag outside the list", fragment({ tags: "[candidature, blog]" }), "unreleased/601.md: tag blog is not one of candidature, extension, coach-ia, confidentialite, accessibilite, recherche"],
     ["tags that are no list", fragment({ tags: "candidature" }), "unreleased/601.md: tags must be a list"],
     ["an unknown kind", fragment({ kind: "divers" }), "unreleased/601.md: kind must be one of new, improved, fixed"],
     ["an announce that is no boolean", fragment({ extra: "announce: oui\n" }), "unreleased/601.md: announce is true or false"],

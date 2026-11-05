@@ -95,6 +95,21 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Retention | Until sign-out, which empties it in the app and on the device; a copy older than 7 days, or saved by an app speaking another API Version, is discarded at launch. Uninstalling the app removes it. |
 | Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds. |
 
+## Tailored Documents downloaded in the Jobbbox app (ADR-0076, #695)
+
+| | |
+| --- | --- |
+| Purpose | Show a Tailored Document's PDF in the system's reader (Quick Look on iOS, the PDF viewer on Android) and hand its PDF or Word file to the system's share sheet, when the Candidate opens, shares or downloads it from an Application's Fiche. Nothing is changed in the app. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). Storage on the device strictly necessary to the service the Candidate asks for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Candidates using the app; people named in their documents (an employer, a recruiter the Cover Letter addresses). |
+| Data | The files of the Tailored CV and the Cover Letter the Candidate opened, shared or downloaded, as PDF or Word: the whole document (identity, contact details, career, the Application it is for), named after the document and its Application (« CV adapté – Aéroline · Responsable qualité.pdf »). Never the Outreach Message, shared as its words without a file, nor the session cookie the download is sent with. |
+| Source | The web app's `/api/applications/:id/*/export` routes, downloaded by the app with the Candidate's session cookie (`apps/mobile/src/documents/system-documents.ts`). |
+| Who can read it | Anyone who can open the app on the unlocked device. A file the Candidate passes to the share sheet goes where they choose (Fichiers, Mail…): that copy is theirs, outside the app. |
+| Processors | None: it stays on the device. |
+| Storage | A folder of the app's own cache on the device, `documents/` in expo-file-system's `Paths.cache` (`Library/Caches` on iOS, the app's cache directory on Android), not encrypted beyond the system's own file encryption; the session stays in the Keychain or Keystore. Neither system's backup is meant to include an app's cache (iOS leaves `Library/Caches` out of iCloud and computer backups; Android's Auto Backup leaves out the cache directory); not verified on a device. |
+| Retention | Until the session ends on the device: signing out deletes the folder, and so does the app finding the session revoked from Mon compte or expired (at launch, or when it comes back to the foreground). The system may delete it sooner when the device runs low on storage. Uninstalling the app removes it. In the meantime a document changed on the web is downloaded again over its earlier file, under the same name. |
+| Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds (« Applications and their documents »). |
+
 ## Provider Secrets (#208)
 
 | | |
@@ -409,8 +424,8 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 1._
 | Source | The person, at sign-up and sign-in; the Sign-in Provider, which passes their email address and name (scopes `openid email profile`). |
 | Processors | Hostinger; Brevo, which sends the magic link (« Transactional emails »). Google, Microsoft and Apple act as separate controllers of their own accounts, through their Irish entities (`docs/research/issue-522.md`): the person chooses them; their transfers outside the EU rest on the DPF (Google, Microsoft) and the standard contractual clauses (all three). An OpenID Connect issuer is the one an organisation configured: its place is not established. |
 | Who can read it | The person, in Mon compte. Super-admins and the Back Office Roles that cover accounts, in the Back Office. |
-| Storage | The `candidate`, `session`, `account`, `verification`, `sign_in_provider`, `sign_in_setting`, `administrator_role` and `coach_proposals_display` tables in the app's Postgres database (EU). The session cookie is set by Better Auth (strictly necessary, no consent). In the native app (ADR-0076, #685), the same session cookie is kept on the device, in the iOS Keychain (readable after the first unlock, this device only) or the Android Keystore, by `@better-auth/expo` (expo-secure-store), and sent back by the app; nothing else of the account is stored there. |
-| Retention | While the account lives; deleted with it (« Data export and Account deletion »). Sessions end at sign-out or expiry. Signing out in the app revokes its session and empties the device's secure storage; a session revoked from Mon compte, or no longer known, is emptied from the device at the app's next request. |
+| Storage | The `candidate`, `session`, `account`, `verification`, `sign_in_provider`, `sign_in_setting`, `administrator_role` and `coach_proposals_display` tables in the app's Postgres database (EU). The session cookie is set by Better Auth (strictly necessary, no consent). In the native app (ADR-0076, #685), the same session cookie is kept on the device, in the iOS Keychain (readable after the first unlock, this device only) or the Android Keystore, by `@better-auth/expo` (expo-secure-store), and sent back by the app, the downloads of Tailored Documents included (#695); nothing else of the account is stored in secure storage (what the app keeps elsewhere on the device: « Read cache in the Jobbbox app », « Tailored Documents downloaded in the Jobbbox app »). |
+| Retention | While the account lives; deleted with it (« Data export and Account deletion »). Sessions end at sign-out or expiry. Signing out in the app revokes its session and empties the device's secure storage, and deletes the Tailored Documents downloaded; a session revoked from Mon compte, or no longer known, is emptied from the device at the app's next request, those documents with it. |
 | Rights | In the Data export; erased with the account. |
 | Security | HttpOnly session cookie; two-step verification on request (« Two-step verification »). |
 

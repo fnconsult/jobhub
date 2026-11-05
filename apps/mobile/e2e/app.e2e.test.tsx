@@ -29,7 +29,7 @@ jest.mock("../src/session/instance", () => {
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.webViews = memoryWebViewCookies();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), webViewCookies: mockWeb.webViews });
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), browser: mockWeb.app.browser, webViewCookies: mockWeb.webViews });
   return { appSession: mockWeb.session };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
@@ -455,6 +455,26 @@ describe("Jobbbox app, signing in (#685)", () => {
     await act(async () => void (await mockWeb.session.signOut()));
 
     expect(mockWeb.webViews.cookies()).toEqual([]);
+    });
+
+  it("signs in with « Continuer avec Apple » in the system's browser, the app opening on its home page (#687)", async () => {
+    mockWeb.app.offerProviders([
+      { id: "google", displayName: "Google" },
+      { id: "apple", displayName: "Apple" },
+    ]);
+    mockWeb.app.atProvider({ signIn: EMAIL });
+    await launch("/", { signIn: false });
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Continuer avec Apple" }));
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+    mockWeb.app.offerProviders([]);
+  });
+
+  it("opens on its home page when the system opens it on a Sign-in Provider's return address, as Android may (#687)", async () => {
+    await launch("/connexion/fournisseur?cookie=already-kept");
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
   });
 
   it("signs out from Mon compte, back to sign-in", async () => {

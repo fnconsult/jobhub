@@ -6058,10 +6058,10 @@
     "label": "Propositions du coach",
     "card": "Carte",
     "form": "Formulaire",
-    "hint": "Ce que votre coach IA vous montre d'abord quand il propose un changement : la carte sous sa réponse, ou le formulaire pré-rempli ouvert dans le volet. « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte ; rien n'est appliqué sans vous.",
+    "hint": "Ce que votre coach IA vous montre d'abord quand il propose un changement : la carte sous sa réponse, ou le formulaire pré-rempli de sa première proposition ouvert dans le volet, sans quitter la zone de message. « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte ; rien n'est appliqué sans vous.",
     "saved": {
       "card": "Enregistré : chaque proposition s'affichera en carte sous la réponse.",
-      "form": "Enregistré : le formulaire de chaque proposition s'ouvrira dans le volet."
+      "form": "Enregistré : le formulaire pré-rempli de la première proposition de chaque réponse s'ouvrira dans le volet."
     },
     "error": "Votre choix n'a pas pu être enregistré. Réessayez."
   },

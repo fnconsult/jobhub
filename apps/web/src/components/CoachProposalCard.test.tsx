@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
-import { useState } from "react";
-import { screen, within } from "@testing-library/react";
+import { useEffect, useState } from "react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoachProposalCard as Card } from "@/coach-proposals/card";
@@ -190,6 +190,37 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect((within(pane).getByRole("combobox", { name: "Statut de la candidature" }) as HTMLSelectElement).value).toBe("interview");
     expect(within(card()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Appliquer", "Modifier avant d'appliquer", "Ignorer"]);
     expect(sent).toEqual([]);
+  });
+
+  it("arriving under « Formulaire » (#775), leaves the focus where the Candidate is; « Modifier avant d'appliquer » takes it to the form", async () => {
+    const reply = { arrive: () => {} };
+    function Conversation() {
+      const [arrived, setArrived] = useState(false);
+      useEffect(() => {
+        reply.arrive = () => setArrived(true);
+      }, []);
+      return (
+        <WorkPaneProvider version="1.2.3">
+          <main id="main">
+            <textarea aria-label="Votre message" />
+            {arrived ? <CoachProposalCard card={PENDING} onChange={() => {}} openOnArrival /> : null}
+          </main>
+          <WorkPane />
+        </WorkPaneProvider>
+      );
+    }
+    renderInFrench(<Conversation />);
+    // The Candidate types their next message as the reply and its card arrive.
+    const box = screen.getByRole("textbox", { name: "Votre message" });
+    box.focus();
+    act(() => reply.arrive());
+
+    const pane = screen.getByRole("complementary");
+    expect(within(pane).getByRole("combobox", { name: "Statut de la candidature" })).toBeTruthy();
+    expect(document.activeElement).toBe(box);
+
+    await userEvent.click(button("Modifier avant d'appliquer"));
+    expect(document.activeElement).toBe(within(screen.getByRole("complementary")).getByRole("heading", { level: 2 }));
   });
 
   it("under « Carte » (the default), only the card shows: the Work Pane stays closed", () => {

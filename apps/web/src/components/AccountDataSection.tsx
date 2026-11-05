@@ -67,7 +67,8 @@ export function AccountDataSection() {
             {t("accountData.export")}
           </a>
         </div>
-        <section className="danger-zone stack" aria-labelledby={`${id}-delete-title`}>
+        {/* `#supprimer`: where the Jobbbox app opens Account deletion, in its WebView (#689). */}
+        <section id="supprimer" className="danger-zone stack" aria-labelledby={`${id}-delete-title`}>
           <h3 id={`${id}-delete-title`}>{t("accountData.deleteTitle")}</h3>
           <p id={`${id}-warning`}>{t("accountData.deleteWarning")}</p>
           <form className="stack" onSubmit={deleteAccount} noValidate>

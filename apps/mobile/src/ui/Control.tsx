@@ -13,6 +13,7 @@ type Look = "primary" | "secondary" | "quiet";
  */
 export function Control({
   label,
+  accessibleName,
   icon: Icon,
   iconOnly = false,
   look = "quiet",
@@ -22,6 +23,8 @@ export function Control({
   onPress,
 }: {
   label: string;
+  /** Its accessible name when the label alone does not say which, among several alike: the label otherwise. */
+  accessibleName?: string;
   icon?: LucideIcon;
   iconOnly?: boolean;
   look?: Look;
@@ -37,7 +40,7 @@ export function Control({
   return (
     <Pressable
       role="button"
-      aria-label={label}
+      aria-label={accessibleName ?? label}
       aria-expanded={expanded}
       aria-selected={selected}
       aria-disabled={disabled}

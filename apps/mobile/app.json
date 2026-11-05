@@ -23,6 +23,10 @@
     },
     "android": {
       "package": "ai.jobbbox.app",
+      "blockedPermissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -47,6 +51,14 @@
       "expo-router",
       "expo-localization",
       "expo-screen-orientation",
+      [
+        "expo-calendar",
+        {
+          "writeOnlyAccess": true,
+          "calendarPermission": "Jobbbox ajoute à votre calendrier les entretiens et séances que vous choisissez. Il ne lit pas votre calendrier.",
+          "writeOnlyCalendarPermission": "Jobbbox ajoute à votre calendrier les entretiens et séances que vous choisissez. Il ne lit pas votre calendrier."
+        }
+      ],
       ["expo-local-authentication", { "faceIDPermission": "Jobbbox utilise Face ID pour se déverrouiller quand « Verrouiller l'app » est activé dans ses réglages." }],
       "expo-secure-store",
       [

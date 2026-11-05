@@ -35,10 +35,13 @@ export function ApiProvider({
   baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
   storePage = storePageFor(Platform.OS, Constants.expoConfig),
+  cookie,
   children,
 }: {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
+  /** The session cookie to send, as `@better-auth/expo` gives it (empty when signed out); none outside a session. */
+  cookie?: () => Promise<string>;
   /** This build's store page, used when the platform's 426 names none. */
   storePage?: string;
   children: ReactNode;
@@ -50,7 +53,9 @@ export function ApiProvider({
       const headers = new Headers(init?.headers);
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
-      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers });
+      const session = cookie ? await cookie() : "";
+      if (session) headers.set("cookie", session);
+      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
         setOutdated({ storeUrl: named ?? storePage });
@@ -58,7 +63,7 @@ export function ApiProvider({
       }
       return response;
     },
-    [baseUrl, fetch, storePage],
+    [baseUrl, fetch, storePage, cookie],
   );
 
   const value = useMemo(() => api, [api]);

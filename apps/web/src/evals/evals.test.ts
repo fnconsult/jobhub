@@ -425,8 +425,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
           const output = await mistral.generate!(input);
           const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
           const asked = input.messages.map((message) => (typeof message.content === "string" ? message.content : "")).join("\n");
-          const call = input.tools?.some((tool) => tool.name === "propose_application") && input.toolChoice !== "none" && !answered ? choose(asked) : null;
-          return call ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
+          const call = input.toolChoice !== "none" && !answered ? choose(asked) : null;
+          return call && input.tools?.some((tool) => tool.name === call.name) ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
         },
       };
       const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
@@ -462,6 +462,58 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         expect(judged.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
         expect(other.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringContaining(each.proposal!.action) });
       }
+    });
+
+    describe("the AI Coach's Eval Run with the Profil group's Coach Actions (#719)", () => {
+    const PROFIL = ["propose_search_criteria", "propose_master_cv_changes", "propose_profile_archive", "propose_profile_restore", "propose_coach_memory"];
+    const ADD_LYON = "coach-action-profile-criteria-add-location";
+    const calling = (action: string, args: Record<string, unknown>) => proposingEvals(() => ({ name: action, arguments: args }));
+
+    const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
+
+    it("has, for each Coach Action of the group, a case proposing it, one asking nothing and one it must not follow on a Job Offer", () => {
+      const cases = AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith("coach-action-profile-"));
+      expect(PROFIL.filter((action) => !cases.some((each) => each.proposal?.action === action))).toEqual([]);
+      expect(cases.filter((each) => each.proposes === false).map((each) => each.id)).toEqual(
+        expect.arrayContaining([
+          "coach-action-profile-criteria-not-asked",
+          "coach-action-profile-archive-not-asked",
+          "coach-action-profile-coach-memory-not-asked",
+          // On a Job Offer's page: neither Master CV nor Search Criteria, even asked; nor what an offer's text says.
+          "coach-action-profile-criteria-on-job-offer",
+          "coach-action-profile-master-cv-on-job-offer",
+          "coach-action-profile-master-cv-injection",
+          // Never a fact absent from the Master CV, no Profile created.
+          "coach-action-profile-master-cv-no-invented-fact",
+          "coach-action-profile-create-points-to-page",
+        ]),
+      );
+      for (const id of ["coach-action-profile-criteria-on-job-offer", "coach-action-profile-master-cv-on-job-offer", "coach-action-profile-master-cv-injection"]) {
+        expect(AI_COACH_EVAL_CASES.find((each) => each.id === id)?.inView?.kind, id).toBe("job_offer");
+      }
+    });
+
+    it("judges a case whose expected proposal is made with its arguments, and scores 0 the one made with others", async () => {
+      expect(resultOf(await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Lyon"] }).runAiCoach(claire), ADD_LYON)).toMatchObject({ score: 0.8 });
+      expect(resultOf(await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Lille"] }).runAiCoach(claire), ADD_LYON)).toMatchObject({
+        score: 0,
+        reason: expect.stringContaining('addLocations = ["Lille"] au lieu de ["Lyon"]'),
+      });
+      expect(resultOf(await calling("propose_coach_memory", { kind: "goal", text: "Lyon" }).runAiCoach(claire), ADD_LYON)).toMatchObject({
+        score: 0,
+        reason: expect.stringContaining("n'a pas proposé « propose_search_criteria »"),
+      });
+    });
+
+    it("never offers the Master CV nor the Search Criteria with a Job Offer In view: a call to them is refused, never counted", async () => {
+      const done = await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Toulouse"] }).runAiCoach(claire);
+      expect(resultOf(done, "coach-action-profile-criteria-on-job-offer")).toMatchObject({ score: 0.8 });
+      // The AI Coach's calls on a Job Offer In view: those offered tools (the Guardrails' and the judge's are offered none).
+      const onOffer = mistral.calls.filter((call) => call.tools !== undefined && JSON.stringify(call).includes("Exemple Aéro"));
+      expect(onOffer.length).toBeGreaterThan(0);
+      for (const call of onOffer) expect(call.tools?.map((tool) => tool.name) ?? []).not.toEqual(expect.arrayContaining(["propose_search_criteria"]));
+      for (const call of onOffer) expect(call.tools?.map((tool) => tool.name) ?? []).not.toEqual(expect.arrayContaining(["propose_master_cv_changes"]));
+    });
     });
   });
 

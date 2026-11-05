@@ -5,12 +5,18 @@
 // own mock.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { AgendaResponse, ApplicationResponse, ProfileResponse } from "@jobhub/shared/reads";
-import { act, cleanup, screen, userEvent } from "@testing-library/react-native";
+import { act, cleanup, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { renderRouter } from "expo-router/testing-library";
 import { AppState } from "react-native";
 
 jest.setTimeout(60_000);
+
+/** The app opened at `initialUrl`, past the legal steps it reads first once signed in (#689). */
+async function openApp(initialUrl: string) {
+  await renderRouter("./src/app", { initialUrl });
+  await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
+}
 
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
@@ -105,7 +111,8 @@ beforeEach(async () => {
   mockLink.current = null;
   jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     if (!mockNetwork.connected) throw new TypeError("Network request failed");
-    await held;
+    // The Candidate's reads wait while held; the legal steps the app reads first once signed in (#689) do not.
+    if (!new Request(input, init).url.includes("/api/account/legal-steps")) await held;
     return mockWeb.app.fetch(input, init);
   });
   mockWeb.app.has(MARIE, { profiles: [MARIES_PROFILE], agenda: MARIES_AGENDA, applications: [{ application: MARIES_APPLICATION, documents: { documentLanguage: "fr", documents: [] } }] });
@@ -120,7 +127,7 @@ afterEach(async () => {
 
 describe("« Se déconnecter »", () => {
   it("empties the read cache, in memory and on the device, and the documents, before the session is dropped (ADR-0076)", async () => {
-    await renderRouter("./src/app", { initialUrl: "/agenda" });
+    await openApp("/agenda");
     expect(await screen.findByText(/Léa Fontaine/)).toBeOnTheScreen();
     await act(async () => router.navigate("/candidatures/app_marie"));
     await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
@@ -152,7 +159,7 @@ describe("« Se déconnecter »", () => {
 
 describe("a session revoked on the web, then another Candidate signing in on the device", () => {
   it("never shows the next Candidate the previous one's Profiles", async () => {
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
 
     mockWeb.app.revokeAll(MARIE);
@@ -173,7 +180,7 @@ describe("a session revoked on the web, then another Candidate signing in on the
   });
 
   it("offline, shows the next Candidate nothing of the previous one's, in memory or kept on the device", async () => {
-    await renderRouter("./src/app", { initialUrl: "/agenda" });
+    await openApp("/agenda");
     expect(await screen.findByText(/Léa Fontaine/)).toBeOnTheScreen();
     await act(async () => router.navigate("/candidatures/app_marie"));
     await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
@@ -205,7 +212,7 @@ describe("a session revoked on the web, then another Candidate signing in on the
 
 describe("a session found ended", () => {
   it("by a read answered 401, goes back to sign-in and forgets the reads, rather than offer « Réessayer »", async () => {
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
 
     mockWeb.app.revokeAll(MARIE);
@@ -221,7 +228,7 @@ describe("a session found ended", () => {
   });
 
   it("at launch, forgets what the device kept of the previous session", async () => {
-    await renderRouter("./src/app", { initialUrl: "/candidatures/app_marie" });
+    await openApp("/candidatures/app_marie");
     await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
     await saved();
     expect(await keptOnDevice()).toContain("Rhône Distribution");
@@ -229,21 +236,21 @@ describe("a session found ended", () => {
     await act(async () => cleanup());
 
     mockWeb.app.revokeAll(MARIE);
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
     await saved();
     expect(await keptOnDevice()).not.toContain("Rhône Distribution");
   });
 
   it("without network at launch, keeps what the device kept: the session may still be valid", async () => {
-    await renderRouter("./src/app", { initialUrl: "/candidatures/app_marie" });
+    await openApp("/candidatures/app_marie");
     await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
     await saved();
     // The app closed, then launched again.
     await act(async () => cleanup());
 
     mockWeb.app.setOffline(true);
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
     await saved();
     mockWeb.app.setOffline(false);
@@ -253,7 +260,7 @@ describe("a session found ended", () => {
 
 describe("a session pending its second step (#688)", () => {
   it("leaving the second step for the app shows the Candidate nothing of the previous one's", async () => {
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
     mockWeb.app.revokeAll(MARIE);
     await backToForeground();
@@ -276,7 +283,7 @@ describe("a session pending its second step (#688)", () => {
   });
 
   it("signing out from the second step, the session staying pending, forgets what the device kept", async () => {
-    await renderRouter("./src/app", { initialUrl: "/candidatures/app_marie" });
+    await openApp("/candidatures/app_marie");
     await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
     await saved();
     expect(await keptOnDevice()).toContain("Rhône Distribution");

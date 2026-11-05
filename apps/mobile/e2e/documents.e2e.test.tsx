@@ -5,12 +5,18 @@
 // Native's Share) are faked besides, and what reaches the system's PDF reader and share sheet is asserted.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ApplicationResponse, TailoredDocumentsResponse } from "@jobhub/shared/reads";
-import { act, screen, userEvent } from "@testing-library/react-native";
+import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { router } from "expo-router";
 import { Dimensions, Share } from "react-native";
 
 jest.setTimeout(60_000);
+
+/** The app opened at `initialUrl`, past the legal steps it reads first once signed in (#689). */
+async function openApp(initialUrl: string) {
+  await renderRouter("./src/app", { initialUrl });
+  await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
+}
 
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
@@ -129,7 +135,7 @@ const CV_PDF = "file:///cache/documents/CV adapté – Rhône Distribution · Re
 
 async function openFiche(id = APPLICATION.id) {
   await signedIn();
-  await renderRouter("./src/app", { initialUrl: `/candidatures/${id}` });
+  await openApp(`/candidatures/${id}`);
   await userEvent.setup().press(button("Fiche"));
 }
 
@@ -319,7 +325,7 @@ describe("Tailored Documents, on a tablet", () => {
   it("opens the document in the Work Pane column beside the conversation and the Fiche", async () => {
     setWindow(IPAD_LANDSCAPE);
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/candidatures/app_rhone" });
+    await openApp("/candidatures/app_rhone");
     await userEvent.setup().press(await screen.findByRole("button", { name: "CV adapté" }));
 
     expect(mockPreview).toHaveBeenCalledWith(CV_PDF, { title: "CV adapté", mimeType: "application/pdf" });

@@ -10,6 +10,12 @@ import { Dimensions, Linking } from "react-native";
 
 jest.setTimeout(60_000);
 
+/** The app opened at `initialUrl`, past the legal steps it reads first once signed in (#689). */
+async function openApp(initialUrl: string) {
+  await renderRouter("./src/app", { initialUrl });
+  await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
+}
+
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
 /** The device's network as expo-network reports it, connected unless a test turns it off. */
@@ -112,7 +118,7 @@ const ARCHIVED: ProfileResponse = { ...PURCHASING, id: "prof_ancien", name: "Anc
 
 async function openProfileFiche(id = SUPPLY_CHAIN.id) {
   await signedIn();
-  await renderRouter("./src/app", { initialUrl: `/profils/${id}` });
+  await openApp(`/profils/${id}`);
   await userEvent.setup().press(button("Fiche"));
 }
 
@@ -133,7 +139,7 @@ afterEach(async () => {
 describe("Profiles, to read", () => {
   it("lists the Candidate's own Profiles in Mon compte, read from the web app with their session", async () => {
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
 
     expect(screen.getByText("Profils")).toBeOnTheScreen();
     expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
@@ -143,14 +149,14 @@ describe("Profiles, to read", () => {
 
   it("leaves the Archived Profiles out of Mon compte, as the web app's read does", async () => {
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     await screen.findByRole("link", { name: "Supply chain à Lyon" });
     expect(screen.queryByText("Ancien profil commerce")).toBeNull();
   });
 
   it("leads from Mon compte to the Profile's page", async () => {
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     await userEvent.setup().press(await screen.findByRole("link", { name: "Supply chain à Lyon" }));
     expect(screen).toHavePathname("/profils/prof_lyon");
   });
@@ -158,7 +164,7 @@ describe("Profiles, to read", () => {
   it("says so when the Candidate has no Profile yet", async () => {
     mockWeb.app.has(EMAIL, { profiles: [ARCHIVED] });
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     expect(await screen.findByText(/Pas encore de profil/)).toBeOnTheScreen();
   });
 
@@ -197,9 +203,13 @@ describe("Profiles, while they load or cannot be read", () => {
   it("titles the page neutrally until the Profile is read, never with another Profile's name", async () => {
     let answer!: () => void;
     const answered = new Promise<void>((resolve) => (answer = resolve));
-    jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => (await answered, mockWeb.app.fetch(input, init)));
+    // The Profile's read waits; the legal steps the app reads first once signed in (#689) do not.
+    jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (new Request(input, init).url.includes("/api/profiles/")) await answered;
+      return mockWeb.app.fetch(input, init);
+    });
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/profils/prof_lyon" });
+    await openApp("/profils/prof_lyon");
 
     expect(title("Profil")).toBeOnTheScreen();
     await userEvent.setup().press(button("Fiche"));
@@ -219,7 +229,7 @@ describe("Profiles, while they load or cannot be read", () => {
     // Failing twice in a row (the read is tried again once, by itself): the person is told, and tries again.
     mockWeb.app.failNext("/api/profiles", 500, 2);
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/compte" });
+    await openApp("/compte");
     expect(await screen.findByText(/n'a pas pu être chargé/, {}, { timeout: 10_000 })).toBeOnTheScreen();
     await userEvent.setup().press(button("Réessayer"));
     expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
@@ -260,7 +270,7 @@ describe("Profiles, « Modifier » on the web", () => {
   it("opens it in the Work Pane column on a tablet, beside the conversation", async () => {
     setWindow(IPAD_LANDSCAPE);
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/profils/prof_lyon" });
+    await openApp("/profils/prof_lyon");
     await userEvent.setup().press(await screen.findByRole("button", { name: "Modifier le profil" }));
 
     expect(screen.getByTestId("webview")).toBeOnTheScreen();

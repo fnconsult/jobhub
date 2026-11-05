@@ -2,7 +2,7 @@
 // conversation) for what a person sees without network, and the app's providers (AppProviders, the root every screen
 // sits in) for the read cache, sign-out and writes, which no screen of the app uses yet.
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { createI18n, DEFAULT_LOCALE } from "@jobhub/shared/i18n";
 import { renderRouter } from "expo-router/testing-library";
 import { Pressable, Text } from "react-native";
@@ -33,10 +33,10 @@ const setNetwork = (connected: boolean) => {
 // The web app the app signs in to (#685), so the app's root reaches its signed-in screens, as app.e2e.test.tsx does.
 const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
 jest.mock("../src/session/instance", () => {
-  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), webViewCookies: memoryWebViewCookies() });
   return { appSession: mockWeb.session };
 });
 // As app.e2e.test.tsx: the app's own scheme, which the magic link it asks for returns to (Expo Router's mock has another).
@@ -55,16 +55,32 @@ async function signedIn() {
   await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
 }
 
+/** What the app asked of the network beyond the reads every launch makes (the legal steps, whether the person is a Human Coach; #689). */
+const beyondLaunch = (fetch: { mock: { calls: unknown[][] } }) => fetch.mock.calls.map(([input]) => String(input)).filter((url) => !/\/api\/(account\/legal-steps|coach-space)\b/.test(url));
+
+/**
+ * The app's root, signed in, once it has read the legal steps it may have to ask (#689); its calls to the API reach the
+ * same fake web app, at the network (src/api), unless a test answers them itself.
+ */
+async function launch() {
+  if (!jest.isMockFunction(globalThis.fetch)) jest.spyOn(globalThis, "fetch").mockImplementation((input, init) => mockWeb.app.fetch(input, init));
+  await renderRouter("./src/app", { initialUrl: "/" });
+  await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
+}
+
 const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
 const button = (name: string) => screen.getByRole("button", { name });
 
 describe("offline, in the app", () => {
   beforeEach(signedIn);
-  afterEach(() => act(() => setNetwork(true)));
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await act(() => setNetwork(true));
+  });
 
   it("shows « Hors ligne » and disables the conversation's box and its writing actions, saying why", async () => {
     mockNetwork.connected = false;
-    await renderRouter("./src/app", { initialUrl: "/" });
+    await launch();
     expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
     expect(screen.getByLabelText("Votre message")).toBeDisabled();
     expect(button("Envoyer")).toBeDisabled();
@@ -73,18 +89,18 @@ describe("offline, in the app", () => {
   });
 
   it("sends nothing when « Envoyer » is pressed without network", async () => {
-    const fetchSpy = jest.fn();
-    (globalThis as { fetch: unknown }).fetch = fetchSpy;
+    // Restored after the test (jest.restoreAllMocks), as no assignment to the global fetch would be.
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockImplementation(() => Promise.reject(new TypeError("Network request failed")));
     mockNetwork.connected = false;
-    await renderRouter("./src/app", { initialUrl: "/" });
+    await launch();
     await userEvent.setup().press(button("Envoyer"));
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(beyondLaunch(fetchSpy)).toEqual([]);
     expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
   });
 
   it("drops the banner and gives the box back, with no action from the person, once the network returns", async () => {
     mockNetwork.connected = false;
-    await renderRouter("./src/app", { initialUrl: "/" });
+    await launch();
     expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
     await act(() => setNetwork(true));
     expect(screen.queryByText("Hors ligne")).toBeNull();

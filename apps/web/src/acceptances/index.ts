@@ -6,7 +6,8 @@
  *    (#546) holds no CGU version in effect. The first version counts as substantial for everyone; after that, only a
  *    substantial version asks again (a minor one never does). What is asked is the version in effect that day.
  *  - `accept` records the Acceptance of that version, once: « premiere_connexion » for the Candidate's first, else
- *    « nouvelle_acceptation ». Any other version is refused as stale.
+ *    « nouvelle_acceptation », with where it was accepted (`web`, or `mobile` on the Jobbbox app's screen, #689). Any
+ *    other version is refused as stale.
  *  - `acceptAtCheckout` records the CGV in effect at a payment, with its Checkout session and whether the Candidate
  *    asked for immediate performance (filled by the page before Checkout, #512).
  *  - `of` lists them for the Data export.
@@ -31,6 +32,10 @@ export const ACCEPTANCE_CHANNELS = ["premiere_connexion", "nouvelle_acceptation"
 export type AcceptanceChannel = (typeof ACCEPTANCE_CHANNELS)[number];
 export type CheckoutChannel = Extract<AcceptanceChannel, `paiement_${string}`>;
 
+/** Where the Candidate accepted: on the web app, or on the Jobbbox app's own screen (#689, ADR-0076). */
+export const ACCEPTANCE_ORIGINS = ["web", "mobile"] as const;
+export type AcceptanceOrigin = (typeof ACCEPTANCE_ORIGINS)[number];
+
 /** An Acceptance as the Data export shows it: never the pseudonym, never Stripe's Checkout session id. */
 export interface ExportedAcceptance {
   text: "cgu" | "cgv";
@@ -39,6 +44,7 @@ export interface ExportedAcceptance {
   /** The SHA-256 of the version's French text, the binding one. */
   sha256: string;
   channel: AcceptanceChannel;
+  origin: AcceptanceOrigin;
   acceptedAt: Date;
   /** At a payment: whether the Candidate asked for the service to start at once (#512). */
   immediateExecutionRequested?: boolean;
@@ -47,8 +53,11 @@ export interface ExportedAcceptance {
 export interface Acceptances {
   /** The CGU version the Candidate must accept now, or null when nothing is asked of them. */
   pending(candidateId: string): Promise<LegalTextVersionRecord | null>;
-  /** Accepts the CGU `version`: « accepted » (once, again does nothing), or « stale » when it is not the one to accept now. */
-  accept(candidateId: string, version: string): Promise<"accepted" | "stale">;
+  /**
+   * Accepts the CGU `version` from `origin` (the web app unless said): « accepted » (once, again does nothing), or
+   * « stale » when it is not the one to accept now.
+   */
+  accept(candidateId: string, version: string, origin?: AcceptanceOrigin): Promise<"accepted" | "stale">;
   /** Records the CGV in effect, accepted at a payment. Throws while no CGV version is in effect. */
   acceptAtCheckout(candidateId: string, payment: { channel: CheckoutChannel; checkoutSessionId: string; immediateExecutionRequested: boolean }): Promise<void>;
   /** The Candidate's Acceptances, oldest first. */
@@ -94,14 +103,20 @@ export function createAcceptances(database: Pool, options: Partial<AcceptancesOp
     return accepted !== null && accepted >= asking.version ? null : versions.at(-1)!;
   }
 
-  async function record(candidateId: string, entry: LegalTextVersionRecord, channel: AcceptanceChannel, payment?: { checkoutSessionId: string; immediateExecutionRequested: boolean }) {
+  async function record(
+    candidateId: string,
+    entry: LegalTextVersionRecord,
+    channel: AcceptanceChannel,
+    origin: AcceptanceOrigin,
+    payment?: { checkoutSessionId: string; immediateExecutionRequested: boolean },
+  ) {
     const { rows } = await database.query<{ email: string }>(`SELECT email FROM candidate WHERE id = $1`, [candidateId]);
     if (!rows[0]) throw new Error("No such Candidate");
     await database.query(
-      `INSERT INTO legal_acceptance (candidate_id, holder, text, version, url, sha256, channel, checkout_session_id, immediate_execution_requested, accepted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO legal_acceptance (candidate_id, holder, text, version, url, sha256, channel, origin, checkout_session_id, immediate_execution_requested, accepted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (candidate_id, text, version) WHERE checkout_session_id IS NULL DO NOTHING`,
-      [candidateId, holderOf(rows[0].email), entry.text, entry.version, entry.url, entry.sha256, channel, payment?.checkoutSessionId ?? null, payment?.immediateExecutionRequested ?? null, now()],
+      [candidateId, holderOf(rows[0].email), entry.text, entry.version, entry.url, entry.sha256, channel, origin, payment?.checkoutSessionId ?? null, payment?.immediateExecutionRequested ?? null, now()],
     );
   }
 
@@ -109,18 +124,19 @@ export function createAcceptances(database: Pool, options: Partial<AcceptancesOp
     pending,
     holderOf,
 
-    async accept(candidateId, version) {
+    async accept(candidateId, version, origin = "web") {
       const asked = await pending(candidateId);
       if (!asked) return (await newestAcceptedCgu(candidateId)) !== null && cguInEffect().some((entry) => entry.version === version) ? "accepted" : "stale";
       if (asked.version !== version) return "stale";
-      await record(candidateId, asked, (await newestAcceptedCgu(candidateId)) === null ? "premiere_connexion" : "nouvelle_acceptation");
+      await record(candidateId, asked, (await newestAcceptedCgu(candidateId)) === null ? "premiere_connexion" : "nouvelle_acceptation", origin);
       return "accepted";
     },
 
     async acceptAtCheckout(candidateId, { channel, ...payment }) {
       const cgv = legalTextVersionInEffect("cgv", parisDay(now()), registry());
       if (!cgv) throw new Error("No CGV version is in effect");
-      await record(candidateId, cgv, channel, payment);
+      // Stripe Checkout is the web app's page, whichever device opened it.
+      await record(candidateId, cgv, channel, "web", payment);
     },
 
     of: (candidateId) => acceptancesOf(database, candidateId),
@@ -130,7 +146,7 @@ export function createAcceptances(database: Pool, options: Partial<AcceptancesOp
 /** The Candidate's Acceptances for their Data export, oldest first. */
 export async function acceptancesOf(database: Queryable, candidateId: string): Promise<ExportedAcceptance[]> {
   const { rows } = await database.query<Omit<ExportedAcceptance, "immediateExecutionRequested"> & { immediateExecutionRequested: boolean | null }>(
-    `SELECT text, version, url, sha256, channel, accepted_at AS "acceptedAt", immediate_execution_requested AS "immediateExecutionRequested"
+    `SELECT text, version, url, sha256, channel, origin, accepted_at AS "acceptedAt", immediate_execution_requested AS "immediateExecutionRequested"
        FROM legal_acceptance WHERE candidate_id = $1 ORDER BY accepted_at, id`,
     [candidateId],
   );
@@ -169,6 +185,8 @@ export async function migrateAcceptances(database: Pool): Promise<void> {
       accepted_at timestamptz NOT NULL,
       account_deleted_at timestamptz
     );
+    -- Where it was accepted (#689): the web app, or the Jobbbox app's own screen. Earlier rows were all the web's.
+    ALTER TABLE legal_acceptance ADD COLUMN IF NOT EXISTS origin text NOT NULL DEFAULT 'web' CHECK (origin IN (${ACCEPTANCE_ORIGINS.map((origin) => `'${origin}'`).join(", ")}));
     -- The screen after sign-in records a version once; each payment records its own.
     CREATE UNIQUE INDEX IF NOT EXISTS legal_acceptance_once_idx ON legal_acceptance (candidate_id, text, version) WHERE checkout_session_id IS NULL;
     CREATE INDEX IF NOT EXISTS legal_acceptance_candidate_id_idx ON legal_acceptance (candidate_id);

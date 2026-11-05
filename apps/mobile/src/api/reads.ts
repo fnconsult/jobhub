@@ -20,7 +20,7 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { readKey, type ReadName } from "../offline/read-cache";
 import { useSession } from "../session/SessionGate";
-import { useApi } from "./api";
+import { useApi, type ApiFetch } from "./api";
 
 /** The web app answered a read with an error: `status` 404 for what is not the Candidate's (or does not exist). */
 export class ReadFailed extends Error {
@@ -41,26 +41,32 @@ export type Read<T> = UseQueryResult<T, Error>;
 /** A read's schema, from `@jobhub/shared/reads`: what parses the web app's answer. */
 type Schema<T> = { parse: (answer: unknown) => T };
 
+/**
+ * A GET of `path` through `api`, its JSON body parsed by `schema`; ReadFailed on any other answer than a success. For a
+ * read the device never keeps and that needs no session check (LegalSteps, the Espace coach entry, #689).
+ */
+export async function read<T>(api: ApiFetch, path: string, schema: Schema<T>, signal?: AbortSignal): Promise<T> {
+  const response = await api(path, { signal });
+  if (!response.ok) throw new ReadFailed(response.status);
+  return schema.parse(await response.json());
+}
+
 function useRead<T>(name: ReadName, path: string, schema: Schema<T>, params: string[], enabled = true): Read<T> {
   const api = useApi();
-  const { checkSession } = useSession();
-  const read = useQuery({
+  const { recheck } = useSession();
+  const query = useQuery({
     queryKey: readKey(name, ...params),
-    queryFn: async ({ signal }) => {
-      const response = await api(path, { signal });
-      if (!response.ok) throw new ReadFailed(response.status);
-      return schema.parse(await response.json());
-    },
+    queryFn: ({ signal }) => read(api, path, schema, signal),
     retry: tryAgain,
     enabled,
   });
   // Answered 401, the session ended on the web app (revoked, expired): checking it takes the app back to sign-in,
   // which forgets every read (SessionGate).
-  const unauthorized = read.error instanceof ReadFailed && read.error.status === 401;
+  const unauthorized = query.error instanceof ReadFailed && query.error.status === 401;
   useEffect(() => {
-    if (unauthorized) checkSession();
-  }, [unauthorized, checkSession]);
-  return read;
+    if (unauthorized) void recheck();
+  }, [unauthorized, recheck]);
+  return query;
 }
 
 const segment = encodeURIComponent;

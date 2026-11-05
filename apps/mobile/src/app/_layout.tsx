@@ -16,8 +16,10 @@ import { startCrashReports } from "../crash-reports";
 import { createDocumentReader } from "../documents/document-reader";
 import { forgetDocuments, systemDocuments } from "../documents/system-documents";
 import { deviceI18n } from "../i18n";
+import { LegalSteps } from "../legal/LegalSteps";
 import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths, profileIdOf } from "../navigation/pages";
+import { useIsHumanCoach } from "../navigation/human-coach";
 import { Sidebar } from "../navigation/Sidebar";
 import { usePortraitOnPhones } from "../orientation";
 import { appSession } from "../session/instance";
@@ -36,7 +38,8 @@ const KEYBOARD = Platform.OS === "ios" ? "padding" : undefined;
 /**
  * The app's root: Inter loaded (its three weights alone, bundled with the app), the device's language, the system's
  * theme, the session (signed out, the sign-in screen; #685), the read cache kept on the device, the optional app lock over
- * the signed-in app (#702), then the shell around every page.
+ * the signed-in app (#702), the legal steps after sign-in (the CGU to accept, the privacy policy's change, the EU AI
+ * Consent; #689), then the shell around every page.
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
@@ -51,7 +54,9 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <SessionGate session={appSession} link={link} forgetOnDevice={forgetDocuments}>
         <AppLock>
-          <AppShell />
+          <LegalSteps>
+            <AppShell />
+          </LegalSteps>
         </AppLock>
       </SessionGate>
     </AppProviders>
@@ -65,13 +70,14 @@ function AppShell() {
   // A Profile's page is titled with its name, from the read its Fiche shows (#695).
   const profile = useProfile(profileIdOf(pathname)).data;
   const page = pageFor(pathname, t, { profile });
+  const isHumanCoach = useIsHumanCoach();
   // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
   const reader = useMemo(() => createDocumentReader(systemDocuments), []);
   return (
     <Shell
       page={page}
       paneContent={<PaneContent pathname={pathname} page={page} reader={reader} />}
-      sidebar={(closeDrawer) => <Sidebar onNavigate={closeDrawer} />}
+      sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
     >
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD}>

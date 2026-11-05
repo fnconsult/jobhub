@@ -1,4 +1,5 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
+import { APP_ORIGIN } from "@jobhub/shared";
 import { screen, userEvent } from "@testing-library/react-native";
 import { Linking, Pressable, Text } from "react-native";
 import { createAppSession } from "../session/app-session";
@@ -98,6 +99,28 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     const init = (fetch as unknown as jest.Mock).mock.calls[0]![1] as RequestInit;
     expect(new Headers(init.headers).get("cookie")).toBe(session);
     expect(init.credentials).toBe("omit");
+  });
+
+  it("state the app's origin, which the web app trusts for a write as it does its own pages', a body sent as JSON (#689)", async () => {
+    const { fetch } = server(200, {});
+    function Writer() {
+      const api = useApi();
+      return (
+        <Pressable role="button" onPress={() => void api("/api/coach", { method: "POST", headers: { accept: "application/x-ndjson" }, body: "{}" }).catch(() => {})}>
+          <Text>Écrire</Text>
+        </Pressable>
+      );
+    }
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE}>
+        <Writer />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Écrire" }));
+    const headers = new Headers(((fetch as unknown as jest.Mock).mock.calls[0]![1] as RequestInit).headers);
+    expect(headers.get("origin")).toBe(APP_ORIGIN);
+    expect(headers.get("accept")).toBe("application/x-ndjson");
+    expect(headers.get("content-type")).toBe("application/json");
   });
 
   it("carry no cookie when signed out", async () => {

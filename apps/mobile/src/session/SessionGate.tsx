@@ -16,15 +16,31 @@ const SIGNED_OUT: SessionState = { kind: "signedOut" };
 type GateState = SessionState & { offline?: true };
 const UNKNOWN_OFFLINE: GateState = { kind: "signedOut", offline: true };
 
+/**
+ * The link each session's gate last opened: should the gate start again with the app's address unchanged, the link it
+ * signed in with is not opened a second time, to be told it is no longer valid.
+ */
+const OPENED = new WeakMap<AppSession, string>();
+
 interface SessionContextValue {
   /** Revokes the session and empties secure storage (app-session.ts); the app is back on sign-in. */
   signOut: () => Promise<void>;
-  /** Asks the web app for the session again, as when the app comes back to the foreground: a read answered 401 does. */
-  checkSession: () => void;
+  /**
+   * Reads the session again from the web app, as when the app comes back to the foreground: signed out once it is gone.
+   * A read answered 401 does (src/api/reads.ts), and a web page that lands on sign-in (src/web-pages).
+   */
+  recheck: () => Promise<void>;
+  /** The web app whose pages open inside the app (src/web-pages), and the session's cookies they are given. */
+  webPages: Pick<AppSession, "baseURL" | "webCookies" | "cookie">;
 }
 
-const SessionContext = createContext<SessionContextValue>({ signOut: async () => {}, checkSession: () => {} });
+const SessionContext = createContext<SessionContextValue>({
+  signOut: async () => {},
+  recheck: async () => {},
+  webPages: { baseURL: "", webCookies: async () => [], cookie: async () => "" },
+});
 
+/** What the signed-in app can do with its session: sign out (Mon compte), read it again, open the web app's pages. */
 export const useSession = () => useContext(SessionContext);
 
 /**
@@ -49,18 +65,20 @@ export function SessionGate({
 }) {
   const [state, setState] = useState<GateState | null>(null);
   const [linkInvalid, setLinkInvalid] = useState(false);
-
   // Everything the device kept for a session, forgotten in this one place once it ends, however it ends, and before
-  // another starts (#695): the reads, in memory and on the device (#701), and `forgetOnDevice`. Nothing below the gate
-  // is shown then, so the screens need not start again.
+  // another starts (#695): the reads, in memory and on the device, a write still waiting included (#701), so the next
+  // sign-in reads afresh (its CGU to accept among them, #689); the WebViews' cookies (#689); and `forgetOnDevice`.
+  // Nothing below the gate is shown then, so the screens need not start again.
   const forgetReads = useForgetReads();
   const forgetSession = useCallback(async () => {
     await forgetReads({ restart: false }).catch(() => undefined);
+    await session.forgetWebViews().catch(() => undefined);
     if (forgetOnDevice) await forgetOnDevice().catch(() => undefined);
-  }, [forgetReads, forgetOnDevice]);
+  }, [forgetReads, session, forgetOnDevice]);
 
-  // Signed out here, revoked from Mon compte, expired, a read answered 401: whichever way the web app says the session
-  // ended, or found ended at launch. Not while the web app cannot be asked: the session may still be valid.
+  // Signed out here, revoked from Mon compte, expired, a read answered 401, a web page in a WebView that lands on
+  // sign-in (signed out there, or the Account deleted): whichever way the web app says the session ended, or found
+  // ended at launch. Not while the web app cannot be asked: the session may still be valid.
   const ended = state !== null && state.kind !== "signedIn" && !state.offline;
   useEffect(() => {
     if (ended) void forgetSession();
@@ -100,9 +118,10 @@ export function SessionGate({
   }, [refresh]);
 
   useEffect(() => {
-    if (!link) return;
+    if (!link || OPENED.get(session) === link) return;
     let current = true;
     void session.openLink(link).then((outcome) => {
+      OPENED.set(session, link);
       if (!current || !outcome) return;
       setLinkInvalid(outcome.kind === "invalidLink");
       if (outcome.kind !== "invalidLink") void startSession(outcome);
@@ -123,7 +142,8 @@ export function SessionGate({
         await session.signOut();
         setState(SIGNED_OUT);
       },
-      checkSession: () => void refresh(),
+      recheck: refresh,
+      webPages: session,
     }),
     [session, refresh, forgetSession],
   );

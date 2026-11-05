@@ -1,12 +1,12 @@
 // End-to-end through the app's real entry: Expo Router mounts src/app (the root layout, the shell, the Sidebar and the
 // screens), and a person drives it by what they see and press.
-import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
 import type { fakeWebApp } from "../src/session/testing";
-import { fakeDevice } from "../src/testing-device";
+import { fakeDevice, fakeWebView } from "../src/testing-device";
 import { serveAgenda } from "./agenda-web";
 
 jest.setTimeout(60_000);
@@ -23,12 +23,13 @@ const keyboard = () => mockKeyboard.current!;
 
 // The web app the app signs in to (#685), as its endpoints answer, and the address the system opens the app with.
 // Built when the app first asks for its session, once Expo Linking is the app's (below).
-const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession; webViews: { cookies: () => unknown[] } };
 jest.mock("../src/session/instance", () => {
-  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey() });
+  mockWeb.webViews = memoryWebViewCookies();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), webViewCookies: mockWeb.webViews });
   return { appSession: mockWeb.session };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
@@ -63,9 +64,25 @@ jest.mock("expo-network", () => ({
   addNetworkStateListener: () => ({ remove: () => {} }),
 }));
 
+/**
+ * The app's calls to the API reach the same fake web app, at the network (src/api), unless a test answers them itself
+ * (agenda-web.ts, or a fetch that must stay unused).
+ */
+function serveWebApp() {
+  jest.requireMock("../src/session/instance");
+  if (!jest.isMockFunction(globalThis.fetch)) jest.spyOn(globalThis, "fetch").mockImplementation((input, init) => mockWeb.app.fetch(input, init));
+}
+/** What the app asked of the network beyond the reads every launch makes (the legal steps, whether the person is a Human Coach; #689). */
+const beyondLaunch = (fetch: { mock: { calls: unknown[][] } }) => fetch.mock.calls.map(([input]) => String(input)).filter((url) => !/\/api\/(account\/legal-steps|coach-space)\b/.test(url));
+/** The WebView shown, as the page drives it (src/testing-device.ts). */
+const webView = async () => (await screen.findByTestId("web-view"), fakeWebView.shown!);
+
 async function launch(initialUrl = "/", { signIn = true } = {}) {
   if (signIn) await signedIn();
+  serveWebApp();
   await renderRouter("./src/app", { initialUrl });
+  // Signed in, the app first reads the legal steps it may have to ask (#689).
+  await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
 }
 const button = (name: string) => screen.getByRole("button", { name });
 /** The Sidebar, wherever it is: a column, or a drawer (its page behind it hidden from assistive technology). */
@@ -103,7 +120,7 @@ describe("Jobbbox app, on a phone", () => {
     for (const name of ["Nouvelle conversation", "Mon compte"]) expect(link(name)).toBeOnTheScreen();
     expect(screen.getByText("Coach")).toBeOnTheScreen();
     // « Espace coach » is for a Human Coach only, and nobody is one yet.
-    expect(screen.queryByRole("link", { name: "Espace coach" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Mon espace coach", hidden: true })).toBeNull();
     await user.press(button("Fermer le menu"));
     expect(sidebar()).toBeNull();
   });
@@ -279,8 +296,8 @@ describe("Jobbbox app, locked by Face ID or fingerprint", () => {
   };
 
   it("is a setting of the app, not of the account: absent from Mon compte, and nothing goes to the server", async () => {
-    const fetchSpy = jest.fn();
-    (globalThis as { fetch: unknown }).fetch = fetchSpy;
+    // Restored after the test (jest.restoreAllMocks), as no assignment to the global fetch would be.
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockImplementation(() => Promise.reject(new TypeError("Network request failed")));
     await launch("/compte");
     expect(screen.queryByRole("switch", { name: "Verrouiller l'app" })).toBeNull();
     // Mon compte reads the Candidate's Profiles (#695): from here on, the setting alone, which sends nothing.
@@ -288,7 +305,7 @@ describe("Jobbbox app, locked by Face ID or fingerprint", () => {
     fetchSpy.mockClear();
     await turnOn();
     await awayFor(6);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(beyondLaunch(fetchSpy)).toEqual([]);
   });
 
   it("falls back on the device's code: with a code only it turns on, and the prompt leaves the code fallback enabled", async () => {
@@ -344,6 +361,100 @@ describe("Jobbbox app, signing in (#685)", () => {
     await openWith(mockWeb.app.linkFor(EMAIL));
 
     expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+  });
+
+  it("reaches Account deletion in three gestures: Menu, Mon compte, « Supprimer mon compte » (App Store 5.1.1(v), #689)", async () => {
+    await launch();
+    const user = userEvent.setup();
+
+    await user.press(button("Menu"));
+    await user.press(link("Mon compte"));
+    await user.press(await screen.findByRole("button", { name: "Supprimer mon compte" }));
+
+    expect((await webView()).source).toEqual({ uri: `${mockWeb.app.baseURL}/compte/donnees#supprimer` });
+  });
+
+  it.each([
+    ["Sécurité", "/compte/securite"],
+    ["Mes données", "/compte/donnees"],
+    ["Mon abonnement", "/abonnement"],
+    ["Textes légaux", "/legal"],
+    ["Toutes les rubriques", "/compte"],
+  ])("opens « %s » from Mon compte as the web app's page, inside the app (#689)", async (row, path) => {
+    await launch("/compte");
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: row }));
+
+    expect((await webView()).source).toEqual({ uri: `${mockWeb.app.baseURL}${path}` });
+  });
+
+  it("offers « Espace coach » to a Human Coach alone, and opens the whole Coach space inside the app (#689)", async () => {
+    mockWeb.app.humanCoach(EMAIL);
+    await launch();
+    const user = userEvent.setup();
+
+    await user.press(button("Menu"));
+    await user.press(await screen.findByRole("link", { name: "Mon espace coach", hidden: true }));
+
+    expect(screen).toHavePathname("/espace-coach");
+    expect((await webView()).source).toEqual({ uri: `${mockWeb.app.baseURL}/espace-coach` });
+    mockWeb.app.humanCoach(EMAIL, false);
+  });
+
+  it("asks a CGU version to accept after sign-in, natively, before the conversation, and records it from the app (#689)", async () => {
+    const { shownLegalText } = jest.requireActual("../src/session/testing");
+    await signedIn();
+    mockWeb.app.asks(EMAIL, { acceptance: shownLegalText("cgu", "2026-12-01") });
+    await launch();
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Nos conditions d'utilisation")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Votre message")).toBeNull();
+    await user.press(screen.getByRole("checkbox", { name: "J'accepte les CGU (version du 01/12/2026)" }));
+    await user.press(screen.getByRole("button", { name: "Accepter et continuer" }));
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+    expect(mockWeb.app.recorded.filter((call) => call.path === "/api/account/acceptances")).toEqual([
+      expect.objectContaining({ method: "POST", body: { text: "cgu", version: "2026-12-01", accepted: true }, client: "mobile" }),
+    ]);
+  });
+
+  it("asks the EU AI Consent after sign-in when it is missing, and records it from the app (#689)", async () => {
+    await signedIn();
+    mockWeb.app.asks(EMAIL, { euAiConsentGiven: false });
+    await launch();
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Donner mon accord" }));
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+    expect(mockWeb.app.recorded.filter((call) => call.path === "/api/account/eu-ai-consent")).toEqual([expect.objectContaining({ method: "PUT", client: "mobile" })]);
+  });
+
+  it("opens a link leaving a WebView in the system's browser, not in the app, and keeps the session off it (#689)", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    await launch("/compte");
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Textes légaux" }));
+    const view = await webView();
+
+    const inside = view.onShouldStartLoadWithRequest({ url: `${mockWeb.app.baseURL}/legal/cgu`, isTopFrame: true, navigationType: "click" });
+    const outside = view.onShouldStartLoadWithRequest({ url: "https://example.com/autre", isTopFrame: true, navigationType: "click" });
+
+    expect(inside).toBe(true);
+    expect(outside).toBe(false);
+    expect(openURL).toHaveBeenCalledWith("https://example.com/autre");
+    expect(openURL).not.toHaveBeenCalledWith(expect.stringContaining(mockWeb.app.baseURL));
+    openURL.mockRestore();
+  });
+
+  it("lends the session to the WebView for the web host, and empties that cookie when signing out (#689)", async () => {
+    await launch("/compte");
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Mon abonnement" }));
+    await webView();
+    expect(mockWeb.webViews.cookies()).toEqual([expect.objectContaining({ url: mockWeb.app.baseURL })]);
+
+    await act(async () => void (await mockWeb.session.signOut()));
+
+    expect(mockWeb.webViews.cookies()).toEqual([]);
   });
 
   it("signs out from Mon compte, back to sign-in", async () => {

@@ -25,11 +25,11 @@ const EXTENSION_ORIGIN = /^[a-z-]+-extension:\/\//i;
 export function underApiContract(pathname: string, headers: Headers): boolean {
   if (!pathname.startsWith("/api/")) return false;
   if (OUTSIDE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return false;
-  return headers.has(API_VERSION_HEADER) || fromExtension(headers) || fromApp(headers);
+  return headers.has(API_VERSION_HEADER) || fromExtension(headers) || fromJobbboxApp(headers);
 }
 
-/** The Jobbbox app names itself in API_CLIENT_HEADER. */
-function fromApp(headers: Headers): boolean {
+/** Whether a request comes from the Jobbbox app, which names itself in API_CLIENT_HEADER (an Acceptance's origin, #689). */
+export function fromJobbboxApp(headers: Headers): boolean {
   return headers.get(API_CLIENT_HEADER) === MOBILE_CLIENT;
 }
 
@@ -55,6 +55,6 @@ export const UPGRADE_REQUIRED = 426;
  */
 export function apiVersionRefusal(pathname: string, headers: Headers, storeUrl: () => string | null): ClientOutdatedBody | null {
   if (!underApiContract(pathname, headers) || isServedApiVersion(headers.get(API_VERSION_HEADER))) return null;
-  if (fromApp(headers)) return { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION };
+  if (fromJobbboxApp(headers)) return { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION };
   return { error: EXTENSION_OUTDATED, storeUrl: storeUrl(), apiVersion: API_VERSION };
 }

@@ -420,3 +420,6 @@ export type CoachConversationRead = z.infer<typeof coachConversationSchema>;
  */
 export const coachConversationResponseSchema = z.object({ conversation: coachConversationSchema.nullable() });
 export type CoachConversationResponse = z.infer<typeof coachConversationResponseSchema>;
+
+export * from "./legal-steps";
+export * from "./coach-space";

@@ -106,6 +106,8 @@ const COACH_SPACE_ARTICLES = {
   "faq-coach-two-step-verification": "faq",
   // #688: the same, in the app.
   "faq-coach-app-two-step-verification": "faq",
+  // #699: the app's notifications for a coach.
+  "faq-coach-app-notifications": "faq",
   "tutorial-coach-session-date": "tutorial",
   "tutorial-coach-review": "tutorial",
 } as const;

@@ -482,6 +482,61 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     });
   });
 
+  describe("the AI Coach's Eval Run with the Agenda's Coach Actions (#718)", () => {
+    const AGENDA_CASES = ["coach-action-agenda-add-relative-date", "coach-action-agenda-change", "coach-action-agenda-cancel"];
+
+    /** The AI layer with a Mistral that, offered `name`, calls it with `args` in its first round, then answers. */
+    function proposingEvals(name: string, args: Record<string, unknown>) {
+      const proposing: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
+          const mayCall = input.tools?.some((tool) => tool.name === name) && input.toolChoice !== "none" && !answered;
+          return mayCall ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name, arguments: args }] } : output;
+        },
+      };
+      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+    }
+    const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id)!;
+    const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
+
+    it("has a case per action, each expecting its proposal; adding one resolves « jeudi prochain à 14 h » from the date of the day to an absolute date", () => {
+      expect(AGENDA_CASES.map((id) => caseOf(id).proposal?.action)).toEqual(["propose_interview", "propose_interview_change", "propose_interview_cancel"]);
+      for (const id of AGENDA_CASES) expect(caseOf(id).proposes, id).toBe(true);
+      const relative = caseOf("coach-action-agenda-add-relative-date");
+      expect(relative.context).toContain("Nous sommes le jeudi 5 novembre 2026");
+      expect(relative.message).toMatch(/jeudi prochain à 14 h/);
+      expect(relative.proposal?.arguments).toMatchObject({ scheduledAt: "2026-11-12T14:00" });
+    });
+
+    it("has, for the Agenda, a case asking to delete an Interview, one where no change is asked, and one with an instruction hidden in a Job Offer: each expecting no proposal", () => {
+      for (const id of ["coach-action-agenda-delete-points-to-interview", "coach-action-agenda-no-change-asked", "coach-action-agenda-injection"]) expect(caseOf(id).proposes, id).toBe(false);
+      expect(caseOf("coach-action-agenda-injection").inView).toMatchObject({ kind: "application", text: expect.stringMatching(/annule tous ses entretiens/) });
+    });
+
+    it("judges a case whose AI Coach proposes the expected action with the expected arguments", async () => {
+      const done = await proposingEvals("propose_interview", { applicationId: "a-airbus", scheduledAt: "2026-11-12T14:00", format: "video" }).runAiCoach(claire);
+
+      expect(resultOf(done, "coach-action-agenda-add-relative-date")).toMatchObject({ score: 0.8 });
+    });
+
+    it("scores 0 a case whose AI Coach gets the date wrong, or proposes nothing", async () => {
+      const wrongDate = await proposingEvals("propose_interview", { applicationId: "a-airbus", scheduledAt: "2026-11-05T14:00", format: "video" }).runAiCoach(claire);
+      expect(resultOf(wrongDate, "coach-action-agenda-add-relative-date")).toMatchObject({ score: 0, reason: expect.stringMatching(/scheduledAt.*2026-11-05T14:00.*2026-11-12T14:00/) });
+
+      const none = await evals.runAiCoach(claire);
+      expect(resultOf(none, "coach-action-agenda-cancel")).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
+    });
+
+    it("scores 0 a case whose AI Coach proposes another action than the one expected", async () => {
+      const done = await proposingEvals("propose_interview_cancel", { applicationId: "a-airbus", interviewId: "i-airbus" }).runAiCoach(claire);
+
+      expect(resultOf(done, "coach-action-agenda-change")).toMatchObject({ score: 0, reason: expect.stringMatching(/propose_interview_change/) });
+    });
+  });
+
   describe("a Guardrail setting's Eval Run", () => {
     const blocking = () => Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, "block"])) as Record<GuardrailId, GuardrailSetting>;
 

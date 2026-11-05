@@ -300,6 +300,9 @@ describe("Jobbbox app, locked by Face ID or fingerprint", () => {
     const fetchSpy = jest.spyOn(globalThis, "fetch").mockImplementation(() => Promise.reject(new TypeError("Network request failed")));
     await launch("/compte");
     expect(screen.queryByRole("switch", { name: "Verrouiller l'app" })).toBeNull();
+    // Mon compte reads the Candidate's Profiles (#695): from here on, the setting alone, which sends nothing.
+    await screen.findByText(/Ceci n'a pas pu être chargé/, {}, { timeout: 10_000 });
+    fetchSpy.mockClear();
     await turnOn();
     await awayFor(6);
     expect(beyondLaunch(fetchSpy)).toEqual([]);

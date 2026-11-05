@@ -12,6 +12,7 @@ import type { AppSession } from "../session/app-session";
 import { space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
+import { isOnWebApp } from "../web-app";
 
 /** On iOS, the cookies go to the WebViews' own store (WebKit's); Android has one store for both. */
 const WEBVIEWS = { iosCookieStore: "webKit" } as const;
@@ -99,7 +100,8 @@ export function WebPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, site.origin, closable]);
 
-  const onSite = (url: string) => parsed(url)?.origin === site.origin;
+  // The web app's origin rule, the same as every address the app gives the session to (web-app.ts).
+  const onSite = (url: string) => isOnWebApp(url, baseURL);
 
   const allow = ({ url, isTopFrame }: ShouldStartLoadRequest) => {
     // A frame inside the page (never sent the session: its cookie is for the web app's host alone) loads where it is.
@@ -110,7 +112,7 @@ export function WebPage({
 
   const navigated = ({ url }: WebViewNavigation) => {
     const address = parsed(url);
-    if (!address || address.origin !== site.origin) return;
+    if (!address || !onSite(url)) return;
     if (onSessionEnded && SESSION_ENDED.some((ended) => address.pathname === ended || address.pathname.startsWith(`${ended}/`))) onSessionEnded();
     if (!onLeave || left.current || address.pathname === path) return;
     left.current = true;

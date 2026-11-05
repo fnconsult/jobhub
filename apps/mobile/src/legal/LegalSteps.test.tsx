@@ -27,7 +27,7 @@ async function signedIn(asks: Parameters<ReturnType<typeof fakeWebApp>["asks"]>[
         <Text>La conversation</Text>
       </LegalSteps>
     </SessionGate>,
-    { sessionCookie: () => session.cookie() },
+    { session },
   );
   /** The writes the app sent the web app. */
   const writes = () => web.recorded.filter((call) => call.method !== "GET").map(({ method, path, body, client }) => ({ method, path, body, client }));

@@ -1,4 +1,4 @@
-import { APP_ORIGIN, APP_SIGN_IN_PATH } from "@jobhub/shared";
+import { APP_ORIGIN, APP_PROVIDER_RETURN_PATH, APP_SIGN_IN_PATH } from "@jobhub/shared";
 import { createAppSession } from "./app-session";
 import { fakeWebView } from "../testing-device";
 import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "./testing";
@@ -9,7 +9,7 @@ function setUp() {
   const web = fakeWebApp();
   const storage = memoryStorage();
   const webViews = memoryWebViewCookies();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage, fetch: web.fetch, passkeys: web.deviceWithoutPasskey(), webViewCookies: webViews });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage, fetch: web.fetch, passkeys: web.deviceWithoutPasskey(), webViewCookies: webViews, browser: web.browser });
   /** Whether anything of a session is left in the Keychain or Keystore. */
   const keptOnDevice = () => [...storage.values.values()].some((value) => value.includes("session"));
   return { web, storage, webViews, session, keptOnDevice };
@@ -191,5 +191,91 @@ describe("the app's session (ADR-0076, #685)", () => {
 
       expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "codeRefused", reason: "signIn.error" });
     });
+  });
+});
+
+describe("signed in through a Sign-in Provider (#687)", () => {
+  const PROVIDERS = [
+    { id: "google", displayName: "Google" },
+    { id: "apple", displayName: "Apple" },
+  ];
+  const RETURN = `${APP_ORIGIN}${APP_PROVIDER_RETURN_PATH}`;
+
+  it("reads the Sign-in Providers shown to Candidates, as the web's sign-in page offers them", async () => {
+    const { web, session } = setUp();
+    web.offerProviders(PROVIDERS);
+
+    expect(await session.providers()).toEqual(PROVIDERS);
+  });
+
+  it("offers none when the web app cannot be reached: the magic link stays", async () => {
+    const { web, session } = setUp();
+    web.offerProviders(PROVIDERS);
+    web.setOffline(true);
+
+    expect(await session.providers()).toEqual([]);
+  });
+
+  it("signs in through the web's OAuth flow in the system's authentication browser, back by the app's scheme, the session kept in secure storage", async () => {
+    const { web, session, keptOnDevice } = setUp();
+    web.offerProviders(PROVIDERS);
+    web.atProvider({ signIn: EMAIL });
+
+    expect(await session.continueWith("apple")).toEqual({ kind: "signedIn", email: EMAIL });
+
+    expect(web.browserOpened).toEqual([{ url: expect.stringMatching(`^${TEST_BASE_URL}/api/auth/expo-authorization-proxy\\?authorizationURL=`), returnUrl: RETURN }]);
+    expect(web.signInsAsked()).toEqual([{ provider: "apple", callbackURL: RETURN, errorCallbackURL: RETURN, idToken: false }]);
+    expect(keptOnDevice()).toBe(true);
+    expect(await session.current()).toEqual({ kind: "signedIn", email: EMAIL });
+  });
+
+  it("counts as both steps: an account with Two-step verification is signed in, no step left (ADR-0075)", async () => {
+    const { web, session } = setUp();
+    web.offerProviders(PROVIDERS);
+    web.withSecondStep(EMAIL);
+    web.atProvider({ signIn: EMAIL });
+
+    expect(await session.continueWith("google")).toEqual({ kind: "signedIn", email: EMAIL });
+  });
+
+  it("is cancelled when the person closes the browser or leaves the provider's page, signed in to nothing", async () => {
+    const { web, session, keptOnDevice } = setUp();
+    web.offerProviders(PROVIDERS);
+
+    for (const left of ["closed", { error: "access_denied" }, { error: "user_cancelled_authorize" }] as const) {
+      web.atProvider(left);
+      expect(await session.continueWith("apple")).toEqual({ kind: "cancelled" });
+    }
+
+    expect(keptOnDevice()).toBe(false);
+    expect(await session.current()).toEqual({ kind: "signedOut" });
+  });
+
+  it("says why the web app refused it: a provider not enabled, an account to link by magic link", async () => {
+    const { web, session } = setUp();
+    web.offerProviders(PROVIDERS);
+
+    for (const error of ["provider_disabled", "account_not_linked"]) {
+      web.atProvider({ error });
+      expect(await session.continueWith("apple")).toEqual({ kind: "providerRefused", error });
+    }
+    expect(await session.current()).toEqual({ kind: "signedOut" });
+  });
+
+  it("fails, the browser never opened, when the web app cannot be reached", async () => {
+    const { web, session } = setUp();
+    web.offerProviders(PROVIDERS);
+    web.setOffline(true);
+
+    expect(await session.continueWith("google")).toEqual({ kind: "providerRefused", error: "unreachable" });
+    expect(web.browserOpened).toEqual([]);
+  });
+
+  it("fails when the browser comes back with neither a session nor an error", async () => {
+    const { web, session } = setUp();
+    web.offerProviders(PROVIDERS);
+    web.atProvider("nothing");
+
+    expect(await session.continueWith("google")).toEqual({ kind: "providerRefused", error: "no_session" });
   });
 });

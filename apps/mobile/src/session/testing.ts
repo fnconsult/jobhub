@@ -1,8 +1,8 @@
 import CookieManager from "@preeternal/react-native-cookie-manager";
-import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead } from "@jobhub/shared";
+import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead, type SignInProviderButton } from "@jobhub/shared";
 import type { LegalStepsResponse, ShownLegalTextRead } from "@jobhub/shared/reads";
 import { fakeWebView, type WebViewCookie } from "../testing-device";
-import type { DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";
+import type { AuthBrowser, DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
 const COOKIE = "__Secure-better-auth.session_token";
@@ -74,15 +74,29 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const APP_CODE = "246810";
 
+/** What the person does in the system's browser, at the provider (`atProvider`). */
+export type AtProvider =
+  /** Signs in as `signIn`. */
+  | { signIn: string }
+  /** Comes back with this `error`: refused at the provider (access_denied), or by the web app (provider_disabled…). */
+  | { error: string }
+  /** Closes the browser (iOS « Annuler », Android's back button). */
+  | "closed"
+  /** Comes back with neither. */
+  | "nothing";
+
 /**
  * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts and
  * sign-in-code.test.ts prove the real ones): the magic link asked from the app's origin alone, the session as a cookie,
  * a session pending its second step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a
  * link no longer valid redirected to the home page; the email's code (#686), 5 tries, once, spending its link. The
  * second step (#688) as its endpoints answer it (two-step-verification/index.ts and its routes prove the real ones):
- * what the session has to do, a code, a passkey of the account's own, the lock. And the API routes of #689: whether the
+ * what the session has to do, a code, a passkey of the account's own, the lock. The API routes of #689: whether the
  * person is a Human Coach, the legal steps after sign-in and their answers (a write refused without the app's origin),
- * each recorded in `recorded`.
+ * each recorded in `recorded`. The Sign-in Providers shown to Candidates, and their OAuth flow (#687,
+ * apps/web/src/auth/app-oauth.test.ts proves the real one): asked without a redirect, then opened in the system's
+ * authentication browser (`browser`) through the Expo proxy, back in the app's scheme with the session cookie or the
+ * refusal's code. Its session never waits for a second step.
  */
 export function fakeWebApp() {
   const sessions = new Map<string, Session>();
@@ -97,6 +111,12 @@ export function fakeWebApp() {
   const steps = new Map<string, LegalStepsResponse>();
   const recorded: Recorded[] = [];
   const stepsOf = (email: string): LegalStepsResponse => steps.get(email) ?? { acceptance: null, privacyChange: null, euAiConsentGiven: true };
+  let providers: SignInProviderButton[] = [];
+  let atProvider: AtProvider = "closed";
+  /** The OAuth flows started, by their state. */
+  const flows = new Map<string, { callbackURL: string; errorCallbackURL: string }>();
+  const signInsAsked: { provider: string; callbackURL: string; errorCallbackURL: string; idToken: boolean }[] = [];
+  const browserOpened: { url: string; returnUrl: string }[] = [];
 
   const json = (body: unknown, status = 200, setCookie?: string) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...(setCookie ? { "set-cookie": setCookie } : {}) } });
@@ -105,11 +125,30 @@ export function fakeWebApp() {
     return token ? { token, session: sessions.get(token) } : null;
   };
   const cleared = `${COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`;
-  /** A new session for `email`, pending its second step when the account has it, as its cookie. */
-  const signedIn = (email: string) => {
+  /** A new session for `email`, its cookie: pending its second step when the account has it, unless `bothSteps`. */
+  const newSession = (email: string, bothSteps = false) => {
     const token = `session${++next}`;
-    sessions.set(token, { email, pending: twoStep.has(email) });
-    return json({ token, user: { email } }, 200, `${COOKIE}=${token}.signature; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`);
+    sessions.set(token, { email, pending: !bothSteps && twoStep.has(email) });
+    return { token, setCookie: `${COOKIE}=${token}.signature; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax` };
+  };
+  /** Signed in by magic link or its code: the session in the answer, as its cookie. */
+  const signedIn = (email: string) => {
+    const { token, setCookie } = newSession(email);
+    return json({ token, user: { email } }, 200, setCookie);
+  };
+
+  /** The system's authentication browser, the person at the provider doing what `atProvider` says. */
+  const browser: AuthBrowser = async (url, returnUrl) => {
+    browserOpened.push({ url, returnUrl });
+    const proxy = new URL(url);
+    if (`${proxy.origin}${proxy.pathname}` !== `${TEST_BASE_URL}/api/auth/expo-authorization-proxy`) throw new Error(`the browser opened ${url}`);
+    const flow = flows.get(new URL(proxy.searchParams.get("authorizationURL")!).searchParams.get("state") ?? "");
+    if (!flow) return { type: "success", url: `${returnUrl}?error=state_mismatch` };
+    if (atProvider === "closed") return { type: "cancel" };
+    if (atProvider === "nothing") return { type: "success", url: flow.callbackURL };
+    if ("error" in atProvider) return { type: "success", url: `${flow.errorCallbackURL}?error=${atProvider.error}` };
+    const { setCookie } = newSession(atProvider.signIn, true);
+    return { type: "success", url: `${flow.callbackURL}?cookie=${encodeURIComponent(setCookie)}` };
   };
 
   async function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -118,6 +157,16 @@ export function fakeWebApp() {
     const url = new URL(request.url);
     const fromApp = request.headers.get("expo-origin") === APP_ORIGIN && !request.headers.get("origin");
     const path = url.pathname.replace(/^\/api\/auth/, "");
+    if (url.pathname === "/api/sign-in-providers" && request.method === "GET") return json({ providers });
+    if (path === "/sign-in/social" && request.method === "POST") {
+      const body = (await request.json()) as { provider: string; callbackURL: string; errorCallbackURL: string; disableRedirect?: boolean; idToken?: unknown };
+      signInsAsked.push({ provider: body.provider, callbackURL: body.callbackURL, errorCallbackURL: body.errorCallbackURL, idToken: body.idToken !== undefined });
+      if (body.idToken !== undefined) return json({ code: "ID_TOKEN_SIGN_IN_NOT_SUPPORTED" }, 400);
+      if (!fromApp || !body.callbackURL.startsWith(APP_ORIGIN) || !body.errorCallbackURL.startsWith(APP_ORIGIN)) return json({ message: "Invalid callbackURL" }, 403);
+      const state = `state${++next}`;
+      flows.set(state, { callbackURL: body.callbackURL, errorCallbackURL: body.errorCallbackURL });
+      return json({ url: `https://${body.provider}.example/authorize?state=${state}`, redirect: !body.disableRedirect });
+    }
     if (path === "/sign-in/magic-link" && request.method === "POST") {
       const { email, callbackURL } = (await request.json()) as { email: string; callbackURL: string };
       if (!fromApp || !callbackURL.startsWith(APP_ORIGIN)) return json({ message: "Invalid callbackURL" }, 403);
@@ -286,5 +335,15 @@ export function fakeWebApp() {
     /** Whose session a request with `headers` carries, as the web app reads its cookie: the email, or null for none it knows. */
     signedInAs: (headers: HeadersInit | undefined) => sessionOf(new Headers(headers))?.session?.email ?? null,
     setOffline: (value: boolean) => void (offline = value),
+    /** The Sign-in Providers shown to Candidates (#687). */
+    offerProviders: (shown: SignInProviderButton[]) => void (providers = shown),
+    /** What the person does at the provider, the next times the browser opens. */
+    atProvider: (what: AtProvider) => void (atProvider = what),
+    /** The system's authentication browser, for createAppSession. */
+    browser,
+    /** What the browser was opened on, and the return address it waits for. */
+    browserOpened,
+    /** The sign-ins through a provider the app asked for. */
+    signInsAsked: () => signInsAsked,
   };
 }

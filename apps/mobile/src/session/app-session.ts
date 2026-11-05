@@ -16,19 +16,29 @@
  * The web pages the app opens in a WebView (src/web-pages: the second step's setup; Mon compte, the subscription, the
  * Legal Texts, the Coach space, #689) are signed in by the same cookie, given to the WebViews' cookie store for the web
  * app's own host alone (`webCookies`); signing out, or a session the web app no longer knows, empties that store too.
+ *
+ * A Sign-in Provider shown to Candidates (#687) signs in by the web's own OAuth flow, never by an ID token (ADR-0011):
+ * `continueWith` asks it without a redirect, opens the provider through Better Auth's Expo proxy in the system's
+ * authentication browser (ASWebAuthenticationSession on iOS, Custom Tabs on Android), and waits for the app's scheme at
+ * APP_PROVIDER_RETURN_PATH: the callback, where the linking rules apply unchanged, sends it the session cookie, or the
+ * refusal's code. Such a sign-in counts as both steps (ADR-0075).
  */
-import { expoClient } from "@better-auth/expo/client";
+import { expoClient, getSetCookie, storageAdapter } from "@better-auth/expo/client";
 import {
   APP_ORIGIN,
+  APP_PROVIDER_RETURN_PATH,
   APP_SCHEME,
   APP_SIGN_IN_PATH,
+  cancelledAtProvider,
   SECOND_STEP_ENDPOINT,
   SECOND_STEP_PASSKEY_ENDPOINT,
   SECOND_STEP_REQUIRED,
   secondStepReadSchema,
   signInCodeRefusal,
+  signInProvidersResponseSchema,
   typedSignInCode,
   type SignInCodeRefusal,
+  type SignInProviderButton,
 } from "@jobhub/shared";
 import { createAuthClient } from "better-auth/client";
 import { emailOTPClient, magicLinkClient } from "better-auth/client/plugins";
@@ -45,6 +55,19 @@ export type LinkOutcome = SessionState | { kind: "invalidLink" };
 
 /** What typing the email's code gives: the session it signed in, or why it was refused (a catalogue key). */
 export type CodeOutcome = SessionState | { kind: "codeRefused"; reason: SignInCodeRefusal };
+
+/**
+ * What a sign-in through a Sign-in Provider gives: the session it signed in; cancelled, the person having closed the
+ * browser or left the provider's page; or refused, with the code the web app came back with (`provider_disabled`,
+ * `account_not_linked`…, said as on the web: signInCopy), `unreachable` or `no_session` when nothing came back.
+ */
+export type ProviderOutcome = SessionState | { kind: "cancelled" } | { kind: "providerRefused"; error: string };
+
+/**
+ * The system's authentication browser, as expo-web-browser's `openAuthSessionAsync` opens it on `url` and closes it on
+ * `returnUrl`: `success` with the address it closed on, anything else when the person closed it.
+ */
+export type AuthBrowser = (url: string, returnUrl: string) => Promise<{ type: "success"; url: string } | { type: string }>;
 
 /** Secure storage, as expo-secure-store offers it (the Keychain on iOS, the Keystore on Android). */
 export interface SessionStorage {
@@ -95,6 +118,10 @@ export interface AppSession {
   openLink(url: string): Promise<LinkOutcome | null>;
   /** Signs in with the code of the email sent to `email`, as typed (#686). */
   enterCode(email: string, code: string): Promise<CodeOutcome>;
+  /** The Sign-in Providers shown to Candidates, as the web's sign-in page reads them; none when the web app cannot be reached. */
+  providers(): Promise<SignInProviderButton[]>;
+  /** Signs in through Sign-in Provider `providerId`, in the system's authentication browser (#687). */
+  continueWith(providerId: string): Promise<ProviderOutcome>;
   /** The session as the web app reads it now; a session it no longer knows (revoked, expired) is forgotten here too. Throws offline. */
   current(): Promise<SessionState>;
   /** Revokes the session on the web app, as signing out there does, and empties secure storage and the WebViews' cookies, reachable or not. */
@@ -119,9 +146,12 @@ type Answer = { status: number; body: Record<string, unknown> };
 
 /** The keys of secure storage the session is kept under. */
 const STORAGE_PREFIX = "jobbbox";
-const STORED = [`${STORAGE_PREFIX}_cookie`, `${STORAGE_PREFIX}_session_data`];
+const COOKIE_KEY = `${STORAGE_PREFIX}_cookie`;
+const STORED = [COOKIE_KEY, `${STORAGE_PREFIX}_session_data`];
 /** Where the app asks its magic link to return (app-sign-in.ts on the web turns it into APP_SIGN_IN_PATH). */
 const RETURN_ADDRESS = `${APP_ORIGIN}${APP_SIGN_IN_PATH}`;
+/** Where a Sign-in Provider sends the app back, signed in or refused: the system's browser closes on it. */
+const PROVIDER_RETURN_ADDRESS = `${APP_ORIGIN}${APP_PROVIDER_RETURN_PATH}`;
 
 export function createAppSession({
   baseURL,
@@ -129,6 +159,7 @@ export function createAppSession({
   passkeys,
   webViewCookies,
   fetch = globalThis.fetch,
+  browser,
 }: {
   baseURL: string;
   storage: SessionStorage;
@@ -136,6 +167,8 @@ export function createAppSession({
   /** The WebViews' cookie store, emptied with the session (#689); none where the app opens no WebView. */
   webViewCookies?: WebViewCookies;
   fetch?: typeof globalThis.fetch;
+  /** The system's authentication browser: a Sign-in Provider is refused (`unreachable`) without it. */
+  browser?: AuthBrowser;
 }): AppSession {
   const client = createAuthClient({
     baseURL,
@@ -144,6 +177,44 @@ export function createAppSession({
     fetchOptions: { customFetchImpl: fetch },
   });
   const forget = () => Promise.all([...STORED.map((key) => storage.deleteItemAsync(key)), webViewCookies?.clear()]).then(() => undefined);
+  /** Secure storage as the Expo plugin keeps it (a long value split in parts): the session cookie a provider brings goes there. */
+  const kept = storageAdapter(storage);
+  const origin = baseURL.replace(/\/$/, "");
+
+  /**
+   * The provider's sign-in, opened in the system's browser and followed to the app's return address. The authorization
+   * goes through the Expo proxy (`/expo-authorization-proxy`), which keeps the flow's state cookie in that browser for
+   * the callback to check; the callback's answer to the app's scheme carries the session's Set-Cookie (`cookie`).
+   */
+  async function throughProvider(providerId: string): Promise<ProviderOutcome> {
+    const refused = (error: string) => ({ kind: "providerRefused", error }) as const;
+    if (!browser) return refused("unreachable");
+    let authorizationURL: string | undefined;
+    try {
+      const { data } = await client.signIn.social({ provider: providerId, callbackURL: PROVIDER_RETURN_ADDRESS, errorCallbackURL: PROVIDER_RETURN_ADDRESS, disableRedirect: true });
+      authorizationURL = data && "url" in data ? data.url : undefined;
+    } catch {
+      return refused("unreachable");
+    }
+    if (!authorizationURL) return refused("unreachable");
+    const proxy = `${origin}/api/auth/expo-authorization-proxy?${new URLSearchParams({ authorizationURL })}`;
+    let result: Awaited<ReturnType<AuthBrowser>>;
+    try {
+      result = await browser(proxy, PROVIDER_RETURN_ADDRESS);
+    } catch {
+      // The system would not open it (another one already open, on Android).
+      return refused("unreachable");
+    }
+    if (result.type !== "success" || !("url" in result)) return { kind: "cancelled" };
+    const back = new URL(result.url);
+    const error = back.searchParams.get("error");
+    if (error) return cancelledAtProvider(error) ? { kind: "cancelled" } : refused(error);
+    const cookie = back.searchParams.get("cookie");
+    if (!cookie) return refused("no_session");
+    await kept.setItemAsync(COOKIE_KEY, getSetCookie(cookie, (await kept.getItemAsync(COOKIE_KEY)) ?? undefined));
+    // Offline just now: the session is kept, and the next read (back in the foreground) signs the app in.
+    return current().catch(() => refused("unreachable"));
+  }
 
   async function current(): Promise<SessionState> {
     const { data, error } = await client.getSession();
@@ -230,6 +301,21 @@ export function createAppSession({
         return current();
       });
     },
+
+    async providers() {
+      try {
+        const response = await fetch(`${origin}/api/sign-in-providers`);
+        if (!response.ok) return [];
+        const read = signInProvidersResponseSchema.safeParse(await response.json());
+        return read.success ? read.data.providers : [];
+      } catch {
+        return [];
+      }
+    },
+
+    // One at a time with the session reads: the app back in the foreground as the browser closes must not read the
+    // session before the cookie the provider brought is kept.
+    continueWith: (providerId) => serial(() => throughProvider(providerId)),
 
     current: () => serial(current),
 

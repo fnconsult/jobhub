@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { act, screen, userEvent } from "@testing-library/react-native";
 import { useSyncExternalStore } from "react";
 import { AppState, Text } from "react-native";
@@ -8,13 +9,27 @@ import { SessionGate, useSession } from "./SessionGate";
 import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "./testing";
 
 const EMAIL = "marie.dupont@example.fr";
+const OTHER_EMAIL = "paul.martin@example.fr";
+
+/** How many times the signed-in page has read the web app; a read kept for good, as the legal steps' is. */
+let reads = 0;
 
 function SignedInPage() {
-  const { signOut } = useSession();
-  return <><Text>La conversation</Text><Control label="Se déconnecter" onPress={signOut} /></>;
+  const { signOut, recheck } = useSession();
+  const read = useQuery({ queryKey: ["legalSteps", "fr"], queryFn: async () => `Lecture n°${++reads}`, staleTime: Infinity });
+  return (
+    <>
+      <Text>La conversation</Text>
+      {read.data ? <Text>{read.data}</Text> : null}
+      <Control label="Se déconnecter" onPress={signOut} />
+      {/* What a web page does when it lands on /connexion or /compte/supprime (WebPage). */}
+      <Control label="Page de fin de session" onPress={recheck} />
+    </>
+  );
 }
 
 function setUp() {
+  reads = 0;
   const web = fakeWebApp();
   const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: web.fetch });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
@@ -158,6 +173,7 @@ describe("SessionGate (#685)", () => {
     await userEvent.setup().press(await screen.findByRole("button", { name: "Se déconnecter" }));
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect(screen.queryByText(LINK_ERROR)).toBeNull();
     expect(web.sessionCount()).toBe(0);
   });
 
@@ -171,5 +187,38 @@ describe("SessionGate (#685)", () => {
     await backToForeground();
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+
+  it("forgets the read cache when a web page ends the session, so the next sign-in reads afresh (#689)", async () => {
+    const { web, session, render, openWith } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    expect(await screen.findByText("Lecture n°1")).toBeOnTheScreen();
+
+    // The account deleted, or signed out, in a WebView: the session is gone on the web app, then read again.
+    web.revokeAll(EMAIL);
+    await userEvent.setup().press(screen.getByRole("button", { name: "Page de fin de session" }));
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect(screen.queryByText(LINK_ERROR)).toBeNull();
+
+    await session.askLink(OTHER_EMAIL);
+    await openWith(web.linkFor(OTHER_EMAIL));
+    expect(await screen.findByText("Lecture n°2")).toBeOnTheScreen();
+    expect(screen.queryByText("Lecture n°1")).toBeNull();
+  });
+
+  it("forgets the read cache when the session is found revoked as the app comes back to the foreground", async () => {
+    const { web, session, render, openWith } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("Lecture n°1");
+
+    web.revokeAll(EMAIL);
+    await backToForeground();
+    await screen.findByLabelText("Votre adresse e-mail");
+
+    await session.askLink(OTHER_EMAIL);
+    await openWith(web.linkFor(OTHER_EMAIL));
+    expect(await screen.findByText("Lecture n°2")).toBeOnTheScreen();
   });
 });

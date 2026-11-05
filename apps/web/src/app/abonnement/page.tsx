@@ -89,7 +89,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   // Carried to Checkout when it may apply (or could not be checked here): Checkout says if it does not.
   const carriedCode = code && plan === FREE_PLAN && !refusal && (promotion === null || notice?.role === "status") ? code : null;
   const planName = plans.find((each) => each.key === plan)?.name ?? { fr: plan, en: plan };
-  const paymentFailed = paymentFailedNotice(stripeStatus, locale);
+  const paymentFailed = paymentFailedNotice(stripeStatus, locale, inApp);
   // « Résilier votre contrat » (#513): on a paid Plan, until its cancellation is scheduled (here or in Stripe's portal).
   const cancellable = plan !== FREE_PLAN && !endsAt;
   const cancelled = endsAt && (resiliation === "enregistree" || resiliation === "sans-accuse") ? { endsAt, acknowledged: resiliation === "enregistree" } : null;

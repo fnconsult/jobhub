@@ -10,18 +10,23 @@ import { routes } from "@/routes";
  * Tells the Candidate their last payment failed (past_due), with the button to
  * the Stripe customer portal where they update their payment method: the
  * failed-payment Note, a warning (#469). A status, not an alert: it never stops
- * them from working.
+ * them from working. Inside the Jobbbox app's WebView, the notice carries no
+ * button to Stripe, only where the subscription is managed (#689).
  */
 export function PaymentFailedNotice({ notice, className }: { notice: Notice; className?: string }) {
   return (
     <div className={["payment-failed", className].filter(Boolean).join(" ")}>
       <Note tone="warn" role="status">
         <p>{notice.message}</p>
-        <form method="post" action={notice.portal}>
-          <button className={buttonClass({ variant: "primary" })} type="submit">
-            {notice.action}
-          </button>
-        </form>
+        {"portal" in notice ? (
+          <form method="post" action={notice.portal}>
+            <button className={buttonClass({ variant: "primary" })} type="submit">
+              {notice.action}
+            </button>
+          </form>
+        ) : (
+          <p>{notice.help}</p>
+        )}
       </Note>
     </div>
   );

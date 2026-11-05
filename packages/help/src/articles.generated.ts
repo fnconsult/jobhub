@@ -1524,6 +1524,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Une offre privée est une offre que vous seul voyez. C'est celle que Jobbbox tire du message d'un recruteur que vous lui transférez : ce message vous était adressé, et le poste n'est parfois jamais publié.\n\nElle se suit comme toute offre : score de correspondance, CV adapté, lettre de motivation, candidature. Mais elle n'est jamais montrée à un autre candidat, ni mêlée à la même offre trouvée ailleurs : si le poste est publié plus tard, il devient une autre offre, et l'offre privée reste telle quelle.\n\nElle est supprimée avec votre compte, et fait partie de vos données téléchargées. Une offre tirée d'une alerte d'un site d'emploi, elle, décrit une annonce publique : elle n'est pas privée."
     },
     {
+      "id": "glossary-share-capture",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Partager vers Jobbbox",
+      "synonyms": [
+        "share capture",
+        "partager",
+        "partage",
+        "feuille de partage",
+        "envoyer une offre",
+        "partager une offre",
+        "app jobbbox",
+        "linkedin",
+        "indeed",
+        "mail",
+        "navigateur"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Partager vers Jobbbox (en anglais, share capture), c'est envoyer une offre à l'app Jobbbox depuis la feuille de partage d'une autre app : votre navigateur, LinkedIn, Indeed ou Mail. Vous choisissez « Jobbbox » parmi les apps proposées, et l'app s'ouvre sur l'écran « Partager vers Jobbbox ».\n\nJobbbox lit lui-même le lien, en respectant les règles du site, comme pour sa recherche d'offres : votre téléphone ne lit jamais la page. Là où le site l'interdit (LinkedIn, Indeed…), l'écran vous demande de partager ou de coller le texte de l'offre.\n\nL'offre devient une offre privée, que vous seul voyez, ouverte dans sa propre conversation avec votre coach IA, qui vous propose « Scorer contre mon profil ». Si vous partagez deux fois la même offre, c'est la même offre privée. Rien de ce que vous avez partagé n'est gardé au-delà de l'offre créée."
+    },
+    {
       "id": "glossary-coach-proposal",
       "locale": "fr",
       "kind": "glossary",
@@ -3395,6 +3420,38 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         }
       ],
       "body": "Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de vos profils, puis l'enregistre dans vos candidatures, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi. Le panneau de l'extension affiche « Connecté en tant que … ».\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ». Si l'icône Jobbbox n'est pas dans la barre, cliquez sur l'icône des extensions, la pièce de puzzle, puis sur l'épingle à côté de Jobbbox.\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. Pour comparer l'offre à un autre de vos profils, choisissez-le dans « Profil comparé à cette offre » : le score est recalculé avec lui.\n5. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature. Si vous avez importé un CV dans le panneau, « Un nouveau profil, à partir de ce CV » en fait un nouveau profil.\n6. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
+    },
+    {
+      "id": "tutorial-share-to-jobbbox",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Envoyer une offre à Jobbbox depuis une autre app",
+      "synonyms": [
+        "partager",
+        "partage",
+        "feuille de partage",
+        "partager vers jobbbox",
+        "envoyer une offre",
+        "safari",
+        "chrome",
+        "navigateur",
+        "linkedin",
+        "indeed",
+        "mail",
+        "e-mail",
+        "lien",
+        "coller",
+        "texte de l'offre",
+        "app jobbbox",
+        "téléphone",
+        "tablette"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Dans l'app Jobbbox, sur votre téléphone ou votre tablette, vous pouvez envoyer une offre à Jobbbox depuis votre navigateur, LinkedIn, Indeed ou Mail, sans copier son lien. Jobbbox en fait une offre privée, que vous seul voyez.\n\n1. Dans l'autre app, ouvrez l'offre et touchez le bouton de partage, puis choisissez « Jobbbox » dans la liste. Sur iPhone et iPad, s'il n'y figure pas, ajoutez-le depuis le bout de la rangée des apps.\n2. L'app Jobbbox s'ouvre sur « Partager vers Jobbbox ». Si vous n'êtes pas connecté, connectez-vous : l'écran revient ensuite, avec ce que vous avez partagé.\n3. Vérifiez le « Lien de l'offre » et le « Texte de l'offre », corrigez-les au besoin, puis touchez « Envoyer à Jobbbox ».\n4. Si le site ne laisse pas Jobbbox lire l'offre (LinkedIn, Indeed…), l'écran vous le dit. Copiez le texte de l'offre dans l'autre app, collez-le dans « Texte de l'offre », puis touchez de nouveau « Envoyer à Jobbbox ».\n5. L'offre s'ouvre dans sa propre conversation avec votre coach IA. Touchez « Scorer contre mon profil » pour voir son score de correspondance.\n\nC'est Jobbbox qui lit le lien, jamais votre téléphone, et seulement là où le site l'autorise. Rien de ce que vous partagez n'est gardé, sauf l'offre créée. Le score de correspondance compte dans les limites de votre offre, comme sur le site ; si vous les avez atteintes, l'app vous le dit, et votre abonnement se gère sur jobbbox.ai."
     },
     {
       "id": "tutorial-install-app",
@@ -5429,6 +5486,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Results are what your AI coach made for an application and kept with it: the Tailored CV, the cover letter, the outreach message, the follow-ups it suggests. They are listed in the fiche's « Results » group, each with where it stands (« Draft of … », « Saved on … »).\n\nA result opens beside the conversation, on its own (over it, full screen, on a phone): you review, edit, download or copy it there. Nothing is sent without your click. « Close » or the Escape key closes it."
     },
     {
+      "id": "glossary-share-capture",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Share to Jobbbox",
+      "synonyms": [
+        "share capture",
+        "share",
+        "sharing",
+        "share sheet",
+        "send a job offer",
+        "share a job offer",
+        "jobbbox app",
+        "linkedin",
+        "indeed",
+        "mail",
+        "browser"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Share to Jobbbox (share capture) means sending a job offer to the Jobbbox app from another app's share sheet: your browser, LinkedIn, Indeed or Mail. You choose « Jobbbox » among the apps offered, and the app opens on the « Share to Jobbbox » screen.\n\nJobbbox reads the link itself, following the site's rules, as its job search does: your phone never reads the page. Where the site forbids it (LinkedIn, Indeed…), the screen asks you to share or paste the job offer's text.\n\nThe job offer becomes a private job offer, which only you can see, opened in its own conversation with your AI coach, which offers « Score against my profile ». If you share the same job offer twice, it is the same private job offer. Nothing you shared is kept beyond the job offer created."
+    },
+    {
       "id": "glossary-tailored-cv",
       "locale": "en",
       "kind": "glossary",
@@ -7167,6 +7249,38 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         }
       ],
       "body": "Signed in, the Jobbbox extension works out a job offer's Match Score with one of your profiles, then saves it to your applications, without copying it out.\n\n1. Sign in to Jobbbox in your browser, then open a job offer's page. The extension's panel shows « Signed in as … ».\n2. Click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar: if it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page ». If the Jobbbox icon is not in the toolbar, click the extensions icon, the jigsaw piece, then the pin beside Jobbbox.\n3. The extension's panel shows the offer and its Match Score, worked out with one of your profiles.\n4. To compare the offer with another of your profiles, choose it in « Profile compared with this job offer »: the score is worked out again with it.\n5. At the foot of the panel, choose the profile for this application in « Profile used for this application ». If you uploaded a CV in the panel, « A new profile, from this CV » makes it a new profile.\n6. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox."
+    },
+    {
+      "id": "tutorial-share-to-jobbbox",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Send a job offer to Jobbbox from another app",
+      "synonyms": [
+        "share",
+        "sharing",
+        "share sheet",
+        "share to jobbbox",
+        "send a job offer",
+        "safari",
+        "chrome",
+        "browser",
+        "linkedin",
+        "indeed",
+        "mail",
+        "email",
+        "link",
+        "paste",
+        "job offer text",
+        "jobbbox app",
+        "phone",
+        "tablet"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "In the Jobbbox app, on your phone or tablet, you can send a job offer to Jobbbox from your browser, LinkedIn, Indeed or Mail, without copying its link. Jobbbox makes it a private job offer, which only you can see.\n\n1. In the other app, open the job offer and tap the share button, then choose « Jobbbox » in the list. On iPhone and iPad, if it is not there, add it from the end of the row of apps.\n2. The Jobbbox app opens on « Share to Jobbbox ». If you are not signed in, sign in: the screen then comes back, with what you shared.\n3. Check the « Job offer link » and the « Job offer text », correct them if need be, then tap « Send to Jobbbox ».\n4. If the site does not let Jobbbox read the job offer (LinkedIn, Indeed…), the screen says so. Copy the job offer's text in the other app, paste it in « Job offer text », then tap « Send to Jobbbox » again.\n5. The job offer opens in its own conversation with your AI coach. Tap « Score against my profile » to see its Match Score.\n\nJobbbox reads the link, never your phone, and only where the site allows it. Nothing you share is kept, except the job offer created. The Match Score counts against your plan's limits, as on the website; if you have reached them, the app says so, and your subscription is managed on jobbbox.ai."
     },
     {
       "id": "tutorial-admin-sign-in-provider",

@@ -17,6 +17,8 @@ export const paths = {
   agenda: "/agenda",
   jobSearches: "/recherches",
   jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
+  /** An Offer box entry's Job Offer (ADR-0090): the web's « Lire l'offre », in the Work Pane beside the Offer box. */
+  offerBoxOffer: (jobOfferId: string) => `/recherches?offre=${encodeURIComponent(jobOfferId)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",
   /** A Coaching Session on its Human Coaches page: where it leads from the Agenda. */

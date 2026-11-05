@@ -4,11 +4,13 @@ import type { SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import {
   agendaResponseSchema,
   applicationResponseSchema,
+  offerBoxResponseSchema,
   profileResponseSchema,
   tailoredDocumentsResponseSchema,
   type AgendaResponse,
   type ApplicationResponse,
   type LegalStepsResponse,
+  type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type ShownLegalTextRead,
@@ -18,6 +20,7 @@ import { fakeWebView, type WebViewCookie } from "../testing-device";
 import type { AuthBrowser, DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";
 
 const NO_AGENDA: AgendaResponse = { toSchedule: [], days: [] };
+const NO_OFFER_BOX: OfferBoxResponse = { today: "2026-11-05", toHandle: 0, entries: [] };
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
 /** The reads of the account's own the fake answers with its writes (#689), not with the Candidate's data (#695). */
@@ -111,6 +114,8 @@ export interface CandidateData {
   /** Their Agenda (#693); an empty one when not given. */
   agenda?: AgendaResponse;
   applications?: { application: ApplicationResponse; documents: TailoredDocumentsResponse }[];
+  /** Their Offer box (ADR-0090, #815); an empty one when not given. */
+  offerBox?: OfferBoxResponse;
 }
 
 /**
@@ -191,9 +196,10 @@ export function fakeWebApp() {
    */
   function read(path: string, email: string | null): Response {
     if (!email) return json({ error: "unauthorized" }, 401);
-    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [] };
+    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [], offerBox: NO_OFFER_BOX };
     const notFound = json({ error: "not_found" }, 404);
     if (path === "/api/agenda") return json(mine.agenda);
+    if (path === "/api/offer-box") return json(mine.offerBox);
     if (path === "/api/profiles") return json(mine.profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name })) satisfies ProfilesResponse);
     const profile = /^\/api\/profiles\/([^/]+)$/.exec(path);
     if (profile) {
@@ -424,6 +430,7 @@ export function fakeWebApp() {
           application: applicationResponseSchema.parse(application),
           documents: tailoredDocumentsResponseSchema.parse(documents),
         })),
+        offerBox: offerBoxResponseSchema.parse(candidate.offerBox ?? NO_OFFER_BOX),
       }),
     /** The Candidate's reads the app made, in order, and with whose session. */
     reads,

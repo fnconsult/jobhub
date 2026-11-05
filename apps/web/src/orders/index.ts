@@ -181,6 +181,8 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
           channel: item.kind === "plan" ? "paiement_plan" : "paiement_coaching",
           checkoutSessionId: started.checkoutSessionId,
           immediateExecutionRequested,
+          // The CGV box ticked on the app's own Order screen (#694).
+          origin: item.kind === "coachingSession" && item.inApp ? "mobile" : "web",
         });
       }
       return { ok: true, url: started.url };

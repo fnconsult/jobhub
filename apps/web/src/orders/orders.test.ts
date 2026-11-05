@@ -136,7 +136,8 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
       expect(placed).toMatchObject({ ok: true });
       const [checkout] = checkoutCalls();
       expect(checkout!.params.get("success_url")).toBe("http://localhost:3000/coachs/paiement");
-      expect(await acceptancesOf(t.database, marie.id)).toEqual([expect.objectContaining({ version: CGV.version, channel: "paiement_coaching", immediateExecutionRequested: true })]);
+      // Accepted on the app's own Order screen: its origin is the app's.
+      expect(await acceptancesOf(t.database, marie.id)).toEqual([expect.objectContaining({ version: CGV.version, channel: "paiement_coaching", origin: "mobile", immediateExecutionRequested: true })]);
     });
 
     it("goes to Checkout without any box while no CGV version is in effect, and keeps the Immediate Performance Request with the Order", async () => {

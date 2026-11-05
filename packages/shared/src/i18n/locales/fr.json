@@ -5825,7 +5825,8 @@
     "quota": {
       "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
       "jobSearchNone": "Vos {{limit}} recherches de la semaine sont utilisées",
-      "jobSearchUnlimited": "Recherches illimitées avec votre offre"
+      "jobSearchUnlimited": "Recherches illimitées avec votre offre",
+      "profile": "Utilise un profil actif de votre forfait"
     },
     "by": "Proposé par votre coach IA",
     "before": "Avant :",
@@ -5857,9 +5858,6 @@
     },
     "coachMemory": {
       "before": "Pas encore retenu"
-    },
-    "quota": {
-      "profile": "Utilise un profil actif de votre forfait"
     },
     "review": {
       "open": "Relire les changements",

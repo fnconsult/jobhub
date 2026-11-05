@@ -5825,7 +5825,8 @@
     "quota": {
       "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
       "jobSearchNone": "Your {{limit}} searches this week are used",
-      "jobSearchUnlimited": "Unlimited searches with your plan"
+      "jobSearchUnlimited": "Unlimited searches with your plan",
+      "profile": "Uses one active profile of your plan"
     },
     "by": "Proposed by your AI coach",
     "before": "Before:",
@@ -5857,9 +5858,6 @@
     },
     "coachMemory": {
       "before": "Not remembered yet"
-    },
-    "quota": {
-      "profile": "Uses one active profile of your plan"
     },
     "review": {
       "open": "Review the changes",

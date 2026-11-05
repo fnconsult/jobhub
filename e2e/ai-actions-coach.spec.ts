@@ -142,6 +142,46 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
     expect(r.undeclared.offered).toMatch(/"billing" is not a Routes locales Tool/);
   });
 
+  test("reads (#714): asked about an Application not In view, the AI Coach reads it with the shipped read_application and its reply cites it; AI Activity names the step's Tool, Candidatures", () => {
+    const r = run({
+      settings: ON,
+      shipped: true,
+      replies: [
+        ask("marie", `Où en est ma candidature chez Airbus ? ${marker("read_application", { id: "a-airbus" })}`, { kind: "profile", id: "p-consultant" }),
+        ask("marie", `Et mon ancienne candidature ? ${marker("read_application", { id: "a-archived" })}`),
+        ask("paul", `Lis la candidature de Marie. ${marker("read_application", { id: "a-airbus" })}`),
+      ],
+    });
+
+    // Offered: the index and the six reads, with nothing that copies text.
+    expect(r.offered[0]).toEqual(["list_objects", "read_profile", "read_application", "read_job_offer", "read_job_search", "read_job_digest", "read_tailored_documents"]);
+    // The reply cites the Application read: its Job Offer, its status, its Interview; never Marie's identity.
+    const [cited, archived, someoneElse] = r.replies;
+    expect(cited).toMatchObject({ ok: true, proposals: [] });
+    expect(cited!.reply).toContain("Résultat de l'outil « read_application »");
+    expect(cited!.reply).toContain("Responsable consolidation chez Airbus (Lyon)");
+    expect(cited!.reply).toContain("Statut : Entretien");
+    expect(cited!.reply).toContain("avec la DAF");
+    expect(cited!.reply).not.toMatch(/Marie Dupont|marie\.dupont@example\.fr|06 12 34 56 78/);
+    // AI Activity: the `act` step of the Candidatures Tool, then the reply's model; the Application's page as a site.
+    expect(cited!.steps).toEqual([
+      expect.objectContaining({ kind: "tool", tool: "applications", activity: "act", outcome: "ok" }),
+      expect.objectContaining({ kind: "ai", task: "coaching", activity: "think_write" }),
+    ]);
+    expect(cited!.activityTools).toContain("Candidatures");
+    expect(cited!.sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus"] }]);
+    // An Archived Profile's Application, and Marie's for Paul: not_found, nothing of them given.
+    for (const reply of [archived!, someoneElse!]) {
+      expect(reply.reply).toContain("not_found");
+      expect(reply.reply).not.toMatch(/Ancienne Société|Airbus/);
+    }
+    expect(r.externalApi).toEqual([
+      expect.objectContaining({ provider: "applications", operation: "read_application", ok: true, httpStatus: 200 }),
+      expect.objectContaining({ provider: "applications", operation: "read_application", ok: false, httpStatus: 404 }),
+      expect.objectContaining({ provider: "applications", operation: "read_application", ok: false, httpStatus: 404 }),
+    ]);
+  });
+
   test("Eval Cases: asked to delete, the AI Coach is told never to delete and points to the page; an injection in a Job Offer In view proposes nothing", () => {
     const r = run({
       settings: ON,

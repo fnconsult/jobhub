@@ -406,9 +406,79 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     it("judges those cases as any other when the AI Coach proposes nothing", async () => {
       const done = await evals.runAiCoach(claire);
 
-      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false)) {
+      // A case that must read objects first is scored 0 without its reads (see read Coach Actions, #714).
+      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false && !one.reads)) {
         expect(done.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
       }
+    });
+  });
+
+  describe("the AI Coach's Eval Run with read Coach Actions (#714)", () => {
+    const CROSSING = "coach-action-read-two-objects";
+
+    /** The AI layer with a Mistral that, offered the reads, reads `ids` (by `read_<type>`) in its first round, then answers. */
+    function readingEvals(reads: { name: string; id: string }[]) {
+      const reading: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
+          const mayRead = input.tools?.some((tool) => tool.name === "read_application") && input.toolChoice !== "none" && !answered;
+          return mayRead ? { ...output, text: "", toolCalls: reads.map(({ name, id }, index) => ({ type: "tool_call" as const, id: `call_${index}`, name, arguments: { id } })) } : output;
+        },
+      };
+      const ai = createAiLayer({ providers: [reading, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+    }
+    const crossing = () => AI_COACH_EVAL_CASES.find((each) => each.id === CROSSING)!;
+    const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>) => run.results.find((result) => result.case.id === CROSSING)!;
+    /** What the AI Coach was given back from its reads, in its last call. */
+    const toolResults = () =>
+      mistral.calls
+        .flatMap((call) => call.messages)
+        .flatMap((message) => (Array.isArray(message.content) ? message.content : []))
+        .filter((block) => block.type === "tool_result")
+        .map((block) => JSON.stringify(block));
+
+    it("has a case asking which Application fits the Consultant Profile best: fictional objects out of view, the Profile and both Applications to read, a grounded reply", () => {
+      const each = crossing();
+
+      expect(each.message).toMatch(/laquelle de mes candidatures colle le mieux à mon profil Consultant/i);
+      expect(each.inView).toBeNull();
+      expect(each.objects?.map((object) => `${object.type}:${object.id}`)).toEqual(expect.arrayContaining(["profile:p-consultant", "application:a-conseil", "application:a-industrie"]));
+      expect(each.reads).toEqual(["p-consultant", "a-conseil", "a-industrie"]);
+      expect(each.grounded).toBe(true);
+      expect(each.proposes).toBe(false);
+    });
+
+    it("plays a case's fictional objects through the shipped reads: what the AI Coach reads is theirs, and the case is judged once all its objects are read", async () => {
+      const done = await readingEvals([
+        { name: "read_profile", id: "p-consultant" },
+        { name: "read_application", id: "a-conseil" },
+        { name: "read_application", id: "a-industrie" },
+      ]).runAiCoach(claire);
+
+      expect(resultOf(done)).toMatchObject({ score: 0.8 });
+      expect(toolResults().join("\n")).toContain("Consultante achats de transition");
+      expect(toolResults().join("\n")).toContain("not_found");
+    });
+
+    it("scores 0 the case when the AI Coach does not read every object it should", async () => {
+      const done = await readingEvals([{ name: "read_application", id: "a-conseil" }]).runAiCoach(claire);
+
+      expect(resultOf(done)).toMatchObject({ score: 0, reason: expect.stringMatching(/n'a pas lu .*p-consultant.*a-industrie/) });
+    });
+
+    it("scores 0 the case when the « Réponse non fondée sur le profil » Guardrail triggers on its reply", async () => {
+      answers.outputVerdict = () => '{"ungrounded_answer": true}';
+
+      const done = await readingEvals([
+        { name: "read_profile", id: "p-consultant" },
+        { name: "read_application", id: "a-conseil" },
+        { name: "read_application", id: "a-industrie" },
+      ]).runAiCoach(claire);
+
+      expect(resultOf(done)).toMatchObject({ score: 0, reason: expect.stringMatching(/Réponse non fondée sur le profil/) });
     });
   });
 

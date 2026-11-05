@@ -5,11 +5,11 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { conversationOf, toConversation } from "./support/conversation";
 
-// Issue #713 (ADR-0077): Coach Actions, the AI Coach calling code of the app during a reply. The catalogue shipped is
-// empty until each group's ticket, so in the running app the AI Coach is offered no tool whatever the switch says: with
-// COACH_ACTIONS_ENABLED off (the default) or on, a reply is the one it was before Coach Actions, and the Routes locales
-// Tools in Outils say whether the switch is on. The calls themselves (a fake Coach Action of each kind, scope, allow-list,
-// Provenance, external_api_usage, AI Message Log) are in ai-actions-coach.spec.ts. The AI is faked inside the server
+// Issue #713 (ADR-0077): Coach Actions, the AI Coach calling code of the app during a reply. With COACH_ACTIONS_ENABLED
+// off (the default) a reply is the one it was before Coach Actions; switched on, the AI Coach is offered the Coach Actions
+// shipped (the reads, #714) and calls them; the Routes locales Tools in Outils say whether the switch is on. The calls
+// themselves (a fake Coach Action of each kind and the shipped reads, scope, allow-list, Provenance, external_api_usage,
+// AI Message Log) are in ai-actions-coach.spec.ts. The AI is faked inside the server
 // (fake-mistral.mjs): a message holding `E2E_COACH_TOOL=<name>:<json>` has the AI Coach call that tool when it was offered some.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
@@ -22,7 +22,7 @@ const ROUNDS = "COACH_TOOL_ROUNDS_MAX";
 const GROUPS = 6;
 /** A message asking the AI Coach to call a tool, and the plain reply it gets when it was offered none. */
 const PLAIN = "Réponse sans outil";
-const ASKING = `Où en est ma candidature ?\nE2E_COACH_TOOL=lire_candidature:{"id":"a1"}\nE2E_COACH_SAY=${PLAIN}`;
+const ASKING = `Quelles sont mes candidatures ?\nE2E_COACH_TOOL=list_objects:{"type":"application"}\nE2E_COACH_SAY=${PLAIN}`;
 
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 const row = (page: Page, name: string) => page.locator(`tr[data-setting="${name}"]`);
@@ -78,7 +78,7 @@ test.describe("Coach Actions: the switch and the AI Coach's reply (#713)", () =>
     await expect(reply.locator(".provenance-line")).toContainText("Mistral Large");
   });
 
-  test("switched on, with no Coach Action shipped yet the AI Coach is still offered no tool; the Routes locales Tools turn on; « Rétablir » turns them off again", async ({ page }) => {
+  test("switched on, the AI Coach is offered the reads shipped and calls them (#714); the Routes locales Tools turn on; « Rétablir » turns them off again", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto("/admin/parametres?tab=ia");
     const setting = row(page, ENABLED);
@@ -100,7 +100,7 @@ test.describe("Coach Actions: the switch and the AI Coach's reply (#713)", () =>
     await expect(toolRows).toHaveCount(GROUPS);
     for (let index = 0; index < GROUPS; index += 1) await expect(toolRows.nth(index)).not.toContainText(tools.statuses.disabled);
 
-    // The switch is on, the catalogue empty: a Candidate's reply is still the plain one.
+    // The switch is on: a Candidate's reply calls list_objects, which lists nothing of a Candidate with no Application.
     const candidate = await page.context().browser()!.newContext({ baseURL: process.env.E2E_WEB_ORIGIN, locale: "en-US" });
     const candidatePage = await candidate.newPage();
     try {
@@ -108,8 +108,8 @@ test.describe("Coach Actions: the switch and the AI Coach's reply (#713)", () =>
       await toConversation(candidatePage);
       await ask(candidatePage, ASKING);
       await expect(messagesOf(candidatePage)).toHaveCount(3);
-      await expect(messagesOf(candidatePage).last()).toContainText(PLAIN);
-      await expect(messagesOf(candidatePage).last()).not.toContainText("Résultat de l'outil");
+      await expect(messagesOf(candidatePage).last()).toContainText("Résultat de l'outil « list_objects »");
+      await expect(messagesOf(candidatePage).last()).toContainText("Aucun objet ne correspond.");
     } finally {
       await candidate.close();
     }

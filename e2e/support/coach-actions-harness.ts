@@ -18,9 +18,14 @@
 import "./fake-mistral.mjs";
 import { createAiLayerFromEnv } from "@jobhub/ai";
 import { createMemoryUsageLog } from "@jobhub/ai/testing";
-import type { ExternalApiCall } from "@jobhub/shared";
+import { scoreMatch, type ExternalApiCall, type JobOffer } from "@jobhub/shared";
 import * as z from "zod";
+import { activityElement } from "../../apps/web/src/ai-activity/pane";
+import type { Application } from "../../apps/web/src/applications";
 import { createCoach, type CoachFocus } from "../../apps/web/src/coach";
+import { candidateObjects } from "../../apps/web/src/coach-actions/candidate-objects";
+import { shippedCoachActions } from "../../apps/web/src/coach-actions/catalog";
+import type { Profile } from "../../apps/web/src/profiles";
 import { coachActionCatalog, createCoachActions, defineCoachAction, forEvalRun, type CoachAction } from "../../apps/web/src/coach-actions";
 import { AI_COACH_EVAL_CASES } from "../../apps/web/src/evals/cases";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting } from "../../apps/web/src/guardrails";
@@ -35,6 +40,11 @@ export interface Scenario {
   /** The text of Marie's Application a1 (a Job Offer's posting, written by someone else). */
   posting?: string;
   replies: { candidateId: string; text: string; focus?: CoachFocus }[];
+  /**
+   * The Coach Actions shipped (#714) in place of the fake ones: the reads, over Marie's objects through in-memory domain
+   * modules scoped to her (an active Profile and its Application at Airbus, an Archived Profile and its Application).
+   */
+  shipped?: boolean;
   /** Play the AI Coach's own Eval Cases with these ids as an Eval Run does (forEvalRun), each reply scripted by `scripted`. */
   evalCases?: { id: string; scripted?: string }[];
 }
@@ -45,6 +55,8 @@ export interface HarnessReply {
   proposals?: unknown[];
   steps?: unknown[];
   sites?: unknown[];
+  /** The Tools AI Activity names for the reply, as its pane shows them (activityElement). */
+  activityTools?: (string | null)[];
   error?: string;
 }
 
@@ -114,6 +126,67 @@ const CATALOG: readonly CoachAction[] = [
   }),
 ];
 
+/** Marie's objects as the shipped reads find them (#714): her Consultant Profile and her Application at Airbus, an Archived Profile and its Application. */
+const MASTER_CV = {
+  fullName: "Marie Dupont",
+  email: "marie.dupont@example.fr",
+  phone: "06 12 34 56 78",
+  location: "12 rue de la République, 69002 Lyon",
+  headline: "Consultante finance de transition",
+  summary: "Vingt ans de clôtures et de consolidations IFRS.",
+  experience: [{ title: "Directrice financière", employer: "Groupe Exemple", location: "Lyon", period: "2005 – 2024", description: "Consolidation IFRS de 12 filiales." }],
+  education: [],
+  skills: ["IFRS", "consolidation"],
+  languages: [],
+};
+const SEARCH_CRITERIA = { targetRole: "Consultante finance de transition", locations: ["Lyon"], contractTypes: ["freelance" as const], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+const PROFILES: Profile[] = [
+  { id: "p-consultant", name: "Consultante finance", archived: false, searchCriteria: SEARCH_CRITERIA, masterCv: { version: 3, content: MASTER_CV } },
+  { id: "p-archived", name: "Ancien profil DAF", archived: true, searchCriteria: SEARCH_CRITERIA, masterCv: { version: 1, content: MASTER_CV } },
+];
+const postingOf = (id: string, title: string, employer: string, content: string): JobOffer => ({ id, title, employer, location: "Lyon", contractType: "freelance", skills: ["IFRS", "Power BI"], content, source: { url: `https://carrieres.example.fr/${id}` } });
+const shippedApplication = (id: string, profile: Profile, jobOffer: JobOffer): Application => ({
+  id,
+  status: "interview",
+  statusChangedAt: new Date("2026-10-28T09:00:00Z"),
+  createdAt: new Date("2026-10-20T09:00:00Z"),
+  jobOffer,
+  profile: { id: profile.id, name: profile.name },
+  interviews: [{ id: `${id}-i1`, scheduledAt: new Date("2026-11-10T13:00:00Z"), note: "avec la DAF", durationMinutes: 60, format: null, place: "", cancelledAt: null, reschedules: [] }],
+  matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer, today: new Date("2026-11-04") }),
+});
+const MARIES_APPLICATIONS = [
+  shippedApplication("a-airbus", PROFILES[0]!, postingOf("o-airbus", "Responsable consolidation", "Airbus", "Rattachée à la DAF, vous pilotez la consolidation IFRS du groupe.")),
+  shippedApplication("a-archived", PROFILES[1]!, postingOf("o-old", "DAF", "Ancienne Société", "Poste de DAF.")),
+];
+const mine = <T>(candidateId: string, items: T[]) => (candidateId === "marie" ? items : []);
+const SHIPPED = shippedCoachActions(
+  candidateObjects({
+    profiles: {
+      get: async (candidateId, id) => mine(candidateId, PROFILES).find((each) => each.id === id) ?? null,
+      list: async (candidateId) => mine(candidateId, PROFILES).map(({ id, name, archived }) => ({ id, name, archived })),
+    },
+    applications: {
+      get: async (candidateId, id) => mine(candidateId, MARIES_APPLICATIONS).find((each) => each.id === id) ?? null,
+      list: async (candidateId) =>
+        mine(candidateId, MARIES_APPLICATIONS).map(({ id, status, statusChangedAt, createdAt, jobOffer, profile, interviews }) => ({
+          id,
+          status,
+          statusChangedAt,
+          createdAt,
+          jobOffer,
+          profile: { ...profile, archived: profile.id === "p-archived" },
+          interviews,
+        })),
+    },
+    jobSearches: { get: async () => null, list: async () => [] },
+    jobDigests: { get: async () => null, list: async () => [] },
+    agenda: { upcoming: async () => [] },
+    tailoredDocuments: { get: async () => null },
+    tailoredCvs: { get: async () => null },
+  }),
+);
+
 // What leaves the process: the tools each `coaching` request offers, and the tool results it carries.
 const realFetch = globalThis.fetch;
 const offered: HarnessResult["offered"] = [];
@@ -150,7 +223,7 @@ const env = {
 };
 const ai = createAiLayerFromEnv(env, { usage });
 const externalApi: ExternalApiCall[] = [];
-const coachActions = createCoachActions({ catalog: CATALOG, settings: async () => scenario.settings, externalApis: { record: (call) => void externalApi.push(call) } });
+const coachActions = createCoachActions({ catalog: scenario.shipped ? SHIPPED : CATALOG, settings: async () => scenario.settings, externalApis: { record: (call) => void externalApi.push(call) } });
 const guardrails = createGuardrails({
   ai,
   config: { current: async () => ({ settings: Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, "block"])) as Record<GuardrailId, GuardrailSetting>, messages: DEFAULT_GUARDRAIL_MESSAGES }) },
@@ -171,7 +244,14 @@ for (const each of scenario.replies ?? []) {
   const replied = await coach.reply(each.candidateId, { messages: [{ from: "candidate", text: each.text }], ...(each.focus ? { focus: each.focus } : {}) });
   result.replies.push(
     replied.ok
-      ? { ok: true, reply: replied.reply, proposals: replied.proposals, steps: replied.provenance.steps, sites: replied.provenance.sites }
+      ? {
+          ok: true,
+          reply: replied.reply,
+          proposals: replied.proposals,
+          steps: replied.provenance.steps,
+          sites: replied.provenance.sites,
+          activityTools: activityElement("coach_reply", replied.provenance).served?.tools.map((tool) => tool.name) ?? [],
+        }
       : { ok: false, error: replied.error },
   );
 }

@@ -293,7 +293,7 @@ export function createCoach(deps: CoachDeps): Coach {
       const recorder = createProvenanceRecorder(deps.ai, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
       try {
         /** Everything before the reply itself, done once even when the reply is written again. */
-        const prepare = async () => {
+        const prepare = async (readRoom: number) => {
           const served = await deps.playbooks.served();
           const instructions = [PERSONA, GROUNDING_RULES, REPLY_MARKS_RULE, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
           // The Playbook Agents left out, recorded on the reply call (#260): who, never what they said.
@@ -311,7 +311,8 @@ export function createCoach(deps: CoachDeps): Coach {
             choice.chosen.length > 0
               ? choice.chosen.length * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS
               : estimateTokens(sourcesText(served, [served.coreDigest?.content ?? ""]));
-          const context = await contextOf(candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
+          // And room for what Coach Actions read during the reply (#714): the context stays under the cap with its rounds.
+          const context = await contextOf(candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - readRoom - 4);
           const consulted = await Promise.all(
             choice.chosen.map((playbook) =>
               consultPlaybookAgent(recorder.aiFor("playbook_agent"), candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {
@@ -352,11 +353,11 @@ export function createCoach(deps: CoachDeps): Coach {
         // The changes the latest reply written proposes; none when it was offered no Coach Action.
         let proposals: CoachProposal[] | undefined;
         const write = async (feedback: string | null) => {
-          prepared ??= await prepare();
           // Offered afresh to each reply written: a reply written again proposes again, the first one's proposals dropped.
           const offered = deps.coachActions
             ? await deps.coachActions.forReply(candidateId, { recorder, untrustedInView: untrustedInView(focus?.kind), language: options.language ?? "fr", ...(guard ? { guard } : {}) })
             : null;
+          prepared ??= await prepare(offered?.readRoom ?? 0);
           const rules = offered ? [COACH_ACTIONS_RULES, ...(offered.narrowed ? [NARROWED_RULE] : [])].join("\n\n") : "";
           const system = [prepared.system, rules, feedback ?? ""].filter(Boolean).join("\n\n");
           const result = await recorder.ai.generate({

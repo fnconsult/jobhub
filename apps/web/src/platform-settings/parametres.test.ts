@@ -161,10 +161,12 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
       expect(possibleProviders(tab("sources"), stateOf()).find((row) => row.tool.id === "greenhouse")).toMatchObject({ usedBy: ["job_discovery"] });
     });
 
-    it("lists nothing on the tabs with no kind of Tool, and GitHub (Livraison's token) on Environnement", () => {
+    it("lists nothing on the tabs with no kind of Tool, and GitHub (Livraison's token) and the Push notification providers on Environnement", () => {
       expect(possibleProviders(tab("extension"), stateOf())).toEqual([]);
-      expect(possibleProviders(tab("environnement"), stateOf()).map((row) => row.tool.id)).toEqual(["github"]);
+      expect(possibleProviders(tab("environnement"), stateOf()).map((row) => row.tool.id)).toEqual(["apns", "fcm", "github"]);
       expect(keyHref("GITHUB_STATUS_TOKEN")).toContain("tab=environnement");
+      expect(keyHref("APNS_AUTH_KEY")).toContain("tab=environnement");
+      expect(keyHref("FCM_SERVICE_ACCOUNT")).toContain("tab=environnement");
     });
   });
 

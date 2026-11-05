@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { generateKeyPairSync } from "node:crypto";
 import type { ExternalApiCall } from "@jobhub/shared";
 import type { SecretProvider } from "./catalog";
 import { createConnectionTester } from "./connection-tests";
@@ -301,5 +302,42 @@ describe("a connection test, as recorded", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("the Push notification providers' keys (#698)", () => {
+  const p8 = () => generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+  const serviceAccount = () =>
+    JSON.stringify({
+      type: "service_account",
+      project_id: "jobbbox-app",
+      private_key: generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+      client_email: "push@jobbbox-app.iam.gserviceaccount.com",
+      token_uri: "https://oauth2.googleapis.com/token",
+    });
+
+  it("APNs: checks the .p8 can sign a provider token with its Key ID and Team ID, and calls no one", async () => {
+    const { fetch, requests } = fakeFetch(500);
+    const tester = createConnectionTester({ fetch });
+    expect(await tester("apns", { APNS_AUTH_KEY: p8(), APNS_KEY_ID: "ABC123DEFG", APPLE_TEAM_ID: "TEAM123456" })).toEqual({ ok: true });
+    expect(await tester("apns", { APNS_AUTH_KEY: p8(), APPLE_TEAM_ID: "TEAM123456" })).toEqual({ ok: false, detail: "missing APNS_KEY_ID" });
+    expect(await tester("apns", { APNS_AUTH_KEY: "not a key", APNS_KEY_ID: "ABC123DEFG", APPLE_TEAM_ID: "TEAM123456" })).toEqual({ ok: false, detail: expect.stringMatching(/^APNS_AUTH_KEY is not a \.p8 key/) });
+    expect(requests).toEqual([]);
+  });
+
+  it("FCM: asks Google an access token with the service account, recorded as FCM's connection test", async () => {
+    const calls: ExternalApiCall[] = [];
+    const { fetch, requests } = fakeFetch(200, { access_token: "ya29.x", expires_in: 3600 });
+    const tester = createConnectionTester({ fetch, externalApis: { record: (call: ExternalApiCall) => void calls.push(call) } });
+    expect(await tester("fcm", { FCM_SERVICE_ACCOUNT: serviceAccount() })).toEqual({ ok: true });
+    expect(requests[0]!.url).toBe("https://oauth2.googleapis.com/token");
+    expect(calls).toEqual([expect.objectContaining({ provider: "fcm", operation: "connection_test", ok: true })]);
+  });
+
+  it("FCM: says why when Google refuses it, or when it is no service account's key", async () => {
+    const tester = createConnectionTester({ fetch: fakeFetch(400, { error: "invalid_grant", error_description: "Invalid JWT Signature." }).fetch });
+    expect(await tester("fcm", { FCM_SERVICE_ACCOUNT: serviceAccount() })).toEqual({ ok: false, detail: "OAuth: invalid_grant Invalid JWT Signature." });
+    expect(await tester("fcm", { FCM_SERVICE_ACCOUNT: "{}" })).toEqual({ ok: false, detail: expect.stringMatching(/^FCM_SERVICE_ACCOUNT/) });
+    expect(await tester("fcm", {})).toEqual({ ok: false, detail: "missing FCM_SERVICE_ACCOUNT" });
   });
 });

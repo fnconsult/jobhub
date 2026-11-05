@@ -19,6 +19,8 @@
     "./job-digests": "./src/job-digests/index.ts",
     "./applications": "./src/applications/index.ts",
     "./appointment-reminders": "./src/appointment-reminders/index.ts",
+    "./push-notifications": "./src/push-notifications/index.ts",
+    "./push-notifications/worker": "./src/push-notifications/worker.ts",
     "./legal-text-notices": "./src/legal-text-notices/index.ts",
     "./nouveautes-email": "./src/nouveautes-email/index.ts",
     "./release": "./src/release/index.ts",

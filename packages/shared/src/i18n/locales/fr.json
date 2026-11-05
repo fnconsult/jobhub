@@ -5783,12 +5783,23 @@
     "fields": {
       "applicationStatus": "Statut de la candidature",
       "newInterview": "Nouvel entretien",
-      "interview": "Entretien"
+      "interview": "Entretien",
+      "application": "Candidature",
+      "applicationProfile": "Profil de la candidature",
+      "followUpSent": "Relance envoyée"
     },
     "interview": {
       "none": "Aucun",
       "cancelled": "Annulé",
       "minutes": "{{count}} min"
+    },
+    "values": {
+      "notSaved": "Offre non enregistrée",
+      "saved": "{{status}}, avec le profil « {{profile}} »",
+      "noFollowUp": "Aucune relance envoyée",
+      "followUps_one": "{{count}} relance envoyée",
+      "followUps_other": "{{count}} relances envoyées",
+      "followedUp": "{{sent}}, statut « {{status}} »"
     },
     "by": "Proposé par votre coach IA",
     "before": "Avant :",

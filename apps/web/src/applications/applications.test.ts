@@ -332,6 +332,71 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
     });
   });
 
+  describe("the Candidatures Coach Actions' changes (#716)", () => {
+    const CARD = "55555555-5555-4555-8555-555555555555";
+    const origin = (appliedAt = new Date("2026-11-05T09:30:00Z")) => ({ origin: "coach_proposal" as const, cardId: CARD, appliedAt });
+
+    it("saves a Job Offer from a Coach proposal with its Origin on the status « À postuler »; saved again, the Application they have is kept as it is", async () => {
+      const saved = await applications.save(candidateId, { jobOfferId, profileId }, { origin: origin() });
+
+      expect(saved).toMatchObject({ ok: true, created: true, application: { status: "to_apply", statusOrigin: origin() } });
+      const again = await applications.save(candidateId, { jobOfferId, profileId }, { origin: origin(new Date("2026-11-06T09:00:00Z")) });
+      expect(again).toMatchObject({ ok: true, created: false, application: { statusOrigin: origin() } });
+    });
+
+    it("gives the Profile an Application uses, which changes from the Profile seen only (a conflict otherwise), keeping its Origin until the Candidate changes it", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const otherProfileId = await createProfile(candidateId, "Consultant transformation");
+      const third = await createProfile(candidateId, "DG");
+      const seen = await applications.profileOf(candidateId, id);
+      expect(seen).toEqual({ profileId, origin: null });
+      expect(await applications.profileOf(otherCandidateId, id)).toBeNull();
+
+      const changed = await applications.change(candidateId, id, { profileId: otherProfileId }, { version: profileId, origin: origin() });
+      expect(changed).toMatchObject({ ok: true, application: { profile: { id: otherProfileId }, profileOrigin: origin() } });
+      expect(await applications.profileOf(candidateId, id)).toEqual({ profileId: otherProfileId, origin: origin() });
+
+      expect(await applications.change(candidateId, id, { profileId: third }, { version: profileId, origin: origin() })).toEqual({ ok: false, error: "conflict" });
+      expect((await applications.profileOf(candidateId, id))?.profileId).toBe(otherProfileId);
+
+      await applications.change(candidateId, id, { profileId: third });
+      expect(await applications.get(candidateId, id)).not.toHaveProperty("profileOrigin");
+    });
+
+    it("removes an Application a Coach proposal created while it is intact: same status and Profile, nothing added to it", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = (await applications.statusOf(candidateId, id))!;
+
+      expect(await applications.removeIntact(otherCandidateId, id, { version: seen.version, profileId })).toEqual({ ok: false, error: "not_found" });
+      expect(await applications.removeIntact(candidateId, id, { version: seen.version, profileId })).toEqual({ ok: true });
+      expect(await applications.get(candidateId, id)).toBeNull();
+      expect(await applications.removeIntact(candidateId, id, { version: seen.version, profileId })).toEqual({ ok: false, error: "not_found" });
+      // Its Job Offer is kept.
+      expect(await jobOffers.get(jobOfferId, candidateId)).not.toBeNull();
+    });
+
+    it("refuses to remove it, as a conflict, once its status or Profile changed or something was added to it (an Interview)", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = (await applications.statusOf(candidateId, id))!;
+      const otherProfileId = await createProfile(candidateId, "Consultant transformation");
+
+      await applications.change(candidateId, id, { profileId: otherProfileId });
+      expect(await applications.removeIntact(candidateId, id, { version: seen.version, profileId })).toEqual({ ok: false, error: "conflict" });
+      await applications.change(candidateId, id, { profileId });
+      await applications.addInterview(candidateId, id, { scheduledAt: "2026-11-12T14:30", moveToInterview: true });
+      expect(await applications.removeIntact(candidateId, id, { version: seen.version, profileId })).toEqual({ ok: false, error: "conflict" });
+
+      const other = await jobOffers.capture({ source: { url: "https://www.apec.fr/offre/2" }, title: "DG H/F", content: "DG.", employer: "Globex" });
+      if (!other.ok) throw new Error("fixture Job Offer refused");
+      const second = await save({ jobOfferId: other.jobOffer.id, profileId });
+      const secondSeen = (await applications.statusOf(candidateId, second.id))!;
+      // Something added that moves neither its status nor its Profile.
+      await database.query(`INSERT INTO interview (application_id, scheduled_at) VALUES ($1, now())`, [second.id]);
+      expect(await applications.removeIntact(candidateId, second.id, { version: secondSeen.version, profileId })).toEqual({ ok: false, error: "conflict" });
+      expect(await applications.get(candidateId, second.id)).not.toBeNull();
+    });
+  });
+
   it("lets the Candidate pick another of their Profiles for the Application, and scores that one", async () => {
     const application = await save({ jobOfferId, profileId });
     const otherProfileId = await createProfile(candidateId, "Consultant transformation");

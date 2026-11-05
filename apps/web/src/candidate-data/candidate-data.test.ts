@@ -435,6 +435,16 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("the export holds the Origin of an Application's Profile a Coach proposal gave it (#716)", async () => {
+    const daf = await createProfile(candidateId, "DAF");
+    const application = await saveApplication(candidateId, daf);
+    const consultant = await createProfile(candidateId, "Consultante");
+    const origin = { origin: "coach_proposal" as const, cardId: "77777777-7777-4777-8777-777777777777", appliedAt: new Date("2026-11-05T09:30:00Z") };
+    await applications.change(candidateId, application.id, { profileId: consultant }, { version: daf, origin });
+
+    expect((await candidateData.export(candidateId)).applications[0]).toMatchObject({ profile: { id: consultant }, profileOrigin: origin });
+  });
+
   it("the export holds a Coach proposal's card in its thread (#715): its conversation, what it proposed before and after, its decision and « Annuler »; and its object's Origin", async () => {
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
     const catalog = e2eCoachActions(applications);

@@ -297,6 +297,69 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     expect((await pendingCards())[0]!.provenance).toBeNull();
   });
 
+  describe("a Follow-up marked as sent from a Coach proposal (#716)", () => {
+    const CARD = "66666666-6666-4666-8666-666666666666";
+    const origin = { origin: "coach_proposal" as const, cardId: CARD, appliedAt: new Date("2026-11-12T10:00:00Z") };
+    const sentRows = async () => (await database.query(`SELECT id FROM follow_up_sent WHERE application_id = $1`, [applicationId])).rows;
+
+    it("tells how many Follow-ups were sent (a « Relancée » set by hand counts as one), the status and their version; nothing of anyone else's", async () => {
+      expect(await followUps.sentOf(candidateId, applicationId)).toEqual({ count: 0, status: "to_apply", version: expect.any(String) });
+      await setStatus("followed_up", day("2026-11-12"));
+      expect(await followUps.sentOf(candidateId, applicationId)).toMatchObject({ count: 1, status: "followed_up" });
+      expect(await followUps.sentOf(otherCandidateId, applicationId)).toBeNull();
+      expect(await followUps.sentOf(candidateId, "not-a-uuid")).toBeNull();
+    });
+
+    it("marks one as sent from the version seen: « Relancée », its Origin kept, the pending Follow-up withdrawn; « Annuler » puts the state before back", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      await followUps.proposeDue(day("2026-11-12"));
+      expect(await pendingCards()).toMatchObject([{ kind: FOLLOW_UP_CARD }]);
+      const seen = (await followUps.sentOf(candidateId, applicationId))!;
+
+      const marked = await followUps.markSent(candidateId, applicationId, { version: seen.version, origin });
+
+      expect(marked).toEqual({ ok: true, undo: expect.anything() });
+      expect(await applications.statusOf(candidateId, applicationId)).toMatchObject({ status: "followed_up", origin });
+      expect(await followUps.sentOf(candidateId, applicationId)).toMatchObject({ count: 1 });
+      expect(await pendingCards()).toEqual([]);
+
+      expect(await followUps.unmarkSent(candidateId, applicationId, marked.ok ? marked.undo : null)).toEqual({ ok: true });
+      expect(await applications.statusOf(candidateId, applicationId)).toMatchObject({ status: "applied", origin: null });
+      expect(await sentRows()).toEqual([]);
+    });
+
+    it("refuses as a conflict a version that moved on (another status, another Follow-up sent), and « Annuler » once it moved on since", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      const seen = (await followUps.sentOf(candidateId, applicationId))!;
+      await setStatus("followed_up", day("2026-11-12")); // on its page, meanwhile
+      expect(await followUps.markSent(candidateId, applicationId, { version: seen.version, origin })).toEqual({ ok: false, error: "conflict" });
+      expect(await sentRows()).toEqual([]);
+
+      const now = (await followUps.sentOf(candidateId, applicationId))!;
+      const marked = await followUps.markSent(candidateId, applicationId, { version: now.version, origin });
+      expect(marked).toMatchObject({ ok: true });
+      expect(await followUps.sentOf(candidateId, applicationId)).toMatchObject({ count: 2, status: "followed_up" });
+      await setStatus("interview", day("2026-11-20"));
+      expect(await followUps.unmarkSent(candidateId, applicationId, marked.ok ? marked.undo : null)).toEqual({ ok: false, error: "conflict" });
+      expect((await sentRows()).length).toBe(2);
+    });
+
+    it("marks none past two, nor on an Application not waiting for one, nor on anyone else's", async () => {
+      const seen = (await followUps.sentOf(candidateId, applicationId))!;
+      expect(await followUps.markSent(candidateId, applicationId, { version: seen.version, origin })).toEqual({ ok: false, error: "not_waiting" });
+      expect(await followUps.markSent(otherCandidateId, applicationId, { version: seen.version, origin })).toEqual({ ok: false, error: "not_found" });
+
+      await setStatus("applied", day("2026-11-02"));
+      for (let sent = 0; sent < 2; sent += 1) {
+        const marked = await followUps.markSent(candidateId, applicationId, { version: (await followUps.sentOf(candidateId, applicationId))!.version, origin });
+        expect(marked).toMatchObject({ ok: true });
+      }
+      const last = (await followUps.sentOf(candidateId, applicationId))!;
+      expect(last.count).toBe(2);
+      expect(await followUps.markSent(candidateId, applicationId, { version: last.version, origin })).toEqual({ ok: false, error: "limit" });
+    });
+  });
+
   it("never proposes on, or lets anyone else act on, a Candidate's Application", async () => {
     await setStatus("applied", day("2026-11-02"));
     await followUps.proposeDue(day("2026-11-12"));

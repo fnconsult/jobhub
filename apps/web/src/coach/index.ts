@@ -383,7 +383,13 @@ export function createCoach(deps: CoachDeps): Coach {
         const write = async (feedback: string | null) => {
           // Offered afresh to each reply written: a reply written again proposes again, the first one's proposals dropped.
           const offered = deps.coachActions
-            ? await deps.coachActions.forReply(candidateId, { recorder, untrustedInView: untrustedInView(focus?.kind), language: options.language ?? "fr", ...(guard ? { guard } : {}) })
+            ? await deps.coachActions.forReply(candidateId, {
+                recorder,
+                untrustedInView: untrustedInView(focus?.kind),
+                language: options.language ?? "fr",
+                ...(focus ? { focus } : {}),
+                ...(guard ? { guard } : {}),
+              })
             : null;
           prepared ??= await prepare(offered?.readRoom ?? 0);
           const rules = offered ? [COACH_ACTIONS_RULES, ...(offered.narrowed ? [NARROWED_RULE] : [])].join("\n\n") : "";

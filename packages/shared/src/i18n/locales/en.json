@@ -1079,6 +1079,12 @@
     "blocked": "Blocked message",
     "widen": "Widen",
     "narrow": "Narrow",
+    "emptyReply": {
+      "proposed": "I propose this change below: review it, then apply or ignore it. Nothing changes without you.",
+      "masterCvNotProposed": "I couldn't prepare this change. I only propose what your Master CV already says, never an item, skill or figure it doesn't hold. To add skills or tools, write them yourself in the « Master CV » section of your profile, then save a new version.",
+      "notProposed": "I couldn't prepare this change as asked. Tell me precisely what you want to change, or make it from the page concerned.",
+      "none": "I couldn't answer you this time. Could you rephrase your request, or split it into several messages?"
+    },
     "jobOfferLink": {
       "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
       "forbiddenSite": "I can't read job offers on LinkedIn, Indeed or Glassdoor: their terms of use forbid it. Open the job offer in your browser and add it with the Jobbbox extension.",
@@ -6035,6 +6041,7 @@
       "open": "Review the changes",
       "title": "Review the changes: {{what}}",
       "intro": "Accept or reject each change your coach proposes for “{{name}}”. Only the accepted changes are saved, as a new version of your Master CV; a rejected change keeps what it says.",
+      "pending": "Each change waits for your “Accept” or “Reject”: none is accepted in advance.",
       "before": "Before",
       "after": "Proposed",
       "fromOffer": "Taken from one of your job offers, not in your Master CV: {{words}}. Keep it only if it is true.",

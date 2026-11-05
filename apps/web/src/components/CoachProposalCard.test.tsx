@@ -316,7 +316,7 @@ const MASTER_CV: Card = {
 describe("a Master CV change's card, reviewed change by change (#719, ADR-0006)", () => {
   const masterCard = () => screen.getByRole("article", { name: /CV de référence/ });
 
-  it("has no « Appliquer » in one click: « Relire les changements » opens them in the Work Pane, the Flagged Change waiting for an accept", async () => {
+  it("has no « Appliquer » in one click: « Relire les changements » opens them in the Work Pane, none accepted in advance", async () => {
     renderInFrench(<Thread card={MASTER_CV} />);
     expect(within(masterCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Relire les changements", "Ignorer"]);
 
@@ -325,14 +325,28 @@ describe("a Master CV change's card, reviewed change by change (#719, ADR-0006)"
     expect(within(pane).getByRole("heading", { level: 2 }).textContent).toContain("Relire les changements : CV de référence");
     expect(within(pane).getAllByRole("listitem")).toHaveLength(2);
     expect(within(pane).getByRole("note").textContent).toContain("aéronautique");
-    expect(within(pane).getAllByRole("button", { name: "Accepter" }).map((each) => each.getAttribute("aria-pressed"))).toEqual(["true", "false"]);
+    // Each change waits for the Candidate's own « Accepter » (ADR-0077): none is pre-accepted, flagged or not.
+    expect(within(pane).getAllByRole("button", { name: "Accepter" }).map((each) => each.getAttribute("aria-pressed"))).toEqual(["false", "false"]);
+    expect(pane.textContent).toContain("aucun n'est accepté d'avance");
   });
 
-  it("sends the accepted changes explicitly, a Flagged Change only once accepted", async () => {
+  it("saves nothing when « Enregistrer » is pressed before any change is accepted", async () => {
+    renderInFrench(<Thread card={MASTER_CV} />);
+    await userEvent.click(within(masterCard()).getByRole("button", { name: "Relire les changements" }));
+    const pane = screen.getByRole("complementary");
+    await userEvent.click(within(pane).getByRole("button", { name: "Enregistrer les changements acceptés" }));
+
+    expect(sent).toEqual([]);
+    expect(within(pane).getByRole("alert").textContent).toContain("Acceptez au moins un changement");
+  });
+
+  it("sends only the changes the Candidate accepted, explicitly", async () => {
     answers = [{ status: 200, body: { status: "accepted", card: { ...MASTER_CV, status: "accepted", decidedAt: "2026-11-05T10:20:00.000Z", undoable: true, accepted: ["experience.rephrased.0"] } } }];
     renderInFrench(<Thread card={MASTER_CV} />);
     await userEvent.click(within(masterCard()).getByRole("button", { name: "Relire les changements" }));
-    await userEvent.click(within(screen.getByRole("complementary")).getByRole("button", { name: "Enregistrer les changements acceptés" }));
+    const pane = screen.getByRole("complementary");
+    await userEvent.click(within(pane).getAllByRole("button", { name: "Accepter" })[0]!);
+    await userEvent.click(within(pane).getByRole("button", { name: "Enregistrer les changements acceptés" }));
 
     expect(sent).toEqual([{ url: `/api/action-cards/${MASTER_CV.id}`, body: { decision: "accept", edited: { accepted: ["experience.rephrased.0"] } } }]);
     expect(masterCard().textContent).toContain("1 changement enregistré");

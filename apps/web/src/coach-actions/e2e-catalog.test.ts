@@ -21,7 +21,14 @@ describe("the e2e suite's slow read (#788): a Coach Action that takes its time, 
     await vi.advanceTimersByTimeAsync(1);
     vi.useRealTimers();
 
-    expect(await ran).toEqual({ ok: true, data: "Candidature : Contrôleuse de gestion · Airbus", pages: ["/candidatures/a1"], untrusted: true });
+    expect(await ran).toEqual({
+      ok: true,
+      data: "Candidature : Contrôleuse de gestion · Airbus",
+      pages: ["/candidatures/a1"],
+      untrusted: true,
+      // What it read, named for the thread's line (#788).
+      seen: [{ type: "application", href: "/candidatures/a1", name: "Airbus · Contrôleuse de gestion" }],
+    });
     expect(slowRead()).toMatchObject({ kind: "read", group: "applications", copiesText: false });
   });
 

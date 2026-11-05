@@ -1079,6 +1079,12 @@
     "blocked": "Message bloqué",
     "widen": "Agrandir",
     "narrow": "Réduire",
+    "emptyReply": {
+      "proposed": "Je vous propose cette modification ci-dessous : relisez-la, puis appliquez-la ou ignorez-la. Rien ne change sans vous.",
+      "masterCvNotProposed": "Je n'ai pas pu préparer cette modification. Je ne propose que ce que votre CV de référence dit déjà, sans élément, compétence ni chiffre qu'il ne contient pas. Pour ajouter des compétences ou des outils, écrivez-les vous-même dans la section « CV de référence » de votre profil, puis enregistrez une nouvelle version.",
+      "notProposed": "Je n'ai pas pu préparer cette modification telle quelle. Dites-moi précisément ce que vous voulez changer, ou faites-le depuis la page concernée.",
+      "none": "Je n'ai pas réussi à vous répondre cette fois. Pouvez-vous reformuler votre demande, ou la découper en plusieurs messages ?"
+    },
     "jobOfferLink": {
       "read": "J'ai lu cette offre et je l'ai ajoutée à Jobbbox. Elle est à traiter : ouvrez-la pour voir son score de correspondance et la suivre avec l'un de vos profils.",
       "forbiddenSite": "Je ne peux pas lire les offres de LinkedIn, Indeed ou Glassdoor : leurs conditions d'utilisation l'interdisent. Ouvrez l'offre dans votre navigateur et ajoutez-la avec l'extension Jobbbox.",
@@ -6035,6 +6041,7 @@
       "open": "Relire les changements",
       "title": "Relire les changements : {{what}}",
       "intro": "Acceptez ou refusez chaque changement que votre coach propose pour « {{name}} ». Seuls les changements acceptés sont enregistrés, en une nouvelle version de votre CV de référence ; un changement refusé garde ce qu'il dit.",
+      "pending": "Chaque changement attend votre « Accepter » ou votre « Refuser » : aucun n'est accepté d'avance.",
       "before": "Avant",
       "after": "Proposé",
       "fromOffer": "Repris d'une de vos offres, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",

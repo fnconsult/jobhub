@@ -72,7 +72,9 @@
 // call, call that tool with those arguments (a `tool_calls` reply, printing "[fake-mistral] tool call <name>" to the server
 // log); sent its result back, it answers "Résultat de l'outil « <name> » : <result>" (an error result as Mistral is sent
 // it, "Error: …"). Several markers (#788): each tool in turn, one a round, then the last one's result, which
-// "E2E_COACH_SLOW=<ms>" delays as it delays a reply. Asked for text only (tool_choice "none") before any call, it answers as without the marker.
+// "E2E_COACH_SLOW=<ms>" delays as it delays a reply. Asked for text only (tool_choice "none") before any call, it answers as
+// without the marker. With "E2E_COACH_SILENT" in the message too, its answer once the result came back holds no text but the
+// hidden mark line, "[jobbbox:non]", as Claude answered on the Beta (#784).
 // "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
 // steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
@@ -350,11 +352,12 @@ function coachToolCall(body, signal) {
   const called = messages.slice(lastAsked + 1).filter((message) => message.role === "assistant" && message.tool_calls?.length).length;
   const results = [];
   for (let index = messages.length - 1; index >= 0 && messages[index].role === "tool"; index -= 1) results.unshift(String(messages[index].content));
+  const silent = String(messages[lastAsked]?.content ?? "").includes("E2E_COACH_SILENT");
   const next = asked[called];
   if (results.length > 0 && (!next || body.tool_choice === "none")) {
     // E2E_COACH_SLOW: the answer written after the calls takes that long too (#788), so its step is seen live.
     const slow = Number(/E2E_COACH_SLOW=(\d+)/.exec(String(messages[lastAsked]?.content ?? ""))?.[1] ?? 0);
-    const answer = () => completion(body, `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
+    const answer = () => completion(body, silent ? "[jobbbox:non]" : `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
     return slow > 0 ? answerAfter(slow, signal).then(answer) : answer();
   }
   if (body.tool_choice === "none" || !next) return null;

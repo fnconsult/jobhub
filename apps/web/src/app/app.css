@@ -1578,6 +1578,25 @@ button.coach-panel-badge:hover {
   color: var(--color-text-secondary);
 }
 
+/* « Cette réponse » (#790): what the whole reply sent, under the context's breakdown, set apart by a rule. */
+.context-breakdown-reply {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.context-breakdown-reply-title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.context-breakdown-reply-why {
+  color: var(--color-text-secondary);
+}
+
 /* Without room for both beside the conversation, the Work Pane takes the Fiche's place: FicheProvider decides (Fiche.tsx),
    so that « Fiche » and « Activité » in the Top Bar know what is shown. */
 .fiche[hidden] {

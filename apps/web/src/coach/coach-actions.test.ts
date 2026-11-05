@@ -112,7 +112,7 @@ describe("the AI Coach without Coach Actions", () => {
 
     expect(off.coachCalls()).toEqual(before.coachCalls());
     expect(off.coachCalls()[0]).not.toHaveProperty("tools");
-    expect(switchedOff).toEqual({ ...withoutActions, provenance: expect.anything(), callId: expect.anything() });
+    expect(switchedOff).toEqual({ ...withoutActions, provenance: expect.anything(), callId: expect.anything(), calls: expect.anything() });
     expect(switchedOff).not.toHaveProperty("proposals");
     expect(off.calls).toEqual([]);
   });
@@ -121,7 +121,7 @@ describe("the AI Coach without Coach Actions", () => {
     const before = setUp({ withActions: false });
     const none = setUp({ settings: { maxRounds: 0 } });
 
-    expect(await ask(none.coach)).toEqual({ ...(await ask(before.coach)), provenance: expect.anything(), callId: expect.anything() });
+    expect(await ask(none.coach)).toEqual({ ...(await ask(before.coach)), provenance: expect.anything(), callId: expect.anything(), calls: expect.anything() });
     expect(none.coachCalls()).toEqual(before.coachCalls());
   });
 });
@@ -175,6 +175,18 @@ describe("the AI Coach with Coach Actions, end to end on the fake provider", () 
     expect(logged).toContain("<donnees>");
     expect(logged).toContain("Rattaché au DG");
     expect(second!.messages.at(-1)).toMatchObject({ role: "user", content: [{ type: "tool_result", content: expect.stringMatching(/^<donnees>/) }] });
+  });
+
+  it("keeps every AI call of the reply (#790): each Turn's AI Usage id in order, its Tool rounds and the Tools that ran", async () => {
+    const { coach, usage } = setUp({ turns: [{ toolCalls: [{ name: "lire_candidature", arguments: { id: "a1" } }] }, { toolCalls: [{ name: "lire_candidature", arguments: { id: "a1" } }] }, { text: REPLY }] });
+
+    const replied = await ask(coach);
+
+    if (!replied.ok) throw new Error("no reply");
+    const turns = usage.entries.filter((entry) => entry.task === "coaching").map((entry) => entry.id);
+    expect(turns).toHaveLength(3);
+    expect(replied.calls).toEqual({ ids: usage.entries.map((entry) => entry.id), turns, rounds: 2, tools: ["lire_candidature"] });
+    expect(replied.callId).toBe(turns[2]);
   });
 
   it("proposes with a Coach Action: nothing written, the proposal with the reply, its `act` step marked as proposing", async () => {

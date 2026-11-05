@@ -162,6 +162,39 @@ describe("the Context bar's Plan, upsell and breakdown (ADR-0078, #732)", () => 
     ]);
   });
 
+  it("says what the whole reply sent, all its calls summed, apart from the context and never as the bar's figure (#790)", async () => {
+    const reply = { calls: 6, turns: 3, rounds: 2, tools: ["lire_profil"], inputTokens: 56_700, cachedInputTokens: 30_000, outputTokens: 1_200 };
+    const context = { messages: 2, tokens: 4_000, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: SPLIT, reply };
+    vi.stubGlobal("fetch", server({ saved: context, replied: context }));
+    const user = userEvent.setup();
+    renderInFrench(<HomePage />);
+    // The bar keeps its meaning: the context, out of the Plan's ceiling.
+    await within(activity()).findByText("2 / 40 messages · 4k / 12k jetons");
+    expect(within(bar()).queryByText(/56,7k/)).toBeNull();
+
+    await user.click(within(bar()).getByRole("button", { name: "Voir le détail" }));
+    const card = screen.getByRole("dialog", { name: "Détail du contexte" });
+    expect(within(card).getByText(/Ce n'est pas le coût de la réponse/)).toBeTruthy();
+    const section = within(card).getByRole("region", { name: "Cette réponse" });
+    expect(within(section).getByText("Cette réponse : 6 appels, 56,7k jetons envoyés au total")).toBeTruthy();
+    expect(within(section).getByText("Le coach a consulté vos données en 2 tours avant de répondre.")).toBeTruthy();
+    expect(within(section).getByText("Dont 30k relus dans le cache du fournisseur, moins coûteux.")).toBeTruthy();
+    expect(within(section).getByText(/peut dépasser la taille du contexte ci-dessus/)).toBeTruthy();
+    // Never the Tools' internal names.
+    expect(within(section).queryByText(/lire_profil/)).toBeNull();
+  });
+
+  it("says nothing of the whole reply for a reply saved before it was kept", async () => {
+    const context = { messages: 2, tokens: 4_000, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: SPLIT, reply: null };
+    vi.stubGlobal("fetch", server({ saved: context, replied: context }));
+    const user = userEvent.setup();
+    renderInFrench(<HomePage />);
+    await within(activity()).findByText("2 / 40 messages · 4k / 12k jetons");
+
+    await user.click(within(bar()).getByRole("button", { name: "Voir le détail" }));
+    expect(within(screen.getByRole("dialog", { name: "Détail du contexte" })).queryByRole("region", { name: "Cette réponse" })).toBeNull();
+  });
+
   it("is empty before the coach's first reply", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 404 })));
     const user = userEvent.setup();

@@ -1,5 +1,6 @@
 import { FREE_PLAN, WEEKLY_QUOTAS } from "@jobhub/shared";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { PROMOTION_CODE_REFUSALS, type PromotionCodeRefusal } from "@/billing";
@@ -20,6 +21,7 @@ import { Field, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { inAppWebView } from "@/native-app/in-app";
 import { getQuotaReductions } from "@/quota-reductions/server";
 import { ORDER_PARAMS, PLAN_ORDER, routes } from "@/routes";
 import { getWithdrawals } from "@/withdrawals/server";
@@ -50,6 +52,9 @@ const MAX_CODE_LENGTH = 40;
  * is recorded until when, and whether its acknowledgement was emailed.
  * A hidden Plan is not compared, even the Candidate's. A shared link's `?code=` is checked and carried
  * to Checkout, where it applies to the Plans it is for; checkout works without it all the same.
+ * Inside the Jobbbox app's WebView (#689, App Store guideline 3.1.1), the Plan and its usage are shown with « Gérer mon
+ * abonnement sur jobbbox.ai », which opens the browser, and the Withdrawal and the cancellation stay: no price, no
+ * discount, no comparison, no code and no way to Stripe.
  */
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string; code?: string | string[]; codeRefused?: string; plan?: string; resiliation?: string }> }) {
   const candidate = await getCurrentCandidate();
@@ -57,7 +62,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan, resiliation } = await searchParams;
-  const code = typeof codeParam === "string" ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
+  const inApp = inAppWebView((await headers()).get("user-agent"));
+  const code = typeof codeParam === "string" && !inApp ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
   const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount, withdrawable, reduction] = await Promise.all([
     billing.entitlements(candidate.id),
@@ -139,8 +145,23 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         <div className="subscription-summary">
           <Card>
             <p className="subscription-current">{currentPlanLabel({ planName, endsAt }, locale)}</p>
-            {discount ? <p className="subscription-discount">{activeDiscountLabel(discount, locale)}</p> : null}
-            {plan !== FREE_PLAN || hasInvoices ? (
+            {discount && !inApp ? <p className="subscription-discount">{activeDiscountLabel(discount, locale)}</p> : null}
+            {inApp ? (
+              <>
+                <div className="subscription-stripe">
+                  {/* A new window: the app opens it in the system's browser, out of the app. */}
+                  <a className={buttonClass({ variant: "primary" })} href={routes.subscription} target="_blank" rel="noopener">
+                    {t("billing.page.manageOnWeb")}
+                  </a>
+                  {cancellable ? (
+                    <Link className={buttonClass()} href={routes.subscriptionCancellation}>
+                      {t("billing.cancellation.action")}
+                    </Link>
+                  ) : null}
+                </div>
+                <p className="subscription-help">{t("billing.page.manageOnWebHelp")}</p>
+              </>
+            ) : plan !== FREE_PLAN || hasInvoices ? (
               <div className="subscription-stripe">
                 {plan !== FREE_PLAN ? (
                   <form method="post" action="/api/billing/portal">
@@ -163,8 +184,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                 ) : null}
               </div>
             ) : null}
-            {plan !== FREE_PLAN ? <p className="subscription-help">{t("billing.page.manageHelp")}</p> : null}
-            {hasInvoices ? <p className="subscription-help">{t("billing.page.invoicesHelp")}</p> : null}
+            {plan !== FREE_PLAN && !inApp ? <p className="subscription-help">{t("billing.page.manageHelp")}</p> : null}
+            {hasInvoices && !inApp ? <p className="subscription-help">{t("billing.page.invoicesHelp")}</p> : null}
             {planWithdrawal ? (
               <div className="subscription-withdrawal">
                 <p>{t("withdrawals.subscription.offer", { date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(planWithdrawal.deadline.getTime() - 1)) })}</p>
@@ -208,19 +229,21 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           </Card>
         </div>
 
-        <section className="subscription-plans" aria-labelledby="subscription-plans-title">
-          <h3 id="subscription-plans-title">{t("billing.page.comparisonTitle")}</h3>
-          <ul className="plan-cards">
-            {cards.map((card) => (
-              <li key={card.key} className="plan-card" data-plan={card.key} data-current={card.current || undefined}>
-                <PlanCardView card={card} carriedCode={carriedCode} t={t} />
-              </li>
-            ))}
-          </ul>
-        </section>
+        {inApp ? null : (
+          <section className="subscription-plans" aria-labelledby="subscription-plans-title">
+            <h3 id="subscription-plans-title">{t("billing.page.comparisonTitle")}</h3>
+            <ul className="plan-cards">
+              {cards.map((card) => (
+                <li key={card.key} className="plan-card" data-plan={card.key} data-current={card.current || undefined}>
+                  <PlanCardView card={card} carriedCode={carriedCode} t={t} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* A code only applies to a new subscription, from Free: it is checked here, then carried to Checkout. */}
-        {plan === FREE_PLAN ? (
+        {plan === FREE_PLAN && !inApp ? (
           <form className="subscription-code" method="get" action={routes.subscription}>
             <Field label={t("billing.page.codeLabel")} hint={t("billing.page.codeHint")}>
               <TextInput name="code" defaultValue={code} maxLength={MAX_CODE_LENGTH} autoComplete="off" spellCheck={false} />

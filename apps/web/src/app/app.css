@@ -2887,6 +2887,16 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: inline-flex;
 }
 
+/* Inside the Jobbbox app's WebView (#689): the app's own drawer stands for the Sidebar, which is neither shown nor
+   brought back. */
+html[data-in-app] .app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
+  display: none;
+}
+
 /* The page's content column (ADR-0024): wide, beside the Sidebar rather than
    centred in what is left, with running text kept to a readable measure. No
    room is kept at the bottom for a floating Coach Panel button: here it sits

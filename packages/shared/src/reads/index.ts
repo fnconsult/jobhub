@@ -387,3 +387,4 @@ export const coachConversationResponseSchema = z.object({ conversation: coachCon
 export type CoachConversationResponse = z.infer<typeof coachConversationResponseSchema>;
 
 export * from "./legal-steps";
+export * from "./coach-space";

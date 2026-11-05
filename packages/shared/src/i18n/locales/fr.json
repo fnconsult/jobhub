@@ -1228,6 +1228,8 @@
       "current": "Votre offre",
       "manage": "Gérer mon abonnement",
       "manageHelp": "Changement d'offre, moyen de paiement ou annulation d'une résiliation programmée : sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "manageOnWeb": "Gérer mon abonnement sur jobbbox.ai",
+      "manageOnWebHelp": "Votre abonnement se gère sur jobbbox.ai, dans votre navigateur.",
       "invoices": "Factures et moyen de paiement",
       "invoicesHelp": "Téléchargez vos factures et changez de moyen de paiement sur la page sécurisée de notre prestataire de paiement, Stripe.",
       "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",

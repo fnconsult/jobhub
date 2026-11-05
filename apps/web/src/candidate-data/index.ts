@@ -55,6 +55,7 @@ import { ordersOf, type ExportedOrder } from "../orders";
 import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
 import { twoStepStatusOf, type TwoStepStatus } from "../two-step-verification";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
+import type { Origin } from "../origin";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
 export interface ExportedProfile {
@@ -62,7 +63,9 @@ export interface ExportedProfile {
   name: string;
   archived: boolean;
   searchCriteria: SearchCriteria;
-  /** Newest first. */
+  /** The Search Criteria came from a Coach proposal the Candidate applied (#719): its Origin. */
+  searchCriteriaOrigin?: Origin;
+  /** Newest first, each with its Origin when it came from a Coach proposal (#719). */
   masterCvVersions: MasterCvVersion[];
   /** The ATS Score of the Master CV version last scored, or null when it never was. Its Provenance is fixed (rules), so not exported. */
   atsScore: Omit<KeptAtsScore, "provenance"> | null;
@@ -404,8 +407,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   nouveautes_email_subscription: "nouveautesEmail.subscribed and subscribedAt (no unsubscribe token, #566)",
   nouveautes_email_sent: "nouveautesEmail.sent (the Version each Nouveautés email told of, #566)",
   coach_proposals_display: "coachProposalsDisplay (« Propositions du coach » in Mon compte, #717)",
-  profile: "profiles",
-  master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
+  profile: "profiles (the Search Criteria's Origin, #719)",
+  master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it; its Origin, #719)",
   ats_score: "profiles[].atsScore",
   job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
   discovery_run_detail: "profiles[].jobDiscoveryRuns (the last 30 days' runs: criteria and each search's query texts; their figures are of no one)",
@@ -527,6 +530,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           name: profile.name,
           archived: profile.archived,
           searchCriteria: profile.searchCriteria,
+          ...(profile.searchCriteriaOrigin ? { searchCriteriaOrigin: profile.searchCriteriaOrigin } : {}),
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
           jobSearches: jobSearchesOf(id).map(({ provenance, stopRequestedAt, ...jobSearch }) => {

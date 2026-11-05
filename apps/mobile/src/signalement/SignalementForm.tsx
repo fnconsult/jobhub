@@ -1,8 +1,9 @@
-import Constants from "expo-constants";
+import { APP_DEVICE_HEADER, appDeviceHeader } from "@jobhub/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, TextInput, View, useWindowDimensions } from "react-native";
+import { TextInput, View, useWindowDimensions } from "react-native";
 import { useApi } from "../api/api-context";
+import { appDevice } from "./app-device";
 import { INTER, radius, space, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -34,8 +35,9 @@ export function textSizeOf(fontScale: number): "small" | "standard" | "large" | 
 /**
  * The Signalement form, native (#690), in the Work Pane: its type (Bug or Idée) unless it is a Question, the message
  * (10 to 2,000 characters), and what goes with it, said before sending: the page, the app's version, the device, the
- * language and the text size; for a Question, the exchange too, and nothing else of the conversation. Read by the
- * Jobbbox team, never by an AI (`POST /api/signalements`).
+ * language and the text size; for a Question, the exchange too, and nothing else of the conversation. The version and
+ * the device go in APP_DEVICE_HEADER, as the form shows them: a native fetch's user agent names neither, so the web app
+ * keeps them in its place (« App Jobbbox 1.4.0, iOS 18.6 »). Read by the Jobbbox team, never by an AI (`POST /api/signalements`).
  */
 export function SignalementForm({ start, path, onClose }: { start: SignalementStart; path: string; onClose: () => void }) {
   const { t, i18n } = useTranslation();
@@ -51,8 +53,9 @@ export function SignalementForm({ start, path, onClose }: { start: SignalementSt
   const [detailShown, setDetailShown] = useState(false);
   const length = text.trim().length;
   const textSize = textSizeOf(fontScale);
-  const version = Constants.expoConfig?.version;
-  const device = `${Platform.OS === "ios" ? "iOS" : Platform.OS === "android" ? "Android" : Platform.OS} ${Platform.Version}`;
+  const sentFrom = appDevice();
+  const version = sentFrom?.version;
+  const device = sentFrom ? `${sentFrom.system} ${sentFrom.systemVersion}` : null;
 
   async function send() {
     if (working) return;
@@ -61,7 +64,8 @@ export function SignalementForm({ start, path, onClose }: { start: SignalementSt
     setProblem(null);
     const context = { message: text, path, textSize };
     const body = question ? { type: "question", ...context, attachedQuestion: question.question, attachedCoachReply: question.coachReply } : { type: kind, ...context };
-    const response = await api.fetch("/api/signalements", { method: "POST", body: JSON.stringify(body) }).catch(() => null);
+    const headers = sentFrom ? { [APP_DEVICE_HEADER]: appDeviceHeader(sentFrom) } : undefined;
+    const response = await api.fetch("/api/signalements", { method: "POST", body: JSON.stringify(body), ...(headers ? { headers } : {}) }).catch(() => null);
     setWorking(false);
     if (response?.ok) setSent(true);
     else setProblem(response?.status === 429 ? "tooMany" : "failed");
@@ -138,7 +142,7 @@ export function SignalementForm({ start, path, onClose }: { start: SignalementSt
             {question ? <Detail label={t("signalement.question.coachReply")} value={question.coachReply} /> : null}
             <Detail label={t("signalement.detail.page")} value={path} />
             {version ? <Detail label={t("signalement.detail.version")} value={version} /> : null}
-            <Detail label={t("mobile.signalement.device")} value={device} />
+            {device ? <Detail label={t("mobile.signalement.device")} value={device} /> : null}
             <Detail label={t("signalement.detail.language")} value={t(`languages.${i18n.language === "en" ? "en" : "fr"}`)} />
             <Detail label={t("signalement.detail.textSize")} value={t(`textSize.${textSize}`)} />
           </View>

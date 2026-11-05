@@ -1,3 +1,4 @@
+import { APP_DEVICE_HEADER } from "@jobhub/shared";
 import { createApi } from "../api/api";
 
 /**
@@ -97,6 +98,7 @@ export function fakeCoachWeb({
   const streams: { stream: StreamedReply; body: Record<string, unknown> }[] = [];
   const asked: Record<string, unknown>[] = [];
   const signalements: Record<string, unknown>[] = [];
+  const signalementDevices: (string | null)[] = [];
   const requests: { method: string; path: string; body: unknown }[] = [];
   const cards = new Map<string, Record<string, unknown>>();
   let next = 0;
@@ -179,6 +181,7 @@ export function fakeCoachWeb({
     }
     if (pathname === "/api/signalements" && method === "POST") {
       signalements.push(body!);
+      signalementDevices.push(new Headers(init.headers).get(APP_DEVICE_HEADER));
       return Response.json({ signalement: { id: `s${signalements.length}` } }, { status: 201 });
     }
     if (method === "GET" && pathname in reads) return Response.json(reads[pathname]);
@@ -196,6 +199,8 @@ export function fakeCoachWeb({
     fetch,
     asked,
     signalements,
+    /** What each Signalement stated of the app's version and system (APP_DEVICE_HEADER), null for nothing. */
+    signalementDevices,
     requests,
     saved,
     /** A conversation saved on the web meanwhile. */

@@ -154,7 +154,9 @@ const tokensOf = (step: ProvenanceStep) => (step.kind === "ai" && step.tokens ? 
  * starts it; none for a Free conversation; `inView`, what goes with each message as the page's object; `introduction`,
  * what the page says after the AI disclosure in its first message (the Introduction); `card`, the menu's content as a card
  * in the thread after it (the list of Applications), which stays; `suggestions`, shown above the box while nothing is sent
- * (the Quick actions, an object's suggestions).
+ * (the Quick actions, an object's suggestions); `lead`, the page's own view before the thread, the conversation following
+ * it with its box at the foot (Recherches d'offres' Offer box, ADR-0090): a restored conversation then stays on it rather
+ * than scrolling to its latest message, until a message is sent.
  */
 export type PagePlacement = {
   conversationId: string | null;
@@ -163,6 +165,7 @@ export type PagePlacement = {
   introduction?: ReactNode;
   card?: ReactNode;
   suggestions?: ReactNode;
+  lead?: ReactNode;
 };
 
 /** « Réponse arrêtée » (#328), in light red, with the tokens and time the stopped reply had spent: no confirmation, no reply saved. */
@@ -421,14 +424,16 @@ export function CoachConversationPage(page: PagePlacement) {
 
   // The thread scrolls in its own column, down to its latest message when the box at its foot hides it, and a reply that
   // just arrived from its first line (thread-scroll.ts). Nothing sent yet, it stays at its top, on its Introduction.
+  // Under a page's own view (`lead`), only what is sent here brings the thread down.
+  const sentHere = useRef(false);
   useEffect(() => {
     const end = messagesEnd.current;
-    if (!end || messages.length === 0) return;
+    if (!end || messages.length === 0 || (page.lead && !sentHere.current)) return;
     // The latest reply, finished or still being written, is never scrolled past its first line.
     const reply = messages.at(-1)?.from === "coach" ? (end.parentElement?.querySelector(".coach-panel-messages > li:last-child") ?? null) : null;
     showLatest({ end, foot: foot.current, reply });
     // While the reply is on its way, its steps (and its words) lengthen the thread: it follows them down.
-  }, [messages, status, live]);
+  }, [messages, status, live, page.lead]);
 
   // A reply whose words come one by one (#788) is busy until its last word and what follows it are there.
   const revealing = messages.findIndex((message) => message.from === "coach" && message.revealing !== undefined);
@@ -450,6 +455,7 @@ export function CoachConversationPage(page: PagePlacement) {
   /** Sends `text`, the box's or a suggestion's, and shows the reply as it comes. */
   async function sendMessage(text: string) {
     if (!text || status === "sending" || restoring) return;
+    sentHere.current = true;
     const before = messages;
     const current = conversation;
     // What the reply is about, as the server keeps it: counted with that page in AI Activity.
@@ -655,6 +661,7 @@ export function CoachConversationPage(page: PagePlacement) {
           }
         }}
       >
+        {page.lead}
         <div className="page-conversation-thread">
           <h3 className="visually-hidden">{conversationTitle}</h3>
           {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}

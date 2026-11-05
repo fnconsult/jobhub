@@ -23,6 +23,7 @@
  */
 import { matchScoreReliability, scoreMatch, type ArrivalSource, type JobOffer, type MatchScore } from "@jobhub/shared";
 import type { Pool } from "pg";
+import { utcBefore } from "../database/before";
 import type { Queryable } from "../database/pool";
 import { visibleTo, type JobOffers } from "../job-offers";
 import type { Profiles } from "../profiles";
@@ -188,7 +189,7 @@ export async function backfillOfferBox(database: Queryable, now: Date): Promise<
 
 /** Deletes the entries whose first Arrival is OFFER_BOX_RETENTION_MONTHS old. Returns how many. */
 export async function purgeExpiredOfferBoxEntries(database: Queryable, now: Date): Promise<number> {
-  const { rowCount } = await database.query(`DELETE FROM offer_box_entry WHERE first_arrival_at < $1::timestamptz - make_interval(months => $2)`, [now, OFFER_BOX_RETENTION_MONTHS]);
+  const { rowCount } = await database.query(`DELETE FROM offer_box_entry WHERE first_arrival_at < ${utcBefore("$1", "make_interval(months => $2)")}`, [now, OFFER_BOX_RETENTION_MONTHS]);
   return rowCount ?? 0;
 }
 

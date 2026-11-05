@@ -12,4 +12,6 @@ Vos Job Digests y sont listés dans une carte, par profil : sa fréquence, que v
 
 Seules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.
 
+Votre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.
+
 Dans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page.

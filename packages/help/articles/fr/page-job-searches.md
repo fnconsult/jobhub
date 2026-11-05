@@ -14,4 +14,6 @@ Vos recherches y sont listées dans la carte « Vos recherches par profil » : q
 
 Chaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.
 
+Votre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise, par exemple « 1 recherche sur 5 cette semaine » ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.
+
 Dans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page.

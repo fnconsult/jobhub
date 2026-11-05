@@ -5772,7 +5772,9 @@
       "interview": "Entretien",
       "application": "Candidature",
       "applicationProfile": "Profil de la candidature",
-      "followUpSent": "Relance envoyée"
+      "followUpSent": "Relance envoyée",
+      "profileStatus": "Statut du profil",
+      "coachMemory": "À retenir"
     },
     "interview": {
       "none": "Aucun",
@@ -5805,6 +5807,17 @@
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
       "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
       "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page."
+    },
+    "masterCv": {
+      "version": "Version {{version}}",
+      "changes_one": "{{count}} changement à relire",
+      "changes_other": "{{count}} changements à relire"
+    },
+    "coachMemory": {
+      "before": "Pas encore retenu"
+    },
+    "quota": {
+      "profile": "Utilise un profil actif de votre forfait"
     }
   },
   "coachProposalsDisplay": {

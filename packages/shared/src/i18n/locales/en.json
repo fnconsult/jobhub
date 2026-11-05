@@ -5772,7 +5772,9 @@
       "interview": "Interview",
       "application": "Application",
       "applicationProfile": "Application's profile",
-      "followUpSent": "Follow-up sent"
+      "followUpSent": "Follow-up sent",
+      "profileStatus": "Profile status",
+      "coachMemory": "To remember"
     },
     "interview": {
       "none": "None",
@@ -5805,6 +5807,17 @@
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
       "invalid": "What you entered does not fit: check the form.",
       "failed": "The proposal could not be processed. Try again or reload the page."
+    },
+    "masterCv": {
+      "version": "Version {{version}}",
+      "changes_one": "{{count}} change to review",
+      "changes_other": "{{count}} changes to review"
+    },
+    "coachMemory": {
+      "before": "Not remembered yet"
+    },
+    "quota": {
+      "profile": "Uses one active profile of your plan"
     }
   },
   "coachProposalsDisplay": {

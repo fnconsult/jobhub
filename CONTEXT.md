@@ -746,6 +746,14 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
 _Avoid_: Mobile site, PWA, native client
 
+**App WebView page**:
+A web page shown inside the Jobbbox app, recognised by `JobbboxApp/` in its user agent (ADR-0084). It has no Sidebar, and the subscription page shows the Plan and its use with « Gérer mon abonnement sur jobbbox.ai » opening in the system browser, never a price, a Plan comparison, a promotion code or the Stripe customer portal; an Order page sends back to the subscription or to the Human Coaches. Only the web app's own pages stay in the app; any other address opens in the system browser.
+_Avoid_: Mobile site, embedded page
+
+**Legal steps**:
+The Jobbbox app's native screens after sign-in, inside the app lock, in this order: the CGU Acceptance (full text, a box never ticked, « Accepter et continuer »; until then only Mes données and the subscription open), the Privacy change notice (« J'ai compris »), and the EU AI Consent when missing (« Donner mon accord » or « Plus tard », which holds until the next launch). They record through the same API as the web. If they cannot be read, the app goes on, as the web does.
+_Avoid_: Onboarding, consent screen
+
 **App settings** (« Réglages de l'app »):
 The device's own settings in the Jobbbox app, at the foot of the drawer below Mon compte, which holds the account's settings. Kept on that device only, never restored onto another and never sent to Jobbbox; the web app has no such page.
 _Avoid_: Preferences (that is Mon compte's Préférences)
@@ -926,6 +934,9 @@ _Avoid_: Counsel review, lawyer review, validation
 **Acceptance**:
 A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof. Only the CGU and the CGV are accepted: the privacy policy and the legal notice are information, never accepted. A Guest ticks the short CGU in the extension, held only in the Guest session. The CGV are accepted on the Order page, kept with the Order's Checkout Session and its Immediate Performance Request. In the Data export while the account lives; after the Account deletion, kept under a pseudonym with no email and no name, 5 years (CGU) or 10 years (CGV) from the day of deletion (ADR-0073).
 _Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
+
+**Acceptance origin**:
+Where an Acceptance was made: `web` or `mobile` (the Jobbbox app's Legal steps). Kept with the Acceptance and in the Data export.
 
 ### Operations
 

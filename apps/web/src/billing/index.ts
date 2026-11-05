@@ -385,6 +385,12 @@ type QuotaRow = Record<(typeof COLUMNS)[keyof PlanQuotas], unknown>;
 
 type CoachContextRow = { coach_context_messages: number | null; coach_context_tokens: number | null };
 
+/** Whether `other` allows more of either Coach context limit than `current` (null: unlimited, more than any number). */
+export function allowsMoreCoachContext(current: CoachContextLimits, other: CoachContextLimits): boolean {
+  const more = (mine: number | null, theirs: number | null) => mine !== null && (theirs === null || theirs > mine);
+  return more(current.coachContextMessages, other.coachContextMessages) || more(current.coachContextTokens, other.coachContextTokens);
+}
+
 /** A Plan's Coach context limits from its `plan_coach_context` row: DEFAULT_COACH_CONTEXT_LIMITS when it has none (ADR-0078). */
 function coachContextFromRow(row: CoachContextRow | undefined): CoachContextLimits {
   return row ? { coachContextMessages: row.coach_context_messages, coachContextTokens: row.coach_context_tokens } : { ...DEFAULT_COACH_CONTEXT_LIMITS };
@@ -1049,6 +1055,14 @@ export function createBilling(config: BillingConfig) {
   }
 
   /** The lowest-ranked offered Plan above `plan` whose quotas `allow` what was asked; null when none. */
+  async function allCoachContextLimits(): Promise<Record<Plan, CoachContextLimits>> {
+    const { rows } = await database.query<{ plan: Plan; stored: CoachContextRow | null }>(
+      `SELECT q.plan, CASE WHEN c.plan IS NULL THEN NULL ELSE to_jsonb(c) END AS stored
+         FROM plan_quota q JOIN plan p ON p.key = q.plan LEFT JOIN plan_coach_context c ON c.plan = q.plan ORDER BY p.rank`,
+    );
+    return Object.fromEntries(rows.map((row) => [row.plan, coachContextFromRow(row.stored ?? undefined)]));
+  }
+
   async function upgradeFor(plan: Plan, allow: (quotas: PlanQuotas) => boolean): Promise<PlanDefinition | null> {
     const [plans, quotas] = await Promise.all([listPlans(database), allPlanQuotas()]);
     const rank = plans.find((candidate) => candidate.key === plan)?.rank ?? 0;
@@ -1680,12 +1694,21 @@ export function createBilling(config: BillingConfig) {
     planQuotas: allPlanQuotas,
 
     /** Every Plan's Coach context limits (ADR-0078), lowest rank first: DEFAULT_COACH_CONTEXT_LIMITS for a Plan with none stored. */
-    async coachContextLimits(): Promise<Record<Plan, CoachContextLimits>> {
-      const { rows } = await database.query<{ plan: Plan; stored: CoachContextRow | null }>(
-        `SELECT q.plan, CASE WHEN c.plan IS NULL THEN NULL ELSE to_jsonb(c) END AS stored
-           FROM plan_quota q JOIN plan p ON p.key = q.plan LEFT JOIN plan_coach_context c ON c.plan = q.plan ORDER BY p.rank`,
-      );
-      return Object.fromEntries(rows.map((row) => [row.plan, coachContextFromRow(row.stored ?? undefined)]));
+    coachContextLimits: allCoachContextLimits,
+
+    /**
+     * The Plan the Context bar names once it is nearly full (ADR-0078), as an Upgrade Prompt would: the lowest-ranked offered
+     * Plan above `plan` whose Coach context limits allow more messages or a larger context; null on the highest, or when none does.
+     */
+    async coachContextUpgrade(plan: Plan): Promise<{ plan: Plan; name: PlanName } | null> {
+      const [plans, limits] = await Promise.all([listPlans(database), allCoachContextLimits()]);
+      const rank = plans.find((each) => each.key === plan)?.rank ?? 0;
+      const current = limits[plan] ?? DEFAULT_COACH_CONTEXT_LIMITS;
+      const higher = plans
+        .filter((each) => each.status === "offered" && each.rank > rank)
+        .sort((a, b) => a.rank - b.rank)
+        .find((each) => allowsMoreCoachContext(current, limits[each.key] ?? DEFAULT_COACH_CONTEXT_LIMITS));
+      return higher ? { plan: higher.key, name: higher.name } : null;
     },
 
     /**

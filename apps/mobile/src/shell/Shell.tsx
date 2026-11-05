@@ -13,8 +13,11 @@ import { disposition, type Disposition, type PaneKind, type ShownPane } from "./
 /** The page the shell shows: its address (a new one closes what the last page had open), its title, its column. */
 export type ShellPage = { key: string; title: string; pane: PaneKind | null };
 
-/** What the Work Pane shows: one item at a time (ADR-0070), a Section, a Result, a Help Article or a form. */
-export type WorkPaneItem = { title: string; content: ReactNode };
+/**
+ * What the Work Pane shows: one item at a time (ADR-0070), a Section, a Result, a Help Article or a form. `fill`: the
+ * content takes the pane's whole height and scrolls itself (a web page), rather than scrolling in the pane.
+ */
+export type WorkPaneItem = { title: string; content: ReactNode; fill?: boolean };
 
 const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void }>({ open: () => {} });
 
@@ -93,6 +96,7 @@ export function Shell({
   const workPane = useMemo(() => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })) }), []);
   const paneTitle = (pane: ShownPane) => (pane === "workPane" ? (state.workPane?.title ?? "") : t(pane === "fiche" ? "fiche.label" : "fiche.activity"));
   const paneBody = (pane: ShownPane) => (pane === "workPane" ? state.workPane?.content : paneContent);
+  const fills = (pane: ShownPane) => pane === "workPane" && state.workPane?.fill === true;
 
   return (
     <WorkPaneContext.Provider value={workPane}>
@@ -127,7 +131,7 @@ export function Shell({
             {layout.panes === "columns"
               ? // The Work Pane beside the conversation, the Fiche after it (as on the web).
                 [...layout.shown].reverse().map((pane) => (
-                  <Column key={pane} layout={layout} pane={pane} title={paneTitle(pane)} onClose={pane === "workPane" ? () => close(pane) : null}>
+                  <Column key={pane} layout={layout} pane={pane} title={paneTitle(pane)} fill={fills(pane)} onClose={pane === "workPane" ? () => close(pane) : null}>
                     {paneBody(pane)}
                   </Column>
                 ))
@@ -135,7 +139,7 @@ export function Shell({
           </View>
         </View>
         {fullPages.map((pane) => (
-          <FullPage key={pane} title={paneTitle(pane)} covered={pane !== top} onClose={() => close(pane)}>
+          <FullPage key={pane} title={paneTitle(pane)} covered={pane !== top} fill={fills(pane)} onClose={() => close(pane)}>
             {paneBody(pane)}
           </FullPage>
         ))}
@@ -177,8 +181,28 @@ function PaneHeader({ title, onClose }: { title: string; onClose: (() => void) |
   );
 }
 
+/** A pane's content: scrolling in the pane, or filling it (`fill`) when it scrolls itself. */
+function PaneBody({ fill, children }: { fill: boolean; children: ReactNode }) {
+  if (fill) return <View style={{ flex: 1, padding: space[4], paddingTop: 0 }}>{children}</View>;
+  return <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>;
+}
+
 /** A pane beside the conversation, from 64rem. */
-function Column({ layout, pane, title, onClose, children }: { layout: Disposition; pane: ShownPane; title: string; onClose: (() => void) | null; children: ReactNode }) {
+function Column({
+  layout,
+  pane,
+  title,
+  fill,
+  onClose,
+  children,
+}: {
+  layout: Disposition;
+  pane: ShownPane;
+  title: string;
+  fill: boolean;
+  onClose: (() => void) | null;
+  children: ReactNode;
+}) {
   const { colors } = useTheme();
   return (
     <View
@@ -191,13 +215,13 @@ function Column({ layout, pane, title, onClose, children }: { layout: Dispositio
       }}
     >
       <PaneHeader title={title} onClose={onClose} />
-      <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>
+      <PaneBody fill={fill}>{children}</PaneBody>
     </View>
   );
 }
 
 /** A pane over the page and its Top Bar, below 64rem: its title and « Fermer » (ADR-0070). */
-function FullPage({ title, covered, onClose, children }: { title: string; covered: boolean; onClose: () => void; children: ReactNode }) {
+function FullPage({ title, covered, fill, onClose, children }: { title: string; covered: boolean; fill: boolean; onClose: () => void; children: ReactNode }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
@@ -207,7 +231,7 @@ function FullPage({ title, covered, onClose, children }: { title: string; covere
       style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <PaneHeader title={title} onClose={onClose} />
-      <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>
+      <PaneBody fill={fill}>{children}</PaneBody>
     </View>
   );
 }

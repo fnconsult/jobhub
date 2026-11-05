@@ -1,6 +1,6 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { apiVersionRefusal, underApiContract } from ".";
+import { apiVersionRefusal, fromJobbboxApp, underApiContract } from ".";
 
 const EXTENSION = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 const STORE = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
@@ -98,6 +98,12 @@ describe("the API Version's guard (#564)", () => {
 
     it("ignores a client header naming no client it knows", () => {
       expect(underApiContract("/api/applications", headers({ [API_CLIENT_HEADER]: "desktop" }))).toBe(false);
+    });
+
+    it("tells the app's request from the web's, which an Acceptance records as its origin (#689)", () => {
+      expect(fromJobbboxApp(headers(app(String(API_VERSION))))).toBe(true);
+      expect(fromJobbboxApp(headers({ origin: "https://jobbbox.ai" }))).toBe(false);
+      expect(fromJobbboxApp(headers({ [API_CLIENT_HEADER]: "desktop" }))).toBe(false);
     });
   });
 });

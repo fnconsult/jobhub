@@ -60,6 +60,18 @@ describe("EAS Build profiles", () => {
     expect(json("apps", "mobile", "app.json").expo.extra?.webOrigin).toBeUndefined();
   });
 
+  // The @sentry/react-native config plugin (#703) uploads a release build's source maps and debug files to Sentry from
+  // Xcode (scripts/sentry-xcode.sh, sentry-xcode-debug-files.sh) and Gradle (sentry.gradle.kts); without SENTRY_AUTH_TOKEN,
+  // SENTRY_ORG and SENTRY_PROJECT the upload fails and fails the build. Debug builds (development) skip it on their own.
+  it("build a store release without Sentry's credentials: the source maps upload stays off until the Sentry project exists (#703)", () => {
+    for (const name of ["staging", "production"]) {
+      // The scripts compare the value with the string `true`.
+      expect({ name, upload: eas.build[name].env.SENTRY_DISABLE_AUTO_UPLOAD }).toEqual({ name, upload: "true" });
+    }
+    const doc = read("docs", "ops", "mobile.md");
+    for (const words of ["SENTRY_DISABLE_AUTO_UPLOAD", "SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"]) expect(doc).toContain(words);
+  });
+
   it("points production at jobbbox.ai, on the stores' production track", () => {
     expect(eas.build.production).toMatchObject({ distribution: "store", channel: "production" });
     expect(eas.build.production.env.EXPO_PUBLIC_WEB_APP_URL).toBe("https://jobbbox.ai");

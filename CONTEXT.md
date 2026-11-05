@@ -120,7 +120,7 @@ A Coach Conversation with no object or menu as its Subject, started from « Nouv
 _Avoid_: General chat, scratch conversation
 
 **Coach Memory**:
-The key facts (goals, constraints, decisions) the AI Coach keeps about a Candidate across Coach Conversations. The AI Coach proposes them from a Coach Conversation; an item is saved only once the Candidate confirms it, one by one. The Candidate sees, edits and deletes items from « Mémoire du coach » under « Coach » in the Sidebar, opened in the Work Pane. At most 30 items of 300 characters each. Sent with every AI Coach message. Kept when a Coach Conversation is deleted; deleted with the account. Human Coaches never see it. In the Data export.
+The key facts (goals, constraints, decisions) the AI Coach keeps about a Candidate across Coach Conversations. The AI Coach proposes them from a Coach Conversation; an item is saved only once the Candidate confirms it, one by one. The Candidate sees, edits and deletes items from « Mémoire du coach » under « Coach » in the Sidebar, opened in the Work Pane. At most 30 items of 300 characters each. While Coach Actions are on, the AI Coach proposes them as Action Cards, one fact per card, instead of the « Que retenir de cette conversation ? » button; « Annuler » forgets the fact if the Candidate has not edited it. A card about it has no page to link to (#719). Sent with every AI Coach message. Kept when a Coach Conversation is deleted; deleted with the account. Human Coaches never see it. In the Data export.
 _Avoid_: Profile notes, chat history
 
 **Coach Message Cost**:
@@ -142,7 +142,7 @@ A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées"
 _Avoid_: Notification, suggestion, prompt
 
 **Coach Action**:
-What the AI Coach calls during a reply, by tool calling (ADR-0077): Jobbbox's own code, never an AI call, that reads one of the Candidate's objects or proposes to create or change one as an Action Card. It never writes, never deletes (the AI Coach points to the page that offers it) and may find nothing to propose and say so without a card (e.g. the Job Offer is already saved), reaches only the Candidate's own objects, Archived Profiles and their Applications excluded, through the domain module the page's route uses. Each group of them is a Tool of the Routes locales category. While text the Candidate did not write is In view or came back from a read, only those that copy none of it are offered. Offered only while the feature flag `COACH_ACTIONS_ENABLED` is on, within `COACH_TOOL_ROUNDS_MAX` rounds; never to a Guest.
+What the AI Coach calls during a reply, by tool calling (ADR-0077): Jobbbox's own code, never an AI call, that reads one of the Candidate's objects or proposes to create or change one as an Action Card. It never writes, never deletes (the AI Coach points to the page that offers it) and reaches only the Candidate's own objects, Archived Profiles and their Applications excluded, through the domain module the page's route uses. Each group of them is a Tool of the Routes locales category. While text the Candidate did not write is In view or came back from a read, only those that copy none of it are offered. An action may refuse a proposal and tell the AI Coach why (e.g. a Master CV item or figure the Master CV does not hold), so it explains instead of proposing. A change to the Master CV is never applied in one click: the Candidate reviews it change by change and the accepted ones are sent explicitly, never inferred (#719). Offered only while the feature flag `COACH_ACTIONS_ENABLED` is on, within `COACH_TOOL_ROUNDS_MAX` rounds; never to a Guest.
 _Avoid_: Tool call, function, command, agent action
 
 **Propositions du coach (setting)**:
@@ -227,7 +227,7 @@ The reference CV of a Profile, from which every Tailored CV is derived. Versione
 _Avoid_: Base CV, main CV, original CV
 
 **Master CV Version**:
-One saved state of a Master CV, numbered from 1. Saving without changes creates none.
+One saved state of a Master CV, numbered from 1. Saving without changes creates none. Keeps its Origin when it came from a Coach proposal applied by the Candidate, shown by « Origine » in the version history (#719).
 _Avoid_: Revision, snapshot, draft
 
 **Save bar**:
@@ -247,7 +247,7 @@ Downloading an Application's saved Tailored CV or Cover Letter as a PDF or Word 
 _Avoid_: Download, print
 
 **Search Criteria**:
-The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five, entered as chips: chosen from Place suggestions or typed, kept as text, two being the same when they match without case or accents), contract types, remote-work options, Sectors, Subsectors and Domains (kept as codes); none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. Sectors, Subsectors and Domains steer Job discovery only: the Match Score does not compare them. Search Criteria saved or sent before they existed read as none chosen. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored.
+The job-search parameters of a Profile: one target role, one minimum salary, and any number of locations (up to five, entered as chips: chosen from Place suggestions or typed, kept as text, two being the same when they match without case or accents), contract types, remote-work options, Sectors, Subsectors and Domains (kept as codes); none chosen means no preference. A Job Offer meets a criterion as soon as it meets one of its values. Sectors, Subsectors and Domains steer Job discovery only: the Match Score does not compare them. Search Criteria saved or sent before they existed read as none chosen. The Candidate can change them on an active Profile, each change saving as soon as it is made; this never renames the Profile, and Match Scores and Tailored CVs already kept are not recomputed. An Archived Profile's Search Criteria are read-only until it is restored. They carry a version (an id taken from their content) so a Coach proposal is refused as a conflict if they changed since, and keep their Origin like a Master CV Version.
 _Avoid_: Filters, preferences
 
 **Sector**:

@@ -14,6 +14,8 @@ export interface CoachProposalCard {
   change: Omit<ProposedChange, "version">;
   /** What the Candidate edited before applying it. */
   edited?: Record<string, string>;
+  /** A reviewed proposal (a Master CV change, #719): the ids of the changes the Candidate accepted with it. */
+  accepted?: string[];
   /** When it was applied or dismissed, an ISO date. */
   decidedAt?: string;
   /** When « Annuler » put the state before back, an ISO date. */

@@ -6,7 +6,7 @@ import { pendingSessionGate } from "../two-step-verification/gate";
 import { createTwoStepVerification } from "../two-step-verification/index";
 import { createPendingSessions } from "../two-step-verification/pending-sessions";
 import { totpAt } from "../two-step-verification/totp";
-import { BASE_URL, connectionString, cookiesFrom, linkIn, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
+import { BASE_URL, codeIn, connectionString, cookiesFrom, linkIn, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
 
 /** What the native app's requests carry instead of an Origin (@better-auth/expo's client, ADR-0076). */
 const FROM_APP = { "expo-origin": APP_ORIGIN };
@@ -57,6 +57,17 @@ describe.skipIf(!connectionString)("the native app's session (needs Postgres: DA
     const cookie = await appSignsIn("marie.dupont@example.fr");
 
     const current = await sessionOf(cookie);
+    expect(current?.user.email).toBe("marie.dupont@example.fr");
+    expect(current?.session.signInMethod).toBe("magic-link");
+  });
+
+  it("signs the app in by the email's code, typed in the app (#686)", async () => {
+    await appAsksLink("marie.dupont@example.fr");
+
+    const signedIn = await testAuth.request("/api/auth/sign-in/email-otp", { body: { email: "marie.dupont@example.fr", otp: codeIn(testAuth.mailbox[0]) }, headers: FROM_APP });
+
+    expect(signedIn.status).toBe(200);
+    const current = await sessionOf(cookiesFrom(signedIn));
     expect(current?.user.email).toBe("marie.dupont@example.fr");
     expect(current?.session.signInMethod).toBe("magic-link");
   });

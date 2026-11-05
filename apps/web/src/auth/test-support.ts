@@ -87,6 +87,21 @@ export function linkIn(message: MailMessage | undefined): string {
   return match[0];
 }
 
+/** The 6-digit sign-in code inside an email body (#686), beside its link. */
+export function codeIn(message: MailMessage | undefined): string {
+  const match = message?.text.match(/(?<![\d/:.])\d{6}(?!\d)/);
+  if (!match) throw new Error(`no code in email: ${message?.text}`);
+  return match[0];
+}
+
+/** Asks the sign-in email for `email`, as the sign-in page does, and returns it. */
+export async function askSignInEmail(testAuth: TestAuth, email: string): Promise<MailMessage> {
+  const before = testAuth.mailbox.length;
+  const sent = await testAuth.request("/api/auth/sign-in/magic-link", { body: { email, callbackURL: "/" } });
+  if (!sent.ok) throw new Error(`magic link request failed: ${sent.status} ${await sent.text()}`);
+  return testAuth.mailbox[before]!;
+}
+
 /** Cookie header to send back, built from a response's Set-Cookie headers. */
 export function cookiesFrom(response: Response): string {
   return response.headers

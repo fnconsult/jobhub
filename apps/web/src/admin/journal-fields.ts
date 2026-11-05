@@ -59,6 +59,8 @@ export function journalFieldName(t: TFunction, section: BackOfficeSection, field
   if (section === "plan_quotas" && (LIMITED_QUOTAS.includes(field as LimitedQuota) || field === "jobDigest")) {
     return t(`billing.quotas.${field as LimitedQuota | "jobDigest"}`);
   }
+  if (section === "plan_quotas" && field === "coachContextMessages") return t("admin.planQuotas.coachContext.messages");
+  if (section === "plan_quotas" && field === "coachContextTokens") return t("admin.planQuotas.coachContext.tokens");
   if ((section === "plan_quotas" || section === "plans") && REDUCTION_FIELDS.includes(field as ReductionField)) return t(`admin.quotaReductions.journalFields.${field as ReductionField}`);
   if (section === "plans" && field === "reason") return t("admin.quotaReductions.journalFields.reason");
   if (section === "plan_quotas" && (field === "reason" || field === "candidates")) return t(`admin.planQuotas.reset.journalFields.${field}`);

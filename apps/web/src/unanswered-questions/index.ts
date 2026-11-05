@@ -27,6 +27,7 @@ import type { Pool } from "pg";
 import type { CoachReplyOutcome } from "../coach";
 import { helpLocale, helpSuggestions } from "../coach-help";
 import type { Queryable } from "../database/pool";
+import { utcBefore } from "../database/before";
 
 export const UNANSWERED_QUESTION_STATUSES = ["open", "written", "dismissed"] as const;
 export type UnansweredQuestionStatus = (typeof UNANSWERED_QUESTION_STATUSES)[number];
@@ -233,8 +234,8 @@ export function createUnansweredQuestions(database: Queryable, deps: UnansweredQ
 export async function purgeUnansweredQuestions(database: Queryable, now: Date): Promise<number> {
   const { rowCount } = await database.query(
     `DELETE FROM unanswered_question
-      WHERE last_asked_at <= $1::timestamptz - make_interval(months => $2)
-         OR (status <> 'open' AND status_changed_at <= $1::timestamptz - make_interval(days => $3))`,
+      WHERE last_asked_at <= ${utcBefore("$1", "make_interval(months => $2)")}
+         OR (status <> 'open' AND status_changed_at <= ${utcBefore("$1", "make_interval(days => $3)")})`,
     [now, RETENTION_MONTHS, MARKED_RETENTION_DAYS],
   );
   return rowCount ?? 0;

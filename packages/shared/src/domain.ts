@@ -69,6 +69,21 @@ export type JobDigestFrequency = (typeof JOB_DIGEST_FREQUENCIES)[number];
 /** The Plan Quotas of one Plan. A null limit means unlimited. */
 export type PlanQuotas = { [quota in LimitedQuota]: number | null } & { jobDigest: JobDigestFrequency };
 
+/**
+ * The Coach context limits of a Plan (ADR-0078): how many of the latest messages the AI Coach reads
+ * (`coachContextMessages`) and the ceiling of its context in estimated jetons (`coachContextTokens`).
+ * Sizes, not counters: no week, no Usage Meter, not Plan Quotas. A null limit means unlimited.
+ */
+export const COACH_CONTEXT_LIMITS = ["coachContextMessages", "coachContextTokens"] as const;
+export type CoachContextLimit = (typeof COACH_CONTEXT_LIMITS)[number];
+export type CoachContextLimits = { [limit in CoachContextLimit]: number | null };
+
+/** The Coach context limits of a Plan with none stored: what every Candidate had before they were Plan limits. */
+export const DEFAULT_COACH_CONTEXT_LIMITS = { coachContextMessages: 40, coachContextTokens: 12_000 } as const satisfies CoachContextLimits;
+
+/** What the Quotas page of the Back Office sets for one Plan: its Plan Quotas and its Coach context limits. */
+export type PlanLimits = PlanQuotas & CoachContextLimits;
+
 /** Contract types a Candidate can search for (French market). */
 export const CONTRACT_TYPES = ["cdi", "cdd", "freelance", "interim"] as const;
 export type ContractType = (typeof CONTRACT_TYPES)[number];

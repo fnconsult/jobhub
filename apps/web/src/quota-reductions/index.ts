@@ -1,5 +1,5 @@
 /**
- * Quota Reductions (CONTEXT.md, #514, ADR-0014 addendum): a Plan's quotas or Plan Features lowered on a paid Plan with
+ * Quota Reductions (CONTEXT.md, #514, ADR-0014 addendum): a Plan's quotas, Coach context limits (ADR-0078) or Plan Features lowered on a paid Plan with
  * subscribers wait at least NOTICE_DAYS, announced to each subscriber, who may cancel meanwhile and up to
  * RESOLUTION_DAYS_AFTER the effective date with a prorata refund (C. conso. L224-25-26).
  *
@@ -16,7 +16,7 @@
  *
  * An increase, and any change on Free or on a Plan nobody pays for, is not a Quota Reduction: it applies at once.
  */
-import { FREE_PLAN, type Plan, type PlanFeature, type PlanQuotas } from "@jobhub/shared";
+import { FREE_PLAN, type CoachContextLimits, type Plan, type PlanFeature, type PlanLimits, type PlanQuotas } from "@jobhub/shared";
 import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import type { BackOfficeChange } from "../admin/back-office";
@@ -262,18 +262,19 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
 
   return {
     /**
-     * Changes one Plan's quotas (Back Office), in `within`'s transaction: increases apply now; quotas it lowers on a
+     * Changes one Plan's quotas (Back Office), and its Coach context limits when `quotas` names them (ADR-0078), in `within`'s
+     * transaction: increases apply now; quotas and limits it lowers on a
      * Plan with paying subscribers wait for `notice`'s effective date, and each subscriber is told. Lowered on Free, or on
      * a Plan nobody pays for, everything applies now. Returns the quotas before, those applied now, and the reduction
      * scheduled (null when none).
      */
     async changeQuotas(
       plan: Plan,
-      quotas: PlanQuotas,
+      quotas: PlanQuotas & Partial<CoachContextLimits>,
       notice: ReductionNotice | null,
       within: Queryable,
       actor: { id: string; email: string },
-    ): Promise<{ ok: true; before: PlanQuotas; applied: PlanQuotas; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }> {
+    ): Promise<{ ok: true; before: PlanLimits; applied: PlanQuotas & Partial<CoachContextLimits>; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }> {
       const before = await deps.billing.lockPlanQuotas(plan, within);
       if (!before) return { ok: false, error: "unknown_plan" };
       // A quota a waiting Quota Reduction lowers keeps its amount until then: changed now, even raised, the reduction
@@ -282,8 +283,8 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
         "SELECT quotas FROM plan_quota_reduction WHERE plan = $1 AND cancelled_at IS NULL AND applied_at IS NULL",
         [plan],
       );
-      const held = waiting.flatMap((row) => Object.keys(row.quotas)) as (keyof PlanQuotas)[];
-      if (held.some((quota) => quotas[quota] !== before[quota])) return { ok: false, error: "reduction_pending" };
+      const held = waiting.flatMap((row) => Object.keys(row.quotas)) as (keyof PlanLimits)[];
+      if (held.some((quota) => quotas[quota] !== undefined && quotas[quota] !== before[quota])) return { ok: false, error: "reduction_pending" };
       const { now: raised, reduced } = splitQuotaChange(before, quotas);
       const subscribers = Object.keys(reduced).length > 0 ? await deps.billing.subscribersOf(plan, within) : [];
       if (plan === FREE_PLAN || subscribers.length === 0) {
@@ -392,11 +393,11 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
             break;
           }
           const changes: BackOfficeChange[] = [];
-          const lowered = Object.entries(due.quotas) as [keyof PlanQuotas, { after: unknown }][];
+          const lowered = Object.entries(due.quotas) as [keyof PlanLimits, { after: unknown }][];
           if (lowered.length > 0) {
             const current = await deps.billing.lockPlanQuotas(due.plan, client);
             if (current) {
-              const after = { ...current, ...Object.fromEntries(lowered.map(([quota, step]) => [quota, step.after])) } as PlanQuotas;
+              const after = { ...current, ...Object.fromEntries(lowered.map(([quota, step]) => [quota, step.after])) } as PlanLimits;
               await deps.billing.setPlanQuotas(due.plan, after, client);
               changes.push({ section: "plan_quotas", target: due.plan, action: "applied", before: { ...current }, after: { ...after, reduction: due.id } });
             }

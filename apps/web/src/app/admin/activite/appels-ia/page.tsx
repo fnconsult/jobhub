@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
 import { MESSAGE_LOG_RETENTION_DAYS } from "@/ai-usage";
-import { AI_TASKS, aiMessageLogFilter, LIST_LIMIT } from "@/ai-usage/message-log";
+import { AI_TASKS, aiMessageLogFilter, LIST_LIMIT, type ContextMeasure } from "@/ai-usage/message-log";
 import { getAiMessageLogs } from "@/ai-usage/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { buttonClass } from "@/design/button-class";
@@ -24,6 +24,14 @@ type Task = AiTask;
 /** How a call ended, as its status dot says it beside its words (#465). */
 const OUTCOME_TONE: Record<Outcome, StatusTone> = { ok: "success", warning: "warn", failed: "danger" };
 
+/** An AI Coach reply's estimate against the provider's count, and the gap, signed and as a share of the estimate: « 4 100 / 4 520 (+420, +10 %) ». */
+function contextFigures({ estimate, measure, gap }: ContextMeasure, locale: string): { estimate: string; measure: string; gap: string } {
+  const count = new Intl.NumberFormat(locale);
+  const signed = new Intl.NumberFormat(locale, { signDisplay: "exceptZero" });
+  const share = new Intl.NumberFormat(locale, { style: "percent", signDisplay: "exceptZero", maximumFractionDigits: 0 });
+  return { estimate: count.format(estimate), measure: count.format(measure), gap: estimate > 0 ? `${signed.format(gap)}, ${share.format(gap / estimate)}` : signed.format(gap) };
+}
+
 /** This tab of Activité (#404). */
 const TAB: ActivityTabId = "aiMessages";
 /** The filter fields of a run's calls (#404), kept as the other filters change. */
@@ -40,7 +48,9 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Activité › Appels IA (formerly Journaux IA, #404): super-admins find an AI Message Log (#218): newest first, filtered by task, model, Candidate
  * email, day, Outcome and Failure Reason (#259), a warning's code too (#260). The list shows no text, only how each
- * call ended and why; opening a log writes the view to the Back Office Audit.
+ * call ended and why; opening a log writes the view to the Back Office Audit. A call that wrote an AI Coach reply shows the
+ * reply's estimate of its context against the provider's count, with the gap (ADR-0078, #731), to correct the estimate by
+ * provider and model.
  */
 export default async function AiMessagesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { access } = await requireBackOffice("aiMessages");
@@ -123,6 +133,10 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
                 { header: t("admin.aiMessages.task"), cell: (log) => (AI_TASKS.includes(log.task) ? t(`admin.aiUsage.tasks.${log.task as Task}`) : log.task) },
                 { header: t("admin.aiMessages.provider"), cell: (log) => (log.provider ? `${log.provider} ${log.model ?? ""}` : t("admin.aiMessages.noProvider")) },
                 { header: t("admin.aiMessages.candidate"), cell: (log) => log.candidate?.email ?? t("admin.aiMessages.noCandidate") },
+                {
+                  header: t("admin.aiMessages.context"),
+                  cell: (log) => (log.context ? t("admin.aiMessages.contextValue", contextFigures(log.context, locale)) : t("admin.aiMessages.noContext")),
+                },
                 {
                   header: t("admin.aiMessages.result"),
                   cell: (log) => (

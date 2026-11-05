@@ -5,7 +5,7 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), the CGU and CGV versions they accepted, Plan and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), the « Propositions du coach » setting (#717), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), the CGU and CGV versions they accepted, Plan (with its Coach context limits) and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), the « Propositions du coach » setting (#717), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
@@ -26,7 +26,18 @@
  *    Candidate (ADR-0049) is theirs alone: it goes with them.
  */
 import { failureReasonWording } from "@jobhub/shared/i18n";
-import { isFailureReason, readProvenance, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
+import {
+  DEFAULT_COACH_CONTEXT_LIMITS,
+  FREE_PLAN,
+  isFailureReason,
+  readProvenance,
+  type CoachContextLimits,
+  type FailureReason,
+  type Outcome,
+  type Plan,
+  type Provenance,
+  type SearchCriteria,
+} from "@jobhub/shared";
 import type { Pool } from "pg";
 import { acceptancesOf, type ExportedAcceptance } from "../acceptances";
 import type { ActionCard } from "../action-cards";
@@ -55,6 +66,7 @@ import { ordersOf, type ExportedOrder } from "../orders";
 import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
 import { twoStepStatusOf, type TwoStepStatus } from "../two-step-verification";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
+import type { Origin } from "../origin";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
 export interface ExportedProfile {
@@ -62,7 +74,9 @@ export interface ExportedProfile {
   name: string;
   archived: boolean;
   searchCriteria: SearchCriteria;
-  /** Newest first. */
+  /** The Search Criteria came from a Coach proposal the Candidate applied (#719): its Origin. */
+  searchCriteriaOrigin?: Origin;
+  /** Newest first, each with its Origin when it came from a Coach proposal (#719). */
   masterCvVersions: MasterCvVersion[];
   /** The ATS Score of the Master CV version last scored, or null when it never was. Its Provenance is fixed (rules), so not exported. */
   atsScore: Omit<KeptAtsScore, "provenance"> | null;
@@ -255,6 +269,8 @@ export interface CandidateDataExport {
   acceptances: ExportedAcceptance[];
   /** The Candidate's Plan, from Stripe (its identifiers there are left out), or null on the Free Plan from the start. */
   plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
+  /** The Coach context limits of the Candidate's Plan (ADR-0078), with that Plan (Free when they never paid); null is unlimited. */
+  coachContextLimits: { plan: Plan } & CoachContextLimits;
   /**
    * How much of each weekly Plan Quota the Candidate used, newest first: `week` is the Monday
    * it starts on ("2026-10-12"), or the month ("2026-10") for uses counted monthly before ADR-0032.
@@ -404,8 +420,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   nouveautes_email_subscription: "nouveautesEmail.subscribed and subscribedAt (no unsubscribe token, #566)",
   nouveautes_email_sent: "nouveautesEmail.sent (the Version each Nouveautés email told of, #566)",
   coach_proposals_display: "coachProposalsDisplay (« Propositions du coach » in Mon compte, #717)",
-  profile: "profiles",
-  master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
+  profile: "profiles (the Search Criteria's Origin, #719)",
+  master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it; its Origin, #719)",
   ats_score: "profiles[].atsScore",
   job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
   discovery_run_detail: "profiles[].jobDiscoveryRuns (the last 30 days' runs: criteria and each search's query texts; their figures are of no one)",
@@ -527,6 +543,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           name: profile.name,
           archived: profile.archived,
           searchCriteria: profile.searchCriteria,
+          ...(profile.searchCriteriaOrigin ? { searchCriteriaOrigin: profile.searchCriteriaOrigin } : {}),
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
           jobSearches: jobSearchesOf(id).map(({ provenance, stopRequestedAt, ...jobSearch }) => {
@@ -636,6 +653,20 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   /** The Candidate's row of a table holding one per Candidate, or null. */
+  /** The Coach context limits of the Candidate's Plan: those stored for it, else a Plan's with none stored (ADR-0078). */
+  async function coachContextLimitsOf(candidateId: string): Promise<CandidateDataExport["coachContextLimits"]> {
+    const { rows } = await database.query<{ plan: Plan; stored: boolean; coachContextMessages: number | null; coachContextTokens: number | null }>(
+      `SELECT coalesce(p.plan, $2) AS plan, c.plan IS NOT NULL AS stored,
+              c.coach_context_messages AS "coachContextMessages", c.coach_context_tokens AS "coachContextTokens"
+         FROM (SELECT $1::text AS candidate_id) me
+         LEFT JOIN candidate_plan p ON p.candidate_id = me.candidate_id
+         LEFT JOIN plan_coach_context c ON c.plan = coalesce(p.plan, $2)`,
+      [candidateId, FREE_PLAN],
+    );
+    const { plan, stored, coachContextMessages, coachContextTokens } = rows[0]!;
+    return stored ? { plan, coachContextMessages, coachContextTokens } : { plan, ...DEFAULT_COACH_CONTEXT_LIMITS };
+  }
+
   async function rowOf<T extends object>(sql: string, candidateId: string): Promise<T | null> {
     return (await rowsOf<T>(sql, candidateId))[0] ?? null;
   }
@@ -736,13 +767,14 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
           candidateId,
         ),
+        coachContextLimitsOf(candidateId),
         rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
         rowsOf<CandidateDataExport["quotaReductionNotices"][number]>(
           `SELECT r.plan, r.quotas, r.removed_features AS "removedFeatures", r.reason, to_char(r.effective_on, 'YYYY-MM-DD') AS "effectiveOn",
@@ -816,7 +848,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

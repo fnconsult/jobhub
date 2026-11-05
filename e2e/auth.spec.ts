@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { fromCatalogue, renderedTexts } from "./support/accessibility";
-import { approveAtGoogle, refuseAtGoogle, signInWithMagicLink } from "./support/candidate";
-import { emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
+import { approveAtGoogle, fromNewAddress, refuseAtGoogle, requestSignInLink, signInWithMagicLink } from "./support/candidate";
+import { codeIn, emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
 import { startServer } from "./support/plan-prices";
 
 // Issue #2: passwordless sign-up / sign-in and the Candidate account, through
@@ -144,6 +144,94 @@ test.describe("magic-link sign-up and sign-in", () => {
     expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
     await page.goto("/compte");
     await expect(page).toHaveURL(/\/connexion(\?|$)/);
+  });
+});
+
+// Issue #686: the sign-in email's code, typed on the page that waits for the link.
+test.describe("the sign-in email's code", () => {
+  /** Asks the sign-in email for `email` on the sign-in page, as a person does; returns it. The page waits for its link. */
+  async function askEmail(page: Page, email: string) {
+    const already = emailsTo(email).length;
+    await fromNewAddress(page);
+    await page.goto("/connexion");
+    await requestSignInLink(page, email);
+    return waitForEmail(email, already);
+  }
+
+  /** Types `code` in the waiting page's field and submits it, waiting for the web app's answer. */
+  async function enterCode(page: Page, code: string) {
+    await page.getByLabel(fr.signIn.codeLabel).fill(code);
+    const answered = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/auth/sign-in/email-otp");
+    await page.getByRole("button", { name: fr.signIn.codeSubmit }).click();
+    return answered;
+  }
+
+  test("signs in with the code typed on the page waiting for the link", async ({ page }) => {
+    const email = newAddress("code");
+    const message = await askEmail(page, email);
+    await expect(page.getByRole("status")).toHaveText(fr.signIn.sent);
+    const field = page.getByLabel(fr.signIn.codeLabel);
+    await expect(field).toHaveAttribute("autocomplete", "one-time-code");
+    await expect(field).toHaveAttribute("inputmode", "numeric");
+
+    expect(message.text).toContain(fr.signInEmail.code.replace("{{code}}", codeIn(message)));
+    await enterCode(page, codeIn(message));
+
+    await expect(page).toHaveURL(`${origin}/compte`);
+    expect((await (await page.request.get("/api/auth/get-session")).json()).user.email).toBe(email);
+    // The code spent its link.
+    await page.context().clearCookies();
+    await page.goto(linkIn(message));
+    await expect(page).toHaveURL(/\/connexion\?error=/);
+  });
+
+  test("refuses a wrong code 5 times, then the right one too, until a new email is asked", async ({ page }) => {
+    const email = newAddress("code-tries");
+    const code = codeIn(await askEmail(page, email));
+    const wrong = code === "000000" ? "111111" : "000000";
+
+    for (let tries = 0; tries < 5; tries++) {
+      expect((await enterCode(page, wrong)).status()).toBe(400);
+      await expect(page.getByRole("alert").filter({ hasText: fr.signIn.codeWrong })).toBeVisible();
+    }
+    expect((await enterCode(page, code)).status()).toBe(403);
+    await expect(page.getByRole("alert").filter({ hasText: fr.signIn.codeTooManyTries })).toBeVisible();
+    expect((await (await page.request.get("/api/auth/get-session")).json())?.user).toBeUndefined();
+
+    await page.getByRole("button", { name: fr.signIn.resend }).click();
+    const next = await waitForEmail(email, 1);
+    await enterCode(page, codeIn(next));
+    await expect(page).toHaveURL(`${origin}/compte`);
+  });
+
+  test("the link spends the code: the same email's code is refused after its link signed in", async ({ page, browser }) => {
+    const email = newAddress("link-spends-code");
+    const message = await askEmail(page, email);
+    await page.goto(linkIn(message));
+    await expect(page).toHaveURL(`${origin}/compte`);
+
+    const someoneElse = await browser.newContext({ baseURL: origin, extraHTTPHeaders: { "x-forwarded-for": "10.68.6.2" } });
+    const refused = await someoneElse.request.post("/api/auth/sign-in/email-otp", { data: { email, otp: codeIn(message) }, headers: { origin } });
+    expect(refused.status()).toBe(400);
+    expect((await refused.json()).code).toBe("INVALID_OTP");
+    await someoneElse.close();
+  });
+
+  test("refuses a code already used", async ({ page, browser }) => {
+    const email = newAddress("code-once");
+    const code = codeIn(await askEmail(page, email));
+    await enterCode(page, code);
+    await expect(page).toHaveURL(`${origin}/compte`);
+
+    // The same code, typed again on another device.
+    const someoneElse = await browser.newContext({ baseURL: origin, extraHTTPHeaders: { "x-forwarded-for": "10.68.6.1" } });
+    const replayed = await someoneElse.request.post("/api/auth/sign-in/email-otp", { data: { email, otp: code }, headers: { origin } });
+    expect(replayed.status()).toBe(400);
+    expect((await replayed.json()).code).toBe("INVALID_OTP");
+    const replay = await someoneElse.newPage();
+    await replay.goto("/compte");
+    await expect(replay).toHaveURL(/\/connexion(\?|$)/);
+    await someoneElse.close();
   });
 });
 

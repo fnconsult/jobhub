@@ -34,6 +34,7 @@ import { readInboundEmail, type InboundEmail } from "./inbound-email";
 import { INBOUND_SECRET_HEADER, RAW_MESSAGE_TYPE } from "./inbound-headers";
 import { recognisedSendersFor } from "./candidate-senders";
 import { senderStanding } from "./recognised-senders";
+import { utcBefore } from "../database/before";
 
 // What the worker purges with them: Activité's Emails reçus rows and the Journal's Linked mailbox events (#449).
 export { ACTIVITY_RETENTION_MONTHS, purgeEmailIntakeActivity } from "./activity";
@@ -260,6 +261,6 @@ export async function purgeReceivedOfferEmails(database: Pick<Pool, "query">, no
      WHERE text_ciphertext IS NOT NULL AND received_at <= $1::timestamptz - make_interval(hours => $2)`,
     [now, TEXT_RETENTION_HOURS],
   );
-  const emails = await database.query(`DELETE FROM received_offer_email WHERE received_at <= $1::timestamptz - make_interval(months => $2)`, [now, RETENTION_MONTHS]);
+  const emails = await database.query(`DELETE FROM received_offer_email WHERE received_at <= ${utcBefore("$1", "make_interval(months => $2)")}`, [now, RETENTION_MONTHS]);
   return { texts: texts.rowCount ?? 0, emails: emails.rowCount ?? 0 };
 }

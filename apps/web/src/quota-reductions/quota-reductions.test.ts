@@ -1,3 +1,4 @@
+import { DEFAULT_COACH_CONTEXT_LIMITS } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { migrateBackOfficeAudit } from "../admin/back-office";
 import type { MailMessage } from "../auth";
@@ -71,8 +72,42 @@ describe.skipIf(!connectionString)("Quota Reductions (#514, needs Postgres: DATA
     expect(await reductions.pending()).toEqual([]);
     const { rows } = await t.database.query("SELECT actor_email, section, target, action, before, after FROM back_office_audit");
     expect(rows).toEqual([
-      { actor_email: "claire@jobbbox.fr", section: "plan_quotas", target: "standard", action: "applied", before: standard, after: { ...lower, reduction: expect.any(String) } },
+      {
+        actor_email: "claire@jobbbox.fr",
+        section: "plan_quotas",
+        target: "standard",
+        action: "applied",
+        before: { ...standard, ...DEFAULT_COACH_CONTEXT_LIMITS },
+        after: { ...lower, ...DEFAULT_COACH_CONTEXT_LIMITS, reduction: expect.any(String) },
+      },
     ]);
+  });
+
+  it("lowering a Coach context limit is a Quota Reduction too: the AI Coach reads less only from its date (ADR-0078, #731)", async () => {
+    const marie = await subscriber("marie.dupont@example.fr");
+
+    const changed = await reductions.changeQuotas("standard", { ...standard, coachContextMessages: 60, coachContextTokens: 8_000 }, notice, t.database, claire);
+
+    expect(changed).toMatchObject({
+      ok: true,
+      applied: { coachContextMessages: 60, coachContextTokens: 12_000 },
+      scheduled: { quotas: { coachContextTokens: { before: 12_000, after: 8_000 } }, subscribers: 1 },
+    });
+    expect((await t.billing.entitlements(marie.id)).coachContext).toEqual({ coachContextMessages: 60, coachContextTokens: 12_000 });
+
+    t.clock.now = new Date("2026-11-14T00:00:00+01:00");
+    expect(await reductions.run()).toMatchObject({ applied: 1, sent: 1 });
+    expect((await t.billing.entitlements(marie.id)).coachContext).toEqual({ coachContextMessages: 60, coachContextTokens: 8_000 });
+  });
+
+  it("an unlimited Coach context limit given a number is lowered; one made unlimited is raised, at once", async () => {
+    await subscriber("marie.dupont@example.fr");
+    await reductions.changeQuotas("standard", { ...standard, coachContextMessages: null, coachContextTokens: null }, null, t.database, claire);
+
+    const changed = await reductions.changeQuotas("standard", { ...standard, coachContextMessages: 100, coachContextTokens: null }, notice, t.database, claire);
+
+    expect(changed).toMatchObject({ ok: true, scheduled: { quotas: { coachContextMessages: { before: null, after: 100 } } } });
+    expect((await t.billing.coachContextLimits()).standard).toEqual({ coachContextMessages: null, coachContextTokens: null });
   });
 
   it("an increase made with it applies at once; the quotas it lowers wait", async () => {

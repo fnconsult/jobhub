@@ -47,6 +47,20 @@ describe("search — Help Articles matching a Candidate's words, without AI", ()
     expect(coachPanel("passkeys", "en")).toContain("glossary-passkey");
   });
 
+  it("finds no back office article for a question none answers, whatever marker it carries: « context » alone is not the Activité article (#731)", () => {
+    // The Activité article's « contexte estimé / mesuré » synonyms once gave « context » 3 points: a Candidate's question
+    // carrying the e2e marker E2E_SHOW_CONTEXT found it, and the Back Office Assistant cited it instead of offering a tutorial.
+    const backOffice = (query: string, locale: "fr" | "en" = "fr") => search(query, locale, { scope: "backOffice" }).map((entry) => entry.id);
+    expect(backOffice("Comment relancer un recruteur qzxwvkjhgf ? E2E_SHOW_CONTEXT#k3x9q7")).toEqual([]);
+    expect(backOffice("contexte")).not.toContain("page-admin-activity");
+    expect(backOffice("context", "en")).not.toContain("page-admin-activity");
+    // The column is still found by what it shows.
+    expect(backOffice("contexte estimé")).toContain("page-admin-activity");
+    expect(backOffice("estimated context", "en")).toContain("page-admin-activity");
+    expect(backOffice("jetons")).toContain("page-admin-activity");
+    expect(backOffice("tokens", "en")).toContain("page-admin-activity");
+  });
+
   it("ranks a word in the title or synonyms above the same word in the body", () => {
     // « ATS » is the ATS Score's title; the Profile page only mentions it in its body.
     const found = ids("score ats");

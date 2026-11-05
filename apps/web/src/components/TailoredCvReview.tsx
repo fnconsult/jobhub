@@ -55,7 +55,7 @@ async function send(url: string, method: "POST" | "PATCH", body?: object): Promi
  * Whether the Candidate accepted a change: what they chose, else accepted, unless it takes
  * words from the Job Offer the Master CV lacks, which waits for an explicit accept (ADR-0006, #161).
  */
-const decisionOf = (change: CvChange, decisions: Record<string, boolean>): boolean | null => decisions[change.id] ?? (change.fromOffer?.length ? null : true);
+export const decisionOf = (change: CvChange, decisions: Record<string, boolean>): boolean | null => decisions[change.id] ?? (change.fromOffer?.length ? null : true);
 
 /**
  * An Application's Tailored CV: proposed by the AI Coach in the Document
@@ -237,8 +237,22 @@ function ScoreComparison({ score }: { score: { master: number; tailored: number 
   );
 }
 
-/** One change, shown against the Master CV, for the Candidate to accept or reject. `accepted`: null until they decide, for a change that waits for it. */
-function ChangeItem({ change, accepted, onDecide }: { change: CvChange; accepted: boolean | null; onDecide: (accepted: boolean) => void }) {
+/**
+ * One change, shown against the Master CV, for the Candidate to accept or reject. `accepted`: null until they decide, for a
+ * change that waits for it. `labels`: what the columns are called and what a Flagged Change says, a Tailored CV's by
+ * default (a Master CV change proposed by the AI Coach names them its own way, #719).
+ */
+export function ChangeItem({
+  change,
+  accepted,
+  onDecide,
+  labels,
+}: {
+  change: CvChange;
+  accepted: boolean | null;
+  onDecide: (accepted: boolean) => void;
+  labels?: { master: string; tailored: string; fromOffer: (words: string) => string };
+}) {
   const { t } = useTranslation();
   const id = useId();
   const heading = [t(`tailoredCv.sections.${change.section}`), t(`tailoredCv.kinds.${change.kind}`), change.item].filter(Boolean).join(" · ");
@@ -250,11 +264,11 @@ function ChangeItem({ change, accepted, onDecide }: { change: CvChange; accepted
       {change.kind === "rephrased" || change.kind === "reordered" ? (
         <dl className="tailored-cv-compare">
           <div>
-            <dt>{t("tailoredCv.master")}</dt>
+            <dt>{labels?.master ?? t("tailoredCv.master")}</dt>
             <dd className="cv-text">{change.master || t("tailoredCv.empty")}</dd>
           </div>
           <div>
-            <dt>{t("tailoredCv.tailored")}</dt>
+            <dt>{labels?.tailored ?? t("tailoredCv.tailored")}</dt>
             <dd className="cv-text">{change.tailored || t("tailoredCv.empty")}</dd>
           </div>
         </dl>
@@ -262,7 +276,7 @@ function ChangeItem({ change, accepted, onDecide }: { change: CvChange; accepted
       {change.fromOffer?.length ? (
         // Kept as written, for the Candidate to check (ADR-0006, #68): the Master CV does not say it.
         <p className="error" role="note">
-          {t("tailoredCv.fromOffer", { words: change.fromOffer.join(", ") })}
+          {labels ? labels.fromOffer(change.fromOffer.join(", ")) : t("tailoredCv.fromOffer", { words: change.fromOffer.join(", ") })}
         </p>
       ) : null}
       {/* Each button tells which change it decides, without naming it after the change: the question groups are named after requirements. */}

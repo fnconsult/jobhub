@@ -40,17 +40,20 @@ const LOCK_MINUTES = 15;
 const APP_CODE = "246810";
 
 /**
- * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts proves the
- * real ones): the magic link asked from the app's origin alone, the session as a cookie, a session pending its second
- * step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a link no longer valid
- * redirected to the home page. The second step (#688) as its endpoints answer it (two-step-verification/index.ts and
- * its routes prove the real ones): what the session has to do, a code, a passkey of the account's own, the lock.
+ * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts and
+ * sign-in-code.test.ts prove the real ones): the magic link asked from the app's origin alone, the session as a cookie,
+ * a session pending its second step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a
+ * link no longer valid redirected to the home page; the email's code (#686), 5 tries, once, spending its link. The
+ * second step (#688) as its endpoints answer it (two-step-verification/index.ts and its routes prove the real ones):
+ * what the session has to do, a code, a passkey of the account's own, the lock.
  */
 export function fakeWebApp() {
   const sessions = new Map<string, Session>();
   const links = new Map<string, string>();
   const twoStep = new Map<string, Factors>();
-  const emailed: { email: string; callbackURL: string; link: string }[] = [];
+  /** The code each address's last email carries, and the wrong tries made with it. */
+  const codes = new Map<string, { code: string; tries: number }>();
+  const emailed: { email: string; callbackURL: string; link: string; code: string }[] = [];
   let next = 0;
   let offline = false;
 
@@ -61,6 +64,12 @@ export function fakeWebApp() {
     return token ? { token, session: sessions.get(token) } : null;
   };
   const cleared = `${COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`;
+  /** A new session for `email`, pending its second step when the account has it, as its cookie. */
+  const signedIn = (email: string) => {
+    const token = `session${++next}`;
+    sessions.set(token, { email, pending: twoStep.has(email) });
+    return json({ token, user: { email } }, 200, `${COOKIE}=${token}.signature; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`);
+  };
 
   async function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     if (offline) throw new TypeError("Network request failed");
@@ -72,9 +81,28 @@ export function fakeWebApp() {
       const { email, callbackURL } = (await request.json()) as { email: string; callbackURL: string };
       if (!fromApp || !callbackURL.startsWith(APP_ORIGIN)) return json({ message: "Invalid callbackURL" }, 403);
       const token = `link${++next}`;
+      const code = String(428_190 + next);
       links.set(token, email);
-      emailed.push({ email, callbackURL, link: `${TEST_BASE_URL}${APP_SIGN_IN_PATH}?token=${token}` });
+      codes.set(email, { code, tries: 0 });
+      emailed.push({ email, callbackURL, link: `${TEST_BASE_URL}${APP_SIGN_IN_PATH}?token=${token}`, code });
       return json({ status: true });
+    }
+    if (path === "/sign-in/email-otp" && request.method === "POST") {
+      const { email, otp } = (await request.json()) as { email: string; otp: string };
+      if (!fromApp) return json({ message: "Invalid origin" }, 403);
+      const pending = codes.get(email);
+      if (!pending) return json({ code: "INVALID_OTP", message: "Invalid OTP" }, 400);
+      if (pending.tries >= 5) {
+        codes.delete(email);
+        return json({ code: "TOO_MANY_ATTEMPTS", message: "Too many attempts" }, 403);
+      }
+      if (otp !== pending.code) {
+        pending.tries += 1;
+        return json({ code: "INVALID_OTP", message: "Invalid OTP" }, 400);
+      }
+      codes.delete(email);
+      for (const [link, to] of links) if (to === email) links.delete(link);
+      return signedIn(email);
     }
     if (path === "/magic-link/verify" && request.method === "GET") {
       const email = links.get(url.searchParams.get("token") ?? "");
@@ -82,9 +110,8 @@ export function fakeWebApp() {
       // which React Native's fetch follows whatever `redirect` asks: what reaches the app is that page, a 200.
       if (!email) return fetch(`${TEST_BASE_URL}/?error=INVALID_TOKEN`);
       links.delete(url.searchParams.get("token")!);
-      const token = `session${++next}`;
-      sessions.set(token, { email, pending: twoStep.has(email) });
-      return json({ token, user: { email } }, 200, `${COOKIE}=${token}.signature; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`);
+      codes.delete(email);
+      return signedIn(email);
     }
     const found = sessionOf(request.headers);
     const secondStep = url.pathname === SECOND_STEP_ENDPOINT || url.pathname === SECOND_STEP_PASSKEY_ENDPOINT;
@@ -153,6 +180,8 @@ export function fakeWebApp() {
     emailed,
     /** The link the last email to `email` carries. */
     linkFor: (email: string) => emailed.findLast((sent) => sent.email === email)!.link,
+    /** The code the last email to `email` carries (#686). */
+    codeFor: (email: string) => emailed.findLast((sent) => sent.email === email)!.code,
     /**
      * The account of `email` has Two-step verification, with an authenticator app (by default) and a passkey if said:
      * a magic link leaves its session pending.

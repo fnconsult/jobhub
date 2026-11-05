@@ -202,7 +202,8 @@
     "subject": "Your Jobbbox sign-in link",
     "title": "Sign in to Jobbbox",
     "action": "Sign in to Jobbbox",
-    "validity": "This link is valid for {{minutes}} minutes and works only once.",
+    "code": "Or enter this code in the app or on the sign-in page: {{code}}",
+    "validity": "This link and this code are valid for {{minutes}} minutes, once: using one makes the other unusable.",
     "ignore": "If you did not ask to sign in, simply ignore this message.",
     "reason": "You receive this email because a sign-in link to Jobbbox was asked for this address."
   },
@@ -263,7 +264,15 @@
     "emailLabel": "Your email address",
     "submit": "Send me a sign-in link",
     "sending": "Sending…",
-    "sent": "Sent! Open the email we just sent you and click the link to sign in.",
+    "sent": "Sent! Open the email we just sent you and click the link to sign in, or enter the code it contains below.",
+    "codeLabel": "Enter the code from the email",
+    "codeHint": "The 6 digits written under the link.",
+    "codeSubmit": "Sign in with this code",
+    "codeChecking": "Checking…",
+    "codeWrong": "This code is not right. Check it and try again: after 5 tries, you need to ask for a new email.",
+    "codeExpired": "This code is no longer valid. Ask for a new email.",
+    "codeTooManyTries": "Too many tries: this code no longer works. Ask for a new email.",
+    "resend": "Send me a new email",
     "or": "or",
     "continueWith": "Continue with {{provider}}",
     "error": "Something went wrong. Check your email address and try again.",
@@ -1289,7 +1298,9 @@
       "atsScores": "ATS Scores",
       "enrichedContacts": "Enriched Contacts",
       "jobDigest": "Job Digest",
-      "jobSearches": "Job searches"
+      "jobSearches": "Job searches",
+      "coachContextMessages": "Coach memory (messages read)",
+      "coachContextTokens": "Coach context size"
     },
     "jobDigest": {
       "none": "Not included",
@@ -1698,6 +1709,14 @@
           "reason": "Reason",
           "candidates": "Candidates affected"
         }
+      },
+      "coachContext": {
+        "title": "AI Coach context",
+        "intro": "What the AI Coach reads for each reply: the latest messages of the conversation and, at most, this many (estimated) tokens of context. Empty for unlimited. With nothing stored, a plan reads 40 messages and 12,000 tokens. Lowering one is a Quota Reduction.",
+        "messages": "Messages the AI Coach reads",
+        "messagesHelp": "At least 1, or empty for unlimited",
+        "tokens": "Context ceiling (estimated tokens)",
+        "tokensHelp": "A number, or empty for unlimited"
       }
     },
     "coupons": {
@@ -2698,7 +2717,10 @@
       "warnings": "Warnings",
       "noTechnical": "No technical detail recorded.",
       "noReplyNotSent": "No reply: the call was not sent.",
-      "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end."
+      "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end.",
+      "context": "Context estimated / measured",
+      "contextValue": "{{estimate}} / {{measure}} ({{gap}})",
+      "noContext": "—"
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
@@ -5700,7 +5722,8 @@
     "title": "Conversation context",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
-    "clear": "Clear the conversation"
+    "clear": "Clear the conversation",
+    "unlimited": "unlimited"
   },
   "microAnimation": {
     "show": "Show me how",
@@ -5740,7 +5763,7 @@
       "unlock": "Unlock"
     },
     "signIn": {
-      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app.",
+      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app. Reading it on another device? Enter the code it contains.",
       "waiting": "Waiting for the link…",
       "resend": "Send the link again",
       "changeEmail": "Use another email address"
@@ -5775,7 +5798,9 @@
       "interview": "Interview",
       "application": "Application",
       "applicationProfile": "Application's profile",
-      "followUpSent": "Follow-up sent"
+      "followUpSent": "Follow-up sent",
+      "profileStatus": "Profile status",
+      "coachMemory": "To remember"
     },
     "interview": {
       "none": "None",
@@ -5807,7 +5832,30 @@
       "conflict": "The item has changed since the proposal: nothing was applied. Open it to see where it stands.",
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
       "invalid": "What you entered does not fit: check the form.",
-      "failed": "The proposal could not be processed. Try again or reload the page."
+      "failed": "The proposal could not be processed. Try again or reload the page.",
+      "noneAccepted": "Accept at least one change to save, or ignore the proposal."
+    },
+    "masterCv": {
+      "version": "Version {{version}}",
+      "changes_one": "{{count}} change to review",
+      "changes_other": "{{count}} changes to review"
+    },
+    "coachMemory": {
+      "before": "Not remembered yet"
+    },
+    "quota": {
+      "profile": "Uses one active profile of your plan"
+    },
+    "review": {
+      "open": "Review the changes",
+      "title": "Review the changes: {{what}}",
+      "intro": "Accept or reject each change your coach proposes for “{{name}}”. Only the accepted changes are saved, as a new version of your Master CV; a rejected change keeps what it says.",
+      "before": "Before",
+      "after": "Proposed",
+      "fromOffer": "Taken from one of your job offers, not in your Master CV: {{words}}. Keep it only if it is true.",
+      "save": "Save the accepted changes",
+      "saved_one": "{{count}} change saved",
+      "saved_other": "{{count}} changes saved"
     }
   },
   "coachProposalsDisplay": {

@@ -5960,6 +5960,28 @@
       "failed": "This could not be loaded. Check your connection and try again.",
       "retry": "Try again",
       "offline": "Offline: this will load as soon as the network is back."
+    },
+    "coaching": {
+      "loading": "Loading your coaches…",
+      "loadError": "Your coaches and sessions could not be loaded. Try again in a moment.",
+      "payment": {
+        "waiting": "Payment received. We are waiting for Stripe to confirm it: your session shows here in a moment.",
+        "maybe": "If you paid, your session shows here as soon as Stripe has confirmed the payment.",
+        "slow": "The confirmation is taking a while. If you paid, your session will show here; your order confirmation is also sent to you by email.",
+        "refresh": "Refresh",
+        "recorded": "Your session with {{name}} is paid. Now pick your time on their booking page, then enter the date here.",
+        "cancelled": "Payment cancelled: no session was booked."
+      },
+      "order": {
+        "loading": "Loading your order…",
+        "opening": "Opening the payment…",
+        "failed": "The payment could not start. Check your connection and try again.",
+        "inBrowser": "The payment opens on Stripe's secure page, without leaving the app."
+      },
+      "session": {
+        "date": "Session date (dd/mm/yyyy)",
+        "time": "Time, in Paris (hh:mm)"
+      }
     }
   },
   "coachProposals": {
@@ -6147,5 +6169,13 @@
       "coaching_session_paid": "Coaching session paid",
       "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate"
     }
+  },
+  "coachingPayment": {
+    "title": "Payment complete",
+    "body": "Go back to the Jobbbox app: your session shows there as soon as Stripe has confirmed the payment, with the link to pick your time.",
+    "cancelledTitle": "Payment cancelled",
+    "cancelledBody": "Nothing was paid. You can book a session later from the app.",
+    "backToApp": "Back to the Jobbbox app",
+    "onWeb": "See my human coaches on the website"
   }
 }

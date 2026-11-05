@@ -16,6 +16,7 @@ import { CompanyDossierView } from "@/components/CompanyDossierView";
 import { EnrichedContactsPanel } from "@/components/EnrichedContactsPanel";
 import { JobOfferView } from "@/components/JobOfferView";
 import { MatchScoreView } from "@/components/MatchScoreView";
+import { OriginDisclosure } from "@/components/OriginDisclosure";
 import { RescheduleHistory } from "@/components/RescheduleHistory";
 import { TailoredDocuments } from "@/components/TailoredDocuments";
 import { getCompanyDossiers } from "@/company-dossiers/server";
@@ -237,6 +238,8 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
                 <InterviewFacts interview={interview} t={t} />
                 {interview.note ? <p>{interview.note}</p> : null}
                 <RescheduleHistory reschedules={interview.reschedules} dateTime={changedAt} t={t} />
+                {/* As a Coach proposal the Candidate applied left it (#718): said only on demand. */}
+                <OriginDisclosure appliedAt={interview.origin?.appliedAt.toISOString() ?? null} />
                 <div className="application-interview__actions">
                   <EditInterview
                     applicationId={application.id}

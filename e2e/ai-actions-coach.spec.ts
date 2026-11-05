@@ -153,8 +153,8 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       ],
     });
 
-    // Offered: the index and the six reads, with nothing that copies text.
-    expect(r.offered[0]).toEqual(["list_objects", "read_profile", "read_application", "read_job_offer", "read_job_search", "read_job_digest", "read_tailored_documents"]);
+    // Offered: the index, the six reads and the Agenda's proposals (#718), with nothing that copies text.
+    expect(r.offered[0]).toEqual(["list_objects", "read_profile", "read_application", "read_job_offer", "read_job_search", "read_job_digest", "read_tailored_documents", "propose_interview", "propose_interview_change", "propose_interview_cancel"]);
     // The reply cites the Application read: its Job Offer, its status, its Interview; never Marie's identity.
     const [cited, archived, someoneElse] = r.replies;
     expect(cited).toMatchObject({ ok: true, proposals: [] });

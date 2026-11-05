@@ -48,3 +48,16 @@
 .coach-proposal-form > * {
   margin: 0;
 }
+
+/* More than one change on the object (#718): one line each, what it is first. */
+.coach-proposal-card__changes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0;
+  list-style: none;
+}
+
+.coach-proposal-card__what {
+  color: var(--color-text-secondary);
+}

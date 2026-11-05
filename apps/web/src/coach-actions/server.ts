@@ -17,7 +17,7 @@ import { coachActionsSettings } from "./settings";
 let instance: CoachActions | undefined;
 let catalog: readonly CoachAction[] | undefined;
 
-/** The catalogue shipped, over the Candidate's objects through the domain modules the pages' routes use (#714). */
+/** The catalogue shipped, over the Candidate's objects through the domain modules the pages' routes use (#714, #718). */
 function shipped(): readonly CoachAction[] {
   return shippedCoachActions(
     candidateObjects({
@@ -35,6 +35,7 @@ function shipped(): readonly CoachAction[] {
       tailoredCvs: getTailoredCvs(),
       industries: readIndustryReference,
     }),
+    { applications: getApplications() },
   );
 }
 

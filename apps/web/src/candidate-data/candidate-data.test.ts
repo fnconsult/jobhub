@@ -9,6 +9,7 @@ import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createActionCards } from "../action-cards";
 import { e2eCoachActions } from "../coach-actions/e2e-catalog";
+import { AGENDA_ACTIONS, agendaCoachActions } from "../coach-actions/agenda";
 import { coachProposalHandlers, createCoachProposals } from "../coach-proposals";
 import { createBackOffice } from "../admin/back-office";
 import { createAtsScoring } from "../ats-score";
@@ -467,6 +468,23 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     await actionCards.undo(candidateId, applied!.id);
     expect((await candidateData.export(candidateId)).actionCards[1]).toMatchObject({ status: "undone", undoneAt: expect.any(Date) });
+  });
+
+  it("the export holds the Origin an Interview keeps when a Coach proposal the Candidate applied added it (#718)", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    const catalog = agendaCoachActions(applications);
+    const actionCards = createActionCards(database, coachProposalHandlers(catalog, () => new Date("2026-11-05T09:20:00Z")));
+    const { rows } = await database.query<{ id: string }>(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'Agenda') RETURNING id`, [candidateId]);
+    const reply = (await database.query<{ seq: string }>(`INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'coach', 'Je vous propose cet entretien.') RETURNING seq`, [rows[0]!.id])).rows[0]!.seq;
+    const action = catalog.find((each) => each.name === AGENDA_ACTIONS.add)!;
+    const ran = await action.run(action.schema.parse({ applicationId: application.id, scheduledAt: "2026-11-12T14:00" }), { candidateId, language: "fr" });
+    if (!ran.ok) throw new Error("not proposed");
+    const [card] = await createCoachProposals({ catalog, actionCards }).place(candidateId, { reply, earlier: [] }, [{ action: action.name, group: "agenda", data: ran.data }]);
+    await actionCards.decide(candidateId, card!.id, "accept");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.applications[0]!.interviews).toMatchObject([{ scheduledAt: new Date("2026-11-12T13:00:00Z"), origin: { origin: "coach_proposal", cardId: card!.id, appliedAt: new Date("2026-11-05T09:20:00Z") } }]);
   });
 
   it("the export holds the Coach Memory the Candidate confirmed, oldest first", async () => {

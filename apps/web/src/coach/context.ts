@@ -2,7 +2,8 @@
  * What the AI Coach is told of the Candidate before each reply (the Coach's context).
  *
  * Behind `coachContext(sources, candidateId, focus, maxTokens)`:
- *  - always a short Candidate summary (first name, and per active Profile its
+ *  - always the date and time of the day in French time (#718: the AI Coach resolves a relative date from it), a short
+ *    Candidate summary (first name, and per active Profile its
  *    target role, Search Criteria and seniority) and the Coach Memory when it has items;
  *  - the item In view in full: a Profile, an Application, a Job Offer, a Job Search
  *    or a Job Digest (only its 30 best Match Scores); only the Candidate's own (a Job Offer belongs to no one); on the
@@ -134,7 +135,7 @@ export async function coachContext(sources: CoachSources, candidateId: string, f
   const nextAgendaItems = upcoming.filter((item) => item.scheduledAt >= now && !(item.kind === "interview" && item.cancelledAt)).slice(0, NEXT_AGENDA_ITEMS);
   const name = firstName(profiles.map((profile) => profile.masterCv.content.fullName).find((fullName) => fullName.trim()) ?? "");
 
-  const always = [candidateSummary(name, profiles, criteriaText), memorySection(memory)].filter(Boolean).join("\n\n");
+  const always = [todayLine(now), candidateSummary(name, profiles, criteriaText), memorySection(memory)].filter(Boolean).join("\n\n");
   const inViewProfileId = focus?.kind === "profile" ? focus.id : null;
   const cvProfile = profiles.find((profile) => profile.id === scoredAgainst) ?? null;
   // Trimmed from the last to the first: Job Offers go first, then Applications, the next Agenda Items, the onboarding answers last.
@@ -461,6 +462,12 @@ function jobDigestText(jobDigest: JobDigest): string {
 
 const AGENDA_DAY = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, dateStyle: "long" });
 const AGENDA_WHEN = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+const TODAY = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const TIME = new Intl.DateTimeFormat("fr", { timeZone: INTERVIEW_TIME_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** The date and time of the day in French time (#718), from which the AI Coach resolves a relative date (« jeudi prochain à 14 h »). */
+export const todayLine = (now: Date) => `Nous sommes le ${TODAY.format(now)}, ${TIME.format(now)} (heure de Paris).`;
 
 /** One Agenda Item in a line, its date and time in French time: "jeudi 22 octobre 2026 à 14:30 : entretien pour DAF H/F chez Acme Industrie". */
 export function agendaLine(item: AgendaItem): string {

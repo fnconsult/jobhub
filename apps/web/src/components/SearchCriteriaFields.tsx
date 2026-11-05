@@ -1,7 +1,7 @@
 "use client";
 
 import { CONTRACT_TYPES, MAX_SEARCH_LOCATIONS, REMOTE_WORK_OPTIONS, type ContractType, type RemoteWork, type SearchCriteria } from "@jobhub/shared";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileFieldError } from "@/profiles";
 import { PROFILE_NAME_MAX_LENGTH } from "@/profiles/limits";
@@ -170,14 +170,19 @@ export function LocationsInput(props: {
   const container = useRef<HTMLFieldSetElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const request = useRef<AbortController | null>(null);
-  /** Where the keyboard focus goes after the next render, once a chip is added or removed. */
+  /**
+   * A chip was added or removed: the keyboard focus goes to the input (or the last « Retirer », the input gone at
+   * MAX_SEARCH_LOCATIONS) once the list shows it. Only when `value` changes: a render of the list as it was (a
+   * `router.refresh()` of an earlier save committing as the Candidate clicks) must not take it on the old list, where the
+   * input is still gone (#776). In the commit, before Radix's focus trap sees the clicked « Retirer » gone.
+   */
   const refocus = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!refocus.current) return;
     refocus.current = false;
     const chips = container.current?.querySelectorAll<HTMLElement>("[data-remove-place]");
     (input.current ?? chips?.[chips.length - 1])?.focus();
-  });
+  }, [value]);
   useEffect(
     () => () => {
       clearTimeout(timer.current);

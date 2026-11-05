@@ -1,22 +1,22 @@
 /**
  * The app's calls to the platform's API (ADR-0076): every screen reads and writes through `useApi()`, never `fetch`.
+ * There is one client: the web app's `Api` (`createApi`, src/api/web-api.ts) the app is given (`appApi`), or, when none
+ * is, one over the global fetch to the platform the build points at (src/web-app-url.ts, set per EAS profile in
+ * eas.json). Each call states the API Version the app speaks and names the app as a mobile client.
  *
- * Each call goes to the platform the build points at (src/web-app-url.ts, set per EAS profile in eas.json), states the
- * API Version the app speaks and names the app as a mobile client (`@jobhub/shared/api-version`). When the platform no
- * longer serves that API Version it answers `426 Upgrade Required` (ADR-0063): from then on the provider shows
- * « Mettre à jour Jobbbox » in place of the app, with the link to its store, and the call rejects with AppOutdatedError.
- * The app is never let back in until it is updated: a newer build is a new install.
+ * When the platform no longer serves that API Version it answers `426 Upgrade Required` (ADR-0063) to any call, a read
+ * or a message to the coach: from then on the provider shows « Mettre à jour Jobbbox » in place of the app, with the
+ * link to its store, and the call rejects with AppOutdatedError. The app is never let back in until it is updated: a
+ * newer build is a new install.
  */
-import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
+import { APP_OUTDATED } from "@jobhub/shared/api-version";
 import Constants from "expo-constants";
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { UpdateRequired } from "../screens/UpdateRequired";
 import { WEB_APP_URL } from "../web-app-url";
 import { storePageFor } from "./store-page";
-
-/** A call to the API: a path under the platform's address (`/api/…`), as `fetch` takes it. */
-export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
+import { apiOver, createApi, type Api } from "./web-api";
 
 /** The platform answered 426: this build speaks an API Version it no longer serves. */
 export class AppOutdatedError extends Error {
@@ -28,16 +28,18 @@ export class AppOutdatedError extends Error {
 
 const UPGRADE_REQUIRED = 426;
 
-
-const ApiContext = createContext<ApiFetch | null>(null);
+const ApiContext = createContext<Api | null>(null);
 
 export function ApiProvider({
+  api,
   baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
   storePage = storePageFor(Platform.OS, Constants.expoConfig),
   cookie,
   children,
 }: {
+  /** The web app's API the app calls (`appApi`, `createApi`); without it, one over `fetch` to `baseUrl` with `cookie`. */
+  api?: Api;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
   /** The session cookie to send, as `@better-auth/expo` gives it (empty when signed out); none outside a session. */
@@ -48,31 +50,25 @@ export function ApiProvider({
 }) {
   const [outdated, setOutdated] = useState<{ storeUrl: string } | null>(null);
 
-  const api = useCallback<ApiFetch>(
-    async (path, init) => {
-      const headers = new Headers(init?.headers);
-      headers.set(API_VERSION_HEADER, String(API_VERSION));
-      headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
-      const session = cookie ? await cookie() : "";
-      if (session) headers.set("cookie", session);
-      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });
+  const gated = useMemo<Api>(() => {
+    const client = api ?? createApi({ baseURL: baseUrl, cookie: cookie ?? (async () => ""), fetch });
+    return apiOver(async (path, init) => {
+      const response = await client.fetch(path, init);
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
         setOutdated({ storeUrl: named ?? storePage });
         throw new AppOutdatedError();
       }
       return response;
-    },
-    [baseUrl, fetch, storePage, cookie],
-  );
+    });
+  }, [api, baseUrl, fetch, storePage, cookie]);
 
-  const value = useMemo(() => api, [api]);
   if (outdated) return <UpdateRequired storeUrl={outdated.storeUrl} />;
-  return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
+  return <ApiContext.Provider value={gated}>{children}</ApiContext.Provider>;
 }
 
-/** The app's calls to the API; only inside ApiProvider. */
-export function useApi(): ApiFetch {
+/** The app's calls to the API, under the 426 gate; only inside ApiProvider. */
+export function useApi(): Api {
   const api = useContext(ApiContext);
   if (!api) throw new Error("useApi() is called outside ApiProvider");
   return api;

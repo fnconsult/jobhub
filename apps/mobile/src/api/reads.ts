@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { readKey, type ReadName } from "../offline/read-cache";
-import { useApi } from "./api-context";
+import { useApi } from "./api";
 
 /** A GET the web app answered with something other than a success: `status` says what (401 signed out, 5xx down). */
 export class ReadFailed extends Error {

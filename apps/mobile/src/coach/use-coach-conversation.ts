@@ -2,7 +2,7 @@ import { isFailureReason, type FailureReason, type Provenance } from "@jobhub/sh
 import { coachConversationResponseSchema } from "@jobhub/shared/reads";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useApi } from "../api/api-context";
+import { useApi } from "../api/api";
 import { readKey } from "../offline/read-cache";
 import { useConversationHandoff } from "./page-conversation";
 import { askCoach, type CoachProposalCard, type CoachReply, type ConversationContext, type ConversationSummary, type Live, type SubjectRef } from "./coach-reply";

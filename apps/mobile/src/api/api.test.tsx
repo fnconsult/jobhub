@@ -1,8 +1,12 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
 import { screen, userEvent } from "@testing-library/react-native";
 import { Linking, Pressable, Text } from "react-native";
+import * as z from "zod";
+import { CoachConversation } from "../coach/CoachConversation";
 import { renderInApp } from "../testing";
 import { ApiProvider, useApi } from "./api";
+import { useRead } from "./reads";
+import { createApi } from "./web-api";
 
 const APP_STORE = "https://apps.apple.com/app/id6740000000";
 
@@ -10,7 +14,7 @@ const APP_STORE = "https://apps.apple.com/app/id6740000000";
 function Reader() {
   const api = useApi();
   return (
-    <Pressable role="button" onPress={() => void api("/api/applications").catch(() => {})}>
+    <Pressable role="button" onPress={() => void api.fetch("/api/applications").catch(() => {})}>
       <Text>Lire mes candidatures</Text>
     </Pressable>
   );
@@ -96,5 +100,32 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(screen.getByRole("heading", { name: "Mettre à jour Jobbbox" })).toBeOnTheScreen();
     await userEvent.setup().press(screen.getByRole("link", { name: "Ouvrir l'App Store" }));
     expect(openURL).toHaveBeenCalledWith(APP_STORE);
+  });
+
+  /** The app as its root lays it out (src/app/_layout.tsx): the web app's API, `createApi`, given to the providers. */
+  const outdatedWebApp = () =>
+    createApi({
+      baseURL: "https://staging.jobbbox.ai",
+      cookie: async () => "",
+      fetch: server(426, { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION + 2 }).fetch,
+    });
+
+  it("answered 426 on a read of a screen, show « Mettre à jour Jobbbox »", async () => {
+    function Applications() {
+      const read = useRead("applications", "/api/applications", z.unknown());
+      return <Text>{read.isError ? "Erreur de chargement" : "Mes candidatures"}</Text>;
+    }
+    await renderInApp(<Applications />, { api: outdatedWebApp() });
+    expect(await screen.findByRole("heading", { name: "Mettre à jour Jobbbox" })).toBeOnTheScreen();
+    expect(screen.queryByText("Erreur de chargement")).toBeNull();
+  });
+
+  it("answered 426 on a message to the coach, show « Mettre à jour Jobbbox »", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: outdatedWebApp() });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
+    await user.press(screen.getByRole("button", { name: "Envoyer" }));
+    expect(await screen.findByRole("heading", { name: "Mettre à jour Jobbbox" })).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Votre message")).toBeNull();
   });
 });

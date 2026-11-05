@@ -2,7 +2,7 @@ import { APP_DEVICE_HEADER, appDeviceHeader } from "@jobhub/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TextInput, View, useWindowDimensions } from "react-native";
-import { useApi } from "../api/api-context";
+import { useApi } from "../api/api";
 import { appDevice } from "./app-device";
 import { INTER, radius, space, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";

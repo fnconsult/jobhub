@@ -5,7 +5,7 @@ import { MessageSquare } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, TextInput, View } from "react-native";
-import { useApi } from "../api/api-context";
+import { useApi } from "../api/api";
 import { useRead } from "../api/reads";
 import { readKey } from "../offline/read-cache";
 import { INTER, radius, space, type, useTheme } from "../theme/theme";

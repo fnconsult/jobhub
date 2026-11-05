@@ -146,12 +146,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "lien par e-mail",
         "connexion de l'équipe",
         "exiger",
-        "url de redirection"
+        "url de redirection",
+        "app",
+        "application",
+        "app store",
+        "règle 4.8",
+        "services id"
       ],
       "route": "/admin/parametres?tab=connexion",
       "motion": null,
       "microAnimations": [],
-      "body": "L'onglet « Connexion » de Paramètres règle les moyens de connexion, en plus du lien reçu par e-mail : Google, Apple, Microsoft et tout fournisseur OIDC. Une modification s'applique en quelques secondes, sans redéploiement ni déconnexion.\n\nLa carte « Connexion de l'équipe » porte la case « Exiger un fournisseur de connexion pour les administrateurs » : cochée, le back office demande à un administrateur connecté par un lien reçu par e-mail de se reconnecter avec un fournisseur autorisé pour les administrateurs. Les super-admins permanents ne sont jamais concernés.\n\nLa liste « Fournisseurs » montre chaque fournisseur avec son « Type », son « URL de redirection » à coller dans la console du fournisseur, son « Utilisation » (proposé aux candidats, autorisé pour les administrateurs), ses « Secrets » et son « Test de connexion ». Un fournisseur ne s'active qu'après un test de connexion réussi, et de nouveau après chaque changement de ses identifiants. Un secret saisi est chiffré et n'est jamais réaffiché.\n\nLes super-admins ajoutent, modifient, testent et suppriment les fournisseurs ; « Technique » et le Support les lisent."
+      "body": "L'onglet « Connexion » de Paramètres règle les moyens de connexion, en plus du lien reçu par e-mail : Google, Apple, Microsoft et tout fournisseur OIDC. Une modification s'applique en quelques secondes, sans redéploiement ni déconnexion.\n\nLa carte « Connexion de l'équipe » porte la case « Exiger un fournisseur de connexion pour les administrateurs » : cochée, le back office demande à un administrateur connecté par un lien reçu par e-mail de se reconnecter avec un fournisseur autorisé pour les administrateurs. Les super-admins permanents ne sont jamais concernés.\n\nLa liste « Fournisseurs » montre chaque fournisseur avec son « Type », son « URL de redirection » à coller dans la console du fournisseur, son « Utilisation » (proposé aux candidats, autorisé pour les administrateurs), ses « Secrets » et son « Test de connexion ». Un fournisseur ne s'active qu'après un test de connexion réussi, et de nouveau après chaque changement de ses identifiants. Un secret saisi est chiffré et n'est jamais réaffiché.\n\nLes super-admins ajoutent, modifient, testent et suppriment les fournisseurs ; « Technique » et le Support les lisent.\n\nL'app Jobbbox propose aux candidats les mêmes fournisseurs que le site, par le même flux : la page du fournisseur s'ouvre dans le navigateur du téléphone et revient dans l'app ; aucune connexion par jeton d'identité n'est acceptée, et le « Bundle ID de l'application (facultatif) » n'y sert pas. L'App Store refuse une app qui propose une connexion Google ou Microsoft sans Apple (règle 4.8) : tant que c'est le cas, une note le signale en haut de l'onglet. Pour Apple, l'« Identifiant de service (Service ID) » est celui d'un Services ID d'Apple, dont la console déclare le domaine et l'« URL de redirection » de chaque environnement (la Beta a la sienne). Son secret client est signé de nouveau chaque mois par le worker à partir de la « Clé privée (.p8) » ; un échec est signalé par e-mail aux super-admins."
     },
     {
       "id": "page-conversation",
@@ -848,12 +853,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "découvrir",
         "code de connexion",
         "code à 6 chiffres",
-        "code reçu par e-mail"
+        "code reçu par e-mail",
+        "apple",
+        "se connecter avec apple",
+        "identifiant apple",
+        "masquer mon adresse e-mail",
+        "google",
+        "microsoft",
+        "continuer avec",
+        "app",
+        "application",
+        "téléphone"
       ],
       "route": "/connexion",
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer.\n\nL'e-mail reçu contient un lien et un code à 6 chiffres. Vous le lisez sur un autre appareil, votre téléphone par exemple ? Restez sur cette page : saisissez le code dans « Saisir le code reçu par e-mail », puis cliquez sur « Me connecter avec ce code ». Le lien et le code sont valables 15 minutes et une seule fois : utiliser l'un rend l'autre inutilisable. Au bout de 5 codes faux, le code ne fonctionne plus : cliquez sur « Recevoir un nouvel e-mail »."
+      "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer.\n\nL'e-mail reçu contient un lien et un code à 6 chiffres. Vous le lisez sur un autre appareil, votre téléphone par exemple ? Restez sur cette page : saisissez le code dans « Saisir le code reçu par e-mail », puis cliquez sur « Me connecter avec ce code ». Le lien et le code sont valables 15 minutes et une seule fois : utiliser l'un rend l'autre inutilisable. Au bout de 5 codes faux, le code ne fonctionne plus : cliquez sur « Recevoir un nouvel e-mail ».\n\nSelon les moyens proposés sur la page, « Continuer avec … » suivi de Google, Apple ou Microsoft vous connecte avec un compte que vous avez déjà, sans attendre d'e-mail. Avec Apple, vous pouvez choisir de masquer votre adresse e-mail : Apple transmet alors une adresse relais, et votre compte Jobbbox est un nouveau compte, distinct de celui de votre adresse habituelle. Si un compte Jobbbox utilise déjà l'adresse de ce compte, la page peut vous demander de vous connecter d'abord en recevant un lien par e-mail, puis d'associer ce moyen de connexion depuis « Mon compte ».\n\nDans l'app Jobbbox, l'écran « Se connecter à Jobbbox » propose les mêmes moyens, au-dessus du lien par e-mail. « Continuer avec … » ouvre la page du fournisseur dans le navigateur du téléphone, par-dessus l'app ; sur iPhone, le système vous demande d'abord d'autoriser Jobbbox à l'ouvrir. Une fois connecté chez le fournisseur, vous revenez dans l'app, connecté. Vous fermez cette page ou touchez « Annuler » ? Rien ne change : l'écran de connexion vous attend, choisissez un autre moyen. Une connexion par Google, Apple ou Microsoft ne demande pas de deuxième étape, même si votre compte a la vérification en deux étapes."
     },
     {
       "id": "page-admin-unanswered-questions",
@@ -4495,12 +4510,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "team sign-in",
         "require",
         "redirect url",
-        "connexion"
+        "connexion",
+        "app",
+        "application",
+        "app store",
+        "guideline 4.8",
+        "services id"
       ],
       "route": "/admin/parametres?tab=connexion",
       "motion": null,
       "microAnimations": [],
-      "body": "The « Sign-in » tab of Settings sets the sign-in methods besides the link by email: Google, Apple, Microsoft and any OIDC provider. A change applies within seconds, with no redeployment and nobody signed out.\n\nThe « Team sign-in » card holds the « Require a sign-in provider for administrators » box: when ticked, the back office asks an administrator signed in with a link by email to sign in again with a provider allowed for administrators. Permanent super-admins are never concerned.\n\nThe « Providers » list shows each provider with its « Type », its « Redirect URL » to paste in the provider's console, its « Use » (offered to candidates, allowed for administrators), its « Secrets » and its « Test sign-in ». A provider is enabled only after a passed test sign-in, and again after each change of its credentials. A secret entered here is encrypted and never shown again.\n\nSuper-admins add, edit, test and remove providers; « Technique » and Support read them."
+      "body": "The « Sign-in » tab of Settings sets the sign-in methods besides the link by email: Google, Apple, Microsoft and any OIDC provider. A change applies within seconds, with no redeployment and nobody signed out.\n\nThe « Team sign-in » card holds the « Require a sign-in provider for administrators » box: when ticked, the back office asks an administrator signed in with a link by email to sign in again with a provider allowed for administrators. Permanent super-admins are never concerned.\n\nThe « Providers » list shows each provider with its « Type », its « Redirect URL » to paste in the provider's console, its « Use » (offered to candidates, allowed for administrators), its « Secrets » and its « Test sign-in ». A provider is enabled only after a passed test sign-in, and again after each change of its credentials. A secret entered here is encrypted and never shown again.\n\nSuper-admins add, edit, test and remove providers; « Technique » and Support read them.\n\nThe Jobbbox app offers candidates the same providers as the site, through the same flow: the provider's page opens in the phone's browser and comes back to the app; no sign-in with an identity token is accepted, and the « App bundle ID (optional) » plays no part in it. The App Store refuses an app that offers a Google or Microsoft sign-in without Apple (guideline 4.8): as long as that is the case, a note says so at the top of the tab. For Apple, the « Service ID » is that of an Apple Services ID, whose console declares the domain and the « Redirect URL » of each environment (the Beta has its own). Its client secret is signed again every month by the worker from the « Private key (.p8) »; a failure is emailed to the super-admins."
     },
     {
       "id": "page-admin-search-sites",
@@ -4670,12 +4690,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "discover",
         "sign-in code",
         "6-digit code",
-        "code from the email"
+        "code from the email",
+        "apple",
+        "sign in with apple",
+        "apple id",
+        "hide my email",
+        "google",
+        "microsoft",
+        "continue with",
+        "app",
+        "application",
+        "phone"
       ],
       "route": "/connexion",
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox helps you with your job search, with an AI coach. It builds your master CV and search criteria with you, looks for the job offers that suit you, then prepares your applications: a CV tailored to each offer, a cover letter. You then follow your applications, interviews and follow-ups in one place.\n\nJobbbox is for anyone looking for a job, whether for the first time or after years in the same post. It is made to be read without effort: no jargon, a help article for every word to know, and text you can make larger.\n\nYour coach is an AI, and it says so. If you wish, human coaches can also support you, in sessions paid separately. The Jobbbox Chrome extension saves a job offer from the page where you read it.\n\nThis page, « Sign in to Jobbbox », is also where you create your account: no password, enter « Your email address » then click « Send me a sign-in link ». If you don't have an account yet, it is created, on the Free Plan: nothing to pay to start.\n\nThe email you receive holds a link and a 6-digit code. Reading it on another device, your phone for instance? Stay on this page: type the code in « Enter the code from the email », then click « Sign in with this code ». The link and the code are valid for 15 minutes, once: using one makes the other unusable. After 5 wrong codes, the code no longer works: click « Send me a new email »."
+      "body": "Jobbbox helps you with your job search, with an AI coach. It builds your master CV and search criteria with you, looks for the job offers that suit you, then prepares your applications: a CV tailored to each offer, a cover letter. You then follow your applications, interviews and follow-ups in one place.\n\nJobbbox is for anyone looking for a job, whether for the first time or after years in the same post. It is made to be read without effort: no jargon, a help article for every word to know, and text you can make larger.\n\nYour coach is an AI, and it says so. If you wish, human coaches can also support you, in sessions paid separately. The Jobbbox Chrome extension saves a job offer from the page where you read it.\n\nThis page, « Sign in to Jobbbox », is also where you create your account: no password, enter « Your email address » then click « Send me a sign-in link ». If you don't have an account yet, it is created, on the Free Plan: nothing to pay to start.\n\nThe email you receive holds a link and a 6-digit code. Reading it on another device, your phone for instance? Stay on this page: type the code in « Enter the code from the email », then click « Sign in with this code ». The link and the code are valid for 15 minutes, once: using one makes the other unusable. After 5 wrong codes, the code no longer works: click « Send me a new email ».\n\nDepending on the methods the page offers, « Continue with … » followed by Google, Apple or Microsoft signs you in with an account you already have, without waiting for an email. With Apple, you can choose to hide your email address: Apple then passes on a relay address, and your Jobbbox account is a new one, separate from the account of your usual address. If a Jobbbox account already uses that account's address, the page may ask you to sign in first with a link by email, then link this sign-in method from « My account ».\n\nIn the Jobbbox app, the « Sign in to Jobbbox » screen offers the same methods, above the link by email. « Continue with … » opens the provider's page in the phone's browser, over the app; on an iPhone, the system first asks you to let Jobbbox open it. Once you are signed in at the provider, you are back in the app, signed in. You close that page or tap « Cancel »? Nothing changes: the sign-in screen is waiting, pick another method. A sign-in with Google, Apple or Microsoft asks for no second step, even if your account has two-step verification."
     },
     {
       "id": "page-withdrawal",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { signInCopy } from "./sign-in-copy";
+import { cancelledAtProvider, signInCopy } from "./sign-in-providers";
 
-describe("sign-in page copy", () => {
+describe("what a sign-in page or the app's sign-in screen says (#470, #687)", () => {
   it("mentions no provider when only the magic link is offered", () => {
     const copy = signInCopy({ providers: [] }, "fr");
     expect(copy.intro).toBe(
@@ -58,5 +58,16 @@ describe("sign-in page copy", () => {
     expect(signInCopy({ providers: ["Google"], error: "EXPIRED_TOKEN" }, "fr").notice?.tone).toBe("warn");
     for (const error of ["access_denied", "account_not_linked", "provider_not_allowed", "provider_disabled"])
       expect(signInCopy({ providers: ["Google"], error }, "fr").notice?.tone).toBe("danger");
+  });
+});
+
+describe("a sign-in through a provider the person left (#687)", () => {
+  it("is cancelled when they refused or closed the provider's page: Google's and Microsoft's access_denied, Apple's user_cancelled_authorize", () => {
+    expect(cancelledAtProvider("access_denied")).toBe(true);
+    expect(cancelledAtProvider("user_cancelled_authorize")).toBe(true);
+  });
+
+  it("is not when Jobbbox refused it, or when it failed", () => {
+    for (const error of ["account_not_linked", "provider_disabled", "provider_not_allowed", "invalid_code", "state_mismatch"]) expect(cancelledAtProvider(error)).toBe(false);
   });
 });

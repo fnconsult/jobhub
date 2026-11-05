@@ -1,6 +1,6 @@
 import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/reads";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Linking, ScrollView, View } from "react-native";
 import { useRead } from "../api/reads";
@@ -10,6 +10,7 @@ import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { paymentReturn, paymentWait, readAgainWhileWaiting, usePendingCheckout, type PaymentWait } from "./payment-return";
+import { SessionForm } from "./SessionForm";
 
 type Session = CoachingResponse["sessions"][number];
 type Coach = CoachingResponse["coaches"][number];
@@ -65,6 +66,12 @@ export function HumanCoaches() {
   useEffect(() => {
     if (back === "paid" || back === "closed") void refetch();
   }, [back, refetch]);
+  // Back from a page of the web app (a Withdrawal) or the Agenda: read afresh.
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
   if (coaching.data) return <Loaded coaching={coaching.data} wait={wait} onRefresh={() => void refetch()} />;
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: space[4], padding: space[4] }}>
@@ -96,7 +103,7 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
         <PaymentNotice wait={wait} onRefresh={onRefresh} />
         {coaching.sessions.length === 0 ? <AppText tone="secondary">{t("humanCoachesMenu.sessionsNone")}</AppText> : null}
         {coaching.sessions.map((session) => (
-          <SessionCard key={session.id} session={session} formats={formats} />
+          <SessionCard key={session.id} session={session} formats={formats} onSaved={onRefresh} />
         ))}
       </View>
       <View style={{ gap: space[3] }}>
@@ -123,17 +130,45 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** A Coaching Session: dated (its date, duration, video link, note, « modifié par » the coach), or to schedule on Cal.com. */
-function SessionCard({ session, formats }: { session: Session; formats: Formats }) {
+/**
+ * A Coaching Session: dated (its date, duration, video link, note, « modifié par » the coach), or to schedule on Cal.com;
+ * its date to enter or correct (SessionForm), and « Renoncer au contrat ici » while it can still be withdrawn from.
+ */
+function SessionCard({ session, formats, onSaved }: { session: Session; formats: Formats; onSaved: () => void }) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
   const name = session.coach.name;
   const paidOn = t("humanCoaches.sessionPaidOn", { name, date: formats.date(session.paidAt) });
+  const actions = editing ? (
+    <SessionForm
+      session={session}
+      onSaved={() => {
+        setEditing(false);
+        onSaved();
+      }}
+      onCancel={() => setEditing(false)}
+    />
+  ) : (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
+      <Control
+        look="secondary"
+        label={t(session.scheduledAt ? "coachingSession.edit" : "coachingSession.enterDate")}
+        accessibleName={t(session.scheduledAt ? "coachingSession.editFor" : "coachingSession.enterDateFor", { name })}
+        onPress={() => setEditing(true)}
+      />
+      {session.withdrawable ? (
+        <Control label={t("withdrawals.page.title")} accessibleName={t("withdrawals.agenda.label", { name })} onPress={() => router.navigate(paths.withdrawal(`coaching-session:${session.id}`))} />
+      ) : null}
+    </View>
+  );
   if (!session.scheduledAt) {
     return (
       <Card label={paidOn}>
         <AppText weight="semiBold">{paidOn}</AppText>
         <AppText tone="secondary">{t("humanCoaches.toSchedule")}</AppText>
         <Control look="primary" label={t("humanCoaches.pickSlot", { name })} onPress={() => void Linking.openURL(session.coach.bookingUrl).catch(() => {})} />
+        {actions}
       </Card>
     );
   }
@@ -152,6 +187,7 @@ function SessionCard({ session, formats }: { session: Session; formats: Formats 
         {paidOn}
       </AppText>
       {session.videoLink ? <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} /> : null}
+      {actions}
     </Card>
   );
 }

@@ -266,14 +266,105 @@ describe("back from Stripe Checkout: the Coaching Session is recorded by Stripe'
 
   it("waits for nothing when the Candidate left Checkout without paying", async () => {
     await pay();
-    const readsBefore = web.reads;
 
     await universalLink("/coachs/paiement?annule=1");
 
     expect(mockBrowser.dismissed).toBe(1);
     expect(await screen.findByText("Paiement annulé : aucune séance n'a été réservée.")).toBeOnTheScreen();
     expect(screen.queryByText(/^Paiement reçu|^Si vous avez payé/)).toBeNull();
+    // Read once on coming back to the page, then no more on its own.
+    const reads = web.reads;
     await act(async () => void jest.advanceTimersByTime(5_000));
-    expect(web.reads - readsBefore).toBeLessThanOrEqual(1);
+    expect(web.reads).toBe(reads);
+  });
+});
+
+describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, as on the web)", () => {
+  const field = (label: string) => screen.getByLabelText(label);
+  const DATE = "Date de la séance (jj/mm/aaaa)";
+  const TIME = "Heure, à Paris (hh:mm)";
+  const DURATION = "Durée en minutes (facultatif)";
+  const VIDEO = "Lien de la visio (facultatif)";
+  const NOTE = "Note (facultatif)";
+
+  it("enters the date booked on Cal.com, in French time, with its duration, video link and note", async () => {
+    await openCoaches();
+    const user = userEvent.setup();
+
+    await user.press(button("J'ai réservé : saisir la date de la séance avec Paul Durand"));
+    await user.type(field(DATE), "12/11/2026");
+    await user.type(field(TIME), "14:30");
+    await user.type(field(DURATION), "45");
+    await user.type(field(VIDEO), "https://meet.google.com/abc");
+    await user.type(field(NOTE), "Relire mon CV avant");
+    await user.press(button("Enregistrer"));
+
+    expect(web.edits).toEqual([{ id: "s2", body: { scheduledAt: "2026-11-12T14:30", durationMinutes: 45, videoLink: "https://meet.google.com/abc", note: "Relire mon CV avant" } }]);
+    const dated = await screen.findByLabelText("Séance avec Paul Durand, le jeudi 12 novembre 2026 à 14:30");
+    expect(within(dated).getByText("Durée : 45 minutes")).toBeOnTheScreen();
+    expect(within(dated).getByText("Relire mon CV avant")).toBeOnTheScreen();
+    expect(screen.queryByLabelText(DATE)).toBeNull();
+  });
+
+  it("corrects a dated Coaching Session, its fields filled in as last read, the hour in French time", async () => {
+    await openCoaches();
+    const user = userEvent.setup();
+
+    await user.press(button("Modifier la date de la séance avec Claire Martin"));
+    expect(field(DATE).props.value).toBe("23/10/2026");
+    expect(field(TIME).props.value).toBe("11:00");
+    expect(field(DURATION).props.value).toBe("60");
+    expect(field(VIDEO).props.value).toBe("https://meet.google.com/exemple");
+    expect(field(NOTE).props.value).toBe("Préparer l'entretien Aéroline");
+    await user.clear(field(TIME));
+    await user.type(field(TIME), "15:00");
+    await user.press(button("Enregistrer"));
+
+    expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00", durationMinutes: 60, videoLink: "https://meet.google.com/exemple", note: "Préparer l'entretien Aéroline" } }]);
+    expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00")).toBeOnTheScreen();
+  });
+
+  it("says under each field what the web app refused, and changes nothing", async () => {
+    await openCoaches();
+    const user = userEvent.setup();
+
+    await user.press(button("J'ai réservé : saisir la date de la séance avec Paul Durand"));
+    await user.type(field(DURATION), "2");
+    await user.type(field(VIDEO), "meet.google.com/abc");
+    await user.press(button("Enregistrer"));
+
+    expect(await screen.findByText("Saisissez la date et l'heure de la séance.")).toBeOnTheScreen();
+    expect(screen.getByText("Saisissez une durée entre 5 et 600 minutes, ou laissez vide.")).toBeOnTheScreen();
+    expect(screen.getByText("Saisissez un lien qui commence par http:// ou https://, ou laissez vide.")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Séance avec Paul Durand, payée le 18 octobre 2026")).toBeOnTheScreen();
+
+    await user.type(field(DATE), "31/02/2026");
+    await user.type(field(TIME), "25:00");
+    await user.press(button("Enregistrer"));
+    expect(await screen.findByText("Cette date n'est pas valide. Saisissez la date et l'heure de la séance.")).toBeOnTheScreen();
+  });
+
+  it("closes the form with « Annuler », sending nothing", async () => {
+    await openCoaches();
+    const user = userEvent.setup();
+
+    await user.press(button("J'ai réservé : saisir la date de la séance avec Paul Durand"));
+    await user.press(button("Annuler"));
+
+    expect(screen.queryByLabelText(DATE)).toBeNull();
+    expect(web.edits).toEqual([]);
+  });
+});
+
+describe("« Renoncer au contrat ici » (#511, ADR-0071)", () => {
+  it("opens the web's Withdrawal page of a Coaching Session still in its Withdrawal period, in a WebView", async () => {
+    await openCoaches();
+
+    expect(screen.queryByRole("button", { name: "Renoncer au contrat ici : séance avec Claire Martin" })).toBeNull();
+    await userEvent.setup().press(button("Renoncer au contrat ici : séance avec Paul Durand"));
+
+    expect(screen).toHavePathname("/abonnement/retractation");
+    await screen.findByTestId("web-view");
+    expect(fakeWebView.shown!.source).toEqual({ uri: "https://staging.jobbbox.ai/abonnement/retractation?contrat=coaching-session%3As2" });
   });
 });

@@ -32,6 +32,8 @@ export const paths = {
   accountData: "/compte/donnees",
   accountDeletion: "/compte/supprimer",
   subscription: "/abonnement",
+  /** « Renoncer au contrat ici »: the web's Withdrawal form of a contract (`plan`, `coaching-session:<id>`), in a WebView. */
+  withdrawal: (contract: string) => `/abonnement/retractation?contrat=${encodeURIComponent(contract)}`,
   legal: "/legal",
   coachSpace: "/espace-coach",
   /** Réglages de l'app, the device's own settings: the app's alone, the web has no such page. */

@@ -1,12 +1,15 @@
-import { Plus, Send, Square } from "lucide-react-native";
-import { useRef, type ComponentRef, type ReactNode, type RefObject } from "react";
+import { FileText, Link, Plus, Send, Square, type LucideIcon } from "lucide-react-native";
+import { useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import type { DroppedItem } from "../attach/attachment";
+import { DropTarget } from "../attach/DropTarget";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { useOnline } from "../offline/read-cache";
-import { INTER, radius, space, type, useTheme } from "../theme/theme";
+import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
+import { usePointerHover } from "../ui/pointer";
 
 /** The conversation keeps a reading width, centred in its space (ADR-0070): 44rem. */
 const READING_REM = 44;
@@ -18,9 +21,11 @@ const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEv
 /**
  * A page's conversation with the AI Coach (ADR-0070), as it is drawn: its thread (`children`, at its reading width,
  * following the latest message), and at its foot the box, with « + » for a link or a document and « Envoyer » or,
- * while the reply is on its way, « Arrêter ». `aboveBox` (the suggestions, the help's articles) and `belowBox` (the
- * Signalement links) sit around it. What it shows and sends is its caller's (CoachConversation). Without network the
- * box, « + » and « Envoyer » are disabled, and it says why (#701).
+ * while the reply is on its way, « Arrêter ». « + » opens its menu above the box, « Coller un lien d'offre » and
+ * « Joindre un CV » (#696); on a tablet a document or a link dropped on the box goes to `attach.drop`. `aboveBox` (the
+ * suggestions, the help's articles) and `belowBox` (the Signalement links) sit around it. What it shows and sends is
+ * its caller's (CoachConversation). Without network the box, « + » and « Envoyer » are disabled, nothing dropped is
+ * taken, and it says why (#701).
  */
 export function Conversation({
   draft,
@@ -28,7 +33,7 @@ export function Conversation({
   streaming,
   onSend,
   onStop,
-  onAttach,
+  attach,
   aboveBox,
   belowBox,
   inputRef,
@@ -40,7 +45,8 @@ export function Conversation({
   /** The draft, trimmed, to send: its caller empties the box. */
   onSend: (text: string) => void;
   onStop: () => void;
-  onAttach: () => void;
+  /** What « + » offers, and what is dropped on the box (useAttach). */
+  attach: { pasteLink: () => void; pickCv: () => void; drop: (items: DroppedItem[]) => void };
   aboveBox?: ReactNode;
   belowBox?: ReactNode;
   /** The box, for its caller to put the focus in it. */
@@ -55,6 +61,11 @@ export function Conversation({
   // Whether the person reads the latest message: the thread follows it as it grows (a message, the reply streaming), but
   // stays where they scrolled back to when the window changes and the messages wrap again (Split View, a foldable).
   const following = useRef(true);
+  const [attaching, setAttaching] = useState(false);
+  const choose = (chosen: () => void) => {
+    setAttaching(false);
+    chosen();
+  };
   const send = () => {
     const text = draft.trim();
     if (!text || !online || streaming) return;
@@ -84,7 +95,18 @@ export function Conversation({
             {t("mobile.offline.conversationDisabled")}
           </AppText>
         )}
-        <View
+        {attaching && online ? (
+          <View
+            role="menu"
+            aria-label={t("mobile.attachments.menu")}
+            style={{ alignSelf: "flex-start", padding: space[1], borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }}
+          >
+            <MenuItem label={t("mobile.attachments.pasteLink")} icon={Link} onPress={() => choose(attach.pasteLink)} />
+            <MenuItem label={t("mobile.attachments.joinCv")} icon={FileText} onPress={() => choose(attach.pickCv)} />
+          </View>
+        ) : null}
+        <DropTarget
+          onDrop={(items) => (online ? attach.drop(items) : undefined)}
           style={{
             flexDirection: "row",
             alignItems: "flex-end",
@@ -96,7 +118,7 @@ export function Conversation({
             backgroundColor: colors.surface,
           }}
         >
-          <Control label={t("mobile.attach")} icon={Plus} iconOnly disabled={!online} onPress={onAttach} />
+          <Control label={t("mobile.attach")} icon={Plus} iconOnly expanded={attaching && online} disabled={!online} onPress={() => setAttaching((open) => !open)} />
           <TextInput
             ref={inputRef}
             aria-label={t("coachPanel.messageLabel")}
@@ -123,10 +145,36 @@ export function Conversation({
           ) : (
             <Control label={t("mobile.send")} icon={Send} look="primary" disabled={!online} onPress={send} />
           )}
-        </View>
+        </DropTarget>
         {belowBox}
       </View>
     </View>
+  );
+}
+
+/** One of « + »'s choices: 44 pt high at least, its icon beside its words, highlighted under a pointer. */
+function MenuItem({ label, icon: Icon, onPress }: { label: string; icon: LucideIcon; onPress: () => void }) {
+  const { colors } = useTheme();
+  const { hovered, hoverProps } = usePointerHover();
+  return (
+    <Pressable
+      role="menuitem"
+      aria-label={label}
+      onPress={onPress}
+      {...hoverProps}
+      style={({ pressed }) => ({
+        minHeight: TARGET,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: space[3],
+        paddingHorizontal: space[3],
+        borderRadius: radius.md,
+        backgroundColor: pressed || hovered ? colors.hover : "transparent",
+      })}
+    >
+      <Icon color={colors.secondary} size={20} aria-hidden />
+      <AppText>{label}</AppText>
+    </Pressable>
   );
 }
 

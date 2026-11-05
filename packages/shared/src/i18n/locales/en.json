@@ -5869,6 +5869,23 @@
       "writeDisabled": "Offline: nothing is saved until the network is back."
     },
     "attach": "Attach a link or a document",
+    "attachments": {
+      "menu": "Attach",
+      "pasteLink": "Paste a job offer link",
+      "joinCv": "Attach a CV",
+      "noLink": "The clipboard holds no link. Copy the job offer's link, then try again.",
+      "nothingDropped": "Drop a job offer's link on the box, or a CV as a PDF or Word file (.docx).",
+      "read": "CV read: {{name}}",
+      "targetRole": "Target role: {{value}}",
+      "locations": "Locations: {{value}}",
+      "createProfile": "Create the profile",
+      "creating": "Creating the profile…",
+      "editLater": "You can correct it afterwards with “Edit the profile”.",
+      "incomplete": "This CV does not give everything a profile needs ({{fields}}). Create the profile on jobbbox.ai: you import this CV there and complete each field.",
+      "incompleteFields": "some fields",
+      "createOnWeb": "Create the profile on jobbbox.ai",
+      "newProfile": "New profile"
+    },
     "send": "Send",
     "emptyScreen": "This screen is coming to the app soon.",
     "update": {

@@ -5,8 +5,8 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), the CGU and CGV versions they accepted, Plan (with its Coach context limits) and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), the « Propositions du coach » setting (#717), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
- *    Appointment Reminders sent; their Profiles
+  *    sessions), the CGU and CGV versions they accepted, Plan (with its Coach context limits) and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), the « Propositions du coach » setting (#717), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+  *    Appointment Reminders sent, the app's devices for Push notifications (never their token) and their switches; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
@@ -55,6 +55,7 @@ import type { FollowUpDelays } from "../follow-ups";
 import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { ChosenFrequency } from "../job-digests";
 import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
+import { pushNotificationsOf, type ExportedPushNotifications } from "../push-notifications";
 import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
 import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-email";
 import { coachProposalsDisplayOf, type ExportedCoachProposalsDisplay } from "../coach-proposals-display";
@@ -313,6 +314,8 @@ export interface CandidateDataExport {
   followUpDelays: FollowUpDelays | null;
   /** The Candidate's Appointment Reminder setting and the Appointment Reminders sent. */
   appointmentReminders: ExportedAppointmentReminders;
+  /** The devices the Jobbbox app registered for Push notifications (#698: platform, language, dates; never their token), and the switches changed in Rappels. */
+  pushNotifications: ExportedPushNotifications;
   /** Every Coach Conversation, most recently active first. */
   coachConversations: ExportedCoachConversation[];
   /** When the Candidate closed the conversations' welcome panel for good, or null while it still shows. */
@@ -415,6 +418,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   follow_up_delay: "followUpDelays",
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",
+  push_device: "pushNotifications.devices (platform, language, when registered and last seen; never the token nor the session)",
+  push_notification_setting: "pushNotifications.switches (each event switched in Rappels, on or off, and when)",
   coach_welcome_closed: "coachWelcome.closedAt",
   legal_text_notice: "legalTextNotices.emailed (the text and version each notice email told of, #547)",
   privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
@@ -768,7 +773,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, pushNotifications, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -798,6 +803,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         emailIntakeOf(database, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportAppointmentReminders(candidateId),
+        pushNotificationsOf(database, candidateId),
         rowOf<{ closedAt: Date }>(`SELECT closed_at AS "closedAt" FROM coach_welcome_closed WHERE candidate_id = $1`, candidateId),
         exportCoachConversations(candidateId),
         exportAssistantConversations(candidateId),
@@ -856,7 +862,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

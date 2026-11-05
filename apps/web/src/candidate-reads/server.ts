@@ -7,6 +7,7 @@ import { getFollowUps } from "@/follow-ups/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobSearches } from "@/job-searches/server";
+import { getOfferBox } from "@/offer-box/server";
 import { getProfiles } from "@/profiles/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
@@ -29,6 +30,7 @@ export function getCandidateReads(): CandidateReads {
     tailoredCvs: getTailoredCvs(),
     tailoredDocuments: getTailoredDocuments(),
     coachConversations: getCoachConversations(),
+    offerBox: getOfferBox(),
   });
   return instance;
 }

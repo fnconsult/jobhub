@@ -5,6 +5,7 @@ import { browser } from "wxt/browser";
 import { ALL_SITES } from "../../src/all-sites-detection";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
 import { openAnalysisPage } from "../../src/analysis-page";
+import { createDraft, keepChecked, keepFile, keepSelected } from "../../src/panel-drafts";
 import { readCandidateSession } from "../../src/candidate-session";
 import { createExtensionUpdate, UPDATE_STORAGE_KEY, updateHref, type UpdateRequired } from "../../src/extension-update";
 import { choosePage } from "../../src/frame-choice";
@@ -55,6 +56,14 @@ const saving = createApplicationSaving({ api, session });
 // Shown again on reopen rather than computed again: each Match Score uses the Candidate's Plan Quota (#51).
 const scoring = createMatchScoring({ api, session });
 const app = document.querySelector<HTMLElement>("#app")!;
+// What is chosen in the forms and not sent yet, kept from one render to the next (#797): the panel draws itself
+// again whenever the posting in view, the Guest session or the update asked changes, its forms with it.
+/** The Profile chosen to save the Job Offer with (`""`: a new one from the CV), for that Job Offer. */
+const savingWith = createDraft<string>();
+/** The CV file chosen, not read yet. */
+const cvChosen = createDraft<File>();
+/** The Guest's CGU box ticked, for that version. */
+const termsTicked = createDraft<boolean>();
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = "", className?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -117,6 +126,7 @@ function guestTermsBox(cgu: CguVersion): { node: HTMLElement; input: HTMLInputEl
   const input = element("input");
   Object.assign(input, { type: "checkbox", id: "guest-terms", checked: false });
   input.dataset.version = cgu.version;
+  keepChecked(input, termsTicked, cgu.version);
   const label = element("label");
   label.htmlFor = input.id;
   const marker = (slot: string) => `\u0000${slot}\u0000`;
@@ -331,7 +341,9 @@ function cvForm(cgu: CguVersion | null): { form: HTMLFormElement; submit: HTMLBu
   choose.htmlFor = "cv";
   const chosen = element("p", "", "drop-zone__file");
   drop.append(icon("upload"), element("strong", t("extension.analysis.dropCv")), choose, chosen, hint);
+  const remember = keepFile(input, cvChosen, "cv");
   const show = () => (chosen.textContent = input.files?.[0]?.name ?? "");
+  show();
   input.addEventListener("change", show);
   drop.addEventListener("dragover", (event) => {
     event.preventDefault();
@@ -343,6 +355,7 @@ function cvForm(cgu: CguVersion | null): { form: HTMLFormElement; submit: HTMLBu
     drop.classList.remove("is-over");
     if (!event.dataTransfer?.files.length) return;
     input.files = event.dataTransfer.files;
+    remember();
     show();
   });
   const submit = element("button", t("extension.analysis.submit"), buttonClass("primary"));
@@ -402,6 +415,7 @@ function cvForm(cgu: CguVersion | null): { form: HTMLFormElement; submit: HTMLBu
       return;
     }
     await session.keepCv(read.cv, read.searchCriteria);
+    cvChosen.clear();
     await render();
   });
   return { form, submit };
@@ -445,7 +459,7 @@ function savedNotice(saved: Extract<SavingState, { state: "saved" }>): HTMLEleme
 }
 
 /** The signed-in Candidate chooses the Profile the Application uses, then it is saved: « Enregistrer en candidature », in the footer. */
-function saveForm(choice: Extract<SavingState, { state: "choose" }>, scoredProfileId: string | undefined): HTMLElement {
+function saveForm(choice: Extract<SavingState, { state: "choose" }>, scoredProfileId: string | undefined, jobOfferId: string): HTMLElement {
   const form = element("form", "", "save-form");
   const field = element("div", "", "ds-field");
   const label = element("label", t("extension.analysis.profileLabel"), "ds-field__label");
@@ -464,6 +478,8 @@ function saveForm(choice: Extract<SavingState, { state: "choose" }>, scoredProfi
     option.value = "";
     select.append(option);
   }
+  // Chosen, then the panel drawn again (another tab, the session changed) before « Enregistrer »: still the one chosen.
+  keepSelected(select, savingWith, jobOfferId);
   field.append(label, select);
   const submit = element("button", t("extension.analysis.save"), buttonClass("primary"));
   submit.type = "submit";
@@ -476,7 +492,9 @@ function saveForm(choice: Extract<SavingState, { state: "choose" }>, scoredProfi
     submit.disabled = true;
     progress.textContent = t("extension.analysis.saving");
     const chosen: ProfileChoice = select.value ? { profileId: select.value } : "new_profile_from_cv";
-    await render(undefined, false, await saving.save(chosen));
+    const outcome = await saving.save(chosen);
+    if (outcome.state === "saved") savingWith.clear();
+    await render(undefined, false, outcome);
   });
   return form;
 }
@@ -561,6 +579,9 @@ async function forget() {
   shownJobOfferId = undefined;
   await session.forget();
   shownMatchScore = undefined;
+  savingWith.clear();
+  cvChosen.clear();
+  termsTicked.clear();
   await render({ text: t("extension.analysis.forgotten") });
 }
 
@@ -748,7 +769,7 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
   }
 
   if (candidate.signedIn && jobOffer) {
-    if (choice && (choice.profiles.length > 0 || choice.fromCv)) foot.push(saveForm(choice, scoredProfileId));
+    if (choice && (choice.profiles.length > 0 || choice.fromCv)) foot.push(saveForm(choice, scoredProfileId, jobOffer.id));
     else if (choice) body.push(element("p", t("extension.analysis.firstProfileHint")));
   }
   if (!candidate.signedIn && !jobOffer) foot.push(siteLink(t("extension.analysis.signIn"), "/connexion", buttonClass("quiet")));

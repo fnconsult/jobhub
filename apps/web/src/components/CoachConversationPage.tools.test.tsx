@@ -11,8 +11,8 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ 
 
 const CONVERSATION = { id: "66666666-6666-4666-8666-666666666666", title: "Mes candidatures", subject: null, profile: null, lastMessageAt: "2026-11-05T10:00:00.000Z" };
 const AT = "2026-11-05T10:00:00.000Z";
-const READ = { kind: "tool", activity: "act", tool: "applications", at: AT };
-const PROFILE_READ = { kind: "tool", activity: "act", tool: "profile", at: AT };
+const READ = { kind: "tool", activity: "act", tool: "applications", action: "list_objects", at: AT };
+const PROFILE_READ = { kind: "tool", activity: "act", tool: "profile", action: "read_profile", at: AT };
 const CHECK = { kind: "ai", activity: "think", task: "guardrail", at: AT };
 const WRITE = { kind: "ai", activity: "think_write", task: "coaching", at: AT };
 const ended = (step: object) => ({ ...step, ms: 5, outcome: "ok", count: 1 });
@@ -24,6 +24,15 @@ const PROVENANCE: Provenance = {
   wallMs: 900,
 };
 const REPLY = "Votre candidature chez Airbus avance bien et votre profil est prêt.";
+/** A saved reply whose Coach Actions said what they saw (#788): the Application by its page, named by the server. */
+const SAVED_PROVENANCE: Provenance = {
+  ...PROVENANCE,
+  steps: [
+    { ...ended({ ...READ, action: "read_application" }), seen: [{ type: "application", href: "/candidatures/a1" }] },
+    { ...ended(PROFILE_READ), seen: [{ type: "profile", href: "/profils/p1" }] },
+    ended(WRITE),
+  ] as Provenance["steps"],
+};
 
 /** The server's live reply, its events sent one by one with `send`; `/api/coach/conversations/…` gives back a saved one. */
 let send: (event: object) => Promise<void>;
@@ -52,7 +61,7 @@ function liveServer() {
     }
     if (url === `/api/coach/conversations/${CONVERSATION.id}`)
       return Response.json({
-        conversation: { ...CONVERSATION, aiDisclosure: false, messages: [{ from: "candidate", text: "Où en suis-je ?" }, { from: "coach", text: REPLY, provenance: PROVENANCE, at: AT }] },
+        conversation: { ...CONVERSATION, aiDisclosure: false, messages: [{ from: "candidate", text: "Où en suis-je ?" }, { from: "coach", text: REPLY, provenance: SAVED_PROVENANCE, at: AT, seenNames: { "/candidatures/a1": "Airbus · Contrôleuse de gestion" } }] },
       });
     return new Response(null, { status: 404 });
   });
@@ -110,23 +119,23 @@ describe("a reply's Coach Actions live (#788): a line each, one glyph that morph
     await ask(user);
 
     await send({ type: "step_started", id: 1, step: READ, label: "act" });
-    expect(lines()).toEqual([["Consulte vos données · Candidatures", false]]);
+    expect(lines()).toEqual([["Consulte vos données…", false]]);
     expect(liveGlyphs().map((glyph) => glyph.getAttribute("data-activity"))).toEqual(["act"]);
 
-    await send({ type: "step_ended", id: 1, step: ended(READ) });
+    await send({ type: "step_ended", id: 1, step: { ...ended(READ), seen: [{ type: "application", count: 12 }] }, names: [null] });
     await send({ type: "step_started", id: 2, step: CHECK, label: "check" });
     expect(lines()).toEqual([
-      ["Consulte vos données · Candidatures", true],
+      ["Consulte vos données · 12 candidatures", true],
       ["Vérification", false],
     ]);
     await send({ type: "step_ended", id: 2, step: ended(CHECK) });
     await send({ type: "step_started", id: 3, step: PROFILE_READ, label: "act" });
-    await send({ type: "step_ended", id: 3, step: ended(PROFILE_READ) });
+    await send({ type: "step_ended", id: 3, step: { ...ended(PROFILE_READ), seen: [{ type: "profile", href: "/profils/p1" }] }, names: ["Contrôleuse de gestion"] });
     await send({ type: "step_started", id: 4, step: WRITE, label: "think_write" });
 
     expect(lines()).toEqual([
-      ["Consulte vos données · Candidatures", true],
-      ["Consulte vos données · Profil", true],
+      ["Consulte vos données · 12 candidatures", true],
+      ["Ouvre le profil · Contrôleuse de gestion", true],
       ["Réflexion puis rédaction", false],
     ]);
     expect(liveGlyphs().map((glyph) => glyph.getAttribute("data-activity"))).toEqual(["think_write"]);
@@ -159,6 +168,23 @@ describe("a reply once it is there (#788): no glyph in the margin, its words one
       ["Candidature", "/candidatures/a1"],
       ["Profil", "/profils/p1"],
     ]);
+  });
+
+  it("names in « Le coach a consulté… » what its Coach Actions saw, from their live ends (#788)", async () => {
+    motion(false);
+    const user = userEvent.setup();
+    renderInFrench(<Page />);
+    await ask(user);
+    const opened = { ...ended({ ...READ, action: "read_application" }), seen: [{ type: "application", href: "/candidatures/a1" }] };
+    await send({ type: "step_started", id: 1, step: { ...READ, action: "read_application" }, label: "act" });
+    await send({ type: "step_ended", id: 1, step: opened, names: ["Airbus · Contrôleuse de gestion"] });
+    await send({ type: "reply", conversation: CONVERSATION, reply: REPLY, provenance: { ...PROVENANCE, steps: [opened] }, at: AT });
+    await close();
+
+    const consulted = lastMessage().querySelector("details.coach-tools-consulted") as HTMLElement;
+    expect(consulted.querySelector("summary")!.textContent).toBe("Le coach a consulté 1 élément de Jobbbox");
+    const links = within(consulted).getAllByRole("link");
+    expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([["Airbus · Contrôleuse de gestion", "/candidatures/a1"]]);
   });
 
   it("shows its words one by one, each in its place, busy until the last; the full text in the page all along", async () => {
@@ -196,5 +222,7 @@ describe("a reply once it is there (#788): no glyph in the margin, its words one
     expect(reply.hasAttribute("aria-busy")).toBe(false);
     expect(reply.querySelector(":scope > svg.activity-glyph")).toBeNull();
     expect(reply.querySelector("details.coach-tools-consulted summary")!.textContent).toBe("Le coach a consulté 2 éléments de Jobbbox");
+    // Each named as the server gives it, else by its kind of page.
+    expect([...reply.querySelectorAll("details.coach-tools-consulted a")].map((link) => link.textContent)).toEqual(["Airbus · Contrôleuse de gestion", "Profil"]);
   });
 });

@@ -1113,7 +1113,7 @@ _Avoid_: Sources, references
 A new AI Coach reply's words appear one by one, about 28 a second, in this browser only; nothing is stored. Shown all at once under reduced motion and for history messages (#788).
 
 **Step label**:
-What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step.
+What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step. In the conversation (#788), a shipped Coach Action's line has its own label (« Ouvre la candidature », « Ouvre le profil »…), followed by what it saw: a list by its count, an object by its name. The Provenance keeps which Coach Action ran (`action`) and what it saw by kind and page or count (`seen`), never a name (ADR-0034): the names travel with the live `step_ended` event only, and are looked up again from the Candidate's own objects when the conversation reopens.
 _Avoid_: Step name, status
 
 **Live action**:

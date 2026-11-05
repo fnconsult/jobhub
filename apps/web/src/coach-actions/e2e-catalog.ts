@@ -90,7 +90,15 @@ export function e2eCoachActions(applications: Pick<Applications, "get" | "status
         const application = await applications.get(candidateId, id);
         if (!application) return { ok: false, error: "not_found" };
         // A Job Offer's title and employer: text the Candidate did not write.
-        return { ok: true, data: `Candidature : ${[application.jobOffer.title, application.jobOffer.employer].filter(Boolean).join(" · ")}`, pages: [routes.application(id)], untrusted: true };
+        const name = [application.jobOffer.employer, application.jobOffer.title].filter(Boolean).join(" · ");
+        return {
+          ok: true,
+          data: `Candidature : ${[application.jobOffer.title, application.jobOffer.employer].filter(Boolean).join(" · ")}`,
+          pages: [routes.application(id)],
+          untrusted: true,
+          // What it read, named for the thread's line (#788).
+          seen: [{ type: "application", href: routes.application(id), name: name.slice(0, 80) }],
+        };
       },
     }),
   ];

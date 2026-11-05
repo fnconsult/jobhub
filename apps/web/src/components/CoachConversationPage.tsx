@@ -17,7 +17,7 @@ import { focusFirstSuggestion, HelpForUnanswered, HelpIntro, HelpSuggestions, Re
 import { CoachMemoryProposals } from "@/components/CoachMemory";
 import { CoachProposalCard } from "@/components/CoachProposalCard";
 import { CoachReplyText, replyWordCount } from "@/components/CoachReplyText";
-import { NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "@/components/coach-tool-steps";
+import { namesByPage, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "@/components/coach-tool-steps";
 import { CoachLiveSteps, CoachToolsConsulted } from "@/components/CoachToolSteps";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
@@ -97,7 +97,7 @@ const wordsMove = () => typeof window.matchMedia === "function" && window.matchM
 type LiveEvent =
   | { type: "conversation"; conversation: ConversationSummary }
   | { type: "step_started"; id: number; step: StartedStep; label: StepLabel }
-  | { type: "step_ended"; id: number; step: ProvenanceStep }
+  | { type: "step_ended"; id: number; step: ProvenanceStep; names?: readonly (string | null)[] }
   | ({ type: "reply" } & ReplyBody)
   | { type: "stopped"; conversation: ConversationSummary; context?: ConversationContext }
   | { type: "failed"; error: string; reason?: string };
@@ -463,6 +463,8 @@ export function CoachConversationPage(page: PagePlacement) {
     stopper.current = stop;
     const startedAt = Date.now();
     let spent = 0;
+    // The names of the objects this reply's Coach Actions saw, by page (#788): sent live only, kept with the reply shown.
+    const seenNames: Record<string, string> = {};
     // Started afresh meanwhile (« Effacer », « Nouvelle conversation »): what comes back belongs to no conversation shown.
     const startedIn = generation.current;
     const abandoned = () => {
@@ -516,6 +518,7 @@ export function CoachConversationPage(page: PagePlacement) {
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
           ...(cards.length > 0 ? { cards } : {}),
+          ...(Object.keys(seenNames).length > 0 ? { seenNames: { ...seenNames } } : {}),
           ...(openForm ? { openForm } : {}),
           // Its words one by one, in this browser only: all at once under reduced motion, and from the history.
           ...(wordsMove() ? { revealing: replyWordCount(body.reply) } : {}),
@@ -581,6 +584,7 @@ export function CoachConversationPage(page: PagePlacement) {
           } else if (event.type === "step_ended") {
             shownLive?.event({ type: "step_ended", id: event.id, step: event.step });
             spent += tokensOf(event.step);
+            Object.assign(seenNames, namesByPage(event));
             setLive((was) => (was ? stepEnded(was, event) : was));
           } else {
             ended = true;
@@ -696,7 +700,7 @@ export function CoachConversationPage(page: PagePlacement) {
                   {message.from === "coach" ? <CoachReplyText text={message.text} reveal={message.revealing !== undefined} /> : <p>{message.text}</p>}
                   {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
                   {/* What the AI Coach consulted in Jobbbox (#788), folded, before the Provenance line. */}
-                  {message.from === "coach" ? <CoachToolsConsulted provenance={message.provenance ?? null} /> : null}
+                  {message.from === "coach" ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
                   {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
                   {/* Its Coach proposals (#715), each an Action Card, after its Provenance line. */}
                   {message.from === "coach" && message.cards?.length

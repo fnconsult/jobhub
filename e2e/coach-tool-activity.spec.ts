@@ -7,7 +7,8 @@ import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-ser
 
 // Issue #788 (ADR-0077): the Coach Actions seen in the conversation. While a reply is on its way, one glyph on its left
 // morphs from step to step (the toolbox while a Coach Action runs, then the brain and the feather) and each Coach Action
-// has a line of its own, its label and the Tool it reads, which stays past the Guardrail's « Vérification ». Once the reply
+// has a line of its own, its label and what it read (« Ouvre le profil · Contrôle de gestion »), which stays past the
+// Guardrail's « Vérification ». Once the reply
 // is there, no reply has a glyph in the margin: its words come one by one (all at once under reduced motion, and from the
 // history), then « Le coach a consulté N éléments de Jobbbox », which opens on each, linked, after a reload too. This spec
 // runs on a server of its own with COACH_ACTIONS_ENABLED on and the suite's fake Coach Actions (E2E_FAKE_COACH_ACTIONS: a
@@ -16,6 +17,7 @@ import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-ser
 // `E2E_DATA_CHECK_SLOW=<ms>` in what a read gives back delays its Guardrail check.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const steps = fr.aiActivity.steps;
+const seenSteps = fr.coachPanel.seen.steps;
 /** Inside the suite's own range of derived ports (e2e/support/ports.ts), apart from the other specs' servers. */
 const PORT_OFFSET = 788;
 /** The Job Offer's title: the slow read gives it to the AI Coach, and its check (« Vérification ») takes 1.5 s. */
@@ -36,8 +38,11 @@ const masterCv = {
 
 let server: OwnServer;
 
+/** The Application as the thread names it: its Job Offer's employer, then its title. */
+const APPLICATION_NAME = `Airbus · ${TITLE}`;
+
 /** A new Candidate, signed in on a wide screen, with a Profile and an Application at Airbus, on its page. */
-async function withApplication(browser: Browser, options: BrowserContextOptions = {}): Promise<{ page: Page; applicationId: string; profileId: string }> {
+async function withApplication(browser: Browser, options: BrowserContextOptions = {}): Promise<{ page: Page; applicationId: string; profileId: string; profileName: string }> {
   const context = await browser.newContext({ baseURL: server.origin, locale: "fr-FR", viewport: { width: 1600, height: 1000 }, ...options });
   const page = await context.newPage();
   await signInByEmail(page, server, newAddress("coach-tool-activity"));
@@ -50,11 +55,14 @@ async function withApplication(browser: Browser, options: BrowserContextOptions 
   });
   expect(captured.status(), await captured.text()).toBe(200);
   const profileId = (await profile.json()).id as string;
+  // Its name, as the Profile was given it on creation: the thread names it so.
+  const listed = (await (await page.request.get("/api/profiles")).json()) as { id: string; name: string }[];
+  const profileName = listed.find((each) => each.id === profileId)!.name;
   const saved = await page.request.post("/api/applications", { data: { jobOfferId: (await captured.json()).id, profileId }, headers });
   expect(saved.ok(), await saved.text()).toBe(true);
   const applicationId = (await saved.json()).id as string;
   await page.goto(`/candidatures/${applicationId}`);
-  return { page, applicationId, profileId };
+  return { page, applicationId, profileId, profileName };
 }
 
 const conversation = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
@@ -72,15 +80,15 @@ async function ask(page: Page, text: string) {
 const twoReads = (applicationId: string, profileId: string) =>
   `Où en est ma candidature ? E2E_COACH_TOOL=e2e_lire_lentement:${JSON.stringify({ id: applicationId, ms: 2500 })} E2E_COACH_TOOL=read_profile:${JSON.stringify({ id: profileId })} E2E_COACH_SLOW=2500`;
 
-/** « Le coach a consulté 2 éléments de Jobbbox », opened: its two elements, linked to their pages. */
-async function expectConsulted(page: Page, applicationId: string, profileId: string) {
+/** « Le coach a consulté 2 éléments de Jobbbox », opened: its two elements by their names, linked to their pages. */
+async function expectConsulted(page: Page, applicationId: string, profileId: string, profileName: string) {
   const reply = messages(page).last();
   const consulted = reply.locator("details.coach-tools-consulted");
   await expect(consulted.locator("summary")).toHaveText(fr.coachPanel.consulted.summary_other.replace("{{count}}", "2"));
   await consulted.locator("summary").click();
-  await expect(consulted.getByRole("link")).toHaveText([fr.coachPanel.consulted.pages.application, fr.coachPanel.consulted.pages.profile]);
-  await expect(consulted.getByRole("link", { name: fr.coachPanel.consulted.pages.application })).toHaveAttribute("href", `/candidatures/${applicationId}`);
-  await expect(consulted.getByRole("link", { name: fr.coachPanel.consulted.pages.profile })).toHaveAttribute("href", `/profils/${profileId}`);
+  await expect(consulted.getByRole("link")).toHaveText([APPLICATION_NAME, profileName]);
+  await expect(consulted.getByRole("link", { name: APPLICATION_NAME })).toHaveAttribute("href", `/candidatures/${applicationId}`);
+  await expect(consulted.getByRole("link", { name: profileName })).toHaveAttribute("href", `/profils/${profileId}`);
 }
 
 test.describe.configure({ mode: "serial" });
@@ -120,7 +128,9 @@ test.describe("the Coach Actions seen in the conversation (#788)", () => {
 
   test("live: a line per Coach Action, with what it reads, kept past « Vérification »; one glyph, act then think_write", async ({ browser }) => {
     test.setTimeout(90_000);
-    const { page, applicationId, profileId } = await withApplication(browser);
+    const { page, applicationId, profileId, profileName } = await withApplication(browser);
+    // The slow read is the suite's own Coach Action, with no label of its own: the Coach Action step's.
+    const slowRead = `${steps.act} · ${APPLICATION_NAME}`;
     // Every set of lines shown, as the steps come: the « Vérification » after a read is quick.
     await page.evaluate(() => {
       const seen: string[][] = [];
@@ -134,7 +144,7 @@ test.describe("the Coach Actions seen in the conversation (#788)", () => {
     await ask(page, twoReads(applicationId, profileId));
 
     // The slow read under way: its line, the toolbox the one glyph of the reply on its way.
-    await expect(lines(page)).toHaveText([`${steps.act} · Candidatures`], { timeout: 20_000 });
+    await expect(lines(page)).toHaveText([`${steps.act}…`], { timeout: 20_000 });
     await expect(liveGlyph(page)).toHaveCount(1);
     await expect(liveGlyph(page)).toHaveAttribute("data-activity", "act");
     await expect(lines(page).first().locator(".coach-panel-step-dot")).toBeVisible();
@@ -142,43 +152,43 @@ test.describe("the Coach Actions seen in the conversation (#788)", () => {
     expect(axe.violations.map(({ id }) => id)).toEqual([]);
 
     // The Guardrail checks what was read: its « Vérification » after the read's line, which stays, ticked.
-    await expect(lines(page)).toHaveText([`${steps.act} · Candidatures`, steps.check], { timeout: 20_000 });
+    await expect(lines(page)).toHaveText([slowRead, steps.check], { timeout: 20_000 });
     await expect(lines(page).first().locator(".coach-panel-step-done")).toBeVisible();
     await expect(liveGlyph(page)).toHaveCount(1);
 
     // The answer being written, last; both reads kept, ticked; the same one glyph, now think_write.
-    await expect(lines(page)).toHaveText([`${steps.act} · Candidatures`, `${steps.act} · Profil`, steps.think_write], { timeout: 20_000 });
+    await expect(lines(page)).toHaveText([slowRead, `${seenSteps.read_profile} · ${profileName}`, steps.think_write], { timeout: 20_000 });
     await expect(liveGlyph(page)).toHaveCount(1);
     await expect(liveGlyph(page)).toHaveAttribute("data-activity", "think_write");
     await expect(lines(page).nth(0).locator(".coach-panel-step-done")).toBeVisible();
     // A Guardrail's « Vérification » came after the reads (each read is checked) and never took a read's line away: from
     // the slow read's line on, every set of lines shown starts with it.
     const seen = await page.evaluate(() => (window as unknown as { seenLines: string[][] }).seenLines);
-    const read = seen.findIndex((shown) => shown[0] === `${steps.act} · Candidatures`);
+    const read = seen.findIndex((shown) => shown[0] === slowRead);
     expect(read).toBeGreaterThanOrEqual(0);
-    expect(seen.slice(read).every((shown) => shown[0] === `${steps.act} · Candidatures`)).toBe(true);
-    expect(seen.slice(read)).toContainEqual(expect.arrayContaining([`${steps.act} · Candidatures`, steps.check]));
+    expect(seen.slice(read).every((shown) => shown[0] === slowRead)).toBe(true);
+    expect(seen.slice(read)).toContainEqual(expect.arrayContaining([slowRead, steps.check]));
 
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 20_000 });
     await expect(lines(page)).toHaveCount(0);
     await page.context().close();
   });
 
-  test("once there: no reply has a glyph in the margin; « Le coach a consulté 2 éléments de Jobbbox » opens on both, linked, after a reload too", async ({ browser }) => {
+  test("once there: no reply has a glyph in the margin; « Le coach a consulté 2 éléments de Jobbbox » opens on both, by their names, linked, after a reload too", async ({ browser }) => {
     test.setTimeout(90_000);
-    const { page, applicationId, profileId } = await withApplication(browser);
+    const { page, applicationId, profileId, profileName } = await withApplication(browser);
     await ask(page, twoReads(applicationId, profileId));
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 30_000 });
 
     await expect(conversation(page).locator(".chat-coach > svg.activity-glyph")).toHaveCount(0);
-    await expectConsulted(page, applicationId, profileId);
+    await expectConsulted(page, applicationId, profileId, profileName);
     const axe = await new AxeBuilder({ page }).include(".page-conversation").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map(({ id, nodes }) => `${id}: ${nodes.map((node) => node.target.join(" ")).join(", ")}`)).toEqual([]);
 
     await page.reload();
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 20_000 });
     await expect(conversation(page).locator(".chat-coach > svg.activity-glyph")).toHaveCount(0);
-    await expectConsulted(page, applicationId, profileId);
+    await expectConsulted(page, applicationId, profileId, profileName);
     await page.context().close();
   });
 

@@ -12,10 +12,16 @@
  * « Vérification », the reply being written) only shows while it is the step under way, after them, so a check never takes
  * a Coach Action's line away.
  */
-import type { Activity, Provenance, ProvenanceStep, StartedStep, StepLabel, ToolId } from "@jobhub/shared";
+import type { Activity, Provenance, ProvenanceStep, SeenObject, SeenType, StartedStep, StepLabel, ToolId } from "@jobhub/shared";
 
-/** One step of the reply on its way: its Activity and label, the Tool of a Coach Action, and whether it ended. */
-export type LiveStep = { id: number; activity: Activity; label: StepLabel; tool: ToolId | null; ended: boolean };
+/** What a Coach Action saw, as its line shows it (#788): an object by its name when the event gave one, or a list by its count. */
+export type LiveSeen = { type: SeenType; name?: string; href?: string; count?: number };
+
+/**
+ * One step of the reply on its way: its Activity and label, the Tool and the name of a Coach Action, what it saw once it
+ * ended, and whether it ended.
+ */
+export type LiveStep = { id: number; activity: Activity; label: StepLabel; tool: ToolId | null; action: string | null; seen: readonly LiveSeen[]; ended: boolean };
 
 /** A reply on its way (#328): its steps in the order they started. */
 export type LiveReply = { steps: readonly LiveStep[] };
@@ -28,12 +34,28 @@ const isCoachAction = (step: Pick<StartedStep, "kind" | "activity">) => step.kin
 export function stepStarted(live: LiveReply, event: { id: number; step: StartedStep; label: StepLabel }): LiveReply {
   const { id, step, label } = event;
   const tool = step.kind === "tool" && isCoachAction(step) ? step.tool : null;
-  return { steps: [...live.steps.filter((each) => each.id !== id), { id, activity: step.activity, label, tool, ended: false }] };
+  const action = step.kind === "tool" && isCoachAction(step) ? (step.action ?? null) : null;
+  return { steps: [...live.steps.filter((each) => each.id !== id), { id, activity: step.activity, label, tool, action, seen: [], ended: false }] };
 }
 
-/** A step ended: ticked, a new reply object. */
-export function stepEnded(live: LiveReply, event: { id: number; step?: ProvenanceStep }): LiveReply {
-  return { steps: live.steps.map((each) => (each.id === event.id ? { ...each, ended: true } : each)) };
+/** A step ended: ticked, with what it saw, named by the event; a new reply object. */
+export function stepEnded(live: LiveReply, event: { id: number; step?: ProvenanceStep; names?: readonly (string | null)[] }): LiveReply {
+  const seen = seenOf(event);
+  return { steps: live.steps.map((each) => (each.id === event.id ? { ...each, ended: true, ...(seen.length > 0 ? { seen } : {}) } : each)) };
+}
+
+/** What a step's end says it saw, each object with its name from the event. */
+function seenOf(event: { step?: ProvenanceStep; names?: readonly (string | null)[] }): LiveSeen[] {
+  if (event.step?.kind !== "tool" || !event.step.seen) return [];
+  return event.step.seen.map((object, index) => {
+    const name = event.names?.[index];
+    return { ...object, ...(typeof name === "string" && name ? { name } : {}) };
+  });
+}
+
+/** The names a step's end gives, by the page of each object (#788): kept with the reply it served once it arrives. */
+export function namesByPage(event: { step?: ProvenanceStep; names?: readonly (string | null)[] }): Record<string, string> {
+  return Object.fromEntries(seenOf(event).flatMap((object) => (object.href && object.name ? [[object.href, object.name]] : [])));
 }
 
 /**
@@ -51,18 +73,34 @@ export function liveLines(live: LiveReply): { lines: LiveStep[]; current: LiveSt
 export type ConsultedPage = "application" | "applications" | "profile" | "job_search" | "job_searches" | "job_offer" | "job_digest" | "job_digests";
 
 /**
- * What the AI Coach consulted in Jobbbox for a reply, from its stored Provenance, so it stays after a reload: each of the
- * Candidate's pages its Coach Actions read or proposed on (its Provenance sites), linked; with none, each Coach Action's
- * Tool, unlinked (the Agenda has no page of its own). Nothing for a reply without a Coach Action.
+ * What the AI Coach consulted in Jobbbox for a reply, from its stored Provenance, so it stays after a reload (#788):
+ * - each object its Coach Actions saw, once, in order: by its name (`names`, by page: the object as it is now) linked to its
+ *   page, else by its kind of page; a list by how many it held;
+ * - for a Provenance kept before Coach Actions said what they saw: each of the Candidate's pages they read or proposed on
+ *   (its Provenance sites), linked; with none, each Coach Action's Tool, unlinked (the Agenda has no page of its own).
+ * Nothing for a reply without a Coach Action.
  */
-export type ConsultedElement = { href: string; page: ConsultedPage } | { href: null; page: null; tool: ToolId };
+export type ConsultedElement =
+  | { kind: "object"; href: string | null; page: ConsultedPage | null; name: string | null; type: SeenType }
+  | { kind: "count"; type: SeenType; count: number }
+  | { kind: "page"; href: string; page: ConsultedPage }
+  | { kind: "tool"; tool: ToolId };
 
-export function consultedElements(provenance: Provenance | null): ConsultedElement[] {
-  const actions = (provenance?.steps ?? []).filter(isCoachAction);
+export function consultedElements(provenance: Provenance | null, names: Readonly<Record<string, string>> = {}): ConsultedElement[] {
+  const actions = (provenance?.steps ?? []).filter(isCoachAction) as Extract<ProvenanceStep, { kind: "tool" }>[];
   if (actions.length === 0) return [];
+  const seen: SeenObject[] = actions.flatMap((step) => step.seen ?? []);
+  if (seen.length > 0) {
+    const once = seen.filter((object, index) => seen.findIndex((other) => JSON.stringify(other) === JSON.stringify(object)) === index);
+    return once.map((object): ConsultedElement => {
+      if ("count" in object) return { kind: "count", type: object.type, count: object.count };
+      const href = object.href ?? null;
+      return { kind: "object", href, page: href ? pageOf(href) : null, name: href ? (names[href] ?? null) : null, type: object.type };
+    });
+  }
   const links = provenance!.sites.flatMap((site) => (site.kind === "candidate" ? site.links : []));
-  if (links.length > 0) return links.map((href) => ({ href, page: pageOf(href) }));
-  return actions.map((step) => ({ href: null, page: null, tool: (step as Extract<ProvenanceStep, { kind: "tool" }>).tool }));
+  if (links.length > 0) return links.map((href) => ({ kind: "page", href, page: pageOf(href) }));
+  return actions.map((step) => ({ kind: "tool", tool: step.tool }));
 }
 
 /** A page by its path: /candidatures/a1/entretiens is an Application, /recherches/s1/offres/o1 a Job Offer. */

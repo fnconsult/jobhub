@@ -1129,6 +1129,48 @@
       "foot": "Feedback",
       "reportProblem": "Report a problem",
       "suggestIdea": "Suggest an idea"
+    },
+    "seen": {
+      "steps": {
+        "list_objects": "Looking at your data",
+        "read_profile": "Opening the profile",
+        "read_application": "Opening the application",
+        "read_job_offer": "Opening the job offer",
+        "read_job_search": "Opening the job search",
+        "read_job_digest": "Opening the Job Digest",
+        "read_tailored_documents": "Opening the tailored documents"
+      },
+      "count": {
+        "profile_one": "{{count}} profile",
+        "profile_other": "{{count}} profiles",
+        "application_one": "{{count}} application",
+        "application_other": "{{count}} applications",
+        "job_offer_one": "{{count}} job offer",
+        "job_offer_other": "{{count}} job offers",
+        "job_search_one": "{{count}} job search",
+        "job_search_other": "{{count}} job searches",
+        "job_digest_one": "{{count}} Job Digest",
+        "job_digest_other": "{{count}} Job Digests",
+        "tailored_documents_one": "{{count}} set of documents",
+        "tailored_documents_other": "{{count}} sets of documents",
+        "agenda_item_one": "{{count}} appointment",
+        "agenda_item_other": "{{count}} appointments",
+        "coach_memory_one": "{{count}} coach memory",
+        "coach_memory_other": "{{count}} coach memories",
+        "all_one": "{{count}} item",
+        "all_other": "{{count}} items"
+      },
+      "types": {
+        "profile": "Profile",
+        "application": "Application",
+        "job_offer": "Job offer",
+        "job_search": "Job search",
+        "job_digest": "Job Digest",
+        "tailored_documents": "Tailored documents",
+        "agenda_item": "Appointment",
+        "coach_memory": "Coach memory",
+        "all": "Your data"
+      }
     }
   },
   "provenanceLine": {

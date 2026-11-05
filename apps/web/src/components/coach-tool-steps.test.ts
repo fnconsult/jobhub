@@ -1,6 +1,6 @@
 import type { Provenance, ProvenanceStep, StartedStep } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { consultedElements, liveLines, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "./coach-tool-steps";
+import { consultedElements, liveLines, namesByPage, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "./coach-tool-steps";
 
 const AT = "2026-11-05T10:00:00.000Z";
 const read: StartedStep = { kind: "tool", activity: "act", tool: "applications", at: AT };
@@ -115,23 +115,55 @@ const provenance = (steps: ProvenanceStep[], links: string[]): Provenance => ({
   wallMs: 100,
 });
 
+describe("what a Coach Action saw, live (#788)", () => {
+  it("names each object from its step's end, keeps a list's count, and gives the names by page for the reply", () => {
+    const started = stepStarted(NO_STEP_YET, { id: 1, step: { ...read, action: "read_application" }, label: "act" });
+    expect(started.steps[0]).toMatchObject({ action: "read_application", seen: [], ended: false });
+    const end = {
+      id: 1,
+      step: { ...ended(read), action: "read_application", seen: [{ type: "application" as const, href: "/candidatures/a1" }, { type: "all" as const, count: 3 }] },
+      names: ["Airbus · Contrôleuse de gestion", null],
+    };
+    expect(stepEnded(started, end).steps[0]).toMatchObject({
+      ended: true,
+      seen: [{ type: "application", href: "/candidatures/a1", name: "Airbus · Contrôleuse de gestion" }, { type: "all", count: 3 }],
+    });
+    expect(namesByPage(end)).toEqual({ "/candidatures/a1": "Airbus · Contrôleuse de gestion" });
+    expect(namesByPage({ step: ended(write) })).toEqual({});
+  });
+});
+
 describe("what the AI Coach consulted in Jobbbox, from the stored Provenance (#788)", () => {
-  it("each page of the Candidate a Coach Action read or proposed on, linked, by its kind", () => {
+  it("each object a Coach Action saw, once, by its name now, linked to its page; a list by its count", () => {
+    const listed = { ...ended(read), action: "list_objects", seen: [{ type: "application" as const, count: 12 }] };
+    const opened = { ...ended(read), action: "read_application", count: 2, seen: [{ type: "application" as const, href: "/candidatures/a1" }] };
+    const proposed = { ...ended(propose), action: "propose_application_status", seen: [{ type: "application" as const, href: "/candidatures/a1" }, { type: "profile" as const, href: "/profils/p1" }] };
+    const consulted = consultedElements(provenance([ended(write), listed, opened, proposed], ["/candidatures/a1"]), { "/candidatures/a1": "Airbus · Contrôleuse de gestion" });
+
+    expect(consulted).toEqual([
+      { kind: "count", type: "application", count: 12 },
+      { kind: "object", href: "/candidatures/a1", page: "application", name: "Airbus · Contrôleuse de gestion", type: "application" },
+      // No name known for it (an object since deleted, or another Candidate's): its kind of page.
+      { kind: "object", href: "/profils/p1", page: "profile", name: null, type: "profile" },
+    ]);
+  });
+
+  it("for a Provenance kept before Coach Actions said what they saw: each page of the Candidate read or proposed on, linked, by its kind", () => {
     const consulted = consultedElements(
       provenance([ended(write), { ...ended(read), count: 2 }, ended(propose)], ["/candidatures/a1", "/profils/p1", "/candidatures", "/recherches/s1/offres/o1", "/job-digests/d1"]),
     );
 
     expect(consulted).toEqual([
-      { href: "/candidatures/a1", page: "application" },
-      { href: "/profils/p1", page: "profile" },
-      { href: "/candidatures", page: "applications" },
-      { href: "/recherches/s1/offres/o1", page: "job_offer" },
-      { href: "/job-digests/d1", page: "job_digest" },
+      { kind: "page", href: "/candidatures/a1", page: "application" },
+      { kind: "page", href: "/profils/p1", page: "profile" },
+      { kind: "page", href: "/candidatures", page: "applications" },
+      { kind: "page", href: "/recherches/s1/offres/o1", page: "job_offer" },
+      { kind: "page", href: "/job-digests/d1", page: "job_digest" },
     ]);
   });
 
   it("a Coach Action with no page (the Agenda): its Tool, unlinked", () => {
-    expect(consultedElements(provenance([ended(write), ended({ ...read, tool: "agenda" })], []))).toEqual([{ href: null, page: null, tool: "agenda" }]);
+    expect(consultedElements(provenance([ended(write), ended({ ...read, tool: "agenda" })], []))).toEqual([{ kind: "tool", tool: "agenda" }]);
   });
 
   it("nothing for a reply without a Coach Action, or with no Provenance", () => {

@@ -47,6 +47,7 @@ import {
   type SignalementStatus,
   type SignalementType,
 } from "./values";
+import { utcBefore } from "../database/before";
 
 export * from "./values";
 
@@ -387,7 +388,7 @@ export async function signalementsOf(database: Queryable, candidateId: string): 
 /** Deletes the Signalements marked `traite` RETENTION_MONTHS ago or more at `now`; returns how many. Safe to run again. */
 export async function purgeSignalements(database: Queryable, now: Date): Promise<number> {
   const { rowCount } = await database.query(
-    `DELETE FROM signalement WHERE status = 'traite' AND status_changed_at <= $1::timestamptz - make_interval(months => $2)`,
+    `DELETE FROM signalement WHERE status = 'traite' AND status_changed_at <= ${utcBefore("$1", "make_interval(months => $2)")}`,
     [now, RETENTION_MONTHS],
   );
   return rowCount ?? 0;

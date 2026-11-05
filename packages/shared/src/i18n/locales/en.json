@@ -1298,7 +1298,9 @@
       "atsScores": "ATS Scores",
       "enrichedContacts": "Enriched Contacts",
       "jobDigest": "Job Digest",
-      "jobSearches": "Job searches"
+      "jobSearches": "Job searches",
+      "coachContextMessages": "Coach memory (messages read)",
+      "coachContextTokens": "Coach context size"
     },
     "jobDigest": {
       "none": "Not included",
@@ -1707,6 +1709,14 @@
           "reason": "Reason",
           "candidates": "Candidates affected"
         }
+      },
+      "coachContext": {
+        "title": "AI Coach context",
+        "intro": "What the AI Coach reads for each reply: the latest messages of the conversation and, at most, this many (estimated) tokens of context. Empty for unlimited. With nothing stored, a plan reads 40 messages and 12,000 tokens. Lowering one is a Quota Reduction.",
+        "messages": "Messages the AI Coach reads",
+        "messagesHelp": "At least 1, or empty for unlimited",
+        "tokens": "Context ceiling (estimated tokens)",
+        "tokensHelp": "A number, or empty for unlimited"
       }
     },
     "coupons": {
@@ -2707,7 +2717,10 @@
       "warnings": "Warnings",
       "noTechnical": "No technical detail recorded.",
       "noReplyNotSent": "No reply: the call was not sent.",
-      "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end."
+      "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end.",
+      "context": "Context estimated / measured",
+      "contextValue": "{{estimate}} / {{measure}} ({{gap}})",
+      "noContext": "—"
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
@@ -5709,7 +5722,8 @@
     "title": "Conversation context",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
-    "clear": "Clear the conversation"
+    "clear": "Clear the conversation",
+    "unlimited": "unlimited"
   },
   "microAnimation": {
     "show": "Show me how",

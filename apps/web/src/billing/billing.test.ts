@@ -92,6 +92,40 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     });
   });
 
+  describe("the Coach context limits of each Plan (ADR-0078, #731)", () => {
+    it("are 40 messages and 12 000 jetons on a Plan with none stored", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      expect((await t.billing.entitlements(marie.id)).coachContext).toEqual({ coachContextMessages: 40, coachContextTokens: 12_000 });
+      expect(await t.billing.coachContextLimits()).toEqual({
+        free: { coachContextMessages: 40, coachContextTokens: 12_000 },
+        standard: { coachContextMessages: 40, coachContextTokens: 12_000 },
+        premium: { coachContextMessages: 40, coachContextTokens: 12_000 },
+      });
+    });
+
+    it("are set with the Plan's quotas, apply at once to its Candidates, empty being unlimited, and stay across migrations", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      const before = await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, coachContextMessages: 10, coachContextTokens: null });
+      await t.migrateAgain();
+
+      expect(before).toEqual({ ...STARTING_PLAN_QUOTAS.free, coachContextMessages: 40, coachContextTokens: 12_000 });
+      expect((await t.billing.entitlements(marie.id)).coachContext).toEqual({ coachContextMessages: 10, coachContextTokens: null });
+      expect((await t.billing.coachContextLimits()).standard).toEqual({ coachContextMessages: 40, coachContextTokens: 12_000 });
+      expect(await t.billing.lockPlanQuotas("free", t.database)).toEqual({ ...STARTING_PLAN_QUOTAS.free, coachContextMessages: 10, coachContextTokens: null });
+    });
+
+    it("stay as they are when only the Plan Quotas are set", async () => {
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, coachContextMessages: 10, coachContextTokens: 5_000 });
+
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 2 });
+
+      expect((await t.billing.coachContextLimits()).free).toEqual({ coachContextMessages: 10, coachContextTokens: 5_000 });
+      expect((await t.billing.planQuotas()).free).toEqual({ ...STARTING_PLAN_QUOTAS.free, matchScores: 2 });
+    });
+  });
+
   describe("weekly quotas, enforced server-side", () => {
     it("lets a Free Candidate compute 3 Match Scores a week when their Plan grants 3, then asks them to upgrade to Standard", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");

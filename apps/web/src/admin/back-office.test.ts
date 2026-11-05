@@ -1,3 +1,4 @@
+import { DEFAULT_COACH_CONTEXT_LIMITS } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
@@ -63,11 +64,22 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         section: "plan_quotas",
         target: "standard",
         action: "updated",
-        before: STARTING_PLAN_QUOTAS.standard,
-        after: quotas,
+        before: { ...STARTING_PLAN_QUOTAS.standard, ...DEFAULT_COACH_CONTEXT_LIMITS },
+        after: { ...quotas, ...DEFAULT_COACH_CONTEXT_LIMITS },
         outcome: "succeeded",
         failure: null,
       },
+    ]);
+  });
+
+  it("editing a Plan's Coach context limits records them with its quotas, before and after (ADR-0078, #731)", async () => {
+    const limits = { ...STARTING_PLAN_QUOTAS.standard, coachContextMessages: 80, coachContextTokens: null };
+
+    await backOffice.setPlanQuotas(claire, "standard", limits);
+
+    expect((await billing.coachContextLimits()).standard).toEqual({ coachContextMessages: 80, coachContextTokens: null });
+    expect(await backOffice.journal()).toMatchObject([
+      { section: "plan_quotas", target: "standard", action: "updated", before: { coachContextMessages: 40, coachContextTokens: 12_000 }, after: limits },
     ]);
   });
 

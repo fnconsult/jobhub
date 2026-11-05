@@ -112,7 +112,7 @@ describe("the AI Coach without Coach Actions", () => {
 
     expect(off.coachCalls()).toEqual(before.coachCalls());
     expect(off.coachCalls()[0]).not.toHaveProperty("tools");
-    expect(switchedOff).toEqual({ ...withoutActions, provenance: expect.anything() });
+    expect(switchedOff).toEqual({ ...withoutActions, provenance: expect.anything(), callId: expect.anything() });
     expect(switchedOff).not.toHaveProperty("proposals");
     expect(off.calls).toEqual([]);
   });
@@ -121,7 +121,7 @@ describe("the AI Coach without Coach Actions", () => {
     const before = setUp({ withActions: false });
     const none = setUp({ settings: { maxRounds: 0 } });
 
-    expect(await ask(none.coach)).toEqual({ ...(await ask(before.coach)), provenance: expect.anything() });
+    expect(await ask(none.coach)).toEqual({ ...(await ask(before.coach)), provenance: expect.anything(), callId: expect.anything() });
     expect(none.coachCalls()).toEqual(before.coachCalls());
   });
 });

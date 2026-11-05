@@ -21,6 +21,22 @@ describe("the Context bar (#607): how much of a Coach Conversation the AI Coach 
     expect(contextBar({ messages: 52, tokens: 15_000 })).toMatchObject({ messages: 52, tokens: 15_000, share: 1, nearlyFull: true });
   });
 
+  it("counts them out of the Coach context limits of the Candidate's Plan when the server says them (ADR-0078, #731)", () => {
+    expect(contextBar({ messages: 12, tokens: 3_000, limits: { coachContextMessages: 20, coachContextTokens: 6_000 } })).toEqual({
+      messages: 12,
+      maxMessages: 20,
+      tokens: 3_000,
+      maxTokens: 6_000,
+      share: 0.6,
+      nearlyFull: false,
+    });
+  });
+
+  it("fills only to a limit there is: an unlimited one has no maximum and never fills it", () => {
+    expect(contextBar({ messages: 300, tokens: 3_000, limits: { coachContextMessages: null, coachContextTokens: 12_000 } })).toMatchObject({ maxMessages: null, share: 0.25 });
+    expect(contextBar({ messages: 300, tokens: 90_000, limits: { coachContextMessages: null, coachContextTokens: null } })).toMatchObject({ maxMessages: null, maxTokens: null, share: 0, nearlyFull: false });
+  });
+
   it("is empty for a conversation not yet started", () => {
     expect(contextBar(null)).toMatchObject({ messages: 0, tokens: 0, share: 0, nearlyFull: false });
   });

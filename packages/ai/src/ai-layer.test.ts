@@ -260,6 +260,18 @@ describe("company web search", () => {
 });
 
 describe("the usage of every AI call", () => {
+  it("names each call by the id it is recorded under, so what it served can link to it (#731)", async () => {
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { scoring: "mistral" }, usage });
+
+    const first = await ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score this" });
+    const second = await ai.generate({ task: "scoring", candidateId: "cand-1", prompt: "Score that" });
+
+    expect(first.callId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(usage.entries.map((entry) => entry.id)).toEqual([first.callId, second.callId]);
+    expect(second.callId).not.toBe(first.callId);
+  });
+
   it("records a call that succeeded as such", async () => {
     const usage = createMemoryUsageLog();
     const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { scoring: "mistral" }, usage });
@@ -463,6 +475,7 @@ describe("the Failure Reason of every failed AI call (#259, ADR-0030)", () => {
         // What would have been sent, redacted.
         transcript: { system: "Tu es le coach.", messages: [{ role: "user", content: "Écris à [E-MAIL]" }], reply: null },
         at: expect.any(Date),
+        id: expect.any(String),
       },
     ]);
   });

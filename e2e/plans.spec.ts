@@ -12,7 +12,7 @@ import { newAddress } from "./support/mailbox";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const plans = fr.admin.plans;
 const stripeUrl = process.env.E2E_STRIPE_URL!;
-const ADMINISTRATOR = "back-office@e2e.jobbbox.test";
+const ADMINISTRATOR = "plans-office@e2e.jobbbox.test";
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 
 async function checkoutCalls(customer: string): Promise<{ params: Record<string, string> }[]> {

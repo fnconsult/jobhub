@@ -2,7 +2,7 @@ import { AiProviderError, costInEur, createAiLayer, type AiProvider, type TextIn
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
 import { article } from "@jobhub/help";
-import { scoreMatch, type IndustryReference, type JobOffer, type ProvenanceEvent } from "@jobhub/shared";
+import { DEFAULT_COACH_CONTEXT_LIMITS, scoreMatch, type IndustryReference, type JobOffer, type ProvenanceEvent } from "@jobhub/shared";
 import type { AgendaItem } from "@/agenda";
 import { interviewDayStart, type Application } from "../applications";
 import type { ServedKnowledge } from "@/coaching-playbooks";
@@ -396,6 +396,43 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     const call = provider.calls[0]!;
     const read = (call.messages as { content: string }[]).reduce((sum, message) => sum + estimateTokens(message.content), 0);
     expect(result.contextTokens).toBe(estimateTokens(call.system!) + read);
+  });
+
+  it("splits that estimate by category, adding up to it: Messages, Instructions du coach, Profil et CV, Conseils des agents, Sources (#731)", async () => {
+    const { coach, provider } = coachWith({
+      served: SERVED,
+      choose: '["interview-psychology"]',
+      advise: () => "Préparez trois exemples chiffrés [S24].",
+      workspace: { memory: ["Vise une PME familiale"] },
+    });
+    const messages = [
+      { from: "candidate" as const, text: "Bonjour" },
+      { from: "coach" as const, text: "Bonjour Marie" },
+      { from: "candidate" as const, text: "Comment préparer mon entretien ?" },
+    ];
+
+    const result = await coach.reply("marie", { messages });
+
+    if (!result.ok || !result.contextSplit) throw new Error("no split");
+    const { contextSplit: split } = result;
+    const system = contextOf(provider);
+    expect(split.messages).toBe(messages.reduce((sum, message) => sum + estimateTokens(message.text), 0));
+    expect(split.advice).toBe(estimateTokens(system.slice(system.indexOf("<avis-playbook"), system.indexOf("</avis-playbook>") + "</avis-playbook>".length)));
+    expect(split.sources).toBeGreaterThan(0);
+    expect(split.profile).toBeGreaterThan(0);
+    expect(split.instructions).toBeGreaterThan(split.profile);
+    expect(split.messages + split.instructions + split.profile + split.advice + split.sources).toBe(result.contextTokens);
+  });
+
+  it("names the AI call that wrote the reply, so its provider's counts can be read beside the estimate (#731)", async () => {
+    const { coach, usage } = coachWith();
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] });
+
+    if (!result.ok) throw new Error("no reply");
+    const call = usage.entries.at(-1)!;
+    expect(call.task).toBe("coaching");
+    expect(result.callId).toBe(call.id);
   });
 
   it("sent no context for a reply it did not write: a Job Offer link's (#607)", async () => {
@@ -928,6 +965,67 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).not.toContain("Fin de l'offre.");
     expect(system).toContain("Vise une PME familiale");
     expect(system).toMatch(/19 ans d'expérience/);
+  });
+});
+
+describe("the Coach context limits of the Candidate's Plan (ADR-0078, #731)", () => {
+  /** About `tokens` tokens of words. */
+  const text = (tokens: number, word: string) => `${word} `.repeat(Math.ceil((tokens * 4) / (word.length + 1)));
+  const conversation = (length: number) =>
+    Array.from({ length }, (_, i) => ({ from: i % 2 === 0 ? ("candidate" as const) : ("coach" as const), text: `message ${i + 1}` }));
+  const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
+
+  it("reads the latest coachContextMessages messages, starting with a Candidate message", async () => {
+    const { coach, provider } = coachWith();
+
+    await coach.reply("marie", { messages: conversation(41) }, { limits: { coachContextMessages: 10, coachContextTokens: 12_000 } });
+
+    const sent = provider.calls[0]!.messages as { role: string; content: string }[];
+    expect(sent.length).toBeLessThanOrEqual(10);
+    expect(sent[0]).toEqual({ role: "user", content: "message 33" });
+    expect(sent.at(-1)).toEqual({ role: "user", content: "message 41" });
+  });
+
+  it("reads the whole conversation when the messages are unlimited, however long", async () => {
+    const { coach, provider } = coachWith();
+
+    await coach.reply("marie", { messages: conversation(401) }, { limits: { coachContextMessages: null, coachContextTokens: 12_000 } });
+
+    const sent = provider.calls[0]!.messages as { role: string; content: string }[];
+    expect(sent).toHaveLength(401);
+    expect(sent[0]).toEqual({ role: "user", content: "message 1" });
+  });
+
+  it("fits its context under coachContextTokens", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], focus: { kind: "job_offer", id: posting.id } }, { limits: { coachContextMessages: 40, coachContextTokens: 4_000 } });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(4_000);
+    expect(estimateTokens(system)).toBeGreaterThan(3_000);
+    expect(system).toContain("Début de l'offre.");
+  });
+
+  it("tells everything it reads when the jetons are unlimited", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], focus: { kind: "job_offer", id: posting.id } }, { limits: { coachContextMessages: 40, coachContextTokens: null } });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeGreaterThan(20_000);
+    expect(system).toContain("Fin de l'offre.");
+  });
+
+  it("keeps the limits of a Plan with none stored without them: 40 messages and 12 000 jetons", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    await coach.reply("marie", { messages: conversation(101), focus: { kind: "job_offer", id: posting.id } });
+
+    expect(DEFAULT_COACH_CONTEXT_LIMITS).toEqual({ coachContextMessages: 40, coachContextTokens: 12_000 });
+    expect(provider.calls[0]!.messages.length).toBeLessThanOrEqual(40);
+    expect(estimateTokens(contextOf(provider))).toBeLessThanOrEqual(12_000);
+    expect(estimateTokens(contextOf(provider))).toBeGreaterThan(11_000);
   });
 });
 

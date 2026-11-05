@@ -17,10 +17,10 @@ const ACCOUNT = helpArticle("page-account", "fr")!;
 const MATCH_SCORE = helpArticle("glossary-match-score", "fr")!;
 
 /** A button of the page that opens `item` in the Work Pane. */
-function Opener({ item, children }: { item: WorkPaneItem; children: string }) {
+function Opener({ item, focus, children }: { item: WorkPaneItem; focus?: boolean; children: string }) {
   const pane = useWorkPane();
   return (
-    <button type="button" onClick={() => pane?.open(item)}>
+    <button type="button" onClick={() => pane?.open(item, focus === undefined ? undefined : { focus })}>
       {children}
     </button>
   );
@@ -32,6 +32,9 @@ function Page() {
       <main>
         <Opener item={{ kind: "help", article: ACCOUNT }}>Aide</Opener>
         <Opener item={{ kind: "help", article: MATCH_SCORE }}>Match Score</Opener>
+        <Opener item={{ kind: "help", article: ACCOUNT }} focus={false}>
+          Aide sans focus
+        </Opener>
       </main>
       <WorkPane />
     </WorkPaneProvider>
@@ -81,6 +84,21 @@ describe("the Work Pane (#602, ADR-0070)", () => {
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("complementary")).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("opened with `focus: false` (#775), leaves the focus where it is; its ✕ still gives it back to what opened it", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<Page />);
+    const opener = screen.getByRole("button", { name: "Aide sans focus" });
+
+    await user.click(opener);
+
+    expect(within(pane()).getByRole("heading", { level: 2, name: "Mon compte" })).toBeTruthy();
+    expect(document.activeElement).toBe(opener);
+    await user.click(within(pane()).getByRole("button", { name: "Fermer" }));
+    expect(screen.queryByRole("complementary")).toBeNull();
+    // The ✕ had the focus, inside the pane: it goes back to what opened it.
     expect(document.activeElement).toBe(opener);
   });
 

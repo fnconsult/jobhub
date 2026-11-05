@@ -82,7 +82,12 @@ export async function askCoach(api: Api, request: CoachRequest, { signal, onLive
   let conversation: ConversationSummary | null = null;
   let live: Live = { step: null, tokens: 0 };
   let ended: CoachOutcome | null = null;
-  const stopped = (context: ConversationContext | null = null): CoachOutcome => ({ kind: "stopped", conversation, context, spent: { tokens: live.tokens, ms: Date.now() - startedAt } });
+  const stopped = (context: ConversationContext | null = null): CoachOutcome => ({
+    kind: "stopped",
+    conversation,
+    context,
+    spent: { tokens: live.tokens, ms: Date.now() - startedAt },
+  });
 
   const onEvent = (event: Event) => {
     if (ended) return;

@@ -8,7 +8,10 @@ import { aiStep, fakeCoachWeb, replyEvent, type FakeCoachWeb } from "./testing";
 let web: FakeCoachWeb;
 beforeEach(() => {
   web = fakeCoachWeb();
-  jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {}).mockClear();
+  jest
+    .spyOn(AccessibilityInfo, "announceForAccessibility")
+    .mockImplementation(() => {})
+    .mockClear();
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -94,7 +97,18 @@ describe("a Coach Conversation in the app", () => {
   });
 
   it("reopens a saved conversation with its messages", async () => {
-    web = fakeCoachWeb({ conversations: [{ id: "c7", title: "Négocier", messages: [{ from: "candidate", text: "Comment négocier ?" }, { from: "coach", text: "Visez haut.", at: "2026-11-04T10:00:00.000Z" }] }] });
+    web = fakeCoachWeb({
+      conversations: [
+        {
+          id: "c7",
+          title: "Négocier",
+          messages: [
+            { from: "candidate", text: "Comment négocier ?" },
+            { from: "coach", text: "Visez haut.", at: "2026-11-04T10:00:00.000Z" },
+          ],
+        },
+      ],
+    });
     await renderInApp(<CoachConversation conversationId="c7" route="/conversations/c7" />, { api: web.api });
     expect(await screen.findByText("Visez haut.")).toBeOnTheScreen();
     expect(screen.getByText("Comment négocier ?")).toBeOnTheScreen();

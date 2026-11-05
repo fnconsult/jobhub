@@ -78,11 +78,23 @@ const AT = "2026-11-05T10:00:00.000Z";
  * the conversations' reads, rename and delete, `POST /api/signalements`, and any other GET from `reads` by its path.
  * `asked` is every message sent, `signalements` every Signalement.
  */
-export function fakeCoachWeb({ conversations = [], reads = {} }: { conversations?: { id: string; title: string; subject?: Saved["subject"]; messages?: SavedMessage[] }[]; reads?: Record<string, unknown> } = {}) {
+export function fakeCoachWeb({
+  conversations = [],
+  reads = {},
+}: { conversations?: { id: string; title: string; subject?: Saved["subject"]; messages?: SavedMessage[] }[]; reads?: Record<string, unknown> } = {}) {
   const saved = new Map<string, Saved>(
     conversations.map((each) => [
       each.id,
-      { id: each.id, title: each.title, subject: each.subject ?? null, profile: null, lastMessageAt: AT, aiDisclosure: true, messages: each.messages ?? [], context: { messages: each.messages?.length ?? 0, tokens: 400 } },
+      {
+        id: each.id,
+        title: each.title,
+        subject: each.subject ?? null,
+        profile: null,
+        lastMessageAt: AT,
+        aiDisclosure: true,
+        messages: each.messages ?? [],
+        context: { messages: each.messages?.length ?? 0, tokens: 400 },
+      },
     ]),
   );
   const streams: { stream: StreamedReply; body: Record<string, unknown> }[] = [];
@@ -101,7 +113,16 @@ export function fakeCoachWeb({ conversations = [], reads = {} }: { conversations
     const ofSubject = subject && [...saved.values()].find((each) => each.subject?.kind === subject.kind && each.subject.id === subject.id);
     if (ofSubject) return ofSubject;
     const id = `c${++next}`;
-    const created: Saved = { id, title: String(body.message).slice(0, 40), subject: subject ? { ...subject, name: subject.id } : null, profile: null, lastMessageAt: AT, aiDisclosure: true, messages: [], context: { messages: 0, tokens: 0 } };
+    const created: Saved = {
+      id,
+      title: String(body.message).slice(0, 40),
+      subject: subject ? { ...subject, name: subject.id } : null,
+      profile: null,
+      lastMessageAt: AT,
+      aiDisclosure: true,
+      messages: [],
+      context: { messages: 0, tokens: 0 },
+    };
     saved.set(id, created);
     return created;
   };
@@ -164,6 +185,8 @@ export function fakeCoachWeb({ conversations = [], reads = {} }: { conversations
     signalements,
     requests,
     saved,
+    /** The other GETs' answers, by path (the menus' cards): a test sets them. */
+    reads,
     /** The reply on its way to the last message, to write a piece at a time. */
     pending: () => pending().stream,
     /** The conversation the last message goes to, named as the stream names it first. */

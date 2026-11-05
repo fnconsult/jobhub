@@ -201,7 +201,13 @@ export type ApplyProposalResult =
   | { ok: true; undo?: unknown }
   | { ok: false; error: "conflict" | "not_found" }
   | { ok: false; error: "invalid"; errors: FieldError[] };
-export type UndoProposalResult = { ok: true } | { ok: false; error: "conflict" | "not_found" };
+/**
+ * « Annuler »'s outcome. `note`: what it left as it was, said on the card once undone (#770: `status_kept`, an
+ * Application Status changed since the card was applied, left as it is).
+ */
+export type UndoProposalResult = { ok: true; note?: UndoNote } | { ok: false; error: "conflict" | "not_found" };
+export const UNDO_NOTES = ["status_kept"] as const;
+export type UndoNote = (typeof UNDO_NOTES)[number];
 
 /**
  * What a Coach Action gives back: its data (what it read, or the change it proposes), the Candidate's pages it read (paths,

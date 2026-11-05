@@ -111,6 +111,15 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect(within(screen.getAllByRole("article")[1]!).getByRole("status").textContent).toMatch(/^Annulé à \d\d:\d\d$/);
   });
 
+  it("« Annuler » that left the Application Status as it was says so on the card (#770)", async () => {
+    answers = [{ status: 200, body: { status: "undone", card: applied({ status: "undone", undoneAt: "2026-11-04T17:25:00.000Z", undoable: false, undoNote: "status_kept" }) } }];
+    renderInFrench(<Thread card={applied()} />);
+
+    await userEvent.click(button("Annuler"));
+
+    expect(within(card()).getByRole("status").textContent).toMatch(/^Annulé à \d\d:\d\d Le statut de la candidature avait changé depuis : il est laissé tel quel\.$/);
+  });
+
   it("refuses « Appliquer » when the object changed since the proposal: it says so, the card still waits", async () => {
     answers = [{ status: 409, body: { error: "conflict" } }];
     renderInFrench(<Thread />);

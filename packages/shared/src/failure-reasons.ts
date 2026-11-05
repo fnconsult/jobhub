@@ -107,6 +107,8 @@ export const FAILURE_REASONS = [
   "provider_error",
   /** A Tool call of our own refused, never run (#713): a Coach Action unknown or not offered, or arguments its schema refuses. */
   "invalid_input",
+  /** A Push notification's device token the provider no longer knows (APNs 410, FCM UNREGISTERED, #698): the device is removed. */
+  "device_token_invalid",
   "other",
 ] as const;
 export type FailureReason = (typeof FAILURE_REASONS)[number];
@@ -153,6 +155,16 @@ export type GuardrailFailureReason = (typeof GUARDRAIL_FAILURE_REASONS)[number];
 /** Why a call to a Tool of our own (a Coach Action, #713) was refused, never run: recorded with it in `external_api_usage`. */
 export const TOOL_CALL_FAILURE_REASONS = ["invalid_input"] as const satisfies readonly FailureReason[];
 
+/**
+ * Why a Push notification did not reach a device (#698), kept with its event and platform: the provider down or refusing,
+ * its rate limit, its key not entered, or the device's token no longer valid (the device is then removed).
+ */
+export const PUSH_FAILURE_REASONS = ["provider_unavailable", "provider_rejected", "rate_limited", "key_missing", "device_token_invalid", "other"] as const satisfies readonly FailureReason[];
+export type PushFailureReason = (typeof PUSH_FAILURE_REASONS)[number];
+
+/** The code only a Push notification fails with (#698): never a Back Office attempt's. */
+const PUSH_ONLY_REASONS: readonly FailureReason[] = ["device_token_invalid"];
+
 /** The AI call codes an AI routing Platform Setting is refused with on save (#301), as the AI layer would refuse its route. */
 const AI_ROUTE_REFUSALS: readonly FailureReason[] = ["key_missing", "route_missing", "data_residency"];
 
@@ -161,7 +173,8 @@ export const BACK_OFFICE_FAILURE_REASONS: readonly FailureReason[] = FAILURE_REA
   (reason) =>
     reason === "other" ||
     AI_ROUTE_REFUSALS.includes(reason) ||
-    (!AI_CALL_FAILURE_REASONS.includes(reason) && !(GUARDRAIL_FAILURE_REASONS as readonly FailureReason[]).includes(reason) && !(TOOL_CALL_FAILURE_REASONS as readonly FailureReason[]).includes(reason)),
+    (!AI_CALL_FAILURE_REASONS.includes(reason) && !(GUARDRAIL_FAILURE_REASONS as readonly FailureReason[]).includes(reason) && !(TOOL_CALL_FAILURE_REASONS as readonly FailureReason[]).includes(reason) &&
+      !PUSH_ONLY_REASONS.includes(reason)),
 );
 
 export function isFailureReason(value: unknown): value is FailureReason {

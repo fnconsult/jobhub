@@ -7,6 +7,7 @@ import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
 import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice } from "../src/testing-device";
+import { serveAgenda } from "./agenda-web";
 
 jest.setTimeout(60_000);
 
@@ -73,6 +74,7 @@ const link = (name: string) => screen.getByRole("link", { name, hidden: true });
 
 describe("Jobbbox app, on a phone", () => {
   beforeEach(() => window(...PHONE));
+  afterEach(() => jest.restoreAllMocks());
 
   it("starts on the conversation, in French, with the coach's AI disclosure", async () => {
     await launch();
@@ -145,8 +147,10 @@ describe("Jobbbox app, on a phone", () => {
   });
 
   it("shows the Agenda as a list, « À planifier » first, and an Interview leads to its Application's Interviews Section", async () => {
+    await signedIn();
+    serveAgenda(mockWeb.app, EMAIL);
     await launch("/agenda");
-    expect(screen.getByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
+    expect(await screen.findByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
     expect(button("Choisir mon créneau avec Paul Durand sur Cal.com")).toBeOnTheScreen();
     expect(screen.getByText("Entretien annulé")).toBeOnTheScreen();
     expect(screen.getByText("modifié par le coach")).toBeOnTheScreen();

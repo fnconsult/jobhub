@@ -1,10 +1,13 @@
 // End-to-end for the Agenda (#693) through the app's real entry: Expo Router mounts src/app/agenda with the real
 // system-sheets module; only the device's native modules (expo-calendar, expo-sharing, expo-file-system) are faked, and
-// what the person would see on the system's sheets is asserted from what reaches them. The clock is fixed so the
-// sample Agenda's relative dates are known.
+// what the person would see on the system's sheets is asserted from what reaches them. The web app is faked at the
+// network: its session endpoints (src/session/testing) and `GET /api/agenda` (./agenda-web), which answers the
+// signed-in Candidate's Agenda only to a request carrying their session cookie. The clock is fixed.
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { screen, userEvent, within } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { Dimensions, Linking, Platform } from "react-native";
+import { serveAgenda } from "./agenda-web";
 
 jest.setTimeout(60_000);
 
@@ -73,9 +76,11 @@ const NOW = new Date("2026-10-20T08:00:00.000Z");
 const onPlatform = (os: typeof Platform.OS) => Object.defineProperty(Platform, "OS", { value: os, configurable: true });
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
   mockWritten.length = 0;
+  // The read cache the last test left on the device: each test reads its Agenda afresh.
+  await AsyncStorage.clear();
   jest.useFakeTimers({
     now: NOW,
     doNotFake: ["nextTick", "setImmediate", "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout", "queueMicrotask", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "performance", "hrtime"],
@@ -84,15 +89,55 @@ beforeEach(() => {
   Dimensions.set({ window: size, screen: size });
   onPlatform("ios");
 });
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
 
-async function openAgenda() {
+/** The web app's `GET /api/agenda` for the signed-in Candidate, once the fake web app is built (by signing in). */
+let agendaRoute: ReturnType<typeof serveAgenda>;
+/** Signed in, the web app serving the Agenda (`changed` before the page reads it), the Agenda's page opened. */
+async function launchAgenda(changed: (route: typeof agendaRoute) => void = () => {}) {
   await signedIn();
+  agendaRoute = serveAgenda(mockWeb.app, EMAIL);
+  changed(agendaRoute);
   await renderRouter("./src/app", { initialUrl: "/agenda" });
+}
+/** The Agenda's page, once its list is read from the web app. */
+async function openAgenda() {
+  await launchAgenda();
+  await screen.findByRole("heading", { name: "À planifier" });
 }
 
 const INTERVIEW_BUTTON = /^Ajouter à mon calendrier : Responsable qualité/;
 const SESSION_BUTTON = /^Ajouter à mon calendrier : Séance avec Claire Martin/;
+
+describe("Agenda, read from the web app", () => {
+  it("shows the signed-in Candidate's Agenda as GET /api/agenda answers it, asked with their session", async () => {
+    await openAgenda();
+    expect(agendaRoute.asked).toContain(EMAIL);
+    expect(screen.getByText("Séance avec Paul Durand, payée le 18 octobre 2026")).toBeOnTheScreen();
+    expect(screen.getAllByRole("link", { name: /Responsable qualité/ })).toHaveLength(2);
+    expect(screen.getByRole("link", { name: /Claire Martin/ })).toBeOnTheScreen();
+  });
+
+  it("says there is nothing when the Candidate's Agenda is empty, and shows no other", async () => {
+    await launchAgenda((route) => (route.agenda = { toSchedule: [], days: [] }));
+    expect(await screen.findByText(/^Aucun rendez-vous à venir/)).toBeOnTheScreen();
+    expect(screen.queryByText("À planifier")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("says when the Agenda could not be read, and reads it again on « Réessayer »", async () => {
+    await launchAgenda((route) => (route.status = 500));
+    expect(await screen.findByText("L'agenda n'a pas pu être chargé. Réessayez dans quelques instants.", {}, { timeout: 10_000 })).toBeOnTheScreen();
+    expect(screen.queryByRole("link")).toBeNull();
+
+    agendaRoute.status = 200;
+    await userEvent.setup().press(button("Réessayer"));
+    expect(await screen.findByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
+  });
+});
 
 describe("Agenda, the list", () => {
   it("puts « À planifier » first with the Human Coach's booking link, then the days", async () => {
@@ -102,7 +147,7 @@ describe("Agenda, the list", () => {
     expect(headings[0]).toBe("À planifier");
     expect(headings.length).toBeGreaterThan(1);
     await userEvent.setup().press(button("Choisir mon créneau avec Paul Durand sur Cal.com"));
-    expect(open).toHaveBeenCalledWith("https://cal.com/");
+    expect(open).toHaveBeenCalledWith("https://cal.com/paul-durand");
   });
 
   it("strikes a Cancelled Interview through with its date of cancellation, and says « modifié par le coach »", async () => {

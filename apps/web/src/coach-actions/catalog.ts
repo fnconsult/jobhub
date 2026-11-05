@@ -1,8 +1,8 @@
 /**
  * The Coach Actions shipped (ADR-0077), group by group as each ticket delivers them, each one built on the domain module
  * its page's route calls, with its Eval Cases: the reads of every group (#714), the Agenda's proposals (#718), the
- * Candidatures proposals (#716), the Profil group's proposals (#719) and the Recherches d'offres and Job Digests proposals
- * (#720) so far. The other groups' proposals arrive with their tickets (Documents).
+ * Candidatures proposals (#716), the Profil group's proposals (#719), the Recherches d'offres and Job Digests proposals
+ * (#720) and the Documents proposals (#721).
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -10,6 +10,7 @@
 import type { ApplicationChangeResult } from "../applications";
 import { agendaCoachActions, type AgendaApplications } from "./agenda";
 import { applicationCoachActions, type ApplicationActionSources } from "./applications";
+import { documentCoachActions, type DocumentActionSources } from "./documents";
 import { coachActionCatalog, type CoachAction } from "./index";
 import { profileCoachActions, type ProfileActionSources } from "./profile";
 import { searchCoachActions, type SearchActionSources } from "./job-searches";
@@ -22,7 +23,7 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
     profiles: ApplicationActionSources["profiles"] & SearchActionSources["profiles"];
     /** The Profil group's: Search Criteria, Master CV, archive and restore, Coach Memory. */
     profile: ProfileActionSources;
-  };
+  } & Pick<DocumentActionSources, "tailoredCvs" | "tailoredDocuments">;
 
 export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
   // A Job Offer out of view is within reach when a read finds it: one of the Candidate's objects shows it.
@@ -33,6 +34,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...applicationCoachActions({ ...domain, reachesJobOffer }),
     ...profileCoachActions(domain.profile),
     ...searchCoachActions(domain),
+    ...documentCoachActions(domain),
   ]);
 }
 
@@ -75,6 +77,8 @@ export const NO_DOMAIN: CoachActionDomain = {
     get: async () => null,
   },
   jobSearchQuota: async () => ({ used: 0, limit: 0, refusal: null }),
+  tailoredCvs: { get: async () => null },
+  tailoredDocuments: { get: async () => null },
   followUps: { sentOf: async () => null, markSent: async () => ({ ok: false, error: "not_found" }), unmarkSent: async () => ({ ok: false, error: "not_found" }) },
   profile: {
     profiles: {

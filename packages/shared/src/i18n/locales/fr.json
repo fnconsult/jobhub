@@ -5493,7 +5493,8 @@
       "coach-ia": "Coach IA",
       "confidentialite": "Confidentialité",
       "accessibilite": "Accessibilité",
-      "recherche": "Recherche d'offres"
+      "recherche": "Recherche d'offres",
+      "documents": "Documents"
     },
     "changes": {
       "new": "Nouveau",
@@ -5861,7 +5862,15 @@
       "searchOn": "Sur les critères du profil : {{criteria}}",
       "searching": "En cours depuis {{time}}",
       "stopped": "Arrêtée, les offres déjà trouvées gardées",
-      "noDigest": "Pas de Job Digest"
+      "noDigest": "Pas de Job Digest",
+      "noTailoredCv": "Aucun CV adapté",
+      "tailoredCvSaved": "CV adapté enregistré le {{date}}, gardé tel quel",
+      "tailoredCvProposal": "Une proposition à relire changement par changement · {{language}}",
+      "noDraft": "Aucun brouillon",
+      "draftOf": "Brouillon du {{date}}",
+      "draftEdited": "Brouillon du {{date}}, modifié depuis",
+      "newDraft": "Un brouillon rédigé par votre coach IA · {{language}}",
+      "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises."
     },
     "quota": {
       "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
@@ -5875,6 +5884,12 @@
     "changeOf": "{{what}} :",
     "apply": "Appliquer",
     "launch": "Lancer",
+    "prepare": "Préparer",
+    "draft": "Rédiger",
+    "confirmReplace": "Remplacer votre brouillon actuel, vos modifications comprises ?",
+    "confirmYes": "Remplacer et rédiger",
+    "confirmNo": "Garder mon brouillon",
+    "runHint": "Le document est dans les documents de la candidature ; arrêté, rien n'a été gardé.",
     "edit": "Modifier avant d'appliquer",
     "dismiss": "Ignorer",
     "undo": "Annuler",
@@ -5890,7 +5905,8 @@
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
       "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
       "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page.",
-      "noneAccepted": "Acceptez au moins un changement pour enregistrer, ou ignorez la proposition."
+      "noneAccepted": "Acceptez au moins un changement pour enregistrer, ou ignorez la proposition.",
+      "runFailed": "Le document n'a pas pu être préparé. Réessayez depuis les documents de la candidature."
     },
     "masterCv": {
       "version": "Version {{version}}",

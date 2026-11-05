@@ -90,11 +90,11 @@ describe("the « Documents » Coach Actions (#721)", () => {
         after: "Une proposition à relire changement par changement · Français",
         value: {},
         fields: [],
-        version: "any",
+        version: "none",
         launches: true,
         runs: { kind: "tailored_cv", url: "/api/applications/a1/tailored-cv", body: { language: "fr" }, opens: "/candidatures/a1/documents?resultat=cv-adapte" },
       });
-      // Never a replacement to confirm: the proposal never overwrites the saved Tailored CV.
+      // No proposal under review: nothing to confirm, the proposal never overwrites the saved Tailored CV.
       expect(change.replaces).toBeUndefined();
     });
 
@@ -107,6 +107,44 @@ describe("the « Documents » Coach Actions (#721)", () => {
       expect(change.before).toBe("CV adapté enregistré le 2 novembre 2026, gardé tel quel");
       expect(change.after).toBe("Une proposition à relire changement par changement · Anglais");
       expect(change.runs?.body).toEqual({ language: "en" });
+    });
+
+    it("says a proposal still under review is replaced, answers included, and is applied from that proposal only (#774)", async () => {
+      const { sources, tailoredCv } = world();
+      tailoredCv.proposal = { revision: "rev-1" } as never;
+      const action = actionOf(sources, DOCUMENT_ACTIONS.tailoredCv);
+
+      const change = await proposed(action, {});
+
+      expect(change.replaces).toBe("Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises.");
+      expect(change.version).toBe("rev-1");
+      expect(await action.apply!(change, applied())).toEqual({ ok: true });
+      // Answered, proposed again or saved since: not the proposal the Candidate confirmed replacing.
+      tailoredCv.proposal = { revision: "rev-2" } as never;
+      expect(await action.apply!(change, applied())).toEqual({ ok: false, error: "conflict" });
+      tailoredCv.proposal = null;
+      expect(await action.apply!(change, applied())).toEqual({ ok: false, error: "conflict" });
+    });
+
+    it("a card proposed with no proposal under review conflicts once one appears; one made before #774 (« any ») applies only without one", async () => {
+      const { sources, tailoredCv } = world();
+      const action = actionOf(sources, DOCUMENT_ACTIONS.tailoredCv);
+      const change = await proposed(action, {});
+
+      tailoredCv.proposal = { revision: "rev-1" } as never;
+      expect(await action.apply!(change, applied())).toEqual({ ok: false, error: "conflict" });
+      expect(await action.apply!({ ...change, version: "any" }, applied())).toEqual({ ok: false, error: "conflict" });
+      tailoredCv.proposal = null;
+      expect(await action.apply!({ ...change, version: "any" }, applied())).toEqual({ ok: true });
+    });
+
+    it("says it in English for an English-speaking Candidate", async () => {
+      const { sources, tailoredCv } = world();
+      tailoredCv.proposal = { revision: "rev-1" } as never;
+
+      const change = await proposed(actionOf(sources, DOCUMENT_ACTIONS.tailoredCv), {}, call("marie", { inView: { kind: "application", id: "a1" }, language: "en" }));
+
+      expect(change.replaces).toBe("Your Tailored CV proposal under review will be replaced, your answers included.");
     });
 
     it("finds nothing for another Candidate's Application, an Archived Application, or an unknown id; asks which one when none is In view", async () => {

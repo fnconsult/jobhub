@@ -4,7 +4,9 @@
  * through its own route (its Task Playbook, its own Provenance), in the Candidate's request, its steps live on the card
  * beside « Arrêter »; no « Annuler » (`runs`, ./index.ts).
  *  - `propose_tailored_cv`: « Préparer » runs the Tailored CV proposal; its Tailored CV Review then opens in the Work Pane,
- *    reviewed change by change (ADR-0006). The proposal never overwrites the saved Tailored CV: nothing to confirm.
+ *    reviewed change by change (ADR-0006). It never overwrites the saved Tailored CV, but it does replace a proposal still
+ *    under review, answers included (#774): the card says so (`replaces`) and the Candidate confirms it first; applied from
+ *    the proposal seen (its revision; proposed again, answered or saved since: a conflict).
  *  - `propose_cover_letter`, `propose_outreach_message`: « Rédiger » runs the drafting. A draft that exists is replaced,
  *    edits included: the card says so (`replaces`) and the Candidate confirms it first; applied from the draft seen (written
  *    or edited since: a conflict).
@@ -39,9 +41,9 @@ const id = z.string().min(1).max(200);
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 const CONFLICT = { ok: false, error: "conflict" } as const;
 
-/** A Tailored CV proposal replaces only the proposal under review, never the saved Tailored CV: any state will do. */
-const ANY = "any";
-/** The version of a draft not written yet. */
+/** What a Tailored CV card made before #774 kept as its version, whatever the proposal under review. */
+const LEGACY_ANY = "any";
+/** The version of a draft not written yet, or of a Tailored CV with no proposal under review. */
 const NO_DRAFT = "none";
 
 const WHICH_APPLICATION: CoachActionResult = {
@@ -87,7 +89,7 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
 
   const tailoredCv = defineCoachAction({
     name: DOCUMENT_ACTIONS.tailoredCv,
-    description: `Propose de préparer le CV adapté d'une candidature du candidat, quand il le demande (« adapte mon CV à cette offre ») : une proposition tirée de son CV de référence, qu'il relit changement par changement avant de l'enregistrer ; elle ne remplace jamais le CV adapté déjà enregistré. applicationId : omis, la candidature consultée. ${languageArgument} ${NOT_IN_THE_REPLY}`,
+    description: `Propose de préparer le CV adapté d'une candidature du candidat, quand il le demande (« adapte mon CV à cette offre ») : une proposition tirée de son CV de référence, qu'il relit changement par changement avant de l'enregistrer ; elle ne remplace jamais le CV adapté déjà enregistré, mais remplace une proposition encore en relecture (réponses comprises) : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. ${languageArgument} ${NOT_IN_THE_REPLY}`,
     schema: letterSchema,
     group: "documents",
     kind: "propose",
@@ -105,12 +107,19 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
         what: t("tailoredCv.tailored"),
         before: state.saved ? t("coachProposals.values.tailoredCvSaved", { date: longDate(call.language, state.saved.savedAt) }) : t("coachProposals.values.noTailoredCv"),
         after: t("coachProposals.values.tailoredCvProposal", { language: t(`tailoredDocuments.languages.${written}`) }),
-        version: ANY,
+        version: state.proposal?.revision ?? NO_DRAFT,
+        ...(state.proposal ? { replaces: t("coachProposals.values.replacesTailoredCvProposal") } : {}),
       };
       return { ok: true, data: change, pages: [change.target.href] };
     },
     async apply(change, { candidateId }) {
-      return (await reachable(candidateId, change.target.id)) ? { ok: true } : NOT_FOUND;
+      const application = await reachable(candidateId, change.target.id);
+      const state = application ? await sources.tailoredCvs.get(candidateId, application.id) : null;
+      if (!state) return NOT_FOUND;
+      // Proposed again, answered or saved since the card was made: not the proposal the Candidate confirmed replacing.
+      // A card made before #774 saw « any »: it said nothing of a proposal under review, so it applies only without one.
+      const seen = change.version === LEGACY_ANY ? NO_DRAFT : change.version;
+      return (state.proposal?.revision ?? NO_DRAFT) === seen ? { ok: true } : CONFLICT;
     },
   });
 

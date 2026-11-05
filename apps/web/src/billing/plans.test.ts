@@ -37,6 +37,7 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
       await t.billing.setPlanQuotas("standard", { ...STARTING_PLAN_QUOTAS.standard, profiles: 5 });
       await t.database.query(`
         ALTER TABLE plan_quota DROP CONSTRAINT plan_quota_plan_fkey;
+        DROP TABLE plan_coach_context;
         DROP TABLE plan;
         ALTER TABLE plan_quota ADD CONSTRAINT plan_quota_plan_check CHECK (plan IN ('free', 'standard', 'premium'));
       `);

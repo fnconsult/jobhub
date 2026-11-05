@@ -14,7 +14,7 @@ test("qa261", async ({ browser }) => {
   for (const locale of ["fr-FR", "en-US"]) {
     const ctx = await browser.newContext({ baseURL: process.env.E2E_WEB_ORIGIN, locale });
     const page = await ctx.newPage();
-    await signInWithMagicLink(page, "guardrails-office@e2e.jobbbox.test");
+    await signInWithMagicLink(page, "guardrails-qa-office@e2e.jobbbox.test");
     await page.goto("/admin/garde-fous");
     const t = page.locator("table").filter({ hasText: /./ }).last();
     console.log(locale, "ROWS", (await t.innerText()).slice(0, 600).replace(/\n/g, " | "));

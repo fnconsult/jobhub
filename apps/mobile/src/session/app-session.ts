@@ -6,12 +6,13 @@
  *
  * The magic link asked from here points at APP_SIGN_IN_PATH, which the app claims by a universal link and an App
  * Link: the system opens the app with it, and `openLink` verifies its token here, once, so the session lands on the
- * device rather than in a browser.
+ * device rather than in a browser. The email also carries a code (#686), for a Candidate who reads it on another
+ * device: `enterCode` signs in with it, the session landing here just the same.
  */
 import { expoClient } from "@better-auth/expo/client";
-import { APP_ORIGIN, APP_SCHEME, APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED } from "@jobhub/shared";
+import { APP_ORIGIN, APP_SCHEME, APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED, signInCodeRefusal, typedSignInCode, type SignInCodeRefusal } from "@jobhub/shared";
 import { createAuthClient } from "better-auth/client";
-import { magicLinkClient } from "better-auth/client/plugins";
+import { emailOTPClient, magicLinkClient } from "better-auth/client/plugins";
 
 /** What the app is, as far as its session goes. */
 export type SessionState =
@@ -22,6 +23,9 @@ export type SessionState =
 
 /** What opening a sign-in link gives: the session it signed in, or that the link is no longer valid. */
 export type LinkOutcome = SessionState | { kind: "invalidLink" };
+
+/** What typing the email's code gives: the session it signed in, or why it was refused (a catalogue key). */
+export type CodeOutcome = SessionState | { kind: "codeRefused"; reason: SignInCodeRefusal };
 
 /** Secure storage, as expo-secure-store offers it (the Keychain on iOS, the Keystore on Android). */
 export interface SessionStorage {
@@ -37,6 +41,8 @@ export interface AppSession {
   askLink(email: string): Promise<boolean>;
   /** Signs in with a magic link the app was opened with; null when `url` is not one. */
   openLink(url: string): Promise<LinkOutcome | null>;
+  /** Signs in with the code of the email sent to `email`, as typed (#686). */
+  enterCode(email: string, code: string): Promise<CodeOutcome>;
   /** The session as the web app reads it now; a session it no longer knows (revoked, expired) is forgotten here too. Throws offline. */
   current(): Promise<SessionState>;
   /** Revokes the session on the web app, as signing out there does, and empties secure storage, reachable or not. */
@@ -58,7 +64,7 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
   const client = createAuthClient({
     baseURL,
     // The session is asked of the web app each time: a revocation shows at the next request, never hidden by a cache.
-    plugins: [expoClient({ scheme: APP_SCHEME, storagePrefix: STORAGE_PREFIX, storage, disableCache: true }), magicLinkClient()],
+    plugins: [expoClient({ scheme: APP_SCHEME, storagePrefix: STORAGE_PREFIX, storage, disableCache: true }), magicLinkClient(), emailOTPClient()],
     fetchOptions: { customFetchImpl: fetch },
   });
   const forget = () => Promise.all(STORED.map((key) => storage.deleteItemAsync(key))).then(() => undefined);
@@ -101,6 +107,18 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
         // Native's fetch follows to a page, a 200 without an error: the session missing from the answer is what tells.
         const { data } = await client.magicLink.verify({ query: { token } });
         if (!data?.token) return { kind: "invalidLink" } as const;
+        return current();
+      });
+    },
+
+    enterCode(email, code) {
+      return serial(async (): Promise<CodeOutcome> => {
+        try {
+          const { data, error } = await client.signIn.emailOtp({ email: email.trim(), otp: typedSignInCode(code) });
+          if (error || !data?.token) return { kind: "codeRefused", reason: signInCodeRefusal(error?.code) };
+        } catch {
+          return { kind: "codeRefused", reason: signInCodeRefusal(undefined) };
+        }
         return current();
       });
     },

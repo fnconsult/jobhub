@@ -173,7 +173,12 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     ...(message.jobOffer && { jobOffer: message.jobOffer }),
     ...(message.cards && { cards: message.cards }),
   })),
-  context: { messages: conversation.context.messages, tokens: conversation.context.tokens },
+  context: {
+    messages: conversation.context.messages,
+    tokens: conversation.context.tokens,
+    ...(conversation.context.limits !== undefined && { limits: conversation.context.limits }),
+    ...(conversation.context.split !== undefined && { split: conversation.context.split }),
+  },
 });
 
 /** Where a Tailored Document is downloaded, as its Section offers it: with the first CV Template. */

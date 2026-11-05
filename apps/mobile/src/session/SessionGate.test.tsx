@@ -9,6 +9,10 @@ import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "./testing";
 
 const EMAIL = "marie.dupont@example.fr";
 
+// Typing an address and a code key by key, on a loaded CI runner, takes longer than Jest's 5 s (the first test also pays
+// for rendering the app cold).
+jest.setTimeout(30_000);
+
 function SignedInPage() {
   const { signOut } = useSession();
   return <><Text>La conversation</Text><Control label="Se déconnecter" onPress={signOut} /></>;
@@ -199,5 +203,67 @@ describe("SessionGate (#685)", () => {
 
     await screen.findByLabelText("Votre adresse e-mail");
     expect(forgetOnDevice).toHaveBeenCalled();
+  });
+
+  describe("the email's code (#686)", () => {
+    /** Asks the link on the sign-in screen, as a person does, until it waits for it. */
+    async function askLinkOnScreen(user: ReturnType<typeof userEvent.setup>) {
+      await user.type(await screen.findByLabelText("Votre adresse e-mail"), EMAIL);
+      await user.press(screen.getByRole("button", { name: "Recevoir mon lien de connexion" }));
+      await screen.findByText("En attente du lien…");
+    }
+
+    it("is offered beside the wait for the link, with the number pad and the system's code filling", async () => {
+      const { web, render } = setUp();
+      await render();
+      const user = userEvent.setup();
+      await askLinkOnScreen(user);
+
+      const field = screen.getByLabelText("Saisir le code reçu par e-mail");
+      expect(field.props).toMatchObject({ keyboardType: "number-pad", textContentType: "oneTimeCode", inputMode: "numeric" });
+      await user.type(field, web.codeFor(EMAIL));
+      await user.press(screen.getByRole("button", { name: "Me connecter avec ce code" }));
+
+      expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+    });
+
+    it("says when the code is wrong, then when it no longer works, and a new email brings another", async () => {
+      const { web, render } = setUp();
+      await render();
+      const user = userEvent.setup();
+      await askLinkOnScreen(user);
+      const first = web.codeFor(EMAIL);
+
+      for (let tries = 0; tries < 5; tries++) {
+        await user.clear(screen.getByLabelText("Saisir le code reçu par e-mail"));
+        await user.type(screen.getByLabelText("Saisir le code reçu par e-mail"), "000000");
+        await user.press(screen.getByRole("button", { name: "Me connecter avec ce code" }));
+        expect(await screen.findByText(/Ce code ne convient pas/)).toBeOnTheScreen();
+      }
+      await user.clear(screen.getByLabelText("Saisir le code reçu par e-mail"));
+      await user.type(screen.getByLabelText("Saisir le code reçu par e-mail"), first);
+      await user.press(screen.getByRole("button", { name: "Me connecter avec ce code" }));
+      expect(await screen.findByText("Trop d'essais : ce code ne fonctionne plus. Demandez un nouvel e-mail.")).toBeOnTheScreen();
+
+      await user.press(screen.getByRole("button", { name: "Renvoyer le lien" }));
+      expect(web.emailed).toHaveLength(2);
+      expect(screen.queryByText(/Trop d'essais/)).toBeNull();
+      await user.type(screen.getByLabelText("Saisir le code reçu par e-mail"), web.codeFor(EMAIL));
+      await user.press(screen.getByRole("button", { name: "Me connecter avec ce code" }));
+      expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+    });
+
+    it("leads to the second step for an account that has it", async () => {
+      const { web, render } = setUp();
+      web.withSecondStep(EMAIL);
+      await render();
+      const user = userEvent.setup();
+      await askLinkOnScreen(user);
+
+      await user.type(screen.getByLabelText("Saisir le code reçu par e-mail"), web.codeFor(EMAIL));
+      await user.press(screen.getByRole("button", { name: "Me connecter avec ce code" }));
+
+      expect(await screen.findByText("Vérification en deux étapes")).toBeOnTheScreen();
+    });
   });
 });

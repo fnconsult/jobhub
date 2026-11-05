@@ -5,7 +5,8 @@
  * there is one; purged with `purgeExpiredAiUsage`.
  *
  * Personal data, read by super-admins only (the `aiMessages` resource), on Activité › Appels IA (formerly Journaux IA):
- * `list` shows who, when, which task and model, the Outcome and Failure Reason, never the text; `open`
+ * `list` shows who, when, which task and model, the Outcome and Failure Reason, never the text, and for a call that wrote an
+ * AI Coach reply, the reply's estimate of its context against the provider's count (`context`, ADR-0078, #731); `open`
  * shows the text and the technical reason, and writes
  * the view to the Back Office Audit, in the same transaction, so no log is read without a trace.
  * A Candidate's logs are in their data export and go with their account.
@@ -32,6 +33,19 @@ export interface AiMessageLogSummary {
   sent: boolean;
   /** Null for a call made for no Candidate (a Guest). */
   candidate: { id: string; email: string } | null;
+  /**
+   * For a call that wrote an AI Coach reply (#731, ADR-0078): the reply's estimate of the context it was sent (`context_tokens`,
+   * about 4 characters a token), the provider's count of the call's input (`measure`: its input tokens, those read from its
+   * prompt cache included) and their `gap` (measure − estimate). Null for any other call, and for a reply that kept no estimate.
+   */
+  context: ContextMeasure | null;
+}
+
+/** An AI Coach reply's context: what was estimated, what the provider counted, and the gap between them. */
+export interface ContextMeasure {
+  estimate: number;
+  measure: number;
+  gap: number;
 }
 
 export interface AiMessageLog extends AiMessageLogSummary {
@@ -91,7 +105,11 @@ export function aiMessageLogFilter(input: unknown): AiMessageLogFilter {
 }
 
 const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.sent,
-                        CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object('id', c.id, 'email', c.email) END AS candidate`;
+                        CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object('id', c.id, 'email', c.email) END AS candidate,
+                        -- The AI Coach reply the call wrote, if any: its estimate against the provider's count (#731).
+                        (SELECT json_build_object('estimate', r.context_tokens, 'measure', u.input_tokens + u.cached_input_tokens,
+                                                  'gap', u.input_tokens + u.cached_input_tokens - r.context_tokens)
+                           FROM coach_message r WHERE r.ai_call_id = u.id AND r.context_tokens IS NOT NULL LIMIT 1) AS context`;
 const FROM = `FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id LEFT JOIN candidate c ON c.id = m.candidate_id`;
 
 export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<BackOffice, "record"> }): AiMessageLogs {

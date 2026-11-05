@@ -269,6 +269,14 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     expect(report).toMatchObject({ byModel: [], byTask: [], byTime: [], tools: [], externalApis: [], failureReasons: { total: [], byModel: [], byTask: [] } });
   });
 
+  it("keeps each call under the id the AI layer named it by, so what it served can be joined to its counts (#731)", async () => {
+    const call = await ai.generate({ task: "scoring", candidateId: null, prompt: "Score" });
+    await settled();
+
+    const { rows } = await database.query("SELECT input_tokens FROM ai_usage WHERE id = $1", [call.callId]);
+    expect(rows).toEqual([{ input_tokens: MILLION }]);
+  });
+
   it("never fails the AI call when its usage cannot be recorded, and says so", async () => {
     const warnings: string[] = [];
     await database.query("DROP TABLE ai_usage CASCADE");

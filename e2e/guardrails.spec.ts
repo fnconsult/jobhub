@@ -659,6 +659,9 @@ test.describe("Guardrail messages in production", () => {
         APP_URL: productionOrigin,
         AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",
         MAIL_TRANSPORT: "console",
+        // The AI Coach reads its Plan's Coach context limits (ADR-0078) through billing, which a production server configures.
+        STRIPE_SECRET_KEY: "sk_test_fake",
+        STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
         NEXT_TELEMETRY_DISABLED: "1",
         AI_SCORING_PROVIDER: "mistral",
         AI_WRITING_PROVIDER: "mistral",

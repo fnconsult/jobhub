@@ -8,6 +8,9 @@
  *    `get` one; edit the Master CV (`saveMasterCv`, each change a new version),
  *    list its versions and restore one (`restoreMasterCv`); change the Search
  *    Criteria of an active Profile (`changeSearchCriteria`). Every read and change is scoped to the Candidate.
+ *    From a Coach proposal the Candidate applies (#719, ADR-0077), a Master CV Version and the Search Criteria keep
+ *    their Origin, and a change is refused as a conflict when they moved on since the version the proposal saw
+ *    (`basedOnVersion`; for Search Criteria `basedOn`, their `searchCriteriaVersion`); « Annuler » is a Restore.
  *    The number of active Profiles respects the Plan Quota (`profileQuota`). A Master CV read from a file
  *    keeps the reading's Provenance with its version 1 (ADR-0034, #335); the versions saved after keep none.
  *  - `migrateProfiles(database)` — creates / upgrades the tables.
@@ -27,10 +30,12 @@ import {
   type Provenance,
   type SearchCriteria,
 } from "@jobhub/shared";
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { Pool, PoolClient } from "pg";
 import * as z from "zod";
 import { PROFILE_NAME_MAX_LENGTH } from "./limits";
+import { readOrigin, type Origin } from "../origin";
 import { fieldErrors, type FieldError } from "../validation";
 
 export interface Profile {
@@ -42,6 +47,8 @@ export interface Profile {
   searchCriteria: SearchCriteria;
   /** The current version of the Profile's Master CV. */
   masterCv: { version: number; content: MasterCvContent };
+  /** The Search Criteria came from a Coach proposal the Candidate applied (#719); absent once changed on the page. */
+  searchCriteriaOrigin?: Origin;
 }
 
 export interface ProfileSummary {
@@ -68,6 +75,23 @@ export interface MasterCvVersion {
   content: MasterCvContent;
   /** What read it from the Candidate's file (ADR-0034, #335): version 1 of a Profile created from an uploaded CV, else absent. */
   provenance?: Provenance;
+  /** It came from a Coach proposal the Candidate applied (#719, ADR-0077), else absent. */
+  origin?: Origin;
+}
+
+/** How a Master CV Version is saved: from a Coach proposal (its Origin), or as a Restore of an earlier version (« Annuler »). */
+export interface SaveMasterCvOptions {
+  origin?: Origin | null;
+  restoredFrom?: number;
+}
+
+/**
+ * How Search Criteria are changed: from the version a Coach proposal saw (`basedOn`, their `searchCriteriaVersion`; moved
+ * on since, a conflict), keeping its Origin. A change made on the page has none.
+ */
+export interface ChangeSearchCriteriaOptions {
+  basedOn?: string;
+  origin?: Origin | null;
 }
 
 export type SaveMasterCvResult =
@@ -83,7 +107,25 @@ export type ProfileChangeResult = CreateProfileResult | { ok: false; error: "not
 export type ProfileArchived = { ok: false; error: "archived" };
 
 /** The outcome of changing a Profile's Search Criteria. "not_found" also covers someone else's Profile. */
-export type ChangeSearchCriteriaResult = SavedProfile | { ok: false; error: "not_found" } | ProfileArchived;
+export type ChangeSearchCriteriaResult = SavedProfile | { ok: false; error: "not_found" | "conflict" } | ProfileArchived;
+
+/**
+ * Which state of Search Criteria a Coach proposal saw (#719): the same criteria, the same version, whatever the order of
+ * their keys; any change gives another one.
+ */
+export function searchCriteriaVersion(criteria: SearchCriteria): string {
+  const canonical = {
+    targetRole: criteria.targetRole,
+    locations: criteria.locations,
+    minSalary: criteria.minSalary ?? null,
+    contractTypes: criteria.contractTypes,
+    remoteWorkOptions: criteria.remoteWorkOptions,
+    sectors: criteria.sectors,
+    subsectors: criteria.subsectors,
+    domains: criteria.domains,
+  };
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex").slice(0, 16);
+}
 
 /**
  * How many active (not archived) Profiles the Candidate's Plan allows, or null
@@ -110,7 +152,7 @@ export interface Profiles {
    * Replaces a Profile's Search Criteria. `input` ({ searchCriteria }) is untrusted and
    * validated like the onboarding criteria. The Profile keeps its name.
    */
-  changeSearchCriteria(candidateId: string, profileId: string, input: unknown): Promise<ChangeSearchCriteriaResult>;
+  changeSearchCriteria(candidateId: string, profileId: string, input: unknown, options?: ChangeSearchCriteriaOptions): Promise<ChangeSearchCriteriaResult>;
   /** Whether the Plan Quota leaves room for one more active Profile (to offer creating or duplicating one). */
   canAddProfile(candidateId: string): Promise<boolean>;
   /** Archives a Profile: kept with its Master CV, but out of the Profile switcher. Archiving twice is harmless. */
@@ -124,9 +166,10 @@ export interface Profiles {
   /**
    * Saves the Candidate's edits to a Profile's Master CV as its next version.
    * `input` is untrusted: `{ basedOnVersion, content }`, where `basedOnVersion` is the
-   * version the Candidate edited. Null if the Profile does not exist or belongs to someone else.
+   * version the Candidate edited. Null if the Profile does not exist or belongs to someone else. `options`: the
+   * new version's Origin (a Coach proposal applied), or the earlier version it restores (« Annuler » on one).
    */
-  saveMasterCv(candidateId: string, profileId: string, input: unknown): Promise<SaveMasterCvResult | null>;
+  saveMasterCv(candidateId: string, profileId: string, input: unknown, options?: SaveMasterCvOptions): Promise<SaveMasterCvResult | null>;
   /** Every version of the Profile's Master CV, newest first. Null like `get`. */
   masterCvVersions(candidateId: string, profileId: string): Promise<MasterCvVersion[] | null>;
   /**
@@ -226,6 +269,7 @@ interface ProfileRow {
   domains: string[];
   version: number;
   content: MasterCvContent;
+  search_criteria_origin: unknown;
 }
 
 function profileFrom(row: ProfileRow): Profile {
@@ -239,7 +283,8 @@ function profileFrom(row: ProfileRow): Profile {
     domains: row.domains,
   };
   if (row.min_salary !== null) searchCriteria.minSalary = row.min_salary;
-  return { id: row.id, name: row.name, archived: row.archived, searchCriteria, masterCv: { version: row.version, content: row.content } };
+  const origin = readOrigin(row.search_criteria_origin);
+  return { id: row.id, name: row.name, archived: row.archived, searchCriteria, masterCv: { version: row.version, content: row.content }, ...(origin ? { searchCriteriaOrigin: origin } : {}) };
 }
 
 const saveInputSchema = z.object({ basedOnVersion: z.number().int().positive(), content: cvContentSchema });
@@ -250,6 +295,13 @@ const found = (profile: Profile | null): ProfileChangeResult => (profile ? { ok:
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ARCHIVED: ProfileArchived = { ok: false, error: "archived" };
+
+/** The Profile with new Search Criteria and their Origin (none: changed on the page). */
+function withCriteria(profile: Profile, searchCriteria: SearchCriteria, origin: Origin | null): Profile {
+  const changed: Profile = { ...profile, searchCriteria };
+  delete changed.searchCriteriaOrigin;
+  return origin ? { ...changed, searchCriteriaOrigin: origin } : changed;
+}
 
 const QUOTA_REACHED: PlanQuotaReached = { ok: false, error: "plan_quota_reached" };
 
@@ -293,10 +345,10 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   }
 
   /** False if `version` is already taken: the primary key (profile_id, version) refuses concurrent saves of the same next version. */
-  async function appendVersion(profileId: string, version: number, content: MasterCvContent, restoredFrom: number | null) {
+  async function appendVersion(profileId: string, version: number, content: MasterCvContent, restoredFrom: number | null, origin: Origin | null = null) {
     const inserted = await database.query(
-      `INSERT INTO master_cv_version (profile_id, version, content, restored_from) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-      [profileId, version, content, restoredFrom],
+      `INSERT INTO master_cv_version (profile_id, version, content, restored_from, origin) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
+      [profileId, version, content, restoredFrom, origin ? JSON.stringify(origin) : null],
     );
     return inserted.rowCount === 1;
   }
@@ -304,7 +356,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   async function get(candidateId: string, profileId: string): Promise<Profile | null> {
     if (!UUID.test(profileId)) return null;
     const { rows } = await database.query<ProfileRow>(
-      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.locations, p.min_salary, p.contract_types, p.remote_work_options, p.sectors, p.subsectors, p.domains, v.version, v.content
+      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.locations, p.min_salary, p.contract_types, p.remote_work_options, p.sectors, p.subsectors, p.domains, p.search_criteria_origin, v.version, v.content
          FROM profile p
          JOIN master_cv_version v ON v.profile_id = p.id
         WHERE p.id = $1 AND p.candidate_id = $2
@@ -363,10 +415,33 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
     });
   }
 
+  /** Writes the Search Criteria of an active Profile and their Origin; false when it is archived (an archive landing meanwhile wins). */
+  async function writeCriteria(client: Pool | PoolClient, candidateId: string, profileId: string, searchCriteria: SearchCriteria, origin: Origin | null): Promise<boolean> {
+    const { rowCount } = await client.query(
+      `UPDATE profile SET target_role = $3, locations = $4, min_salary = $5, contract_types = $6, remote_work_options = $7,
+                          sectors = $8, subsectors = $9, domains = $10, search_criteria_origin = $11
+        WHERE id = $1 AND candidate_id = $2 AND archived_at IS NULL`,
+      [
+        profileId,
+        candidateId,
+        searchCriteria.targetRole,
+        searchCriteria.locations,
+        searchCriteria.minSalary ?? null,
+        searchCriteria.contractTypes,
+        searchCriteria.remoteWorkOptions,
+        searchCriteria.sectors,
+        searchCriteria.subsectors,
+        searchCriteria.domains,
+        origin ? JSON.stringify(origin) : null,
+      ],
+    );
+    return rowCount === 1;
+  }
+
   return {
     get,
 
-    async saveMasterCv(candidateId, profileId, input) {
+    async saveMasterCv(candidateId, profileId, input, options = {}) {
       const profile = await get(candidateId, profileId);
       if (!profile) return null;
       const parsed = saveInputSchema.safeParse(input, { reportInput: true });
@@ -377,7 +452,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       if (isDeepStrictEqual(content, profile.masterCv.content)) return { ok: true, profile };
 
       const version = basedOnVersion + 1;
-      if (!(await appendVersion(profileId, version, content, null))) {
+      if (!(await appendVersion(profileId, version, content, options.restoredFrom ?? null, options.origin ?? null))) {
         const current = await get(candidateId, profileId);
         return { ok: false, conflict: { currentVersion: current!.masterCv.version } };
       }
@@ -386,13 +461,21 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
 
     async masterCvVersions(candidateId, profileId) {
       if (!(await get(candidateId, profileId))) return null;
-      const { rows } = await database.query<{ version: number; created_at: Date; restored_from: number | null; content: MasterCvContent; provenance: unknown }>(
-        `SELECT version, created_at, restored_from, content, provenance FROM master_cv_version WHERE profile_id = $1 ORDER BY version DESC`,
+      const { rows } = await database.query<{ version: number; created_at: Date; restored_from: number | null; content: MasterCvContent; provenance: unknown; origin: unknown }>(
+        `SELECT version, created_at, restored_from, content, provenance, origin FROM master_cv_version WHERE profile_id = $1 ORDER BY version DESC`,
         [profileId],
       );
       return rows.map((row) => {
         const provenance = readProvenance(row.provenance);
-        return { version: row.version, savedAt: row.created_at, restoredFrom: row.restored_from, content: row.content, ...(provenance ? { provenance } : {}) };
+        const origin = readOrigin(row.origin);
+        return {
+          version: row.version,
+          savedAt: row.created_at,
+          restoredFrom: row.restored_from,
+          content: row.content,
+          ...(provenance ? { provenance } : {}),
+          ...(origin ? { origin } : {}),
+        };
       });
     },
 
@@ -445,32 +528,32 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       return rowCount ? found(await get(candidateId, profileId)) : NOT_FOUND;
     },
 
-    async changeSearchCriteria(candidateId, profileId, input) {
+    async changeSearchCriteria(candidateId, profileId, input, options = {}) {
       const parsed = changeCriteriaSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const profile = await get(candidateId, profileId);
       if (!profile) return NOT_FOUND;
       if (profile.archived) return ARCHIVED;
       const { searchCriteria } = parsed.data;
-      // archived_at IS NULL: an archive landing meanwhile wins.
-      const { rowCount } = await database.query(
-        `UPDATE profile SET target_role = $3, locations = $4, min_salary = $5, contract_types = $6, remote_work_options = $7,
-                            sectors = $8, subsectors = $9, domains = $10
-          WHERE id = $1 AND candidate_id = $2 AND archived_at IS NULL`,
-        [
-          profileId,
-          candidateId,
-          searchCriteria.targetRole,
-          searchCriteria.locations,
-          searchCriteria.minSalary ?? null,
-          searchCriteria.contractTypes,
-          searchCriteria.remoteWorkOptions,
-          searchCriteria.sectors,
-          searchCriteria.subsectors,
-          searchCriteria.domains,
-        ],
-      );
-      return rowCount ? { ok: true, profile: { ...profile, searchCriteria } } : ARCHIVED;
+      const origin = options.origin ?? null;
+      if (options.basedOn !== undefined) {
+        // From the version a Coach proposal saw: locked, so a change landing meanwhile is a conflict, never merged.
+        return transaction(async (client): Promise<ChangeSearchCriteriaResult> => {
+          const { rows } = await client.query<ProfileRow>(
+            `SELECT id, name, archived_at IS NOT NULL AS archived, target_role, locations, min_salary, contract_types, remote_work_options, sectors, subsectors, domains,
+                    search_criteria_origin, 0 AS version, '{}'::jsonb AS content
+               FROM profile WHERE id = $1 AND candidate_id = $2 FOR UPDATE`,
+            [profileId, candidateId],
+          );
+          const row = rows[0];
+          if (!row) return NOT_FOUND;
+          if (row.archived) return ARCHIVED;
+          if (searchCriteriaVersion(profileFrom(row).searchCriteria) !== options.basedOn) return { ok: false, error: "conflict" };
+          await writeCriteria(client, candidateId, profileId, searchCriteria, origin);
+          return { ok: true, profile: withCriteria(profile, searchCriteria, origin) };
+        });
+      }
+      return (await writeCriteria(database, candidateId, profileId, searchCriteria, origin)) ? { ok: true, profile: withCriteria(profile, searchCriteria, origin) } : ARCHIVED;
     },
 
     canAddProfile: (candidateId) => roomForOneMore(candidateId),
@@ -552,5 +635,8 @@ export async function migrateProfiles(database: Pool): Promise<void> {
     ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS restored_from integer;
     -- What read a version from the Candidate's file (ADR-0034, #335): version 1 of a Profile created from an uploaded CV.
     ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS provenance jsonb;
+    -- From a Coach proposal the Candidate applied (#719, ADR-0077): the Origin of a Master CV Version, and of the Search Criteria.
+    ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS origin jsonb;
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS search_criteria_origin jsonb;
   `);
 }

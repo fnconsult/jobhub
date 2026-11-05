@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import { Briefcase, Calendar, Mail, Search, Users, type LucideIcon } from "lucide-react-native";
-import { SAMPLE_APPLICATIONS, SAMPLE_FREE_CONVERSATIONS } from "../sample-data";
+import { SAMPLE_APPLICATIONS } from "../sample-data";
 import type { ShellPage } from "../shell/Shell";
 
 /** The app's addresses, the web's own (apps/web/src/routes.ts), so a universal link opens the same page. */
@@ -41,14 +41,15 @@ export const isCurrent = (pathname: string, path: string) => (path === paths.hom
 
 /**
  * The page at `pathname` as the shell shows it: its title, and its column, the Fiche on an object's page (an
- * Application's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the Coach space or Réglages de l'app.
+ * Application's), Activité alone on the home page, a menu or a Free conversation (its title by `conversationTitle`), none on
+ * Mon compte, the Coach space or Réglages de l'app.
  */
-export function pageFor(pathname: string, t: TFunction): ShellPage {
+export function pageFor(pathname: string, t: TFunction, conversationTitle: (id: string) => string | undefined = () => undefined): ShellPage {
   const page = (title: string, pane: ShellPage["pane"]): ShellPage => ({ key: pathname, title, pane });
   const [, section, id] = pathname.split("/").map((part) => decodeURIComponent(part));
   if (section === "candidatures" && id) return page(SAMPLE_APPLICATIONS.find((application) => application.id === id)?.title ?? t("nav.applications"), "fiche");
   if (section === "conversations" && id) {
-    const title = SAMPLE_FREE_CONVERSATIONS.find((conversation) => conversation.id === id)?.title;
+    const title = conversationTitle(id);
     return page(title ?? t("conversationFirst.newConversation"), "activite");
   }
   const menu = MENUS.find((candidate) => under(pathname, candidate.path));

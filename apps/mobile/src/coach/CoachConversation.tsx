@@ -6,6 +6,7 @@ import { Conversation } from "../conversation/Conversation";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import type { ConversationSummary, SubjectRef } from "./coach-reply";
+import { useRegisterPageConversation } from "./page-conversation";
 import { useCoachConversation, type Announce, type ReplyStatus, type ShownMessage } from "./use-coach-conversation";
 
 /**
@@ -60,6 +61,14 @@ export function CoachConversation(page: PagePlacement) {
     announce,
   });
   const sending = coach.status.kind === "sending";
+  useRegisterPageConversation({
+    conversationId: coach.conversation?.id ?? null,
+    live: coach.status.kind === "sending" ? coach.status.live : null,
+    context: coach.context,
+    repliesOnPage: coach.repliesOnPage,
+    clear: coach.clear,
+    stop: coach.stop,
+  });
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const box = useMemo(() => ({ focus: () => input.current?.focus() }), []);
   // The page's suggestions, until something is sent.

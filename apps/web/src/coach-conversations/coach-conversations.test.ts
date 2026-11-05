@@ -9,6 +9,7 @@ import { createApplications, migrateApplications } from "../applications";
 import { migrateCoachMemory } from "../coach-memory";
 import { migrateJobDigests } from "../job-digests";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
+import { offerBoxOf } from "../offer-box";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles } from "../profiles";
 import type { NoticedReply } from "../unanswered-questions";
@@ -714,6 +715,26 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     if (!profile.ok) throw new Error("no profile");
     await createApplications(database, { jobOffers, profiles: createProfiles(database) }).save(marie, { jobOfferId: captured.jobOffer.id, profileId: profile.profile.id });
     expect((await conversations.open(marie, sent.conversation.id))?.messages[1]).toEqual({ from: "coach", text: "J'ai lu cette offre.", jobOffer: { ...card, followed: true }, provenance: PROVENANCE, at: expect.any(String) });
+  });
+
+  it("brings the Job Offer of a reply's Job Offer card to the Candidate's Offer box, with the conversation's Profile (ADR-0090)", async () => {
+    const jobOffers = createJobOffers(database);
+    const captured = await jobOffers.capture({ source: { url: "https://carrieres.example.fr/daf" }, title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" });
+    if (!captured.ok) throw new Error("not captured");
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+    if (!profile.ok) throw new Error("no profile");
+    coachReply = () => ({ ok: true, reply: "J'ai lu cette offre.", outcome: "replied", cost: null, provenance: PROVENANCE, playbooks: [], consultations: [], jobOffer: captured.jobOffer });
+
+    await conversations.send(marie, { message: "https://carrieres.example.fr/daf", focus: { kind: "profile", id: profile.profile.id } });
+
+    expect(await offerBoxOf(database, marie)).toEqual([
+      expect.objectContaining({ jobOfferId: captured.jobOffer.id, profileId: profile.profile.id, arrivalSources: [{ source: "job_offer_link", at: now }] }),
+    ]);
+    // Without a Profile in view, it is « Non classée »; a reply without a card brings nothing.
+    await conversations.send(jean, { message: "https://carrieres.example.fr/daf" });
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [] });
+    await conversations.send(jean, { message: "Merci" });
+    expect(await offerBoxOf(database, jean)).toEqual([expect.objectContaining({ jobOfferId: captured.jobOffer.id, profileId: null })]);
   });
 
   it("names, when the conversation reopens, the Candidate's objects a reply's Coach Actions saw, as they are now, and no one else's (#788)", async () => {

@@ -31,6 +31,7 @@
  * from the browser) and problems come back as results, never exceptions. A
  * search the worker never answered fails ('timeout') after SEARCH_TIMEOUT_MS,
  * when it is next read or expired, whichever comes first, and gives its use back.
+ * The Job Offers a finished, stopped or failed Job Search kept reach the Candidate's Offer box (ADR-0090, `recordArrivals`).
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
@@ -55,6 +56,7 @@ import * as z from "zod";
 import type { Applications } from "../applications";
 import type { QuotaDecision } from "../billing";
 import { visibleTo, type JobOffers } from "../job-offers";
+import { migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -237,8 +239,9 @@ export interface JobSearchQuotas {
   release(candidateId: string, quota: WeeklyQuota): Promise<void>;
 }
 
-/** Creates or upgrades the Job Search table. Run after the Profiles' and Job Offers' migrations. */
+/** Creates or upgrades the Job Search table, and the Offer box its results arrive in. Run after the Profiles' and Job Offers' migrations. */
 export async function migrateJobSearches(database: Pool): Promise<void> {
+  await migrateOfferBox(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS job_search (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -303,22 +306,25 @@ export function createJobSearchReports(
       const jobOfferIds = (outcome.jobOfferIds ?? []).filter((id) => UUID.test(id));
       // A Provenance naming an id, or of a shape this version does not know, is not kept.
       const provenance = readProvenance(outcome.provenance);
+      const at = now();
       // Only the one report that moves the Job Search out of 'searching' gets a row back.
-      const { rows } = await database.query<{ candidate_id: string }>(
+      const { rows } = await database.query<{ candidate_id: string; profile_id: string }>(
         `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}, notification_pending = true,
                 provenance = $7::jsonb, progress = NULL
          WHERE id = $1 AND status = 'searching'
-         RETURNING candidate_id`,
+         RETURNING candidate_id, profile_id`,
         [
           jobSearchId,
           status,
           jobOfferIds,
           "failed" in outcome ? outcome.failed : null,
-          now(),
+          at,
           JSON.stringify(outcome.metrics ?? noDiscoveryMetrics()),
           provenance ? JSON.stringify(provenance) : null,
         ],
       );
+      // The Job Offers it kept reach the Candidate's Offer box (ADR-0090), for its Profile.
+      if (rows[0]) await recordArrivals(database, { candidateId: rows[0].candidate_id, profileId: rows[0].profile_id, source: "job_search", at, jobOfferIds });
       // A failed Job Search is not counted; a stopped one only when it kept a Job Offer.
       const counted = status === "done" || (status === "stopped" && jobOfferIds.length > 0);
       if (!counted && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");

@@ -101,7 +101,9 @@ export const PROPOSAL_TARGET_KINDS = ["profile", "application", "job_offer", "jo
  * its Application to « Entretien »). A Master CV change (#719, ADR-0006) has no one-click « Appliquer »: its `review` holds the
  * changes the Candidate reviews one by one in the Work Pane, and the edits they come from; the accepted ones are sent explicitly.
  * `launches`: applying it launches an action (a Job Search, #720), « Lancer » on its card, followed in AI Activity and
- * ended with Stop: never undone.
+ * ended with Stop: never undone. `runs` (#721): the AI action it launches runs in the Candidate's own request, as its page
+ * runs it (a Tailored CV proposed, a Cover Letter or an Outreach Message drafted). `replaces`: what applying it replaces,
+ * said on its card, which asks the Candidate to confirm it first.
  */
 export interface ProposedChange {
   target: { kind: ProposalTargetKind; id: string; name: string; href: string };
@@ -115,6 +117,23 @@ export interface ProposedChange {
   quota?: { label: string; prompt?: UpgradePrompt };
   review?: { changes: CvChange[]; edits: MasterCvEdit[] };
   launches?: true;
+  runs?: LaunchedRun;
+  replaces?: string;
+}
+
+/** The kinds of AI action a proposal's card runs in the Candidate's own request (#721): what AI Activity calls them. */
+export const LAUNCHED_RUN_KINDS = ["tailored_cv", "tailored_documents"] as const;
+
+/**
+ * An AI action a proposal's card runs in the Candidate's own request once applied (#721): the route its page runs it by
+ * (`url`, POSTed `body`), so it keeps its Task Playbook and its own Provenance, its steps live on the card beside
+ * « Arrêter » (Stop aborts the request, nothing is kept); and the Result opened in the Work Pane once it is done (`opens`).
+ */
+export interface LaunchedRun {
+  kind: (typeof LAUNCHED_RUN_KINDS)[number];
+  url: string;
+  body: Record<string, string>;
+  opens: string;
 }
 
 const cvChangeSchema = z.object({
@@ -162,6 +181,8 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
     .optional(),
   review: z.object({ changes: z.array(cvChangeSchema), edits: z.array(masterCvEditSchema) }).optional(),
   launches: z.literal(true).optional(),
+  runs: z.object({ kind: z.enum(LAUNCHED_RUN_KINDS), url: z.string().startsWith("/api/"), body: z.record(z.string(), z.string()), opens: z.string().startsWith("/") }).optional(),
+  replaces: z.string().optional(),
 }) as unknown as z.ZodType<ProposedChange>;
 
 /**

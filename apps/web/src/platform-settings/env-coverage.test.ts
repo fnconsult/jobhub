@@ -79,6 +79,10 @@ describe("the guard on the Platform Settings", () => {
     expect(sourceFiles().some((file) => file.includes("/apps/mobile/"))).toBe(false);
   });
 
+  it("lists the native app's crash report DSN among the settings only env holds, shown nowhere (#703)", () => {
+    expect(ENV_ONLY_SETTINGS).toMatchObject({ EXPO_PUBLIC_SENTRY_DSN: { kind: "deployment", shown: false } });
+  });
+
   it("reads none of the variables it lists as no longer read, which are nothing else either (#396)", () => {
     const retired = Object.keys(RETIRED_SETTINGS);
     expect(retired.length).toBeGreaterThan(0);

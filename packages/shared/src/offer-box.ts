@@ -12,6 +12,8 @@
 import { MAX_POSTING_AGE_DAYS } from "./posting-date";
 import { ARRIVAL_SOURCES, type ArrivalSource, type OfferBoxEntryRead, type OfferBoxResponse } from "./reads";
 
+export { ARRIVAL_SOURCES, type ArrivalSource } from "./reads";
+
 /** « À ne pas manquer » (80 and more), « À regarder » (60 to 79), « Peu adaptées » (under 60, or not computable). */
 export const IMPORTANCE_TIERS = ["not_to_miss", "to_look_at", "less_suited"] as const;
 export type ImportanceTier = (typeof IMPORTANCE_TIERS)[number];

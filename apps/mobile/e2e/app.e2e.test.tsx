@@ -194,6 +194,9 @@ describe("Jobbbox app, on a phone", () => {
     await launch();
     const user = userEvent.setup();
     await user.press(button("Activité"));
+    // Its Context bar and AI Activity (#690), the conversation not started yet.
+    expect(screen.getByText("0 / 40 messages · 0 / 12k jetons")).toBeOnTheScreen();
+    expect(screen.getByText("Aucun contenu produit par l'IA sur cette page")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Menu" })).toBeNull();
     expect(screen.queryByLabelText("Votre message")).toBeNull();
     await user.press(button("Fermer"));

@@ -16,6 +16,7 @@ import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
 import { Sidebar } from "../navigation/Sidebar";
 import { useFreeConversations } from "../navigation/FreeConversations";
+import { ActivityPane } from "../coach/ActivityPane";
 import { ClearConversation } from "../coach/ClearConversation";
 import { PageConversationProvider } from "../coach/page-conversation";
 import { usePortraitOnPhones } from "../orientation";
@@ -72,7 +73,7 @@ function PagesInShell() {
   return (
     <Shell
       page={page}
-      paneContent={<PanePlaceholder pane={page.pane} />}
+      paneContent={page.pane === "activite" ? <ActivityPane /> : <PanePlaceholder pane={page.pane} />}
       sidebar={(closeDrawer) => <Sidebar onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
       actions={<ClearConversation />}

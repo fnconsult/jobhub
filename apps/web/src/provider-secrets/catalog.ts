@@ -8,7 +8,7 @@
  */
 
 /** Who a Provider Secret is for; keys of one provider are tested together. */
-export const SECRET_PROVIDERS = ["mistral", "perplexity", "brave", "tavily", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo", "email-intake", "github"] as const;
+export const SECRET_PROVIDERS = ["mistral", "perplexity", "brave", "tavily", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo", "email-intake", "github", "apns", "fcm"] as const;
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 
 export const PROVIDER_SECRETS = [
@@ -37,6 +37,10 @@ export const PROVIDER_SECRETS = [
   { name: "EMAIL_INTAKE_INBOUND_SECRET", provider: "email-intake" },
   // GitHub: the read-only token Back Office › Livraison reads the delivery status with.
   { name: "GITHUB_STATUS_TOKEN", provider: "github" },
+  // Push notifications (#698, ADR-0076), sent by the worker: APNs' .p8 key (its Key ID, APNS_KEY_ID, and APPLE_TEAM_ID stay
+  // in env: they are no secret), and the FCM service account's JSON key.
+  { name: "APNS_AUTH_KEY", provider: "apns" },
+  { name: "FCM_SERVICE_ACCOUNT", provider: "fcm" },
 ] as const satisfies ReadonlyArray<{ name: string; provider: SecretProvider }>;
 
 export type ProviderSecretName = (typeof PROVIDER_SECRETS)[number]["name"];
@@ -54,6 +58,7 @@ export const FRANCE_TRAVAIL_SECRET_NAMES = ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_
 export const FANTASTIC_JOBS_SECRET_NAMES = ["FANTASTIC_JOBS_API_KEY"] as const satisfies readonly ProviderSecretName[];
 export const CONTACT_ENRICHMENT_SECRET_NAMES = ["LUSHA_API_KEY", "KASPR_API_KEY", "APOLLO_API_KEY"] as const satisfies readonly ProviderSecretName[];
 export const MAIL_SECRET_NAMES = ["BREVO_API_KEY", "SMTP_URL"] as const satisfies readonly ProviderSecretName[];
+export const PUSH_SECRET_NAMES = ["APNS_AUTH_KEY", "FCM_SERVICE_ACCOUNT"] as const satisfies readonly ProviderSecretName[];
 export const EMAIL_INTAKE_SECRET_NAMES = ["EMAIL_INTAKE_INBOUND_SECRET"] as const satisfies readonly ProviderSecretName[];
 
 /** Fewer characters than this, and no fingerprint is shown: 4 of them would give away too much. */

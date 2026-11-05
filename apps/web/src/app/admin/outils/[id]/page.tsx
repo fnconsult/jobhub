@@ -12,17 +12,19 @@ import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { keyHref, settingHref } from "@/platform-settings/parametres";
 import { isProviderSecretName } from "@/provider-secrets/catalog";
+import { pushPlatformOfTool } from "@/push-notifications";
 import { routes } from "@/routes";
 import { LATEST_CALLS, type ToolCall } from "@/tools";
 import { uncoveredRecipient } from "@/tools/recipients";
 import { toolPage } from "@/tools/server";
 import { SOURCE_TONE } from "../../parametres/tone";
 import { EnvBadge } from "../EnvBadge";
+import { PushNotificationsSection } from "../PushNotificationsSection";
 import { STATUS_TONE } from "../tone";
 import { UncoveredRecipientNote } from "../UncoveredRecipientNote";
 import "../../section.css";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ id: string }>; searchParams?: Promise<{ test?: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   await requireBackOffice("tools");
@@ -39,9 +41,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * on Paramètres for those who can read it: Paramètres stays the only place they are changed.
  * While it is a recipient outside the EU switched on that the privacy policy in effect does not name, the warning
  * Paramètres gave when it was switched on, read-only (#548).
+ * For APNs and FCM, the Push notifications they did not deliver, and a super-admin's test notification (#698).
  */
-export default async function ToolPage({ params }: Params) {
-  const { access } = await requireBackOffice("tools");
+export default async function ToolPage({ params, searchParams }: Params) {
+  const { administrator, access } = await requireBackOffice("tools");
   const tool = toolById((await params).id);
   if (!tool) notFound();
   const { row, calls } = await toolPage(tool);
@@ -50,6 +53,8 @@ export default async function ToolPage({ params }: Params) {
   const readsSecrets = access.can("providerSecrets", "read");
   const readsSettings = access.can("platformSettings", "read");
   const policy = privacyPolicyCoverage(parisDay());
+  const pushPlatform = pushPlatformOfTool(tool.id);
+  const testSent = (await searchParams)?.test === "envoyee";
 
   const number = new Intl.NumberFormat(locale);
   const eur = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 6 });
@@ -183,6 +188,8 @@ export default async function ToolPage({ params }: Params) {
             ) : null}
           </section>
         ) : null}
+
+        {pushPlatform ? <PushNotificationsSection t={t} locale={locale} tool={tool} platform={pushPlatform} administratorId={administrator.id} isSuperAdmin={access.isSuperAdmin} testSent={testSent} /> : null}
 
         <section className="section-block" aria-labelledby="tool-calls">
           <h2 id="tool-calls">{t("admin.tools.latestCalls")}</h2>

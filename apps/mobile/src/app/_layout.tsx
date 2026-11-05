@@ -14,10 +14,11 @@ import { AppProviders } from "../app-providers";
 import { deviceI18n } from "../i18n";
 import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
+import { useIsHumanCoach } from "../navigation/human-coach";
 import { Sidebar } from "../navigation/Sidebar";
 import { usePortraitOnPhones } from "../orientation";
 import { PanePlaceholder } from "../screens/PanePlaceholder";
-import { appSession } from "../session/instance";
+import { appApi, appSession } from "../session/instance";
 import { SessionGate } from "../session/SessionGate";
 import { Shell } from "../shell/Shell";
 
@@ -40,7 +41,7 @@ export default function RootLayout() {
   // Without Inter (it is bundled, so hardly ever), the system font draws the text rather than no app at all.
   if (!fontsLoaded && !fontError) return null;
   return (
-    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE}>
+    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE} api={appApi}>
       <StatusBar style="auto" />
       <SessionGate session={appSession} link={link}>
         <AppLock>
@@ -56,11 +57,12 @@ function AppShell() {
   const pathname = usePathname();
   const router = useRouter();
   const page = pageFor(pathname, t);
+  const isHumanCoach = useIsHumanCoach();
   return (
     <Shell
       page={page}
       paneContent={<PanePlaceholder pane={page.pane} />}
-      sidebar={(closeDrawer) => <Sidebar onNavigate={closeDrawer} />}
+      sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
     >
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD}>

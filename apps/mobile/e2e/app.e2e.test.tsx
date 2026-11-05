@@ -28,7 +28,8 @@ jest.mock("../src/session/instance", () => {
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: mockWeb.app.fetch });
-  return { appSession: mockWeb.session };
+  const { createApi } = jest.requireActual("../src/api/api");
+  return { appSession: mockWeb.session, appApi: createApi({ baseURL: TEST_BASE_URL, cookie: () => mockWeb.session.cookie(), fetch: mockWeb.app.fetch }) };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
 // Not hoisted: it replaces Expo Router's own mock (expo-router/testing-library), whose scheme is not the app's.
@@ -101,7 +102,7 @@ describe("Jobbbox app, on a phone", () => {
     for (const name of ["Nouvelle conversation", "Mon compte"]) expect(link(name)).toBeOnTheScreen();
     expect(screen.getByText("Coach")).toBeOnTheScreen();
     // « Espace coach » is for a Human Coach only, and nobody is one yet.
-    expect(screen.queryByRole("link", { name: "Espace coach" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Mon espace coach", hidden: true })).toBeNull();
     await user.press(button("Fermer le menu"));
     expect(sidebar()).toBeNull();
   });
@@ -324,6 +325,44 @@ describe("Jobbbox app, signing in (#685)", () => {
     await openWith(mockWeb.app.linkFor(EMAIL));
 
     expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+  });
+
+  it("reaches Account deletion in three gestures: Menu, Mon compte, « Supprimer mon compte » (App Store 5.1.1(v), #689)", async () => {
+    await launch();
+    const user = userEvent.setup();
+
+    await user.press(button("Menu"));
+    await user.press(link("Mon compte"));
+    await user.press(await screen.findByRole("button", { name: "Supprimer mon compte" }));
+
+    expect((await screen.findByTestId("web-view")).props.source).toEqual({ uri: `${mockWeb.app.baseURL}/compte/donnees#supprimer` });
+  });
+
+  it.each([
+    ["Sécurité", "/compte/securite"],
+    ["Mes données", "/compte/donnees"],
+    ["Mon abonnement", "/abonnement"],
+    ["Textes légaux", "/legal"],
+    ["Toutes les rubriques", "/compte"],
+  ])("opens « %s » from Mon compte as the web app's page, inside the app (#689)", async (row, path) => {
+    await launch("/compte");
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: row }));
+
+    expect((await screen.findByTestId("web-view")).props.source).toEqual({ uri: `${mockWeb.app.baseURL}${path}` });
+  });
+
+  it("offers « Espace coach » to a Human Coach alone, and opens the whole Coach space inside the app (#689)", async () => {
+    mockWeb.app.humanCoach(EMAIL);
+    await launch();
+    const user = userEvent.setup();
+
+    await user.press(button("Menu"));
+    await user.press(await screen.findByRole("link", { name: "Mon espace coach", hidden: true }));
+
+    expect(screen).toHavePathname("/espace-coach");
+    expect((await screen.findByTestId("web-view")).props.source).toEqual({ uri: `${mockWeb.app.baseURL}/espace-coach` });
+    mockWeb.app.humanCoach(EMAIL, false);
   });
 
   it("signs out from Mon compte, back to sign-in", async () => {

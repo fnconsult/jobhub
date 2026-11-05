@@ -5715,6 +5715,10 @@
     }
   },
   "mobile": {
+    "account": {
+      "intro": "Your account settings open here as on jobbbox.ai, already signed in.",
+      "allSections": "All sections"
+    },
     "offline": {
       "banner": "Offline",
       "bannerDetail": "You are seeing what was last loaded. Nothing is saved until the network is back.",

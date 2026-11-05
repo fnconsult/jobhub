@@ -15,6 +15,13 @@ export const paths = {
   humanCoaches: "/coachs",
   conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,
   account: "/compte",
+  /** Mon compte's pages, the web app's inside the app (#689): every section, Sécurité, Mes données, then Account deletion on it. */
+  accountSections: "/compte/rubriques",
+  accountSecurity: "/compte/securite",
+  accountData: "/compte/donnees",
+  accountDeletion: "/compte/supprimer",
+  subscription: "/abonnement",
+  legal: "/legal",
   coachSpace: "/espace-coach",
   /** Réglages de l'app, the device's own settings: the app's alone, the web has no such page. */
   appSettings: "/reglages",
@@ -41,7 +48,8 @@ export const isCurrent = (pathname: string, path: string) => (path === paths.hom
 
 /**
  * The page at `pathname` as the shell shows it: its title, and its column, the Fiche on an object's page (an
- * Application's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the Coach space or Réglages de l'app.
+ * Application's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the subscription,
+ * the Legal Texts, the Coach space or Réglages de l'app.
  */
 export function pageFor(pathname: string, t: TFunction): ShellPage {
   const page = (title: string, pane: ShellPage["pane"]): ShellPage => ({ key: pathname, title, pane });
@@ -54,6 +62,8 @@ export function pageFor(pathname: string, t: TFunction): ShellPage {
   const menu = MENUS.find((candidate) => under(pathname, candidate.path));
   if (menu) return page(t(menu.label), "activite");
   if (under(pathname, paths.account)) return page(t("nav.account"), null);
+  if (under(pathname, paths.subscription)) return page(t("account.plan"), null);
+  if (under(pathname, paths.legal)) return page(t("legal.documentsNav"), null);
   if (under(pathname, paths.coachSpace)) return page(t("account.coachSpace"), null);
   if (under(pathname, paths.appSettings)) return page(t("mobile.appSettings"), null);
   return page(t("mobile.homeTitle"), "activite");

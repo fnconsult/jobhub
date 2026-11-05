@@ -1,5 +1,6 @@
 import { act, screen } from "@testing-library/react-native";
-import { Linking } from "react-native";
+import { File } from "expo-file-system";
+import { Linking, Share } from "react-native";
 import { createAppSession } from "../session/app-session";
 import { SessionGate } from "../session/SessionGate";
 import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "../session/testing";
@@ -7,6 +8,12 @@ import { renderInApp } from "../testing";
 import { WebPage } from "./WebPage";
 
 const EMAIL = "marie.dupont@example.fr";
+
+// The device's files: a download lands in the app's cache, here at a fixed address.
+jest.mock("expo-file-system", () => ({
+  Paths: { cache: { uri: "file:///cache/" } },
+  File: { downloadFileAsync: jest.fn(async () => ({ uri: "file:///cache/jobbbox-export.json" })) },
+}));
 
 /** The app signed in, showing the web app's `path` in a WebView. */
 async function openWebPage(path: string) {
@@ -31,6 +38,8 @@ async function openWebPage(path: string) {
     follow: (url: string) => props().onShouldStartLoadWithRequest({ url, isTopFrame: true, navigationType: "click" }) as boolean,
     /** The page asks for a new window (`target="_blank"`, `window.open`). */
     openWindow: (url: string) => act(() => void props().onOpenWindow({ nativeEvent: { targetUrl: url } })),
+    /** The page downloads `url` (a response the WebView does not show: an attachment, as the Data export is), on iOS. */
+    download: (url: string) => act(async () => void props().onFileDownload({ nativeEvent: { downloadUrl: url } })),
     /** The WebView has landed on `url`. */
     landOn: (url: string) => act(async () => props().onNavigationStateChange({ url, loading: false, canGoBack: true, canGoForward: false, title: "", navigationType: "other" })),
   };
@@ -78,6 +87,30 @@ describe("a web page inside the app (#689, ADR-0076)", () => {
     await openWindow(`${TEST_BASE_URL}/abonnement`);
 
     expect(openURL).toHaveBeenCalledWith(`${TEST_BASE_URL}/abonnement`);
+  });
+
+  it("hands a file the page downloads, the Data export, to the system's share sheet, fetched with the session", async () => {
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction", activityType: undefined });
+    const { download } = await openWebPage("/compte/donnees");
+
+    await download(`${TEST_BASE_URL}/api/account/export`);
+
+    expect(File.downloadFileAsync).toHaveBeenCalledWith(`${TEST_BASE_URL}/api/account/export`, expect.anything(), {
+      headers: { cookie: expect.stringMatching(/__Secure-better-auth\.session_token=/) },
+      idempotent: true,
+    });
+    expect(share).toHaveBeenCalledWith({ url: "file:///cache/jobbbox-export.json" });
+    share.mockRestore();
+  });
+
+  it("never sends the session with a download from elsewhere: it opens in the system's browser", async () => {
+    (File.downloadFileAsync as jest.Mock).mockClear();
+    const { download } = await openWebPage("/legal/cgu");
+
+    await download("https://example.com/brochure.pdf");
+
+    expect(File.downloadFileAsync).not.toHaveBeenCalled();
+    expect(openURL).toHaveBeenCalledWith("https://example.com/brochure.pdf");
   });
 
   it("is signed out once the page signs out or deletes the account, the WebViews' cookies emptied", async () => {

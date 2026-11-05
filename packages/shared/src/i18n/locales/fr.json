@@ -5715,6 +5715,10 @@
     }
   },
   "mobile": {
+    "account": {
+      "intro": "Vos réglages de compte s'ouvrent ici tels que sur jobbbox.ai, déjà connectés.",
+      "allSections": "Toutes les rubriques"
+    },
     "offline": {
       "banner": "Hors ligne",
       "bannerDetail": "Vous voyez ce qui a été chargé en dernier. Rien ne s'enregistre avant le retour du réseau.",

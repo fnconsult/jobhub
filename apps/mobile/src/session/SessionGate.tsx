@@ -16,13 +16,13 @@ interface SessionContextValue {
   /** Reads the session again from the web app, as when the app comes back to the foreground: signed out once it is gone. */
   recheck: () => Promise<void>;
   /** The web app whose pages open inside the app (WebPage), and lending them the session before one opens. */
-  webPages: Pick<AppSession, "webAppUrl" | "shareWithWebViews">;
+  webPages: Pick<AppSession, "webAppUrl" | "shareWithWebViews" | "cookie">;
 }
 
 const SessionContext = createContext<SessionContextValue>({
   signOut: async () => {},
   recheck: async () => {},
-  webPages: { webAppUrl: "", shareWithWebViews: async () => {} },
+  webPages: { webAppUrl: "", shareWithWebViews: async () => {}, cookie: async () => "" },
 });
 
 /** What the signed-in app can do with its session: sign out (Mon compte), read it again, open the web app's pages. */
@@ -79,7 +79,7 @@ export function SessionGate({ session, link, children }: { session: AppSession; 
         setState(SIGNED_OUT);
       },
       recheck: refresh,
-      webPages: { webAppUrl: session.webAppUrl, shareWithWebViews: () => session.shareWithWebViews() },
+      webPages: { webAppUrl: session.webAppUrl, shareWithWebViews: () => session.shareWithWebViews(), cookie: () => session.cookie() },
     }),
     [session, forgetReads, refresh],
   );

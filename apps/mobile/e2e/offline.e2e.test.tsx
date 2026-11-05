@@ -37,7 +37,8 @@ jest.mock("../src/session/instance", () => {
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: mockWeb.app.fetch });
-  return { appSession: mockWeb.session };
+  const { createApi } = jest.requireActual("../src/api/api");
+  return { appSession: mockWeb.session, appApi: createApi({ baseURL: TEST_BASE_URL, cookie: () => mockWeb.session.cookie(), fetch: mockWeb.app.fetch }) };
 });
 // As app.e2e.test.tsx: the app's own scheme, which the magic link it asks for returns to (Expo Router's mock has another).
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };

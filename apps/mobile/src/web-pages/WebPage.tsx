@@ -1,8 +1,9 @@
 import { API_VERSION, APP_WEBVIEW_USER_AGENT } from "@jobhub/shared";
+import { File, Paths } from "expo-file-system";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Linking, View } from "react-native";
+import { ActivityIndicator, Linking, Share, View } from "react-native";
 import { WebView } from "react-native-webview";
-import type { ShouldStartLoadRequest, WebViewNavigation, WebViewOpenWindowEvent } from "react-native-webview/lib/WebViewTypes";
+import type { FileDownloadEvent, ShouldStartLoadRequest, WebViewNavigation, WebViewOpenWindowEvent } from "react-native-webview/lib/WebViewTypes";
 import { useSession } from "../session/SessionGate";
 import { useTheme } from "../theme/theme";
 
@@ -31,7 +32,8 @@ function openOutside(url: string): void {
  * Texts, the Coach space. The session's cookie is lent to the WebViews for the web app's host alone before the page
  * loads (`shareWithWebViews`); the page stays on that host, and any other address, or a new window it asks for, opens
  * in the system's browser. Landing on sign-in or the deleted account's page reads the session again, which signs the
- * app out once the web app no longer knows it.
+ * app out once the web app no longer knows it. A file the page downloads (the Data export) is fetched with the session
+ * into the app's cache and handed to the share sheet, to save or send (iOS; Android's WebView downloads it itself).
  */
 export function WebPage({ path }: { path: string }) {
   const { webPages, recheck } = useSession();
@@ -63,6 +65,19 @@ export function WebPage({ path }: { path: string }) {
     openOutside(url);
     return false;
   };
+  const download = async ({ nativeEvent: { downloadUrl } }: FileDownloadEvent): Promise<void> => {
+    // The session goes with the web app's own files alone.
+    if (!webApps(downloadUrl, webPages.webAppUrl)) {
+      openOutside(downloadUrl);
+      return;
+    }
+    try {
+      const file = await File.downloadFileAsync(downloadUrl, Paths.cache, { headers: { cookie: await webPages.cookie() }, idempotent: true });
+      await Share.share({ url: file.uri });
+    } catch {
+      // Offline, or the share sheet closed: the page is still there to try again.
+    }
+  };
   const changed = ({ url }: WebViewNavigation) => {
     if (!webApps(url, webPages.webAppUrl)) return;
     const { pathname } = new URL(url);
@@ -77,6 +92,7 @@ export function WebPage({ path }: { path: string }) {
       onShouldStartLoadWithRequest={shouldStart}
       onOpenWindow={({ nativeEvent }: WebViewOpenWindowEvent) => openOutside(nativeEvent.targetUrl)}
       onNavigationStateChange={changed}
+      onFileDownload={(event: FileDownloadEvent): void => void download(event)}
       thirdPartyCookiesEnabled={false}
       allowsBackForwardNavigationGestures
       pullToRefreshEnabled

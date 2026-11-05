@@ -5,7 +5,7 @@ import { renderInApp } from "../testing";
 import { Control } from "../ui/Control";
 import { createAppSession } from "./app-session";
 import { SessionGate, useSession } from "./SessionGate";
-import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "./testing";
+import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "./testing";
 
 const EMAIL = "marie.dupont@example.fr";
 
@@ -16,7 +16,7 @@ function SignedInPage() {
 
 function setUp() {
   const web = fakeWebApp();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: web.fetch });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
   const opened = { current: null as string | null, listeners: new Set<() => void>() };
   const subscribe = (listener: () => void) => (opened.listeners.add(listener), () => void opened.listeners.delete(listener));

@@ -24,10 +24,10 @@ const keyboard = () => mockKeyboard.current!;
 // Built when the app first asks for its session, once Expo Linking is the app's (below).
 const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
 jest.mock("../src/session/instance", () => {
-  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: mockWeb.app.fetch });
   return { appSession: mockWeb.session };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };

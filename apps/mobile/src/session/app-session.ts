@@ -7,6 +7,10 @@
  * The magic link asked from here points at APP_SIGN_IN_PATH, which the app claims by a universal link and an App
  * Link: the system opens the app with it, and `openLink` verifies its token here, once, so the session lands on the
  * device rather than in a browser.
+ *
+ * The web pages the app opens in a WebView (Mon compte, the subscription, the Legal Texts, the Coach space; #689) are
+ * signed in by the same cookie, which `shareWithWebViews` writes into the WebViews' cookie store for the web app's own
+ * host alone; signing out, or a session the web app no longer knows, empties that store too.
  */
 import { expoClient } from "@better-auth/expo/client";
 import { APP_ORIGIN, APP_SCHEME, APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED } from "@jobhub/shared";
@@ -32,6 +36,23 @@ export interface SessionStorage {
   deleteItemAsync(key: string): Promise<void>;
 }
 
+/** A cookie as the WebViews' store keeps it: host-only (no domain), on every path of the web app's host. */
+export interface WebViewCookie {
+  name: string;
+  value: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
+}
+
+/** The WebViews' cookie store (react-native-webview's, the WebKit store on iOS, the shared one on Android). */
+export interface WebViewCookies {
+  /** Keeps `cookie` for the host of `url` alone. */
+  set(url: string, cookie: WebViewCookie): Promise<void>;
+  /** Empties the store: no WebView sends anything of the session any more. */
+  clear(): Promise<void>;
+}
+
 export interface AppSession {
   /** Emails a magic link to `email` for the app; false when the web app refused or could not be reached. */
   askLink(email: string): Promise<boolean>;
@@ -39,8 +60,12 @@ export interface AppSession {
   openLink(url: string): Promise<LinkOutcome | null>;
   /** The session as the web app reads it now; a session it no longer knows (revoked, expired) is forgotten here too. Throws offline. */
   current(): Promise<SessionState>;
-  /** Revokes the session on the web app, as signing out there does, and empties secure storage, reachable or not. */
+  /** Revokes the session on the web app, as signing out there does, and empties secure storage and the WebViews' cookies, reachable or not. */
   signOut(): Promise<void>;
+  /** The session's cookie, as the app's calls to the API send it (`createApi`); without a session, none of it. */
+  cookie(): Promise<string>;
+  /** Writes the session's cookie into the WebViews' store, for the web app's host alone, before a WebView of it opens; nothing while signed out. */
+  shareWithWebViews(): Promise<void>;
 }
 
 /** The keys of secure storage the session is kept under. */
@@ -49,14 +74,25 @@ const STORED = [`${STORAGE_PREFIX}_cookie`, `${STORAGE_PREFIX}_session_data`];
 /** Where the app asks its magic link to return (app-sign-in.ts on the web turns it into APP_SIGN_IN_PATH). */
 const RETURN_ADDRESS = `${APP_ORIGIN}${APP_SIGN_IN_PATH}`;
 
-export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }: { baseURL: string; storage: SessionStorage; fetch?: typeof globalThis.fetch }): AppSession {
+export function createAppSession({
+  baseURL,
+  storage,
+  webViewCookies,
+  fetch = globalThis.fetch,
+}: {
+  baseURL: string;
+  storage: SessionStorage;
+  webViewCookies: WebViewCookies;
+  fetch?: typeof globalThis.fetch;
+}): AppSession {
   const client = createAuthClient({
     baseURL,
     // The session is asked of the web app each time: a revocation shows at the next request, never hidden by a cache.
     plugins: [expoClient({ scheme: APP_SCHEME, storagePrefix: STORAGE_PREFIX, storage, disableCache: true }), magicLinkClient()],
     fetchOptions: { customFetchImpl: fetch },
   });
-  const forget = () => Promise.all(STORED.map((key) => storage.deleteItemAsync(key))).then(() => undefined);
+  const forget = () => Promise.all([...STORED.map((key) => storage.deleteItemAsync(key)), webViewCookies.clear()]).then(() => undefined);
+  const secure = new URL(baseURL).protocol === "https:";
 
   async function current(): Promise<SessionState> {
     const { data, error } = await client.getSession();
@@ -101,6 +137,18 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
     },
 
     current: () => serial(current),
+
+    cookie: () => client.getCookie(),
+
+    shareWithWebViews: () =>
+      serial(async () => {
+        // The header the API calls send (`name=value; …`), each cookie written back as the web app set it: HttpOnly,
+        // Secure over HTTPS, for its host alone (a parent domain would reach the Beta and Production alike).
+        for (const pair of (await client.getCookie()).split("; ").filter(Boolean)) {
+          const split = pair.indexOf("=");
+          await webViewCookies.set(baseURL, { name: pair.slice(0, split), value: pair.slice(split + 1), path: "/", secure, httpOnly: true });
+        }
+      }),
 
     signOut: () =>
       serial(async () => {

@@ -1,5 +1,5 @@
 import { APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED } from "@jobhub/shared";
-import type { SessionStorage } from "./app-session";
+import type { SessionStorage, WebViewCookie, WebViewCookies } from "./app-session";
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
 const COOKIE = "__Secure-better-auth.session_token";
@@ -14,6 +14,16 @@ export function memoryStorage(): SessionStorage & { values: Map<string, string> 
     getItemAsync: async (key) => values.get(key) ?? null,
     setItemAsync: async (key, value) => void values.set(key, value),
     deleteItemAsync: async (key) => void values.delete(key),
+  };
+}
+
+/** The WebViews' cookie store, in memory: `cookies()` is what a WebView of the app would send, with its address. */
+export function memoryWebViewCookies(): WebViewCookies & { cookies: () => ({ url: string } & WebViewCookie)[] } {
+  let kept: ({ url: string } & WebViewCookie)[] = [];
+  return {
+    cookies: () => kept,
+    set: async (url, cookie) => void (kept = [...kept.filter((each) => each.url !== url || each.name !== cookie.name), { url, ...cookie }]),
+    clear: async () => void (kept = []),
   };
 }
 

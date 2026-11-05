@@ -21,7 +21,7 @@ import { isPushEvent, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, 
 import { pushMessage } from "./messages";
 import { PUSH_ENVIRONMENTS, PUSH_PLATFORMS, type PushEnvironment, type PushOutcome, type PushPlatform, type PushSender } from "./senders";
 
-export { PUSH_EVENTS, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, isPushEvent, pushEventsFor, pushNotificationOf, type PushAudience, type PushEvent, type PushNotification } from "./catalog";
+export { PUSH_EVENTS, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, isPushEvent, pushAudiencesOf, pushEventsFor, pushNotificationOf, type PushAudience, type PushEvent, type PushNotification } from "./catalog";
 export { pushMessage, type PushMessage } from "./messages";
 export { PUSH_PLATFORMS, type PushPlatform, type PushSender, type PushOutcome, type PushDevice } from "./senders";
 
@@ -84,8 +84,8 @@ export interface PushNotifications {
    * How many it reached, how many failed, and how many of those were removed for a token no longer valid.
    */
   send(personId: string, notification: PushNotification, options?: { platform?: PushPlatform }): Promise<{ sent: number; failed: number; removed: number }>;
-  /** The failures kept, newest first (at most `limit`, default 100). */
-  failures(limit?: number): Promise<PushFailure[]>;
+  /** The failures kept, newest first (at most `limit`, default 100), of one platform when given (its Tool's page). */
+  failures(options?: { platform?: PushPlatform; limit?: number }): Promise<PushFailure[]>;
 }
 
 type DeviceInput = { platform: PushPlatform; token: string; language: Locale; environment: PushEnvironment };
@@ -195,10 +195,11 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
       return result;
     },
 
-    async failures(limit = 100) {
+    async failures({ platform, limit = 100 } = {}) {
       const { rows } = await database.query<PushFailure>(
-        `SELECT at, platform, event, reason, http_status AS "httpStatus" FROM push_notification_failure ORDER BY at DESC, id DESC LIMIT $1`,
-        [limit],
+        `SELECT at, platform, event, reason, http_status AS "httpStatus" FROM push_notification_failure
+          WHERE ($2::text IS NULL OR platform = $2) ORDER BY at DESC, id DESC LIMIT $1`,
+        [limit, platform ?? null],
       );
       return rows;
     },

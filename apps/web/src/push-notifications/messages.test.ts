@@ -101,3 +101,11 @@ describe("a notification as a queued job carries it", () => {
     expect(pushNotificationOf(null)).toBeNull();
   });
 });
+
+describe("the events a person sees in Rappels", () => {
+  it("are a Candidate's for every account, and a Human Coach's own too, in the catalogue's order", async () => {
+    const { pushAudiencesOf, pushEventsFor } = await import("./catalog");
+    expect(pushEventsFor(pushAudiencesOf(false))).toEqual(["job_search_results", "job_digest", "appointment_reminder", "coach_review", "coaching_session_changed", "follow_up_due"]);
+    expect(pushEventsFor(pushAudiencesOf(true)).slice(6)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate"]);
+  });
+});

@@ -29,6 +29,9 @@ export const PUSH_EVENT_IDS: readonly PushEvent[] = PUSH_EVENTS.map((event) => e
 
 export const isPushEvent = (value: unknown): value is PushEvent => PUSH_EVENT_IDS.includes(value as PushEvent);
 
+/** Who a person is, as far as their events go: every account a Candidate's, a Human Coach's their own too. */
+export const pushAudiencesOf = (isHumanCoach: boolean): PushAudience[] => (isHumanCoach ? ["candidate", "human_coach"] : ["candidate"]);
+
 /** The events `audiences` see in Rappels, in the catalogue's order. */
 export const pushEventsFor = (audiences: readonly PushAudience[]): PushEvent[] => PUSH_EVENTS.filter((event) => audiences.includes(event.audience)).map((event) => event.id);
 

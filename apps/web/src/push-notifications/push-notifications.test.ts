@@ -201,6 +201,7 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
         ["android", "provider_unavailable"],
         ["ios", "key_missing"],
       ]);
+      expect((await push.failures({ platform: "ios" })).map((failure) => failure.reason)).toEqual(["key_missing"]);
     });
 
     it("keeps no token, no account and no text with a failure", async () => {

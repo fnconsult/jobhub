@@ -21,8 +21,12 @@ import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths, profileIdOf } from "../navigation/pages";
 import { useIsHumanCoach } from "../navigation/human-coach";
 import { Sidebar } from "../navigation/Sidebar";
+import { useFreeConversations } from "../navigation/FreeConversations";
+import { ActivityPane } from "../coach/ActivityPane";
+import { ClearConversation } from "../coach/ClearConversation";
+import { PageConversationProvider } from "../coach/page-conversation";
 import { usePortraitOnPhones } from "../orientation";
-import { appSession } from "../session/instance";
+import { appFetch, appSession } from "../session/instance";
 import { SessionGate } from "../session/SessionGate";
 import { PaneContent } from "../screens/PaneContent";
 import { Shell } from "../shell/Shell";
@@ -50,7 +54,7 @@ export default function RootLayout() {
   // Without Inter (it is bundled, so hardly ever), the system font draws the text rather than no app at all.
   if (!fontsLoaded && !fontError) return null;
   return (
-    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE} session={appSession}>
+    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE} session={appSession} fetch={appFetch}>
       <StatusBar style="auto" />
       <SessionGate session={appSession} link={link} forgetOnDevice={forgetDocuments}>
         <AppLock>
@@ -64,21 +68,32 @@ export default function RootLayout() {
 }
 
 function AppShell() {
+  return (
+    <PageConversationProvider>
+      <PagesInShell />
+    </PageConversationProvider>
+  );
+}
+
+/** Each page in the shell: its title (a Free conversation's, as the drawer lists it), its pane, « Effacer » on a conversation saved. */
+function PagesInShell() {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
-  // A Profile's page is titled with its name, from the read its Fiche shows (#695).
+  // A Profile's page is titled with its name, from the read its Fiche shows (#695); a Free conversation's with its title, as the drawer lists it.
   const profile = useProfile(profileIdOf(pathname)).data;
-  const page = pageFor(pathname, t, { profile });
+  const free = useFreeConversations().data?.conversations;
+  const page = pageFor(pathname, t, { profile, conversationTitle: (id) => free?.find((conversation) => conversation.id === id)?.title });
   const isHumanCoach = useIsHumanCoach();
   // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
   const reader = useMemo(() => createDocumentReader(systemDocuments), []);
   return (
     <Shell
       page={page}
-      paneContent={<PaneContent pathname={pathname} page={page} reader={reader} />}
+      paneContent={page.pane === "activite" ? <ActivityPane /> : <PaneContent pathname={pathname} page={page} reader={reader} />}
       sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
+      actions={<ClearConversation />}
     >
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD}>
         <Stack screenOptions={{ headerShown: false }} />

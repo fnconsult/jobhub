@@ -24,9 +24,13 @@ export const hardwareKeyboard = {
 
 /**
  * Renders `ui` as the app does, in French (the default language), a hardware keyboard plugged in, its read cache in
- * memory, with network unless `network` says otherwise, its calls to the API carrying `session`'s cookie (AppSession.cookie).
+ * memory, with network unless `network` says otherwise, its calls to the API carrying `session`'s cookie (AppSession.cookie)
+ * and going through `fetch` (a fake web app's, `fakeCoachWeb().client`); without it, the global fetch.
  */
-export function renderInApp(ui: ReactElement, { network = fakeNetwork(true), session }: { network?: Network; session?: Pick<AppSession, "cookie"> } = {}) {
+export function renderInApp(
+  ui: ReactElement,
+  { network = fakeNetwork(true), session, fetch }: { network?: Network; session?: Pick<AppSession, "cookie">; fetch?: typeof globalThis.fetch } = {},
+) {
   keyboard = fakeHardwareKeyboard();
   return render(
     <AppProviders
@@ -35,6 +39,7 @@ export function renderInApp(ui: ReactElement, { network = fakeNetwork(true), ses
       keyboard={keyboard.keyboard}
       device={{ storage: memoryStorage(), network }}
       session={session}
+      fetch={fetch}
     >
       {ui}
     </AppProviders>,

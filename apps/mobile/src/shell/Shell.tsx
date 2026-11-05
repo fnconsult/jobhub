@@ -19,9 +19,9 @@ export type ShellPage = { key: string; title: string; pane: PaneKind | null };
  */
 export type WorkPaneItem = { title: string; content: ReactNode; fill?: boolean };
 
-const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void }>({ open: () => {} });
+const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void; close: () => void }>({ open: () => {}, close: () => {} });
 
-/** Opens an item in the page's Work Pane, in place of the one it shows. */
+/** Opens an item in the page's Work Pane, in place of the one it shows, or closes it (`close`, as its « Fermer » does). */
 export const useWorkPane = () => useContext(WorkPaneContext);
 
 type State = {
@@ -48,10 +48,13 @@ export function Shell({
   paneContent,
   sidebar,
   onNewConversation,
+  actions,
   children,
 }: {
   page: ShellPage;
   paneContent: ReactNode;
+  /** The page's own buttons in the Top Bar, before « Fiche » or « Activité » (a conversation's « Effacer »). */
+  actions?: ReactNode;
   /** The Sidebar's menus; `closeDrawer` for a link that navigates. */
   sidebar: (closeDrawer: () => void) => ReactNode;
   onNewConversation: () => void;
@@ -93,7 +96,10 @@ export function Shell({
   // Échap closes what is on top: the drawer, a full page, the Work Pane's column; the Fiche's column stays the Top Bar's.
   useKeyCommand("closePane", drawerShown ? closeDrawer : top ? () => close(top) : workPaneColumn ? () => close("workPane") : null);
 
-  const workPane = useMemo(() => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })) }), []);
+  const workPane = useMemo(
+    () => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })), close: () => setState((current) => ({ ...current, workPane: null })) }),
+    [],
+  );
   const paneTitle = (pane: ShownPane) => (pane === "workPane" ? (state.workPane?.title ?? "") : t(pane === "fiche" ? "fiche.label" : "fiche.activity"));
   const paneBody = (pane: ShownPane) => (pane === "workPane" ? state.workPane?.content : paneContent);
   const fills = (pane: ShownPane) => pane === "workPane" && state.workPane?.fill === true;
@@ -112,6 +118,7 @@ export function Shell({
             menu={<Control label={t(layout.sidebar === "column" ? "sidebar.collapse" : "sidebar.menu")} icon={layout.sidebar === "column" ? PanelLeftClose : Menu} onPress={onMenu} />}
             end={
               <>
+                {actions}
                 {page.pane ? (
                   <Control
                     label={t(page.pane === "fiche" ? "fiche.label" : "fiche.activity")}

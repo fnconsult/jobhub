@@ -28,6 +28,7 @@
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./unanswered-questions": "./src/unanswered-questions/index.ts",
     "./signalements": "./src/signalements/index.ts",
+    "./consumption": "./src/consumption/index.ts",
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
     "./email-intake": "./src/email-intake/inbound.ts",
     "./email-intake/reading": "./src/email-intake/reading.ts",

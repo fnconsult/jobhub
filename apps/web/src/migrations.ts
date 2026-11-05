@@ -22,6 +22,7 @@ import { migrateCoachingPlaybooks } from "./coaching-playbooks/index";
 import { migrateCoachMemory } from "./coach-memory/index";
 import { migrateCoachProposalsDisplay } from "./coach-proposals-display/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
+import { migrateConsumption } from "./consumption/index";
 import { migrateDiscoveryRuns } from "./discovery-runs/index";
 import { migrateEmailIntake } from "./email-intake/index";
 import { migrateEmailReadings } from "./email-intake/reading";
@@ -114,6 +115,7 @@ export async function migrateDatabase(
     ["« Propositions du coach » is up to date", () => migrateCoachProposalsDisplay(database)],
     ["The offers of Received offer emails are up to date", () => migrateEmailReadings(database)],
     ["The Recipient list's changes are up to date", () => migrateRecipientList(database)],
+    ["Consumption is up to date", () => migrateConsumption(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

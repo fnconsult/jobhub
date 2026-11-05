@@ -5430,7 +5430,7 @@
     "hideArchived": "Hide archived applications"
   },
   "jobSearchesMenu": {
-    "introduction": "Here are your job searches, by profile. Ask me which job offers to look at first or how to widen your criteria; to find new job offers, start a search.",
+    "introduction": "Here are the job offers that reached you: your searches, your Job Digests, your job offer emails and the links pasted in the conversation. Follow the ones you like; ask me which to look at first.",
     "title": "Your job searches by profile",
     "tableLabel": "Job searches for “{{profile}}”",
     "found": "Job offers found",
@@ -5440,6 +5440,60 @@
     "receivedByEmail": "See the job offers received by email",
     "start": "Start a search",
     "startFor": "Start a search · {{profile}}"
+  },
+  "offerBox": {
+    "title": "Offers to handle",
+    "label": "Offers to handle: {{count}} to handle",
+    "toHandle": "to handle",
+    "treated_one": "{{count}} handled",
+    "treated_other": "{{count}} handled",
+    "progress": "Handled: {{treated}} out of {{total}}",
+    "chips": "Filter by source",
+    "sources": {
+      "all": "All",
+      "job_search": "Search",
+      "job_digest": "Job Digest",
+      "email": "Email",
+      "job_offer_link": "Coach link",
+      "extension": "Extension"
+    },
+    "chipCount": "{{source}}, {{count}} to handle",
+    "today": "Today",
+    "earlier": "Earlier",
+    "tiers": {
+      "not_to_miss": "Not to miss",
+      "to_look_at": "Worth a look",
+      "less_suited": "Less suited"
+    },
+    "tierHints": {
+      "not_to_miss": "80 and above",
+      "to_look_at": "60 to 79",
+      "less_suited": "under 60 or not computable"
+    },
+    "nothingToday": "Nothing to handle among today's arrivals.",
+    "nothingEarlier": "Nothing left behind.",
+    "followedToday": "Followed today ({{count}})",
+    "followedEarlier": "Already followed ({{count}})",
+    "allDone": "All handled",
+    "allDoneText": "No job offer is waiting for your decision. The next ones will arrive here with their source: a search, a Job Digest, an email or a link pasted to the coach.",
+    "empty": "No job offer yet",
+    "emptyText": "The job offers of your searches, your Job Digests, your job offer emails and the links pasted to the coach will arrive here, each to follow.",
+    "arrivedOn": "arrived on {{date}}",
+    "postedToday": "posted today",
+    "postedAgo": "posted {{count}} d ago",
+    "leavesIn": "leaves in {{count}} d",
+    "unsorted": "Unsorted",
+    "score": "Match Score {{score}}",
+    "noScore": "Match Score not computable",
+    "notComputable": "n/c",
+    "follow": "Follow",
+    "following": "Following…",
+    "followError": "The job offer could not be followed. Try again.",
+    "read": "Read the job offer",
+    "followed": "Followed",
+    "seeApplication": "See the application",
+    "byProfile": "Searches by profile",
+    "receivedByEmail": "Received by email"
   },
   "jobDigestsMenu": {
     "introduction": "Here are your Job Digests, by profile: the new job offers that match your criteria, sent by email. Ask me which ones to look at first; set how often they come here.",

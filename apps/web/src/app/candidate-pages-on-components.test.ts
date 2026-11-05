@@ -21,6 +21,7 @@ const PAGES = [
   join(components, "ActionCardList.tsx"),
   join(components, "TailoredDocuments.tsx"),
   join(components, "QuickActions.tsx"),
+  join(components, "OfferBox.tsx"),
 ];
 
 /** The old markup's classes, each with the Design System component that replaces it. */
@@ -58,6 +59,7 @@ describe("the Candidate's pages in the Design System (#467, ADR-0053)", () => {
     join(components, "JobOfferResults.css"),
     join(components, "QuickActions.css"),
     join(components, "SectionsTabs.css"),
+    join(components, "OfferBox.css"),
   ].map((file) => [file.slice(join(app, "..").length + 1), file]))("%s keeps its page's layout beside it, on the ADR-0009 floor and the tokens", (_, file) => {
     expect(auditStylesheet(readFileSync(file, "utf8"))).toEqual([]);
   });

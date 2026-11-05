@@ -1,14 +1,16 @@
 import Link from "next/link";
+import { offerBoxResponse } from "@/candidate-reads";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { EmptyStateHelp } from "@/components/HelpTerm";
+import { JobOfferInPane } from "@/components/JobOfferInPane";
 import { RefreshWhileSearching } from "@/components/JobSearchControls";
 import { JobSearchesMenuSuggestions } from "@/components/JobSearchesMenuSuggestions";
+import { OfferBox } from "@/components/OfferBox";
 import { EmailIntakeStanding, ReceivedByEmail } from "@/components/ReceivedByEmail";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
-import { Card } from "@/design/Card";
 import { EmptyState } from "@/design/EmptyState";
 import { Pill, type Tone } from "@/design/Pill";
 import { Table, type Column } from "@/design/Table";
@@ -19,6 +21,8 @@ import type { JobSearchStatus, JobSearchSummary } from "@/job-searches";
 import { jobSearchesMenu, type JobSearchesMenuGroup } from "@/job-searches/menu";
 import { getJobSearches } from "@/job-searches/server";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
+import type { OfferBoxContents } from "@/offer-box";
+import { getOfferBox } from "@/offer-box/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
 import { objectDay } from "@/sidebar-menus";
@@ -29,34 +33,37 @@ type Profile = { id: string; name: string };
 
 /** Recherches d'offres' Subject: the menu's one conversation per Candidate (ADR-0070). */
 const SUBJECT = { kind: "menu", id: "jobSearches" } as const;
-/** The card's title, which names it. */
-const CARD_TITLE_ID = "job-searches-menu-title";
 
-/** « Reçues par email » in the Work Pane: a Section of Recherches d'offres. */
-const RECEIVED: AddressedKind = "section";
+/** « Recherches par Profil » and « Reçues par email » in the Work Pane: Sections of Recherches d'offres. */
+const SECTION: AddressedKind = "section";
+/** An Offer box entry's Job Offer in the Work Pane (« Lire l'offre »): one of its Results. */
+const RESULT: AddressedKind = "result";
+
+/** What the address opens in the Work Pane beside the Offer box: « Recherches par Profil », « Reçues par email » or a Job Offer. */
+export type JobSearchesPane = { kind: "byProfile" } | { kind: "received" } | { kind: "offer"; jobOfferId: string } | null;
 
 /** A Job Search's outcome, tinted; its words carry the meaning. */
 const STATUS_TONES: Record<JobSearchStatus, Tone> = { searching: "accent", done: "success", failed: "danger", stopped: "neutral" };
 
 /**
- * Recherches d'offres under « Conversation au centre » (#606, ADR-0070): the menu's conversation, one per Candidate, as
- * the page. Its Introduction says what the page is for; the Job Searches, by active Profile (when, where each stands, the
- * Job Offers it found, those still unseen), are a card in the thread, each line to its Job Search. « Lancer une recherche »
- * is a suggestion above the box. « Reçues par email » (#447) opens in the Work Pane (`received`), at its own address.
- * While a Job Search is under way, the page refreshes itself until it ends.
+ * Recherches d'offres (ADR-0090, amending ADR-0070 for this menu): the Offer box (« Offres à traiter ») is the page, its
+ * header, day and tier staying in view while it scrolls; the menu's conversation, one per Candidate, follows it, its box
+ * at the foot, « Lancer une recherche » a suggestion above it. « Recherches par Profil » (the Job Searches by active
+ * Profile: when, where each stands, the Job Offers found, those still unseen), « Reçues par email » (#447) and an entry's
+ * Job Offer (« Lire l'offre ») open in the Work Pane (`pane`), each at its own address. While a Job Search is under way,
+ * the page refreshes itself until it ends.
  */
-export async function JobSearchesMenuPage({ candidateId, received }: { candidateId: string; received: boolean }) {
-  const [t, locale, profiles, searches, subject] = await Promise.all([
+export async function JobSearchesMenuPage({ candidateId, pane }: { candidateId: string; pane: JobSearchesPane }) {
+  const [t, locale, profiles, searches, subject, box] = await Promise.all([
     getServerT(),
     getRequestLocale(),
     getProfiles().list(candidateId),
     getJobSearches().list(candidateId),
     getCoachConversations().ofSubject(candidateId, SUBJECT),
+    getOfferBox().read(candidateId),
   ]);
   const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
-  const menu = jobSearchesMenu({ profiles: active, searches, dateLabel: objectDay(locale) });
   const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
   return (
     <>
       <CoachConversationPage
@@ -64,17 +71,35 @@ export async function JobSearchesMenuPage({ candidateId, received }: { candidate
         conversationId={conversationId}
         subject={SUBJECT}
         introduction={<p>{t("jobSearchesMenu.introduction")}</p>}
-        card={<JobSearchesCard groups={menu.groups} unseen={menu.unseen} date={date} t={t} />}
+        lead={<OfferBox box={offerBoxResponse(box)} />}
         suggestions={<JobSearchesMenuSuggestions profiles={active} />}
       />
       {searches.some((search) => search.status === "searching") ? <RefreshWhileSearching /> : null}
-      {received ? <ReceivedByEmailPane candidateId={candidateId} profiles={active} t={t} locale={locale} /> : null}
+      {pane?.kind === "byProfile" ? (
+        <InWorkPane kind={SECTION} title={t("offerBox.byProfile")} href={routes.jobSearchesByProfile} back={routes.jobSearches()}>
+          <JobSearchesByProfile groups={jobSearchesMenu({ profiles: active, searches, dateLabel: objectDay(locale) }).groups} locale={locale} t={t} />
+        </InWorkPane>
+      ) : null}
+      {pane?.kind === "received" ? <ReceivedByEmailPane candidateId={candidateId} profiles={active} t={t} locale={locale} /> : null}
+      {pane?.kind === "offer" ? <OfferBoxOfferPane box={box} jobOfferId={pane.jobOfferId} t={t} locale={locale} /> : null}
     </>
   );
 }
 
-/** The Job Searches by active Profile, a card in the menu's thread. */
-function JobSearchesCard({ groups, unseen, date, t }: { groups: JobSearchesMenuGroup[]; unseen: number; date: Intl.DateTimeFormat; t: T }) {
+/** An Offer box entry's Job Offer in the Work Pane: its facts, its Match Score against its Profile, saving it, its text. */
+function OfferBoxOfferPane({ box, jobOfferId, t, locale }: { box: OfferBoxContents; jobOfferId: string; t: T; locale: string }) {
+  const entry = box.entries.find((one) => one.jobOffer.id === jobOfferId);
+  if (!entry?.scoredWith || !entry.matchScore) return null;
+  return (
+    <InWorkPane kind={RESULT} title={entry.jobOffer.title} href={routes.offerBoxOffer(jobOfferId)} back={routes.jobSearches()}>
+      <JobOfferInPane result={{ jobOffer: entry.jobOffer, matchScore: entry.matchScore, applicationId: entry.applicationId }} profile={entry.scoredWith} t={t} locale={locale} />
+    </InWorkPane>
+  );
+}
+
+/** « Recherches par Profil » (the menu's card before ADR-0090): the Job Searches by active Profile, each line to its Job Search. */
+function JobSearchesByProfile({ groups, locale, t }: { groups: JobSearchesMenuGroup[]; locale: string; t: T }) {
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
   const columns: Column<JobSearchSummary>[] = [
     { key: "startedAt", header: t("jobSearch.startedOn"), rowHeader: true, cell: (search) => <Link href={routes.jobSearch(search.id)}>{date.format(search.startedAt)}</Link> },
     { key: "status", header: t("jobSearch.status"), cell: (search) => <Pill tone={STATUS_TONES[search.status]}>{t(`jobSearch.statuses.${search.status}`)}</Pill> },
@@ -95,7 +120,7 @@ function JobSearchesCard({ groups, unseen, date, t }: { groups: JobSearchesMenuG
     { key: "unseen", header: t("applicationsMenu.toHandleColumn"), cell: (search) => (search.unseen ? <Pill tone="warn">{t("jobSearchesMenu.unseen")}</Pill> : null) },
   ];
   return (
-    <Card title={t("jobSearchesMenu.title")} headingId={CARD_TITLE_ID} actions={unseen > 0 ? <Pill tone="warn">{t("applicationsMenu.toHandle", { count: unseen })}</Pill> : undefined}>
+    <>
       {groups.length === 0 ? (
         <EmptyState
           title={t("jobSearchesPage.noActiveProfileTitle")}
@@ -122,12 +147,7 @@ function JobSearchesCard({ groups, unseen, date, t }: { groups: JobSearchesMenuG
           </section>
         ))
       )}
-      {groups.length > 0 ? (
-        <p className="menu-card-foot">
-          <Link href={routes.receivedByEmail}>{t("jobSearchesMenu.receivedByEmail")}</Link>
-        </p>
-      ) : null}
-    </Card>
+    </>
   );
 }
 
@@ -145,7 +165,7 @@ async function ReceivedByEmailPane({ candidateId, profiles, t, locale }: { candi
   // The domains the Candidate added (#450): their ignored emails no longer offer « C'est une alerte d'offres ».
   const ownSenders = senders.own.filter((sender) => sender.match === "domain").map((sender) => sender.value);
   return (
-    <InWorkPane kind={RECEIVED} title={t("receivedByEmail.title")} href={routes.receivedByEmail} back={routes.jobSearches()}>
+    <InWorkPane kind={SECTION} title={t("receivedByEmail.title")} href={routes.receivedByEmail} back={routes.jobSearches()}>
       {profiles.map((profile) => (
         <section key={profile.id} className="menu-card-group" aria-labelledby={`received-of-${profile.id}`}>
           <h3 id={`received-of-${profile.id}`}>{profile.name}</h3>

@@ -229,7 +229,9 @@ const COACH_ACTIONS_RULES = `Coach Actions :
 - Tu ne modifies jamais rien toi-même : une modification que tu prépares est une proposition, que le candidat applique ou ignore sous ta réponse. Quand une modification l'aiderait, propose-la avec l'outil prévu plutôt que de seulement la décrire.
 - Ne dis jamais que tu as modifié, enregistré, créé ou supprimé quoi que ce soit : dis ce que tu proposes.
 - Ne propose une modification que si le candidat la demande ou qu'elle découle clairement de ce qu'il dit.
-- Tu ne supprimes jamais rien : quand le candidat demande de supprimer quelque chose, indique-lui la page qui le permet.`;
+- Tu ne supprimes jamais rien : quand le candidat demande de supprimer quelque chose, indique-lui la page qui le permet.
+- Tu ne crées ni ne supprimes de profil : un profil se crée depuis la page « Créer un profil » (/profils/nouveau), où tu peux l'accompagner ; il s'archive, il ne se supprime pas.
+- Une modification du CV de référence ne reprend que ce qu'il dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; demande au candidat ce qui manque.`;
 
 /** Told when untrusted text is In view (#713): the Coach Actions that copy text are not offered. */
 const NARROWED_RULE =

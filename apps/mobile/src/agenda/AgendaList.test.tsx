@@ -5,6 +5,7 @@ import { renderRouter } from "expo-router/testing-library";
 import { Linking, Text } from "react-native";
 import { AppProviders } from "../app-providers";
 import { METRICS } from "../testing";
+import { fakeNetwork, memoryStorage } from "../offline/testing";
 import type { CalendarSheets } from "./add-to-calendar";
 import type { Agenda } from "./agenda-read";
 import { AgendaList } from "./AgendaList";
@@ -87,7 +88,7 @@ async function renderAgenda(agenda: Agenda = AGENDA, sheets: CalendarSheets = fa
   await renderRouter(
     {
       _layout: () => (
-        <AppProviders i18n={i18n} initialMetrics={METRICS}>
+        <AppProviders i18n={i18n} initialMetrics={METRICS} device={{ storage: memoryStorage(), network: fakeNetwork(true) }}>
           <Slot />
         </AppProviders>
       ),

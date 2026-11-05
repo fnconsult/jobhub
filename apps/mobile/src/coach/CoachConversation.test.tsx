@@ -1,5 +1,6 @@
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
-import { AccessibilityInfo } from "react-native";
+import Constants from "expo-constants";
+import { AccessibilityInfo, Platform } from "react-native";
 import { fakeNetwork } from "../offline/testing";
 import { Shell } from "../shell/Shell";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
@@ -14,7 +15,13 @@ beforeEach(() => {
     .mockImplementation(() => {})
     .mockClear();
 });
-afterEach(() => jest.restoreAllMocks());
+/** What a test changed beyond Jest's mocks, put back after it. */
+const putBack: (() => void)[] = [];
+const afterThis = (restore: () => void) => void putBack.push(restore);
+afterEach(() => {
+  jest.restoreAllMocks();
+  putBack.splice(0).forEach((restore) => restore());
+});
 
 const box = () => screen.getByLabelText("Votre message");
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
@@ -300,6 +307,26 @@ describe("the Signalement form, native, under the box", () => {
     await user.press(button("Envoyer"));
     expect(await screen.findByText("Merci, c'est envoyé.")).toBeOnTheScreen();
     expect(web.signalements).toEqual([{ type: "bug", message: "Bug : le bouton ne répond pas", path: "/", textSize: "standard" }]);
+  });
+
+  it("sends the app's version and device it says it attaches (#690): a native fetch's user agent names neither", async () => {
+    // The installed app's version (app.json, else package.json, at build time) and the system's, as a device has them.
+    const config = Constants.expoConfig!;
+    const version = config.version;
+    config.version = "1.4.0";
+    afterThis(() => void (config.version = version));
+    jest.spyOn(Platform, "Version", "get").mockReturnValue("18.6");
+    await renderInShell();
+    const user = userEvent.setup();
+    await user.press(button("Signaler un problème"));
+    await user.press(button("Voir le détail"));
+    expect(screen.getByText("1.4.0")).toBeOnTheScreen();
+    expect(screen.getByText("iOS 18.6")).toBeOnTheScreen();
+
+    await user.type(screen.getByLabelText("Décrivez le problème"), "Le bouton ne répond pas");
+    await user.press(button("Envoyer"));
+    await screen.findByText("Merci, c'est envoyé.");
+    expect(web.signalementDevices).toEqual(["1.4.0 (iOS 18.6)"]);
   });
 
   it("proposes an idea", async () => {

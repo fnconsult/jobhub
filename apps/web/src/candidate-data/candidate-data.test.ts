@@ -28,6 +28,7 @@ import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
+import { createPushNotifications } from "../push-notifications";
 import { backOfficeAccess } from "../admin/access";
 import { createAssistantConversations } from "../back-office-assistant/conversations";
 import { createProfiles, type Profiles } from "../profiles";
@@ -371,8 +372,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     const exported = await candidateData.export(candidateId);
     expect(exported.acceptances).toEqual([
-      { text: "cgu", version: "2026-09-01", url: "/legal/cgu/2026-09-01", sha256: "a".repeat(64), channel: "premiere_connexion", acceptedAt: new Date("2026-09-01T08:00:00Z") },
-      { text: "cgv", version: "2026-09-01", url: "/legal/cgv/2026-09-01", sha256: "b".repeat(64), channel: "paiement_plan", acceptedAt: new Date("2026-09-01T08:00:00Z"), immediateExecutionRequested: true },
+      { text: "cgu", version: "2026-09-01", url: "/legal/cgu/2026-09-01", sha256: "a".repeat(64), channel: "premiere_connexion", origin: "web", acceptedAt: new Date("2026-09-01T08:00:00Z") },
+      { text: "cgv", version: "2026-09-01", url: "/legal/cgv/2026-09-01", sha256: "b".repeat(64), channel: "paiement_plan", origin: "web", acceptedAt: new Date("2026-09-01T08:00:00Z"), immediateExecutionRequested: true },
     ]);
     expect(JSON.stringify(exported)).not.toContain("cs_test_42");
     expect(JSON.stringify(exported)).not.toContain(acceptances.holderOf("marie.dupont@example.fr"));
@@ -419,6 +420,21 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       changedAt: now,
       sent: [{ agendaItem: { kind: "interview", id: interviewId }, scheduledAt: new Date("2026-10-20T12:30:00.000Z"), sentAt: new Date("2026-10-19T16:00:00.000Z") }],
     });
+  });
+
+  it("the export holds the app's devices (platform, language, dates), never their token, and the Push notification switches (#698)", async () => {
+    const [{ id: sessionId }] = (await database.query<{ id: string }>(`SELECT id FROM session WHERE "userId" = $1`, [candidateId])).rows as [{ id: string }];
+    const push = createPushNotifications(database, { senders: () => ({}) });
+    const token = "a1".repeat(32);
+    expect((await candidateData.export(candidateId)).pushNotifications).toEqual({ devices: [], switches: [] });
+    await push.register({ id: candidateId, sessionId }, { platform: "ios", token, language: "fr" });
+    await push.setEnabled(candidateId, "follow_up_due", false);
+    const exported = await candidateData.export(candidateId);
+    expect(exported.pushNotifications).toEqual({
+      devices: [{ platform: "ios", language: "fr", registeredAt: expect.any(Date), lastSeenAt: expect.any(Date) }],
+      switches: [{ event: "follow_up_due", enabled: false, changedAt: expect.any(Date) }],
+    });
+    expect(JSON.stringify(exported)).not.toContain(token);
   });
 
   it("the export holds every Action Card the AI Coach proposed, pending or decided, newest first, with its Provenance when kept (#336)", async () => {

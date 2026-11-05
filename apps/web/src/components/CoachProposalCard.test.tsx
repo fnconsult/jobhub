@@ -243,7 +243,7 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
 
       expect(sent).toEqual([{ url: `/api/action-cards/${SEARCH.id}`, body: { decision: "accept" } }]);
       expect(within(searchCard()).getByRole("status").textContent).toMatch(/^Lancé par vous à \d\d:\d\d$/);
-      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter » l'interrompt.");
+      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter la recherche d'offres » l'interrompt.");
       expect(within(searchCard()).queryAllByRole("button")).toEqual([]);
     });
   });

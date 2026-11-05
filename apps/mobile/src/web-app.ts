@@ -1,10 +1,9 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, MOBILE_CLIENT } from "@jobhub/shared";
 
-/**
- * The web app the app calls (ADR-0076): Production, or the Beta for TestFlight and Play internal testing, set at build
- * time by EXPO_PUBLIC_WEB_APP_URL (`http://localhost:3000` against `npm run dev`).
- */
-export const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_APP_URL || "https://jobbbox.ai";
+import { WEB_APP_URL } from "./web-app-url";
+
+/** The web app the app calls (ADR-0076), from src/web-app-url.ts, the only place the app reads its address (#704). */
+export { WEB_APP_URL };
 
 /** The full address of `path` (an `/api/*` route, a page) on the web app. */
 export const webAppAddress = (path: string) => new URL(path, WEB_APP_URL).toString();

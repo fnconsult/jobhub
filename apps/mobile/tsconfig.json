@@ -6,5 +6,5 @@
     "verbatimModuleSyntax": true,
     "types": ["jest", "node"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "__mocks__/**/*.ts", "e2e/**/*.ts", "e2e/**/*.tsx"]
+  "include": ["app.config.ts", "src/**/*.ts", "src/**/*.tsx", "__mocks__/**/*.ts", "e2e/**/*.ts", "e2e/**/*.tsx"]
 }

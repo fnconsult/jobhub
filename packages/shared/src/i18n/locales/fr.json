@@ -5745,6 +5745,12 @@
     "attach": "Joindre un lien ou un document",
     "send": "Envoyer",
     "emptyScreen": "Cet écran arrive bientôt dans l'app.",
+    "update": {
+      "title": "Mettre à jour Jobbbox",
+      "body": "Cette version de l'app n'est plus prise en charge. Installez la dernière version pour continuer.",
+      "openAppStore": "Ouvrir l'App Store",
+      "openPlayStore": "Ouvrir Google Play"
+    },
     "homeTitle": "Accueil",
     "fichePlaceholder": "La Fiche montrera ici l'objet de la page, ses Sections, son Activité et ses Résultats.",
     "activityPlaceholder": "Activité montrera ici la barre de contexte et l'Activité IA de la page.",

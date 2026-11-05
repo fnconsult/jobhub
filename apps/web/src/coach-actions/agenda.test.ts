@@ -186,7 +186,9 @@ describe.skipIf(!connectionString)("the Agenda's Coach Actions, applied (#718, n
         interviews: [{ scheduledAt: new Date("2026-11-12T13:00:00.000Z"), durationMinutes: 45, format: "video", place: "https://meet.example.com/abc", origin: origin(card.id) }],
       });
 
-      expect(await actionCards.undo(marie, card.id)).toMatchObject({ ok: true, card: { status: "undone" } });
+      const undone = await actionCards.undo(marie, card.id);
+      expect(undone).toMatchObject({ ok: true, card: { status: "undone" } });
+      expect(undone.ok && undone.card).not.toHaveProperty("undoNote");
       expect(await application()).toMatchObject({ status: "applied", interviews: [] });
       expect(await application()).not.toHaveProperty("statusOrigin");
     });
@@ -206,6 +208,33 @@ describe.skipIf(!connectionString)("the Agenda's Coach Actions, applied (#718, n
 
       expect(await actionCards.decide(marie, card.id, "accept")).toEqual({ ok: false, error: "conflict" });
       expect(await application()).toMatchObject({ status: "rejected", interviews: [] });
+    });
+
+    it("« Annuler » once the Application Status changed since: the Interview removed, the status left as it is, and the card says so (#770)", async () => {
+      const card = await cardFor(AGENDA_ACTIONS.add, args());
+      await actionCards.decide(marie, card.id, "accept");
+      await applications.change(marie, applicationId, { status: "offer_received" }); // on its page, meanwhile
+
+      expect(await actionCards.undo(marie, card.id)).toMatchObject({ ok: true, card: { status: "undone", undoNote: "status_kept" } });
+      expect(await application()).toMatchObject({ status: "offer_received", interviews: [] });
+    });
+
+    it("« Annuler » puts both back in one transaction: a status change waiting on the Application lands after it, never in between (#770)", async () => {
+      const card = await cardFor(AGENDA_ACTIONS.add, args());
+      await actionCards.decide(marie, card.id, "accept");
+      // Another transaction holds the Application while « Annuler » runs: « Annuler » waits for it, then sees its change.
+      const other = await database.connect();
+      try {
+        await other.query("BEGIN");
+        await other.query(`UPDATE application SET status = 'offer_received', status_changed_at = now() + interval '1 second', status_origin = NULL WHERE id = $1`, [applicationId]);
+        const undoing = actionCards.undo(marie, card.id);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        await other.query("COMMIT");
+        expect(await undoing).toMatchObject({ ok: true, card: { undoNote: "status_kept" } });
+      } finally {
+        other.release();
+      }
+      expect(await application()).toMatchObject({ status: "offer_received", interviews: [] });
     });
 
     it("refuses « Annuler » once the Interview added changed since", async () => {

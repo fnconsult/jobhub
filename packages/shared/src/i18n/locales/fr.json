@@ -5965,6 +5965,9 @@
     "launchedHint": "Suivez-la dans Activité IA ; « Arrêter » l'interrompt.",
     "dismissed": "Ignoré",
     "undone": "Annulé à {{time}}",
+    "undoNotes": {
+      "status_kept": "Le statut de la candidature avait changé depuis : il est laissé tel quel."
+    },
     "problems": {
       "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",

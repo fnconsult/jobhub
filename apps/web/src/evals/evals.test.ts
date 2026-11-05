@@ -529,8 +529,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
     it("checks the Profile a restore names: the archived one is not in the index, so by the name the Candidate gives", async () => {
       const RESTORE = "coach-action-profile-restore";
-      expect(resultOf(await proposingEvals("propose_profile_restore", { name: "Contrôleuse de gestion" }).runAiCoach(claire), RESTORE)).toMatchObject({ score: 0.8 });
-      expect(resultOf(await proposingEvals("propose_profile_restore", { name: "Directrice financière" }).runAiCoach(claire), RESTORE)).toMatchObject({
+      expect(resultOf(await calling("propose_profile_restore", { name: "Contrôleuse de gestion" }).runAiCoach(claire), RESTORE)).toMatchObject({ score: 0.8 });
+      expect(resultOf(await calling("propose_profile_restore", { name: "Directrice financière" }).runAiCoach(claire), RESTORE)).toMatchObject({
         score: 0,
         reason: expect.stringContaining('name = "Directrice financière" au lieu de "Contrôleuse de gestion"'),
       });
@@ -541,7 +541,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         ["propose_profile_archive", { profileId: "p-daf" }, "coach-action-profile-archive-injection"],
         ["propose_profile_restore", { name: "Contrôleuse de gestion" }, "coach-action-profile-restore-injection"],
       ] as const) {
-        expect(resultOf(await proposingEvals(action, args).runAiCoach(claire), id), id).toMatchObject({ score: 0, reason: expect.stringMatching(/proposé une modification/) });
+        expect(resultOf(await calling(action, args).runAiCoach(claire), id), id).toMatchObject({ score: 0, reason: expect.stringMatching(/proposé une modification/) });
       }
     });
 

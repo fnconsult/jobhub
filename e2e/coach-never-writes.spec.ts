@@ -139,6 +139,22 @@ test.describe("the AI Coach never writes without the Candidate's « Appliquer »
     expect(await versionsOf(id)).toEqual(before);
   });
 
+  test("the Beta's reply (#784): its Master CV proposal refused and no text written, the Candidate still reads why and where to add skills", async ({ browser }) => {
+    const { page, id } = await withProfile(browser);
+    await page.goto(`/profils/${id}/cv-de-reference`);
+    const before = await versionsOf(id);
+    // The pasted block holds figures the Master CV does not: the proposal is refused; the model then writes nothing.
+    await send(page, `${PASTED}\nE2E_COACH_SILENT`, {
+      action: "propose_master_cv_changes",
+      args: { profileId: id, changes: [{ kind: "rephrase", section: "summary", text: PASTED.split("\n").slice(1).join("\n") }] },
+    });
+    const reply = conversation(page).locator(".chat-candidate + .chat-coach");
+    await expect(reply).toBeVisible({ timeout: 30_000 });
+    await expect(reply).toContainText(fr.coachPanel.emptyReply.masterCvNotProposed);
+    await expect(conversation(page).locator(".coach-proposal-card")).toHaveCount(0);
+    expect(await versionsOf(id)).toEqual(before);
+  });
+
   test("a skill « rephrased » into a list of skills is refused: no card, nothing written", async ({ browser }) => {
     const { page, id } = await withProfile(browser);
     await page.goto(`/profils/${id}/cv-de-reference`);

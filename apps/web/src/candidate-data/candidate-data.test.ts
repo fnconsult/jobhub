@@ -389,7 +389,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const followUps = createFollowUps(database, { actionCards: createActionCards(database), applications, mailer: { send: async () => {} }, appUrl: BASE_URL });
     await followUps.setDelays(candidateId, { afterApplied: 5, afterFollowUp: 12 });
     // Sent when the Candidate accepts a Follow-up card or sets "Relancée".
-    await database.query(`INSERT INTO follow_up_sent (application_id, sent_at) VALUES ($1, '2026-10-02T09:00:00Z'), ($1, '2026-09-20T09:00:00Z')`, [application.id]);
+    await database.query(`INSERT INTO follow_up_sent (application_id, sent_at, number) VALUES ($1, '2026-10-02T09:00:00Z', 2), ($1, '2026-09-20T09:00:00Z', 1)`, [application.id]);
 
     const exported = await candidateData.export(candidateId);
 

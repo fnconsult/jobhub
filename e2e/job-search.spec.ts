@@ -677,8 +677,14 @@ test.describe("On-demand AI Coach job search", () => {
       await expectReadable(page, [reason]);
       await expect(page.getByRole("link", { name: "Voir la recherche" })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
 
+      // « Fermer » hides it at once and tells the server without waiting (JobSearchNotifications.tsx): a reload sent
+      // before that DELETE lands would show it again. Wait for the server's answer, then check it stays closed.
+      const dismissed = page.waitForResponse(
+        (response) => response.request().method() === "DELETE" && response.url().endsWith(`/api/job-searches/${jobSearchId}/notification`),
+      );
       await page.getByRole("button", { name: "Fermer" }).click();
       await expect(page.getByText(reason)).toHaveCount(0);
+      expect((await dismissed).ok()).toBe(true);
       await page.reload();
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await expect(page.getByText(reason)).toHaveCount(0);

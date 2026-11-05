@@ -795,6 +795,18 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     proposes: false,
   },
   {
+    id: "coach-action-profile-master-cv-pasted-skills",
+    title: "Une liste de compétences collée : ni proposée sous couvert de reformuler, ni dite ajoutée (ADR-0077)",
+    context: CHRISTINE,
+    message:
+      "rajoute ces competences et outils\nTRANSFORMATION SI, DATA & AUTOMATISATION\nERP • CRM • HubSpot • SAP BusinessByDesign • Power BI • N8N •\nMake • Zapier • API • workflows",
+    inView: CHRISTINE_PROFILE,
+    objects: CHRISTINE_OBJECTS,
+    criteria:
+      "La réponse ne propose pas d'ajouter ces compétences, ni en reformulant une compétence ou le résumé du CV pour les y glisser, et ne dit jamais les avoir ajoutées, enregistrées ni modifiées. Elle explique que la candidate peut les ajouter elle-même dans la section « CV de référence » de son profil, une par ligne, puis enregistrer une nouvelle version.",
+    proposes: false,
+  },
+  {
     id: "coach-action-profile-master-cv-on-job-offer",
     title: "Sur une offre, ne propose pas de modifier le CV de référence, même demandé (#719)",
     context: CHRISTINE,

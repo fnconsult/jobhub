@@ -259,6 +259,7 @@ const COACH_ACTIONS_RULES = `Coach Actions :
 - Tu ne supprimes jamais rien : quand le candidat demande de supprimer quelque chose, indique-lui la page qui le permet.
 - Tu ne crées ni ne supprimes de profil : un profil se crée depuis la page « Créer un profil » (/profils/nouveau), où tu peux l'accompagner ; il s'archive, il ne se supprime pas.
 - Une modification du CV de référence ne reprend que ce qu'il dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; demande au candidat ce qui manque.
+- Le CV de référence ne se réécrit jamais dans ta réponse, pas même en partie (une rubrique, une liste de compétences) : propose la modification avec l'outil prévu, ou, pour ce que le CV ne dit pas encore (une compétence, un outil), dis au candidat de l'ajouter lui-même dans la section « CV de référence » de son profil.
 - Un CV adapté, une lettre de motivation ou un message d'approche ne s'écrit jamais dans ta réponse, pas même en partie : propose de le préparer avec l'outil prévu ; le candidat le lance sous ta réponse et le relit dans les documents de sa candidature.`;
 
 /** Told when untrusted text is In view (#713): the Coach Actions that copy text are not offered. */
@@ -279,6 +280,22 @@ function sourcesText(served: ServedKnowledge, texts: string[]): string {
     .map((source) => `[${source.id}] ${source.author}, ${source.year} : ${source.title}`);
   while (lines.length > 0 && estimateTokens(["<sources>", ...lines, "</sources>"].join("\n")) > SOURCES_MAX_TOKENS) lines.pop();
   return lines.length > 0 ? ["<sources>", ...lines, "</sources>"].join("\n") : "";
+}
+
+/** The Master CV's proposing Coach Action (#719): declined, the reply says what the Master CV takes and where to add the rest. */
+const MASTER_CV_PROPOSAL = "propose_master_cv_changes";
+
+/**
+ * What a reply says when the model wrote no text (#784, ADR-0077), in the Candidate's language: that the change it proposes is
+ * under it, to review and apply; or that the change could not be prepared (a Master CV one: only what the CV already says,
+ * the Candidate adds a skill themselves in its section); or that it could not answer, « Poser la question à l'équipe » offered.
+ */
+export function emptyReplyText(language: GuardrailLanguage, proposals: readonly CoachProposal[], declined: readonly string[]): { text: string; couldNotAnswer: boolean } {
+  const { t } = createI18n(language);
+  if (proposals.length > 0) return { text: t("coachPanel.emptyReply.proposed"), couldNotAnswer: false };
+  if (declined.includes(MASTER_CV_PROPOSAL)) return { text: t("coachPanel.emptyReply.masterCvNotProposed"), couldNotAnswer: false };
+  if (declined.length > 0) return { text: t("coachPanel.emptyReply.notProposed"), couldNotAnswer: false };
+  return { text: t("coachPanel.emptyReply.none"), couldNotAnswer: true };
 }
 
 /** The set reply to a Job Offer link, in the Candidate's language: nothing in it comes from the page. */
@@ -406,6 +423,8 @@ export function createCoach(deps: CoachDeps): Coach {
           : undefined;
         // The changes the latest reply written proposes; none when it was offered no Coach Action.
         let proposals: CoachProposal[] | undefined;
+        // The proposing Coach Actions it called that prepared nothing.
+        let declined: string[] = [];
         const write = async (feedback: string | null) => {
           // Offered afresh to each reply written: a reply written again proposes again, the first one's proposals dropped.
           const offered = deps.coachActions
@@ -433,11 +452,16 @@ export function createCoach(deps: CoachDeps): Coach {
           if (offered) {
             await offered.refused(result.tools?.runs ?? []);
             proposals = offered.proposals();
+            declined = offered.declined();
           }
           written.push(result);
           const { text, ...read } = readReplyMarks(result.text);
           marks = read;
-          return { text, secrets: prepared.secrets };
+          if (text.trim()) return { text, secrets: prepared.secrets };
+          // No text at all (#784): the model ended on its tool calls, or wrote only the hidden lines. Never an empty reply.
+          const empty = emptyReplyText(options.language ?? "fr", proposals ?? [], declined);
+          marks = { ...read, couldNotAnswer: empty.couldNotAnswer };
+          return { text: empty.text, secrets: prepared.secrets };
         };
         const latest = messages.at(-1)!.content;
         const language = options.language ?? "fr";

@@ -71,7 +71,9 @@
 // A Candidate message holding "E2E_COACH_TOOL=<name>:<json>" (#712, Coach Actions) has the AI Coach, offered tools it may
 // call, call that tool with those arguments (a `tool_calls` reply, printing "[fake-mistral] tool call <name>" to the server
 // log); sent its result back, it answers "Résultat de l'outil « <name> » : <result>" (an error result as Mistral is sent
-// it, "Error: …"). Asked for text only (tool_choice "none") before any call, it answers as without the marker.
+// it, "Error: …"). Asked for text only (tool_choice "none") before any call, it answers as without the marker. With
+// "E2E_COACH_SILENT" in the message too, its answer once the result came back holds no text but the hidden mark line,
+// "[jobbbox:non]", as Claude answered on the Beta (#784).
 // "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
 // steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
@@ -336,7 +338,8 @@ function coachToolCall(body) {
   const [, name, args] = asked;
   const results = [];
   for (let index = messages.length - 1; index >= 0 && messages[index].role === "tool"; index -= 1) results.unshift(String(messages[index].content));
-  if (results.length > 0) return completion(body, `Résultat de l'outil « ${name} » : ${results.join("\n")}`);
+  const silent = String(messages.filter((message) => message.role === "user").at(-1)?.content ?? "").includes("E2E_COACH_SILENT");
+  if (results.length > 0) return completion(body, silent ? "[jobbbox:non]" : `Résultat de l'outil « ${name} » : ${results.join("\n")}`);
   if (body.tool_choice === "none") return null;
   console.log(`[fake-mistral] tool call ${name}`);
   return Response.json({

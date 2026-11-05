@@ -1,7 +1,8 @@
 import CookieManager from "@preeternal/react-native-cookie-manager";
 import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
 import { WEB_APP_URL } from "../web-app-url";
-import { createAppSession, type SessionStorage, type WebViewCookies } from "./app-session";
+import { createAppSession, type AuthBrowser, type SessionStorage, type WebViewCookies } from "./app-session";
 import { devicePasskeys } from "./device-passkeys";
 
 /** The web app the app signs in to, as it calls it (src/web-app-url.ts). */
@@ -26,5 +27,20 @@ const webViewCookies: WebViewCookies = {
   clear: async () => void (await CookieManager.clearAllStores()),
 };
 
-/** The app's one session, on the web app the app calls (web-app-url.ts), its second step by the device's passkeys. */
-export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys, webViewCookies });
+/**
+ * The system's authentication browser (#687): ASWebAuthenticationSession on iOS, which closes itself on the app's
+ * scheme, Custom Tabs on Android, which return to the app by its intent filter. Not ephemeral: it shares the browser's
+ * sign-ins, so a person already signed in to Google or Apple there only confirms. On Android, a session left open is
+ * dismissed first, as the Expo plugin does.
+ */
+const browser: AuthBrowser = (url, returnUrl) => {
+  try {
+    WebBrowser.dismissAuthSession();
+  } catch {
+    // Nothing open, or nothing to dismiss on this platform.
+  }
+  return WebBrowser.openAuthSessionAsync(url, returnUrl);
+};
+
+/** The app's one session, on the web app the app calls (web-app-url.ts), its second step by the device's passkeys, its sign-in through a provider by the system's authentication browser. */
+export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys, webViewCookies, browser });

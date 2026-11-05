@@ -5,7 +5,7 @@ import { Pill } from "@/design/Pill";
 import { TestSignInButton } from "@/components/TestSignInButton";
 import { isMultiTenant, PROVIDER_TYPES, SOCIAL_TYPES, type SignInProviderType } from "@/sign-in-providers/catalog";
 import type { SaveError, SignInProviderStatus, SignInSecretSource } from "@/sign-in-providers/index";
-import { linksByEmail } from "@/sign-in-providers/policy";
+import { linksByEmail, providersRequiringApple } from "@/sign-in-providers/policy";
 import { removeProvider, saveProvider, setRequireSso, startTestSignIn } from "./actions";
 import { Here, type Ctx, type T } from "./context";
 import { SIGN_IN_SWITCHES } from "./notices";
@@ -63,12 +63,19 @@ export function SignInSection({
   const search = { form: openForm };
   const missingSocial = SOCIAL_TYPES.filter((type) => !providers.some((provider) => provider.type === type));
   const addable: SignInProviderType[] = [...missingSocial, "oidc"];
+  // App Store rule 4.8 (#687): the app shows Candidates these providers, and must show Apple beside them.
+  const requiringApple = providersRequiringApple(providers);
 
   return (
     <>
       {canWrite && !canSave ? (
         <Note tone="warn">
           <p>{t("admin.signInProviders.noMasterKey")}</p>
+        </Note>
+      ) : null}
+      {requiringApple.length > 0 ? (
+        <Note tone="warn">
+          <p>{t("admin.signInProviders.appleRequired", { providers: new Intl.ListFormat(ctx.locale, { type: "conjunction" }).format(requiringApple) })}</p>
         </Note>
       ) : null}
       <section className="stack" aria-labelledby="require-sso-title">

@@ -21,6 +21,13 @@ export const APP_ORIGIN = `${APP_SCHEME}://`;
  */
 export const APP_SIGN_IN_PATH = "/connexion/app";
 
+/**
+ * Where a Sign-in Provider sends the app back (#687), in the app's scheme: the system's authentication browser
+ * (ASWebAuthenticationSession, Custom Tabs) closes on it, signed in (the session cookie in its `cookie`) or refused (its
+ * `error`). A scheme rather than a universal link: an HTTPS return needs iOS 17.4, the app runs from 16.4 (ADR-0076).
+ */
+export const APP_PROVIDER_RETURN_PATH = "/connexion/fournisseur";
+
 /** Whether `url` is an address in the app's scheme (a return address the app asked for). */
 export function isAppAddress(url: string | null | undefined): boolean {
   return typeof url === "string" && url.toLowerCase().startsWith(`${APP_SCHEME}:`);

@@ -792,6 +792,10 @@ In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 
+**Provider return address**:
+The address in the app's own scheme, `/connexion/fournisseur`, where the system's authentication browser hands the person back to the app after a Sign-in Provider, with the session. Not a universal link: iOS 16.4 cannot return by one (ADR-0085).
+_Avoid_: Deep link, redirect URL (that is the address declared at the provider)
+
 **App sign-in link**:
 The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
 _Avoid_: Deep link, app magic link
@@ -1008,7 +1012,7 @@ A Tool that receives personal data, or queries drawn from it, and whose data res
 _Avoid_: Sub-processor outside the EU
 
 **Sign-in Provider**:
-An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.
+An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret. In the Jobbbox app, « Continuer avec … » signs in through the same providers, opened in the system's authentication browser, which keeps the person's own sign-ins; closing it, or refusing at the provider, is a cancellation, not an error (ADR-0085). Apple must be among them while Google or Microsoft is shown to Candidates (App Store rule 4.8).
 _Avoid_: SSO provider, identity provider, social login, auth connector
 
 **Two-step verification**:

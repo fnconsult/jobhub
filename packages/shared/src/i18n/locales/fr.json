@@ -1588,6 +1588,7 @@
       "title": "Connexion",
       "intro": "Les moyens de connexion, en plus du lien reçu par e-mail : Google, Apple, Microsoft et tout fournisseur OIDC. Une modification s'applique en quelques secondes, sans redéploiement ni déconnexion. Un secret saisi est chiffré et n'est jamais réaffiché.",
       "noMasterKey": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini sur ce serveur.",
+      "appleRequired": "Les candidats voient {{providers}}, mais pas Apple : l'App Store refuse l'app Jobbbox tant qu'une connexion Google ou Microsoft y est proposée sans Apple (règle 4.8). Ajoutez Apple, testez-le, puis proposez-le aux candidats.",
       "ssoTitle": "Connexion de l'équipe",
       "ssoHelp": "Activé, le back office demande à un administrateur connecté par un lien reçu par e-mail de se reconnecter avec un fournisseur autorisé pour les administrateurs. Ses pages de candidat restent accessibles. Les super-admins permanents (ADMIN_EMAILS) ne sont jamais concernés.",
       "ssoLabel": "Exiger un fournisseur de connexion pour les administrateurs",

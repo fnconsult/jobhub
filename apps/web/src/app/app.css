@@ -547,8 +547,26 @@ textarea.input {
   border: 0;
 }
 
-/* A reply once it is there (#788): its words the thread's full width, no glyph in the margin; then what the AI Coach
-   consulted, the Provenance line, its Action Cards and the feedback under them. */
+/* An AI Coach reply once it is there (#788): its words the thread's full width, no glyph in the margin; then what the AI
+   Coach consulted, the Provenance line, its Action Cards and the feedback under them. */
+
+/* A Back Office Assistant reply (#464) keeps its Activity's glyph in the margin, its words, the Provenance line and the
+   rest beside it: #788 took the glyph off the AI Coach's replies only. */
+.coach-panel .chat-coach:has(> .activity-glyph) {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: start;
+}
+
+.coach-panel .chat-coach > .activity-glyph {
+  grid-row: 1 / span 9;
+  margin-top: 0.2em;
+}
+
+.coach-panel .chat-coach:has(> .activity-glyph) > :not(.activity-glyph, .visually-hidden) {
+  grid-column: 2;
+}
 
 /*
  * No author is shown (#317, #327): the Candidate's own words sit in bubbles at least 3:1 against the panel (ADR-0009

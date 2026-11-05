@@ -22,5 +22,6 @@ export * from "./provenance-line";
 export * from "./france-travail";
 export * from "./api-version";
 export * from "./native-app";
+export * from "./second-step";
 export * from "./sign-in-code";
 export * from "./context-bar";

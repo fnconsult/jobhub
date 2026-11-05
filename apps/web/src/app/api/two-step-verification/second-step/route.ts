@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSessionForSecondStep, isFromTrustedOrigin } from "@/auth/server";
+import { secondStepRead } from "@/two-step-verification/pending-sessions";
+import { getPendingSessions } from "@/two-step-verification/proxy-gate";
 import { getTwoStepVerification } from "@/two-step-verification/server";
+
+/**
+ * What the session has to do before anything else (#688): its second step, with the account's passkeys and its
+ * authenticator app when it has them, or the setup (an Administrator or a Human Coach with no factor yet), or nothing.
+ * Read by the native app, which asks the step on its own screen; the web's page reads the same (secondStepRead).
+ * 200 SecondStepRead (@jobhub/shared) · 401
+ */
+export async function GET(request: Request) {
+  const current = await getSessionForSecondStep();
+  if (!current) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const pending = await getPendingSessions().of(request.headers);
+  const { factors } = pending?.step === "second_step" ? await getTwoStepVerification().status(current.user.id) : { factors: [] };
+  return NextResponse.json(secondStepRead(pending, factors), { headers: { "Cache-Control": "no-store" } });
+}
 
 /**
  * The second step (ADR-0075): a code from the Candidate's authenticator app or a backup code. Done, the session is no

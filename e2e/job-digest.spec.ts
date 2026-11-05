@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { Client } from "pg";
 import { PgBoss } from "pg-boss";
+import { offerBoxResponseSchema } from "@jobhub/shared/reads";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { ficheOf, openFoundJobOffers, startJobSearch } from "./support/conversation";
@@ -458,6 +459,11 @@ test.describe("Job Digest", () => {
     // Opt-in is per Profile: the other Profile was not opted in, and the one opted in just now is not due before 07:00.
     expect(digestReports(otherProfileId)).toEqual([]);
     expect(digestReports(justOptedIn)).toEqual([]);
+
+    // A Job Digest is an Arrival door (ADR-0090): the Job Offers it sent are Offer box entries « à traiter », by « Job Digest ».
+    const box = offerBoxResponseSchema.parse(await (await page.request.get("/api/offer-box")).json());
+    expect(box.entries.map((entry) => entry.jobOffer.title).sort()).toEqual([DAF, RESPONSABLE].sort());
+    for (const entry of box.entries) expect(entry).toMatchObject({ state: "to_handle", profile: { id: profileId }, sources: expect.arrayContaining([expect.objectContaining({ source: "job_digest" })]) });
 
     // The email's link opens the Job Digest's page: its Job Offers, best Match Score first, each one to save.
     const digestLink = digestLinkIn(email!);

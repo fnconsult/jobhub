@@ -194,13 +194,17 @@ export interface ProposalCall {
   cardId: string;
   at: Date;
   accepted?: readonly string[];
+  /** The Candidate's language, for what applying may have to say (#773: the Upgrade prompt). French when not known. */
+  language?: "fr" | "en";
 }
 
 /** `undo`: what « Annuler » needs to put the state before back; none for a launched action. */
 export type ApplyProposalResult =
   | { ok: true; undo?: unknown }
   | { ok: false; error: "conflict" | "not_found" }
-  | { ok: false; error: "invalid"; errors: FieldError[] };
+  | { ok: false; error: "invalid"; errors: FieldError[] }
+  /** The Plan Quota has no room left since the proposal (#773): its card shows this Upgrade prompt, nothing applied. */
+  | { ok: false; error: "quota"; prompt: UpgradePrompt };
 /**
  * « Annuler »'s outcome. `note`: what it left as it was, said on the card once undone (#770: `status_kept`, an
  * Application Status changed since the card was applied, left as it is).

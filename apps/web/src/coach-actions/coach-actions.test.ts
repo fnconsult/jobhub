@@ -165,6 +165,33 @@ describe("a Coach Action the model calls", () => {
     expect(languages).toEqual(["en", "fr"]);
   });
 
+  it("is told what the Candidate has In view, so a proposal can be about it without its id (#716)", async () => {
+    const seen: unknown[] = [];
+    const inView = defineCoachAction({ ...proposeStatus, run: async (_args, call) => (seen.push(call.inView), { ok: true, data: null }) });
+    const { actions, recorder } = setUp({ catalog: [inView] });
+
+    await (await actions.forReply("marie", { recorder, untrustedInView: true, focus: { kind: "job_offer", id: "o1" } }))!.runTool(run("proposer_statut", { id: "a1", status: "offer" }), {});
+    await (await actions.forReply("marie", { recorder, untrustedInView: false }))!.runTool(run("proposer_statut", { id: "a1", status: "offer" }), {});
+
+    expect(seen).toEqual([{ kind: "job_offer", id: "o1" }, undefined]);
+  });
+
+  it("tells the model, without a proposal, what a proposing Coach Action finds there is nothing to propose (#716)", async () => {
+    const already = defineCoachAction({
+      ...proposeStatus,
+      run: async ({ id }) => ({ ok: true, proposes: false, data: { message: "Déjà à ce statut.", applicationId: id }, pages: [`/candidatures/${id}`] }),
+    });
+    const { actions, calls, recorder } = setUp({ catalog: [already] });
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false }))!;
+
+    const outcome = await reply.runTool(run("proposer_statut", { id: "a1", status: "interview" }), {});
+
+    expect(outcome).toEqual({ content: '<donnees>\n{"message":"Déjà à ce statut.","applicationId":"a1"}\n</donnees>' });
+    expect(reply.proposals()).toEqual([]);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a1"] }]);
+    expect(calls).toMatchObject([{ operation: "proposer_statut", ok: true, httpStatus: 200 }]);
+  });
+
   it("answers not_found, saying nothing of why, for another Candidate's id or an unknown one", async () => {
     const { actions, calls, recorder } = setUp();
     const reply = (await actions.forReply("marie", { recorder, untrustedInView: false }))!;

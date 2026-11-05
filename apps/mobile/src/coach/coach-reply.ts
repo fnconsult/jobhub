@@ -95,8 +95,7 @@ export async function askCoach(api: Api, request: CoachRequest, { signal, onLive
       live = { ...live, tokens: live.tokens + tokens };
       onLive?.(live);
     } else if (event.type === "reply") {
-      const { type: _type, ...reply } = event;
-      ended = { kind: "reply", reply };
+      ended = { kind: "reply", reply: event };
     } else if (event.type === "stopped") {
       conversation = event.conversation ?? conversation;
       ended = stopped(event.context ?? null);

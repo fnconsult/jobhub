@@ -10,6 +10,7 @@ import { AppProviders } from "../src/app-providers";
 import { isRefusedOffline, readKey, useForgetReads, type ReadName } from "../src/offline/read-cache";
 import { fakeNetwork, memoryStorage } from "../src/offline/testing";
 import type { AppSession } from "../src/session/app-session";
+import type { FakeCoachWeb } from "../src/coach/testing";
 import type { fakeWebApp } from "../src/session/testing";
 
 jest.setTimeout(60_000);
@@ -31,13 +32,15 @@ const setNetwork = (connected: boolean) => {
 };
 
 // The web app the app signs in to (#685), so the app's root reaches its signed-in screens, as app.e2e.test.tsx does.
-const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession; coach: FakeCoachWeb };
 jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
-  return { appSession: mockWeb.session };
+  // Its API's Coach Conversation routes (#690), as src/coach/testing.ts answers them.
+  mockWeb.coach = jest.requireActual("../src/coach/testing").fakeCoachWeb();
+  return { appSession: mockWeb.session, appApi: mockWeb.coach.api };
 });
 // As app.e2e.test.tsx: the app's own scheme, which the magic link it asks for returns to (Expo Router's mock has another).
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };

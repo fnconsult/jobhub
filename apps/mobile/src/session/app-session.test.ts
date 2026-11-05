@@ -32,6 +32,17 @@ describe("the app's session (ADR-0076, #685)", () => {
     expect(await session.current()).toEqual({ kind: "signedIn", email: EMAIL });
   });
 
+  it("gives the session's cookie for the app's calls to the API, none once signed out", async () => {
+    const { web, session } = setUp();
+    await session.askLink(EMAIL);
+    await session.openLink(web.linkFor(EMAIL));
+
+    expect(await session.cookie()).toMatch(/__Secure-better-auth\.session_token=session\d+\.signature/);
+
+    await session.signOut();
+    expect(await session.cookie()).not.toContain("session_token=session");
+  });
+
   it("is signed out until then", async () => {
     const { session } = setUp();
 

@@ -50,11 +50,11 @@ describe("reading the Coach's reply from its NDJSON stream", () => {
     expect(lives).toEqual([]);
     stream.write(second.slice(20));
     await settle();
-    expect(lives.at(-1)).toEqual({ step: { activity: "think", label: "thinking" }, tokens: 0 });
+    expect(lives.at(-1)).toEqual({ step: { activity: "think", label: "think" }, tokens: 0 });
 
     stream.send(step.ended);
     await settle();
-    expect(lives.at(-1)).toEqual({ step: { activity: "think", label: "thinking" }, tokens: 1200 });
+    expect(lives.at(-1)).toEqual({ step: { activity: "think", label: "think" }, tokens: 1200 });
 
     // The reply's last line, its « é » split between two chunks, and no newline before the stream ends.
     const bytes = new TextEncoder().encode(JSON.stringify(replyEvent("Très bien, préparons-le.")));

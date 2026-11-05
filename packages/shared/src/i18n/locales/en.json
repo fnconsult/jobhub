@@ -5763,7 +5763,10 @@
       "openPosting": "View the posting",
       "shareLink": "Share the link"
     },
-    "jobOfferPlaceholder": "The job offer will open here, with its Match Score."
+    "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
+    "coach": {
+      "replyAnnounced": "AI Coach: {{reply}}"
+    }
   },
   "coachProposals": {
     "fields": {

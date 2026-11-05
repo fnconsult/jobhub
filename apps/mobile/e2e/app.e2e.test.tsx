@@ -584,15 +584,44 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
     expect(screen).toHavePathname("/candidatures/a1");
   });
 
+  /** Recherches d'offres' Offer box (ADR-0090), as `GET /api/offer-box` answers it: one Job Offer that arrived by a Job Search. */
+  const withOfferBox = () =>
+    mockWeb.app.has(EMAIL, {
+      offerBox: {
+        today: "2026-11-05",
+        toHandle: 1,
+        entries: [
+          {
+            id: "e1",
+            jobOffer: { id: "o1", title: "Responsable qualité", employer: "Aéroline", location: "Toulouse", url: "https://www.example.com/offres/aeroline-responsable-qualite", postedAt: null, expiredAt: null, contractType: "cdi" },
+            profile: { id: "p1", name: "Qualité" },
+            scoredWith: { id: "p1", name: "Qualité" },
+            matchScore: 82,
+            firstArrivalAt: "2026-11-05T08:00:00.000Z",
+            arrivalDay: "2026-11-05",
+            sources: [{ source: "job_search", at: "2026-11-05T08:00:00.000Z" }],
+            state: "to_handle",
+            applicationId: null,
+            followedAt: null,
+          },
+        ],
+      },
+    });
+  afterEach(() => mockWeb.app.has(EMAIL, {}));
+
   it("opens a Job Offer's context menu in Recherches d'offres, « Voir l'annonce » opening the posting", async () => {
+    withOfferBox();
     await launch("/recherches");
+    await screen.findByRole("link", { name: "Responsable qualité · Aéroline", hidden: true });
     await rightClick("Responsable qualité · Aéroline");
     await userEvent.setup().press(item("Voir l'annonce"));
     expect(Linking.openURL).toHaveBeenCalledWith("https://www.example.com/offres/aeroline-responsable-qualite");
   });
 
   it("opens a Job Offer in the Work Pane when pressed", async () => {
+    withOfferBox();
     await launch("/recherches");
+    await screen.findByRole("link", { name: "Responsable qualité · Aéroline", hidden: true });
     await userEvent.setup().press(link("Responsable qualité · Aéroline"));
     expect(screen.getByText(/L'offre s'ouvrira ici/)).toBeOnTheScreen();
   });

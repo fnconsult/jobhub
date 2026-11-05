@@ -420,6 +420,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   appointment_reminder: "appointmentReminders.sent",
   push_device: "pushNotifications.devices (platform, language, when registered and last seen; never the token nor the session)",
   push_notification_setting: "pushNotifications.switches (each event switched in Rappels, on or off, and when)",
+  push_notification_sent: "pushNotifications.sent (each notification queued under its event's key: the event and when, never the key nor the text)",
   coach_welcome_closed: "coachWelcome.closedAt",
   legal_text_notice: "legalTextNotices.emailed (the text and version each notice email told of, #547)",
   privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",

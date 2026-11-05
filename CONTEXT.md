@@ -789,12 +789,20 @@ _Avoid_: Long-press menu, popover
 In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row under a mouse or trackpad pointer. Absent with a finger.
 
 **Push notification**:
-A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
+A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch. A person gets one per event key; the Appointment Reminder one has its own switch, apart from the email's. A Human Coach's go to the account of their verified email, and stop once they are retired (#699, ADR-0089).
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 
 **Provider return address**:
 The address in the app's own scheme, `/connexion/fournisseur`, where the system's authentication browser hands the person back to the app after a Sign-in Provider, with the session. Not a universal link: iOS 16.4 cannot return by one (ADR-0085).
 _Avoid_: Deep link, redirect URL (that is the address declared at the provider)
+
+**Event key**:
+An event, the object it concerns and what happened to it (e.g. a Coach Review, a Coaching Session's date changed). A person gets one Push notification per event key, however many times the event is run again.
+_Avoid_: Notification id, dedupe key
+
+**Declined (Push notification)**:
+« Pas maintenant » on the app's explanation screen, remembered on the device so the app never asks again in context. Not the same as refused, which is the system's own answer to its prompt.
+_Avoid_: Dismissed, denied
 
 **App sign-in link**:
 The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).

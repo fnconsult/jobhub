@@ -16,6 +16,8 @@ export const paths = {
   applicationSection: (id: string, section: typeof INTERVIEWS) => `/candidatures/${encodeURIComponent(id)}/${section}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
+  /** A Job Search's page, the web's in the app until it is drawn natively (#692): where « Lancer une recherche » lands. */
+  jobSearch: (id: string) => `/recherches/${encodeURIComponent(id)}`,
   jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",
@@ -30,6 +32,8 @@ export const paths = {
   accountSections: "/compte/rubriques",
   accountSecurity: "/compte/securite",
   accountData: "/compte/donnees",
+  /** Rappels: the reminders and the Push notifications' switches, the web's; the device's own permission above it (#699). */
+  accountReminders: "/compte/rappels",
   accountDeletion: "/compte/supprimer",
   subscription: "/abonnement",
   /** « Renoncer au contrat ici »: the web's Withdrawal form of a contract (`plan`, `coaching-session:<id>`), in a WebView. */

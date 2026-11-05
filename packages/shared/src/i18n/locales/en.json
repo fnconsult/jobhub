@@ -5982,6 +5982,36 @@
         "date": "Session date (dd/mm/yyyy)",
         "time": "Time, in Paris (hh:mm)"
       }
+    },
+    "jobSearches": {
+      "quotaExceeded": "You have reached your job search quota for this period: you can start a new one when it renews."
+    },
+    "push": {
+      "channel": "Notifications",
+      "ask": {
+        "jobSearch": {
+          "title": "Get notified of new results?",
+          "body": "Your search goes on without you: Jobbbox can notify you as soon as it finds job offers, even with the app closed."
+        },
+        "interview": {
+          "title": "Get a reminder the day before your appointments?",
+          "body": "Jobbbox can remind you of your interviews and sessions the day before at 6 PM, as well as the email if you receive it."
+        },
+        "privacy": "A notification never names a company, a job or a person: the details show once the app is open. You choose what is sent to you in My account, Reminders.",
+        "allow": "Turn on notifications",
+        "notNow": "Not now"
+      },
+      "settings": {
+        "refused": {
+          "ios": "Jobbbox's notifications are turned off on this device. To receive them, open Settings, tap Notifications, then Jobbbox, and turn on “Allow Notifications”.",
+          "android": "Jobbbox's notifications are turned off on this device. To receive them, open the device's settings, then Apps, Jobbbox, Notifications, and turn them on."
+        },
+        "openSettings": {
+          "ios": "Open Settings",
+          "android": "Open settings"
+        },
+        "declined": "The app's notifications are not turned on on this device: the choices below will apply as soon as you turn them on."
+      }
     }
   },
   "coachProposals": {

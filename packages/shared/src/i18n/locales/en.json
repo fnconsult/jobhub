@@ -5766,6 +5766,12 @@
     "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
     "coach": {
       "replyAnnounced": "AI Coach: {{reply}}"
+    },
+    "subscriptionOnWeb": "Your subscription is managed on jobbbox.ai.",
+    "signalement": {
+      "notice": "Attached automatically: the page, the Jobbbox version, your device, the language and the text size. No screenshot, no conversation with your coach.",
+      "questionContext": "the page, the Jobbbox version, your device, the language and the text size",
+      "device": "Device"
     }
   },
   "coachProposals": {

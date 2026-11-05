@@ -1,7 +1,8 @@
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 import { fakeNetwork } from "../offline/testing";
-import { hardwareKeyboard, renderInApp } from "../testing";
+import { Shell } from "../shell/Shell";
+import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
 import { CoachConversation } from "./CoachConversation";
 import { aiStep, fakeCoachWeb, replyEvent, type FakeCoachWeb } from "./testing";
 
@@ -170,5 +171,175 @@ describe("a Coach Conversation in the app", () => {
       await act(async () => web.reply("Bonjour !"));
       await waitFor(() => expect(hardwareKeyboard.panel()).toContain("⌘↩ Envoyer le message"));
     });
+  });
+});
+
+/** The conversation in the app's shell, on a phone, its Work Pane full page over it. */
+async function renderInShell(placement: { conversationId: string | null; route: string } = { conversationId: null, route: "/" }) {
+  setWindow({ width: 390, height: 844 });
+  await renderInApp(
+    <Shell page={{ key: placement.route, title: "Accueil", pane: "activite" }} paneContent={null} sidebar={() => null} onNewConversation={() => {}}>
+      <CoachConversation {...placement} />
+    </Shell>,
+    { api: web.api },
+  );
+}
+
+const PROPOSAL = {
+  id: "k1",
+  status: "pending",
+  change: {
+    target: { kind: "application", id: "a1", name: "Responsable qualité · Aéroline", href: "/candidatures/a1" },
+    what: "Statut de la candidature",
+    before: "Postulée",
+    after: "Entretien",
+    value: { status: "interview" },
+    fields: [],
+  },
+  undoable: false,
+};
+
+describe("the help in the conversation's box (ADR-0035)", () => {
+  it("suggests Help Articles while the Candidate types, from the help bundled with the app", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await userEvent.setup().type(box(), "quota");
+    expect(await screen.findByText("Dans l'aide, sans IA")).toBeOnTheScreen();
+    expect(button(/^Quand mon quota se renouvelle-t-il \?, Question fréquente$/)).toBeOnTheScreen();
+    expect(web.requests.filter((request) => request.method !== "GET")).toEqual([]);
+  });
+
+  it("opens an article in the Work Pane, full page on a phone; « Non, demander au coach » asks about it, its title sent along", async () => {
+    await renderInShell();
+    const user = userEvent.setup();
+    await user.type(box(), "quota");
+    await user.press(await screen.findByRole("button", { name: /^Quand mon quota se renouvelle-t-il \?/ }));
+    expect(screen.getByText(/Chaque lundi à 0 h/)).toBeOnTheScreen();
+    expect(screen.getByText("Cela répond à votre question ?")).toBeOnTheScreen();
+
+    await user.press(button("Non, demander au coach"));
+    expect(screen.queryByText(/Chaque lundi à 0 h/)).toBeNull();
+    expect(box()).toHaveDisplayValue("À propos de « Quand mon quota se renouvelle-t-il ? » : ");
+    await user.type(box(), "et le dimanche ?");
+    await user.press(button("Envoyer"));
+    expect(web.asked.at(-1)).toMatchObject({ helpArticle: { id: "faq-quota-renewal", title: "Quand mon quota se renouvelle-t-il ?" } });
+  });
+
+  it("offers « Comment marche cette page ? » and « Souvent demandé » in an empty conversation", async () => {
+    await renderInShell();
+    expect(screen.getByText("Souvent demandé")).toBeOnTheScreen();
+    expect(button("Quand mon quota se renouvelle-t-il ?")).toBeOnTheScreen();
+    await userEvent.setup().press(button("Comment marche cette page ?"));
+    expect(screen.getByText("Aide · écrit par l'équipe Jobbbox")).toBeOnTheScreen();
+  });
+
+  it("asks « Cela répond à votre question ? » under each reply: « Oui » thanks, « Non » offers the team", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    const user = await write("Comment relancer ?");
+    await act(async () => web.reply("Envoyez un court message."));
+    await screen.findByText("Envoyez un court message.");
+    await user.press(button("Non"));
+    expect(screen.getByText("L'équipe Jobbbox peut vous répondre.")).toBeOnTheScreen();
+    expect(button("Poser la question à l'équipe")).toBeOnTheScreen();
+
+    await user.type(box(), "Merci");
+    await user.press(button("Envoyer"));
+    await act(async () => web.reply("Avec plaisir."));
+    await screen.findByText("Avec plaisir.");
+    await user.press(button("Oui"));
+    expect(screen.getByText("Merci de votre retour.")).toBeOnTheScreen();
+  });
+
+  it("offers the team at once under a reply the coach could not answer", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await write("Quel est le nom de mon conseiller ?");
+    await act(async () => web.reply("Je ne sais pas.", { couldNotAnswer: true }));
+    expect(await screen.findByText("Votre coach IA n'a pas cette réponse : l'équipe Jobbbox peut vous répondre.")).toBeOnTheScreen();
+  });
+
+  it("shows what the help has when the coach cannot reply", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await write("Quand mon quota se renouvelle ?");
+    await act(async () => web.fail("provider_unavailable"));
+    expect(await screen.findByText("Voici ce que l'aide propose :")).toBeOnTheScreen();
+    expect(button("Poser la question à l'équipe")).toBeOnTheScreen();
+  });
+});
+
+describe("the Signalement form, native, under the box", () => {
+  it("sends a Question to the team with the exchange, from « Poser la question à l'équipe »", async () => {
+    await renderInShell();
+    const user = await write("Comment relancer ?");
+    await act(async () => web.reply("Envoyez un court message."));
+    await screen.findByText("Envoyez un court message.");
+    await user.press(button("Non"));
+    await user.press(button("Poser la question à l'équipe"));
+
+    expect(screen.getByLabelText("Votre question")).toHaveDisplayValue("Comment relancer ?");
+    expect(screen.getByText(/Échange : votre question et la réponse du coach/)).toBeOnTheScreen();
+    await user.press(button("Envoyer"));
+    expect(await screen.findByText("Merci, c'est envoyé.")).toBeOnTheScreen();
+    expect(web.signalements).toEqual([
+      { type: "question", message: "Comment relancer ?", path: "/", textSize: "standard", attachedQuestion: "Comment relancer ?", attachedCoachReply: "Envoyez un court message." },
+    ]);
+  });
+
+  it("reports a problem from under the box, with its context said before sending, and refuses one too short", async () => {
+    await renderInShell();
+    const user = userEvent.setup();
+    await user.press(button("Signaler un problème"));
+    expect(screen.getByText(/Joints automatiquement : la page, la version de Jobbbox, votre appareil/)).toBeOnTheScreen();
+    await user.press(button("Voir le détail"));
+    expect(screen.getByText("Appareil")).toBeOnTheScreen();
+
+    await user.type(screen.getByLabelText("Décrivez le problème"), "Bug");
+    await user.press(button("Envoyer"));
+    expect(screen.getByText("Au moins 10 caractères, pour que l'équipe comprenne.")).toBeOnTheScreen();
+    expect(web.signalements).toEqual([]);
+
+    await user.type(screen.getByLabelText("Décrivez le problème"), " : le bouton ne répond pas");
+    await user.press(button("Envoyer"));
+    expect(await screen.findByText("Merci, c'est envoyé.")).toBeOnTheScreen();
+    expect(web.signalements).toEqual([{ type: "bug", message: "Bug : le bouton ne répond pas", path: "/", textSize: "standard" }]);
+  });
+
+  it("proposes an idea", async () => {
+    await renderInShell();
+    const user = userEvent.setup();
+    await user.press(button("Proposer une idée"));
+    await user.type(screen.getByLabelText("Décrivez votre idée"), "Un mode sombre pour les PDF");
+    await user.press(button("Envoyer"));
+    await screen.findByText("Merci, c'est envoyé.");
+    expect(web.signalements).toEqual([expect.objectContaining({ type: "idee" })]);
+  });
+});
+
+describe("a Coach proposal under a reply", () => {
+  it("is applied by the Candidate", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await write("J'ai un entretien");
+    await act(async () => web.reply("Je vous propose de changer le statut.", { cards: [PROPOSAL] }));
+    expect(await screen.findByText("Statut de la candidature · Responsable qualité · Aéroline")).toBeOnTheScreen();
+    await userEvent.setup().press(button("Appliquer"));
+    expect(await screen.findByText(/^Appliqué par vous à \d{2}:\d{2}$/)).toBeOnTheScreen();
+  });
+
+  it("refused by a Plan Quota, says so as the web does, with nothing to buy in the app", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await write("Calcule le Match Score");
+    const prompt = {
+      title: "Vous avez atteint la limite de votre offre",
+      message: "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuite. Passez à l'offre Pro pour en utiliser davantage.",
+      upgradeTo: "pro",
+      action: "Passer à l'offre Pro",
+      href: "/abonnement",
+    };
+    await act(async () =>
+      web.reply("Je peux le calculer.", { cards: [{ ...PROPOSAL, id: "k2", change: { ...PROPOSAL.change, quota: { label: "Utilise 1 Match Score", prompt } } }] }),
+    );
+    expect(await screen.findByText("Vous avez atteint la limite de votre offre")).toBeOnTheScreen();
+    expect(screen.getByText(/Vous avez utilisé les 3 Match Scores/)).toBeOnTheScreen();
+    expect(screen.getByText("Votre abonnement se gère sur jobbbox.ai.")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Passer à l'offre Pro" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Appliquer" })).toBeNull();
   });
 });

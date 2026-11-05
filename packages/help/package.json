@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./coach-help": "./src/coach-help.ts",
     "./motion-scripts": "./src/motion-scripts.ts",
     "./motion-scripts-content": "./src/motion-scripts-content.ts",
     "./micro-animations": "./src/micro-animations.ts"

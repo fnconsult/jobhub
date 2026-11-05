@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readShareLink, SHARE_PATH, shareCaptureAnswerSchema, shareLink } from "./share-capture";
+import { linkShared, readShareLink, SHARE_PATH, shareCaptureAnswerSchema, shareLink } from "./share-capture";
 
 describe("the link the share sheet opens the Jobbbox app with (Share capture, #697)", () => {
   it("carries the link and the text shared, read back as they were", () => {
@@ -25,6 +25,14 @@ describe("the link the share sheet opens the Jobbbox app with (Share capture, #6
       expect(readShareLink(link)).toBeNull();
     },
   );
+});
+
+describe("the link of what was shared", () => {
+  it("is the link shared, else the first web link in the text, without the punctuation ending its sentence", () => {
+    expect(linkShared({ url: "https://exemple.fr/1", text: "voir https://exemple.fr/2" })).toBe("https://exemple.fr/1");
+    expect(linkShared({ text: "Découvrez cette offre sur LinkedIn : https://www.linkedin.com/jobs/view/4012345678." })).toBe("https://www.linkedin.com/jobs/view/4012345678");
+    expect(linkShared({ text: "Le texte de l'offre, sans lien" })).toBeNull();
+  });
 });
 
 describe("what the web app answers a Share capture", () => {

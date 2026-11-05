@@ -17,6 +17,18 @@ export interface SharedContent {
   text?: string;
 }
 
+const LINK = /\bhttps?:\/\/[^\s<>"'«»]+/i;
+
+/**
+ * The link of what was shared: the link itself, else the first web link in its text (an app's share sheet often gives
+ * a sentence and the link as one text), without the punctuation that ends its sentence. Null when there is none.
+ */
+export function linkShared(shared: SharedContent): string | null {
+  if (shared.url) return shared.url;
+  const found = LINK.exec(shared.text ?? "")?.[0];
+  return found ? found.replace(/[.,;:!?)\]}]+$/, "") : null;
+}
+
 /** The app's address that opens the capture screen on `shared`. */
 export function shareLink(shared: SharedContent): string {
   const query = new URLSearchParams();

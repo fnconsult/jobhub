@@ -109,9 +109,14 @@ export interface AppSession {
   webCookies(): Promise<{ name: string; value: string }[]>;
   /**
    * The session cookie, for a request to the web app made outside the session's own client (the app's calls to the
-   * API, src/api): the `Cookie` header Better Auth reads; empty when signed out.
+   * API, src/api; a Tailored Document's download, #695): the `Cookie` header Better Auth reads; empty when signed out.
    */
   cookie(): Promise<string>;
+  /**
+   * Empties the WebViews' cookie store (#689), as signing out and a session found gone do, the session itself kept: for
+   * SessionGate to forget, with the rest the device kept, before the session is dropped (ADR-0076).
+   */
+  forgetWebViews(): Promise<void>;
 }
 
 /** An endpoint's answer: its status, and its body. */
@@ -234,6 +239,10 @@ export function createAppSession({
     current: () => serial(current),
 
     cookie: () => client.getCookie(),
+
+    forgetWebViews: async () => {
+      await webViewCookies?.clear();
+    },
 
     signOut: () =>
       serial(async () => {

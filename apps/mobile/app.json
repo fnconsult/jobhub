@@ -69,7 +69,8 @@
           }
         }
       ],
-      "./plugins/with-multitasking"
+      "./plugins/with-multitasking",
+      "@sentry/react-native"
     ]
   }
 }

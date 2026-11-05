@@ -37,7 +37,7 @@ async function offersOf(candidateId: string, profileId: string): Promise<string[
 
 /**
  * The catalogue shipped, over the Candidate's objects through the domain modules the pages' routes use (#714, #716, #718,
- * #720, #721), its proposals applied through them (#719, #720, #721).
+ * #720), its proposals applied through them (#719, #720).
  */
 function shipped(): readonly CoachAction[] {
   return shippedCoachActions(
@@ -78,8 +78,6 @@ function shipped(): readonly CoachAction[] {
       jobSearches: getJobSearches(),
       jobDigests: getJobDigests(),
       jobSearchQuota: jobSearchQuotaOf(getBilling()),
-      tailoredCvs: getTailoredCvs(),
-      tailoredDocuments: getTailoredDocuments(),
     },
   );
 }

@@ -4,7 +4,7 @@ import type { HelpLocale } from "./types";
  * The Nouveautés tags a Release Note may carry (ADR-0063, #505): a closed list, the same in both languages. The page
  * says them in the Interface Language (`nouveautes.tags.<tag>` in the catalogues) and filters by them.
  */
-export const RELEASE_NOTE_TAGS = ["candidature", "extension", "coach-ia", "confidentialite", "accessibilite", "recherche", "documents"] as const;
+export const RELEASE_NOTE_TAGS = ["candidature", "extension", "coach-ia", "confidentialite", "accessibilite", "recherche"] as const;
 export type ReleaseNoteTag = (typeof RELEASE_NOTE_TAGS)[number];
 
 /** What a change line says it is: « Nouveau », « Amélioré » or « Corrigé ». */

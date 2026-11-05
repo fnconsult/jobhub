@@ -356,6 +356,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
     },
     {
+      "id": "page-master-cv-editor",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "L'éditeur du CV de référence",
+      "synonyms": [
+        "modifier mon cv de référence",
+        "éditeur",
+        "éditer le cv",
+        "nouvelle version",
+        "conflit",
+        "cv modifié ailleurs",
+        "proposition du coach",
+        "relire les changements"
+      ],
+      "route": "/profils/[id]/cv",
+      "motion": null,
+      "microAnimations": [],
+      "body": "« Modifier mon CV de référence » ouvre l'éditeur complet à côté de la conversation du profil. Ajoutez, modifiez, déplacez ou retirez les éléments de chaque rubrique : vos coordonnées, vos postes, vos formations, vos compétences et vos langues. L'éditeur dit quelle version vous modifiez.\n\n« Enregistrer une nouvelle version » garde vos changements comme la version suivante : les précédentes restent dans l'historique et peuvent être restaurées. « Annuler et revenir au profil » abandonne ce que vous avez changé.\n\nSi votre CV de référence a changé ailleurs entre-temps, par exemple en appliquant une correction proposée par votre coach, l'enregistrement est refusé : rien n'est mélangé ni perdu en silence. Rechargez la page pour repartir de la dernière version.\n\nVotre coach peut aussi vous proposer, depuis la conversation du profil, de reformuler, couper, réordonner ou mettre en avant ce que votre CV dit déjà, jamais un fait qu'il ne contient pas. Il ne change rien lui-même : « Relire les changements » les ouvre un par un, « Accepter » ou « Refuser » chacun, et « Enregistrer les changements acceptés » en fait une seule nouvelle version. Un changement qui reprend des mots d'une de vos offres absents de votre CV attend votre accord explicite. La version ainsi créée garde son « Origine », visible dans l'historique des versions, et « Annuler » sur la carte restaure la version d'avant."
+    },
+    {
       "id": "page-install-extension",
       "locale": "fr",
       "kind": "page",
@@ -396,12 +418,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "entreprises cibles",
         "La Bonne Boite",
         "candidature spontanée",
-        "écarter une entreprise"
+        "écarter une entreprise",
+        "proposition du coach",
+        "origine",
+        "restaurer un profil"
       ],
       "route": "/profils/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'un profil est sa conversation avec votre coach IA : il a sous les yeux son CV de référence et ses critères de recherche pour un métier. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Améliorer mon CV », « Comprendre mon ATS Score », « Affiner mes critères », « Quelles entreprises cibler ? ». La conversation est gardée avec le profil et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, le profil et son CV restent.\n\nÀ droite, la fiche du profil : s'il est actif ou archivé, « Chercher des offres », ses critères de recherche, que vous modifiez sur place, et son ATS Score, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». Les résultats d'un profil sont les versions de son CV de référence, la plus récente en premier, et son téléchargement en PDF ou Word. « Fiche », en haut de la page, l'ouvre ou la ferme.\n\nSes rubriques : Propositions, tant que votre coach a des corrections à vous proposer, puis CV de référence, ATS Score, Entreprises cibles, Télécharger et Gérer. Une rubrique, une version du CV de référence, son historique ou l'éditeur complet du CV s'ouvrent à côté de la conversation, sans la cacher. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse.\n\nCommencez par l'ATS Score : il dit si les logiciels de recrutement liront bien votre CV. Les corrections que propose votre coach apparaissent dans « Propositions » ; acceptez-les ou ignorez-les une par une. Chaque enregistrement du CV de référence crée une nouvelle version, et vous pouvez revenir à une version précédente. « Télécharger » exporte le CV de référence en PDF ou Word. « Gérer » permet de renommer, dupliquer ou archiver le profil.\n\n« Entreprises cibles » liste les entreprises que la recherche d'offres vise pour ce profil : celles que La Bonne Boite donne comme susceptibles de recruter pour votre métier et votre zone, avec leur potentiel d'embauche, et celles que vous ajoutez, marquées « Ajoutée par vous ». Pour en ajouter une, indiquez son nom ou son SIREN dans « Ajouter une entreprise » : elle passe avant celles de La Bonne Boite. Chaque entreprise indique les offres trouvées chez elle ; « Dossier entreprise », « Contacts enrichis » et « Préparer une candidature spontanée » ouvrent une candidature spontanée, ajoutée à vos candidatures « À postuler ». « Écarter » retire une entreprise pour de bon : elle ne reviendra plus pour ce profil.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'un profil est sa conversation avec votre coach IA : il a sous les yeux son CV de référence et ses critères de recherche pour un métier. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Améliorer mon CV », « Comprendre mon ATS Score », « Affiner mes critères », « Quelles entreprises cibler ? ». La conversation est gardée avec le profil et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, le profil et son CV restent.\n\nÀ droite, la fiche du profil : s'il est actif ou archivé, « Chercher des offres », ses critères de recherche, que vous modifiez sur place, et son ATS Score, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». Les résultats d'un profil sont les versions de son CV de référence, la plus récente en premier, et son téléchargement en PDF ou Word. « Fiche », en haut de la page, l'ouvre ou la ferme.\n\nSes rubriques : Propositions, tant que votre coach a des corrections à vous proposer, puis CV de référence, ATS Score, Entreprises cibles, Télécharger et Gérer. Une rubrique, une version du CV de référence, son historique ou l'éditeur complet du CV s'ouvrent à côté de la conversation, sans la cacher. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse.\n\nCommencez par l'ATS Score : il dit si les logiciels de recrutement liront bien votre CV. Les corrections que propose votre coach apparaissent dans « Propositions » ; acceptez-les ou ignorez-les une par une. Chaque enregistrement du CV de référence crée une nouvelle version, et vous pouvez revenir à une version précédente. « Télécharger » exporte le CV de référence en PDF ou Word. « Gérer » permet de renommer, dupliquer ou archiver le profil.\n\n« Entreprises cibles » liste les entreprises que la recherche d'offres vise pour ce profil : celles que La Bonne Boite donne comme susceptibles de recruter pour votre métier et votre zone, avec leur potentiel d'embauche, et celles que vous ajoutez, marquées « Ajoutée par vous ». Pour en ajouter une, indiquez son nom ou son SIREN dans « Ajouter une entreprise » : elle passe avant celles de La Bonne Boite. Chaque entreprise indique les offres trouvées chez elle ; « Dossier entreprise », « Contacts enrichis » et « Préparer une candidature spontanée » ouvrent une candidature spontanée, ajoutée à vos candidatures « À postuler ». « Écarter » retire une entreprise pour de bon : elle ne reviendra plus pour ce profil.\n\nDans la conversation du profil, demandez à votre coach un changement, par exemple en lui écrivant d'ajouter Lyon à vos lieux : il vous le propose sur une carte sous sa réponse, « Proposé par votre coach IA », avec l'avant et l'après. Rien ne change sans vous : « Appliquer » fait le changement, « Modifier avant d'appliquer » ouvre le formulaire pré-rempli à côté de la conversation, « Ignorer » l'écarte. Une fois appliqué, « Annuler » remet les critères d'avant, tant qu'ils n'ont pas changé depuis. Votre coach peut ainsi vous proposer de changer vos critères de recherche, d'archiver ou de restaurer un profil (un profil restauré compte de nouveau dans votre forfait), ou de retenir un fait dans sa mémoire. Un changement du CV de référence ne s'applique pas en un clic : « Relire les changements » les ouvre un par un, à accepter ou refuser, et « Enregistrer les changements acceptés » en fait une nouvelle version ; votre coach ne propose que ce que votre CV dit déjà. Ce qui vient d'une proposition appliquée garde son « Origine », que vous dévoilez d'un clic sur les critères ou sur la version. Votre coach ne crée ni ne supprime de profil : un profil se crée depuis « Créer un profil ».\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
       "id": "page-application",
@@ -1393,12 +1418,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "retenir",
         "ce que le coach retient",
         "souvenirs",
-        "oublier"
+        "oublier",
+        "à retenir"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "La mémoire du coach, ce sont les faits clés que votre coach IA retient de vous d'une conversation à l'autre : vos objectifs, vos contraintes, vos décisions. Rien n'y est ajouté sans votre accord : dans une conversation, « Que retenir de cette conversation ? » lui fait proposer des éléments, et seuls ceux que vous confirmez avec « Retenir » sont gardés. Elle tient 30 éléments au plus.\n\n« Mémoire du coach » est sous « Coach » dans le menu : elle s'ouvre à côté de la conversation, où vous pouvez modifier ou supprimer chaque élément. « Fermer » ou la touche Échap la referme.\n\nEffacer une conversation ne touche pas à la mémoire du coach. Elle est supprimée avec votre compte."
+      "body": "La mémoire du coach, ce sont les faits clés que votre coach IA retient de vous d'une conversation à l'autre : vos objectifs, vos contraintes, vos décisions. Rien n'y est ajouté sans votre accord. Quand votre coach propose de retenir un fait, il le fait sur une carte « À retenir » sous sa réponse, un fait par carte : « Appliquer » le retient, « Modifier avant d'appliquer » vous laisse en changer le type ou les mots, « Ignorer » l'écarte, et « Annuler » l'oublie tant que vous ne l'avez pas modifié. Là où ces cartes ne sont pas encore proposées, « Que retenir de cette conversation ? » lui fait proposer des éléments, et seuls ceux que vous confirmez avec « Retenir » sont gardés. Elle tient 30 éléments de 300 caractères au plus.\n\n« Mémoire du coach » est sous « Coach » dans le menu : elle s'ouvre à côté de la conversation, où vous pouvez modifier ou supprimer chaque élément. « Fermer » ou la touche Échap la referme.\n\nEffacer une conversation ne touche pas à la mémoire du coach. Elle est supprimée avec votre compte."
     },
     {
       "id": "glossary-private-job-offer",
@@ -3604,12 +3630,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "target companies",
         "La Bonne Boite",
         "spontaneous application",
-        "set a company aside"
+        "set a company aside",
+        "coach proposal",
+        "origin",
+        "restore a profile"
       ],
       "route": "/profils/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "A profile's page is its conversation with your AI coach: it has the profile's Master CV and search criteria for one role in view. Until you have written anything, suggestions wait above the message box: « Improve my CV », « Understand my ATS Score », « Refine my criteria », « Which companies to target? ». The conversation is kept with the profile and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the profile and its CV stay.\n\nOn the right, the profile's fiche: whether it is active or archived, « Search for offers », its search criteria, which you change in place, and its ATS Score, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». A profile's results are the versions of its Master CV, newest first, and its download as PDF or Word. « Fiche », at the top of the page, opens or closes it.\n\nIts sections: Suggestions, as long as your coach has fixes to propose, then Master CV, ATS Score, Target companies, Download and Manage. A section, a version of the Master CV, its history or the full CV editor opens beside the conversation, without hiding it. « Close » or the Escape key closes it. Each section keeps its address.\n\nStart with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one. Each time you save the Master CV, a new version is created, and you can go back to an earlier one. « Download » exports the Master CV as PDF or Word. « Manage » lets you rename, duplicate or archive the profile.\n\n« Target companies » lists the companies the job search aims at for this profile: those La Bonne Boite gives as likely to hire for your job and area, with their hiring potential, and those you add, marked « Added by you ». To add one, enter its name or SIREN in « Add a company »: it comes before La Bonne Boite's. Each company shows the job offers found there; « Company dossier », « Enriched contacts » and « Prepare a spontaneous application » open a spontaneous application, added to your applications as « To apply ». « Set aside » removes a company for good: it will not come back for this profile.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section: « Close » closes them and brings you back to the conversation."
+      "body": "A profile's page is its conversation with your AI coach: it has the profile's Master CV and search criteria for one role in view. Until you have written anything, suggestions wait above the message box: « Improve my CV », « Understand my ATS Score », « Refine my criteria », « Which companies to target? ». The conversation is kept with the profile and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the profile and its CV stay.\n\nOn the right, the profile's fiche: whether it is active or archived, « Search for offers », its search criteria, which you change in place, and its ATS Score, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». A profile's results are the versions of its Master CV, newest first, and its download as PDF or Word. « Fiche », at the top of the page, opens or closes it.\n\nIts sections: Suggestions, as long as your coach has fixes to propose, then Master CV, ATS Score, Target companies, Download and Manage. A section, a version of the Master CV, its history or the full CV editor opens beside the conversation, without hiding it. « Close » or the Escape key closes it. Each section keeps its address.\n\nStart with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one. Each time you save the Master CV, a new version is created, and you can go back to an earlier one. « Download » exports the Master CV as PDF or Word. « Manage » lets you rename, duplicate or archive the profile.\n\n« Target companies » lists the companies the job search aims at for this profile: those La Bonne Boite gives as likely to hire for your job and area, with their hiring potential, and those you add, marked « Added by you ». To add one, enter its name or SIREN in « Add a company »: it comes before La Bonne Boite's. Each company shows the job offers found there; « Company dossier », « Enriched contacts » and « Prepare a spontaneous application » open a spontaneous application, added to your applications as « To apply ». « Set aside » removes a company for good: it will not come back for this profile.\n\nIn the profile's conversation, ask your coach for a change, for example by writing to it to add Lyon to your locations: it proposes it on a card under its reply, « Proposed by your AI coach », with the before and after. Nothing changes without you: « Apply » makes the change, « Edit before applying » opens the pre-filled form beside the conversation, « Ignore » sets it aside. Once applied, « Undo » puts the criteria back as they were, as long as they have not changed since. Your coach can propose to change your search criteria, to archive or restore a profile (a restored profile counts in your plan again), or to remember a fact in its memory. A change to the Master CV is never applied in one click: « Review the changes » opens them one by one, to accept or reject, and « Save the accepted changes » makes them a new version; your coach only proposes what your CV already says. What comes from an applied proposal keeps its « Origin », which you reveal with a click on the criteria or on the version. Your coach neither creates nor deletes a profile: a profile is created from « Create a profile ».\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section: « Close » closes them and brings you back to the conversation."
     },
     {
       "id": "page-admin-activity",
@@ -4403,6 +4432,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "The Jobbbox extension opens in a panel on the right-hand side of your browser, beside the job offer you are reading. To open it, click the Jobbbox icon in the browser's toolbar, or the « Analyse this offer » button it adds to job offer pages. Once open, the panel stays in view when you switch tabs and follows the job offer in front of you.\n\nAt the top, « Job offer analysis » is the panel's title. Without an account, « Guest » shows beside it: you are using the extension as a guest, and nothing is kept in an account.\n\nWhen the open page is a job offer, the panel shows « Job offer found on this page. » with its title. Otherwise, « Capture this page » reads the page as it shows. Until a job offer is captured, the panel says so: « No job offer captured yet. »\n\nOnce the job offer is captured, the panel shows its title, the employer and the location. Drop your CV in « Drop your CV here », or click « Choose a file », then « Compute my Match Score »: the score out of 100 shows, with the « Match Score breakdown », criterion by criterion. Your CV and the job offer stay in this browser for your guest session; the date they will be deleted is written in the panel.\n\nBefore your first CV is sent, a box asks you to accept the « terms of use for guests » and to confirm you have read the « information about my data ». It is never ticked for you, and without it your CV is not sent. Your choice stays in this browser, like your CV, and is deleted with it; once ticked, the box does not come back during the session.\n\nAt the end of the panel, the « Detect job offers on every site » box adds the « Analyse this offer » button to employers' own career sites.\n\nThe buttons stay at the foot of the panel. Before the calculation: « Compute my Match Score » and, if you already have an account, « I already have an account · Sign in ». After the calculation: « Create my account and keep this job offer », which opens Jobbbox in a new tab, to create your account or sign in; and « Delete my data now », which deletes your CV and the job offer from this browser at once.\n\nAt the very foot of the panel, « Help », « Privacy » and « Terms of use » open the Jobbbox site in a new tab: the help on the extension, the privacy policy and the terms of use."
     },
     {
+      "id": "page-master-cv-editor",
+      "locale": "en",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "The Master CV editor",
+      "synonyms": [
+        "edit my master cv",
+        "editor",
+        "edit the cv",
+        "new version",
+        "conflict",
+        "cv changed elsewhere",
+        "coach proposal",
+        "review the changes"
+      ],
+      "route": "/profils/[id]/cv",
+      "motion": null,
+      "microAnimations": [],
+      "body": "« Edit my Master CV » opens the full editor beside the profile's conversation. Add, edit, move or remove the entries of each section: your contact details, your jobs, your education, your skills and your languages. The editor says which version you are editing.\n\n« Save as a new version » keeps your changes as the next version: earlier ones stay in the history and can be restored. « Cancel and go back to the profile » drops what you changed.\n\nIf your Master CV changed elsewhere in the meantime, for example by applying a fix your coach proposed, saving is refused: nothing is merged or silently lost. Reload the page to start again from the latest version.\n\nFrom the profile's conversation, your coach can also propose to rephrase, cut, reorder or put forward what your CV already says, never a fact it does not hold. It changes nothing itself: « Review the changes » opens them one by one, « Accept » or « Reject » each, and « Save the accepted changes » makes them a single new version. A change that brings words from one of your job offers that your CV lacks waits for your explicit consent. The version created this way keeps its « Origin », shown in the version history, and « Undo » on the card restores the version before."
+    },
+    {
       "id": "page-admin-tools",
       "locale": "en",
       "kind": "page",
@@ -4761,12 +4812,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "coach memory",
         "remember",
         "what the coach remembers",
-        "forget"
+        "forget",
+        "to remember"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\n« Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
+      "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent. When your coach proposes to remember a fact, it does so on a « To remember » card under its reply, one fact per card: « Apply » remembers it, « Edit before applying » lets you change its type or words, « Ignore » sets it aside, and « Undo » forgets it as long as you have not edited it. Where these cards are not offered yet, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items of 300 characters at most.\n\n« Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
     },
     {
       "id": "glossary-coach-proposal",

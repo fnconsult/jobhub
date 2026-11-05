@@ -1,18 +1,15 @@
-import { createApi } from "../api/web-api";
+import type { ApiFetch } from "../api/api";
 import { askCoach, type Live } from "./coach-reply";
 import { aiStep, replyEvent, streamedReply, type StreamedReply } from "./testing";
 
 /** The web app's `POST /api/coach`, answering with `stream`; what the app sent is `sent`. */
 function coachRoute(answer: (init: RequestInit) => Response | Promise<Response>) {
   const sent: { url: string; init: RequestInit; body: Record<string, unknown> }[] = [];
-  const api = createApi({
-    baseURL: "https://staging.jobbbox.ai",
-    cookie: async () => "session=1",
-    fetch: async (url, init = {}) => {
-      sent.push({ url, init, body: JSON.parse(String(init.body)) });
-      return answer(init);
-    },
-  });
+  // The app's call to the API (`useApi()`, src/api/api.tsx), which adds the platform's address, the session and the 426 gate.
+  const api: ApiFetch = async (url, init = {}) => {
+    sent.push({ url, init, body: JSON.parse(String(init.body)) });
+    return answer(init);
+  };
   return { api, sent };
 }
 
@@ -30,7 +27,7 @@ describe("reading the Coach's reply from its NDJSON stream", () => {
     stream.end();
     await asked;
 
-    expect(sent[0]!.url).toBe("https://staging.jobbbox.ai/api/coach");
+    expect(sent[0]!.url).toBe("/api/coach");
     expect(sent[0]!.init.method).toBe("POST");
     expect(new Headers(sent[0]!.init.headers).get("accept")).toBe("application/x-ndjson");
     expect(sent[0]!.body).toEqual({ conversationId: "c1", message: "Bonjour", route: "/conversations/c1", helpArticle: { id: "faq", title: "Quand ?" } });

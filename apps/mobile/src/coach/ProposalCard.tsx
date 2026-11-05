@@ -42,7 +42,7 @@ export function ProposalCard({ card, onChange }: { card: CoachProposalCard; onCh
   async function decide(decision: Decision) {
     setBusy(true);
     setProblem(null);
-    const response = await api.fetch(`/api/action-cards/${encodeURIComponent(card.id)}`, { method: "POST", body: JSON.stringify({ decision }) }).catch(() => null);
+    const response = await api(`/api/action-cards/${encodeURIComponent(card.id)}`, { method: "POST", body: JSON.stringify({ decision }) }).catch(() => null);
     const body = (await response?.json().catch(() => null)) as { card?: CoachProposalCard; error?: string } | null;
     setBusy(false);
     if (response?.ok && body?.card) return onChange(body.card);

@@ -65,7 +65,7 @@ export function SignalementForm({ start, path, onClose }: { start: SignalementSt
     const context = { message: text, path, textSize };
     const body = question ? { type: "question", ...context, attachedQuestion: question.question, attachedCoachReply: question.coachReply } : { type: kind, ...context };
     const headers = sentFrom ? { [APP_DEVICE_HEADER]: appDeviceHeader(sentFrom) } : undefined;
-    const response = await api.fetch("/api/signalements", { method: "POST", body: JSON.stringify(body), ...(headers ? { headers } : {}) }).catch(() => null);
+    const response = await api("/api/signalements", { method: "POST", body: JSON.stringify(body), ...(headers ? { headers } : {}) }).catch(() => null);
     setWorking(false);
     if (response?.ok) setSent(true);
     else setProblem(response?.status === 429 ? "tooMany" : "failed");

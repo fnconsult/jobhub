@@ -9,13 +9,13 @@ import { renderInApp } from "../testing";
 
 describe("Conversation's box", () => {
   it("has « + » to add a link or a document", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: fakeCoachWeb().api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
     expect(screen.getByRole("button", { name: "Joindre un lien ou un document" })).toBeOnTheScreen();
   });
 
   it("gives the box back once the network returns", async () => {
     const network = fakeNetwork(false);
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: fakeCoachWeb().api, network });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { ...fakeCoachWeb().client, network });
     await act(() => network.set(true));
     expect(screen.getByLabelText("Votre message")).toBeEnabled();
     expect(screen.getByRole("button", { name: "Envoyer" })).toBeEnabled();
@@ -36,14 +36,14 @@ describe("Conversation's thread, when the window changes (rotation, Split View, 
   beforeEach(() => scrollToEnd().mockClear());
 
   it("stays where the person scrolled it, back up in the thread", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: fakeCoachWeb().api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
     await scrollTo(300);
     await rewrap(2600);
     expect(scrollToEnd()).not.toHaveBeenCalled();
   });
 
   it("keeps the latest message in view when the person was reading it", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: fakeCoachWeb().api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
     await scrollTo(1500);
     await rewrap(2600);
     expect(scrollToEnd()).toHaveBeenCalled();

@@ -46,7 +46,7 @@ afterEach(() => jest.restoreAllMocks());
 async function renderApp(initialUrl: string) {
   const i18n = createI18n(DEFAULT_LOCALE);
   const Layout = () => (
-    <AppProviders i18n={i18n} initialMetrics={METRICS} device={{ storage: memoryStorage(), network: fakeNetwork(true) }} api={web.api}>
+    <AppProviders i18n={i18n} initialMetrics={METRICS} device={{ storage: memoryStorage(), network: fakeNetwork(true) }} {...web.client}>
       <PageConversationProvider>
         <Slot />
         <ActivityPane />

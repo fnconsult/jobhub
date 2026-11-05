@@ -1,4 +1,5 @@
 import { SECOND_STEP_PATH } from "@jobhub/shared";
+import { useQuery } from "@tanstack/react-query";
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { useSyncExternalStore } from "react";
 import { AppState, Text } from "react-native";
@@ -7,29 +8,46 @@ import { Control } from "../ui/Control";
 import { fakeWebView } from "../testing-device";
 import { createAppSession, type DevicePasskeys } from "./app-session";
 import { SessionGate, useSession } from "./SessionGate";
-import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "./testing";
+import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "./testing";
 
 const EMAIL = "marie.dupont@example.fr";
+const OTHER_EMAIL = "paul.martin@example.fr";
+
+/** How many times the signed-in page has read the web app; a read kept for good, as the legal steps' is. */
+let reads = 0;
 
 // Typing an address and a code key by key, on a loaded CI runner, takes longer than Jest's 5 s (the first test also pays
 // for rendering the app cold).
 jest.setTimeout(30_000);
 
 function SignedInPage() {
-  const { signOut } = useSession();
-  return <><Text>La conversation</Text><Control label="Se déconnecter" onPress={signOut} /></>;
+  const { signOut, recheck } = useSession();
+  const read = useQuery({ queryKey: ["legalSteps", "fr"], queryFn: async () => `Lecture n°${++reads}`, staleTime: Infinity });
+  return (
+    <>
+      <Text>La conversation</Text>
+      {read.data ? <Text>{read.data}</Text> : null}
+      <Control label="Se déconnecter" onPress={signOut} />
+      {/* What a web page does when it lands on /connexion or /compte/supprime (WebPage). */}
+      <Control label="Page de fin de session" onPress={recheck} />
+    </>
+  );
 }
 
 function setUp({ passkeys }: { passkeys?: (web: ReturnType<typeof fakeWebApp>) => DevicePasskeys } = {}) {
+  reads = 0;
   const web = fakeWebApp();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: passkeys?.(web) ?? web.deviceWithoutPasskey() });
+  /** What the device forgets once the session ends (the Tailored Documents downloaded, #695). */
+  const forgetOnDevice = jest.fn(async () => {});
+  const webViews = memoryWebViewCookies();
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: passkeys?.(web) ?? web.deviceWithoutPasskey(), webViewCookies: webViews });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
   const opened = { current: null as string | null, listeners: new Set<() => void>() };
   const subscribe = (listener: () => void) => (opened.listeners.add(listener), () => void opened.listeners.delete(listener));
   function App() {
     const link = useSyncExternalStore(subscribe, () => opened.current);
     return (
-      <SessionGate session={session} link={link}>
+      <SessionGate session={session} link={link} forgetOnDevice={forgetOnDevice}>
         <SignedInPage />
       </SessionGate>
     );
@@ -38,7 +56,7 @@ function setUp({ passkeys }: { passkeys?: (web: ReturnType<typeof fakeWebApp>) =
   const render = (link: string | null = null) => ((opened.current = link), renderInApp(<App />));
   /** The system opens the running app with `link`, as a universal link or an App Link does. */
   const openWith = (link: string) => act(async () => ((opened.current = link), opened.listeners.forEach((listener) => listener())));
-  return { web, session, render, openWith };
+  return { web, session, render, openWith, forgetOnDevice, webViews };
 }
 
 const LINK_ERROR = "Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.";
@@ -149,6 +167,7 @@ describe("SessionGate (#685)", () => {
     await userEvent.setup().press(await screen.findByRole("button", { name: "Se déconnecter" }));
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect(screen.queryByText(LINK_ERROR)).toBeNull();
     expect(web.sessionCount()).toBe(0);
   });
 
@@ -162,6 +181,106 @@ describe("SessionGate (#685)", () => {
     await backToForeground();
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+
+  it("forgets what the device kept for the session when signing out", async () => {
+    const { web, session, render, forgetOnDevice, webViews } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("La conversation");
+    // The sign-in started afresh, forgetting once already (#695): from here on, the sign-out's.
+    forgetOnDevice.mockClear();
+    // While the session stays open, nothing is forgotten, the session asked again included.
+    await backToForeground();
+    await screen.findByText("La conversation");
+    expect(forgetOnDevice).not.toHaveBeenCalled();
+
+    // Forgotten before the session is dropped (ADR-0076): a sign-out cut short leaves nothing without its session.
+    // A page of the web app was opened in a WebView, given the session's cookie (#689).
+    fakeWebView.cookies = [{ url: TEST_BASE_URL, name: "__Secure-better-auth.session_token", value: "cookie", path: "/", secure: true, httpOnly: true }];
+    const dropSession = session.signOut;
+    let forgottenBeforeSignOut: boolean | null = null;
+    const signOut = jest.spyOn(session, "signOut").mockImplementation(() => {
+      forgottenBeforeSignOut ??= forgetOnDevice.mock.calls.length > 0 && webViews.cookies().length === 0;
+      return dropSession();
+    });
+    await userEvent.setup().press(screen.getByRole("button", { name: "Se déconnecter" }));
+
+    await screen.findByLabelText("Votre adresse e-mail");
+    expect(signOut).toHaveBeenCalled();
+    expect(forgottenBeforeSignOut).toBe(true);
+  });
+
+  it("forgets what the device kept when it has no session to ask about, even with no network (#695)", async () => {
+    const { web, render, forgetOnDevice } = setUp();
+    web.setOffline(true);
+    await render();
+    await screen.findByLabelText("Votre adresse e-mail");
+    await waitFor(() => expect(forgetOnDevice).toHaveBeenCalled());
+  });
+
+  it("forgets what the device kept for the session once it is revoked on the web", async () => {
+    const { web, session, render, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("La conversation");
+
+    web.revokeAll(EMAIL);
+    await backToForeground();
+
+    await screen.findByLabelText("Votre adresse e-mail");
+    expect(forgetOnDevice).toHaveBeenCalled();
+  });
+
+  it("starts a sign-in afresh: what the device kept before it is forgotten first (#695)", async () => {
+    const { web, session, render, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("La conversation");
+    expect(forgetOnDevice).toHaveBeenCalled();
+  });
+
+  it("keeps what the device kept while the web app cannot be asked: the session may still be valid (#695)", async () => {
+    const { web, session, render, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await session.openLink(web.linkFor(EMAIL));
+    web.setOffline(true);
+    await render();
+    await screen.findByLabelText("Votre adresse e-mail");
+    expect(forgetOnDevice).not.toHaveBeenCalled();
+  });
+
+  it("forgets the read cache when a web page ends the session, so the next sign-in reads afresh (#689)", async () => {
+    const { web, session, render, openWith } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    expect(await screen.findByText("Lecture n°1")).toBeOnTheScreen();
+
+    // The account deleted, or signed out, in a WebView: the session is gone on the web app, then read again.
+    web.revokeAll(EMAIL);
+    await userEvent.setup().press(screen.getByRole("button", { name: "Page de fin de session" }));
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect(screen.queryByText(LINK_ERROR)).toBeNull();
+
+    await session.askLink(OTHER_EMAIL);
+    await openWith(web.linkFor(OTHER_EMAIL));
+    expect(await screen.findByText("Lecture n°2")).toBeOnTheScreen();
+    expect(screen.queryByText("Lecture n°1")).toBeNull();
+  });
+
+  it("forgets the read cache when the session is found revoked as the app comes back to the foreground", async () => {
+    const { web, session, render, openWith } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("Lecture n°1");
+
+    web.revokeAll(EMAIL);
+    await backToForeground();
+    await screen.findByLabelText("Votre adresse e-mail");
+
+    await session.askLink(OTHER_EMAIL);
+    await openWith(web.linkFor(OTHER_EMAIL));
+    expect(await screen.findByText("Lecture n°2")).toBeOnTheScreen();
   });
 
   describe("the email's code (#686)", () => {

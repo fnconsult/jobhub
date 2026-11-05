@@ -59,7 +59,7 @@ describe.each([
       return null;
     }
     await testing.renderInApp(<Probe />);
-    await rntl.act(() => call.fetch("/api/applications"));
+    await rntl.act(() => call("/api/applications"));
     expect(called.map((url) => new URL(url).origin)).toEqual([origin]);
   });
 

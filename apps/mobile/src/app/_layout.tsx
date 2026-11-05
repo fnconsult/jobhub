@@ -9,21 +9,26 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { initialWindowMetrics } from "react-native-safe-area-context";
+import { useProfile } from "../api/reads";
 import { AppLock } from "../app-lock/AppLock";
 import { AppProviders } from "../app-providers";
 import { startCrashReports } from "../crash-reports";
+import { createDocumentReader } from "../documents/document-reader";
+import { forgetDocuments, systemDocuments } from "../documents/system-documents";
 import { deviceI18n } from "../i18n";
+import { LegalSteps } from "../legal/LegalSteps";
 import { deviceNetwork, deviceStorage } from "../offline/device";
-import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
+import { NEW_CONVERSATION, pageFor, paths, profileIdOf } from "../navigation/pages";
+import { useIsHumanCoach } from "../navigation/human-coach";
 import { Sidebar } from "../navigation/Sidebar";
 import { useFreeConversations } from "../navigation/FreeConversations";
 import { ActivityPane } from "../coach/ActivityPane";
 import { ClearConversation } from "../coach/ClearConversation";
 import { PageConversationProvider } from "../coach/page-conversation";
 import { usePortraitOnPhones } from "../orientation";
-import { PanePlaceholder } from "../screens/PanePlaceholder";
-import { appApi, appSession } from "../session/instance";
+import { appFetch, appSession } from "../session/instance";
 import { SessionGate } from "../session/SessionGate";
+import { PaneContent } from "../screens/PaneContent";
 import { Shell } from "../shell/Shell";
 
 const DEVICE = { storage: deviceStorage, network: deviceNetwork };
@@ -37,7 +42,8 @@ const KEYBOARD = Platform.OS === "ios" ? "padding" : undefined;
 /**
  * The app's root: Inter loaded (its three weights alone, bundled with the app), the device's language, the system's
  * theme, the session (signed out, the sign-in screen; #685), the read cache kept on the device, the optional app lock over
- * the signed-in app (#702), then the shell around every page.
+ * the signed-in app (#702), the legal steps after sign-in (the CGU to accept, the privacy policy's change, the EU AI
+ * Consent; #689), then the shell around every page.
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
@@ -48,11 +54,13 @@ export default function RootLayout() {
   // Without Inter (it is bundled, so hardly ever), the system font draws the text rather than no app at all.
   if (!fontsLoaded && !fontError) return null;
   return (
-    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE} api={appApi}>
+    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE} session={appSession} fetch={appFetch}>
       <StatusBar style="auto" />
-      <SessionGate session={appSession} link={link}>
+      <SessionGate session={appSession} link={link} forgetOnDevice={forgetDocuments}>
         <AppLock>
-          <AppShell />
+          <LegalSteps>
+            <AppShell />
+          </LegalSteps>
         </AppLock>
       </SessionGate>
     </AppProviders>
@@ -72,13 +80,18 @@ function PagesInShell() {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
+  // A Profile's page is titled with its name, from the read its Fiche shows (#695); a Free conversation's with its title, as the drawer lists it.
+  const profile = useProfile(profileIdOf(pathname)).data;
   const free = useFreeConversations().data?.conversations;
-  const page = pageFor(pathname, t, (id) => free?.find((conversation) => conversation.id === id)?.title);
+  const page = pageFor(pathname, t, { profile, conversationTitle: (id) => free?.find((conversation) => conversation.id === id)?.title });
+  const isHumanCoach = useIsHumanCoach();
+  // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
+  const reader = useMemo(() => createDocumentReader(systemDocuments), []);
   return (
     <Shell
       page={page}
-      paneContent={page.pane === "activite" ? <ActivityPane /> : <PanePlaceholder pane={page.pane} />}
-      sidebar={(closeDrawer) => <Sidebar onNavigate={closeDrawer} />}
+      paneContent={page.pane === "activite" ? <ActivityPane /> : <PaneContent pathname={pathname} page={page} reader={reader} />}
+      sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
       actions={<ClearConversation />}
     >

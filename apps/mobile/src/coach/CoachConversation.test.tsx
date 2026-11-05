@@ -35,12 +35,12 @@ async function write(text: string) {
 
 describe("a Coach Conversation in the app", () => {
   it("says the coach is an AI before anything is written", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     expect(screen.getByText(/Je suis un coach IA, pas une personne/)).toBeOnTheScreen();
   });
 
   it("sends the message to the coach and shows the reply as its events come, « Arrêter » meanwhile", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await write("Aide-moi à préparer un entretien");
 
     expect(web.asked).toEqual([{ message: "Aide-moi à préparer un entretien", route: "/" }]);
@@ -61,7 +61,7 @@ describe("a Coach Conversation in the app", () => {
   });
 
   it("goes on in the conversation the first reply saved", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     const user = await write("Bonjour");
     await act(async () => web.reply("Bonjour !"));
     await screen.findByText("Bonjour !");
@@ -72,7 +72,7 @@ describe("a Coach Conversation in the app", () => {
   });
 
   it("is stopped by « Arrêter »: the question stays, « Réponse arrêtée » stands for the reply", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     const user = await write("Une longue question");
     await act(async () => web.named());
 
@@ -88,7 +88,7 @@ describe("a Coach Conversation in the app", () => {
   });
 
   it("says why there is no reply, as the web does, and gives the message back to send again", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await write("Bonjour");
     await act(async () => web.fail("provider_unavailable"));
 
@@ -98,7 +98,7 @@ describe("a Coach Conversation in the app", () => {
   });
 
   it("says a message too long could not be sent", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await write("Bonjour");
     await act(async () => web.fail(null, "invalid"));
     expect(await screen.findByText("Ce message n'a pas pu être envoyé. Raccourcissez-le et réessayez.")).toBeOnTheScreen();
@@ -117,14 +117,14 @@ describe("a Coach Conversation in the app", () => {
         },
       ],
     });
-    await renderInApp(<CoachConversation conversationId="c7" route="/conversations/c7" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId="c7" route="/conversations/c7" />, web.client);
     expect(await screen.findByText("Visez haut.")).toBeOnTheScreen();
     expect(screen.getByText("Comment négocier ?")).toBeOnTheScreen();
   });
 
   describe("with VoiceOver or TalkBack", () => {
     it("announces the reply once it is finished, not word by word", async () => {
-      await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+      await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
       await write("Bonjour");
       await act(async () => {
         web.pending().send(aiStep(1).started);
@@ -142,7 +142,7 @@ describe("a Coach Conversation in the app", () => {
     });
 
     it("never makes the reply a live region read as it changes", async () => {
-      await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+      await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
       await write("Bonjour");
       await act(async () => web.reply("Parlons de vos réussites."));
       await screen.findByText("Parlons de vos réussites.");
@@ -150,7 +150,7 @@ describe("a Coach Conversation in the app", () => {
     });
 
     it("announces a failure and a Stop too", async () => {
-      await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+      await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
       const user = await write("Bonjour");
       await user.press(button("Arrêter"));
       await screen.findByText(/Réponse arrêtée/);
@@ -160,7 +160,7 @@ describe("a Coach Conversation in the app", () => {
 
   describe("without network", () => {
     it("disables the box, « Envoyer » and « + », and says why", async () => {
-      await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api, network: fakeNetwork(false) });
+      await renderInApp(<CoachConversation conversationId={null} route="/" />, { ...web.client, network: fakeNetwork(false) });
       expect(box()).toBeDisabled();
       expect(button("Envoyer")).toBeDisabled();
       expect(button("Joindre un lien ou un document")).toBeDisabled();
@@ -170,7 +170,7 @@ describe("a Coach Conversation in the app", () => {
 
   describe("with a hardware keyboard", () => {
     it("sends with ⌘↩, withdrawn while the reply streams", async () => {
-      await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+      await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
       await userEvent.setup().type(box(), "Bonjour");
       await hardwareKeyboard.press("⌘↩");
       expect(web.asked).toHaveLength(1);
@@ -188,7 +188,7 @@ async function renderInShell(placement: { conversationId: string | null; route: 
     <Shell page={{ key: placement.route, title: "Accueil", pane: "activite" }} paneContent={null} sidebar={() => null} onNewConversation={() => {}}>
       <CoachConversation {...placement} />
     </Shell>,
-    { api: web.api },
+    web.client,
   );
 }
 
@@ -208,7 +208,7 @@ const PROPOSAL = {
 
 describe("the help in the conversation's box (ADR-0035)", () => {
   it("suggests Help Articles while the Candidate types, from the help bundled with the app", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await userEvent.setup().type(box(), "quota");
     expect(await screen.findByText("Dans l'aide, sans IA")).toBeOnTheScreen();
     expect(button(/^Quand mon quota se renouvelle-t-il \?, Question fréquente$/)).toBeOnTheScreen();
@@ -240,7 +240,7 @@ describe("the help in the conversation's box (ADR-0035)", () => {
   });
 
   it("asks « Cela répond à votre question ? » under each reply: « Oui » thanks, « Non » offers the team", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     const user = await write("Comment relancer ?");
     await act(async () => web.reply("Envoyez un court message."));
     await screen.findByText("Envoyez un court message.");
@@ -257,14 +257,14 @@ describe("the help in the conversation's box (ADR-0035)", () => {
   });
 
   it("offers the team at once under a reply the coach could not answer", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await write("Quel est le nom de mon conseiller ?");
     await act(async () => web.reply("Je ne sais pas.", { couldNotAnswer: true }));
     expect(await screen.findByText("Votre coach IA n'a pas cette réponse : l'équipe Jobbbox peut vous répondre.")).toBeOnTheScreen();
   });
 
   it("shows what the help has when the coach cannot reply", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await write("Quand mon quota se renouvelle ?");
     await act(async () => web.fail("provider_unavailable"));
     expect(await screen.findByText("Voici ce que l'aide propose :")).toBeOnTheScreen();
@@ -342,7 +342,7 @@ describe("the Signalement form, native, under the box", () => {
 
 describe("a Coach proposal under a reply", () => {
   it("is applied by the Candidate", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await write("J'ai un entretien");
     await act(async () => web.reply("Je vous propose de changer le statut.", { cards: [PROPOSAL] }));
     expect(await screen.findByText("Statut de la candidature · Responsable qualité · Aéroline")).toBeOnTheScreen();
@@ -351,7 +351,7 @@ describe("a Coach proposal under a reply", () => {
   });
 
   it("refused by a Plan Quota, says so as the web does, with nothing to buy in the app", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: web.api });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     await write("Calcule le Match Score");
     const prompt = {
       title: "Vous avez atteint la limite de votre offre",

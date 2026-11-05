@@ -190,7 +190,7 @@ test.describe("Acceptances des CGU (#510)", () => {
       await expect(page).toHaveURL(afterAccepting(server));
       const exported = await exportOf(page);
       expect(exported.acceptances).toEqual([
-        { text: "cgu", version: FIRST, url: `/legal/cgu/${FIRST}`, sha256: sha256(FIRST), channel: "premiere_connexion", acceptedAt: expect.any(String) },
+        { text: "cgu", version: FIRST, url: `/legal/cgu/${FIRST}`, sha256: sha256(FIRST), channel: "premiere_connexion", origin: "web", acceptedAt: expect.any(String) },
       ]);
       // The proof's pseudonym and Stripe's session never leave in the export.
       const [row, ...others] = await rowsOf("holder = $1", await holderOf(email));

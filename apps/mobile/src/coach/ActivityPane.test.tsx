@@ -38,7 +38,7 @@ const renderPage = (conversationId: string | null = null) =>
       <CoachConversation conversationId={conversationId} route="/" />
       <ActivityPane />
     </PageConversationProvider>,
-    { api: web.api },
+    web.client,
   );
 
 async function ask(text: string) {

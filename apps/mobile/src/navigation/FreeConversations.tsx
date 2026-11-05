@@ -50,7 +50,7 @@ export function FreeConversations({ onNavigate }: { onNavigate: () => void }) {
 
   async function rename() {
     if (!renaming) return;
-    const response = await api.fetch(address(renaming.id), { method: "PATCH", body: JSON.stringify({ title: renaming.title }) }).catch(() => null);
+    const response = await api(address(renaming.id), { method: "PATCH", body: JSON.stringify({ title: renaming.title }) }).catch(() => null);
     if (response?.ok) {
       setRenaming(null);
       setNotice(null);
@@ -65,8 +65,7 @@ export function FreeConversations({ onNavigate }: { onNavigate: () => void }) {
         text: t("coachPanel.delete"),
         style: "destructive",
         onPress: () =>
-          void api
-            .fetch(address(conversation.id), { method: "DELETE" })
+          void api(address(conversation.id), { method: "DELETE" })
             .catch(() => null)
             .then(async (response) => {
               if (!response?.ok && response?.status !== 404) return setNotice({ text: t("coachPanel.listErrors.action") });

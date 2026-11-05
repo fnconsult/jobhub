@@ -14,7 +14,7 @@
 import { isFailureReason, type Activity, type FailureReason, type Provenance, type StepLabel } from "@jobhub/shared";
 import type { coachProposalCardSchema } from "@jobhub/shared/reads";
 import type * as z from "zod";
-import type { Api } from "../api/web-api";
+import type { ApiFetch } from "../api/api";
 
 /** A saved Coach Conversation, as the stream and the drawer name it. */
 export type ConversationSummary = { id: string; title: string; lastMessageAt?: string };
@@ -77,7 +77,7 @@ type Event =
 const failure = (error: unknown, reason: unknown): CoachOutcome =>
   error === "invalid" ? { kind: "invalid" } : error === "not_found" ? { kind: "gone" } : { kind: "failed", reason: isFailureReason(reason) ? reason : null };
 
-export async function askCoach(api: Api, request: CoachRequest, { signal, onLive }: { signal?: AbortSignal; onLive?: (live: Live) => void } = {}): Promise<CoachOutcome> {
+export async function askCoach(api: ApiFetch, request: CoachRequest, { signal, onLive }: { signal?: AbortSignal; onLive?: (live: Live) => void } = {}): Promise<CoachOutcome> {
   const startedAt = Date.now();
   let conversation: ConversationSummary | null = null;
   let live: Live = { step: null, tokens: 0 };
@@ -108,7 +108,7 @@ export async function askCoach(api: Api, request: CoachRequest, { signal, onLive
   };
 
   try {
-    const response = await api.fetch("/api/coach", { method: "POST", headers: { accept: "application/x-ndjson" }, body: JSON.stringify(request), ...(signal ? { signal } : {}) });
+    const response = await api("/api/coach", { method: "POST", headers: { accept: "application/x-ndjson" }, body: JSON.stringify(request), ...(signal ? { signal } : {}) });
     if (!response.ok || !response.headers.get("content-type")?.startsWith("application/x-ndjson")) {
       const body = (await response.json().catch(() => ({}))) as { error?: unknown; reason?: unknown };
       return response.status === 401 ? failure(null, null) : failure(body.error, body.reason);

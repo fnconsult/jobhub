@@ -3,6 +3,7 @@ import { coachConversationResponseSchema } from "@jobhub/shared/reads";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApi } from "../api/api";
+import { read } from "../api/reads";
 import { readKey } from "../offline/read-cache";
 import { useConversationHandoff } from "./page-conversation";
 import { askCoach, type CoachProposalCard, type CoachReply, type ConversationContext, type ConversationSummary, type Live, type SubjectRef } from "./coach-reply";
@@ -112,8 +113,7 @@ export function useCoachConversation({
       conversationId !== null
         ? `/api/coach/conversations/${encodeURIComponent(conversationId)}`
         : `/api/coach/conversations?kind=${encodeURIComponent(subjectKind!)}&id=${encodeURIComponent(subjectId!)}`;
-    void api
-      .read(path, coachConversationResponseSchema)
+    void read(api, path, coachConversationResponseSchema)
       .then(({ conversation }) => {
         if (!shown || !conversation) return;
         const { messages, aiDisclosure, context, ...summary } = conversation;
@@ -242,7 +242,7 @@ export function useCoachConversation({
     const { conversation, status } = latest.current;
     if (status.kind === "sending") return false;
     if (conversation) {
-      const response = await api.fetch(`/api/coach/conversations/${encodeURIComponent(conversation.id)}`, { method: "DELETE" }).catch(() => null);
+      const response = await api(`/api/coach/conversations/${encodeURIComponent(conversation.id)}`, { method: "DELETE" }).catch(() => null);
       if (!response?.ok && response?.status !== 404) return false;
       void queries.invalidateQueries({ queryKey: readKey("coachConversations") });
     }

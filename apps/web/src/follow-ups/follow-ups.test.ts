@@ -358,6 +358,68 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
       expect(last.count).toBe(2);
       expect(await followUps.markSent(candidateId, applicationId, { version: last.version, origin })).toEqual({ ok: false, error: "limit" });
     });
+
+    it("marks one only of two concurrent applies from the same version: one Follow-up recorded, the other a conflict (#771)", async () => {
+      await setStatus("followed_up", day("2026-11-02")); // one sent already, by hand
+      const seen = (await followUps.sentOf(candidateId, applicationId))!;
+      expect(seen.count).toBe(1);
+
+      const both = await Promise.all([
+        followUps.markSent(candidateId, applicationId, { version: seen.version, origin }),
+        followUps.markSent(candidateId, applicationId, { version: seen.version, origin }),
+      ]);
+
+      expect(both.filter((each) => each.ok)).toHaveLength(1);
+      expect(both.filter((each) => !each.ok)).toEqual([{ ok: false, error: "conflict" }]);
+      expect(await followUps.sentOf(candidateId, applicationId)).toMatchObject({ count: 2, status: "followed_up" });
+      expect(await sentRows()).toHaveLength(2);
+    });
+
+    it("changes nothing when recording the Follow-up fails: no « Relancée » without its Follow-up (#771)", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      const seen = (await followUps.sentOf(candidateId, applicationId))!;
+      await database.query(`
+        CREATE FUNCTION refuse_follow_up() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'refused'; END $$;
+        CREATE TRIGGER refuse_follow_up BEFORE INSERT ON follow_up_sent FOR EACH ROW EXECUTE FUNCTION refuse_follow_up();
+      `);
+
+      await expect(followUps.markSent(candidateId, applicationId, { version: seen.version, origin })).rejects.toThrow("refused");
+
+      expect(await applications.statusOf(candidateId, applicationId)).toMatchObject({ status: "applied", origin: null });
+      expect(await followUps.sentOf(candidateId, applicationId)).toEqual(seen);
+    });
+
+    it("puts the status and the Follow-up rows back together, or neither: a status changed since leaves both (#771)", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      const marked = await followUps.markSent(candidateId, applicationId, { version: (await followUps.sentOf(candidateId, applicationId))!.version, origin });
+      // The status alone moved on (back to « Relancée » by hand, the same status): the version of the Follow-ups too.
+      await database.query(`UPDATE application SET status_changed_at = status_changed_at + interval '1 second' WHERE id = $1`, [applicationId]);
+      expect(await followUps.unmarkSent(candidateId, applicationId, marked.ok ? marked.undo : null)).toEqual({ ok: false, error: "conflict" });
+      expect(await applications.statusOf(candidateId, applicationId)).toMatchObject({ status: "followed_up" });
+      expect(await sentRows()).toHaveLength(1);
+    });
+
+    it("never holds a third Follow-up, nor the same one twice: the table refuses them (#771)", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      const insert = (number: number) => database.query(`INSERT INTO follow_up_sent (application_id, sent_at, number) VALUES ($1, now(), $2)`, [applicationId, number]);
+      await insert(1);
+      await expect(insert(1)).rejects.toMatchObject({ code: "23505" });
+      await insert(2);
+      await expect(insert(3)).rejects.toMatchObject({ code: "23514" });
+    });
+  });
+
+  it("numbers the Follow-ups recorded before #771 in the order they were sent, keeping every one, and can run again", async () => {
+    await database.query(`ALTER TABLE follow_up_sent DROP CONSTRAINT follow_up_sent_number_check; DROP INDEX follow_up_sent_number_idx; ALTER TABLE follow_up_sent DROP COLUMN number`);
+    for (const on of ["2026-11-12", "2026-11-05", "2026-11-20"]) {
+      await database.query(`INSERT INTO follow_up_sent (application_id, sent_at) VALUES ($1, $2)`, [applicationId, day(on)]);
+    }
+
+    await migrateFollowUps(database);
+    await migrateFollowUps(database);
+
+    const { rows } = await database.query(`SELECT number, sent_at FROM follow_up_sent WHERE application_id = $1 ORDER BY sent_at`, [applicationId]);
+    expect(rows.map((row) => row.number)).toEqual([1, 2, 3]);
   });
 
   it("never proposes on, or lets anyone else act on, a Candidate's Application", async () => {

@@ -1,5 +1,4 @@
 import { APP_DEVICE_HEADER } from "@jobhub/shared";
-import { createApi } from "../api/web-api";
 
 /**
  * The web app's `POST /api/coach` as a test drives it (apps/web/src/app/api/coach/route.ts): a reply streamed one JSON
@@ -195,7 +194,8 @@ export function fakeCoachWeb({
   };
 
   return {
-    api: createApi({ baseURL: "https://staging.jobbbox.ai", cookie: async () => "__Secure-better-auth.session_token=s1.sig", fetch }),
+    /** The app's calls to this web app, as `renderInApp` (src/testing.tsx) and `AppProviders` take them: its fetch and a session's cookie. */
+    client: { fetch: fetch as typeof globalThis.fetch, session: { cookie: async () => "__Secure-better-auth.session_token=s1.sig" } },
     fetch,
     asked,
     signalements,
@@ -241,3 +241,18 @@ export function fakeCoachWeb({
 }
 
 export type FakeCoachWeb = ReturnType<typeof fakeCoachWeb>;
+
+/**
+ * One web app at the network, as the app's calls to the API reach it (the global fetch, src/api/api.tsx): the Coach
+ * Conversation's routes and `coach`'s reads answered by `coach`, every other request (the session, the legal steps, the
+ * Coach space…) by `rest`, such as the session's fake web app (src/session/testing.ts).
+ */
+export function withCoach(coach: FakeCoachWeb, rest: typeof globalThis.fetch): typeof globalThis.fetch {
+  return (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const { pathname } = new URL(url);
+    const coachRoute =
+      pathname === "/api/coach" || pathname.startsWith("/api/coach/") || pathname.startsWith("/api/action-cards/") || pathname === "/api/signalements" || pathname in coach.reads;
+    return coachRoute ? coach.fetch(url, init) : rest(input, init);
+  };
+}

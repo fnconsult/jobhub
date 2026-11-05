@@ -1,8 +1,8 @@
+import CookieManager from "@preeternal/react-native-cookie-manager";
 import { fetch as expoFetch } from "expo/fetch";
 import * as SecureStore from "expo-secure-store";
 import { WEB_APP_URL } from "../web-app-url";
-import { createApi } from "../api/web-api";
-import { createAppSession, type SessionStorage } from "./app-session";
+import { createAppSession, type SessionStorage, type WebViewCookies } from "./app-session";
 import { devicePasskeys } from "./device-passkeys";
 
 /** The web app the app signs in to, as it calls it (src/web-app-url.ts). */
@@ -18,15 +18,21 @@ const storage: SessionStorage = {
   deleteItemAsync: (key) => SecureStore.deleteItemAsync(key, options),
 };
 
-/** The app's one session. */
-export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys });
+/**
+ * The WebViews' cookie store (#689): WKWebView's own on iOS (the WebKit store, not the one URLSession reads), the one
+ * Android shares between its WebViews and native requests. Emptied whole, both iOS stores included: the app's WebViews
+ * only ever show the web app.
+ */
+const webViewCookies: WebViewCookies = {
+  clear: async () => void (await CookieManager.clearAllStores()),
+};
+
+/** The app's one session, on the web app the app calls (web-app-url.ts), its second step by the device's passkeys. */
+export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys, webViewCookies });
 
 /**
- * The app's calls to the web app's API, with the session's cookie: `expo/fetch`, whose answer streams (the Coach's reply,
- * NDJSON), whatever EXPO_PUBLIC_USE_RN_FETCH says of the global fetch.
+ * The fetch the app's calls to the API go through (`ApiProvider`, src/api/api.tsx): `expo/fetch`, whose answer streams
+ * (the Coach's reply, NDJSON, #690), whatever EXPO_PUBLIC_USE_RN_FETCH says of the global fetch.
  */
-export const appApi = createApi({
-  baseURL: WEB_APP_URL,
-  cookie: () => appSession.cookie(),
-  fetch: (input, init) => expoFetch(input, init as Parameters<typeof expoFetch>[1]) as unknown as Promise<Response>,
-});
+export const appFetch: typeof globalThis.fetch = (input, init) =>
+  expoFetch(String(input), init as Parameters<typeof expoFetch>[1]) as unknown as Promise<Response>;

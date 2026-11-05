@@ -55,3 +55,10 @@ export function readAppDevice(header: string | null | undefined): AppDevice | nu
 export function appDeviceName({ version, system, systemVersion }: AppDevice): string {
   return `App Jobbbox${version ? ` ${version}` : ""}, ${system} ${systemVersion}`;
 }
+
+/**
+ * What the app's WebViews add to their user agent (react-native-webview's `applicationNameForUserAgent`, #689): the web
+ * app knows by it a page shown inside the app (Mon compte, the subscription, the Legal Texts, the Coach space) and shows
+ * it without its own Sidebar, and with no price and nothing to buy (App Store guideline 3.1.1, ADR-0076).
+ */
+export const APP_WEBVIEW_USER_AGENT = "JobbboxApp";

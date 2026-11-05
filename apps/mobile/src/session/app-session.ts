@@ -12,6 +12,10 @@
  * A session pending its second step (ADR-0075) takes it here (#688), on the web's own endpoints and with their limits:
  * an authenticator app's code, a backup code or a passkey of the account's own, which the system is asked for
  * (`passkeys`). Nothing of it is kept on the device; the session's cookie stays the same, no longer pending.
+ *
+ * The web pages the app opens in a WebView (src/web-pages: the second step's setup; Mon compte, the subscription, the
+ * Legal Texts, the Coach space, #689) are signed in by the same cookie, given to the WebViews' cookie store for the web
+ * app's own host alone (`webCookies`); signing out, or a session the web app no longer knows, empties that store too.
  */
 import { expoClient } from "@better-auth/expo/client";
 import {
@@ -68,6 +72,12 @@ export type SecondStepOutcome =
   | { ok: false; error: "invalid" | "cancelled" | "error" }
   | { ok: false; error: "locked"; retryAt: Date };
 
+/** The WebViews' cookie store (react-native-webview's: the WebKit store on iOS, the shared one on Android), #689. */
+export interface WebViewCookies {
+  /** Empties the store: no WebView sends anything of the session any more. */
+  clear(): Promise<void>;
+}
+
 /** The system's passkeys (src/session/device-passkeys.ts): the Keychain's on iOS, Credential Manager's on Android. */
 export interface DevicePasskeys {
   /** Whether the system can use a passkey on this device. */
@@ -87,10 +97,8 @@ export interface AppSession {
   enterCode(email: string, code: string): Promise<CodeOutcome>;
   /** The session as the web app reads it now; a session it no longer knows (revoked, expired) is forgotten here too. Throws offline. */
   current(): Promise<SessionState>;
-  /** Revokes the session on the web app, as signing out there does, and empties secure storage, reachable or not. */
+  /** Revokes the session on the web app, as signing out there does, and empties secure storage and the WebViews' cookies, reachable or not. */
   signOut(): Promise<void>;
-  /** The session's cookie, as the app's calls to the API send it (`createApi`); without a session, none of it. */
-  cookie(): Promise<string>;
   /** What the session pending its step can do; null when it has nothing pending. Throws when the web app cannot be reached. */
   secondStep(): Promise<SecondStepChoice | null>;
   /** The second step with the authenticator app's code or a backup code. */
@@ -101,9 +109,14 @@ export interface AppSession {
   webCookies(): Promise<{ name: string; value: string }[]>;
   /**
    * The session cookie, for a request to the web app made outside the session's own client (the app's calls to the
-   * API, src/api): the `Cookie` header Better Auth reads; empty when signed out.
+   * API, src/api; a Tailored Document's download, #695): the `Cookie` header Better Auth reads; empty when signed out.
    */
   cookie(): Promise<string>;
+  /**
+   * Empties the WebViews' cookie store (#689), as signing out and a session found gone do, the session itself kept: for
+   * SessionGate to forget, with the rest the device kept, before the session is dropped (ADR-0076).
+   */
+  forgetWebViews(): Promise<void>;
 }
 
 /** An endpoint's answer: its status, and its body. */
@@ -119,11 +132,14 @@ export function createAppSession({
   baseURL,
   storage,
   passkeys,
+  webViewCookies,
   fetch = globalThis.fetch,
 }: {
   baseURL: string;
   storage: SessionStorage;
   passkeys: DevicePasskeys;
+  /** The WebViews' cookie store, emptied with the session (#689); none where the app opens no WebView. */
+  webViewCookies?: WebViewCookies;
   fetch?: typeof globalThis.fetch;
 }): AppSession {
   const client = createAuthClient({
@@ -132,7 +148,7 @@ export function createAppSession({
     plugins: [expoClient({ scheme: APP_SCHEME, storagePrefix: STORAGE_PREFIX, storage, disableCache: true }), magicLinkClient(), emailOTPClient()],
     fetchOptions: { customFetchImpl: fetch },
   });
-  const forget = () => Promise.all(STORED.map((key) => storage.deleteItemAsync(key))).then(() => undefined);
+  const forget = () => Promise.all([...STORED.map((key) => storage.deleteItemAsync(key)), webViewCookies?.clear()]).then(() => undefined);
 
   async function current(): Promise<SessionState> {
     const { data, error } = await client.getSession();
@@ -223,6 +239,10 @@ export function createAppSession({
     current: () => serial(current),
 
     cookie: () => client.getCookie(),
+
+    forgetWebViews: async () => {
+      await webViewCookies?.clear();
+    },
 
     signOut: () =>
       serial(async () => {

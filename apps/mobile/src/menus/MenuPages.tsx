@@ -18,13 +18,13 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { AgendaList } from "../agenda/AgendaList";
-import { agendaSchema } from "../agenda/agenda-read";
 import { systemSheets } from "../agenda/system-sheets";
-import { useRead } from "../api/reads";
+import { useAgenda, useRead } from "../api/reads";
 import { CoachConversation, useCoachBox } from "../coach/CoachConversation";
 import type { SubjectRef } from "../coach/coach-reply";
 import { shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
+import { ReadState } from "../screens/ReadState";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -408,7 +408,7 @@ export function JobDigestsMenu() {
  */
 export function AgendaMenu() {
   const { t } = useTranslation();
-  const read = useRead("agenda", "/api/agenda", agendaSchema);
+  const read = useAgenda();
   return (
     <CoachConversation
       conversationId={null}
@@ -417,22 +417,10 @@ export function AgendaMenu() {
       introduction={<AppText>{t("agendaMenu.introduction")}</AppText>}
       card={
         <MenuCard title={t("agendaMenu.title")}>
-          <Loaded
-            read={read}
-            failed={
-              <View style={{ gap: space[2] }}>
-                <AppText tone="secondary">{t("agenda.loadError")}</AppText>
-                <Control
-                  label={t("errorPage.actions.retry")}
-                  onPress={() => void read.refetch()}
-                />
-              </View>
-            }
-          >
-            {(data) => (
-              <AgendaList agenda={data} sheets={systemSheets} scrolls={false} />
-            )}
-          </Loaded>
+          {/* Loading, failing and offline as every read shows them (ReadState), in the Agenda's own words. */}
+          <ReadState read={read} loading={t("agenda.loading")} failed={t("agenda.loadError")}>
+            {(data) => <AgendaList agenda={data} sheets={systemSheets} scrolls={false} />}
+          </ReadState>
         </MenuCard>
       }
       suggestions={

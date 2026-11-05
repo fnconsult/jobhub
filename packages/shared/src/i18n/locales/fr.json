@@ -1237,6 +1237,8 @@
       "current": "Votre offre",
       "manage": "Gérer mon abonnement",
       "manageHelp": "Changement d'offre, moyen de paiement ou annulation d'une résiliation programmée : sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "manageOnWeb": "Gérer mon abonnement sur jobbbox.ai",
+      "manageOnWebHelp": "Votre abonnement se gère sur jobbbox.ai, dans votre navigateur.",
       "invoices": "Factures et moyen de paiement",
       "invoicesHelp": "Téléchargez vos factures et changez de moyen de paiement sur la page sécurisée de notre prestataire de paiement, Stripe.",
       "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
@@ -5787,6 +5789,16 @@
     }
   },
   "mobile": {
+    "legalSteps": {
+      "checking": "Ouverture de votre compte…",
+      "back": "Retour",
+      "meanwhile": "Sans accepter, vous pouvez toujours télécharger vos données ou supprimer votre compte dans Mes données, et gérer votre abonnement :",
+      "later": "Plus tard"
+    },
+    "account": {
+      "intro": "Vos réglages de compte s'ouvrent ici tels que sur jobbbox.ai, déjà connectés.",
+      "allSections": "Toutes les rubriques"
+    },
     "offline": {
       "banner": "Hors ligne",
       "bannerDetail": "Vous voyez ce qui a été chargé en dernier. Rien ne s'enregistre avant le retour du réseau.",
@@ -5808,6 +5820,17 @@
     "openSampleSection": "Ouvrir une Section d'exemple",
     "sampleSection": "Section d'exemple",
     "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire.",
+    "documents": {
+      "title": "Documents",
+      "none": "Pas encore de document : demandez au coach un CV adapté ou une lettre de motivation.",
+      "updatedOn": "Modifié le {{date}}",
+      "open": "Ouvrir",
+      "share": "Partager",
+      "subject": "Objet : {{subject}}",
+      "readOnly": "Les documents se lisent, se partagent et se téléchargent dans l'app ; ils se modifient sur jobbbox.ai.",
+      "failed": "Le document n'a pas pu être ouvert. Vérifiez votre connexion et réessayez.",
+      "notFound": "Les documents de cette candidature sont introuvables : elle n'existe pas ou n'est pas la vôtre."
+    },
     "appSettings": "Réglages de l'app",
     "appLock": {
       "setting": "Verrouiller l'app",
@@ -5855,6 +5878,25 @@
       "notice": "Joints automatiquement : la page, la version de Jobbbox, votre appareil, la langue et la taille du texte. Ni capture d'écran, ni conversation avec votre coach.",
       "questionContext": "la page, la version de Jobbbox, votre appareil, la langue et la taille du texte",
       "device": "Appareil"
+    },
+    "profiles": {
+      "positioning": "Positionnement",
+      "contracts": "Contrats",
+      "sectors": "Secteurs",
+      "criterion": "{{label}} : {{value}}",
+      "masterCvVersion": "Version {{version}} · {{name}}",
+      "edit": "Modifier le profil",
+      "editTitle": "Modifier : {{name}}",
+      "editOnWeb": "Le profil se modifie sur jobbbox.ai : « Modifier le profil » ouvre sa page.",
+      "title": "Profil",
+      "none": "Pas encore de profil : créez-en un sur jobbbox.ai.",
+      "notFound": "Ce profil est introuvable : il n'existe pas ou n'est pas le vôtre."
+    },
+    "reads": {
+      "loading": "Chargement…",
+      "failed": "Ceci n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer",
+      "offline": "Hors ligne : ceci se chargera dès le retour du réseau."
     }
   },
   "coachProposals": {

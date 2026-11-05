@@ -1,16 +1,18 @@
 import { APP_ORIGIN, APP_SIGN_IN_PATH } from "@jobhub/shared";
 import { createAppSession } from "./app-session";
-import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "./testing";
+import { fakeWebView } from "../testing-device";
+import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "./testing";
 
 const EMAIL = "marie.dupont@example.fr";
 
 function setUp() {
   const web = fakeWebApp();
   const storage = memoryStorage();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage, fetch: web.fetch, passkeys: web.deviceWithoutPasskey() });
+  const webViews = memoryWebViewCookies();
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage, fetch: web.fetch, passkeys: web.deviceWithoutPasskey(), webViewCookies: webViews });
   /** Whether anything of a session is left in the Keychain or Keystore. */
   const keptOnDevice = () => [...storage.values.values()].some((value) => value.includes("session"));
-  return { web, storage, session, keptOnDevice };
+  return { web, storage, webViews, session, keptOnDevice };
 }
 
 describe("the app's session (ADR-0076, #685)", () => {
@@ -30,17 +32,6 @@ describe("the app's session (ADR-0076, #685)", () => {
 
     expect(keptOnDevice()).toBe(true);
     expect(await session.current()).toEqual({ kind: "signedIn", email: EMAIL });
-  });
-
-  it("gives the session's cookie for the app's calls to the API, none once signed out", async () => {
-    const { web, session } = setUp();
-    await session.askLink(EMAIL);
-    await session.openLink(web.linkFor(EMAIL));
-
-    expect(await session.cookie()).toMatch(/__Secure-better-auth\.session_token=session\d+\.signature/);
-
-    await session.signOut();
-    expect(await session.cookie()).not.toContain("session_token=session");
   });
 
   it("is signed out until then", async () => {
@@ -82,7 +73,7 @@ describe("the app's session (ADR-0076, #685)", () => {
     expect(await session.current()).toEqual({ kind: "secondStep" });
   });
 
-  it("gives the session cookie for the app's other requests to the web app (its calls to the API), none once signed out", async () => {
+  it("gives the session cookie for the app's other requests to the web app (its calls to the API, downloads), none once signed out", async () => {
     const { web, session } = setUp();
     await session.askLink(EMAIL);
     await session.openLink(web.linkFor(EMAIL));
@@ -91,6 +82,23 @@ describe("the app's session (ADR-0076, #685)", () => {
 
     await session.signOut();
     expect(await session.cookie()).toBe("");
+  });
+
+  it.each([
+    ["signing out", async ({ session }: ReturnType<typeof setUp>) => session.signOut()],
+    ["signing out offline", async ({ web, session }: ReturnType<typeof setUp>) => (web.setOffline(true), session.signOut())],
+    ["a session revoked from Mon compte on the web", async ({ web, session }: ReturnType<typeof setUp>) => (web.revokeAll(EMAIL), void (await session.current()))],
+  ])("empties the WebViews' cookies too on %s (#689)", async (_, end) => {
+    const set = setUp();
+    await set.session.askLink(EMAIL);
+    await set.session.openLink(set.web.linkFor(EMAIL));
+    // What a WebPage gives the WebViews before a page of the web app opens (src/web-pages).
+    fakeWebView.cookies = (await set.session.webCookies()).map((cookie) => ({ url: TEST_BASE_URL, ...cookie }));
+    expect(set.webViews.cookies()).not.toEqual([]);
+
+    await end(set);
+
+    expect(set.webViews.cookies()).toEqual([]);
   });
 
   it("revokes the session when signing out, and empties secure storage", async () => {

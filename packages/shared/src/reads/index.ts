@@ -304,6 +304,8 @@ export const TAILORED_DOCUMENT_KINDS = ["tailored_cv", "cover_letter", "outreach
  * `GET /api/applications/:id/documents`: the Application's Tailored Documents the Candidate has (the saved Tailored CV,
  * the Cover Letter, the Outreach Message), each in its language, with when it last changed and the addresses to download
  * it (`downloads`: as a PDF, the form a phone shows, and as Word; null for one that is not a file, the Outreach Message).
+ * `message`: the words of the one that is not a file, the Outreach Message, its subject (empty when it has none) and its
+ * text, for the app to show and share as they are; null for a file.
  */
 export const tailoredDocumentsResponseSchema = z.object({
   documentLanguage: z.enum(DOCUMENT_LANGUAGES),
@@ -313,6 +315,7 @@ export const tailoredDocumentsResponseSchema = z.object({
       language: z.enum(DOCUMENT_LANGUAGES),
       updatedAt: instant,
       downloads: z.object({ pdf: z.string(), docx: z.string() }).nullable(),
+      message: z.object({ subject: z.string(), text: z.string() }).nullable(),
     }),
   ),
 });
@@ -417,3 +420,6 @@ export type CoachConversationRead = z.infer<typeof coachConversationSchema>;
  */
 export const coachConversationResponseSchema = z.object({ conversation: coachConversationSchema.nullable() });
 export type CoachConversationResponse = z.infer<typeof coachConversationResponseSchema>;
+
+export * from "./legal-steps";
+export * from "./coach-space";

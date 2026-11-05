@@ -1,12 +1,14 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
+import { APP_ORIGIN } from "@jobhub/shared";
 import { screen, userEvent } from "@testing-library/react-native";
 import { Linking, Pressable, Text } from "react-native";
 import * as z from "zod";
 import { CoachConversation } from "../coach/CoachConversation";
+import { createAppSession } from "../session/app-session";
+import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "../session/testing";
 import { renderInApp } from "../testing";
 import { ApiProvider, useApi } from "./api";
 import { useRead } from "./reads";
-import { createApi } from "./web-api";
 
 const APP_STORE = "https://apps.apple.com/app/id6740000000";
 
@@ -14,7 +16,7 @@ const APP_STORE = "https://apps.apple.com/app/id6740000000";
 function Reader() {
   const api = useApi();
   return (
-    <Pressable role="button" onPress={() => void api.fetch("/api/applications").catch(() => {})}>
+    <Pressable role="button" onPress={() => void api("/api/applications").catch(() => {})}>
       <Text>Lire mes candidatures</Text>
     </Pressable>
   );
@@ -32,7 +34,7 @@ function server(status: number, body: unknown = {}) {
 
 async function read(fetch: typeof globalThis.fetch, cookie?: () => Promise<string>) {
   await renderInApp(
-    <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE} cookie={cookie}>
+    <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE} session={cookie ? { cookie } : undefined}>
       <Reader />
     </ApiProvider>,
   );
@@ -52,6 +54,47 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(screen.getByText("Lire mes candidatures")).toBeOnTheScreen();
   });
 
+  it("carry the session, as its cookie, so the web app reads them as the signed-in Candidate's", async () => {
+    const web = fakeWebApp();
+    const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: web.deviceWithoutPasskey() });
+    await session.askLink("marie.dupont@example.fr");
+    await session.openLink(web.linkFor("marie.dupont@example.fr"));
+    const { fetch, calls } = server(200, []);
+
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE} session={session}>
+        <Reader />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Lire mes candidatures" }));
+
+    expect(web.signedInAs(calls[0]!.headers)).toBe("marie.dupont@example.fr");
+  });
+
+  it("go to the platform alone: a path not under its address is refused before anything is sent", async () => {
+    const { fetch, calls } = server(200, []);
+    const refused: string[] = [];
+    const paths = ["//exports.example.net/api/x", "@exports.example.net/api/x", "api/applications", "https://exports.example.net/api/x"];
+    function Caller() {
+      const api = useApi();
+      const callAll = () => Promise.all(paths.map((path) => api(path).catch(() => void refused.push(path))));
+      return (
+        <Pressable role="button" onPress={() => void callAll()}>
+          <Text>Appeler</Text>
+        </Pressable>
+      );
+    }
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE}>
+        <Caller />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Appeler" }));
+
+    expect(refused).toEqual(paths);
+    expect(calls).toEqual([]);
+  });
+
   it("carry the session as its cookie, by hand and no other, since the system's cookie store does not hold it", async () => {
     const { fetch } = server(200, []);
     const session = "__Secure-better-auth.session_token=session1.signature";
@@ -59,6 +102,28 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     const init = (fetch as unknown as jest.Mock).mock.calls[0]![1] as RequestInit;
     expect(new Headers(init.headers).get("cookie")).toBe(session);
     expect(init.credentials).toBe("omit");
+  });
+
+  it("state the app's origin, which the web app trusts for a write as it does its own pages', a body sent as JSON (#689)", async () => {
+    const { fetch } = server(200, {});
+    function Writer() {
+      const api = useApi();
+      return (
+        <Pressable role="button" onPress={() => void api("/api/coach", { method: "POST", headers: { accept: "application/x-ndjson" }, body: "{}" }).catch(() => {})}>
+          <Text>Écrire</Text>
+        </Pressable>
+      );
+    }
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE}>
+        <Writer />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Écrire" }));
+    const headers = new Headers(((fetch as unknown as jest.Mock).mock.calls[0]![1] as RequestInit).headers);
+    expect(headers.get("origin")).toBe(APP_ORIGIN);
+    expect(headers.get("accept")).toBe("application/x-ndjson");
+    expect(headers.get("content-type")).toBe("application/json");
   });
 
   it("carry no cookie when signed out", async () => {
@@ -102,26 +167,21 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(openURL).toHaveBeenCalledWith(APP_STORE);
   });
 
-  /** The app as its root lays it out (src/app/_layout.tsx): the web app's API, `createApi`, given to the providers. */
-  const outdatedWebApp = () =>
-    createApi({
-      baseURL: "https://staging.jobbbox.ai",
-      cookie: async () => "",
-      fetch: server(426, { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION + 2 }).fetch,
-    });
+  /** The app as its root lays it out (src/app/_layout.tsx): the app's fetch (`appFetch`) given to the providers. */
+  const outdatedWebApp = () => ({ fetch: server(426, { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION + 2 }).fetch });
 
   it("answered 426 on a read of a screen, show « Mettre à jour Jobbbox »", async () => {
     function Applications() {
       const read = useRead("applications", "/api/applications", z.unknown());
       return <Text>{read.isError ? "Erreur de chargement" : "Mes candidatures"}</Text>;
     }
-    await renderInApp(<Applications />, { api: outdatedWebApp() });
+    await renderInApp(<Applications />, outdatedWebApp());
     expect(await screen.findByRole("heading", { name: "Mettre à jour Jobbbox" })).toBeOnTheScreen();
     expect(screen.queryByText("Erreur de chargement")).toBeNull();
   });
 
   it("answered 426 on a message to the coach, show « Mettre à jour Jobbbox »", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, { api: outdatedWebApp() });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, outdatedWebApp());
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Votre message"), "Bonjour");
     await user.press(screen.getByRole("button", { name: "Envoyer" }));

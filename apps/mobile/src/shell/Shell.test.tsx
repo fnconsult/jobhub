@@ -175,7 +175,7 @@ describe("Shell, when multitasking or a foldable changes the window", () => {
       <Shell page={application} paneContent={<Text>Contenu de la Fiche</Text>} sidebar={() => <Text>Mes candidatures</Text>} onNewConversation={() => {}}>
         <CoachConversation conversationId={null} route="/" />
       </Shell>,
-      { api: web.api },
+      web.client,
     );
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     await user.type(screen.getByLabelText("Votre message"), "Ma question");

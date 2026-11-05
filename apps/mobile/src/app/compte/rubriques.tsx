@@ -1,0 +1,7 @@
+import { webPaths } from "../../navigation/pages";
+import { SessionWebPage } from "../../web-pages/WebPageScreen";
+
+/** Every section of Mon compte, the web's page listing them (`/compte` on the web), inside the app (#689). */
+export default function AccountSections() {
+  return <SessionWebPage path={webPaths.accountSections} />;
+}

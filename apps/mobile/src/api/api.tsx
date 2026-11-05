@@ -1,22 +1,26 @@
 /**
  * The app's calls to the platform's API (ADR-0076): every screen reads and writes through `useApi()`, never `fetch`.
- * There is one client: the web app's `Api` (`createApi`, src/api/web-api.ts) the app is given (`appApi`), or, when none
- * is, one over the global fetch to the platform the build points at (src/web-app-url.ts, set per EAS profile in
- * eas.json). Each call states the API Version the app speaks and names the app as a mobile client.
  *
- * When the platform no longer serves that API Version it answers `426 Upgrade Required` (ADR-0063) to any call, a read
- * or a message to the coach: from then on the provider shows « Mettre à jour Jobbbox » in place of the app, with the
- * link to its store, and the call rejects with AppOutdatedError. The app is never let back in until it is updated: a
- * newer build is a new install.
+ * Each call goes to the platform the build points at (src/web-app-url.ts, set per EAS profile in eas.json), states the
+ * API Version the app speaks and names the app as a mobile client (`@jobhub/shared/api-version`), with the app's origin,
+ * which the web app trusts for a write as it trusts its own pages' (a native request has no Origin of its own; #689),
+ * and a JSON body unless the call says otherwise. When the platform no
+ * longer serves that API Version it answers `426 Upgrade Required` (ADR-0063): from then on the provider shows
+ * « Mettre à jour Jobbbox » in place of the app, with the link to its store, and the call rejects with AppOutdatedError.
+ * The app is never let back in until it is updated: a newer build is a new install.
  */
-import { APP_OUTDATED } from "@jobhub/shared/api-version";
+import { APP_ORIGIN } from "@jobhub/shared";
+import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
 import Constants from "expo-constants";
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { UpdateRequired } from "../screens/UpdateRequired";
+import type { AppSession } from "../session/app-session";
 import { WEB_APP_URL } from "../web-app-url";
 import { storePageFor } from "./store-page";
-import { apiOver, createApi, type Api } from "./web-api";
+
+/** A call to the API: a path under the platform's address (`/api/…`), as `fetch` takes it. */
+export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
 /** The platform answered 426: this build speaks an API Version it no longer serves. */
 export class AppOutdatedError extends Error {
@@ -28,47 +32,58 @@ export class AppOutdatedError extends Error {
 
 const UPGRADE_REQUIRED = 426;
 
-const ApiContext = createContext<Api | null>(null);
+
+const ApiContext = createContext<ApiFetch | null>(null);
 
 export function ApiProvider({
-  api,
   baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
   storePage = storePageFor(Platform.OS, Constants.expoConfig),
-  cookie,
+  session,
   children,
 }: {
-  /** The web app's API the app calls (`appApi`, `createApi`); without it, one over `fetch` to `baseUrl` with `cookie`. */
-  api?: Api;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
-  /** The session cookie to send, as `@better-auth/expo` gives it (empty when signed out); none outside a session. */
-  cookie?: () => Promise<string>;
   /** This build's store page, used when the platform's 426 names none. */
   storePage?: string;
+  /** The app's session, whose cookie every call carries (src/session/instance.ts in the app); none, no cookie. */
+  session?: Pick<AppSession, "cookie">;
   children: ReactNode;
 }) {
   const [outdated, setOutdated] = useState<{ storeUrl: string } | null>(null);
 
-  const gated = useMemo<Api>(() => {
-    const client = api ?? createApi({ baseURL: baseUrl, cookie: cookie ?? (async () => ""), fetch });
-    return apiOver(async (path, init) => {
-      const response = await client.fetch(path, init);
+  const api = useCallback<ApiFetch>(
+    async (path, init) => {
+      // A path of the platform's own: anything else (`//host`, `@host`, no leading slash) would change host, cookie included.
+      if (!/^\/(?!\/)/.test(path)) throw new Error(`Not a path of the platform: ${path}`);
+      const headers = new Headers(init?.headers);
+      headers.set(API_VERSION_HEADER, String(API_VERSION));
+      headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
+      headers.set("origin", APP_ORIGIN);
+      if (init?.body !== undefined && !headers.has("content-type")) headers.set("content-type", "application/json");
+      // `@better-auth/expo` keeps the session in the Keychain or Keystore, not the system's cookie store: its cookie is
+      // set here by hand, and no other (`credentials: "omit"`, #693).
+      const cookie = session ? await session.cookie() : "";
+      if (cookie) headers.set("cookie", cookie);
+      else headers.delete("cookie");
+      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
         setOutdated({ storeUrl: named ?? storePage });
         throw new AppOutdatedError();
       }
       return response;
-    });
-  }, [api, baseUrl, fetch, storePage, cookie]);
+    },
+    [baseUrl, fetch, storePage, session],
+  );
 
+  const value = useMemo(() => api, [api]);
   if (outdated) return <UpdateRequired storeUrl={outdated.storeUrl} />;
-  return <ApiContext.Provider value={gated}>{children}</ApiContext.Provider>;
+  return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
 }
 
-/** The app's calls to the API, under the 426 gate; only inside ApiProvider. */
-export function useApi(): Api {
+/** The app's calls to the API; only inside ApiProvider. */
+export function useApi(): ApiFetch {
   const api = useContext(ApiContext);
   if (!api) throw new Error("useApi() is called outside ApiProvider");
   return api;

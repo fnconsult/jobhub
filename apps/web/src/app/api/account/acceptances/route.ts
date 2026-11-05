@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAcceptances } from "@/acceptances/server";
+import { fromJobbboxApp } from "@/api-version";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 
 /**
  * The Candidate accepts a CGU version on the Acceptance screen (ADR-0062, #510). Body: { text: "cgu", version,
- * accepted: true }, the box they ticked; without it, nothing is recorded. Accepting again does nothing.
+ * accepted: true }, the box they ticked; without it, nothing is recorded. Accepting again does nothing. Its origin is
+ * `mobile` when the Jobbbox app sent it (its own Acceptance screen, #689), `web` otherwise.
  * 204 · 400 { error: "not_accepted" } · 401 · 403 · 409 { error: "stale" } (another version is the one to accept now)
  */
 export async function POST(request: Request) {
@@ -16,6 +18,6 @@ export async function POST(request: Request) {
   const { text, version, accepted } = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
   if (text !== "cgu" || typeof version !== "string" || accepted !== true) return NextResponse.json({ error: "not_accepted" }, { status: 400 });
 
-  const outcome = await getAcceptances().accept(candidate.id, version);
+  const outcome = await getAcceptances().accept(candidate.id, version, fromJobbboxApp(request.headers) ? "mobile" : "web");
   return outcome === "accepted" ? new Response(null, { status: 204 }) : NextResponse.json({ error: "stale" }, { status: 409 });
 }

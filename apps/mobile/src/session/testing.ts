@@ -1,7 +1,26 @@
-import { APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead } from "@jobhub/shared";
-import type { DevicePasskeys, SessionStorage } from "./app-session";
+import CookieManager from "@preeternal/react-native-cookie-manager";
+import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead } from "@jobhub/shared";
+import {
+  agendaResponseSchema,
+  applicationResponseSchema,
+  profileResponseSchema,
+  tailoredDocumentsResponseSchema,
+  type AgendaResponse,
+  type ApplicationResponse,
+  type LegalStepsResponse,
+  type ProfileResponse,
+  type ProfilesResponse,
+  type ShownLegalTextRead,
+  type TailoredDocumentsResponse,
+} from "@jobhub/shared/reads";
+import { fakeWebView, type WebViewCookie } from "../testing-device";
+import type { DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";
+
+const NO_AGENDA: AgendaResponse = { toSchedule: [], days: [] };
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
+/** The reads of the account's own the fake answers with its writes (#689), not with the Candidate's data (#695). */
+const ACCOUNT_READS = new Set(["/api/coach-space", "/api/account/legal-steps"]);
 const COOKIE = "__Secure-better-auth.session_token";
 
 /** Secure storage as the Keychain or Keystore keeps it, in memory: what the app leaves on the device is `values`. */
@@ -17,11 +36,43 @@ export function memoryStorage(): SessionStorage & { values: Map<string, string> 
   };
 }
 
+/**
+ * The WebViews' cookie store, as the app's instance empties it (src/session/instance.ts), on the fake device's
+ * (src/testing-device.ts): `cookies()` is what a WebView of the app would send, with its address.
+ */
+export function memoryWebViewCookies(): WebViewCookies & { cookies: () => WebViewCookie[] } {
+  return {
+    cookies: () => fakeWebView.cookies,
+    clear: async () => void (await CookieManager.clearAllStores()),
+  };
+}
+
 interface Session {
   email: string;
   pending: boolean;
   /** The passkey challenge last asked in this session: it serves one answer. */
   challenge?: string;
+}
+
+/** A Legal Text Version as `GET /api/account/legal-steps` shows it, in French. */
+export function shownLegalText(text: "cgu" | "confidentialite", version: string): ShownLegalTextRead {
+  return {
+    version,
+    url: `/legal/${text}/${version}`,
+    title: text === "cgu" ? "Conditions générales d'utilisation" : "Politique de confidentialité",
+    translation: false,
+    inBrief: [text === "cgu" ? "Jobbbox vous aide à chercher un emploi." : "Vos données restent dans l'Union européenne."],
+    sections: [{ title: "1. Objet", body: "Jobbbox **aide** les Candidats.\n\n- un coach IA\n- des coachs humains" }],
+  };
+}
+
+/** What a Candidate's request to the web app's API recorded: the route, its body, and the client it named. */
+interface Recorded {
+  email: string;
+  method: string;
+  path: string;
+  body: unknown;
+  client: string | null;
 }
 
 /** An account's Two-step verification: its factors, or none yet when it must set one up (`setup`). */
@@ -40,12 +91,25 @@ const LOCK_MINUTES = 15;
 const APP_CODE = "246810";
 
 /**
+ * What a Candidate has on the web app, as its reads answer it (#684, `@jobhub/shared/reads`): their Profiles, an
+ * archived one included, and their Applications, each with its Tailored Documents.
+ */
+export interface CandidateData {
+  profiles?: ProfileResponse[];
+  /** Their Agenda (#693); an empty one when not given. */
+  agenda?: AgendaResponse;
+  applications?: { application: ApplicationResponse; documents: TailoredDocumentsResponse }[];
+}
+
+/**
  * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts and
  * sign-in-code.test.ts prove the real ones): the magic link asked from the app's origin alone, the session as a cookie,
  * a session pending its second step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a
  * link no longer valid redirected to the home page; the email's code (#686), 5 tries, once, spending its link. The
  * second step (#688) as its endpoints answer it (two-step-verification/index.ts and its routes prove the real ones):
- * what the session has to do, a code, a passkey of the account's own, the lock.
+ * what the session has to do, a code, a passkey of the account's own, the lock. And the API routes of #689: whether the
+ * person is a Human Coach, the legal steps after sign-in and their answers (a write refused without the app's origin),
+ * each recorded in `recorded`.
  */
 export function fakeWebApp() {
   const sessions = new Map<string, Session>();
@@ -54,8 +118,18 @@ export function fakeWebApp() {
   /** The code each address's last email carries, and the wrong tries made with it. */
   const codes = new Map<string, { code: string; tries: number }>();
   const emailed: { email: string; callbackURL: string; link: string; code: string }[] = [];
+  /** Each Candidate's data, by their email, parsed with the reads' own schemas so a test cannot give the app what the web app would never answer. */
+  const data = new Map<string, Required<CandidateData>>();
+  /** What the app read of the Candidate's reads (`/api/*` but `/api/auth/*`), its path and query, and with whose session. */
+  const reads: { path: string; as: string | null }[] = [];
+  /** A read answered `status` instead, `times` in a row, as a server failing would. */
+  const failing = new Map<string, { status: number; times: number }>();
   let next = 0;
   let offline = false;
+  const humanCoaches = new Set<string>();
+  const steps = new Map<string, LegalStepsResponse>();
+  const recorded: Recorded[] = [];
+  const stepsOf = (email: string): LegalStepsResponse => steps.get(email) ?? { acceptance: null, privacyChange: null, euAiConsentGiven: true };
 
   const json = (body: unknown, status = 200, setCookie?: string) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...(setCookie ? { "set-cookie": setCookie } : {}) } });
@@ -70,6 +144,30 @@ export function fakeWebApp() {
     sessions.set(token, { email, pending: twoStep.has(email) });
     return json({ token, user: { email } }, 200, `${COOKIE}=${token}.signature; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`);
   };
+
+  /**
+   * The Candidate's reads, as the routes under apps/web/src/app/api answer them: 401 without a session, 404 for what is
+   * not the Candidate's; `GET /api/profiles` leaves the Archived Profiles out, `GET /api/profiles/:id` does not.
+   */
+  function read(path: string, email: string | null): Response {
+    if (!email) return json({ error: "unauthorized" }, 401);
+    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [] };
+    const notFound = json({ error: "not_found" }, 404);
+    if (path === "/api/agenda") return json(mine.agenda);
+    if (path === "/api/profiles") return json(mine.profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name })) satisfies ProfilesResponse);
+    const profile = /^\/api\/profiles\/([^/]+)$/.exec(path);
+    if (profile) {
+      const found = mine.profiles.find((candidate) => candidate.id === decodeURIComponent(profile[1]!));
+      return found ? json(found) : notFound;
+    }
+    const application = /^\/api\/applications\/([^/]+)(\/documents)?$/.exec(path);
+    if (application) {
+      const found = mine.applications.find((candidate) => candidate.application.id === decodeURIComponent(application[1]!));
+      if (!found) return notFound;
+      return json(application[2] ? found.documents : found.application);
+    }
+    return notFound;
+  }
 
   async function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     if (offline) throw new TypeError("Network request failed");
@@ -121,6 +219,18 @@ export function fakeWebApp() {
       if (request.method !== "GET" && !fromApp) return json({ error: "forbidden" }, 403);
       return answerSecondStep(request, url.pathname, found.session);
     }
+    // The Candidate's reads: a session pending its second step reaches none (above), as on the web app (#688). The
+    // account's own (the Espace coach entry, the legal steps; #689) are answered with its writes, below.
+    if (url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/auth/") && request.method === "GET" && !ACCOUNT_READS.has(url.pathname)) {
+      const as = found?.session?.email ?? null;
+      reads.push({ path: `${url.pathname}${url.search}`, as });
+      const failure = failing.get(url.pathname);
+      if (failure) {
+        if (--failure.times === 0) failing.delete(url.pathname);
+        return json({ error: "internal_error" }, failure.status);
+      }
+      return read(url.pathname, as);
+    }
     if (path === "/get-session" && request.method === "GET") {
       if (!found?.session) return json(null, 200, found ? cleared : undefined);
       return json({ session: { id: found.token, expiresAt: new Date(Date.now() + 86_400_000).toISOString() }, user: { id: found.session.email, email: found.session.email, name: "" } });
@@ -129,6 +239,30 @@ export function fakeWebApp() {
       if (!fromApp) return json({ message: "Invalid origin" }, 403);
       if (found) sessions.delete(found.token);
       return json({ success: true }, 200, cleared);
+    }
+    if (url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/auth/")) {
+      const email = found?.session?.email;
+      if (!email) return json({ error: "unauthorized" }, 401);
+      if (request.method !== "GET" && request.headers.get("origin") !== APP_ORIGIN) return json({ error: "forbidden" }, 403);
+      const body = request.method === "GET" ? undefined : await request.text().then((text) => (text ? JSON.parse(text) : undefined));
+      recorded.push({ email, method: request.method, path: url.pathname, body, client: request.headers.get(API_CLIENT_HEADER) });
+      const current = stepsOf(email);
+      if (url.pathname === "/api/coach-space" && request.method === "GET") return json({ humanCoach: humanCoaches.has(email) });
+      if (url.pathname === "/api/account/legal-steps" && request.method === "GET") return json(current);
+      if (url.pathname === "/api/account/acceptances" && request.method === "POST") {
+        const { version } = body as { version: string };
+        if (current.acceptance?.version !== version) return json({ error: "stale" }, 409);
+        steps.set(email, { ...current, acceptance: null });
+        return new Response(null, { status: 204 });
+      }
+      if (url.pathname.startsWith("/api/privacy-change/") && request.method === "DELETE") {
+        steps.set(email, { ...current, privacyChange: null });
+        return new Response(null, { status: 204 });
+      }
+      if (url.pathname === "/api/account/eu-ai-consent" && request.method === "PUT") {
+        steps.set(email, { ...current, euAiConsentGiven: true });
+        return json({ givenAt: new Date().toISOString() });
+      }
     }
     if (url.pathname === "/") return new Response("<!doctype html><title>Jobbbox</title>", { status: 200, headers: { "content-type": "text/html" } });
     return json({ message: "Not found" }, 404);
@@ -177,6 +311,8 @@ export function fakeWebApp() {
 
   return {
     fetch,
+    /** The web app's address, as the app reaches it. */
+    baseURL: TEST_BASE_URL,
     emailed,
     /** The link the last email to `email` carries. */
     linkFor: (email: string) => emailed.findLast((sent) => sent.email === email)!.link,
@@ -210,8 +346,28 @@ export function fakeWebApp() {
       for (const [token, session] of sessions) if (session.email === email) sessions.delete(token);
     },
     sessionCount: () => sessions.size,
+    /** `email` is an active Human Coach (ADR-0016), or no longer one. */
+    humanCoach: (email: string, active = true) => void (active ? humanCoaches.add(email) : humanCoaches.delete(email)),
+    /** What the web app asks of `email` after sign-in (nothing by default, the EU AI Consent given). */
+    asks: (email: string, asked: Partial<LegalStepsResponse>) => void steps.set(email, { ...stepsOf(email), ...asked }),
+    /** The API calls the app made, oldest first. */
+    recorded,
     /** Whose session a request with `headers` carries, as the web app reads its cookie: the email, or null for none it knows. */
     signedInAs: (headers: HeadersInit | undefined) => sessionOf(new Headers(headers))?.session?.email ?? null,
     setOffline: (value: boolean) => void (offline = value),
+    /** What `email`'s Candidate has on the web app, as its reads answer it. */
+    has: (email: string, candidate: CandidateData) =>
+      void data.set(email, {
+        profiles: (candidate.profiles ?? []).map((profile) => profileResponseSchema.parse(profile)),
+        agenda: agendaResponseSchema.parse(candidate.agenda ?? NO_AGENDA),
+        applications: (candidate.applications ?? []).map(({ application, documents }) => ({
+          application: applicationResponseSchema.parse(application),
+          documents: tailoredDocumentsResponseSchema.parse(documents),
+        })),
+      }),
+    /** The Candidate's reads the app made, in order, and with whose session. */
+    reads,
+    /** The next `times` calls to the read at `path` fail with `status`, as a server error would. */
+    failNext: (path: string, status = 500, times = 1) => void failing.set(path, { status, times }),
   };
 }

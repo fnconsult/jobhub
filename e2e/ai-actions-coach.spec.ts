@@ -154,7 +154,8 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
     });
 
     // Offered: the index and the six reads, the Agenda's proposals (#718), the Candidatures proposals (#716), then the Profil group's
-    // proposals (#719), a Profile In view being the Candidate's own; with nothing that copies text but the proposals that may.
+    // proposals (#719) and the Recherches d'offres and Job Digests proposals (#720), a Profile In view being the Candidate's own;
+    // with nothing that copies text but the proposals that may.
     expect(r.offered[0]).toEqual([
       "list_objects",
       "read_profile",
@@ -175,6 +176,9 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "propose_profile_archive",
       "propose_profile_restore",
       "propose_coach_memory",
+      "propose_job_search",
+      "propose_job_search_stop",
+      "propose_job_digest_frequency",
     ]);
     // The reply cites the Application read: its Job Offer, its status, its Interview; never Marie's identity.
     const [cited, archived, someoneElse] = r.replies;

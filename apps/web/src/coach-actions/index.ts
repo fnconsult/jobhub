@@ -41,6 +41,8 @@ import { LOCAL_ROUTE_GROUPS, localRouteTool, type ExternalApiLog, type LocalRout
 import * as z from "zod";
 import type { UpgradePrompt } from "../billing/upgrade-prompt";
 import { asData, estimateTokens, type CoachFocus } from "../coach/context";
+import type { CvChange } from "../tailored-cv/changes";
+import { MASTER_CV_EDIT_KINDS, MASTER_CV_EDIT_SECTIONS, type MasterCvEdit } from "../profiles/master-cv-proposal";
 import type { FieldError } from "../validation";
 import { fitted } from "./reads";
 
@@ -86,15 +88,21 @@ export interface ProposalField {
   options?: { value: string; label: string }[];
 }
 
+/** What a proposal's card can be about: an object In view can be (CoachFocus), or the Candidate's Coach Memory (#719). */
+export type ProposalTargetKind = CoachFocus["kind"] | "coach_memory";
+export const PROPOSAL_TARGET_KINDS = ["profile", "application", "job_offer", "job_search", "job_digest", "agenda", "coach_memory"] as const satisfies readonly ProposalTargetKind[];
+
 /**
  * What a proposing Coach Action prepares, for its Action Card in the thread (#715), in the Candidate's language: the
- * object it changes (its name and page), what changes on it, before → after, what applying it sends to the domain module
- * (`value`, as the page's form sends it, and that form's `fields`), the object's version seen, and the Plan Quota it uses
- * (what it will consume; `prompt`, the Upgrade prompt, when there is no room). `also`: what else applying it changes on
- * the same object, listed on the same card (#718: an Interview added moves its Application to « Entretien »).
+ * object it changes (its name and page; no page, `href` empty, for the Coach Memory), what changes on it, before → after,
+ * what applying it sends to the domain module (`value`, as the page's form sends it, and that form's `fields`), the
+ * object's version seen, and the Plan Quota it uses (what it will consume; `prompt`, the Upgrade prompt, when there is no
+ * room). `also`: what else applying it changes on the same object, listed on the same card (#718: an Interview added moves
+ * its Application to « Entretien »). A Master CV change (#719, ADR-0006) has no one-click « Appliquer »: its `review` holds the
+ * changes the Candidate reviews one by one in the Work Pane, and the edits they come from; the accepted ones are sent explicitly.
  */
 export interface ProposedChange {
-  target: { kind: CoachFocus["kind"]; id: string; name: string; href: string };
+  target: { kind: ProposalTargetKind; id: string; name: string; href: string };
   what: string;
   before: string;
   after: string;
@@ -103,10 +111,32 @@ export interface ProposedChange {
   fields: ProposalField[];
   version: string;
   quota?: { label: string; prompt?: UpgradePrompt };
+  review?: { changes: CvChange[]; edits: MasterCvEdit[] };
 }
 
+const cvChangeSchema = z.object({
+  id: z.string(),
+  section: z.enum(["headline", "summary", "experience", "education", "skills", "languages"]),
+  kind: z.enum(["rephrased", "reordered", "cut", "added"]),
+  item: z.string().optional(),
+  master: z.string().optional(),
+  tailored: z.string().optional(),
+  fromOffer: z.array(z.string()).optional(),
+});
+
+/** A Master CV edit as the AI Coach writes it (#719): the arguments of `propose_master_cv_changes`, kept with its card. */
+export const masterCvEditSchema = z.object({
+  kind: z.enum(MASTER_CV_EDIT_KINDS),
+  section: z.enum(MASTER_CV_EDIT_SECTIONS),
+  item: z.string().trim().min(1).max(300).optional(),
+  text: z.string().max(2_000).optional(),
+  title: z.string().max(200).optional(),
+  description: z.string().max(4_000).optional(),
+  order: z.array(z.string().trim().min(1).max(300)).max(50).optional(),
+});
+
 export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
-  target: z.object({ kind: z.enum(["profile", "application", "job_offer", "job_search", "job_digest", "agenda"]), id: z.string(), name: z.string(), href: z.string() }),
+  target: z.object({ kind: z.enum(PROPOSAL_TARGET_KINDS), id: z.string(), name: z.string(), href: z.string() }),
   what: z.string(),
   before: z.string(),
   after: z.string(),
@@ -127,13 +157,18 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
       prompt: z.object({ title: z.string(), message: z.string(), upgradeTo: z.any(), action: z.string().nullable(), href: z.string() }).optional(),
     })
     .optional(),
+  review: z.object({ changes: z.array(cvChangeSchema), edits: z.array(masterCvEditSchema) }).optional(),
 }) as unknown as z.ZodType<ProposedChange>;
 
-/** Who applies a proposal, and from which card: the object keeps it as its Origin. */
+/**
+ * Who applies a proposal, and from which card: the object keeps it as its Origin. `accepted`: for a proposal with a
+ * `review` (a Master CV change), the ids of the changes the Candidate accepted, always sent, never inferred (ADR-0006).
+ */
 export interface ProposalCall {
   candidateId: string;
   cardId: string;
   at: Date;
+  accepted?: readonly string[];
 }
 
 /** `undo`: what « Annuler » needs to put the state before back; none for a launched action. */
@@ -148,8 +183,13 @@ export type UndoProposalResult = { ok: true } | { ok: false; error: "conflict" |
  * the reply's Provenance sites) and whether it holds text the Candidate did not write (`untrusted`); or `not_found`.
  * `proposes: false`: a proposing one found nothing to propose (the Application exists already, the status is the one asked):
  * its data tells the model why, and no card is made (#716).
+ * `refused` (#719): a proposal that cannot be made as asked (an item the Master CV does not have, a sixth location), with
+ * why, in our own words, for the model.
  */
-export type CoachActionResult = { ok: true; data: unknown; pages?: readonly string[]; untrusted?: boolean; proposes?: false } | { ok: false; error: "not_found" };
+export type CoachActionResult =
+  | { ok: true; data: unknown; pages?: readonly string[]; untrusted?: boolean; proposes?: false }
+  | { ok: false; error: "not_found" }
+  | { ok: false; error: "refused"; reason: string };
 
 export interface CoachAction<Schema extends z.ZodObject = z.ZodObject> {
   /** 1 to 64 letters, digits, `_` or `-`, as every provider takes it. */
@@ -358,6 +398,10 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         } catch (error) {
           record(action, started, null);
           throw error;
+        }
+        if (!result.ok && result.error === "refused") {
+          record(action, started, 422);
+          return { content: result.reason, error: true };
         }
         if (!result.ok) {
           record(action, started, 404);

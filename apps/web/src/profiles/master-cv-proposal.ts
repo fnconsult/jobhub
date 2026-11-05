@@ -25,7 +25,7 @@ type ListSection = Exclude<(typeof MASTER_CV_EDIT_SECTIONS)[number], "headline" 
  *  - `highlight` an item: put forward, first of its section.
  * `item` names an item as the Master CV writes it: a job by its title or employer, a diploma by its degree, a skill, a language.
  */
-export interface MasterCvEdit {
+export type MasterCvEdit = {
   kind: (typeof MASTER_CV_EDIT_KINDS)[number];
   section: (typeof MASTER_CV_EDIT_SECTIONS)[number];
   item?: string;
@@ -33,7 +33,7 @@ export interface MasterCvEdit {
   title?: string;
   description?: string;
   order?: string[];
-}
+};
 
 /** Why edits make no proposal: an item the Master CV does not have, a figure it does not state, an edit that does not read, or nothing changed. */
 export type MasterCvReviewRefusal =

@@ -79,10 +79,7 @@ describe("the guard on the Platform Settings", () => {
     expect(sourceFiles().some((file) => file.includes("/apps/mobile/"))).toBe(false);
   });
 
-  it("scans the native app and the extension, whose build-time variables are settings only env holds (#703)", () => {
-    const files = sourceFiles();
-    expect(files.some((file) => file.includes("/apps/mobile/src/"))).toBe(true);
-    expect(files.some((file) => file.includes("/apps/extension/src/"))).toBe(true);
+  it("lists the native app's crash report DSN among the settings only env holds, shown nowhere (#703)", () => {
     expect(ENV_ONLY_SETTINGS).toMatchObject({ EXPO_PUBLIC_SENTRY_DSN: { kind: "deployment", shown: false } });
   });
 

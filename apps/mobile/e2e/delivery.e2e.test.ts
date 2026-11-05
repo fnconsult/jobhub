@@ -55,7 +55,8 @@ describe("EAS Build profiles", () => {
     const readers = (readdirSync(src, { recursive: true }) as string[])
       .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
       .filter((file) => /process\.env\.EXPO_PUBLIC_|webOrigin/.test(readFileSync(join(src, file), "utf8")));
-    expect(readers).toEqual(["web-app-url.ts"]);
+    // The crash reports DSN (#703) is the one other build-time variable: EAS secret or apps/mobile/.env, never a profile value.
+    expect(readers.sort()).toEqual(["app/_layout.tsx", "web-app-url.ts"]);
     expect(json("apps", "mobile", "app.json").expo.extra?.webOrigin).toBeUndefined();
   });
 

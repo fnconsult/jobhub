@@ -3,6 +3,7 @@ import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getProfiles } from "@/profiles/server";
+import { getPushNotifications } from "@/push-notifications/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 import { createHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
@@ -16,6 +17,7 @@ export function getHumanCoaches(): HumanCoaches {
     applications: getApplications(),
     tailoredDocuments: getTailoredDocuments(),
     tailoredCvs: getTailoredCvs(),
+    push: getPushNotifications(),
   });
   return instance;
 }

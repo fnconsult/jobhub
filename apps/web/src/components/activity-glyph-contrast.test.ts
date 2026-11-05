@@ -40,3 +40,27 @@ describe("the Activity glyph's contrast (ADR-0009), every Activity's, `act`'s to
     }
   });
 });
+
+/** The colour token a rule of `selector` sets for `property`, as `var(--color-…)`. */
+const colourOf = (selector: string, property: "background" | "color") => {
+  const rule = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, each]) => each!.split(",").some((part) => part.trim() === selector));
+  return new RegExp(`(?:^|;|\\s)${property}\\s*:\\s*var\\(--color-([a-z-]+)\\)`).exec(rule?.[2] ?? "")?.[1] ?? null;
+};
+const TOKEN: Record<string, keyof typeof designTokens.color> = { accent: "accent", "text-meta": "meta" };
+
+describe("the marks of a reply's live steps beside the glyph (#788)", () => {
+  it("the step under way is an accent dot, a step done a tick in the metadata colour, like the glyph's two colours", () => {
+    expect(colourOf(".coach-panel-step-dot", "background")).toBe("accent");
+    expect(colourOf(".coach-panel-step-done", "color")).toBe("text-meta");
+  });
+
+  it.each(THEMES)("meet 3:1 as graphics on the conversation's surfaces, in the %s theme", (theme) => {
+    for (const [selector, property] of [
+      [".coach-panel-step-dot", "background"],
+      [".coach-panel-step-done", "color"],
+    ] as const) {
+      const token = TOKEN[colourOf(selector, property)!]!;
+      for (const surface of SURFACES) expect(contrastRatio(designTokens.color[token][theme], designTokens.color[surface][theme]), `${selector} on ${surface} (${theme})`).toBeGreaterThanOrEqual(NON_TEXT);
+    }
+  });
+});

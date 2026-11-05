@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { byRules, joinProvenance, readProvenance, readProvenanceEvent, replyActivity, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
+import { byRules, joinProvenance, readProvenance, readProvenanceEvent, replyActivity, rulesProvenance, seenStored, storableProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
 
 const aiStep: ProvenanceStep = {
   kind: "ai",
@@ -122,6 +122,33 @@ describe("a Provenance read from its jsonb column", () => {
     expect(readProvenanceEvent({ ...started, step: { ...started.step, activity: "read" } })).toBeNull();
   });
 
+  it("keeps which Coach Action ran and what it saw, by kind and page or by count, never by name (#788)", () => {
+    const read: ProvenanceStep = {
+      ...toolStep,
+      activity: "act",
+      count: 2,
+      action: "read_application",
+      seen: [{ type: "application", href: "/candidatures/4b1c" }, { type: "all", count: 12 }],
+    };
+    const stored = { ...provenance, steps: [read] };
+    expect(readProvenance(stored)).toEqual(stored);
+    expect(readProvenance({ ...provenance, steps: [{ ...read, seen: [{ type: "application", href: "/candidatures/4b1c", name: "Airbus · Contrôleuse de gestion" }] }] })).toBeNull();
+    expect(readProvenance({ ...provenance, steps: [{ ...read, action: "Lis la candidature d'Airbus" }] })).toBeNull();
+    expect(readProvenance({ ...provenance, steps: [{ ...read, seen: [{ type: "application", href: "https://example.com/x" }] }] })).toBeNull();
+  });
+
+  it("stores what fits of a Coach Action's step and leaves the rest out, never the Provenance (#788)", () => {
+    const step = { ...toolStep, activity: "act", action: "Not a name!", seen: [{ type: "profile", href: "/profils/4b1c" }, { type: "profile", href: "javascript:alert(1)" }] } as unknown as ProvenanceStep;
+    const kept = storableProvenance({ ...provenance, steps: [step] }).steps[0] as Extract<ProvenanceStep, { kind: "tool" }>;
+    expect(kept.action).toBeUndefined();
+    expect(kept.seen).toEqual([{ type: "profile", href: "/profils/4b1c" }]);
+  });
+
+  it("sends the names of what a Coach Action saw with its live end only (#788)", () => {
+    expect(seenStored({ type: "application", href: "/candidatures/4b1c", name: "Airbus · Contrôleuse de gestion" })).toEqual({ type: "application", href: "/candidatures/4b1c" });
+    expect(seenStored({ type: "all", count: 12 })).toEqual({ type: "all", count: 12 });
+  });
+
   it("keeps a stopped step", () => {
     const stopped = { ...provenance, steps: [{ ...aiStep, outcome: "stopped" }] };
     expect(readProvenance(stopped)).toEqual(stopped);
@@ -134,7 +161,8 @@ describe("no field of a Provenance can hold a Candidate id, a cost or text", () 
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "ai" }>>().toEqualTypeOf<
       "kind" | "activity" | "task" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent" | "ms" | "at" | "outcome" | "count"
     >();
-    expectTypeOf<keyof Extract<ProvenanceStep, { kind: "tool" }>>().toEqualTypeOf<"kind" | "activity" | "tool" | "proposes" | "ms" | "at" | "outcome" | "count">();
+    // `action` is an identifier (a Coach Action's name), `seen` kinds and links or counts (#788): no text.
+    expectTypeOf<keyof Extract<ProvenanceStep, { kind: "tool" }>>().toEqualTypeOf<"kind" | "activity" | "tool" | "proposes" | "action" | "seen" | "ms" | "at" | "outcome" | "count">();
     expectTypeOf<keyof Extract<ProvenanceStep, { kind: "rules" }>>().toEqualTypeOf<"kind" | "activity" | "rule" | "ms" | "at" | "outcome" | "count">();
     // @ts-expect-error no Candidate id
     const withCandidate: Provenance = { ...provenance, candidateId: "c0ffee00-0000-4000-8000-000000000000" };

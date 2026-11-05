@@ -40,7 +40,7 @@ function setUp({ passkeys }: { passkeys?: (web: ReturnType<typeof fakeWebApp>) =
   /** What the device forgets once the session ends (the Tailored Documents downloaded, #695). */
   const forgetOnDevice = jest.fn(async () => {});
   const webViews = memoryWebViewCookies();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: passkeys?.(web) ?? web.deviceWithoutPasskey(), webViewCookies: webViews });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: passkeys?.(web) ?? web.deviceWithoutPasskey(), webViewCookies: webViews, browser: web.browser });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
   const opened = { current: null as string | null, listeners: new Set<() => void>() };
   const subscribe = (listener: () => void) => (opened.listeners.add(listener), () => void opened.listeners.delete(listener));
@@ -342,6 +342,109 @@ describe("SessionGate (#685)", () => {
       await user.press(screen.getByRole("button", { name: "Me connecter avec ce code" }));
 
       expect(await screen.findByText("Vérification en deux étapes")).toBeOnTheScreen();
+    });
+  });
+
+  describe("the Sign-in Providers (#687)", () => {
+    const PROVIDERS = [
+      { id: "google", displayName: "Google" },
+      { id: "apple", displayName: "Apple" },
+    ];
+
+    it("offers the providers shown to Candidates, « Continuer avec … », then « ou » and the magic link, as the web's sign-in page", async () => {
+      const { web, render } = setUp();
+      web.offerProviders(PROVIDERS);
+      await render();
+
+      expect(await screen.findByRole("button", { name: "Continuer avec Google" })).toBeOnTheScreen();
+      expect(screen.getByRole("button", { name: "Continuer avec Apple" })).toBeOnTheScreen();
+      expect(screen.getByText("ou")).toBeOnTheScreen();
+      expect(
+        screen.getByText("Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte Google ou Apple. Si vous n'avez pas encore de compte, il sera créé."),
+      ).toBeOnTheScreen();
+      expect(screen.getByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    });
+
+    it("offers the magic link alone when no provider is shown to Candidates", async () => {
+      const { render } = setUp();
+      await render();
+
+      expect(await screen.findByText("Pas de mot de passe à retenir : recevez un lien de connexion par e-mail. Si vous n'avez pas encore de compte, il sera créé.")).toBeOnTheScreen();
+      expect(screen.queryByRole("button", { name: /Continuer avec/ })).toBeNull();
+      expect(screen.queryByText("ou")).toBeNull();
+    });
+
+    it("signs in through a provider in the system's browser, the app opening signed in", async () => {
+      const { web, render } = setUp();
+      web.offerProviders(PROVIDERS);
+      web.atProvider({ signIn: EMAIL });
+      await render();
+
+      await userEvent.setup().press(await screen.findByRole("button", { name: "Continuer avec Apple" }));
+
+      expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+      expect(web.browserOpened).toHaveLength(1);
+    });
+
+    it("leaves the sign-in screen as it was when the person closes the browser, saying nothing went wrong", async () => {
+      const { web, render } = setUp();
+      web.offerProviders(PROVIDERS);
+      web.atProvider("closed");
+      await render();
+
+      await userEvent.setup().press(await screen.findByRole("button", { name: "Continuer avec Google" }));
+
+      expect(await screen.findByRole("button", { name: "Continuer avec Google" })).toBeOnTheScreen();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.queryByText("La conversation")).toBeNull();
+    });
+
+    it("says, as the web does, that a provider is not enabled, or that the account is to be linked after a magic link", async () => {
+      const { web, render } = setUp();
+      web.offerProviders(PROVIDERS);
+      await render();
+      const user = userEvent.setup();
+
+      web.atProvider({ error: "provider_disabled" });
+      await user.press(await screen.findByRole("button", { name: "Continuer avec Apple" }));
+      expect(await screen.findByText("Ce moyen de connexion n'est pas disponible pour le moment. Connectez-vous ci-dessous en recevant un lien par e-mail.")).toBeOnTheScreen();
+
+      web.atProvider({ error: "account_not_linked" });
+      await user.press(screen.getByRole("button", { name: "Continuer avec Apple" }));
+      expect(
+        await screen.findByText(
+          "Un compte Jobbbox utilise déjà cette adresse e-mail. Connectez-vous d'abord en recevant un lien par e-mail, puis associez ce moyen de connexion à votre compte depuis « Mon compte ».",
+        ),
+      ).toBeOnTheScreen();
+      expect(screen.queryByText(/n'est pas disponible/)).toBeNull();
+    });
+
+    it("says the sign-in did not go through when the web app cannot be reached, offering the providers again", async () => {
+      const { web, render } = setUp();
+      web.offerProviders(PROVIDERS);
+      await render();
+      await screen.findByRole("button", { name: "Continuer avec Google" });
+      web.setOffline(true);
+
+      await userEvent.setup().press(screen.getByRole("button", { name: "Continuer avec Google" }));
+
+      expect(await screen.findByText("La connexion n'a pas abouti. Réessayez ci-dessous, avec Google ou Apple ou en recevant un lien par e-mail.")).toBeOnTheScreen();
+    });
+
+    it("leaves the error once a magic link is asked", async () => {
+      const { web, render } = setUp();
+      web.offerProviders(PROVIDERS);
+      web.atProvider({ error: "provider_disabled" });
+      await render();
+      const user = userEvent.setup();
+      await user.press(await screen.findByRole("button", { name: "Continuer avec Apple" }));
+      await screen.findByText(/n'est pas disponible/);
+
+      await user.type(screen.getByLabelText("Votre adresse e-mail"), EMAIL);
+      await user.press(screen.getByRole("button", { name: "Recevoir mon lien de connexion" }));
+
+      expect(await screen.findByText("En attente du lien…")).toBeOnTheScreen();
+      expect(screen.queryByText(/n'est pas disponible/)).toBeNull();
     });
   });
 });

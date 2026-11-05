@@ -37,7 +37,7 @@
  * never run, and recorded failed with Failure Reason `invalid_input`.
  */
 import type { ProvenanceRecorder, StepTool, ToolDefinition, ToolOutcome, ToolRun, ToolRunRecord } from "@jobhub/ai";
-import { LOCAL_ROUTE_GROUPS, localRouteTool, type ExternalApiLog, type LocalRouteGroup } from "@jobhub/shared";
+import { LOCAL_ROUTE_GROUPS, localRouteTool, type ExternalApiLog, type LocalRouteGroup, type SeenName, type SeenType } from "@jobhub/shared";
 import * as z from "zod";
 import type { UpgradePrompt } from "../billing/upgrade-prompt";
 import { asData, estimateTokens, type CoachFocus } from "../coach/context";
@@ -201,7 +201,13 @@ export type ApplyProposalResult =
   | { ok: true; undo?: unknown }
   | { ok: false; error: "conflict" | "not_found" }
   | { ok: false; error: "invalid"; errors: FieldError[] };
-export type UndoProposalResult = { ok: true } | { ok: false; error: "conflict" | "not_found" };
+/**
+ * « Annuler »'s outcome. `note`: what it left as it was, said on the card once undone (#770: `status_kept`, an
+ * Application Status changed since the card was applied, left as it is).
+ */
+export type UndoProposalResult = { ok: true; note?: UndoNote } | { ok: false; error: "conflict" | "not_found" };
+export const UNDO_NOTES = ["status_kept"] as const;
+export type UndoNote = (typeof UNDO_NOTES)[number];
 
 /**
  * What a Coach Action gives back: its data (what it read, or the change it proposes), the Candidate's pages it read (paths,
@@ -212,7 +218,15 @@ export type UndoProposalResult = { ok: true } | { ok: false; error: "conflict" |
  * why, in our own words, for the model.
  */
 export type CoachActionResult =
-  | { ok: true; data: unknown; pages?: readonly string[]; untrusted?: boolean; proposes?: false }
+  | {
+      ok: true;
+      data: unknown;
+      pages?: readonly string[];
+      untrusted?: boolean;
+      proposes?: false;
+      /** What it read, named from Jobbbox's own fields, shown in the thread (#788); a proposal's is its card's target. */
+      seen?: readonly SeenName[];
+    }
   | { ok: false; error: "not_found" }
   | { ok: false; error: "refused"; reason: string };
 
@@ -415,7 +429,9 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
 
         let result: CoachActionResult;
         try {
-          result = await recorder.step(stepOf(action), () =>
+          result = await recorder.step(
+            stepOf(action),
+            () =>
             action.run(parsed.data, {
               candidateId,
               language: options.language ?? "fr",
@@ -423,6 +439,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
               ...(options.focus ? { inView: options.focus } : {}),
               ...(context.signal ? { signal: context.signal } : {}),
             }),
+            seenOf,
           );
         } catch (error) {
           record(action, started, null);
@@ -496,5 +513,28 @@ export function forEvalRun(catalog: readonly CoachAction[], { readsPlayed = fals
   return createCoachActions({ catalog: played, settings: async () => ({ enabled: true, maxRounds: EVAL_RUN_ROUNDS }), externalApis: { record: () => {} } });
 }
 
-/** A Coach Action's Provenance step: its group's Tool, marked as proposing for a proposal. */
-const stepOf = (action: CoachAction) => ({ tool: toolOfGroup(action.group).id, ...(action.kind === "propose" ? { proposes: true as const } : {}) });
+/** A Coach Action's Provenance step: its group's Tool and its name, marked as proposing for a proposal. */
+const stepOf = (action: CoachAction) => ({ tool: toolOfGroup(action.group).id, action: action.name, ...(action.kind === "propose" ? { proposes: true as const } : {}) });
+
+/** A proposal's target, as the thread shows what it proposed on. */
+const SEEN_OF_TARGET: Record<ProposalTargetKind, SeenType> = {
+  profile: "profile",
+  application: "application",
+  job_offer: "job_offer",
+  job_search: "job_search",
+  job_digest: "job_digest",
+  agenda: "agenda_item",
+  coach_memory: "coach_memory",
+};
+
+/**
+ * What a Coach Action saw, for its step (#788): what a read says it read, or a proposal's card target (its name and page),
+ * from the ProposedChange `run` prepared; nothing for a refusal or an object not found.
+ */
+function seenOf(result: CoachActionResult): readonly SeenName[] | undefined {
+  if (!result.ok) return undefined;
+  if (result.seen) return result.seen;
+  const target = (result.data as Partial<ProposedChange> | null | undefined)?.target;
+  if (!target || typeof target.name !== "string" || !(target.kind in SEEN_OF_TARGET)) return undefined;
+  return [{ type: SEEN_OF_TARGET[target.kind], name: target.name.slice(0, 80), ...(target.href?.startsWith("/") ? { href: target.href } : {}) }];
+}

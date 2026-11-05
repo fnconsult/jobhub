@@ -857,15 +857,48 @@ textarea.input {
 /* ---------- « Conversation au centre » (#601, ADR-0070): the conversation is the page ----------
    The page spans the workspace, so the conversation keeps its reading width (46rem) centred in it, its margins equal; the
    box sits at the foot of the screen over the thread, the suggestions above it while nothing is sent. */
+/* One scroll model (#601, ADR-0070): the page is the screen, and never scrolls as a whole. Under the Top Bar, the
+   conversation scrolls in its own column, its box pinned at its foot, and each column beside it (the Work Pane, the
+   Fiche, Activité) scrolls in itself. So nothing outside the shell can lengthen the page (#656), the columns' tops are
+   never cut, and no empty band is left below them. */
+html:has(.page-conversation) {
+  overflow: hidden;
+}
+
+/* Positioned, the shell and the conversation's column hold what is absolutely placed in them (the visually hidden live
+   regions): placed against the screen, it ran past the shell and lengthened the page. */
+.app-shell:has(.page-conversation) {
+  position: relative;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace:has(> .page > .page-conversation) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .workspace > .page:has(> .page-conversation) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   max-width: none;
   padding-bottom: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .page-conversation {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
-  min-height: calc(100dvh - var(--topbar-height, 3.25rem) - var(--space-6));
 }
 
 .page-conversation-thread,
@@ -958,13 +991,9 @@ button.coach-panel-badge:hover {
   margin: 0;
 }
 
-/* On a phone the box stays where the thread ends (the screen is too short to hold it over the thread), and the
-   suggestions keep to one row that scrolls sideways. */
+/* On a phone the box stays pinned at the foot of the screen too, the conversation taking the whole screen (ADR-0070),
+   and the suggestions keep to one row that scrolls sideways. */
 @media (width < 40rem) {
-  .page-conversation-foot {
-    position: static;
-  }
-
   .page-conversation-suggestions .quick-actions {
     flex-wrap: nowrap;
     padding-bottom: var(--space-1);
@@ -1425,6 +1454,18 @@ button.coach-panel-badge:hover {
     margin: var(--space-4) var(--space-4) var(--space-4) 0;
   }
 
+  /* Beside a conversation, which scrolls in its own column, the Work Pane and the Fiche hold the height under the Top
+     Bar, their gutters kept, whatever the Top Bar's height: each scrolls in itself, never with the page. */
+  .workspace:has(> .page > .page-conversation) > :is(.work-pane, .fiche) {
+    position: relative;
+    top: auto;
+    max-height: calc(100% - 2 * var(--space-4));
+  }
+
+  .workspace:has(> .page > .page-conversation):not(:has(> :is(.work-pane, .fiche, .ai-activity-pane))) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* The Fiche, and the Activité column, have no frame of their own beside the conversation: their cards are (the
      prototype's, #586). */
   .fiche {
@@ -1595,6 +1636,12 @@ button.coach-panel-badge:hover {
 
 .context-breakdown-reply-why {
   color: var(--color-text-secondary);
+}
+
+@media (width < 64rem) {
+  .workspace:has(> .page > .page-conversation) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Without room for both beside the conversation, the Work Pane takes the Fiche's place: FicheProvider decides (Fiche.tsx),

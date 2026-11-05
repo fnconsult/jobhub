@@ -71,6 +71,8 @@ Le skill `deploy-staging` ne lance pas la build de l'app : il dit seulement, apr
 
 ## Mise en place, une fois
 
+Le script `scripts/setup/issue-704.sh` fait ces étapes pas à pas (projet EAS, jeton, identifiants Apple et Play) ; à lancer depuis la racine du dépôt, `bash scripts/setup/issue-704.sh`.
+
 1. **Projet EAS** : dans `apps/mobile`, `npx eas-cli init`, puis recopier l'identifiant du projet dans `app.json`, `expo.extra.eas.projectId` (`app.config.ts` en tire l'adresse d'EAS Update, `https://u.expo.dev/<id>`) ; EAS Update reste coupé tant que la politique de confidentialité ne nomme pas Expo, voir « EAS Update et la vie privée ».
 2. **Jeton** : créer un jeton d'accès sur expo.dev (compte de l'organisation) et l'enregistrer comme secret du dépôt : `gh secret set EXPO_TOKEN`.
 3. **Identifiants des stores, gardés par EAS** (`npx eas-cli credentials`) : la clé d'API App Store Connect (iOS, signature et envoi à TestFlight) et la clé du compte de service Google Play (Android, envoi au test interne). Aucun autre secret dans le dépôt.

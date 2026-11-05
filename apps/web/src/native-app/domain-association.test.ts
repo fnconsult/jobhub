@@ -1,4 +1,4 @@
-import { APP_IDENTIFIER, APP_SIGN_IN_PATH } from "@jobhub/shared";
+import { APP_COACHING_PAYMENT_PATH, APP_IDENTIFIER, APP_SIGN_IN_PATH } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { DOMAIN_ASSOCIATION_FILES, domainAssociation } from "./domain-association";
 
@@ -9,9 +9,10 @@ describe("the domain association files the native app's links are verified with 
     expect(DOMAIN_ASSOCIATION_FILES).toEqual(["/.well-known/apple-app-site-association", "/.well-known/assetlinks.json"]);
   });
 
-  it("let the iOS app open the magic link's address, and no other, and use the site's passkeys (#688)", () => {
+  it("let the iOS app open the magic link's address and Stripe Checkout's return (#694), and no other, and use the site's passkeys (#688)", () => {
+    expect(APP_COACHING_PAYMENT_PATH).toBe("/coachs/paiement");
     expect(domainAssociation("/.well-known/apple-app-site-association", ENV)).toEqual({
-      applinks: { details: [{ appIDs: [`ABCDE12345.${APP_IDENTIFIER}`], components: [{ "/": APP_SIGN_IN_PATH }] }] },
+      applinks: { details: [{ appIDs: [`ABCDE12345.${APP_IDENTIFIER}`], components: [{ "/": APP_SIGN_IN_PATH }, { "/": APP_COACHING_PAYMENT_PATH }] }] },
       webcredentials: { apps: [`ABCDE12345.${APP_IDENTIFIER}`] },
     });
   });

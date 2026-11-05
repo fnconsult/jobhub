@@ -6074,5 +6074,13 @@
       "coaching_session_paid": "Coaching session paid",
       "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate"
     }
+  },
+  "coachingPayment": {
+    "title": "Payment complete",
+    "body": "Go back to the Jobbbox app: your session shows there as soon as Stripe has confirmed the payment, with the link to pick your time.",
+    "cancelledTitle": "Payment cancelled",
+    "cancelledBody": "Nothing was paid. You can book a session later from the app.",
+    "backToApp": "Back to the Jobbbox app",
+    "onWeb": "See my human coaches on the website"
   }
 }

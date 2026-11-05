@@ -6074,5 +6074,13 @@
       "coaching_session_paid": "Séance de coaching payée",
       "coaching_session_changed_by_candidate": "Séance déplacée ou annulée par un candidat"
     }
+  },
+  "coachingPayment": {
+    "title": "Paiement terminé",
+    "body": "Revenez dans l'app Jobbbox : votre séance y apparaît dès que Stripe a confirmé le paiement, avec le lien pour choisir votre créneau.",
+    "cancelledTitle": "Paiement annulé",
+    "cancelledBody": "Aucun paiement n'a été fait. Vous pourrez réserver une séance plus tard depuis l'app.",
+    "backToApp": "Revenir dans l'app Jobbbox",
+    "onWeb": "Voir mes coachs humains sur le site"
   }
 }

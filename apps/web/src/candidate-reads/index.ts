@@ -47,7 +47,7 @@ import type { JobDigests } from "../job-digests";
 import { jobDigestsMenu } from "../job-digests/menu";
 import type { JobSearches } from "../job-searches";
 import { jobSearchesMenu } from "../job-searches/menu";
-import type { OfferBox } from "../offer-box";
+import type { OfferBox, OfferBoxContents } from "../offer-box";
 import type { Profiles } from "../profiles";
 import type { Reschedule } from "../reschedules";
 import type { TailoredCvs } from "../tailored-cv";
@@ -208,6 +208,27 @@ const jobOfferLine = (offer: JobOfferFacts): JobOfferLine => ({
   expiredAt: isoOrNull(offer.expiredAt),
 });
 
+/** The Offer box as `GET /api/offer-box` answers it, and as the web page reads it too (ADR-0090): the two cannot drift apart. */
+export function offerBoxResponse(box: OfferBoxContents): OfferBoxResponse {
+  return {
+    today: box.today,
+    toHandle: box.toHandle,
+    entries: box.entries.map((entry) => ({
+      id: entry.id,
+      jobOffer: { ...jobOfferLine(entry.jobOffer), contractType: entry.jobOffer.contractType ?? null },
+      profile: entry.profile,
+      scoredWith: entry.scoredWith,
+      matchScore: entry.matchScore ? figure(entry.matchScore) : null,
+      firstArrivalAt: iso(entry.firstArrivalAt),
+      arrivalDay: entry.arrivalDay,
+      sources: entry.sources.map(({ source, at }) => ({ source, at: iso(at) })),
+      state: entry.state,
+      applicationId: entry.applicationId,
+      followedAt: isoOrNull(entry.followedAt),
+    })),
+  };
+}
+
 /** The menus' cards name no day: the app writes it in the Candidate's language from the instant. */
 const NO_DAY_LABEL = () => "";
 
@@ -279,24 +300,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async offerBox(candidateId) {
-      const box = await deps.offerBox.read(candidateId);
-      return {
-        today: box.today,
-        toHandle: box.toHandle,
-        entries: box.entries.map((entry) => ({
-          id: entry.id,
-          jobOffer: { ...jobOfferLine(entry.jobOffer), contractType: entry.jobOffer.contractType ?? null },
-          profile: entry.profile,
-          scoredWith: entry.scoredWith,
-          matchScore: entry.matchScore ? figure(entry.matchScore) : null,
-          firstArrivalAt: iso(entry.firstArrivalAt),
-          arrivalDay: entry.arrivalDay,
-          sources: entry.sources.map(({ source, at }) => ({ source, at: iso(at) })),
-          state: entry.state,
-          applicationId: entry.applicationId,
-          followedAt: isoOrNull(entry.followedAt),
-        })),
-      };
+      return offerBoxResponse(await deps.offerBox.read(candidateId));
     },
 
     async jobSearch(candidateId, jobSearchId) {

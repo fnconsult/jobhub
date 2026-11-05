@@ -10,6 +10,11 @@ jest.setTimeout(60_000);
 
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
+/** The device's network as expo-network reports it: connected (offline.e2e.test.tsx has the offline cases). */
+jest.mock("expo-network", () => ({
+  getNetworkStateAsync: async () => ({ isConnected: true }),
+  addNetworkStateListener: () => ({ remove: () => {} }),
+}));
 
 // Signed in, as the app is once its magic link opened it (#685): the web app's endpoints faked at the session's fetch.
 const mockWeb = {} as { app: ReturnType<typeof import("../src/session/testing").fakeWebApp>; session: import("../src/session/app-session").AppSession };

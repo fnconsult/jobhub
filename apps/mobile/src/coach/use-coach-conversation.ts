@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApi } from "../api/api-context";
 import { readKey } from "../offline/read-cache";
+import { useConversationHandoff } from "./page-conversation";
 import { askCoach, type CoachProposalCard, type CoachReply, type ConversationContext, type ConversationSummary, type Live, type SubjectRef } from "./coach-reply";
 
 /** A message of the thread: the Candidate's, or the AI Coach's reply with what the app alone knows of it (#345, never saved). */
@@ -55,6 +56,8 @@ export type Announce = (outcome: { kind: "reply"; text: string } | { kind: "stop
  * its id, or its Subject's), the Candidate's messages sent to `POST /api/coach` and the replies read from its stream,
  * « Arrêter », the failure with the message given back, « Effacer », and the « Oui » / « Non » under a reply. The first
  * message of a new Free conversation saves it: `onSaved` then gives the page its address, and the drawer's list is read again.
+ * That opens the conversation's page, a new screen, where the web only rewrites the address: the page as it stands goes to
+ * it (the shell's handoff), since the server never stores « Réponse arrêtée », `couldNotAnswer` or the replies on the page.
  */
 export function useCoachConversation({
   conversationId,
@@ -71,15 +74,19 @@ export function useCoachConversation({
 }) {
   const api = useApi();
   const queries = useQueryClient();
-  const [state, setState] = useState<CoachConversationState>({
-    restoring: conversationId !== null || subject !== undefined,
-    conversation: null,
-    context: null,
-    aiDisclosure: true,
-    messages: [],
-    status: { kind: "idle" },
-    repliesOnPage: [],
-  });
+  const handoff = useConversationHandoff();
+  const [state, setState] = useState<CoachConversationState>(
+    () =>
+      (conversationId !== null ? handoff.taken(conversationId) : null) ?? {
+        restoring: conversationId !== null || subject !== undefined,
+        conversation: null,
+        context: null,
+        aiDisclosure: true,
+        messages: [],
+        status: { kind: "idle" },
+        repliesOnPage: [],
+      },
+  );
   const stopper = useRef<AbortController | null>(null);
   // Counts the page's fresh starts: a reply to a conversation since cleared is dropped.
   const generation = useRef(0);
@@ -90,9 +97,16 @@ export function useCoachConversation({
   const subjectKind = subject?.kind;
   const subjectId = subject?.id;
 
-  // A saved conversation comes back; gone meanwhile, or never started (a Subject's before its first message), the page is a new one.
+  // The page handed over by the new conversation's first message is open: a later visit reads the conversation again.
+  useEffect(() => {
+    if (conversationId !== null) handoff.done(conversationId);
+  }, [handoff, conversationId]);
+
+  // A saved conversation comes back, unless the page shows it already (its first message handed it over); gone meanwhile,
+  // or never started (a Subject's before its first message), the page is a new one.
   useEffect(() => {
     if (conversationId === null && subjectKind === undefined) return;
+    if (conversationId !== null && latest.current.conversation?.id === conversationId) return;
     let shown = true;
     const path =
       conversationId !== null
@@ -121,6 +135,13 @@ export function useCoachConversation({
   useEffect(() => () => stopper.current?.abort(), []);
 
   const update = (change: Partial<CoachConversationState>) => setState((current) => ({ ...current, ...change }));
+  /** The page as `change` leaves it, at once: what a new conversation's page is handed is the page with its outcome. */
+  const settle = (change: (was: CoachConversationState) => CoachConversationState) => {
+    const next = change(latest.current);
+    latest.current = next;
+    setState(next);
+    return next;
+  };
 
   const send = useCallback(
     /** Sends `text`; resolves whether the conversation kept it (a reply, or a Stop), false when it comes back to the box. */
@@ -146,10 +167,13 @@ export function useCoachConversation({
       );
       if (stopper.current === stop) stopper.current = null;
       if (generation.current !== startedIn) return true;
-      const saved = (conversation: ConversationSummary | null) => {
+      const saved = (conversation: ConversationSummary | null, page: CoachConversationState) => {
         if (!conversation) return;
         if (!subject && current?.id !== conversation.id) {
-          callbacks.current.onSaved?.(conversation);
+          if (callbacks.current.onSaved) {
+            handoff.keep(conversation.id, page);
+            callbacks.current.onSaved(conversation);
+          }
           void queries.invalidateQueries({ queryKey: readKey("coachConversations") });
         }
       };
@@ -167,7 +191,7 @@ export function useCoachConversation({
           ...(reply.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
           ...(cards.length > 0 ? { cards } : {}),
         };
-        setState((was) => ({
+        const page = settle((was) => ({
           ...was,
           conversation: reply.conversation,
           context: reply.context ?? was.context,
@@ -175,18 +199,18 @@ export function useCoachConversation({
           status: { kind: "idle" },
           repliesOnPage: typeof reply.at === "string" ? [...was.repliesOnPage, { provenance: reply.provenance ?? null, at: reply.at }] : was.repliesOnPage,
         }));
-        saved(reply.conversation);
+        saved(reply.conversation, page);
         callbacks.current.announce({ kind: "reply", text: reply.reply });
         return true;
       } else if (outcome.kind === "stopped") {
-        setState((was) => ({
+        const page = settle((was) => ({
           ...was,
           conversation: outcome.conversation ?? was.conversation,
           context: outcome.context ?? was.context,
           messages: [...shown, { from: "stopped", tokens: outcome.spent.tokens, ms: outcome.spent.ms }],
           status: { kind: "idle" },
         }));
-        saved(outcome.conversation);
+        saved(outcome.conversation, page);
         callbacks.current.announce({ kind: "stopped" });
         return true;
       } else if (outcome.kind === "gone") {
@@ -204,7 +228,7 @@ export function useCoachConversation({
         return false;
       }
     },
-    [api, queries, route, subject],
+    [api, queries, route, subject, handoff],
   );
 
   /** « Arrêter »: the request is aborted, which is the Stop. */

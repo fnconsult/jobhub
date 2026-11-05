@@ -48,7 +48,7 @@ export const TEST_SIGN_IN = "testSignIn";
 export const MAGIC_LINK = "magic-link";
 
 /** Error codes a refused OAuth sign-in comes back with (`?error=`): shared with the app (#687). */
-export { SIGN_IN_ERRORS } from "@jobhub/shared";
+export { SIGN_IN_ERRORS } from "@jobhub/shared/sign-in-providers";
 
 /** Ids an OIDC provider may not take: the social types and the magic link. */
 const RESERVED_IDS: readonly string[] = [...SOCIAL_TYPES, MAGIC_LINK, "email-password", "credential"];

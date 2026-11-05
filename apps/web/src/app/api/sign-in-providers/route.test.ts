@@ -1,4 +1,4 @@
-import { signInProvidersResponseSchema } from "@jobhub/shared";
+import { signInProvidersResponseSchema } from "@jobhub/shared/sign-in-providers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SignInConfiguration, SignInProvider } from "@/sign-in-providers/catalog";
 import { GET } from "./route";

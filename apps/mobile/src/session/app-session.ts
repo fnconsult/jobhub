@@ -29,17 +29,15 @@ import {
   APP_PROVIDER_RETURN_PATH,
   APP_SCHEME,
   APP_SIGN_IN_PATH,
-  cancelledAtProvider,
   SECOND_STEP_ENDPOINT,
   SECOND_STEP_PASSKEY_ENDPOINT,
   SECOND_STEP_REQUIRED,
   secondStepReadSchema,
   signInCodeRefusal,
-  signInProvidersResponseSchema,
   typedSignInCode,
   type SignInCodeRefusal,
-  type SignInProviderButton,
 } from "@jobhub/shared";
+import { cancelledAtProvider, signInProvidersResponseSchema, type SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import { createAuthClient } from "better-auth/client";
 import { emailOTPClient, magicLinkClient } from "better-auth/client/plugins";
 

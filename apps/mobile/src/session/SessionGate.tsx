@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { SIGN_IN_CODE_LENGTH, signInCopy, type SignInCodeRefusal, type SignInProviderButton } from "@jobhub/shared";
+import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
+import { signInCopy, type SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import { AppState, Platform, View, type TextInputProps } from "react-native";
 import { useForgetReads } from "../offline/read-cache";

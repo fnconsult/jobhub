@@ -1,4 +1,4 @@
-import type { SignInProvidersResponse } from "@jobhub/shared";
+import type { SignInProvidersResponse } from "@jobhub/shared/sign-in-providers";
 import { signInButtons } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
 

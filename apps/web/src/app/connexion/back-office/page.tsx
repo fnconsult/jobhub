@@ -1,4 +1,4 @@
-import { signInCopy } from "@jobhub/shared";
+import { signInCopy } from "@jobhub/shared/sign-in-providers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";

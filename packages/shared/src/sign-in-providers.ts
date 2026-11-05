@@ -3,6 +3,10 @@
  * to Candidates, read from the same answer (`GET /api/sign-in-providers`, the web page reading the same policy), what the
  * page says around them, and how a sign-in through one comes back refused (`?error=`). One copy for both, so the app
  * never offers or says what the web would not.
+ *
+ * Imported as `@jobhub/shared/sign-in-providers`, not from the package's root export: its copy reads the i18n locales
+ * (JSON), which Node's ESM loader refuses to import without an import attribute, and Playwright's specs load the root
+ * export through it.
  */
 import * as z from "zod";
 import { createI18n, type Locale } from "./i18n";

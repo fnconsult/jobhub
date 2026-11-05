@@ -1,5 +1,6 @@
 import CookieManager from "@preeternal/react-native-cookie-manager";
-import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead, type SignInProviderButton } from "@jobhub/shared";
+import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead } from "@jobhub/shared";
+import type { SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import type { LegalStepsResponse, ShownLegalTextRead } from "@jobhub/shared/reads";
 import { fakeWebView, type WebViewCookie } from "../testing-device";
 import type { AuthBrowser, DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";

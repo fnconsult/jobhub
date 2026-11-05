@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AppState, ScrollView, TextInput, View } from "react-native";
+import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
+import { AppState, Platform, ScrollView, TextInput, View, type TextInputProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useForgetReads } from "../offline/read-cache";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
@@ -22,7 +23,7 @@ export const useSession = () => useContext(SessionContext);
 
 /**
  * The app behind its session (#685, ADR-0076): signed out, the native sign-in screen (an email, the link sent, then
- * waiting for it); pending its second step (ADR-0075), that step to take (asked natively in its own ticket); signed in,
+ * waiting for it, or its code typed, #686); pending its second step (ADR-0075), that step to take (asked natively in its own ticket); signed in,
  * `children`. `link` is the address the app was last opened with (a universal link or an App Link): a magic link
  * signs in. The session is asked again each time the app comes back to the foreground, so a revocation from Mon compte
  * on the web signs the app out at that request.
@@ -77,7 +78,7 @@ export function SessionGate({ session, link, children }: { session: AppSession; 
   if (!state) return null;
   return (
     <SessionContext.Provider value={value}>
-      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStep onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} />}
+      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStep onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={setState} />}
     </SessionContext.Provider>
   );
 }
@@ -102,7 +103,7 @@ function GateScreen({ title, children }: { title: string; children: ReactNode })
   );
 }
 
-type Step = { kind: "form"; error: boolean } | { kind: "sending" } | { kind: "sent"; email: string };
+type Step = { kind: "form"; error: boolean } | { kind: "sending" } | { kind: "sent"; email: string; refusal?: SignInCodeRefusal; checking?: boolean };
 const FORM: Step = { kind: "form", error: false };
 const SENDING: Step = { kind: "sending" };
 /** With the keyboard up, a tap on « Recevoir mon lien de connexion » presses it rather than only closing the keyboard. */
@@ -119,21 +120,47 @@ const EMAIL_FIELD = {
 } as const;
 
 /**
- * Sign-in by magic link: the email, « Recevoir mon lien de connexion », then waiting for the link. A link no longer
- * valid (`linkInvalid`) is said on either step, until another is asked (`onAskLink`).
+ * The email's code (#686), as the system's keyboard and autofill read it: the number pad, and the code offered from
+ * Mail or Messages (iOS `oneTimeCode`, Android's `sms-otp`).
  */
-function SignIn({ session, linkInvalid, onAskLink }: { session: AppSession; linkInvalid: boolean; onAskLink: () => void }) {
+const CODE_FIELD = {
+  autoCapitalize: "none",
+  autoCorrect: false,
+  autoComplete: Platform.OS === "android" ? "sms-otp" : "one-time-code",
+  inputMode: "numeric",
+  keyboardType: "number-pad",
+  textContentType: "oneTimeCode",
+  returnKeyType: "done",
+  maxLength: SIGN_IN_CODE_LENGTH + 2,
+} as const satisfies TextInputProps;
+
+/**
+ * Sign-in by magic link: the email, « Recevoir mon lien de connexion », then waiting for the link, or « Saisir le code
+ * reçu par e-mail » beside it (#686): the code signs in here (`onSignedIn`) when the email is read on another device. A
+ * link no longer valid (`linkInvalid`) is said on either step, until another is asked (`onAskLink`); a code refused,
+ * until another is typed or another email asked.
+ */
+function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppSession; linkInvalid: boolean; onAskLink: () => void; onSignedIn: (state: SessionState) => void }) {
   const { t } = useTranslation();
-  const { colors } = useTheme();
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [step, setStep] = useState<Step>(FORM);
 
   const send = async () => {
     const address = email.trim();
     if (!address) return;
     onAskLink();
+    setCode("");
     setStep(SENDING);
     setStep((await session.askLink(address)) ? { kind: "sent", email: address } : { kind: "form", error: true });
+  };
+
+  const enterCode = async (address: string) => {
+    if (!code.trim()) return;
+    setStep({ kind: "sent", email: address, checking: true });
+    const outcome = await session.enterCode(address, code);
+    if (outcome.kind === "codeRefused") setStep({ kind: "sent", email: address, refusal: outcome.reason });
+    else onSignedIn(outcome);
   };
 
   if (step.kind === "sent") {
@@ -144,6 +171,12 @@ function SignIn({ session, linkInvalid, onAskLink }: { session: AppSession; link
           <AppText>{t("mobile.signIn.sent", { email: step.email })}</AppText>
         </View>
         <AppText tone="secondary">{t("mobile.signIn.waiting")}</AppText>
+        <View style={{ gap: space[2] }}>
+          <AppText weight="semiBold">{t("signIn.codeLabel")}</AppText>
+          <FieldInput label={t("signIn.codeLabel")} value={code} onChangeText={setCode} onSubmitEditing={() => void enterCode(step.email)} editable={!step.checking} {...CODE_FIELD} />
+        </View>
+        {step.refusal ? <SignInError message={t(step.refusal)} /> : null}
+        <Control look="primary" label={step.checking ? t("signIn.codeChecking") : t("signIn.codeSubmit")} onPress={() => void enterCode(step.email)} />
         <View style={{ gap: space[2] }}>
           <Control look="secondary" label={t("mobile.signIn.resend")} onPress={() => void send()} />
           <Control label={t("mobile.signIn.changeEmail")} onPress={() => setStep(FORM)} />
@@ -160,27 +193,31 @@ function SignIn({ session, linkInvalid, onAskLink }: { session: AppSession; link
       {error ? <SignInError message={error} /> : null}
       <View style={{ gap: space[2] }}>
         <AppText weight="semiBold">{t("signIn.emailLabel")}</AppText>
-        <TextInput
-          aria-label={t("signIn.emailLabel")}
-          value={email}
-          onChangeText={setEmail}
-          onSubmitEditing={() => void send()}
-          editable={!sending}
-          {...EMAIL_FIELD}
-          style={{
-            minHeight: TARGET,
-            paddingHorizontal: space[3],
-            borderWidth: 1,
-            borderColor: colors.borderStrong,
-            borderRadius: radius.control,
-            fontFamily: INTER.regular,
-            fontSize: type.fontSize.body,
-            color: colors.text,
-          }}
-        />
+        <FieldInput label={t("signIn.emailLabel")} value={email} onChangeText={setEmail} onSubmitEditing={() => void send()} editable={!sending} {...EMAIL_FIELD} />
       </View>
       <Control look="primary" label={sending ? t("signIn.sending") : t("signIn.submit")} onPress={() => void send()} />
     </GateScreen>
+  );
+}
+
+/** A text field of the sign-in screen, named by `label` (written above it). */
+function FieldInput({ label, ...props }: TextInputProps & { label: string }) {
+  const { colors } = useTheme();
+  return (
+    <TextInput
+      aria-label={label}
+      {...props}
+      style={{
+        minHeight: TARGET,
+        paddingHorizontal: space[3],
+        borderWidth: 1,
+        borderColor: colors.borderStrong,
+        borderRadius: radius.control,
+        fontFamily: INTER.regular,
+        fontSize: type.fontSize.body,
+        color: colors.text,
+      }}
+    />
   );
 }
 

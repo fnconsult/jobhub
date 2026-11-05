@@ -202,7 +202,8 @@
     "subject": "Your Jobbbox sign-in link",
     "title": "Sign in to Jobbbox",
     "action": "Sign in to Jobbbox",
-    "validity": "This link is valid for {{minutes}} minutes and works only once.",
+    "code": "Or enter this code in the app or on the sign-in page: {{code}}",
+    "validity": "This link and this code are valid for {{minutes}} minutes, once: using one makes the other unusable.",
     "ignore": "If you did not ask to sign in, simply ignore this message.",
     "reason": "You receive this email because a sign-in link to Jobbbox was asked for this address."
   },
@@ -263,7 +264,15 @@
     "emailLabel": "Your email address",
     "submit": "Send me a sign-in link",
     "sending": "Sending…",
-    "sent": "Sent! Open the email we just sent you and click the link to sign in.",
+    "sent": "Sent! Open the email we just sent you and click the link to sign in, or enter the code it contains below.",
+    "codeLabel": "Enter the code from the email",
+    "codeHint": "The 6 digits written under the link.",
+    "codeSubmit": "Sign in with this code",
+    "codeChecking": "Checking…",
+    "codeWrong": "This code is not right. Check it and try again: after 5 tries, you need to ask for a new email.",
+    "codeExpired": "This code is no longer valid. Ask for a new email.",
+    "codeTooManyTries": "Too many tries: this code no longer works. Ask for a new email.",
+    "resend": "Send me a new email",
     "or": "or",
     "continueWith": "Continue with {{provider}}",
     "error": "Something went wrong. Check your email address and try again.",
@@ -5740,7 +5749,7 @@
       "unlock": "Unlock"
     },
     "signIn": {
-      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app.",
+      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app. Reading it on another device? Enter the code it contains.",
       "waiting": "Waiting for the link…",
       "resend": "Send the link again",
       "changeEmail": "Use another email address"

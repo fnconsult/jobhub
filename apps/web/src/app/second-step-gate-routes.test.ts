@@ -72,7 +72,7 @@ describe("a session pending its second step reaches nothing else (ADR-0075)", ()
     expect(pendingSessionGate("/api/auth/magic-link/verify?token=t", "GET")).toBe("open");
     // The magic link asked from the native app, opened in a browser (#685): it goes on to the one above.
     expect(pendingSessionGate(`${APP_SIGN_IN_PATH}?token=t`, "GET")).toBe("open");
-    for (const endpoint of ["get-session", "list-sessions", "update-user", "delete-user", "link-social", "list-accounts", "sign-in/magic-link", "sign-in/social", "revoke-sessions", "passkey/generate-register-options", "passkey/verify-registration", "passkey/update-passkey"]) {
+    for (const endpoint of ["get-session", "list-sessions", "update-user", "delete-user", "link-social", "list-accounts", "sign-in/magic-link", "sign-in/email-otp", "sign-in/social", "revoke-sessions", "passkey/generate-register-options", "passkey/verify-registration", "passkey/update-passkey"]) {
       expect(pendingSessionGate(`/api/auth/${endpoint}`, "POST"), endpoint).toBe("refuse");
       expect(pendingSessionGate(`/api/auth/${endpoint}`, "GET"), endpoint).toBe("refuse");
     }

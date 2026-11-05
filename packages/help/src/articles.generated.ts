@@ -793,12 +793,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "inscription",
         "créer un compte",
         "s'inscrire",
-        "découvrir"
+        "découvrir",
+        "code de connexion",
+        "code à 6 chiffres",
+        "code reçu par e-mail"
       ],
       "route": "/connexion",
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer."
+      "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer.\n\nL'e-mail reçu contient un lien et un code à 6 chiffres. Vous le lisez sur un autre appareil, votre téléphone par exemple ? Restez sur cette page : saisissez le code dans « Saisir le code reçu par e-mail », puis cliquez sur « Me connecter avec ce code ». Le lien et le code sont valables 15 minutes et une seule fois : utiliser l'un rend l'autre inutilisable. Au bout de 5 codes faux, le code ne fonctionne plus : cliquez sur « Recevoir un nouvel e-mail »."
     },
     {
       "id": "page-admin-unanswered-questions",
@@ -1838,12 +1841,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "spam",
         "courrier indésirable",
         "lien expiré",
-        "identifiant"
+        "identifiant",
+        "code de connexion",
+        "code à 6 chiffres",
+        "code reçu par e-mail"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox n'a pas de mot de passe. Sur la page « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Vous recevez l'e-mail « Votre lien de connexion à Jobbbox » : son bouton « Me connecter à Jobbbox » vous connecte. Si vous n'avez pas encore de compte, il est créé à ce moment-là.\n\nLe lien est valable 15 minutes et ne fonctionne qu'une seule fois. Un lien expiré ou déjà utilisé affiche « Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous. »\n\nSelon les moyens proposés sur la page, « Continuer avec … » vous connecte aussi avec un autre compte que vous avez déjà, sans attendre d'e-mail.\n\nL'e-mail n'arrive pas ?\n- Attendez quelques minutes : il peut mettre un peu de temps.\n- Regardez dans vos courriers indésirables (spam) ou vos promotions.\n- Vérifiez l'adresse saisie, puis demandez un nouveau lien.\n\nToujours rien ? Voyez « Comment nous contacter ? »."
+      "body": "Jobbbox n'a pas de mot de passe. Sur la page « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Vous recevez l'e-mail « Votre lien de connexion à Jobbbox » : son bouton « Me connecter à Jobbbox » vous connecte. Si vous n'avez pas encore de compte, il est créé à ce moment-là.\n\nL'e-mail contient aussi un code à 6 chiffres, pour vous connecter sur un autre appareil que celui où vous le lisez : saisissez-le dans « Saisir le code reçu par e-mail », sur la page qui attend le lien ou dans l'app, puis validez avec « Me connecter avec ce code ».\n\nLe lien et le code sont valables 15 minutes et ne fonctionnent qu'une seule fois : utiliser l'un rend l'autre inutilisable. Un lien expiré ou déjà utilisé affiche « Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous. » Au bout de 5 codes faux, le code ne fonctionne plus : demandez un nouvel e-mail, qui apporte un nouveau code.\n\nSelon les moyens proposés sur la page, « Continuer avec … » vous connecte aussi avec un autre compte que vous avez déjà, sans attendre d'e-mail.\n\nL'e-mail n'arrive pas ?\n- Attendez quelques minutes : il peut mettre un peu de temps.\n- Regardez dans vos courriers indésirables (spam) ou vos promotions.\n- Vérifiez l'adresse saisie, puis demandez un nouveau lien.\n\nToujours rien ? Voyez « Comment nous contacter ? »."
     },
     {
       "id": "faq-job-digest-unsubscribe",
@@ -3203,12 +3209,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "se connecter",
         "connexion",
         "lien magique",
-        "lien de connexion"
+        "lien de connexion",
+        "code de connexion",
+        "code à 6 chiffres"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "L'app Jobbbox, sur iPhone, iPad et Android, utilise le même compte que jobbbox.ai. Pas de mot de passe : vous vous connectez par un lien reçu par e-mail.\n\n1. Installez l'app « Jobbbox » depuis l'App Store (iPhone, iPad) ou Google Play (Android), puis ouvrez-la.\n2. Sur l'écran « Se connecter à Jobbbox », saisissez « Votre adresse e-mail », puis touchez « Recevoir mon lien de connexion ».\n3. Sur ce même téléphone, ouvrez l'e-mail reçu et touchez le lien : l'app s'ouvre et vous êtes connecté. Le lien est valable 15 minutes et ne sert qu'une fois ; s'il n'est plus valable, l'app vous le dit : demandez-en un autre avec « Renvoyer le lien », ou avec « Recevoir mon lien de connexion » si l'app est revenue à l'écran « Se connecter à Jobbbox ».\n4. Si votre compte a la vérification en deux étapes, l'app affiche « Vérification en deux étapes » : elle arrive bientôt dans l'app. En attendant, touchez « Se déconnecter » ou connectez-vous sur jobbbox.ai.\n\nSi vous ouvrez le lien sur un appareil où l'app n'est pas installée, il vous connecte sur jobbbox.ai, dans le navigateur.\n\nPour vous déconnecter de l'app, ouvrez « Mon compte » et touchez « Se déconnecter ». Une session fermée depuis « Mon compte » sur jobbbox.ai déconnecte aussi l'app, dès qu'elle revient au premier plan.\n\nSans réseau, l'app affiche « Hors ligne » et vous montre ce que vous avez consulté en dernier ; rien ne s'envoie avant le retour du réseau. Ce qu'elle garde sur l'appareil, jamais vos conversations avec le coach, s'efface quand vous vous déconnectez."
+      "body": "L'app Jobbbox, sur iPhone, iPad et Android, utilise le même compte que jobbbox.ai. Pas de mot de passe : vous vous connectez par un lien reçu par e-mail.\n\n1. Installez l'app « Jobbbox » depuis l'App Store (iPhone, iPad) ou Google Play (Android), puis ouvrez-la.\n2. Sur l'écran « Se connecter à Jobbbox », saisissez « Votre adresse e-mail », puis touchez « Recevoir mon lien de connexion ».\n3. Sur ce même téléphone, ouvrez l'e-mail reçu et touchez le lien : l'app s'ouvre et vous êtes connecté. Le lien est valable 15 minutes et ne sert qu'une fois ; s'il n'est plus valable, l'app vous le dit : demandez-en un autre avec « Renvoyer le lien », ou avec « Recevoir mon lien de connexion » si l'app est revenue à l'écran « Se connecter à Jobbbox ». Vous lisez l'e-mail sur un autre appareil, votre ordinateur par exemple ? Saisissez dans l'app le code à 6 chiffres qu'il contient, dans « Saisir le code reçu par e-mail », puis touchez « Me connecter avec ce code ». Votre iPhone peut aussi vous proposer le code au-dessus du clavier.\n4. Si votre compte a la vérification en deux étapes, l'app affiche « Vérification en deux étapes » : elle arrive bientôt dans l'app. En attendant, touchez « Se déconnecter » ou connectez-vous sur jobbbox.ai.\n\nSi vous ouvrez le lien sur un appareil où l'app n'est pas installée, il vous connecte sur jobbbox.ai, dans le navigateur.\n\nPour vous déconnecter de l'app, ouvrez « Mon compte » et touchez « Se déconnecter ». Une session fermée depuis « Mon compte » sur jobbbox.ai déconnecte aussi l'app, dès qu'elle revient au premier plan.\n\nSans réseau, l'app affiche « Hors ligne » et vous montre ce que vous avez consulté en dernier ; rien ne s'envoie avant le retour du réseau. Ce qu'elle garde sur l'appareil, jamais vos conversations avec le coach, s'efface quand vous vous déconnectez."
     },
     {
       "id": "tutorial-edit-restore-cv",
@@ -4471,12 +4479,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "sign up",
         "create an account",
         "register",
-        "discover"
+        "discover",
+        "sign-in code",
+        "6-digit code",
+        "code from the email"
       ],
       "route": "/connexion",
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox helps you with your job search, with an AI coach. It builds your master CV and search criteria with you, looks for the job offers that suit you, then prepares your applications: a CV tailored to each offer, a cover letter. You then follow your applications, interviews and follow-ups in one place.\n\nJobbbox is for anyone looking for a job, whether for the first time or after years in the same post. It is made to be read without effort: no jargon, a help article for every word to know, and text you can make larger.\n\nYour coach is an AI, and it says so. If you wish, human coaches can also support you, in sessions paid separately. The Jobbbox Chrome extension saves a job offer from the page where you read it.\n\nThis page, « Sign in to Jobbbox », is also where you create your account: no password, enter « Your email address » then click « Send me a sign-in link ». If you don't have an account yet, it is created, on the Free Plan: nothing to pay to start."
+      "body": "Jobbbox helps you with your job search, with an AI coach. It builds your master CV and search criteria with you, looks for the job offers that suit you, then prepares your applications: a CV tailored to each offer, a cover letter. You then follow your applications, interviews and follow-ups in one place.\n\nJobbbox is for anyone looking for a job, whether for the first time or after years in the same post. It is made to be read without effort: no jargon, a help article for every word to know, and text you can make larger.\n\nYour coach is an AI, and it says so. If you wish, human coaches can also support you, in sessions paid separately. The Jobbbox Chrome extension saves a job offer from the page where you read it.\n\nThis page, « Sign in to Jobbbox », is also where you create your account: no password, enter « Your email address » then click « Send me a sign-in link ». If you don't have an account yet, it is created, on the Free Plan: nothing to pay to start.\n\nThe email you receive holds a link and a 6-digit code. Reading it on another device, your phone for instance? Stay on this page: type the code in « Enter the code from the email », then click « Sign in with this code ». The link and the code are valid for 15 minutes, once: using one makes the other unusable. After 5 wrong codes, the code no longer works: click « Send me a new email »."
     },
     {
       "id": "page-withdrawal",
@@ -5537,12 +5548,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "spam",
         "junk mail",
         "link expired",
-        "username"
+        "username",
+        "sign-in code",
+        "6-digit code",
+        "code from the email"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox has no password. On the « Sign in to Jobbbox » page, enter « Your email address » then click « Send me a sign-in link ». You receive the email « Your Jobbbox sign-in link »: its button « Sign in to Jobbbox » signs you in. If you don't have an account yet, it is created then.\n\nThe link is valid for 15 minutes and works only once. A link that has expired or was already used shows « This sign-in link is no longer valid. Ask for a new one below. »\n\nDepending on the options on the page, « Continue with … » also signs you in with another account you already have, without waiting for an email.\n\nThe email doesn't arrive?\n- Wait a few minutes: it can take a little while.\n- Look in your junk mail (spam) or promotions.\n- Check the address you entered, then ask for a new link.\n\nStill nothing? See « How do I contact you? »."
+      "body": "Jobbbox has no password. On the « Sign in to Jobbbox » page, enter « Your email address » then click « Send me a sign-in link ». You receive the email « Your Jobbbox sign-in link »: its button « Sign in to Jobbbox » signs you in. If you don't have an account yet, it is created then.\n\nThe email also holds a 6-digit code, to sign in on another device than the one you read it on: type it in « Enter the code from the email », on the page waiting for the link or in the app, then confirm with « Sign in with this code ».\n\nThe link and the code are valid for 15 minutes and work only once: using one makes the other unusable. A link that has expired or was already used shows « This sign-in link is no longer valid. Ask for a new one below. » After 5 wrong codes, the code no longer works: ask for a new email, which brings a new code.\n\nDepending on the options on the page, « Continue with … » also signs you in with another account you already have, without waiting for an email.\n\nThe email doesn't arrive?\n- Wait a few minutes: it can take a little while.\n- Look in your junk mail (spam) or promotions.\n- Check the address you entered, then ask for a new link.\n\nStill nothing? See « How do I contact you? »."
     },
     {
       "id": "faq-job-digest-unsubscribe",
@@ -6641,12 +6655,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "sign in",
         "log in",
         "magic link",
-        "sign-in link"
+        "sign-in link",
+        "sign-in code",
+        "6-digit code"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "The Jobbbox app, on iPhone, iPad and Android, uses the same account as jobbbox.ai. No password: you sign in with a link received by email.\n\n1. Install the « Jobbbox » app from the App Store (iPhone, iPad) or Google Play (Android), then open it.\n2. On the « Sign in to Jobbbox » screen, enter « Your email address », then tap « Send me a sign-in link ».\n3. On this same phone, open the email you received and tap the link: the app opens and you are signed in. The link is valid for 15 minutes and works once; if it is no longer valid, the app tells you: ask for another one with « Send the link again », or with « Send me a sign-in link » if the app is back on the « Sign in to Jobbbox » screen.\n4. If your account has two-step verification, the app shows « Two-step verification »: it is coming to the app soon. Meanwhile, tap « Sign out » or sign in on jobbbox.ai.\n\nIf you open the link on a device where the app is not installed, it signs you in on jobbbox.ai, in the browser.\n\nTo sign out of the app, open « My account » and tap « Sign out ». A session closed from « My account » on jobbbox.ai also signs the app out, as soon as it comes back to the foreground.\n\nWithout network, the app shows « Offline » and what you last looked at; nothing is sent until the network is back. What it keeps on the device, never your conversations with the coach, is erased when you sign out."
+      "body": "The Jobbbox app, on iPhone, iPad and Android, uses the same account as jobbbox.ai. No password: you sign in with a link received by email.\n\n1. Install the « Jobbbox » app from the App Store (iPhone, iPad) or Google Play (Android), then open it.\n2. On the « Sign in to Jobbbox » screen, enter « Your email address », then tap « Send me a sign-in link ».\n3. On this same phone, open the email you received and tap the link: the app opens and you are signed in. The link is valid for 15 minutes and works once; if it is no longer valid, the app tells you: ask for another one with « Send the link again », or with « Send me a sign-in link » if the app is back on the « Sign in to Jobbbox » screen. Reading the email on another device, your computer for instance? Type the 6-digit code it holds in the app, in « Enter the code from the email », then tap « Sign in with this code ». Your iPhone may also offer the code above the keyboard.\n4. If your account has two-step verification, the app shows « Two-step verification »: it is coming to the app soon. Meanwhile, tap « Sign out » or sign in on jobbbox.ai.\n\nIf you open the link on a device where the app is not installed, it signs you in on jobbbox.ai, in the browser.\n\nTo sign out of the app, open « My account » and tap « Sign out ». A session closed from « My account » on jobbbox.ai also signs the app out, as soon as it comes back to the foreground.\n\nWithout network, the app shows « Offline » and what you last looked at; nothing is sent until the network is back. What it keeps on the device, never your conversations with the coach, is erased when you sign out."
     },
     {
       "id": "tutorial-admin-two-step-verification",

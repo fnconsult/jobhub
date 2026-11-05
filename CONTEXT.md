@@ -784,6 +784,10 @@ _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
 _Avoid_: Deep link, app magic link
 
+**Sign-in code**:
+Six digits sent in the same email as a magic link, typed on the sign-in page or in the Jobbbox app instead of opening the link. Valid as long as the link, five tries, and replaced by a newer email. Using the code spends the email's pending links, and using a link spends the code. A session opened by code counts as a magic-link sign-in everywhere (second step, Require SSO for Administrators) (ADR-0083).
+_Avoid_: OTP, verification code, login PIN
+
 **Domain association files**:
 The two files the web serves so that a phone hands some web addresses to the Jobbbox app instead of the browser: Apple's for universal links, Android's for App Links. Served from each environment's own settings; without them the link simply opens the web.
 _Avoid_: Deep-link config

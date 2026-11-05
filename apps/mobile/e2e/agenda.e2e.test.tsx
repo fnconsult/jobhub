@@ -11,6 +11,31 @@ jest.setTimeout(60_000);
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
 
+/** The device's network as expo-network reports it: connected. */
+jest.mock("expo-network", () => ({
+  getNetworkStateAsync: async () => ({ isConnected: true }),
+  addNetworkStateListener: () => ({ remove: () => {} }),
+}));
+
+// The web app the app signs in to (#685), as app.e2e.test.tsx fakes it.
+const mockWeb = {} as { app: ReturnType<typeof import("../src/session/testing").fakeWebApp>; session: import("../src/session/app-session").AppSession };
+jest.mock("../src/session/instance", () => {
+  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { createAppSession } = jest.requireActual("../src/session/app-session");
+  mockWeb.app = fakeWebApp();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  return { appSession: mockWeb.session };
+});
+// Not hoisted: it replaces Expo Router's own mock, whose scheme is not the app's (as in app.e2e.test.tsx).
+jest.doMock("expo-linking", () => ({ ...jest.requireActual("expo-linking"), useLinkingURL: () => null }));
+const EMAIL = "marie.dupont@example.fr";
+async function signedIn() {
+  jest.requireMock("../src/session/instance");
+  if ((await mockWeb.session.current()).kind === "signedIn") return;
+  await mockWeb.session.askLink(EMAIL);
+  await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
+}
+
 const mockCalendar = {
   requestCalendarPermissions: jest.fn<Promise<{ granted: boolean }>, [boolean]>(),
   addEventWithForm: jest.fn<Promise<unknown>, [Record<string, unknown>]>(async () => ({ action: "saved" })),
@@ -62,6 +87,7 @@ beforeEach(() => {
 afterEach(() => jest.useRealTimers());
 
 async function openAgenda() {
+  await signedIn();
   await renderRouter("./src/app", { initialUrl: "/agenda" });
 }
 

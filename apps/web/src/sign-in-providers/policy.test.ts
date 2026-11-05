@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { betterAuthSignIn, linkableProviders, needsSsoForBackOffice, oauthSignInDecision, signInButtons, trustedProviderIds } from "./policy";
+import { betterAuthSignIn, linkableProviders, needsSsoForBackOffice, oauthSignInDecision, providersRequiringApple, signInButtons, trustedProviderIds } from "./policy";
 import type { SignInConfiguration, SignInProvider } from "./catalog";
 
 const provider = (overrides: Partial<SignInProvider> & Pick<SignInProvider, "id" | "type">): SignInProvider => ({
@@ -47,6 +47,27 @@ describe("the sign-in buttons", () => {
 
   it("never carries a client secret", () => {
     expect(JSON.stringify(signInButtons(providers, "administrators"))).not.toContain("secret");
+  });
+});
+
+describe("App Store rule 4.8: Sign in with Apple beside another social sign-in (#687)", () => {
+  const microsoft = provider({ id: "microsoft", type: "microsoft", displayName: "Microsoft" });
+  const apple = provider({ id: "apple", type: "apple", displayName: "Apple" });
+
+  it("names Google and Microsoft shown to Candidates while Apple is not: the app's review would be refused", () => {
+    expect(providersRequiringApple([google, microsoft])).toEqual(["Google", "Microsoft"]);
+    expect(providersRequiringApple([google, draftApple])).toEqual(["Google"]);
+    expect(providersRequiringApple([google, { ...apple, shownToCandidates: false }])).toEqual(["Google"]);
+  });
+
+  it("names none once Apple is shown to Candidates beside them", () => {
+    expect(providersRequiringApple([google, microsoft, apple])).toEqual([]);
+  });
+
+  it("names none for the magic link alone, a provider not shown to Candidates, or an organisation's OIDC sign-in (exempt)", () => {
+    expect(providersRequiringApple([])).toEqual([]);
+    expect(providersRequiringApple([{ ...google, shownToCandidates: false }, { ...microsoft, enabled: false }])).toEqual([]);
+    expect(providersRequiringApple([{ ...staffOidc, shownToCandidates: true }])).toEqual([]);
   });
 });
 

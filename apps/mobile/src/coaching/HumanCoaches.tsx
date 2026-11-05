@@ -2,7 +2,7 @@ import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/re
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Linking, ScrollView, View } from "react-native";
+import { ActivityIndicator, Linking, View } from "react-native";
 import { useRead } from "../api/reads";
 import { FRENCH_TIME_ZONE } from "../agenda/french-time";
 import { paths } from "../navigation/pages";
@@ -49,11 +49,12 @@ function usePaymentWait(coaching: ReturnType<typeof useCoaching>) {
 }
 
 /**
- * Mes coachs humains (#694, ADR-0076), native: the menu's card as on the web, « Mes séances payées » (each Coaching
- * Session with its status: dated, with its duration, video link and note, or to schedule on the Human Coach's Cal.com
- * page) then « Choisir un coach » (each Human Coach, whether they have Coach Access, and « Réserver une séance avec … »
- * while a Coaching Session can be paid). The price shown is the one the Candidate pays for a Coaching Session: never a
- * Plan's price, name or upgrade (App Store guideline 3.1.1).
+ * Mes coachs humains (#694, ADR-0076), native: the menu's card in its Coach Conversation (MenuPages, ADR-0070), as on
+ * the web: « Mes séances payées » (each Coaching Session with its status: dated, with its duration, video link and note,
+ * or to schedule on the Human Coach's Cal.com page) then « Choisir un coach » (each Human Coach, whether they have Coach
+ * Access, and « Réserver une séance avec … » while a Coaching Session can be paid). The price shown is the one the
+ * Candidate pays for a Coaching Session: never a Plan's price, name or upgrade (App Store guideline 3.1.1). It does not
+ * scroll by itself: the conversation's thread does.
  */
 export function HumanCoaches() {
   const { t } = useTranslation();
@@ -74,18 +75,14 @@ export function HumanCoaches() {
   );
   if (coaching.data) return <Loaded coaching={coaching.data} wait={wait} onRefresh={() => void refetch()} />;
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: space[4], padding: space[4] }}>
+    <View style={{ gap: space[3], alignItems: "flex-start" }}>
       {coaching.isError ? (
         <>
-          <AppText tone="secondary" centered>
-            {t("mobile.coaching.loadError")}
-          </AppText>
+          <AppText tone="secondary">{t("mobile.coaching.loadError")}</AppText>
           <Control label={t("errorPage.actions.retry")} onPress={() => void coaching.refetch()} />
         </>
       ) : (
-        <AppText tone="secondary" centered>
-          {t("mobile.coaching.loading")}
-        </AppText>
+        <AppText tone="secondary">{t("mobile.coaching.loading")}</AppText>
       )}
     </View>
   );
@@ -95,7 +92,7 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
   const { t, i18n } = useTranslation();
   const formats = useMemo(() => coachingFormats(i18n.language), [i18n.language]);
   return (
-    <ScrollView contentContainerStyle={{ padding: space[4], gap: space[6] }}>
+    <View style={{ gap: space[6] }}>
       <View style={{ gap: space[3] }}>
         <AppText variant="h3" heading>
           {t("humanCoaches.sessionsTitle")}
@@ -117,7 +114,7 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
           <CoachCard key={coach.id} coach={coach} bookable={coaching.price !== null} />
         ))}
       </View>
-    </ScrollView>
+    </View>
   );
 }
 

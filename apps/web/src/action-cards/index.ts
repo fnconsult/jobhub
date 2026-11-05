@@ -64,6 +64,8 @@ export interface ActionCard {
   edited?: unknown;
   /** When « Annuler » put the state before back. */
   undoneAt?: Date;
+  /** What « Annuler » left as it was, as its kind's handler named it (#770); shown on the card. */
+  undoNote?: string;
   /** Applied, with the state before kept: « Annuler » is offered. */
   undoable?: true;
 }
@@ -97,8 +99,11 @@ export class ActionCardInvalid extends Error {
  * Gives back what `undo` needs to put the state before back, if it can be.
  */
 export type AcceptHandler = (card: ActionCard, candidateId: string, edited?: unknown) => Promise<void | { undo?: unknown }>;
-/** Puts back the state before an applied card, from what its AcceptHandler gave back. Throwing leaves it applied. */
-export type UndoHandler = (card: ActionCard, candidateId: string, undo: unknown) => Promise<void>;
+/**
+ * Puts back the state before an applied card, from what its AcceptHandler gave back. Throwing leaves it applied. `note`:
+ * what it left as it was, kept with the card (#770).
+ */
+export type UndoHandler = (card: ActionCard, candidateId: string, undo: unknown) => Promise<void | { note?: string }>;
 
 export interface ActionCards {
   propose(candidateId: string, proposal: ActionCardProposal): Promise<ActionCard>;
@@ -132,9 +137,10 @@ interface CardRow {
   edited: unknown;
   undo: unknown;
   undone_at: Date | null;
+  undo_note: string | null;
 }
 
-const COLUMNS = "id, kind, title, body, focus_kind, focus_id, payload, status, created_at, provenance, reply_seq, decided_at, edited, undo, undone_at";
+const COLUMNS = "id, kind, title, body, focus_kind, focus_id, payload, status, created_at, provenance, reply_seq, decided_at, edited, undo, undone_at, undo_note";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** What a page lists: its own cards, never a thread's. */
 const ON_A_PAGE = "reply_seq IS NULL";
@@ -154,6 +160,7 @@ function cardFrom(row: CardRow): ActionCard {
     ...(row.decided_at ? { decidedAt: row.decided_at } : {}),
     ...(row.edited !== null && row.edited !== undefined ? { edited: row.edited } : {}),
     ...(row.undone_at ? { undoneAt: row.undone_at } : {}),
+    ...(row.undo_note ? { undoNote: row.undo_note } : {}),
     ...(row.status === "accepted" && row.undo !== null && row.undo !== undefined ? { undoable: true as const } : {}),
   };
 }
@@ -284,12 +291,16 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
         if (row.status === "dismissed" || row.status === "undone") return { ok: false, error: "already_decided" };
         const undoer = undoers[row.kind];
         if (row.status !== "accepted" || row.undo === null || !undoer) return { ok: false, error: "not_undoable" };
+        let note: string | null = null;
         try {
-          await undoer(cardFrom(row), candidateId, row.undo);
+          note = (await undoer(cardFrom(row), candidateId, row.undo))?.note ?? null;
         } catch (error) {
           return refusal(row.kind, error).error === "conflict" ? { ok: false, error: "conflict" } : { ok: false, error: "failed" };
         }
-        const { rows } = await client.query<CardRow>(`UPDATE action_card SET status = 'undone', undone_at = now() WHERE id = $1 RETURNING ${COLUMNS}`, [row.id]);
+        const { rows } = await client.query<CardRow>(`UPDATE action_card SET status = 'undone', undone_at = now(), undo_note = $2 WHERE id = $1 RETURNING ${COLUMNS}`, [
+          row.id,
+          note,
+        ]);
         return { ok: true, card: cardFrom(rows[0]!) };
       });
     },
@@ -324,6 +335,8 @@ export async function migrateActionCards(database: Pool): Promise<void> {
     ALTER TABLE action_card ADD COLUMN IF NOT EXISTS edited jsonb;
     ALTER TABLE action_card ADD COLUMN IF NOT EXISTS undo jsonb;
     ALTER TABLE action_card ADD COLUMN IF NOT EXISTS undone_at timestamptz;
+    -- What « Annuler » left as it was (#770): e.g. an Application Status changed since, said on the card.
+    ALTER TABLE action_card ADD COLUMN IF NOT EXISTS undo_note text;
     CREATE INDEX IF NOT EXISTS action_card_reply_idx ON action_card (reply_seq) WHERE reply_seq IS NOT NULL;
     ALTER TABLE action_card DROP CONSTRAINT IF EXISTS action_card_status_check;
     ALTER TABLE action_card ADD CONSTRAINT action_card_status_check CHECK (status IN ('pending', 'accepted', 'dismissed', 'undone'));

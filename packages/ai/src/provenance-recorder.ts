@@ -21,6 +21,7 @@
  */
 import {
   failureOf,
+  MAX_SEEN,
   provenanceLink,
   siteDomainOf,
   storableProvenance,
@@ -30,6 +31,8 @@ import {
   type ProvenanceRule,
   type ProvenanceSite,
   type ProvenanceStep,
+  seenStored,
+  type SeenName,
   type StartedStep,
   type StepOutcome,
 } from "@jobhub/shared";
@@ -58,7 +61,12 @@ export interface ProvenanceRecorder {
    * Runs a Tool call or rules as one step, timed; returns what `run` returns, or rethrows. `proposes`: a Coach Action
    * that proposes a change (ADR-0077), its step said so and folded apart from its group's reads.
    */
-  step<T>(subject: { tool: StepTool; proposes?: true } | { rule: ProvenanceRule }, run: () => T | Promise<T>): Promise<T>;
+  step<T>(
+    subject: { tool: StepTool; proposes?: true; action?: string } | { rule: ProvenanceRule },
+    run: () => T | Promise<T>,
+    /** A Coach Action's: what it read or proposed on, from what `run` returned, kept on its ended step (#788). */
+    seen?: (value: T) => readonly SeenName[] | undefined,
+  ): Promise<T>;
   /** Adds a page the result was built from to its Provenance sites; a link the link filter refuses is left out. */
   site(link: string): void;
   /** The Provenance so far, as it may be stored: steps folded, the wall-clock time until now. */
@@ -71,7 +79,7 @@ export interface ProvenanceRecorder {
   part(): ProvenanceRecorder;
 }
 
-type Subject = { kind: "ai"; task: TextTask | "web_search" } | { kind: "tool"; tool: StepTool; proposes?: true } | { kind: "rules"; rule: ProvenanceRule };
+type Subject = { kind: "ai"; task: TextTask | "web_search" } | { kind: "tool"; tool: StepTool; proposes?: true; action?: string } | { kind: "rules"; rule: ProvenanceRule };
 
 /** What an AI call that worked says of itself. */
 type CallFacts = Pick<GenerateResult | SearchResult, "provider" | "endpoint" | "model" | "usage" | "durationMs" | "outcome"> & Pick<GenerateResult, "euAiConsent">;
@@ -117,15 +125,22 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
   const all = [own, ...wider];
 
   /** Runs one step: its start and end emitted, the ended step kept. `ended` builds it from what `run` returned. */
-  async function record<T>(subject: Subject, activity: Activity, run: () => T | Promise<T>, ended: (value: T) => Partial<ProvenanceStep>, signal?: AbortSignal): Promise<T> {
+  async function record<T>(
+    subject: Subject,
+    activity: Activity,
+    run: () => T | Promise<T>,
+    ended: (value: T) => Partial<ProvenanceStep> & { names?: readonly (string | null)[] },
+    signal?: AbortSignal,
+  ): Promise<T> {
     const id = action.nextId();
     const start = now();
     const started = { ...subject, activity, at: start.toISOString() } as StartedStep;
     emit({ type: "step_started", id, step: started });
-    const end = (outcome: StepOutcome, facts: Partial<ProvenanceStep> = {}) => {
+    const end = (outcome: StepOutcome, { names, ...facts }: Partial<ProvenanceStep> & { names?: readonly (string | null)[] } = {}) => {
       const step = { ...started, ms: Math.max(0, now().getTime() - start.getTime()), outcome, count: 1, ...facts } as ProvenanceStep;
       for (const kept of all) kept.steps.push(step);
-      emit({ type: "step_ended", id, step });
+      // The names a Coach Action saw go with the live event only, never into the kept step (ADR-0034).
+      emit({ type: "step_ended", id, step, ...(names ? { names } : {}) });
     };
     let value: T;
     try {
@@ -192,9 +207,18 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
   return {
     ai: layer(),
     aiFor: (featureStep) => layer(FEATURE_STEPS[featureStep]),
-    step(subject, run) {
-      const kind: Subject = "tool" in subject ? { kind: "tool", tool: subject.tool, ...(subject.proposes ? { proposes: true as const } : {}) } : { kind: "rules", rule: subject.rule };
-      return record(kind, activityOf(kind), run, () => ({}));
+    step(subject, run, seen) {
+      const kind: Subject =
+        "tool" in subject
+          ? { kind: "tool", tool: subject.tool, ...(subject.proposes ? { proposes: true as const } : {}), ...(subject.action ? { action: subject.action } : {}) }
+          : { kind: "rules", rule: subject.rule };
+      return record(kind, activityOf(kind), run, (value) => {
+        const objects = seen?.(value)?.slice(0, MAX_SEEN);
+        if (!objects || objects.length === 0) return {};
+        return { seen: objects.map(seenStored), names: objects.map((object) => ("name" in object && object.name ? object.name : null)) } as Partial<ProvenanceStep> & {
+          names: (string | null)[];
+        };
+      });
     },
     site(link) {
       const kept = provenanceLink(link);
@@ -226,7 +250,7 @@ function siteOf(sites: ProvenanceSite[], site: ProvenanceSite): ProvenanceSite {
 
 /** What a step is, for folding: two calls alike in all of it are one step. */
 function foldKey(step: ProvenanceStep): string {
-  const what = step.kind === "ai" ? [step.task, step.provider, step.endpoint, step.model, step.euAiConsent === true] : step.kind === "tool" ? [step.tool, step.proposes === true] : [step.rule];
+  const what = step.kind === "ai" ? [step.task, step.provider, step.endpoint, step.model, step.euAiConsent === true] : step.kind === "tool" ? [step.tool, step.proposes === true, step.action ?? null] : [step.rule];
   return JSON.stringify([step.kind, step.activity, step.outcome, ...what]);
 }
 
@@ -244,6 +268,12 @@ function folded(steps: readonly ProvenanceStep[]): ProvenanceStep[] {
     into.ms += step.ms;
     if (into.kind === "ai" && step.kind === "ai" && step.tokens) {
       into.tokens = { input: (into.tokens?.input ?? 0) + step.tokens.input, output: (into.tokens?.output ?? 0) + step.tokens.output };
+    }
+    // What each call of a Coach Action saw, in order, once each, up to MAX_SEEN (#788).
+    if (into.kind === "tool" && step.kind === "tool" && step.seen) {
+      const all = [...(into.seen ?? []), ...step.seen];
+      const once = all.filter((object, index) => all.findIndex((other) => JSON.stringify(other) === JSON.stringify(object)) === index);
+      into.seen = once.slice(0, MAX_SEEN);
     }
   }
   return [...byKey.values()];

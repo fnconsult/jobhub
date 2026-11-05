@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
 import { Briefcase, Calendar, Mail, Search, Users, type LucideIcon } from "lucide-react-native";
 import type { ProfileResponse } from "@jobhub/shared/reads";
-import { SAMPLE_APPLICATIONS, SAMPLE_FREE_CONVERSATIONS } from "../sample-data";
+import { SAMPLE_APPLICATIONS } from "../sample-data";
 import type { ShellPage } from "../shell/Shell";
 
 /** An Application's Interviews Section, as its address names it (the web's APPLICATION_SECTIONS). */
@@ -79,15 +79,20 @@ export const isCurrent = (pathname: string, path: string) => (path === paths.hom
  * The page at `pathname` as the shell shows it: its title, and its column, the Fiche on an object's page (an
  * Application's, a Profile's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the
  * subscription, the Legal Texts, the Coach space or Réglages de l'app.
- * A Profile's page is titled with its name once `read.profile` has it (`GET /api/profiles/:id`), « Profil » until then.
+ * A Profile's page is titled with its name once `read.profile` has it (`GET /api/profiles/:id`), « Profil » until then;
+ * a Free conversation's with its title, as `read.conversationTitle` gives it (the drawer's list).
  */
-export function pageFor(pathname: string, t: TFunction, read: { profile?: Pick<ProfileResponse, "id" | "name"> } = {}): ShellPage {
+export function pageFor(
+  pathname: string,
+  t: TFunction,
+  read: { profile?: Pick<ProfileResponse, "id" | "name">; conversationTitle?: (id: string) => string | undefined } = {},
+): ShellPage {
   const page = (title: string, pane: ShellPage["pane"]): ShellPage => ({ key: pathname, title, pane });
   const [, section, id] = segments(pathname);
   if (section === "candidatures" && id) return page(SAMPLE_APPLICATIONS.find((application) => application.id === id)?.title ?? t("nav.applications"), "fiche");
   if (section === "profils" && id) return page(read.profile?.id === id ? read.profile.name : t("mobile.profiles.title"), "fiche");
   if (section === "conversations" && id) {
-    const title = SAMPLE_FREE_CONVERSATIONS.find((conversation) => conversation.id === id)?.title;
+    const title = read.conversationTitle?.(id);
     return page(title ?? t("conversationFirst.newConversation"), "activite");
   }
   const menu = MENUS.find((candidate) => under(pathname, candidate.path));

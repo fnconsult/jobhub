@@ -410,6 +410,8 @@ export const coachMessageSchema = z.object({
   blocked: z.literal(true).optional(),
   jobOffer: z.object({ id: z.string(), title: z.string(), employer: z.string().optional(), followed: z.boolean() }).optional(),
   cards: z.array(coachProposalCardSchema).optional(),
+  /** What its Coach Actions saw, named by page as the objects are now (#788): « Le coach a consulté… ». */
+  seenNames: z.record(z.string(), z.string().max(80)).optional(),
 });
 
 /** A Coach Conversation with its messages and its Context bar's figures. */

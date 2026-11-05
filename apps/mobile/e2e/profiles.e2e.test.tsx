@@ -1,10 +1,12 @@
 // End-to-end for the Profiles (#695) through the app's real entry: Expo Router mounts Mon compte and a Profile's page
 // with its Fiche, which read the Candidate's own Profiles from the web app (`GET /api/profiles`, `GET /api/profiles/:id`,
-// #684), faked at its fetch as it answers them. Only the WebView, a native view, is faked besides: what it would load,
-// and what it is told to let through, is asserted.
+// #684), faked at its fetch as it answers them. A Profile's page is its Coach Conversation (#690), whose routes are
+// answered by the coach's fake (src/coach/testing.ts). Only the WebView, a native view, is faked besides: what it would
+// load, and what it is told to let through, is asserted.
 import type { ProfileResponse } from "@jobhub/shared/reads";
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
+import { fakeCoachWeb, withCoach } from "../src/coach/testing";
 import { fakeWebView } from "../src/testing-device";
 import { Dimensions, Linking } from "react-native";
 
@@ -118,9 +120,10 @@ async function openProfileFiche(id = SUPPLY_CHAIN.id) {
 beforeEach(() => {
   fakeWebView.reset();
   setWindow(PHONE);
-  // Every call of the app's useApi() goes to the web app, faked at its fetch as the session's are.
+  // Every call of the app's useApi() goes to the web app, faked at its fetch as the session's are, its Coach Conversation
+  // routes by the coach's fake.
   jest.requireMock("../src/session/instance");
-  jest.spyOn(globalThis, "fetch").mockImplementation(mockWeb.app.fetch);
+  jest.spyOn(globalThis, "fetch").mockImplementation(withCoach(fakeCoachWeb(), mockWeb.app.fetch));
   mockWeb.app.has(EMAIL, { profiles: [SUPPLY_CHAIN, PURCHASING, ARCHIVED] });
   mockWeb.app.reads.length = 0;
 });
@@ -197,10 +200,12 @@ describe("Profiles, while they load or cannot be read", () => {
     let answer!: () => void;
     const answered = new Promise<void>((resolve) => (answer = resolve));
     // The Profile's read waits; the legal steps the app reads first once signed in (#689) do not.
-    jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      if (new Request(input, init).url.includes("/api/profiles/")) await answered;
-      return mockWeb.app.fetch(input, init);
-    });
+    jest.spyOn(globalThis, "fetch").mockImplementation(
+      withCoach(fakeCoachWeb(), async (input, init) => {
+        if (new Request(input, init).url.includes("/api/profiles/")) await answered;
+        return mockWeb.app.fetch(input, init);
+      }),
+    );
     await signedIn();
     await openApp("/profils/prof_lyon");
 

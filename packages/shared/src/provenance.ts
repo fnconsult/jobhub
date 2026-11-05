@@ -70,12 +70,44 @@ const aiStep = z.strictObject({
   /** The call carried the Candidate's identity and went to the identity route under their EU AI Consent (« consentement IA UE »). */
   euAiConsent: z.literal(true).optional(),
 });
+/** The kinds of the Candidate's objects a Coach Action reads or proposes on (#788), and `all` for a list of every kind. */
+export const SEEN_TYPES = ["profile", "application", "job_offer", "job_search", "job_digest", "tailored_documents", "agenda_item", "coach_memory", "all"] as const;
+export type SeenType = (typeof SEEN_TYPES)[number];
+/** A Coach Action's name, as every provider takes it. */
+const COACH_ACTION_NAME = /^[a-z][a-z0-9_]{0,63}$/;
+/**
+ * What one Coach Action read or proposed on (#788): an object by its kind and the Candidate's page it is on, or a list by
+ * how many it held. Never its name nor any text (ADR-0034): the thread names it from the live event (`SeenName`) while
+ * the reply arrives, and from the object itself afterwards.
+ */
+const seenObject = z.union([
+  z.strictObject({
+    type: z.enum(SEEN_TYPES),
+    /** The Candidate's page it is on, as the link filter keeps it. */
+    href: z.string().refine((value) => value.startsWith("/") && provenanceLink(value) === value).optional(),
+  }),
+  z.strictObject({ type: z.enum(SEEN_TYPES), count }),
+]);
+export type SeenObject = z.output<typeof seenObject>;
+/**
+ * An object a Coach Action saw, named from Jobbbox's own fields (a Profile's name, an Application's employer and title):
+ * carried by the live `step_ended` event only, for the thread's line, and never stored (ADR-0034, #788).
+ */
+export type SeenName = SeenObject & { name?: string };
+/** A seen object as stored: its name left out. */
+export const seenStored = (object: SeenName): SeenObject => ("count" in object ? { type: object.type, count: object.count } : { type: object.type, ...(object.href ? { href: object.href } : {}) });
+/** At most this many objects per step: a list's count says the rest. */
+export const MAX_SEEN = 10;
 const toolStep = z.strictObject({
   kind: z.literal("tool"),
   ...stepBase,
   tool: z.custom<ToolId>((value) => typeof value === "string" && TOOL_IDS.has(value)),
   /** A Coach Action's step (`act`) that proposed a change (an Action Card), not only read; absent for a read. */
   proposes: z.literal(true).optional(),
+  /** The Coach Action that ran (`read_application`, `propose_interview`…), for its own label (#788); absent for any other Tool. */
+  action: identifier(COACH_ACTION_NAME).optional(),
+  /** What it read or proposed on, once it ended (#788). */
+  seen: z.array(seenObject).max(MAX_SEEN).optional(),
 });
 const rulesStep = z.strictObject({
   kind: z.literal("rules"),
@@ -162,6 +194,17 @@ function partialProvenance(saved: SavedAiFacts): Provenance | null {
  */
 export function storableProvenance(provenance: Provenance): Provenance {
   const steps = provenance.steps.map((stored) => {
+    // A Coach Action's name and what it saw (#788): what does not fit is left out, never the Provenance.
+    if (stored.kind === "tool") {
+      const kept = { ...stored };
+      if (kept.action !== undefined && !identifier(COACH_ACTION_NAME).safeParse(kept.action).success) delete kept.action;
+      if (kept.seen !== undefined) {
+        const seen = kept.seen.filter((object) => seenObject.safeParse(object).success).slice(0, MAX_SEEN);
+        if (seen.length > 0) kept.seen = seen;
+        else delete kept.seen;
+      }
+      return kept;
+    }
     if (stored.kind !== "ai") return stored;
     const kept = { ...stored };
     if (kept.provider !== undefined && !AI_PROVIDERS.has(kept.provider)) delete kept.provider;
@@ -227,19 +270,23 @@ export async function byRules<T>(
 
 /** What a step is before it ends: its Activity and what it runs, never its model (the AI layer picks the route as it sends). */
 export type StartedStep = {
-  [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent">;
+  [K in ProvenanceStep["kind"]]: Omit<Extract<ProvenanceStep, { kind: K }>, "ms" | "outcome" | "count" | "provider" | "endpoint" | "model" | "tokens" | "euAiConsent" | "seen">;
 }[ProvenanceStep["kind"]];
 
 /**
  * The live events of an action's steps, the same over every transport (#319 §4): each call starts and ends once,
  * by its `id` within the action, before it is folded into the stored Provenance.
  */
-export type ProvenanceEvent = { type: "step_started"; id: number; step: StartedStep } | { type: "step_ended"; id: number; step: ProvenanceStep };
+export type ProvenanceEvent =
+  | { type: "step_started"; id: number; step: StartedStep }
+  /** `names`: a Coach Action's step, the name of each object of `step.seen` (null for a list), for the thread's live line (#788); never stored. */
+  | { type: "step_ended"; id: number; step: ProvenanceStep; names?: readonly (string | null)[] };
 
 const UNKNOWN_YET = { ms: true, outcome: true, count: true } as const;
 const startedStep = z.discriminatedUnion("kind", [
   aiStep.omit({ ...UNKNOWN_YET, provider: true, endpoint: true, model: true, tokens: true, euAiConsent: true }),
-  toolStep.omit(UNKNOWN_YET),
+  // What a Coach Action saw is only known once it ends.
+  toolStep.omit({ ...UNKNOWN_YET, seen: true }),
   rulesStep.omit(UNKNOWN_YET),
 ]).refine(proposesOnlyAsCoachAction);
 const eventId = z.number().int().positive();

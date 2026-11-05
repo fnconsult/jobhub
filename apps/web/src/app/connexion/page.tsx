@@ -1,8 +1,8 @@
+import { signInCopy } from "@jobhub/shared/sign-in-providers";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { safeReturnPath, SESSION_EXPIRED } from "@/auth/sign-in-return";
-import { signInCopy } from "@/auth/sign-in-copy";
 import { SignInForm } from "@/components/SignInForm";
 import { Note } from "@/design/Note";
 import { PublicSite } from "@/design/PublicSite";

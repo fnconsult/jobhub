@@ -1,6 +1,7 @@
-import { File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Share } from "react-native";
+import { appSession } from "../session/instance";
 import { webAppAddress, webAppHeaders } from "../web-app";
 import type { DocumentDevice, DocumentFormat } from "./document-reader";
 
@@ -10,14 +11,21 @@ const TYPES: Record<DocumentFormat, { mimeType: string; UTI: string }> = {
   docx: { mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", UTI: "org.openxmlformats.wordprocessingml.document" },
 };
 
+/** The folder of the app's cache the documents are downloaded into, and deleted with when the session ends. */
+const DOCUMENTS = new Directory(Paths.cache, "documents");
+
 /**
- * The device's own reader and share sheet (ADR-0076, #695). A document is downloaded from the web app into the app's
- * cache, never elsewhere: the system's share sheet is where the person saves it in Fichiers or sends it by Mail. Its
- * PDF opens in Quick Look on iOS and in the PDF viewer the person has on Android (expo-file-system's preview).
+ * The device's own reader and share sheet (ADR-0076, #695). A document is downloaded from the web app, with the session,
+ * into a folder of the app's cache, never elsewhere: the system's share sheet is where the person saves it in Fichiers
+ * or sends it by Mail. Its PDF opens in Quick Look on iOS and in the PDF viewer the person has on Android
+ * (expo-file-system's preview). The folder is deleted when the session ends (`forgetDocuments`).
  */
 export const systemDocuments: DocumentDevice = {
   async download(path, fileName) {
-    const file = await File.downloadFileAsync(webAppAddress(path), new File(Paths.cache, fileName), { headers: webAppHeaders(), idempotent: true });
+    // The export routes answer only a signed-in Candidate: without its cookie, every download would be a 401.
+    const headers = { ...webAppHeaders(), cookie: await appSession.cookie() };
+    DOCUMENTS.create({ intermediates: true, idempotent: true });
+    const file = await File.downloadFileAsync(webAppAddress(path), new File(DOCUMENTS, fileName), { headers, idempotent: true });
     return file.uri;
   },
 
@@ -30,3 +38,11 @@ export const systemDocuments: DocumentDevice = {
     await Share.share({ title: subject || title, message: text }, { subject, dialogTitle: title });
   },
 };
+
+/**
+ * Deletes every Tailored Document downloaded into the cache: signed out, or the session found revoked or expired, the
+ * device keeps nothing of them (docs/privacy/register.md).
+ */
+export async function forgetDocuments(): Promise<void> {
+  if (DOCUMENTS.exists) DOCUMENTS.delete();
+}

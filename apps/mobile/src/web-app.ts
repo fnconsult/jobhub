@@ -11,7 +11,7 @@ export const webAppAddress = (path: string) => new URL(path, WEB_APP_URL).toStri
 
 /**
  * What the app states on every call to the web app: the API Version it speaks and that it is the Jobbbox app, so an
- * outdated one is answered 426 (#684). The session cookie joins them with the app's session (#685).
+ * outdated one is answered 426 (#684). A call made with the session also sends its cookie (`AppSession.cookie`, #685).
  */
 export const webAppHeaders = (): Record<string, string> => ({ [API_VERSION_HEADER]: String(API_VERSION), [API_CLIENT_HEADER]: MOBILE_CLIENT });
 

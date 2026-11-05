@@ -2,8 +2,9 @@
 // Application's page with its Fiche, and the real system-documents module downloads, shows and shares them. Only the
 // device's native modules (expo-file-system, expo-sharing, React Native's Share) are faked, and what reaches the
 // system's PDF reader and share sheet is asserted.
-import { screen, userEvent } from "@testing-library/react-native";
+import { act, screen, userEvent } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
+import { router } from "expo-router";
 import { Dimensions, Share } from "react-native";
 
 jest.setTimeout(60_000);
@@ -44,9 +45,24 @@ const mockDownloads: { url: string; to: string; headers: Record<string, string> 
 const mockPreview = jest.fn<Promise<void>, [string, unknown]>(async () => {});
 const mockShare = jest.fn<Promise<void>, [string, unknown]>(async () => {});
 const mockFailNextDownload = { current: false };
+/** What is in the app's cache on the device: the files' addresses. */
+const mockFiles = new Set<string>();
 
 jest.mock("expo-sharing", () => ({ shareAsync: (uri: string, options: unknown) => mockShare(uri, options) }));
 jest.mock("expo-file-system", () => {
+  class Directory {
+    uri: string;
+    constructor(...parts: ({ uri: string } | string)[]) {
+      this.uri = parts.map((part) => (typeof part === "string" ? `${part}/` : part.uri)).join("");
+    }
+    get exists() {
+      return [...mockFiles].some((file) => file.startsWith(this.uri));
+    }
+    create() {}
+    delete() {
+      for (const file of mockFiles) if (file.startsWith(this.uri)) mockFiles.delete(file);
+    }
+  }
   class File {
     uri: string;
     constructor(...parts: ({ uri: string } | string)[]) {
@@ -58,13 +74,14 @@ jest.mock("expo-file-system", () => {
         throw new Error("offline");
       }
       mockDownloads.push({ url, to: destination.uri, headers: options?.headers });
+      mockFiles.add(destination.uri);
       return destination;
     }
     preview(options: unknown) {
       return mockPreview(this.uri, options);
     }
   }
-  return { File, Paths: { cache: { uri: "file:///cache/" } } };
+  return { Directory, File, Paths: { cache: { uri: "file:///cache/" } } };
 });
 
 const PHONE = { width: 390, height: 844 };
@@ -74,7 +91,7 @@ const setWindow = ({ width, height }: { width: number; height: number }) => {
   Dimensions.set({ window: size, screen: size });
 };
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
-const CV_PDF = "file:///cache/CV adapté – Aéroline · Responsable qualité.pdf";
+const CV_PDF = "file:///cache/documents/CV adapté – Aéroline · Responsable qualité.pdf";
 
 async function openFiche() {
   await signedIn();
@@ -85,6 +102,7 @@ async function openFiche() {
 beforeEach(() => {
   jest.clearAllMocks();
   mockDownloads.length = 0;
+  mockFiles.clear();
   setWindow(PHONE);
 });
 
@@ -97,9 +115,11 @@ describe("Tailored Documents, the system's PDF reader", () => {
       {
         url: "https://jobbbox.ai/api/applications/a1/tailored-cv/export?format=pdf&template=classic",
         to: CV_PDF,
-        headers: { "Jobbbox-Api-Version": "1", "Jobbbox-Client": "mobile" },
+        headers: { "Jobbbox-Api-Version": "1", "Jobbbox-Client": "mobile", cookie: expect.any(String) },
       },
     ]);
+    // The download carries the session (#685), as the app's reads do: the web app reads it as Marie's, not a 401.
+    expect(mockWeb.app.signedInAs(mockDownloads[0]?.headers)).toBe(EMAIL);
     expect(mockPreview).toHaveBeenCalledWith(CV_PDF, { title: "CV adapté", mimeType: "application/pdf" });
     // The Work Pane over the Fiche, on a phone: the document's title, and what can be done with it.
     expect(screen.getByText("CV adapté")).toBeOnTheScreen();
@@ -124,7 +144,7 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
     await user.press(button("Lettre de motivation"));
     await user.press(button("Télécharger en Word"));
 
-    const word = "file:///cache/Lettre de motivation – Aéroline · Responsable qualité.docx";
+    const word = "file:///cache/documents/Lettre de motivation – Aéroline · Responsable qualité.docx";
     expect(mockDownloads.map((download) => download.url)).toEqual([
       "https://jobbbox.ai/api/applications/a1/cover-letter/export?format=pdf&template=classic",
       "https://jobbbox.ai/api/applications/a1/cover-letter/export?format=docx&template=classic",
@@ -135,7 +155,7 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
       dialogTitle: "Lettre de motivation",
     });
     await user.press(button("Ouvrir"));
-    expect(mockPreview).toHaveBeenLastCalledWith("file:///cache/Lettre de motivation – Aéroline · Responsable qualité.pdf", { title: "Lettre de motivation", mimeType: "application/pdf" });
+    expect(mockPreview).toHaveBeenLastCalledWith("file:///cache/documents/Lettre de motivation – Aéroline · Responsable qualité.pdf", { title: "Lettre de motivation", mimeType: "application/pdf" });
   });
 
   it("shows the Outreach Message's words in the Work Pane and shares them, its subject for Mail", async () => {
@@ -189,12 +209,27 @@ describe("Tailored Documents, on a tablet", () => {
   it("opens the document in the Work Pane column beside the conversation and the Fiche", async () => {
     setWindow(IPAD_LANDSCAPE);
     await signedIn();
-  await renderRouter("./src/app", { initialUrl: "/candidatures/a1" });
+    await renderRouter("./src/app", { initialUrl: "/candidatures/a1" });
     await userEvent.setup().press(button("CV adapté"));
 
     expect(mockPreview).toHaveBeenCalledWith(CV_PDF, { title: "CV adapté", mimeType: "application/pdf" });
     expect(button("Partager")).toBeOnTheScreen();
     // A column: the conversation stays in reach beside it.
     expect(screen.getByLabelText("Votre message")).toBeOnTheScreen();
+  });
+});
+
+describe("Tailored Documents, at sign-out", () => {
+  it("deletes the documents downloaded into the cache from the device", async () => {
+    await openFiche();
+    const user = userEvent.setup();
+    await user.press(button("CV adapté"));
+    expect([...mockFiles]).toEqual([CV_PDF]);
+
+    await act(async () => router.navigate("/compte"));
+    await user.press(await screen.findByRole("button", { name: "Se déconnecter" }));
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect([...mockFiles]).toEqual([]);
   });
 });

@@ -27,9 +27,26 @@ export const useSession = () => useContext(SessionContext);
  * signs in. The session is asked again each time the app comes back to the foreground, so a revocation from Mon compte
  * on the web signs the app out at that request.
  */
-export function SessionGate({ session, link, children }: { session: AppSession; link: string | null; children: ReactNode }) {
+export function SessionGate({
+  session,
+  link,
+  forgetOnDevice,
+  children,
+}: {
+  session: AppSession;
+  link: string | null;
+  /** What the device keeps for the session, besides the session itself, forgotten once it ends (the Tailored Documents downloaded). */
+  forgetOnDevice?: () => Promise<void>;
+  children: ReactNode;
+}) {
   const [state, setState] = useState<SessionState | null>(null);
   const [linkInvalid, setLinkInvalid] = useState(false);
+
+  // Signed out here, revoked from Mon compte, expired: whichever way the session ends, or is found ended at launch.
+  const ended = state !== null && state.kind !== "signedIn";
+  useEffect(() => {
+    if (ended && forgetOnDevice) void forgetOnDevice().catch(() => undefined);
+  }, [ended, forgetOnDevice]);
 
   const refresh = useCallback(
     () =>

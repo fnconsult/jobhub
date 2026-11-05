@@ -12,7 +12,7 @@ import { initialWindowMetrics } from "react-native-safe-area-context";
 import { AppLock } from "../app-lock/AppLock";
 import { AppProviders } from "../app-providers";
 import { createDocumentReader } from "../documents/document-reader";
-import { systemDocuments } from "../documents/system-documents";
+import { forgetDocuments, systemDocuments } from "../documents/system-documents";
 import { deviceI18n } from "../i18n";
 import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
@@ -44,7 +44,7 @@ export default function RootLayout() {
   return (
     <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE}>
       <StatusBar style="auto" />
-      <SessionGate session={appSession} link={link}>
+      <SessionGate session={appSession} link={link} forgetOnDevice={forgetDocuments}>
         <AppLock>
           <AppShell />
         </AppLock>

@@ -16,6 +16,8 @@ function SignedInPage() {
 
 function setUp() {
   const web = fakeWebApp();
+  /** What the device forgets once the session ends (the Tailored Documents downloaded, #695). */
+  const forgetOnDevice = jest.fn(async () => {});
   const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
   const opened = { current: null as string | null, listeners: new Set<() => void>() };
@@ -23,7 +25,7 @@ function setUp() {
   function App() {
     const link = useSyncExternalStore(subscribe, () => opened.current);
     return (
-      <SessionGate session={session} link={link}>
+      <SessionGate session={session} link={link} forgetOnDevice={forgetOnDevice}>
         <SignedInPage />
       </SessionGate>
     );
@@ -32,7 +34,7 @@ function setUp() {
   const render = (link: string | null = null) => ((opened.current = link), renderInApp(<App />));
   /** The system opens the running app with `link`, as a universal link or an App Link does. */
   const openWith = (link: string) => act(async () => ((opened.current = link), opened.listeners.forEach((listener) => listener())));
-  return { web, session, render, openWith };
+  return { web, session, render, openWith, forgetOnDevice };
 }
 
 const LINK_ERROR = "Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.";
@@ -171,5 +173,31 @@ describe("SessionGate (#685)", () => {
     await backToForeground();
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+
+  it("forgets what the device kept for the session when signing out", async () => {
+    const { web, session, render, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("La conversation");
+    expect(forgetOnDevice).not.toHaveBeenCalled();
+
+    await userEvent.setup().press(screen.getByRole("button", { name: "Se déconnecter" }));
+
+    await screen.findByLabelText("Votre adresse e-mail");
+    expect(forgetOnDevice).toHaveBeenCalled();
+  });
+
+  it("forgets what the device kept for the session once it is revoked on the web", async () => {
+    const { web, session, render, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("La conversation");
+
+    web.revokeAll(EMAIL);
+    await backToForeground();
+
+    await screen.findByLabelText("Votre adresse e-mail");
+    expect(forgetOnDevice).toHaveBeenCalled();
   });
 });

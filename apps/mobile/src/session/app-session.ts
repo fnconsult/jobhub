@@ -41,6 +41,11 @@ export interface AppSession {
   current(): Promise<SessionState>;
   /** Revokes the session on the web app, as signing out there does, and empties secure storage, reachable or not. */
   signOut(): Promise<void>;
+  /**
+   * The session cookie, for a request to the web app made outside the session's own client (a Tailored Document's
+   * download, #695): the `Cookie` header Better Auth reads; empty when signed out.
+   */
+  cookie(): Promise<string>;
 }
 
 /** The keys of secure storage the session is kept under. */
@@ -101,6 +106,8 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
     },
 
     current: () => serial(current),
+
+    cookie: () => client.getCookie(),
 
     signOut: () =>
       serial(async () => {

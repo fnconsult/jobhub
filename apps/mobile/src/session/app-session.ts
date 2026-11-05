@@ -54,6 +54,8 @@ export interface WebViewCookies {
 }
 
 export interface AppSession {
+  /** The web app it is a session of (its origin and nothing else): the one host its WebViews open inside the app. */
+  readonly webAppUrl: string;
   /** Emails a magic link to `email` for the app; false when the web app refused or could not be reached. */
   askLink(email: string): Promise<boolean>;
   /** Signs in with a magic link the app was opened with; null when `url` is not one. */
@@ -114,6 +116,8 @@ export function createAppSession({
   };
 
   return {
+    webAppUrl: new URL(baseURL).origin,
+
     async askLink(email) {
       try {
         const { error } = await client.signIn.magicLink({ email, callbackURL: RETURN_ADDRESS });

@@ -13,11 +13,19 @@ const SIGNED_OUT: SessionState = { kind: "signedOut" };
 interface SessionContextValue {
   /** Revokes the session and empties secure storage (app-session.ts); the app is back on sign-in. */
   signOut: () => Promise<void>;
+  /** Reads the session again from the web app, as when the app comes back to the foreground: signed out once it is gone. */
+  recheck: () => Promise<void>;
+  /** The web app whose pages open inside the app (WebPage), and lending them the session before one opens. */
+  webPages: Pick<AppSession, "webAppUrl" | "shareWithWebViews">;
 }
 
-const SessionContext = createContext<SessionContextValue>({ signOut: async () => {} });
+const SessionContext = createContext<SessionContextValue>({
+  signOut: async () => {},
+  recheck: async () => {},
+  webPages: { webAppUrl: "", shareWithWebViews: async () => {} },
+});
 
-/** What the signed-in app can do with its session: sign out (Mon compte). */
+/** What the signed-in app can do with its session: sign out (Mon compte), read it again, open the web app's pages. */
 export const useSession = () => useContext(SessionContext);
 
 /**
@@ -70,8 +78,10 @@ export function SessionGate({ session, link, children }: { session: AppSession; 
         await session.signOut();
         setState(SIGNED_OUT);
       },
+      recheck: refresh,
+      webPages: { webAppUrl: session.webAppUrl, shareWithWebViews: () => session.shareWithWebViews() },
     }),
-    [session, forgetReads],
+    [session, forgetReads, refresh],
   );
 
   if (!state) return null;

@@ -252,7 +252,7 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
   return defineCoachAction({
     name: PROFILE_ACTIONS.masterCv,
     description:
-      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas. Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur).",
+      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; jamais une compétence ajoutée, même sous couvert de reformuler une compétence (le candidat ajoute les siennes lui-même dans la section « CV de référence »). Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur).",
     schema: z.object({ profileId: id.describe("L'id du profil (actif) dont le CV de référence change."), changes: z.array(masterCvEditSchema).min(1).max(20) }),
     group: "profile",
     kind: "propose",
@@ -266,6 +266,8 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
         switch (review.error) {
           case "unknown_item":
             return refused(`« ${review.item} » n'est pas dans le CV de référence : propose seulement de reformuler, couper, réordonner ou mettre en avant ce qu'il dit déjà, nommé comme il l'écrit.`);
+          case "added_item":
+            return refused(`« ${review.text} » n'est pas une reformulation d'une compétence du CV de référence : ajouter des compétences ne se propose pas. Dis au candidat de les ajouter lui-même depuis la section « CV de référence » de son profil.`);
           case "invented_figure":
             return refused(`« ${review.text} » avance un chiffre que le CV de référence ne donne pas : ne propose jamais un fait qu'il ne contient pas ; demande-le au candidat.`);
           case "invalid_edit":

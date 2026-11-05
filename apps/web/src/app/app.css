@@ -547,22 +547,24 @@ textarea.input {
   border: 0;
 }
 
-/* A reply (#464): its Activity's glyph, then its words, the Provenance line and the feedback under them. */
-:is(.coach-panel, .page-conversation) .chat-coach:has(> .activity-glyph) {
+/* An AI Coach reply once it is there (#788): its words the thread's full width, no glyph in the margin; then what the AI
+   Coach consulted, the Provenance line, its Action Cards and the feedback under them. */
+
+/* A Back Office Assistant reply (#464) keeps its Activity's glyph in the margin, its words, the Provenance line and the
+   rest beside it: #788 took the glyph off the AI Coach's replies only. */
+.coach-panel .chat-coach:has(> .activity-glyph) {
   display: grid;
   grid-template-columns: 1.25em minmax(0, 1fr);
   column-gap: var(--space-3);
   align-items: start;
 }
 
-:is(.coach-panel, .page-conversation) .chat-coach > .activity-glyph {
+.coach-panel .chat-coach > .activity-glyph {
   grid-row: 1 / span 9;
   margin-top: 0.2em;
 }
 
-:is(.coach-panel, .page-conversation)
-  .chat-coach:has(> .activity-glyph)
-  > :not(.activity-glyph, .visually-hidden) {
+.coach-panel .chat-coach:has(> .activity-glyph) > :not(.activity-glyph, .visually-hidden) {
   grid-column: 2;
 }
 
@@ -587,13 +589,120 @@ textarea.input {
   border-color: var(--color-text);
 }
 
-/* A reply on its way (#328): the step under way, its Activity's glyph beside its label, in place of a « thinking » notice. */
+/* A reply on its way (#328, #788, variante A), where it will be: one glyph on the left, morphing from step to step, and a
+   line for each Coach Action (ticked once done, a small accent dot while under way), the step under way last. */
+.coach-panel-live {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: start;
+  margin: var(--space-3) 0 0;
+}
+
+.coach-panel-live > .activity-glyph {
+  margin-top: 0.1em;
+}
+
+.coach-panel-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .coach-panel-step {
   display: flex;
   gap: var(--space-2);
   align-items: center;
-  margin: var(--space-3) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
+}
+
+.coach-panel-step-dot {
+  flex: none;
+  width: 0.4em;
+  height: 0.4em;
+  margin: 0 0.3em;
+  background: var(--color-accent);
+  border-radius: 50%;
+}
+
+.coach-panel-step-done {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-text-meta);
+}
+
+.coach-panel-step-done svg,
+.coach-tools-consulted-done svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* « Le coach a consulté N éléments de Jobbbox » (#788): quiet, the toolbox's small glyph, opening on each element; a
+   control, so at body size (ADR-0057). */
+.coach-tools-consulted {
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.coach-tools-consulted > summary {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  cursor: pointer;
+}
+
+.coach-tools-consulted .activity-glyph {
+  width: 1.1em;
+  height: 1.1em;
+  stroke: var(--color-text-meta);
+}
+
+.coach-tools-consulted > ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0 0 0 var(--space-6);
+  list-style: none;
+}
+
+.coach-tools-consulted li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.coach-tools-consulted-done {
+  display: inline-flex;
+}
+
+/* A reply just arrived (#788): its words one by one, about 28 a second, each fading in at its place (nothing moves), then
+   what follows it. All at once under reduced motion; the page never marks a reply from the history so. */
+.chat-revealing .coach-word {
+  animation: coach-word-in 240ms ease-out both;
+  animation-delay: calc(var(--word) * 36ms);
+}
+
+.chat-revealing > :not(.visually-hidden, p, ol, ul, .chat-blocked-label) {
+  animation: coach-word-in 240ms ease-out both;
+  animation-delay: calc(var(--reply-words) * 36ms);
+}
+
+@keyframes coach-word-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-revealing .coach-word,
+  .chat-revealing > * {
+    animation: none;
+  }
 }
 
 .activity-glyph {
@@ -857,15 +966,48 @@ textarea.input {
 /* ---------- « Conversation au centre » (#601, ADR-0070): the conversation is the page ----------
    The page spans the workspace, so the conversation keeps its reading width (46rem) centred in it, its margins equal; the
    box sits at the foot of the screen over the thread, the suggestions above it while nothing is sent. */
+/* One scroll model (#601, ADR-0070): the page is the screen, and never scrolls as a whole. Under the Top Bar, the
+   conversation scrolls in its own column, its box pinned at its foot, and each column beside it (the Work Pane, the
+   Fiche, Activité) scrolls in itself. So nothing outside the shell can lengthen the page (#656), the columns' tops are
+   never cut, and no empty band is left below them. */
+html:has(.page-conversation) {
+  overflow: hidden;
+}
+
+/* Positioned, the shell and the conversation's column hold what is absolutely placed in them (the visually hidden live
+   regions): placed against the screen, it ran past the shell and lengthened the page. */
+.app-shell:has(.page-conversation) {
+  position: relative;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace:has(> .page > .page-conversation) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .workspace > .page:has(> .page-conversation) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   max-width: none;
   padding-bottom: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .page-conversation {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
-  min-height: calc(100dvh - var(--topbar-height, 3.25rem) - var(--space-6));
 }
 
 .page-conversation-thread,
@@ -958,13 +1100,9 @@ button.coach-panel-badge:hover {
   margin: 0;
 }
 
-/* On a phone the box stays where the thread ends (the screen is too short to hold it over the thread), and the
-   suggestions keep to one row that scrolls sideways. */
+/* On a phone the box stays pinned at the foot of the screen too, the conversation taking the whole screen (ADR-0070),
+   and the suggestions keep to one row that scrolls sideways. */
 @media (width < 40rem) {
-  .page-conversation-foot {
-    position: static;
-  }
-
   .page-conversation-suggestions .quick-actions {
     flex-wrap: nowrap;
     padding-bottom: var(--space-1);
@@ -1425,6 +1563,18 @@ button.coach-panel-badge:hover {
     margin: var(--space-4) var(--space-4) var(--space-4) 0;
   }
 
+  /* Beside a conversation, which scrolls in its own column, the Work Pane and the Fiche hold the height under the Top
+     Bar, their gutters kept, whatever the Top Bar's height: each scrolls in itself, never with the page. */
+  .workspace:has(> .page > .page-conversation) > :is(.work-pane, .fiche) {
+    position: relative;
+    top: auto;
+    max-height: calc(100% - 2 * var(--space-4));
+  }
+
+  .workspace:has(> .page > .page-conversation):not(:has(> :is(.work-pane, .fiche, .ai-activity-pane))) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* The Fiche, and the Activité column, have no frame of their own beside the conversation: their cards are (the
      prototype's, #586). */
   .fiche {
@@ -1576,6 +1726,12 @@ button.coach-panel-badge:hover {
 .context-breakdown-value {
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
+}
+
+@media (width < 64rem) {
+  .workspace:has(> .page > .page-conversation) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Without room for both beside the conversation, the Work Pane takes the Fiche's place: FicheProvider decides (Fiche.tsx),

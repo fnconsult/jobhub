@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import {
   expect,
   test,

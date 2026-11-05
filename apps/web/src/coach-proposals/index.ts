@@ -20,7 +20,7 @@
  *    - `ofReplies` the cards under some replies, as the thread shows them (CoachProposalCard).
  */
 import { ActionCardConflict, ActionCardInvalid, ActionCardQuota, type AcceptHandler, type ActionCard, type ActionCards, type UndoHandler } from "../action-cards";
-import { proposedChangeSchema, type CoachAction, type CoachProposal, type ProposedChange } from "../coach-actions";
+import { proposedChangeSchema, UNDO_NOTES, type CoachAction, type CoachProposal, type ProposedChange, type UndoNote } from "../coach-actions";
 import type { CoachProposalCard } from "./card";
 
 export type { CardDecisionError, CoachProposalCard } from "./card";
@@ -92,6 +92,7 @@ export function coachProposalHandlers(catalog: readonly CoachAction[], now: () =
         if (!action.undo) throw new Error(`Coach Action "${action.name}" has no Annuler`);
         const undone = await action.undo(undo, { candidateId, cardId: card.id, at: now() });
         if (!undone.ok) throw new ActionCardConflict();
+        return undone.note ? { note: undone.note } : undefined;
       },
     },
   };
@@ -115,6 +116,7 @@ export function proposalCardOf(card: ActionCard): CoachProposalCard | null {
     ...(accepted ? { accepted } : {}),
     ...(card.decidedAt ? { decidedAt: card.decidedAt.toISOString() } : {}),
     ...(card.undoneAt ? { undoneAt: card.undoneAt.toISOString() } : {}),
+    ...(card.undoNote && (UNDO_NOTES as readonly string[]).includes(card.undoNote) ? { undoNote: card.undoNote as UndoNote } : {}),
     undoable: card.undoable === true,
   };
 }

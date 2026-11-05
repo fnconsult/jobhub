@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import { Briefcase, Calendar, Mail, Search, Users, type LucideIcon } from "lucide-react-native";
+import type { ProfileResponse } from "@jobhub/shared/reads";
 import { SAMPLE_APPLICATIONS, SAMPLE_FREE_CONVERSATIONS } from "../sample-data";
 import type { ShellPage } from "../shell/Shell";
 
@@ -21,6 +22,7 @@ export const paths = {
   /** A Coaching Session on its Human Coaches page: where it leads from the Agenda. */
   coachingSession: (id: string) => `/coachs#seance-${encodeURIComponent(id)}`,
   conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,
+  profile: (id: string) => `/profils/${encodeURIComponent(id)}`,
   account: "/compte",
   /** Mon compte's pages, the web app's inside the app (#689): every section, Sécurité, Mes données, then Account deletion on it. */
   accountSections: "/compte/rubriques",
@@ -56,6 +58,14 @@ export const MENUS: readonly { key: MenuKey; path: string; label: "nav.applicati
   { key: "humanCoaches", path: paths.humanCoaches, label: "account.humanCoaches", icon: Users },
 ];
 
+const segments = (pathname: string) => pathname.split("/").map((part) => decodeURIComponent(part));
+
+/** The id of the Profile whose page is at `pathname`; null on any other page. */
+export function profileIdOf(pathname: string): string | null {
+  const [, section, id] = segments(pathname);
+  return section === "profils" && id ? id : null;
+}
+
 const under = (pathname: string, path: string) => pathname === path || pathname.startsWith(`${path}/`);
 
 /** Whether `path`'s entry in the Sidebar is the page shown, or one under it. */
@@ -63,13 +73,15 @@ export const isCurrent = (pathname: string, path: string) => (path === paths.hom
 
 /**
  * The page at `pathname` as the shell shows it: its title, and its column, the Fiche on an object's page (an
- * Application's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the subscription,
- * the Legal Texts, the Coach space or Réglages de l'app.
+ * Application's, a Profile's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the
+ * subscription, the Legal Texts, the Coach space or Réglages de l'app.
+ * A Profile's page is titled with its name once `read.profile` has it (`GET /api/profiles/:id`), « Profil » until then.
  */
-export function pageFor(pathname: string, t: TFunction): ShellPage {
+export function pageFor(pathname: string, t: TFunction, read: { profile?: Pick<ProfileResponse, "id" | "name"> } = {}): ShellPage {
   const page = (title: string, pane: ShellPage["pane"]): ShellPage => ({ key: pathname, title, pane });
-  const [, section, id] = pathname.split("/").map((part) => decodeURIComponent(part));
+  const [, section, id] = segments(pathname);
   if (section === "candidatures" && id) return page(SAMPLE_APPLICATIONS.find((application) => application.id === id)?.title ?? t("nav.applications"), "fiche");
+  if (section === "profils" && id) return page(read.profile?.id === id ? read.profile.name : t("mobile.profiles.title"), "fiche");
   if (section === "conversations" && id) {
     const title = SAMPLE_FREE_CONVERSATIONS.find((conversation) => conversation.id === id)?.title;
     return page(title ?? t("conversationFirst.newConversation"), "activite");

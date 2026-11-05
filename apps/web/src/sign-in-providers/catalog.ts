@@ -47,15 +47,8 @@ export const TEST_SIGN_IN = "testSignIn";
 /** How a sign-in made in the app is named on its session: a provider's id, or this. */
 export const MAGIC_LINK = "magic-link";
 
-/** Error codes a refused OAuth sign-in comes back to the sign-in page with (`?error=`). */
-export const SIGN_IN_ERRORS = {
-  /** The provider is for Administrators only. */
-  providerNotAllowed: "provider_not_allowed",
-  /** A Jobbbox account has this email and the provider is not trusted for linking: sign in by magic link, then link it from Mon compte. */
-  accountNotLinked: "account_not_linked",
-  /** The provider is not enabled (only a super-admin's test sign-in goes through it then). */
-  providerDisabled: "provider_disabled",
-} as const;
+/** Error codes a refused OAuth sign-in comes back with (`?error=`): shared with the app (#687). */
+export { SIGN_IN_ERRORS } from "@jobhub/shared";
 
 /** Ids an OIDC provider may not take: the social types and the magic link. */
 const RESERVED_IDS: readonly string[] = [...SOCIAL_TYPES, MAGIC_LINK, "email-password", "credential"];

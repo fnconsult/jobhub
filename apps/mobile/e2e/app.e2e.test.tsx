@@ -56,6 +56,11 @@ const PHONE = [390, 844] as const;
 const darkMode = { current: "light" as "light" | "dark" };
 jest.mock("react-native/Libraries/Utilities/useColorScheme", () => ({ __esModule: true, default: () => darkMode.current }));
 const IPAD_LANDSCAPE = [1366, 1024] as const;
+/** The device's network as expo-network reports it: connected here, the offline cases live in offline.e2e.test.tsx. */
+jest.mock("expo-network", () => ({
+  getNetworkStateAsync: async () => ({ isConnected: true }),
+  addNetworkStateListener: () => ({ remove: () => {} }),
+}));
 
 async function launch(initialUrl = "/", { signIn = true } = {}) {
   if (signIn) await signedIn();
@@ -491,5 +496,5 @@ describe("Jobbbox app, in Split View, Slide Over, Stage Manager and on a foldabl
     await act(() => window(...HALF));
     fireEvent(screen.getByLabelText("Vos échanges avec votre coach"), "contentSizeChange", 600, 2600);
     expect(scrollToEnd).not.toHaveBeenCalled();
+    });
   });
-});

@@ -5713,6 +5713,12 @@
     }
   },
   "mobile": {
+    "offline": {
+      "banner": "Offline",
+      "bannerDetail": "You are seeing what was last loaded. Nothing is saved until the network is back.",
+      "conversationDisabled": "Offline: you can write to the coach as soon as the network is back.",
+      "writeDisabled": "Offline: nothing is saved until the network is back."
+    },
     "attach": "Attach a link or a document",
     "send": "Send",
     "emptyScreen": "This screen is coming to the app soon.",

@@ -15,3 +15,5 @@ L'app Jobbbox, sur iPhone, iPad et Android, utilise le même compte que jobbbox.
 Si vous ouvrez le lien sur un appareil où l'app n'est pas installée, il vous connecte sur jobbbox.ai, dans le navigateur.
 
 Pour vous déconnecter de l'app, ouvrez « Mon compte » et touchez « Se déconnecter ». Une session fermée depuis « Mon compte » sur jobbbox.ai déconnecte aussi l'app, dès qu'elle revient au premier plan.
+
+Sans réseau, l'app affiche « Hors ligne » et vous montre ce que vous avez consulté en dernier ; rien ne s'envoie avant le retour du réseau. Ce qu'elle garde sur l'appareil, jamais vos conversations avec le coach, s'efface quand vous vous déconnectez.

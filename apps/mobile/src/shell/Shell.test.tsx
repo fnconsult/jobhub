@@ -1,5 +1,6 @@
 import { act, screen, userEvent } from "@testing-library/react-native";
 import { Platform, Pressable, Text } from "react-native";
+import { fakeNetwork } from "../offline/testing";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
 import { SampleConversation } from "../conversation/SampleConversation";
 import { Shell, useWorkPane, type ShellPage } from "./Shell";
@@ -306,5 +307,30 @@ describe("Shell, with a hardware keyboard", () => {
       await press("⌘I");
       expect(screen.queryByText("Contenu de la Fiche")).toBeNull();
     });
+    });
+  });
+
+describe("Shell, without network", () => {
+  beforeEach(() => setWindow(PHONE));
+
+  it("says « Hors ligne » above the page, and stops saying it once the network is back", async () => {
+    const network = fakeNetwork(false);
+    await renderInApp(
+      <Shell page={home} paneContent={null} sidebar={() => null} onNewConversation={() => {}}>
+        <Text>La conversation</Text>
+      </Shell>,
+      { network },
+    );
+    expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
+    expect(screen.getByText(/ce qui a été chargé en dernier/)).toBeOnTheScreen();
+    expect(screen.getByText("La conversation")).toBeOnTheScreen();
+
+    await act(() => network.set(true));
+    expect(screen.queryByText("Hors ligne")).toBeNull();
+  });
+
+  it("says nothing with network", async () => {
+    await renderShell(home);
+    expect(screen.queryByText("Hors ligne")).toBeNull();
   });
 });

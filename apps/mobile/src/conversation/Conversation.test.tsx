@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
 import { ScrollView } from "react-native";
+import { fakeNetwork } from "../offline/testing";
 import { hardwareKeyboard, renderInApp } from "../testing";
 import { SampleConversation } from "./SampleConversation";
 
@@ -37,6 +38,25 @@ describe("Conversation, on sample data until #690", () => {
   it("has « + » to add a link or a document", async () => {
     await renderInApp(<SampleConversation />);
     expect(screen.getByRole("button", { name: "Joindre un lien ou un document" })).toBeOnTheScreen();
+  });
+
+  describe("without network", () => {
+    it("disables the box, « Envoyer » and « + », and says why", async () => {
+      await renderInApp(<SampleConversation />, { network: fakeNetwork(false) });
+      expect(screen.getByLabelText("Votre message")).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Joindre un lien ou un document" })).toBeDisabled();
+      expect(screen.getByText(/Hors ligne : vous pourrez écrire au coach dès le retour du réseau/)).toBeOnTheScreen();
+    });
+
+    it("gives them back once the network returns", async () => {
+      const network = fakeNetwork(false);
+      await renderInApp(<SampleConversation />, { network });
+      await act(() => network.set(true));
+      expect(screen.getByLabelText("Votre message")).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Envoyer" })).toBeEnabled();
+      expect(screen.queryByText(/Hors ligne/)).toBeNull();
+    });
   });
 });
 

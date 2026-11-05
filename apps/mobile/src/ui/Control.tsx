@@ -18,6 +18,7 @@ export function Control({
   look = "quiet",
   expanded,
   selected,
+  disabled = false,
   onPress,
 }: {
   label: string;
@@ -26,6 +27,8 @@ export function Control({
   look?: Look;
   expanded?: boolean;
   selected?: boolean;
+  /** Not usable for now (« Hors ligne »): its caller says why beside it. */
+  disabled?: boolean;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
@@ -37,6 +40,8 @@ export function Control({
       aria-label={label}
       aria-expanded={expanded}
       aria-selected={selected}
+      aria-disabled={disabled}
+      disabled={disabled}
       onPress={onPress}
       {...hoverProps}
       style={({ pressed }) => ({
@@ -51,6 +56,7 @@ export function Control({
         borderWidth: look === "secondary" ? 1 : 0,
         borderColor: colors.borderStrong,
         backgroundColor: look === "primary" ? (pressed || hovered ? colors.accentHover : colors.accent) : pressed || hovered || selected ? colors.hover : "transparent",
+        opacity: disabled ? 0.5 : 1,
       })}
     >
       {Icon ? <Icon color={foreground} size={22} aria-hidden /> : null}

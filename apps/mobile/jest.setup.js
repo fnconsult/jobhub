@@ -7,3 +7,5 @@ jest.mock("expo-constants", () => {
   const expoConfig = { ...Constants.expoConfig, ...require("./app.json").expo };
   return { __esModule: true, ...actual, default: new Proxy(Constants, { get: (target, key) => (key === "expoConfig" ? expoConfig : key === "executionEnvironment" ? "bare" : target[key]) }) };
 });
+// AsyncStorage has no native module under Jest: its own in-memory mock stands in for the device's storage (#701).
+jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));

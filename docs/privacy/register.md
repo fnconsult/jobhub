@@ -80,6 +80,21 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Rights | Erased by the Guest at any time (« Effacer mes données maintenant », or by closing the browser). Jobbbox holds nothing of it to give or erase. |
 | Security | Readable only by the extension's own pages. |
 
+## Read cache in the Jobbbox app (ADR-0076, #701)
+
+| | |
+| --- | --- |
+| Purpose | Show a signed-in Candidate, without network, what the Jobbbox app last read for them, and say so (« Hors ligne »); nothing is written offline. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). Storage on the device strictly necessary to the service the Candidate asks for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Candidates using the app; people named in what they read (an Interview's contact, a Human Coach's name). |
+| Data | The answers last read for the menus' cards (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), an Application with its Interviews, a Job Search's Job Offers and a Job Offer seen, as `@jobhub/shared/reads` types them, with when each was read. Never a Coach Conversation, a Profile, a Tailored Document's download links, the session or a write waiting to be sent (`apps/mobile/src/offline/read-cache.tsx`, `READS`). |
+| Source | The web app's GETs, read by the app with the Candidate's session. |
+| Who can read it | Anyone who can open the app on the unlocked device: nothing is sent anywhere from it. |
+| Processors | None: it stays on the device. |
+| Storage | The device's AsyncStorage, key `jobbbox.reads`, not encrypted (an SQLite database on Android); the session stays in the Keychain or Keystore. Android's Auto Backup includes an app's database files by default (`android:allowBackup` defaults to true; developer.android.com, « Back up user data with Auto Backup », read 2026-11-04), so the cache may reach the person's Google Drive backup, end-to-end encrypted from Android 9; the app sets no backup rule yet. Whether iOS backs it up to iCloud is not verified. |
+| Retention | Until sign-out, which empties it in the app and on the device; a copy older than 7 days, or saved by an app speaking another API Version, is discarded at launch. Uninstalling the app removes it. |
+| Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds. |
+
 ## Provider Secrets (#208)
 
 | | |

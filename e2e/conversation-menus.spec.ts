@@ -167,7 +167,8 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.sidebar.jobSearches);
     const box = conversation(page).getByRole("region", { name: fr.offerBox.title });
     await expect(box.locator(".offer-box-count b")).toHaveText("3");
-    await expect(box.getByText(tr(fr.offerBox.treated_other, { count: 0 }))).toBeVisible();
+    // French counts 0 in the singular: « 0 traitée ».
+    await expect(box.getByText(tr(fr.offerBox.treated_one, { count: 0 }))).toBeVisible();
     const chips = box.getByRole("group", { name: fr.offerBox.chips });
     await expect(chips.getByRole("button")).toHaveCount(6);
     const today = box.getByRole("region", { name: fr.offerBox.today });

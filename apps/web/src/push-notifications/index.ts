@@ -9,7 +9,9 @@
  *    and moves it to the account signed in on the device now.
  *  - `devices`: the person's devices, without their token (Rappels, the Data export).
  *  - `settings` and `setEnabled`: one switch per event in Mon compte's Rappels Section, each on until switched off.
- *  - `notify`: the web app's side. Queues one notification for the worker, which sends it (`send`).
+ *  - `notify`: queues one notification for the worker, which sends it (`send`). Under a key (`once`), an event is queued
+ *    once for the person, as its email is sent once (#699): a run started again, a webhook delivered twice or a request
+ *    sent again queues nothing more. The keys are kept FAILURE_RETENTION_DAYS, with the event and when, never the text.
  *  - `send`: the worker's side. One notification to each of the person's devices whose session is still valid, for an
  *    event they did not switch off, in the device's language, through its platform's provider. A failure is kept with
  *    its Failure Reason, platform and event (never the token, the account nor the text), for FAILURE_RETENTION_DAYS.
@@ -41,7 +43,7 @@ export interface PushNotificationsDeps {
   now?: () => Date;
   /** Where a failure's technical message goes (the worker's log). Default: nowhere. */
   log?: (line: string) => void;
-  /** The worker's job queue, which `notify` queues on (the web app's). Without it, `notify` throws. */
+  /** The worker's job queue, which `notify` queues on (the web app's, or the worker's own). Without it, `notify` throws. */
   queue?: { send(name: string, data: object): Promise<void> };
 }
 
@@ -78,8 +80,12 @@ export interface PushNotifications {
   /** Each event's switch: on unless switched off. */
   settings(personId: string): Promise<Record<PushEvent, boolean>>;
   setEnabled(personId: string, event: PushEvent, enabled: boolean): Promise<void>;
-  /** Queues `notification` for the worker to send to the person's devices (only those of `platform` when given). */
-  notify(personId: string, notification: PushNotification, options?: { platform?: PushPlatform }): Promise<void>;
+  /**
+   * Queues `notification` for the worker to send to the person's devices (only those of `platform` when given). With
+   * `once`, the event's key (its object and what happened to it: `coach_review:<review id>`), only the first call for the
+   * person queues it; one that could not be queued gives its key back and throws. Whether it was queued.
+   */
+  notify(personId: string, notification: PushNotification, options?: NotifyOptions): Promise<boolean>;
   /**
    * Sends `notification` to the person's devices (only those of `platform` when given); the test whatever the switches.
    * How many it reached, how many failed, and how many of those were removed for a token no longer valid.
@@ -88,6 +94,15 @@ export interface PushNotifications {
   /** The failures kept, newest first (at most `limit`, default 100), of one platform when given (its Tool's page). */
   failures(options?: { platform?: PushPlatform; limit?: number }): Promise<PushFailure[]>;
 }
+
+export interface NotifyOptions {
+  platform?: PushPlatform;
+  /** The event's key for the person: queued once under it. */
+  once?: string;
+}
+
+/** What queues a Push notification: the domain modules' side of this one. */
+export type PushNotifier = Pick<PushNotifications, "notify">;
 
 type DeviceInput = { platform: PushPlatform; token: string; language: Locale; environment: PushEnvironment };
 
@@ -155,7 +170,22 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
 
     async notify(personId, notification, options = {}) {
       if (!deps.queue) throw new Error("Push notifications: no job queue to queue a notification on");
-      await deps.queue.send(PUSH_NOTIFICATIONS_QUEUE, { personId, notification, ...(options.platform ? { platform: options.platform } : {}) });
+      const { once } = options;
+      if (once !== undefined) {
+        const { rowCount } = await database.query(
+          `INSERT INTO push_notification_sent (candidate_id, key, event, at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+          [personId, once, notification.event, now()],
+        );
+        if (!rowCount) return false;
+      }
+      try {
+        await deps.queue.send(PUSH_NOTIFICATIONS_QUEUE, { personId, notification, ...(options.platform ? { platform: options.platform } : {}) });
+      } catch (error) {
+        // Not queued: the key goes back, so the run started again sends it.
+        if (once !== undefined) await database.query(`DELETE FROM push_notification_sent WHERE candidate_id = $1 AND key = $2`, [personId, once]);
+        throw error;
+      }
+      return true;
     },
 
     async send(personId, notification, options = {}) {
@@ -213,6 +243,8 @@ export interface ExportedPushNotifications {
   devices: PushDeviceSummary[];
   /** Each event they switched in Rappels, on or off, and when; an event never switched is on. */
   switches: { event: string; enabled: boolean; changedAt: Date }[];
+  /** The notifications queued for them in the last FAILURE_RETENTION_DAYS: their event and when, oldest first. */
+  sent: { event: string; at: Date }[];
 }
 
 async function devicesOf(database: Pick<Pool, "query">, personId: string): Promise<PushDeviceSummary[]> {
@@ -225,19 +257,22 @@ async function devicesOf(database: Pick<Pool, "query">, personId: string): Promi
 
 /** The person's Push notifications for their Data export. */
 export async function pushNotificationsOf(database: Pick<Pool, "query">, personId: string): Promise<ExportedPushNotifications> {
-  const [devices, switches] = await Promise.all([
+  const [devices, switches, sent] = await Promise.all([
     devicesOf(database, personId),
     database.query<ExportedPushNotifications["switches"][number]>(
       `SELECT event, enabled, changed_at AS "changedAt" FROM push_notification_setting WHERE candidate_id = $1 ORDER BY event`,
       [personId],
     ),
+    database.query<ExportedPushNotifications["sent"][number]>(`SELECT event, at FROM push_notification_sent WHERE candidate_id = $1 ORDER BY at, key`, [personId]),
   ]);
-  return { devices, switches: switches.rows };
+  return { devices, switches: switches.rows, sent: sent.rows };
 }
 
-/** Deletes the failures older than FAILURE_RETENTION_DAYS; how many. */
+/** Deletes the failures, and the keys of the notifications queued, older than FAILURE_RETENTION_DAYS; how many failures. */
 export async function purgeExpiredPushFailures(database: Pick<Pool, "query">, now: Date = new Date()): Promise<number> {
-  const { rowCount } = await database.query(`DELETE FROM push_notification_failure WHERE at < ${utcBefore("$1", "make_interval(days => $2)")}`, [now, FAILURE_RETENTION_DAYS]);
+  const before = utcBefore("$1", "make_interval(days => $2)");
+  await database.query(`DELETE FROM push_notification_sent WHERE at < ${before}`, [now, FAILURE_RETENTION_DAYS]);
+  const { rowCount } = await database.query(`DELETE FROM push_notification_failure WHERE at < ${before}`, [now, FAILURE_RETENTION_DAYS]);
   return rowCount ?? 0;
 }
 
@@ -280,5 +315,15 @@ export async function migratePushNotifications(database: Pick<Pool, "query">): P
       http_status integer
     );
     CREATE INDEX IF NOT EXISTS push_notification_failure_at_idx ON push_notification_failure (at);
+    -- The notifications queued under a key (#699): one per event and person, whatever runs again. Its event and when,
+    -- never the text; kept as long as the failures.
+    CREATE TABLE IF NOT EXISTS push_notification_sent (
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      key text NOT NULL,
+      event text NOT NULL,
+      at timestamptz NOT NULL,
+      PRIMARY KEY (candidate_id, key)
+    );
+    CREATE INDEX IF NOT EXISTS push_notification_sent_at_idx ON push_notification_sent (at);
   `);
 }

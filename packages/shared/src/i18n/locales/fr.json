@@ -5742,7 +5742,22 @@
     "secondStep": {
       "intro": "Votre compte demande une deuxième étape pour terminer la connexion.",
       "comingSoon": "Elle arrive bientôt dans l'app. En attendant, déconnectez-vous ou connectez-vous sur jobbbox.ai."
-    }
+    },
+    "shortcuts": {
+      "newConversation": "Nouvelle conversation",
+      "send": "Envoyer le message",
+      "sidebar": "Afficher ou masquer le menu",
+      "fiche": "Afficher ou masquer la Fiche",
+      "activite": "Afficher ou masquer Activité",
+      "closeWorkPane": "Fermer le Work Pane",
+      "closePane": "Fermer le volet"
+    },
+    "rowMenu": {
+      "open": "Ouvrir",
+      "openPosting": "Voir l'annonce",
+      "shareLink": "Partager le lien"
+    },
+    "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score."
   },
   "coachProposals": {
     "fields": {

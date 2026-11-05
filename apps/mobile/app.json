@@ -5,9 +5,11 @@
     "scheme": "jobbbox",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
+    "extra": { "webOrigin": "https://jobbbox.ai" },
     "ios": {
       "bundleIdentifier": "ai.jobbbox.app",
       "supportsTablet": true,
+      "requireFullScreen": false,
       "deploymentTarget": "16.4",
       "infoPlist": {
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"]
@@ -52,7 +54,8 @@
             "minSdkVersion": 24
           }
         }
-      ]
+      ],
+      "./plugins/with-multitasking"
     ]
   }
 }

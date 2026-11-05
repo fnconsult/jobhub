@@ -27,8 +27,9 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
-    // The native app's Metro, Babel and Jest configurations (#683): CommonJS, as those tools load them.
-    files: ["apps/mobile/*.js"],
+    // The native app's Metro, Babel and Jest configurations (#683) and its config plugins (#700): CommonJS, as those
+    // tools load them.
+    files: ["apps/mobile/*.js", "apps/mobile/plugins/**/*.js"],
     languageOptions: { sourceType: "commonjs" },
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },

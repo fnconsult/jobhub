@@ -2,7 +2,7 @@
 // screens), and a person drives it by what they see and press.
 import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
-import { AppState, Dimensions, type AppStateStatus } from "react-native";
+import { AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
 import type { fakeWebApp } from "../src/session/testing";
@@ -12,6 +12,13 @@ jest.setTimeout(60_000);
 
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
+// The hardware keyboard at the native module's seam (modules/key-commands), as an iPad's would be.
+const mockKeyboard = { current: null as null | ReturnType<typeof import("../src/keyboard/fake-hardware-keyboard").fakeHardwareKeyboard> };
+jest.mock("../modules/key-commands", () => {
+  mockKeyboard.current = jest.requireActual("../src/keyboard/fake-hardware-keyboard").fakeHardwareKeyboard();
+  return { nativeHardwareKeyboard: mockKeyboard.current!.keyboard };
+});
+const keyboard = () => mockKeyboard.current!;
 
 // The web app the app signs in to (#685), as its endpoints answer, and the address the system opens the app with.
 // Built when the app first asks for its session, once Expo Linking is the app's (below).
@@ -324,3 +331,165 @@ describe("Jobbbox app, signing in (#685)", () => {
   });
 });
 
+describe("Jobbbox app, on an iPad with a pointer", () => {
+  beforeEach(() => {
+    window(...IPAD_LANDSCAPE);
+    jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction", activityType: undefined });
+    jest.spyOn(Linking, "openURL").mockResolvedValue();
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  const rightClick = (name: string) => fireEvent(link(name), "pointerDown", { nativeEvent: { button: 2, pageX: 100, pageY: 200 } });
+  const item = (name: string) => screen.getByRole("menuitem", { name });
+
+  it("opens a Free conversation's context menu in the Sidebar by a right click, and shares its link", async () => {
+    await launch();
+    await rightClick("Me présenter en deux minutes");
+    await userEvent.setup().press(item("Partager le lien"));
+    expect(Share.share).toHaveBeenCalledWith(expect.objectContaining({ message: "https://jobbbox.ai/conversations/c1" }));
+  });
+
+  it("opens an Application's context menu in Mes candidatures by a long press, and « Ouvrir » opens it", async () => {
+    await launch("/candidatures");
+    const user = userEvent.setup();
+    await user.longPress(link("Aéroline · Responsable qualité"));
+    await user.press(item("Ouvrir"));
+    expect(screen).toHavePathname("/candidatures/a1");
+  });
+
+  it("opens a Job Offer's context menu in Recherches d'offres, « Voir l'annonce » opening the posting", async () => {
+    await launch("/recherches");
+    await rightClick("Responsable qualité · Aéroline");
+    await userEvent.setup().press(item("Voir l'annonce"));
+    expect(Linking.openURL).toHaveBeenCalledWith("https://www.example.com/offres/aeroline-responsable-qualite");
+  });
+
+  it("opens a Job Offer in the Work Pane when pressed", async () => {
+    await launch("/recherches");
+    await userEvent.setup().press(link("Responsable qualité · Aéroline"));
+    expect(screen.getByText(/L'offre s'ouvrira ici/)).toBeOnTheScreen();
+  });
+});
+
+describe("Jobbbox app, with the hardware keyboard's other shortcuts (#700)", () => {
+  beforeEach(() => window(...IPAD_LANDSCAPE));
+  afterEach(() => jest.restoreAllMocks());
+
+  it("hides the Sidebar with ⌘\\ and brings it back", async () => {
+    await launch("/compte");
+    expect(sidebar()).not.toBeNull();
+    await act(() => keyboard().press("⌘\\"));
+    expect(sidebar()).toBeNull();
+    await act(() => keyboard().press("⌘\\"));
+    expect(sidebar()).not.toBeNull();
+  });
+
+  it("closes and reopens the Fiche with ⌘I", async () => {
+    await launch("/candidatures/a1");
+    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+    await act(() => keyboard().press("⌘I"));
+    expect(screen.queryByText(/La Fiche montrera ici/)).toBeNull();
+    await act(() => keyboard().press("⌘I"));
+    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+  });
+
+  it("closes the Work Pane with Échap, listed in the panel only while it is open", async () => {
+    await launch("/candidatures/a1");
+    expect(keyboard().panel().some((entry) => entry.startsWith("Échap"))).toBe(false);
+    await userEvent.setup().press(button("Ouvrir une Section d'exemple"));
+    expect(keyboard().panel()).toContain("Échap Fermer le volet");
+    await act(() => keyboard().press("Échap"));
+    expect(screen.queryByText(/Le Work Pane montrera ici/)).toBeNull();
+    expect(keyboard().panel().some((entry) => entry.startsWith("Échap"))).toBe(false);
+  });
+
+  it("takes Ctrl in place of ⌘ on Android", async () => {
+    jest.replaceProperty(Platform, "OS", "android");
+    await launch("/candidatures/a1");
+    expect(keyboard().panel().every((entry) => !entry.includes("⌘"))).toBe(true);
+    expect(keyboard().panel()).toContain("Ctrl+N Nouvelle conversation");
+    await act(() => keyboard().press("⌘N"));
+    expect(screen).toHavePathname("/candidatures/a1");
+    await act(() => keyboard().press("Ctrl+N"));
+    expect(screen).toHavePathname("/conversations/nouvelle");
+  });
+});
+
+describe("Jobbbox app, under a pointer's hover (#700)", () => {
+  beforeEach(() => window(...IPAD_LANDSCAPE));
+
+  it("highlights an Application's row while the pointer is over it", async () => {
+    await launch("/candidatures");
+    const row = link("Aéroline · Responsable qualité");
+    const before = StyleSheet.flatten(row.props.style)?.backgroundColor;
+    await fireEvent(row, "pointerEnter");
+    const over = StyleSheet.flatten(screen.getByRole("link", { name: "Aéroline · Responsable qualité", hidden: true }).props.style)?.backgroundColor;
+    expect(over).not.toEqual(before);
+    await fireEvent(row, "pointerLeave");
+    expect(StyleSheet.flatten(screen.getByRole("link", { name: "Aéroline · Responsable qualité", hidden: true }).props.style)?.backgroundColor).toEqual(before);
+  });
+});
+
+describe("Jobbbox app, in Split View, Slide Over, Stage Manager and on a foldable (#700)", () => {
+  // An iPad Pro 12.9" in landscape is 1366 pt wide: a third is 375 pt, a half 678 pt, two thirds 981 pt.
+  const THIRD = [375, 1024] as const;
+  const HALF = [678, 1024] as const;
+  const TWO_THIRDS = [981, 1024] as const;
+  const FOLDED = [360, 740] as const;
+  const UNFOLDED = [841, 701] as const;
+
+  it.each([
+    ["a third", THIRD],
+    ["a half", HALF],
+    ["two thirds", TWO_THIRDS],
+  ])("lays out as a phone at %s of a landscape iPad, the Sidebar a drawer", async (_name, size) => {
+    window(size[0], size[1]);
+    await launch();
+    expect(sidebar()).toBeNull();
+    expect(button("Menu")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Votre message")).toBeOnTheScreen();
+  });
+
+  it("lays out again as the window changes, keeping the conversation and the draft", async () => {
+    window(...IPAD_LANDSCAPE);
+    await launch();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
+    await user.press(button("Envoyer"));
+    await user.press(button("Arrêter"));
+    await user.type(screen.getByLabelText("Votre message"), "Un brouillon");
+    for (const size of [THIRD, HALF, TWO_THIRDS, IPAD_LANDSCAPE]) {
+      await act(() => window(size[0], size[1]));
+      expect(screen.getByText("Bonjour")).toBeOnTheScreen();
+      expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("Un brouillon");
+    }
+    expect(sidebar()).not.toBeNull();
+  });
+
+  it("keeps the conversation and the draft when a foldable opens and closes", async () => {
+    window(...FOLDED);
+    await launch();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
+    await user.press(button("Envoyer"));
+    await user.press(button("Arrêter"));
+    await user.type(screen.getByLabelText("Votre message"), "Un brouillon");
+    for (const size of [UNFOLDED, FOLDED]) {
+      await act(() => window(size[0], size[1]));
+      expect(screen.getByText("Bonjour")).toBeOnTheScreen();
+      expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("Un brouillon");
+    }
+  });
+
+  it("keeps where the person scrolled the thread when the window changes", async () => {
+    window(...IPAD_LANDSCAPE);
+    await launch();
+    const thread = screen.getByLabelText("Vos échanges avec votre coach");
+    const scrollToEnd = (ScrollView.prototype as unknown as { scrollToEnd: jest.Mock }).scrollToEnd;
+    scrollToEnd.mockClear();
+    fireEvent.scroll(thread, { nativeEvent: { contentOffset: { x: 0, y: 300 }, contentSize: { width: 600, height: 2000 }, layoutMeasurement: { width: 600, height: 500 } } });
+    await act(() => window(...HALF));
+    fireEvent(screen.getByLabelText("Vos échanges avec votre coach"), "contentSizeChange", 600, 2600);
+    expect(scrollToEnd).not.toHaveBeenCalled();
+  });
+});

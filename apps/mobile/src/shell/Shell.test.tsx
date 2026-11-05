@@ -1,7 +1,7 @@
 import { act, screen, userEvent } from "@testing-library/react-native";
-import { Text } from "react-native";
-import { Pressable } from "react-native";
-import { renderInApp, setWindow } from "../testing";
+import { Platform, Pressable, Text } from "react-native";
+import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
+import { SampleConversation } from "../conversation/SampleConversation";
 import { Shell, useWorkPane, type ShellPage } from "./Shell";
 
 const PHONE = { width: 390, height: 844 };
@@ -20,9 +20,9 @@ function SectionLink() {
   );
 }
 
-async function renderShell(page: ShellPage = application) {
+async function renderShell(page: ShellPage = application, onNewConversation = () => {}) {
   await renderInApp(
-    <Shell page={page} paneContent={<><Text>Contenu de la Fiche</Text><SectionLink /></>} sidebar={() => <Text>Mes candidatures</Text>} onNewConversation={() => {}}>
+    <Shell page={page} paneContent={<><Text>Contenu de la Fiche</Text><SectionLink /></>} sidebar={() => <Text>Mes candidatures</Text>} onNewConversation={onNewConversation}>
       <Text>La conversation</Text>
     </Shell>,
   );
@@ -153,5 +153,158 @@ describe("Shell, from 64rem", () => {
     await userEvent.setup().press(button("Fiche"));
     expect(button("Fermer")).toBeOnTheScreen();
     noButton("Menu");
+  });
+});
+
+describe("Shell, when multitasking or a foldable changes the window", () => {
+  // An iPad Pro 12.9" in landscape and its Split View thirds (disposition.test.ts); a Pixel Fold folded, then open.
+  const IPAD_THIRD = { width: 375, height: 1024 };
+  const IPAD_HALF = { width: 678, height: 1024 };
+  const IPAD_TWO_THIRDS = { width: 981, height: 1024 };
+  const FOLDED = { width: 412, height: 915 };
+  const UNFOLDED = { width: 841, height: 701 };
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  async function renderWithConversation() {
+    await renderInApp(
+      <Shell page={application} paneContent={<Text>Contenu de la Fiche</Text>} sidebar={() => <Text>Mes candidatures</Text>} onNewConversation={() => {}}>
+        <SampleConversation />
+      </Shell>,
+    );
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    await user.type(screen.getByLabelText("Votre message"), "Ma question");
+    await user.press(button("Envoyer"));
+    await act(() => jest.runAllTimers());
+    await user.type(screen.getByLabelText("Votre message"), "Un brouillon");
+  }
+
+  const expectConversationKept = () => {
+    expect(screen.getByText("Ma question")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("Un brouillon");
+  };
+
+  it("keeps the conversation and the draft from the whole screen to a third, a half, two thirds and back", async () => {
+    setWindow(IPAD_LANDSCAPE);
+    await renderWithConversation();
+    for (const window of [IPAD_THIRD, IPAD_HALF, IPAD_TWO_THIRDS, IPAD_LANDSCAPE]) {
+      await act(() => setWindow(window));
+      expectConversationKept();
+    }
+  });
+
+  it("keeps them when a foldable opens and closes", async () => {
+    setWindow(FOLDED);
+    await renderWithConversation();
+    await act(() => setWindow(UNFOLDED));
+    expectConversationKept();
+    await act(() => setWindow(FOLDED));
+    expectConversationKept();
+  });
+});
+
+describe("Shell, with a hardware keyboard", () => {
+  const { panel, press } = hardwareKeyboard;
+
+  describe("on an iPad in landscape", () => {
+    beforeEach(() => setWindow(IPAD_LANDSCAPE));
+
+    it("lists its shortcuts in the ⌘ panel, in French", async () => {
+      await renderShell();
+      expect(panel()).toEqual(["⌘N Nouvelle conversation", "⌘\\ Afficher ou masquer le menu", "⌘I Afficher ou masquer la Fiche"]);
+    });
+
+    it("offers ⌘W and Échap while the Work Pane is open, and no more once it is closed", async () => {
+      await renderShell();
+      await userEvent.setup().press(button("Ouvrir la Section"));
+      expect(panel()).toEqual(expect.arrayContaining(["⌘W Fermer le Work Pane", "Échap Fermer le volet"]));
+
+      await press("⌘W");
+      expect(screen.queryByText("Contenu de la Section")).toBeNull();
+      expect(panel()).not.toContain("⌘W Fermer le Work Pane");
+      expect(panel()).not.toContain("Échap Fermer le volet");
+    });
+
+    it("starts a new conversation with ⌘N", async () => {
+      const onNewConversation = jest.fn();
+      await renderShell(application, onNewConversation);
+      await press("⌘N");
+      expect(onNewConversation).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides the Sidebar with ⌘\\, and brings it back", async () => {
+      await renderShell();
+      await press("⌘\\");
+      expect(screen.queryByText("Mes candidatures")).toBeNull();
+      await press("⌘\\");
+      expect(screen.getByText("Mes candidatures")).toBeOnTheScreen();
+    });
+
+    it("closes and opens the Fiche with ⌘I", async () => {
+      await renderShell();
+      await press("⌘I");
+      expect(screen.queryByText("Contenu de la Fiche")).toBeNull();
+      await press("⌘I");
+      expect(screen.getByText("Contenu de la Fiche")).toBeOnTheScreen();
+    });
+
+    it("opens Activité with ⌘I on a page without an object", async () => {
+      await renderShell(home);
+      expect(panel()).toContain("⌘I Afficher ou masquer Activité");
+      await press("⌘I");
+      expect(screen.getByText("Contenu de la Fiche")).toBeOnTheScreen();
+    });
+
+    it("closes the Work Pane with Échap, and leaves the Fiche to ⌘I and « Fiche »", async () => {
+      await renderShell();
+      await userEvent.setup().press(button("Ouvrir la Section"));
+      await press("Échap");
+      expect(screen.queryByText("Contenu de la Section")).toBeNull();
+      expect(screen.getByText("Contenu de la Fiche")).toBeOnTheScreen();
+      await press("Échap");
+      expect(screen.getByText("Contenu de la Fiche")).toBeOnTheScreen();
+    });
+  });
+
+  describe("below 64rem", () => {
+    beforeEach(() => setWindow(SPLIT_VIEW));
+
+    it("opens the Sidebar's drawer with ⌘\\, and Échap closes it", async () => {
+      await renderShell();
+      await press("⌘\\");
+      expect(screen.getByText("Mes candidatures")).toBeOnTheScreen();
+      await press("Échap");
+      expect(screen.queryByText("Mes candidatures")).toBeNull();
+    });
+
+    it("closes the full page on top with Échap: the Work Pane, then the Fiche beneath it", async () => {
+      await renderShell();
+      const user = userEvent.setup();
+      await user.press(button("Fiche"));
+      await user.press(button("Ouvrir la Section"));
+      await press("Échap");
+      expect(screen.getByText("Contenu de la Fiche")).toBeOnTheScreen();
+      await press("Échap");
+      expect(screen.queryByText("Contenu de la Fiche")).toBeNull();
+      expect(button("Menu")).toBeOnTheScreen();
+    });
+  });
+
+  describe("on an Android tablet", () => {
+    beforeEach(() => {
+      setWindow(IPAD_LANDSCAPE);
+      jest.replaceProperty(Platform, "OS", "android");
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    it("takes Ctrl in place of ⌘, listed so in the Keyboard Shortcuts Helper", async () => {
+      await renderShell();
+      expect(panel()).toEqual(["Ctrl+N Nouvelle conversation", "Ctrl+\\ Afficher ou masquer le menu", "Ctrl+I Afficher ou masquer la Fiche"]);
+      await press("Ctrl+I");
+      expect(screen.queryByText("Contenu de la Fiche")).toBeNull();
+      await press("⌘I");
+      expect(screen.queryByText("Contenu de la Fiche")).toBeNull();
+    });
   });
 });

@@ -101,3 +101,32 @@ describe("disposition", () => {
     });
   });
 });
+
+/**
+ * An iPad Pro 12.9" in landscape, 1366 pt wide, shared in Split View (Apple's Human Interface Guidelines, « Layout »):
+ * a third is 375 pt, a half 678 pt, two thirds 981 pt, all three under 64rem; Stage Manager resizes a window freely.
+ */
+describe("disposition on an iPad in landscape, in Split View", () => {
+  const ficheOpen = { sidebar: true, pane: "fiche", workPane: false } as const;
+  const at = (width: number) => disposition({ width, fontScale: 1 }, ficheOpen);
+
+  it("lays a third of the screen out as a phone: the Fiche full page, the Sidebar a drawer", () => {
+    expect(at(375)).toMatchObject({ panes: "fullPage", sidebar: "drawer", shown: ["fiche"] });
+  });
+
+  it("lays half of it out as a phone", () => {
+    expect(at(678)).toMatchObject({ panes: "fullPage", sidebar: "drawer", shown: ["fiche"] });
+  });
+
+  it("lays two thirds of it out as a phone too, 981 pt being just under 64rem", () => {
+    expect(at(981)).toMatchObject({ panes: "fullPage", sidebar: "drawer", shown: ["fiche"] });
+  });
+
+  it("lays the whole screen out in columns, the Sidebar beside the conversation and the Fiche", () => {
+    expect(at(1366)).toMatchObject({ panes: "columns", sidebar: "column", shown: ["fiche"] });
+  });
+
+  it("lays out a Stage Manager window from its own width: columns from 64rem, the Sidebar a drawer without 28rem left", () => {
+    expect(at(1040)).toMatchObject({ panes: "columns", sidebar: "drawer", shown: ["fiche"] });
+  });
+});

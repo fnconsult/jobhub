@@ -62,7 +62,13 @@ function shipped(): readonly CoachAction[] {
       followUps: getFollowUps(),
       profile: {
         profiles: getProfiles(),
-        coachMemory: getCoachMemory(),
+        // Reached when called, not built here: the Coach Memory's module is built on the Coach Conversations, whose AI Coach
+        // is built on these Coach Actions.
+        coachMemory: {
+          list: (candidateId) => getCoachMemory().list(candidateId),
+          confirm: (candidateId, input) => getCoachMemory().confirm(candidateId, input),
+          delete: (candidateId, itemId) => getCoachMemory().delete(candidateId, itemId),
+        },
         places: getPlaceSuggestions(),
         offersOf,
         profileUpgradePrompt: async (candidateId, language) => profileUpgradePrompt(getBilling(), getProfiles(), candidateId, language),

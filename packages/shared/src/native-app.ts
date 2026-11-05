@@ -34,6 +34,36 @@ export function isAppAddress(url: string | null | undefined): boolean {
 }
 
 /**
+ * The request header in which the Jobbbox app states its version and its system with a Signalement (#690), as its form
+ * says before sending: « 1.4.0 (iOS 18.6) ». A native fetch's user agent names neither, so the web app keeps this instead.
+ */
+export const APP_DEVICE_HEADER = "Jobbbox-App-Device";
+
+/** The Jobbbox app's version (null when it does not know it) and the system it runs on, iPadOS reading as iOS. */
+export type AppDevice = { version: string | null; system: "iOS" | "Android"; systemVersion: string };
+
+/** A version as the app and the systems write it: up to four numbers, never a free text. */
+const VERSION = String.raw`\d{1,4}(?:\.\d{1,4}){0,3}`;
+const APP_DEVICE = new RegExp(String.raw`^(?:(${VERSION}) )?\((iOS|Android) (${VERSION})\)$`);
+
+/** What the app states in APP_DEVICE_HEADER: « 1.4.0 (iOS 18.6) », « (Android 34) » without its version. */
+export function appDeviceHeader({ version, system, systemVersion }: AppDevice): string {
+  return `${version ? `${version} ` : ""}(${system} ${systemVersion})`;
+}
+
+/** The app's version and system from APP_DEVICE_HEADER; null for anything else, so nothing but them is ever kept. */
+export function readAppDevice(header: string | null | undefined): AppDevice | null {
+  const read = header ? APP_DEVICE.exec(header.trim()) : null;
+  if (!read) return null;
+  return { version: read[1] ?? null, system: read[2] as AppDevice["system"], systemVersion: read[3]! };
+}
+
+/** The app as a Signalement names where it was sent from, for the team: « App Jobbbox 1.4.0, iOS 18.6 ». */
+export function appDeviceName({ version, system, systemVersion }: AppDevice): string {
+  return `App Jobbbox${version ? ` ${version}` : ""}, ${system} ${systemVersion}`;
+}
+
+/**
  * What the app's WebViews add to their user agent (react-native-webview's `applicationNameForUserAgent`, #689): the web
  * app knows by it a page shown inside the app (Mon compte, the subscription, the Legal Texts, the Coach space) and shows
  * it without its own Sidebar, and with no price and nothing to buy (App Store guideline 3.1.1, ADR-0076).

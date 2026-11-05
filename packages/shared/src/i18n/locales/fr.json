@@ -5933,6 +5933,15 @@
       "shareLink": "Partager le lien"
     },
     "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
+    "coach": {
+      "replyAnnounced": "Coach IA : {{reply}}"
+    },
+    "subscriptionOnWeb": "Votre abonnement se gère sur jobbbox.ai.",
+    "signalement": {
+      "notice": "Joints automatiquement : la page, la version de Jobbbox, votre appareil, la langue et la taille du texte. Ni capture d'écran, ni conversation avec votre coach.",
+      "questionContext": "la page, la version de Jobbbox, votre appareil, la langue et la taille du texte",
+      "device": "Appareil"
+    },
     "profiles": {
       "positioning": "Positionnement",
       "contracts": "Contrats",
@@ -5992,7 +6001,8 @@
       "draftOf": "Brouillon du {{date}}",
       "draftEdited": "Brouillon du {{date}}, modifié depuis",
       "newDraft": "Un brouillon rédigé par votre coach IA · {{language}}",
-      "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises."
+      "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises.",
+      "replacesTailoredCvProposal": "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises."
     },
     "quota": {
       "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
@@ -6011,6 +6021,9 @@
     "confirmReplace": "Remplacer votre brouillon actuel, vos modifications comprises ?",
     "confirmYes": "Remplacer et rédiger",
     "confirmNo": "Garder mon brouillon",
+    "confirmReplaceProposal": "Remplacer votre proposition de CV adapté en cours de relecture, vos réponses comprises ?",
+    "confirmYesProposal": "Remplacer et préparer",
+    "confirmNoProposal": "Garder ma proposition",
     "runHint": "Le document est dans les documents de la candidature ; arrêté, rien n'a été gardé.",
     "edit": "Modifier avant d'appliquer",
     "dismiss": "Ignorer",

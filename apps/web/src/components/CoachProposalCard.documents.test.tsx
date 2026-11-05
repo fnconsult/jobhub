@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useState } from "react";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoachProposalCard as Card } from "@/coach-proposals/card";
@@ -199,6 +199,38 @@ describe("a « Documents » proposal's card (#721)", () => {
       await userEvent.click(within(cardNamed(/Lettre de motivation/)).getByRole("button", { name: "Rédiger" }));
 
       expect(sent.map((each) => each.url)).toEqual([`/api/action-cards/${LETTER.id}`, "/api/applications/a1/tailored-documents"]);
+    });
+  });
+
+  describe("a Tailored CV proposal still under review (#774): its replacement confirmed first", () => {
+    const PENDING_REVIEW: Card = { ...TAILORED_CV, change: { ...TAILORED_CV.change, replaces: "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises." } };
+
+    it("the card says so; « Préparer » asks to confirm in the proposal's words, sending nothing; « Garder ma proposition » keeps it", async () => {
+      renderInFrench(<Thread card={PENDING_REVIEW} />);
+      const card = cardNamed(/CV adapté/);
+
+      expect(card.textContent).toContain("Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises.");
+      await userEvent.click(within(card).getByRole("button", { name: "Préparer" }));
+
+      expect(sent).toEqual([]);
+      expect(within(card).getByRole("group", { name: "Remplacer votre proposition de CV adapté en cours de relecture, vos réponses comprises ?" })).toBeTruthy();
+      expect(buttonsOf(card)).toEqual(["Remplacer et préparer", "Garder ma proposition"]);
+      expect(document.activeElement?.textContent).toBe("Remplacer et préparer");
+
+      await userEvent.click(within(card).getByRole("button", { name: "Garder ma proposition" }));
+      expect(sent).toEqual([]);
+      expect(buttonsOf(card)).toEqual(["Préparer", "Ignorer"]);
+    });
+
+    it("« Remplacer et préparer » applies it and runs the Tailored CV proposal", async () => {
+      answers = [{ status: 200, body: { status: "accepted", card: accepted(PENDING_REVIEW) } }, { ndjson: [{ type: "done" }] }];
+      renderInFrench(<Thread card={PENDING_REVIEW} />);
+      const card = cardNamed(/CV adapté/);
+
+      await userEvent.click(within(card).getByRole("button", { name: "Préparer" }));
+      await userEvent.click(within(card).getByRole("button", { name: "Remplacer et préparer" }));
+
+      await waitFor(() => expect(sent.map((each) => each.url)).toEqual([`/api/action-cards/${PENDING_REVIEW.id}`, "/api/applications/a1/tailored-cv"]));
     });
   });
 

@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  check:
+  # Lint, typecheck and the unit tests, beside the e2e shards: they used to run first, in the one `check` job.
+  static:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -26,14 +27,6 @@ jobs:
       DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
-      # The E2E run's traces, builds and next dev servers fill the runner's 14 GB (ENOSPC, main on 2026-11-02): drop the
-      # preinstalled SDKs this job never uses before anything is written.
-      - name: Free disk space
-        run: |
-          df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost
-          sudo docker image prune --all --force > /dev/null
-          df -h /
       - uses: actions/checkout@v4
         with:
           # HEAD and its first parent, for the Legal Text Versions' check: on a pull request its merge commit and the
@@ -52,28 +45,106 @@ jobs:
       # One Version for the web app and the worker (#559): apps/web and apps/worker repeat the root package.json's.
       - run: npm run check:versions
       - run: npm run typecheck
+      # Also checks that the e2e shards below, together, run every test of the suite (e2e/support/ci-shards.test.ts).
       - run: npm test
       # The native app's tests (#683): Jest with React Native Testing Library, which Vitest leaves to it.
       - run: npm run test:mobile
+
+  # The e2e suite, split across runners: one run took 58 min on one runner's two workers. Each shard builds the app,
+  # gets its own Postgres, database, web server and checkout, so the projects that must run alone (worker, root-env)
+  # stay one spec at a time within their shard, and never meet another shard's. e2e/support/ci-shards.test.ts fails
+  # when these shards, together, leave a test of the suite out.
+  e2e:
+    name: e2e (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { shard: web-1, args: "--project=web --shard=1/4" }
+          - { shard: web-2, args: "--project=web --shard=2/4" }
+          - { shard: web-3, args: "--project=web --shard=3/4" }
+          - { shard: web-4, args: "--project=web --shard=4/4" }
+          - { shard: worker-1, args: "--project=worker --shard=1/2" }
+          - { shard: worker-2, args: "--project=worker --shard=2/2" }
+          - { shard: others, plans: true, args: "--project=root-env --project=extension --project=motions --project=stack --project=mta --project=repo --project=ai --project=coach-knowledge --project=prototype --project=emails" }
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: jobhub
+          POSTGRES_PASSWORD: jobhub
+          POSTGRES_DB: jobhub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobhub -d jobhub"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      # The E2E run's traces, builds and next dev servers filled the runner's 14 GB (ENOSPC, main on 2026-11-02): drop the
+      # preinstalled SDKs this job never uses. In the background: it took 1 min 40 s, while npm ci and the build need
+      # little room.
+      - name: Free disk space
+        run: |
+          df -h /
+          nohup sh -c 'sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost; sudo docker image prune --all --force; df -h /; touch /tmp/free-disk.done' > /tmp/free-disk.log 2>&1 &
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       - run: npm run build
       - run: npm run db:migrate
       - run: npx playwright install --with-deps chromium
-      # The screenshot specs run here for their axe checks; their comparisons run in the `screenshots` job, in the
-      # Playwright image the baselines are drawn in, whose fonts match theirs.
-      - run: npm run test:e2e
+      # The mta and stack specs build docker images: not while the image prune above still runs.
+      - run: timeout 600 sh -c 'until [ -f /tmp/free-disk.done ]; do sleep 2; done'
+      # Quota Reductions and the Coach context limits change Plans' quotas for real (playwright.config.ts): with no web
+      # spec beside them, alone, one after the other, and before root-env's specs rewrite sources the build reads.
+      # Without --no-deps, they would bring every web spec into this shard.
+      - if: matrix.plans
+        run: npm run test:e2e -- --project=plan-quotas --no-deps
         env:
           E2E_SCREENSHOTS: "0"
+      - if: matrix.plans
+        run: npm run test:e2e -- --project=plan-coach-context --no-deps
+        env:
+          E2E_SCREENSHOTS: "0"
+      # The screenshot specs run here for their axe checks; their comparisons run in the `screenshots` job, in the
+      # Playwright image the baselines are drawn in, whose fonts match theirs.
+      - run: npm run test:e2e -- ${{ matrix.args }}
+        env:
+          E2E_SCREENSHOTS: "0"
+      - if: always()
+        run: cat /tmp/free-disk.log; df -h /
       # A failed run's traces, and what its web servers printed (#673): the suite's (its log is the Candidates' mailbox),
       # the ones specs start for themselves (e2e/support/server-log.ts) and `next dev`'s own log.
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.shard }}
           path: |
             test-results/
             /tmp/jobhub-e2e-*/server.log
             apps/web/.next/dev/logs/
           retention-days: 14
+
+  # The one result the rest reads (deploy.yml, the deploy-staging skill, branch protection): green only when lint, the
+  # unit tests and every e2e shard are.
+  check:
+    if: always()
+    needs: [static, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "static: ${{ needs.static.result }}, e2e: ${{ needs.e2e.result }}"
+          test "${{ needs.static.result }}" = success
+          test "${{ needs.e2e.result }}" = success
 
   # The screenshot baselines (#463, docs/agents/screenshot-baselines.md): every spec with a toHaveScreenshot, in the
   # Playwright image of the version the repo pins, as scripts/update-screenshot-baselines.sh draws them. A screen that

@@ -58,7 +58,6 @@ export async function read<T>(api: ApiFetch, path: string, schema: Schema<T>, si
 }
 
 /**
-/**
  * A GET of `path` through the read cache under `name` (READS says whether the device keeps it for when there is no
  * network), parsed by `schema`; not read while `enabled` is false. A read answered 401 has the session checked. With
  * `readAgain`, read again after the number of ms it gives for what was last read (and when), until it gives false: a

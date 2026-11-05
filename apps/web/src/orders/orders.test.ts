@@ -127,6 +127,18 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
       expect(await acceptancesOf(t.database, marie.id)).toEqual([expect.objectContaining({ text: "cgv", version: CGV.version, channel: "paiement_coaching", immediateExecutionRequested: false })]);
     });
 
+    it("sends a Coaching Session ordered from the app to a Checkout that returns to the app, with the same boxes checked (#694)", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      expect(await orders.place(marie, { kind: "coachingSession", coachId: COACH.id, inApp: true }, { immediateExecution: "yes" }, "fr")).toEqual({ ok: false, error: "cgv_required" });
+      const placed = await orders.place(marie, { kind: "coachingSession", coachId: COACH.id, inApp: true }, ticked, "fr");
+
+      expect(placed).toMatchObject({ ok: true });
+      const [checkout] = checkoutCalls();
+      expect(checkout!.params.get("success_url")).toBe("http://localhost:3000/coachs/paiement");
+      expect(await acceptancesOf(t.database, marie.id)).toEqual([expect.objectContaining({ version: CGV.version, channel: "paiement_coaching", immediateExecutionRequested: true })]);
+    });
+
     it("goes to Checkout without any box while no CGV version is in effect, and keeps the Immediate Performance Request with the Order", async () => {
       registry = [];
       const marie = await t.signUp("marie.dupont@example.fr");

@@ -21,6 +21,16 @@ export const APP_ORIGIN = `${APP_SCHEME}://`;
  */
 export const APP_SIGN_IN_PATH = "/connexion/app";
 
+/**
+ * Where Stripe Checkout sends back a Candidate who pays a Coaching Session from the app (#694, ADR-0076): a page of the
+ * web app that the app claims as it claims APP_SIGN_IN_PATH, so that the return opens the app. It proves nothing: the
+ * Coaching Session is recorded by Stripe's signed webhook alone (ADR-0016).
+ */
+export const APP_COACHING_PAYMENT_PATH = "/coachs/paiement";
+
+/** The query APP_COACHING_PAYMENT_PATH carries (`?annule=1`) when the Candidate left Stripe Checkout without paying. */
+export const APP_PAYMENT_CANCELLED = "annule";
+
 /** Whether `url` is an address in the app's scheme (a return address the app asked for). */
 export function isAppAddress(url: string | null | undefined): boolean {
   return typeof url === "string" && url.toLowerCase().startsWith(`${APP_SCHEME}:`);

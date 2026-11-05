@@ -33,8 +33,11 @@ import { routes } from "../routes";
 import { withdrawalDeadline } from "../withdrawals/deadline";
 import { orderConfirmationEmail } from "./email";
 
-/** What is ordered: a paid Plan (with a shared link's code, carried to Checkout), or a Coaching Session with a Human Coach. */
-export type OrderItem = { kind: "plan"; plan: string; promotionCode?: string | undefined } | { kind: "coachingSession"; coachId: string };
+/**
+ * What is ordered: a paid Plan (with a shared link's code, carried to Checkout), or a Coaching Session with a Human Coach,
+ * `inApp` when ordered from the app, whose Checkout returns to it (#694).
+ */
+export type OrderItem = { kind: "plan"; plan: string; promotionCode?: string | undefined } | { kind: "coachingSession"; coachId: string; inApp?: boolean | undefined };
 
 /** What the Order page sums up. */
 export interface OrderSummary {
@@ -151,7 +154,7 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
       const started =
         item.kind === "plan"
           ? await deps.billing.startCheckout(candidate, item.plan, language, { promotionCode: item.promotionCode })
-          : await deps.billing.startCoachingSessionCheckout(candidate, item.coachId, language);
+          : await deps.billing.startCoachingSessionCheckout(candidate, item.coachId, language, { inApp: item.inApp });
       // The customer portal, for a Candidate who already pays: no Checkout, no Order.
       if (!started.checkoutSessionId) return { ok: true, url: started.url };
       await database.query(

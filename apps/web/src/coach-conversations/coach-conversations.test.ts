@@ -277,7 +277,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       const first = await conversations.send(marie, { message: "Bonjour" });
       if (!first.ok) throw new Error("refused");
 
-      const expected = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: SPLIT };
+      const expected = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: SPLIT, upgrade: null };
       expect(first.context).toEqual(expected);
       expect((await conversations.open(marie, first.conversation.id))!.context).toEqual(expected);
 
@@ -289,7 +289,35 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       const first = await conversations.send(marie, { message: "Bonjour" });
       if (!first.ok) throw new Error("refused");
 
-      expect(first.context).toEqual({ messages: 2, tokens: 0, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: null });
+      expect(first.context).toEqual({ messages: 2, tokens: 0, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: null, upgrade: null });
+    });
+
+    it("names, once the bar is nearly full, the Plan above that allows more, read for the Candidate's Plan (#732)", async () => {
+      const PREMIUM = { plan: "premium", name: { fr: "Premium", en: "Premium" } };
+      const upgradeAsked: string[] = [];
+      const coach = { reply: async (_candidateId: string, _input: unknown, options?: CoachReplyOptions) => coachReply(1, options) };
+      conversations = createCoachConversations(database, {
+        coach,
+        profiles: createProfiles(database),
+        billing: {
+          entitlements: async () => ({ plan: "free", coachContext: limits }),
+          coachContextUpgrade: async (plan) => (upgradeAsked.push(plan), PREMIUM),
+        },
+        now: () => now,
+      });
+
+      // 2 messages of 4: half full, no Plan read.
+      const first = await conversations.send(marie, { message: "Question 1" });
+      if (!first.ok) throw new Error("refused");
+      expect(first.context.upgrade).toBeNull();
+      expect(upgradeAsked).toEqual([]);
+
+      // 4 of 4: nearly full, the Plan above is named.
+      const second = await conversations.send(marie, { conversationId: first.conversation.id, message: "Question 2" });
+      if (!second.ok) throw new Error("refused");
+      expect(second.context.upgrade).toEqual(PREMIUM);
+      expect(upgradeAsked).toEqual(["free"]);
+      expect((await conversations.open(marie, first.conversation.id))!.context.upgrade).toEqual(PREMIUM);
     });
 
     it("keeps each reply's link to the AI call that wrote it, for its provider's counts", async () => {

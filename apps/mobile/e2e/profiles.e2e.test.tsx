@@ -5,7 +5,7 @@
 import type { ProfileResponse } from "@jobhub/shared/reads";
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
-import type { ReactNode } from "react";
+import { fakeWebView } from "../src/testing-device";
 import { Dimensions, Linking } from "react-native";
 
 jest.setTimeout(60_000);
@@ -33,12 +33,13 @@ const setNetwork = (connected: boolean) => {
 };
 
 // Signed in, as the app is once its magic link opened it (#685): the web app's endpoints faked at the session's fetch.
-const mockWeb = {} as { app: ReturnType<typeof import("../src/session/testing").fakeWebApp>; session: import("../src/session/app-session").AppSession };
+const mockWeb = {} as { app: ReturnType<typeof import("../src/session/testing").fakeWebApp>; session: import("../src/session/app-session").AppSession; webViews: { cookies: () => unknown[] } };
 jest.mock("../src/session/instance", () => {
-  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey() });
+  mockWeb.webViews = memoryWebViewCookies();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), webViewCookies: mockWeb.webViews });
   return { appSession: mockWeb.session };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
@@ -56,15 +57,8 @@ async function signedIn() {
   await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
 }
 
-type WebViewProps = { source: { uri: string; headers?: Record<string, string> }; onShouldStartLoadWithRequest: (request: { url: string }) => boolean; children?: ReactNode };
-const mockWebViews: WebViewProps[] = [];
-jest.mock("react-native-webview", () => ({
-  WebView: (props: WebViewProps) => {
-    mockWebViews.push(props);
-    const { View: MockView } = jest.requireActual<typeof import("react-native")>("react-native");
-    return <MockView testID="webview" />;
-  },
-}));
+/** The WebView last shown (__mocks__/react-native-webview.tsx), once it is given the session's cookies (#689). */
+const webView = async () => (await screen.findByTestId("web-view"), fakeWebView.shown!);
 
 const setWindow = ({ width, height }: { width: number; height: number }) => {
   const size = { width, height, scale: 2, fontScale: 1 };
@@ -73,7 +67,6 @@ const setWindow = ({ width, height }: { width: number; height: number }) => {
 const PHONE = { width: 390, height: 844 };
 const IPAD_LANDSCAPE = { width: 1366, height: 1024 };
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
-const lastWebView = () => mockWebViews.at(-1)!;
 /** The page's title, in its Top Bar (under the Fiche, when it covers the page on a phone): nowhere else on a Profile's page. */
 const title = (name: string) => screen.getByText(name, { includeHiddenElements: true });
 
@@ -123,7 +116,7 @@ async function openProfileFiche(id = SUPPLY_CHAIN.id) {
 }
 
 beforeEach(() => {
-  mockWebViews.length = 0;
+  fakeWebView.reset();
   setWindow(PHONE);
   // Every call of the app's useApi() goes to the web app, faked at its fetch as the session's are.
   jest.requireMock("../src/session/instance");
@@ -260,11 +253,22 @@ describe("Profiles, « Modifier » on the web", () => {
     await openProfileFiche();
     await userEvent.setup().press(await screen.findByRole("button", { name: "Modifier le profil" }));
 
-    expect(lastWebView().source.uri).toBe("https://jobbbox.ai/profils/prof_lyon");
-    expect(screen.getByTestId("webview")).toBeOnTheScreen();
+    expect((await webView()).source).toEqual({ uri: `${mockWeb.app.baseURL}/profils/prof_lyon` });
     expect(screen.queryByText("Positionnement")).toBeNull();
     await userEvent.setup().press(button("Fermer"));
     expect(screen.getByText("Positionnement")).toBeOnTheScreen();
+  });
+
+  it("opens it signed in: the WebView is lent the session for the web app's host, emptied at sign-out (#689)", async () => {
+    await openProfileFiche();
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Modifier le profil" }));
+    await webView();
+
+    expect(mockWeb.webViews.cookies()).toEqual([expect.objectContaining({ url: mockWeb.app.baseURL, name: expect.stringContaining("session_token"), httpOnly: true })]);
+    expect(mockWeb.webViews.cookies()).not.toContainEqual(expect.objectContaining({ domain: expect.anything() }));
+
+    await act(async () => void (await mockWeb.session.signOut()));
+    expect(mockWeb.webViews.cookies()).toEqual([]);
   });
 
   it("opens it in the Work Pane column on a tablet, beside the conversation", async () => {
@@ -273,18 +277,19 @@ describe("Profiles, « Modifier » on the web", () => {
     await openApp("/profils/prof_lyon");
     await userEvent.setup().press(await screen.findByRole("button", { name: "Modifier le profil" }));
 
-    expect(screen.getByTestId("webview")).toBeOnTheScreen();
+    expect((await webView()).source).toEqual({ uri: `${mockWeb.app.baseURL}/profils/prof_lyon` });
     expect(screen.getByLabelText("Votre message")).toBeOnTheScreen();
   });
 
-  it("keeps the WebView on jobbbox.ai: any other address opens in the system browser", async () => {
+  it("keeps the WebView on the web app: any other address opens in the system browser", async () => {
     const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
     await openProfileFiche();
     await userEvent.setup().press(await screen.findByRole("button", { name: "Modifier le profil" }));
+    const view = await webView();
 
-    expect(lastWebView().onShouldStartLoadWithRequest({ url: "https://jobbbox.ai/profils/prof_lyon/cv" })).toBe(true);
+    expect(view.onShouldStartLoadWithRequest({ url: `${mockWeb.app.baseURL}/profils/prof_lyon/cv`, isTopFrame: true })).toBe(true);
     expect(openURL).not.toHaveBeenCalled();
-    expect(lastWebView().onShouldStartLoadWithRequest({ url: "https://www.linkedin.com/in/marie" })).toBe(false);
+    expect(view.onShouldStartLoadWithRequest({ url: "https://www.linkedin.com/in/marie", isTopFrame: true })).toBe(false);
     expect(openURL).toHaveBeenCalledWith("https://www.linkedin.com/in/marie");
   });
 });

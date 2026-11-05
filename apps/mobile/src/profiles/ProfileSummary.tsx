@@ -7,12 +7,13 @@ import { useWorkPane } from "../shell/Shell";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
-import { WebPage } from "../web/WebPage";
+import { SessionWebPage } from "../web-pages/WebPageScreen";
 
 /**
  * A Profile's Fiche in the app (ADR-0076, #695): read only. Its positioning (its current Master CV's headline), its
  * Search Criteria, its current Master CV and its ATS Score. « Modifier le profil » opens its web page in a WebView, in
- * the Work Pane: full page on a phone, a column on a tablet; that is where the Profile changes.
+ * the Work Pane (full page on a phone, a column on a tablet), signed in with the session as Mon compte's pages are
+ * (src/web-pages, #689); that is where the Profile changes.
  */
 export function ProfileSummary({ profile }: { profile: ProfileResponse }) {
   const { t, i18n } = useTranslation();
@@ -22,7 +23,7 @@ export function ProfileSummary({ profile }: { profile: ProfileResponse }) {
   const criterion = (label: string, value: string) => <AppText>{t("mobile.profiles.criterion", { label, value })}</AppText>;
   const salary = criteria.minSalary === undefined ? t("profile.notSpecified") : t("profile.salary", { amount: new Intl.NumberFormat(i18n.language).format(criteria.minSalary) });
   const editTitle = t("mobile.profiles.editTitle", { name: profile.name });
-  const edit = () => workPane.open({ title: editTitle, fill: true, content: <WebPage path={`/profils/${encodeURIComponent(profile.id)}`} title={editTitle} /> });
+  const edit = () => workPane.open({ title: editTitle, fill: true, content: <SessionWebPage path={`/profils/${encodeURIComponent(profile.id)}`} /> });
 
   return (
     <View style={{ gap: space[6] }}>

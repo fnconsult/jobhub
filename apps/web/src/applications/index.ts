@@ -16,6 +16,10 @@
  *      A status change applied from a Coach proposal (#715, ADR-0077) names the version it was proposed from
  *      (`statusOf`, which every status change moves): one that moved on since is a `conflict`, nothing changed, never
  *      merged; and it keeps its Origin, hidden (`statusOrigin`), until the Candidate changes the status themselves;
+ *      a Profile change applied from one (#716) likewise names the Profile it was proposed from (`profileOf`) and keeps
+ *      its Origin (`profileOrigin`); an Application saved from one keeps it on its status « À postuler »;
+ *    - `removeIntact` an Application a Coach proposal created, for « Annuler » (#716): only while it is intact (the
+ *      status and Profile it was created with, nothing added to it: no Interview, document, Follow-up…), else a `conflict`;
  *      An Application on an Expired Job Offer is flagged (its Job Offer's `expiredAt`),
  *      and so is one Reported Unavailable (`reportedUnavailableAt`, that Application
  *      only, never the shared Job Offer); either keeps its status: nothing changes
@@ -94,6 +98,14 @@ export interface Application {
   reportedUnavailableAt?: Date;
   /** Set while its status is one a Coach proposal the Candidate applied gave it (#715): its Origin, shown only on demand. */
   statusOrigin?: Origin;
+  /** Set while its Profile is one a Coach proposal the Candidate applied gave it (#716). */
+  profileOrigin?: Origin;
+}
+
+/** The Profile an Application uses, as a Profile change applied from a Coach proposal sees it (#716): its id is its version. */
+export interface ApplicationProfileState {
+  profileId: string;
+  origin: Origin | null;
 }
 
 /** The Application Status as a change applied from a Coach proposal sees it (#715): its version and its Origin. */
@@ -106,7 +118,8 @@ export interface ApplicationStatusState {
 
 /**
  * A change applied from a Coach proposal (#715): `version`, the Application Status's when it was proposed (or applied,
- * for « Annuler »): moved on since, the change is a `conflict`; `origin`, what the status then keeps (none: the Candidate's own).
+ * for « Annuler »), or for a Profile change the Profile's id (#716): moved on since, the change is a `conflict`; `origin`,
+ * what the status or Profile then keeps (none: the Candidate's own).
  */
 export interface ApplicationChangeOptions {
   version?: string;
@@ -151,9 +164,15 @@ export type AddInterviewResult =
   | Exclude<ApplicationChangeResult, { ok: true }>
   | { ok: false; error: "not_in_interview" };
 
+/** Removing an Application a Coach proposal created (#716): `conflict` once it is no longer intact. */
+export type RemoveApplicationResult = { ok: true } | { ok: false; error: "not_found" | "conflict" };
+
 export interface Applications {
-  /** Saves a Job Offer as an Application ("À postuler"). `input`: { jobOfferId, profileId }. */
-  save(candidateId: string, input: unknown): Promise<SaveApplicationResult>;
+  /**
+   * Saves a Job Offer as an Application ("À postuler"). `input`: { jobOfferId, profileId }. `origin`: saved from a Coach
+   * proposal (#716), its status keeps it; an Application they had already is given back as it is.
+   */
+  save(candidateId: string, input: unknown, options?: { origin?: Origin }): Promise<SaveApplicationResult>;
   /** The Application, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<Application | null>;
   /** Every Application of the Candidate, newest first. */
@@ -168,6 +187,14 @@ export interface Applications {
   change(candidateId: string, applicationId: string, input: unknown, options?: ApplicationChangeOptions): Promise<ApplicationChangeResult>;
   /** The Application Status, its version and Origin (#715); null when the Application is not the Candidate's. */
   statusOf(candidateId: string, applicationId: string): Promise<ApplicationStatusState | null>;
+  /** The Profile the Application uses and its Origin (#716); null when the Application is not the Candidate's. */
+  profileOf(candidateId: string, applicationId: string): Promise<ApplicationProfileState | null>;
+  /**
+   * Removes an Application a Coach proposal created (« Annuler », #716), while it is intact: still at the status version
+   * `version` and on the Profile `profileId`, with nothing that refers to it (an Interview, a Tailored Document, a Follow-up
+   * sent, a Company Dossier…). Otherwise a `conflict`, nothing removed. Its Job Offer is kept.
+   */
+  removeIntact(candidateId: string, applicationId: string, seen: { version: string; profileId: string }): Promise<RemoveApplicationResult>;
   /**
    * Adds a dated Interview. `input`: { scheduledAt (ISO 8601 date and time), note?, durationMinutes?,
    * format?, place?, moveToInterview? }. Refused ("not_in_interview") unless the Application is at
@@ -380,11 +407,32 @@ interface ApplicationRow {
   created_at: Date;
   reported_unavailable_at: Date | null;
   status_origin?: unknown;
+  profile_origin?: unknown;
 }
 
-const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at, reported_unavailable_at, status_origin";
+const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at, reported_unavailable_at, status_origin, profile_origin";
 /** The Application Status's version (#715): when it last changed, to the microsecond, as text. */
 const STATUS_VERSION = "(extract(epoch FROM status_changed_at) * 1000000)::bigint::text";
+
+/**
+ * Whether any row of another table refers to the Application (an Interview, a Tailored Document, a Follow-up sent, a
+ * Company Dossier, a Coach Conversation…): every foreign key to it, as Postgres declares them, so a table added later counts too.
+ */
+async function referred(client: Pick<Pool, "query">, applicationId: string): Promise<boolean> {
+  const { rows: keys } = await client.query<{ table_name: string; column_name: string }>(
+    `SELECT c.conrelid::regclass::text AS table_name, a.attname AS column_name
+       FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+      WHERE c.contype = 'f' AND c.confrelid = 'application'::regclass AND array_length(c.conkey, 1) = 1`,
+  );
+  for (const key of keys) {
+    const { rows } = await client.query(`SELECT 1 FROM ${key.table_name} WHERE ${quoted(key.column_name)} = $1 LIMIT 1`, [applicationId]);
+    if (rows.length > 0) return true;
+  }
+  return false;
+}
+
+/** An identifier Postgres gave us, quoted. */
+const quoted = (name: string) => `"${name.replace(/"/g, '""')}"`;
 
 export function createApplications(
   database: Pool,
@@ -485,6 +533,8 @@ export function createApplications(
     if (row.reported_unavailable_at !== null) application.reportedUnavailableAt = row.reported_unavailable_at;
     const origin = readOrigin(row.status_origin);
     if (origin) application.statusOrigin = origin;
+    const profileOrigin = readOrigin(row.profile_origin);
+    if (profileOrigin) application.profileOrigin = profileOrigin;
     return application;
   }
 
@@ -498,7 +548,7 @@ export function createApplications(
   }
 
   return {
-    async save(candidateId, input) {
+    async save(candidateId, input, options = {}) {
       const parsed = saveSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { jobOfferId, profileId } = parsed.data;
@@ -510,10 +560,10 @@ export function createApplications(
       if (!jobOffer) return { ok: false, error: "not_found" };
 
       const inserted = await database.query<ApplicationRow>(
-        `INSERT INTO application (candidate_id, job_offer_id, profile_id) VALUES ($1, $2, $3)
+        `INSERT INTO application (candidate_id, job_offer_id, profile_id, status_origin) VALUES ($1, $2, $3, $4)
          ON CONFLICT (candidate_id, job_offer_id) DO NOTHING
          RETURNING ${COLUMNS}`,
-        [candidateId, jobOffer.id, profile.id],
+        [candidateId, jobOffer.id, profile.id, options.origin ? JSON.stringify(options.origin) : null],
       );
       if (inserted.rows[0]) return { ok: true, created: true, application: await applicationFrom(candidateId, inserted.rows[0]) };
       const existing = await database.query<ApplicationRow>(
@@ -590,6 +640,30 @@ export function createApplications(
       return row ? { status: row.status, version: row.version, origin: readOrigin(row.status_origin) } : null;
     },
 
+    async profileOf(candidateId, applicationId) {
+      if (!UUID.test(applicationId)) return null;
+      const { rows } = await database.query<{ profile_id: string; profile_origin: unknown }>(
+        `SELECT profile_id, profile_origin FROM application WHERE id = $1 AND candidate_id = $2`,
+        [applicationId, candidateId],
+      );
+      const row = rows[0];
+      return row ? { profileId: row.profile_id, origin: readOrigin(row.profile_origin) } : null;
+    },
+
+    async removeIntact(candidateId, applicationId, seen) {
+      if (!UUID.test(applicationId)) return NOT_FOUND;
+      return inTransaction(database, async (client): Promise<RemoveApplicationResult> => {
+        const { rows } = await client.query<{ intact: boolean }>(
+          `SELECT ${STATUS_VERSION} = $3 AND profile_id::text = $4 AS intact FROM application WHERE id = $1 AND candidate_id = $2 FOR UPDATE`,
+          [applicationId, candidateId, seen.version, seen.profileId],
+        );
+        if (!rows[0]) return NOT_FOUND;
+        if (!rows[0].intact || (await referred(client, applicationId))) return { ok: false, error: "conflict" };
+        await client.query(`DELETE FROM application WHERE id = $1 AND candidate_id = $2`, [applicationId, candidateId]);
+        return { ok: true };
+      });
+    },
+
     async change(candidateId, applicationId, input, options = {}) {
       const parsed = parseChange(input);
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
@@ -598,7 +672,20 @@ export function createApplications(
       if ("profileId" in change) {
         const profile = await profiles.get(candidateId, change.profileId);
         if (!profile) return NOT_FOUND;
-        await database.query(`UPDATE application SET profile_id = $3 WHERE id = $1 AND candidate_id = $2`, [applicationId, candidateId, profile.id]);
+        if (options.version !== undefined) {
+          // From a Coach proposal (#716): only from the Profile it was proposed from.
+          const { rows } = await database.query<{ unchanged: boolean }>(
+            `WITH seen AS (SELECT id, profile_id::text = $4 AS unchanged FROM application WHERE id = $1 AND candidate_id = $2 FOR UPDATE),
+                  changed AS (UPDATE application a SET profile_id = $3, profile_origin = $5 FROM seen WHERE a.id = seen.id AND seen.unchanged RETURNING a.id)
+             SELECT seen.unchanged FROM seen`,
+            [applicationId, candidateId, profile.id, options.version, options.origin ? JSON.stringify(options.origin) : null],
+          );
+          if (!rows[0]) return NOT_FOUND;
+          if (!rows[0].unchanged) return { ok: false, error: "conflict" };
+        } else {
+          // The Candidate's own: no Origin.
+          await database.query(`UPDATE application SET profile_id = $3, profile_origin = NULL WHERE id = $1 AND candidate_id = $2`, [applicationId, candidateId, profile.id]);
+        }
       } else if ("reportedUnavailable" in change) {
         // Reported again, it keeps the date it was first reported.
         await database.query(
@@ -752,6 +839,8 @@ export async function migrateApplications(database: Pool): Promise<void> {
     -- Where an Interview's state came from (#718): { origin: "coach_proposal", cardId, appliedAt } while it is as a Coach
     -- proposal the Candidate applied left it (added, Rescheduled, cancelled); null once they change it themselves.
     ALTER TABLE interview ADD COLUMN IF NOT EXISTS origin jsonb;
+    -- Where its Profile came from (#716), the same way: null once the Candidate changes it themselves.
+    ALTER TABLE application ADD COLUMN IF NOT EXISTS profile_origin jsonb;
   `);
   await migrateRescheduleHistory(database, "interview", { enteredAt: "created_at" });
 }

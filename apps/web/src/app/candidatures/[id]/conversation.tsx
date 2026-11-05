@@ -111,7 +111,12 @@ function ApplicationCard({ data }: { data: ApplicationPageData }) {
             </Link>
           </dd>
         </div>
-        <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />
+        <ApplicationProfileSelect
+          applicationId={application.id}
+          profileId={application.profile.id}
+          profiles={choices}
+          appliedFromCoach={application.profileOrigin?.appliedAt.toISOString() ?? null}
+        />
         {jobOffer.source.url && site ? (
           <div className="prop">
             <dt>{t("application.offerLabel")}</dt>

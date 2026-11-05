@@ -16,9 +16,9 @@ export type ShellPage = { key: string; title: string; pane: PaneKind | null };
 /** What the Work Pane shows: one item at a time (ADR-0070), a Section, a Result, a Help Article or a form. */
 export type WorkPaneItem = { title: string; content: ReactNode };
 
-const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void }>({ open: () => {} });
+const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void; close: () => void }>({ open: () => {}, close: () => {} });
 
-/** Opens an item in the page's Work Pane, in place of the one it shows. */
+/** Opens an item in the page's Work Pane, in place of the one it shows, or closes it (`close`, as its « Fermer » does). */
 export const useWorkPane = () => useContext(WorkPaneContext);
 
 type State = {
@@ -93,7 +93,10 @@ export function Shell({
   // Échap closes what is on top: the drawer, a full page, the Work Pane's column; the Fiche's column stays the Top Bar's.
   useKeyCommand("closePane", drawerShown ? closeDrawer : top ? () => close(top) : workPaneColumn ? () => close("workPane") : null);
 
-  const workPane = useMemo(() => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })) }), []);
+  const workPane = useMemo(
+    () => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })), close: () => setState((current) => ({ ...current, workPane: null })) }),
+    [],
+  );
   const paneTitle = (pane: ShownPane) => (pane === "workPane" ? (state.workPane?.title ?? "") : t(pane === "fiche" ? "fiche.label" : "fiche.activity"));
   const paneBody = (pane: ShownPane) => (pane === "workPane" ? state.workPane?.content : paneContent);
 

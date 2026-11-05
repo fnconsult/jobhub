@@ -98,6 +98,7 @@ export function fakeCoachWeb({
   const asked: Record<string, unknown>[] = [];
   const signalements: Record<string, unknown>[] = [];
   const requests: { method: string; path: string; body: unknown }[] = [];
+  const cards = new Map<string, Record<string, unknown>>();
   let next = 0;
   let offline = false;
 
@@ -161,6 +162,21 @@ export function fakeCoachWeb({
         return new Response(null, { status: 204 });
       }
     }
+    const card = /^\/api\/action-cards\/([^/]+)$/.exec(pathname);
+    if (card && method === "POST") {
+      const found = cards.get(decodeURIComponent(card[1]!));
+      if (!found) return Response.json({ error: "not_found" }, { status: 404 });
+      const decision = String(body?.decision);
+      const decided = {
+        ...found,
+        status: decision === "accept" ? "accepted" : decision === "dismiss" ? "dismissed" : "undone",
+        decidedAt: AT,
+        ...(decision === "undo" ? { undoneAt: AT } : {}),
+        undoable: decision === "accept",
+      };
+      cards.set(decodeURIComponent(card[1]!), decided);
+      return Response.json({ card: decided });
+    }
     if (pathname === "/api/signalements" && method === "POST") {
       signalements.push(body!);
       return Response.json({ signalement: { id: `s${signalements.length}` } }, { status: 201 });
@@ -201,6 +217,7 @@ export function fakeCoachWeb({
       const conversation = conversationFor(body);
       conversation.messages.push({ from: "candidate", text: String(body.message) }, { from: "coach", text, at: AT, provenance: null });
       conversation.context = { messages: conversation.messages.length, tokens: 1500 };
+      for (const each of (more as { cards?: Record<string, unknown>[] }).cards ?? []) cards.set(String(each.id), each);
       const step = aiStep(1);
       stream.send({ type: "conversation", conversation: summary(conversation) });
       stream.send(step.started);

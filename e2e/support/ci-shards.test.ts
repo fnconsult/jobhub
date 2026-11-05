@@ -63,8 +63,8 @@ describe("CI's e2e shards", () => {
   const ci = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
   const commands = e2eCommands(ci);
 
-  it("are read from the workflow: seven shards, one of them running the Plans' quota projects first", () => {
-    expect(new Set(commands.map((command) => command.shard)).size).toBe(7);
+  it("are read from the workflow: eight shards, one of them running the Plans' quota projects first", () => {
+    expect(new Set(commands.map((command) => command.shard)).size).toBe(8);
     const others = commands.filter((command) => command.shard === "others").map((command) => command.args.join(" "));
     expect(others.slice(0, 2)).toEqual(["--project=plan-quotas --no-deps", "--project=plan-coach-context --no-deps"]);
   });

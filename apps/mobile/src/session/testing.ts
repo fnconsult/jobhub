@@ -1,6 +1,8 @@
-import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED } from "@jobhub/shared";
+import CookieManager from "@preeternal/react-native-cookie-manager";
+import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead } from "@jobhub/shared";
 import type { LegalStepsResponse, ShownLegalTextRead } from "@jobhub/shared/reads";
-import type { SessionStorage, WebViewCookie, WebViewCookies } from "./app-session";
+import { fakeWebView, type WebViewCookie } from "../testing-device";
+import type { DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
 const COOKIE = "__Secure-better-auth.session_token";
@@ -18,19 +20,22 @@ export function memoryStorage(): SessionStorage & { values: Map<string, string> 
   };
 }
 
-/** The WebViews' cookie store, in memory: `cookies()` is what a WebView of the app would send, with its address. */
-export function memoryWebViewCookies(): WebViewCookies & { cookies: () => ({ url: string } & WebViewCookie)[] } {
-  let kept: ({ url: string } & WebViewCookie)[] = [];
+/**
+ * The WebViews' cookie store, as the app's instance empties it (src/session/instance.ts), on the fake device's
+ * (src/testing-device.ts): `cookies()` is what a WebView of the app would send, with its address.
+ */
+export function memoryWebViewCookies(): WebViewCookies & { cookies: () => WebViewCookie[] } {
   return {
-    cookies: () => kept,
-    set: async (url, cookie) => void (kept = [...kept.filter((each) => each.url !== url || each.name !== cookie.name), { url, ...cookie }]),
-    clear: async () => void (kept = []),
+    cookies: () => fakeWebView.cookies,
+    clear: async () => void (await CookieManager.clearAllStores()),
   };
 }
 
 interface Session {
   email: string;
   pending: boolean;
+  /** The passkey challenge last asked in this session: it serves one answer. */
+  challenge?: string;
 }
 
 /** A Legal Text Version as `GET /api/account/legal-steps` shows it, in French. */
@@ -54,18 +59,38 @@ interface Recorded {
   client: string | null;
 }
 
+/** An account's Two-step verification: its factors, or none yet when it must set one up (`setup`). */
+interface Factors {
+  app: boolean;
+  passkey: boolean;
+  setup: boolean;
+  backupCodes: Set<string>;
+  failed: number;
+  lockedUntil: Date | null;
+}
+
+/** Wrong codes in a row before every code is refused for a while, and for how long, as on the web (MAX_FAILED_ATTEMPTS, LOCK_MINUTES). */
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+const APP_CODE = "246810";
+
 /**
- * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts proves the
- * real ones): the magic link asked from the app's origin alone, the session as a cookie, a session pending its second
- * step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a link no longer valid
- * redirected to the home page. And the API routes of #689: whether the person is a Human Coach, the legal steps after
- * sign-in and their answers (a write refused without the app's origin), each recorded in `recorded`.
+ * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts and
+ * sign-in-code.test.ts prove the real ones): the magic link asked from the app's origin alone, the session as a cookie,
+ * a session pending its second step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a
+ * link no longer valid redirected to the home page; the email's code (#686), 5 tries, once, spending its link. The
+ * second step (#688) as its endpoints answer it (two-step-verification/index.ts and its routes prove the real ones):
+ * what the session has to do, a code, a passkey of the account's own, the lock. And the API routes of #689: whether the
+ * person is a Human Coach, the legal steps after sign-in and their answers (a write refused without the app's origin),
+ * each recorded in `recorded`.
  */
 export function fakeWebApp() {
   const sessions = new Map<string, Session>();
   const links = new Map<string, string>();
-  const withSecondStep = new Set<string>();
-  const emailed: { email: string; callbackURL: string; link: string }[] = [];
+  const twoStep = new Map<string, Factors>();
+  /** The code each address's last email carries, and the wrong tries made with it. */
+  const codes = new Map<string, { code: string; tries: number }>();
+  const emailed: { email: string; callbackURL: string; link: string; code: string }[] = [];
   let next = 0;
   let offline = false;
   const humanCoaches = new Set<string>();
@@ -80,6 +105,12 @@ export function fakeWebApp() {
     return token ? { token, session: sessions.get(token) } : null;
   };
   const cleared = `${COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`;
+  /** A new session for `email`, pending its second step when the account has it, as its cookie. */
+  const signedIn = (email: string) => {
+    const token = `session${++next}`;
+    sessions.set(token, { email, pending: twoStep.has(email) });
+    return json({ token, user: { email } }, 200, `${COOKIE}=${token}.signature; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`);
+  };
 
   async function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     if (offline) throw new TypeError("Network request failed");
@@ -91,9 +122,28 @@ export function fakeWebApp() {
       const { email, callbackURL } = (await request.json()) as { email: string; callbackURL: string };
       if (!fromApp || !callbackURL.startsWith(APP_ORIGIN)) return json({ message: "Invalid callbackURL" }, 403);
       const token = `link${++next}`;
+      const code = String(428_190 + next);
       links.set(token, email);
-      emailed.push({ email, callbackURL, link: `${TEST_BASE_URL}${APP_SIGN_IN_PATH}?token=${token}` });
+      codes.set(email, { code, tries: 0 });
+      emailed.push({ email, callbackURL, link: `${TEST_BASE_URL}${APP_SIGN_IN_PATH}?token=${token}`, code });
       return json({ status: true });
+    }
+    if (path === "/sign-in/email-otp" && request.method === "POST") {
+      const { email, otp } = (await request.json()) as { email: string; otp: string };
+      if (!fromApp) return json({ message: "Invalid origin" }, 403);
+      const pending = codes.get(email);
+      if (!pending) return json({ code: "INVALID_OTP", message: "Invalid OTP" }, 400);
+      if (pending.tries >= 5) {
+        codes.delete(email);
+        return json({ code: "TOO_MANY_ATTEMPTS", message: "Too many attempts" }, 403);
+      }
+      if (otp !== pending.code) {
+        pending.tries += 1;
+        return json({ code: "INVALID_OTP", message: "Invalid OTP" }, 400);
+      }
+      codes.delete(email);
+      for (const [link, to] of links) if (to === email) links.delete(link);
+      return signedIn(email);
     }
     if (path === "/magic-link/verify" && request.method === "GET") {
       const email = links.get(url.searchParams.get("token") ?? "");
@@ -101,12 +151,17 @@ export function fakeWebApp() {
       // which React Native's fetch follows whatever `redirect` asks: what reaches the app is that page, a 200.
       if (!email) return fetch(`${TEST_BASE_URL}/?error=INVALID_TOKEN`);
       links.delete(url.searchParams.get("token")!);
-      const token = `session${++next}`;
-      sessions.set(token, { email, pending: withSecondStep.has(email) });
-      return json({ token, user: { email } }, 200, `${COOKIE}=${token}.signature; Max-Age=604800; Path=/; HttpOnly; Secure; SameSite=Lax`);
+      codes.delete(email);
+      return signedIn(email);
     }
     const found = sessionOf(request.headers);
-    if (found?.session?.pending && path !== "/sign-out") return json({ error: SECOND_STEP_REQUIRED }, 401);
+    const secondStep = url.pathname === SECOND_STEP_ENDPOINT || url.pathname === SECOND_STEP_PASSKEY_ENDPOINT;
+    if (found?.session?.pending && path !== "/sign-out" && !secondStep) return json({ error: SECOND_STEP_REQUIRED }, 401);
+    if (secondStep) {
+      if (!found?.session) return json({ error: "unauthorized" }, 401);
+      if (request.method !== "GET" && !fromApp) return json({ error: "forbidden" }, 403);
+      return answerSecondStep(request, url.pathname, found.session);
+    }
     if (path === "/get-session" && request.method === "GET") {
       if (!found?.session) return json(null, 200, found ? cleared : undefined);
       return json({ session: { id: found.token, expiresAt: new Date(Date.now() + 86_400_000).toISOString() }, user: { id: found.session.email, email: found.session.email, name: "" } });
@@ -144,6 +199,47 @@ export function fakeWebApp() {
     return json({ message: "Not found" }, 404);
   }
 
+  async function answerSecondStep(request: Request, pathname: string, session: Session): Promise<Response> {
+    const factors = twoStep.get(session.email);
+    if (request.method === "GET") {
+      const read: SecondStepRead = !session.pending || !factors ? { step: null } : factors.setup ? { step: "setup" } : { step: "second_step", passkey: factors.passkey, app: factors.app };
+      return json(read);
+    }
+    const body = (await request.json().catch(() => ({}))) as { code?: string; response?: { id?: string; challenge?: string } };
+    if (!factors || factors.setup) return json({ error: "not_enabled" }, 409);
+    if (pathname === SECOND_STEP_PASSKEY_ENDPOINT && !body.response) {
+      if (!factors.passkey) return json({ error: "no_passkey" }, 409);
+      session.challenge = `challenge${++next}`;
+      return json({ options: { challenge: session.challenge, rpId: new URL(TEST_BASE_URL).hostname, allowCredentials: [{ id: credentialOf(session.email), type: "public-key" }] } });
+    }
+    if (factors.lockedUntil && factors.lockedUntil > new Date()) return json({ error: "locked", retryAt: factors.lockedUntil.toISOString() }, 429);
+    let accepted: boolean;
+    if (pathname === SECOND_STEP_PASSKEY_ENDPOINT) {
+      const challenge = session.challenge;
+      session.challenge = undefined;
+      // Only a passkey of the pending session's own account is taken.
+      accepted = factors.passkey && Boolean(challenge) && body.response?.challenge === challenge && body.response?.id === credentialOf(session.email);
+    } else {
+      const code = body.code ?? "";
+      accepted = (factors.app && code === APP_CODE) || factors.backupCodes.delete(code);
+    }
+    if (accepted) {
+      factors.failed = 0;
+      session.pending = false;
+      return json({ ok: true });
+    }
+    if (++factors.failed >= MAX_FAILED_ATTEMPTS) {
+      factors.failed = 0;
+      factors.lockedUntil = new Date(Date.now() + LOCK_MINUTES * 60_000);
+      return json({ error: "locked", retryAt: factors.lockedUntil.toISOString() }, 429);
+    }
+    return json({ error: pathname === SECOND_STEP_PASSKEY_ENDPOINT ? "invalid_passkey" : "invalid_code" }, 400);
+  }
+
+  const credentialOf = (email: string) => `credential-of-${email}`;
+  /** A device whose system answers a passkey request with `sign`. */
+  const device = (sign: DevicePasskeys["sign"], supported = true): DevicePasskeys => ({ supported: () => supported, sign });
+
   return {
     fetch,
     /** The web app's address, as the app reaches it. */
@@ -151,8 +247,31 @@ export function fakeWebApp() {
     emailed,
     /** The link the last email to `email` carries. */
     linkFor: (email: string) => emailed.findLast((sent) => sent.email === email)!.link,
-    /** The account of `email` has Two-step verification: a magic link leaves its session pending. */
-    withSecondStep: (email: string) => void withSecondStep.add(email),
+    /** The code the last email to `email` carries (#686). */
+    codeFor: (email: string) => emailed.findLast((sent) => sent.email === email)!.code,
+    /**
+     * The account of `email` has Two-step verification, with an authenticator app (by default) and a passkey if said:
+     * a magic link leaves its session pending.
+     */
+    withSecondStep: (email: string, { app = true, passkey = false }: { app?: boolean; passkey?: boolean } = {}) =>
+      void twoStep.set(email, { app, passkey, setup: false, backupCodes: new Set([`backup-${email}`]), failed: 0, lockedUntil: null }),
+    /** The account of `email` must have Two-step verification and has no factor yet (a Human Coach): its session sets one up first. */
+    mustSetUp: (email: string) => void twoStep.set(email, { app: false, passkey: false, setup: true, backupCodes: new Set(), failed: 0, lockedUntil: null }),
+    /** The account of `email` set up its authenticator app on the web's page: its sessions are no longer pending. */
+    finishSetUp: (email: string) => {
+      twoStep.set(email, { app: true, passkey: false, setup: false, backupCodes: new Set([`backup-${email}`]), failed: 0, lockedUntil: null });
+      for (const session of sessions.values()) if (session.email === email) session.pending = false;
+    },
+    /** What the authenticator app of an account with one shows now. */
+    appCode: () => APP_CODE,
+    /** One of the backup codes of `email`, each serving once. */
+    backupCode: (email: string) => `backup-${email}`,
+    /** A device holding the passkey of `email`'s account, which the person uses when the system asks. */
+    deviceWithPasskeyOf: (email: string) => device(async (request) => ({ id: credentialOf(email), challenge: (request as { challenge: string }).challenge })),
+    /** A device with passkeys, where the person does not use one when the system asks. */
+    deviceWithoutPasskey: () => device(async () => null),
+    /** A device whose system has no passkeys (Android before 9). */
+    unsupportedDevice: () => device(async () => null, false),
     /** Mon compte's « Déconnecter partout », on the web. */
     revokeAll: (email: string) => {
       for (const [token, session] of sessions) if (session.email === email) sessions.delete(token);
@@ -164,6 +283,8 @@ export function fakeWebApp() {
     asks: (email: string, asked: Partial<LegalStepsResponse>) => void steps.set(email, { ...stepsOf(email), ...asked }),
     /** The API calls the app made, oldest first. */
     recorded,
+    /** Whose session a request with `headers` carries, as the web app reads its cookie: the email, or null for none it knows. */
+    signedInAs: (headers: HeadersInit | undefined) => sessionOf(new Headers(headers))?.session?.email ?? null,
     setOffline: (value: boolean) => void (offline = value),
   };
 }

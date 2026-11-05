@@ -1,30 +1,33 @@
 import { screen, userEvent } from "@testing-library/react-native";
 import { Text } from "react-native";
-import { createApi } from "../api/api";
 import { createAppSession } from "../session/app-session";
 import { SessionGate } from "../session/SessionGate";
 import { fakeWebApp, memoryStorage, memoryWebViewCookies, shownLegalText, TEST_BASE_URL } from "../session/testing";
 import { renderInApp } from "../testing";
+import { fakeWebView } from "../testing-device";
 import { LegalSteps } from "./LegalSteps";
 
 const EMAIL = "marie.dupont@example.fr";
 
+/** The WebView shown, as the page drives it (src/testing-device.ts). */
+const webView = async () => (await screen.findByTestId("web-view"), fakeWebView.shown!);
+
 /** The app signed in as Marie, the web app asking of her what `asks` says, the app behind its legal steps. */
 async function signedIn(asks: Parameters<ReturnType<typeof fakeWebApp>["asks"]>[1] = {}, { apiReachable = true } = {}) {
   const web = fakeWebApp();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: web.fetch });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: web.deviceWithoutPasskey(), webViewCookies: memoryWebViewCookies() });
   await session.askLink(EMAIL);
   await session.openLink(web.linkFor(EMAIL));
   web.asks(EMAIL, asks);
-  const unreachable = () => Promise.reject(new TypeError("Network request failed"));
-  const api = createApi({ baseURL: TEST_BASE_URL, cookie: () => session.cookie(), fetch: apiReachable ? web.fetch : unreachable });
+  // The app's calls to the API reach the web app at the network (src/api), or nothing at all.
+  jest.spyOn(globalThis, "fetch").mockImplementation(apiReachable ? web.fetch : () => Promise.reject(new TypeError("Network request failed")));
   await renderInApp(
     <SessionGate session={session} link={null}>
       <LegalSteps>
         <Text>La conversation</Text>
       </LegalSteps>
     </SessionGate>,
-    { api },
+    { sessionCookie: () => session.cookie() },
   );
   /** The writes the app sent the web app. */
   const writes = () => web.recorded.filter((call) => call.method !== "GET").map(({ method, path, body, client }) => ({ method, path, body, client }));
@@ -33,6 +36,8 @@ async function signedIn(asks: Parameters<ReturnType<typeof fakeWebApp>["asks"]>[
 
 
 describe("the legal steps after sign-in, native (#689, ADR-0062, ADR-0072)", () => {
+  afterEach(() => jest.restoreAllMocks());
+
   it("goes straight on when nothing is asked", async () => {
     await signedIn();
 
@@ -64,10 +69,10 @@ describe("the legal steps after sign-in, native (#689, ADR-0062, ADR-0072)", () 
 
     await user.press(await screen.findByRole("button", { name: "Mes données" }));
 
-    expect((await screen.findByTestId("web-view")).props.source).toEqual({ uri: `${TEST_BASE_URL}/compte/donnees` });
+    expect((await webView()).source).toEqual({ uri: `${TEST_BASE_URL}/compte/donnees` });
     await user.press(screen.getByRole("button", { name: "Retour" }));
     await user.press(screen.getByRole("button", { name: "Abonnement" }));
-    expect((await screen.findByTestId("web-view")).props.source).toEqual({ uri: `${TEST_BASE_URL}/abonnement` });
+    expect((await webView()).source).toEqual({ uri: `${TEST_BASE_URL}/abonnement` });
     expect(screen.queryByText("La conversation")).toBeNull();
   });
 

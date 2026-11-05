@@ -28,6 +28,7 @@ import * as z from "zod";
 import { routes } from "../routes";
 import { emailedMagicLink } from "./app-sign-in";
 import { withDiscoveryDocuments } from "./discovery-documents";
+import { signInCodes, SIGN_IN_CODE_PATH } from "./sign-in-code";
 import { signInEmail } from "./sign-in-email";
 import { recordingSignInCalls } from "./sign-in-calls";
 import { MAGIC_LINK, SIGN_IN_ERRORS, TEST_SIGN_IN, type SignInConfiguration } from "../sign-in-providers/catalog";
@@ -154,7 +155,7 @@ function signUpLanguageOf(ctx: HookContext): Locale | null {
  *    linking (account_not_linked otherwise), or when the Candidate links it themselves,
  *    signed in, from Mon compte;
  *  - each session records how it was signed in (`signInMethod`), for Require SSO;
- *  - a session a magic link signs in starts pending (`twoStepPending`, ADR-0075) when `secondStepRequired` says the
+ *  - a session a magic link (or its email's code, #686) signs in starts pending (`twoStepPending`, ADR-0075) when `secondStepRequired` says the
  *    account has Two-step verification, or must have it (#665): it reaches nothing but the second step until it is done. A Sign-in Provider's
  *    never does: its sign-in counts as both steps.
  */
@@ -267,7 +268,8 @@ export function signInHooks(signIn: SignInSetup, baseURL: string, secondStepRequ
             if (person) await decide(ctx, providerId, person);
             return { data: { signInMethod: providerId } };
           }
-          if (ctx?.path?.startsWith("/magic-link/verify")) {
+          // The sign-in email's link or its code (#686): the same proof of the address, the same sign-in method.
+          if (ctx?.path?.startsWith("/magic-link/verify") || ctx?.path === SIGN_IN_CODE_PATH) {
             return { data: { signInMethod: MAGIC_LINK, ...((await secondStepRequired(session.userId)) && { twoStepPending: true }) } };
           }
           return undefined;
@@ -306,12 +308,18 @@ const ID_TOKEN_PATHS = ["/sign-in/social", "/link-social"];
 const PASSKEY_PATHS_REFUSED = ["/passkey/generate-authenticate-options", "/passkey/verify-authentication", "/passkey/delete-passkey"];
 
 /**
+ * The email OTP plugin's endpoints Jobbbox does not serve (#686): its code is issued by the sign-in email alone and only
+ * signs in (SIGN_IN_CODE_PATH); no code sent alone, checked apart, verifying an address, a password or an email change.
+ */
+const isUnservedCodePath = (path: string) => path.startsWith("/email-otp/") || path === "/forget-password/email-otp";
+
+/**
  * Refuses a sign-in or a link made with a provider's ID token posted by the client: no page or
  * client of ours does it, and it would skip the callback where the sign-in policy is applied.
- * Refuses the passkey endpoints above too.
+ * Refuses the passkey and email OTP endpoints above too.
  */
 const refuseUnservedEndpoints = createAuthMiddleware(async (ctx) => {
-  if (PASSKEY_PATHS_REFUSED.includes(ctx.path)) throw new APIError("NOT_FOUND", { code: "NOT_SUPPORTED", message: "Not supported" });
+  if (PASSKEY_PATHS_REFUSED.includes(ctx.path) || isUnservedCodePath(ctx.path)) throw new APIError("NOT_FOUND", { code: "NOT_SUPPORTED", message: "Not supported" });
   if (!ID_TOKEN_PATHS.includes(ctx.path)) return;
   const body = ctx.body as { idToken?: unknown } | undefined;
   if (body?.idToken !== undefined) {
@@ -321,6 +329,12 @@ const refuseUnservedEndpoints = createAuthMiddleware(async (ctx) => {
 
 function authOptions(config: AuthConfig) {
   const signIn = config.signIn ?? NO_SIGN_IN;
+  const codes = signInCodes({ minutes: MAGIC_LINK_MINUTES, database: config.database });
+  const hooks = signInHooks(
+    signIn,
+    config.baseURL,
+    async (candidateId) => (await hasTwoStepVerification(config.database, candidateId)) || ((await config.mustHaveTwoStepVerification?.(candidateId)) ?? false),
+  );
   const providers = betterAuthSignIn(signIn.configuration);
   const socialProviders = Object.fromEntries(
     Object.entries(providers.socialProviders).map(([id, options]) => [id, { ...options, mapProfileToUser: verifiedWhileLinking }]),
@@ -346,11 +360,7 @@ function authOptions(config: AuthConfig) {
         trustedProviders: () => trustedProviderIds(signIn.current?.() ?? signIn.configuration),
       },
     },
-    databaseHooks: signInHooks(
-      signIn,
-      config.baseURL,
-      async (candidateId) => (await hasTwoStepVerification(config.database, candidateId)) || ((await config.mustHaveTwoStepVerification?.(candidateId)) ?? false),
-    ),
+    databaseHooks: { ...hooks, session: { create: { ...hooks.session.create, after: codes.afterSession } } },
     hooks: { before: refuseUnservedEndpoints },
     // The account of a person looking for a job is a Candidate (CONTEXT.md).
     user: {
@@ -385,17 +395,22 @@ function authOptions(config: AuthConfig) {
         expiresIn: MAGIC_LINK_MINUTES * 60,
         storeToken: "hashed",
         sendMagicLink: async ({ email, url, metadata }, ctx) => {
+          if (!ctx) throw new Error("A magic link is sent from its endpoint");
           // A returning Candidate reads the email in their Interface Language; a new one in the language of the page
           // they asked from (#570), which their link carries so the account starts in it.
-          const found = await ctx?.context.internalAdapter.findUserByEmail(email);
+          const found = await ctx.context.internalAdapter.findUserByEmail(email);
           const language = found ? (found.user as Record<string, unknown>).interfaceLanguage : metadata?.language;
           const locale = isSupportedLocale(language) ? language : DEFAULT_LOCALE;
           // Asked from the native app: a link the app opens, by a universal link or an App Link (app-sign-in.ts).
           const appLink = emailedMagicLink(url, config.baseURL);
           const link = appLink !== url || found || locale === DEFAULT_LOCALE ? appLink : withSignUpLanguage(url, locale);
-          await config.mailer.send({ to: email, ...signInEmail({ url: link, minutes: MAGIC_LINK_MINUTES }, locale) });
+          // Its code, for another device than the one reading the email (#686): in this email alone.
+          const code = await codes.issue(email, ctx.context);
+          await config.mailer.send({ to: email, ...signInEmail({ url: link, code, minutes: MAGIC_LINK_MINUTES }, locale) });
         },
       }),
+      // The sign-in email's code (#686): signs in at SIGN_IN_CODE_PATH, its other endpoints not served (isUnservedCodePath).
+      codes.plugin,
       // Passkeys (#664, ADR-0075), added in Mon compte as a second step: never a way to sign in (PASSKEY_PATHS_REFUSED).
       passkey({ rpID: relyingPartyOf(config.baseURL).id, rpName: "Jobbbox", origin: relyingPartyOf(config.baseURL).origin }),
       // Generic OIDC providers, through the same sign-in and callback endpoints as the social ones.

@@ -50,7 +50,7 @@ describe("Universal links and App Links (#685)", () => {
   const hosts = ["jobbbox.ai", "staging.jobbbox.ai"];
 
   it("open the app from the magic link's address on iOS, for the production and the Beta hosts", () => {
-    expect(expo.ios.associatedDomains.sort()).toEqual(hosts.map((host) => `applinks:${host}`).sort());
+    expect(expo.ios.associatedDomains.filter((domain: string) => domain.startsWith("applinks:")).sort()).toEqual(hosts.map((host) => `applinks:${host}`).sort());
     expect(expo.ios.bundleIdentifier).toBe(APP_IDENTIFIER);
   });
 
@@ -72,5 +72,20 @@ describe("Universal links and App Links (#685)", () => {
     ]) {
       expect(read(...route).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("Passkeys for the second step (#688)", () => {
+  const hosts = ["jobbbox.ai", "staging.jobbbox.ai"];
+
+  it("are the web's own on iOS: the app shares the production and the Beta hosts' web credentials", () => {
+    expect(expo.ios.associatedDomains.filter((domain: string) => domain.startsWith("webcredentials:")).sort()).toEqual(hosts.map((host) => `webcredentials:${host}`).sort());
+  });
+
+  it("are asked of the system through a native module, which the web host's association files allow (Digital Asset Links on Android)", () => {
+    expect(mobile.dependencies["react-native-passkey"]).toBeDefined();
+    const files = read("apps", "web", "src", "native-app", "domain-association.ts");
+    expect(files).toContain("webcredentials");
+    expect(files).toContain("delegate_permission/common.get_login_creds");
   });
 });

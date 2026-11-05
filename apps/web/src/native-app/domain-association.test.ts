@@ -9,16 +9,17 @@ describe("the domain association files the native app's links are verified with 
     expect(DOMAIN_ASSOCIATION_FILES).toEqual(["/.well-known/apple-app-site-association", "/.well-known/assetlinks.json"]);
   });
 
-  it("let the iOS app open the magic link's address, and no other", () => {
+  it("let the iOS app open the magic link's address, and no other, and use the site's passkeys (#688)", () => {
     expect(domainAssociation("/.well-known/apple-app-site-association", ENV)).toEqual({
       applinks: { details: [{ appIDs: [`ABCDE12345.${APP_IDENTIFIER}`], components: [{ "/": APP_SIGN_IN_PATH }] }] },
+      webcredentials: { apps: [`ABCDE12345.${APP_IDENTIFIER}`] },
     });
   });
 
-  it("let the Android app signed with each listed certificate open the site's links", () => {
+  it("let the Android app signed with each listed certificate open the site's links and use its passkeys (#688)", () => {
     expect(domainAssociation("/.well-known/assetlinks.json", ENV)).toEqual([
       {
-        relation: ["delegate_permission/common.handle_all_urls"],
+        relation: ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
         target: { namespace: "android_app", package_name: APP_IDENTIFIER, sha256_cert_fingerprints: ["AA:BB:CC", "DD:EE:FF"] },
       },
     ]);

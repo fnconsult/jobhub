@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icons } from "@/components/icons";
 import { ObjectConversation } from "@/components/ObjectConversation";
+import { OriginDisclosure } from "@/components/OriginDisclosure";
 import { ProfileTitle } from "@/components/ProfileInlineEdits";
 import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
@@ -78,6 +79,8 @@ async function ProfileCard({ id, atsScore, t }: { id: string; atsScore: number |
           <dd>
             <span>{searchCriteriaInWords(profile.searchCriteria, t, locale, industries)}</span>{" "}
             {profile.archived ? null : <SearchCriteriaDialog profileId={profile.id} profileName={profile.name} searchCriteria={profile.searchCriteria} />}
+            {/* Applied from a Coach proposal (#719): hidden until « Origine » is opened. */}
+            <OriginDisclosure appliedAt={profile.searchCriteriaOrigin?.appliedAt.toISOString()} />
           </dd>
         </div>
       </dl>

@@ -180,6 +180,22 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(await jobDigests.subscribe(candidateId, profileId, undefined)).toEqual({ ok: false, error: "invalid_frequency" });
     });
 
+    it("tells, recording nothing, whether a frequency would be accepted, or why not, as `subscribe` would refuse it (#720)", async () => {
+      expect(await jobDigests.allows(candidateId, profileId, "weekly")).toEqual({ ok: true });
+      expect(await jobDigests.allows(candidateId, profileId, "daily")).toEqual({
+        ok: false,
+        error: "above_plan",
+        plan: "standard",
+        planName: { fr: "Standard", en: "Standard" },
+        planFrequency: "weekly",
+        upgradeTo: "premium",
+        upgradeToName: { fr: "Premium", en: "Premium" },
+      });
+      expect(await jobDigests.allows(candidateId, profileId, "hourly")).toEqual({ ok: false, error: "invalid_frequency" });
+      expect(await jobDigests.allows(otherCandidateId, profileId, "weekly")).toEqual({ ok: false, error: "not_found" });
+      expect(await jobDigests.settings(candidateId, profileId)).toMatchObject({ subscribed: false, chosenFrequency: null });
+    });
+
     it("names no Plan above when the only one sending it daily is hidden", async () => {
       await billing.updatePlan("premium", { name: { fr: "Premium", en: "Premium" }, status: "hidden", stripeProductId: null, features: [] });
 

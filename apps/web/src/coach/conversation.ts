@@ -6,7 +6,7 @@
  * the worker (which purges Coach Conversations) bundle it.
  */
 
-import type { Provenance } from "@jobhub/shared";
+import { DEFAULT_COACH_CONTEXT_LIMITS, type CoachContextLimits, type Provenance } from "@jobhub/shared";
 import type { CoachProposalCard } from "../coach-proposals/card";
 
 export interface CoachMessage {
@@ -39,12 +39,16 @@ export interface JobOfferCard {
   followed: boolean;
 }
 
-/** Longest single message, and most messages the AI Coach answers from. */
+/** Longest single message. */
 export const MAX_MESSAGE_LENGTH = 5000;
-export const MAX_MESSAGES = 40;
+/** Most messages the AI Coach answers from, on a Plan with no Coach context limits stored (ADR-0078): its Plan's `coachContextMessages` otherwise. */
+export const MAX_MESSAGES = DEFAULT_COACH_CONTEXT_LIMITS.coachContextMessages;
 
-/** The ceiling of the AI Coach's context, in estimated tokens: what it is told of the Candidate is fitted under it. */
-export const COACH_CONTEXT_MAX_TOKENS = 12_000;
+/**
+ * The ceiling of the AI Coach's context, in estimated tokens, on a Plan with no Coach context limits stored (ADR-0078): its Plan's
+ * `coachContextTokens` otherwise. What it is told of the Candidate is fitted under it.
+ */
+export const COACH_CONTEXT_MAX_TOKENS = DEFAULT_COACH_CONTEXT_LIMITS.coachContextTokens;
 
 /** A rough token count (about 4 characters per token), enough to keep the context under its cap. */
 export function estimateTokens(text: string): number {
@@ -52,27 +56,48 @@ export function estimateTokens(text: string): number {
 }
 
 /**
- * What the server says of a Coach Conversation for its Context bar (#607): its `messages`, and `tokens`, the estimate
- * (estimateTokens) of the context sent with its latest reply: the AI Coach's system text and the messages it read.
+ * What the context of an AI Coach reply is made of (ADR-0078), as the Context bar's breakdown names it: Messages (those the AI
+ * Coach read), Instructions du coach (its persona, rules and the Playbook digest), Profil et CV (what it is told of the Candidate),
+ * Conseils des agents (the Playbook Agents' advice) and Sources (those the knowledge cites).
  */
-export type ConversationContext = { messages: number; tokens: number };
+export const CONTEXT_CATEGORIES = ["messages", "instructions", "profile", "advice", "sources"] as const;
+export type ContextCategory = (typeof CONTEXT_CATEGORIES)[number];
+
+/** The estimate (estimateTokens) of a reply's context split by category: it adds up to the reply's whole estimate. */
+export type ContextSplit = Record<ContextCategory, number>;
+
+/**
+ * What the server says of a Coach Conversation for its Context bar (#607): its `messages`, and `tokens`, the estimate
+ * (estimateTokens) of the context sent with its latest reply: the AI Coach's system text and the messages it read;
+ * `split`, that estimate by category (#731, null when none was kept), and `limits`, the Coach context limits of the
+ * Candidate's Plan (ADR-0078). The last two may be absent from what a page was given before them.
+ */
+export type ConversationContext = { messages: number; tokens: number; limits?: CoachContextLimits; split?: ContextSplit | null };
 
 /** From this share of either limit, the Context bar says the AI Coach reads only the latest messages. */
 const NEARLY_FULL = 0.8;
 
-/** The Context bar (ADR-0070): its figures, the share it is filled to (that of the limit nearer reached, at most 1), and whether it is nearly full. */
-export type ContextBar = ConversationContext & { maxMessages: number; maxTokens: number; share: number; nearlyFull: boolean };
+/**
+ * The Context bar (ADR-0070): its figures, out of the Coach context limits (null when unlimited), the share it is filled to
+ * (that of the limit nearer reached, at most 1; an unlimited one never fills it), and whether it is nearly full.
+ */
+export type ContextBar = Pick<ConversationContext, "messages" | "tokens"> & { maxMessages: number | null; maxTokens: number | null; share: number; nearlyFull: boolean };
 
-/** The Context bar of a conversation, from what the server says of it; empty for one not yet started (null). */
+/**
+ * The Context bar of a conversation, from what the server says of it, out of the Coach context limits of the Candidate's Plan
+ * it says (ADR-0078), else a Plan's with none stored; empty for one not yet started (null).
+ */
 export function contextBar(context: ConversationContext | null): ContextBar {
   const { messages, tokens } = context ?? { messages: 0, tokens: 0 };
-  const share = Math.min(1, Math.max(messages / MAX_MESSAGES, tokens / COACH_CONTEXT_MAX_TOKENS));
-  return { messages, maxMessages: MAX_MESSAGES, tokens, maxTokens: COACH_CONTEXT_MAX_TOKENS, share, nearlyFull: share >= NEARLY_FULL };
+  const { coachContextMessages: maxMessages, coachContextTokens: maxTokens } = context?.limits ?? DEFAULT_COACH_CONTEXT_LIMITS;
+  const filled = (count: number, max: number | null) => (max === null ? 0 : max === 0 ? 1 : count / max);
+  const share = Math.min(1, Math.max(filled(messages, maxMessages), filled(tokens, maxTokens)));
+  return { messages, maxMessages, tokens, maxTokens, share, nearlyFull: share >= NEARLY_FULL };
 }
 
-/** The last MAX_MESSAGES messages, starting with a Candidate message. */
-export function recentConversation<T extends CoachMessage>(messages: readonly T[]): T[] {
-  const recent = messages.slice(-MAX_MESSAGES);
+/** The last `limit` messages (all of them when null: unlimited), starting with a Candidate message. */
+export function recentConversation<T extends CoachMessage>(messages: readonly T[], limit: number | null = MAX_MESSAGES): T[] {
+  const recent = limit === null ? messages.slice() : limit > 0 ? messages.slice(-limit) : [];
   const start = recent.findIndex((message) => message.from === "candidate");
   return start === -1 ? [] : recent.slice(start);
 }

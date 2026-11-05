@@ -45,6 +45,7 @@ import {
   type GuardrailTriggerLog,
   type MessageGuardrailId,
 } from "./index";
+import { utcBefore } from "../database/before";
 
 /** How long a Guardrail Trigger is kept, like AI Usage. */
 export const TRIGGER_RETENTION_MONTHS = 24;
@@ -161,7 +162,7 @@ export async function migrateGuardrails(database: Pool): Promise<void> {
 
 /** Deletes the Guardrail Triggers TRIGGER_RETENTION_MONTHS old or more at `now`; returns how many. Safe to run again. */
 export async function purgeExpiredGuardrailTriggers(database: Pick<Pool, "query">, now: Date): Promise<number> {
-  const { rowCount } = await database.query(`DELETE FROM guardrail_trigger WHERE at <= $1::timestamptz - make_interval(months => $2)`, [now, TRIGGER_RETENTION_MONTHS]);
+  const { rowCount } = await database.query(`DELETE FROM guardrail_trigger WHERE at <= ${utcBefore("$1", "make_interval(months => $2)")}`, [now, TRIGGER_RETENTION_MONTHS]);
   return rowCount ?? 0;
 }
 

@@ -20,6 +20,17 @@ describe("splitting a Plan Quota change (#514)", () => {
     });
   });
 
+  it("lowering a Coach context limit, or giving an unlimited one a number, is a reduction too; making one unlimited applies now (ADR-0078, #731)", () => {
+    const before = { ...standard, coachContextMessages: 40, coachContextTokens: null };
+    const after = { ...standard, coachContextMessages: null, coachContextTokens: 24_000 };
+
+    expect(splitQuotaChange(before, after)).toEqual({
+      now: { ...standard, coachContextMessages: null, coachContextTokens: null },
+      reduced: { coachContextTokens: { before: null, after: 24_000 } },
+    });
+    expect(splitQuotaChange(before, { ...standard, coachContextMessages: 20 }).reduced).toEqual({ coachContextMessages: { before: 40, after: 20 } });
+  });
+
   it("the same quotas change nothing", () => {
     expect(splitQuotaChange(standard, { ...standard })).toEqual({ now: standard, reduced: {} });
   });

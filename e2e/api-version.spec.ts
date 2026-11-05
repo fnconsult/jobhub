@@ -1,4 +1,4 @@
-import { API_VERSION, API_VERSION_HEADER, EXTENSION_OUTDATED } from "@jobhub/shared";
+import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
 // Issue #564 (ADR-0063): the API Version between the extension and the web app. The web app serves the current one
@@ -36,6 +36,23 @@ test.describe("the API Version between the extension and the web app (#564)", ()
       }
     });
   }
+
+  // Issue #704: the Jobbbox app, too old, is told to update from its own store, never sent to the extension's page.
+  test("the Jobbbox app too old is answered 426 app_outdated, with no extension store page, on every route it may call", async ({ request }) => {
+    for (const route of EXTENSION_ROUTES) {
+      const app = { [API_CLIENT_HEADER]: MOBILE_CLIENT };
+      for (const headers of [app, { ...app, [API_VERSION_HEADER]: String(API_VERSION - 1) }]) {
+        const refused = await call(request, route, headers);
+        expect(refused.status(), route.path).toBe(426);
+        const body = await refused.json();
+        expect(body, route.path).toMatchObject({ error: APP_OUTDATED, apiVersion: API_VERSION });
+        expect(body.storeUrl ?? null, route.path).toBeNull();
+        expect(refused.headers()["cache-control"]).toBe("no-store");
+      }
+      const served = await call(request, route, { ...app, [API_VERSION_HEADER]: String(API_VERSION) });
+      expect(served.status(), route.path).not.toBe(426);
+    }
+  });
 
   test("an extension's GET, which carries no Origin, is known by the fetch no page started", async ({ request }) => {
     const route = EXTENSION_ROUTES.find(({ path }) => path === "/api/job-sites")!;

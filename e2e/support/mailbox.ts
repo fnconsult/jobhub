@@ -34,6 +34,13 @@ export function linkIn(email: Email): string {
   return match[0];
 }
 
+/** The 6-digit sign-in code inside a sign-in email (#686), beside its link. */
+export function codeIn(email: Email): string {
+  const match = email.text.match(/(?<![\d/:.])\d{6}(?!\d)/);
+  if (!match) throw new Error(`no code in email: ${email.text}`);
+  return match[0];
+}
+
 /** A fresh address, so each test meets a brand-new person. */
 export function newAddress(label: string): string {
   return `${label}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}@example.fr`;

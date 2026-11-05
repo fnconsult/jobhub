@@ -6,7 +6,7 @@ import { pendingSessionGate } from "../two-step-verification/gate";
 import { createTwoStepVerification } from "../two-step-verification/index";
 import { createPendingSessions } from "../two-step-verification/pending-sessions";
 import { totpAt } from "../two-step-verification/totp";
-import { BASE_URL, connectionString, cookiesFrom, linkIn, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
+import { BASE_URL, codeIn, connectionString, cookiesFrom, linkIn, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
 
 /** What the native app's requests carry instead of an Origin (@better-auth/expo's client, ADR-0076). */
 const FROM_APP = { "expo-origin": APP_ORIGIN };
@@ -57,6 +57,17 @@ describe.skipIf(!connectionString)("the native app's session (needs Postgres: DA
     const cookie = await appSignsIn("marie.dupont@example.fr");
 
     const current = await sessionOf(cookie);
+    expect(current?.user.email).toBe("marie.dupont@example.fr");
+    expect(current?.session.signInMethod).toBe("magic-link");
+  });
+
+  it("signs the app in by the email's code, typed in the app (#686)", async () => {
+    await appAsksLink("marie.dupont@example.fr");
+
+    const signedIn = await testAuth.request("/api/auth/sign-in/email-otp", { body: { email: "marie.dupont@example.fr", otp: codeIn(testAuth.mailbox[0]) }, headers: FROM_APP });
+
+    expect(signedIn.status).toBe(200);
+    const current = await sessionOf(cookiesFrom(signedIn));
     expect(current?.user.email).toBe("marie.dupont@example.fr");
     expect(current?.session.signInMethod).toBe("magic-link");
   });
@@ -140,5 +151,34 @@ describe.skipIf(!connectionString)("the native app's session (needs Postgres: DA
     // The proxy answers it 401 `second_step_required` on every route but the second step's (proxy-gate.ts).
     expect(await createPendingSessions(database).of(new Headers({ cookie: app }))).toMatchObject({ candidateId: user.id, step: "second_step" });
     expect(pendingSessionGate("/api/auth/get-session", "GET")).toBe("refuse");
+  }, 60_000);
+
+  it("keeps a pending app session from every data route, until a valid code from the app releases it (#688)", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    await migrateDatabase(testAuth.config);
+    let at = new Date();
+    const twoStep = createTwoStepVerification(database, { secret: testAuth.config.secret, now: () => at });
+    const web = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+    const { user, session } = (await sessionOf(web))!;
+    const { secret } = await twoStep.startSetup(user.id, "marie.dupont@example.fr");
+    await twoStep.confirmSetup({ candidateId: user.id, sessionId: session.id }, totpAt(secret, at));
+    const app = await appSignsIn("marie.dupont@example.fr");
+    const pendingSessions = createPendingSessions(database);
+    const pending = (await pendingSessions.of(new Headers({ cookie: app, ...FROM_APP })))!;
+
+    expect(pending).toMatchObject({ candidateId: user.id, step: "second_step" });
+    for (const route of ["/api/applications", "/api/job-searches", "/api/agenda", "/api/coach", "/api/auth/get-session", "/api/account/two-step-verification"]) {
+      for (const method of ["GET", "POST"]) expect(pendingSessionGate(route, method), `${method} ${route}`).toBe("refuse");
+    }
+    expect(pendingSessionGate("/api/two-step-verification/second-step", "POST")).toBe("open");
+    expect(await twoStep.verify(pending, "000000")).toEqual({ ok: false, error: "invalid_code" });
+    expect(await pendingSessions.of(new Headers({ cookie: app }))).not.toBeNull();
+
+    at = new Date(at.getTime() + 30_000);
+    expect(await twoStep.verify(pending, totpAt(secret, at))).toEqual({ ok: true, factor: "authenticator_app" });
+
+    expect(await pendingSessions.of(new Headers({ cookie: app }))).toBeNull();
+    expect((await sessionOf(app))?.user.email).toBe("marie.dupont@example.fr");
+    expect(await sessionOf(web)).not.toBeNull();
   }, 60_000);
 });

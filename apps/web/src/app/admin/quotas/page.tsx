@@ -55,7 +55,7 @@ async function resetWeeklyUsage(form: FormData) {
 }
 
 /**
- * Administrators edit each Plan's quotas, in rank order, hidden Plans included; empty means unlimited.
+ * Administrators edit each Plan's quotas and Coach context limits (ADR-0078), in rank order, hidden Plans included; empty means unlimited.
  * Below, those who may change them can reset this week's usage of every Candidate, with a reason (ADR-0032).
  */
 export default async function PlanQuotasPage({
@@ -70,7 +70,7 @@ export default async function PlanQuotasPage({
   const earliest = earliestEffectiveOn(new Date());
   // A scheduled reduction is named from the database and a date that parses: nothing typed in the address bar is shown.
   const scheduledOn = effectiveOn && /^\d{4}-\d{2}-\d{2}$/.test(effectiveOn) ? effectiveOn : null;
-  const [plans, quotas] = await Promise.all([getBilling().plans(), getBilling().planQuotas()]);
+  const [plans, quotas, coachContext] = await Promise.all([getBilling().plans(), getBilling().planQuotas(), getBilling().coachContextLimits()]);
   const savedPlan = plans.find((plan) => plan.key === saved);
 
   return (
@@ -127,6 +127,16 @@ export default async function PlanQuotasPage({
                       </option>
                     ))}
                   </Select>
+                </Field>
+                {/* The Coach context limits (ADR-0078): sizes, not Plan Quotas, lowered as a Quota Reduction too. */}
+                <p>
+                  <strong>{t("admin.planQuotas.coachContext.title")}</strong> {t("admin.planQuotas.coachContext.intro")}
+                </p>
+                <Field label={t("admin.planQuotas.coachContext.messages")} hint={t("admin.planQuotas.coachContext.messagesHelp")}>
+                  <TextInput name="coachContextMessages" inputMode="numeric" pattern="[0-9]*" defaultValue={coachContext[plan]?.coachContextMessages ?? ""} />
+                </Field>
+                <Field label={t("admin.planQuotas.coachContext.tokens")} hint={t("admin.planQuotas.coachContext.tokensHelp")}>
+                  <TextInput name="coachContextTokens" inputMode="numeric" pattern="[0-9]*" defaultValue={coachContext[plan]?.coachContextTokens ?? ""} />
                 </Field>
                 {plan !== FREE_PLAN && canWrite ? <ReductionNoticeFields t={t} earliest={earliest} /> : null}
                 {canWrite ? (

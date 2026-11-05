@@ -1,4 +1,4 @@
-import { JOB_DIGEST_FREQUENCIES, type JobDigestFrequency, type PlanQuotas } from "@jobhub/shared";
+import { JOB_DIGEST_FREQUENCIES, type CoachContextLimits, type JobDigestFrequency, type PlanLimits, type PlanQuotas } from "@jobhub/shared";
 
 /** Where a Quota Reduction's dates are read: its effective date starts at midnight there. */
 export const REDUCTION_TIME_ZONE = "Europe/Paris";
@@ -12,11 +12,11 @@ export const MAX_REASON_LENGTH = 500;
 /** How long after the effective date a subscriber told of it may still cancel with a prorata refund. */
 export const RESOLUTION_DAYS_AFTER = 30;
 
-/** One quota a Quota Reduction lowers: what it was when scheduled, and what it becomes. */
-export type QuotaReductionStep<K extends keyof PlanQuotas = keyof PlanQuotas> = { before: PlanQuotas[K]; after: PlanQuotas[K] };
+/** One quota (or Coach context limit, ADR-0078) a Quota Reduction lowers: what it was when scheduled, and what it becomes. */
+export type QuotaReductionStep<K extends keyof PlanLimits = keyof PlanLimits> = { before: PlanLimits[K]; after: PlanLimits[K] };
 
-/** The quotas a Quota Reduction lowers, each with its before and after. */
-export type ReducedQuotas = { [K in keyof PlanQuotas]?: QuotaReductionStep<K> };
+/** The quotas and Coach context limits a Quota Reduction lowers, each with its before and after. */
+export type ReducedQuotas = { [K in keyof PlanLimits]?: QuotaReductionStep<K> };
 
 /** Whether `after` gives less than `before`: a lower number, a number where it was unlimited (null), a rarer Job Digest. */
 function lowers(before: number | null | JobDigestFrequency, after: number | null | JobDigestFrequency): boolean {
@@ -28,15 +28,17 @@ function lowers(before: number | null | JobDigestFrequency, after: number | null
 }
 
 /**
- * Splits a change of one Plan's quotas: what may apply now (every increase, and what does not change), and the
- * quotas it lowers, which wait for their effective date on a Plan with subscribers.
+ * Splits a change of one Plan's quotas, and of its Coach context limits when it names them: what may apply now (every
+ * increase, and what does not change), and the quotas and limits it lowers, which wait for their effective date on a Plan
+ * with subscribers.
  */
-export function splitQuotaChange(before: PlanQuotas, after: PlanQuotas): { now: PlanQuotas; reduced: ReducedQuotas } {
+export function splitQuotaChange<T extends PlanQuotas & Partial<CoachContextLimits>>(before: PlanQuotas & Partial<CoachContextLimits>, after: T): { now: T; reduced: ReducedQuotas } {
   const now = { ...after };
   const reduced: Record<string, QuotaReductionStep> = {};
-  for (const key of Object.keys(after) as (keyof PlanQuotas)[]) {
-    if (!lowers(before[key], after[key])) continue;
-    reduced[key] = { before: before[key], after: after[key] };
+  for (const key of Object.keys(after) as (keyof PlanLimits)[]) {
+    const [was, becomes] = [before[key], after[key]];
+    if (was === undefined || becomes === undefined || !lowers(was, becomes)) continue;
+    reduced[key] = { before: was, after: becomes };
     (now as Record<string, unknown>)[key] = before[key];
   }
   return { now, reduced: reduced as ReducedQuotas };

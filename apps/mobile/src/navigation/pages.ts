@@ -3,16 +3,23 @@ import { Briefcase, Calendar, Mail, Search, Users, type LucideIcon } from "lucid
 import { SAMPLE_APPLICATIONS, SAMPLE_FREE_CONVERSATIONS } from "../sample-data";
 import type { ShellPage } from "../shell/Shell";
 
+/** An Application's Interviews Section, as its address names it (the web's APPLICATION_SECTIONS). */
+export const INTERVIEWS = "entretiens";
+
 /** The app's addresses, the web's own (apps/web/src/routes.ts), so a universal link opens the same page. */
 export const paths = {
   home: "/",
   applications: "/candidatures",
   application: (id: string) => `/candidatures/${encodeURIComponent(id)}`,
+  /** One of an Application's Sections: an Interview on the Agenda leads to its « entretiens ». */
+  applicationSection: (id: string, section: typeof INTERVIEWS) => `/candidatures/${encodeURIComponent(id)}/${section}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
   jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",
+  /** A Coaching Session on its Human Coaches page: where it leads from the Agenda. */
+  coachingSession: (id: string) => `/coachs#seance-${encodeURIComponent(id)}`,
   conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,
   account: "/compte",
   /** Mon compte's pages, the web app's inside the app (#689): every section, Sécurité, Mes données, then Account deletion on it. */

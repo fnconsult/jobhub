@@ -1,3 +1,4 @@
+import { DEFAULT_COACH_CONTEXT_LIMITS } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice } from "../admin/back-office";
 import { STARTING_PLAN_QUOTAS } from "../billing";
@@ -6,6 +7,8 @@ import { connectionString, startTestBilling, type TestBilling } from "../billing
 import { createQuotaReductions, migrateQuotaReductions } from "./index";
 
 const standard = STARTING_PLAN_QUOTAS.standard;
+/** Standard's quotas as the Back Office Audit records them: with its Coach context limits (ADR-0078), none stored. */
+const recorded = { ...standard, ...DEFAULT_COACH_CONTEXT_LIMITS };
 const notice = { reason: "Les recherches coûtent plus cher à nos fournisseurs.", effectiveOn: "2026-11-14" };
 
 describe.skipIf(!connectionString)("Quota Reductions in the Back Office and its Back Office Audit (#514, needs Postgres: DATABASE_URL)", () => {
@@ -39,7 +42,7 @@ describe.skipIf(!connectionString)("Quota Reductions in the Back Office and its 
     expect(await backOffice.setPlanQuotas(claire, "standard", { ...standard, profiles: 5, jobSearches: 3 }, notice)).toMatchObject({ ok: true, scheduled: { effectiveOn: "2026-11-14", subscribers: 1 } });
 
     expect(await journal()).toEqual([
-      { section: "plan_quotas", target: "standard", action: "updated", before: standard, after: { ...standard, profiles: 5 } },
+      { section: "plan_quotas", target: "standard", action: "updated", before: recorded, after: { ...recorded, profiles: 5 } },
       {
         section: "plan_quotas",
         target: "standard",
@@ -60,7 +63,7 @@ describe.skipIf(!connectionString)("Quota Reductions in the Back Office and its 
   it("an increase is recorded as before, applied at once", async () => {
     expect(await backOffice.setPlanQuotas(claire, "standard", { ...standard, jobSearches: 10 })).toEqual({ ok: true, scheduled: null });
 
-    expect(await journal()).toEqual([{ section: "plan_quotas", target: "standard", action: "updated", before: standard, after: { ...standard, jobSearches: 10 } }]);
+    expect(await journal()).toEqual([{ section: "plan_quotas", target: "standard", action: "updated", before: recorded, after: { ...recorded, jobSearches: 10 } }]);
   });
 
   it("taking a Plan Feature off a Plan with subscribers keeps it until the reduction's date", async () => {

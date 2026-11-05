@@ -10,8 +10,10 @@
  * A session signed in through a Sign-in Provider never has a step to do (both steps, ADR-0075): it is remembered (a
  * bounded number of them), so the database is asked once for it. No cookie, no question.
  */
+import type { SecondStepRead } from "@jobhub/shared";
 import { getSessionCookie } from "better-auth/cookies";
 import type { Pool } from "pg";
+import type { TwoStepFactor } from "./index";
 import { MAGIC_LINK } from "../sign-in-providers/catalog";
 import { hasFactorSql, mustHaveSql } from "./obligation";
 
@@ -27,6 +29,17 @@ export interface PendingSession {
 export interface PendingSessions {
   /** The step the session of the request's cookie must do; null when it has none, or no session. */
   of(headers: Headers): Promise<PendingSession | null>;
+}
+
+/**
+ * What the session `pending` has to do, as the second step's page shows it and its endpoint answers the native app
+ * (#688): its second step, with the account's passkeys and authenticator app when it has them (`factors`, its
+ * TwoStepStatus's), or the setup; nothing when it is not pending.
+ */
+export function secondStepRead(pending: PendingSession | null, factors: readonly TwoStepFactor[]): SecondStepRead {
+  if (!pending) return { step: null };
+  if (pending.step === "setup") return { step: "setup" };
+  return { step: "second_step", passkey: factors.some((factor) => factor.kind === "passkey"), app: factors.some((factor) => factor.kind === "authenticator_app") };
 }
 
 /** The session's token in its cookie's value: `token.signature`, maybe URL-encoded. */

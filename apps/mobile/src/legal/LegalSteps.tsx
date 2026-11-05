@@ -5,13 +5,14 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useApi } from "../api/api-context";
+import { useApi } from "../api/api";
+import { read } from "../api/reads";
 import { paths } from "../navigation/pages";
 import { useSession } from "../session/SessionGate";
 import { space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
-import { WebPage } from "../web-pages/WebPage";
+import { SessionWebPage } from "../web-pages/WebPageScreen";
 import { LegalTextView } from "./LegalTextView";
 
 type Step = "acceptance" | "privacyChange" | "euAiConsent";
@@ -36,7 +37,7 @@ export function LegalSteps({ children }: { children: ReactNode }) {
   const api = useApi();
   const steps = useQuery({
     queryKey: ["legalSteps", i18n.language],
-    queryFn: () => api.read(`/api/account/legal-steps?lang=${encodeURIComponent(i18n.language)}`, legalStepsResponseSchema),
+    queryFn: () => read(api, `/api/account/legal-steps?lang=${encodeURIComponent(i18n.language)}`, legalStepsResponseSchema),
     retry: false,
     staleTime: Infinity,
     // Asked even when the device says it is offline: the answer, or the failure that lets the app go on, comes at once.
@@ -112,7 +113,7 @@ function Acceptance({ cgu, onAccepted, onStale }: { cgu: ShownLegalTextRead; onA
         <View style={{ alignItems: "flex-start", paddingHorizontal: space[2] }}>
           <Control icon={ArrowLeft} label={t("mobile.legalSteps.back")} onPress={() => setOpen(null)} />
         </View>
-        <WebPage path={open} />
+        <SessionWebPage path={open} />
       </View>
     );
   }
@@ -121,7 +122,7 @@ function Acceptance({ cgu, onAccepted, onStale }: { cgu: ShownLegalTextRead; onA
     setWorking(true);
     setFailed(false);
     try {
-      const response = await api.fetch("/api/account/acceptances", { method: "POST", body: JSON.stringify({ text: "cgu", version: cgu.version, accepted: true }) });
+      const response = await api("/api/account/acceptances", { method: "POST", body: JSON.stringify({ text: "cgu", version: cgu.version, accepted: true }) });
       if (response.status === 409) {
         setTicked(false);
         onStale();
@@ -137,7 +138,7 @@ function Acceptance({ cgu, onAccepted, onStale }: { cgu: ShownLegalTextRead; onA
   return (
     <StepScreen title={t("acceptance.title")}>
       <AppText tone="secondary">{t("acceptance.intro")}</AppText>
-      <LegalTextView text={cgu} webAppUrl={webPages.webAppUrl} />
+      <LegalTextView text={cgu} webAppUrl={webPages.baseURL} />
       <Pressable
         role="checkbox"
         aria-checked={ticked}
@@ -168,13 +169,13 @@ function PrivacyChange({ change, onClosed }: { change: ShownLegalTextRead; onClo
   const { webPages } = useSession();
   const close = () => {
     // As on the web: closed at once, whether or not the web app hears of it now (it is shown again otherwise).
-    void api.fetch(`/api/privacy-change/${encodeURIComponent(change.version)}`, { method: "DELETE" }).catch(() => {});
+    void api(`/api/privacy-change/${encodeURIComponent(change.version)}`, { method: "DELETE" }).catch(() => {});
     onClosed();
   };
   return (
     <StepScreen title={t("privacyChange.label")}>
       <AppText>{t("privacyChange.message", { date: writtenDay(change.version, i18n.language) })}</AppText>
-      <LegalTextView text={change} webAppUrl={webPages.webAppUrl} />
+      <LegalTextView text={change} webAppUrl={webPages.baseURL} />
       <Control look="primary" label={t("privacyChange.dismiss")} onPress={close} />
     </StepScreen>
   );
@@ -190,7 +191,7 @@ function EuAiConsent({ onAnswered }: { onAnswered: () => void }) {
     setWorking(true);
     setFailed(false);
     try {
-      const response = await api.fetch("/api/account/eu-ai-consent", { method: "PUT" });
+      const response = await api("/api/account/eu-ai-consent", { method: "PUT" });
       if (!response.ok) throw new Error(String(response.status));
       onAnswered();
     } catch {

@@ -1,7 +1,7 @@
 import type { MasterCvContent, Provenance, SearchCriteria } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createProfiles, migrateProfiles, type Profiles } from "./index";
+import { createProfiles, migrateProfiles, searchCriteriaVersion, type Profiles } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -379,6 +379,57 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect(await profiles.restoreMasterCv(otherId, profile.id, 1)).toBeNull();
       expect(await profiles.restoreMasterCv(candidateId, profile.id, 7)).toBeNull();
       expect(await profiles.masterCvVersions(candidateId, "not-a-uuid")).toBeNull();
+    });
+  });
+
+  describe("from a Coach proposal (#719, ADR-0077)", () => {
+    const origin = { origin: "coach_proposal" as const, cardId: "6f1c2a4e-0000-4000-8000-000000000001", appliedAt: new Date("2026-11-05T10:20:00Z") };
+
+    it("saves a Master CV Version with its Origin, and a version saved on the page with none", async () => {
+      const profile = await createdProfile();
+      const saved = await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 1, content: { ...masterCv, headline: "DAF industrie" } }, { origin });
+      expect(saved).toMatchObject({ ok: true, profile: { masterCv: { version: 2 } } });
+      await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 2, content: { ...masterCv, headline: "DAF" } });
+
+      const versions = await profiles.masterCvVersions(candidateId, profile.id);
+      expect(versions?.map((version) => [version.version, version.origin ?? null])).toEqual([
+        [3, null],
+        [2, origin],
+        [1, null],
+      ]);
+    });
+
+    it("saves the content of an earlier version as a Restore from it, refused as a conflict once a newer version arrived (Annuler = Restore)", async () => {
+      const profile = await createdProfile();
+      await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 1, content: { ...masterCv, headline: "DAF industrie" } }, { origin });
+
+      expect(await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 1, content: masterCv }, { restoredFrom: 1 })).toEqual({ ok: false, conflict: { currentVersion: 2 } });
+      const restored = await profiles.saveMasterCv(candidateId, profile.id, { basedOnVersion: 2, content: masterCv }, { restoredFrom: 1 });
+      expect(restored).toMatchObject({ ok: true, profile: { masterCv: { version: 3, content: masterCv } } });
+      const versions = await profiles.masterCvVersions(candidateId, profile.id);
+      expect(versions?.map((version) => [version.version, version.restoredFrom])).toEqual([
+        [3, 1],
+        [2, null],
+        [1, null],
+      ]);
+    });
+
+    it("changes the Search Criteria from the version seen, keeping their Origin; changed since, it is a conflict and nothing changes", async () => {
+      const profile = await createdProfile();
+      const seen = searchCriteriaVersion(profile.searchCriteria);
+      const withLyon = { searchCriteria: { ...criteria, locations: ["Lyon", "Grenoble"] } };
+
+      expect(await profiles.changeSearchCriteria(candidateId, profile.id, withLyon, { basedOn: "another" })).toEqual({ ok: false, error: "conflict" });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteria.locations).toEqual(["Lyon"]);
+
+      const changed = await profiles.changeSearchCriteria(candidateId, profile.id, withLyon, { basedOn: seen, origin });
+      expect(changed).toMatchObject({ ok: true, profile: { searchCriteria: { locations: ["Lyon", "Grenoble"] } } });
+      expect(await profiles.get(candidateId, profile.id)).toMatchObject({ searchCriteria: { locations: ["Lyon", "Grenoble"] }, searchCriteriaOrigin: origin });
+      expect(searchCriteriaVersion((await profiles.get(candidateId, profile.id))!.searchCriteria)).not.toBe(seen);
+
+      // Changed on the page: no Origin any more.
+      await profiles.changeSearchCriteria(candidateId, profile.id, { searchCriteria: criteria });
+      expect((await profiles.get(candidateId, profile.id))?.searchCriteriaOrigin).toBeUndefined();
     });
   });
 

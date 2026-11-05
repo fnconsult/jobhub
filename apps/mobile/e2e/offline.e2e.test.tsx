@@ -36,9 +36,8 @@ jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), webViewCookies: memoryWebViewCookies(), fetch: mockWeb.app.fetch });
-  const { createApi } = jest.requireActual("../src/api/api");
-  return { appSession: mockWeb.session, appApi: createApi({ baseURL: TEST_BASE_URL, cookie: () => mockWeb.session.cookie(), fetch: mockWeb.app.fetch }) };
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), webViewCookies: memoryWebViewCookies() });
+  return { appSession: mockWeb.session };
 });
 // As app.e2e.test.tsx: the app's own scheme, which the magic link it asks for returns to (Expo Router's mock has another).
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
@@ -56,8 +55,15 @@ async function signedIn() {
   await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
 }
 
-/** The app's root, signed in, once it has read the legal steps it may have to ask (#689). */
+/** What the app asked of the network beyond the reads every launch makes (the legal steps, whether the person is a Human Coach; #689). */
+const beyondLaunch = (fetch: { mock: { calls: unknown[][] } }) => fetch.mock.calls.map(([input]) => String(input)).filter((url) => !/\/api\/(account\/legal-steps|coach-space)\b/.test(url));
+
+/**
+ * The app's root, signed in, once it has read the legal steps it may have to ask (#689); its calls to the API reach the
+ * same fake web app, at the network (src/api), unless a test answers them itself.
+ */
 async function launch() {
+  if (!jest.isMockFunction(globalThis.fetch)) jest.spyOn(globalThis, "fetch").mockImplementation((input, init) => mockWeb.app.fetch(input, init));
   await renderRouter("./src/app", { initialUrl: "/" });
   await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
 }
@@ -67,7 +73,10 @@ const button = (name: string) => screen.getByRole("button", { name });
 
 describe("offline, in the app", () => {
   beforeEach(signedIn);
-  afterEach(() => act(() => setNetwork(true)));
+  afterEach(async () => {
+    jest.restoreAllMocks();
+    await act(() => setNetwork(true));
+  });
 
   it("shows « Hors ligne » and disables the conversation's box and its writing actions, saying why", async () => {
     mockNetwork.connected = false;
@@ -80,12 +89,12 @@ describe("offline, in the app", () => {
   });
 
   it("sends nothing when « Envoyer » is pressed without network", async () => {
-    const fetchSpy = jest.fn();
-    (globalThis as { fetch: unknown }).fetch = fetchSpy;
+    // Restored after the test (jest.restoreAllMocks), as no assignment to the global fetch would be.
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockImplementation(() => Promise.reject(new TypeError("Network request failed")));
     mockNetwork.connected = false;
     await launch();
     await userEvent.setup().press(button("Envoyer"));
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(beyondLaunch(fetchSpy)).toEqual([]);
     expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
   });
 

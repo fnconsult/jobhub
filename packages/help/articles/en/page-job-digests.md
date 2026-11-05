@@ -12,4 +12,6 @@ Your Job Digests are listed there in a card, by profile: how often it comes, whi
 
 Only job offers you have not seen yet are in it. When there are none, nothing is sent.
 
+Your coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.
+
 In the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page.

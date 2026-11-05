@@ -202,7 +202,8 @@
     "subject": "Your Jobbbox sign-in link",
     "title": "Sign in to Jobbbox",
     "action": "Sign in to Jobbbox",
-    "validity": "This link is valid for {{minutes}} minutes and works only once.",
+    "code": "Or enter this code in the app or on the sign-in page: {{code}}",
+    "validity": "This link and this code are valid for {{minutes}} minutes, once: using one makes the other unusable.",
     "ignore": "If you did not ask to sign in, simply ignore this message.",
     "reason": "You receive this email because a sign-in link to Jobbbox was asked for this address."
   },
@@ -263,7 +264,15 @@
     "emailLabel": "Your email address",
     "submit": "Send me a sign-in link",
     "sending": "Sending…",
-    "sent": "Sent! Open the email we just sent you and click the link to sign in.",
+    "sent": "Sent! Open the email we just sent you and click the link to sign in, or enter the code it contains below.",
+    "codeLabel": "Enter the code from the email",
+    "codeHint": "The 6 digits written under the link.",
+    "codeSubmit": "Sign in with this code",
+    "codeChecking": "Checking…",
+    "codeWrong": "This code is not right. Check it and try again: after 5 tries, you need to ask for a new email.",
+    "codeExpired": "This code is no longer valid. Ask for a new email.",
+    "codeTooManyTries": "Too many tries: this code no longer works. Ask for a new email.",
+    "resend": "Send me a new email",
     "or": "or",
     "continueWith": "Continue with {{provider}}",
     "error": "Something went wrong. Check your email address and try again.",
@@ -1291,7 +1300,9 @@
       "atsScores": "ATS Scores",
       "enrichedContacts": "Enriched Contacts",
       "jobDigest": "Job Digest",
-      "jobSearches": "Job searches"
+      "jobSearches": "Job searches",
+      "coachContextMessages": "Coach memory (messages read)",
+      "coachContextTokens": "Coach context size"
     },
     "jobDigest": {
       "none": "Not included",
@@ -1700,6 +1711,14 @@
           "reason": "Reason",
           "candidates": "Candidates affected"
         }
+      },
+      "coachContext": {
+        "title": "AI Coach context",
+        "intro": "What the AI Coach reads for each reply: the latest messages of the conversation and, at most, this many (estimated) tokens of context. Empty for unlimited. With nothing stored, a plan reads 40 messages and 12,000 tokens. Lowering one is a Quota Reduction.",
+        "messages": "Messages the AI Coach reads",
+        "messagesHelp": "At least 1, or empty for unlimited",
+        "tokens": "Context ceiling (estimated tokens)",
+        "tokensHelp": "A number, or empty for unlimited"
       }
     },
     "coupons": {
@@ -2700,7 +2719,10 @@
       "warnings": "Warnings",
       "noTechnical": "No technical detail recorded.",
       "noReplyNotSent": "No reply: the call was not sent.",
-      "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end."
+      "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end.",
+      "context": "Context estimated / measured",
+      "contextValue": "{{estimate}} / {{measure}} ({{gap}})",
+      "noContext": "—"
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
@@ -3843,6 +3865,8 @@
     "title": "Interviews and appointments",
     "none": "No upcoming appointments. Add an interview with « Add an interview », or from each application, in its « Interviews » part.",
     "nonePast": "No past appointments.",
+    "loading": "Loading the agenda…",
+    "loadError": "The agenda could not be loaded. Try again in a few moments.",
     "showPast": "See past appointments",
     "showUpcoming": "See upcoming appointments",
     "pastTitle": "Past appointments",
@@ -5470,7 +5494,9 @@
       "extension": "Extension",
       "coach-ia": "AI Coach",
       "confidentialite": "Privacy",
-      "accessibilite": "Accessibility"
+      "accessibilite": "Accessibility",
+      "recherche": "Job search",
+      "documents": "Documents"
     },
     "changes": {
       "new": "New",
@@ -5702,7 +5728,8 @@
     "title": "Conversation context",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
-    "clear": "Clear the conversation"
+    "clear": "Clear the conversation",
+    "unlimited": "unlimited"
   },
   "microAnimation": {
     "show": "Show me how",
@@ -5734,6 +5761,12 @@
     "attach": "Attach a link or a document",
     "send": "Send",
     "emptyScreen": "This screen is coming to the app soon.",
+    "update": {
+      "title": "Update Jobbbox",
+      "body": "This version of the app is no longer supported. Install the latest version to carry on.",
+      "openAppStore": "Open the App Store",
+      "openPlayStore": "Open Google Play"
+    },
     "homeTitle": "Home",
     "fichePlaceholder": "The Fiche will show the page's object here, its Sections, its Activity and its Results.",
     "activityPlaceholder": "Activity will show the page's context bar and AI Activity here.",
@@ -5752,14 +5785,17 @@
       "unlock": "Unlock"
     },
     "signIn": {
-      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app.",
+      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app. Reading it on another device? Enter the code it contains.",
       "waiting": "Waiting for the link…",
       "resend": "Send the link again",
       "changeEmail": "Use another email address"
     },
     "secondStep": {
-      "intro": "Your account asks for a second step to finish signing in.",
-      "comingSoon": "It is coming to the app soon. Meanwhile, sign out or sign in on jobbbox.ai."
+      "passkeyIntro": "Use the passkey saved on your account: Face ID, Touch ID, your fingerprint or your security key.",
+      "setUp": "Set up verification",
+      "setUpHint": "The setup opens in a page of jobbbox.ai, here in the app. Once it is done, you come back to Jobbbox.",
+      "unreachable": "Jobbbox could not be reached. Check your connection and try again.",
+      "retry": "Try again"
     },
     "shortcuts": {
       "newConversation": "New conversation",
@@ -5781,31 +5817,97 @@
     "fields": {
       "applicationStatus": "Application status",
       "newInterview": "New interview",
-      "interview": "Interview"
+      "interview": "Interview",
+      "application": "Application",
+      "applicationProfile": "Application's profile",
+      "followUpSent": "Follow-up sent",
+      "profileStatus": "Profile status",
+      "coachMemory": "To remember",
+      "jobSearch": "Job search",
+      "jobSearchStop": "Stopping the search",
+      "jobDigest": "Job Digest"
     },
     "interview": {
       "none": "None",
       "cancelled": "Cancelled",
       "minutes": "{{count}} min"
     },
+    "values": {
+      "notSaved": "Offer not saved",
+      "saved": "{{status}}, with the profile “{{profile}}”",
+      "noFollowUp": "No follow-up sent",
+      "followUps_one": "{{count}} follow-up sent",
+      "followUps_other": "{{count}} follow-ups sent",
+      "followedUp": "{{sent}}, status “{{status}}”",
+      "noSearch": "No search run yet",
+      "lastSearch": "Last search on {{date}}",
+      "searchOn": "On the profile's criteria: {{criteria}}",
+      "searching": "Running since {{time}}",
+      "stopped": "Stopped, the job offers already found kept",
+      "noDigest": "No Job Digest",
+      "noTailoredCv": "No tailored CV",
+      "tailoredCvSaved": "Tailored CV saved on {{date}}, kept as it is",
+      "tailoredCvProposal": "A proposal to review change by change · {{language}}",
+      "noDraft": "No draft",
+      "draftOf": "Draft of {{date}}",
+      "draftEdited": "Draft of {{date}}, edited since",
+      "newDraft": "A draft written by your AI coach · {{language}}",
+      "replacesDraft": "Your current draft will be replaced, your edits included."
+    },
+    "quota": {
+      "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
+      "jobSearchNone": "Your {{limit}} searches this week are used",
+      "jobSearchUnlimited": "Unlimited searches with your plan",
+      "profile": "Uses one active profile of your plan"
+    },
     "by": "Proposed by your AI coach",
     "before": "Before:",
     "after": "after:",
     "changeOf": "{{what}}:",
     "apply": "Apply",
+    "launch": "Launch",
+    "prepare": "Prepare",
+    "draft": "Draft",
+    "confirmReplace": "Replace your current draft, your edits included?",
+    "confirmYes": "Replace and draft",
+    "confirmNo": "Keep my draft",
+    "runHint": "The document is in the application's documents; if it was stopped, nothing was kept.",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
     "undo": "Undo",
     "editTitle": "Edit before applying: {{what}}",
     "editIntro": "The page's form, filled in with your coach's proposal for “{{name}}”. What you change here is kept if you close the pane.",
     "applied": "Applied by you at {{time}}",
+    "launched": "Launched by you at {{time}}",
+    "launchedHint": "Follow it in AI activity; “Stop” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
     "problems": {
       "conflict": "The item has changed since the proposal: nothing was applied. Open it to see where it stands.",
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
       "invalid": "What you entered does not fit: check the form.",
-      "failed": "The proposal could not be processed. Try again or reload the page."
+      "failed": "The proposal could not be processed. Try again or reload the page.",
+      "noneAccepted": "Accept at least one change to save, or ignore the proposal.",
+      "runFailed": "The document could not be prepared. Try again from the application's documents."
+    },
+    "masterCv": {
+      "version": "Version {{version}}",
+      "changes_one": "{{count}} change to review",
+      "changes_other": "{{count}} changes to review"
+    },
+    "coachMemory": {
+      "before": "Not remembered yet"
+    },
+    "review": {
+      "open": "Review the changes",
+      "title": "Review the changes: {{what}}",
+      "intro": "Accept or reject each change your coach proposes for “{{name}}”. Only the accepted changes are saved, as a new version of your Master CV; a rejected change keeps what it says.",
+      "before": "Before",
+      "after": "Proposed",
+      "fromOffer": "Taken from one of your job offers, not in your Master CV: {{words}}. Keep it only if it is true.",
+      "save": "Save the accepted changes",
+      "saved_one": "{{count}} change saved",
+      "saved_other": "{{count}} changes saved"
     }
   },
   "coachProposalsDisplay": {

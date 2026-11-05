@@ -20,6 +20,7 @@ import { createHmac } from "node:crypto";
 import { legalTextRegistry, legalTextVersionInEffect, parisDay, type LegalTextVersionRecord } from "@jobhub/help";
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
+import { utcBefore } from "../database/before";
 
 /** Kept 5 years after the Account deletion: proof of the CGU accepted (an assumption without a lawyer, #510). */
 export const CGU_RETENTION_YEARS = 5;
@@ -160,7 +161,7 @@ export async function purgeExpiredAcceptances(database: Queryable, now: Date): P
   const { rowCount } = await database.query(
     `DELETE FROM legal_acceptance
       WHERE candidate_id IS NULL
-        AND account_deleted_at <= $1::timestamptz - make_interval(years => CASE text WHEN 'cgu' THEN $2::int ELSE $3::int END)`,
+        AND account_deleted_at <= ${utcBefore("$1", "make_interval(years => CASE text WHEN 'cgu' THEN $2::int ELSE $3::int END)")}`,
     [now, CGU_RETENTION_YEARS, CGV_RETENTION_YEARS],
   );
   return rowCount ?? 0;

@@ -1,5 +1,6 @@
 import { APP_ORIGIN, APP_SIGN_IN_PATH } from "@jobhub/shared";
 import { createAppSession } from "./app-session";
+import { fakeWebView } from "../testing-device";
 import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "./testing";
 
 const EMAIL = "marie.dupont@example.fr";
@@ -8,7 +9,7 @@ function setUp() {
   const web = fakeWebApp();
   const storage = memoryStorage();
   const webViews = memoryWebViewCookies();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage, webViewCookies: webViews, fetch: web.fetch });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage, fetch: web.fetch, passkeys: web.deviceWithoutPasskey(), webViewCookies: webViews });
   /** Whether anything of a session is left in the Keychain or Keystore. */
   const keptOnDevice = () => [...storage.values.values()].some((value) => value.includes("session"));
   return { web, storage, webViews, session, keptOnDevice };
@@ -72,35 +73,15 @@ describe("the app's session (ADR-0076, #685)", () => {
     expect(await session.current()).toEqual({ kind: "secondStep" });
   });
 
-  it("gives the session's cookie for the app's calls to the API, none once signed out", async () => {
+  it("gives the session cookie for the app's other requests to the web app (its calls to the API), none once signed out", async () => {
     const { web, session } = setUp();
     await session.askLink(EMAIL);
     await session.openLink(web.linkFor(EMAIL));
 
-    expect(await session.cookie()).toMatch(/__Secure-better-auth\.session_token=session\d+\.signature/);
+    expect(web.signedInAs({ cookie: await session.cookie() })).toBe(EMAIL);
 
     await session.signOut();
-    expect(await session.cookie()).not.toContain("session_token=session");
-  });
-
-  it("lends its cookie to the WebViews for the web app's own host alone, secure and out of reach of the page's scripts (#689)", async () => {
-    const { web, webViews, session } = setUp();
-    await session.askLink(EMAIL);
-    await session.openLink(web.linkFor(EMAIL));
-
-    await session.shareWithWebViews();
-
-    expect(webViews.cookies()).toEqual([
-      { url: TEST_BASE_URL, name: "__Secure-better-auth.session_token", value: expect.stringMatching(/^session\d+\.signature$/), path: "/", secure: true, httpOnly: true },
-    ]);
-  });
-
-  it("lends nothing to the WebViews while signed out", async () => {
-    const { webViews, session } = setUp();
-
-    await session.shareWithWebViews();
-
-    expect(webViews.cookies()).toEqual([]);
+    expect(await session.cookie()).toBe("");
   });
 
   it.each([
@@ -111,7 +92,9 @@ describe("the app's session (ADR-0076, #685)", () => {
     const set = setUp();
     await set.session.askLink(EMAIL);
     await set.session.openLink(set.web.linkFor(EMAIL));
-    await set.session.shareWithWebViews();
+    // What a WebPage gives the WebViews before a page of the web app opens (src/web-pages).
+    fakeWebView.cookies = (await set.session.webCookies()).map((cookie) => ({ url: TEST_BASE_URL, ...cookie }));
+    expect(set.webViews.cookies()).not.toEqual([]);
 
     await end(set);
 
@@ -163,5 +146,50 @@ describe("the app's session (ADR-0076, #685)", () => {
     expect(keptOnDevice()).toBe(true);
     web.setOffline(false);
     expect(await session.current()).toEqual({ kind: "signedIn", email: EMAIL });
+  });
+
+  describe("signed in by the email's code (#686)", () => {
+    it("signs in with the code, the session kept in secure storage", async () => {
+      const { web, session, keptOnDevice } = setUp();
+      await session.askLink(EMAIL);
+
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "signedIn", email: EMAIL });
+
+      expect(keptOnDevice()).toBe(true);
+      expect(await session.current()).toEqual({ kind: "signedIn", email: EMAIL });
+    });
+
+    it("takes the code as typed, spaces included", async () => {
+      const { web, session } = setUp();
+      await session.askLink(EMAIL);
+      const code = web.codeFor(EMAIL);
+
+      expect(await session.enterCode(EMAIL, ` ${code.slice(0, 3)} ${code.slice(3)}`)).toEqual({ kind: "signedIn", email: EMAIL });
+    });
+
+    it("says why a code is refused: wrong, then too many tries", async () => {
+      const { web, session } = setUp();
+      await session.askLink(EMAIL);
+
+      for (let tries = 0; tries < 5; tries++) expect(await session.enterCode(EMAIL, "000000")).toEqual({ kind: "codeRefused", reason: "signIn.codeWrong" });
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "codeRefused", reason: "signIn.codeTooManyTries" });
+      expect(await session.current()).toEqual({ kind: "signedOut" });
+    });
+
+    it("leads to the second step for an account that has it", async () => {
+      const { web, session } = setUp();
+      web.withSecondStep(EMAIL);
+      await session.askLink(EMAIL);
+
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "secondStep" });
+    });
+
+    it("says when the web app cannot be reached", async () => {
+      const { web, session } = setUp();
+      await session.askLink(EMAIL);
+      web.setOffline(true);
+
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "codeRefused", reason: "signIn.error" });
+    });
   });
 });

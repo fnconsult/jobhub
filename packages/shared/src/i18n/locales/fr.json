@@ -5765,7 +5765,8 @@
       "share": "Partager",
       "subject": "Objet : {{subject}}",
       "readOnly": "Les documents se lisent, se partagent et se téléchargent dans l'app ; ils se modifient sur jobbbox.ai.",
-      "failed": "Le document n'a pas pu être ouvert. Vérifiez votre connexion et réessayez."
+      "failed": "Le document n'a pas pu être ouvert. Vérifiez votre connexion et réessayez.",
+      "notFound": "Les documents de cette candidature sont introuvables : elle n'existe pas ou n'est pas la vôtre."
     },
     "appSettings": "Réglages de l'app",
     "appLock": {
@@ -5811,7 +5812,16 @@
       "masterCvVersion": "Version {{version}} · {{name}}",
       "edit": "Modifier le profil",
       "editTitle": "Modifier : {{name}}",
-      "editOnWeb": "Le profil se modifie sur jobbbox.ai : « Modifier le profil » ouvre sa page."
+      "editOnWeb": "Le profil se modifie sur jobbbox.ai : « Modifier le profil » ouvre sa page.",
+      "title": "Profil",
+      "none": "Pas encore de profil : créez-en un sur jobbbox.ai.",
+      "notFound": "Ce profil est introuvable : il n'existe pas ou n'est pas le vôtre."
+    },
+    "reads": {
+      "loading": "Chargement…",
+      "failed": "Ceci n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer",
+      "offline": "Hors ligne : ceci se chargera dès le retour du réseau."
     }
   },
   "coachProposals": {

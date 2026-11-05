@@ -1,6 +1,8 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
 import { screen, userEvent } from "@testing-library/react-native";
 import { Linking, Pressable, Text } from "react-native";
+import { createAppSession } from "../session/app-session";
+import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "../session/testing";
 import { renderInApp } from "../testing";
 import { ApiProvider, useApi } from "./api";
 
@@ -46,6 +48,23 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(calls[0]!.headers.get(API_VERSION_HEADER)).toBe(String(API_VERSION));
     expect(calls[0]!.headers.get(API_CLIENT_HEADER)).toBe(MOBILE_CLIENT);
     expect(screen.getByText("Lire mes candidatures")).toBeOnTheScreen();
+  });
+
+  it("carry the session, as its cookie, so the web app reads them as the signed-in Candidate's", async () => {
+    const web = fakeWebApp();
+    const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch });
+    await session.askLink("marie.dupont@example.fr");
+    await session.openLink(web.linkFor("marie.dupont@example.fr"));
+    const { fetch, calls } = server(200, []);
+
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE} session={session}>
+        <Reader />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Lire mes candidatures" }));
+
+    expect(web.signedInAs(calls[0]!.headers)).toBe("marie.dupont@example.fr");
   });
 
   it("answered 426, show « Mettre à jour Jobbbox » in place of the app, with the link to its store", async () => {

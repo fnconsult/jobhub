@@ -1,7 +1,9 @@
 // End-to-end for an Application's Tailored Documents (#695) through the app's real entry: Expo Router mounts the
-// Application's page with its Fiche, and the real system-documents module downloads, shows and shares them. Only the
-// device's native modules (expo-file-system, expo-sharing, React Native's Share) are faked, and what reaches the
-// system's PDF reader and share sheet is asserted.
+// Application's page with its Fiche, which reads the Candidate's own documents from the web app
+// (`GET /api/applications/:id/documents`, #684), faked at its fetch as it answers them, and the real system-documents
+// module downloads, shows and shares them. Only the device's native modules (expo-file-system, expo-sharing, React
+// Native's Share) are faked besides, and what reaches the system's PDF reader and share sheet is asserted.
+import type { ApplicationResponse, TailoredDocumentsResponse } from "@jobhub/shared/reads";
 import { act, screen, userEvent } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { router } from "expo-router";
@@ -91,11 +93,42 @@ const setWindow = ({ width, height }: { width: number; height: number }) => {
   Dimensions.set({ window: size, screen: size });
 };
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
-const CV_PDF = "file:///cache/documents/CV adapté – Aéroline · Responsable qualité.pdf";
 
-async function openFiche() {
+/** Marie's own Application on the web app, as `GET /api/applications/:id` answers it, and its Tailored Documents. */
+const APPLICATION: ApplicationResponse = {
+  id: "app_rhone",
+  status: "applied",
+  statusChangedAt: "2026-11-02T09:00:00.000Z",
+  createdAt: "2026-10-28T09:00:00.000Z",
+  jobOffer: { id: "offer_rhone", title: "Responsable logistique", employer: "Rhône Distribution", location: "Lyon", url: null, postedAt: null, expiredAt: null },
+  profile: { id: "prof_lyon", name: "Supply chain à Lyon" },
+  matchScore: 78,
+  reportedUnavailableAt: null,
+  interviews: [],
+};
+const exports = (document: "tailored-cv" | "cover-letter") => ({
+  pdf: `/api/applications/app_rhone/${document}/export?format=pdf&template=classic`,
+  docx: `/api/applications/app_rhone/${document}/export?format=docx&template=classic`,
+});
+const DOCUMENTS: TailoredDocumentsResponse = {
+  documentLanguage: "fr",
+  documents: [
+    { kind: "tailored_cv", language: "fr", updatedAt: "2026-11-03T10:15:00.000Z", downloads: exports("tailored-cv"), message: null },
+    { kind: "cover_letter", language: "fr", updatedAt: "2026-11-03T10:40:00.000Z", downloads: exports("cover-letter"), message: null },
+    {
+      kind: "outreach_message",
+      language: "fr",
+      updatedAt: "2026-11-04T08:05:00.000Z",
+      downloads: null,
+      message: { subject: "Votre poste de responsable logistique", text: "Bonjour,\n\nDix ans d'entrepôt à Lyon : je serais ravie d'échanger sur votre poste.\n\nMarie Dupont" },
+    },
+  ],
+};
+const CV_PDF = "file:///cache/documents/CV adapté – Rhône Distribution · Responsable logistique.pdf";
+
+async function openFiche(id = APPLICATION.id) {
   await signedIn();
-  await renderRouter("./src/app", { initialUrl: "/candidatures/a1" });
+  await renderRouter("./src/app", { initialUrl: `/candidatures/${id}` });
   await userEvent.setup().press(button("Fiche"));
 }
 
@@ -104,16 +137,52 @@ beforeEach(() => {
   mockDownloads.length = 0;
   mockFiles.clear();
   setWindow(PHONE);
+  // Every call of the app's useApi() goes to the web app, faked at its fetch as the session's are.
+  jest.requireMock("../src/session/instance");
+  jest.spyOn(globalThis, "fetch").mockImplementation(mockWeb.app.fetch);
+  mockWeb.app.has(EMAIL, { applications: [{ application: APPLICATION, documents: DOCUMENTS }] });
+  mockWeb.app.reads.length = 0;
+});
+afterEach(() => jest.restoreAllMocks());
+
+describe("Tailored Documents, read from the web app", () => {
+  it("lists the Application's own Tailored Documents, read with the Candidate's session", async () => {
+    await openFiche();
+    expect(await screen.findByRole("button", { name: "CV adapté" })).toBeOnTheScreen();
+    expect(button("Lettre de motivation")).toBeOnTheScreen();
+    expect(button("Message d'approche")).toBeOnTheScreen();
+    expect(mockWeb.app.reads).toContainEqual({ path: "/api/applications/app_rhone/documents", as: EMAIL });
+  });
+
+  it("says when the Application has no document yet", async () => {
+    mockWeb.app.has(EMAIL, { applications: [{ application: APPLICATION, documents: { documentLanguage: "fr", documents: [] } }] });
+    await openFiche();
+    expect(await screen.findByText(/Pas encore de document/)).toBeOnTheScreen();
+  });
+
+  it("says an Application that is not the Candidate's has no documents to show", async () => {
+    await openFiche("app_de_quelquun_d_autre");
+    expect(await screen.findByText(/documents de cette candidature sont introuvables/)).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "CV adapté" })).toBeNull();
+  });
+
+  it("says when the documents could not be read, and « Réessayer » reads them again", async () => {
+    mockWeb.app.failNext("/api/applications/app_rhone/documents", 500, 2);
+    await openFiche();
+    expect(await screen.findByText(/n'a pas pu être chargé/, {}, { timeout: 10_000 })).toBeOnTheScreen();
+    await userEvent.setup().press(button("Réessayer"));
+    expect(await screen.findByRole("button", { name: "CV adapté" })).toBeOnTheScreen();
+  });
 });
 
 describe("Tailored Documents, the system's PDF reader", () => {
   it("opens the Tailored CV in the Work Pane and its PDF in the system's reader", async () => {
     await openFiche();
-    await userEvent.setup().press(button("CV adapté"));
+    await userEvent.setup().press(await screen.findByRole("button", { name: "CV adapté" }));
 
     expect(mockDownloads).toEqual([
       {
-        url: "https://jobbbox.ai/api/applications/a1/tailored-cv/export?format=pdf&template=classic",
+        url: "https://jobbbox.ai/api/applications/app_rhone/tailored-cv/export?format=pdf&template=classic",
         to: CV_PDF,
         headers: { "Jobbbox-Api-Version": "1", "Jobbbox-Client": "mobile", cookie: expect.any(String) },
       },
@@ -130,6 +199,7 @@ describe("Tailored Documents, the system's PDF reader", () => {
 describe("Tailored Documents, « Partager » and « Télécharger » through the system's share sheet", () => {
   it("shares the Tailored CV's PDF, downloaded once for reading and sharing", async () => {
     await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
     const user = userEvent.setup();
     await user.press(button("CV adapté"));
     await user.press(button("Partager"));
@@ -140,14 +210,15 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
 
   it("downloads the Cover Letter as Word to the share sheet (Fichiers, Mail…), and still shows it as its PDF", async () => {
     await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
     const user = userEvent.setup();
     await user.press(button("Lettre de motivation"));
     await user.press(button("Télécharger en Word"));
 
-    const word = "file:///cache/documents/Lettre de motivation – Aéroline · Responsable qualité.docx";
+    const word = "file:///cache/documents/Lettre de motivation – Rhône Distribution · Responsable logistique.docx";
     expect(mockDownloads.map((download) => download.url)).toEqual([
-      "https://jobbbox.ai/api/applications/a1/cover-letter/export?format=pdf&template=classic",
-      "https://jobbbox.ai/api/applications/a1/cover-letter/export?format=docx&template=classic",
+      "https://jobbbox.ai/api/applications/app_rhone/cover-letter/export?format=pdf&template=classic",
+      "https://jobbbox.ai/api/applications/app_rhone/cover-letter/export?format=docx&template=classic",
     ]);
     expect(mockShare).toHaveBeenCalledWith(word, {
       mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -155,23 +226,24 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
       dialogTitle: "Lettre de motivation",
     });
     await user.press(button("Ouvrir"));
-    expect(mockPreview).toHaveBeenLastCalledWith("file:///cache/documents/Lettre de motivation – Aéroline · Responsable qualité.pdf", { title: "Lettre de motivation", mimeType: "application/pdf" });
+    expect(mockPreview).toHaveBeenLastCalledWith("file:///cache/documents/Lettre de motivation – Rhône Distribution · Responsable logistique.pdf", { title: "Lettre de motivation", mimeType: "application/pdf" });
   });
 
   it("shows the Outreach Message's words in the Work Pane and shares them, its subject for Mail", async () => {
     const shareText = jest.spyOn(Share, "share").mockResolvedValue({ action: Share.sharedAction, activityType: undefined });
     await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
     const user = userEvent.setup();
     await user.press(button("Message d'approche"));
 
-    expect(screen.getByText("Objet : Candidature au poste de responsable qualité")).toBeOnTheScreen();
-    expect(screen.getByText(/j'aimerais en parler avec vous/)).toBeOnTheScreen();
+    expect(screen.getByText("Objet : Votre poste de responsable logistique")).toBeOnTheScreen();
+    expect(screen.getByText(/je serais ravie d'échanger sur votre poste/)).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Télécharger en PDF" })).toBeNull();
     await user.press(button("Partager"));
 
     expect(shareText).toHaveBeenCalledWith(
-      { title: "Candidature au poste de responsable qualité", message: expect.stringContaining("j'aimerais en parler avec vous") },
-      { subject: "Candidature au poste de responsable qualité", dialogTitle: "Message d'approche" },
+      { title: "Votre poste de responsable logistique", message: expect.stringContaining("je serais ravie d'échanger sur votre poste") },
+      { subject: "Votre poste de responsable logistique", dialogTitle: "Message d'approche" },
     );
     expect(mockDownloads).toEqual([]);
     expect(mockPreview).not.toHaveBeenCalled();
@@ -181,6 +253,7 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
 describe("Tailored Documents, read only", () => {
   it("offers nothing to change a document in the app, and says where it is changed", async () => {
     await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
     const user = userEvent.setup();
     for (const name of ["CV adapté", "Lettre de motivation", "Message d'approche"]) {
       await user.press(button(name));
@@ -194,6 +267,7 @@ describe("Tailored Documents, read only", () => {
   it("says when a document could not be opened, and « Ouvrir » tries again", async () => {
     mockFailNextDownload.current = true;
     await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
     const user = userEvent.setup();
     await user.press(button("CV adapté"));
 
@@ -209,8 +283,8 @@ describe("Tailored Documents, on a tablet", () => {
   it("opens the document in the Work Pane column beside the conversation and the Fiche", async () => {
     setWindow(IPAD_LANDSCAPE);
     await signedIn();
-    await renderRouter("./src/app", { initialUrl: "/candidatures/a1" });
-    await userEvent.setup().press(button("CV adapté"));
+    await renderRouter("./src/app", { initialUrl: "/candidatures/app_rhone" });
+    await userEvent.setup().press(await screen.findByRole("button", { name: "CV adapté" }));
 
     expect(mockPreview).toHaveBeenCalledWith(CV_PDF, { title: "CV adapté", mimeType: "application/pdf" });
     expect(button("Partager")).toBeOnTheScreen();
@@ -222,6 +296,7 @@ describe("Tailored Documents, on a tablet", () => {
 describe("Tailored Documents, at sign-out", () => {
   it("deletes the documents downloaded into the cache from the device", async () => {
     await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
     const user = userEvent.setup();
     await user.press(button("CV adapté"));
     expect([...mockFiles]).toEqual([CV_PDF]);

@@ -5765,7 +5765,8 @@
       "share": "Share",
       "subject": "Subject: {{subject}}",
       "readOnly": "In the app, documents are read, shared and downloaded; they are changed on jobbbox.ai.",
-      "failed": "The document could not be opened. Check your connection and try again."
+      "failed": "The document could not be opened. Check your connection and try again.",
+      "notFound": "This application's documents cannot be found: it does not exist or is not yours."
     },
     "appSettings": "App settings",
     "appLock": {
@@ -5811,7 +5812,16 @@
       "masterCvVersion": "Version {{version}} · {{name}}",
       "edit": "Edit the profile",
       "editTitle": "Edit: {{name}}",
-      "editOnWeb": "The profile is changed on jobbbox.ai: “Edit the profile” opens its page."
+      "editOnWeb": "The profile is changed on jobbbox.ai: “Edit the profile” opens its page.",
+      "title": "Profile",
+      "none": "No profile yet: create one on jobbbox.ai.",
+      "notFound": "This profile cannot be found: it does not exist or is not yours."
+    },
+    "reads": {
+      "loading": "Loading…",
+      "failed": "This could not be loaded. Check your connection and try again.",
+      "retry": "Try again",
+      "offline": "Offline: this will load as soon as the network is back."
     }
   },
   "coachProposals": {

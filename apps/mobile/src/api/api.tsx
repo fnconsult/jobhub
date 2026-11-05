@@ -12,6 +12,7 @@ import Constants from "expo-constants";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { UpdateRequired } from "../screens/UpdateRequired";
+import type { AppSession } from "../session/app-session";
 import { WEB_APP_URL } from "../web-app-url";
 import { storePageFor } from "./store-page";
 
@@ -35,12 +36,15 @@ export function ApiProvider({
   baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
   storePage = storePageFor(Platform.OS, Constants.expoConfig),
+  session,
   children,
 }: {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
   /** This build's store page, used when the platform's 426 names none. */
   storePage?: string;
+  /** The app's session, whose cookie every call carries (src/session/instance.ts in the app); none, no cookie. */
+  session?: Pick<AppSession, "cookie">;
   children: ReactNode;
 }) {
   const [outdated, setOutdated] = useState<{ storeUrl: string } | null>(null);
@@ -50,6 +54,8 @@ export function ApiProvider({
       const headers = new Headers(init?.headers);
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
+      const cookie = session ? await session.cookie() : "";
+      if (cookie) headers.set("cookie", cookie);
       const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers });
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
@@ -58,7 +64,7 @@ export function ApiProvider({
       }
       return response;
     },
-    [baseUrl, fetch, storePage],
+    [baseUrl, fetch, storePage, session],
   );
 
   const value = useMemo(() => api, [api]);

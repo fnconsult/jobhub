@@ -1237,6 +1237,8 @@
       "current": "Your Plan",
       "manage": "Manage my subscription",
       "manageHelp": "Changing your Plan or payment method, or undoing a scheduled cancellation, happens on the secure page of our payment provider, Stripe.",
+      "manageOnWeb": "Manage my subscription on jobbbox.ai",
+      "manageOnWebHelp": "Your subscription is managed on jobbbox.ai, in your browser.",
       "invoices": "Invoices and payment method",
       "invoicesHelp": "Download your invoices and update your payment method on the secure page of our payment provider, Stripe.",
       "unavailable": "Online payment is not available at the moment. Please try again later.",
@@ -5787,6 +5789,16 @@
     }
   },
   "mobile": {
+    "legalSteps": {
+      "checking": "Opening your account…",
+      "back": "Back",
+      "meanwhile": "Without accepting, you can still download your data or delete your account in My data, and manage your subscription:",
+      "later": "Later"
+    },
+    "account": {
+      "intro": "Your account settings open here as on jobbbox.ai, already signed in.",
+      "allSections": "All sections"
+    },
     "offline": {
       "banner": "Offline",
       "bannerDetail": "You are seeing what was last loaded. Nothing is saved until the network is back.",

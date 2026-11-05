@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
 import { AppState, Platform, View, type TextInputProps } from "react-native";
@@ -12,14 +12,28 @@ import { SecondStepScreen } from "./SecondStepScreen";
 
 const SIGNED_OUT: SessionState = { kind: "signedOut" };
 
+/**
+ * The link each session's gate last opened. Forgetting the reads starts the gate again (ReadCacheProvider), with the
+ * app's address unchanged: the link it signed in with is not opened a second time, to be told it is no longer valid.
+ */
+const OPENED = new WeakMap<AppSession, string>();
+
 interface SessionContextValue {
   /** Revokes the session and empties secure storage (app-session.ts); the app is back on sign-in. */
   signOut: () => Promise<void>;
+  /** Reads the session again from the web app, as when the app comes back to the foreground: signed out once it is gone. */
+  recheck: () => Promise<void>;
+  /** The web app whose pages open inside the app (src/web-pages), and the session's cookies they are given. */
+  webPages: Pick<AppSession, "baseURL" | "webCookies" | "cookie">;
 }
 
-const SessionContext = createContext<SessionContextValue>({ signOut: async () => {} });
+const SessionContext = createContext<SessionContextValue>({
+  signOut: async () => {},
+  recheck: async () => {},
+  webPages: { baseURL: "", webCookies: async () => [], cookie: async () => "" },
+});
 
-/** What the signed-in app can do with its session: sign out (Mon compte). */
+/** What the signed-in app can do with its session: sign out (Mon compte), read it again, open the web app's pages. */
 export const useSession = () => useContext(SessionContext);
 
 /**
@@ -33,14 +47,30 @@ export const useSession = () => useContext(SessionContext);
 export function SessionGate({ session, link, children }: { session: AppSession; link: string | null; children: ReactNode }) {
   const [state, setState] = useState<SessionState | null>(null);
   const [linkInvalid, setLinkInvalid] = useState(false);
+  const forgetReads = useForgetReads();
+  // The state as last set, read when the session is found gone (a render may not have shown it yet).
+  const known = useRef<SessionState | null>(null);
+  const settle = useCallback(
+    async (next: SessionState) => {
+      // A session ended anywhere but the app's own sign-out (a web page in a WebView, the Account deleted there, a
+      // revocation from Mon compte on the web, an expiry): its reads go too before sign-in shows, as at sign-out (#701),
+      // so the next sign-in reads afresh (its CGU to accept among them). Forgetting starts this gate again, which then
+      // finds the session gone with nothing known before: it forgets once.
+      if (next.kind === "signedOut" && known.current && known.current.kind !== "signedOut") await forgetReads();
+      known.current = next;
+      setState(next);
+    },
+    [forgetReads],
+  );
 
   const refresh = useCallback(
     () =>
-      session.current().then(setState, () =>
+      session.current().then(settle, () => {
         // Offline: as it was; signed out if nothing is known yet (the session stays in secure storage for the next time).
-        setState((current) => current ?? SIGNED_OUT),
-      ),
-    [session],
+        known.current ??= SIGNED_OUT;
+        setState(known.current);
+      }),
+    [session, settle],
   );
 
   useEffect(() => {
@@ -52,35 +82,38 @@ export function SessionGate({ session, link, children }: { session: AppSession; 
   }, [refresh]);
 
   useEffect(() => {
-    if (!link) return;
+    if (!link || OPENED.get(session) === link) return;
     let current = true;
     void session.openLink(link).then((outcome) => {
+      OPENED.set(session, link);
       if (!current || !outcome) return;
       setLinkInvalid(outcome.kind === "invalidLink");
-      if (outcome.kind !== "invalidLink") setState(outcome);
+      if (outcome.kind !== "invalidLink") void settle(outcome);
     });
     return () => {
       current = false;
     };
-  }, [session, link]);
+  }, [session, link, settle]);
 
-  const forgetReads = useForgetReads();
   const value = useMemo<SessionContextValue>(
     () => ({
       signOut: async () => {
         // The read cache goes first, a write still waiting included (#701), then the session is dropped.
         await forgetReads();
         await session.signOut();
+        known.current = SIGNED_OUT;
         setState(SIGNED_OUT);
       },
+      recheck: refresh,
+      webPages: session,
     }),
-    [session, forgetReads],
+    [session, forgetReads, refresh],
   );
 
   if (!state) return null;
   return (
     <SessionContext.Provider value={value}>
-      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStepScreen session={session} onSettled={setState} onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={setState} />}
+      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStepScreen session={session} onSettled={settle} onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={settle} />}
     </SessionContext.Provider>
   );
 }

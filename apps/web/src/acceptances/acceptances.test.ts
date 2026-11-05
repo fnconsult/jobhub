@@ -102,6 +102,17 @@ describe.skipIf(!connectionString)("Acceptances of the CGU and CGV (needs Postgr
       expect(await rows()).toHaveLength(1);
     });
 
+    it("records where it was accepted: « web » on the web's screen, « mobile » on the Jobbbox app's (#689)", async () => {
+      await acceptances().accept(marie, "2026-12-01");
+      await acceptances().accept(jean, "2026-12-01", "mobile");
+
+      const { rows: origins } = await database.query<{ candidate_id: string; origin: string }>(`SELECT candidate_id, origin FROM legal_acceptance ORDER BY id`);
+      expect(origins).toEqual([
+        { candidate_id: marie, origin: "web" },
+        { candidate_id: jean, origin: "mobile" },
+      ]);
+    });
+
     it("refuses a version other than the one to accept now", async () => {
       expect(await acceptances().accept(marie, "2026-11-01")).toBe("stale");
       expect(await acceptances().accept(marie, "2026-12-15")).toBe("stale");
@@ -184,13 +195,14 @@ describe.skipIf(!connectionString)("Acceptances of the CGU and CGV (needs Postgr
     await acceptances().accept(jean, "2026-12-01");
 
     expect(await acceptances().of(marie)).toEqual([
-      { text: "cgu", version: "2026-12-01", url: "/legal/cgu/2026-12-01", sha256: version("cgu", "2026-12-01").sha256, channel: "premiere_connexion", acceptedAt: new Date("2026-12-01T09:30:00Z") },
+      { text: "cgu", version: "2026-12-01", url: "/legal/cgu/2026-12-01", sha256: version("cgu", "2026-12-01").sha256, channel: "premiere_connexion", origin: "web", acceptedAt: new Date("2026-12-01T09:30:00Z") },
       {
         text: "cgv",
         version: "2026-11-01",
         url: "/legal/cgv/2026-11-01",
         sha256: version("cgv", "2026-11-01").sha256,
         channel: "paiement_plan",
+        origin: "web",
         acceptedAt: new Date("2026-12-02T10:00:00Z"),
         immediateExecutionRequested: true,
       },

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { pendingAcceptance } from "@/acceptances/server";
 import { getCurrentCandidate } from "@/auth/server";
@@ -10,6 +11,7 @@ import { ScrollbarActivity } from "@/design/ScrollbarActivity";
 import { ThemedHtml } from "@/design/ThemedHtml";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { inAppWebView } from "@/native-app/in-app";
 import { NOINDEX } from "@/public-pages/indexing";
 import { jobbboxVersion } from "@/signalements/server";
 // Inter, self-hosted: its files are bundled and served from our own origin, never a font CDN (ADR-0053).
@@ -29,8 +31,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // waits for their Acceptance (ADR-0062): the AI Coach waits too.
   const candidate = await getCurrentCandidate();
   const coached = candidate !== null && !(await pendingAcceptance(candidate.id));
+  // Inside the Jobbbox app's WebView (#689), the page goes without the web's Sidebar: the app has its own drawer.
+  const inApp = inAppWebView((await headers()).get("user-agent"));
   return (
-    <ThemedHtml lang={locale} suppressHydrationWarning>
+    <ThemedHtml lang={locale} data-in-app={inApp || undefined} suppressHydrationWarning>
       <head>
         <DocumentHead />
       </head>

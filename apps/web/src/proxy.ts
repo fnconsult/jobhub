@@ -4,6 +4,7 @@ import { contentSecurityPolicy } from "@/help-media";
 import { currentHelpMediaOrigin } from "@/help-media/origin";
 import { ENGLISH_PREFIX, LOCALE_HEADER, splitLocalePrefix, URL_LOCALE_HEADER, urlLocale, VISITOR_LOCALE_HEADER } from "@/i18n/locale-header";
 import { maintenanceOf, maintenanceResponse, staysOpen } from "@/maintenance";
+import { inAppRedirect } from "@/native-app/in-app";
 import { extensionStorePage } from "@/platform-settings/extension-store";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { legalRedirect } from "@/public-pages/legal-redirects";
@@ -19,6 +20,8 @@ import { pendingSessionAnswer } from "@/two-step-verification/proxy-gate";
  * - answers `426 Upgrade Required` to an extension whose API Version is no longer served (#564, see api-version);
  * - redirects for good (308) the addresses of Légal that moved (#546): « IA dans Jobbbox », #470's Legal Documents
  *   and `?version=` (see legalRedirect);
+ * - inside the Jobbbox app's WebView (#689), sends an Order page back to the page it was chosen on: nothing is bought
+ *   in the app (see native-app/in-app);
  * - passes the path asked on as REQUEST_PATH_HEADER, so sign-in can bring a signed-out visitor back to it;
  * - serves a public page under `/en` (#545) in English, with the same French slug: `/en/legal/cgu` is `/legal/cgu`,
  *   its language passed on as VISITOR_LOCALE_HEADER (a signed-in Candidate's Interface Language comes first, #501);
@@ -42,6 +45,8 @@ export async function proxy(request: NextRequest) {
   if (outdated) return withCommonHeaders(NextResponse.json(outdated, { status: UPGRADE_REQUIRED, headers: { "Cache-Control": "no-store" } }));
   const moved = legalRedirect(prefixed.pathname, request.nextUrl.searchParams);
   if (moved) return withCommonHeaders(NextResponse.redirect(new URL(prefixed.pathname === pathname ? moved : `${ENGLISH_PREFIX}${moved}`, request.url), 308));
+  const inApp = inAppRedirect(pathname, request.headers.get("user-agent"));
+  if (inApp) return withCommonHeaders(NextResponse.redirect(new URL(inApp, request.url), 303));
   const pending = await pendingSessionAnswer(request);
   if (pending) return withCommonHeaders(pending);
   const headers = new Headers(request.headers);

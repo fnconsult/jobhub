@@ -6,7 +6,7 @@ title: My subscription
 synonyms: [subscription, price, pay, payment, premium, standard, free, cancel, cancellation, withdrawal, invoices, promotion code, usage]
 route: /abonnement
 ---
-This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it.
+This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it. Each card also gives the « Coach memory », the number of latest messages of the conversation your coach reads, and the « Coach context », the room for what it reads again before replying, compared with the simplest plan's (×1); « Unlimited » when the plan sets no limit.
 
 « Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: … until … », and an acknowledgement is sent to you by email.
 

@@ -1,6 +1,6 @@
 # The Coach context is a per-Plan limit, enforced, and its estimate is checked against the provider's count
 
-Status: accepted (#731 built the limits, their enforcement, Quota Reductions and the estimate against the measure; the Plan cards, the upsell and the breakdown card are still to build)
+Status: accepted (#731 built the limits, their enforcement, Quota Reductions and the estimate against the measure; #732 the Plan cards on Mon abonnement, the upsell and the breakdown card. Jobbbox has no public pricing page yet: the Plans are compared on Mon abonnement only)
 
 The Context bar (ADR-0070) shows « 2 / 40 messages · 4,1k / 12k jetons ». Both ceilings are constants in code (`MAX_MESSAGES`, `COACH_CONTEXT_MAX_TOKENS`, `apps/web/src/coach/conversation.ts`) and the same for every Candidate; the token figure is an estimate (about 4 characters per token) of the system text and the messages sent, kept in `coach_message.context_tokens`. How much the AI Coach remembers is something a Plan can sell, so it moves to the Plans.
 

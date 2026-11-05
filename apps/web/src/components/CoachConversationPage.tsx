@@ -418,10 +418,10 @@ export function CoachConversationPage(page: PagePlacement) {
   useEffect(() => {
     const end = messagesEnd.current;
     if (!end || messages.length === 0) return;
-    const replied = status !== "sending" && messages.at(-1)?.from === "coach";
-    const reply = replied ? (end.parentElement?.querySelector(".coach-panel-messages > li:last-child") ?? null) : null;
+    // The latest reply, finished or still being written, is never scrolled past its first line.
+    const reply = messages.at(-1)?.from === "coach" ? (end.parentElement?.querySelector(".coach-panel-messages > li:last-child") ?? null) : null;
     showLatest({ end, foot: foot.current, reply });
-    // While the reply is on its way, its steps lengthen the thread: it follows them down.
+    // While the reply is on its way, its steps (and its words) lengthen the thread: it follows them down.
   }, [messages, status, live]);
 
   function send(event: FormEvent<HTMLFormElement>) {

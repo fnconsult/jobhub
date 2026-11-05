@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon compte
-synonyms: [compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, propositions du coach, formulaire, carte, abonnement, sécurité, vérification en deux étapes, codes de secours, application d'authentification, clé d'accès, clés d'accès, passkey, Face ID, Touch ID, Windows Hello, clé de sécurité]
+synonyms: [compte, app, application, iPhone, Android, supprimer mon compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, propositions du coach, formulaire, carte, abonnement, sécurité, vérification en deux étapes, codes de secours, application d'authentification, clé d'accès, clés d'accès, passkey, Face ID, Touch ID, Windows Hello, clé de sécurité]
 route: /compte
 ---
 Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Sécurité, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.
@@ -37,6 +37,10 @@ Outils propose l'extension Chrome Jobbbox.
 Mes signalements liste les bugs, idées et questions que vous avez envoyés à l'équipe Jobbbox, les plus récents d'abord, avec leur statut (« Envoyé », « Lu par l'équipe » ou « Traité ») et la « Réponse de l'équipe Jobbbox ». Ouvrir la rubrique efface les notifications de vos signalements. « Supprimer » retire un signalement : l'équipe ne le voit plus. Sans signalement, « Signaler un problème » et « Proposer une idée » vous permettent d'en envoyer un.
 
 Mes données permet de télécharger toutes vos données ou de supprimer votre compte.
+
+Dans l'app Jobbbox, sur iPhone, iPad ou Android, ouvrez le menu puis « Mon compte ». Les rubriques s'y affichent telles que sur le site, déjà connectées : « Toutes les rubriques », « Sécurité », où vous configurez aussi la vérification en deux étapes, « Mes données », « Mon abonnement » et « Textes légaux ». « Supprimer mon compte » ouvre directement la suppression de votre compte, et « Se déconnecter » vous déconnecte de l'app, sur cet appareil. Dans l'app, « Mon abonnement » montre votre offre et « Gérer mon abonnement sur jobbbox.ai », qui ouvre le site dans votre navigateur : l'app n'affiche aucun prix et rien ne s'y achète. Un lien vers un autre site s'ouvre aussi dans votre navigateur, et « Télécharger toutes mes données » vous propose d'enregistrer ou de partager le fichier. Pour un coach, « Mon espace coach » apparaît dans le menu et ouvre son espace coach.
+
+Quand une nouvelle version des conditions d'utilisation doit être acceptée, l'app vous la montre après votre connexion, avant tout le reste : lisez-la, cochez la case, puis « Accepter et continuer ». L'app vous montre de même, une fois, le changement de la politique de confidentialité, et vous propose l'IA européenne tant que vous n'avez pas donné votre accord : « Donner mon accord », ou « Plus tard » pour continuer sans.
 
 Sous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple 0.1.0. Sur la version bêta, elle est suivie de la modification exacte servie, par exemple 0.1.0 (main·3f9c2a1) : citez-la si vous signalez un problème.
 

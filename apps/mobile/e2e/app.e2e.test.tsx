@@ -7,6 +7,7 @@ import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
 import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice } from "../src/testing-device";
+import { serveAgenda } from "./agenda-web";
 
 jest.setTimeout(60_000);
 
@@ -73,6 +74,7 @@ const link = (name: string) => screen.getByRole("link", { name, hidden: true });
 
 describe("Jobbbox app, on a phone", () => {
   beforeEach(() => window(...PHONE));
+  afterEach(() => jest.restoreAllMocks());
 
   it("starts on the conversation, in French, with the coach's AI disclosure", async () => {
     await launch();
@@ -142,6 +144,21 @@ describe("Jobbbox app, on a phone", () => {
     expect(button("Ouvrir une Section d'exemple")).toBeOnTheScreen();
     await user.press(button("Fermer"));
     expect(button("Menu")).toBeOnTheScreen();
+  });
+
+  it("shows the Agenda as a list, « À planifier » first, and an Interview leads to its Application's Interviews Section", async () => {
+    await signedIn();
+    serveAgenda(mockWeb.app, EMAIL);
+    await launch("/agenda");
+    expect(await screen.findByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
+    expect(button("Choisir mon créneau avec Paul Durand sur Cal.com")).toBeOnTheScreen();
+    expect(screen.getByText("Entretien annulé")).toBeOnTheScreen();
+    expect(screen.getByText("modifié par le coach")).toBeOnTheScreen();
+    expect(screen.getAllByRole("button", { name: /^Ajouter à mon calendrier/ })).toHaveLength(2);
+    const user = userEvent.setup();
+    await user.press(screen.getAllByRole("link", { name: /Responsable qualité/ })[0]!);
+    expect(screen).toHavePathname("/candidatures/a1/entretiens");
+    expect(screen.getByText("Entretiens")).toBeOnTheScreen();
   });
 
   it("has no setting for the text size, and its controls are at least 44 pt", async () => {

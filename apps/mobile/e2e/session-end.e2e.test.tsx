@@ -4,7 +4,7 @@
 // the app's real entry, the web app faked at its fetch (src/session/testing.ts), the device's storage AsyncStorage's
 // own mock.
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { ApplicationResponse, ProfileResponse } from "@jobhub/shared/reads";
+import type { AgendaResponse, ApplicationResponse, ProfileResponse } from "@jobhub/shared/reads";
 import { act, cleanup, screen, userEvent } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { renderRouter } from "expo-router/testing-library";
@@ -67,6 +67,12 @@ const MARIES_APPLICATION: ApplicationResponse = {
   interviews: [],
 };
 
+/** Marie's Agenda: a read the device keeps for offline (READS, #693). */
+const MARIES_AGENDA: AgendaResponse = {
+  toSchedule: [],
+  days: [{ day: "2026-11-12", items: [{ kind: "coachingSession", id: "cs_marie", coach: { id: "coach_lea", name: "Léa Fontaine" }, scheduledAt: "2026-11-12T09:00:00.000Z", durationMinutes: 60, videoLink: null, note: null, changedBy: "candidate", reschedules: [] }] }],
+};
+
 /** The app's calls to the API (useApi()) wait for `release` while `held`, and fail without network, as a phone's do. */
 let held: Promise<void> | null = null;
 let release = () => {};
@@ -102,7 +108,7 @@ beforeEach(async () => {
     await held;
     return mockWeb.app.fetch(input, init);
   });
-  mockWeb.app.has(MARIE, { profiles: [MARIES_PROFILE], applications: [{ application: MARIES_APPLICATION, documents: { documentLanguage: "fr", documents: [] } }] });
+  mockWeb.app.has(MARIE, { profiles: [MARIES_PROFILE], agenda: MARIES_AGENDA, applications: [{ application: MARIES_APPLICATION, documents: { documentLanguage: "fr", documents: [] } }] });
   mockWeb.app.has(PAUL, { profiles: [PAULS_PROFILE] });
   await signedInAs(MARIE);
 });
@@ -114,12 +120,15 @@ afterEach(async () => {
 
 describe("« Se déconnecter »", () => {
   it("empties the read cache, in memory and on the device, and the documents, before the session is dropped (ADR-0076)", async () => {
-    await renderRouter("./src/app", { initialUrl: "/candidatures/app_marie" });
+    await renderRouter("./src/app", { initialUrl: "/agenda" });
+    expect(await screen.findByText(/Léa Fontaine/)).toBeOnTheScreen();
+    await act(async () => router.navigate("/candidatures/app_marie"));
     await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
     await act(async () => router.navigate("/compte"));
     expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
     await saved();
     expect(await keptOnDevice()).toContain("Rhône Distribution");
+    expect(await keptOnDevice()).toContain("Léa Fontaine");
     mockForgotten.documents = 0;
 
     // What the device still holds the moment the session is dropped: were the app killed then, it would stay.
@@ -164,18 +173,22 @@ describe("a session revoked on the web, then another Candidate signing in on the
   });
 
   it("offline, shows the next Candidate nothing of the previous one's, in memory or kept on the device", async () => {
-    await renderRouter("./src/app", { initialUrl: "/candidatures/app_marie" });
+    await renderRouter("./src/app", { initialUrl: "/agenda" });
+    expect(await screen.findByText(/Léa Fontaine/)).toBeOnTheScreen();
+    await act(async () => router.navigate("/candidatures/app_marie"));
     await userEvent.setup().press(await screen.findByRole("button", { name: "Fiche" }));
     await act(async () => router.navigate("/compte"));
     expect(await screen.findByRole("link", { name: "Supply chain à Lyon" })).toBeOnTheScreen();
     await saved();
     expect(await keptOnDevice()).toContain("Rhône Distribution");
+    expect(await keptOnDevice()).toContain("Léa Fontaine");
 
     mockWeb.app.revokeAll(MARIE);
     await backToForeground();
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
     await saved();
     expect(await keptOnDevice()).not.toContain("Rhône Distribution");
+    expect(await keptOnDevice()).not.toContain("Léa Fontaine");
 
     await act(() => setNetwork(false));
     await signInInApp(PAUL);
@@ -184,6 +197,9 @@ describe("a session revoked on the web, then another Candidate signing in on the
     expect(screen.queryByText("Supply chain à Lyon", { includeHiddenElements: true })).toBeNull();
     await act(async () => router.navigate("/candidatures/app_marie"));
     expect(screen.queryByText(/Rhône Distribution/, { includeHiddenElements: true })).toBeNull();
+    await act(async () => router.navigate("/agenda"));
+    expect(await screen.findByText(/se chargera dès le retour du réseau/)).toBeOnTheScreen();
+    expect(screen.queryByText(/Léa Fontaine/, { includeHiddenElements: true })).toBeNull();
   });
 });
 

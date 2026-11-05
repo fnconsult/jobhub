@@ -12,7 +12,7 @@ const TYPES: Record<DocumentFormat, { mimeType: string; UTI: string }> = {
 };
 
 /** The folder of the app's cache the documents are downloaded into, and deleted with when the session ends. */
-const DOCUMENTS = new Directory(Paths.cache, "documents");
+const documentsFolder = () => new Directory(Paths.cache, "documents");
 
 /**
  * The device's own reader and share sheet (ADR-0076, #695). A document is downloaded from the web app, with the session,
@@ -28,8 +28,9 @@ export const systemDocuments: DocumentDevice = {
     if (!isOnWebApp(address)) throw new Error("A Tailored Document is downloaded from the web app alone");
     // The export routes answer only a signed-in Candidate: without its cookie, every download would be a 401.
     const headers = { ...webAppHeaders(), cookie: await appSession.cookie() };
-    DOCUMENTS.create({ intermediates: true, idempotent: true });
-    const file = await File.downloadFileAsync(address, new File(DOCUMENTS, fileName), { headers, idempotent: true });
+    const folder = documentsFolder();
+    folder.create({ intermediates: true, idempotent: true });
+    const file = await File.downloadFileAsync(address, new File(folder, fileName), { headers, idempotent: true });
     return file.uri;
   },
 
@@ -48,5 +49,6 @@ export const systemDocuments: DocumentDevice = {
  * device keeps nothing of them (docs/privacy/register.md).
  */
 export async function forgetDocuments(): Promise<void> {
-  if (DOCUMENTS.exists) DOCUMENTS.delete();
+  const folder = documentsFolder();
+  if (folder.exists) folder.delete();
 }

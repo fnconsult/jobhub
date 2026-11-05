@@ -71,7 +71,7 @@ describe("the app's session (ADR-0076, #685)", () => {
     expect(await session.current()).toEqual({ kind: "secondStep" });
   });
 
-  it("gives the session cookie for the app's other requests to the web app (downloads), none once signed out", async () => {
+  it("gives the session cookie for the app's other requests to the web app (its calls to the API, downloads), none once signed out", async () => {
     const { web, session } = setUp();
     await session.askLink(EMAIL);
     await session.openLink(web.linkFor(EMAIL));

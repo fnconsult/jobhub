@@ -28,9 +28,9 @@ function server(status: number, body: unknown = {}) {
   return { fetch: fetch as unknown as typeof globalThis.fetch, calls };
 }
 
-async function read(fetch: typeof globalThis.fetch) {
+async function read(fetch: typeof globalThis.fetch, cookie?: () => Promise<string>) {
   await renderInApp(
-    <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE}>
+    <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE} session={cookie ? { cookie } : undefined}>
       <Reader />
     </ApiProvider>,
   );
@@ -89,6 +89,21 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
 
     expect(refused).toEqual(paths);
     expect(calls).toEqual([]);
+  });
+
+  it("carry the session as its cookie, by hand and no other, since the system's cookie store does not hold it", async () => {
+    const { fetch } = server(200, []);
+    const session = "__Secure-better-auth.session_token=session1.signature";
+    await read(fetch, async () => session);
+    const init = (fetch as unknown as jest.Mock).mock.calls[0]![1] as RequestInit;
+    expect(new Headers(init.headers).get("cookie")).toBe(session);
+    expect(init.credentials).toBe("omit");
+  });
+
+  it("carry no cookie when signed out", async () => {
+    const { fetch, calls } = server(200, []);
+    await read(fetch, async () => "");
+    expect(calls[0]!.headers.has("cookie")).toBe(false);
   });
 
   it("answered 426, show « Mettre à jour Jobbbox » in place of the app, with the link to its store", async () => {

@@ -5,10 +5,12 @@
  * has the session checked (SessionGate), so a session ended on the web app signs the app out.
  */
 import {
+  agendaResponseSchema,
   applicationResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
+  type AgendaResponse,
   type ApplicationResponse,
   type ProfileResponse,
   type ProfilesResponse,
@@ -68,6 +70,9 @@ export const useProfiles = (): Read<ProfilesResponse> => useRead("profiles", "/a
 
 /** `GET /api/profiles/:id`: one of the Candidate's Profiles to read; not read while `id` is null. */
 export const useProfile = (id: string | null): Read<ProfileResponse> => useRead("profile", `/api/profiles/${segment(id ?? "")}`, profileResponseSchema, [id ?? ""], id !== null);
+
+/** `GET /api/agenda`: the Candidate's Agenda, « À planifier » then the upcoming days (#693); kept on the device (READS). */
+export const useAgenda = (): Read<AgendaResponse> => useRead("agenda", "/api/agenda", agendaResponseSchema, []);
 
 /** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named. */
 export const useApplication = (id: string): Read<ApplicationResponse> => useRead("application", `/api/applications/${segment(id)}`, applicationResponseSchema, [id]);

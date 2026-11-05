@@ -56,9 +56,12 @@ export function ApiProvider({
       const headers = new Headers(init?.headers);
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
+      // `@better-auth/expo` keeps the session in the Keychain or Keystore, not the system's cookie store: its cookie is
+      // set here by hand, and no other (`credentials: "omit"`, #693).
       const cookie = session ? await session.cookie() : "";
       if (cookie) headers.set("cookie", cookie);
-      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers });
+      else headers.delete("cookie");
+      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
         setOutdated({ storeUrl: named ?? storePage });

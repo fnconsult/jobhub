@@ -86,6 +86,24 @@ describe("Identity", () => {
   });
 });
 
+// « Ajouter au calendrier » (#693, ADR-0029): the app writes to the calendar through the system's sheets and never reads it.
+describe("Calendar", () => {
+  const introspected = () =>
+    JSON.parse(execFileSync("npx", ["expo", "config", "--type", "introspect", "--json"], { cwd: join(ROOT, "apps", "mobile"), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }));
+
+  it("asks iOS for write-only calendar access, never full access, and Android for no calendar permission", () => {
+    const config = introspected();
+    const infoPlist = config.ios.infoPlist as Record<string, string>;
+    expect(infoPlist.NSCalendarsWriteOnlyAccessUsageDescription).toMatch(/ne lit pas votre calendrier/);
+    expect(infoPlist.NSCalendarsFullAccessUsageDescription).toBeUndefined();
+    const permissions = (config._internal.modResults.android.manifest.manifest["uses-permission"] as { $: Record<string, string> }[]).filter((permission) =>
+      /CALENDAR/.test(permission.$["android:name"]!),
+    );
+    expect(permissions.length).toBeGreaterThan(0);
+    for (const permission of permissions) expect(permission.$["tools:node"]).toBe("remove");
+  });
+});
+
 describe("Design tokens, Inter, Lucide and translations", () => {
   it("reads its type scale from @jobhub/shared's Confort Density, body text at the 16 pt floor", () => {
     expect(designTokens.density.confort.fontSize.body).toBeGreaterThanOrEqual(16);

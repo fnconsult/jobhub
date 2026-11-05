@@ -18,6 +18,8 @@ export function AppText({
   tone = "text",
   centered = false,
   lines,
+  struck = false,
+  heading = false,
   children,
 }: {
   variant?: Variant;
@@ -26,6 +28,10 @@ export function AppText({
   centered?: boolean;
   /** At most this many lines, then an ellipsis. */
   lines?: number;
+  /** Struck through: a Cancelled Interview's title. */
+  struck?: boolean;
+  /** A heading for assistive technology, of a section of the page. */
+  heading?: boolean;
   children: ReactNode;
 }) {
   const { colors } = useTheme();
@@ -36,9 +42,10 @@ export function AppText({
     lineHeight: Math.round(size * (HEADING.has(variant) ? 1.25 : type.lineHeight)),
     color: colors[tone],
     textAlign: centered ? "center" : undefined,
+    textDecorationLine: struck ? "line-through" : undefined,
   };
   return (
-    <Text style={style} numberOfLines={lines}>
+    <Text style={style} numberOfLines={lines} role={heading ? "heading" : undefined}>
       {children}
     </Text>
   );

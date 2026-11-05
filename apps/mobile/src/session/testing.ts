@@ -1,14 +1,18 @@
 import { APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead } from "@jobhub/shared";
 import {
+  agendaResponseSchema,
   applicationResponseSchema,
   profileResponseSchema,
   tailoredDocumentsResponseSchema,
+  type AgendaResponse,
   type ApplicationResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type TailoredDocumentsResponse,
 } from "@jobhub/shared/reads";
 import type { DevicePasskeys, SessionStorage } from "./app-session";
+
+const NO_AGENDA: AgendaResponse = { toSchedule: [], days: [] };
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
 const COOKIE = "__Secure-better-auth.session_token";
@@ -54,6 +58,8 @@ const APP_CODE = "246810";
  */
 export interface CandidateData {
   profiles?: ProfileResponse[];
+  /** Their Agenda (#693); an empty one when not given. */
+  agenda?: AgendaResponse;
   applications?: { application: ApplicationResponse; documents: TailoredDocumentsResponse }[];
 }
 
@@ -101,8 +107,9 @@ export function fakeWebApp() {
    */
   function read(path: string, email: string | null): Response {
     if (!email) return json({ error: "unauthorized" }, 401);
-    const mine = data.get(email) ?? { profiles: [], applications: [] };
+    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [] };
     const notFound = json({ error: "not_found" }, 404);
+    if (path === "/api/agenda") return json(mine.agenda);
     if (path === "/api/profiles") return json(mine.profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name })) satisfies ProfilesResponse);
     const profile = /^\/api\/profiles\/([^/]+)$/.exec(path);
     if (profile) {
@@ -275,6 +282,7 @@ export function fakeWebApp() {
     has: (email: string, candidate: CandidateData) =>
       void data.set(email, {
         profiles: (candidate.profiles ?? []).map((profile) => profileResponseSchema.parse(profile)),
+        agenda: agendaResponseSchema.parse(candidate.agenda ?? NO_AGENDA),
         applications: (candidate.applications ?? []).map(({ application, documents }) => ({
           application: applicationResponseSchema.parse(application),
           documents: tailoredDocumentsResponseSchema.parse(documents),

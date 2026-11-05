@@ -47,6 +47,8 @@ export interface AppSession {
   current(): Promise<SessionState>;
   /** Revokes the session on the web app, as signing out there does, and empties secure storage, reachable or not. */
   signOut(): Promise<void>;
+  /** The session's cookie, as the app's calls to the API send it (`createApi`); without a session, none of it. */
+  cookie(): Promise<string>;
 }
 
 /** The keys of secure storage the session is kept under. */
@@ -119,6 +121,8 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
     },
 
     current: () => serial(current),
+
+    cookie: () => client.getCookie(),
 
     signOut: () =>
       serial(async () => {

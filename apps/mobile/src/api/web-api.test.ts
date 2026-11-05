@@ -1,5 +1,5 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_ORIGIN, MOBILE_CLIENT } from "@jobhub/shared";
-import { createApi } from "./api";
+import { createApi } from "./web-api";
 
 const BASE = "https://staging.jobbbox.ai";
 

@@ -14,7 +14,7 @@
 import { isFailureReason, type Activity, type FailureReason, type Provenance, type StepLabel } from "@jobhub/shared";
 import type { coachProposalCardSchema } from "@jobhub/shared/reads";
 import type * as z from "zod";
-import type { Api } from "../api/api";
+import type { Api } from "../api/web-api";
 
 /** A saved Coach Conversation, as the stream and the drawer name it. */
 export type ConversationSummary = { id: string; title: string; lastMessageAt?: string };
@@ -95,8 +95,7 @@ export async function askCoach(api: Api, request: CoachRequest, { signal, onLive
       live = { ...live, tokens: live.tokens + tokens };
       onLive?.(live);
     } else if (event.type === "reply") {
-      const { type: _type, ...reply } = event;
-      ended = { kind: "reply", reply };
+      ended = { kind: "reply", reply: event };
     } else if (event.type === "stopped") {
       conversation = event.conversation ?? conversation;
       ended = stopped(event.context ?? null);

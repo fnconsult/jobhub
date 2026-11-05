@@ -5793,7 +5793,10 @@
       "openPosting": "Voir l'annonce",
       "shareLink": "Partager le lien"
     },
-    "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score."
+    "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
+    "coach": {
+      "replyAnnounced": "Coach IA : {{reply}}"
+    }
   },
   "coachProposals": {
     "fields": {

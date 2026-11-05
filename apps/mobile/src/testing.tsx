@@ -6,6 +6,7 @@ import { AppProviders } from "./app-providers";
 import { fakeHardwareKeyboard } from "./keyboard/fake-hardware-keyboard";
 import { fakeNetwork, memoryStorage } from "./offline/testing";
 import type { Network } from "./offline/read-cache";
+import type { Api } from "./api/web-api";
 
 const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
 
@@ -22,9 +23,9 @@ export const hardwareKeyboard = {
 
 /**
  * Renders `ui` as the app does, in French (the default language), a hardware keyboard plugged in, its read cache in
- * memory, with network unless `network` says otherwise.
+ * memory, with network unless `network` says otherwise, calling the web app's `api` (a fake one, `fakeCoachWeb().api`).
  */
-export function renderInApp(ui: ReactElement, { network = fakeNetwork(true) }: { network?: Network } = {}) {
+export function renderInApp(ui: ReactElement, { network = fakeNetwork(true), api }: { network?: Network; api?: Api } = {}) {
   keyboard = fakeHardwareKeyboard();
   return render(
     <AppProviders
@@ -32,6 +33,7 @@ export function renderInApp(ui: ReactElement, { network = fakeNetwork(true) }: {
       initialMetrics={METRICS}
       keyboard={keyboard.keyboard}
       device={{ storage: memoryStorage(), network }}
+      {...(api ? { api } : {})}
     >
       {ui}
     </AppProviders>,

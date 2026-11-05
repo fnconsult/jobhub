@@ -5,6 +5,7 @@ import { renderRouter } from "expo-router/testing-library";
 import { AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
+import type { FakeCoachWeb } from "../src/coach/testing";
 import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice } from "../src/testing-device";
 
@@ -22,13 +23,15 @@ const keyboard = () => mockKeyboard.current!;
 
 // The web app the app signs in to (#685), as its endpoints answer, and the address the system opens the app with.
 // Built when the app first asks for its session, once Expo Linking is the app's (below).
-const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession; coach: FakeCoachWeb };
 jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
-  return { appSession: mockWeb.session };
+  // Its API's Coach Conversation routes (#690), as src/coach/testing.ts answers them.
+  mockWeb.coach = jest.requireActual("../src/coach/testing").fakeCoachWeb();
+  return { appSession: mockWeb.session, appApi: mockWeb.coach.api };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
 // Not hoisted: it replaces Expo Router's own mock (expo-router/testing-library), whose scheme is not the app's.

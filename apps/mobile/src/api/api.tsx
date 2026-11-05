@@ -2,11 +2,14 @@
  * The app's calls to the platform's API (ADR-0076): every screen reads and writes through `useApi()`, never `fetch`.
  *
  * Each call goes to the platform the build points at (src/web-app-url.ts, set per EAS profile in eas.json), states the
- * API Version the app speaks and names the app as a mobile client (`@jobhub/shared/api-version`). When the platform no
+ * API Version the app speaks and names the app as a mobile client (`@jobhub/shared/api-version`), with the app's origin,
+ * which the web app trusts for a write as it trusts its own pages' (a native request has no Origin of its own; #689),
+ * and a JSON body unless the call says otherwise. When the platform no
  * longer serves that API Version it answers `426 Upgrade Required` (ADR-0063): from then on the provider shows
  * « Mettre à jour Jobbbox » in place of the app, with the link to its store, and the call rejects with AppOutdatedError.
  * The app is never let back in until it is updated: a newer build is a new install.
  */
+import { APP_ORIGIN } from "@jobhub/shared";
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
 import Constants from "expo-constants";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
@@ -53,6 +56,8 @@ export function ApiProvider({
       const headers = new Headers(init?.headers);
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
+      headers.set("origin", APP_ORIGIN);
+      if (init?.body !== undefined && !headers.has("content-type")) headers.set("content-type", "application/json");
       const session = cookie ? await cookie() : "";
       if (session) headers.set("cookie", session);
       const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });

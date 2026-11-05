@@ -11,6 +11,10 @@
  *  - what did the Candidate withdraw from?  `withdrawSession` (a Withdrawal, #511): a withdrawn session leaves every list
  * A date change more than an hour after the date was entered or last changed is a Reschedule, kept in the
  * session's Reschedule history; a cancellation clears the date (back to Unscheduled) and is kept there too.
+ * Each of these tells the other person by a Push notification (#699, ADR-0076), once, and never stops what was done:
+ * the Candidate hears of a Coach Review and of their session's date entered, changed or cancelled by the coach; the
+ * Human Coach (through the account of their email, once they have one, and while not retired) of Coach Access
+ * granted, a session paid, and its date entered, changed, cancelled or withdrawn by the Candidate.
  * and `migrateHumanCoaches(database)` creates its tables.
  */
 import type { Pool } from "pg";
@@ -18,6 +22,7 @@ import { inTransaction, type Queryable } from "../database/pool";
 import * as z from "zod";
 import { frenchDateTime, type Application, type Applications, type ApplicationSummary } from "../applications";
 import type { Profile, Profiles } from "../profiles";
+import type { PushNotification, PushNotifier } from "../push-notifications";
 import { migrateRescheduleHistory, rescheduleHistories, setAgendaItemDate, type Reschedule, type RescheduledBy } from "../reschedules";
 import type { SavedTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { CoverLetter, OutreachMessage, TailoredDocuments } from "../tailored-documents";
@@ -173,6 +178,8 @@ export interface HumanCoachesDeps {
   tailoredCvs: Pick<TailoredCvs, "get">;
   /** The clock Coaching Session dates are entered, Rescheduled and cancelled by. */
   now?: () => Date;
+  /** Where the Push notifications of a Coach Review, Coach Access and Coaching Sessions are queued. Without it, none. */
+  push?: PushNotifier;
 }
 
 export interface HumanCoaches {
@@ -482,12 +489,13 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     owned: { where: string; params: unknown[] },
     change: { to: Date | null; by: RescheduledBy; fields?: { durationMinutes: number | null; videoLink: string | null; note?: string | null } },
   ): Promise<boolean> {
-    return inTransaction(database, async (client) => {
-      const { rows } = await client.query(`SELECT s.id FROM coaching_session s WHERE s.id = $1 AND s.withdrawn_at IS NULL AND ${owned.where} FOR UPDATE OF s`, [
-        sessionId,
-        ...owned.params,
-      ]);
-      if (!rows[0]) return false;
+    const set = await inTransaction(database, async (client) => {
+      const { rows } = await client.query<{ scheduled_at: Date | null; candidate_id: string; coach_id: string }>(
+        `SELECT s.scheduled_at, s.candidate_id, s.coach_id FROM coaching_session s WHERE s.id = $1 AND s.withdrawn_at IS NULL AND ${owned.where} FOR UPDATE OF s`,
+        [sessionId, ...owned.params],
+      );
+      const session = rows[0];
+      if (!session) return null;
       if (change.fields) {
         const { durationMinutes, videoLink, note } = change.fields;
         if (note === undefined) {
@@ -499,8 +507,37 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       const changed = await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: change.to, by: change.by, now: now() });
       // Who last entered or changed the date (« modifié par le coach »), kept beside the Reschedule history.
       if (changed) await client.query(`UPDATE coaching_session SET changed_by = $2 WHERE id = $1`, [sessionId, change.by]);
-      return changed;
+      return changed ? { ...session, moved: session.scheduled_at?.getTime() !== change.to?.getTime() } : null;
     });
+    if (set?.moved) await sessionDateChanged(sessionId, set, change.by, change.to);
+    return set !== null;
+  }
+
+  /** Queues `notification` for the person, under its key, once; a failure is logged, never thrown at what was done. */
+  async function notify(personId: string | null, notification: PushNotification, once: string): Promise<void> {
+    if (!personId || !deps.push) return;
+    try {
+      await deps.push.notify(personId, notification, { once });
+    } catch (error) {
+      console.warn(`[human-coaches] the ${notification.event} Push notification could not be queued:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  /** The account a (not retired) Human Coach signs in with, by their email, once they have one; else null. */
+  async function coachAccount(coachId: string): Promise<string | null> {
+    const { rows } = await database.query<{ id: string }>(
+      `SELECT c.id FROM human_coach h JOIN candidate c ON lower(c.email) = h.email AND c."emailVerified" WHERE h.id = $1 AND h.retired_at IS NULL`,
+      [coachId],
+    );
+    return rows[0]?.id ?? null;
+  }
+
+  /** Tells the other person of a session's date entered, changed (`to`), cancelled (null) or withdrawn by `by`. */
+  async function sessionDateChanged(sessionId: string, session: { candidate_id: string; coach_id: string }, by: RescheduledBy, to: Date | null | "withdrawn"): Promise<void> {
+    // The change itself: its new date, or none, and when it was made.
+    const once = `${sessionId}:${to instanceof Date ? to.toISOString() : (to ?? "cancelled")}:${now().toISOString()}`;
+    if (by === "coach") await notify(session.candidate_id, { event: "coaching_session_changed" }, `coaching_session_changed:${once}`);
+    else await notify(await coachAccount(session.coach_id), { event: "coaching_session_changed_by_candidate" }, `coaching_session_changed_by_candidate:${once}`);
   }
 
   /** The Candidate's own session, after a change: the result to give back. */
@@ -555,14 +592,18 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async grantAccess(candidateId, coachId) {
       if (!UUID.test(coachId)) return false;
-      const { rows } = await database.query(
+      const { rows } = await database.query<{ granted: boolean; granted_at: Date }>(
         `INSERT INTO coach_access (candidate_id, coach_id)
          SELECT $1, id FROM human_coach WHERE id = $2 AND retired_at IS NULL
          ON CONFLICT (candidate_id, coach_id) DO UPDATE SET coach_id = EXCLUDED.coach_id
-         RETURNING coach_id`,
+         RETURNING (xmax = 0) AS granted, granted_at`,
         [candidateId, coachId],
       );
-      return rows.length > 0;
+      const access = rows[0];
+      if (!access) return false;
+      // Granted now, not again: the Human Coach hears of it.
+      if (access.granted) await notify(await coachAccount(coachId), { event: "coach_access_granted", candidateId }, `coach_access_granted:${candidateId}:${access.granted_at.toISOString()}`);
+      return true;
     },
 
     async revokeAccess(candidateId, coachId) {
@@ -618,21 +659,25 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
          SELECT inserted.*, h.name AS coach_name FROM inserted JOIN human_coach h ON h.id = inserted.coach_id`,
         [candidateId, applicationId, coachId, document, text],
       );
-      return { ok: true, review: reviewFrom(rows[0]!) };
+      const review = reviewFrom(rows[0]!);
+      await notify(candidateId, { event: "coach_review", applicationId }, `coach_review:${review.id}`);
+      return { ok: true, review };
     },
 
     reviews: reviewsOf,
 
     async recordPaidSession({ checkoutSessionId, candidateId, coachId, amount, currency }) {
       if (!UUID.test(coachId)) return false;
-      const { rows } = await database.query(
+      const { rows } = await database.query<{ recorded: boolean }>(
         `INSERT INTO coaching_session (stripe_checkout_session_id, candidate_id, coach_id, amount, currency)
          SELECT $1, c.id, h.id, $4, $5 FROM candidate c, human_coach h WHERE c.id = $2 AND h.id = $3
          ON CONFLICT (stripe_checkout_session_id) DO UPDATE SET stripe_checkout_session_id = EXCLUDED.stripe_checkout_session_id
-         RETURNING id`,
+         RETURNING (xmax = 0) AS recorded`,
         [checkoutSessionId, candidateId, coachId, amount, currency.toLowerCase()],
       );
-      return rows.length > 0;
+      if (!rows[0]) return false;
+      if (rows[0].recorded) await notify(await coachAccount(coachId), { event: "coaching_session_paid" }, `coaching_session_paid:${checkoutSessionId}`);
+      return true;
     },
 
     async sessions(candidateId) {
@@ -681,8 +726,10 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async withdrawSession(candidateId, sessionId, options = {}) {
       if (!UUID.test(sessionId)) return null;
-      return inTransaction(database, async (client) => {
+      let withdrawn: { candidate_id: string; coach_id: string } | undefined;
+      const result = await inTransaction(database, async (client) => {
         const { rows } = await client.query<{
+          coach_id: string;
           stripe_checkout_session_id: string;
           amount: number;
           currency: string;
@@ -692,7 +739,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
           coach_email: string;
           candidate_name: string | null;
         }>(
-          `SELECT s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email, c.name AS candidate_name
+          `SELECT s.coach_id, s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email, c.name AS candidate_name
              FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id JOIN candidate c ON c.id = s.candidate_id
             WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND ($4 OR s.scheduled_at IS NULL OR s.scheduled_at > $3)
             FOR UPDATE OF s`,
@@ -700,6 +747,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
         );
         const session = rows[0];
         if (!session) return null;
+        withdrawn = { candidate_id: candidateId, coach_id: session.coach_id };
         const held = session.scheduled_at !== null && session.scheduled_at <= now();
         // A session held keeps its date: it took place.
         if (!held) await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: null, by: "candidate", now: now() });
@@ -715,6 +763,9 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
           candidateName: firstNameAndLastInitial(session.candidate_name ?? ""),
         };
       });
+      // Its Human Coach hears of it, as of a cancellation.
+      if (withdrawn) await sessionDateChanged(sessionId, withdrawn, "candidate", "withdrawn");
+      return result;
     },
   };
 }

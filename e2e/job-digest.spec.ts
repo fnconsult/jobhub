@@ -459,6 +459,10 @@ test.describe("Job Digest", () => {
     expect(digestReports(otherProfileId)).toEqual([]);
     expect(digestReports(justOptedIn)).toEqual([]);
 
+    // The Job Digest told the Candidate's devices too, once (#699).
+    const exported = await (await page.request.get("/api/account/export")).json();
+    expect(exported.pushNotifications.sent).toEqual([expect.objectContaining({ event: "job_digest" })]);
+
     // The email's link opens the Job Digest's page: its Job Offers, best Match Score first, each one to save.
     const digestLink = digestLinkIn(email!);
     expect(digestLink.origin).toBe(origin);

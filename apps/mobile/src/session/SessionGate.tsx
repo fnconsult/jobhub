@@ -5,6 +5,7 @@ import { signInCopy, type SignInProviderButton } from "@jobhub/shared/sign-in-pr
 import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import { AppState, Platform, View, type TextInputProps } from "react-native";
 import { useForgetReads } from "../offline/read-cache";
+import { useForgetPushDevice } from "../push/PushNotifications";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -72,6 +73,7 @@ export function SessionGate({
   // sign-in reads afresh (its CGU to accept among them, #689); the WebViews' cookies (#689); and `forgetOnDevice`.
   // Nothing below the gate is shown then, so the screens need not start again.
   const forgetReads = useForgetReads();
+  const forgetPushDevice = useForgetPushDevice();
   const forgetSession = useCallback(async () => {
     await forgetReads({ restart: false }).catch(() => undefined);
     await session.forgetWebViews().catch(() => undefined);
@@ -139,6 +141,8 @@ export function SessionGate({
       // killed) never leaves it without its session. The screens go first, so none reads again in between. From the
       // app and from the second step alike.
       signOut: async () => {
+        // The device first, while the session still answers: no Push notification reaches it any more (#699).
+        await forgetPushDevice().catch(() => undefined);
         setState(null);
         await forgetSession();
         await session.signOut();
@@ -147,7 +151,7 @@ export function SessionGate({
       recheck: refresh,
       webPages: session,
     }),
-    [session, refresh, forgetSession],
+    [session, refresh, forgetSession, forgetPushDevice],
   );
 
   if (!state) return null;

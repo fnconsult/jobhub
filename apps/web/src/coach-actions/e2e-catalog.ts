@@ -1,7 +1,7 @@
 /**
  * The e2e suite's fake Coach Action (#715): proposes an Application Status, applied and put back through the Applications
  * module, so a Coach proposal's card can be played end to end (proposal → « Appliquer » → « Annuler », its « Origine »)
- * before the Candidatures group of Coach Actions ships (#716). Added to the catalogue on an e2e spec's own server only
+ * on its own, apart from the Candidatures Coach Actions shipped since (#716, ./applications.ts). Added to the catalogue on an e2e spec's own server only
  * (JOBHUB_TARGET=e2e and E2E_FAKE_COACH_ACTIONS=1, ./server.ts); never shipped, never offered elsewhere.
  */
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@jobhub/shared";

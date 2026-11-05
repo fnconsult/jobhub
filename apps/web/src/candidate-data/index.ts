@@ -413,7 +413,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   job_digest: "profiles[].jobDigests",
   target_company: "profiles[].targetCompanies (set aside ones included)",
   target_company_refresh: "profiles[].targetCompaniesRefreshedAt (not what La Bonne Boite was asked)",
-  application: "applications (each status's Origin, when a Coach proposal the Candidate applied gave it, #715)",
+  application: "applications (each status's Origin, when a Coach proposal the Candidate applied gave it, #715, and each Profile's Origin, #716)",
   interview: "applications[].interviews (with their duration, format, place, date of cancellation and Origin, when a Coach proposal the Candidate applied left it so, #718)",
   interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
   tailored_cv: "applications[].tailoredDocuments (the proposal and the saved one, each with its Provenance)",

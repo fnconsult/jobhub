@@ -7,11 +7,13 @@
 import {
   agendaResponseSchema,
   applicationResponseSchema,
+  offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
   type AgendaResponse,
   type ApplicationResponse,
+  type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type TailoredDocumentsResponse,
@@ -106,3 +108,6 @@ export const useApplication = (id: string): Read<ApplicationResponse> => useRead
 /** `GET /api/applications/:id/documents`: an Application's Tailored Documents, with where to download them. */
 export const useTailoredDocuments = (applicationId: string): Read<TailoredDocumentsResponse> =>
   useRead("tailoredDocuments", `/api/applications/${segment(applicationId)}/documents`, tailoredDocumentsResponseSchema, [applicationId]);
+
+/** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
+export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);

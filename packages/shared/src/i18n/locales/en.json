@@ -1526,6 +1526,7 @@
       "title": "Sign-in",
       "intro": "The sign-in methods besides the link by email: Google, Apple, Microsoft and any OIDC provider. A change applies within seconds, with no redeployment and nobody signed out. A secret entered here is encrypted and never shown again.",
       "noMasterKey": "Saving is off: SECRETS_MASTER_KEYS is not set on this server.",
+      "appleRequired": "Candidates see {{providers}}, but not Apple: the App Store refuses the Jobbbox app while it offers a Google or Microsoft sign-in without Apple (guideline 4.8). Add Apple, test it, then offer it to candidates.",
       "ssoTitle": "Team sign-in",
       "ssoHelp": "When on, the back office asks an administrator signed in with a link by email to sign in again with a provider allowed for administrators. Their candidate pages stay open. Permanent super-admins (ADMIN_EMAILS) are never asked.",
       "ssoLabel": "Require a sign-in provider for administrators",

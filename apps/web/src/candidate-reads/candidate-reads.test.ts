@@ -535,11 +535,11 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       expect(overHttp(coachConversationResponseSchema, await reads.coachConversation(marie, id)).conversation?.id).toBe(id);
     });
 
-    it("gives a reopened conversation its Context bar as the reply said it: the Plan's Coach context limits and the split (#731)", async () => {
+    it("gives a reopened conversation its Context bar as the reply said it: the Plan's Coach context limits, the split (#731) and no Plan to name below 80 % (#732)", async () => {
       const subject = { kind: "menu", id: "applications" };
       const id = await send(marie, { subject, message: "Laquelle relancer ?" });
       // A Plan with none stored: what every Candidate had before they were Plan limits (ADR-0078).
-      const context = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: CONTEXT_SPLIT };
+      const context = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: CONTEXT_SPLIT, upgrade: null };
 
       expect(overHttp(coachConversationResponseSchema, await reads.coachConversation(marie, id)).conversation?.context).toEqual(context);
       expect(overHttp(coachConversationResponseSchema, await reads.coachConversationOfSubject(marie, subject)).conversation?.context).toEqual(context);

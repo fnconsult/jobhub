@@ -402,6 +402,8 @@ export const coachConversationSchema = coachConversationSummarySchema.extend({
     limits: z.object({ coachContextMessages: z.number().int().min(0).nullable(), coachContextTokens: z.number().int().min(0).nullable() }).optional(),
     /** The latest reply's estimate by category, null when none was kept. */
     split: z.object({ messages: z.number().int().min(0), instructions: z.number().int().min(0), profile: z.number().int().min(0), advice: z.number().int().min(0), sources: z.number().int().min(0) }).nullable().optional(),
+    /** Once nearly full, the next offered Plan whose Coach context limits allow more (#732); null when none does or below 80 %. */
+    upgrade: z.object({ plan: z.string(), name: z.object({ fr: z.string(), en: z.string() }) }).nullable().optional(),
   }),
 });
 export type CoachConversationRead = z.infer<typeof coachConversationSchema>;

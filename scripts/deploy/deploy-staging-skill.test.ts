@@ -31,9 +31,19 @@ describe("the deploy-staging skill", () => {
 
   it("deploys only staging, from main, and follows the workflow", () => {
     const dispatches = commands.filter((line) => /\bgh\s+workflow\s+run\b/.test(line));
-    expect(dispatches).toEqual(["gh workflow run deploy.yml --ref main -f target=staging"]);
+    expect(dispatches).toEqual(['gh workflow run deploy.yml --ref main -f target=staging -f sha="$SHA"']);
     expect(commands).toContain('gh run watch "$RUN" --exit-status');
     expect(commands.filter((line) => line.includes("/api/health"))).toEqual(Array(2).fill("curl -fsS https://staging.jobbbox.ai/api/health"));
+  });
+
+  // Main's head often has no CI yet (merges every hour, CI near an hour): the skill deploys main's newest green commit.
+  it("deploys main's newest green commit by default, names it, and follows the run from main", () => {
+    expect(commands).toContain("GREEN=$(gh run list --workflow ci.yml --branch main --event push --status success --limit 100 --json headSha --jq '.[].headSha')");
+    expect(commands).toContain('SHA=$(git rev-list --first-parent --max-count 100 origin/main | grep -Fx -m1 -e "$GREEN")');
+    expect(commands).not.toContain("SHA=$(git rev-parse origin/main)");
+    expect(commands.filter((line) => /gh run list --workflow deploy\.yml/.test(line))).toEqual([expect.stringContaining("--branch main")]);
+    expect(commands.join("\n")).not.toMatch(/--workflow deploy\.yml[^\n]*--commit/);
+    expect(skill).toMatch(/- \*\*Commit choisi\*\* : le dernier commit vert de `main`/);
   });
 
   it("checks the next Version's Release Note, without blocking, and has a dry run that deploys nothing", () => {

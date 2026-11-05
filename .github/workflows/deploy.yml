@@ -1,7 +1,8 @@
 # Deploys Jobbbox to the Hostinger VPS over SSH (docs/ops/hosting.md).
 #
 # Manual only: `gh workflow run deploy.yml -f target=staging` (from the ref to deploy,
-# default main). A push never deploys. Production also needs `confirm=jobbbox.ai`, and runs only a Version's tag
+# default main). Staging may name a commit of main instead of the ref's head: `-f sha=<sha>`, or `-f sha=latest-green`
+# for the newest commit of main CI has passed on. A push never deploys. Production also needs `confirm=jobbbox.ai`, and runs only a Version's tag
 # vX.Y.Z on the prod branch, which the Promotion pushes (scripts/promote.ts, docs/ops/promotion.md, ADR-0063).
 #
 # One GitHub Environment per target (Settings → Environments), set up by
@@ -11,9 +12,10 @@
 # Application secrets live in <JOBHUB_ROOT>/.env on the VPS, never in GitHub.
 #
 # The images (web, migrate, worker, mta) are built here and pushed to GHCR, tagged with the
-# commit SHA; the VPS only pulls them, with this run's short-lived token.
+# commit SHA; the VPS only pulls them, with this run's short-lived token. The images, the commit they carry, the VPS
+# checkout and the GitHub Deployment record all use the commit `check` resolves (its `sha` output), not github.sha.
 name: Deploy
-run-name: Deploy ${{ inputs.target }} (${{ github.ref_name }}) by ${{ github.actor }}
+run-name: Deploy ${{ inputs.target }} (${{ inputs.sha || github.ref_name }}) by ${{ github.actor }}
 
 on:
   workflow_dispatch:
@@ -25,6 +27,10 @@ on:
         default: staging
       confirm:
         description: "Production only: type jobbbox.ai to confirm"
+        type: string
+        default: ""
+      sha:
+        description: "Staging only: a commit of main (full or short SHA), or latest-green. Empty: the ref's head"
         type: string
         default: ""
 
@@ -41,14 +47,65 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.target }}
+    # The environment's secrets and variables, without a Deployment record: `deploy` writes the one for the deployed commit.
+    environment:
+      name: ${{ inputs.target }}
+      deployment: false
     permissions:
       actions: read
       contents: read
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: scripts/deploy
+      - name: Resolve the commit to deploy
+        id: commit
+        env:
+          TARGET: ${{ inputs.target }}
+          REQUESTED: ${{ inputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$REQUESTED" ]; then
+            sha="$GITHUB_SHA"
+          elif [ "$TARGET" = production ]; then
+            echo "::error::'sha' is for staging only. Production deploys a Version's tag on prod (docs/ops/promotion.md)."
+            exit 1
+          elif [ "$REQUESTED" = latest-green ]; then
+            # The newest commit of main's history among those a ci.yml run on main succeeded on.
+            green=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --event push --status success \
+              --limit 100 --json headSha --jq '.[].headSha')
+            sha=""
+            for commit in $(gh api "repos/$GITHUB_REPOSITORY/commits?sha=main&per_page=100" --jq '.[].sha'); do
+              if printf '%s\n' "$green" | grep -qx "$commit"; then sha="$commit"; break; fi
+            done
+            if [ -z "$sha" ]; then
+              echo "::error::None of main's last 100 commits has a successful ci.yml run."
+              exit 1
+            fi
+          elif printf '%s' "$REQUESTED" | grep -Eqx '[0-9a-f]{7,40}'; then
+            if ! sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$REQUESTED" --jq .sha 2>&1); then
+              echo "::error::No commit $REQUESTED in $GITHUB_REPOSITORY: $sha"
+              exit 1
+            fi
+          else
+            echo "::error::'sha' must be a commit SHA (7 to 40 hex digits) or latest-green, not '$REQUESTED'."
+            exit 1
+          fi
+          if [ -n "$REQUESTED" ]; then
+            # GitHub's comparison of the commit with main: "identical" when main is at it, "ahead" when main is past it.
+            if ! compare=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq .status 2>&1); then
+              echo "::error::Could not compare $sha with main: $compare"
+              exit 1
+            fi
+            case "$compare" in
+              identical | ahead) ;;
+              *) echo "::error::$sha is not on main ($compare). Deploy a commit of main."; exit 1 ;;
+            esac
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "▸ Commit to deploy: $sha${REQUESTED:+ (sha=$REQUESTED, from ${GITHUB_REF_NAME} at $GITHUB_SHA)}"
       - name: Check that Production runs a Promoted Version
         if: inputs.target == 'production'
         env:
@@ -74,6 +131,7 @@ jobs:
           JOBHUB_ROOT: ${{ vars.JOBHUB_ROOT }}
           JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
           JOBHUB_SLUG: ${{ vars.JOBHUB_SLUG }}
+          SHA: ${{ steps.commit.outputs.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$TARGET" = production ] && [ "$CONFIRM" != jobbbox.ai ]; then
@@ -90,13 +148,13 @@ jobs:
             *"$TARGET"*) ;;
             *) echo "::error::JOBHUB_ROOT ($JOBHUB_ROOT) does not name '$TARGET'."; exit 1 ;;
           esac
-          ci=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" \
+          ci=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$SHA" \
             --json conclusion --jq '[.[] | select(.conclusion == "success")] | length')
           if [ "$ci" = 0 ]; then
-            echo "::error::CI has not passed on $GITHUB_SHA. Deploy a commit CI has passed on."
+            echo "::error::CI has not passed on $SHA. Deploy a commit CI has passed on (or -f sha=latest-green on staging)."
             exit 1
           fi
-          echo "▸ $TARGET → $JOBHUB_HOST ($JOBHUB_ROOT, $JOBHUB_SLUG) at $GITHUB_SHA"
+          echo "▸ $TARGET → $JOBHUB_HOST ($JOBHUB_ROOT, $JOBHUB_SLUG) at $SHA"
 
   images:
     needs: check
@@ -114,6 +172,8 @@ jobs:
           - { name: mta, dockerfile: apps/mta/Dockerfile, target: "" }
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check.outputs.sha }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -126,25 +186,46 @@ jobs:
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target }}
           push: true
-          tags: ${{ env.IMAGES }}/${{ matrix.name }}:${{ github.sha }}
+          tags: ${{ env.IMAGES }}/${{ matrix.name }}:${{ needs.check.outputs.sha }}
           # What the Back Office, Mon compte and /api/health name (#559): the commit and the target, baked into the
           # image. The Version is the root package.json's, bundled by the build itself (apps/web/src/release).
           build-args: |
-            JOBHUB_COMMIT=${{ github.sha }}
+            JOBHUB_COMMIT=${{ needs.check.outputs.sha }}
             JOBHUB_TARGET=${{ inputs.target }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
   deploy:
-    needs: images
+    needs: [check, images]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: read
+      deployments: write
+    # The environment's secrets, protection rules and variables. GitHub's own Deployment record would name the ref's
+    # head: the first step writes the record for the deployed commit instead, the last one its outcome.
     environment:
       name: ${{ inputs.target }}
-      url: https://${{ vars.JOBHUB_HOST }}
+      deployment: false
+    env:
+      SHA: ${{ needs.check.outputs.sha }}
     steps:
+      - name: Record the Deployment
+        id: record
+        env:
+          TARGET: ${{ inputs.target }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # CI was checked by `check`; required_contexts=[] keeps GitHub from checking it again on this commit.
+          id=$(jq -n --arg sha "$SHA" --arg target "$TARGET" --arg ref "$GITHUB_REF_NAME" '{
+              ref: $sha, environment: $target, auto_merge: false, required_contexts: [],
+              production_environment: ($target == "production"), description: "Deploy \($ref) at \($sha)"
+            }' | gh api "repos/$GITHUB_REPOSITORY/deployments" --input - --jq .id)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=in_progress \
+            -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --silent
+          echo "▸ Deployment $id: $TARGET at $SHA"
+
       - name: Deploy on the VPS
         # Pinned to a SHA: this action receives the VPS key.
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
@@ -153,7 +234,7 @@ jobs:
           JOBHUB_ROOT: ${{ vars.JOBHUB_ROOT }}
           JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
           JOBHUB_SLUG: ${{ vars.JOBHUB_SLUG }}
-          JOBHUB_REVISION: ${{ github.sha }}
+          JOBHUB_REVISION: ${{ needs.check.outputs.sha }}
           JOBHUB_REPO: ${{ github.server_url }}/${{ github.repository }}.git
           JOBHUB_IMAGES: ${{ env.IMAGES }}
           GHCR_TOKEN: ${{ github.token }}
@@ -183,3 +264,16 @@ jobs:
           done
           echo "::error::https://$JOBHUB_HOST/api/health answered $code"
           exit 1
+
+      - name: Record the Deployment's outcome
+        if: always() && steps.record.outputs.id
+        env:
+          ID: ${{ steps.record.outputs.id }}
+          OUTCOME: ${{ job.status }}
+          JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$OUTCOME" in success) state=success ;; cancelled) state=inactive ;; *) state=failure ;; esac
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses" -f state="$state" \
+            -f environment_url="https://$JOBHUB_HOST" \
+            -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --silent

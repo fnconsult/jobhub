@@ -51,4 +51,27 @@ describe("deploy.yml", () => {
     expect(check.indexOf("check-production-ref.mjs")).toBeLessThan(check.indexOf("Check confirmation, configuration and CI"));
     expect(workflow).toMatch(/images:\n {4}needs: check/);
   });
+
+  // Staging may deploy a commit of main other than the ref's head (`-f sha=…`, `-f sha=latest-green`).
+  it("refuses sha with Production, and checks that a staging sha is on main and green", () => {
+    const check = workflow.slice(workflow.indexOf("  check:"), workflow.indexOf("  images:"));
+    expect(workflow).toMatch(/\n {6}sha:\n {8}description: "Staging only: [^\n]*\n {8}type: string\n {8}default: ""\n/);
+    expect(check).toMatch(/elif \[ "\$TARGET" = production \]; then\n\s+echo "::error::'sha' is for staging only/);
+    expect(check).toMatch(/compare\/\$sha\.\.\.main[\s\S]*identical \| ahead\) ;;/);
+    expect(check).toMatch(/--workflow ci\.yml --commit "\$SHA"/);
+    expect(check).toContain("sha: ${{ steps.commit.outputs.sha }}");
+  });
+
+  it("builds, tags, bakes in, checks out and records the resolved commit, never the ref's head", () => {
+    const after = workflow.slice(workflow.indexOf("  images:"));
+    expect(after).not.toContain("github.sha");
+    expect(after).toContain("ref: ${{ needs.check.outputs.sha }}");
+    expect(after).toContain("tags: ${{ env.IMAGES }}/${{ matrix.name }}:${{ needs.check.outputs.sha }}");
+    expect(after).toContain("JOBHUB_COMMIT=${{ needs.check.outputs.sha }}");
+    expect(after).toContain("JOBHUB_REVISION: ${{ needs.check.outputs.sha }}");
+    // GitHub's own Deployment record would name github.sha: every environment opts out, and deploy writes its own.
+    expect(workflow.match(/environment:\n {6}name: \$\{\{ inputs\.target \}\}\n {6}deployment: false\n/g)).toHaveLength(2);
+    expect(workflow).not.toMatch(/environment: \$\{\{/);
+    expect(after).toMatch(/jq -n --arg sha "\$SHA"[\s\S]*ref: \$sha[\s\S]*repos\/\$GITHUB_REPOSITORY\/deployments" --input -/);
+  });
 });

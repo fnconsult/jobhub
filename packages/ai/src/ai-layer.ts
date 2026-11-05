@@ -1,5 +1,5 @@
 import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type Outcome, type SearchCriteria } from "@jobhub/shared";
-import { hasBlocks, mapTexts, said, textsIn } from "./conversation";
+import { digestedToolResults, hasBlocks, mapTexts, said, textsIn } from "./conversation";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, buildTargetCompanyQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
@@ -984,6 +984,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     }
     const maxRounds = tools ? Math.max(0, Math.min(MAX_TOOL_ROUNDS, Math.floor(request.maxToolRounds ?? DEFAULT_TOOL_ROUNDS) || 0)) : 0;
     const offered = maxRounds > 0 ? tools : undefined;
+    // The call's stable prefix, the same for all its Turns (#790): tools, system text and the conversation asked.
+    const cache = offered ? { key: globalThis.crypto.randomUUID(), prefixMessages: messages.length } : undefined;
     let { route: callRoute, provider } = chosen as { route: Route; provider: AiProvider };
     let conversation: TurnMessage[] = messages;
     const turns: (PricedTurn & CallFacts)[] = [];
@@ -996,6 +998,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       const turn = await turnOf(request, entry, provider, callRoute, conversation, {
         tools: takesTools && (mayCall || hasBlocks(conversation)) ? offered : undefined,
         mayCall,
+        ...(cache ? { cache } : {}),
         feature: { warnings: feature, ...fallback },
       });
       turns.push(turn.facts);
@@ -1058,7 +1061,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     provider: AiProvider,
     chosenRoute: Route,
     conversation: TurnMessage[],
-    { tools, mayCall, feature }: { tools: ToolDefinition[] | undefined; mayCall: boolean; feature: Omit<CallNotes<never>, "unusable"> },
+    { tools, mayCall, feature, cache }: { tools: ToolDefinition[] | undefined; mayCall: boolean; feature: Omit<CallNotes<never>, "unusable">; cache?: TextInput["cache"] },
   ): Promise<{ text: string; calls: (TurnMessage & { content: ContentBlock[] }) | null; facts: PricedTurn & CallFacts }> {
     // A route naming no model takes the provider's default for this call's effort (Claude's direct API), recorded as such.
     const byEffort = chosenRoute.model ? undefined : provider.defaultModelFor?.(request.effort);
@@ -1067,7 +1070,9 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const [redactedSystem = "", ...contents] = redaction.texts;
     // The model is told to keep the placeholders as they are, so they can be put back in its reply.
     const system = redaction.redacted ? [redactedSystem, REDACTION_NOTE].filter(Boolean).join("\n\n") : request.system;
-    const sent = mapTexts(conversation, () => contents);
+    // A provider that caches no prompt is resent the earlier Tool rounds' results as a digest, once redacted (#790).
+    const redactedConversation = mapTexts(conversation, () => contents);
+    const sent = tools && !provider.promptCache ? digestedToolResults(redactedConversation) : redactedConversation;
     // A provider without tool calling, once rerouted to, reads the tool calls made as text.
     const messages = provider.toolCalling || !hasBlocks(sent) ? sent : said(sent);
     /** Whether this turn ends the call: until the model calls a tool it may call. */
@@ -1086,7 +1091,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
       ...(request.effort ? { effort: request.effort } : {}),
       ...(request.signal ? { signal: request.signal } : {}),
-      ...(tools ? { tools, ...(mayCall ? {} : { toolChoice: "none" as const }) } : {}),
+      ...(tools ? { tools, ...(mayCall ? {} : { toolChoice: "none" as const }), ...(cache && provider.promptCache ? { cache } : {}) } : {}),
     };
     const turnBlocks = (output: TextOutput): ContentBlock[] => [...(output.text ? [{ type: "text" as const, text: output.text }] : []), ...(callsOf(output) ?? [])];
     const { output, ...facts } = await recorded(

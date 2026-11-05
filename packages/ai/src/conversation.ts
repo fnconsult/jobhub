@@ -75,3 +75,28 @@ export function textsIn(messages: readonly TurnMessage[]): string[] {
   mapTexts(messages, (all) => (texts = all));
   return texts;
 }
+
+/** How much of an earlier Tool round's result is resent, at most, to a provider that caches no prompt (#790). */
+export const TOOL_RESULT_DIGEST_CHARS = 600;
+
+/**
+ * The conversation with the results of every Tool round but the latest cut to a digest (#790): their first
+ * TOOL_RESULT_DIGEST_CHARS characters, ended at a space, and a mark saying the model read the whole of it at that round.
+ * For a provider that caches no prompt, each Turn resending them in full otherwise; the latest round's results, and
+ * every error, are sent whole. The same digest every Turn, so a provider's own prefix cache still matches.
+ */
+export function digestedToolResults(messages: readonly TurnMessage[]): TurnMessage[] {
+  const rounds = messages.flatMap((message, index) => (typeof message.content !== "string" && message.content.some((block) => block.type === "tool_result") ? [index] : []));
+  const latest = rounds.at(-1);
+  return messages.map((message, index) => {
+    const round = rounds.indexOf(index) + 1;
+    if (round === 0 || index === latest || typeof message.content === "string") return message;
+    return { ...message, content: message.content.map((block) => (block.type === "tool_result" && !block.error && block.content.length > TOOL_RESULT_DIGEST_CHARS ? { ...block, content: digestOf(block.content, round) } : block)) };
+  });
+}
+
+function digestOf(content: string, round: number): string {
+  const head = content.slice(0, TOOL_RESULT_DIGEST_CHARS);
+  const space = head.search(/\s\S*$/);
+  return `${space > 0 ? head.slice(0, space) : head} […] (résultat du tour ${round} abrégé ici : tu l'as lu en entier à ce tour-là, appuie-toi sur ce que tu en as retenu)`;
+}

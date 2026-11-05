@@ -10,7 +10,7 @@ const notFound = () => NextResponse.json({ error: "not_found" }, { status: 404 }
 
 /**
  * One of the Candidate's Coach Conversations, with its messages and its Context bar's figures (`context`, #607):
- * { messages, tokens, limits, split }, the Coach context limits of the Candidate's Plan and the latest reply's split (#731).
+ * { messages, tokens, limits, split, upgrade }, the Coach context limits of the Candidate's Plan, the latest reply's split (#731) and the Plan above to name once nearly full (#732).
  * 200 CoachConversationResponse · 401 · 404
  */
 export async function GET(_request: Request, { params }: Context) {

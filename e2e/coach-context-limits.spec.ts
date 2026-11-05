@@ -24,7 +24,7 @@ const unique = () => `${Date.now().toString(36)}${Math.random().toString(36).sli
 const estimate = (text: string) => Math.ceil(text.length / 4);
 
 type Limits = { coachContextMessages: number | null; coachContextTokens: number | null };
-type Context = { messages: number; tokens: number; limits: Limits; split: Record<string, number> | null };
+type Context = { messages: number; tokens: number; limits: Limits; split: Record<string, number> | null; upgrade?: { plan: string; name: { fr: string; en: string } } | null };
 
 /** Saves the Free Plan's two Coach context limits on the Quotas page; "" is unlimited. */
 async function setFreeLimits(admin: Page, messages: string, tokens: string) {
@@ -217,6 +217,45 @@ test.describe("Coach context limits of a Plan (#731)", () => {
       await setFreeLimits(admin, "40", "12000");
       await admin.close();
     }
+  });
+
+  test("each Candidate sees their Plan's limits on Mon abonnement, never in jetons, and from 80 % the bar names a higher Plan only when one allows more (#732)", async ({ page, browser, baseURL }) => {
+    const card = (name: string) => page.locator(".plan-card").filter({ has: page.getByRole("heading", { name, level: 3 }) });
+    const memory = fr.billing.coachContext.memory as string;
+    const size = fr.billing.coachContext.size as string;
+    await signInWithMagicLink(page, newAddress("ctx-limits-plans"));
+    const admin = await adminPage(browser, baseURL);
+    try {
+      await setFreeLimits(admin, "4", "6000");
+
+      // Free reads 4 messages within 6 000; Standard and Premium, none stored, 40 within 12 000: twice Free's.
+      await page.goto("/abonnement");
+      await expect(card("Gratuite").locator("li").filter({ hasText: memory })).toContainText("4 messages");
+      await expect(card("Gratuite").locator("li").filter({ hasText: size })).toContainText("×1");
+      await expect(card("Standard").locator("li").filter({ hasText: memory })).toContainText("40 messages");
+      await expect(card("Standard").locator("li").filter({ hasText: size })).toContainText("×2");
+      await expect(page.locator(".subscription")).not.toContainText(/jetons?|tokens?/i);
+
+      // 4 messages of 4: nearly full, Standard is named, the next Plan up that reads more.
+      let reply = await ask(page, "Question 1");
+      expect(reply.context.limits).toEqual({ coachContextMessages: 4, coachContextTokens: 6_000 });
+      reply = await ask(page, "Question 2", { conversationId: reply.conversation.id });
+      expect(reply.context).toMatchObject({ messages: 4, upgrade: { plan: "standard", name: { fr: "Standard", en: "Standard" } } });
+      const reopened = await (await page.request.get(`/api/coach/conversations/${reply.conversation.id}`)).json();
+      expect(reopened.conversation.context.upgrade).toMatchObject({ plan: "standard" });
+    } finally {
+      await setFreeLimits(admin, "40", "12000");
+      await admin.close();
+    }
+
+    // On Standard, Premium allows no more (40 within 12 000 too): nothing is named, even nearly full.
+    const email = newAddress("ctx-limits-plans-standard");
+    const standard = await (await browser.newContext({ baseURL })).newPage();
+    await signInWithMagicLink(standard, email);
+    await subscribe(standard, email, "standard");
+    const last = await exchanges(standard, 16);
+    expect(last.context).toMatchObject({ messages: 32, limits: { coachContextMessages: 40 }, upgrade: null });
+    await standard.close();
   });
 
   test("lowering a limit on a paid Plan is a Quota Reduction: a notice is required, subscribers are told, and the AI Coach reads less only from its date", async ({ page, browser, baseURL }) => {

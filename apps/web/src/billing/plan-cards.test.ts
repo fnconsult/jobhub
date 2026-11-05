@@ -1,6 +1,7 @@
 import type { PlanQuotas } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import type { PlanPrice } from "./index";
+import { allowsMoreCoachContext } from "./index";
 import { planCards } from "./plan-cards";
 import type { PlanDefinition } from "./plans";
 
@@ -81,12 +82,63 @@ describe("the Plan comparison cards on Mon abonnement (#469)", () => {
       { quota: "enrichedContacts", label: "Contacts enrichis", value: "Non compris", included: false },
       { quota: "jobSearches", label: "Recherches d'offres", value: "2 par semaine", included: true },
       { quota: "jobDigest", label: "Job Digest", value: "Non compris", included: false },
+      { quota: "coachMemory", label: "Mémoire du coach", value: "40 messages", included: true },
+      { quota: "coachContextSize", label: "Contexte du coach", value: "×1", included: true },
     ]);
-    expect(premium!.quotas.map((line) => line.value)).toEqual(["Illimité", "Illimité", "Illimité", "5 par semaine", "Illimité", "Chaque jour"]);
+    expect(premium!.quotas.map((line) => line.value)).toEqual(["Illimité", "Illimité", "Illimité", "5 par semaine", "Illimité", "Chaque jour", "40 messages", "×1"]);
   });
 
   it("show a Plan without quotas yet with no lines rather than failing", () => {
     const plans = [...PLANS, plan("nouvelle", 4, "Nouvelle")];
     expect(planCards({ plans, current: "free", quotas: QUOTAS, prices: PRICES, locale: "fr" }).at(-1)!.quotas).toEqual([]);
+  });
+});
+
+describe("the Coach context on the Plan cards (ADR-0078, #732)", () => {
+  const COACH_CONTEXT = {
+    free: { coachContextMessages: 20, coachContextTokens: 6_000 },
+    standard: { coachContextMessages: 40, coachContextTokens: 24_000 },
+    premium: { coachContextMessages: null, coachContextTokens: null },
+  };
+  const coachLines = (cards: ReturnType<typeof planCards>) => cards.map((card) => card.quotas.filter((line) => line.quota === "coachMemory" || line.quota === "coachContextSize").map((line) => `${line.label} : ${line.value}`));
+
+  it("say each Plan's « Mémoire du coach » in messages and its context as a multiple of the lowest offered Plan's, « Illimité » when unlimited", () => {
+    expect(coachLines(planCards({ plans: PLANS, current: "free", quotas: QUOTAS, coachContext: COACH_CONTEXT, prices: PRICES, locale: "fr" }))).toEqual([
+      ["Mémoire du coach : 20 messages", "Contexte du coach : ×1"],
+      ["Mémoire du coach : 40 messages", "Contexte du coach : ×4"],
+      ["Mémoire du coach : Illimité", "Contexte du coach : Illimité"],
+    ]);
+    expect(coachLines(planCards({ plans: PLANS, current: "free", quotas: QUOTAS, coachContext: COACH_CONTEXT, prices: PRICES, locale: "en" }))[1]).toEqual([
+      "Coach memory : 40 messages",
+      "Coach context : ×4",
+    ]);
+  });
+
+  it("measure from the lowest offered Plan, not a hidden one, and keep one decimal", () => {
+    const plans = [plan("free", 1, "Gratuite", "hidden"), plan("standard", 2, "Standard"), plan("premium", 3, "Premium")];
+    const coachContext = { ...COACH_CONTEXT, premium: { coachContextMessages: 60, coachContextTokens: 36_000 } };
+    expect(coachLines(planCards({ plans, current: "standard", quotas: QUOTAS, coachContext, prices: PRICES, locale: "fr" }))).toEqual([
+      ["Mémoire du coach : 40 messages", "Contexte du coach : ×1"],
+      ["Mémoire du coach : 60 messages", "Contexte du coach : ×1,5"],
+    ]);
+  });
+
+  it("never count jetons or tokens on a card", () => {
+    for (const locale of ["fr", "en"] as const) {
+      expect(JSON.stringify(planCards({ plans: PLANS, current: "free", quotas: QUOTAS, coachContext: COACH_CONTEXT, prices: PRICES, locale }))).not.toMatch(/tokens?|jetons?/i);
+    }
+  });
+});
+
+describe("a Plan that allows more Coach context (ADR-0078, #732)", () => {
+  const limits = (coachContextMessages: number | null, coachContextTokens: number | null) => ({ coachContextMessages, coachContextTokens });
+
+  it("reads more messages or holds a larger context; unlimited is more than any number, and nothing is more than unlimited", () => {
+    expect(allowsMoreCoachContext(limits(40, 12_000), limits(60, 12_000))).toBe(true);
+    expect(allowsMoreCoachContext(limits(40, 12_000), limits(40, 24_000))).toBe(true);
+    expect(allowsMoreCoachContext(limits(40, 12_000), limits(null, 6_000))).toBe(true);
+    expect(allowsMoreCoachContext(limits(40, 12_000), limits(40, 12_000))).toBe(false);
+    expect(allowsMoreCoachContext(limits(40, 12_000), limits(20, 6_000))).toBe(false);
+    expect(allowsMoreCoachContext(limits(null, null), limits(null, null))).toBe(false);
   });
 });

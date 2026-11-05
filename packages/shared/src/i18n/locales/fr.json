@@ -1237,6 +1237,8 @@
       "current": "Votre offre",
       "manage": "Gérer mon abonnement",
       "manageHelp": "Changement d'offre, moyen de paiement ou annulation d'une résiliation programmée : sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "manageOnWeb": "Gérer mon abonnement sur jobbbox.ai",
+      "manageOnWebHelp": "Votre abonnement se gère sur jobbbox.ai, dans votre navigateur.",
       "invoices": "Factures et moyen de paiement",
       "invoicesHelp": "Téléchargez vos factures et changez de moyen de paiement sur la page sécurisée de notre prestataire de paiement, Stripe.",
       "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
@@ -5787,6 +5789,16 @@
     }
   },
   "mobile": {
+    "legalSteps": {
+      "checking": "Ouverture de votre compte…",
+      "back": "Retour",
+      "meanwhile": "Sans accepter, vous pouvez toujours télécharger vos données ou supprimer votre compte dans Mes données, et gérer votre abonnement :",
+      "later": "Plus tard"
+    },
+    "account": {
+      "intro": "Vos réglages de compte s'ouvrent ici tels que sur jobbbox.ai, déjà connectés.",
+      "allSections": "Toutes les rubriques"
+    },
     "offline": {
       "banner": "Hors ligne",
       "bannerDetail": "Vous voyez ce qui a été chargé en dernier. Rien ne s'enregistre avant le retour du réseau.",

@@ -38,9 +38,9 @@ export function getBilling(): Billing {
  * The payment failed notice for the workspace banner, or null. Never fails the
  * page it is on: if billing cannot be read, there is simply no banner.
  */
-export async function getPaymentFailedNotice(candidateId: string, locale: Locale): Promise<PaymentFailedNotice | null> {
+export async function getPaymentFailedNotice(candidateId: string, locale: Locale, inApp: boolean): Promise<PaymentFailedNotice | null> {
   try {
-    return paymentFailedNotice((await getBilling().entitlements(candidateId)).stripeStatus, locale);
+    return paymentFailedNotice((await getBilling().entitlements(candidateId)).stripeStatus, locale, inApp);
   } catch (error) {
     console.error("[billing] could not read the subscription status", error);
     return null;

@@ -23,9 +23,9 @@ export const hardwareKeyboard = {
 
 /**
  * Renders `ui` as the app does, in French (the default language), a hardware keyboard plugged in, its read cache in
- * memory, with network unless `network` says otherwise.
+ * memory, with network unless `network` says otherwise, its calls to the API carrying `sessionCookie` (AppSession.cookie).
  */
-export function renderInApp(ui: ReactElement, { network = fakeNetwork(true) }: { network?: Network } = {}) {
+export function renderInApp(ui: ReactElement, { network = fakeNetwork(true), sessionCookie }: { network?: Network; sessionCookie?: () => Promise<string> } = {}) {
   keyboard = fakeHardwareKeyboard();
   return render(
     <AppProviders
@@ -33,6 +33,7 @@ export function renderInApp(ui: ReactElement, { network = fakeNetwork(true) }: {
       initialMetrics={METRICS}
       keyboard={keyboard.keyboard}
       device={{ storage: memoryStorage(), network }}
+      sessionCookie={sessionCookie}
     >
       {ui}
     </AppProviders>,

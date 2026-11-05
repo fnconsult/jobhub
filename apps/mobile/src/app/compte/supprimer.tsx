@@ -1,3 +1,4 @@
+import { webPaths } from "../../navigation/pages";
 import { WebPage } from "../../web-pages/WebPage";
 
 /**
@@ -5,5 +6,5 @@ import { WebPage } from "../../web-pages/WebPage";
  * three gestures from anywhere, Menu, Mon compte, then this (App Store guideline 5.1.1(v), #689).
  */
 export default function AccountDeletion() {
-  return <WebPage path="/compte/donnees#supprimer" />;
+  return <WebPage path={webPaths.accountDeletion} />;
 }

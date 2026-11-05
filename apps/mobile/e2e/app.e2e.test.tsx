@@ -1,6 +1,6 @@
 // End-to-end through the app's real entry: Expo Router mounts src/app (the root layout, the shell, the Sidebar and the
 // screens), and a person drives it by what they see and press.
-import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
@@ -66,6 +66,8 @@ jest.mock("expo-network", () => ({
 async function launch(initialUrl = "/", { signIn = true } = {}) {
   if (signIn) await signedIn();
   await renderRouter("./src/app", { initialUrl });
+  // Signed in, the app first reads the legal steps it may have to ask (#689).
+  await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
 }
 const button = (name: string) => screen.getByRole("button", { name });
 /** The Sidebar, wherever it is: a column, or a drawer (its page behind it hidden from assistive technology). */
@@ -363,6 +365,24 @@ describe("Jobbbox app, signing in (#685)", () => {
     expect(screen).toHavePathname("/espace-coach");
     expect((await screen.findByTestId("web-view")).props.source).toEqual({ uri: `${mockWeb.app.baseURL}/espace-coach` });
     mockWeb.app.humanCoach(EMAIL, false);
+  });
+
+  it("asks a CGU version to accept after sign-in, natively, before the conversation, and records it from the app (#689)", async () => {
+    const { shownLegalText } = jest.requireActual("../src/session/testing");
+    await signedIn();
+    mockWeb.app.asks(EMAIL, { acceptance: shownLegalText("cgu", "2026-12-01") });
+    await launch();
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Nos conditions d'utilisation")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Votre message")).toBeNull();
+    await user.press(screen.getByRole("checkbox", { name: "J'accepte les CGU (version du 01/12/2026)" }));
+    await user.press(screen.getByRole("button", { name: "Accepter et continuer" }));
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+    expect(mockWeb.app.recorded.filter((call) => call.path === "/api/account/acceptances")).toEqual([
+      expect.objectContaining({ method: "POST", body: { text: "cgu", version: "2026-12-01", accepted: true }, client: "mobile" }),
+    ]);
   });
 
   it("signs out from Mon compte, back to sign-in", async () => {

@@ -11,6 +11,7 @@ import { KeyboardAvoidingView, Platform } from "react-native";
 import { initialWindowMetrics } from "react-native-safe-area-context";
 import { AppLock } from "../app-lock/AppLock";
 import { AppProviders } from "../app-providers";
+import { LegalSteps } from "../legal/LegalSteps";
 import { deviceI18n } from "../i18n";
 import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
@@ -30,7 +31,8 @@ const KEYBOARD = Platform.OS === "ios" ? "padding" : undefined;
 /**
  * The app's root: Inter loaded (its three weights alone, bundled with the app), the device's language, the system's
  * theme, the session (signed out, the sign-in screen; #685), the read cache kept on the device, the optional app lock over
- * the signed-in app (#702), then the shell around every page.
+ * the signed-in app (#702), the legal steps after sign-in (the CGU to accept, the privacy policy's change, the EU AI
+ * Consent; #689), then the shell around every page.
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
@@ -45,7 +47,9 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <SessionGate session={appSession} link={link}>
         <AppLock>
-          <AppShell />
+          <LegalSteps>
+            <AppShell />
+          </LegalSteps>
         </AppLock>
       </SessionGate>
     </AppProviders>

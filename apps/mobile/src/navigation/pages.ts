@@ -27,6 +27,14 @@ export const paths = {
   appSettings: "/reglages",
 } as const;
 
+/** The web app's pages some of the app's open, where their address is not the app's own (#689). */
+export const webPaths = {
+  /** `/compte/rubriques` in the app: the web's Mon compte, listing every section. */
+  accountSections: "/compte",
+  /** `/compte/supprimer` in the app: Mes données, opened on Account deletion. */
+  accountDeletion: "/compte/donnees#supprimer",
+} as const;
+
 /** A new Free conversation: created at its first message (ADR-0070), so it has no id until then. */
 export const NEW_CONVERSATION = "nouvelle";
 

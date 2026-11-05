@@ -5715,6 +5715,12 @@
     }
   },
   "mobile": {
+    "legalSteps": {
+      "checking": "Opening your account…",
+      "back": "Back",
+      "meanwhile": "Without accepting, you can still download your data or delete your account in My data, and manage your subscription:",
+      "later": "Later"
+    },
     "account": {
       "intro": "Your account settings open here as on jobbbox.ai, already signed in.",
       "allSections": "All sections"

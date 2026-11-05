@@ -2,7 +2,7 @@
 // conversation) for what a person sees without network, and the app's providers (AppProviders, the root every screen
 // sits in) for the read cache, sign-out and writes, which no screen of the app uses yet.
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { createI18n, DEFAULT_LOCALE } from "@jobhub/shared/i18n";
 import { renderRouter } from "expo-router/testing-library";
 import { Pressable, Text } from "react-native";
@@ -56,6 +56,12 @@ async function signedIn() {
   await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
 }
 
+/** The app's root, signed in, once it has read the legal steps it may have to ask (#689). */
+async function launch() {
+  await renderRouter("./src/app", { initialUrl: "/" });
+  await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
+}
+
 const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
 const button = (name: string) => screen.getByRole("button", { name });
 
@@ -65,7 +71,7 @@ describe("offline, in the app", () => {
 
   it("shows « Hors ligne » and disables the conversation's box and its writing actions, saying why", async () => {
     mockNetwork.connected = false;
-    await renderRouter("./src/app", { initialUrl: "/" });
+    await launch();
     expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
     expect(screen.getByLabelText("Votre message")).toBeDisabled();
     expect(button("Envoyer")).toBeDisabled();
@@ -77,7 +83,7 @@ describe("offline, in the app", () => {
     const fetchSpy = jest.fn();
     (globalThis as { fetch: unknown }).fetch = fetchSpy;
     mockNetwork.connected = false;
-    await renderRouter("./src/app", { initialUrl: "/" });
+    await launch();
     await userEvent.setup().press(button("Envoyer"));
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
@@ -85,7 +91,7 @@ describe("offline, in the app", () => {
 
   it("drops the banner and gives the box back, with no action from the person, once the network returns", async () => {
     mockNetwork.connected = false;
-    await renderRouter("./src/app", { initialUrl: "/" });
+    await launch();
     expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
     await act(() => setNetwork(true));
     expect(screen.queryByText("Hors ligne")).toBeNull();

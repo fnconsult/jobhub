@@ -5715,6 +5715,12 @@
     }
   },
   "mobile": {
+    "legalSteps": {
+      "checking": "Ouverture de votre compte…",
+      "back": "Retour",
+      "meanwhile": "Sans accepter, vous pouvez toujours télécharger vos données ou supprimer votre compte dans Mes données, et gérer votre abonnement :",
+      "later": "Plus tard"
+    },
     "account": {
       "intro": "Vos réglages de compte s'ouvrent ici tels que sur jobbbox.ai, déjà connectés.",
       "allSections": "Toutes les rubriques"

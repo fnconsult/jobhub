@@ -421,7 +421,8 @@ export function CoachConversationPage(page: PagePlacement) {
     const replied = status !== "sending" && messages.at(-1)?.from === "coach";
     const reply = replied ? (end.parentElement?.querySelector(".coach-panel-messages > li:last-child") ?? null) : null;
     showLatest({ end, foot: foot.current, reply });
-  }, [messages, status]);
+    // While the reply is on its way, its steps lengthen the thread: it follows them down.
+  }, [messages, status, live]);
 
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -22,7 +22,12 @@ export function showLatest({ end, foot, reply }: { end: Element; foot: Element |
   const frame = isPage ? { top: 0, bottom: window.innerHeight } : scroller.getBoundingClientRect();
   const visibleBottom = foot ? Math.min(foot.getBoundingClientRect().top, frame.bottom) : frame.bottom;
   let by = end.getBoundingClientRect().top - visibleBottom;
-  if (reply) by = Math.min(by, reply.getBoundingClientRect().top - frame.top - ABOVE_REPLY);
+  if (reply) {
+    // A reply that fits shows whole, even with no room left above it; a taller one, from its first line, with some.
+    const shown = reply.getBoundingClientRect();
+    const fits = shown.height <= visibleBottom - frame.top;
+    by = Math.min(by, shown.top - frame.top - (fits ? 0 : ABOVE_REPLY));
+  }
   if (by <= 0) return;
   if (isPage) window.scrollBy(0, by);
   else scroller.scrollBy(0, by);

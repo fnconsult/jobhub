@@ -71,7 +71,8 @@
 // A Candidate message holding "E2E_COACH_TOOL=<name>:<json>" (#712, Coach Actions) has the AI Coach, offered tools it may
 // call, call that tool with those arguments (a `tool_calls` reply, printing "[fake-mistral] tool call <name>" to the server
 // log); sent its result back, it answers "Résultat de l'outil « <name> » : <result>" (an error result as Mistral is sent
-// it, "Error: …"). Several markers (#788): each tool in turn, one a round, then the last one's result. Asked for text only (tool_choice "none") before any call, it answers as without the marker.
+// it, "Error: …"). Several markers (#788): each tool in turn, one a round, then the last one's result, which
+// "E2E_COACH_SLOW=<ms>" delays as it delays a reply. Asked for text only (tool_choice "none") before any call, it answers as without the marker.
 // "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
 // steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
@@ -115,7 +116,7 @@ globalThis.fetch = async (input, init) => {
     return new Response(JSON.stringify({ object: "error", message: `Invalid model: ${body.model}`, type: "invalid_model", code: "1500" }), { status: 400, headers: { "content-type": "application/json" } });
   }
 
-  const toolCall = coachToolCall(body);
+  const toolCall = coachToolCall(body, input instanceof Request ? input.signal : init?.signal);
   if (toolCall) return toolCall;
 
   let content = "fake reply";
@@ -329,7 +330,7 @@ globalThis.fetch = async (input, init) => {
  * The reply E2E_COACH_TOOL scripts (see above), when the latest Candidate message holds it and the AI Coach was offered
  * tools: the tool call, or once its result came back, the text saying it. Null otherwise.
  */
-function coachToolCall(body) {
+function coachToolCall(body, signal) {
   const messages = body.messages ?? [];
   const lastAsked = messages.findLastIndex((message) => message.role === "user");
   // Each marker, in order: its tool's name and its arguments (#788: several are called in turn, one a round).
@@ -346,7 +347,12 @@ function coachToolCall(body) {
   const results = [];
   for (let index = messages.length - 1; index >= 0 && messages[index].role === "tool"; index -= 1) results.unshift(String(messages[index].content));
   const next = asked[called];
-  if (results.length > 0 && (!next || body.tool_choice === "none")) return completion(body, `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
+  if (results.length > 0 && (!next || body.tool_choice === "none")) {
+    // E2E_COACH_SLOW: the answer written after the calls takes that long too (#788), so its step is seen live.
+    const slow = Number(/E2E_COACH_SLOW=(\d+)/.exec(String(messages[lastAsked]?.content ?? ""))?.[1] ?? 0);
+    const answer = () => completion(body, `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
+    return slow > 0 ? answerAfter(slow, signal).then(answer) : answer();
+  }
   if (body.tool_choice === "none" || !next) return null;
   console.log(`[fake-mistral] tool call ${next.name}`);
   return Response.json({

@@ -53,10 +53,10 @@ test.describe("each step of an AI Coach reply live, and Stop", () => {
 
     await ask(panel, "Comment préparer mon entretien ? E2E_COACH_SLOW=2500");
 
-    // The step under way: the reply being written, its Activity's glyph beside its label.
+    // The step under way: the reply being written, its label beside the reply's one glyph, on its left (#788).
     const step = stepOf(panel);
     await expect(step).toContainText(fr.aiActivity.steps.think_write);
-    await expect(step.locator("svg.activity-glyph")).toBeVisible();
+    await expect(panel.locator(".coach-panel-live svg.activity-glyph")).toHaveAttribute("data-activity", "think_write");
     // Only the start and the end are announced: the step line is not a live region.
     expect(await step.evaluate((element) => element.closest("[aria-live], [role=status], [role=alert]"))).toBeNull();
     await expect(panel.getByRole("status").filter({ hasText: fr.coachPanel.thinking })).toHaveText(fr.coachPanel.thinking);

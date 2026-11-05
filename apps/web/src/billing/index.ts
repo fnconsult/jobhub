@@ -44,7 +44,8 @@ import type { Pool } from "pg";
 import { recordingClient, type ExternalApiLog } from "@jobhub/shared";
 import Stripe from "stripe";
 import type { Mailer } from "../auth/index";
-import type { Queryable } from "../database/pool";
+import { countUse, giveBackUse, migrateConsumption, QUOTA_CONSUMPTION_TOOLS } from "../consumption";
+import { inTransaction, type Queryable } from "../database/pool";
 import * as z from "zod";
 import { routes } from "../routes";
 import {
@@ -271,6 +272,8 @@ const COLUMNS = {
 
 /** Creates or upgrades the billing tables. Run after the Candidate accounts' migration. Safe to run repeatedly. */
 export async function migrateBilling(database: Pool): Promise<void> {
+  // A Plan Quota use counts in Consumption too (#799).
+  await migrateConsumption(database);
   await migratePlans(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS plan_quota (
@@ -1084,22 +1087,27 @@ export function createBilling(config: BillingConfig) {
   return {
     /**
      * Records one use of a weekly quota (a Match Score, an ATS Score, an
-     * Enriched Contact, a Job Search) if the Candidate's Plan allows it this week. Call it
+     * Enriched Contact, a Job Search) if the Candidate's Plan allows it this week, and counts it
+     * under its Tool in Consumption in the same transaction (#799). Call it
      * before doing the work; nothing is recorded when refused. Safe under
      * concurrent requests.
      */
     async use(candidateId: string, quota: WeeklyQuota): Promise<QuotaDecision> {
       const plan = await planOf(candidateId);
       const limit = (await quotasOf(plan))[quota];
-      const week = weekInFrance(now());
+      const at = now();
       if (limit !== null && limit <= 0) return refusal(plan, quota, limit);
-      const { rows } = await database.query(
-        `INSERT INTO quota_usage (candidate_id, quota, week, used) VALUES ($1, $2, $3, 1)
-         ON CONFLICT (candidate_id, quota, week) DO UPDATE SET used = quota_usage.used + 1
-         WHERE $4::integer IS NULL OR quota_usage.used < $4::integer
-         RETURNING used`,
-        [candidateId, quota, week, limit],
-      );
+      const rows = await inTransaction(database, async (client) => {
+        const { rows } = await client.query(
+          `INSERT INTO quota_usage (candidate_id, quota, week, used) VALUES ($1, $2, $3, 1)
+           ON CONFLICT (candidate_id, quota, week) DO UPDATE SET used = quota_usage.used + 1
+           WHERE $4::integer IS NULL OR quota_usage.used < $4::integer
+           RETURNING used`,
+          [candidateId, quota, weekInFrance(at), limit],
+        );
+        if (rows.length > 0) await countUse(client, candidateId, QUOTA_CONSUMPTION_TOOLS[quota], at);
+        return rows;
+      });
       if (rows.length === 0) return refusal(plan, quota, limit!);
       return { allowed: true, remaining: limit === null ? null : limit - (rows[0].used as number) };
     },
@@ -1251,13 +1259,21 @@ export function createBilling(config: BillingConfig) {
       return { allowed: true, remaining: limit - used - 1 };
     },
 
-    /** Gives back one use recorded this week by `use` whose work could not be done. Never below zero. */
+    /**
+     * Gives back one use recorded this week by `use` whose work could not be done, and takes it back from Consumption
+     * in the same transaction (#799). Never below zero.
+     */
     async release(candidateId: string, quota: WeeklyQuota): Promise<void> {
-      await database.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND week = $3 AND used > 0", [
-        candidateId,
-        quota,
-        weekInFrance(now()),
-      ]);
+      const at = now();
+      const week = weekInFrance(at);
+      await inTransaction(database, async (client) => {
+        const { rowCount } = await client.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND week = $3 AND used > 0", [
+          candidateId,
+          quota,
+          week,
+        ]);
+        if (rowCount) await giveBackUse(client, candidateId, QUOTA_CONSUMPTION_TOOLS[quota], at, { since: week });
+      });
     },
 
     /**

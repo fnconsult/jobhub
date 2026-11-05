@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } from "../billing";
+import { createConsumption } from "../consumption";
 import { createJobOffers, createSourceChecks, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { createJobSearchReports, createJobSearches, JOB_DISCOVERY_QUEUE, migrateJobSearches, type JobSearches } from "./index";
@@ -591,6 +592,23 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
       await reports.record(kept.id, { stopped: true, jobOfferIds: [daf] });
 
+      expect(await used()).toBe(1);
+    });
+
+    it("a Job Search stopped empty, whose quota use is given back, leaves jobSearch where it was in Consumption (#799)", async () => {
+      const consumption = createConsumption(testAuth.auth.options.database as Pool);
+      const counted = async () => (await consumption.forCandidate(candidateId, { from: clock.now, to: clock.now })).totals.jobSearch;
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const kept = await started();
+      await reports.record(kept.id, { stopped: true, jobOfferIds: [daf] });
+      expect(await counted()).toBe(1);
+
+      const empty = await started();
+      expect(await counted()).toBe(2);
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+
+      expect(await counted()).toBe(1);
       expect(await used()).toBe(1);
     });
 

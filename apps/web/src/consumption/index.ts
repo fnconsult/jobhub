@@ -101,11 +101,12 @@ export async function purgeExpiredConsumption(database: Queryable, now: Date): P
   return rowCount ?? 0;
 }
 
-/** Creates the Consumption table. Run after Candidate accounts. Safe to run repeatedly; a new Tool key widens its check. */
+/**
+ * Creates the Consumption table. Run after Candidate accounts; the modules counting into it (billing, Coach
+ * Conversations, Profiles, Tailored CVs and Documents, Company Dossiers) run it from their own migration. Safe to run
+ * repeatedly; a new Tool key widens its check, which is otherwise left as it is.
+ */
 export async function migrateConsumption(database: Pool): Promise<void> {
-  const tools = consumptionTools()
-    .map((tool) => `'${tool}'`)
-    .join(", ");
   await database.query(`
     -- « Votre consommation » (#799, ADR-0085): how many times a Candidate used each Tool, per French day. Nothing else:
     -- no text, no result, no model, no provider, no cost. Kept 12 months.
@@ -116,7 +117,14 @@ export async function migrateConsumption(database: Pool): Promise<void> {
       count integer NOT NULL CHECK (count >= 0),
       PRIMARY KEY (candidate_id, day, tool)
     );
+  `);
+  const tools = consumptionTools().map((tool) => `'${tool}'`);
+  const { rows } = await database.query<{ check: string }>(
+    `SELECT pg_get_constraintdef(oid) AS check FROM pg_constraint WHERE conrelid = 'consumption_day'::regclass AND conname = 'consumption_day_tool_check'`,
+  );
+  if (rows[0] && tools.every((tool) => rows[0]!.check.includes(tool))) return;
+  await database.query(`
     ALTER TABLE consumption_day DROP CONSTRAINT IF EXISTS consumption_day_tool_check;
-    ALTER TABLE consumption_day ADD CONSTRAINT consumption_day_tool_check CHECK (tool IN (${tools}));
+    ALTER TABLE consumption_day ADD CONSTRAINT consumption_day_tool_check CHECK (tool IN (${tools.join(", ")}));
   `);
 }

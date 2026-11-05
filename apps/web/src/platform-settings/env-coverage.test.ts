@@ -14,9 +14,11 @@ const ROOT = new URL("../../../../", import.meta.url).pathname;
 
 /**
  * Workspaces neither the web app nor the worker runs: their variables are no Platform Setting. The motions' tooling (#567)
- * runs in its own GitHub workflow, on that workflow's secrets and variables (docs/ops/motions.md).
+ * runs in its own GitHub workflow, on that workflow's secrets and variables (docs/ops/motions.md). The Jobbbox app (#704)
+ * runs on the phone: EAS bakes its `EXPO_PUBLIC_*` variables into the bundle at build time, per profile in apps/mobile/eas.json
+ * (docs/ops/mobile.md, ADR-0076), so no server env and no Back Office can set them.
  */
-const NOT_THE_APP = new Set(["packages/motions"]);
+const NOT_THE_APP = new Set(["packages/motions", "apps/mobile"]);
 
 /** Every source file of the apps and packages, tests left out. */
 function sourceFiles(): string[] {
@@ -67,10 +69,14 @@ describe("the guard on the Platform Settings", () => {
     expect(unknown).toEqual([]);
   });
 
-  it("leaves out only workspaces that the web app does not import (the motions' tooling)", () => {
-    const web = JSON.parse(readFileSync(join(ROOT, "apps/web/package.json"), "utf8")) as { dependencies?: Record<string, string> };
-    expect(Object.keys(web.dependencies ?? {})).not.toContain("@jobhub/motions");
+  it("leaves out only workspaces that neither the web app nor the worker imports (the motions' tooling, the Jobbbox app)", () => {
+    for (const app of ["apps/web", "apps/worker"]) {
+      const manifest = JSON.parse(readFileSync(join(ROOT, app, "package.json"), "utf8")) as { dependencies?: Record<string, string> };
+      expect(Object.keys(manifest.dependencies ?? {})).not.toContain("@jobhub/motions");
+      expect(Object.keys(manifest.dependencies ?? {})).not.toContain("@jobhub/mobile");
+    }
     expect(sourceFiles().some((file) => file.includes("/packages/motions/"))).toBe(false);
+    expect(sourceFiles().some((file) => file.includes("/apps/mobile/"))).toBe(false);
   });
 
   it("reads none of the variables it lists as no longer read, which are nothing else either (#396)", () => {

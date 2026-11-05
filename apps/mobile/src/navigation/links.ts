@@ -1,12 +1,12 @@
-import Constants from "expo-constants";
 import { Linking, Share } from "react-native";
 import type { RowAction } from "../ui/ObjectRow";
+import { WEB_APP_URL } from "../web-app-url";
 
-/** The web app the app is a companion of (app.json's `extra.webOrigin`): its addresses are the app's (`paths`). */
-const WEB_ORIGIN: string = Constants.expoConfig?.extra?.webOrigin ?? "https://jobbbox.ai";
-
-/** `path`'s address on the web, which opens the same page in a browser, or in the app by a universal link. */
-export const webAddress = (path: string) => `${WEB_ORIGIN}${path}`;
+/**
+ * `path`'s address on the web app the build talks to (src/web-app-url.ts), whose addresses are the app's (`paths`): it
+ * opens the same page in a browser, or in the app by a universal link.
+ */
+export const webAddress = (path: string) => `${WEB_APP_URL}${path}`;
 
 /** « Partager le lien »: the system's share sheet with the page's web address, to carry on on a computer, say. */
 export const shareLinkAction = (label: string, path: string): RowAction => ({

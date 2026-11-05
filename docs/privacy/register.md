@@ -2,7 +2,7 @@
 
 Jobbbox's record of processing activities (GDPR art. 30). One entry per processing; each names its purpose, legal basis, people and data concerned, who can read it, where it is stored and how long it is kept. Add an entry with the change that starts a new processing.
 
-Controller: Jobbbox. Hosting: in the EU, on Hostinger's VPS in Paris (ADR-0007, `docs/ops/hosting.md`). **Some recipients are outside the EU** (fixed by #338, after `docs/research/issue-498.md`): every AI task goes by default to Claude's direct API (Anthropic, outside the EU) after Redaction, which leaves pseudonymised personal data (ADR-0007, amendment of 2026-10-28); web search (Perplexity, Brave, Tavily) receives queries outside the EU; Stripe and the Sign-in Providers are outside the EU; Brevo, Kaspr and Fantastic.jobs have a residency not established, counted as outside. What stays in the EU: storage, the identity route under EU AI Consent and the `euOnly` tasks (Mistral, `api.eu.mistral.ai`). Each recipient's contracting entity, place and transfer safeguard are in the Tool catalog (`packages/shared/src/tools.ts`, from `docs/research/issue-522.md`) and on the public Recipient list (`/legal/destinataires`, ADR-0064).
+Controller: Jobbbox. Hosting: in the EU, on Hostinger's VPS in Paris (ADR-0007, `docs/ops/hosting.md`). **Some recipients are outside the EU** (fixed by #338, after `docs/research/issue-498.md`): every AI task goes by default to Claude's direct API (Anthropic, outside the EU) after Redaction, which leaves pseudonymised personal data (ADR-0007, amendment of 2026-10-28); web search (Perplexity, Brave, Tavily) receives queries outside the EU; Stripe and the Sign-in Providers are outside the EU; Brevo, Kaspr and Fantastic.jobs have a residency not established, counted as outside. Expo (EAS Update, the Jobbbox app's JavaScript updates, United States) is one too once switched on, which waits for the privacy policy version that names it (#704, #762). What stays in the EU: storage, the identity route under EU AI Consent and the `euOnly` tasks (Mistral, `api.eu.mistral.ai`). Each recipient's contracting entity, place and transfer safeguard are in the Tool catalog (`packages/shared/src/tools.ts`, from `docs/research/issue-522.md`) and on the public Recipient list (`/legal/destinataires`, ADR-0064).
 
 ## Recipients and their entries (#338)
 
@@ -94,6 +94,25 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Storage | The device's AsyncStorage, key `jobbbox.reads`, not encrypted (an SQLite database on Android); the session stays in the Keychain or Keystore. Android's Auto Backup includes an app's database files by default (`android:allowBackup` defaults to true; developer.android.com, « Back up user data with Auto Backup », read 2026-11-04), so the cache may reach the person's Google Drive backup, end-to-end encrypted from Android 9; the app sets no backup rule yet. Whether iOS backs it up to iCloud is not verified. |
 | Retention | Until sign-out, which empties it in the app and on the device; a copy older than 7 days, or saved by an app speaking another API Version, is discarded at launch. Uninstalling the app removes it. |
 | Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds. |
+
+## EAS Update in the Jobbbox app (ADR-0076, ADR-0079, #704)
+
+_**Off** in the builds (`apps/mobile/app.json`, `updates.enabled: false`) until a privacy policy version names Expo: a new recipient outside the EU is a substantial change, the version and its notice come first (ADR-0064). « Légal : » #762 holds the draft clauses and the choice between Expo and an update server in the EU. `apps/mobile/e2e/delivery.e2e.test.ts` refuses to switch it on before; `.github/workflows/mobile.yml` refuses to publish an update while it is off._
+
+| | |
+| --- | --- |
+| Purpose | Deliver JavaScript-only fixes to the installed Jobbbox app without a store review: at each launch the app asks Expo's update service for a newer update on its channel (`staging` or `production`) and runtime version, downloads it and applies it at the next launch. |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)): fixing the app quickly; the identifier is the install's, linked to no account and used for nothing else. Whether the identifier stored on the device is exempt from consent (ePrivacy art. 5(3), strictly necessary) is to be settled in the Legal Review (#762). |
+| People concerned | Candidates (and Human Coaches) who use the app, signed in or not. |
+| Data | Per request (`expo-updates`, `ios/EXUpdates/AppLoader/FileDownloader.swift` and its Android twin): the device's IP address; `EAS-Client-ID`, a random identifier made at install (`expo-eas-client`), the same at every launch until the app is uninstalled; the platform, the runtime version (the native fingerprint), the channel; the ids of the running, embedded and recently failed updates; after a crash at launch, the fatal error's message cut to 1,024 characters (`Expo-Fatal-Error`). No account, no session, no cookie. |
+| Source | The app, at each launch and each download, from `https://u.expo.dev/<project id>` (`apps/mobile/app.config.ts`). |
+| Who can read it | Expo, in its service's logs. Jobbbox sees no per-device data: only the update's figures on expo.dev, if any. |
+| Processors | Expo (650 Industries, Inc., United States): **outside the EU**. Transfer safeguard not established yet (Expo's DPA not read, #762). Not in the Tool catalog yet, so no line in « Recipients and their entries » and not on the Recipient list: how the catalog names it is decided in #762. EAS Build and EAS Submit (Expo too) receive the source code and the stores' credentials only, no one's personal data. |
+| Storage | On the device: the identifier and the downloaded updates, in the app's own storage. At Expo: its logs, per its DPA. |
+| Retention | On the device, until the app is uninstalled. At Expo, per its DPA (not read); none at Jobbbox. |
+| Rights | Jobbbox holds nothing of it to give or erase; uninstalling the app removes the identifier. Requests about Expo's logs go through Expo, under its DPA. |
+| Security | Updates are fetched over HTTPS and reach only builds with the same native fingerprint (`runtimeVersion: { policy: "fingerprint" }`). Code signing of updates is not set up. |
+| Trackers | The `EAS-Client-ID` is stored and read on the device; it measures no audience and serves no advertising. Exemption to be confirmed (#762). |
 
 ## Provider Secrets (#208)
 

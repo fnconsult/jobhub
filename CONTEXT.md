@@ -826,6 +826,15 @@ _Avoid_: Version (for the extension)
 A whole number (1, 2, …) naming the contract between the extension and the web app, raised only when a change breaks an extension already installed. The extension states the API Version it speaks; the web app serves the current one and the one before. An older extension is asked to update itself (« Mettez à jour l'extension »). Payment and email providers' webhooks are outside it.
 _Avoid_: API release, endpoint version
 
+**Store build**:
+A native build of the Jobbbox app sent to the App Store and Google Play (TestFlight and the internal track for staging), which goes through their review. Any change to native code needs one; its Version is the platform's Version (ADR-0079).
+
+**EAS Update channel**:
+What a Store build listens to for fixes made only of JavaScript: `staging` for the Beta's builds, `production` for the public ones. An update reaches only Store builds with the same native code, and goes out without store review.
+
+**Forced update**:
+The « Mettre à jour Jobbbox » screen that replaces the whole Jobbbox app when the server answers 426, because the API Version the app states is no longer served. It links to the store page of the app.
+
 **Release Note**:
 What one Version or Extension Version brings, written for Candidates in French and in English (the French text prevails): a title, a short introduction, its Nouveautés tags and its « Nouveau », « Amélioré » and « Corrigé » lines, with an optional image. Written before the Promotion and never changed after it. A Version with nothing a Candidate can see has none; it still gets its tag and a technical GitHub Release. Its GitHub Release carries the French text, the English text, then the list of changes. The first one, 0.1.0, sums up what already existed.
 _Avoid_: Changelog entry, patch notes

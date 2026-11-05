@@ -12,7 +12,7 @@ L'app (`apps/mobile`, Expo) est construite et envoyée aux stores par **EAS Buil
 | `staging` | `staging.jobbbox.ai` | TestFlight (iOS) et test interne de Play (Android) | `staging` |
 | `production` | `jobbbox.ai` | App Store et Play, piste production (en brouillon sur Play) | `production` |
 
-L'adresse de la plateforme est `EXPO_PUBLIC_API_URL`, fixée par profil dans `eas.json`, comme la Beta pour TestFlight et le test interne (ADR-0076).
+L'adresse de la plateforme est `EXPO_PUBLIC_WEB_APP_URL`, fixée par profil dans `eas.json` (la Beta pour le développement, TestFlight et le test interne, ADR-0076) et intégrée au bundle à la build. Elle vaut pour **toute l'app** : la connexion et la session (`src/session`), les appels à l'API (`src/api`) et les adresses web qu'elle partage (`src/navigation/links.ts`). L'app ne la lit qu'à un endroit, `apps/mobile/src/web-app-url.ts` ; une build `staging` ne parle donc jamais à Production. `eas update` la reprend du profil de son canal (`mobile.yml`), comme ses builds.
 
 ## La Version
 

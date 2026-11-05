@@ -7,19 +7,19 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": { "EXPO_PUBLIC_API_URL": "https://staging.jobbbox.ai" }
+      "env": { "EXPO_PUBLIC_WEB_APP_URL": "https://staging.jobbbox.ai" }
     },
     "staging": {
       "distribution": "store",
       "channel": "staging",
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_API_URL": "https://staging.jobbbox.ai" }
+      "env": { "EXPO_PUBLIC_WEB_APP_URL": "https://staging.jobbbox.ai" }
     },
     "production": {
       "distribution": "store",
       "channel": "production",
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_API_URL": "https://jobbbox.ai" }
+      "env": { "EXPO_PUBLIC_WEB_APP_URL": "https://jobbbox.ai" }
     }
   },
   "submit": {

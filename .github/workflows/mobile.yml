@@ -96,6 +96,6 @@ jobs:
         if: inputs.action == 'update'
         working-directory: apps/mobile
         run: |
-          EXPO_PUBLIC_API_URL=$(jq -r --arg profile "$PROFILE" '.build[$profile].env.EXPO_PUBLIC_API_URL' eas.json)
-          export EXPO_PUBLIC_API_URL
+          EXPO_PUBLIC_WEB_APP_URL=$(jq -r --arg profile "$PROFILE" '.build[$profile].env.EXPO_PUBLIC_WEB_APP_URL' eas.json)
+          export EXPO_PUBLIC_WEB_APP_URL
           eas update --channel "$PROFILE" --message "$MESSAGE" --non-interactive

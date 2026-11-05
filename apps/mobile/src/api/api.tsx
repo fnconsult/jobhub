@@ -1,7 +1,7 @@
 /**
  * The app's calls to the platform's API (ADR-0076): every screen reads and writes through `useApi()`, never `fetch`.
  *
- * Each call goes to the platform the build points at (EXPO_PUBLIC_API_URL, set per EAS profile in eas.json), states the
+ * Each call goes to the platform the build points at (src/web-app-url.ts, set per EAS profile in eas.json), states the
  * API Version the app speaks and names the app as a mobile client (`@jobhub/shared/api-version`). When the platform no
  * longer serves that API Version it answers `426 Upgrade Required` (ADR-0063): from then on the provider shows
  * « Mettre à jour Jobbbox » in place of the app, with the link to its store, and the call rejects with AppOutdatedError.
@@ -12,6 +12,7 @@ import Constants from "expo-constants";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { UpdateRequired } from "../screens/UpdateRequired";
+import { WEB_APP_URL } from "../web-app-url";
 import { storePageFor } from "./store-page";
 
 /** A call to the API: a path under the platform's address (`/api/…`), as `fetch` takes it. */
@@ -27,13 +28,11 @@ export class AppOutdatedError extends Error {
 
 const UPGRADE_REQUIRED = 426;
 
-/** Production unless the build says otherwise: eas.json's staging profile points at the Beta. */
-const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://jobbbox.ai";
 
 const ApiContext = createContext<ApiFetch | null>(null);
 
 export function ApiProvider({
-  baseUrl = DEFAULT_API_URL,
+  baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
   storePage = storePageFor(Platform.OS, Constants.expoConfig),
   children,

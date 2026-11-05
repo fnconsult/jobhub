@@ -1,7 +1,7 @@
 // How the app is built, distributed and updated (#704, ADR-0076, ADR-0063), checked against what EAS reads: the app's
 // resolved config (app.json through app.config.ts), eas.json, and the GitHub workflow that runs EAS.
 import type { ExpoConfig } from "expo/config";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import appConfig from "../app.config";
 
@@ -35,21 +35,33 @@ describe("EAS Build profiles", () => {
 
   it("builds a development client for the team's devices, pointing at the Beta", () => {
     expect(eas.build.development).toMatchObject({ developmentClient: true, distribution: "internal" });
-    expect(eas.build.development.env.EXPO_PUBLIC_API_URL).toBe("https://staging.jobbbox.ai");
+    expect(eas.build.development.env.EXPO_PUBLIC_WEB_APP_URL).toBe("https://staging.jobbbox.ai");
     expect(json("apps", "mobile", "package.json").dependencies["expo-dev-client"]).toBeDefined();
   });
 
   it("points staging at staging.jobbbox.ai, for TestFlight and Play internal testing", () => {
     expect(eas.build.staging).toMatchObject({ distribution: "store", channel: "staging" });
-    expect(eas.build.staging.env.EXPO_PUBLIC_API_URL).toBe("https://staging.jobbbox.ai");
+    expect(eas.build.staging.env.EXPO_PUBLIC_WEB_APP_URL).toBe("https://staging.jobbbox.ai");
     expect(eas.submit.staging.android.track).toBe("internal");
     // EAS Submit uploads every iOS build to App Store Connect, where it reaches TestFlight; nothing goes to review.
     expect(eas.submit.staging.ios).toBeDefined();
   });
 
+  it("set the build's whole address in one variable, which the app reads in one place (src/web-app-url.ts)", () => {
+    for (const profile of Object.values(eas.build as Record<string, { env: Record<string, string> }>)) {
+      expect(Object.keys(profile.env).filter((key) => key.startsWith("EXPO_PUBLIC_"))).toEqual(["EXPO_PUBLIC_WEB_APP_URL"]);
+    }
+    const src = join(ROOT, "apps", "mobile", "src");
+    const readers = (readdirSync(src, { recursive: true }) as string[])
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .filter((file) => /process\.env\.EXPO_PUBLIC_|webOrigin/.test(readFileSync(join(src, file), "utf8")));
+    expect(readers).toEqual(["web-app-url.ts"]);
+    expect(json("apps", "mobile", "app.json").expo.extra?.webOrigin).toBeUndefined();
+  });
+
   it("points production at jobbbox.ai, on the stores' production track", () => {
     expect(eas.build.production).toMatchObject({ distribution: "store", channel: "production" });
-    expect(eas.build.production.env.EXPO_PUBLIC_API_URL).toBe("https://jobbbox.ai");
+    expect(eas.build.production.env.EXPO_PUBLIC_WEB_APP_URL).toBe("https://jobbbox.ai");
     expect(eas.submit.production.android.track).toBe("production");
   });
 });
@@ -90,6 +102,11 @@ describe("The mobile.yml workflow, which runs EAS from GitHub", () => {
 
   it("builds production only from a Version's tag, which only the Promotion pushes (ADR-0063)", () => {
     expect(workflow()).toContain('[ "$PROFILE" = production ] && ! [[ "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]');
+  });
+
+  it("publishes an update with its profile's address, as the profile's builds have it", () => {
+    expect(workflow()).toContain(`EXPO_PUBLIC_WEB_APP_URL=$(jq -r --arg profile "$PROFILE" '.build[$profile].env.EXPO_PUBLIC_WEB_APP_URL' eas.json)`);
+    expect(workflow()).toMatch(/export EXPO_PUBLIC_WEB_APP_URL\n\s+eas update/);
   });
 
   it("reads EAS's token from the repository's secrets", () => {

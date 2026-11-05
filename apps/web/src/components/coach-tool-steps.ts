@@ -36,10 +36,14 @@ export function stepEnded(live: LiveReply, event: { id: number; step?: Provenanc
   return { steps: live.steps.map((each) => (each.id === event.id ? { ...each, ended: true } : each)) };
 }
 
-/** The lines shown: each Coach Action's, then the step under way when it is an AI step; and the step under way, the glyph's. */
+/**
+ * The lines shown: each Coach Action's, then the step under way when it is an AI step; and the step under way, the
+ * glyph's: the latest started that has not ended (the reply being written is one AI step around its Coach Actions and
+ * their checks), else the latest.
+ */
 export function liveLines(live: LiveReply): { lines: LiveStep[]; current: LiveStep | null } {
-  const current = live.steps.at(-1) ?? null;
-  const lines = live.steps.filter((step) => step.tool !== null || step === current);
+  const current = [...live.steps].reverse().find((step) => !step.ended) ?? live.steps.at(-1) ?? null;
+  const lines = [...live.steps.filter((step) => step.tool !== null), ...(current && current.tool === null ? [current] : [])];
   return { lines, current };
 }
 

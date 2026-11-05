@@ -59,6 +59,33 @@ describe("a reply's steps live (#788): one line per Coach Action, the step under
     expect(current).toMatchObject({ id: 5, activity: "think_write" });
   });
 
+  it("the reply being written spans its Coach Actions (one AI step around them): once they end, it is the step under way, last", () => {
+    const live = play([
+      { started: [1, write, "think_write"] },
+      { started: [2, read, "act"] },
+      { ended: [2, ended(read)] },
+      { started: [3, check, "check"] },
+    ]);
+    expect(liveLines(live).lines.map((line) => line.label)).toEqual(["act", "check"]);
+    expect(liveLines(live).current?.id).toBe(3);
+
+    const after = play([
+      { started: [1, write, "think_write"] },
+      { started: [2, read, "act"] },
+      { ended: [2, ended(read)] },
+      { started: [3, check, "check"] },
+      { ended: [3, ended(check)] },
+      { started: [4, read, "act"] },
+      { ended: [4, ended(read)] },
+    ]);
+    expect(liveLines(after).lines.map((line) => [line.id, line.label, line.ended])).toEqual([
+      [2, "act", true],
+      [4, "act", true],
+      [1, "think_write", false],
+    ]);
+    expect(liveLines(after).current).toMatchObject({ id: 1, activity: "think_write" });
+  });
+
   it("a Coach Action under way is the last line, and the glyph's step", () => {
     const live = play([{ started: [1, check, "check"] }, { ended: [1, ended(check)] }, { started: [2, read, "act"] }]);
 

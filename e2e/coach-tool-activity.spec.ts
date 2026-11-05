@@ -12,12 +12,14 @@ import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-ser
 // history), then « Le coach a consulté N éléments de Jobbbox », which opens on each, linked, after a reload too. This spec
 // runs on a server of its own with COACH_ACTIONS_ENABLED on and the suite's fake Coach Actions (E2E_FAKE_COACH_ACTIONS: a
 // slow read, e2e_lire_lentement). The AI Coach is faked inside it (fake-mistral.mjs): each `E2E_COACH_TOOL=<name>:<json>`
-// of a message has it call that Coach Action, in turn; `E2E_COACH_SLOW=<ms>` delays its answer.
+// of a message has it call that Coach Action, in turn; `E2E_COACH_SLOW=<ms>` delays its answer, and
+// `E2E_DATA_CHECK_SLOW=<ms>` in what a read gives back delays its Guardrail check.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const steps = fr.aiActivity.steps;
 /** Inside the suite's own range of derived ports (e2e/support/ports.ts), apart from the other specs' servers. */
 const PORT_OFFSET = 788;
-const TITLE = "Contrôleuse de gestion (H/F)";
+/** The Job Offer's title: the slow read gives it to the AI Coach, and its check (« Vérification ») takes 1.5 s. */
+const TITLE = "Contrôleuse de gestion E2E_DATA_CHECK_SLOW=1500";
 
 const masterCv = {
   fullName: "Marie Dupont",
@@ -139,16 +141,23 @@ test.describe("the Coach Actions seen in the conversation (#788)", () => {
     const axe = await new AxeBuilder({ page }).include(".page-conversation").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map(({ id }) => id)).toEqual([]);
 
+    // The Guardrail checks what was read: its « Vérification » after the read's line, which stays, ticked.
+    await expect(lines(page)).toHaveText([`${steps.act} · Candidatures`, steps.check], { timeout: 20_000 });
+    await expect(lines(page).first().locator(".coach-panel-step-done")).toBeVisible();
+    await expect(liveGlyph(page)).toHaveCount(1);
+
     // The answer being written, last; both reads kept, ticked; the same one glyph, now think_write.
     await expect(lines(page)).toHaveText([`${steps.act} · Candidatures`, `${steps.act} · Profil`, steps.think_write], { timeout: 20_000 });
     await expect(liveGlyph(page)).toHaveCount(1);
     await expect(liveGlyph(page)).toHaveAttribute("data-activity", "think_write");
     await expect(lines(page).nth(0).locator(".coach-panel-step-done")).toBeVisible();
-    // The read's line stayed while the Guardrail checked what it read.
+    // A Guardrail's « Vérification » came after the reads (each read is checked) and never took a read's line away: from
+    // the slow read's line on, every set of lines shown starts with it.
     const seen = await page.evaluate(() => (window as unknown as { seenLines: string[][] }).seenLines);
-    expect(seen).toContainEqual([`${steps.act} · Candidatures`, steps.check]);
     const read = seen.findIndex((shown) => shown[0] === `${steps.act} · Candidatures`);
+    expect(read).toBeGreaterThanOrEqual(0);
     expect(seen.slice(read).every((shown) => shown[0] === `${steps.act} · Candidatures`)).toBe(true);
+    expect(seen.slice(read)).toContainEqual(expect.arrayContaining([`${steps.act} · Candidatures`, steps.check]));
 
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 20_000 });
     await expect(lines(page)).toHaveCount(0);
@@ -160,11 +169,13 @@ test.describe("the Coach Actions seen in the conversation (#788)", () => {
     const { page, applicationId, profileId } = await withApplication(browser);
     await ask(page, twoReads(applicationId, profileId));
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 30_000 });
+    // Its words all there (axe reads a word still fading in as too faint).
+    await expect(messages(page).last()).not.toHaveAttribute("aria-busy", /.*/, { timeout: 15_000 });
 
     await expect(conversation(page).locator(".chat-coach > svg.activity-glyph")).toHaveCount(0);
     await expectConsulted(page, applicationId, profileId);
     const axe = await new AxeBuilder({ page }).include(".page-conversation").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-    expect(axe.violations.map(({ id }) => id)).toEqual([]);
+    expect(axe.violations.map(({ id, nodes }) => `${id}: ${nodes.map((node) => node.target.join(" ")).join(", ")}`)).toEqual([]);
 
     await page.reload();
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 20_000 });

@@ -128,6 +128,10 @@ globalThis.fetch = async (input, init) => {
     // No verdict within the check's time (#261: guardrail_timeout), and a verdict that is not JSON (invalid_verdict).
     // Aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason at once, as fetch does.
     if (prompt.includes("E2E_GUARDRAIL_SLOW")) await answerAfter(12_000, input instanceof Request ? input.signal : init?.signal);
+    // "E2E_DATA_CHECK_SLOW=<ms>" in what a Coach Action read has its check take that long (#788), so the conversation shows
+    // its « Vérification » live, after the read's line.
+    const slowCheck = /E2E_DATA_CHECK_SLOW=(\d+)/.exec(prompt)?.[1];
+    if (slowCheck && system.startsWith("Tu contrôles des données")) await answerAfter(Number(slowCheck), input instanceof Request ? input.signal : init?.signal);
     if (prompt.includes("E2E_GUARDRAIL_GARBLED")) return completion(body, "this is not a verdict");
     // A provider refusing with an error that echoes the key, an email address and a long text (#259: stored scrubbed, redacted and cut).
     if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });

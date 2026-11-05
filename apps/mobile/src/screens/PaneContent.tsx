@@ -4,15 +4,14 @@ import { ApplicationFiche } from "../applications/ApplicationFiche";
 import type { DocumentReader } from "../documents/document-reader";
 import { ProfileSummary } from "../profiles/ProfileSummary";
 import type { ShellPage } from "../shell/Shell";
-import { PanePlaceholder } from "./PanePlaceholder";
 import { ReadState } from "./ReadState";
 
-/** What the page's column shows: an object's Fiche, or Activité, by the page at `pathname`. */
+/** What an object's page shows in its column, its Fiche (an Application's, a Profile's), by the page at `pathname`. */
 export function PaneContent({ pathname, page, reader }: { pathname: string; page: ShellPage; reader: DocumentReader }) {
   const [, section, id] = pathname.split("/").map((part) => decodeURIComponent(part));
   if (section === "candidatures" && id && page.pane === "fiche") return <ApplicationFiche applicationId={id} reader={reader} />;
   if (section === "profils" && id && page.pane === "fiche") return <ProfileFiche profileId={id} />;
-  return <PanePlaceholder pane={page.pane} />;
+  return null;
 }
 
 /** A Profile's Fiche: the Profile as `GET /api/profiles/:id` reads it (#695). */

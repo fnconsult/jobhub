@@ -5878,11 +5878,6 @@
       "openPlayStore": "Open Google Play"
     },
     "homeTitle": "Home",
-    "fichePlaceholder": "The Fiche will show the page's object here, its Sections, its Activity and its Results.",
-    "activityPlaceholder": "Activity will show the page's context bar and AI Activity here.",
-    "openSampleSection": "Open a sample Section",
-    "sampleSection": "Sample Section",
-    "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here.",
     "documents": {
       "title": "Documents",
       "none": "No document yet: ask the coach for a tailored CV or a cover letter.",

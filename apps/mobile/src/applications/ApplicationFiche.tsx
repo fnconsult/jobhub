@@ -59,6 +59,9 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** The Section the card's Match Score leads to, its breakdown. */
+const MATCH_SCORE: AppSection = "correspondance";
+
 /** The site an offer's address is on: « welcometothejungle.com ». */
 const siteOf = (url: string) => new URL(url).hostname.replace(/^www\./, "");
 
@@ -69,7 +72,8 @@ function ApplicationCard({ application }: { application: ApplicationResponse }) 
   const formats = applicationFormats(i18n.language);
   const { jobOffer } = application;
   const facts = [jobOffer.employer, jobOffer.location].filter(Boolean).join(" · ");
-  const openMatchScore = useOpenSection(application.id);
+  const open = useOpenSection(application.id);
+  const openMatchScore = () => open(MATCH_SCORE);
   return (
     <View style={{ gap: space[4] }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space[3] }}>
@@ -87,7 +91,7 @@ function ApplicationCard({ application }: { application: ApplicationResponse }) 
       </Property>
       <Property label={t("application.matchLabel")}>
         <AppText>{matchScoreInWords(application.matchScore, t)}</AppText>
-        <Control label={t("application.matchDetail")} onPress={() => openMatchScore("correspondance")} />
+        <Control label={t("application.matchDetail")} onPress={openMatchScore} />
       </Property>
       <Property label={t("application.profileLabel")}>
         <AppText>{application.profile.name}</AppText>

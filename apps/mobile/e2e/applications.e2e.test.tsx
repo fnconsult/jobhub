@@ -5,7 +5,7 @@
 // Only the device's native modules are faked besides: the system's Dialog (Alert) and browser (Linking).
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ApplicationResponse } from "@jobhub/shared/reads";
-import { act, screen, userEvent, waitFor, within } from "@testing-library/react-native";
+import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { Alert, Dimensions, Linking, type AlertButton } from "react-native";
 import { fakeCoachWeb, withCoach } from "../src/coach/testing";
@@ -404,5 +404,31 @@ describe("The Interviews Section, in the Work Pane", () => {
     await userEvent.setup().press(button("Fermer"));
     expect(button("Statut : Refusée")).toBeOnTheScreen();
     expect(screen.getByText("Transports Martin · Vénissieux")).toBeOnTheScreen();
+  });
+});
+
+describe("An Application's other Sections, to read in the Work Pane", () => {
+  it("opens Correspondance: the Match Score and the Profile it measures, nothing to change", async () => {
+    await openFiche();
+    await userEvent.setup().press(button("Voir le détail"));
+    expect(screen.getByRole("heading", { name: "Score de correspondance" })).toBeOnTheScreen();
+    expect(screen.getByText(/compare le CV de référence du profil « Qualité aéronautique »/)).toBeOnTheScreen();
+    expect(screen.getAllByRole("button").map((control) => control.props.accessibilityLabel)).toEqual(["Fermer"]);
+  });
+
+  it("says a Match Score that could not be computed is not computable, never 0 / 100", async () => {
+    await openFiche(RHONE.id);
+    await userEvent.setup().press(button("Correspondance"));
+    expect(screen.getAllByText("Non calculable").length).toBeGreaterThan(0);
+    expect(screen.queryByText("0 / 100")).toBeNull();
+  });
+
+  it("opens L'offre: its facts and its site, read only", async () => {
+    await openFiche();
+    await userEvent.setup().press(button("L'offre"));
+    expect(screen.getByText("Employeur")).toBeOnTheScreen();
+    expect(screen.getByText("Toulouse")).toBeOnTheScreen();
+    expect(screen.getByText("20 octobre 2026")).toBeOnTheScreen();
+    expect(screen.getAllByRole("button").map((control) => control.props.accessibilityLabel)).toEqual(["Fermer", "Voir l'offre sur welcometothejungle.com"]);
   });
 });

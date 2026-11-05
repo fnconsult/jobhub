@@ -9,7 +9,7 @@ import { Control } from "../ui/Control";
 import { RadioList } from "../ui/RadioList";
 import { Field, FieldError } from "../ui/TextField";
 import type { FieldError as Refusal, WriteOutcome } from "./application-writes";
-import { EMPTY_INTERVIEW_DRAFT, type InterviewDraft } from "./interview-draft";
+import { EMPTY_INTERVIEW_DRAFT, type InterviewDraft, type interviewBody } from "./interview-draft";
 
 /** How each field's keyboard is set up: never text the Candidate reads. */
 const DAY_KEYS = { keyboardType: "numbers-and-punctuation" } as const satisfies TextInputProps;
@@ -40,11 +40,13 @@ export function InterviewForm({
   const [failed, setFailed] = useState(false);
   const [working, setWorking] = useState(false);
   const set = (field: keyof InterviewDraft) => (value: string) => setDraft((current) => ({ ...current, [field]: value }));
-  const refused = (field: string): string | null => {
+  const refusalOf = (field: keyof ReturnType<typeof interviewBody>): string | null => {
     const error = errors.find((each) => each.field === field);
     if (!error) return null;
     return t(error.code === "required" ? "cvReview.required" : "cvReview.invalidValue");
   };
+  const change = { date: set("date"), time: set("time"), durationMinutes: set("durationMinutes"), place: set("place"), note: set("note") };
+  const refused = { scheduledAt: refusalOf("scheduledAt"), durationMinutes: refusalOf("durationMinutes"), format: refusalOf("format"), place: refusalOf("place"), note: refusalOf("note") };
 
   async function submit() {
     setWorking(true);
@@ -64,20 +66,20 @@ export function InterviewForm({
     <View style={{ gap: space[3] }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[3] }}>
         <View style={{ flexGrow: 1, flexBasis: 140 }}>
-          <Field label={t("mobile.applications.interviewDate")} value={draft.date} onChangeText={set("date")} {...DAY_KEYS} />
+          <Field label={t("mobile.applications.interviewDate")} value={draft.date} onChangeText={change.date} {...DAY_KEYS} />
         </View>
         <View style={{ flexGrow: 1, flexBasis: 100 }}>
-          <Field label={t("mobile.applications.interviewTime")} value={draft.time} onChangeText={set("time")} {...DAY_KEYS} />
+          <Field label={t("mobile.applications.interviewTime")} value={draft.time} onChangeText={change.time} {...DAY_KEYS} />
         </View>
       </View>
-      <FieldError message={refused("scheduledAt")} />
+      <FieldError message={refused.scheduledAt} />
       <Field
         label={t("application.interviewDuration")}
         hint={t("application.interviewDurationHint")}
         value={draft.durationMinutes}
-        onChangeText={set("durationMinutes")}
+        onChangeText={change.durationMinutes}
         {...NUMBER_KEYS}
-        error={refused("durationMinutes")}
+        error={refused.durationMinutes}
       />
       <View style={{ gap: space[1] }}>
         <AppText weight="semiBold">{t("application.interviewFormat")}</AppText>
@@ -87,10 +89,10 @@ export function InterviewForm({
           value={draft.format}
           onChange={(format) => setDraft((current) => ({ ...current, format }))}
         />
-        <FieldError message={refused("format")} />
+        <FieldError message={refused.format} />
       </View>
-      <Field label={t("application.interviewPlace")} hint={t("application.interviewPlaceHint")} value={draft.place} onChangeText={set("place")} maxLength={500} error={refused("place")} />
-      <Field label={t("application.interviewNote")} hint={t("application.interviewNoteHint")} value={draft.note} onChangeText={set("note")} maxLength={500} error={refused("note")} />
+      <Field label={t("application.interviewPlace")} hint={t("application.interviewPlaceHint")} value={draft.place} onChangeText={change.place} maxLength={500} error={refused.place} />
+      <Field label={t("application.interviewNote")} hint={t("application.interviewNoteHint")} value={draft.note} onChangeText={change.note} maxLength={500} error={refused.note} />
       {failed ? <FieldError message={t("application.error")} /> : null}
       {online ? null : <AppText tone="secondary">{t("mobile.offline.writeDisabled")}</AppText>}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>

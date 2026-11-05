@@ -16,7 +16,7 @@
  *  - `propose_coach_memory`: one key fact to remember, each confirmed on its own card (30 items of 300 characters at
  *    most); « Annuler » forgets it while unchanged. Copies text. It replaces the Coach Memory's former « Que retenir de
  *    cette conversation ? » proposals while Coach Actions are on.
- * The Coach never deletes nor creates a Profile: creating one is « Nouveau profil » (/profils/nouveau, #657).
+ * The Coach never deletes nor creates a Profile: creating one is « Créer un profil » (/profils/nouveau, #657).
  */
 import {
   CONTRACT_TYPES,

@@ -25,4 +25,4 @@ export interface CoachProposalCard {
 }
 
 /** What the server says to « Appliquer », « Ignorer » or « Annuler » on a card, as `/api/action-cards/[id]` answers it. */
-export type CardDecisionError = "conflict" | "already_decided" | "not_undoable" | "invalid" | "not_found" | "failed";
+export type CardDecisionError = "conflict" | "already_decided" | "not_undoable" | "invalid" | "not_found" | "failed" | "quota";

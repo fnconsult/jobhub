@@ -97,6 +97,11 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       return true;
     }
     const error = result.error as CardDecisionError | undefined;
+    // No room left since the proposal (#773): the card, still pending, now shows the Upgrade prompt in place of its buttons.
+    if (error === "quota" && result.card) {
+      onChange(result.card as Card);
+      return false;
+    }
     setProblem(error === "conflict" ? (decision === "undo" ? "undoConflict" : "conflict") : error === "invalid" ? "invalid" : "failed");
     return false;
   }

@@ -71,7 +71,7 @@
 // A Candidate message holding "E2E_COACH_TOOL=<name>:<json>" (#712, Coach Actions) has the AI Coach, offered tools it may
 // call, call that tool with those arguments (a `tool_calls` reply, printing "[fake-mistral] tool call <name>" to the server
 // log); sent its result back, it answers "Résultat de l'outil « <name> » : <result>" (an error result as Mistral is sent
-// it, "Error: …"). Asked for text only (tool_choice "none") before any call, it answers as without the marker.
+// it, "Error: …"). Several markers (#788): each tool in turn, one a round, then the last one's result. Asked for text only (tool_choice "none") before any call, it answers as without the marker.
 // "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
 // steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
@@ -331,18 +331,30 @@ globalThis.fetch = async (input, init) => {
  */
 function coachToolCall(body) {
   const messages = body.messages ?? [];
-  const asked = /E2E_COACH_TOOL=([\w-]+):(\{.*\})/.exec(String(messages.filter((message) => message.role === "user").at(-1)?.content ?? ""));
-  if (!asked || !Array.isArray(body.tools) || body.tools.length === 0) return null;
-  const [, name, args] = asked;
+  const lastAsked = messages.findLastIndex((message) => message.role === "user");
+  // Each marker, in order: its tool's name and its arguments (#788: several are called in turn, one a round).
+  const asked = String(messages[lastAsked]?.content ?? "")
+    .split("E2E_COACH_TOOL=")
+    .slice(1)
+    .flatMap((marker) => {
+      const found = /^([\w-]+):(\{.*\})/s.exec(marker.trim());
+      return found ? [{ name: found[1], args: found[2] }] : [];
+    });
+  if (asked.length === 0 || !Array.isArray(body.tools) || body.tools.length === 0) return null;
+  // The calls made since the Candidate's message, and the results of the last one.
+  const called = messages.slice(lastAsked + 1).filter((message) => message.role === "assistant" && message.tool_calls?.length).length;
   const results = [];
   for (let index = messages.length - 1; index >= 0 && messages[index].role === "tool"; index -= 1) results.unshift(String(messages[index].content));
-  if (results.length > 0) return completion(body, `Résultat de l'outil « ${name} » : ${results.join("\n")}`);
-  if (body.tool_choice === "none") return null;
-  console.log(`[fake-mistral] tool call ${name}`);
+  const next = asked[called];
+  if (results.length > 0 && (!next || body.tool_choice === "none")) return completion(body, `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
+  if (body.tool_choice === "none" || !next) return null;
+  console.log(`[fake-mistral] tool call ${next.name}`);
   return Response.json({
     id: "cmpl_e2e_tool",
     model: body.model ?? "mistral-large-latest",
-    choices: [{ index: 0, message: { role: "assistant", content: "", tool_calls: [{ id: "e2eTool01", type: "function", function: { name, arguments: args } }] }, finish_reason: "tool_calls" }],
+    choices: [
+      { index: 0, message: { role: "assistant", content: "", tool_calls: [{ id: `e2eTool0${called + 1}`, type: "function", function: { name: next.name, arguments: next.args } }] }, finish_reason: "tool_calls" },
+    ],
     usage: { prompt_tokens: 100, completion_tokens: 20 },
   });
 }

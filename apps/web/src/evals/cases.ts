@@ -271,8 +271,6 @@ const nathalieApplication = (note?: string): EvalInView => ({
 /** What every Candidatures case asks of a reply that proposes: it says what it proposes, never that it is done. */
 const PROPOSED_NOT_DONE = "Elle dit ce qu'elle propose et que le candidat peut l'appliquer sous la réponse ; elle ne prétend jamais l'avoir déjà fait.";
 
-    proposes: false,
-  },
 const MARIE = "La candidate s'appelle Marie (prénom seulement). Elle cherche un poste de directrice financière à Lyon et transfère ses alertes emploi à son adresse de transfert.";
 
 /** A fictional email's case: its text is what Email intake keeps of its HTML. */

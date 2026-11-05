@@ -100,6 +100,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coach_conversation", // issue #124: the Candidate's saved Coach Conversations
         "coach_memory_item", // issue #125: the Candidate's Coach Memory
         "coach_message", // issue #124: their messages
+        "coach_proposals_display", // issue #717: « Propositions du coach » in Mon compte, card or form
         "coach_review", // issue #24: Coach Reviews of Tailored Documents
         "coach_welcome_closed", // the conversations' welcome panel the Candidate closed for good
         "coaching_playbook", // issue #225: the Coaching Playbooks, the Core Digest and the Sources list
@@ -191,6 +192,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
         { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
+        // A card in a Coach Conversation (issue #715) goes with its reply.
+        { from_table: "action_card", from_column: "reply_seq", to_table: "coach_message" },
         // Back Office Roles (issue #204) go with their Administrator's account.
         { from_table: "administrator_role", from_column: "candidate_id", to_table: "candidate" },
         // issue #218: the AI Message Log goes with the Candidate's account and with its AI call; AI Usage names no Candidate.
@@ -236,6 +239,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "coach_message", from_column: "conversation_id", to_table: "coach_conversation" },
         // A reply's Job Offer card points to its Job Offer (cleared if the offer is ever deleted).
         { from_table: "coach_message", from_column: "job_offer_id", to_table: "job_offer" },
+        // « Propositions du coach » (issue #717) follows its Candidate.
+        { from_table: "coach_proposals_display", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_review", from_column: "application_id", to_table: "application" },
         { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },

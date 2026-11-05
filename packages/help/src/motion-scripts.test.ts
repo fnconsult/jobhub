@@ -123,6 +123,30 @@ describe("parseMotionScript — one Motion Script", () => {
     expect(parseAction("goto candidatures")).toMatch(/goto takes a path/);
     expect(parseAction("fill label \"Intitulé\"")).toMatch(/label needs its quoted text|the name is one quoted text|fill needs/);
   });
+
+  // #570: what the six videos needed beyond #567's actions.
+  it("parses select, upload of a demo file, open-email, pay and a Guest's pages outside the web app", () => {
+    expect(parseAction("select combobox « Statut » « Postulée »")).toEqual({ action: "select", target: { by: "role", role: "combobox", name: "Statut" }, option: "Postulée" });
+    expect(parseAction("upload label « Votre CV » « cv-claire-demo.pdf »")).toEqual({ action: "upload", target: { by: "label", text: "Votre CV" }, file: "cv-claire-demo.pdf" });
+    expect(parseAction("upload label « Votre CV » « mon-vrai-cv.pdf »")).toMatch(/upload gives a demo file, cv-claire-demo\.pdf/);
+    expect(parseAction("open-email « Votre lien de connexion à Jobbbox »")).toEqual({ action: "open-email", subject: "Votre lien de connexion à Jobbbox" });
+    expect(parseAction("open-email")).toMatch(/open-email takes the email's subject/);
+    expect(parseAction("pay button « Passer au paiement »")).toEqual({ action: "pay", target: { by: "role", role: "button", name: "Passer au paiement" } });
+    expect(parseAction("goto @panneau-extension")).toEqual({ action: "goto", page: "@panneau-extension" });
+    expect(parseAction("goto @ailleurs")).toMatch(/goto takes a path starting with \/, or @offre-de-demo or @panneau-extension/);
+  });
+
+  it("films the extension for a Guest's script only, which may film no page of the web app", () => {
+    const guest = (viewer: string, routes: string) =>
+      parseMotionScript("essai", "fr", `---\ntitle: Essai\nviewer: ${viewer}\nroutes: ${routes}\n---\n## Le panneau\n- goto @offre-de-demo\n- goto @panneau-extension\n\nLe panneau s'ouvre.\n`);
+    expect(guest("guest", "[]").problems).toEqual([]);
+    expect(guest("guest", "[]").script.viewer).toBe("guest");
+    expect(guest("candidate", "[/candidatures]").problems).toEqual([
+      "step « Le panneau »: goto @offre-de-demo films the extension, for a « viewer: guest » script only",
+      "step « Le panneau »: goto @panneau-extension films the extension, for a « viewer: guest » script only",
+    ]);
+    expect(guest("candidate", "[]").problems[0]).toMatch(/routes is missing/);
+  });
 });
 
 describe("readMotionScripts — the scripts of a directory", () => {
@@ -238,8 +262,10 @@ describe("narration, transcript and routes", () => {
     expect(motionFileKey("retrouver", "en", "0123456789ab", render, "captions")).toBe("retrouver/en/0123456789ab/20261102T090000Z/captions.vtt");
   });
 
-  it("serves this build's scripts by id (none yet: #570 writes them)", () => {
+  it("serves this build's scripts by id, and says which film a page (#570)", () => {
     expect(motionScript("inconnu", "fr")).toBeNull();
-    expect(motionScriptsFilming("/candidatures")).toEqual([]);
+    expect(motionScript("postuler-cv-adapte", "en")?.title).toBe("Apply with a tailored CV");
+    expect(motionScriptsFilming("/candidatures/abc/documents").map((script) => script.id)).toEqual(["postuler-cv-adapte"]);
+    expect(motionScriptsFilming("/admin/coachs")).toEqual([]);
   });
 });

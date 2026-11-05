@@ -15,7 +15,7 @@ The Candidate deletes their own account, confirmed by typing their email address
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan with its Coach context limits and Plan Quota use, EU AI Consent, Follow-up Delays, Appointment Reminder setting and Nouveautés email choice (with its date and the Versions it told them of); their Private Job Offers; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, the Provenance of each of these results, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log; their Signalements (with their context, status and the team's reply with when it was saved and last changed, never which Administrator changed the status or replied, nor when their Signalement notification was closed). It leaves out secrets (sign-in tokens and passwords, the Job Digest and Nouveautés email unsubscribe links), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan with its Coach context limits and Plan Quota use, EU AI Consent, Follow-up Delays, Appointment Reminder setting, Propositions du coach setting and Nouveautés email choice (with its date and the Versions it told them of); their Private Job Offers; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, the Provenance of each of these results, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log; their Signalements (with their context, status and the team's reply with when it was saved and last changed, never which Administrator changed the status or replied, nor when their Signalement notification was closed). It leaves out secrets (sign-in tokens and passwords, the Job Digest and Nouveautés email unsubscribe links), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -93,7 +93,7 @@ The side panel where an Administrator talks with the Back Office Assistant. Reti
 _Avoid_: Chat, chatbot, sidebar, help menu
 
 **Coach context**:
-What the AI Coach is told before each reply: always the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items from now on, none of them cancelled), within the Coach context limits of the Candidate's Plan at the time of the reply: the latest messages only, and a ceiling in estimated tokens. Each Match Score in it comes with its reasons, as « Pourquoi N ? » shows them. With an Application, a Job Offer, a Job Search or a Job Digest In view, it also holds the Master CV of the Profile that item is scored against (an Application's, a Job Search's or a Job Digest's; for a Job Offer, its Application's or else the first active Profile), without its Identity block. Summaries are trimmed first, then that Master CV's job descriptions, then that Master CV; the item In view last. The AI Coach answers a question about fit, offers, applications or advice from the Candidate's own skills, experience and Search Criteria, and asks for what is missing rather than answering in general (#653). While Coach Actions are on, it can also read the Candidate's other objects during a reply (ADR-0077), each read a step of its Provenance.
+What the AI Coach is told before each reply: always today's date and time in French time ("Nous sommes le …, HH:MM (heure de Paris)", so that « jeudi » becomes an absolute date the card shows), the Candidate summary and the Coach Memory, plus the item In view, plus summaries of the rest (onboarding answers, latest Applications, top Job Offers, the next three Agenda Items from now on, none of them cancelled), within the Coach context limits of the Candidate's Plan at the time of the reply: the latest messages only, and a ceiling in estimated tokens. Each Match Score in it comes with its reasons, as « Pourquoi N ? » shows them. With an Application, a Job Offer, a Job Search or a Job Digest In view, it also holds the Master CV of the Profile that item is scored against (an Application's, a Job Search's or a Job Digest's; for a Job Offer, its Application's or else the first active Profile), without its Identity block. Summaries are trimmed first, then that Master CV's job descriptions, then that Master CV; the item In view last. The AI Coach answers a question about fit, offers, applications or advice from the Candidate's own skills, experience and Search Criteria, and asks for what is missing rather than answering in general (#653). While Coach Actions are on, it can also read the Candidate's other objects during a reply (ADR-0077), each read a step of its Provenance.
 
 **Coach context limits**:
 Two sizes per Plan that bound the Coach context (ADR-0078): how many of the latest messages of a Coach Conversation the AI Coach reads, and the ceiling of what it is told, in estimated tokens (about 4 characters each). Either can be unlimited; a Plan with none set reads 40 messages within 12 000. Sizes, not Plan Quotas: no week, no Usage Meter, never shown as jetons on the subscription page. Set by Administrators on the Quotas page beside the Plan Quotas, recorded in the Back Office Audit; lowering one is a Quota Reduction. They apply on the next reply, by the Candidate's Plan then: a Candidate who changes to a smaller Plan keeps their conversation and the AI Coach reads its latest part. Each AI Coach reply keeps its estimate, split into Messages, Instructions du coach, Profil et CV, Conseils des agents and Sources; the provider's count of the same call is not copied but read from its AI usage, and the AI Message Log shows both with their gap, to correct the estimate.
@@ -142,7 +142,7 @@ The Profile, Application, Job Offer, Job Search or Job Digest the page the Candi
 _Avoid_: Focus, current item, selected
 
 **Action Card**:
-A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées", "Relance suggérée") that the Candidate accepts or dismisses. Pending until decided or withdrawn, then accepted or dismissed, never decided twice. The AI Coach withdraws a pending card it no longer proposes (e.g. an ATS Fix the new ATS Score no longer calls for): it leaves the page as if never proposed, is not recorded as accepted or dismissed, and a decided card is never withdrawn. Accepting it carries out the change it proposes; if that fails, the card stays pending. A card made by a Coach Action sits in the thread under the reply that proposed it (ADR-0077): « Appliquer », « Modifier avant d'appliquer » (the page's form, pre-filled, in the Work Pane) or « Ignorer »; refused as a conflict if the object changed since it was proposed. Once applied it offers « Annuler » while the object has not changed since, which puts back the state before (a Restore for a Master CV), and the object keeps, behind an « Origine » disclosure, that it came from the AI Coach's proposal applied by the Candidate.
+A proposal from the AI Coach placed inside a page (e.g. "3 ATS Fixes proposées", "Relance suggérée") that the Candidate accepts or dismisses. Pending until decided or withdrawn, then accepted or dismissed, never decided twice. The AI Coach withdraws a pending card it no longer proposes (e.g. an ATS Fix the new ATS Score no longer calls for): it leaves the page as if never proposed, is not recorded as accepted or dismissed, and a decided card is never withdrawn. Accepting it carries out the change it proposes; if that fails, the card stays pending. A card made by a Coach Action sits in the thread under the reply that proposed it (ADR-0077): « Appliquer », « Modifier avant d'appliquer » (the page's form, pre-filled, in the Work Pane) or « Ignorer »; refused as a conflict if the object changed since it was proposed. A card may list other changes to the same object (e.g. a new Interview and the Application's move to "Entretien"), applied together and undone together. Once applied it offers « Annuler » while the object has not changed since, which puts back the state before (a Restore for a Master CV), and the object keeps, behind an « Origine » disclosure, that it came from the AI Coach's proposal applied by the Candidate.
 _Avoid_: Notification, suggestion, prompt
 
 **Coach Action**:
@@ -150,7 +150,7 @@ What the AI Coach calls during a reply, by tool calling (ADR-0077): Jobbbox's ow
 _Avoid_: Tool call, function, command, agent action
 
 **Propositions du coach (setting)**:
-The Candidate's choice in Mon compte of what a Coach Action's proposal shows first: the card (default) or its form opened in the Work Pane. Both stay offered on every card.
+The Candidate's choice in Mon compte of what a Coach Action's proposal shows first: the card (default) or its form opened in the Work Pane. Both stay offered on every card. Under « Formulaire » only the first proposal of a reply opens its form by itself (at most one per reply), only if it is pending with fields and no quota Upgrade prompt, never on a phone while the Candidate types, and never in a reopened conversation; nothing is applied before « Appliquer » (a Master CV change would still go through its change-by-change review). No row until the Candidate chooses; deleted with the account; in the Data export (#717, ADR-0077).
 _Avoid_: Confirmation mode
 
 **Coaching Playbook**:
@@ -513,7 +513,7 @@ An Application at an end state (Acceptée, Refusée, Abandonnée) or whose Profi
 _Avoid_: Closed application, old application
 
 **Interview**:
-One dated interview round within an Application: date and time in French time (Europe/Paris), optional duration, format (video, phone or on site), place or link, and a note. Entered by the Candidate, from the Application or from the Agenda, never detected or imported. Added only while the Application is at "Entretien": adding one from the Agenda to an Application at another status offers to move it to "Entretien", which the Candidate confirms. Kept if the Application moves on, archived ones included. It can be edited, Rescheduled or Cancelled at any status; deleting it is for an entry made by mistake and leaves no trace.
+One dated interview round within an Application: date and time in French time (Europe/Paris), optional duration, format (video, phone or on site), place or link, and a note. Entered by the Candidate, from the Application or from the Agenda, never detected or imported. Added only while the Application is at "Entretien": adding one from the Agenda to an Application at another status offers to move it to "Entretien", which the Candidate confirms. Kept if the Application moves on, archived ones included. It can be edited, Rescheduled or Cancelled at any status; deleting it is for an entry made by mistake and leaves no trace. The AI Coach can propose to add, move or cancel one (Agenda group of Coach Actions), never its note nor its deletion. An Interview keeps its Origin (`coach_proposal`) while it is as an applied proposal left it, and loses it when the Candidate changes it; it is shown behind « Origine » in the Interviews Section and kept in the Data export. Its version is a fingerprint of its date, note, duration, format, place and cancellation: a proposal applies only from the version it saw, otherwise it is refused as a conflict and nothing is written.
 _Avoid_: Meeting, call
 
 **Follow-up**:
@@ -581,7 +581,7 @@ An Interview or a dated Coaching Session, as the Agenda shows it. An Interview l
 _Avoid_: Appointment, event, meeting
 
 **Reschedule**:
-A change of an Agenda Item's date and time made more than an hour after it was entered or last changed; a change within that hour is a correction and leaves no trace. Each Reschedule is kept in the item's Reschedule history (previous date, new date, by whom, when), and the item shows « Reporté », with the date first planned.
+A change of an Agenda Item's date and time made more than an hour after it was entered or last changed; a change within that hour is a correction and leaves no trace. Each Reschedule is kept in the item's Reschedule history (previous date, new date, by whom, when), and the item shows « Reporté », with the date first planned. Undoing a Reschedule (« Annuler » on an Action Card) within the hour of the change leaves no trace and deletes its history entry; later, the move back is a Reschedule too.
 _Avoid_: Move, edit (for a date change)
 
 **Cancelled Agenda Item**:
@@ -750,12 +750,47 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
 _Avoid_: Mobile site, PWA, native client
 
+**App settings** (« Réglages de l'app »):
+The device's own settings in the Jobbbox app, at the foot of the drawer below Mon compte, which holds the account's settings. Kept on that device only, never restored onto another and never sent to Jobbbox; the web app has no such page.
+_Avoid_: Preferences (that is Mon compte's Préférences)
+
+**App lock** (« Verrouiller l'app »):
+An App setting, off by default: the Jobbbox app asks Face ID, a fingerprint or the device's code when it starts and when it returns after 5 minutes or more in the background, and hides its content from the app switcher. The device's code is the fallback; if the device has none left, the lock turns itself off. Not a second step: the session and Two-step verification are unchanged (ADR-0081).
+_Avoid_: PIN, second factor
+
+**Read cache**:
+In the Jobbbox app, the copy on the device of what the person last looked at (the menus' cards, an Application, the Agenda, Job Searches, Job Offers), shown again without network. Never holds a Coach Conversation, a Profile or a Tailored Document's links; kept 7 days at most, dropped when the app's API Version changes, emptied at sign-out.
+_Avoid_: Offline mode, sync
+
+**Hors ligne** (offline):
+The state of the Jobbbox app without network: a banner under the Top Bar says so and shows the Read cache, and everything that writes (the conversation's box, « + », « Envoyer ») is disabled with its reason. Nothing waits to be sent when the network returns.
+_Avoid_: Offline queue, outbox
+
 **Disposition**:
 In the Jobbbox app, the decision of where the Sidebar, the Fiche, the Activité column and the Work Pane go, column or full page or drawer, from the window's width in rem (ADR-0070's thresholds, ADR-0076). Computed again whenever the window changes (rotation, Split View, Stage Manager, a foldable); a phone and a tablet differ only by it.
+
+**Hardware keyboard shortcut**:
+In the Jobbbox app, a key combination of a connected keyboard (⌘ on iPad, Ctrl on Android) for something the open page can do now: a new Coach Conversation, sending the message, the Sidebar, the Fiche (or Activité where there is no object), closing the pane on top. Offered only while the page can carry it out, and listed in the system's shortcuts panel (hold ⌘ on iPad, Meta+/ on Android). Échap closes a pane but leaves the Fiche column to its Top Bar button (ADR-0082).
+_Avoid_: Hotkey, key binding
+
+**Object context menu**:
+In the Jobbbox app, the actions of an Application, a Job Offer or a Free conversation, opened from its row by a long press or a right click and also offered as accessibility actions: « Ouvrir », « Voir l'annonce » (a Job Offer only), « Partager le lien ».
+_Avoid_: Long-press menu, popover
+
+**Pointer hover**:
+In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row under a mouse or trackpad pointer. Absent with a finger.
 
 **Push notification**:
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
+
+**App sign-in link**:
+The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
+_Avoid_: Deep link, app magic link
+
+**Domain association files**:
+The two files the web serves so that a phone hands some web addresses to the Jobbbox app instead of the browser: Apple's for universal links, Android's for App Links. Served from each environment's own settings; without them the link simply opens the web.
+_Avoid_: Deep-link config
 
 **Share capture**:
 Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation.

@@ -3,6 +3,7 @@ kind: tutorial
 audience: candidate
 topic: utiliser
 title: Réserver et payer une séance avec un coach humain
+motion: reserver-seance-coach
 synonyms: [réserver, séance, coach humain, coaching, payer, paiement, stripe, cal.com, créneau, rendez-vous, visio, commande, rétractation]
 ---
 En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. Vous payez d'abord, puis vous choisissez votre créneau.

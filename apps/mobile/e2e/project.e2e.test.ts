@@ -104,3 +104,95 @@ describe("Design tokens, Inter, Lucide and translations", () => {
     expect(createI18n("en").t("conversationFirst.newConversation")).not.toBe("Nouvelle conversation");
   });
 });
+
+describe("App lock (#702)", () => {
+  const plugin = (name: string) => expo.plugins.find((entry: unknown) => entry === name || (Array.isArray(entry) && entry[0] === name));
+
+  // Without NSFaceIDUsageDescription, an iPhone with Face ID would ask for the device's code instead.
+  it("gives iOS its reason for Face ID, so the lock asks for Face ID and not only the code", () => {
+    const localAuthentication = plugin("expo-local-authentication");
+    expect(Array.isArray(localAuthentication)).toBe(true);
+    expect(localAuthentication[1].faceIDPermission).toMatch(/Face ID/);
+  });
+
+  it("uses the SDK's own versions of the lock's native modules", () => {
+    const bundled = json("node_modules", "expo", "bundledNativeModules.json");
+    for (const name of ["expo-local-authentication", "expo-screen-capture", "expo-secure-store"]) expect(pkg.dependencies[name]).toBe(bundled[name]);
+  });
+});
+
+describe("Multitasking and foldables (#700)", () => {
+  type Manifest = ReturnType<typeof templateManifest>;
+  const plugin = () =>
+    jest.requireActual<{ setInfoPlist: (plist: Record<string, unknown>) => Record<string, unknown>; setAndroidManifest: (manifest: Manifest) => Manifest }>(
+      join(ROOT, "apps", "mobile", "plugins", "with-multitasking.js"),
+    );
+  /** The main activity as Expo's Android template declares it before any plugin. */
+  const templateManifest = () => ({
+    manifest: {
+      $: { "xmlns:android": "http://schemas.android.com/apk/res/android" },
+      application: [
+        {
+          $: { "android:name": ".MainApplication" },
+          activity: [{ $: { "android:name": ".MainActivity", "android:configChanges": "keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" } }],
+        },
+      ],
+    },
+  });
+  const mainActivity = (manifest: Manifest) => manifest.manifest.application[0]!.activity[0]!.$ as Record<string, string>;
+
+  it("is applied by the app's config", () => {
+    expect(expo.plugins).toContain("./plugins/with-multitasking");
+  });
+
+  it("never requires the full screen on iPad, so Split View, Slide Over and Stage Manager can share it", () => {
+    expect(expo.ios.requireFullScreen).toBe(false);
+    expect(expo.ios.infoPlist.UIRequiresFullScreen).toBeUndefined();
+    expect(plugin().setInfoPlist({ UIRequiresFullScreen: true }).UIRequiresFullScreen).toBe(false);
+  });
+
+  it("supports the iPad's four orientations, which iPad multitasking requires, iPhones staying in portrait", () => {
+    const plist = plugin().setInfoPlist({ UISupportedInterfaceOrientations: ["UIInterfaceOrientationPortrait"] });
+    expect(plist["UISupportedInterfaceOrientations~ipad"]).toEqual([
+      "UIInterfaceOrientationPortrait",
+      "UIInterfaceOrientationPortraitUpsideDown",
+      "UIInterfaceOrientationLandscapeLeft",
+      "UIInterfaceOrientationLandscapeRight",
+    ]);
+    expect(plist.UISupportedInterfaceOrientations).toEqual(["UIInterfaceOrientationPortrait"]);
+  });
+
+  it("lets Android resize the window, in split screen, a free-form window or on a foldable", () => {
+    expect(mainActivity(plugin().setAndroidManifest(templateManifest()))["android:resizeableActivity"]).toBe("true");
+  });
+
+  it("keeps Android's activity, and so the conversation and its position, when a foldable opens or closes or the window resizes", () => {
+    const changes = mainActivity(plugin().setAndroidManifest(templateManifest()))["android:configChanges"]!.split("|");
+    for (const change of ["orientation", "screenSize", "smallestScreenSize", "screenLayout", "keyboard", "keyboardHidden", "uiMode"]) expect(changes).toContain(change);
+    expect(new Set(changes).size).toBe(changes.length);
+  });
+});
+
+describe("The hardware keyboard's native module (#700)", () => {
+  const moduleDir = ["apps", "mobile", "modules", "key-commands"];
+  const config = () => json(...moduleDir, "expo-module.config.json");
+  const nameIn = (...path: string[]) => read(...moduleDir, ...path).match(/Name\("([^"]+)"\)/)?.[1];
+
+  it("is a local Expo module for iOS and Android, which Expo autolinks from modules/", () => {
+    expect(config().platforms).toEqual(["apple", "android"]);
+    expect(config().apple.modules).toEqual(["KeyCommandsModule"]);
+    expect(config().android.modules).toEqual(["ai.jobbbox.keycommands.KeyCommandsModule"]);
+  });
+
+  it("goes by the name the app asks for, on both platforms", () => {
+    const asked = read(...moduleDir, "index.ts").match(/requireOptionalNativeModule<\w+>\("([^"]+)"\)/)?.[1];
+    expect(asked).toBe("JobbboxKeyCommands");
+    expect(nameIn("ios", "KeyCommandsModule.swift")).toBe(asked);
+    expect(nameIn("android", "src", "main", "java", "ai", "jobbbox", "keycommands", "KeyCommandsModule.kt")).toBe(asked);
+  });
+
+  it("lists each shortcut under its title in the iPad's ⌘ panel and Android's Keyboard Shortcuts Helper", () => {
+    expect(read(...moduleDir, "ios", "KeyCommandsModule.swift")).toContain("discoverabilityTitle = title");
+    expect(read(...moduleDir, "android", "src", "main", "java", "ai", "jobbbox", "keycommands", "KeyCommandsModule.kt")).toContain("onProvideKeyboardShortcuts");
+  });
+});

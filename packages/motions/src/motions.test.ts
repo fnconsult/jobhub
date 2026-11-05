@@ -74,6 +74,9 @@ describe("voice — the synthetic voice providers", () => {
     });
     expect(voiceFromEnv({ MOTIONS_GOOGLE_TTS_API_KEY: "k" }).provider).toBe("google");
     expect(voiceFromEnv({})).toMatchObject({ provider: "espeak", publishable: false });
+    // The workflow passes an unset repository variable as an empty string (#570).
+    expect(voiceFromEnv({ MOTIONS_VOICE_PROVIDER: "", MOTIONS_VOICE_FR: "", MOTIONS_VOICE_EN: "" })).toMatchObject({ provider: "espeak", voices: { fr: "fr", en: "en-gb" } });
+    expect(voiceFromEnv({ MOTIONS_VOICE_PROVIDER: "", MOTIONS_GOOGLE_TTS_API_KEY: "k" }).provider).toBe("google");
     expect(() => voiceFromEnv({ MOTIONS_VOICE_PROVIDER: "azure" })).toThrow(/MOTIONS_AZURE_SPEECH_KEY is not set/);
     expect(() => voiceFromEnv({ MOTIONS_VOICE_PROVIDER: "polly" })).toThrow(/MOTIONS_VOICE_PROVIDER must be/);
     expect(configuredProviders({ MOTIONS_ELEVENLABS_API_KEY: "k", MOTIONS_GOOGLE_TTS_API_KEY: "k" })).toEqual(["elevenlabs", "google"]);

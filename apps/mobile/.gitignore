@@ -1,5 +1,6 @@
-# Expo's generated files and native projects (built by EAS, ADR-0076).
-.expo/
-expo-env.d.ts
-ios/
-android/
+# Expo's generated files and native projects (built by EAS, ADR-0076). Anchored to the app's root: a local Expo
+# module's own ios/ and android/ sources (modules/*/) are the app's code (#700).
+/.expo/
+/expo-env.d.ts
+/ios/
+/android/

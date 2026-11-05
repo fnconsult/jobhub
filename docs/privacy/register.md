@@ -80,6 +80,21 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Rights | Erased by the Guest at any time (« Effacer mes données maintenant », or by closing the browser). Jobbbox holds nothing of it to give or erase. |
 | Security | Readable only by the extension's own pages. |
 
+## Read cache in the Jobbbox app (ADR-0076, #701)
+
+| | |
+| --- | --- |
+| Purpose | Show a signed-in Candidate, without network, what the Jobbbox app last read for them, and say so (« Hors ligne »); nothing is written offline. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). Storage on the device strictly necessary to the service the Candidate asks for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Candidates using the app; people named in what they read (an Interview's contact, a Human Coach's name). |
+| Data | The answers last read for the menus' cards (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), an Application with its Interviews, a Job Search's Job Offers and a Job Offer seen, as `@jobhub/shared/reads` types them, with when each was read. Never a Coach Conversation, a Profile, a Tailored Document's download links, the session or a write waiting to be sent (`apps/mobile/src/offline/read-cache.tsx`, `READS`). |
+| Source | The web app's GETs, read by the app with the Candidate's session. |
+| Who can read it | Anyone who can open the app on the unlocked device: nothing is sent anywhere from it. |
+| Processors | None: it stays on the device. |
+| Storage | The device's AsyncStorage, key `jobbbox.reads`, not encrypted (an SQLite database on Android); the session stays in the Keychain or Keystore. Android's Auto Backup includes an app's database files by default (`android:allowBackup` defaults to true; developer.android.com, « Back up user data with Auto Backup », read 2026-11-04), so the cache may reach the person's Google Drive backup, end-to-end encrypted from Android 9; the app sets no backup rule yet. Whether iOS backs it up to iCloud is not verified. |
+| Retention | Until sign-out, which empties it in the app and on the device; a copy older than 7 days, or saved by an app speaking another API Version, is discarded at launch. Uninstalling the app removes it. |
+| Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds. |
+
 ## Provider Secrets (#208)
 
 | | |
@@ -197,7 +212,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)): the AI Coach is part of the service the Candidate signed up for. |
 | People concerned | Candidates. Third parties only as far as the Candidate names them in what they write, or a Job Offer read from a link names its employer. |
 | Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; when the Candidate closed the conversations' welcome panel for good (#652); Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
-| Source | The Candidate, in the conversation; the AI Coach's replies, written from the Coach context (their own Profiles, Applications, Job Searches, Job Digests, Agenda and Coach Memory) and, while Coach Actions are switched on (the Platform Setting `COACH_ACTIONS_ENABLED`, off by default; ADR-0077, #713), from the objects of the Candidate it reads during a reply through them: the same categories of data (active Profiles' Master CV and Search Criteria, Applications, the Job Offers of their Job Searches, Job Digests, the Agenda, Tailored Documents as a summary), never an Archived Profile's, nor another Candidate's (`not_found`). A Coach Action never writes: what it proposes waits for the Candidate to apply it. |
+| Source | The Candidate, in the conversation; the AI Coach's replies, written from the Coach context (their own Profiles, Applications, Job Searches, Job Digests, Agenda and Coach Memory) and, while Coach Actions are switched on (the Platform Setting `COACH_ACTIONS_ENABLED`, off by default; ADR-0077, #713), from the objects of the Candidate it reads during a reply through them: the same categories of data (active Profiles' Master CV and Search Criteria, Applications, the Job Offers of their Job Searches, Job Digests, the Agenda, Tailored Documents as a summary), never an Archived Profile's, nor another Candidate's (`not_found`). A Coach Action never writes: what it proposes waits for the Candidate to apply it, an Action Card under the reply (#715, « Applications and their documents »), deleted with the reply. |
 | Processors | The AI provider of the `coaching` task: by default Claude's direct API (Anthropic, outside the EU), after Redaction (ADR-0007, amendment of 2026-10-28; corrected by #338); with the Candidate's EU AI consent, what carries identity goes to Mistral, in the EU (#121). Transfer safeguard: the standard contractual clauses of Anthropic's DPA. What a Coach Action reads goes to the same provider, by the same route, the identity removed by Redaction; a result carrying the Master CV's Identity block reroutes the rest of the reply to the identity route under the EU AI Consent (#712). The Coach Actions are Jobbbox's own code (the « Routes locales » Tools, in the EU): no new processor. |
 | Who can read it | The Candidate, in their conversations. Never Human Coaches (Coach Access covers Profiles and Applications only). Administrators see only each day's cost figures, never a conversation; the text of a call, if needed, is in the AI Message Log. |
 | Storage | The `coach_conversation`, `coach_message` and `coach_welcome_closed` tables in the app's Postgres database (EU). |
@@ -301,6 +316,22 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, each passkey's name and device when known, the backup codes left; never the secret, a code nor a passkey's public key or credential id); erased with the account. |
 | Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off, removing the last factor or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A passkey is checked against the pending session's own account only, on Jobbbox's host (its RP ID); each challenge serves one answer, and a refused passkey counts towards the same lock as a wrong code. Signing in with a passkey alone, without a magic link, is refused. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |
 
+## App lock on the device (#702, ADR-0081)
+
+| | |
+| --- | --- |
+| Purpose | Let the person lock the Jobbbox app on their phone or tablet, « Verrouiller l'app » in Réglages de l'app: after 5 minutes in the background and when it starts, the app asks Face ID, Touch ID, a fingerprint or the device's code, and hides its content from the app switcher. Off by default. |
+| Legal basis | Performance of the service the person asks for (GDPR art. 6(1)(b)). The setting kept on the device is strictly necessary to the feature asked for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Candidates and Human Coaches who use the app. |
+| Data | One setting on the device, the lock on or off. **No biometric data is processed by Jobbbox**: the face or fingerprint is checked by the device's system (iOS, Android), which answers the app with a yes or a no only (`expo-local-authentication`); the app never receives, stores nor sends a template, an image or the device's code. GDPR art. 9 is therefore not engaged by Jobbbox. |
+| Source | The person, by the switch. |
+| Who can read it | No one but the app on that device. Nothing is sent to the server: not the setting, not the result of an unlock. It is not a second step and changes nothing to the session or to Two-step verification (ADR-0075). |
+| Processors | None. |
+| Storage | The device's Keychain (iOS) or Keystore (Android), `expo-secure-store`, key `app-lock`, readable once the device has been unlocked after starting and never restored onto another device. |
+| Retention | Until the person turns the lock off, or removes the app. The lock also turns itself off when the device no longer has Face ID, a fingerprint or a code to unlock with. |
+| Rights | Changed or erased by the person at any time, in Réglages de l'app. Jobbbox holds nothing of it to give or erase. |
+| Security | While the lock is on, the app switcher shows the app blurred (iOS) or blank (Android, `FLAG_SECURE`, which also refuses screenshots and screen recording in the app). |
+
 ## Livraison: the delivery status (Back Office)
 
 | | |
@@ -374,12 +405,12 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 1._
 | Purpose | Create a Candidate's (or an Administrator's, or a Human Coach's) account and sign them in: by a magic link sent by email, or through a Sign-in Provider (Google, Microsoft, Apple, an OpenID Connect issuer configured in Connexion). |
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
 | People concerned | Candidates, Administrators, Human Coaches. |
-| Data | Email address, name (from the Sign-in Provider when one is used), Interface Language, sessions (token, dates, user agent as Better Auth stores it), the Sign-in Provider account's id, the magic links' verification tokens, Back Office Roles. |
+| Data | Email address, name (from the Sign-in Provider when one is used), Interface Language, sessions (token, dates, user agent as Better Auth stores it), the Sign-in Provider account's id, the magic links' verification tokens, Back Office Roles; the « Propositions du coach » preference in Mon compte (« Carte » or « Formulaire », and when it was chosen; #717). |
 | Source | The person, at sign-up and sign-in; the Sign-in Provider, which passes their email address and name (scopes `openid email profile`). |
 | Processors | Hostinger; Brevo, which sends the magic link (« Transactional emails »). Google, Microsoft and Apple act as separate controllers of their own accounts, through their Irish entities (`docs/research/issue-522.md`): the person chooses them; their transfers outside the EU rest on the DPF (Google, Microsoft) and the standard contractual clauses (all three). An OpenID Connect issuer is the one an organisation configured: its place is not established. |
 | Who can read it | The person, in Mon compte. Super-admins and the Back Office Roles that cover accounts, in the Back Office. |
-| Storage | The `candidate`, `session`, `account`, `verification`, `sign_in_provider`, `sign_in_setting` and `administrator_role` tables in the app's Postgres database (EU). The session cookie is set by Better Auth (strictly necessary, no consent). |
-| Retention | While the account lives; deleted with it (« Data export and Account deletion »). Sessions end at sign-out or expiry. |
+| Storage | The `candidate`, `session`, `account`, `verification`, `sign_in_provider`, `sign_in_setting`, `administrator_role` and `coach_proposals_display` tables in the app's Postgres database (EU). The session cookie is set by Better Auth (strictly necessary, no consent). In the native app (ADR-0076, #685), the same session cookie is kept on the device, in the iOS Keychain (readable after the first unlock, this device only) or the Android Keystore, by `@better-auth/expo` (expo-secure-store), and sent back by the app; nothing else of the account is stored there. |
+| Retention | While the account lives; deleted with it (« Data export and Account deletion »). Sessions end at sign-out or expiry. Signing out in the app revokes its session and empties the device's secure storage; a session revoked from Mon compte, or no longer known, is emptied from the device at the app's next request. |
 | Rights | In the Data export; erased with the account. |
 | Security | HttpOnly session cookie; two-step verification on request (« Two-step verification »). |
 
@@ -409,13 +440,13 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 3._
 | Purpose | Follow the Candidate's Applications and write what goes with them: Tailored CVs and documents, Follow-ups, Interviews, the Agenda and its reminders, Action Cards, Company Dossiers. |
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
 | People concerned | Candidates; people the Candidate names (recruiters, interviewers), employers' public contacts. |
-| Data | The Applications and their status, the Job Offers they are for, the Tailored CVs and documents, Follow-ups, Interviews, appointment reminders, Action Cards, Company Dossiers. |
+| Data | The Applications and their status, the Job Offers they are for, the Tailored CVs and documents, Follow-ups, Interviews, appointment reminders, Action Cards, Company Dossiers. A Coach proposal's Action Card in a Coach Conversation's thread (#715, ADR-0077): what it proposed, before and after, what the Candidate edited before applying it, their decision and its « Annuler », and the state before it kept to put back. The Origin of an object a Coach proposal changed, kept with it and shown only on demand (« Origine »): `coach_proposal`, the card's id and when the Candidate applied it (an Application Status first, #715; Interviews, Master CV Versions and Search Criteria with their Coach Actions). |
 | Source | The Candidate; the Job Offer's page; public registers (`recherche-entreprises.api.gouv.fr`) and web search for a Company Dossier. |
 | Processors | Claude's direct API (Anthropic, outside the EU) after Redaction, for `writing`, `scoring` and `offer_analysis`; web search (Perplexity, or Brave or Tavily as fallback, outside the EU) on queries only, such as an employer's name (ADR-0007); Brevo for the reminders (« Transactional emails »). |
 | Who can read it | The Candidate; a Human Coach with Coach Access to that Application. |
-| Storage | The `application`, `tailored_cv`, `tailored_document`, `follow_up_*`, `interview`, `appointment_reminder*`, `action_card` and `company_dossier` tables in the app's Postgres database (EU). |
-| Retention | While the account lives; deleted with it, or with the Application. |
-| Rights | In the Data export; erased with the account. |
+| Storage | The `application`, `tailored_cv`, `tailored_document`, `follow_up_*`, `interview`, `appointment_reminder*`, `action_card` and `company_dossier` tables in the app's Postgres database (EU); an Application Status's Origin in `application.status_origin`, a thread's card tied to its reply (`action_card.reply_seq`). |
+| Retention | While the account lives; deleted with it, or with the Application. A thread's Action Card is deleted with its reply, so with its Coach Conversation; an Origin goes once the Candidate changes the status themselves, or « Annuler » puts the state before back. |
+| Rights | In the Data export (`applications[].statusOrigin`; `actionCards`, a thread's with its `conversationId`, `edited` and `undoneAt`); erased with the account. |
 
 ## Coach Memory and Guardrails (ADR-0022, ADR-0036, ADR-0041)
 

@@ -171,6 +171,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     ...(message.at !== undefined && { at: message.at }),
     ...(message.blocked && { blocked: message.blocked }),
     ...(message.jobOffer && { jobOffer: message.jobOffer }),
+    ...(message.cards && { cards: message.cards }),
   })),
   context: {
     messages: conversation.context.messages,

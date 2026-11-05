@@ -84,8 +84,8 @@ function webLink(text: string, path: string, className?: string): HTMLAnchorElem
 
 /** A public page of the web app, in a new tab, in the browser's language (#550): under `/en` in English. */
 const siteLanguageNow = siteLanguage(navigator.language);
-function siteLink(text: string, path: string): HTMLAnchorElement {
-  const link = element("a", text);
+function siteLink(text: string, path: string, className?: string): HTMLAnchorElement {
+  const link = element("a", text, className);
   Object.assign(link, { href: siteHref(WEB_ORIGIN, path, siteLanguageNow), target: "_blank", rel: "noopener" });
   return link;
 }
@@ -726,7 +726,7 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
       if (profiles.length > 0) body.push(button(t("extension.analysis.useProfile"), useProfile, "quiet", true));
       // A Guest's first step is the footer's: « Calculer mon Match Score ».
       if (candidate.signedIn) form.append(submit);
-      else foot.push(submit, webLink(t("extension.analysis.signIn"), "/connexion", buttonClass("quiet")));
+      else foot.push(submit, siteLink(t("extension.analysis.signIn"), "/connexion", buttonClass("quiet")));
     }
     // What happens to the CV and the Job Offer: a Guest's are forgotten within 24 hours (ADR-0003); a signed-in
     // Candidate's Job Offer is kept in their account, and only the CV stays in this browser.
@@ -737,7 +737,8 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
       if (scored) {
         body.push(element("p", t("extension.analysis.signUpHint"), "hint"));
         foot.push(
-          webLink(t("extension.analysis.signUp"), "/connexion", buttonClass("primary")),
+          // A Guest signs up or in on the sign-in page in the browser's language (#570): the new account starts in it.
+          siteLink(t("extension.analysis.signUp"), "/connexion", buttonClass("primary")),
           button(t("extension.analysis.forget"), forget, "danger"),
         );
       } else {
@@ -750,7 +751,7 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
     if (choice && (choice.profiles.length > 0 || choice.fromCv)) foot.push(saveForm(choice, scoredProfileId));
     else if (choice) body.push(element("p", t("extension.analysis.firstProfileHint")));
   }
-  if (!candidate.signedIn && !jobOffer) foot.push(webLink(t("extension.analysis.signIn"), "/connexion", buttonClass("quiet")));
+  if (!candidate.signedIn && !jobOffer) foot.push(siteLink(t("extension.analysis.signIn"), "/connexion", buttonClass("quiet")));
   body.push(extrasFor(jobOffer));
   show(body, foot);
 }

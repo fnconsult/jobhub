@@ -3,6 +3,7 @@ kind: tutorial
 audience: candidate
 topic: utiliser
 title: Forward the job offers you receive by email
+motion: transferer-offres-email
 synonyms: [email, mail, email intake, forward, forwarding, alert, job alert, job alerts, gmail, outlook, icloud, orange, filter, rule, forwarding address, recruiter, received by email]
 ---
 Your job alerts (job boards, careers sites) and recruiters' messages can reach Jobbbox: forward them to your forwarding address, and Jobbbox draws job offers from them for your profiles. Nothing is done in your mailbox on your behalf.

@@ -3,6 +3,7 @@ kind: tutorial
 audience: candidate
 topic: utiliser
 title: Apply with a tailored CV
+motion: postuler-cv-adapte
 synonyms: [apply, application, tailored cv, tailor my cv, custom cv, send my application, download, pdf, word, applied]
 ---
 Your coach tailors your Master CV to a job offer, never inventing anything. You check each change before saving it, then you apply yourself.

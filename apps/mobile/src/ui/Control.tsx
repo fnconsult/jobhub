@@ -2,12 +2,14 @@ import type { LucideIcon } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "./AppText";
+import { usePointerHover } from "./pointer";
 
 type Look = "primary" | "secondary" | "quiet";
 
 /**
  * A button: 44 pt at least each way (ADR-0009), its label in words beside its Lucide icon. `label` alone, with `icon`,
  * draws the icon only, for the few functions ADR-0009 lets go without words; the label is then its accessible name.
+ * Highlighted under a pointer as when pressed (#700).
  */
 export function Control({
   label,
@@ -16,6 +18,7 @@ export function Control({
   look = "quiet",
   expanded,
   selected,
+  disabled = false,
   onPress,
 }: {
   label: string;
@@ -24,9 +27,12 @@ export function Control({
   look?: Look;
   expanded?: boolean;
   selected?: boolean;
+  /** Not usable for now (« Hors ligne »): its caller says why beside it. */
+  disabled?: boolean;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const { hovered, hoverProps } = usePointerHover();
   const foreground = look === "primary" ? colors.onAccent : selected ? colors.accent : colors.text;
   return (
     <Pressable
@@ -34,7 +40,10 @@ export function Control({
       aria-label={label}
       aria-expanded={expanded}
       aria-selected={selected}
+      aria-disabled={disabled}
+      disabled={disabled}
       onPress={onPress}
+      {...hoverProps}
       style={({ pressed }) => ({
         minHeight: TARGET,
         minWidth: TARGET,
@@ -46,7 +55,8 @@ export function Control({
         borderRadius: radius.control,
         borderWidth: look === "secondary" ? 1 : 0,
         borderColor: colors.borderStrong,
-        backgroundColor: look === "primary" ? colors.accent : pressed || selected ? colors.hover : "transparent",
+        backgroundColor: look === "primary" ? (pressed || hovered ? colors.accentHover : colors.accent) : pressed || hovered || selected ? colors.hover : "transparent",
+        opacity: disabled ? 0.5 : 1,
       })}
     >
       {Icon ? <Icon color={foreground} size={22} aria-hidden /> : null}

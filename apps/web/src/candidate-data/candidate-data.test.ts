@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createActionCards } from "../action-cards";
+import { e2eCoachActions } from "../coach-actions/e2e-catalog";
+import { AGENDA_ACTIONS, agendaCoachActions } from "../coach-actions/agenda";
+import { coachProposalHandlers, createCoachProposals } from "../coach-proposals";
 import { createBackOffice } from "../admin/back-office";
 import { createAtsScoring } from "../ats-score";
 import { createBilling, STARTING_PLAN_QUOTAS } from "../billing";
@@ -20,6 +23,7 @@ import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createLegalTextNotices } from "../legal-text-notices";
 import { createNouveautesEmails } from "../nouveautes-email";
+import { createCoachProposalsDisplays } from "../coach-proposals-display";
 import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -347,6 +351,14 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toMatch(/token/i);
   });
 
+  it("the export holds the Candidate's « Propositions du coach » setting, « Carte » until they choose, and since when (#717)", async () => {
+    expect((await candidateData.export(candidateId)).coachProposalsDisplay).toEqual({ display: "card", chosenAt: null });
+    const at = new Date("2026-11-04T17:20:00Z");
+    await createCoachProposalsDisplays(database, { now: () => at }).choose(candidateId, "form");
+
+    expect((await candidateData.export(candidateId)).coachProposalsDisplay).toEqual({ display: "form", chosenAt: at });
+  });
+
   it("the export holds the CGU and CGV versions the Candidate accepted, never the pseudonym nor the Checkout session (#510); deleting the account keeps them, nameless", async () => {
     expect((await candidateData.export(candidateId)).acceptances).toEqual([]);
     const registry = () => [
@@ -421,6 +433,58 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       { id: second.id, kind: "follow_up", title: "Relancez Acme", body: "Une semaine déjà.", focus: { kind: "profile", id: profileId }, payload: null, status: "pending", createdAt: expect.any(Date), decidedAt: null },
       expect.objectContaining({ id: first.id, title: "Ajoutez SAP", payload: { fix: "x" }, status: "dismissed", decidedAt: expect.any(Date), provenance }),
     ]);
+  });
+
+  it("the export holds a Coach proposal's card in its thread (#715): its conversation, what it proposed before and after, its decision and « Annuler »; and its object's Origin", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    const catalog = e2eCoachActions(applications);
+    const actionCards = createActionCards(database, coachProposalHandlers(catalog, () => new Date("2026-11-04T17:20:00Z")));
+    const { rows } = await database.query<{ id: string }>(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'Statut') RETURNING id`, [candidateId]);
+    const reply = (await database.query<{ seq: string }>(`INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'coach', 'Passez-la en entretien.') RETURNING seq`, [rows[0]!.id])).rows[0]!.seq;
+    const ran = await catalog[0]!.run({ id: application.id, status: "interview" }, { candidateId, language: "fr" });
+    if (!ran.ok) throw new Error("not proposed");
+    const [applied, dismissed] = [
+      ...(await createCoachProposals({ catalog, actionCards }).place(candidateId, { reply, earlier: [] }, [{ action: catalog[0]!.name, group: "applications", data: ran.data }])),
+      ...(await createCoachProposals({ catalog, actionCards }).place(candidateId, { reply, earlier: [] }, [{ action: catalog[0]!.name, group: "applications", data: ran.data }])),
+    ];
+    await actionCards.decide(candidateId, dismissed!.id, "dismiss");
+    await actionCards.decide(candidateId, applied!.id, "accept", { edited: { status: "interview" } });
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.actionCards).toEqual([
+      expect.objectContaining({ id: dismissed!.id, status: "dismissed", conversationId: rows[0]!.id }),
+      expect.objectContaining({
+        id: applied!.id,
+        kind: "coach_proposal",
+        status: "accepted",
+        decidedAt: expect.any(Date),
+        conversationId: rows[0]!.id,
+        edited: { status: "interview" },
+        payload: expect.objectContaining({ change: expect.objectContaining({ what: "Statut de la candidature", before: "À postuler", after: "Entretien" }) }),
+      }),
+    ]);
+    expect(exported.applications[0]).toMatchObject({ status: "interview", statusOrigin: { origin: "coach_proposal", cardId: applied!.id, appliedAt: new Date("2026-11-04T17:20:00Z") } });
+
+    await actionCards.undo(candidateId, applied!.id);
+    expect((await candidateData.export(candidateId)).actionCards[1]).toMatchObject({ status: "undone", undoneAt: expect.any(Date) });
+  });
+
+  it("the export holds the Origin an Interview keeps when a Coach proposal the Candidate applied added it (#718)", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    const catalog = agendaCoachActions(applications);
+    const actionCards = createActionCards(database, coachProposalHandlers(catalog, () => new Date("2026-11-05T09:20:00Z")));
+    const { rows } = await database.query<{ id: string }>(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'Agenda') RETURNING id`, [candidateId]);
+    const reply = (await database.query<{ seq: string }>(`INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'coach', 'Je vous propose cet entretien.') RETURNING seq`, [rows[0]!.id])).rows[0]!.seq;
+    const action = catalog.find((each) => each.name === AGENDA_ACTIONS.add)!;
+    const ran = await action.run(action.schema.parse({ applicationId: application.id, scheduledAt: "2026-11-12T14:00" }), { candidateId, language: "fr" });
+    if (!ran.ok) throw new Error("not proposed");
+    const [card] = await createCoachProposals({ catalog, actionCards }).place(candidateId, { reply, earlier: [] }, [{ action: action.name, group: "agenda", data: ran.data }]);
+    await actionCards.decide(candidateId, card!.id, "accept");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.applications[0]!.interviews).toMatchObject([{ scheduledAt: new Date("2026-11-12T13:00:00Z"), origin: { origin: "coach_proposal", cardId: card!.id, appliedAt: new Date("2026-11-05T09:20:00Z") } }]);
   });
 
   it("the export holds the Coach Memory the Candidate confirmed, oldest first", async () => {

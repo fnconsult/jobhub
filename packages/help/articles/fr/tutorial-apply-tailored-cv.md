@@ -3,6 +3,7 @@ kind: tutorial
 audience: candidate
 topic: utiliser
 title: Postuler avec un CV adapté
+motion: postuler-cv-adapte
 synonyms: [postuler, candidater, cv adapté, adapter mon cv, cv personnalisé, cv sur mesure, envoyer ma candidature, télécharger, pdf, word, postulée, tailored cv]
 ---
 Votre coach adapte votre CV de référence à une offre, sans jamais rien inventer. Vous vérifiez chaque changement avant de l'enregistrer, puis vous postulez vous-même.

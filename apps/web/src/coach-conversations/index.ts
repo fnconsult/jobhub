@@ -47,6 +47,8 @@
  * Each reply is told to Unanswered Questions (#344, ADR-0035) with its question, the page it was asked from (`route`, the
  * address of the page in view) and the Candidate's language: they keep, unlinked to the Candidate, the questions the help
  * missed. A reply is never held back by it.
+ * A reply's Coach proposals (#715, ADR-0077) are placed under it as Action Cards (`proposals`, see ../coach-proposals), said
+ * with it (`cards`) and shown again with it when the conversation reopens; deleted with it.
  * An archived object keeps its conversation (it is found again once restored); a deleted object takes it along.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
@@ -60,6 +62,7 @@ import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, type PlaybookConsultation, type PlaybookUsed } from "../coach";
 import { MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ConversationContext, type ContextSplit, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
+import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
 import { utcBefore } from "../database/before";
@@ -109,6 +112,7 @@ export interface CoachConversation extends CoachConversationSummary {
  * `couldNotAnswer`: the AI Coach marked the question as one it could not answer (#345), so the Coach Panel offers the team at
  * once; never saved, so a reopened conversation no longer says it.
  * `context`: the conversation's Context bar's figures once the message is saved (#607).
+ * `cards`: the Action Cards of the Coach proposals the reply makes (#715), under it; absent when it makes none.
  * `stopped` (#328): the Candidate stopped the reply; their message is saved in `conversation`, with no reply.
  * `unavailable`: the AI Coach could not answer, `reason` its Failure Reason; nothing is saved.
  */
@@ -123,6 +127,7 @@ export type SendResult =
       at: string;
       couldNotAnswer: boolean;
       context: ConversationContext;
+      cards?: CoachProposalCard[];
     }
   | { ok: false; error: "stopped"; conversation: CoachConversationSummary; context: ConversationContext }
   | { ok: false; error: "unavailable"; reason: FailureReason }
@@ -183,6 +188,8 @@ export interface CoachConversationsDeps {
   billing?: { entitlements(candidateId: string): Promise<{ coachContext: CoachContextLimits }> };
   /** Where each reply is told, for the questions the help missed (#344). Without it, nothing is. */
   unansweredQuestions?: Pick<UnansweredQuestions, "notice">;
+  /** Where a reply's Coach proposals become Action Cards under it (#715). Without it, they are dropped. */
+  proposals?: Pick<CoachProposals, "place" | "ofReplies">;
   /** When messages are sent. Default: the system clock. */
   now?: () => Date;
 }
@@ -260,6 +267,7 @@ export function savedReplyProvenance(reply: SavedReply): Provenance | null {
 
 /** A saved message as read back, with what an AI Coach reply kept of what served it. */
 interface MessageRow extends SavedReply {
+  seq: string;
   from: CoachMessage["from"];
   text: string;
   blocked: boolean;
@@ -434,7 +442,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
    */
   async function lastMessages(candidateId: string, conversationId: string, limit: number | null, forCoach = false): Promise<CoachMessage[]> {
     const { rows } = await database.query<MessageRow>(
-      `SELECT recent.author AS "from", recent.text, recent.blocked,
+      `SELECT recent.seq, recent.author AS "from", recent.text, recent.blocked,
               CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
               ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}
          FROM (SELECT * FROM coach_message WHERE conversation_id = $1 ${forCoach ? "AND NOT unchecked" : ""} ORDER BY seq DESC LIMIT $2) recent
@@ -443,12 +451,15 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         ORDER BY recent.seq`,
       [conversationId, limit, candidateId],
     );
+    const replies = rows.filter((row) => row.from === "coach").map((row) => String(row.seq));
+    const cards = !forCoach && deps.proposals && replies.length > 0 ? await deps.proposals.ofReplies(candidateId, replies) : new Map<string, CoachProposalCard[]>();
     return rows.map((row) => ({
       from: row.from,
       text: row.text,
       ...(row.blocked ? { blocked: true as const } : {}),
       ...(row.jobOffer ? { jobOffer: row.jobOffer } : {}),
       ...(row.from === "coach" ? { provenance: savedReplyProvenance(row), at: row.at.toISOString() } : {}),
+      ...(cards.has(String(row.seq)) ? { cards: cards.get(String(row.seq))! } : {}),
     }));
   }
 
@@ -527,9 +538,10 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
         const sentAt = now();
         const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
-        await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: replyFocus }, sentAt);
+        const replySeq = await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: replyFocus }, sentAt);
         const saved = await find(candidateId, conversation.id);
         if (!saved) return { ok: false, error: "not_found" }; // deleted meanwhile
+        const cards = replySeq && answer.proposals?.length ? await placeProposals(candidateId, saved.id, replySeq, answer.proposals) : [];
         await deps.unansweredQuestions
           ?.notice(candidateId, {
             question: message,
@@ -548,6 +560,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           at: sentAt.toISOString(),
           couldNotAnswer: answer.couldNotAnswer === true,
           context: await contextOf(saved.id, limits),
+          ...(cards.length > 0 ? { cards } : {}),
         };
       });
     },
@@ -630,8 +643,26 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   };
 
   /**
+   * A reply's Coach proposals placed under it (#715), the conversation's earlier replies named so that a pending card the
+   * reply proposes again is withdrawn. The reply stands without them if they cannot be placed.
+   */
+  async function placeProposals(candidateId: string, conversationId: string, reply: string, proposals: NonNullable<Extract<CoachReply, { ok: true }>["proposals"]>): Promise<CoachProposalCard[]> {
+    if (!deps.proposals) return [];
+    try {
+      const { rows } = await database.query<{ seq: string }>(`SELECT seq FROM coach_message WHERE conversation_id = $1 AND author = 'coach' AND seq < $2 ORDER BY seq`, [
+        conversationId,
+        reply,
+      ]);
+      return await deps.proposals.place(candidateId, { reply, earlier: rows.map((row) => String(row.seq)) }, proposals);
+    } catch (error) {
+      console.warn("[coach-conversations] a reply's Coach proposals could not be placed:", error instanceof Error ? error.message : error);
+      return [];
+    }
+  }
+
+  /**
    * Saves the Candidate's message and the AI Coach's reply together, `reply` null when it was stopped, with the conversation
-   * when it is `isNew`; the conversation's last message is then `sentAt`.
+   * when it is `isNew`; the conversation's last message is then `sentAt`. Gives back the reply's seq, null without one.
    */
   async function save(
     candidateId: string,
@@ -640,8 +671,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     asked: { message: string; blocked: boolean; unchecked?: boolean },
     reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: Focus | null } | null,
     sentAt: Date,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const client = await database.connect();
+    let replySeq: string | null = null;
     try {
       await client.query("BEGIN");
       const { id, subject } = conversation;
@@ -663,10 +695,10 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       if (reply) {
         const { answer } = reply;
         const { cost } = answer;
-        await client.query(
+        const inserted = await client.query<{ seq: string }>(
           `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
                                      provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING seq`,
           [
             id,
             answer.reply,
@@ -689,9 +721,11 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             answer.callId ?? null,
           ],
         );
+        replySeq = String(inserted.rows[0]!.seq);
       }
       await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
       await client.query("COMMIT");
+      return replySeq;
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
       throw error;

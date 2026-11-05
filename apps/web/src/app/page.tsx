@@ -7,7 +7,8 @@ import { TextSizeControl } from "@/components/TextSizeControl";
 import { buttonClass } from "@/design/button-class";
 import { Note } from "@/design/Note";
 import type { Metadata } from "next";
-import { getServerT } from "@/i18n/server";
+import { getServerT, getUrlLocale } from "@/i18n/server";
+import { localePath } from "@/public-pages/public-shell";
 import { publicMetadata } from "@/public-pages/indexing-server";
 
 /** The home page is indexed, in French at `/` and in English at `/en` (#545). */
@@ -41,7 +42,8 @@ export default async function HomePage() {
         <span className="brand">{t("app.name")}</span>
         <nav className="page-nav">
           <TextSizeControl />
-          <Link className={buttonClass()} href={routes.signIn}>
+          {/* In English at `/en`, the sign-in page in English too (#570: it went to the French one). */}
+          <Link className={buttonClass()} href={localePath(routes.signIn, await getUrlLocale())}>
             {t("nav.signIn")}
           </Link>
         </nav>

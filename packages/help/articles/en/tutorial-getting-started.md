@@ -3,6 +3,7 @@ kind: tutorial
 audience: visitor
 topic: decouvrir
 title: "Getting started: from signing up to your first profile"
+motion: commencer
 synonyms: [get started, start, begin, sign up, register, create an account, first profile, create a profile, upload my cv, first steps]
 ---
 A profile is a job you are aiming for: a master CV and search criteria. Your coach uses it to look for offers and prepare your applications.

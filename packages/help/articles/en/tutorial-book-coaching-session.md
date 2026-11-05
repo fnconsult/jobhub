@@ -3,6 +3,7 @@ kind: tutorial
 audience: candidate
 topic: utiliser
 title: Book and pay for a session with a human coach
+motion: reserver-seance-coach
 synonyms: [book, session, human coach, coaching, pay, payment, stripe, cal.com, time slot, appointment, video call, order, withdrawal]
 ---
 On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. You pay first, then you pick your time.

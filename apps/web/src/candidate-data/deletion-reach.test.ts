@@ -71,7 +71,9 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     );
 
     expect(blocking).toEqual([]);
-    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item", "signalement", "forwarding_address", "sending_address", "legal_text_notice", "privacy_change_seen", "nouveautes_email_subscription", "nouveautes_email_sent"]));
+    // A Coach proposal's card in the thread (#715) hangs off its reply too, so it goes with its Coach Conversation.
+    expect(foreignKeys).toContainEqual({ table: "action_card", column: "reply_seq", references: "coach_message", onDelete: "cascade" });
+    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item", "signalement", "forwarding_address", "sending_address", "legal_text_notice", "privacy_change_seen", "nouveautes_email_subscription", "nouveautes_email_sent", "coach_proposals_display"]));
   });
 
   it("every table naming a Candidate hangs off the Candidate table, so none is forgotten", async () => {
@@ -86,10 +88,21 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(loose).toEqual([]);
   });
 
-  it("every table tied to a Candidate is in their data export (GDPR art. 15 / 20), so a new table cannot be left out of it", () => {
+  it("every table tied to a Candidate is in their data export (GDPR art. 15 / 20), so a new table cannot be left out of it", async () => {
     const missing = candidateDataTables().filter((table) => !(table in EXPORTED_TABLES));
 
     expect(missing).toEqual([]);
+    // The columns of a Coach proposal in the thread (#715) are said where they land: its card's reply, what was edited,
+    // its « Annuler »; the Origin an Application Status and an Interview keep.
+    const { rows } = await throwaway.pool.query<{ table: string; column: string }>(
+      `SELECT table_name AS table, column_name AS column FROM information_schema.columns
+        WHERE table_schema = current_schema() AND ((table_name = 'action_card' AND column_name IN ('reply_seq', 'edited', 'undo', 'undone_at')) OR (table_name = 'application' AND column_name = 'status_origin') OR (table_name = 'interview' AND column_name = 'origin'))`,
+    );
+    expect(rows).toHaveLength(6);
+    expect(EXPORTED_TABLES.action_card).toMatch(/thread.*conversation.*before and after.*edited.*« Annuler »/);
+    expect(EXPORTED_TABLES.application).toMatch(/Origin/);
+    // The Origin an Interview keeps (#718).
+    expect(EXPORTED_TABLES.interview).toMatch(/Origin/);
   });
 
   it("Jobbbox's operations record outlives the Candidate: their id is set to null and nothing hangs off it", () => {

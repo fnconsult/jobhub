@@ -7,6 +7,7 @@
  */
 
 import { DEFAULT_COACH_CONTEXT_LIMITS, type CoachContextLimits, type Provenance } from "@jobhub/shared";
+import type { CoachProposalCard } from "../coach-proposals/card";
 
 export interface CoachMessage {
   from: "candidate" | "coach";
@@ -22,6 +23,8 @@ export interface CoachMessage {
   blocked?: true;
   /** On an AI Coach reply to a Job Offer link: the Job Offer card it shows. Never given to the AI Coach. */
   jobOffer?: JobOfferCard;
+  /** On a saved AI Coach reply: the Action Cards of the Coach proposals it made (#715), under it. Never given to the AI Coach. */
+  cards?: CoachProposalCard[];
 }
 
 /**

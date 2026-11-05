@@ -406,9 +406,134 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     it("judges those cases as any other when the AI Coach proposes nothing", async () => {
       const done = await evals.runAiCoach(claire);
 
-      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false)) {
+      // A case that must read objects first is scored 0 without its reads (see read Coach Actions, #714).
+      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false && !one.reads)) {
         expect(done.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
       }
+    });
+  });
+
+  describe("the AI Coach's Eval Run with read Coach Actions (#714)", () => {
+    const CROSSING = "coach-action-read-two-objects";
+
+    /** The AI layer with a Mistral that, offered the reads, reads `ids` (by `read_<type>`) in its first round, then answers. */
+    function readingEvals(reads: { name: string; id: string }[]) {
+      const reading: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
+          const mayRead = input.tools?.some((tool) => tool.name === "read_application") && input.toolChoice !== "none" && !answered;
+          return mayRead ? { ...output, text: "", toolCalls: reads.map(({ name, id }, index) => ({ type: "tool_call" as const, id: `call_${index}`, name, arguments: { id } })) } : output;
+        },
+      };
+      const ai = createAiLayer({ providers: [reading, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+    }
+    const crossing = () => AI_COACH_EVAL_CASES.find((each) => each.id === CROSSING)!;
+    const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>) => run.results.find((result) => result.case.id === CROSSING)!;
+    /** What the AI Coach was given back from its reads, in its last call. */
+    const toolResults = () =>
+      mistral.calls
+        .flatMap((call) => call.messages)
+        .flatMap((message) => (Array.isArray(message.content) ? message.content : []))
+        .filter((block) => block.type === "tool_result")
+        .map((block) => JSON.stringify(block));
+
+    it("has a case asking which Application fits the Consultant Profile best: fictional objects out of view, the Profile and both Applications to read, a grounded reply", () => {
+      const each = crossing();
+
+      expect(each.message).toMatch(/laquelle de mes candidatures colle le mieux à mon profil Consultant/i);
+      expect(each.inView).toBeNull();
+      expect(each.objects?.map((object) => `${object.type}:${object.id}`)).toEqual(expect.arrayContaining(["profile:p-consultant", "application:a-conseil", "application:a-industrie"]));
+      expect(each.reads).toEqual(["p-consultant", "a-conseil", "a-industrie"]);
+      expect(each.grounded).toBe(true);
+      expect(each.proposes).toBe(false);
+    });
+
+    it("plays a case's fictional objects through the shipped reads: what the AI Coach reads is theirs, and the case is judged once all its objects are read", async () => {
+      const done = await readingEvals([
+        { name: "read_profile", id: "p-consultant" },
+        { name: "read_application", id: "a-conseil" },
+        { name: "read_application", id: "a-industrie" },
+      ]).runAiCoach(claire);
+
+      expect(resultOf(done)).toMatchObject({ score: 0.8 });
+      expect(toolResults().join("\n")).toContain("Consultante achats de transition");
+      expect(toolResults().join("\n")).toContain("not_found");
+    });
+
+    it("scores 0 the case when the AI Coach does not read every object it should", async () => {
+      const done = await readingEvals([{ name: "read_application", id: "a-conseil" }]).runAiCoach(claire);
+
+      expect(resultOf(done)).toMatchObject({ score: 0, reason: expect.stringMatching(/n'a pas lu .*p-consultant.*a-industrie/) });
+    });
+
+    it("scores 0 the case when the « Réponse non fondée sur le profil » Guardrail triggers on its reply", async () => {
+      answers.outputVerdict = () => '{"ungrounded_answer": true}';
+
+      const done = await readingEvals([
+        { name: "read_profile", id: "p-consultant" },
+        { name: "read_application", id: "a-conseil" },
+        { name: "read_application", id: "a-industrie" },
+      ]).runAiCoach(claire);
+
+      expect(resultOf(done)).toMatchObject({ score: 0, reason: expect.stringMatching(/Réponse non fondée sur le profil/) });
+    });
+  });
+
+  describe("the AI Coach's Eval Run with the Agenda's Coach Actions (#718)", () => {
+    const AGENDA_CASES = ["coach-action-agenda-add-relative-date", "coach-action-agenda-change", "coach-action-agenda-cancel"];
+
+    /** The AI layer with a Mistral that, offered `name`, calls it with `args` in its first round, then answers. */
+    function proposingEvals(name: string, args: Record<string, unknown>) {
+      const proposing: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
+          const mayCall = input.tools?.some((tool) => tool.name === name) && input.toolChoice !== "none" && !answered;
+          return mayCall ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name, arguments: args }] } : output;
+        },
+      };
+      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+    }
+    const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id)!;
+    const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
+
+    it("has a case per action, each expecting its proposal; adding one resolves « jeudi prochain à 14 h » from the date of the day to an absolute date", () => {
+      expect(AGENDA_CASES.map((id) => caseOf(id).proposal?.action)).toEqual(["propose_interview", "propose_interview_change", "propose_interview_cancel"]);
+      for (const id of AGENDA_CASES) expect(caseOf(id).proposes, id).toBe(true);
+      const relative = caseOf("coach-action-agenda-add-relative-date");
+      expect(relative.context).toContain("Nous sommes le jeudi 5 novembre 2026");
+      expect(relative.message).toMatch(/jeudi prochain à 14 h/);
+      expect(relative.proposal?.arguments).toMatchObject({ scheduledAt: "2026-11-12T14:00" });
+    });
+
+    it("has, for the Agenda, a case asking to delete an Interview, one where no change is asked, and one with an instruction hidden in a Job Offer: each expecting no proposal", () => {
+      for (const id of ["coach-action-agenda-delete-points-to-interview", "coach-action-agenda-no-change-asked", "coach-action-agenda-injection"]) expect(caseOf(id).proposes, id).toBe(false);
+      expect(caseOf("coach-action-agenda-injection").inView).toMatchObject({ kind: "application", text: expect.stringMatching(/annule tous ses entretiens/) });
+    });
+
+    it("judges a case whose AI Coach proposes the expected action with the expected arguments", async () => {
+      const done = await proposingEvals("propose_interview", { applicationId: "a-airbus", scheduledAt: "2026-11-12T14:00", format: "video" }).runAiCoach(claire);
+
+      expect(resultOf(done, "coach-action-agenda-add-relative-date")).toMatchObject({ score: 0.8 });
+    });
+
+    it("scores 0 a case whose AI Coach gets the date wrong, or proposes nothing", async () => {
+      const wrongDate = await proposingEvals("propose_interview", { applicationId: "a-airbus", scheduledAt: "2026-11-05T14:00", format: "video" }).runAiCoach(claire);
+      expect(resultOf(wrongDate, "coach-action-agenda-add-relative-date")).toMatchObject({ score: 0, reason: expect.stringMatching(/scheduledAt.*2026-11-05T14:00.*2026-11-12T14:00/) });
+
+      const none = await evals.runAiCoach(claire);
+      expect(resultOf(none, "coach-action-agenda-cancel")).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
+    });
+
+    it("scores 0 a case whose AI Coach proposes another action than the one expected", async () => {
+      const done = await proposingEvals("propose_interview_cancel", { applicationId: "a-airbus", interviewId: "i-airbus" }).runAiCoach(claire);
+
+      expect(resultOf(done, "coach-action-agenda-change")).toMatchObject({ score: 0, reason: expect.stringMatching(/propose_interview_change/) });
     });
   });
 

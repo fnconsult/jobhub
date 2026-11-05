@@ -1,6 +1,7 @@
 import { sharedPool } from "@/database/pool";
 import { getBilling } from "@/billing/server";
 import { getCoach } from "@/coach/server";
+import { getCoachProposals } from "@/coach-proposals/server";
 import { getProfiles } from "@/profiles/server";
 import { getUnansweredQuestions } from "@/unanswered-questions/server";
 import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, type CoachConversations, type CoachCostDay, type PlaybookAgentCost } from "./index";
@@ -9,10 +10,11 @@ let instance: CoachConversations | undefined;
 
 /**
  * The app's Coach Conversations, on the database named by DATABASE_URL and the app's AI Coach, within the Coach context limits of
- * each Candidate's Plan (ADR-0078); the questions the help missed go to Unanswered Questions.
+ * each Candidate's Plan (ADR-0078); the questions the help missed go to Unanswered Questions; a reply's Coach proposals become
+ * Action Cards under it (#715).
  */
 export function getCoachConversations(): CoachConversations {
-  instance ??= createCoachConversations(sharedPool(), { coach: getCoach(), profiles: getProfiles(), billing: getBilling(), unansweredQuestions: getUnansweredQuestions() });
+  instance ??= createCoachConversations(sharedPool(), { coach: getCoach(), profiles: getProfiles(), billing: getBilling(), unansweredQuestions: getUnansweredQuestions(), proposals: getCoachProposals() });
   return instance;
 }
 

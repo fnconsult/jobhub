@@ -3,7 +3,9 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useTranslation } from "react-i18next";
 import { BackHandler, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OfflineBanner } from "../offline/OfflineBanner";
 import { space, radius, useTheme } from "../theme/theme";
+import { useKeyCommand } from "../keyboard/key-commands";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
@@ -31,7 +33,7 @@ type State = {
 
 /**
  * The app's shell (ADR-0076, variant A of `prototype/mobile-shell`): the Top Bar, the page (its conversation), the
- * Sidebar as a column or a drawer, and the page's panes (its Fiche, or Activité alone, and the Work Pane) as columns
+ * Sidebar as a column or a drawer, « Hors ligne » under the Top Bar while there is no network, and the page's panes (its Fiche, or Activité alone, and the Work Pane) as columns
  * beside the conversation or full page over it, as `disposition` decides for the window, again on every change of it.
  *
  * On a wide window an object's Fiche starts open, as on the web; the Top Bar's « Fiche » or « Activité » alone opens
@@ -78,6 +80,16 @@ export function Shell({
   const top = fullPages.at(-1);
   useBackHandler(drawerShown ? closeDrawer : top ? () => close(top) : null);
 
+  // The hardware keyboard (#700): the Top Bar's buttons, the drawer's and the panes' « Fermer » by their shortcuts.
+  const workPaneColumn = layout.panes === "columns" && layout.shown.includes("workPane");
+  useKeyCommand("newConversation", onNewConversation);
+  useKeyCommand("sidebar", layout.sidebar === "drawer" ? () => update({ drawerOpen: !state.drawerOpen }) : onMenu);
+  useKeyCommand("fiche", page.pane === "fiche" ? togglePane : null);
+  useKeyCommand("activite", page.pane === "activite" ? togglePane : null);
+  useKeyCommand("closeWorkPane", state.workPane ? () => close("workPane") : null);
+  // Échap closes what is on top: the drawer, a full page, the Work Pane's column; the Fiche's column stays the Top Bar's.
+  useKeyCommand("closePane", drawerShown ? closeDrawer : top ? () => close(top) : workPaneColumn ? () => close("workPane") : null);
+
   const workPane = useMemo(() => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })) }), []);
   const paneTitle = (pane: ShownPane) => (pane === "workPane" ? (state.workPane?.title ?? "") : t(pane === "fiche" ? "fiche.label" : "fiche.activity"));
   const paneBody = (pane: ShownPane) => (pane === "workPane" ? state.workPane?.content : paneContent);
@@ -109,6 +121,7 @@ export function Shell({
               </>
             }
           />
+          <OfflineBanner />
           <View style={{ flex: 1, flexDirection: "row", paddingBottom: insets.bottom }}>
             <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>{children}</View>
             {layout.panes === "columns"

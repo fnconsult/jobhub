@@ -479,6 +479,14 @@ describe("what the AI Coach always knows: a short Candidate summary", () => {
     expect(context).toContain("120000");
     expect(context).toMatch(/19 ans d'expérience/);
   });
+
+  it("tells the AI Coach the date and time of the day in French time, to resolve a relative date (« jeudi prochain à 14 h », #718)", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach);
+
+    expect(contextOf(provider)).toContain("Nous sommes le mardi 20 octobre 2026, 10:00 (heure de Paris).");
+  });
 });
 
 describe("the Candidate's identity: first name only", () => {

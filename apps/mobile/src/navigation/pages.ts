@@ -10,11 +10,14 @@ export const paths = {
   application: (id: string) => `/candidatures/${encodeURIComponent(id)}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
+  jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",
   conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,
   account: "/compte",
   coachSpace: "/espace-coach",
+  /** Réglages de l'app, the device's own settings: the app's alone, the web has no such page. */
+  appSettings: "/reglages",
 } as const;
 
 /** A new Free conversation: created at its first message (ADR-0070), so it has no id until then. */
@@ -38,7 +41,7 @@ export const isCurrent = (pathname: string, path: string) => (path === paths.hom
 
 /**
  * The page at `pathname` as the shell shows it: its title, and its column, the Fiche on an object's page (an
- * Application's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte or the Coach space.
+ * Application's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the Coach space or Réglages de l'app.
  */
 export function pageFor(pathname: string, t: TFunction): ShellPage {
   const page = (title: string, pane: ShellPage["pane"]): ShellPage => ({ key: pathname, title, pane });
@@ -52,5 +55,6 @@ export function pageFor(pathname: string, t: TFunction): ShellPage {
   if (menu) return page(t(menu.label), "activite");
   if (under(pathname, paths.account)) return page(t("nav.account"), null);
   if (under(pathname, paths.coachSpace)) return page(t("account.coachSpace"), null);
+  if (under(pathname, paths.appSettings)) return page(t("mobile.appSettings"), null);
   return page(t("mobile.homeTitle"), "activite");
 }

@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My account
-synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key]
+synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, coach proposals, form, card, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key]
 route: /compte
 ---
 My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Security, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.
@@ -29,6 +29,8 @@ The section shows since when it is on, the app, each passkey with its name, its 
 For an administrator or a coach, two-step verification is mandatory: the section says so and has no « Turn off ». If a passkey is your only way to verify, it has no « Remove »: add another passkey first. Without the app, a passkey or backup codes, a super-admin resets it.
 
 In Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. The box « Get an email when Jobbbox announces something new » stays unticked until you tick it: ticked, you get at most one email a week when a new version brings something important, with no open or click tracking, and the box says since when you are subscribed. Untick it, or use the link at the bottom of the email, to stop receiving it.
+
+« Coach proposals » chooses what you see first when your AI coach proposes a change, for example an application's status. « Card », the default: the proposal shows as a card under its reply. « Form »: the card shows too, and the page's form, pre-filled with the proposal, opens by itself beside the conversation; when a reply makes several proposals, only the first one's form opens. On a phone, it does not open while you are writing a message. Whatever you choose, « Apply » and « Edit before applying » stay on every card, and nothing changes until you apply the proposal; a change to your master CV always goes through its review, change by change. This setting is saved with your account as soon as you change it.
 
 Tools offers the Jobbbox Chrome extension.
 

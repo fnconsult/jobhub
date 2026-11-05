@@ -7,9 +7,9 @@ import { createFakeProvider, createMemoryUsageLog, type FakeTurn } from "@jobhub
 import type { ExternalApiCall } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import * as z from "zod";
-import { createCoachActions, defineCoachAction, type CoachAction, type CoachActionsSettings } from "../coach-actions";
+import { COACH_ACTION_READS_MAX_TOKENS, createCoachActions, defineCoachAction, type CoachAction, type CoachActionsSettings } from "../coach-actions";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
-import { createCoach, type CoachFocus } from "./index";
+import { createCoach, type CoachContextSource, type CoachFocus } from "./index";
 
 const APPLICATIONS: Record<string, { id: string; title: string; status: string; posting: string }[]> = {
   marie: [{ id: "a1", title: "DAF H/F", status: "interview", posting: "Rattaché au DG, vous pilotez la clôture mensuelle." }],
@@ -59,7 +59,9 @@ const CATALOG: readonly CoachAction[] = [
 const REPLY = "Votre candidature au poste de DAF est au stade de l'entretien.";
 const CONTEXT = "Le candidat s'appelle Marie (prénom seulement).";
 
-function setUp(options: { settings?: Partial<CoachActionsSettings>; turns?: FakeTurn[]; withActions?: boolean; guarded?: boolean; dataVerdict?: (text: string) => string } = {}) {
+function setUp(
+  options: { settings?: Partial<CoachActionsSettings>; turns?: FakeTurn[]; withActions?: boolean; guarded?: boolean; dataVerdict?: (text: string) => string; context?: CoachContextSource } = {},
+) {
   const provider = createFakeProvider({
     id: "mistral",
     reply: (input: TextInput) => {
@@ -88,7 +90,7 @@ function setUp(options: { settings?: Partial<CoachActionsSettings>; turns?: Fake
   const coach = createCoach({
     ai,
     playbooks: { served: async () => ({ coreDigest: null, sources: null, playbooks: [] }) },
-    context: async () => CONTEXT,
+    context: options.context ?? (async () => CONTEXT),
     ...(options.withActions === false ? {} : { coachActions }),
     ...(options.guarded ? { guardrails } : {}),
     warn: () => {},
@@ -125,6 +127,21 @@ describe("the AI Coach without Coach Actions", () => {
 });
 
 describe("the AI Coach with Coach Actions, end to end on the fake provider", () => {
+  it("keeps room in its Coach context for what its reads bring back (#714): the context asked for is smaller by COACH_ACTION_READS_MAX_TOKENS", async () => {
+    const asked: number[] = [];
+    const context: CoachContextSource = async (_candidateId, _focus, maxTokens) => {
+      asked.push(maxTokens);
+      return CONTEXT;
+    };
+
+    await ask(setUp({ withActions: false, context }).coach);
+    await ask(setUp({ settings: { enabled: false }, context }).coach);
+    await ask(setUp({ context }).coach);
+
+    expect(asked[1]).toBe(asked[0]);
+    expect(asked[2]).toBe(asked[0]! - COACH_ACTION_READS_MAX_TOKENS);
+  });
+
   it("reads with a Coach Action: the call run for the session's Candidate, an `act` step, a row of external_api_usage, the arguments and result in the AI Message Log", async () => {
     const { coach, usage, calls, coachCalls } = setUp({ turns: [{ toolCalls: [{ name: "lire_candidature", arguments: { id: "a1" } }] }, { text: REPLY }] });
 

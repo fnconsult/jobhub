@@ -286,6 +286,52 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
     expect((await applications.get(candidateId, application.id))?.status).toBe("to_apply");
   });
 
+  describe("a change applied from a Coach proposal (#715)", () => {
+    const CARD = "44444444-4444-4444-8444-444444444444";
+    const origin = (appliedAt = new Date("2026-11-04T17:20:00Z")) => ({ origin: "coach_proposal" as const, cardId: CARD, appliedAt });
+
+    it("gives the Application Status's version, which every status change moves and nothing else does", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const first = await applications.statusOf(candidateId, id);
+
+      expect(first).toEqual({ status: "to_apply", version: expect.any(String), origin: null });
+      await applications.change(candidateId, id, { reportedUnavailable: true });
+      expect(await applications.statusOf(candidateId, id)).toEqual(first);
+      await applications.change(candidateId, id, { status: "applied" });
+      expect((await applications.statusOf(candidateId, id))?.version).not.toBe(first?.version);
+      expect(await applications.statusOf(otherCandidateId, id)).toBeNull();
+      expect(await applications.statusOf(candidateId, "not-a-uuid")).toBeNull();
+    });
+
+    it("refuses a change made from a version the Application Status has moved on from, as a conflict: nothing is changed", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = await applications.statusOf(candidateId, id);
+      await applications.change(candidateId, id, { status: "applied" }); // on its page, meanwhile
+
+      expect(await applications.change(candidateId, id, { status: "interview" }, { version: seen!.version, origin: origin() })).toEqual({ ok: false, error: "conflict" });
+      expect(await applications.statusOf(candidateId, id)).toMatchObject({ status: "applied", origin: null });
+    });
+
+    it("keeps where the status came from, hidden with it: the Coach proposal's card and when it was applied; the Candidate's own change clears it", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = await applications.statusOf(candidateId, id);
+
+      const changed = await applications.change(candidateId, id, { status: "interview" }, { version: seen!.version, origin: origin() });
+
+      expect(changed).toMatchObject({ ok: true, application: { status: "interview", statusOrigin: origin() } });
+      expect(await applications.statusOf(candidateId, id)).toMatchObject({ status: "interview", origin: origin() });
+      await applications.change(candidateId, id, { status: "accepted" });
+      expect(await applications.get(candidateId, id)).not.toHaveProperty("statusOrigin");
+    });
+
+    it("validates what is applied as the page's form does", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = await applications.statusOf(candidateId, id);
+
+      expect(await applications.change(candidateId, id, { status: "hired" }, { version: seen!.version, origin: origin() })).toEqual({ ok: false, errors: [{ field: "status", code: "invalid" }] });
+    });
+  });
+
   it("lets the Candidate pick another of their Profiles for the Application, and scores that one", async () => {
     const application = await save({ jobOfferId, profileId });
     const otherProfileId = await createProfile(candidateId, "Consultant transformation");
@@ -518,6 +564,121 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
 
         expect(await clocked.editInterview(otherCandidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" })).toEqual({ ok: false, error: "not_found" });
         expect((await clocked.get(candidateId, applicationId))!.interviews[0]).toMatchObject({ scheduledAt: new Date("2026-11-04T08:00:00.000Z"), reschedules: [] });
+      });
+
+      describe("applied from a Coach proposal (#718)", () => {
+        const CARD = "55555555-5555-4555-8555-555555555555";
+        const origin = () => ({ origin: "coach_proposal" as const, cardId: CARD, appliedAt: new Date("2026-11-04T17:20:00Z") });
+        const stateOf = async (applicationId: string, interviewId: string) => (await clocked.interviewOf(candidateId, applicationId, interviewId))!;
+
+        it("gives an Interview's version, which every change to it moves, and when its date was set; none of someone else's", async () => {
+          const { applicationId, interviewId } = await enteredInterview();
+          const first = await clocked.interviewOf(candidateId, applicationId, interviewId);
+
+          expect(first).toEqual({ interview: expect.objectContaining({ id: interviewId, scheduledAt: new Date("2026-11-04T08:00:00.000Z") }), version: expect.any(String), dateSetAt: now });
+          expect(await clocked.interviewOf(candidateId, applicationId, interviewId)).toEqual(first);
+          await clocked.editInterview(candidateId, applicationId, interviewId, { place: "Siège, Lyon" });
+          expect((await stateOf(applicationId, interviewId)).version).not.toBe(first!.version);
+          expect(await clocked.interviewOf(otherCandidateId, applicationId, interviewId)).toBeNull();
+          expect(await clocked.interviewOf(candidateId, applicationId, "pas-un-id")).toBeNull();
+        });
+
+        it("adds an Interview from the Application Status's version seen, moving it to « Entretien » with it; both keep the Origin, and the new Interview's id comes back", async () => {
+          const { id } = await save({ jobOfferId, profileId });
+          const seen = await clocked.statusOf(candidateId, id);
+
+          const added = await clocked.addInterview(candidateId, id, { scheduledAt: "2026-11-12T14:00", durationMinutes: 45, format: "video", moveToInterview: true }, { version: seen!.version, origin: origin() });
+
+          expect(added).toMatchObject({ ok: true, interviewId: expect.any(String), application: { status: "interview", statusOrigin: origin(), interviews: [{ scheduledAt: new Date("2026-11-12T13:00:00.000Z"), durationMinutes: 45, format: "video", origin: origin() }] } });
+          if (added.ok) expect(added.application.interviews[0]!.id).toBe(added.interviewId);
+        });
+
+        it("refuses to add an Interview once the Application Status moved on from the version seen, as a conflict: nothing is added", async () => {
+          const { id } = await save({ jobOfferId, profileId });
+          const seen = await clocked.statusOf(candidateId, id);
+          await clocked.change(candidateId, id, { status: "applied" }); // on its page, meanwhile
+
+          expect(await clocked.addInterview(candidateId, id, { scheduledAt: "2026-11-12T14:00", moveToInterview: true }, { version: seen!.version, origin: origin() })).toEqual({ ok: false, error: "conflict" });
+          expect(await clocked.get(candidateId, id)).toMatchObject({ status: "applied", interviews: [] });
+        });
+
+        it("an Interview the Candidate edits themselves keeps no Origin", async () => {
+          const { applicationId, interviewId } = await enteredInterview();
+          await clocked.editInterview(candidateId, applicationId, interviewId, { place: "Siège" }, { version: (await stateOf(applicationId, interviewId)).version, origin: origin() });
+          expect((await stateOf(applicationId, interviewId)).interview.origin).toEqual(origin());
+
+          await clocked.editInterview(candidateId, applicationId, interviewId, { place: "Siège, Lyon" });
+
+          expect((await stateOf(applicationId, interviewId)).interview).not.toHaveProperty("origin");
+        });
+
+        it("refuses an edit or a cancellation from a version the Interview moved on from, as a conflict: nothing is changed", async () => {
+          const { applicationId, interviewId } = await enteredInterview();
+          const seen = await stateOf(applicationId, interviewId);
+          await clocked.editInterview(candidateId, applicationId, interviewId, { note: "Avec la DRH" }); // on its page, meanwhile
+
+          expect(await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" }, { version: seen.version, origin: origin() })).toEqual({ ok: false, error: "conflict" });
+          expect(await clocked.cancelInterview(candidateId, applicationId, interviewId, { version: seen.version, origin: origin() })).toEqual({ ok: false, error: "conflict" });
+          expect((await stateOf(applicationId, interviewId)).interview).toMatchObject({ scheduledAt: new Date("2026-11-04T08:00:00.000Z"), cancelledAt: null, note: "Avec la DRH" });
+        });
+
+        it("« Annuler » a Reschedule within the hour after it was applied: the state before, and no trace in the Reschedule history", async () => {
+          const { applicationId, interviewId } = await enteredInterview("2026-11-04T09:00");
+          later(24 * 60);
+          const before = await stateOf(applicationId, interviewId);
+          await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00", format: "video" }, { version: before.version, origin: origin() });
+          expect((await stateOf(applicationId, interviewId)).interview.reschedules).toHaveLength(1);
+          later(30);
+
+          const restored = await clocked.restoreInterview(candidateId, applicationId, interviewId, before, { version: (await stateOf(applicationId, interviewId)).version });
+
+          expect(restored).toMatchObject({ ok: true });
+          expect(await stateOf(applicationId, interviewId)).toEqual(before);
+        });
+
+        it("« Annuler » a Reschedule more than an hour after it was applied: the date before, the Reschedule kept in the history with the change back", async () => {
+          const { applicationId, interviewId } = await enteredInterview("2026-11-04T09:00");
+          later(24 * 60);
+          const before = await stateOf(applicationId, interviewId);
+          await clocked.editInterview(candidateId, applicationId, interviewId, { scheduledAt: "2026-11-05T09:00" }, { version: before.version, origin: origin() });
+          later(90);
+
+          await clocked.restoreInterview(candidateId, applicationId, interviewId, before, { version: (await stateOf(applicationId, interviewId)).version });
+
+          const { interview } = await stateOf(applicationId, interviewId);
+          expect(interview).toMatchObject({ scheduledAt: new Date("2026-11-04T08:00:00.000Z") });
+          expect(interview).not.toHaveProperty("origin");
+          expect(interview.reschedules.map(({ previousAt, newAt }) => [previousAt.toISOString(), newAt!.toISOString()])).toEqual([
+            ["2026-11-04T08:00:00.000Z", "2026-11-05T08:00:00.000Z"],
+            ["2026-11-05T08:00:00.000Z", "2026-11-04T08:00:00.000Z"],
+          ]);
+        });
+
+        it("« Annuler » a cancellation: the Interview is planned again, as it was", async () => {
+          const { applicationId, interviewId } = await enteredInterview();
+          const before = await stateOf(applicationId, interviewId);
+          later(10);
+          const cancelled = await clocked.cancelInterview(candidateId, applicationId, interviewId, { version: before.version, origin: origin() });
+          expect(cancelled).toMatchObject({ ok: true, application: { interviews: [{ cancelledAt: now, origin: origin() }] } });
+
+          await clocked.restoreInterview(candidateId, applicationId, interviewId, before, { version: (await stateOf(applicationId, interviewId)).version });
+
+          expect(await stateOf(applicationId, interviewId)).toEqual(before);
+        });
+
+        it("refuses « Annuler » once the Interview changed since, as a conflict, and removes an added one only as it was added", async () => {
+          const { applicationId, interviewId } = await enteredInterview();
+          const before = await stateOf(applicationId, interviewId);
+          await clocked.editInterview(candidateId, applicationId, interviewId, { format: "phone" }, { version: before.version, origin: origin() });
+          const applied = await stateOf(applicationId, interviewId);
+          await clocked.editInterview(candidateId, applicationId, interviewId, { place: "Siège" }); // on its page, meanwhile
+
+          expect(await clocked.restoreInterview(candidateId, applicationId, interviewId, before, { version: applied.version })).toEqual({ ok: false, error: "conflict" });
+          expect(await clocked.removeInterview(candidateId, applicationId, interviewId, { version: applied.version })).toEqual({ ok: false, error: "conflict" });
+          expect((await stateOf(applicationId, interviewId)).interview).toMatchObject({ format: "phone", place: "Siège" });
+          expect(await clocked.removeInterview(candidateId, applicationId, interviewId, { version: (await stateOf(applicationId, interviewId)).version })).toMatchObject({ ok: true, application: { interviews: [] } });
+          expect(await clocked.restoreInterview(otherCandidateId, applicationId, interviewId, before, { version: applied.version })).toEqual({ ok: false, error: "not_found" });
+        });
       });
     });
 

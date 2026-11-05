@@ -332,6 +332,34 @@ export const coachConversationSummarySchema = z.object({
 export const coachConversationsResponseSchema = z.object({ conversations: z.array(coachConversationSummarySchema) });
 export type CoachConversationsResponse = z.infer<typeof coachConversationsResponseSchema>;
 
+/** A Coach proposal's Action Card under a reply (#715): what changes on which object, and how it was decided. */
+export const coachProposalCardSchema = z.object({
+  id: z.string(),
+  status: z.enum(["pending", "accepted", "dismissed", "undone"]),
+  change: z.object({
+    target: z.object({ kind: z.enum(["profile", "application", "job_offer", "job_search", "job_digest", "agenda"]), id: z.string(), name: z.string(), href: z.string() }),
+    what: z.string(),
+    before: z.string(),
+    after: z.string(),
+    /** What else applying it changes on the same object (#718: an Interview added moves its Application to « Entretien »). */
+    also: z.array(z.object({ what: z.string(), before: z.string(), after: z.string() })).optional(),
+    value: z.record(z.string(), z.string()),
+    fields: z.array(
+      z.object({
+        name: z.string(),
+        label: z.string(),
+        type: z.enum(["select", "text", "textarea", "datetime", "number"]),
+        options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
+      }),
+    ),
+    quota: z.object({ label: z.string(), prompt: z.any().optional() }).optional(),
+  }),
+  edited: z.record(z.string(), z.string()).optional(),
+  decidedAt: instant.optional(),
+  undoneAt: instant.optional(),
+  undoable: z.boolean(),
+});
+
 /** One message of a Coach Conversation, as the web shows it. */
 export const coachMessageSchema = z.object({
   from: z.enum(["candidate", "coach"]),
@@ -340,6 +368,7 @@ export const coachMessageSchema = z.object({
   at: instant.optional(),
   blocked: z.literal(true).optional(),
   jobOffer: z.object({ id: z.string(), title: z.string(), employer: z.string().optional(), followed: z.boolean() }).optional(),
+  cards: z.array(coachProposalCardSchema).optional(),
 });
 
 /** A Coach Conversation with its messages and its Context bar's figures. */

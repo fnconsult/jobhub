@@ -5,7 +5,7 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), the CGU and CGV versions they accepted, Plan (with its Coach context limits) and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), the CGU and CGV versions they accepted, Plan (with its Coach context limits) and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), the « Propositions du coach » setting (#717), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
@@ -57,6 +57,7 @@ import type { ChosenFrequency } from "../job-digests";
 import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
 import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
 import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-email";
+import { coachProposalsDisplayOf, type ExportedCoachProposalsDisplay } from "../coach-proposals-display";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
@@ -241,11 +242,19 @@ export interface ExportedAssistantConversation {
 /** A Human Coach as the export names them: their email and booking link are theirs, left out. */
 export type CoachNamed = { id: string; name: string };
 
-export interface ExportedActionCard extends Omit<ActionCard, "provenance"> {
+export interface ExportedActionCard extends Pick<ActionCard, "id" | "kind" | "title" | "body" | "focus" | "payload" | "status" | "createdAt"> {
   /** When the Candidate accepted or dismissed it; null while pending. */
   decidedAt: Date | null;
   /** What made it (ADR-0034, #336), when it was kept. */
   provenance?: Provenance;
+  /**
+   * A Coach proposal's card in a Coach Conversation's thread (#715): the conversation it is in; its payload holds what it
+   * proposed, before and after. `edited`: what the Candidate changed before applying it; `undoneAt`: when « Annuler » put
+   * the state before back.
+   */
+  conversationId?: string;
+  edited?: unknown;
+  undoneAt?: Date;
 }
 
 /** Everything the Candidate made in Jobbbox, ready to be written out as JSON. */
@@ -292,6 +301,8 @@ export interface CandidateDataExport {
   legalTextNotices: ExportedLegalTextNotices;
   /** The Candidate's Nouveautés email (#566): whether they ticked it, since when, and the Versions it told them of. */
   nouveautesEmail: ExportedNouveautesEmail;
+  /** The Candidate's « Propositions du coach » setting (#717): « card » (the default) or « form », and since when (null: never chosen). */
+  coachProposalsDisplay: ExportedCoachProposalsDisplay;
   /** The Candidate's Email intake (ADR-0051, #441): every Forwarding address given to them, with its activation date, and the sending addresses they added. */
   emailIntake: ExportedEmailIntake;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -405,6 +416,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
   nouveautes_email_subscription: "nouveautesEmail.subscribed and subscribedAt (no unsubscribe token, #566)",
   nouveautes_email_sent: "nouveautesEmail.sent (the Version each Nouveautés email told of, #566)",
+  coach_proposals_display: "coachProposalsDisplay (« Propositions du coach » in Mon compte, #717)",
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
   ats_score: "profiles[].atsScore",
@@ -414,8 +426,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   job_digest: "profiles[].jobDigests",
   target_company: "profiles[].targetCompanies (set aside ones included)",
   target_company_refresh: "profiles[].targetCompaniesRefreshedAt (not what La Bonne Boite was asked)",
-  application: "applications",
-  interview: "applications[].interviews (with their duration, format, place and date of cancellation)",
+  application: "applications (each status's Origin, when a Coach proposal the Candidate applied gave it, #715)",
+  interview: "applications[].interviews (with their duration, format, place, date of cancellation and Origin, when a Coach proposal the Candidate applied left it so, #718)",
   interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
   tailored_cv: "applications[].tailoredDocuments (the proposal and the saved one, each with its Provenance)",
   tailored_document: "applications[].tailoredDocuments (each with its Provenance)",
@@ -428,7 +440,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_access: "coachAccess",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
   coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
-  action_card: "actionCards",
+  action_card: "actionCards (a Coach proposal's in a thread with its conversation, what it proposed before and after, what was edited, its decision and « Annuler », #715)",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
@@ -751,7 +763,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -777,6 +789,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         twoStepStatusOf(database, candidateId),
         legalTextNoticesOf(database, candidateId),
         nouveautesEmailOf(database, candidateId),
+        coachProposalsDisplayOf(database, candidateId),
         emailIntakeOf(database, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportAppointmentReminders(candidateId),
@@ -789,14 +802,24 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         exportCoachingSessions(candidateId),
-        rowsOf<Omit<ExportedActionCard, "provenance"> & { provenance: unknown }>(
-          `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt", provenance
-             FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
+        rowsOf<
+          Omit<ExportedActionCard, "provenance" | "conversationId" | "edited" | "undoneAt"> & { provenance: unknown; conversationId: string | null; edited: unknown; undoneAt: Date | null }
+        >(
+          `SELECT c.id, c.kind, c.title, c.body, json_build_object('kind', c.focus_kind, 'id', c.focus_id) AS focus, c.payload, c.status, c.created_at AS "createdAt",
+                  c.decided_at AS "decidedAt", c.provenance, m.conversation_id AS "conversationId", c.edited, c.undone_at AS "undoneAt"
+             FROM action_card c LEFT JOIN coach_message m ON m.seq = c.reply_seq
+            WHERE c.candidate_id = $1 ORDER BY c.created_at DESC, c.id`,
           candidateId,
         ).then((cards) =>
-          cards.map(({ provenance, ...card }): ExportedActionCard => {
+          cards.map(({ provenance, conversationId, edited, undoneAt, ...card }): ExportedActionCard => {
             const kept = readProvenance(provenance);
-            return { ...card, ...(kept && { provenance: kept }) };
+            return {
+              ...card,
+              ...(kept && { provenance: kept }),
+              ...(conversationId ? { conversationId } : {}),
+              ...(edited !== null ? { edited } : {}),
+              ...(undoneAt ? { undoneAt } : {}),
+            };
           }),
         ),
         rowsOf<CandidateDataExport["coachMemory"][number]>(
@@ -821,7 +844,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

@@ -14,5 +14,9 @@ const CookieManager = {
     fakeWebView.cookies = [];
     return true;
   },
+  clearAllStores: async () => {
+    fakeWebView.cookies = [];
+    return true;
+  },
 };
 export default CookieManager;

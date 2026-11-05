@@ -92,7 +92,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Who can read it | Anyone who can open the app on the unlocked device: nothing is sent anywhere from it. |
 | Processors | None: it stays on the device. |
 | Storage | The device's AsyncStorage, key `jobbbox.reads`, not encrypted (an SQLite database on Android); the session stays in the Keychain or Keystore. Android's Auto Backup includes an app's database files by default (`android:allowBackup` defaults to true; developer.android.com, « Back up user data with Auto Backup », read 2026-11-04), so the cache may reach the person's Google Drive backup, end-to-end encrypted from Android 9; the app sets no backup rule yet. Whether iOS backs it up to iCloud is not verified. |
-| Retention | Until sign-out, which empties it in the app and on the device; a copy older than 7 days, or saved by an app speaking another API Version, is discarded at launch. Uninstalling the app removes it. |
+| Retention | Until the session ends on the device, however it ends (signing out, the session found revoked from Mon compte or expired, at launch, back in the foreground or at a read answered 401), which empties it in the app and on the device, and before any new sign-in (#695); not while the web app cannot be reached, the session then perhaps still valid. A copy older than 7 days, or saved by an app speaking another API Version, is discarded at launch. Uninstalling the app removes it. |
 | Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds. |
 
 ## Tailored Documents downloaded in the Jobbbox app (ADR-0076, #695)

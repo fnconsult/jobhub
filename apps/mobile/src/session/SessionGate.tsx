@@ -11,14 +11,19 @@ import type { AppSession, SessionState } from "./app-session";
 
 const SIGNED_OUT: SessionState = { kind: "signedOut" };
 
+/** The session as the gate knows it; `offline`: not known, the web app could not be asked (it may still be valid). */
+type GateState = SessionState & { offline?: true };
+const UNKNOWN_OFFLINE: GateState = { kind: "signedOut", offline: true };
+
 interface SessionContextValue {
   /** Revokes the session and empties secure storage (app-session.ts); the app is back on sign-in. */
   signOut: () => Promise<void>;
+  /** Asks the web app for the session again, as when the app comes back to the foreground: a read answered 401 does. */
+  checkSession: () => void;
 }
 
-const SessionContext = createContext<SessionContextValue>({ signOut: async () => {} });
+const SessionContext = createContext<SessionContextValue>({ signOut: async () => {}, checkSession: () => {} });
 
-/** What the signed-in app can do with its session: sign out (Mon compte). */
 export const useSession = () => useContext(SessionContext);
 
 /**
@@ -40,20 +45,42 @@ export function SessionGate({
   forgetOnDevice?: () => Promise<void>;
   children: ReactNode;
 }) {
-  const [state, setState] = useState<SessionState | null>(null);
+  const [state, setState] = useState<GateState | null>(null);
   const [linkInvalid, setLinkInvalid] = useState(false);
 
-  // Signed out here, revoked from Mon compte, expired: whichever way the session ends, or is found ended at launch.
-  const ended = state !== null && state.kind !== "signedIn";
+  // Everything the device kept for a session, forgotten in this one place once it ends, however it ends, and before
+  // another starts (#695): the reads, in memory and on the device (#701), and `forgetOnDevice`. Nothing below the gate
+  // is shown then, so the screens need not start again.
+  const forgetReads = useForgetReads();
+  const forgetSession = useCallback(async () => {
+    await forgetReads({ restart: false }).catch(() => undefined);
+    if (forgetOnDevice) await forgetOnDevice().catch(() => undefined);
+  }, [forgetReads, forgetOnDevice]);
+
+  // Signed out here, revoked from Mon compte, expired, a read answered 401: whichever way the web app says the session
+  // ended, or found ended at launch. Not while the web app cannot be asked: the session may still be valid.
+  const ended = state !== null && state.kind !== "signedIn" && !state.offline;
   useEffect(() => {
-    if (ended && forgetOnDevice) void forgetOnDevice().catch(() => undefined);
-  }, [ended, forgetOnDevice]);
+    if (ended) void forgetSession();
+  }, [ended, forgetSession]);
+
+  /** A sign-in (a link, a code) starts afresh: nothing of a session before it, even one not known to have ended. */
+  const startSession = useCallback(
+    async (outcome: SessionState) => {
+      if (outcome.kind === "signedIn") {
+        setState(null);
+        await forgetSession();
+      }
+      setState(outcome);
+    },
+    [forgetSession],
+  );
 
   const refresh = useCallback(
     () =>
       session.current().then(setState, () =>
         // Offline: as it was; signed out if nothing is known yet (the session stays in secure storage for the next time).
-        setState((current) => current ?? SIGNED_OUT),
+        setState((current) => current ?? UNKNOWN_OFFLINE),
       ),
     [session],
   );
@@ -72,30 +99,29 @@ export function SessionGate({
     void session.openLink(link).then((outcome) => {
       if (!current || !outcome) return;
       setLinkInvalid(outcome.kind === "invalidLink");
-      if (outcome.kind !== "invalidLink") setState(outcome);
+      if (outcome.kind !== "invalidLink") void startSession(outcome);
     });
     return () => {
       current = false;
     };
-  }, [session, link]);
+  }, [session, link, startSession]);
 
-  const forgetReads = useForgetReads();
   const value = useMemo<SessionContextValue>(
     () => ({
+      // What the device kept for the session is forgotten once it has ended (forgetSession, above).
       signOut: async () => {
-        // The read cache goes first, a write still waiting included (#701), then the session is dropped.
-        await forgetReads();
         await session.signOut();
         setState(SIGNED_OUT);
       },
+      checkSession: () => void refresh(),
     }),
-    [session, forgetReads],
+    [session, refresh],
   );
 
   if (!state) return null;
   return (
     <SessionContext.Provider value={value}>
-      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStep onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={setState} />}
+      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStep onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={(outcome) => void startSession(outcome)} />}
     </SessionContext.Provider>
   );
 }

@@ -184,7 +184,8 @@ describe("SessionGate (#685)", () => {
     await session.askLink(EMAIL);
     await render(web.linkFor(EMAIL));
     await screen.findByText("La conversation");
-    expect(forgetOnDevice).not.toHaveBeenCalled();
+    // The sign-in started afresh, forgetting once already (#695): from here on, the sign-out's.
+    forgetOnDevice.mockClear();
 
     await userEvent.setup().press(screen.getByRole("button", { name: "Se déconnecter" }));
 
@@ -203,6 +204,24 @@ describe("SessionGate (#685)", () => {
 
     await screen.findByLabelText("Votre adresse e-mail");
     expect(forgetOnDevice).toHaveBeenCalled();
+  });
+
+  it("starts a sign-in afresh: what the device kept before it is forgotten first (#695)", async () => {
+    const { web, session, render, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await render(web.linkFor(EMAIL));
+    await screen.findByText("La conversation");
+    expect(forgetOnDevice).toHaveBeenCalled();
+  });
+
+  it("keeps what the device kept while the web app cannot be asked: the session may still be valid (#695)", async () => {
+    const { web, session, render, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await session.openLink(web.linkFor(EMAIL));
+    web.setOffline(true);
+    await render();
+    await screen.findByLabelText("Votre adresse e-mail");
+    expect(forgetOnDevice).not.toHaveBeenCalled();
   });
 
   describe("the email's code (#686)", () => {

@@ -1,7 +1,8 @@
 /**
  * The Candidate's reads the app's screens use (`@jobhub/shared/reads`, #684): each a GET of the web app's `/api/*`
  * through `useApi()`, so it carries the API Version and the session, parsed with the read's own schema, and cached
- * under its `readKey` in the read cache (#701), which keeps on the device only what READS lists.
+ * under its `readKey` in the read cache (#701), which keeps on the device only what READS lists. A read answered 401
+ * has the session checked (SessionGate), so a session ended on the web app signs the app out.
  */
 import {
   applicationResponseSchema,
@@ -14,8 +15,10 @@ import {
   type TailoredDocumentsResponse,
 } from "@jobhub/shared/reads";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { readKey, type ReadName } from "../offline/read-cache";
-import { AppOutdatedError, useApi } from "./api";
+import { useSession } from "../session/SessionGate";
+import { useApi } from "./api";
 
 /** The web app answered a read with an error: `status` 404 for what is not the Candidate's (or does not exist). */
 export class ReadFailed extends Error {
@@ -25,8 +28,11 @@ export class ReadFailed extends Error {
   }
 }
 
-/** A read the web app refused (4xx) is not tried again by itself, nor one an outdated app made; any other, once. */
-const tryAgain = (failures: number, error: Error) => failures < 1 && !(error instanceof AppOutdatedError) && !(error instanceof ReadFailed && error.status < 500);
+/**
+ * A read is tried again once by itself when the network failed on the way (fetch's TypeError) or the web app failed
+ * (5xx); never when it refused it (4xx), when the app is outdated (426), nor when the answer is not the read's shape.
+ */
+const tryAgain = (failures: number, error: Error) => failures < 1 && (error instanceof ReadFailed ? error.status >= 500 : error instanceof TypeError);
 
 export type Read<T> = UseQueryResult<T, Error>;
 
@@ -35,7 +41,8 @@ type Schema<T> = { parse: (answer: unknown) => T };
 
 function useRead<T>(name: ReadName, path: string, schema: Schema<T>, params: string[], enabled = true): Read<T> {
   const api = useApi();
-  return useQuery({
+  const { checkSession } = useSession();
+  const read = useQuery({
     queryKey: readKey(name, ...params),
     queryFn: async ({ signal }) => {
       const response = await api(path, { signal });
@@ -45,6 +52,13 @@ function useRead<T>(name: ReadName, path: string, schema: Schema<T>, params: str
     retry: tryAgain,
     enabled,
   });
+  // Answered 401, the session ended on the web app (revoked, expired): checking it takes the app back to sign-in,
+  // which forgets every read (SessionGate).
+  const unauthorized = read.error instanceof ReadFailed && read.error.status === 401;
+  useEffect(() => {
+    if (unauthorized) checkSession();
+  }, [unauthorized, checkSession]);
+  return read;
 }
 
 const segment = encodeURIComponent;

@@ -67,6 +67,30 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(web.signedInAs(calls[0]!.headers)).toBe("marie.dupont@example.fr");
   });
 
+  it("go to the platform alone: a path not under its address is refused before anything is sent", async () => {
+    const { fetch, calls } = server(200, []);
+    const refused: string[] = [];
+    const paths = ["//exports.example.net/api/x", "@exports.example.net/api/x", "api/applications", "https://exports.example.net/api/x"];
+    function Caller() {
+      const api = useApi();
+      const callAll = () => Promise.all(paths.map((path) => api(path).catch(() => void refused.push(path))));
+      return (
+        <Pressable role="button" onPress={() => void callAll()}>
+          <Text>Appeler</Text>
+        </Pressable>
+      );
+    }
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE}>
+        <Caller />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Appeler" }));
+
+    expect(refused).toEqual(paths);
+    expect(calls).toEqual([]);
+  });
+
   it("answered 426, show « Mettre à jour Jobbbox » in place of the app, with the link to its store", async () => {
     const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
     await read(server(426, { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION + 2 }).fetch);

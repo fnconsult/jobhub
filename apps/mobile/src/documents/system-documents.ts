@@ -2,7 +2,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Share } from "react-native";
 import { appSession } from "../session/instance";
-import { webAppAddress, webAppHeaders } from "../web-app";
+import { isOnWebApp, webAppAddress, webAppHeaders } from "../web-app";
 import type { DocumentDevice, DocumentFormat } from "./document-reader";
 
 /** Each format's MIME type, for Android, and its Uniform Type Identifier, for iOS. */
@@ -22,10 +22,14 @@ const DOCUMENTS = new Directory(Paths.cache, "documents");
  */
 export const systemDocuments: DocumentDevice = {
   async download(path, fileName) {
+    // The session's cookie goes to the web app alone: an address the read gives on any other host (absolute, or `//host`)
+    // is refused before anything is asked or sent, and the screen says the download failed.
+    const address = webAppAddress(path);
+    if (!isOnWebApp(address)) throw new Error("A Tailored Document is downloaded from the web app alone");
     // The export routes answer only a signed-in Candidate: without its cookie, every download would be a 401.
     const headers = { ...webAppHeaders(), cookie: await appSession.cookie() };
     DOCUMENTS.create({ intermediates: true, idempotent: true });
-    const file = await File.downloadFileAsync(webAppAddress(path), new File(DOCUMENTS, fileName), { headers, idempotent: true });
+    const file = await File.downloadFileAsync(address, new File(DOCUMENTS, fileName), { headers, idempotent: true });
     return file.uri;
   },
 

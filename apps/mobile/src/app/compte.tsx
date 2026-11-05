@@ -24,7 +24,7 @@ export default function Account() {
     <ScrollView contentContainerStyle={{ gap: space[4], padding: space[4] }}>
       <AppText variant="h2">{t("account.sections.profiles")}</AppText>
       <View style={{ gap: space[2] }}>
-        <ReadState read={profiles} notFound={t("mobile.reads.failed")}>
+        <ReadState read={profiles}>
           {(list) => <ProfileLinks profiles={list} />}
         </ReadState>
       </View>

@@ -3,6 +3,7 @@
 // (`GET /api/applications/:id/documents`, #684), faked at its fetch as it answers them, and the real system-documents
 // module downloads, shows and shares them. Only the device's native modules (expo-file-system, expo-sharing, React
 // Native's Share) are faked besides, and what reaches the system's PDF reader and share sheet is asserted.
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ApplicationResponse, TailoredDocumentsResponse } from "@jobhub/shared/reads";
 import { act, screen, userEvent } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
@@ -132,8 +133,9 @@ async function openFiche(id = APPLICATION.id) {
   await userEvent.setup().press(button("Fiche"));
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
+  await AsyncStorage.clear();
   mockDownloads.length = 0;
   mockFiles.clear();
   setWindow(PHONE);
@@ -247,6 +249,40 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
     );
     expect(mockDownloads).toEqual([]);
     expect(mockPreview).not.toHaveBeenCalled();
+  });
+});
+
+describe("Tailored Documents, downloaded from the web app alone", () => {
+  for (const [what, elsewhere] of [
+    ["an address on another host", "https://exports.example.net/cv.pdf"],
+    ["an address relative to the scheme, so on another host", "//exports.example.net/cv.pdf"],
+  ] as const) {
+    it(`refuses ${what} the read gives: no request, no session cookie, the download's error`, async () => {
+      const [cv, ...others] = DOCUMENTS.documents;
+      mockWeb.app.has(EMAIL, { applications: [{ application: APPLICATION, documents: { ...DOCUMENTS, documents: [{ ...cv!, downloads: { pdf: elsewhere, docx: elsewhere } }, ...others] } }] });
+      await openFiche();
+      const user = userEvent.setup();
+      await user.press(await screen.findByRole("button", { name: "CV adapté" }));
+
+      expect(await screen.findByText(/n'a pas pu être ouvert/)).toBeOnTheScreen();
+      await user.press(button("Télécharger en Word"));
+      // Nothing was asked of the other host, by the download or otherwise, so no cookie reached it.
+      expect(mockDownloads).toEqual([]);
+      expect((globalThis.fetch as jest.Mock).mock.calls.filter(([url]) => String(url).includes("exports.example.net"))).toEqual([]);
+      expect(mockPreview).not.toHaveBeenCalled();
+      expect(mockShare).not.toHaveBeenCalled();
+    });
+  }
+});
+
+describe("Tailored Documents, kept on the device", () => {
+  it("never keeps a document's download links in the read cache, only the Application it is for", async () => {
+    await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
+    await act(() => jest.advanceTimersByTimeAsync(1_200));
+    const kept = (await AsyncStorage.getItem("jobbbox.reads")) ?? "";
+    expect(kept).toContain("Rhône Distribution");
+    expect(kept).not.toContain("/export?");
   });
 });
 

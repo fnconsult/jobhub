@@ -51,6 +51,8 @@ export function ApiProvider({
 
   const api = useCallback<ApiFetch>(
     async (path, init) => {
+      // A path of the platform's own: anything else (`//host`, `@host`, no leading slash) would change host, cookie included.
+      if (!/^\/(?!\/)/.test(path)) throw new Error(`Not a path of the platform: ${path}`);
       const headers = new Headers(init?.headers);
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);

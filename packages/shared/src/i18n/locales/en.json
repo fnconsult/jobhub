@@ -1325,6 +1325,13 @@
       "off": "{{off}} off",
       "monthsOnly_one": "{{count}} month",
       "monthsOnly_other": "{{count}} months"
+    },
+    "coachContext": {
+      "memory": "Coach memory",
+      "messages_one": "{{count}} message",
+      "messages_other": "{{count}} messages",
+      "size": "Coach context",
+      "multiple": "×{{multiple}}"
     }
   },
   "orders": {
@@ -5729,7 +5736,26 @@
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
     "clear": "Clear the conversation",
-    "unlimited": "unlimited"
+    "unlimited": "unlimited",
+    "upgrade": "The {{plan}} plan has it read more.",
+    "upgradeAction": "Discover the {{plan}} plan",
+    "details": "See the breakdown",
+    "breakdown": {
+      "title": "Context breakdown",
+      "intro": "What the coach was sent with its latest reply, estimated in tokens, out of your plan's ceiling.",
+      "introUnlimited": "What the coach was sent with its latest reply, estimated in tokens. Your plan sets no ceiling.",
+      "empty": "The breakdown shows after the coach's first reply.",
+      "total": "{{tokens}} / {{maxTokens}} tokens",
+      "value": "{{tokens}} tokens · {{percent}}%",
+      "categories": {
+        "messages": "Messages",
+        "instructions": "Coach instructions",
+        "profile": "Profile and CV",
+        "advice": "Agents' advice",
+        "sources": "Sources",
+        "free": "Free space"
+      }
+    }
   },
   "microAnimation": {
     "show": "Show me how",

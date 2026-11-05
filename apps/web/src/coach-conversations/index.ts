@@ -60,7 +60,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, type PlaybookConsultation, type PlaybookUsed } from "../coach";
-import { MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ConversationContext, type ContextSplit, type JobOfferCard } from "../coach/conversation";
+import { contextBar, MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ContextUpgrade, type ConversationContext, type ContextSplit, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
 import type { Profiles } from "../profiles";
@@ -185,7 +185,11 @@ export interface CoachConversationsDeps {
   coach: Pick<Coach, "reply">;
   profiles: Pick<Profiles, "get">;
   /** The Candidate's Plan, for its Coach context limits (ADR-0078), read at each reply. Without it, a Plan's with none stored. */
-  billing?: { entitlements(candidateId: string): Promise<{ coachContext: CoachContextLimits }> };
+  billing?: {
+    entitlements(candidateId: string): Promise<{ plan?: string; coachContext: CoachContextLimits }>;
+    /** The Plan the Context bar names once nearly full (#732). Without it, none is named. */
+    coachContextUpgrade?(plan: string): Promise<ContextUpgrade | null>;
+  };
   /** Where each reply is told, for the questions the help missed (#344). Without it, nothing is. */
   unansweredQuestions?: Pick<UnansweredQuestions, "notice">;
   /** Where a reply's Coach proposals become Action Cards under it (#715). Without it, they are dropped. */
@@ -395,15 +399,17 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     const row = await findRow(candidateId, conversationId);
     return row ? summaryFrom(row) : null;
   }
-  /** The Coach context limits of the Candidate's Plan, now. */
-  async function limitsOf(candidateId: string): Promise<CoachContextLimits> {
-    return deps.billing ? (await deps.billing.entitlements(candidateId)).coachContext : { ...DEFAULT_COACH_CONTEXT_LIMITS };
+  /** The Coach context limits of the Candidate's Plan, now, and that Plan. */
+  async function limitsOf(candidateId: string): Promise<CoachContextLimits & { plan?: string }> {
+    if (!deps.billing) return { ...DEFAULT_COACH_CONTEXT_LIMITS };
+    const { plan, coachContext } = await deps.billing.entitlements(candidateId);
+    return { ...coachContext, plan };
   }
   /**
    * Its Context bar's figures: its messages, the jetons of the context its latest reply was sent (0 when none was kept) and
    * their split (null when none was kept), out of `limits`, the Candidate's Plan's.
    */
-  async function contextOf(conversationId: string, limits: CoachContextLimits): Promise<ConversationContext> {
+  async function contextOf(conversationId: string, { plan, ...limits }: CoachContextLimits & { plan?: string }): Promise<ConversationContext> {
     const { rows } = await database.query<{ messages: number; latest: { tokens: number; split: ContextSplit | null } | null }>(
       `SELECT count(*)::int AS messages,
               (SELECT jsonb_build_object('tokens', context_tokens, 'split', context_split) FROM coach_message
@@ -412,7 +418,10 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       [conversationId],
     );
     const { messages = 0, latest = null } = rows[0] ?? {};
-    return { messages, tokens: latest?.tokens ?? 0, limits, split: latest?.split ?? null };
+    const context: ConversationContext = { messages, tokens: latest?.tokens ?? 0, limits, split: latest?.split ?? null };
+    // The Plan to name is read only once the bar is nearly full, the only time it shows it.
+    const upgrade = plan && deps.billing?.coachContextUpgrade && contextBar(context).nearlyFull ? await deps.billing.coachContextUpgrade(plan) : null;
+    return { ...context, upgrade };
   }
   async function findOfSubject(candidateId: string, subject: SubjectRef): Promise<ConversationRow | null> {
     const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.candidate_id = $1 AND c.subject_kind = $2 AND c.${SUBJECT_COLUMN[subject.kind]} = $3`, [
@@ -524,7 +533,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             ...(replyFocus ? { focus: replyFocus } : {}),
             ...(helpArticle ? { helpArticle: { id: helpArticle.id } } : {}),
           },
-          { limits, ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
+          { limits: { coachContextMessages: limits.coachContextMessages, coachContextTokens: limits.coachContextTokens }, ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
         );
         if (!answer.ok && answer.error !== "stopped") return answer;
         if (!answer.ok || signal?.aborted) {

@@ -69,10 +69,17 @@ export type ContextSplit = Record<ContextCategory, number>;
 /**
  * What the server says of a Coach Conversation for its Context bar (#607): its `messages`, and `tokens`, the estimate
  * (estimateTokens) of the context sent with its latest reply: the AI Coach's system text and the messages it read;
- * `split`, that estimate by category (#731, null when none was kept), and `limits`, the Coach context limits of the
- * Candidate's Plan (ADR-0078). The last two may be absent from what a page was given before them.
+ * `split`, that estimate by category (#731, null when none was kept), `limits`, the Coach context limits of the
+ * Candidate's Plan (ADR-0078), and `upgrade`, the Plan to name once nearly full (#732). The last three may be absent from
+ * what a page was given before them.
  */
-export type ConversationContext = { messages: number; tokens: number; limits?: CoachContextLimits; split?: ContextSplit | null };
+export type ConversationContext = { messages: number; tokens: number; limits?: CoachContextLimits; split?: ContextSplit | null; upgrade?: ContextUpgrade | null };
+
+/**
+ * The offered Plan the Context bar names once nearly full (ADR-0078, #732): the next one up whose Coach context limits allow
+ * more, with its name in each Interface Language; null (or absent) when none does, on the highest Plan, or before 80 %.
+ */
+export type ContextUpgrade = { plan: string; name: { fr: string; en: string } };
 
 /** From this share of either limit, the Context bar says the AI Coach reads only the latest messages. */
 const NEARLY_FULL = 0.8;
@@ -93,6 +100,30 @@ export function contextBar(context: ConversationContext | null): ContextBar {
   const filled = (count: number, max: number | null) => (max === null ? 0 : max === 0 ? 1 : count / max);
   const share = Math.min(1, Math.max(filled(messages, maxMessages), filled(tokens, maxTokens)));
   return { messages, maxMessages, tokens, maxTokens, share, nearlyFull: share >= NEARLY_FULL };
+}
+
+/** One line of the Context bar's breakdown: a category of the context, or the room left under the ceiling (`free`). */
+export type ContextBreakdownLine = { category: ContextCategory | "free"; tokens: number; share: number };
+
+/**
+ * The Context bar's breakdown card (ADR-0078, #732): the latest reply's context by category, then « Espace libre », each with
+ * its jetons and its share of `total`, the Plan's ceiling (the context itself when unlimited, with no free space). The
+ * categories add up to the bar's jetons: « Instructions du coach » takes what rounding left. Null when no split was kept:
+ * before the first reply, after « Effacer », or for a reply saved before #731.
+ */
+export function contextBreakdown(context: ConversationContext | null): { total: number; tokens: number; maxTokens: number | null; lines: ContextBreakdownLine[] } | null {
+  const split = context?.split;
+  if (!context || !split) return null;
+  const { tokens } = context;
+  const maxTokens = (context.limits ?? DEFAULT_COACH_CONTEXT_LIMITS).coachContextTokens;
+  const others = CONTEXT_CATEGORIES.filter((category) => category !== "instructions").reduce((sum, category) => sum + split[category], 0);
+  const counted: Record<ContextCategory, number> = { ...split, instructions: Math.max(0, tokens - others) };
+  const used = CONTEXT_CATEGORIES.reduce((sum, category) => sum + counted[category], 0);
+  const total = maxTokens === null ? used : Math.max(maxTokens, used);
+  const share = (count: number) => (total === 0 ? 0 : count / total);
+  const lines: ContextBreakdownLine[] = CONTEXT_CATEGORIES.map((category) => ({ category, tokens: counted[category], share: share(counted[category]) }));
+  if (maxTokens !== null) lines.push({ category: "free", tokens: total - used, share: share(total - used) });
+  return { total, tokens: used, maxTokens, lines };
 }
 
 /** The last `limit` messages (all of them when null: unlimited), starting with a Candidate message. */

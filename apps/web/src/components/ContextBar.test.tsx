@@ -2,6 +2,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ConversationContext } from "@/coach/conversation";
 import { renderInFrench } from "@/design/testing";
 import { CoachConversationPage } from "./CoachConversationPage";
 import { ContextBar } from "./ContextBar";
@@ -12,7 +13,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 const CONVERSATION = { id: "33333333-3333-4333-8333-333333333333", title: "Préparer mon pitch", subject: null, profile: null, lastMessageAt: "2026-10-31T10:00:00.000Z" };
 
 /** The server, as /api/coach and /api/coach/conversations say a conversation's Context bar's figures (#607). */
-function server({ saved, replied }: { saved: { messages: number; tokens: number }; replied: { messages: number; tokens: number } }) {
+function server({ saved, replied }: { saved: ConversationContext; replied: ConversationContext }) {
   return vi.fn(async (url: string, init?: RequestInit) => {
     if (url === `/api/coach/conversations/${CONVERSATION.id}` && init?.method === "DELETE") return new Response(null, { status: 204 });
     if (url === `/api/coach/conversations/${CONVERSATION.id}`) {
@@ -101,5 +102,74 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
     );
 
     expect(within(activity()).queryByRole("group", { name: "Contexte de la conversation" })).toBeNull();
+  });
+});
+
+describe("the Context bar's Plan, upsell and breakdown (ADR-0078, #732)", () => {
+  beforeEach(() => vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} })));
+  afterEach(() => vi.unstubAllGlobals());
+
+  const SMALL = { coachContextMessages: 20, coachContextTokens: 6_000 };
+  const PREMIUM = { plan: "premium", name: { fr: "Premium", en: "Premium" } };
+  const SPLIT = { messages: 1_200, instructions: 1_500, profile: 800, advice: 300, sources: 200 };
+
+  it("counts out of the Candidate's Plan's limits, as the server says them", async () => {
+    vi.stubGlobal("fetch", server({ saved: { messages: 6, tokens: 3_000, limits: SMALL }, replied: { messages: 8, tokens: 3_200, limits: SMALL } }));
+    renderInFrench(<HomePage />);
+
+    expect(await within(activity()).findByText("6 / 20 messages · 3k / 6k jetons")).toBeTruthy();
+  });
+
+  it("from 80 %, names the Plan above that allows more, linking to its card on Mon abonnement", async () => {
+    vi.stubGlobal("fetch", server({ saved: { messages: 17, tokens: 3_000, limits: SMALL, upgrade: PREMIUM }, replied: { messages: 19, tokens: 3_200, limits: SMALL, upgrade: PREMIUM } }));
+    renderInFrench(<HomePage />);
+    await within(activity()).findByText("17 / 20 messages · 3k / 6k jetons");
+
+    expect(within(bar()).getByText(/L'offre Premium lui en fait lire davantage\./)).toBeTruthy();
+    expect(within(bar()).getByRole("link", { name: "Découvrir l'offre Premium" }).getAttribute("href")).toBe("/abonnement#plan-premium-title");
+  });
+
+  it("offers no upgrade below 80 %, nor when no Plan above allows more", async () => {
+    vi.stubGlobal("fetch", server({ saved: { messages: 17, tokens: 3_000, limits: SMALL, upgrade: null }, replied: { messages: 4, tokens: 3_200, limits: SMALL, upgrade: PREMIUM } }));
+    const user = userEvent.setup();
+    renderInFrench(<HomePage />);
+    await within(activity()).findByText("17 / 20 messages · 3k / 6k jetons");
+    expect(within(bar()).getByRole("button", { name: "Effacer la conversation" })).toBeTruthy();
+    expect(within(bar()).queryByRole("link", { name: /Découvrir/ })).toBeNull();
+
+    await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Et ensuite ?{Enter}");
+    await within(activity()).findByText("4 / 20 messages · 3,2k / 6k jetons");
+    expect(within(bar()).queryByRole("link", { name: /Découvrir/ })).toBeNull();
+  });
+
+  it("opens onto the breakdown: each category and the room left, in jetons and %, out of the Plan's ceiling", async () => {
+    const context = { messages: 6, tokens: 4_000, limits: { coachContextMessages: 40, coachContextTokens: 10_000 }, split: SPLIT };
+    vi.stubGlobal("fetch", server({ saved: context, replied: context }));
+    const user = userEvent.setup();
+    renderInFrench(<HomePage />);
+    await within(activity()).findByText("6 / 40 messages · 4k / 10k jetons");
+
+    await user.click(within(bar()).getByRole("button", { name: "Voir le détail" }));
+    const card = screen.getByRole("dialog", { name: "Détail du contexte" });
+    expect(within(card).getByText("4k / 10k jetons")).toBeTruthy();
+    expect(within(card).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Messages1,2k jetons · 12 %",
+      "Instructions du coach1,5k jetons · 15 %",
+      "Profil et CV800 jetons · 8 %",
+      "Conseils des agents300 jetons · 3 %",
+      "Sources200 jetons · 2 %",
+      "Espace libre6k jetons · 60 %",
+    ]);
+  });
+
+  it("is empty before the coach's first reply", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 404 })));
+    const user = userEvent.setup();
+    renderInFrench(<HomePage conversationId={null} />);
+
+    await user.click(within(bar()).getByRole("button", { name: "Voir le détail" }));
+    const card = screen.getByRole("dialog", { name: "Détail du contexte" });
+    expect(within(card).getByText("Le détail s'affiche après la première réponse du coach.")).toBeTruthy();
+    expect(within(card).queryByRole("listitem")).toBeNull();
   });
 });

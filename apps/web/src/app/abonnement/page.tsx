@@ -65,10 +65,11 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const inApp = inAppWebView((await headers()).get("user-agent"));
   const code = typeof codeParam === "string" && !inApp ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount, withdrawable, reduction] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, coachContext, prices, hasInvoices, discount, withdrawable, reduction] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.plans(),
     billing.planQuotas(),
+    billing.coachContextLimits(),
     billing.planPrices(),
     billing.hasInvoices(candidate.id),
     billing.activeDiscount(candidate.id),
@@ -94,7 +95,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const cancellable = plan !== FREE_PLAN && !endsAt;
   const cancelled = endsAt && (resiliation === "enregistree" || resiliation === "sans-accuse") ? { endsAt, acknowledged: resiliation === "enregistree" } : null;
 
-  const cards = planCards({ plans, current: plan, quotas: allQuotas, prices, locale });
+  const cards = planCards({ plans, current: plan, quotas: allQuotas, coachContext, prices, locale });
   const shownWeekly = WEEKLY_QUOTAS.filter((quota) => quotas[quota] !== 0);
 
   return (

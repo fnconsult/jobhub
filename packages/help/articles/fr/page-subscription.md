@@ -6,7 +6,7 @@ title: Mon abonnement
 synonyms: [abonnement, prix, payer, paiement, premium, standard, gratuite, résilier, résiliation, rétractation, factures, code promo, utilisation]
 route: /abonnement
 ---
-Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus.
+Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus. Chaque carte indique aussi la « Mémoire du coach », le nombre de derniers messages de la conversation que votre coach lit, et le « Contexte du coach », la place de ce qu'il relit avant de répondre, comparée à celle de l'offre la plus simple (×1) ; « Illimité » quand l'offre ne fixe pas de limite.
 
 « Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.
 

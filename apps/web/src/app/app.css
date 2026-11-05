@@ -1485,6 +1485,99 @@ button.coach-panel-badge:hover {
   margin-top: var(--space-1);
 }
 
+.context-bar-details {
+  align-self: flex-start;
+}
+
+/* The breakdown card (#732, ADR-0078): a stacked bar and its list, each category in a chart series colour (dark mode has
+   its own steps), the room left drawn as the empty track. */
+.context-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.context-breakdown p {
+  margin: 0;
+}
+
+.context-breakdown-total {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.context-breakdown [data-category="messages"] {
+  --category: var(--color-chart-series-1);
+}
+
+.context-breakdown [data-category="instructions"] {
+  --category: var(--color-chart-series-2);
+}
+
+.context-breakdown [data-category="profile"] {
+  --category: var(--color-chart-series-3);
+}
+
+.context-breakdown [data-category="advice"] {
+  --category: var(--color-chart-series-4);
+}
+
+.context-breakdown [data-category="sources"] {
+  --category: var(--color-text-secondary);
+}
+
+.context-breakdown [data-category="free"] {
+  --category: var(--color-background);
+}
+
+.context-breakdown-bar {
+  display: flex;
+  height: 0.75rem;
+  overflow: hidden;
+  background: var(--color-background);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+}
+
+.context-breakdown-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--category);
+}
+
+.context-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.context-breakdown-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.context-breakdown-swatch {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--category);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 2px;
+}
+
+.context-breakdown-label {
+  flex: 1;
+}
+
+.context-breakdown-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
 /* Without room for both beside the conversation, the Work Pane takes the Fiche's place: FicheProvider decides (Fiche.tsx),
    so that « Fiche » and « Activité » in the Top Bar know what is shown. */
 .fiche[hidden] {

@@ -178,6 +178,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     tokens: conversation.context.tokens,
     ...(conversation.context.limits !== undefined && { limits: conversation.context.limits }),
     ...(conversation.context.split !== undefined && { split: conversation.context.split }),
+    ...(conversation.context.upgrade !== undefined && { upgrade: conversation.context.upgrade }),
   },
 });
 

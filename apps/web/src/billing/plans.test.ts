@@ -268,6 +268,20 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
       expect(await t.billing.use(marie.id, "matchScores")).toMatchObject({ allowed: true });
       expect((await t.billing.upgradeFor("free", (quotas) => quotas.jobDigest === "daily"))?.key).toBe("premium");
     });
+
+    it("name, for the Context bar, the lowest-ranked offered Plan above whose Coach context limits allow more (#732)", async () => {
+      const limits = (coachContextMessages: number | null, coachContextTokens: number | null) => ({ coachContextMessages, coachContextTokens });
+      // None stored: every Plan reads 40 messages within 12 000, so none allows more.
+      expect(await t.billing.coachContextUpgrade("free")).toBeNull();
+
+      await t.billing.setPlanQuotas("premium", { ...STARTING_PLAN_QUOTAS.premium, ...limits(null, 48_000) });
+      expect(await t.billing.coachContextUpgrade("free")).toEqual({ plan: "premium", name: { fr: "Premium", en: "Premium" } });
+
+      await t.billing.setPlanQuotas("standard", { ...STARTING_PLAN_QUOTAS.standard, ...limits(40, 24_000) });
+      expect(await t.billing.coachContextUpgrade("free")).toMatchObject({ plan: "standard" });
+      expect(await t.billing.coachContextUpgrade("standard")).toMatchObject({ plan: "premium" });
+      expect(await t.billing.coachContextUpgrade("premium")).toBeNull();
+    });
   });
 
   describe("ranking Plans", () => {

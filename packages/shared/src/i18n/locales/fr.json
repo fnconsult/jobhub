@@ -1325,6 +1325,13 @@
       "off": "−{{off}}",
       "monthsOnly_one": "{{count}} mois",
       "monthsOnly_other": "{{count}} mois"
+    },
+    "coachContext": {
+      "memory": "Mémoire du coach",
+      "messages_one": "{{count}} message",
+      "messages_other": "{{count}} messages",
+      "size": "Contexte du coach",
+      "multiple": "×{{multiple}}"
     }
   },
   "orders": {
@@ -5729,7 +5736,26 @@
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
     "clear": "Effacer la conversation",
-    "unlimited": "illimité"
+    "unlimited": "illimité",
+    "upgrade": "L'offre {{plan}} lui en fait lire davantage.",
+    "upgradeAction": "Découvrir l'offre {{plan}}",
+    "details": "Voir le détail",
+    "breakdown": {
+      "title": "Détail du contexte",
+      "intro": "Ce que le coach a reçu avec sa dernière réponse, estimé en jetons, sur le plafond de votre offre.",
+      "introUnlimited": "Ce que le coach a reçu avec sa dernière réponse, estimé en jetons. Votre offre ne fixe pas de plafond.",
+      "empty": "Le détail s'affiche après la première réponse du coach.",
+      "total": "{{tokens}} / {{maxTokens}} jetons",
+      "value": "{{tokens}} jetons · {{percent}} %",
+      "categories": {
+        "messages": "Messages",
+        "instructions": "Instructions du coach",
+        "profile": "Profil et CV",
+        "advice": "Conseils des agents",
+        "sources": "Sources",
+        "free": "Espace libre"
+      }
+    }
   },
   "microAnimation": {
     "show": "Voir comment",

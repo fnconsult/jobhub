@@ -25,9 +25,10 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * A link in the message is read as a Job Offer: `jobOffer` is then the reply's Job Offer card { id, title, employer?, followed }.
  * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it.
  * `couldNotAnswer`: the AI Coach could not answer the question (#345): the Coach Panel offers « Poser la question à l'équipe » at once.
- * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens, limits, split }:
+ * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens, limits, split, upgrade }:
  * `limits`, the Coach context limits of the Candidate's Plan (ADR-0078, #731) { coachContextMessages, coachContextTokens }, null
- * being unlimited; `split`, the latest reply's estimate by category { messages, instructions, profile, advice, sources }, or null.
+ * being unlimited; `split`, the latest reply's estimate by category { messages, instructions, profile, advice, sources }, or null;
+ * `upgrade`, once nearly full, the next offered Plan whose limits allow more { plan, name: { fr, en } }, or null (#732).
  * `cards`: the Action Cards of the Coach proposals the reply makes (#715), under it (CoachProposalCard); absent when none.
  * `proposalsDisplay`, with `cards`: the Candidate's « Propositions du coach » (#717), "card" or "form" (the first card's
  * form opens by itself in the Work Pane).

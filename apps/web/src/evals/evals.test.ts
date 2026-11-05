@@ -413,6 +413,58 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     });
   });
 
+  describe("the AI Coach's Eval Run with the Candidatures Coach Actions (#716)", () => {
+    const CANDIDATURES = ["propose_application", "propose_application_status", "propose_application_profile", "propose_follow_up_sent"];
+    const ofAction = (name: string) => AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith(`candidatures-${name.replace(/^propose_/, "").replace(/_/g, "-")}-`));
+
+    /** The AI layer with a Mistral that, offered the Candidatures proposals, proposes what `choose` says for the case it is asked about. */
+    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null) {
+      const proposing: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
+          const asked = input.messages.map((message) => (typeof message.content === "string" ? message.content : "")).join("\n");
+          const call = input.tools?.some((tool) => tool.name === "propose_application") && input.toolChoice !== "none" && !answered ? choose(asked) : null;
+          return call ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
+        },
+      };
+      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+    }
+
+    it("has, for each Candidatures Coach Action, a case to propose it with its arguments, one not asking for it, one with an injection in a Job Offer; and a deletion sent to its page", () => {
+      for (const name of CANDIDATURES) {
+        const cases = ofAction(name);
+        expect(cases.filter((each) => each.proposal?.action === name && each.proposes === true).length, name).toBeGreaterThanOrEqual(1);
+        expect(cases.filter((each) => each.proposes === false && !/injection/.test(each.id)).length, name).toBeGreaterThanOrEqual(1);
+        expect(cases.filter((each) => each.proposes === false && /injection/.test(each.id)).length, name).toBeGreaterThanOrEqual(1);
+      }
+      expect(AI_COACH_EVAL_CASES.find((each) => each.id === "candidatures-application-not-asked-airbus")).toMatchObject({ message: expect.stringMatching(/je pense postuler chez Airbus/i), proposes: false });
+      expect(AI_COACH_EVAL_CASES.find((each) => each.id === "candidatures-delete-points-to-page")).toMatchObject({ proposes: false, criteria: expect.stringMatching(/page/) });
+    });
+
+    it("scores 0 a case expecting a proposal the AI Coach does not make, or makes with other arguments; judges it when it makes the right one", async () => {
+      const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && CANDIDATURES.includes(each.proposal.action));
+      const right = proposingEvals((asked) => {
+        const each = expected.find((one) => asked.includes(one.message));
+        return each ? { name: each.proposal!.action, arguments: { ...each.proposal!.arguments } } : null;
+      });
+      const wrong = proposingEvals((asked) => {
+        const each = expected.find((one) => asked.includes(one.message));
+        return each ? { name: each.proposal!.action === "propose_application" ? "propose_follow_up_sent" : "propose_application", arguments: {} } : null;
+      });
+
+      const [none, judged, other] = [await evals.runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
+
+      for (const each of expected) {
+        expect(none.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
+        expect(judged.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
+        expect(other.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringContaining(each.proposal!.action) });
+      }
+    });
+  });
+
   describe("the AI Coach's Eval Run with read Coach Actions (#714)", () => {
     const CROSSING = "coach-action-read-two-objects";
 

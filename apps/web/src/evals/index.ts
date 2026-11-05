@@ -29,6 +29,7 @@
  */
 import { costInEur, isEffort, PROVIDER_IDS, type AiLayer, type Effort, type GenerateResult, type ProviderId } from "@jobhub/ai";
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { Pool } from "pg";
 import { createCoach, MAX_MESSAGE_LENGTH, type CoachFocus } from "../coach";
 import { forEvalRun, type CoachAction } from "../coach-actions";
@@ -302,7 +303,7 @@ function proposalMismatch(expected: NonNullable<AiCoachEvalCase["proposal"]>, pr
   const wrong = (data: unknown) =>
     Object.entries(expected.arguments ?? {}).flatMap(([name, value]) => {
       const given = typeof data === "object" && data !== null ? (data as Record<string, unknown>)[name] : undefined;
-      return given === value ? [] : [`${name} = ${JSON.stringify(given ?? null)} au lieu de ${JSON.stringify(value)}`];
+      return isDeepStrictEqual(given, value) ? [] : [`${name} = ${JSON.stringify(given ?? null)} au lieu de ${JSON.stringify(value)}`];
     });
   const misses = made.map(({ data }) => wrong(data));
   if (misses.some((miss) => miss.length === 0)) return null;

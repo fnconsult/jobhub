@@ -100,8 +100,9 @@ export const useProfile = (id: string | null): Read<ProfileResponse> => useRead(
 /** `GET /api/agenda`: the Candidate's Agenda, « À planifier » then the upcoming days (#693); kept on the device (READS). */
 export const useAgenda = (): Read<AgendaResponse> => useRead("agenda", "/api/agenda", agendaResponseSchema, []);
 
-/** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named. */
-export const useApplication = (id: string): Read<ApplicationResponse> => useRead("application", `/api/applications/${segment(id)}`, applicationResponseSchema, [id]);
+/** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named, with its Interviews; not read while `id` is null. */
+export const useApplication = (id: string | null): Read<ApplicationResponse> =>
+  useRead("application", `/api/applications/${segment(id ?? "")}`, applicationResponseSchema, [id ?? ""], id !== null);
 
 /** `GET /api/applications/:id/documents`: an Application's Tailored Documents, with where to download them. */
 export const useTailoredDocuments = (applicationId: string): Read<TailoredDocumentsResponse> =>

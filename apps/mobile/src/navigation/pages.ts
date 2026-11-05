@@ -1,7 +1,6 @@
 import type { TFunction } from "i18next";
 import { Briefcase, Calendar, Mail, Search, Users, type LucideIcon } from "lucide-react-native";
-import type { ProfileResponse } from "@jobhub/shared/reads";
-import { SAMPLE_APPLICATIONS } from "../sample-data";
+import type { ApplicationResponse, ProfileResponse } from "@jobhub/shared/reads";
 import type { ShellPage } from "../shell/Shell";
 
 /** An Application's Interviews Section, as its address names it (the web's APPLICATION_SECTIONS). */
@@ -74,6 +73,12 @@ export function profileIdOf(pathname: string): string | null {
   return section === "profils" && id ? id : null;
 }
 
+/** The id of the Application whose page (or one of its Sections) is at `pathname`; null on any other page. */
+export function applicationIdOf(pathname: string): string | null {
+  const [, section, id] = segments(pathname);
+  return section === "candidatures" && id ? id : null;
+}
+
 const under = (pathname: string, path: string) => pathname === path || pathname.startsWith(`${path}/`);
 
 /** Whether `path`'s entry in the Sidebar is the page shown, or one under it. */
@@ -83,17 +88,23 @@ export const isCurrent = (pathname: string, path: string) => (path === paths.hom
  * The page at `pathname` as the shell shows it: its title, and its column, the Fiche on an object's page (an
  * Application's, a Profile's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the
  * subscription, the Legal Texts, the Coach space or Réglages de l'app.
- * A Profile's page is titled with its name once `read.profile` has it (`GET /api/profiles/:id`), « Profil » until then;
- * a Free conversation's with its title, as `read.conversationTitle` gives it (the drawer's list).
+ * An Application's page is titled with its Job Offer once `read.application` has it (`GET /api/applications/:id`),
+ * « Candidature » until then, and its title leads back to Mes candidatures (`up`, as iOS's back arrow does); a
+ * Profile's page with its name once `read.profile` has it (`GET /api/profiles/:id`), « Profil » until then; a Free
+ * conversation's with its title, as `read.conversationTitle` gives it (the drawer's list).
  */
 export function pageFor(
   pathname: string,
   t: TFunction,
-  read: { profile?: Pick<ProfileResponse, "id" | "name">; conversationTitle?: (id: string) => string | undefined } = {},
+  read: {
+    application?: Pick<ApplicationResponse, "id"> & { jobOffer: Pick<ApplicationResponse["jobOffer"], "title"> };
+    profile?: Pick<ProfileResponse, "id" | "name">;
+    conversationTitle?: (id: string) => string | undefined;
+  } = {},
 ): ShellPage {
   const page = (title: string, pane: ShellPage["pane"]): ShellPage => ({ key: pathname, title, pane });
   const [, section, id] = segments(pathname);
-  if (section === "candidatures" && id) return page(SAMPLE_APPLICATIONS.find((application) => application.id === id)?.title ?? t("nav.applications"), "fiche");
+  if (section === "candidatures" && id) return { ...page(read.application?.id === id ? read.application.jobOffer.title : t("application.kind"), "fiche"), up: { path: paths.applications, label: t("application.backToApplications") } };
   if (section === "profils" && id) return page(read.profile?.id === id ? read.profile.name : t("mobile.profiles.title"), "fiche");
   if (section === "conversations" && id) {
     const title = read.conversationTitle?.(id);

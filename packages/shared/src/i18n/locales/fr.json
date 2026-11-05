@@ -5932,6 +5932,10 @@
       "openPosting": "Voir l'annonce",
       "shareLink": "Partager le lien"
     },
+    "applications": {
+      "notFound": "Cette candidature est introuvable : elle n'existe pas ou n'est pas la vôtre.",
+      "readOnlySections": "Les autres rubriques (dossier entreprise, contacts, avis des coachs) se consultent sur jobbbox.ai."
+    },
     "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
     "coach": {
       "replyAnnounced": "Coach IA : {{reply}}"

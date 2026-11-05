@@ -138,3 +138,66 @@ describe("Mes candidatures, the list", () => {
     expect(screen).toHavePathname("/candidatures");
   });
 });
+
+describe("Mes candidatures, the Archived Applications", () => {
+  it("leaves them out of the list until asked for, as the web does, and hides them again", async () => {
+    await launch("/candidatures");
+    expect(await screen.findByText("1 candidature archivée est masquée.")).toBeOnTheScreen();
+    expect(screen.queryByText(/Cheffe de quai/)).toBeNull();
+    const user = userEvent.setup();
+    await user.press(button("Les afficher"));
+    expect(await screen.findByRole("link", { name: "Cheffe de quai · Transports Martin" })).toBeOnTheScreen();
+    expect(screen.getByText("3 candidatures")).toBeOnTheScreen();
+    await user.press(button("Masquer les candidatures archivées"));
+    await waitFor(() => expect(screen.queryByText(/Cheffe de quai/)).toBeNull());
+  });
+});
+
+/** The Application's page at `id`, its Fiche opened from the Top Bar (full page on a phone). */
+async function openFiche(id = AEROLINE.id) {
+  await launch(`/candidatures/${id}`);
+  await userEvent.setup().press(button("Fiche"));
+  await screen.findByText("Statut");
+}
+
+describe("An Application's page", () => {
+  it("is its Coach Conversation, whose Subject the Application is", async () => {
+    await launch("/candidatures/app_aeroline");
+    expect(screen.getByLabelText("Votre message")).toBeOnTheScreen();
+    expect(button("Fiche")).toBeOnTheScreen();
+  });
+
+  it("opens its Fiche from the Top Bar: its card, read from the web app with the Candidate's session", async () => {
+    await openFiche();
+    expect(screen.getAllByText("Responsable qualité").length).toBeGreaterThan(0);
+    expect(screen.getByText("Aéroline · Toulouse")).toBeOnTheScreen();
+    expect(screen.getByText("Postulée")).toBeOnTheScreen();
+    expect(screen.getByText("Enregistrée le")).toBeOnTheScreen();
+    expect(screen.getByText("28 octobre 2026")).toBeOnTheScreen();
+    expect(screen.getByText("82 / 100")).toBeOnTheScreen();
+    expect(screen.getByText("Qualité aéronautique")).toBeOnTheScreen();
+  });
+
+  it("lists its Sections, its Activity and its Results on the Fiche", async () => {
+    await openFiche();
+    expect(screen.getByRole("heading", { name: "Sections" })).toBeOnTheScreen();
+    for (const section of ["Correspondance", "Entretiens", "L'offre"]) expect(button(section)).toBeOnTheScreen();
+    expect(screen.getByRole("heading", { name: "Activité" })).toBeOnTheScreen();
+    expect(screen.getByText("Aucun contenu produit par l'IA sur cette page")).toBeOnTheScreen();
+    expect(screen.getByRole("heading", { name: "Résultats" })).toBeOnTheScreen();
+    expect(await screen.findByText(/Pas encore de document/)).toBeOnTheScreen();
+  });
+
+  it("opens its Job Offer's site in the system's browser", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    await openFiche();
+    await userEvent.setup().press(button("Voir l'offre sur welcometothejungle.com"));
+    expect(openURL).toHaveBeenCalledWith(AEROLINE.jobOffer.url);
+  });
+
+  it("says an Application that is not the Candidate's cannot be found", async () => {
+    await launch("/candidatures/app_de_quelquun_d_autre");
+    await userEvent.setup().press(button("Fiche"));
+    expect(await screen.findByText(/Cette candidature est introuvable/)).toBeOnTheScreen();
+  });
+});

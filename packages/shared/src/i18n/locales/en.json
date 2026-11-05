@@ -5932,6 +5932,10 @@
       "openPosting": "View the posting",
       "shareLink": "Share the link"
     },
+    "applications": {
+      "notFound": "This application cannot be found: it does not exist or is not yours.",
+      "readOnlySections": "The other sections (company dossier, contacts, coach reviews) are on jobbbox.ai."
+    },
     "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
     "coach": {
       "replyAnnounced": "AI Coach: {{reply}}"

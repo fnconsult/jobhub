@@ -1,6 +1,7 @@
+import CookieManager from "@preeternal/react-native-cookie-manager";
 import * as SecureStore from "expo-secure-store";
 import { WEB_APP_URL } from "../web-app-url";
-import { createAppSession, type SessionStorage } from "./app-session";
+import { createAppSession, type SessionStorage, type WebViewCookies } from "./app-session";
 import { devicePasskeys } from "./device-passkeys";
 
 /** The web app the app signs in to, as it calls it (src/web-app-url.ts). */
@@ -16,5 +17,14 @@ const storage: SessionStorage = {
   deleteItemAsync: (key) => SecureStore.deleteItemAsync(key, options),
 };
 
+/**
+ * The WebViews' cookie store (#689): WKWebView's own on iOS (the WebKit store, not the one URLSession reads), the one
+ * Android shares between its WebViews and native requests. Emptied whole, both iOS stores included: the app's WebViews
+ * only ever show the web app.
+ */
+const webViewCookies: WebViewCookies = {
+  clear: async () => void (await CookieManager.clearAllStores()),
+};
+
 /** The app's one session. */
-export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys });
+export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys, webViewCookies });

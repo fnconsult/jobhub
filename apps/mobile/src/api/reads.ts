@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { readKey, type ReadName } from "../offline/read-cache";
-import { useApi } from "./api";
+import { useApi, type ApiFetch } from "./api";
 
 /** A GET the web app answered with something other than a success: `status` says what (401 signed out, 5xx down). */
 export class ReadFailed extends Error {
@@ -16,6 +16,13 @@ export class ReadFailed extends Error {
 /** A refusal (4xx) is answered the same way again: only a network failure or the web app's own error is tried once more. */
 const tryAgain = (failures: number, error: Error) => failures < 1 && !(error instanceof ReadFailed && error.status < 500);
 
+/** A GET of `path` through `api`, its JSON body parsed by `schema`; ReadFailed on any other answer than a success. */
+export async function read<T>(api: ApiFetch, path: string, schema: { parse: (body: unknown) => T }): Promise<T> {
+  const response = await api(path);
+  if (!response.ok) throw new ReadFailed(path, response.status);
+  return schema.parse(await response.json());
+}
+
 /**
  * A GET of the web app's API (`@jobhub/shared/reads`, ADR-0076) through the read cache under `name` (READS says whether
  * the device keeps it for when there is no network), its body parsed by `schema`, the type the route answers.
@@ -24,11 +31,7 @@ export function useRead<T>(name: ReadName, path: string, schema: { parse: (body:
   const api = useApi();
   return useQuery({
     queryKey: readKey(name, ...params),
-    queryFn: async () => {
-      const response = await api(path);
-      if (!response.ok) throw new ReadFailed(path, response.status);
-      return schema.parse(await response.json());
-    },
+    queryFn: () => read(api, path, schema),
     retry: tryAgain,
   });
 }

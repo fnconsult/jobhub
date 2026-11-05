@@ -63,8 +63,10 @@ describe("every link out of Jobbbox goes through the Exit Page", () => {
     });
 
   it('has no <a target="_blank"> but a Legal Text of Jobbbox opened beside a form', () => {
-    // The CGU and the CGV are pages of Jobbbox (/legal/…), opened in a new tab so the form keeps what was typed.
-    const allowed = new Set(["components/AcceptanceForm.tsx", "components/OrderForm.tsx"]);
+    // The CGU and the CGV are pages of Jobbbox (/legal/…), opened in a new tab so the form keeps what was typed. Inside the
+    // Jobbbox app's WebView, « Gérer mon abonnement sur jobbbox.ai » is Jobbbox's own subscription page in a new window,
+    // which the app opens in the system's browser (#689).
+    const allowed = new Set(["components/AcceptanceForm.tsx", "components/OrderForm.tsx", "app/abonnement/page.tsx"]);
     const offenders = files(SRC)
       .filter((path) => /<a\b[^>]*target="_blank"/.test(readFileSync(path, "utf8")))
       .map((path) => relative(SRC, path))

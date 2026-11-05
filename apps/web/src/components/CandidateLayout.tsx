@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { requireAcceptedTerms } from "@/acceptances/server";
 import type { ActivityElement } from "@/ai-activity/pane";
@@ -19,6 +20,7 @@ import { currentHumanCoach } from "@/human-coaches/server";
 import { jobDigestsMenu } from "@/job-digests/menu";
 import { getJobDigests } from "@/job-digests/server";
 import { jobSearchesMenu } from "@/job-searches/menu";
+import { inAppWebView } from "@/native-app/in-app";
 import { getJobSearches } from "@/job-searches/server";
 import { PrivacyChangeNotice } from "@/components/PrivacyChangeNotice";
 import { getLegalTextNotices } from "@/legal-text-notices/server";
@@ -137,7 +139,7 @@ export async function CandidateLayout({
   const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free, menus, welcomeClosed] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
-    getRequestLocale().then((locale) => getPaymentFailedNotice(candidateId, locale)),
+    Promise.all([getRequestLocale(), headers()]).then(([locale, requestHeaders]) => getPaymentFailedNotice(candidateId, locale, inAppWebView(requestHeaders.get("user-agent")))),
     getJobSearches().notifications(candidateId),
     getSignalements().notifications(candidateId),
     currentHumanCoach(),

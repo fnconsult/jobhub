@@ -97,6 +97,11 @@ export interface AppSession {
   verifyPasskey(): Promise<SecondStepOutcome>;
   /** The session's cookies, for a WebView of the web app to send to its host alone (src/web-pages); none when signed out. */
   webCookies(): Promise<{ name: string; value: string }[]>;
+  /**
+   * The session cookie, for a request to the web app made outside the session's own client (the app's calls to the
+   * API, src/api): the `Cookie` header Better Auth reads; empty when signed out.
+   */
+  cookie(): Promise<string>;
 }
 
 /** An endpoint's answer: its status, and its body. */
@@ -214,6 +219,8 @@ export function createAppSession({
     },
 
     current: () => serial(current),
+
+    cookie: () => client.getCookie(),
 
     signOut: () =>
       serial(async () => {

@@ -3863,6 +3863,8 @@
     "title": "Entretiens et rendez-vous",
     "none": "Aucun rendez-vous à venir. Ajoutez un entretien avec « Ajouter un entretien », ou depuis chaque candidature, dans sa partie « Entretiens ».",
     "nonePast": "Aucun rendez-vous passé.",
+    "loading": "Chargement de l'agenda…",
+    "loadError": "L'agenda n'a pas pu être chargé. Réessayez dans quelques instants.",
     "showPast": "Voir les rendez-vous passés",
     "showUpcoming": "Voir les rendez-vous à venir",
     "pastTitle": "Rendez-vous passés",

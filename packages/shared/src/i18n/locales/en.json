@@ -3863,6 +3863,8 @@
     "title": "Interviews and appointments",
     "none": "No upcoming appointments. Add an interview with « Add an interview », or from each application, in its « Interviews » part.",
     "nonePast": "No past appointments.",
+    "loading": "Loading the agenda…",
+    "loadError": "The agenda could not be loaded. Try again in a few moments.",
     "showPast": "See past appointments",
     "showUpcoming": "See upcoming appointments",
     "pastTitle": "Past appointments",

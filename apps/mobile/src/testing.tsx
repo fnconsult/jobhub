@@ -7,7 +7,8 @@ import { fakeHardwareKeyboard } from "./keyboard/fake-hardware-keyboard";
 import { fakeNetwork, memoryStorage } from "./offline/testing";
 import type { Network } from "./offline/read-cache";
 
-const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
+/** A phone's window and safe areas, measured at once. */
+export const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
 
 let keyboard = fakeHardwareKeyboard();
 

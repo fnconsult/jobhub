@@ -210,6 +210,8 @@ export function fakeWebApp() {
       for (const [token, session] of sessions) if (session.email === email) sessions.delete(token);
     },
     sessionCount: () => sessions.size,
+    /** Whose session a request with `headers` carries, as the web app reads its cookie: the email, or null for none it knows. */
+    signedInAs: (headers: HeadersInit | undefined) => sessionOf(new Headers(headers))?.session?.email ?? null,
     setOffline: (value: boolean) => void (offline = value),
   };
 }

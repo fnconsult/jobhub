@@ -11,6 +11,7 @@ import { migrateAgentRunLog } from "./agent-runs/index";
 import { migrateAiUsage } from "./ai-usage/index";
 import { migrateApplications } from "./applications/index";
 import { migrateAppointmentReminders } from "./appointment-reminders/index";
+import { migratePushNotifications } from "./push-notifications/index";
 import { migrateAtsScores } from "./ats-score/index";
 import { migrateCandidateAccounts, type AuthConfig } from "./auth/index";
 import { migrateAssistantConversations } from "./back-office-assistant/conversations";
@@ -85,6 +86,7 @@ export async function migrateDatabase(
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
+    ["Push notifications' devices and switches are up to date", () => migratePushNotifications(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
     ["Action Cards in Coach Conversations are up to date", () => migrateActionCardsInThread(database)],
     ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],

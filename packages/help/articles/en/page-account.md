@@ -3,14 +3,14 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My account
-synonyms: [account, app, iPhone, Android, delete my account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, coach proposals, form, card, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key]
+synonyms: [account, app, iPhone, Android, delete my account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, coach proposals, form, card, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key, notifications, app notifications, push notifications]
 route: /compte
 ---
 My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Security, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.
 
 Profiles lists your active profiles, then the archived ones. Subscription shows your plan and how much of it you used this week: it has its own article, My subscription.
 
-In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.
+In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments, then « App notifications »: one switch per event the Jobbbox app can show on the lock screen of your phone or tablet (« New results of a job search », « New Job Digest », « Reminder the day before an appointment », « Review left by your coach », « Coaching session date changed by your coach », « Follow-up due »; for a human coach, « Your coach space » too). Each is on until you switch it off, and is saved as soon as you change it. The section says how many devices notifications are sent to: none until you allow notifications in the app. A notification never names a company, a job or a person; the details show once the app is open. The reminder email is still sent as you set it.
 
 Email intake lets you receive in Jobbbox the offers from your job alerts and from recruiters' messages. « Switch email intake on » gives you your forwarding address: forward those emails to it, « Copy the address » copies it, and « Set up forwarding step by step » guides you to do so from your mailbox. Only the text of forwarded emails is read, never their attachments. « Replace the address » gives you a new one and « Switch off » stops email intake: the old address stops working at once, the offers already received stay. In « Your sending addresses », add the addresses you forward from by hand; in « Your alert senders », add the address of an alert Jobbbox does not recognise yet, or switch off, for yourself alone, a sender « Recognised by Jobbbox ». The offers received show in « Received by email », on the Job searches page.
 

@@ -1105,8 +1105,19 @@ _Avoid_: Source (alone), citation, reference
 What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read, compute (rules, no AI) or act (a Coach Action reading or proposing on the Candidate's objects, no AI, with its own glyph, ADR-0077). It picks the glyph AI Activity shows while the step runs.
 _Avoid_: Status, phase, stage
 
+**Toolbox glyph**:
+The Activity glyph of a Coach Action (`act`): a toolbox whose lid lifts, a key coming out for a read, a card for a proposal (#788). Replaces the pointer and card of #726.
+_Avoid_: Tool icon, wrench
+
+**Consulted elements line**:
+« Le coach a consulté N éléments de Jobbbox »: under an AI Coach reply, the elements its Coach Actions read, each with its link, taken from the reply's stored Provenance so it stays after a reload (#788).
+_Avoid_: Sources, references
+
+**Word reveal**:
+A new AI Coach reply's words appear one by one, about 28 a second, in this browser only; nothing is stored. Shown all at once under reduced motion and for history messages (#788).
+
 **Step label**:
-What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step.
+What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step. In the conversation (#788), a shipped Coach Action's line has its own label (« Ouvre la candidature », « Ouvre le profil »…), followed by what it saw: a list by its count, an object by its name. The Provenance keeps which Coach Action ran (`action`) and what it saw by kind and page or count (`seen`), never a name (ADR-0034): the names travel with the live `step_ended` event only, and are looked up again from the Candidate's own objects when the conversation reopens.
 _Avoid_: Step name, status
 
 **Live action**:

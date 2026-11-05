@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { newAddress } from "./support/mailbox";
@@ -117,7 +117,9 @@ test.describe("a Coach proposal in the thread: « Appliquer », « Annuler », �
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/candidatures/${id}`);
     const pasted = Array.from({ length: 24 }, (_, i) => `Ligne collée ${i + 1} de l'offre.`).join("\n");
-    await conversation(page).getByLabel(fr.coachPanel.messageLabel).fill(`${pasted}\nE2E_COACH_TOOL=e2e_proposer_statut:${JSON.stringify({ id, status: "interview" })}`);
+    // A reply of a few lines, as the AI Coach writes one with a proposal (E2E_COACH_SILENT, #785), not the fake's echo of
+    // the tool's whole result, taller than the column, which shows from its first line instead (#787).
+    await conversation(page).getByLabel(fr.coachPanel.messageLabel).fill(`${pasted}\nE2E_COACH_SILENT\nE2E_COACH_TOOL=e2e_proposer_statut:${JSON.stringify({ id, status: "interview" })}`);
     await conversation(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
     await expect(cardOf(page)).toBeVisible({ timeout: 30_000 });
 

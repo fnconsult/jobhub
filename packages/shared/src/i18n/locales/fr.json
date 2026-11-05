@@ -1033,6 +1033,20 @@
     "stopped": "Réponse arrêtée",
     "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
     "thinking": "Votre coach rédige sa réponse…",
+    "consulted": {
+      "summary_one": "Le coach a consulté {{count}} élément de Jobbbox",
+      "summary_other": "Le coach a consulté {{count}} éléments de Jobbbox",
+      "pages": {
+        "application": "Candidature",
+        "applications": "Vos candidatures",
+        "profile": "Profil",
+        "job_search": "Recherche d'offres",
+        "job_searches": "Vos recherches d'offres",
+        "job_offer": "Offre",
+        "job_digest": "Job Digest",
+        "job_digests": "Vos Job Digests"
+      }
+    },
     "errors": {
       "unavailable": "Votre coach ne peut pas répondre pour le moment. Réessayez dans quelques instants.",
       "invalid": "Ce message n'a pas pu être envoyé. Raccourcissez-le et réessayez."
@@ -1121,6 +1135,48 @@
       "foot": "Signalement",
       "reportProblem": "Signaler un problème",
       "suggestIdea": "Proposer une idée"
+    },
+    "seen": {
+      "steps": {
+        "list_objects": "Consulte vos données",
+        "read_profile": "Ouvre le profil",
+        "read_application": "Ouvre la candidature",
+        "read_job_offer": "Ouvre l'offre",
+        "read_job_search": "Ouvre la recherche d'offres",
+        "read_job_digest": "Ouvre le Job Digest",
+        "read_tailored_documents": "Ouvre les documents adaptés"
+      },
+      "count": {
+        "profile_one": "{{count}} profil",
+        "profile_other": "{{count}} profils",
+        "application_one": "{{count}} candidature",
+        "application_other": "{{count}} candidatures",
+        "job_offer_one": "{{count}} offre",
+        "job_offer_other": "{{count}} offres",
+        "job_search_one": "{{count}} recherche d'offres",
+        "job_search_other": "{{count}} recherches d'offres",
+        "job_digest_one": "{{count}} Job Digest",
+        "job_digest_other": "{{count}} Job Digests",
+        "tailored_documents_one": "{{count}} dossier de documents",
+        "tailored_documents_other": "{{count}} dossiers de documents",
+        "agenda_item_one": "{{count}} rendez-vous",
+        "agenda_item_other": "{{count}} rendez-vous",
+        "coach_memory_one": "{{count}} souvenir du coach",
+        "coach_memory_other": "{{count}} souvenirs du coach",
+        "all_one": "{{count}} élément",
+        "all_other": "{{count}} éléments"
+      },
+      "types": {
+        "profile": "Profil",
+        "application": "Candidature",
+        "job_offer": "Offre",
+        "job_search": "Recherche d'offres",
+        "job_digest": "Job Digest",
+        "tailored_documents": "Documents adaptés",
+        "agenda_item": "Rendez-vous",
+        "coach_memory": "Mémoire du coach",
+        "all": "Vos données"
+      }
     }
   },
   "provenanceLine": {

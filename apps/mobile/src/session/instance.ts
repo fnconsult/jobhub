@@ -26,5 +26,5 @@ const webViewCookies: WebViewCookies = {
   clear: async () => void (await CookieManager.clearAllStores()),
 };
 
-/** The app's one session. */
+/** The app's one session, on the web app the app calls (web-app-url.ts), its second step by the device's passkeys. */
 export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys, webViewCookies });

@@ -8,7 +8,7 @@ import type { CardDecisionError, CoachProposalCard as Card } from "@/coach-propo
 import type { ProposalField } from "@/coach-actions";
 import { send } from "@/components/ApplicationControls";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
-import { ChangeItem, decisionOf } from "@/components/TailoredCvReview";
+import { ChangeItem } from "@/components/TailoredCvReview";
 import { LiveActionStatus, useLiveAction } from "@/components/LiveAction";
 import { InWorkPane } from "@/components/WorkPane";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
@@ -20,6 +20,12 @@ import "./CoachProposalCard.css";
 const FORM: AddressedKind = "form";
 
 /** What the card says after the Candidate's last click: refused (and why), or nothing. */
+/**
+ * A change of a Coach's Master CV review as the Candidate decided it: none pre-accepted (ADR-0077), each waits for its own
+ * « Accepter » or « Refuser »; only the accepted ones are sent with « Enregistrer les changements acceptés ».
+ */
+const decisionOf = (change: { id: string }, decisions: Record<string, boolean>): boolean | null => decisions[change.id] ?? null;
+
 type Problem = "conflict" | "undoConflict" | "invalid" | "failed" | "noneAccepted" | "runFailed";
 
 /** The hour of a decision, « 18:20 », in the Candidate's language. */
@@ -151,7 +157,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           />
         ))}
       </ul>
-      {change.review.changes.some((each) => decisionOf(each, decisions) === null) ? <p className="notice">{t("tailoredCv.pendingHint")}</p> : null}
+      {change.review.changes.some((each) => decisionOf(each, decisions) === null) ? <p className="notice">{t("coachProposals.review.pending")}</p> : null}
       {problem && formShown ? <ProblemNote problem={problem} /> : null}
       <div className="actions">
         <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void saveReviewed()}>
@@ -207,6 +213,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         {card.status === "accepted" && card.decidedAt ? t(change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) }) : null}
         {card.status === "dismissed" ? t("coachProposals.dismissed") : null}
         {card.status === "undone" && card.undoneAt ? t("coachProposals.undone", { time: hourOf(card.undoneAt, i18n.language) }) : null}
+        {card.status === "undone" && card.undoNote ? ` ${t(`coachProposals.undoNotes.${card.undoNote}`)}` : null}
       </p>
       {card.status === "accepted" && change.launches && !run ? <p className="hint">{t("coachProposals.launchedHint")}</p> : null}
       {card.status === "accepted" && run ? <LiveActionStatus action={live} /> : null}

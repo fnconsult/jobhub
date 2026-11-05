@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { browserOf, pagePath } from "./context";
+import { browserOf, pagePath, whereSentFrom } from "./context";
 
 describe("A Signalement's context (#374, #283)", () => {
   describe("the page, as its path alone", () => {
@@ -44,6 +44,26 @@ describe("A Signalement's context (#374, #283)", () => {
       expect(browserOf("Mozilla/5.0 (Windows NT 10.0) MonNavigateur/3 marie@example.fr")).toBe("Navigateur inconnu, Windows");
       expect(browserOf(null)).toBeNull();
       expect(browserOf("")).toBeNull();
+    });
+  });
+
+  describe("from the Jobbbox app (#690), its version and system, as its form says before sending", () => {
+    // What a native fetch says of itself: neither a browser nor a system a person can read.
+    const IOS_FETCH = "Jobbbox/1 CFNetwork/3826.500.131 Darwin/24.5.0";
+    const ANDROID_FETCH = "okhttp/4.12.0";
+
+    it.each([
+      [IOS_FETCH, "1.4.0 (iOS 18.6)", "App Jobbbox 1.4.0, iOS 18.6"],
+      [ANDROID_FETCH, "1.4.0 (Android 34)", "App Jobbbox 1.4.0, Android 34"],
+      [ANDROID_FETCH, "(Android 34)", "App Jobbbox, Android 34"],
+    ])("reads %s with « %s » as « %s »", (userAgent, appDevice, kept) => {
+      expect(whereSentFrom({ userAgent, appDevice })).toBe(kept);
+    });
+
+    it("reads the browser as before without it, or with anything else in it", () => {
+      expect(whereSentFrom({ userAgent: ANDROID_FETCH, appDevice: null })).toBe("Navigateur inconnu, système inconnu");
+      expect(whereSentFrom({ userAgent: ANDROID_FETCH, appDevice: "marie@example.fr" })).toBe("Navigateur inconnu, système inconnu");
+      expect(whereSentFrom({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0" })).toBe("Firefox 143, Windows");
     });
   });
 });

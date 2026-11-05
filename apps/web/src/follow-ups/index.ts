@@ -17,7 +17,9 @@
  *  - `sentOf` / `markSent` / `unmarkSent` — a Follow-up marked as sent from a Coach proposal (#716, ADR-0077): how
  *    many were sent and their version; marking one from the version seen (moved on since: a `conflict`), as accepting
  *    a Follow-up card does, the status keeping its Origin and a pending Follow-up withdrawn; « Annuler » puts the state
- *    before back while nothing moved on since.
+ *    before back while nothing moved on since. Each is one transaction, the Application's row locked (#771): the status
+ *    and the Follow-up rows change together or not at all, and a concurrent second mark finds the version moved on.
+ *    Each Follow-up sent is numbered (1, 2): the table refuses a third, and the same number twice.
  *  - `followUpCardApplies(card, status)` — whether a pending card still applies:
  *    once the Application leaves "Postulée"/"Relancée", its Follow-up and
  *    suggestion are withdrawn (hidden, and accepting them changes nothing).
@@ -40,6 +42,7 @@ import type { AiLayer } from "@jobhub/ai";
 import { jobOfferLanguage, type ApplicationStatus, type DocumentLanguage } from "@jobhub/shared";
 import { createI18n, DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
+import { inTransaction, type Queryable } from "../database/pool";
 import * as z from "zod";
 import type { AcceptHandler, ActionCard, ActionCards } from "../action-cards";
 import type { Applications } from "../applications";
@@ -123,7 +126,7 @@ export interface FollowUps {
 export interface FollowUpsDeps {
   /** Where the cards are proposed (without handlers: proposing only). */
   actionCards: Pick<ActionCards, "propose" | "pending" | "dismissed" | "pendingOfKinds" | "withdraw">;
-  applications: Pick<Applications, "change" | "statusOf">;
+  applications: Pick<Applications, "change">;
   /** Delivers the notice email to the Candidate. */
   mailer: Mailer;
   /** Public origin of the web app, for the link in the notice email. */
@@ -187,6 +190,9 @@ const unmarkSchema = z.object({
 /** A "Relancée" set by hand (after the last Follow-up marked as sent, if any) counts as one sent. */
 const setByHand = (row: { status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null }) =>
   row.status === "followed_up" && (!row.last_sent_at || row.status_changed_at > row.last_sent_at);
+
+const isUniqueViolation = (error: unknown) => (error as { code?: string } | null)?.code === "23505";
+const isCheckViolation = (error: unknown) => (error as { code?: string } | null)?.code === "23514";
 
 function payloadOf(card: Pick<ActionCard, "payload">): Partial<FollowUpPayload> {
   return (card.payload ?? {}) as Partial<FollowUpPayload>;
@@ -269,28 +275,44 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
 
   /**
    * Records a Follow-up sent on the Application, once its status is "Relancée": a "Relancée" set by hand before it still
-   * counts as one sent. Gives back the rows it added.
+   * counts as one sent. Each row takes the next number (1, then 2): the table's constraint refuses a third, and two
+   * concurrent records of the same number (#771). Gives back the rows it added.
    */
-  async function recordSent(applicationId: string, before: { status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null }): Promise<string[]> {
+  async function recordSent(
+    client: Queryable,
+    applicationId: string,
+    before: { status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null },
+  ): Promise<string[]> {
     const ids: string[] = [];
+    const next = `(SELECT coalesce(max(number), 0) + 1 FROM follow_up_sent WHERE application_id = $1)`;
     if (setByHand(before)) {
-      const { rows } = await database.query<{ id: string }>(`INSERT INTO follow_up_sent (application_id, sent_at) VALUES ($1, $2) RETURNING id`, [applicationId, before.status_changed_at]);
+      const { rows } = await client.query<{ id: string }>(`INSERT INTO follow_up_sent (application_id, sent_at, number) VALUES ($1, $2, ${next}) RETURNING id`, [
+        applicationId,
+        before.status_changed_at,
+      ]);
       ids.push(rows[0]!.id);
     }
     // Never before the status change it caused, so it is not taken for a "Relancée" set by hand.
-    const { rows } = await database.query<{ id: string }>(
-      `INSERT INTO follow_up_sent (application_id, sent_at) SELECT id, greatest($2::timestamptz, status_changed_at) FROM application WHERE id = $1 RETURNING id`,
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO follow_up_sent (application_id, sent_at, number) SELECT id, greatest($2::timestamptz, status_changed_at), ${next} FROM application WHERE id = $1 RETURNING id`,
       [applicationId, now()],
     );
     ids.push(rows[0]!.id);
     return ids;
   }
 
-  /** The Application's status and Follow-ups sent, for the Candidate only. */
-  async function sentState(candidateId: string, applicationId: string) {
+  /**
+   * The Application's status and Follow-ups sent, for the Candidate only. `lock`: on a transaction's client, the
+   * Application's row is locked first, so a concurrent mark or unmark waits and then reads what this one wrote (#771).
+   */
+  async function sentState(candidateId: string, applicationId: string, client: Queryable = database, lock = false) {
     if (!UUID.test(applicationId)) return null;
-    const { rows } = await database.query<{ status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null; sent: number; version: string }>(
-      `SELECT a.status, a.status_changed_at, s.last_sent_at, s.sent,
+    if (lock) {
+      const { rows } = await client.query(`SELECT 1 FROM application WHERE id = $1 AND candidate_id = $2 FOR UPDATE`, [applicationId, candidateId]);
+      if (rows.length === 0) return null;
+    }
+    const { rows } = await client.query<{ status: ApplicationStatus; status_changed_at: Date; last_sent_at: Date | null; sent: number; version: string; status_version: string; status_origin: unknown }>(
+      `SELECT a.status, a.status_changed_at, s.last_sent_at, s.sent, a.status_origin, ${STATUS_VERSION} AS status_version,
               ${STATUS_VERSION} || ':' || s.sent || ':' || coalesce((extract(epoch FROM s.last_sent_at) * 1000000)::bigint::text, '') AS version
          FROM application a,
               LATERAL (SELECT count(*)::int AS sent, max(sent_at) AS last_sent_at FROM follow_up_sent WHERE application_id = a.id) s
@@ -336,7 +358,7 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
       [FOLLOW_UP_CARD]: async (card, candidateId) => {
         const before = await waitingStatus(card, candidateId);
         await moveTo(card, candidateId, "followed_up");
-        await recordSent(card.focus.id, before);
+        await recordSent(database, card.focus.id, before);
       },
       [ABANDON_CARD]: async (card, candidateId) => {
         await waitingStatus(card, candidateId);
@@ -352,36 +374,61 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     },
 
     async markSent(candidateId, applicationId, { version, origin }) {
-      const before = await sentState(candidateId, applicationId);
-      if (!before) return { ok: false, error: "not_found" };
-      if (before.version !== version) return { ok: false, error: "conflict" };
-      if (!WAITING_STATUSES.includes(before.status)) return { ok: false, error: "not_waiting" };
-      if (before.count >= MAX_FOLLOW_UPS) return { ok: false, error: "limit" };
-      const status = await deps.applications.statusOf(candidateId, applicationId);
-      if (!status) return { ok: false, error: "not_found" };
-      const changed = await deps.applications.change(candidateId, applicationId, { status: "followed_up" }, { version: status.version, origin });
-      if (!changed.ok) return { ok: false, error: "error" in changed && changed.error === "not_found" ? "not_found" : "conflict" };
-      const sentIds = await recordSent(applicationId, before);
-      // The Follow-up the AI Coach proposed on the Application is sent: its card no longer waits.
+      // One transaction, the Application locked (#771): « Relancée » and its Follow-up rows together or not at all, and a
+      // second « Appliquer » from the same version waits, then finds it moved on.
+      let marked: MarkSentResult;
+      try {
+        marked = await inTransaction(database, async (client): Promise<MarkSentResult> => {
+          const before = await sentState(candidateId, applicationId, client, true);
+          if (!before) return { ok: false, error: "not_found" };
+          if (before.version !== version) return { ok: false, error: "conflict" };
+          if (!WAITING_STATUSES.includes(before.status)) return { ok: false, error: "not_waiting" };
+          if (before.count >= MAX_FOLLOW_UPS) return { ok: false, error: "limit" };
+          // As the Applications module changes it from a Coach proposal (#715): now, with the card as its Origin.
+          await client.query(`UPDATE application SET status = 'followed_up', status_changed_at = now(), status_origin = $2 WHERE id = $1`, [
+            applicationId,
+            JSON.stringify(origin),
+          ]);
+          const sentIds = await recordSent(client, applicationId, before);
+          const after = (await sentState(candidateId, applicationId, client))!;
+          return {
+            ok: true,
+            undo: { sentIds, status: before.status, origin: readOrigin(before.status_origin), statusVersion: after.status_version, version: after.version },
+          };
+        });
+      } catch (error) {
+        // Another record took the number meanwhile (the table's constraint): not what was proposed any more.
+        if (isUniqueViolation(error) || isCheckViolation(error)) return { ok: false, error: "conflict" };
+        throw error;
+      }
+      if (!marked.ok) return marked;
+      // The Follow-up the AI Coach proposed on the Application is sent: its card no longer waits (it would not apply
+      // any more either way: followUpCardApplies).
       const focus = { kind: "application", id: applicationId } as const;
       for (const card of await deps.actionCards.pending(candidateId, focus)) {
         if (card.kind === FOLLOW_UP_CARD) await deps.actionCards.withdraw(candidateId, card.id);
       }
-      const after = await sentState(candidateId, applicationId);
-      const statusAfter = await deps.applications.statusOf(candidateId, applicationId);
-      return { ok: true, undo: { sentIds, status: before.status, origin: status.origin, statusVersion: statusAfter?.version ?? "", version: after?.version ?? "" } };
+      return marked;
     },
 
     async unmarkSent(candidateId, applicationId, undo) {
       const kept = unmarkSchema.safeParse(undo);
       if (!kept.success) return { ok: false, error: "not_found" };
-      const now = await sentState(candidateId, applicationId);
-      if (!now) return { ok: false, error: "not_found" };
-      if (now.version !== kept.data.version) return { ok: false, error: "conflict" };
-      const changed = await deps.applications.change(candidateId, applicationId, { status: kept.data.status }, { version: kept.data.statusVersion, origin: readOrigin(kept.data.origin) });
-      if (!changed.ok) return { ok: false, error: "error" in changed && changed.error === "not_found" ? "not_found" : "conflict" };
-      await database.query(`DELETE FROM follow_up_sent WHERE application_id = $1 AND id = ANY($2::uuid[])`, [applicationId, kept.data.sentIds]);
-      return { ok: true };
+      const { sentIds, status, origin, statusVersion, version } = kept.data;
+      // The status and the Follow-up rows put back together, or nothing (#771).
+      return inTransaction(database, async (client): Promise<UnmarkSentResult> => {
+        const now = await sentState(candidateId, applicationId, client, true);
+        if (!now) return { ok: false, error: "not_found" };
+        if (now.version !== version || now.status_version !== statusVersion) return { ok: false, error: "conflict" };
+        const restored = readOrigin(origin);
+        await client.query(`UPDATE application SET status = $2, status_changed_at = now(), status_origin = $3 WHERE id = $1`, [
+          applicationId,
+          status,
+          restored ? JSON.stringify(restored) : null,
+        ]);
+        await client.query(`DELETE FROM follow_up_sent WHERE application_id = $1 AND id = ANY($2::uuid[])`, [applicationId, sentIds]);
+        return { ok: true };
+      });
     },
 
     async setDelays(candidateId, input) {
@@ -427,5 +474,16 @@ export async function migrateFollowUps(database: Pool): Promise<void> {
       sent_at timestamptz NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS follow_up_sent_application_id_idx ON follow_up_sent (application_id);
+    -- Each Follow-up sent has its number on the Application (#771): 1, then 2. Two records of the same number (two
+    -- concurrent « Appliquer ») and a third Follow-up are refused by the table itself. Rows recorded before are numbered
+    -- in the order they were sent; the check holds for new rows only (NOT VALID), so none recorded before is lost.
+    ALTER TABLE follow_up_sent ADD COLUMN IF NOT EXISTS number smallint;
+    UPDATE follow_up_sent s SET number = n.number
+      FROM (SELECT id, row_number() OVER (PARTITION BY application_id ORDER BY sent_at, id) AS number FROM follow_up_sent) n
+     WHERE s.id = n.id AND s.number IS NULL;
+    ALTER TABLE follow_up_sent ALTER COLUMN number SET NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS follow_up_sent_number_idx ON follow_up_sent (application_id, number);
+    ALTER TABLE follow_up_sent DROP CONSTRAINT IF EXISTS follow_up_sent_number_check;
+    ALTER TABLE follow_up_sent ADD CONSTRAINT follow_up_sent_number_check CHECK (number BETWEEN 1 AND ${MAX_FOLLOW_UPS}) NOT VALID;
   `);
 }

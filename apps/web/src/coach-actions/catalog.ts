@@ -57,7 +57,7 @@ export const NO_DOMAIN: CoachActionDomain = {
     addInterview: async () => NOT_FOUND,
     editInterview: async () => NOT_FOUND,
     cancelInterview: async () => NOT_FOUND,
-    removeInterview: async () => NOT_FOUND,
+    removeAddedInterview: async () => NOT_FOUND,
     restoreInterview: async () => NOT_FOUND,
   },
   profiles: { list: async () => [], get: async () => null },

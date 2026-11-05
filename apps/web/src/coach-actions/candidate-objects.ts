@@ -5,7 +5,7 @@
  * to the room it is given by rule: the fullest telling that fits, else a shorter one (a Master CV without its job
  * descriptions, fewer Job Offers), else cut.
  */
-import { NO_INDUSTRY_REFERENCE, type DocumentLanguage, type IndustryReference } from "@jobhub/shared";
+import { NO_INDUSTRY_REFERENCE, type DocumentLanguage, type IndustryReference, type SeenName } from "@jobhub/shared";
 import type { Applications } from "../applications";
 import { applicationDetails, criteriaTextOf, APPLICATION_STATUS, cvText, day, JOB_SEARCH_STATUS, jobOfferHeadline, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
 import type { JobDigests } from "../job-digests";
@@ -64,6 +64,13 @@ function draftLine(label: string, drafted: string, changed: string, none: string
   return `${label} : ${drafted} le ${day(draft.draftedAt)}${edited}, ${LANGUAGE[draft.language]}${how}, ${words(draft.text)} mots.`;
 }
 
+/** An object as the thread names it (#788): its name cut to 80 characters, its page. */
+const named = (type: SeenName["type"], name: string, href: string): SeenName => ({ type, name: name.trim().slice(0, 80) || "—", href });
+
+/** A Job Offer as the thread names it: « Airbus · Contrôleuse de gestion », its employer then its title. */
+const offerSeen = (jobOffer: { title: string; employer?: string | null }, href: string): SeenName =>
+  named("job_offer", [jobOffer.employer, jobOffer.title].filter(Boolean).join(" · "), href);
+
 export function candidateObjects(sources: CandidateObjectSources): CoachObjectReader {
   const criteriaText = async () => criteriaTextOf(await (sources.industries?.().catch(() => NO_INDUSTRY_REFERENCE) ?? NO_INDUSTRY_REFERENCE));
 
@@ -82,21 +89,21 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
     const application = saved ? await sources.applications.get(candidateId, saved.id) : null;
     if (application) {
       const head = `Offre d'emploi (id ${id}), enregistrée comme candidature (id ${application.id}), profil « ${application.profile.name} ».`;
-      return { text: told(head, application), pages: [routes.application(application.id)], untrusted: true };
+      return { text: told(head, application), pages: [routes.application(application.id)], untrusted: true, seen: offerSeen(application.jobOffer, routes.application(application.id)) };
     }
     for (const summary of (await sources.jobSearches.list(candidateId)).filter((each) => active.has(each.profile.id)).slice(0, JOB_OFFER_LOOKUP)) {
       const jobSearch = await sources.jobSearches.get(candidateId, summary.id);
       const result = jobSearch?.results.find((each) => each.jobOffer.id === id);
       if (!jobSearch || !result) continue;
       const head = `Offre d'emploi (id ${id}), trouvée par la recherche d'offres (id ${jobSearch.id}) du ${day(jobSearch.startedAt)}, profil « ${jobSearch.profile.name} »${result.applicationId ? `, enregistrée comme candidature (id ${result.applicationId})` : ""}.`;
-      return { text: told(head, result), pages: [routes.jobSearchOffer(jobSearch.id, id)], untrusted: true };
+      return { text: told(head, result), pages: [routes.jobSearchOffer(jobSearch.id, id)], untrusted: true, seen: offerSeen(result.jobOffer, routes.jobSearchOffer(jobSearch.id, id)) };
     }
     for (const summary of (await sources.jobDigests.list(candidateId)).filter((each) => active.has(each.profile.id)).slice(0, JOB_OFFER_LOOKUP)) {
       const jobDigest = await sources.jobDigests.get(candidateId, summary.id);
       const result = jobDigest?.results.find((each) => each.jobOffer.id === id);
       if (!jobDigest || !result) continue;
       const head = `Offre d'emploi (id ${id}), envoyée par le Job Digest (id ${jobDigest.id}) du ${day(jobDigest.sentAt)}, profil « ${jobDigest.profile.name} »${result.applicationId ? `, enregistrée comme candidature (id ${result.applicationId})` : ""}.`;
-      return { text: told(head, result), pages: [routes.jobDigestOffer(jobDigest.id, id)], untrusted: true };
+      return { text: told(head, result), pages: [routes.jobDigestOffer(jobDigest.id, id)], untrusted: true, seen: offerSeen(result.jobOffer, routes.jobDigestOffer(jobDigest.id, id)) };
     }
     return null;
   }
@@ -163,13 +170,13 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
           const criteria = (await criteriaText())(profile.searchCriteria);
           const told = (descriptions: boolean) =>
             [`Profil « ${profile.name} » (id ${profile.id}).`, `Critères de recherche : ${criteria}.`, `CV de référence (version ${profile.masterCv.version}) :`, cvText(profile.masterCv.content, { descriptions })].join("\n");
-          return { text: fitted([told(true), told(false)], maxTokens), pages: [routes.profile(profile.id)], untrusted: false };
+          return { text: fitted([told(true), told(false)], maxTokens), pages: [routes.profile(profile.id)], untrusted: false, seen: named("profile", profile.name, routes.profile(profile.id)) };
         }
         case "application": {
           const application = await sources.applications.get(candidateId, id);
           if (!application || !(await isActive(candidateId, application.profile.id))) return null;
           const text = [`Candidature (id ${application.id}) avec le profil « ${application.profile.name} » (id ${application.profile.id}).`, applicationDetails(application)].join("\n");
-          return { text: fitted([text], maxTokens), pages: [routes.application(application.id)], untrusted: true };
+          return { text: fitted([text], maxTokens), pages: [routes.application(application.id)], untrusted: true, seen: { ...offerSeen(application.jobOffer, routes.application(application.id)), type: "application" } };
         }
         case "job_offer":
           return jobOfferRead(candidateId, id, maxTokens);
@@ -177,13 +184,13 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
           const jobSearch = await sources.jobSearches.get(candidateId, id);
           if (!jobSearch || !(await isActive(candidateId, jobSearch.profile.id))) return null;
           const head = `Recherche d'offres (id ${jobSearch.id}) lancée le ${day(jobSearch.startedAt)} pour le profil « ${jobSearch.profile.name} » (${JOB_SEARCH_STATUS[jobSearch.status]}).`;
-          return { text: resultsText(head, jobSearch.results, maxTokens), pages: [routes.jobSearch(jobSearch.id)], untrusted: true };
+          return { text: resultsText(head, jobSearch.results, maxTokens), pages: [routes.jobSearch(jobSearch.id)], untrusted: true, seen: named("job_search", jobSearch.profile.name, routes.jobSearch(jobSearch.id)) };
         }
         case "job_digest": {
           const jobDigest = await sources.jobDigests.get(candidateId, id);
           if (!jobDigest || !(await isActive(candidateId, jobDigest.profile.id))) return null;
           const head = `Job Digest (id ${jobDigest.id}) envoyé le ${day(jobDigest.sentAt)} pour le profil « ${jobDigest.profile.name} ».`;
-          return { text: resultsText(head, jobDigest.results, maxTokens), pages: [routes.jobDigest(jobDigest.id)], untrusted: true };
+          return { text: resultsText(head, jobDigest.results, maxTokens), pages: [routes.jobDigest(jobDigest.id)], untrusted: true, seen: named("job_digest", jobDigest.profile.name, routes.jobDigest(jobDigest.id)) };
         }
         case "tailored_documents": {
           const application = await sources.applications.get(candidateId, id);
@@ -196,7 +203,12 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
             draftLine("Lettre de motivation", "rédigée", "modifiée", "aucune", drafts?.coverLetter ?? null),
             draftLine("Message d'approche", "rédigé", "modifié", "aucun", drafts?.outreachMessage ?? null, drafts?.outreachMessage ? ` par ${OUTREACH_CHANNEL[drafts.outreachMessage.channel]}` : ""),
           ].join("\n");
-          return { text: fitted([text], maxTokens), pages: [routes.applicationSection(application.id, "documents")], untrusted: false };
+          return {
+            text: fitted([text], maxTokens),
+            pages: [routes.applicationSection(application.id, "documents")],
+            untrusted: false,
+            seen: { ...offerSeen(application.jobOffer, routes.applicationSection(application.id, "documents")), type: "tailored_documents" },
+          };
         }
         default:
           return null;

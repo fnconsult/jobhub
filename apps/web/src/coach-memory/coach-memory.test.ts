@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachConversation } from "../coach-conversations";
 import { servedTasks, taskAgent } from "../task-playbooks/test-support";
-import { createCoachMemory, MAX_ITEMS, migrateCoachMemory, type CoachMemory } from "./index";
+import { createCoachMemory, MAX_ITEMS, migrateCoachMemory, sameFact, type CoachMemory } from "./index";
 
 const CONVERSATION_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -126,6 +126,8 @@ Réponds uniquement avec un objet JSON : {"items": [{"kind": "goal" | "constrain
   it("does not propose again what the Coach Memory already holds, and keeps one copy when confirmed twice", async () => {
     await memory.confirm(marie, { kind: "goal", text: "Poste de DAF à Lyon" });
     await memory.confirm(marie, { kind: "goal", text: "poste de DAF  à Lyon" });
+    // Accents aside too, as the Coach Action tells it (#773).
+    await memory.confirm(marie, { kind: "goal", text: "Poste de DAF a Lyon" });
 
     const proposed = await memory.propose(marie, CONVERSATION_ID);
 
@@ -182,5 +184,12 @@ Réponds uniquement avec un objet JSON : {"items": [{"kind": "goal" | "constrain
     expect(await memory.delete(marie, gone.item.id)).toBe(false);
     expect(await memory.delete(marie, "not-a-uuid")).toBe(false);
     expect(await memory.list(marie)).toEqual([kept.item]);
+  });
+});
+
+describe("sameFact (#773)", () => {
+  it("is the same fact whatever its case, spacing and accents", () => {
+    expect(sameFact("  Un poste à  Genève ")).toBe(sameFact("un poste a geneve"));
+    expect(sameFact("Pas de déplacements")).not.toBe(sameFact("Pas de déménagement"));
   });
 });

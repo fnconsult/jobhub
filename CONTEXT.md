@@ -792,6 +792,10 @@ In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 
+**Provider return address**:
+The address in the app's own scheme, `/connexion/fournisseur`, where the system's authentication browser hands the person back to the app after a Sign-in Provider, with the session. Not a universal link: iOS 16.4 cannot return by one (ADR-0085).
+_Avoid_: Deep link, redirect URL (that is the address declared at the provider)
+
 **App sign-in link**:
 The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
 _Avoid_: Deep link, app magic link
@@ -910,6 +914,14 @@ _Avoid_: Dunning banner, billing alert
 What a Candidate confirms on Jobbbox's own page, « Votre commande », before Stripe Checkout, for a paid Plan (`/abonnement/commande`) or a Coaching Session (`/coachs/commande`): the summary (what is bought, its price all taxes included, how often a Plan is charged), the CGV box « J'accepte les CGV (version du …) » with its link to that version, the Immediate Performance Request, and where to withdraw. « Passer au paiement » is checked on the server: while a CGV version is in effect, no Checkout Session is created without its box ticked, and the page is shown again saying so. The Order is then kept with its Checkout Session, and the CGV Acceptance written with that Checkout Session and the Immediate Performance Request. A Candidate who already pays a Plan is sent to the Stripe customer portal instead, with no Order. An Order is the Candidate's: in their Data export without Stripe's identifiers, deleted with their account; the proof that outlives the account is the Acceptance.
 _Avoid_: Cart, basket, checkout (that is Stripe's page), purchase
 
+**Checkout return**:
+The address a Stripe Checkout ordered from the Jobbbox app sends the Candidate back to: `/coachs/paiement` when paid, `/coachs/paiement?annule=1` when left without paying. The app claims it (Domain association files), the web serves a public page with « Revenir dans l'app Jobbbox » when it is opened in a browser. It proves nothing: the payment is known only when Stripe's signed webhook has recorded the Coaching Session, which the app waits for, with « La confirmation tarde » after a minute (ADR-0088).
+_Avoid_: Success page, payment confirmation
+
+**App Order screen**:
+The Jobbbox app's own « Votre commande » for a Coaching Session (`/coachs/commande`): the Human Coach, the price the Candidate pays, the CGV box and the Immediate Performance Request, checked by the same server rules as the web Order, then Stripe Checkout in the in-app browser. It shows no Plan name, regular price or discount (ADR-0088). Plans are not ordered there.
+_Avoid_: Native checkout
+
 **Immediate Performance Request**:
 The Candidate's express request, on the Order page, that the service start at once, with their acknowledgement that a Withdrawal then pays for what was already provided (« Je demande que le service commence immédiatement… », C. conso. L221-25); for a Coaching Session, also that the right of withdrawal is lost once the session is held (L221-28 1°). Optional and never ticked for the Candidate: without it the Candidate pays and the service starts just the same, but a Withdrawal is refunded in full. Kept with the Order and the CGV Acceptance, and stated in the Order Confirmation.
 _Avoid_: Waiver, immediate execution consent, opt-out of withdrawal
@@ -953,7 +965,7 @@ A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as pr
 _Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
 
 **Acceptance origin**:
-Where an Acceptance was made: `web` or `mobile` (the Jobbbox app's Legal steps). Kept with the Acceptance and in the Data export.
+Where an Acceptance was made: `web` or `mobile` (the Jobbbox app's Legal steps and its own Order screen for a Coaching Session). Kept with the Acceptance and in the Data export.
 
 ### Operations
 
@@ -1008,7 +1020,7 @@ A Tool that receives personal data, or queries drawn from it, and whose data res
 _Avoid_: Sub-processor outside the EU
 
 **Sign-in Provider**:
-An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.
+An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret. In the Jobbbox app, « Continuer avec … » signs in through the same providers, opened in the system's authentication browser, which keeps the person's own sign-ins; closing it, or refusing at the provider, is a cancellation, not an error (ADR-0085). Apple must be among them while Google or Microsoft is shown to Candidates (App Store rule 4.8).
 _Avoid_: SSO provider, identity provider, social login, auth connector
 
 **Two-step verification**:
@@ -1101,8 +1113,19 @@ _Avoid_: Source (alone), citation, reference
 What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read, compute (rules, no AI) or act (a Coach Action reading or proposing on the Candidate's objects, no AI, with its own glyph, ADR-0077). It picks the glyph AI Activity shows while the step runs.
 _Avoid_: Status, phase, stage
 
+**Toolbox glyph**:
+The Activity glyph of a Coach Action (`act`): a toolbox whose lid lifts, a key coming out for a read, a card for a proposal (#788). Replaces the pointer and card of #726.
+_Avoid_: Tool icon, wrench
+
+**Consulted elements line**:
+« Le coach a consulté N éléments de Jobbbox »: under an AI Coach reply, the elements its Coach Actions read, each with its link, taken from the reply's stored Provenance so it stays after a reload (#788).
+_Avoid_: Sources, references
+
+**Word reveal**:
+A new AI Coach reply's words appear one by one, about 28 a second, in this browser only; nothing is stored. Shown all at once under reduced motion and for history messages (#788).
+
 **Step label**:
-What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step.
+What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step. In the conversation (#788), a shipped Coach Action's line has its own label (« Ouvre la candidature », « Ouvre le profil »…), followed by what it saw: a list by its count, an object by its name. The Provenance keeps which Coach Action ran (`action`) and what it saw by kind and page or count (`seen`), never a name (ADR-0034): the names travel with the live `step_ended` event only, and are looked up again from the Candidate's own objects when the conversation reopens.
 _Avoid_: Step name, status
 
 **Live action**:
@@ -1203,7 +1226,7 @@ A question about using Jobbbox that a Candidate asked the AI Coach, or an Admini
 _Avoid_: FAQ gap, feedback, ticket
 
 **Signalement**:
-What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from under the box of a Coach Conversation or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in a Coach Conversation when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its form, in the Work Pane (a Drawer before ADR-0070), is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The form keeps an unsent draft for the visit (closing the Work Pane does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
+What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from under the box of a Coach Conversation or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in a Coach Conversation when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its form, in the Work Pane (a Drawer before ADR-0070), is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent) or, from the Jobbbox app, whose form says « votre appareil », the app's version and the device's system (« App Jobbbox 1.4.0, iOS 18.6 »), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The form keeps an unsent draft for the visit (closing the Work Pane does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
 _Avoid_: Ticket, support request, Retour
 
 **Signalement notification**:

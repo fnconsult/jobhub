@@ -8,7 +8,8 @@
  *    calls the proposing Coach Action's `apply`, which calls the domain module (the same validation as the page's route)
  *    with the version the proposal saw: the object changed since is a conflict (ActionCardConflict, « L'objet a changé
  *    depuis la proposition »), never merged, the card left pending; what the Candidate edited is kept to the form's fields.
- *    The object keeps its Origin (coach_proposal, the card's id). « Annuler » calls its `undo`, refused as a conflict once
+ *    The object keeps its Origin (coach_proposal, the card's id). No room left in the Plan Quota since the proposal
+ *    (ActionCardQuota, #773): the card stays pending and shows the Upgrade prompt. « Annuler » calls its `undo`, refused as a conflict once
  *    the object changed since it was applied. A Coach Action with no `undo` (a launched one) has no Annuler. A proposal
  *    with a `review` (a Master CV change, #719, ADR-0006) is applied only with the ids of the changes the Candidate
  *    accepted, sent explicitly (`edited.accepted`): without them it is refused as invalid, never inferred.
@@ -18,8 +19,8 @@
  *      same thing (same object, same field) is withdrawn: the new reply no longer proposes it;
  *    - `ofReplies` the cards under some replies, as the thread shows them (CoachProposalCard).
  */
-import { ActionCardConflict, ActionCardInvalid, type AcceptHandler, type ActionCard, type ActionCards, type UndoHandler } from "../action-cards";
-import { proposedChangeSchema, type CoachAction, type CoachProposal, type ProposedChange } from "../coach-actions";
+import { ActionCardConflict, ActionCardInvalid, ActionCardQuota, type AcceptHandler, type ActionCard, type ActionCards, type UndoHandler } from "../action-cards";
+import { proposedChangeSchema, UNDO_NOTES, type CoachAction, type CoachProposal, type ProposedChange, type UndoNote } from "../coach-actions";
 import type { CoachProposalCard } from "./card";
 
 export type { CardDecisionError, CoachProposalCard } from "./card";
@@ -66,15 +67,21 @@ export function coachProposalHandlers(catalog: readonly CoachAction[], now: () =
   };
   return {
     onAccept: {
-      [COACH_PROPOSAL_CARD]: async (card, candidateId, edited) => {
+      [COACH_PROPOSAL_CARD]: async (card, candidateId, edited, context) => {
         const { payload, apply } = actionOf(card);
         const change = { ...payload.change, value: { ...payload.change.value, ...editedValue(payload.change, edited) } };
         // A review's accepted changes are always sent, never inferred (ADR-0006).
         const accepted = acceptedIn(payload.change, edited);
         if (payload.change.review && accepted === null) throw new ActionCardInvalid([{ field: "accepted", code: "required" }]);
-        const applied = await apply(change, { candidateId, cardId: card.id, at: now(), ...(accepted ? { accepted } : {}) });
+        const language = context?.language;
+        const applied = await apply(change, { candidateId, cardId: card.id, at: now(), ...(accepted ? { accepted } : {}), ...(language ? { language } : {}) });
         if (applied.ok) return applied.undo === undefined ? {} : { undo: applied.undo };
         if (applied.error === "invalid") throw new ActionCardInvalid(applied.errors);
+        // No room left since the proposal (#773): the card shows the Upgrade prompt, as one proposed without room does.
+        if (applied.error === "quota") {
+          const quota = { label: payload.change.quota?.label ?? "", prompt: applied.prompt };
+          throw new ActionCardQuota({ ...(card.payload as object), change: { ...payload.change, quota } });
+        }
         // Gone since (deleted, archived) or changed since: either way, not what was proposed any more.
         throw new ActionCardConflict();
       },
@@ -85,6 +92,7 @@ export function coachProposalHandlers(catalog: readonly CoachAction[], now: () =
         if (!action.undo) throw new Error(`Coach Action "${action.name}" has no Annuler`);
         const undone = await action.undo(undo, { candidateId, cardId: card.id, at: now() });
         if (!undone.ok) throw new ActionCardConflict();
+        return undone.note ? { note: undone.note } : undefined;
       },
     },
   };
@@ -108,6 +116,7 @@ export function proposalCardOf(card: ActionCard): CoachProposalCard | null {
     ...(accepted ? { accepted } : {}),
     ...(card.decidedAt ? { decidedAt: card.decidedAt.toISOString() } : {}),
     ...(card.undoneAt ? { undoneAt: card.undoneAt.toISOString() } : {}),
+    ...(card.undoNote && (UNDO_NOTES as readonly string[]).includes(card.undoNote) ? { undoNote: card.undoNote as UndoNote } : {}),
     undoable: card.undoable === true,
   };
 }

@@ -30,6 +30,20 @@ export function linkableProviders(configuration: SignInConfiguration, person: { 
   return [...candidates, ...signInButtons(configuration, "administrators").filter((button) => !ids.has(button.id))];
 }
 
+/** The social sign-ins App Store rule 4.8 asks Sign in with Apple beside; an organisation's own OIDC sign-in is exempt. */
+const NEEDS_APPLE_BESIDE: readonly SignInProviderType[] = ["google", "microsoft"];
+
+/**
+ * App Store rule 4.8 (#687): an app whose account is set up with a third-party sign-in must offer Sign in with Apple as
+ * well, and the app shows Candidates the providers the web shows them. The display names of the Google and Microsoft
+ * providers shown to Candidates while Apple is not (the Back Office warns of it); none once Apple is shown beside them.
+ */
+export function providersRequiringApple(providers: readonly Pick<SignInProvider, "type" | "displayName" | "enabled" | "shownToCandidates">[]): string[] {
+  const shown = providers.filter((provider) => provider.enabled && provider.shownToCandidates);
+  if (shown.some((provider) => provider.type === "apple")) return [];
+  return shown.filter((provider) => NEEDS_APPLE_BESIDE.includes(provider.type)).map((provider) => provider.displayName);
+}
+
 /**
  * What to do with a person coming back from provider `providerId`:
  *  - allow:  sign them in (or up, or link it);

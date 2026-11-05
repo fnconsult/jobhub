@@ -68,6 +68,12 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
       });
     });
 
+    it("stores, from the Jobbbox app, its version and system as it states them, its native fetch naming neither (#690)", async () => {
+      const sent = await signalements.send(marie, bug({ path: "/" }), { userAgent: "okhttp/4.12.0", appDevice: "1.4.0 (Android 34)", interfaceLanguage: "fr" });
+
+      expect(sent).toMatchObject({ ok: true, signalement: { context: { path: "/", version: "35e2ea1", browser: "App Jobbbox 1.4.0, Android 34" } } });
+    });
+
     it("never stores the query string, the #… or the raw user agent", async () => {
       await signalements.send(marie, bug(), FROM_MARIE);
 

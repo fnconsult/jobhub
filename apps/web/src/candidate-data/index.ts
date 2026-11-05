@@ -254,11 +254,12 @@ export interface ExportedActionCard extends Pick<ActionCard, "id" | "kind" | "ti
   /**
    * A Coach proposal's card in a Coach Conversation's thread (#715): the conversation it is in; its payload holds what it
    * proposed, before and after. `edited`: what the Candidate changed before applying it; `undoneAt`: when « Annuler » put
-   * the state before back.
+   * the state before back; `undoNote`: what it left as it was (#770, `status_kept`).
    */
   conversationId?: string;
   edited?: unknown;
   undoneAt?: Date;
+  undoNote?: string;
 }
 
 /** Everything the Candidate made in Jobbbox, ready to be written out as JSON. */
@@ -813,15 +814,21 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         ),
         exportCoachingSessions(candidateId),
         rowsOf<
-          Omit<ExportedActionCard, "provenance" | "conversationId" | "edited" | "undoneAt"> & { provenance: unknown; conversationId: string | null; edited: unknown; undoneAt: Date | null }
+          Omit<ExportedActionCard, "provenance" | "conversationId" | "edited" | "undoneAt" | "undoNote"> & {
+            provenance: unknown;
+            conversationId: string | null;
+            edited: unknown;
+            undoneAt: Date | null;
+            undoNote: string | null;
+          }
         >(
           `SELECT c.id, c.kind, c.title, c.body, json_build_object('kind', c.focus_kind, 'id', c.focus_id) AS focus, c.payload, c.status, c.created_at AS "createdAt",
-                  c.decided_at AS "decidedAt", c.provenance, m.conversation_id AS "conversationId", c.edited, c.undone_at AS "undoneAt"
+                  c.decided_at AS "decidedAt", c.provenance, m.conversation_id AS "conversationId", c.edited, c.undone_at AS "undoneAt", c.undo_note AS "undoNote"
              FROM action_card c LEFT JOIN coach_message m ON m.seq = c.reply_seq
             WHERE c.candidate_id = $1 ORDER BY c.created_at DESC, c.id`,
           candidateId,
         ).then((cards) =>
-          cards.map(({ provenance, conversationId, edited, undoneAt, ...card }): ExportedActionCard => {
+          cards.map(({ provenance, conversationId, edited, undoneAt, undoNote, ...card }): ExportedActionCard => {
             const kept = readProvenance(provenance);
             return {
               ...card,
@@ -829,6 +836,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
               ...(conversationId ? { conversationId } : {}),
               ...(edited !== null ? { edited } : {}),
               ...(undoneAt ? { undoneAt } : {}),
+              ...(undoNote ? { undoNote } : {}),
             };
           }),
         ),

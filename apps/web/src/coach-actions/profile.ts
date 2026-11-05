@@ -32,7 +32,7 @@ import { createI18n } from "@jobhub/shared/i18n";
 import { createHash } from "node:crypto";
 import * as z from "zod";
 import type { UpgradePrompt } from "../billing/upgrade-prompt";
-import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, type CoachMemory } from "../coach-memory";
+import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, sameFact, type CoachMemory } from "../coach-memory";
 import { readOrigin } from "../origin";
 import type { PlaceSuggestions } from "../places/geo-api";
 import { searchCriteriaSchema, searchCriteriaVersion, type Profile, type Profiles } from "../profiles";
@@ -252,7 +252,7 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
   return defineCoachAction({
     name: PROFILE_ACTIONS.masterCv,
     description:
-      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas. Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur).",
+      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; jamais une compétence ajoutée, même sous couvert de reformuler une compétence (le candidat ajoute les siennes lui-même dans la section « CV de référence »). Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur).",
     schema: z.object({ profileId: id.describe("L'id du profil (actif) dont le CV de référence change."), changes: z.array(masterCvEditSchema).min(1).max(20) }),
     group: "profile",
     kind: "propose",
@@ -266,6 +266,8 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
         switch (review.error) {
           case "unknown_item":
             return refused(`« ${review.item} » n'est pas dans le CV de référence : propose seulement de reformuler, couper, réordonner ou mettre en avant ce qu'il dit déjà, nommé comme il l'écrit.`);
+          case "added_item":
+            return refused(`« ${review.text} » n'est pas une reformulation d'une compétence du CV de référence : ajouter des compétences ne se propose pas. Dis au candidat de les ajouter lui-même depuis la section « CV de référence » de son profil.`);
           case "invented_figure":
             return refused(`« ${review.text} » avance un chiffre que le CV de référence ne donne pas : ne propose jamais un fait qu'il ne contient pas ; demande-le au candidat.`);
           case "invalid_edit":
@@ -325,13 +327,18 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
 function archiveAction(sources: ProfileActionSources, archive: boolean): CoachAction {
   const undoSchema = z.object({ profileId: z.string() });
   /** Archives or restores, `archived` the state it must be in: not, a conflict. */
-  const turn = async (candidateId: string, profileId: string, from: boolean): Promise<ApplyProposalResult> => {
+  const turn = async (candidateId: string, profileId: string, from: boolean, language: "fr" | "en"): Promise<ApplyProposalResult> => {
     const profile = await sources.profiles.get(candidateId, profileId);
     if (!profile) return NOT_FOUND;
     if (profile.archived !== from) return { ok: false, error: "conflict" };
     const done = from ? await sources.profiles.restore(candidateId, profileId) : await sources.profiles.archive(candidateId, profileId);
-    // Restoring beyond the Plan Quota: the room it saw is gone.
-    if (!done.ok) return "errors" in done ? { ok: false, error: "invalid", errors: done.errors } : { ok: false, error: done.error === "not_found" ? "not_found" : "conflict" };
+    if (!done.ok) {
+      if ("errors" in done) return { ok: false, error: "invalid", errors: done.errors };
+      if (done.error === "not_found") return NOT_FOUND;
+      // Restoring beyond the Plan Quota, the room it saw gone since (#773): the Upgrade prompt, as the card shows it without room.
+      const prompt = await sources.profileUpgradePrompt(candidateId, language);
+      return prompt ? { ok: false, error: "quota", prompt } : { ok: false, error: "conflict" };
+    }
     return { ok: true, undo: { profileId } };
   };
   return defineCoachAction({
@@ -371,11 +378,12 @@ function archiveAction(sources: ProfileActionSources, archive: boolean): CoachAc
       };
       return { ok: true, data: change, pages: [routes.profile(profile.id)] };
     },
-    apply: (change, { candidateId }) => turn(candidateId, change.target.id, !archive),
+    apply: (change, { candidateId, language }) => turn(candidateId, change.target.id, !archive, language ?? "fr"),
     async undo(undo, { candidateId }): Promise<UndoProposalResult> {
       const kept = undoSchema.safeParse(undo);
       if (!kept.success) return NOT_FOUND;
-      const done = await turn(candidateId, kept.data.profileId, archive);
+      // Annuler an archive restores it: without room, a conflict (the Upgrade prompt is for a proposal still to apply).
+      const done = await turn(candidateId, kept.data.profileId, archive, "fr");
       return done.ok ? { ok: true } : { ok: false, error: done.error === "not_found" ? "not_found" : "conflict" };
     },
   });
@@ -395,13 +403,13 @@ function coachMemoryAction(sources: ProfileActionSources): CoachAction {
     copiesText: true,
     async run({ kind, text }, { candidateId, language }) {
       const items = await sources.coachMemory.list(candidateId);
-      if (items.some((item) => folded(item.text) === folded(text))) return refused("La mémoire du coach retient déjà ce fait : ne le propose pas à nouveau.");
+      if (items.some((item) => sameFact(item.text) === sameFact(text))) return refused("La mémoire du coach retient déjà ce fait : ne le propose pas à nouveau.");
       if (items.length >= MAX_ITEMS) return refused(`La mémoire du coach est pleine (${MAX_ITEMS} éléments) : dis au candidat d'en supprimer un depuis « Mémoire du coach » pour en ajouter un autre.`);
       const { t } = createI18n(language);
       const kindLabel = (each: (typeof COACH_MEMORY_KINDS)[number]) => t(`coachMemory.kinds.${each}`);
       const change: ProposedChange = {
         // One card per fact: told apart by its words.
-        target: { kind: "coach_memory", id: createHash("sha256").update(folded(text)).digest("hex").slice(0, 16), name: t("coachMemory.title"), href: "" },
+        target: { kind: "coach_memory", id: createHash("sha256").update(sameFact(text)).digest("hex").slice(0, 16), name: t("coachMemory.title"), href: "" },
         what: t("coachProposals.fields.coachMemory"),
         before: t("coachProposals.coachMemory.before"),
         after: `${kindLabel(kind)} : ${text}`,
@@ -418,7 +426,7 @@ function coachMemoryAction(sources: ProfileActionSources): CoachAction {
       const item = itemSchema.safeParse(change.value);
       if (!item.success) return { ok: false, error: "invalid", errors: [{ field: "kind", code: "invalid" }] };
       const before = await sources.coachMemory.list(candidateId);
-      const known = before.some((each) => folded(each.text) === folded(item.data.text));
+      const known = before.some((each) => sameFact(each.text) === sameFact(item.data.text));
       const confirmed = await sources.coachMemory.confirm(candidateId, item.data);
       if (!confirmed.ok) return { ok: false, error: "invalid", errors: [{ field: "text", code: confirmed.error === "full" ? "too_long" : "invalid" }] };
       // Already remembered: nothing added, nothing to forget.

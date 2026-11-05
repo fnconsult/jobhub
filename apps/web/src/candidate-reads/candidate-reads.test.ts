@@ -4,6 +4,7 @@ import {
   applicationsResponseSchema,
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
+  coachingOrderResponseSchema,
   coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
@@ -28,6 +29,7 @@ import { migrateDatabase } from "../migrations";
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs, type TailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments, type TailoredDocuments } from "../tailored-documents";
+import { createWithdrawals } from "../withdrawals";
 import { createCandidateReads, type CandidateReads } from "./index";
 
 /** The estimate of the AI Coach's context by category, as the reply in the tests says it (#731). */
@@ -58,6 +60,9 @@ function writer(input: { system?: string; messages: { content: unknown }[] }): s
 /** Today, in the tests: a Wednesday in French winter time. */
 const NOW = new Date("2026-11-04T09:00:00.000Z");
 
+/** The CGV version in effect in the tests, as the Order page names it. */
+const CGV = { text: "cgv", version: "2026-10-01", url: "/legal/cgv/2026-10-01", sha256: "a".repeat(64), change: "substantielle" } as const;
+
 /**
  * What the app reads: the answer as it crosses HTTP (JSON), parsed with its shared schema. The parse throws, naming
  * the field, when the answer drifts from the type the app is built on: the contract test of #684.
@@ -83,6 +88,8 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let marie: string;
   let paul: string;
   let offers: number;
+  /** The clock the Withdrawals read: a Coaching Session is withdrawable within its Withdrawal period. */
+  let withdrawalsNow: Date;
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -171,6 +178,23 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       reply: async () => ({ ok: true as const, reply: "Voici mes conseils.", outcome: "replied" as const, cost: null, playbooks: [], consultations: [], provenance: rulesProvenance("ats_score", { at: NOW }), contextTokens: 3_300, contextSplit: CONTEXT_SPLIT }),
     };
     conversations = createCoachConversations(database, { coach, profiles, now: () => NOW });
+    // An hour after now: a Coaching Session is paid at the database's time.
+    withdrawalsNow = new Date(Date.now() + 60 * 60 * 1000);
+    const withdrawals = createWithdrawals(database, {
+      billing,
+      humanCoaches: coaches,
+      orders: { immediateExecutionRequested: async () => false },
+      mailer: { send: async () => {} },
+      baseURL: BASE_URL,
+      now: () => withdrawalsNow,
+    });
+    // The Order page's terms (orders.test.ts), for any Human Coach of the Candidate's: Stripe is not configured here.
+    const orders = {
+      terms: async (_candidateId: string, item: { kind: string; coachId?: string }) => {
+        const coach = (await coaches.list()).find((each) => each.id === item.coachId);
+        return coach ? { summary: { kind: "coachingSession" as const, subject: { fr: coach.name, en: coach.name }, price: { amount: 9000, currency: "eur", interval: null } }, cgv: CGV } : null;
+      },
+    };
     reads = createCandidateReads({
       applications,
       followUps,
@@ -180,6 +204,8 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       agenda: createAgenda(database),
       humanCoaches: coaches,
       billing,
+      withdrawals,
+      orders,
       atsScoring,
       tailoredCvs,
       tailoredDocuments,
@@ -400,11 +426,30 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
           note: null,
           changedBy: null,
           reschedules: [],
+          withdrawable: true,
         },
       ]);
       // No Stripe price in the tests: the price cannot be read, as the page says.
       expect(coaching.price).toBeNull();
       expect(JSON.stringify(answer)).not.toContain("sophie@rh-conseil.fr");
+    });
+
+    it("says which Coaching Sessions can still be withdrawn from, as the Agenda does (#694)", async () => {
+      await paidSession(marie);
+
+      withdrawalsNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const coaching = overHttp(coachingResponseSchema, await reads.coaching(marie));
+
+      expect(coaching.sessions).toEqual([expect.objectContaining({ withdrawable: false })]);
+    });
+
+    it("gives the Order page of a Coaching Session the app shows before Checkout: the Human Coach, the price, the CGV version (#694)", async () => {
+      const { coach } = await paidSession(marie);
+
+      const order = overHttp(coachingOrderResponseSchema, await reads.coachingOrder(marie, coach.id));
+
+      expect(order).toEqual({ coach: { id: coach.id, name: "Sophie Martin" }, price: { amount: 9000, currency: "eur" }, cgv: { version: "2026-10-01", url: "/legal/cgv/2026-10-01" } });
+      expect(await reads.coachingOrder(marie, "8d0c6c4e-0000-4a51-9c39-0b7b2f1c9a10")).toBeNull();
     });
 
     it("never gives a Candidate another Candidate's Coaching Sessions", async () => {
@@ -458,7 +503,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   });
 
   describe("Tailored Documents", () => {
-    it("gives an Application's Tailored Documents with their download links, the Outreach Message without a file", async () => {
+    it("gives an Application's Tailored Documents with their download links, the Outreach Message without a file but with its words", async () => {
       const id = await saveApplication(marie, await createProfile(marie));
       const proposed = await tailoredCvs.propose(marie, id, {});
       if (!proposed.ok) throw new Error(`fixture Tailored CV refused: ${JSON.stringify(proposed)}`);
@@ -468,6 +513,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       await tailoredDocuments.draft(marie, id, { document: "outreach_message" });
 
       const documents = overHttp(tailoredDocumentsResponseSchema, await reads.tailoredDocuments(marie, id));
+      const outreachMessage = (await tailoredDocuments.get(marie, id))!.outreachMessage!;
 
       expect(documents.documentLanguage).toBe("fr");
       expect(documents.documents).toEqual([
@@ -476,14 +522,16 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
           language: "fr",
           updatedAt: expect.any(String),
           downloads: { pdf: `/api/applications/${id}/tailored-cv/export?format=pdf&template=classic`, docx: `/api/applications/${id}/tailored-cv/export?format=docx&template=classic` },
+          message: null,
         },
         {
           kind: "cover_letter",
           language: "fr",
           updatedAt: expect.any(String),
           downloads: { pdf: `/api/applications/${id}/cover-letter/export?format=pdf&template=classic`, docx: `/api/applications/${id}/cover-letter/export?format=docx&template=classic` },
+          message: null,
         },
-        { kind: "outreach_message", language: "fr", updatedAt: expect.any(String), downloads: null },
+        { kind: "outreach_message", language: "fr", updatedAt: expect.any(String), downloads: null, message: { subject: outreachMessage.subject, text: outreachMessage.text } },
       ]);
     });
 

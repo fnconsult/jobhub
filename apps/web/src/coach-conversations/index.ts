@@ -63,6 +63,7 @@ import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, 
 import { contextBar, MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ContextUpgrade, type ConversationContext, type ContextSplit, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
+import { migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
 import { utcBefore } from "../database/before";
@@ -798,6 +799,11 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           ],
         );
         replySeq = String(inserted.rows[0]!.seq);
+        // A Job Offer card's Job Offer reaches the Candidate's Offer box (ADR-0090), for the conversation's Profile (none: « Non classée »).
+        if (answer.jobOffer && !reply.blocked) {
+          const profileId = conversation.profile?.id ?? (subject?.kind === "profile" ? subject.id : null);
+          await recordArrivals(client, { candidateId, profileId, source: "job_offer_link", at: sentAt, jobOfferIds: [answer.jobOffer.id] });
+        }
       }
       await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
       await client.query("COMMIT");
@@ -935,8 +941,12 @@ export async function purgeStaleCoachConversations(database: Pick<Pool, "query">
   return rowCount ?? 0;
 }
 
-/** Creates or upgrades the Coach Conversation tables. Run after the Profile, Job Offer, Application, Job Search and Job Digest tables. Safe to run repeatedly. */
+/**
+ * Creates or upgrades the Coach Conversation tables, and the Offer box a Job Offer card's Job Offer arrives in. Run after
+ * the Profile, Job Offer, Application, Job Search and Job Digest tables. Safe to run repeatedly.
+ */
 export async function migrateCoachConversations(database: Pool): Promise<void> {
+  await migrateOfferBox(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS coach_conversation (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

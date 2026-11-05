@@ -40,6 +40,7 @@
  * The frequency sent is the Candidate's choice capped by their Plan; a Plan
  * without the Job Digest sends none, and the choice is kept. Opting out keeps
  * when the Job Digest last ran, so opting in again does not make it due sooner.
+ * The Job Offers a Job Digest sends reach the Candidate's Offer box (ADR-0090, `recordArrivals`).
  * Opt-ins and Job Digests belong to their Profile and are deleted with it
  * (ADR-0010); the Job Offers they list are kept.
  * A Job Digest keeps its Provenance (#336): its Match Scores, Jobbbox's rules
@@ -70,6 +71,7 @@ import type { Mailer } from "../auth";
 import type { Billing, PlanName } from "../billing";
 import type { ReceivedOffers } from "../email-intake/received-offers";
 import { visibleTo, type JobOffers } from "../job-offers";
+import { migrateOfferBox, recordArrivals } from "../offer-box";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -261,8 +263,9 @@ export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>)
   };
 }
 
-/** Creates or upgrades the Job Digest tables. Run after the Profiles', Job Offers' and Job Searches' migrations. */
+/** Creates or upgrades the Job Digest tables, and the Offer box their Job Offers arrive in. Run after the Profiles', Job Offers' and Job Searches' migrations. */
 export async function migrateJobDigests(database: Pool): Promise<void> {
+  await migrateOfferBox(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS job_digest_subscription (
       profile_id uuid PRIMARY KEY REFERENCES profile (id) ON DELETE CASCADE,
@@ -652,6 +655,8 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         "INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at, provenance) VALUES ($1, $2, $3, $4, $5) RETURNING id",
         [profile.id, candidateId, picked.map((result) => result.jobOffer.id), at, JSON.stringify(provenance)],
       );
+      // The Job Offers it sends reach the Candidate's Offer box (ADR-0090), for its Profile.
+      await recordArrivals(database, { candidateId, profileId: profile.id, source: "job_digest", at, jobOfferIds: picked.map((result) => result.jobOffer.id) });
       const digest: JobDigest = {
         id: inserted.rows[0]!.id,
         profile: { id: profile.id, name: profile.name },

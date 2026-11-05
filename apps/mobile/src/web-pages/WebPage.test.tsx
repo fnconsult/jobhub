@@ -55,6 +55,10 @@ describe("WebPage", () => {
     expect(fakeWebView.shown!.onShouldStartLoadWithRequest({ url: `${TEST_BASE_URL}/aide` })).toBe(true);
     expect(fakeWebView.shown!.onShouldStartLoadWithRequest({ url: "https://apps.apple.com/app/google-authenticator" })).toBe(false);
     expect(openURL).toHaveBeenCalledWith("https://apps.apple.com/app/google-authenticator");
+    // The web app's origin alone, as every address the app gives the session to (isOnWebApp): no look-alike, subdomain or other scheme.
+    for (const elsewhere of ["https://staging.jobbbox.ai.example.net/aide", "https://www.staging.jobbbox.ai/aide", "http://staging.jobbbox.ai/aide"]) {
+      expect(fakeWebView.shown!.onShouldStartLoadWithRequest({ url: elsewhere })).toBe(false);
+    }
     openURL.mockRestore();
   });
 

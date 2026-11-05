@@ -15,6 +15,7 @@ import Constants from "expo-constants";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { UpdateRequired } from "../screens/UpdateRequired";
+import type { AppSession } from "../session/app-session";
 import { WEB_APP_URL } from "../web-app-url";
 import { storePageFor } from "./store-page";
 
@@ -38,28 +39,33 @@ export function ApiProvider({
   baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
   storePage = storePageFor(Platform.OS, Constants.expoConfig),
-  cookie,
+  session,
   children,
 }: {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
-  /** The session cookie to send, as `@better-auth/expo` gives it (empty when signed out); none outside a session. */
-  cookie?: () => Promise<string>;
   /** This build's store page, used when the platform's 426 names none. */
   storePage?: string;
+  /** The app's session, whose cookie every call carries (src/session/instance.ts in the app); none, no cookie. */
+  session?: Pick<AppSession, "cookie">;
   children: ReactNode;
 }) {
   const [outdated, setOutdated] = useState<{ storeUrl: string } | null>(null);
 
   const api = useCallback<ApiFetch>(
     async (path, init) => {
+      // A path of the platform's own: anything else (`//host`, `@host`, no leading slash) would change host, cookie included.
+      if (!/^\/(?!\/)/.test(path)) throw new Error(`Not a path of the platform: ${path}`);
       const headers = new Headers(init?.headers);
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
       headers.set("origin", APP_ORIGIN);
       if (init?.body !== undefined && !headers.has("content-type")) headers.set("content-type", "application/json");
-      const session = cookie ? await cookie() : "";
-      if (session) headers.set("cookie", session);
+      // `@better-auth/expo` keeps the session in the Keychain or Keystore, not the system's cookie store: its cookie is
+      // set here by hand, and no other (`credentials: "omit"`, #693).
+      const cookie = session ? await session.cookie() : "";
+      if (cookie) headers.set("cookie", cookie);
+      else headers.delete("cookie");
       const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
@@ -68,7 +74,7 @@ export function ApiProvider({
       }
       return response;
     },
-    [baseUrl, fetch, storePage, cookie],
+    [baseUrl, fetch, storePage, session],
   );
 
   const value = useMemo(() => api, [api]);

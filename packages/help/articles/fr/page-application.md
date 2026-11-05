@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: La page d'une candidature
-synonyms: [candidature, documents, correspondance, entretiens, dossier entreprise, lettre de motivation, statut]
+synonyms: [candidature, documents, correspondance, entretiens, dossier entreprise, lettre de motivation, statut, application, iphone, ipad, android, partager, télécharger, pdf]
 route: /candidatures/[id]
 ---
 La page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.
@@ -19,3 +19,5 @@ Votre coach peut vous proposer de changer le statut de la candidature (jusqu'à 
 Votre coach peut aussi vous proposer de préparer votre CV adapté, ou de rédiger votre lettre de motivation ou votre message d'approche : il ne les écrit jamais dans sa réponse. La proposition s'affiche sous sa réponse. « Préparer » lance la proposition de CV adapté, qui s'ouvre ensuite à côté de la conversation pour que vous acceptiez ou refusiez chaque changement ; elle ne remplace jamais le CV adapté déjà enregistré. « Rédiger » lance la rédaction du brouillon ; s'il en existe déjà un, la proposition le dit et vous demande de confirmer son remplacement, vos modifications comprises : « Remplacer et rédiger » ou « Garder mon brouillon ». Pendant la préparation, « Arrêter » l'interrompt et rien n'est gardé. Une préparation lancée ne s'annule pas : arrêtez-la.
 
 Sur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique ou un résultat aussi : « Fermer » les referme et vous ramène à la conversation.
+
+Dans l'application Jobbbox (iPhone, iPad, Android), la fiche d'une candidature liste ses documents : son CV adapté, sa lettre de motivation et son message d'approche, avec leur langue et leur date de modification. Touchez un document pour l'ouvrir : il s'affiche en PDF dans le lecteur de votre téléphone, Coup d'œil sur iPhone et iPad, votre visionneuse de PDF sur Android, et reste ouvert à côté avec « Ouvrir », « Partager », « Télécharger en PDF » et « Télécharger en Word ». « Partager » et « Télécharger » passent par la feuille de partage : enregistrez le fichier dans Fichiers, ou envoyez-le par Mail ou une autre application. Le message d'approche s'affiche en texte, avec son objet : « Partager » l'envoie tel quel. Les fichiers ouverts restent dans l'application jusqu'à votre déconnexion, qui les efface de l'appareil. Dans l'application, les documents se lisent, se partagent et se téléchargent ; ils se modifient sur jobbbox.ai.

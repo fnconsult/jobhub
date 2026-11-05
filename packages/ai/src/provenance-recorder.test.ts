@@ -128,6 +128,29 @@ describe("a ProvenanceRecorder", () => {
     ]);
   });
 
+  it("keeps which Coach Action ran and what it saw, its names sent live only, each call's objects folded once (#788)", async () => {
+    const events: ProvenanceEvent[] = [];
+    const recorder = createProvenanceRecorder(aiLayer(), { now: steppingClock(10), onEvent: (event) => events.push(event) });
+    const airbus = { type: "application" as const, href: "/candidatures/a1", name: "Airbus · Contrôleuse de gestion" };
+
+    await recorder.step({ tool: "applications", action: "list_objects" }, async () => "liste", () => [{ type: "application", count: 12 }]);
+    await recorder.step({ tool: "applications", action: "read_application" }, async () => "lue", () => [airbus]);
+    await recorder.step({ tool: "applications", action: "read_application" }, async () => "lue", () => [airbus]);
+    await recorder.step({ tool: "applications", action: "read_application" }, async () => "rien", () => undefined);
+
+    expect(recorder.provenance().steps).toEqual([
+      { kind: "tool", activity: "act", tool: "applications", action: "list_objects", seen: [{ type: "application", count: 12 }], ms: 10, at: "2026-10-23T10:00:00.010Z", outcome: "ok", count: 1 },
+      // Read twice, Airbus is listed once; no name is kept (ADR-0034).
+      { kind: "tool", activity: "act", tool: "applications", action: "read_application", seen: [{ type: "application", href: "/candidatures/a1" }], ms: 30, at: "2026-10-23T10:00:00.030Z", outcome: "ok", count: 3 },
+    ]);
+    const ended = events.filter((event) => event.type === "step_ended");
+    expect(ended.map((event) => (event.type === "step_ended" ? event.names : undefined))).toEqual([[null], ["Airbus · Contrôleuse de gestion"], ["Airbus · Contrôleuse de gestion"], undefined]);
+    expect(ended[1]?.step).toMatchObject({ action: "read_application", seen: [{ type: "application", href: "/candidatures/a1" }] });
+    const stored = recorder.provenance();
+    expect(JSON.stringify(stored)).not.toContain("Airbus");
+    expect(readProvenance(stored)).toEqual(stored);
+  });
+
   it("records a failed call or Tool as failed, and rethrows", async () => {
     const failing = createAiLayer({ providers: [createFakeProvider({ fail: new Error("down") })], routes: { writing: "anthropic" }, usage: createMemoryUsageLog() });
     const recorder = createProvenanceRecorder(failing);

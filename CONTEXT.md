@@ -792,6 +792,10 @@ In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 
+**Provider return address**:
+The address in the app's own scheme, `/connexion/fournisseur`, where the system's authentication browser hands the person back to the app after a Sign-in Provider, with the session. Not a universal link: iOS 16.4 cannot return by one (ADR-0085).
+_Avoid_: Deep link, redirect URL (that is the address declared at the provider)
+
 **App sign-in link**:
 The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
 _Avoid_: Deep link, app magic link
@@ -1012,7 +1016,7 @@ A Tool that receives personal data, or queries drawn from it, and whose data res
 _Avoid_: Sub-processor outside the EU
 
 **Sign-in Provider**:
-An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.
+An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret. In the Jobbbox app, « Continuer avec … » signs in through the same providers, opened in the system's authentication browser, which keeps the person's own sign-ins; closing it, or refusing at the provider, is a cancellation, not an error (ADR-0085). Apple must be among them while Google or Microsoft is shown to Candidates (App Store rule 4.8).
 _Avoid_: SSO provider, identity provider, social login, auth connector
 
 **Two-step verification**:
@@ -1105,8 +1109,19 @@ _Avoid_: Source (alone), citation, reference
 What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read, compute (rules, no AI) or act (a Coach Action reading or proposing on the Candidate's objects, no AI, with its own glyph, ADR-0077). It picks the glyph AI Activity shows while the step runs.
 _Avoid_: Status, phase, stage
 
+**Toolbox glyph**:
+The Activity glyph of a Coach Action (`act`): a toolbox whose lid lifts, a key coming out for a read, a card for a proposal (#788). Replaces the pointer and card of #726.
+_Avoid_: Tool icon, wrench
+
+**Consulted elements line**:
+« Le coach a consulté N éléments de Jobbbox »: under an AI Coach reply, the elements its Coach Actions read, each with its link, taken from the reply's stored Provenance so it stays after a reload (#788).
+_Avoid_: Sources, references
+
+**Word reveal**:
+A new AI Coach reply's words appear one by one, about 28 a second, in this browser only; nothing is stored. Shown all at once under reduced motion and for history messages (#788).
+
 **Step label**:
-What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step.
+What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English. An act step reads « Consulte vos données »; one that proposes a change (a Tool step with `proposes`, only with act) reads « Prépare une proposition », so a read and a proposal never fold into one step. In the conversation (#788), a shipped Coach Action's line has its own label (« Ouvre la candidature », « Ouvre le profil »…), followed by what it saw: a list by its count, an object by its name. The Provenance keeps which Coach Action ran (`action`) and what it saw by kind and page or count (`seen`), never a name (ADR-0034): the names travel with the live `step_ended` event only, and are looked up again from the Candidate's own objects when the conversation reopens.
 _Avoid_: Step name, status
 
 **Live action**:

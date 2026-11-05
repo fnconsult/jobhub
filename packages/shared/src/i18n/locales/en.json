@@ -1033,6 +1033,20 @@
     "stopped": "Reply stopped",
     "failed": "Your coach could not reply: {{reason}}. Try again in a moment.",
     "thinking": "Your coach is writing a reply…",
+    "consulted": {
+      "summary_one": "The coach consulted {{count}} item in Jobbbox",
+      "summary_other": "The coach consulted {{count}} items in Jobbbox",
+      "pages": {
+        "application": "Application",
+        "applications": "Your applications",
+        "profile": "Profile",
+        "job_search": "Job search",
+        "job_searches": "Your job searches",
+        "job_offer": "Job offer",
+        "job_digest": "Job Digest",
+        "job_digests": "Your Job Digests"
+      }
+    },
     "errors": {
       "unavailable": "Your coach can't reply right now. Please try again in a few moments.",
       "invalid": "This message couldn't be sent. Shorten it and try again."
@@ -1065,6 +1079,12 @@
     "blocked": "Blocked message",
     "widen": "Widen",
     "narrow": "Narrow",
+    "emptyReply": {
+      "proposed": "I propose this change below: review it, then apply or ignore it. Nothing changes without you.",
+      "masterCvNotProposed": "I couldn't prepare this change. I only propose what your Master CV already says, never an item, skill or figure it doesn't hold. To add skills or tools, write them yourself in the « Master CV » section of your profile, then save a new version.",
+      "notProposed": "I couldn't prepare this change as asked. Tell me precisely what you want to change, or make it from the page concerned.",
+      "none": "I couldn't answer you this time. Could you rephrase your request, or split it into several messages?"
+    },
     "jobOfferLink": {
       "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
       "forbiddenSite": "I can't read job offers on LinkedIn, Indeed or Glassdoor: their terms of use forbid it. Open the job offer in your browser and add it with the Jobbbox extension.",
@@ -1115,6 +1135,48 @@
       "foot": "Feedback",
       "reportProblem": "Report a problem",
       "suggestIdea": "Suggest an idea"
+    },
+    "seen": {
+      "steps": {
+        "list_objects": "Looking at your data",
+        "read_profile": "Opening the profile",
+        "read_application": "Opening the application",
+        "read_job_offer": "Opening the job offer",
+        "read_job_search": "Opening the job search",
+        "read_job_digest": "Opening the Job Digest",
+        "read_tailored_documents": "Opening the tailored documents"
+      },
+      "count": {
+        "profile_one": "{{count}} profile",
+        "profile_other": "{{count}} profiles",
+        "application_one": "{{count}} application",
+        "application_other": "{{count}} applications",
+        "job_offer_one": "{{count}} job offer",
+        "job_offer_other": "{{count}} job offers",
+        "job_search_one": "{{count}} job search",
+        "job_search_other": "{{count}} job searches",
+        "job_digest_one": "{{count}} Job Digest",
+        "job_digest_other": "{{count}} Job Digests",
+        "tailored_documents_one": "{{count}} set of documents",
+        "tailored_documents_other": "{{count}} sets of documents",
+        "agenda_item_one": "{{count}} appointment",
+        "agenda_item_other": "{{count}} appointments",
+        "coach_memory_one": "{{count}} coach memory",
+        "coach_memory_other": "{{count}} coach memories",
+        "all_one": "{{count}} item",
+        "all_other": "{{count}} items"
+      },
+      "types": {
+        "profile": "Profile",
+        "application": "Application",
+        "job_offer": "Job offer",
+        "job_search": "Job search",
+        "job_digest": "Job Digest",
+        "tailored_documents": "Tailored documents",
+        "agenda_item": "Appointment",
+        "coach_memory": "Coach memory",
+        "all": "Your data"
+      }
     }
   },
   "provenanceLine": {
@@ -1526,6 +1588,7 @@
       "title": "Sign-in",
       "intro": "The sign-in methods besides the link by email: Google, Apple, Microsoft and any OIDC provider. A change applies within seconds, with no redeployment and nobody signed out. A secret entered here is encrypted and never shown again.",
       "noMasterKey": "Saving is off: SECRETS_MASTER_KEYS is not set on this server.",
+      "appleRequired": "Candidates see {{providers}}, but not Apple: the App Store refuses the Jobbbox app while it offers a Google or Microsoft sign-in without Apple (guideline 4.8). Add Apple, test it, then offer it to candidates.",
       "ssoTitle": "Team sign-in",
       "ssoHelp": "When on, the back office asks an administrator signed in with a link by email to sign in again with a provider allowed for administrators. Their candidate pages stay open. Permanent super-admins (ADMIN_EMAILS) are never asked.",
       "ssoLabel": "Require a sign-in provider for administrators",
@@ -5959,6 +6022,9 @@
     "launchedHint": "Follow it in AI activity; “Stop” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
+    "undoNotes": {
+      "status_kept": "The application's status had changed since: it is left as it is."
+    },
     "problems": {
       "conflict": "The item has changed since the proposal: nothing was applied. Open it to see where it stands.",
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
@@ -5979,6 +6045,7 @@
       "open": "Review the changes",
       "title": "Review the changes: {{what}}",
       "intro": "Accept or reject each change your coach proposes for “{{name}}”. Only the accepted changes are saved, as a new version of your Master CV; a rejected change keeps what it says.",
+      "pending": "Each change waits for your “Accept” or “Reject”: none is accepted in advance.",
       "before": "Before",
       "after": "Proposed",
       "fromOffer": "Taken from one of your job offers, not in your Master CV: {{words}}. Keep it only if it is true.",

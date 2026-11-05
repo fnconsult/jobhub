@@ -11,7 +11,8 @@
     "./design/tokens": "./src/design/tokens.ts",
     "./page-reading": "./src/page-reading/index.ts",
     "./reads": "./src/reads/index.ts",
-    "./calendar-file": "./src/calendar-file.ts"
+    "./calendar-file": "./src/calendar-file.ts",
+    "./sign-in-providers": "./src/sign-in-providers.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

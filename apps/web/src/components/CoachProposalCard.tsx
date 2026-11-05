@@ -8,18 +8,25 @@ import type { CardDecisionError, CoachProposalCard as Card } from "@/coach-propo
 import type { ProposalField } from "@/coach-actions";
 import { send } from "@/components/ApplicationControls";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
-import { ChangeItem, decisionOf } from "@/components/TailoredCvReview";
+import { ChangeItem } from "@/components/TailoredCvReview";
 import { LiveActionStatus, useLiveAction } from "@/components/LiveAction";
 import { InWorkPane } from "@/components/WorkPane";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { Field, Select, TextInput, Textarea } from "@/design/Field";
+import "@/design/Card.css";
 import "./CoachProposalCard.css";
 
 /** « Modifier avant d'appliquer » opens a form in the Work Pane, at the page's own address. */
 const FORM: AddressedKind = "form";
 
 /** What the card says after the Candidate's last click: refused (and why), or nothing. */
+/**
+ * A change of a Coach's Master CV review as the Candidate decided it: none pre-accepted (ADR-0077), each waits for its own
+ * « Accepter » or « Refuser »; only the accepted ones are sent with « Enregistrer les changements acceptés ».
+ */
+const decisionOf = (change: { id: string }, decisions: Record<string, boolean>): boolean | null => decisions[change.id] ?? null;
+
 type Problem = "conflict" | "undoConflict" | "invalid" | "failed" | "noneAccepted" | "runFailed";
 
 /** The hour of a decision, « 18:20 », in the Candidate's language. */
@@ -30,7 +37,8 @@ function hourOf(at: string, language: string): string {
 /**
  * A Coach proposal's Action Card, in the thread under the AI Coach reply that proposes it (#715, ADR-0077): « Proposé par
  * votre coach IA », what changes on which object (a link to it), before → after, the Plan Quota it will use (the Upgrade
- * prompt in place of its buttons without room), and « Appliquer », « Modifier avant d'appliquer » and « Ignorer ».
+ * prompt in place of its buttons without room), and « Appliquer », « Modifier avant d'appliquer » and « Ignorer ». A
+ * Design System Card, as wide as it needs (#788), its buttons small Design System Buttons.
  * « Modifier avant d'appliquer » opens the page's form, pre-filled, in the Work Pane (ADR-0070), the focus on its title;
  * what is changed there is kept while the pane is closed, and the button opens it again. Once decided it says how
  * (« Appliqué par vous à 18:20 », « Ignoré », « Annulé à 18:25 »), politely announced, and an applied one offers
@@ -147,10 +155,10 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           />
         ))}
       </ul>
-      {change.review.changes.some((each) => decisionOf(each, decisions) === null) ? <p className="notice">{t("tailoredCv.pendingHint")}</p> : null}
+      {change.review.changes.some((each) => decisionOf(each, decisions) === null) ? <p className="notice">{t("coachProposals.review.pending")}</p> : null}
       {problem && formShown ? <ProblemNote problem={problem} /> : null}
       <div className="actions">
-        <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void saveReviewed()}>
+        <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => void saveReviewed()}>
           {t("coachProposals.review.save")}
         </button>
       </div>
@@ -165,7 +173,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       ))}
       {problem && formShown ? <ProblemNote problem={problem} /> : null}
       <div className="actions">
-        <button className={buttonClass({ variant: "primary" })} type="submit" disabled={busy}>
+        <button className={buttonClass({ variant: "primary", size: "sm" })} type="submit" disabled={busy}>
           {t("coachProposals.apply")}
         </button>
       </div>
@@ -175,13 +183,15 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   const pending = card.status === "pending";
   const shownAfter = card.edited && card.status !== "pending" ? afterEdited(card) : change.after;
   return (
-    <article className="coach-proposal-card" aria-labelledby={titleId} data-status={card.status}>
+    <article className="ds-card coach-proposal-card" aria-labelledby={titleId} data-status={card.status}>
       <p className="coach-proposal-card__by">{t("coachProposals.by")}</p>
-      <h4 className="coach-proposal-card__title" id={titleId} tabIndex={-1}>
-        {change.what}
-        {" · "}
-        {change.target.href ? <Link href={change.target.href}>{change.target.name}</Link> : change.target.name}
-      </h4>
+      <div className="ds-card__head">
+        <h4 className="ds-card__title coach-proposal-card__title" id={titleId} tabIndex={-1}>
+          {change.what}
+          {" · "}
+          {change.target.href ? <Link href={change.target.href}>{change.target.name}</Link> : change.target.name}
+        </h4>
+      </div>
       {change.also?.length ? (
         // More than one change on the object (#718): each listed, what it is first.
         <ul className="coach-proposal-card__changes">
@@ -203,6 +213,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         {card.status === "accepted" && card.decidedAt ? t(change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) }) : null}
         {card.status === "dismissed" ? t("coachProposals.dismissed") : null}
         {card.status === "undone" && card.undoneAt ? t("coachProposals.undone", { time: hourOf(card.undoneAt, i18n.language) }) : null}
+        {card.status === "undone" && card.undoNote ? ` ${t(`coachProposals.undoNotes.${card.undoNote}`)}` : null}
       </p>
       {card.status === "accepted" && change.launches && !run ? <p className="hint">{t("coachProposals.launchedHint")}</p> : null}
       {card.status === "accepted" && run ? <LiveActionStatus action={live} /> : null}
@@ -214,10 +225,10 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         <div className="coach-proposal-card__confirm" role="group" aria-labelledby={confirmId}>
           <p id={confirmId}>{t("coachProposals.confirmReplace")}</p>
           <div className="actions">
-            <button ref={confirmButton} className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void launch()}>
+            <button ref={confirmButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => void launch()}>
               {t("coachProposals.confirmYes")}
             </button>
-            <button className={buttonClass({ variant: "quiet" })} type="button" disabled={busy} onClick={() => setConfirming(false)}>
+            <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => setConfirming(false)}>
               {t("coachProposals.confirmNo")}
             </button>
           </div>
@@ -225,10 +236,10 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       ) : null}
       {pending && !confirming && run && !change.quota?.prompt ? (
         <div className="actions">
-          <button ref={launchButton} className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => (change.replaces ? setConfirming(true) : void launch())}>
+          <button ref={launchButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => (change.replaces ? setConfirming(true) : void launch())}>
             {t(run.kind === "tailored_cv" ? "coachProposals.prepare" : "coachProposals.draft")}
           </button>
-          <button className={buttonClass({ variant: "quiet" })} type="button" disabled={busy} onClick={() => void decide("dismiss")}>
+          <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => void decide("dismiss")}>
             {t("coachProposals.dismiss")}
           </button>
         </div>
@@ -236,27 +247,27 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {pending && !run && !change.quota?.prompt ? (
         <div className="actions">
           {change.review ? (
-            <button ref={editButton} className={buttonClass({ variant: "primary" })} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
+            <button ref={editButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
               {t("coachProposals.review.open")}
             </button>
           ) : (
-            <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void decide("accept")}>
+            <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => void decide("accept")}>
               {t(change.launches ? "coachProposals.launch" : "coachProposals.apply")}
             </button>
           )}
           {!change.review && change.fields.length > 0 ? (
-            <button ref={editButton} className={buttonClass()} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
+            <button ref={editButton} className={buttonClass({ size: "sm" })} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
               {t("coachProposals.edit")}
             </button>
           ) : null}
-          <button className={buttonClass({ variant: "quiet" })} type="button" disabled={busy} onClick={() => void decide("dismiss")}>
+          <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => void decide("dismiss")}>
             {t("coachProposals.dismiss")}
           </button>
         </div>
       ) : null}
       {card.status === "accepted" && card.undoable && problem !== "undoConflict" ? (
         <div className="actions">
-          <button className={buttonClass()} type="button" disabled={busy} onClick={() => void decide("undo")}>
+          <button className={buttonClass({ size: "sm" })} type="button" disabled={busy} onClick={() => void decide("undo")}>
             {t("coachProposals.undo")}
           </button>
         </div>

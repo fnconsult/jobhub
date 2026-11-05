@@ -158,6 +158,9 @@ export type ApplicationChangeResult =
   /** Its Application Status moved on from the version the change named (#715). */
   | { ok: false; error: "conflict" };
 
+/** « Annuler » an Interview added from a Coach proposal (#770): `statusKept` when its Application Status had changed since and was left. */
+export type RemoveAddedInterviewResult = { ok: true; statusKept: boolean } | { ok: false; error: "not_found" | "conflict" };
+
 /** Interviews are added only to an Application at "Entretien" (`interview`). `interviewId`: the Interview added. */
 export type AddInterviewResult =
   | { ok: true; application: Application; interviewId: string }
@@ -225,6 +228,19 @@ export interface Applications {
    * `options.version`: only as it was then (« Annuler » an Interview added from a Coach proposal, #718).
    */
   removeInterview(candidateId: string, applicationId: string, interviewId: string, options?: Pick<ApplicationChangeOptions, "version">): Promise<ApplicationChangeResult>;
+  /**
+   * « Annuler » an Interview added from a Coach proposal (#718, #770), in one transaction, the Application and the Interview
+   * locked: the Interview, as applying left it (`version`; changed since: a `conflict`, nothing changed), is removed and,
+   * when applying moved the Application to « Entretien » (`status`), its Application Status put back as it was (`before`,
+   * with its Origin) if it is still at the version applying left. Changed since (on its page, another card), the status is
+   * left as it is: `statusKept`.
+   */
+  removeAddedInterview(
+    candidateId: string,
+    applicationId: string,
+    interviewId: string,
+    seen: { version: string; status: { before: ApplicationStatus; origin: Origin | null; version: string } | null },
+  ): Promise<RemoveAddedInterviewResult>;
   /**
    * « Annuler » a change applied from a Coach proposal (#718): puts the Interview back as `before` was (its date, fields,
    * cancellation and Origin), from `options.version`, the one applying it left (a `conflict` once moved on). Its date put
@@ -782,6 +798,30 @@ export function createApplications(
     async removeInterview(candidateId, applicationId, interviewId, options = {}) {
       return changeInterview(candidateId, applicationId, interviewId, options.version, async (client) => {
         await client.query(`DELETE FROM interview WHERE id = $1`, [interviewId]);
+      });
+    },
+
+    async removeAddedInterview(candidateId, applicationId, interviewId, { version, status }) {
+      if (!UUID.test(applicationId) || !UUID.test(interviewId)) return NOT_FOUND;
+      return inTransaction(database, async (client): Promise<RemoveAddedInterviewResult> => {
+        // The Application first, then its Interview: the order every change of both takes.
+        const { rows } = await client.query<{ version: string }>(`SELECT ${STATUS_VERSION} AS version FROM application WHERE id = $1 AND candidate_id = $2 FOR UPDATE`, [
+          applicationId,
+          candidateId,
+        ]);
+        const application = rows[0];
+        const row = application ? await lockedInterview(client, candidateId, applicationId, interviewId) : null;
+        if (!application || !row) return NOT_FOUND;
+        if (interviewVersion(row) !== version) return CONFLICT;
+        await client.query(`DELETE FROM interview WHERE id = $1`, [interviewId]);
+        if (!status) return { ok: true, statusKept: false };
+        if (application.version !== status.version) return { ok: true, statusKept: true };
+        await client.query(`UPDATE application SET status = $2, status_changed_at = now(), status_origin = $3 WHERE id = $1`, [
+          applicationId,
+          status.before,
+          status.origin ? JSON.stringify(status.origin) : null,
+        ]);
+        return { ok: true, statusKept: false };
       });
     },
 

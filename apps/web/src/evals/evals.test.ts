@@ -493,6 +493,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
           "coach-action-profile-master-cv-injection",
           // Never a fact absent from the Master CV, no Profile created.
           "coach-action-profile-master-cv-no-invented-fact",
+          // A pasted list of skills: never slipped in as a rephrasing, never said added.
+          "coach-action-profile-master-cv-pasted-skills",
           "coach-action-profile-create-points-to-page",
         ]),
       );

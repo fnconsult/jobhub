@@ -3326,7 +3326,26 @@
       "warning": "Warning",
       "settingsTitle": "Settings",
       "settingsIntro": "The platform settings this Tool depends on, read-only: they are changed on Settings.",
-      "settingsCaption": "Settings of {{name}}"
+      "settingsCaption": "Settings of {{name}}",
+      "push": {
+        "title": "App notifications",
+        "intro": "The app notifications {{name}} did not deliver in the last 90 days, by Failure Reason: never the token, the account or the text. A device whose token is no longer valid is removed.",
+        "failuresCaption": "Notifications {{name}} did not deliver",
+        "noFailures": "No undelivered notification.",
+        "event": "Event",
+        "testTitle": "Test notification",
+        "testIntro": "Sends the test notification to your {{platform}} devices where the app is signed in, whatever your Reminders settings. It arrives within seconds; a failure shows above and in the latest calls.",
+        "testDevices_zero": "No {{platform}} device registered on your account: sign in to the app and allow its notifications.",
+        "testDevices_one": "{{count}} {{platform}} device registered on your account.",
+        "testDevices_other": "{{count}} {{platform}} devices registered on your account.",
+        "testSend": "Send a test notification",
+        "testQueued": "Test notification sent. It arrives on your devices within seconds.",
+        "testSuperAdminOnly": "Only a super-admin can send a test notification.",
+        "platforms": {
+          "ios": "iOS",
+          "android": "Android"
+        }
+      }
     },
     "deliveryStatus": {
       "title": "Delivery",

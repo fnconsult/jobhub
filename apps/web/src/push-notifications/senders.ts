@@ -9,6 +9,14 @@ import type { PushMessage } from "./messages";
 export const PUSH_PLATFORMS = ["ios", "android"] as const;
 export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
 
+/** The Tool each platform's notifications go through (packages/shared/src/tools.ts). */
+const TOOL_OF_PLATFORM = { ios: "apns", android: "fcm" } as const satisfies Record<PushPlatform, string>;
+
+/** The platform a Push notification Tool sends to, or null for any other Tool (its page in the Back Office's Outils). */
+export function pushPlatformOfTool(toolId: string): PushPlatform | null {
+  return PUSH_PLATFORMS.find((platform) => TOOL_OF_PLATFORM[platform] === toolId) ?? null;
+}
+
 /**
  * The APNs environment an iOS token belongs to: a development build's token is the sandbox's, and the other one answers it
  * BadDeviceToken. Android's are always "production".

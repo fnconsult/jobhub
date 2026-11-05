@@ -3326,7 +3326,26 @@
       "warning": "Avertissement",
       "settingsTitle": "Paramètres",
       "settingsIntro": "Les réglages de la plateforme dont dépend cet outil, en lecture seule : ils se changent dans Paramètres.",
-      "settingsCaption": "Paramètres de {{name}}"
+      "settingsCaption": "Paramètres de {{name}}",
+      "push": {
+        "title": "Notifications de l'app",
+        "intro": "Les notifications de l'app que {{name}} n'a pas remises ces 90 derniers jours, par Failure Reason : jamais le jeton, le compte ni le texte. Un appareil dont le jeton n'est plus valide est retiré.",
+        "failuresCaption": "Notifications non remises par {{name}}",
+        "noFailures": "Aucune notification non remise.",
+        "event": "Événement",
+        "testTitle": "Notification de test",
+        "testIntro": "Envoie la notification de test à vos appareils {{platform}} où l'app est connectée, quels que soient vos réglages de Rappels. Elle arrive en quelques secondes ; un échec s'affiche ci-dessus et dans les derniers appels.",
+        "testDevices_zero": "Aucun appareil {{platform}} enregistré sur votre compte : connectez-vous à l'app et autorisez ses notifications.",
+        "testDevices_one": "{{count}} appareil {{platform}} enregistré sur votre compte.",
+        "testDevices_other": "{{count}} appareils {{platform}} enregistrés sur votre compte.",
+        "testSend": "Envoyer une notification de test",
+        "testQueued": "Notification de test envoyée. Elle arrive sur vos appareils en quelques secondes.",
+        "testSuperAdminOnly": "Seul un super-admin peut envoyer une notification de test.",
+        "platforms": {
+          "ios": "iOS",
+          "android": "Android"
+        }
+      }
     },
     "deliveryStatus": {
       "title": "Livraison",

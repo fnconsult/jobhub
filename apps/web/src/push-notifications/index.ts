@@ -23,7 +23,7 @@ import { PUSH_ENVIRONMENTS, PUSH_PLATFORMS, type PushEnvironment, type PushOutco
 
 export { PUSH_EVENTS, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, isPushEvent, pushAudiencesOf, pushEventsFor, pushNotificationOf, type PushAudience, type PushEvent, type PushNotification } from "./catalog";
 export { pushMessage, type PushMessage } from "./messages";
-export { PUSH_PLATFORMS, type PushPlatform, type PushSender, type PushOutcome, type PushDevice } from "./senders";
+export { PUSH_PLATFORMS, pushPlatformOfTool, type PushPlatform, type PushSender, type PushOutcome, type PushDevice } from "./senders";
 
 /** How long a failure to send is kept. */
 export const FAILURE_RETENTION_DAYS = 90;

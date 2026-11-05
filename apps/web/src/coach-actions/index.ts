@@ -291,6 +291,8 @@ export interface CoachActionsForReply {
   refused(runs: readonly ToolRunRecord[]): Promise<void>;
   /** What the reply proposes, in order. */
   proposals(): CoachProposal[];
+  /** The proposing Coach Actions this reply called that prepared nothing (refused, invalid, not found), in order. */
+  declined(): string[];
 }
 
 export interface CoachActions {
@@ -368,6 +370,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
       const offered = catalog.filter((action) => !(narrowed && action.copiesText));
       if (offered.length === 0) return null;
       const proposals: CoachProposal[] = [];
+      const declined: string[] = [];
       const { recorder } = options;
 
       /** One call, as `external_api_usage` keeps it: its group, the action's name, how it went; never who, what it said nor gave. */
@@ -389,6 +392,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
 
       /** A call refused, never run: a failed `act` step, recorded `invalid_input`; the model told why. */
       const refuse = async (action: CoachAction, started: number, said: string): Promise<ToolOutcome> => {
+        if (action.kind === "propose") declined.push(action.name);
         await recorder.step(stepOf(action), () => Promise.reject(new RefusedCall(said))).catch(() => {});
         record(action, started, 422);
         return { content: said, error: true };
@@ -424,6 +428,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
           record(action, started, null);
           throw error;
         }
+        if (!result.ok && action.kind === "propose") declined.push(action.name);
         if (!result.ok && result.error === "refused") {
           record(action, started, 422);
           return { content: result.reason, error: true };
@@ -468,6 +473,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
           }
         },
         proposals: () => [...proposals],
+        declined: () => [...declined],
       };
     },
   };

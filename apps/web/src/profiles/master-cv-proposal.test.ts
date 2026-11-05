@@ -62,6 +62,15 @@ describe("a Master CV change proposed by the AI Coach, reviewed change by change
     expect(applied.experience[1]).toEqual({ ...master.experience[1], title: "Contrôleuse de gestion senior" });
   });
 
+  it("never adds a skill under cover of rephrasing one: into several, or into another skill, it is refused", () => {
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "SAP", text: "SAP, HubSpot, Power BI" }])).toEqual({ ok: false, error: "added_item", text: "SAP, HubSpot, Power BI" });
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "SAP", text: "ERP • CRM\nHubSpot" }])).toMatchObject({ ok: false, error: "added_item" });
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "IFRS", text: "Power BI" }])).toEqual({ ok: false, error: "added_item", text: "Power BI" });
+
+    const review = masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "SAP", text: "SAP ERP" }]);
+    expect(review.ok && review.changes.map((change) => [change.id, change.tailored])).toEqual([["skills.rephrased.1", "SAP ERP"]]);
+  });
+
   it("flags a rephrasing that brings words of a Job Offer the Master CV lacks: a Flagged Change, never saved without an explicit accept", () => {
     const review = masterCvReview(master, [{ kind: "rephrase", section: "summary", text: "25 ans dans l'industrie aéronautique, expert Kyriba." }], {
       offers: ["Directeur financier, secteur aéronautique. Maîtrise de Kyriba et des normes IFRS."],

@@ -5928,10 +5928,10 @@
     "label": "Coach proposals",
     "card": "Card",
     "form": "Form",
-    "hint": "What your AI coach shows you first when it proposes a change: the card under its reply, or the pre-filled form opened in the pane. “Apply” and “Edit before applying” stay on every card; nothing is applied without you.",
+    "hint": "What your AI coach shows you first when it proposes a change: the card under its reply, or the pre-filled form of its first proposal opened in the pane, without leaving the message box. “Apply” and “Edit before applying” stay on every card; nothing is applied without you.",
     "saved": {
       "card": "Saved: each proposal will show as a card under the reply.",
-      "form": "Saved: each proposal's form will open in the pane."
+      "form": "Saved: the pre-filled form of each reply's first proposal will open in the pane."
     },
     "error": "Your choice could not be saved. Try again."
   },

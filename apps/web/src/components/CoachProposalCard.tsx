@@ -36,8 +36,9 @@ function hourOf(at: string, language: string): string {
  * (« Appliqué par vous à 18:20 », « Ignoré », « Annulé à 18:25 »), politely announced, and an applied one offers
  * « Annuler » while its object has not changed since. Refused, it says why (« L'objet a changé depuis la proposition »)
  * and stays as it was. `onChange`: the card as the server now has it. `openOnArrival`: the card has just arrived under
- * « Propositions du coach : Formulaire » (#717, formOpenedOnArrival): its form opens by itself as it mounts, as the
- * button would open it, and nothing is applied; once only, since the card mounts once in the thread.
+ * « Propositions du coach : Formulaire » (#717, formOpenedOnArrival): its form opens by itself as it mounts, and nothing
+ * is applied; once only, since the card mounts once in the thread. Opened that way, it leaves the focus where it is (the
+ * message box, #775); the button takes it to the form's title.
  *
  * A Master CV change (#719, ADR-0006) has no « Appliquer » in one click: « Relire les changements » opens its changes in
  * the Work Pane, each accepted or rejected on its own (a Flagged Change waits for an explicit accept), and « Enregistrer
@@ -63,7 +64,10 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   const [edits, setEdits] = useState<Record<string, string>>(() => ({ ...card.change.value, ...card.edited }));
   // A review's accept or reject of each change, by id, kept while the Work Pane is closed.
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
-  const [opening, setOpening] = useState(() => (openOnArrival && pane ? 1 : 0));
+  // The opening on arrival, if any: it leaves the focus in the message box, where the Candidate is (#775); the
+  // Candidate's own « Modifier avant d'appliquer » takes it to the form.
+  const [arrivalOpening] = useState(() => (openOnArrival && pane ? 1 : 0));
+  const [opening, setOpening] = useState(arrivalOpening);
   // Without a Work Pane (« Conversation au centre » off), the form opens in the card.
   const [inlineForm, setInlineForm] = useState(() => openOnArrival && !pane);
   const editButton = useRef<HTMLButtonElement>(null);
@@ -262,7 +266,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         </div>
       ) : null}
       {pending && pane && opening > 0 ? (
-        <InWorkPane key={opening} kind={FORM} title={t(change.review ? "coachProposals.review.title" : "coachProposals.editTitle", { what: change.what })} href={formHref} back={pathname}>
+        <InWorkPane key={opening} takeFocus={opening !== arrivalOpening} kind={FORM} title={t(change.review ? "coachProposals.review.title" : "coachProposals.editTitle", { what: change.what })} href={formHref} back={pathname}>
           {form}
         </InWorkPane>
       ) : null}

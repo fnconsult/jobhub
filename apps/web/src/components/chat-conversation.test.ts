@@ -14,5 +14,9 @@ describe("a saved message as shown", () => {
       cards: [card],
     });
     expect(asShownMessage({ from: "coach", text: "Voici", cards: [] })).toEqual({ from: "coach", text: "Voici" });
+    // What its Coach Actions saw, by name, for « Le coach a consulté… » after a reload (#788).
+    expect(asShownMessage({ from: "coach", text: "Voici", at: "2026-11-04T17:20:00.000Z", seenNames: { "/candidatures/a1": "Airbus · DAF" } })).toMatchObject({
+      seenNames: { "/candidatures/a1": "Airbus · DAF" },
+    });
   });
 });

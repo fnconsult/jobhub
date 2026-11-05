@@ -172,6 +172,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     ...(message.blocked && { blocked: message.blocked }),
     ...(message.jobOffer && { jobOffer: message.jobOffer }),
     ...(message.cards && { cards: message.cards }),
+    ...(message.seenNames && { seenNames: message.seenNames }),
   })),
   context: {
     messages: conversation.context.messages,

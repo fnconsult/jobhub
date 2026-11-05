@@ -13,11 +13,12 @@
  *  - `propose_interview_cancel`: a Cancelled Agenda Item, which stays on the Agenda.
  * Never the Interview's note (free text the Coach does not write), never a deletion: « Supprimer » on the Interview is for
  * an entry made by mistake, the Candidate's own. None copies text: the place and link are fields of the Interview.
- * « Annuler » puts the state before back: an Interview added is removed (and its Application back at its status), one
- * changed or cancelled is restored, a Reschedule undone within the hour leaving no trace.
+ * « Annuler » puts the state before back: an Interview added is removed and its Application back at its status, in one
+ * transaction (#770); a status changed since is left as it is, and the card says so (`status_kept`). One changed or
+ * cancelled is restored, a Reschedule undone within the hour leaving no trace.
  * Archived Profiles' Applications, another Candidate's or an unknown id are `not_found`.
  */
-import { INTERVIEW_FORMATS, type ApplicationStatus } from "@jobhub/shared";
+import { APPLICATION_STATUSES, INTERVIEW_FORMATS, type ApplicationStatus } from "@jobhub/shared";
 import { createI18n } from "@jobhub/shared/i18n";
 import * as z from "zod";
 import { frenchDateTime, INTERVIEW_TIME_ZONE, interviewWallClock, type Application, type ApplicationChangeResult, type Applications, type Interview, type InterviewState } from "../applications";
@@ -32,7 +33,7 @@ export const AGENDA_ACTIONS = { add: "propose_interview", change: "propose_inter
 /** What the Agenda's Coach Actions call of the Applications module. */
 export type AgendaApplications = Pick<
   Applications,
-  "list" | "get" | "statusOf" | "change" | "addInterview" | "interviewOf" | "editInterview" | "cancelInterview" | "removeInterview" | "restoreInterview"
+  "list" | "get" | "statusOf" | "addInterview" | "interviewOf" | "editInterview" | "cancelInterview" | "removeAddedInterview" | "restoreInterview"
 >;
 
 /** A date and time as the Interview form takes it, in French time: "2026-11-12T14:00". */
@@ -134,7 +135,7 @@ const addedUndo = z.object({
   applicationId: z.string(),
   interviewId: z.string(),
   version: z.string(),
-  status: z.object({ before: z.string(), origin: z.unknown(), version: z.string() }).nullable(),
+  status: z.object({ before: z.enum(APPLICATION_STATUSES), origin: z.unknown(), version: z.string() }).nullable(),
 });
 /** What « Annuler » needs for an Interview changed or cancelled: the state before, and the version applying left. */
 const changedUndo = z.object({ applicationId: z.string(), interviewId: z.string(), before: keptState, version: z.string() });
@@ -242,11 +243,13 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
         const kept = addedUndo.safeParse(undo);
         if (!kept.success) return { ok: false, error: "not_found" };
         const { applicationId, interviewId, version, status } = kept.data;
-        // Both as applying left them, or nothing is undone.
-        if (status && (await applications.statusOf(candidateId, applicationId))?.version !== status.version) return { ok: false, error: "conflict" };
-        const removed = await applications.removeInterview(candidateId, applicationId, interviewId, { version });
-        if (!removed.ok || !status) return undone(removed);
-        return undone(await applications.change(candidateId, applicationId, { status: status.before }, { version: status.version, origin: readOrigin(status.origin) }));
+        // One transaction (#770): the Interview removed, and the status put back only if it is still as applying left it.
+        const removed = await applications.removeAddedInterview(candidateId, applicationId, interviewId, {
+          version,
+          status: status ? { before: status.before, origin: readOrigin(status.origin), version: status.version } : null,
+        });
+        if (!removed.ok) return { ok: false, error: removed.error };
+        return removed.statusKept ? { ok: true, note: "status_kept" } : { ok: true };
       },
     }),
 

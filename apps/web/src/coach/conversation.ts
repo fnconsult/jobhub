@@ -25,6 +25,12 @@ export interface CoachMessage {
   jobOffer?: JobOfferCard;
   /** On a saved AI Coach reply: the Action Cards of the Coach proposals it made (#715), under it. Never given to the AI Coach. */
   cards?: CoachProposalCard[];
+  /**
+   * On a saved AI Coach reply whose Coach Actions saw some of the Candidate's objects (#788): each one's name by its page,
+   * from Jobbbox's own fields as they are now, for « Le coach a consulté… ». The Provenance keeps no name (ADR-0034).
+   * Never given to the AI Coach.
+   */
+  seenNames?: Record<string, string>;
 }
 
 /**

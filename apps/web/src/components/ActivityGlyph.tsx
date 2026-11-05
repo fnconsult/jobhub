@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Activity } from "@jobhub/shared";
-import { ease, ENTER_MS, GLYPHS, MAX_STROKES, mix, pathOf, phaseAt, POINTS, strokesOf, type Point, type Shape } from "./activity-glyph-frames";
+import type { Activity, StepLabel } from "@jobhub/shared";
+import { ease, ENTER_MS, glyphOf, MAX_STROKES, mix, pathOf, phaseAt, POINTS, strokesOf, type Point, type Shape } from "./activity-glyph-frames";
 
 /**
  * The glyph of an Activity (ADR-0034, #314, #333): what a running step is doing, drawn in the line icons' style. `live`: the
  * step runs, so it moves (the brain's folds shift, the feather writes, the magnifier sweeps, the globe turns, the book turns
- * its pages, the ticks appear, the pointer touches a card) and, when the next step's Activity takes its place, morphs into it, stroke by stroke, drawn
- * from JavaScript (activity-glyph-frames). Still under prefers-reduced-motion, and while not live. Decoration only, hidden
+ * its pages, the ticks appear, the toolbox opens) and, when the next step takes its place, morphs into it, stroke by stroke,
+ * drawn from JavaScript (activity-glyph-frames). `label`: the step's, a Coach Action that proposes drawing its toolbox with
+ * a card (#788). `step`: the step under way, so the glyph morphs into the next one even when its Activity stays the same (a
+ * read, then another, then a proposal). Still under prefers-reduced-motion, and while not live. Decoration only, hidden
  * from screen readers: the step's label in words always sits beside it.
  */
-export function ActivityGlyph({ activity, live = false }: { activity: Activity; live?: boolean }) {
+export function ActivityGlyph({ activity, label, step, live = false }: { activity: Activity; label?: StepLabel; step?: number; live?: boolean }) {
   const svg = useRef<SVGSVGElement>(null);
   // What it shows now, so the next Activity morphs out of it.
   const shown = useRef<Shape | null>(null);
@@ -20,7 +22,7 @@ export function ActivityGlyph({ activity, live = false }: { activity: Activity; 
   useEffect(() => {
     const paths = [...(svg.current?.querySelectorAll("path") ?? [])];
     if (!moving || paths.length === 0) return;
-    const frames = GLYPHS[activity].frames;
+    const frames = glyphOf(activity, label).frames;
     const shapes = frames.map((frame) => shapeOf(frame.d));
     const entering = shown.current;
     const start = performance.now();
@@ -44,14 +46,14 @@ export function ActivityGlyph({ activity, live = false }: { activity: Activity; 
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [activity, moving]);
+  }, [activity, label, step, moving]);
 
   return (
     <svg ref={svg} className="activity-glyph" data-activity={activity} data-live={live || undefined} viewBox="0 0 24 24" aria-hidden focusable={false}>
       {moving
         ? // Moving, its strokes are drawn from JavaScript: React leaves their `d` alone.
           Array.from({ length: MAX_STROKES }, (_, index) => <path key={index} />)
-        : GLYPHS[activity].still.map((d) => <path key={d} d={d} />)}
+        : glyphOf(activity, label).still.map((d) => <path key={d} d={d} />)}
     </svg>
   );
 }

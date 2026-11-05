@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import { expect, test, type Browser, type BrowserContextOptions, type Page } from "@playwright/test";
 import { newAddress } from "./support/mailbox";
 import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
@@ -169,8 +169,6 @@ test.describe("the Coach Actions seen in the conversation (#788)", () => {
     const { page, applicationId, profileId } = await withApplication(browser);
     await ask(page, twoReads(applicationId, profileId));
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 30_000 });
-    // Its words all there (axe reads a word still fading in as too faint).
-    await expect(messages(page).last()).not.toHaveAttribute("aria-busy", /.*/, { timeout: 15_000 });
 
     await expect(conversation(page).locator(".chat-coach > svg.activity-glyph")).toHaveCount(0);
     await expectConsulted(page, applicationId, profileId);
@@ -181,6 +179,27 @@ test.describe("the Coach Actions seen in the conversation (#788)", () => {
     await expect(messages(page).last()).toContainText("Résultat de l'outil", { timeout: 20_000 });
     await expect(conversation(page).locator(".chat-coach > svg.activity-glyph")).toHaveCount(0);
     await expectConsulted(page, applicationId, profileId);
+    await page.context().close();
+  });
+
+  test("axe asked while a reply's words are still coming scores the conversation once they are all in, never a word half faded in", async ({ browser }) => {
+    test.setTimeout(90_000);
+    const { page, applicationId, profileId } = await withApplication(browser);
+    await ask(page, twoReads(applicationId, profileId));
+
+    // Words of the reply still fading in when axe is asked (e2e/support/axe.ts waits for the last of them).
+    await page.waitForFunction(
+      () => {
+        const words = [...document.querySelectorAll(".chat-revealing .coach-word")];
+        return words.length > 10 && Number(getComputedStyle(words.at(-1)!).opacity) < 1;
+      },
+      undefined,
+      { timeout: 30_000, polling: "raf" },
+    );
+    const axe = await new AxeBuilder({ page }).include(".page-conversation").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(axe.violations.map(({ id, nodes }) => `${id}: ${nodes.map((node) => node.target.join(" ")).join(", ")}`)).toEqual([]);
+    await expect(messages(page).last()).not.toHaveAttribute("aria-busy", /.*/);
+    await expect(messages(page).last()).toContainText("Résultat de l'outil");
     await page.context().close();
   });
 

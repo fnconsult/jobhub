@@ -108,8 +108,12 @@ export function ApplicationStatusSelect({
   );
 }
 
-/** The Profile the Application uses, picked among the Candidate's active Profiles. A property row, like ApplicationStatusSelect. */
-export function ApplicationProfileSelect(props: { applicationId: string; profileId: string; profiles: { id: string; name: string }[] }) {
+/**
+ * The Profile the Application uses, picked among the Candidate's active Profiles. A property row, like ApplicationStatusSelect.
+ * `appliedFromCoach`: when the Candidate applied the Coach proposal that gave it this Profile (#716), an ISO date: its
+ * « Origine » disclosure under it.
+ */
+export function ApplicationProfileSelect(props: { applicationId: string; profileId: string; profiles: { id: string; name: string }[]; appliedFromCoach?: string | null }) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
@@ -142,6 +146,8 @@ export function ApplicationProfileSelect(props: { applicationId: string; profile
           {t("application.profileHint")}
         </p>
         <Outcome outcome={outcome} saved={t("application.profileSaved")} />
+        {/* Its Origin is the Profile the page was given: changed here since, it is the Candidate's own. */}
+        {value === props.profileId ? <OriginDisclosure appliedAt={props.appliedFromCoach} /> : null}
       </dd>
     </div>
   );

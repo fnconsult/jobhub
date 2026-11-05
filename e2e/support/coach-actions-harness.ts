@@ -45,7 +45,10 @@ export interface Scenario {
    * modules scoped to her (an active Profile and its Application at Airbus, an Archived Profile and its Application).
    */
   shipped?: boolean;
-  /** Play the AI Coach's own Eval Cases with these ids as an Eval Run does (forEvalRun), each reply scripted by `scripted`. */
+  /**
+   * Play the AI Coach's own Eval Cases with these ids as an Eval Run does (forEvalRun), each reply scripted by `scripted`:
+   * on the catalogue shipped with `shipped` (#716), the fake one otherwise.
+   */
   evalCases?: { id: string; scripted?: string }[];
 }
 
@@ -75,7 +78,8 @@ export interface HarnessResult {
   applications: Record<string, string>;
   /** What a catalogue holding a Coach Action of a group no « Routes locales » Tool declares does when the AI Coach is offered it. */
   undeclared: { catalogue: string | null; offered: string | null };
-  evals: { id: string; offered: string[] | null; proposals: number; reply: string | null; system: string }[];
+  /** `proposed`: each proposal's Coach Action and what it prepared (in an Eval Run, its arguments). */
+  evals: { id: string; offered: string[] | null; proposals: number; proposed: { action: string; data: unknown }[]; reply: string | null; system: string }[];
 }
 
 const scenario = JSON.parse(process.argv[2] ?? "{}") as Scenario;
@@ -265,7 +269,7 @@ for (const each of scenario.evalCases ?? []) {
     ai,
     playbooks: { served: async () => ({ coreDigest: null, sources: null, playbooks: [] }) },
     context: async () => `${evalCase.context}\n\n${evalCase.inView ? evalCase.inView.text : ""}`,
-    coachActions: forEvalRun(CATALOG),
+    coachActions: forEvalRun(scenario.shipped ? SHIPPED : CATALOG),
     warn: () => {},
   });
   const text = each.scripted ? `${evalCase.message} E2E_COACH_TOOL=${each.scripted}` : evalCase.message;
@@ -274,6 +278,7 @@ for (const each of scenario.evalCases ?? []) {
     id: each.id,
     offered: offered[before] ?? null,
     proposals: replied.ok ? (replied.proposals?.length ?? 0) : -1,
+    proposed: replied.ok ? (replied.proposals ?? []).map((proposal) => ({ action: proposal.action, data: proposal.data })) : [],
     reply: replied.ok ? replied.reply : null,
     system: systems[before] ?? "",
   });

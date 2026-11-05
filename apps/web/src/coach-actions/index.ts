@@ -72,6 +72,8 @@ export interface CoachActionCall {
   signal?: AbortSignal;
   /** A read's room, in estimated tokens (#714): its result is cut past it, so it tells its object within it. */
   maxTokens?: number;
+  /** What the Candidate has In view (#716): a proposal about it needs no id. Only the session's Candidate's counts. */
+  inView?: CoachFocus;
 }
 
 /** A field of the page's form, as « Modifier avant d'appliquer » shows it pre-filled in the Work Pane (#715). */
@@ -144,8 +146,10 @@ export type UndoProposalResult = { ok: true } | { ok: false; error: "conflict" |
 /**
  * What a Coach Action gives back: its data (what it read, or the change it proposes), the Candidate's pages it read (paths,
  * the reply's Provenance sites) and whether it holds text the Candidate did not write (`untrusted`); or `not_found`.
+ * `proposes: false`: a proposing one found nothing to propose (the Application exists already, the status is the one asked):
+ * its data tells the model why, and no card is made (#716).
  */
-export type CoachActionResult = { ok: true; data: unknown; pages?: readonly string[]; untrusted?: boolean } | { ok: false; error: "not_found" };
+export type CoachActionResult = { ok: true; data: unknown; pages?: readonly string[]; untrusted?: boolean; proposes?: false } | { ok: false; error: "not_found" };
 
 export interface CoachAction<Schema extends z.ZodObject = z.ZodObject> {
   /** 1 to 64 letters, digits, `_` or `-`, as every provider takes it. */
@@ -205,6 +209,8 @@ export interface CoachActionsReplyOptions {
   guard?: (text: string) => Promise<"passed" | "blocked">;
   /** The Candidate's language, what a proposal's card is written in (#715). Default French. */
   language?: "fr" | "en";
+  /** What the Candidate has In view, given to each call (#716). */
+  focus?: CoachFocus;
 }
 
 /** The Coach Actions of one reply, for the AI layer's tool calling. */
@@ -341,7 +347,13 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         let result: CoachActionResult;
         try {
           result = await recorder.step(stepOf(action), () =>
-            action.run(parsed.data, { candidateId, language: options.language ?? "fr", maxTokens, ...(context.signal ? { signal: context.signal } : {}) }),
+            action.run(parsed.data, {
+              candidateId,
+              language: options.language ?? "fr",
+              maxTokens,
+              ...(options.focus ? { inView: options.focus } : {}),
+              ...(context.signal ? { signal: context.signal } : {}),
+            }),
           );
         } catch (error) {
           record(action, started, null);
@@ -358,6 +370,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         const text = fitted([typeof result.data === "string" ? result.data : JSON.stringify(result.data ?? null)], maxTokens);
         if (action.kind === "read") readRoom -= estimateTokens(text);
         if (result.untrusted) narrowed = true;
+        if (action.kind === "propose" && result.proposes === false) return { content: asData(text) };
         if (action.kind === "propose") {
           proposals.push({ action: action.name, group: action.group, data: result.data });
           return { content: `${PROPOSED}\n${asData(text)}` };

@@ -1,7 +1,9 @@
 import { getAgenda } from "@/agenda/server";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getApplications } from "@/applications/server";
+import { getFollowUps } from "@/follow-ups/server";
 import { getJobDigests } from "@/job-digests/server";
+import { getJobOffers } from "@/job-offers/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getProfiles } from "@/profiles/server";
@@ -17,7 +19,7 @@ import { coachActionsSettings } from "./settings";
 let instance: CoachActions | undefined;
 let catalog: readonly CoachAction[] | undefined;
 
-/** The catalogue shipped, over the Candidate's objects through the domain modules the pages' routes use (#714, #718). */
+/** The catalogue shipped, over the Candidate's objects through the domain modules the pages' routes use (#714, #716, #718). */
 function shipped(): readonly CoachAction[] {
   return shippedCoachActions(
     candidateObjects({
@@ -35,7 +37,7 @@ function shipped(): readonly CoachAction[] {
       tailoredCvs: getTailoredCvs(),
       industries: readIndustryReference,
     }),
-    { applications: getApplications() },
+    { applications: getApplications(), profiles: getProfiles(), jobOffers: getJobOffers(), followUps: getFollowUps() },
   );
 }
 

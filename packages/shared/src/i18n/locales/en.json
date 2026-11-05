@@ -5789,12 +5789,23 @@
     "fields": {
       "applicationStatus": "Application status",
       "newInterview": "New interview",
-      "interview": "Interview"
+      "interview": "Interview",
+      "application": "Application",
+      "applicationProfile": "Application's profile",
+      "followUpSent": "Follow-up sent"
     },
     "interview": {
       "none": "None",
       "cancelled": "Cancelled",
       "minutes": "{{count}} min"
+    },
+    "values": {
+      "notSaved": "Offer not saved",
+      "saved": "{{status}}, with the profile “{{profile}}”",
+      "noFollowUp": "No follow-up sent",
+      "followUps_one": "{{count}} follow-up sent",
+      "followUps_other": "{{count}} follow-ups sent",
+      "followedUp": "{{sent}}, status “{{status}}”"
     },
     "by": "Proposed by your AI coach",
     "before": "Before:",

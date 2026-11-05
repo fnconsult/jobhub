@@ -79,13 +79,22 @@ const exportOf = async (page: Page) => {
   return (await response.json()) as { account: { email: string }; acceptances: ExportedAcceptance[] };
 };
 const acceptApi = (page: Page, data: unknown) => page.request.post("/api/account/acceptances", { data, headers: { origin: new URL(page.url()).origin } });
+/**
+ * Ticks the box and accepts, then waits for what the form does: its POST, answered 204, then the full page load it starts
+ * (`window.location.assign`). On the spec's own `next dev`, the POST's route and that page are compiled on their first
+ * request, seconds on a loaded runner: they are waited on as a navigation, like `page.goto`, not inside a 5 s
+ * `toHaveURL`, which then checks where the page landed.
+ */
 const tickAndAccept = async (page: Page, version: string) => {
   const box = page.getByRole("checkbox", { name: fr.acceptance.box.replace("{{date}}", dayOnTheBox(version)) });
   const submit = page.getByRole("button", { name: fr.acceptance.submit });
   await expect(box).not.toBeChecked();
   await expect(submit).toBeDisabled();
   await box.check();
+  const accepted = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/account/acceptances");
   await submit.click();
+  expect((await accepted).status()).toBe(204);
+  await page.waitForURL((url) => url.pathname !== "/acceptation");
 };
 /** Where accepting brings them: the page they asked for (Mon compte, after sign-in) or home. */
 const afterAccepting = (server: PlanPricesServer) => new RegExp(`^${server.origin}/(compte)?$`);
@@ -161,7 +170,8 @@ test.describe("Acceptances des CGU (#510)", () => {
       for (const section of [fr.account.sections.preferences, fr.account.sections.profiles]) {
         await page.goto("/compte/donnees");
         await accountSection(section).click();
-        await expect(page).toHaveURL(/\/acceptation\?/);
+        // A navigation, waited on as one: Profils is first compiled by this click (tickAndAccept).
+        await page.waitForURL(/\/acceptation\?/);
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.acceptance.title);
       }
       await page.goto("/acceptation");

@@ -321,6 +321,19 @@ describe("App lock (#702)", () => {
   });
 });
 
+describe("Push notifications (#699)", () => {
+  it("builds with expo-notifications' config plugin, at the SDK's own version", () => {
+    const bundled = json("node_modules", "expo", "bundledNativeModules.json");
+    expect(pkg.dependencies["expo-notifications"]).toBe(bundled["expo-notifications"]);
+    expect(expo.plugins).toContainEqual(expect.arrayContaining(["expo-notifications"]));
+  });
+
+  it("asks for nothing at launch: the layout never requests the permission, only a page in context does", () => {
+    const layout = read("apps", "mobile", "src", "app", "_layout.tsx");
+    expect(layout).not.toMatch(/requestPermissionsAsync|\.allow\(/);
+  });
+});
+
 describe("Multitasking and foldables (#700)", () => {
   type Manifest = ReturnType<typeof templateManifest>;
   const plugin = () =>

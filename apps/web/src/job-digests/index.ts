@@ -67,6 +67,7 @@ import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
+import type { PushNotifier } from "../push-notifications";
 import type { Billing, PlanName } from "../billing";
 import type { ReceivedOffers } from "../email-intake/received-offers";
 import { visibleTo, type JobOffers } from "../job-offers";
@@ -212,6 +213,8 @@ export interface JobDigestsDeps {
   /** The Job Offers Email intake gave the Profile (#447): in its Job Digest like the stored ones. */
   receivedOffers: Pick<ReceivedOffers, "givenTo">;
   mailer: Mailer;
+  /** Where a Job Digest's Push notification is queued (#699). Without it, none. */
+  push?: PushNotifier;
   /** Public origin of the web app; the email's links point here. */
   baseURL: string;
   /**
@@ -664,6 +667,12 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       } catch (error) {
         // The Job Digest stays on its page; the email is not sent twice by a retry.
         console.warn("[job-digests] could not email a Job Digest:", error instanceof Error ? error.message : error);
+      }
+      try {
+        // Its devices hear of it too (#699), once, opening it.
+        await deps.push?.notify(candidateId, { event: "job_digest", jobDigestId: digest.id }, { once: `job_digest:${digest.id}` });
+      } catch (error) {
+        console.warn("[job-digests] the Push notification could not be queued:", error instanceof Error ? error.message : error);
       }
       return { digest, discovery };
     },

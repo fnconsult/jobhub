@@ -56,6 +56,7 @@ import type { Applications } from "../applications";
 import type { QuotaDecision } from "../billing";
 import { visibleTo, type JobOffers } from "../job-offers";
 import type { Profiles } from "../profiles";
+import type { PushNotifier } from "../push-notifications";
 import { fieldErrors, type FieldError } from "../validation";
 
 /** Queue the worker's Job discovery listens on. Data: { candidateId, profileId, jobSearchId? }. */
@@ -289,11 +290,12 @@ const startSchema = z.object({ profileId: z.string().trim().min(1) });
 
 /**
  * The worker's side of Job Searches alone: recording what Job discovery found.
- * The same as `createJobSearches(...).record`, without the web app's modules.
+ * The same as `createJobSearches(...).record`, without the web app's modules. With `push`, a Job Search done with Job
+ * Offers tells its Candidate of its new results by a Push notification, once (#699).
  */
 export function createJobSearchReports(
   database: Pool,
-  { quotas, now = () => new Date() }: { quotas: Pick<JobSearchQuotas, "release">; now?: () => Date },
+  { quotas, now = () => new Date(), push }: { quotas: Pick<JobSearchQuotas, "release">; now?: () => Date; push?: PushNotifier },
 ): JobSearchReports {
   return {
     async record(jobSearchId, outcome) {
@@ -322,6 +324,12 @@ export function createJobSearchReports(
       // A failed Job Search is not counted; a stopped one only when it kept a Job Offer.
       const counted = status === "done" || (status === "stopped" && jobOfferIds.length > 0);
       if (!counted && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
+      // New results, the Candidate away: their devices hear of them (a stopped one, the Candidate was there).
+      if (push && rows[0] && status === "done" && jobOfferIds.length > 0) {
+        await push
+          .notify(rows[0].candidate_id, { event: "job_search_results", jobSearchId }, { once: `job_search_results:${jobSearchId}` })
+          .catch((error) => console.warn("[job-searches] the Push notification could not be queued:", error instanceof Error ? error.message : error));
+      }
     },
     async progress(jobSearchId, steps) {
       if (!UUID.test(jobSearchId)) return;

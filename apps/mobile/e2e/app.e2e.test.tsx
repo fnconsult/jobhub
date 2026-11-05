@@ -1,8 +1,8 @@
 // End-to-end through the app's real entry: Expo Router mounts src/app (the root layout, the shell, the Sidebar and the
 // screens), and a person drives it by what they see and press.
-import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
-import { AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AppStateStatus } from "react-native";
+import { Alert, AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AlertButton, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
 import type { FakeCoachWeb } from "../src/coach/testing";
@@ -378,6 +378,7 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
 
   it("opens a Free conversation's context menu in the Sidebar by a right click, and shares its link", async () => {
     await launch();
+    await screen.findByRole("link", { name: "Me présenter en deux minutes", hidden: true });
     await rightClick("Me présenter en deux minutes");
     await userEvent.setup().press(item("Partager le lien"));
     expect(Share.share).toHaveBeenCalledWith(expect.objectContaining({ message: "https://jobbbox.ai/conversations/c1" }));
@@ -439,6 +440,88 @@ describe("Jobbbox app, the home page and the menus as their conversations (#690)
     expect(mockWeb.coach.asked.at(-1)).toMatchObject({ subject: { kind: "menu", id: "agenda" }, message: "Qu'est-ce qui vient ?", route: "/agenda" });
     expect(screen.queryByRole("button", { name: "Ajouter un entretien" })).toBeNull();
     await user.press(button("Arrêter"));
+  });
+});
+
+describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", () => {
+  beforeEach(() => window(...PHONE));
+  afterEach(() => jest.restoreAllMocks());
+
+  /** The confirming Dialog, the system's, answered by pressing `choice`. */
+  const confirmWith = (choice: string) =>
+    jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => buttons?.find((each) => each.text === choice)?.onPress?.());
+  const openDrawer = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.press(button("Menu"));
+  };
+  const longPressRow = async (user: ReturnType<typeof userEvent.setup>, name: string) => user.longPress(await screen.findByRole("link", { name, hidden: true }));
+
+  it("lists them under « Coach », as the web app has them, and opens one with its messages", async () => {
+    mockWeb.coach.add({ id: "f1", title: "Écrire ma lettre", messages: [{ from: "candidate", text: "Par où commencer ?" }, { from: "coach", text: "Par l'accroche." }] });
+    await launch();
+    const user = userEvent.setup();
+    await openDrawer(user);
+    await user.press(await screen.findByRole("link", { name: "Écrire ma lettre", hidden: true }));
+    expect(screen).toHavePathname("/conversations/f1");
+    expect(await screen.findByText("Par l'accroche.")).toBeOnTheScreen();
+    expect(screen.getByText("Écrire ma lettre")).toBeOnTheScreen(); // the Top Bar's title
+  });
+
+  it("renames one from its menu", async () => {
+    mockWeb.coach.add({ id: "f2", title: "Sans titre" });
+    await launch();
+    const user = userEvent.setup();
+    await openDrawer(user);
+    await longPressRow(user, "Sans titre");
+    await user.press(screen.getByRole("menuitem", { name: "Renommer" }));
+    const name = screen.getByLabelText("Nom de la conversation");
+    await user.clear(name);
+    await user.type(name, "Mon pitch");
+    await user.press(button("Enregistrer"));
+    expect(await screen.findByRole("link", { name: "Mon pitch", hidden: true })).toBeOnTheScreen();
+    expect(mockWeb.coach.saved.get("f2")?.title).toBe("Mon pitch");
+  });
+
+  it("deletes one only once the Dialog confirms it", async () => {
+    mockWeb.coach.add({ id: "f3", title: "À supprimer" });
+    await launch();
+    const user = userEvent.setup();
+    await openDrawer(user);
+
+    confirmWith("Annuler");
+    await longPressRow(user, "À supprimer");
+    await user.press(screen.getByRole("menuitem", { name: "Supprimer" }));
+    expect(Alert.alert).toHaveBeenCalledWith("Supprimer la conversation « À supprimer » ?", "Tous ses messages seront supprimés. La Mémoire du coach reste.", expect.anything());
+    expect(mockWeb.coach.saved.has("f3")).toBe(true);
+
+    confirmWith("Supprimer");
+    await longPressRow(user, "À supprimer");
+    await user.press(screen.getByRole("menuitem", { name: "Supprimer" }));
+    await waitFor(() => expect(screen.queryByRole("link", { name: "À supprimer", hidden: true })).toBeNull());
+    expect(mockWeb.coach.saved.has("f3")).toBe(false);
+  });
+
+  it("lists a new conversation once its first message is saved, at its own address", async () => {
+    await launch("/conversations/nouvelle");
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Un tout nouveau sujet");
+    await user.press(button("Envoyer"));
+    await act(async () => mockWeb.coach.reply("Allons-y."));
+    const saved = [...mockWeb.coach.saved.values()].find((conversation) => conversation.title === "Un tout nouveau sujet")!;
+    await waitFor(() => expect(screen).toHavePathname(`/conversations/${saved.id}`));
+    expect(await screen.findByText("Allons-y.")).toBeOnTheScreen();
+    await openDrawer(user);
+    expect(await screen.findByRole("link", { name: "Un tout nouveau sujet", hidden: true })).toBeOnTheScreen();
+  });
+
+  it("clears the page's conversation with « Effacer », once the Dialog confirms it", async () => {
+    mockWeb.coach.add({ id: "f4", title: "À effacer", messages: [{ from: "candidate", text: "Un vieux message" }] });
+    await launch("/conversations/f4");
+    await screen.findByText("Un vieux message");
+    confirmWith("Effacer");
+    await userEvent.setup().press(button("Effacer"));
+    expect(Alert.alert).toHaveBeenCalledWith("Effacer cette conversation ?", "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.", expect.anything());
+    await waitFor(() => expect(screen.queryByText("Un vieux message")).toBeNull());
+    expect(mockWeb.coach.saved.has("f4")).toBe(false);
   });
 });
 

@@ -15,6 +15,9 @@ import { deviceI18n } from "../i18n";
 import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
 import { Sidebar } from "../navigation/Sidebar";
+import { useFreeConversations } from "../navigation/FreeConversations";
+import { ClearConversation } from "../coach/ClearConversation";
+import { PageConversationProvider } from "../coach/page-conversation";
 import { usePortraitOnPhones } from "../orientation";
 import { PanePlaceholder } from "../screens/PanePlaceholder";
 import { appApi, appSession } from "../session/instance";
@@ -52,16 +55,27 @@ export default function RootLayout() {
 }
 
 function AppShell() {
+  return (
+    <PageConversationProvider>
+      <PagesInShell />
+    </PageConversationProvider>
+  );
+}
+
+/** Each page in the shell: its title (a Free conversation's, as the drawer lists it), its pane, « Effacer » on a conversation saved. */
+function PagesInShell() {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
-  const page = pageFor(pathname, t);
+  const free = useFreeConversations().data?.conversations;
+  const page = pageFor(pathname, t, (id) => free?.find((conversation) => conversation.id === id)?.title);
   return (
     <Shell
       page={page}
       paneContent={<PanePlaceholder pane={page.pane} />}
       sidebar={(closeDrawer) => <Sidebar onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
+      actions={<ClearConversation />}
     >
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD}>
         <Stack screenOptions={{ headerShown: false }} />

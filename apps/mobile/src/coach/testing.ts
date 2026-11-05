@@ -82,21 +82,18 @@ export function fakeCoachWeb({
   conversations = [],
   reads = {},
 }: { conversations?: { id: string; title: string; subject?: Saved["subject"]; messages?: SavedMessage[] }[]; reads?: Record<string, unknown> } = {}) {
-  const saved = new Map<string, Saved>(
-    conversations.map((each) => [
-      each.id,
-      {
-        id: each.id,
-        title: each.title,
-        subject: each.subject ?? null,
-        profile: null,
-        lastMessageAt: AT,
-        aiDisclosure: true,
-        messages: each.messages ?? [],
-        context: { messages: each.messages?.length ?? 0, tokens: 400 },
-      },
-    ]),
-  );
+  type Seed = { id: string; title: string; subject?: Saved["subject"]; messages?: SavedMessage[] };
+  const seeded = (each: Seed): Saved => ({
+    id: each.id,
+    title: each.title,
+    subject: each.subject ?? null,
+    profile: null,
+    lastMessageAt: AT,
+    aiDisclosure: true,
+    messages: each.messages ?? [],
+    context: { messages: each.messages?.length ?? 0, tokens: 400 },
+  });
+  const saved = new Map<string, Saved>(conversations.map((each) => [each.id, seeded(each)]));
   const streams: { stream: StreamedReply; body: Record<string, unknown> }[] = [];
   const asked: Record<string, unknown>[] = [];
   const signalements: Record<string, unknown>[] = [];
@@ -185,6 +182,8 @@ export function fakeCoachWeb({
     signalements,
     requests,
     saved,
+    /** A conversation saved on the web meanwhile. */
+    add: (conversation: Seed) => void saved.set(conversation.id, seeded(conversation)),
     /** The other GETs' answers, by path (the menus' cards): a test sets them. */
     reads,
     /** The reply on its way to the last message, to write a piece at a time. */

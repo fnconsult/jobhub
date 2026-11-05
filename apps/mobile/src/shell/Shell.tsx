@@ -45,10 +45,13 @@ export function Shell({
   paneContent,
   sidebar,
   onNewConversation,
+  actions,
   children,
 }: {
   page: ShellPage;
   paneContent: ReactNode;
+  /** The page's own buttons in the Top Bar, before « Fiche » or « Activité » (a conversation's « Effacer »). */
+  actions?: ReactNode;
   /** The Sidebar's menus; `closeDrawer` for a link that navigates. */
   sidebar: (closeDrawer: () => void) => ReactNode;
   onNewConversation: () => void;
@@ -108,6 +111,7 @@ export function Shell({
             menu={<Control label={t(layout.sidebar === "column" ? "sidebar.collapse" : "sidebar.menu")} icon={layout.sidebar === "column" ? PanelLeftClose : Menu} onPress={onMenu} />}
             end={
               <>
+                {actions}
                 {page.pane ? (
                   <Control
                     label={t(page.pane === "fiche" ? "fiche.label" : "fiche.activity")}

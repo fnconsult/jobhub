@@ -5795,7 +5795,9 @@
       "interview": "Entretien",
       "application": "Candidature",
       "applicationProfile": "Profil de la candidature",
-      "followUpSent": "Relance envoyée"
+      "followUpSent": "Relance envoyée",
+      "profileStatus": "Statut du profil",
+      "coachMemory": "À retenir"
     },
     "interview": {
       "none": "Aucun",
@@ -5827,7 +5829,30 @@
       "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
       "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
-      "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page."
+      "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page.",
+      "noneAccepted": "Acceptez au moins un changement pour enregistrer, ou ignorez la proposition."
+    },
+    "masterCv": {
+      "version": "Version {{version}}",
+      "changes_one": "{{count}} changement à relire",
+      "changes_other": "{{count}} changements à relire"
+    },
+    "coachMemory": {
+      "before": "Pas encore retenu"
+    },
+    "quota": {
+      "profile": "Utilise un profil actif de votre forfait"
+    },
+    "review": {
+      "open": "Relire les changements",
+      "title": "Relire les changements : {{what}}",
+      "intro": "Acceptez ou refusez chaque changement que votre coach propose pour « {{name}} ». Seuls les changements acceptés sont enregistrés, en une nouvelle version de votre CV de référence ; un changement refusé garde ce qu'il dit.",
+      "before": "Avant",
+      "after": "Proposé",
+      "fromOffer": "Repris d'une de vos offres, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",
+      "save": "Enregistrer les changements acceptés",
+      "saved_one": "{{count}} changement enregistré",
+      "saved_other": "{{count}} changements enregistrés"
     }
   },
   "coachProposalsDisplay": {

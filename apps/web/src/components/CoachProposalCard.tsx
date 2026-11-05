@@ -8,6 +8,7 @@ import type { CardDecisionError, CoachProposalCard as Card } from "@/coach-propo
 import type { ProposalField } from "@/coach-actions";
 import { send } from "@/components/ApplicationControls";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
+import { ChangeItem, decisionOf } from "@/components/TailoredCvReview";
 import { InWorkPane } from "@/components/WorkPane";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
@@ -18,7 +19,7 @@ import "./CoachProposalCard.css";
 const FORM: AddressedKind = "form";
 
 /** What the card says after the Candidate's last click: refused (and why), or nothing. */
-type Problem = "conflict" | "undoConflict" | "invalid" | "failed";
+type Problem = "conflict" | "undoConflict" | "invalid" | "failed" | "noneAccepted";
 
 /** The hour of a decision, « 18:20 », in the Candidate's language. */
 function hourOf(at: string, language: string): string {
@@ -36,6 +37,11 @@ function hourOf(at: string, language: string): string {
  * and stays as it was. `onChange`: the card as the server now has it. `openOnArrival`: the card has just arrived under
  * « Propositions du coach : Formulaire » (#717, formOpenedOnArrival): its form opens by itself as it mounts, as the
  * button would open it, and nothing is applied; once only, since the card mounts once in the thread.
+ *
+ * A Master CV change (#719, ADR-0006) has no « Appliquer » in one click: « Relire les changements » opens its changes in
+ * the Work Pane, each accepted or rejected on its own (a Flagged Change waits for an explicit accept), and « Enregistrer
+ * les changements acceptés » sends the accepted ones, which make one Master CV Version; its « Annuler » is a Restore.
+ * The Coach Memory has no page: its card names it without a link.
  */
 export function CoachProposalCard({ card, onChange, openOnArrival = false }: { card: Card; onChange: (card: Card) => void; openOnArrival?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -47,6 +53,8 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   const [problem, setProblem] = useState<Problem | null>(null);
   // What the Candidate changed in the form, kept while the Work Pane is closed; each opening mounts it afresh.
   const [edits, setEdits] = useState<Record<string, string>>(() => ({ ...card.change.value, ...card.edited }));
+  // A review's accept or reject of each change, by id, kept while the Work Pane is closed.
+  const [decisions, setDecisions] = useState<Record<string, boolean>>({});
   const [opening, setOpening] = useState(() => (openOnArrival && pane ? 1 : 0));
   // Without a Work Pane (« Conversation au centre » off), the form opens in the card.
   const [inlineForm, setInlineForm] = useState(() => openOnArrival && !pane);
@@ -55,7 +63,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   const formHref = `${pathname}#proposition-${card.id}`;
   const formShown = pane ? pane.item?.kind === FORM && pane.item.href === formHref : inlineForm;
 
-  async function decide(decision: "accept" | "dismiss" | "undo", edited?: Record<string, string>): Promise<boolean> {
+  async function decide(decision: "accept" | "dismiss" | "undo", edited?: Record<string, unknown>): Promise<boolean> {
     setBusy(true);
     setProblem(null);
     const { ok, result } = await send(`/api/action-cards/${encodeURIComponent(card.id)}`, "POST", { decision, ...(edited ? { edited } : {}) });
@@ -83,7 +91,40 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
     else setInlineForm(false);
   }
 
-  const form = (
+  /** « Enregistrer les changements acceptés »: the accepted ones, sent explicitly (ADR-0006). */
+  async function saveReviewed() {
+    const accepted = (change.review?.changes ?? []).filter((each) => decisionOf(each, decisions) === true).map((each) => each.id);
+    if (accepted.length === 0) return setProblem("noneAccepted");
+    if (!(await decide("accept", { accepted }))) return;
+    if (pane) pane.close(() => editButton.current ?? document.getElementById(titleId));
+    else setInlineForm(false);
+  }
+
+  const review = change.review ? (
+    <div className="coach-proposal-form stack">
+      <p className="hint">{t("coachProposals.review.intro", { name: change.target.name })}</p>
+      <ul className="stack tailored-cv-changes">
+        {change.review.changes.map((each) => (
+          <ChangeItem
+            key={each.id}
+            change={each}
+            accepted={decisionOf(each, decisions)}
+            onDecide={(accepted) => setDecisions((kept) => ({ ...kept, [each.id]: accepted }))}
+            labels={{ master: t("coachProposals.review.before"), tailored: t("coachProposals.review.after"), fromOffer: (words) => t("coachProposals.review.fromOffer", { words }) }}
+          />
+        ))}
+      </ul>
+      {change.review.changes.some((each) => decisionOf(each, decisions) === null) ? <p className="notice">{t("tailoredCv.pendingHint")}</p> : null}
+      {problem && formShown ? <ProblemNote problem={problem} /> : null}
+      <div className="actions">
+        <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void saveReviewed()}>
+          {t("coachProposals.review.save")}
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  const form = review ?? (
     <form className="coach-proposal-form stack" onSubmit={applyEdited}>
       <p className="hint">{t("coachProposals.editIntro", { name: change.target.name })}</p>
       {change.fields.map((field) => (
@@ -106,7 +147,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       <h4 className="coach-proposal-card__title" id={titleId} tabIndex={-1}>
         {change.what}
         {" · "}
-        <Link href={change.target.href}>{change.target.name}</Link>
+        {change.target.href ? <Link href={change.target.href}>{change.target.name}</Link> : change.target.name}
       </h4>
       {change.also?.length ? (
         // More than one change on the object (#718): each listed, what it is first.
@@ -123,6 +164,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         </p>
       )}
       {change.quota && !change.quota.prompt ? <p className="hint">{change.quota.label}</p> : null}
+      {card.status !== "pending" && card.accepted ? <p className="hint">{t("coachProposals.review.saved", { count: card.accepted.length })}</p> : null}
       {/* Its decision, said politely as it is made (ADR-0009). */}
       <p className="coach-proposal-card__decision" role="status">
         {card.status === "accepted" && card.decidedAt ? t("coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) }) : null}
@@ -133,10 +175,16 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {pending && change.quota?.prompt ? <UpgradePrompt prompt={change.quota.prompt} /> : null}
       {pending && !change.quota?.prompt ? (
         <div className="actions">
-          <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void decide("accept")}>
-            {t("coachProposals.apply")}
-          </button>
-          {change.fields.length > 0 ? (
+          {change.review ? (
+            <button ref={editButton} className={buttonClass({ variant: "primary" })} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
+              {t("coachProposals.review.open")}
+            </button>
+          ) : (
+            <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void decide("accept")}>
+              {t("coachProposals.apply")}
+            </button>
+          )}
+          {!change.review && change.fields.length > 0 ? (
             <button ref={editButton} className={buttonClass()} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
               {t("coachProposals.edit")}
             </button>
@@ -154,7 +202,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         </div>
       ) : null}
       {pending && pane && opening > 0 ? (
-        <InWorkPane key={opening} kind={FORM} title={t("coachProposals.editTitle", { what: change.what })} href={formHref} back={pathname}>
+        <InWorkPane key={opening} kind={FORM} title={t(change.review ? "coachProposals.review.title" : "coachProposals.editTitle", { what: change.what })} href={formHref} back={pathname}>
           {form}
         </InWorkPane>
       ) : null}

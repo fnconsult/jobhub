@@ -9,7 +9,9 @@
  *    with the version the proposal saw: the object changed since is a conflict (ActionCardConflict, « L'objet a changé
  *    depuis la proposition »), never merged, the card left pending; what the Candidate edited is kept to the form's fields.
  *    The object keeps its Origin (coach_proposal, the card's id). « Annuler » calls its `undo`, refused as a conflict once
- *    the object changed since it was applied. A Coach Action with no `undo` (a launched one) has no Annuler.
+ *    the object changed since it was applied. A Coach Action with no `undo` (a launched one) has no Annuler. A proposal
+ *    with a `review` (a Master CV change, #719, ADR-0006) is applied only with the ids of the changes the Candidate
+ *    accepted, sent explicitly (`edited.accepted`): without them it is refused as invalid, never inferred.
  *  - `createCoachProposals({ catalog, actionCards })`:
  *    - `place` a reply's proposals under it: one card each that its Coach Action can apply (a ProposedChange and an
  *      `apply`), the others left out; a pending card of an earlier reply of the conversation proposing a change to the
@@ -38,6 +40,15 @@ function payloadOf(card: Pick<ActionCard, "payload">): ProposalPayload | null {
   return change.success ? { action: payload.action, change: change.data } : null;
 }
 
+/** The ids of the changes the Candidate accepted in a review, as sent; null when none were sent. */
+function acceptedIn(change: ProposedChange, edited: unknown): string[] | null {
+  if (!change.review || typeof edited !== "object" || edited === null) return null;
+  const accepted = (edited as { accepted?: unknown }).accepted;
+  if (!Array.isArray(accepted) || !accepted.every((id) => typeof id === "string")) return null;
+  const ids = new Set(change.review.changes.map((each) => each.id));
+  return [...new Set(accepted as string[])].filter((id) => ids.has(id));
+}
+
 /** What the Candidate edited, kept to the form's own fields, as text. */
 function editedValue(change: ProposedChange, edited: unknown): Record<string, string> {
   if (typeof edited !== "object" || edited === null) return {};
@@ -58,7 +69,10 @@ export function coachProposalHandlers(catalog: readonly CoachAction[], now: () =
       [COACH_PROPOSAL_CARD]: async (card, candidateId, edited) => {
         const { payload, apply } = actionOf(card);
         const change = { ...payload.change, value: { ...payload.change.value, ...editedValue(payload.change, edited) } };
-        const applied = await apply(change, { candidateId, cardId: card.id, at: now() });
+        // A review's accepted changes are always sent, never inferred (ADR-0006).
+        const accepted = acceptedIn(payload.change, edited);
+        if (payload.change.review && accepted === null) throw new ActionCardInvalid([{ field: "accepted", code: "required" }]);
+        const applied = await apply(change, { candidateId, cardId: card.id, at: now(), ...(accepted ? { accepted } : {}) });
         if (applied.ok) return applied.undo === undefined ? {} : { undo: applied.undo };
         if (applied.error === "invalid") throw new ActionCardInvalid(applied.errors);
         // Gone since (deleted, archived) or changed since: either way, not what was proposed any more.
@@ -85,11 +99,13 @@ export function proposalCardOf(card: ActionCard): CoachProposalCard | null {
   const change: Omit<ProposedChange, "version"> = { ...payload.change };
   delete (change as Partial<ProposedChange>).version;
   const edited = typeof card.edited === "object" && card.edited !== null ? editedValue(payload.change, card.edited) : null;
+  const accepted = acceptedIn(payload.change, card.edited);
   return {
     id: card.id,
     status: card.status,
     change,
     ...(edited && Object.keys(edited).length > 0 ? { edited } : {}),
+    ...(accepted ? { accepted } : {}),
     ...(card.decidedAt ? { decidedAt: card.decidedAt.toISOString() } : {}),
     ...(card.undoneAt ? { undoneAt: card.undoneAt.toISOString() } : {}),
     undoable: card.undoable === true,

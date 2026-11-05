@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { OriginDisclosure } from "@/components/OriginDisclosure";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
@@ -37,6 +38,8 @@ export default async function MasterCvVersionsPage({ params }: Params) {
             <p>{t("versions.savedAt", { date: dateFormat.format(version.savedAt) })}</p>
             {current ? <p className="version-current">{t("versions.current")}</p> : null}
             {version.restoredFrom !== null ? <p>{t("versions.restoredFrom", { version: version.restoredFrom })}</p> : null}
+            {/* Made from a Coach proposal the Candidate reviewed and saved (#719): hidden until « Origine » is opened. */}
+            <OriginDisclosure appliedAt={version.origin?.appliedAt.toISOString()} />
             <div className="actions">
               <Link className="button" href={routes.masterCvVersion(profile.id, version.version)} scroll={false}>
                 {t("versions.view", { version: version.version })}

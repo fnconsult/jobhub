@@ -337,7 +337,8 @@ export const coachProposalCardSchema = z.object({
   id: z.string(),
   status: z.enum(["pending", "accepted", "dismissed", "undone"]),
   change: z.object({
-    target: z.object({ kind: z.enum(["profile", "application", "job_offer", "job_search", "job_digest", "agenda"]), id: z.string(), name: z.string(), href: z.string() }),
+    // The Coach Memory (#719) has no page: its `href` is empty.
+    target: z.object({ kind: z.enum(["profile", "application", "job_offer", "job_search", "job_digest", "agenda", "coach_memory"]), id: z.string(), name: z.string(), href: z.string() }),
     what: z.string(),
     before: z.string(),
     after: z.string(),
@@ -353,8 +354,27 @@ export const coachProposalCardSchema = z.object({
       }),
     ),
     quota: z.object({ label: z.string(), prompt: z.any().optional() }).optional(),
+    /** A Master CV change (#719, ADR-0006): its changes, reviewed one by one, and the edits they come from. */
+    review: z
+      .object({
+        changes: z.array(
+          z.object({
+            id: z.string(),
+            section: z.enum(["headline", "summary", "experience", "education", "skills", "languages"]),
+            kind: z.enum(["rephrased", "reordered", "cut", "added"]),
+            item: z.string().optional(),
+            master: z.string().optional(),
+            tailored: z.string().optional(),
+            fromOffer: z.array(z.string()).optional(),
+          }),
+        ),
+        edits: z.array(z.record(z.string(), z.unknown())),
+      })
+      .optional(),
   }),
   edited: z.record(z.string(), z.string()).optional(),
+  /** A reviewed proposal's accepted changes (#719). */
+  accepted: z.array(z.string()).optional(),
   decidedAt: instant.optional(),
   undoneAt: instant.optional(),
   undoable: z.boolean(),

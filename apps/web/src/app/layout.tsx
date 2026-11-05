@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { pendingAcceptance } from "@/acceptances/server";
 import { getCurrentCandidate } from "@/auth/server";
+import { coachActionsOn } from "@/coach-actions/on";
 import { CandidateProviders } from "@/components/CandidateProviders";
 import { ResponseWatcher } from "@/components/ResponseWatcher";
 import { DocumentHead } from "@/design/document-head";
@@ -38,7 +39,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <I18nProvider locale={locale}>
           {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
           <ResponseWatcher signedIn={candidate !== null} />
-          {coached ? <CandidateProviders version={jobbboxVersion()}>{children}</CandidateProviders> : children}
+          {coached ? (
+            <CandidateProviders version={jobbboxVersion()} coachActions={coachActionsOn()}>
+              {children}
+            </CandidateProviders>
+          ) : (
+            children
+          )}
         </I18nProvider>
       </body>
     </ThemedHtml>

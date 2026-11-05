@@ -294,8 +294,8 @@ function fictionalContext(scenario: { context: string; inView: EvalInView | null
 }
 
 /**
- * Why a reply's proposals miss the one an Eval Case expects (#718): another Coach Action, or an argument it was called
- * with other than the one expected; null when one of them is it.
+ * Why a reply's proposals miss the one an Eval Case expects (#718, #719): another Coach Action, or an argument it was
+ * called with other than the one expected (a list compared as a whole); null when one of them is it.
  */
 function proposalMismatch(expected: NonNullable<AiCoachEvalCase["proposal"]>, proposals: readonly { action: string; data: unknown }[]): string | null {
   const made = proposals.filter((proposal) => proposal.action === expected.action);
@@ -493,7 +493,7 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
         const reason = each.proposes ? "Le coach n'a proposé aucune modification là où il en fallait une." : "Le coach a proposé une modification qu'on ne lui demandait pas.";
         return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
       }
-      // Which change it proposes (#718), and with what, is what its Coach Actions did, checked exactly.
+      // Which change it proposes (#718, #719), and with what, is what its Coach Actions did, checked exactly.
       const wrongProposal = each.proposal ? proposalMismatch(each.proposal, replied.proposals ?? []) : null;
       if (wrongProposal) return { case: playedCase, reply: replied.reply, consulted, score: 0, reason: wrongProposal, costEur: replyCost, responseMs };
       // Which objects it read (#714) and whether its reply was grounded are what it did, checked exactly.

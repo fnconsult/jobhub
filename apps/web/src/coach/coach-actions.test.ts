@@ -9,7 +9,8 @@ import { describe, expect, it } from "vitest";
 import * as z from "zod";
 import { COACH_ACTION_READS_MAX_TOKENS, createCoachActions, defineCoachAction, type CoachAction, type CoachActionsSettings } from "../coach-actions";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
-import { createCoach, type CoachContextSource, type CoachFocus } from "./index";
+import { PROFILE_ACTIONS } from "../coach-actions/profile";
+import { createCoach, emptyReplyText, type CoachContextSource, type CoachFocus } from "./index";
 
 const APPLICATIONS: Record<string, { id: string; title: string; status: string; posting: string }[]> = {
   marie: [{ id: "a1", title: "DAF H/F", status: "interview", posting: "Rattaché au DG, vous pilotez la clôture mensuelle." }],
@@ -236,5 +237,46 @@ describe("the AI Coach with Coach Actions, end to end on the fake provider", () 
     } finally {
       APPLICATIONS.marie![0]!.posting = "Rattaché au DG, vous pilotez la clôture mensuelle.";
     }
+  });
+});
+
+describe("a reply with no text never reaches the Candidate empty (#784)", () => {
+  it("its tools run, then nothing but the hidden line: it says the change it proposes is under it, to apply or not", async () => {
+    const { coach } = setUp({ turns: [{ toolCalls: [{ name: "proposer_statut", arguments: { id: "a1", status: "offer" } }] }, { text: "[jobbbox:non]" }] });
+
+    const replied = await ask(coach, "Passe ma candidature a1 en offre reçue.");
+
+    expect(replied).toMatchObject({ ok: true, couldNotAnswer: false, proposals: [{ action: "proposer_statut" }] });
+    if (!replied.ok) throw new Error("no reply");
+    expect(replied.reply).toBe("Je vous propose cette modification ci-dessous : relisez-la, puis appliquez-la ou ignorez-la. Rien ne change sans vous.");
+  });
+
+  it("its proposal refused, no text: it says the change could not be prepared", async () => {
+    const { coach } = setUp({ turns: [{ toolCalls: [{ name: "proposer_statut", arguments: { id: "a1", status: "hired" } }] }, { text: "" }] });
+
+    const replied = await ask(coach, "Passe ma candidature a1 en embauchée.");
+
+    expect(replied).toMatchObject({ ok: true, couldNotAnswer: false, proposals: [] });
+    if (!replied.ok) throw new Error("no reply");
+    expect(replied.reply).toMatch(/^Je n'ai pas pu préparer cette modification telle quelle\./);
+  });
+
+  it("no tool, no text: it says it could not answer, « Poser la question à l'équipe » offered", async () => {
+    const { coach } = setUp({ turns: [{ text: "" }] });
+
+    const replied = await ask(coach);
+
+    expect(replied).toMatchObject({ ok: true, couldNotAnswer: true });
+    if (!replied.ok) throw new Error("no reply");
+    expect(replied.reply).toMatch(/^Je n'ai pas réussi à vous répondre cette fois\./);
+  });
+});
+
+describe("emptyReplyText (#784)", () => {
+  it("a Master CV proposal declined: says what the Master CV takes, and where the Candidate adds a skill themselves", () => {
+    const { text, couldNotAnswer } = emptyReplyText("fr", [], [PROFILE_ACTIONS.masterCv]);
+    expect(couldNotAnswer).toBe(false);
+    expect(text).toContain("section « CV de référence »");
+    expect(emptyReplyText("en", [], [PROFILE_ACTIONS.masterCv]).text).toContain("« Master CV » section");
   });
 });

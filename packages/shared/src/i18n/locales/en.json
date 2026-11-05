@@ -1065,6 +1065,12 @@
     "blocked": "Blocked message",
     "widen": "Widen",
     "narrow": "Narrow",
+    "emptyReply": {
+      "proposed": "I propose this change below: review it, then apply or ignore it. Nothing changes without you.",
+      "masterCvNotProposed": "I couldn't prepare this change. I only propose what your Master CV already says, never an item, skill or figure it doesn't hold. To add skills or tools, write them yourself in the « Master CV » section of your profile, then save a new version.",
+      "notProposed": "I couldn't prepare this change as asked. Tell me precisely what you want to change, or make it from the page concerned.",
+      "none": "I couldn't answer you this time. Could you rephrase your request, or split it into several messages?"
+    },
     "jobOfferLink": {
       "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
       "forbiddenSite": "I can't read job offers on LinkedIn, Indeed or Glassdoor: their terms of use forbid it. Open the job offer in your browser and add it with the Jobbbox extension.",
@@ -5820,6 +5826,17 @@
     "openSampleSection": "Open a sample Section",
     "sampleSection": "Sample Section",
     "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here.",
+    "documents": {
+      "title": "Documents",
+      "none": "No document yet: ask the coach for a tailored CV or a cover letter.",
+      "updatedOn": "Changed on {{date}}",
+      "open": "Open",
+      "share": "Share",
+      "subject": "Subject: {{subject}}",
+      "readOnly": "In the app, documents are read, shared and downloaded; they are changed on jobbbox.ai.",
+      "failed": "The document could not be opened. Check your connection and try again.",
+      "notFound": "This application's documents cannot be found: it does not exist or is not yours."
+    },
     "appSettings": "App settings",
     "appLock": {
       "setting": "Lock the app",
@@ -5858,7 +5875,26 @@
       "openPosting": "View the posting",
       "shareLink": "Share the link"
     },
-    "jobOfferPlaceholder": "The job offer will open here, with its Match Score."
+    "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
+    "profiles": {
+      "positioning": "Positioning",
+      "contracts": "Contracts",
+      "sectors": "Sectors",
+      "criterion": "{{label}}: {{value}}",
+      "masterCvVersion": "Version {{version}} · {{name}}",
+      "edit": "Edit the profile",
+      "editTitle": "Edit: {{name}}",
+      "editOnWeb": "The profile is changed on jobbbox.ai: “Edit the profile” opens its page.",
+      "title": "Profile",
+      "none": "No profile yet: create one on jobbbox.ai.",
+      "notFound": "This profile cannot be found: it does not exist or is not yours."
+    },
+    "reads": {
+      "loading": "Loading…",
+      "failed": "This could not be loaded. Check your connection and try again.",
+      "retry": "Try again",
+      "offline": "Offline: this will load as soon as the network is back."
+    }
   },
   "coachProposals": {
     "fields": {
@@ -5949,6 +5985,7 @@
       "open": "Review the changes",
       "title": "Review the changes: {{what}}",
       "intro": "Accept or reject each change your coach proposes for “{{name}}”. Only the accepted changes are saved, as a new version of your Master CV; a rejected change keeps what it says.",
+      "pending": "Each change waits for your “Accept” or “Reject”: none is accepted in advance.",
       "before": "Before",
       "after": "Proposed",
       "fromOffer": "Taken from one of your job offers, not in your Master CV: {{words}}. Keep it only if it is true.",

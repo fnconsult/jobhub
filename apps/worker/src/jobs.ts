@@ -23,6 +23,7 @@ import {
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
+import { FAILURE_RETENTION_DAYS as PUSH_FAILURE_RETENTION_DAYS, PUSH_NOTIFICATIONS_QUEUE, PUSH_PLATFORMS, purgeExpiredPushFailures, pushNotificationOf, type PushNotifications, type PushPlatform } from "@jobhub/web/push-notifications";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
@@ -117,6 +118,16 @@ export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
  * marked written or dismissed 30 days ago (MARKED_RETENTION_DAYS, #344). Runs nightly.
  */
 export const UNANSWERED_QUESTIONS_PURGE = "unanswered-questions.purge";
+
+/**
+ * Queue name: send one Push notification to a person's devices (#698, ADR-0076). Data: { personId, notification, platform? },
+ * `notification` being its event and the id of the object it opens; queued where the event happens (and by the Back
+ * Office's test, for one platform). Not retried: a notification late is no use, and each failure is kept with its reason.
+ */
+export const PUSH_NOTIFICATIONS_SEND = PUSH_NOTIFICATIONS_QUEUE;
+
+/** Queue name: delete the Push notifications' failures PUSH_FAILURE_RETENTION_DAYS old. Runs nightly. */
+export const PUSH_FAILURES_PURGE = "push-notifications.purge";
 
 /** Queue name: delete the Signalements marked `traite` SIGNALEMENT_RETENTION_MONTHS ago or more (#374, #283). Runs nightly. */
 export const SIGNALEMENTS_PURGE = "signalements.purge";
@@ -227,6 +238,8 @@ export interface JobsDeps {
   signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
   /** The Appointment Reminders, sent daily. Satisfied by the web app's Appointment Reminders module. Without them, nothing to send. */
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
+  /** Push notifications (#698), sent through APNs and FCM. Satisfied by the web app's Push notifications module. Without them, nothing is sent. */
+  pushNotifications?: Pick<PushNotifications, "send">;
   /** Livraison's daily email. Satisfied by the web app's delivery status module. Without it, nothing is sent. */
   deliveryStatusEmails?: Pick<DeliveryStatusEmails, "send">;
   /** The Legal Text notices (#547), sent from Production only. Satisfied by the web app's Legal Text notices module. Without them, nothing to send. */
@@ -729,6 +742,31 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     },
 
     // A Signalement is kept until 12 months after it was marked « traité »; one not yet handled, until it is. Safe to run again.
+    [PUSH_NOTIFICATIONS_SEND]: {
+      retry: { limit: 0, delaySeconds: 0 },
+      handler: (data) =>
+        onceTablesExist(async () => {
+          const { personId, platform } = (data ?? {}) as { personId?: unknown; platform?: unknown };
+          const notification = pushNotificationOf((data as { notification?: unknown } | null)?.notification);
+          if (typeof personId !== "string" || !notification || (platform !== undefined && !PUSH_PLATFORMS.includes(platform as PushPlatform))) {
+            log("[push-notifications] a job with no person, an unknown event or platform: dropped");
+            return;
+          }
+          if (!deps.pushNotifications) return;
+          const sent = await deps.pushNotifications.send(personId, notification, platform === undefined ? {} : { platform: platform as PushPlatform });
+          log(`[push-notifications] ${notification.event}: ${sent.sent} sent, ${sent.failed} failed` + (sent.removed ? ` (${sent.removed} device removed)` : ""));
+        }),
+    },
+
+    [PUSH_FAILURES_PURGE]: {
+      cron: "50 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredPushFailures(deps.database, now());
+          if (purged) log(`[push-notifications] ${purged} failure(s) purged, ${PUSH_FAILURE_RETENTION_DAYS} days after`);
+        }),
+    },
+
     [SIGNALEMENTS_PURGE]: {
       cron: "40 3 * * *",
       handler: () =>

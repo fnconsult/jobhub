@@ -15,6 +15,8 @@
  */
 import { checkFranceTravailAccess, createFranceTravailTokens, recordingClient, recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
 import nodemailer from "nodemailer";
+import { checkApnsKey } from "../push-notifications/apns";
+import { checkFcmServiceAccount } from "../push-notifications/fcm";
 import type { SecretProvider } from "./catalog";
 import type { ConnectionTester, ConnectionTestResult } from "./index";
 
@@ -48,6 +50,9 @@ const TOOL_OF: Record<SecretProvider, ExternalApiProvider | null> = {
   brevo: "brevo",
   "email-intake": null,
   github: "github",
+  // APNs' key is checked by signing a provider token: no call. FCM's by asking Google an access token with it.
+  apns: null,
+  fcm: "fcm",
 };
 
 /** The shortest inbound secret taken: the MTA and the app share it, and it is the door's only key from the network. */
@@ -239,6 +244,18 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
       const found = keys(env, "EMAIL_INTAKE_INBOUND_SECRET");
       if ("missing" in found) return failed(`missing ${found.missing}`);
       return found.EMAIL_INTAKE_INBOUND_SECRET.length >= MIN_INBOUND_SECRET_LENGTH ? ok : failed(`EMAIL_INTAKE_INBOUND_SECRET must be at least ${MIN_INBOUND_SECRET_LENGTH} characters`);
+    },
+    async apns(env) {
+      const found = keys(env, "APNS_AUTH_KEY", "APNS_KEY_ID", "APPLE_TEAM_ID");
+      if ("missing" in found) return failed(`missing ${found.missing}`);
+      const signed = checkApnsKey(found.APNS_AUTH_KEY, found.APNS_KEY_ID, found.APPLE_TEAM_ID);
+      return signed.ok ? ok : failed(signed.detail);
+    },
+    async fcm(env, { fetch }) {
+      const found = keys(env, "FCM_SERVICE_ACCOUNT");
+      if ("missing" in found) return failed(`missing ${found.missing}`);
+      const checked = await checkFcmServiceAccount(found.FCM_SERVICE_ACCOUNT, (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) }));
+      return checked.ok ? ok : failed(checked.detail);
     },
     // GitHub's rate limit: costs nothing and needs only a valid token.
     async github(env, { bearer }) {

@@ -29,6 +29,7 @@ export const TOOL_CATEGORIES = [
   "contact_enrichment",
   "billing",
   "mail",
+  "push",
   "sign_in",
   "geolocation",
   "reference_data",
@@ -124,6 +125,7 @@ export const RECIPIENT_DATA = [
   "contact_search",
   "hosted",
   "video_viewing",
+  "push_notifications",
 ] as const;
 export type RecipientData = (typeof RECIPIENT_DATA)[number];
 
@@ -190,6 +192,10 @@ export const RECIPIENT_DATA_TEXT: Record<RecipientData, Translated> = {
   hosted: {
     fr: "Toutes les données de Jobbbox, stockées sur son serveur.",
     en: "All of Jobbbox's data, stored on its server.",
+  },
+  push_notifications: {
+    fr: "L'identifiant de notification de votre appareil et le texte des notifications de l'app Jobbbox, qui ne nomme jamais une entreprise, un poste ni une personne.",
+    en: "Your device's notification identifier and the text of the Jobbbox app's notifications, which never names a company, a job or a person.",
   },
   video_viewing: {
     fr: "Votre adresse IP et les informations techniques de votre navigateur, quand vous affichez ou lancez une vidéo d'aide. Rien de votre compte.",
@@ -995,6 +1001,55 @@ export const TOOLS = [
     residency: "eu",
     receivesPersonalData: false,
     residencyNote: { fr: "Service public français ; ne reçoit aucune donnée.", en: "French public service; receives no data." },
+  },
+  {
+    // Push notifications (#698, ADR-0076): sent by the worker directly to Apple's service, never through Expo's.
+    id: "apns",
+    name: "Apple Push Notification service (APNs)",
+    purpose: {
+      fr: "Envoi des notifications de l'app Jobbbox sur iPhone et iPad : le jeton de l'appareil et un texte qui ne nomme jamais une entreprise, un poste ni une personne.",
+      en: "The Jobbbox app's notifications on iPhone and iPad: the device's token and a text that never names a company, a job or a person.",
+    },
+    category: "push",
+    module: "apps/web/src/push-notifications/apns.ts",
+    runsIn: "worker",
+    keys: ["APNS_AUTH_KEY", "APNS_KEY_ID", "APPLE_TEAM_ID"],
+    usage: { table: "external_api_usage", provider: "apns" },
+    residency: "outside_eu",
+    receivesPersonalData: true,
+    residencyNote: { fr: "Service d'Apple aux États-Unis ; à confirmer dans le contrat du programme développeur.", en: "Apple's service in the United States; to be confirmed in the developer program's agreement." },
+    recipient: {
+      name: "Apple (APNs)",
+      purpose: { fr: "Afficher les notifications de l'app Jobbbox sur votre iPhone ou votre iPad.", en: "Showing the Jobbbox app's notifications on your iPhone or iPad." },
+      data: ["push_notifications"],
+      entity: "Apple Inc.",
+      place: { fr: "Hors UE : Apple Inc. aux États-Unis.", en: "Outside the EU: Apple Inc. in the United States." },
+      safeguards: ["not_established"],
+    },
+  },
+  {
+    id: "fcm",
+    name: "Firebase Cloud Messaging (FCM)",
+    purpose: {
+      fr: "Envoi des notifications de l'app Jobbbox sur Android : le jeton de l'appareil et un texte qui ne nomme jamais une entreprise, un poste ni une personne.",
+      en: "The Jobbbox app's notifications on Android: the device's token and a text that never names a company, a job or a person.",
+    },
+    category: "push",
+    module: "apps/web/src/push-notifications/fcm.ts",
+    runsIn: "worker",
+    keys: ["FCM_SERVICE_ACCOUNT"],
+    usage: { table: "external_api_usage", provider: "fcm" },
+    residency: "outside_eu",
+    receivesPersonalData: true,
+    residencyNote: { fr: "Service de Google ; l'entité et le lieu de traitement sont à confirmer dans les conditions de Firebase.", en: "Google's service; the entity and place of processing are to be confirmed in Firebase's terms." },
+    recipient: {
+      name: "Google (Firebase Cloud Messaging)",
+      purpose: { fr: "Afficher les notifications de l'app Jobbbox sur votre appareil Android.", en: "Showing the Jobbbox app's notifications on your Android device." },
+      data: ["push_notifications"],
+      entity: "Google LLC",
+      place: { fr: "Hors UE : Google LLC aux États-Unis.", en: "Outside the EU: Google LLC in the United States." },
+      safeguards: ["not_established"],
+    },
   },
   {
     id: "rome-open-data",

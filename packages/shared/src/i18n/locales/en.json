@@ -5776,8 +5776,11 @@
       "changeEmail": "Use another email address"
     },
     "secondStep": {
-      "intro": "Your account asks for a second step to finish signing in.",
-      "comingSoon": "It is coming to the app soon. Meanwhile, sign out or sign in on jobbbox.ai."
+      "passkeyIntro": "Use the passkey saved on your account: Face ID, Touch ID, your fingerprint or your security key.",
+      "setUp": "Set up verification",
+      "setUpHint": "The setup opens in a page of jobbbox.ai, here in the app. Once it is done, you come back to Jobbbox.",
+      "unreachable": "Jobbbox could not be reached. Check your connection and try again.",
+      "retry": "Try again"
     },
     "shortcuts": {
       "newConversation": "New conversation",

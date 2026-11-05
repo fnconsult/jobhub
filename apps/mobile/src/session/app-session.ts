@@ -8,9 +8,24 @@
  * Link: the system opens the app with it, and `openLink` verifies its token here, once, so the session lands on the
  * device rather than in a browser. The email also carries a code (#686), for a Candidate who reads it on another
  * device: `enterCode` signs in with it, the session landing here just the same.
+ *
+ * A session pending its second step (ADR-0075) takes it here (#688), on the web's own endpoints and with their limits:
+ * an authenticator app's code, a backup code or a passkey of the account's own, which the system is asked for
+ * (`passkeys`). Nothing of it is kept on the device; the session's cookie stays the same, no longer pending.
  */
 import { expoClient } from "@better-auth/expo/client";
-import { APP_ORIGIN, APP_SCHEME, APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED, signInCodeRefusal, typedSignInCode, type SignInCodeRefusal } from "@jobhub/shared";
+import {
+  APP_ORIGIN,
+  APP_SCHEME,
+  APP_SIGN_IN_PATH,
+  SECOND_STEP_ENDPOINT,
+  SECOND_STEP_PASSKEY_ENDPOINT,
+  SECOND_STEP_REQUIRED,
+  secondStepReadSchema,
+  signInCodeRefusal,
+  typedSignInCode,
+  type SignInCodeRefusal,
+} from "@jobhub/shared";
 import { createAuthClient } from "better-auth/client";
 import { emailOTPClient, magicLinkClient } from "better-auth/client/plugins";
 
@@ -36,7 +51,34 @@ export interface SessionStorage {
   deleteItemAsync(key: string): Promise<void>;
 }
 
+/**
+ * What a session pending its step can do: its second step, with the authenticator app's code if the account has one
+ * (`app`; a backup code works either way) and its passkey if it has one and the device can use it (`passkey`); or, for
+ * an account that must have Two-step verification and has no factor yet (a Human Coach), set it up on the web first.
+ */
+export type SecondStepChoice = { kind: "factors"; app: boolean; passkey: boolean } | { kind: "setup" };
+
+/**
+ * How a second step went: the session it leaves (signed in); or refused, the session still pending: a wrong code or a
+ * passkey not of this account (`invalid`), too many wrong ones (`locked` until `retryAt`), the passkey not used
+ * (`cancelled`), or the web app not reached or not answering (`error`).
+ */
+export type SecondStepOutcome =
+  | { ok: true; session: SessionState }
+  | { ok: false; error: "invalid" | "cancelled" | "error" }
+  | { ok: false; error: "locked"; retryAt: Date };
+
+/** The system's passkeys (src/session/device-passkeys.ts): the Keychain's on iOS, Credential Manager's on Android. */
+export interface DevicePasskeys {
+  /** Whether the system can use a passkey on this device. */
+  supported(): boolean;
+  /** The system's answer to `request` (WebAuthn's options, as JSON), a passkey of the site signing it; null when none was used. */
+  sign(request: unknown): Promise<unknown | null>;
+}
+
 export interface AppSession {
+  /** The web app it is a session of (its pages open in a WebView, src/web-pages). */
+  readonly baseURL: string;
   /** Emails a magic link to `email` for the app; false when the web app refused or could not be reached. */
   askLink(email: string): Promise<boolean>;
   /** Signs in with a magic link the app was opened with; null when `url` is not one. */
@@ -47,7 +89,18 @@ export interface AppSession {
   current(): Promise<SessionState>;
   /** Revokes the session on the web app, as signing out there does, and empties secure storage, reachable or not. */
   signOut(): Promise<void>;
+  /** What the session pending its step can do; null when it has nothing pending. Throws when the web app cannot be reached. */
+  secondStep(): Promise<SecondStepChoice | null>;
+  /** The second step with the authenticator app's code or a backup code. */
+  verifyCode(code: string): Promise<SecondStepOutcome>;
+  /** The second step with a passkey of the account's own, asked of the system. */
+  verifyPasskey(): Promise<SecondStepOutcome>;
+  /** The session's cookies, for a WebView of the web app to send to its host alone (src/web-pages); none when signed out. */
+  webCookies(): Promise<{ name: string; value: string }[]>;
 }
+
+/** An endpoint's answer: its status, and its body. */
+type Answer = { status: number; body: Record<string, unknown> };
 
 /** The keys of secure storage the session is kept under. */
 const STORAGE_PREFIX = "jobbbox";
@@ -55,7 +108,17 @@ const STORED = [`${STORAGE_PREFIX}_cookie`, `${STORAGE_PREFIX}_session_data`];
 /** Where the app asks its magic link to return (app-sign-in.ts on the web turns it into APP_SIGN_IN_PATH). */
 const RETURN_ADDRESS = `${APP_ORIGIN}${APP_SIGN_IN_PATH}`;
 
-export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }: { baseURL: string; storage: SessionStorage; fetch?: typeof globalThis.fetch }): AppSession {
+export function createAppSession({
+  baseURL,
+  storage,
+  passkeys,
+  fetch = globalThis.fetch,
+}: {
+  baseURL: string;
+  storage: SessionStorage;
+  passkeys: DevicePasskeys;
+  fetch?: typeof globalThis.fetch;
+}): AppSession {
   const client = createAuthClient({
     baseURL,
     // The session is asked of the web app each time: a revocation shows at the next request, never hidden by a cache.
@@ -75,6 +138,36 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
     return { kind: "signedIn", email: data.user.email };
   }
 
+  /**
+   * A call to one of the web app's second-step endpoints, with the session's cookie and the app's origin, as the
+   * client's own calls (@better-auth/expo): its answer's body, and its status. Throws when the web app cannot be reached.
+   */
+  async function secondStepCall(path: string, body?: object): Promise<Answer> {
+    const { data, error } = await client.$fetch<Record<string, unknown>>(new URL(path, baseURL).toString(), body ? { method: "POST", body } : { method: "GET" });
+    if (error) {
+      if (!error.status) throw new Error("the web app could not be reached");
+      return { status: error.status, body: error as unknown as Record<string, unknown> };
+    }
+    return { status: 200, body: data ?? {} };
+  }
+
+  /** What a second step's answer says: the session it leaves, or why it was refused. */
+  async function outcomeOf(call: () => Promise<Answer | "cancelled">): Promise<SecondStepOutcome> {
+    let answer: Answer | "cancelled";
+    try {
+      answer = await call();
+    } catch {
+      return { ok: false, error: "error" };
+    }
+    if (answer === "cancelled") return { ok: false, error: "cancelled" };
+    const { status, body } = answer;
+    if (status === 200) return { ok: true, session: await current().catch((): SessionState => ({ kind: "secondStep" })) };
+    // The client's JSON reader turns an ISO date into a Date already.
+    const retryAt = typeof body.retryAt === "string" || body.retryAt instanceof Date ? new Date(body.retryAt) : null;
+    if (status === 429 && retryAt && !Number.isNaN(retryAt.getTime())) return { ok: false, error: "locked", retryAt };
+    return { ok: false, error: body.error === "invalid_code" || body.error === "invalid_passkey" ? "invalid" : "error" };
+  }
+
   // One at a time: a session read that finds none must not forget the cookie a link has just brought.
   let queue: Promise<unknown> = Promise.resolve();
   const serial = <T>(operation: () => Promise<T>): Promise<T> => {
@@ -84,6 +177,8 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
   };
 
   return {
+    baseURL,
+
     async askLink(email) {
       try {
         const { error } = await client.signIn.magicLink({ email, callbackURL: RETURN_ADDRESS });
@@ -128,6 +223,35 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
           // Offline: the session stays on the web app until it expires or is revoked from Mon compte, never on the device.
         }
         await forget();
+      }),
+
+    async secondStep() {
+      const { status, body } = await secondStepCall(SECOND_STEP_ENDPOINT);
+      if (status !== 200) return null;
+      const read = secondStepReadSchema.parse(body);
+      if (read.step === null) return null;
+      if (read.step === "setup") return { kind: "setup" };
+      return { kind: "factors", app: read.app, passkey: read.passkey && passkeys.supported() };
+    },
+
+    verifyCode: (code) => outcomeOf(() => secondStepCall(SECOND_STEP_ENDPOINT, { code: code.trim() })),
+
+    async webCookies() {
+      const header = await client.getCookie();
+      return header
+        .split("; ")
+        .filter((pair) => pair.includes("="))
+        .map((pair) => ({ name: pair.slice(0, pair.indexOf("=")), value: pair.slice(pair.indexOf("=") + 1) }));
+    },
+
+    verifyPasskey: () =>
+      outcomeOf(async () => {
+        const challenge = await secondStepCall(SECOND_STEP_PASSKEY_ENDPOINT, {});
+        if (challenge.status !== 200) return challenge;
+        // The system's sheet: cancelled, or no passkey of the site on the device, the session stays pending.
+        const response = await passkeys.sign(challenge.body.options).catch(() => null);
+        if (!response) return "cancelled";
+        return secondStepCall(SECOND_STEP_PASSKEY_ENDPOINT, { response });
       }),
   };
 }

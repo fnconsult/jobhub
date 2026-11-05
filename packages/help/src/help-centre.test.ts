@@ -104,6 +104,8 @@ const COACH_SPACE_ARTICLES = {
   "faq-retired-human-coach": "faq",
   // #665: why a Human Coach is asked for Two-step verification.
   "faq-coach-two-step-verification": "faq",
+  // #688: the same, in the app.
+  "faq-coach-app-two-step-verification": "faq",
   "tutorial-coach-session-date": "tutorial",
   "tutorial-coach-review": "tutorial",
 } as const;

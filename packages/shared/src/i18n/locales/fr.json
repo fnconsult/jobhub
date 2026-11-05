@@ -5960,6 +5960,28 @@
       "failed": "Ceci n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
       "retry": "Réessayer",
       "offline": "Hors ligne : ceci se chargera dès le retour du réseau."
+    },
+    "coaching": {
+      "loading": "Chargement de vos coachs…",
+      "loadError": "Vos coachs et vos séances n'ont pas pu être chargés. Réessayez dans quelques instants.",
+      "payment": {
+        "waiting": "Paiement reçu. Nous attendons sa confirmation par Stripe : votre séance apparaît ici dans un instant.",
+        "maybe": "Si vous avez payé, votre séance apparaît ici dès que Stripe a confirmé le paiement.",
+        "slow": "La confirmation tarde. Si vous avez payé, votre séance apparaîtra ici ; la confirmation de commande vous est aussi envoyée par e-mail.",
+        "refresh": "Actualiser",
+        "recorded": "Votre séance avec {{name}} est payée. Choisissez maintenant votre créneau sur sa page de réservation, puis saisissez la date ici.",
+        "cancelled": "Paiement annulé : aucune séance n'a été réservée."
+      },
+      "order": {
+        "loading": "Chargement de votre commande…",
+        "opening": "Ouverture du paiement…",
+        "failed": "Le paiement n'a pas pu démarrer. Vérifiez votre connexion et réessayez.",
+        "inBrowser": "Le paiement s'ouvre sur la page sécurisée de Stripe, sans quitter l'app."
+      },
+      "session": {
+        "date": "Date de la séance (jj/mm/aaaa)",
+        "time": "Heure, à Paris (hh:mm)"
+      }
     }
   },
   "coachProposals": {
@@ -6147,5 +6169,13 @@
       "coaching_session_paid": "Séance de coaching payée",
       "coaching_session_changed_by_candidate": "Séance déplacée ou annulée par un candidat"
     }
+  },
+  "coachingPayment": {
+    "title": "Paiement terminé",
+    "body": "Revenez dans l'app Jobbbox : votre séance y apparaît dès que Stripe a confirmé le paiement, avec le lien pour choisir votre créneau.",
+    "cancelledTitle": "Paiement annulé",
+    "cancelledBody": "Aucun paiement n'a été fait. Vous pourrez réserver une séance plus tard depuis l'app.",
+    "backToApp": "Revenir dans l'app Jobbbox",
+    "onWeb": "Voir mes coachs humains sur le site"
   }
 }

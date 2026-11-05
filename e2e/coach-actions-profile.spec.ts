@@ -1,6 +1,6 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { newAddress } from "./support/mailbox";
@@ -164,7 +164,9 @@ test.describe("the Coach Actions « Profil » (#719)", () => {
     await expect(pane.getByRole("heading", { level: 2 })).toBeFocused();
     await expect(pane.getByRole("listitem")).toHaveCount(2);
     await expect(pane).toContainText("Pilotage financier d'un groupe industriel.");
-    // The Candidate rejects putting SAP forward, keeps the rephrasing.
+    // None accepted in advance (ADR-0077): the Candidate accepts the rephrasing and rejects putting SAP forward.
+    for (const accept of await pane.getByRole("button", { name: fr.tailoredCv.accept, exact: true }).all()) await expect(accept).toHaveAttribute("aria-pressed", "false");
+    await pane.getByRole("button", { name: fr.tailoredCv.accept, exact: true }).nth(0).click();
     await pane.getByRole("button", { name: fr.tailoredCv.reject, exact: true }).nth(1).click();
     expect((await new AxeBuilder({ page }).include(".coach-proposal-form").analyze()).violations).toEqual([]);
     await pane.getByRole("button", { name: texts.review.save, exact: true }).click();

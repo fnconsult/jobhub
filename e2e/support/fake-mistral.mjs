@@ -71,7 +71,10 @@
 // A Candidate message holding "E2E_COACH_TOOL=<name>:<json>" (#712, Coach Actions) has the AI Coach, offered tools it may
 // call, call that tool with those arguments (a `tool_calls` reply, printing "[fake-mistral] tool call <name>" to the server
 // log); sent its result back, it answers "Résultat de l'outil « <name> » : <result>" (an error result as Mistral is sent
-// it, "Error: …"). Asked for text only (tool_choice "none") before any call, it answers as without the marker.
+// it, "Error: …"). Several markers (#788): each tool in turn, one a round, then the last one's result, which
+// "E2E_COACH_SLOW=<ms>" delays as it delays a reply. Asked for text only (tool_choice "none") before any call, it answers as
+// without the marker. With "E2E_COACH_SILENT" in the message too, its answer once the result came back holds no text but the
+// hidden mark line, "[jobbbox:non]", as Claude answered on the Beta (#784).
 // "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
 // steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
@@ -115,7 +118,7 @@ globalThis.fetch = async (input, init) => {
     return new Response(JSON.stringify({ object: "error", message: `Invalid model: ${body.model}`, type: "invalid_model", code: "1500" }), { status: 400, headers: { "content-type": "application/json" } });
   }
 
-  const toolCall = coachToolCall(body);
+  const toolCall = coachToolCall(body, input instanceof Request ? input.signal : init?.signal);
   if (toolCall) return toolCall;
 
   let content = "fake reply";
@@ -127,6 +130,10 @@ globalThis.fetch = async (input, init) => {
     // No verdict within the check's time (#261: guardrail_timeout), and a verdict that is not JSON (invalid_verdict).
     // Aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason at once, as fetch does.
     if (prompt.includes("E2E_GUARDRAIL_SLOW")) await answerAfter(12_000, input instanceof Request ? input.signal : init?.signal);
+    // "E2E_DATA_CHECK_SLOW=<ms>" in what a Coach Action read has its check take that long (#788), so the conversation shows
+    // its « Vérification » live, after the read's line.
+    const slowCheck = /E2E_DATA_CHECK_SLOW=(\d+)/.exec(prompt)?.[1];
+    if (slowCheck && system.startsWith("Tu contrôles des données")) await answerAfter(Number(slowCheck), input instanceof Request ? input.signal : init?.signal);
     if (prompt.includes("E2E_GUARDRAIL_GARBLED")) return completion(body, "this is not a verdict");
     // A provider refusing with an error that echoes the key, an email address and a long text (#259: stored scrubbed, redacted and cut).
     if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });
@@ -329,20 +336,38 @@ globalThis.fetch = async (input, init) => {
  * The reply E2E_COACH_TOOL scripts (see above), when the latest Candidate message holds it and the AI Coach was offered
  * tools: the tool call, or once its result came back, the text saying it. Null otherwise.
  */
-function coachToolCall(body) {
+function coachToolCall(body, signal) {
   const messages = body.messages ?? [];
-  const asked = /E2E_COACH_TOOL=([\w-]+):(\{.*\})/.exec(String(messages.filter((message) => message.role === "user").at(-1)?.content ?? ""));
-  if (!asked || !Array.isArray(body.tools) || body.tools.length === 0) return null;
-  const [, name, args] = asked;
+  const lastAsked = messages.findLastIndex((message) => message.role === "user");
+  // Each marker, in order: its tool's name and its arguments (#788: several are called in turn, one a round).
+  const asked = String(messages[lastAsked]?.content ?? "")
+    .split("E2E_COACH_TOOL=")
+    .slice(1)
+    .flatMap((marker) => {
+      const found = /^([\w-]+):(\{.*\})/s.exec(marker.trim());
+      return found ? [{ name: found[1], args: found[2] }] : [];
+    });
+  if (asked.length === 0 || !Array.isArray(body.tools) || body.tools.length === 0) return null;
+  // The calls made since the Candidate's message, and the results of the last one.
+  const called = messages.slice(lastAsked + 1).filter((message) => message.role === "assistant" && message.tool_calls?.length).length;
   const results = [];
   for (let index = messages.length - 1; index >= 0 && messages[index].role === "tool"; index -= 1) results.unshift(String(messages[index].content));
-  if (results.length > 0) return completion(body, `Résultat de l'outil « ${name} » : ${results.join("\n")}`);
-  if (body.tool_choice === "none") return null;
-  console.log(`[fake-mistral] tool call ${name}`);
+  const silent = String(messages[lastAsked]?.content ?? "").includes("E2E_COACH_SILENT");
+  const next = asked[called];
+  if (results.length > 0 && (!next || body.tool_choice === "none")) {
+    // E2E_COACH_SLOW: the answer written after the calls takes that long too (#788), so its step is seen live.
+    const slow = Number(/E2E_COACH_SLOW=(\d+)/.exec(String(messages[lastAsked]?.content ?? ""))?.[1] ?? 0);
+    const answer = () => completion(body, silent ? "[jobbbox:non]" : `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
+    return slow > 0 ? answerAfter(slow, signal).then(answer) : answer();
+  }
+  if (body.tool_choice === "none" || !next) return null;
+  console.log(`[fake-mistral] tool call ${next.name}`);
   return Response.json({
     id: "cmpl_e2e_tool",
     model: body.model ?? "mistral-large-latest",
-    choices: [{ index: 0, message: { role: "assistant", content: "", tool_calls: [{ id: "e2eTool01", type: "function", function: { name, arguments: args } }] }, finish_reason: "tool_calls" }],
+    choices: [
+      { index: 0, message: { role: "assistant", content: "", tool_calls: [{ id: `e2eTool0${called + 1}`, type: "function", function: { name: next.name, arguments: next.args } }] }, finish_reason: "tool_calls" },
+    ],
     usage: { prompt_tokens: 100, completion_tokens: 20 },
   });
 }

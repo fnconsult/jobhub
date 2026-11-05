@@ -1,6 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
+import { signInCopy, type SignInProviderButton } from "@jobhub/shared/sign-in-providers";
+import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import { AppState, Platform, View, type TextInputProps } from "react-native";
 import { useForgetReads } from "../offline/read-cache";
 import { space } from "../theme/theme";
@@ -12,16 +14,23 @@ import { SecondStepScreen } from "./SecondStepScreen";
 
 const SIGNED_OUT: SessionState = { kind: "signedOut" };
 
+/** The session as the gate knows it; `offline`: not known, the web app could not be asked (it may still be valid). */
+type GateState = SessionState & { offline?: true };
+const UNKNOWN_OFFLINE: GateState = { kind: "signedOut", offline: true };
+
 /**
- * The link each session's gate last opened. Forgetting the reads starts the gate again (ReadCacheProvider), with the
- * app's address unchanged: the link it signed in with is not opened a second time, to be told it is no longer valid.
+ * The link each session's gate last opened: should the gate start again with the app's address unchanged, the link it
+ * signed in with is not opened a second time, to be told it is no longer valid.
  */
 const OPENED = new WeakMap<AppSession, string>();
 
 interface SessionContextValue {
   /** Revokes the session and empties secure storage (app-session.ts); the app is back on sign-in. */
   signOut: () => Promise<void>;
-  /** Reads the session again from the web app, as when the app comes back to the foreground: signed out once it is gone. */
+  /**
+   * Reads the session again from the web app, as when the app comes back to the foreground: signed out once it is gone.
+   * A read answered 401 does (src/api/reads.ts), and a web page that lands on sign-in (src/web-pages).
+   */
   recheck: () => Promise<void>;
   /** The web app whose pages open inside the app (src/web-pages), and the session's cookies they are given. */
   webPages: Pick<AppSession, "baseURL" | "webCookies" | "cookie">;
@@ -44,33 +53,62 @@ export const useSession = () => useContext(SessionContext);
  * signs in. The session is asked again each time the app comes back to the foreground, so a revocation from Mon compte
  * on the web signs the app out at that request.
  */
-export function SessionGate({ session, link, children }: { session: AppSession; link: string | null; children: ReactNode }) {
-  const [state, setState] = useState<SessionState | null>(null);
+export function SessionGate({
+  session,
+  link,
+  forgetOnDevice,
+  children,
+}: {
+  session: AppSession;
+  link: string | null;
+  /** What the device keeps for the session, besides the session itself, forgotten once it ends (the Tailored Documents downloaded). */
+  forgetOnDevice?: () => Promise<void>;
+  children: ReactNode;
+}) {
+  const [state, setState] = useState<GateState | null>(null);
   const [linkInvalid, setLinkInvalid] = useState(false);
+  // Everything the device kept for a session, forgotten in this one place once it ends, however it ends, and before
+  // another starts (#695): the reads, in memory and on the device, a write still waiting included (#701), so the next
+  // sign-in reads afresh (its CGU to accept among them, #689); the WebViews' cookies (#689); and `forgetOnDevice`.
+  // Nothing below the gate is shown then, so the screens need not start again.
   const forgetReads = useForgetReads();
-  // The state as last set, read when the session is found gone (a render may not have shown it yet).
-  const known = useRef<SessionState | null>(null);
-  const settle = useCallback(
-    async (next: SessionState) => {
-      // A session ended anywhere but the app's own sign-out (a web page in a WebView, the Account deleted there, a
-      // revocation from Mon compte on the web, an expiry): its reads go too before sign-in shows, as at sign-out (#701),
-      // so the next sign-in reads afresh (its CGU to accept among them). Forgetting starts this gate again, which then
-      // finds the session gone with nothing known before: it forgets once.
-      if (next.kind === "signedOut" && known.current && known.current.kind !== "signedOut") await forgetReads();
-      known.current = next;
-      setState(next);
+  const forgetSession = useCallback(async () => {
+    await forgetReads({ restart: false }).catch(() => undefined);
+    await session.forgetWebViews().catch(() => undefined);
+    if (forgetOnDevice) await forgetOnDevice().catch(() => undefined);
+  }, [forgetReads, session, forgetOnDevice]);
+
+  // Signed out here, revoked from Mon compte, expired, a read answered 401, a web page in a WebView that lands on
+  // sign-in (signed out there, or the Account deleted): whichever way the web app says the session ended, or found
+  // ended at launch. Not while the web app cannot be asked: the session may still be valid.
+  const ended = state !== null && state.kind !== "signedIn" && !state.offline;
+  useEffect(() => {
+    if (ended) void forgetSession();
+  }, [ended, forgetSession]);
+
+  /** A sign-in (a link, a code) starts afresh: nothing of a session before it, even one not known to have ended. */
+  const startSession = useCallback(
+    async (outcome: SessionState) => {
+      if (outcome.kind === "signedIn") {
+        setState(null);
+        await forgetSession();
+      }
+      setState(outcome);
     },
-    [forgetReads],
+    [forgetSession],
   );
+
+  const settle = useCallback((outcome: SessionState) => void startSession(outcome), [startSession]);
 
   const refresh = useCallback(
     () =>
-      session.current().then(settle, () => {
-        // Offline: as it was; signed out if nothing is known yet (the session stays in secure storage for the next time).
-        known.current ??= SIGNED_OUT;
-        setState(known.current);
+      session.current().then(setState, async () => {
+        // Offline: as it was; signed out if nothing is known yet, the session staying in secure storage for the next
+        // time. With no session stored there is none to be valid: signed out, and what the device kept is forgotten.
+        const stored = await session.cookie().catch(() => "");
+        setState((current) => current ?? (stored ? UNKNOWN_OFFLINE : SIGNED_OUT));
       }),
-    [session, settle],
+    [session],
   );
 
   useEffect(() => {
@@ -88,32 +126,41 @@ export function SessionGate({ session, link, children }: { session: AppSession; 
       OPENED.set(session, link);
       if (!current || !outcome) return;
       setLinkInvalid(outcome.kind === "invalidLink");
-      if (outcome.kind !== "invalidLink") void settle(outcome);
+      if (outcome.kind !== "invalidLink") void startSession(outcome);
     });
     return () => {
       current = false;
     };
-  }, [session, link, settle]);
+  }, [session, link, startSession]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
+      // ADR-0076: what the device kept is forgotten before the session is dropped, so a sign-out cut short (the app
+      // killed) never leaves it without its session. The screens go first, so none reads again in between. From the
+      // app and from the second step alike.
       signOut: async () => {
-        // The read cache goes first, a write still waiting included (#701), then the session is dropped.
-        await forgetReads();
+        setState(null);
+        await forgetSession();
         await session.signOut();
-        known.current = SIGNED_OUT;
         setState(SIGNED_OUT);
       },
       recheck: refresh,
       webPages: session,
     }),
-    [session, forgetReads, refresh],
+    [session, refresh, forgetSession],
   );
 
   if (!state) return null;
   return (
     <SessionContext.Provider value={value}>
-      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStepScreen session={session} onSettled={settle} onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={settle} />}
+      {state.kind === "signedIn" ? (
+        children
+      ) : state.kind === "secondStep" ? (
+        // The second step taken, the session starts afresh, as any sign-in does: nothing of an earlier one shows.
+        <SecondStepScreen session={session} onSettled={settle} onSignOut={value.signOut} />
+      ) : (
+        <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} onSignedIn={settle} />
+      )}
     </SessionContext.Provider>
   );
 }
@@ -148,21 +195,49 @@ const CODE_FIELD = {
 } as const satisfies TextInputProps;
 
 /**
- * Sign-in by magic link: the email, « Recevoir mon lien de connexion », then waiting for the link, or « Saisir le code
- * reçu par e-mail » beside it (#686): the code signs in here (`onSignedIn`) when the email is read on another device. A
- * link no longer valid (`linkInvalid`) is said on either step, until another is asked (`onAskLink`); a code refused,
- * until another is typed or another email asked.
+ * Sign-in as on the web's sign-in page: « Continuer avec … » for each Sign-in Provider shown to Candidates (#687), which
+ * opens it in the system's authentication browser, « ou », then the magic link: the email, « Recevoir mon lien de
+ * connexion », then waiting for the link, or « Saisir le code reçu par e-mail » beside it (#686): the code signs in here
+ * (`onSignedIn`) when the email is read on another device. The intro and a provider's refusal are the web's words
+ * (signInCopy); a person closing the browser or leaving the provider's page is back on the screen as it was. A link no
+ * longer valid (`linkInvalid`) is said on either step, until another is asked (`onAskLink`); a code refused, until
+ * another is typed or another email asked.
  */
 function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppSession; linkInvalid: boolean; onAskLink: () => void; onSignedIn: (state: SessionState) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<Step>(FORM);
+  const [providers, setProviders] = useState<SignInProviderButton[]>([]);
+  /** The provider being signed in through, while the system's browser is open. */
+  const [continuing, setContinuing] = useState<string | null>(null);
+  /** The code the last sign-in through a provider came back refused with. */
+  const [providerError, setProviderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let current = true;
+    void session.providers().then((shown) => current && setProviders(shown));
+    return () => {
+      current = false;
+    };
+  }, [session]);
+
+  const continueWith = async (providerId: string) => {
+    onAskLink();
+    setProviderError(null);
+    setContinuing(providerId);
+    const outcome = await session.continueWith(providerId);
+    setContinuing(null);
+    if (outcome.kind === "cancelled") return;
+    if (outcome.kind === "providerRefused") setProviderError(outcome.error);
+    else onSignedIn(outcome);
+  };
 
   const send = async () => {
     const address = email.trim();
     if (!address) return;
     onAskLink();
+    setProviderError(null);
     setCode("");
     setStep(SENDING);
     setStep((await session.askLink(address)) ? { kind: "sent", email: address } : { kind: "form", error: true });
@@ -196,11 +271,28 @@ function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppS
   }
 
   const sending = step.kind === "sending";
-  const error = step.kind === "form" && step.error ? t("signIn.error") : linkInvalid ? t("signIn.linkError") : null;
+  const copy = signInCopy({ providers: providers.map((provider) => provider.displayName), error: providerError }, isSupportedLocale(i18n.language) ? i18n.language : DEFAULT_LOCALE);
+  const error = step.kind === "form" && step.error ? t("signIn.error") : (copy.notice?.text ?? (linkInvalid ? t("signIn.linkError") : null));
   return (
     <GateScreen title={t("signIn.title")}>
-      <AppText tone="secondary">{t("signIn.introWithoutProviders")}</AppText>
+      <AppText tone="secondary">{copy.intro}</AppText>
       {error ? <GateError message={error} /> : null}
+      {providers.length > 0 ? (
+        <View style={{ gap: space[2] }}>
+          {providers.map((provider) => (
+            <Control
+              key={provider.id}
+              look="secondary"
+              label={t("signIn.continueWith", { provider: provider.displayName })}
+              disabled={continuing !== null}
+              onPress={() => void continueWith(provider.id)}
+            />
+          ))}
+          <AppText tone="secondary" centered>
+            {t("signIn.or")}
+          </AppText>
+        </View>
+      ) : null}
       <GateField label={t("signIn.emailLabel")} value={email} onChangeText={setEmail} onSubmitEditing={() => void send()} editable={!sending} {...EMAIL_FIELD} />
       <Control look="primary" label={sending ? t("signIn.sending") : t("signIn.submit")} onPress={() => void send()} />
     </GateScreen>

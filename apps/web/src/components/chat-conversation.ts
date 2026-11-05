@@ -21,6 +21,8 @@ export type ServerMessage = {
   at?: string;
   /** On an AI Coach reply: its Coach proposals' Action Cards (#715). */
   cards?: CoachProposalCard[];
+  /** On an AI Coach reply: what its Coach Actions saw, named by page (#788). */
+  seenNames?: Record<string, string>;
 };
 
 /** A message as it is shown: the person's own, or the AI's reply. */
@@ -31,6 +33,7 @@ export const asShownMessage = (message: ServerMessage): CoachMessage => ({
   ...(message.jobOffer ? { jobOffer: message.jobOffer } : {}),
   ...(message.at ? { provenance: message.provenance ?? null, at: message.at } : {}),
   ...(Array.isArray(message.cards) && message.cards.length > 0 ? { cards: message.cards } : {}),
+  ...(message.seenNames && typeof message.seenNames === "object" ? { seenNames: message.seenNames } : {}),
 });
 
 /** A saved conversation with its messages, as shown. */

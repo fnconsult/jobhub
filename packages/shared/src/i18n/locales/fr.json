@@ -1033,6 +1033,20 @@
     "stopped": "Réponse arrêtée",
     "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
     "thinking": "Votre coach rédige sa réponse…",
+    "consulted": {
+      "summary_one": "Le coach a consulté {{count}} élément de Jobbbox",
+      "summary_other": "Le coach a consulté {{count}} éléments de Jobbbox",
+      "pages": {
+        "application": "Candidature",
+        "applications": "Vos candidatures",
+        "profile": "Profil",
+        "job_search": "Recherche d'offres",
+        "job_searches": "Vos recherches d'offres",
+        "job_offer": "Offre",
+        "job_digest": "Job Digest",
+        "job_digests": "Vos Job Digests"
+      }
+    },
     "errors": {
       "unavailable": "Votre coach ne peut pas répondre pour le moment. Réessayez dans quelques instants.",
       "invalid": "Ce message n'a pas pu être envoyé. Raccourcissez-le et réessayez."
@@ -1065,6 +1079,12 @@
     "blocked": "Message bloqué",
     "widen": "Agrandir",
     "narrow": "Réduire",
+    "emptyReply": {
+      "proposed": "Je vous propose cette modification ci-dessous : relisez-la, puis appliquez-la ou ignorez-la. Rien ne change sans vous.",
+      "masterCvNotProposed": "Je n'ai pas pu préparer cette modification. Je ne propose que ce que votre CV de référence dit déjà, sans élément, compétence ni chiffre qu'il ne contient pas. Pour ajouter des compétences ou des outils, écrivez-les vous-même dans la section « CV de référence » de votre profil, puis enregistrez une nouvelle version.",
+      "notProposed": "Je n'ai pas pu préparer cette modification telle quelle. Dites-moi précisément ce que vous voulez changer, ou faites-le depuis la page concernée.",
+      "none": "Je n'ai pas réussi à vous répondre cette fois. Pouvez-vous reformuler votre demande, ou la découper en plusieurs messages ?"
+    },
     "jobOfferLink": {
       "read": "J'ai lu cette offre et je l'ai ajoutée à Jobbbox. Elle est à traiter : ouvrez-la pour voir son score de correspondance et la suivre avec l'un de vos profils.",
       "forbiddenSite": "Je ne peux pas lire les offres de LinkedIn, Indeed ou Glassdoor : leurs conditions d'utilisation l'interdisent. Ouvrez l'offre dans votre navigateur et ajoutez-la avec l'extension Jobbbox.",
@@ -1115,6 +1135,48 @@
       "foot": "Signalement",
       "reportProblem": "Signaler un problème",
       "suggestIdea": "Proposer une idée"
+    },
+    "seen": {
+      "steps": {
+        "list_objects": "Consulte vos données",
+        "read_profile": "Ouvre le profil",
+        "read_application": "Ouvre la candidature",
+        "read_job_offer": "Ouvre l'offre",
+        "read_job_search": "Ouvre la recherche d'offres",
+        "read_job_digest": "Ouvre le Job Digest",
+        "read_tailored_documents": "Ouvre les documents adaptés"
+      },
+      "count": {
+        "profile_one": "{{count}} profil",
+        "profile_other": "{{count}} profils",
+        "application_one": "{{count}} candidature",
+        "application_other": "{{count}} candidatures",
+        "job_offer_one": "{{count}} offre",
+        "job_offer_other": "{{count}} offres",
+        "job_search_one": "{{count}} recherche d'offres",
+        "job_search_other": "{{count}} recherches d'offres",
+        "job_digest_one": "{{count}} Job Digest",
+        "job_digest_other": "{{count}} Job Digests",
+        "tailored_documents_one": "{{count}} dossier de documents",
+        "tailored_documents_other": "{{count}} dossiers de documents",
+        "agenda_item_one": "{{count}} rendez-vous",
+        "agenda_item_other": "{{count}} rendez-vous",
+        "coach_memory_one": "{{count}} souvenir du coach",
+        "coach_memory_other": "{{count}} souvenirs du coach",
+        "all_one": "{{count}} élément",
+        "all_other": "{{count}} éléments"
+      },
+      "types": {
+        "profile": "Profil",
+        "application": "Candidature",
+        "job_offer": "Offre",
+        "job_search": "Recherche d'offres",
+        "job_digest": "Job Digest",
+        "tailored_documents": "Documents adaptés",
+        "agenda_item": "Rendez-vous",
+        "coach_memory": "Mémoire du coach",
+        "all": "Vos données"
+      }
     }
   },
   "provenanceLine": {
@@ -1526,6 +1588,7 @@
       "title": "Connexion",
       "intro": "Les moyens de connexion, en plus du lien reçu par e-mail : Google, Apple, Microsoft et tout fournisseur OIDC. Une modification s'applique en quelques secondes, sans redéploiement ni déconnexion. Un secret saisi est chiffré et n'est jamais réaffiché.",
       "noMasterKey": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini sur ce serveur.",
+      "appleRequired": "Les candidats voient {{providers}}, mais pas Apple : l'App Store refuse l'app Jobbbox tant qu'une connexion Google ou Microsoft y est proposée sans Apple (règle 4.8). Ajoutez Apple, testez-le, puis proposez-le aux candidats.",
       "ssoTitle": "Connexion de l'équipe",
       "ssoHelp": "Activé, le back office demande à un administrateur connecté par un lien reçu par e-mail de se reconnecter avec un fournisseur autorisé pour les administrateurs. Ses pages de candidat restent accessibles. Les super-admins permanents (ADMIN_EMAILS) ne sont jamais concernés.",
       "ssoLabel": "Exiger un fournisseur de connexion pour les administrateurs",
@@ -5820,6 +5883,17 @@
     "openSampleSection": "Ouvrir une Section d'exemple",
     "sampleSection": "Section d'exemple",
     "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire.",
+    "documents": {
+      "title": "Documents",
+      "none": "Pas encore de document : demandez au coach un CV adapté ou une lettre de motivation.",
+      "updatedOn": "Modifié le {{date}}",
+      "open": "Ouvrir",
+      "share": "Partager",
+      "subject": "Objet : {{subject}}",
+      "readOnly": "Les documents se lisent, se partagent et se téléchargent dans l'app ; ils se modifient sur jobbbox.ai.",
+      "failed": "Le document n'a pas pu être ouvert. Vérifiez votre connexion et réessayez.",
+      "notFound": "Les documents de cette candidature sont introuvables : elle n'existe pas ou n'est pas la vôtre."
+    },
     "appSettings": "Réglages de l'app",
     "appLock": {
       "setting": "Verrouiller l'app",
@@ -5858,7 +5932,26 @@
       "openPosting": "Voir l'annonce",
       "shareLink": "Partager le lien"
     },
-    "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score."
+    "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
+    "profiles": {
+      "positioning": "Positionnement",
+      "contracts": "Contrats",
+      "sectors": "Secteurs",
+      "criterion": "{{label}} : {{value}}",
+      "masterCvVersion": "Version {{version}} · {{name}}",
+      "edit": "Modifier le profil",
+      "editTitle": "Modifier : {{name}}",
+      "editOnWeb": "Le profil se modifie sur jobbbox.ai : « Modifier le profil » ouvre sa page.",
+      "title": "Profil",
+      "none": "Pas encore de profil : créez-en un sur jobbbox.ai.",
+      "notFound": "Ce profil est introuvable : il n'existe pas ou n'est pas le vôtre."
+    },
+    "reads": {
+      "loading": "Chargement…",
+      "failed": "Ceci n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer",
+      "offline": "Hors ligne : ceci se chargera dès le retour du réseau."
+    }
   },
   "coachProposals": {
     "fields": {
@@ -5933,6 +6026,9 @@
     "launchedHint": "Suivez-la dans Activité IA ; « Arrêter » l'interrompt.",
     "dismissed": "Ignoré",
     "undone": "Annulé à {{time}}",
+    "undoNotes": {
+      "status_kept": "Le statut de la candidature avait changé depuis : il est laissé tel quel."
+    },
     "problems": {
       "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
@@ -5953,6 +6049,7 @@
       "open": "Relire les changements",
       "title": "Relire les changements : {{what}}",
       "intro": "Acceptez ou refusez chaque changement que votre coach propose pour « {{name}} ». Seuls les changements acceptés sont enregistrés, en une nouvelle version de votre CV de référence ; un changement refusé garde ce qu'il dit.",
+      "pending": "Chaque changement attend votre « Accepter » ou votre « Refuser » : aucun n'est accepté d'avance.",
       "before": "Avant",
       "after": "Proposé",
       "fromOffer": "Repris d'une de vos offres, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",
@@ -5965,10 +6062,10 @@
     "label": "Propositions du coach",
     "card": "Carte",
     "form": "Formulaire",
-    "hint": "Ce que votre coach IA vous montre d'abord quand il propose un changement : la carte sous sa réponse, ou le formulaire pré-rempli ouvert dans le volet. « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte ; rien n'est appliqué sans vous.",
+    "hint": "Ce que votre coach IA vous montre d'abord quand il propose un changement : la carte sous sa réponse, ou le formulaire pré-rempli de sa première proposition ouvert dans le volet, sans quitter la zone de message. « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte ; rien n'est appliqué sans vous.",
     "saved": {
       "card": "Enregistré : chaque proposition s'affichera en carte sous la réponse.",
-      "form": "Enregistré : le formulaire de chaque proposition s'ouvrira dans le volet."
+      "form": "Enregistré : le formulaire pré-rempli de la première proposition de chaque réponse s'ouvrira dans le volet."
     },
     "error": "Votre choix n'a pas pu être enregistré. Réessayez."
   },

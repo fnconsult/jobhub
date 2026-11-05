@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
 import type { CoachMessage, ConversationContext, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
@@ -10,24 +10,26 @@ import type { SubjectRef } from "@/coach-conversations";
 import type { CoachProposalCard as ProposalCard } from "@/coach-proposals/card";
 import { formOpenedOnArrival, readCoachProposalsDisplay } from "@/coach-proposals-display/choice";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
-import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
 import { fetchConversation } from "@/components/chat-conversation";
 import type { ConversationSummary } from "@/components/CoachConversationList";
 import { focusFirstSuggestion, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
 import { CoachMemoryProposals } from "@/components/CoachMemory";
 import { CoachProposalCard } from "@/components/CoachProposalCard";
-import { CoachReplyText } from "@/components/CoachReplyText";
+import { CoachReplyText, replyWordCount } from "@/components/CoachReplyText";
+import { namesByPage, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "@/components/coach-tool-steps";
+import { CoachLiveSteps, CoachToolsConsulted } from "@/components/CoachToolSteps";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { useOpenSignalement } from "@/components/Signalement";
+import { showLatest } from "@/components/thread-scroll";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/Button";
 import { InfoDialog } from "@/design/Dialog";
 import { readNdjson } from "@/ndjson";
 import { routes } from "@/routes";
-import { formatDuration, formatTokens, isFailureReason, replyActivity, type Activity, type FailureReason, type Provenance, type ProvenanceStep, type StartedStep, type StepLabel } from "@jobhub/shared";
+import { formatDuration, formatTokens, isFailureReason, type FailureReason, type Provenance, type ProvenanceStep, type StartedStep, type StepLabel } from "@jobhub/shared";
 
 /**
  * What a page shows, as its conversation tells the AI Coach with each message.
@@ -75,9 +77,10 @@ type StoppedReply = { from: "stopped"; tokens: number; ms: number };
 /**
  * A message as the page shows it, with what this browser alone knows of an AI Coach reply (#345, never saved):
  * `couldNotAnswer`, the AI Coach marked the question as one it could not answer; `satisfied`, the Candidate's « Oui » or « Non »;
- * `openForm`, the card whose form opened by itself as the reply arrived (« Propositions du coach : Formulaire », #717).
+ * `openForm`, the card whose form opened by itself as the reply arrived (« Propositions du coach : Formulaire », #717);
+ * `revealing`, a reply just arrived whose words are being shown one by one, its count of words (#788).
  */
-type ShownMessage = CoachMessage & { couldNotAnswer?: true; satisfied?: boolean; openForm?: string };
+type ShownMessage = CoachMessage & { couldNotAnswer?: true; satisfied?: boolean; openForm?: string; revealing?: number };
 
 /** What the thread lists: the saved messages and the replies stopped since the page opened. */
 type ThreadMessage = ShownMessage | StoppedReply;
@@ -85,14 +88,17 @@ type ThreadMessage = ShownMessage | StoppedReply;
 /** How long the box waits for the Candidate to stop typing before it looks in the help. */
 const SUGGEST_DELAY_MS = 150;
 
-/** A reply on its way, live (#328): the step under way, with its Activity and label, and the tokens spent so far. */
-type Live = { step: { activity: Activity; label: StepLabel } | null; tokens: number };
+/** How long each word of a reply takes to come (#788): about 28 words a second; then how long one fades in. */
+const WORD_MS = 36;
+const FADE_MS = 240;
+/** The Candidate did not ask for less motion: a reply's words come one by one. */
+const wordsMove = () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: no-preference)").matches;
 
 /** What POST /api/coach streams (see its route). */
 type LiveEvent =
   | { type: "conversation"; conversation: ConversationSummary }
   | { type: "step_started"; id: number; step: StartedStep; label: StepLabel }
-  | { type: "step_ended"; id: number; step: ProvenanceStep }
+  | { type: "step_ended"; id: number; step: ProvenanceStep; names?: readonly (string | null)[] }
   | ({ type: "reply" } & ReplyBody)
   | { type: "stopped"; conversation: ConversationSummary; context?: ConversationContext }
   | { type: "failed"; error: string; reason?: string };
@@ -232,7 +238,8 @@ export function CoachConversationPage(page: PagePlacement) {
   const [status, setStatus] = useState<Status>("idle");
   // Why the last reply failed, its Failure Reason in words (#328), never the technical message.
   const [failure, setFailure] = useState<FailureReason | null>(null);
-  const [live, setLive] = useState<Live | null>(null);
+  // A reply on its way, live (#328, #788): its steps, each a new object the scrolling below follows.
+  const [live, setLive] = useState<LiveReply | null>(null);
   // What the page says of « Effacer » (#601): done, or why not.
   const [notice, setNotice] = useState<{ kind: "status" | "alert"; text: string } | null>(null);
   // Aborts the reply on its way: the Candidate's Stop.
@@ -412,14 +419,28 @@ export function CoachConversationPage(page: PagePlacement) {
     return true;
   }
 
-  // The page scrolls as a page: down to its latest message when the box at its foot hides it. Nothing sent yet, it stays
-  // at its top, on its Introduction.
+  // The thread scrolls in its own column, down to its latest message when the box at its foot hides it, and a reply that
+  // just arrived from its first line (thread-scroll.ts). Nothing sent yet, it stays at its top, on its Introduction.
   useEffect(() => {
     const end = messagesEnd.current;
     if (!end || messages.length === 0) return;
-    const hidden = end.getBoundingClientRect().top - (foot.current?.getBoundingClientRect().top ?? window.innerHeight);
-    if (hidden > 0) window.scrollBy(0, hidden);
-  }, [messages, status]);
+    // The latest reply, finished or still being written, is never scrolled past its first line.
+    const reply = messages.at(-1)?.from === "coach" ? (end.parentElement?.querySelector(".coach-panel-messages > li:last-child") ?? null) : null;
+    showLatest({ end, foot: foot.current, reply });
+    // While the reply is on its way, its steps (and its words) lengthen the thread: it follows them down.
+  }, [messages, status, live]);
+
+  // A reply whose words come one by one (#788) is busy until its last word and what follows it are there.
+  const revealing = messages.findIndex((message) => message.from === "coach" && message.revealing !== undefined);
+  const revealWords = revealing >= 0 ? ((messages[revealing] as ShownMessage).revealing ?? 0) : null;
+  useEffect(() => {
+    if (revealWords === null) return;
+    const timer = setTimeout(
+      () => setMessages((shown) => shown.map((message) => (message.from === "coach" && message.revealing !== undefined ? { ...message, revealing: undefined } : message))),
+      revealWords * WORD_MS + 2 * FADE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [revealWords]);
 
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -445,6 +466,8 @@ export function CoachConversationPage(page: PagePlacement) {
     stopper.current = stop;
     const startedAt = Date.now();
     let spent = 0;
+    // The names of the objects this reply's Coach Actions saw, by page (#788): sent live only, kept with the reply shown.
+    const seenNames: Record<string, string> = {};
     // Started afresh meanwhile (« Effacer », « Nouvelle conversation »): what comes back belongs to no conversation shown.
     const startedIn = generation.current;
     const abandoned = () => {
@@ -454,7 +477,7 @@ export function CoachConversationPage(page: PagePlacement) {
     };
     // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
     let asked: ConversationSummary | null = current;
-    setLive({ step: null, tokens: 0 });
+    setLive(NO_STEP_YET);
     const requested: RequestActionLive | null = aiActivity ? aiActivity.requestAction("coach_reply", pathname, () => stop.abort()) : null;
     replyOnItsWay.current = requested;
     const shownLive: RequestActionLive | null = requested && {
@@ -498,7 +521,10 @@ export function CoachConversationPage(page: PagePlacement) {
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
           ...(cards.length > 0 ? { cards } : {}),
+          ...(Object.keys(seenNames).length > 0 ? { seenNames: { ...seenNames } } : {}),
           ...(openForm ? { openForm } : {}),
+          // Its words one by one, in this browser only: all at once under reduced motion, and from the history.
+          ...(wordsMove() ? { revealing: replyWordCount(body.reply) } : {}),
         },
       ]);
       const at = body.at;
@@ -556,12 +582,13 @@ export function CoachConversationPage(page: PagePlacement) {
           const event = received as LiveEvent;
           if (event.type === "conversation") asked = event.conversation;
           else if (event.type === "step_started") {
-            setLive({ step: { activity: event.step.activity, label: event.label }, tokens: spent });
+            setLive((was) => stepStarted(was ?? NO_STEP_YET, event));
             shownLive?.event({ type: "step_started", id: event.id, step: event.step });
           } else if (event.type === "step_ended") {
             shownLive?.event({ type: "step_ended", id: event.id, step: event.step });
             spent += tokensOf(event.step);
-            setLive((was) => (was ? { ...was, tokens: spent } : was));
+            Object.assign(seenNames, namesByPage(event));
+            setLive((was) => (was ? stepEnded(was, event) : was));
           } else {
             ended = true;
             if (event.type === "reply") answered(event);
@@ -664,13 +691,19 @@ export function CoachConversationPage(page: PagePlacement) {
                   <StoppedReplyLine reply={message} />
                 </li>
               ) : (
-                <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
+                <li
+                  key={index}
+                  className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}${message.from === "coach" && message.revealing !== undefined ? " chat-revealing" : ""}`}
+                  aria-busy={(message.from === "coach" && message.revealing !== undefined) || undefined}
+                  style={message.from === "coach" && message.revealing !== undefined ? ({ "--reply-words": message.revealing } as CSSProperties) : undefined}
+                >
                   <span className="visually-hidden">{message.from === "coach" ? t("questionnaire.coach") : t("questionnaire.you")}</span>
-                  {/* A reply is unframed text after the glyph of what it did last (#464); the Candidate's words, a bubble. */}
-                  {message.from === "coach" ? <ActivityGlyph activity={replyActivity(message.provenance ?? null)} /> : null}
+                  {/* A reply is unframed text, the thread's full width, no glyph once it is there (#788); the Candidate's words, a bubble. */}
                   {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
-                  {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
+                  {message.from === "coach" ? <CoachReplyText text={message.text} reveal={message.revealing !== undefined} /> : <p>{message.text}</p>}
                   {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
+                  {/* What the AI Coach consulted in Jobbbox (#788), folded, before the Provenance line. */}
+                  {message.from === "coach" ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
                   {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
                   {/* Its Coach proposals (#715), each an Action Card, after its Provenance line. */}
                   {message.from === "coach" && message.cards?.length
@@ -696,12 +729,7 @@ export function CoachConversationPage(page: PagePlacement) {
               <p className="visually-hidden" role="status">
                 {t("coachPanel.thinking")}
               </p>
-              {live.step ? (
-                <p className="coach-panel-step">
-                  <ActivityGlyph activity={live.step.activity} live />
-                  {t(`aiActivity.steps.${live.step.label}`)}
-                </p>
-              ) : null}
+              <CoachLiveSteps live={live} />
             </>
           ) : null}
           {status === "unavailable" || status === "invalid" ? (

@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: An application's page
-synonyms: [application, documents, match, interviews, company dossier, cover letter, status]
+synonyms: [application, documents, match, interviews, company dossier, cover letter, status, app, iphone, ipad, android, share, download, pdf]
 route: /candidatures/[id]
 ---
 An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.
@@ -19,3 +19,5 @@ Your coach can propose to change the application's status (up to « Rejected » 
 Your coach can also propose to prepare your tailored CV, or to draft your cover letter or outreach message: it never writes them in its reply. The proposal shows under its reply. « Prepare » starts the tailored CV proposal, which then opens beside the conversation for you to accept or reject each change; it never replaces the tailored CV already saved. If a tailored CV proposal is still waiting for your review, the proposal says so and asks you to confirm replacing it, your answers included: « Replace and prepare » or « Keep my proposal ». « Draft » starts writing the draft; if there is one already, the proposal says so and asks you to confirm replacing it, your edits included: « Replace and draft » or « Keep my draft ». While it is being prepared, « Stop » ends it and nothing is kept. A preparation started cannot be undone: stop it.
 
 On a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation.
+
+In the Jobbbox app (iPhone, iPad, Android), an application's fiche lists its documents: its tailored CV, its cover letter and its outreach message, with their language and the date they last changed. Tap a document to open it: it shows as a PDF in your phone's reader, Quick Look on iPhone and iPad, your PDF viewer on Android, and stays open beside it with « Open », « Share », « Download as PDF » and « Download as Word ». « Share » and « Download » go through the share sheet: save the file in Files, or send it by Mail or another app. The outreach message shows as text, with its subject: « Share » sends it as it is. The files you open stay in the app until you sign out, which deletes them from the device. In the app, documents are read, shared and downloaded; they are changed on jobbbox.ai.

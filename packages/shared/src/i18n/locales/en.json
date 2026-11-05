@@ -5493,7 +5493,8 @@
       "coach-ia": "AI Coach",
       "confidentialite": "Privacy",
       "accessibilite": "Accessibility",
-      "recherche": "Job search"
+      "recherche": "Job search",
+      "documents": "Documents"
     },
     "changes": {
       "new": "New",
@@ -5831,7 +5832,15 @@
       "searchOn": "On the profile's criteria: {{criteria}}",
       "searching": "Running since {{time}}",
       "stopped": "Stopped, the job offers already found kept",
-      "noDigest": "No Job Digest"
+      "noDigest": "No Job Digest",
+      "noTailoredCv": "No tailored CV",
+      "tailoredCvSaved": "Tailored CV saved on {{date}}, kept as it is",
+      "tailoredCvProposal": "A proposal to review change by change · {{language}}",
+      "noDraft": "No draft",
+      "draftOf": "Draft of {{date}}",
+      "draftEdited": "Draft of {{date}}, edited since",
+      "newDraft": "A draft written by your AI coach · {{language}}",
+      "replacesDraft": "Your current draft will be replaced, your edits included."
     },
     "quota": {
       "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
@@ -5845,6 +5854,12 @@
     "changeOf": "{{what}}:",
     "apply": "Apply",
     "launch": "Launch",
+    "prepare": "Prepare",
+    "draft": "Draft",
+    "confirmReplace": "Replace your current draft, your edits included?",
+    "confirmYes": "Replace and draft",
+    "confirmNo": "Keep my draft",
+    "runHint": "The document is in the application's documents; if it was stopped, nothing was kept.",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
     "undo": "Undo",
@@ -5860,7 +5875,8 @@
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
       "invalid": "What you entered does not fit: check the form.",
       "failed": "The proposal could not be processed. Try again or reload the page.",
-      "noneAccepted": "Accept at least one change to save, or ignore the proposal."
+      "noneAccepted": "Accept at least one change to save, or ignore the proposal.",
+      "runFailed": "The document could not be prepared. Try again from the application's documents."
     },
     "masterCv": {
       "version": "Version {{version}}",

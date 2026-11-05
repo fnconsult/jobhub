@@ -627,6 +627,66 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     });
   });
 
+  describe("the AI Coach's Eval Run with the Documents Coach Actions (#721)", () => {
+    const ACTIONS = { propose_tailored_cv: "documents-tailored-cv-", propose_cover_letter: "documents-cover-letter-", propose_outreach_message: "documents-outreach-message-" };
+    const ofAction = (name: keyof typeof ACTIONS) => AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith(ACTIONS[name]));
+    /** Another of these actions than `name`: a proposal made with the wrong one. */
+    const OTHER = { propose_tailored_cv: "propose_cover_letter", propose_cover_letter: "propose_outreach_message", propose_outreach_message: "propose_tailored_cv" } as const;
+
+    /** The AI layer with a Mistral that, offered these Coach Actions, proposes what `choose` says for the case it is asked about. */
+    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null) {
+      const proposing: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
+          const asked = input.messages.map((message) => (typeof message.content === "string" ? message.content : "")).join("\n");
+          const call = input.tools?.some((tool) => tool.name === "propose_cover_letter") && input.toolChoice !== "none" && !answered ? choose(asked) : null;
+          return call ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
+        },
+      };
+      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+    }
+
+    it("has, for each action, a case to propose it, one not asking for it, one with an instruction hidden in the Job Offer of the Application In view", () => {
+      for (const name of Object.keys(ACTIONS) as (keyof typeof ACTIONS)[]) {
+        const cases = ofAction(name);
+        expect(cases.filter((each) => each.proposal?.action === name && each.proposes === true).length, name).toBeGreaterThanOrEqual(1);
+        expect(cases.filter((each) => each.proposes === false && !/injection/.test(each.id)).length, name).toBeGreaterThanOrEqual(1);
+        expect(cases.filter((each) => each.proposes === false && /injection/.test(each.id)).length, name).toBeGreaterThanOrEqual(1);
+        for (const each of cases) expect(each.inView, each.id).toMatchObject({ kind: "application" });
+      }
+      // « écris-moi une lettre » on an Application: a card, never a letter in the thread.
+      expect(AI_COACH_EVAL_CASES.find((each) => each.id === "documents-cover-letter-right")).toMatchObject({
+        message: expect.stringMatching(/écris-moi une lettre/i),
+        proposal: { action: "propose_cover_letter" },
+        criteria: expect.stringMatching(/ne contient aucune lettre/),
+      });
+    });
+
+    it("scores 0 a case expecting a proposal the AI Coach does not make, or makes with another action; judges it when it makes the right one", async () => {
+      const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && each.proposal.action in ACTIONS);
+      const right = proposingEvals((asked) => {
+        const each = expected.find((one) => asked.includes(one.message));
+        return each ? { name: each.proposal!.action, arguments: {} } : null;
+      });
+      const wrong = proposingEvals((asked) => {
+        const each = expected.find((one) => asked.includes(one.message));
+        return each ? { name: OTHER[each.proposal!.action as keyof typeof OTHER], arguments: {} } : null;
+      });
+
+      const [none, judged, other] = [await evals.runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
+
+      expect(expected.length).toBe(3);
+      for (const each of expected) {
+        expect(none.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
+        expect(judged.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
+        expect(other.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0 });
+      }
+    });
+  });
+
   describe("the AI Coach's Eval Run with read Coach Actions (#714)", () => {
     const CROSSING = "coach-action-read-two-objects";
 

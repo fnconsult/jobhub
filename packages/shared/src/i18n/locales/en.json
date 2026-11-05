@@ -5966,6 +5966,9 @@
     "launchedHint": "Follow it in AI activity; “Stop” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
+    "undoNotes": {
+      "status_kept": "The application's status had changed since: it is left as it is."
+    },
     "problems": {
       "conflict": "The item has changed since the proposal: nothing was applied. Open it to see where it stands.",
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",

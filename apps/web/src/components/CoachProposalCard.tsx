@@ -209,6 +209,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         {card.status === "accepted" && card.decidedAt ? t(change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) }) : null}
         {card.status === "dismissed" ? t("coachProposals.dismissed") : null}
         {card.status === "undone" && card.undoneAt ? t("coachProposals.undone", { time: hourOf(card.undoneAt, i18n.language) }) : null}
+        {card.status === "undone" && card.undoNote ? ` ${t(`coachProposals.undoNotes.${card.undoNote}`)}` : null}
       </p>
       {card.status === "accepted" && change.launches && !run ? <p className="hint">{t("coachProposals.launchedHint")}</p> : null}
       {card.status === "accepted" && run ? <LiveActionStatus action={live} /> : null}

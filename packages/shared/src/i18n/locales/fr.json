@@ -5797,7 +5797,10 @@
       "applicationProfile": "Profil de la candidature",
       "followUpSent": "Relance envoyée",
       "profileStatus": "Statut du profil",
-      "coachMemory": "À retenir"
+      "coachMemory": "À retenir",
+      "jobSearch": "Recherche d'offres",
+      "jobSearchStop": "Arrêt de la recherche",
+      "jobDigest": "Job Digest"
     },
     "interview": {
       "none": "Aucun",
@@ -5810,19 +5813,33 @@
       "noFollowUp": "Aucune relance envoyée",
       "followUps_one": "{{count}} relance envoyée",
       "followUps_other": "{{count}} relances envoyées",
-      "followedUp": "{{sent}}, statut « {{status}} »"
+      "followedUp": "{{sent}}, statut « {{status}} »",
+      "noSearch": "Aucune recherche lancée",
+      "lastSearch": "Dernière recherche le {{date}}",
+      "searchOn": "Sur les critères du profil : {{criteria}}",
+      "searching": "En cours depuis {{time}}",
+      "stopped": "Arrêtée, les offres déjà trouvées gardées",
+      "noDigest": "Pas de Job Digest"
+    },
+    "quota": {
+      "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
+      "jobSearchNone": "Vos {{limit}} recherches de la semaine sont utilisées",
+      "jobSearchUnlimited": "Recherches illimitées avec votre offre"
     },
     "by": "Proposé par votre coach IA",
     "before": "Avant :",
     "after": "après :",
     "changeOf": "{{what}} :",
     "apply": "Appliquer",
+    "launch": "Lancer",
     "edit": "Modifier avant d'appliquer",
     "dismiss": "Ignorer",
     "undo": "Annuler",
     "editTitle": "Modifier avant d'appliquer : {{what}}",
     "editIntro": "Le formulaire de la page, pré-rempli avec la proposition de votre coach pour « {{name}} ». Ce que vous changez ici est gardé si vous fermez le volet.",
     "applied": "Appliqué par vous à {{time}}",
+    "launched": "Lancé par vous à {{time}}",
+    "launchedHint": "Suivez-la dans Activité IA ; « Arrêter » l'interrompt.",
     "dismissed": "Ignoré",
     "undone": "Annulé à {{time}}",
     "problems": {

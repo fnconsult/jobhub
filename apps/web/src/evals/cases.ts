@@ -54,11 +54,6 @@ export interface AiCoachEvalCase extends JudgedEvalCase {
   aboutJobbbox?: boolean;
   couldNotAnswer?: boolean;
   proposes?: boolean;
-  /**
-   * The proposal its reply must make (#716): its Coach Action, and the arguments that matter, each checked exactly (the
-   * others left to the AI Coach). Goes with `proposes: true`.
-   */
-  proposal?: { action: string; arguments?: Record<string, unknown> };
   /** The Candidate's fictional objects, out of view, that the read Coach Actions find (#714): none when absent. */
   objects?: readonly FictionalObject[];
   /** The ids of `objects` the AI Coach must read for its reply: checked exactly, not judged (#714). */
@@ -66,10 +61,11 @@ export interface AiCoachEvalCase extends JudgedEvalCase {
   /** The « Réponse non fondée sur le profil » Guardrail must not trigger on its reply: checked exactly (#714). */
   grounded?: boolean;
   /**
-   * The proposal its reply must make (#718): the Coach Action, and the arguments it must be called with (each one given,
-   * exactly: a date resolved from the date of the day is checked as the absolute date it stands for). Checked, not judged.
+   * The proposal its reply must make (#716, #718): its Coach Action, and the arguments it must be called with (each one
+   * given, exactly: a date resolved from the date of the day is checked as the absolute date it stands for; the others
+   * left to the AI Coach). Checked, not judged. Goes with `proposes: true`.
    */
-  proposal?: { action: string; arguments?: Record<string, string | number> };
+  proposal?: { action: string; arguments?: Record<string, unknown> };
 }
 
 /** A Guardrail's verdict on a message and its reply. `flag`: let through and recorded, its Guardrail set to flag only. */

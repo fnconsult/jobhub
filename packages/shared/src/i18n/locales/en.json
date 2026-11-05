@@ -5806,7 +5806,8 @@
       "conflict": "The item has changed since the proposal: nothing was applied. Open it to see where it stands.",
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
       "invalid": "What you entered does not fit: check the form.",
-      "failed": "The proposal could not be processed. Try again or reload the page."
+      "failed": "The proposal could not be processed. Try again or reload the page.",
+      "noneAccepted": "Accept at least one change to save, or ignore the proposal."
     },
     "masterCv": {
       "version": "Version {{version}}",
@@ -5818,6 +5819,17 @@
     },
     "quota": {
       "profile": "Uses one active profile of your plan"
+    },
+    "review": {
+      "open": "Review the changes",
+      "title": "Review the changes: {{what}}",
+      "intro": "Accept or reject each change your coach proposes for “{{name}}”. Only the accepted changes are saved, as a new version of your Master CV; a rejected change keeps what it says.",
+      "before": "Before",
+      "after": "Proposed",
+      "fromOffer": "Taken from one of your job offers, not in your Master CV: {{words}}. Keep it only if it is true.",
+      "save": "Save the accepted changes",
+      "saved_one": "{{count}} change saved",
+      "saved_other": "{{count}} changes saved"
     }
   },
   "coachProposalsDisplay": {

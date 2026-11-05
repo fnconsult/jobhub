@@ -251,3 +251,84 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     });
   });
 });
+
+/** A Master CV change (#719): two changes, the second a Flagged Change. */
+const MASTER_CV: Card = {
+  id: "44444444-4444-4444-8444-444444444444",
+  status: "pending",
+  change: {
+    target: { kind: "profile", id: "p1", name: "Directrice financière", href: "/profils/p1/cv-de-reference" },
+    what: "CV de référence",
+    before: "Version 3",
+    after: "2 changements à relire",
+    value: {},
+    fields: [],
+    review: {
+      changes: [
+        { id: "experience.rephrased.0", section: "experience", kind: "rephrased", item: "Directrice financière · Groupe Seb", master: "Pilotage financier.", tailored: "Pilotage financier d'un groupe industriel." },
+        { id: "summary.rephrased", section: "summary", kind: "rephrased", master: "25 ans dans l'industrie.", tailored: "25 ans dans l'aéronautique.", fromOffer: ["aéronautique"] },
+      ],
+      edits: [],
+    },
+  },
+  undoable: false,
+};
+
+describe("a Master CV change's card, reviewed change by change (#719, ADR-0006)", () => {
+  const masterCard = () => screen.getByRole("article", { name: /CV de référence/ });
+
+  it("has no « Appliquer » in one click: « Relire les changements » opens them in the Work Pane, the Flagged Change waiting for an accept", async () => {
+    renderInFrench(<Thread card={MASTER_CV} />);
+    expect(within(masterCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Relire les changements", "Ignorer"]);
+
+    await userEvent.click(within(masterCard()).getByRole("button", { name: "Relire les changements" }));
+    const pane = screen.getByRole("complementary");
+    expect(within(pane).getByRole("heading", { level: 2 }).textContent).toContain("Relire les changements : CV de référence");
+    expect(within(pane).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(pane).getByRole("note").textContent).toContain("aéronautique");
+    expect(within(pane).getAllByRole("button", { name: "Accepter" }).map((each) => each.getAttribute("aria-pressed"))).toEqual(["true", "false"]);
+  });
+
+  it("sends the accepted changes explicitly, a Flagged Change only once accepted", async () => {
+    answers = [{ status: 200, body: { status: "accepted", card: { ...MASTER_CV, status: "accepted", decidedAt: "2026-11-05T10:20:00.000Z", undoable: true, accepted: ["experience.rephrased.0"] } } }];
+    renderInFrench(<Thread card={MASTER_CV} />);
+    await userEvent.click(within(masterCard()).getByRole("button", { name: "Relire les changements" }));
+    await userEvent.click(within(screen.getByRole("complementary")).getByRole("button", { name: "Enregistrer les changements acceptés" }));
+
+    expect(sent).toEqual([{ url: `/api/action-cards/${MASTER_CV.id}`, body: { decision: "accept", edited: { accepted: ["experience.rephrased.0"] } } }]);
+    expect(masterCard().textContent).toContain("1 changement enregistré");
+    expect(within(masterCard()).getByRole("button", { name: "Annuler" })).toBeTruthy();
+  });
+
+  it("saves nothing while no change is accepted", async () => {
+    renderInFrench(<Thread card={MASTER_CV} />);
+    await userEvent.click(within(masterCard()).getByRole("button", { name: "Relire les changements" }));
+    const pane = screen.getByRole("complementary");
+    await userEvent.click(within(pane).getAllByRole("button", { name: "Refuser" })[0]!);
+    await userEvent.click(within(pane).getByRole("button", { name: "Enregistrer les changements acceptés" }));
+
+    expect(sent).toEqual([]);
+    expect(within(pane).getByRole("alert").textContent).toContain("Acceptez au moins un changement");
+  });
+});
+
+describe("a card about the Coach Memory (#719)", () => {
+  it("names it without a link: it has no page", () => {
+    const memory: Card = {
+      ...PENDING,
+      id: "55555555-5555-4555-8555-555555555555",
+      change: {
+        target: { kind: "coach_memory", id: "m1", name: "Mémoire du coach", href: "" },
+        what: "À retenir",
+        before: "Pas encore retenu",
+        after: "Objectif : Un poste de DAF à Lyon",
+        value: { kind: "goal", text: "Un poste de DAF à Lyon" },
+        fields: [],
+      },
+    };
+    renderInFrench(<Thread card={memory} />);
+    const shown = screen.getByRole("article", { name: /À retenir/ });
+    expect(within(shown).getByRole("heading", { level: 4 }).textContent).toBe("À retenir · Mémoire du coach");
+    expect(within(shown).queryByRole("link")).toBeNull();
+  });
+});

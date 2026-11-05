@@ -472,6 +472,13 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
     const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
 
+    it("names each Eval Case once: a case a merge doubles would hide its other copy from every check by id", () => {
+      for (const cases of [AI_COACH_EVAL_CASES, GUARDRAIL_EVAL_CASES]) {
+        const ids = cases.map((each) => each.id);
+        expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+      }
+    });
+
     it("has, for each Coach Action of the group, a case proposing it, one asking nothing and one it must not follow on a Job Offer", () => {
       const cases = AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith("coach-action-profile-"));
       expect(PROFIL.filter((action) => !cases.some((each) => each.proposal?.action === action))).toEqual([]);

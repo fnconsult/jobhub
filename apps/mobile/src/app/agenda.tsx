@@ -1,6 +1,6 @@
-import { EmptyScreen } from "../screens/EmptyScreen";
+import { AgendaMenu } from "../menus/MenuPages";
 
-/** The Agenda: to come. */
+/** The Agenda: its conversation, its list a card in it (#690). */
 export default function Agenda() {
-  return <EmptyScreen />;
+  return <AgendaMenu />;
 }

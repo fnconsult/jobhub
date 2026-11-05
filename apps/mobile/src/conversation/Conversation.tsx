@@ -1,5 +1,5 @@
 import { Plus, Send, Square } from "lucide-react-native";
-import { useRef, type ComponentRef, type ReactNode } from "react";
+import { useRef, type ComponentRef, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { useKeyCommand } from "../keyboard/key-commands";
@@ -13,8 +13,7 @@ const READING_REM = 44;
 /** How close to the end of the thread, in points, still counts as reading the latest message. */
 const AT_END_PT = 48;
 
-const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEvent) =>
-  contentOffset.y + layoutMeasurement.height >= contentSize.height - AT_END_PT;
+const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEvent) => contentOffset.y + layoutMeasurement.height >= contentSize.height - AT_END_PT;
 
 /**
  * A page's conversation with the AI Coach (ADR-0070), as it is drawn: its thread (`children`, at its reading width,
@@ -32,6 +31,7 @@ export function Conversation({
   onAttach,
   aboveBox,
   belowBox,
+  inputRef,
   children,
 }: {
   draft: string;
@@ -43,6 +43,8 @@ export function Conversation({
   onAttach: () => void;
   aboveBox?: ReactNode;
   belowBox?: ReactNode;
+  /** The box, for its caller to put the focus in it. */
+  inputRef?: RefObject<ComponentRef<typeof TextInput> | null>;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -73,9 +75,7 @@ export function Conversation({
         onContentSizeChange={() => (following.current ? thread.current?.scrollToEnd({ animated: true }) : undefined)}
         contentContainerStyle={styles.thread}
       >
-        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>
-          {children}
-        </View>
+        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>{children}</View>
       </ScrollView>
       <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2], gap: space[1] }}>
         {aboveBox}
@@ -98,6 +98,7 @@ export function Conversation({
         >
           <Control label={t("mobile.attach")} icon={Plus} iconOnly disabled={!online} onPress={onAttach} />
           <TextInput
+            ref={inputRef}
             aria-label={t("coachPanel.messageLabel")}
             placeholder={t("coachPanel.messageLabel")}
             placeholderTextColor={colors.meta}

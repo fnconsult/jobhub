@@ -1,7 +1,7 @@
 import { formatDuration, formatTokens } from "@jobhub/shared";
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AccessibilityInfo, View } from "react-native";
+import { AccessibilityInfo, TextInput, View } from "react-native";
 import { Conversation } from "../conversation/Conversation";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
@@ -26,6 +26,12 @@ export type PagePlacement = {
   onSaved?: (conversation: ConversationSummary) => void;
 };
 
+/** What a page's suggestions do with its conversation: put the focus in the box. */
+const CoachBox = createContext<{ focus: () => void }>({ focus: () => {} });
+
+/** The page's box, from a suggestion above it or a card in its thread. */
+export const useCoachBox = () => useContext(CoachBox);
+
 /**
  * A Coach Conversation, the page itself (ADR-0070, ADR-0076): the thread at its reading width, the AI disclosure first,
  * the Candidate's messages and the AI Coach's replies, the step under way while a reply comes (from the NDJSON stream),
@@ -46,8 +52,18 @@ export function CoachConversation(page: PagePlacement) {
     AccessibilityInfo.announceForAccessibility(
       outcome.kind === "reply" ? t("mobile.coach.replyAnnounced", { reply: outcome.text }) : outcome.kind === "stopped" ? t("coachPanel.stopped") : failureText(outcome.status),
     );
-  const coach = useCoachConversation({ conversationId: page.conversationId, ...(page.subject ? { subject: page.subject } : {}), route: page.route, ...(page.onSaved ? { onSaved: page.onSaved } : {}), announce });
+  const coach = useCoachConversation({
+    conversationId: page.conversationId,
+    ...(page.subject ? { subject: page.subject } : {}),
+    route: page.route,
+    ...(page.onSaved ? { onSaved: page.onSaved } : {}),
+    announce,
+  });
   const sending = coach.status.kind === "sending";
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  const box = useMemo(() => ({ focus: () => input.current?.focus() }), []);
+  // The page's suggestions, until something is sent.
+  const suggestions = !coach.restoring && coach.messages.length === 0 ? page.suggestions : null;
 
   const send = async (text: string) => {
     setDraft("");
@@ -55,24 +71,35 @@ export function CoachConversation(page: PagePlacement) {
   };
 
   return (
-    <Conversation draft={draft} onDraftChange={setDraft} streaming={sending} onSend={(text) => void send(text)} onStop={coach.stop} onAttach={() => {}}>
-      {coach.restoring ? (
-        <AppText tone="secondary">{t("coachPanel.loading")}</AppText>
-      ) : (
-        <CoachSays>
-          <AppText>{t(coach.aiDisclosure ? "coachPanel.aiDisclosure" : "coachPanel.welcome")}</AppText>
-          {page.introduction}
-        </CoachSays>
-      )}
-      {page.card}
-      {coach.messages.map((message, index) => (
-        <Message key={index} message={message} language={language} />
-      ))}
-      {coach.status.kind === "sending" ? (
-        <AppText tone="secondary">{coach.status.live.step ? t(`aiActivity.steps.${coach.status.live.step.label}`) : t("coachPanel.thinking")}</AppText>
-      ) : null}
-      {coach.status.kind === "failed" || coach.status.kind === "invalid" ? <Notice>{failureText(coach.status)}</Notice> : null}
-    </Conversation>
+    <CoachBox.Provider value={box}>
+      <Conversation
+        draft={draft}
+        onDraftChange={setDraft}
+        streaming={sending}
+        onSend={(text) => void send(text)}
+        onStop={coach.stop}
+        onAttach={() => {}}
+        inputRef={input}
+        aboveBox={suggestions}
+      >
+        {coach.restoring ? (
+          <AppText tone="secondary">{t("coachPanel.loading")}</AppText>
+        ) : (
+          <CoachSays>
+            <AppText>{t(coach.aiDisclosure ? "coachPanel.aiDisclosure" : "coachPanel.welcome")}</AppText>
+            {page.introduction}
+          </CoachSays>
+        )}
+        {page.card}
+        {coach.messages.map((message, index) => (
+          <Message key={index} message={message} language={language} />
+        ))}
+        {coach.status.kind === "sending" ? (
+          <AppText tone="secondary">{coach.status.live.step ? t(`aiActivity.steps.${coach.status.live.step.label}`) : t("coachPanel.thinking")}</AppText>
+        ) : null}
+        {coach.status.kind === "failed" || coach.status.kind === "invalid" ? <Notice>{failureText(coach.status)}</Notice> : null}
+      </Conversation>
+    </CoachBox.Provider>
   );
 }
 

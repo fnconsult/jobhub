@@ -26,7 +26,11 @@ export type ShownMessage =
   | { from: "stopped"; tokens: number; ms: number };
 
 /** Where the reply stands: on its way, or why there is none (`failed`: unavailable, with its Failure Reason if any). */
-export type ReplyStatus = { kind: "idle" } | { kind: "sending"; live: Live } | { kind: "failed"; reason: FailureReason | null; question: string } | { kind: "invalid"; question: string };
+export type ReplyStatus =
+  | { kind: "idle" }
+  | { kind: "sending"; live: Live }
+  | { kind: "failed"; reason: FailureReason | null; question: string }
+  | { kind: "invalid"; question: string };
 
 /** What the page's conversation has given since it opened, for Activité: each reply's Provenance and when it was saved. */
 export type ReplyOnPage = { provenance: Provenance | null; at: string };
@@ -99,7 +103,13 @@ export function useCoachConversation({
       .then(({ conversation }) => {
         if (!shown || !conversation) return;
         const { messages, aiDisclosure, context, ...summary } = conversation;
-        setState((current) => ({ ...current, conversation: summary, context, aiDisclosure, messages: messages.map((message) => ({ ...message, provenance: message.provenance ?? null })) as ShownMessage[] }));
+        setState((current) => ({
+          ...current,
+          conversation: summary,
+          context,
+          aiDisclosure,
+          messages: messages.map((message) => ({ ...message, provenance: message.provenance ?? null })) as ShownMessage[],
+        }));
       })
       .catch(() => {})
       .finally(() => shown && setState((current) => ({ ...current, restoring: false })));
@@ -187,7 +197,8 @@ export function useCoachConversation({
         return false;
       } else {
         // The message comes back to the box, to send again or shorten.
-        const status: ReplyStatus = outcome.kind === "invalid" ? { kind: "invalid", question: text } : { kind: "failed", reason: isFailureReason(outcome.reason) ? outcome.reason : null, question: text };
+        const status: ReplyStatus =
+          outcome.kind === "invalid" ? { kind: "invalid", question: text } : { kind: "failed", reason: isFailureReason(outcome.reason) ? outcome.reason : null, question: text };
         update({ messages: before.messages, status });
         callbacks.current.announce({ kind: "failed", status });
         return false;
@@ -225,7 +236,9 @@ export function useCoachConversation({
   const cardChanged = useCallback((index: number, changed: CoachProposalCard) => {
     setState((was) => ({
       ...was,
-      messages: was.messages.map((message, at) => (at === index && message.from === "coach" && message.cards ? { ...message, cards: message.cards.map((card) => (card.id === changed.id ? changed : card)) } : message)),
+      messages: was.messages.map((message, at) =>
+        at === index && message.from === "coach" && message.cards ? { ...message, cards: message.cards.map((card) => (card.id === changed.id ? changed : card)) } : message,
+      ),
     }));
   }, []);
 

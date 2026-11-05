@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useTranslation } from "react-i18next";
 import { AppState, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useForgetReads } from "../offline/read-cache";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -60,14 +61,17 @@ export function SessionGate({ session, link, children }: { session: AppSession; 
     };
   }, [session, link]);
 
+  const forgetReads = useForgetReads();
   const value = useMemo<SessionContextValue>(
     () => ({
       signOut: async () => {
+        // The read cache goes first, a write still waiting included (#701), then the session is dropped.
+        await forgetReads();
         await session.signOut();
         setState(SIGNED_OUT);
       },
     }),
-    [session],
+    [session, forgetReads],
   );
 
   if (!state) return null;

@@ -9,6 +9,8 @@ import { Pressable, Text } from "react-native";
 import { AppProviders } from "../src/app-providers";
 import { isRefusedOffline, readKey, useForgetReads, type ReadName } from "../src/offline/read-cache";
 import { fakeNetwork, memoryStorage } from "../src/offline/testing";
+import type { AppSession } from "../src/session/app-session";
+import type { fakeWebApp } from "../src/session/testing";
 
 jest.setTimeout(60_000);
 
@@ -28,10 +30,36 @@ const setNetwork = (connected: boolean) => {
   for (const listener of mockNetwork.listeners) listener({ isConnected: connected });
 };
 
+// The web app the app signs in to (#685), so the app's root reaches its signed-in screens, as app.e2e.test.tsx does.
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
+jest.mock("../src/session/instance", () => {
+  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { createAppSession } = jest.requireActual("../src/session/app-session");
+  mockWeb.app = fakeWebApp();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  return { appSession: mockWeb.session };
+});
+// As app.e2e.test.tsx: the app's own scheme, which the magic link it asks for returns to (Expo Router's mock has another).
+const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
+jest.doMock("expo-linking", () => {
+  const { useSyncExternalStore } = jest.requireActual("react");
+  const subscribe = (listener: () => void) => (mockLink.listeners.add(listener), () => mockLink.listeners.delete(listener));
+  return { ...jest.requireActual("expo-linking"), useLinkingURL: () => useSyncExternalStore(subscribe, () => mockLink.current) };
+});
+const EMAIL = "marie.dupont@example.fr";
+/** Signed in, as the app is once its magic link opened it. */
+async function signedIn() {
+  jest.requireMock("../src/session/instance");
+  if ((await mockWeb.session.current()).kind === "signedIn") return;
+  await mockWeb.session.askLink(EMAIL);
+  await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
+}
+
 const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
 const button = (name: string) => screen.getByRole("button", { name });
 
 describe("offline, in the app", () => {
+  beforeEach(signedIn);
   afterEach(() => act(() => setNetwork(true)));
 
   it("shows « Hors ligne » and disables the conversation's box and its writing actions, saying why", async () => {

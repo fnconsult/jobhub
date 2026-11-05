@@ -19,6 +19,7 @@ export function AppProviders({
 }: {
   i18n: i18n;
   initialMetrics?: Metrics | null;
+  keyboard?: HardwareKeyboard;
   device: { storage: DeviceStorage; network: Network };
   children: ReactNode;
 }) {

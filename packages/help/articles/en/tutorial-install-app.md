@@ -15,3 +15,5 @@ The Jobbbox app, on iPhone, iPad and Android, uses the same account as jobbbox.a
 If you open the link on a device where the app is not installed, it signs you in on jobbbox.ai, in the browser.
 
 To sign out of the app, open « My account » and tap « Sign out ». A session closed from « My account » on jobbbox.ai also signs the app out, as soon as it comes back to the foreground.
+
+Without network, the app shows « Offline » and what you last looked at; nothing is sent until the network is back. What it keeps on the device, never your conversations with the coach, is erased when you sign out.

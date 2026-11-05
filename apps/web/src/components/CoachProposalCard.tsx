@@ -99,6 +99,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   );
 
   const pending = card.status === "pending";
+  const shownAfter = card.edited && card.status !== "pending" ? afterEdited(card) : change.after;
   return (
     <article className="coach-proposal-card" aria-labelledby={titleId} data-status={card.status}>
       <p className="coach-proposal-card__by">{t("coachProposals.by")}</p>
@@ -107,13 +108,20 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         {" · "}
         <Link href={change.target.href}>{change.target.name}</Link>
       </h4>
-      <p className="coach-proposal-card__change">
-        <span className="visually-hidden">{t("coachProposals.before")} </span>
-        <span className="coach-proposal-card__before">{change.before}</span>
-        <span aria-hidden="true">{" → "}</span>
-        <span className="visually-hidden">, {t("coachProposals.after")} </span>
-        <span className="coach-proposal-card__after">{card.edited && card.status !== "pending" ? afterEdited(card) : change.after}</span>
-      </p>
+      {change.also?.length ? (
+        // More than one change on the object (#718): each listed, what it is first.
+        <ul className="coach-proposal-card__changes">
+          {[{ what: change.what, before: change.before, after: shownAfter }, ...change.also].map((each) => (
+            <li key={each.what} className="coach-proposal-card__change">
+              <span className="coach-proposal-card__what">{t("coachProposals.changeOf", { what: each.what })}</span> <BeforeAfter before={each.before} after={each.after} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="coach-proposal-card__change">
+          <BeforeAfter before={change.before} after={shownAfter} />
+        </p>
+      )}
       {change.quota && !change.quota.prompt ? <p className="hint">{change.quota.label}</p> : null}
       {/* Its decision, said politely as it is made (ADR-0009). */}
       <p className="coach-proposal-card__decision" role="status">
@@ -155,11 +163,25 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   );
 }
 
+/** One change, before → after, read out as « Avant : … , après : … ». */
+function BeforeAfter({ before, after }: { before: string; after: string }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <span className="visually-hidden">{t("coachProposals.before")} </span>
+      <span className="coach-proposal-card__before">{before}</span>
+      <span aria-hidden="true">{" → "}</span>
+      <span className="visually-hidden">, {t("coachProposals.after")} </span>
+      <span className="coach-proposal-card__after">{after}</span>
+    </>
+  );
+}
+
 /** What an applied card set, when the Candidate edited it before applying: the label of each field's value. */
 function afterEdited(card: Card): string {
   const labels = card.change.fields.flatMap((field) => {
     const value = card.edited?.[field.name];
-    if (value === undefined) return [];
+    if (value === undefined || value === "") return [];
     return [field.options?.find((option) => option.value === value)?.label ?? value];
   });
   return labels.length > 0 ? labels.join(", ") : card.change.after;
@@ -189,6 +211,10 @@ function ProposalInput({ field, value, onChange }: { field: ProposalField; value
         </Select>
       ) : field.type === "textarea" ? (
         <Textarea name={field.name} value={value} onChange={(event) => onChange(event.target.value)} />
+      ) : field.type === "datetime" ? (
+        <TextInput type="datetime-local" name={field.name} value={value} onChange={(event) => onChange(event.target.value)} />
+      ) : field.type === "number" ? (
+        <TextInput type="number" inputMode="numeric" min={1} step={1} name={field.name} value={value} onChange={(event) => onChange(event.target.value)} />
       ) : (
         <TextInput name={field.name} value={value} onChange={(event) => onChange(event.target.value)} />
       )}

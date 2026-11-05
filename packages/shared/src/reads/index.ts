@@ -341,9 +341,16 @@ export const coachProposalCardSchema = z.object({
     what: z.string(),
     before: z.string(),
     after: z.string(),
+    /** What else applying it changes on the same object (#718: an Interview added moves its Application to « Entretien »). */
+    also: z.array(z.object({ what: z.string(), before: z.string(), after: z.string() })).optional(),
     value: z.record(z.string(), z.string()),
     fields: z.array(
-      z.object({ name: z.string(), label: z.string(), type: z.enum(["select", "text", "textarea"]), options: z.array(z.object({ value: z.string(), label: z.string() })).optional() }),
+      z.object({
+        name: z.string(),
+        label: z.string(),
+        type: z.enum(["select", "text", "textarea", "datetime", "number"]),
+        options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
+      }),
     ),
     quota: z.object({ label: z.string(), prompt: z.any().optional() }).optional(),
   }),

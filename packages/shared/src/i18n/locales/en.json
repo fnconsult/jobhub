@@ -5767,11 +5767,19 @@
   },
   "coachProposals": {
     "fields": {
-      "applicationStatus": "Application status"
+      "applicationStatus": "Application status",
+      "newInterview": "New interview",
+      "interview": "Interview"
+    },
+    "interview": {
+      "none": "None",
+      "cancelled": "Cancelled",
+      "minutes": "{{count}} min"
     },
     "by": "Proposed by your AI coach",
     "before": "Before:",
     "after": "after:",
+    "changeOf": "{{what}}:",
     "apply": "Apply",
     "edit": "Edit before applying",
     "dismiss": "Ignore",

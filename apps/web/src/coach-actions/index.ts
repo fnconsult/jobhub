@@ -79,7 +79,8 @@ export interface ProposalField {
   /** Its key in `value`. */
   name: string;
   label: string;
-  type: "select" | "text" | "textarea";
+  /** `datetime`: a date and time in French time ("2026-11-12T14:30"); `number`: whole digits. */
+  type: "select" | "text" | "textarea" | "datetime" | "number";
   options?: { value: string; label: string }[];
 }
 
@@ -87,13 +88,15 @@ export interface ProposalField {
  * What a proposing Coach Action prepares, for its Action Card in the thread (#715), in the Candidate's language: the
  * object it changes (its name and page), what changes on it, before → after, what applying it sends to the domain module
  * (`value`, as the page's form sends it, and that form's `fields`), the object's version seen, and the Plan Quota it uses
- * (what it will consume; `prompt`, the Upgrade prompt, when there is no room).
+ * (what it will consume; `prompt`, the Upgrade prompt, when there is no room). `also`: what else applying it changes on
+ * the same object, listed on the same card (#718: an Interview added moves its Application to « Entretien »).
  */
 export interface ProposedChange {
   target: { kind: CoachFocus["kind"]; id: string; name: string; href: string };
   what: string;
   before: string;
   after: string;
+  also?: { what: string; before: string; after: string }[];
   value: Record<string, string>;
   fields: ProposalField[];
   version: string;
@@ -105,12 +108,13 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
   what: z.string(),
   before: z.string(),
   after: z.string(),
+  also: z.array(z.object({ what: z.string(), before: z.string(), after: z.string() })).optional(),
   value: z.record(z.string(), z.string()),
   fields: z.array(
     z.object({
       name: z.string(),
       label: z.string(),
-      type: z.enum(["select", "text", "textarea"]),
+      type: z.enum(["select", "text", "textarea", "datetime", "number"]),
       options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
     }),
   ),

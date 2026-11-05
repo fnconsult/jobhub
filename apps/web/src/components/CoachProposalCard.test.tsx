@@ -209,4 +209,45 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect(within(full).getByRole("alert").textContent).toContain("Recherches épuisées");
     expect(within(full).queryByRole("button", { name: "Appliquer" })).toBeNull();
   });
+
+  describe("an Interview proposed from the Agenda (#718)", () => {
+    const INTERVIEW: Card = {
+      id: "44444444-4444-4444-8444-444444444444",
+      status: "pending",
+      change: {
+        target: { kind: "application", id: "a1", name: "Contrôleuse de gestion · Airbus", href: "/candidatures/a1/entretiens" },
+        what: "Nouvel entretien",
+        before: "Aucun",
+        after: "jeudi 12 novembre 2026 à 14:00 · 45 min · Visio",
+        also: [{ what: "Statut de la candidature", before: "Postulée", after: "Entretien" }],
+        value: { scheduledAt: "2026-11-12T14:00", durationMinutes: "45", format: "video", place: "" },
+        fields: [
+          { name: "scheduledAt", label: "Date et heure de l'entretien (heure de Paris)", type: "datetime" },
+          { name: "durationMinutes", label: "Durée en minutes (facultatif)", type: "number" },
+          { name: "format", label: "Format (facultatif)", type: "select", options: [{ value: "", label: "Non précisé" }, { value: "video", label: "Visio" }] },
+          { name: "place", label: "Lieu ou lien (facultatif)", type: "text" },
+        ],
+      },
+      undoable: false,
+    };
+    const interviewCard = () => screen.getByRole("article", { name: /Nouvel entretien/ });
+
+    it("lists both changes on one card: the Interview at its absolute date, and the Application moved to « Entretien »", () => {
+      renderInFrench(<Thread card={INTERVIEW} />);
+
+      const changes = within(interviewCard()).getAllByRole("listitem").map((each) => each.textContent);
+      expect(changes).toEqual(["Nouvel entretien : Avant : Aucun → , après : jeudi 12 novembre 2026 à 14:00 · 45 min · Visio", "Statut de la candidature : Avant : Postulée → , après : Entretien"]);
+    });
+
+    it("« Modifier avant d'appliquer » shows the Interview form's date and time and duration as such, pre-filled", async () => {
+      renderInFrench(<Thread card={INTERVIEW} pane={false} />);
+
+      await userEvent.click(within(interviewCard()).getByRole("button", { name: "Modifier avant d'appliquer" }));
+
+      const date = within(interviewCard()).getByLabelText("Date et heure de l'entretien (heure de Paris)") as HTMLInputElement;
+      expect([date.type, date.value]).toEqual(["datetime-local", "2026-11-12T14:00"]);
+      const duration = within(interviewCard()).getByLabelText("Durée en minutes (facultatif)") as HTMLInputElement;
+      expect([duration.type, duration.value]).toEqual(["number", "45"]);
+    });
+  });
 });

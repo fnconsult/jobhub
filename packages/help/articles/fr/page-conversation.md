@@ -11,3 +11,5 @@ Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis �
 Écrivez dans la zone de message, en bas de la page. Pendant que le coach répond, « Arrêter » interrompt sa réponse.
 
 Pour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste.
+
+Dans l'app Jobbbox, sur iPhone, iPad ou Android, vous retrouvez les mêmes conversations sous « Coach », dans le menu ; maintenez le doigt sur l'une d'elles pour la renommer (« Renommer ») ou la supprimer (« Supprimer »), après confirmation. Pendant que le coach répond, l'étape en cours s'affiche ; avec VoiceOver ou TalkBack, sa réponse vous est lue une fois terminée, pas mot à mot. « Activité » montre combien de la conversation le coach lit et l'IA utilisée. Sous la zone de message, « Signaler un problème » et « Proposer une idée » ouvrent le formulaire de signalement.

@@ -16,6 +16,8 @@ export const paths = {
   applicationSection: (id: string, section: typeof INTERVIEWS) => `/candidatures/${encodeURIComponent(id)}/${section}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
+  /** A Job Search's page, the web's in the app until it is drawn natively (#692): where « Lancer une recherche » lands. */
+  jobSearch: (id: string) => `/recherches/${encodeURIComponent(id)}`,
   jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",

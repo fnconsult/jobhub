@@ -5942,6 +5942,9 @@
       "questionContext": "the page, the Jobbbox version, your device, the language and the text size",
       "device": "Device"
     },
+    "jobSearches": {
+      "quotaExceeded": "You have reached your job search quota for this period: you can start a new one when it renews."
+    },
     "profiles": {
       "positioning": "Positioning",
       "contracts": "Contracts",

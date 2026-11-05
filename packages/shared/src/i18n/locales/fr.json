@@ -5942,6 +5942,9 @@
       "questionContext": "la page, la version de Jobbbox, votre appareil, la langue et la taille du texte",
       "device": "Appareil"
     },
+    "jobSearches": {
+      "quotaExceeded": "Votre quota de recherches d'offres est atteint pour cette période : vous pourrez en lancer une nouvelle à son renouvellement."
+    },
     "profiles": {
       "positioning": "Positionnement",
       "contracts": "Contrats",

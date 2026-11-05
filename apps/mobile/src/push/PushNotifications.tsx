@@ -48,8 +48,10 @@ export function useForgetPushDevice(): () => Promise<void> {
 
 /**
  * Asks for Push notifications in context (#699): where a Job Search starts or an Interview is added, the screen calls
- * `ask("jobSearch")` or `ask("interview")`. Only a device never asked shows the explanation; once allowed, refused or
- * « Pas maintenant », nothing. Never at first launch: nothing else asks.
+ * `ask("jobSearch")` or `ask("interview")` once the web app has answered the write. Only a device never asked shows the
+ * explanation; once allowed, refused or « Pas maintenant », nothing. Never at first launch: nothing else asks.
+ * « Lancer une recherche » in Recherches d'offres asks (src/job-searches/StartJobSearch.tsx); the Interviews Section's
+ * « ajouter » (#691) and any later Job Search launch or relaunch (#692) call it in the same way.
  */
 export const useAskForPush = () => useContext(PushContextOf).ask;
 

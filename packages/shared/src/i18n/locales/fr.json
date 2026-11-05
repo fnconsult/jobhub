@@ -5935,7 +5935,9 @@
     "applications": {
       "notFound": "Cette candidature est introuvable : elle n'existe pas ou n'est pas la vôtre.",
       "readOnlySections": "Les autres rubriques (dossier entreprise, contacts, avis des coachs) se consultent sur jobbbox.ai.",
-      "statusButton": "Statut : {{status}}"
+      "statusButton": "Statut : {{status}}",
+      "interviewDate": "Date de l'entretien (jj/mm/aaaa)",
+      "interviewTime": "Heure, à Paris (hh:mm)"
     },
     "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
     "coach": {

@@ -5935,7 +5935,9 @@
     "applications": {
       "notFound": "This application cannot be found: it does not exist or is not yours.",
       "readOnlySections": "The other sections (company dossier, contacts, coach reviews) are on jobbbox.ai.",
-      "statusButton": "Status: {{status}}"
+      "statusButton": "Status: {{status}}",
+      "interviewDate": "Interview date (dd/mm/yyyy)",
+      "interviewTime": "Time, in Paris (hh:mm)"
     },
     "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
     "coach": {

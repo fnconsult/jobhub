@@ -13,7 +13,8 @@ import { radius, space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
-import { ApplicationSection, APP_SECTIONS, applicationFormats, matchScoreInWords, type AppSection } from "./ApplicationSections";
+import { applicationFormats, matchScoreInWords } from "./application-formats";
+import { ApplicationSection, APP_SECTIONS, type AppSection } from "./ApplicationSections";
 import { Property } from "./Property";
 import { StatusField } from "./StatusField";
 

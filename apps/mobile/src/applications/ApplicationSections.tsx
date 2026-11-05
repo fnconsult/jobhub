@@ -1,14 +1,13 @@
 import type { ApplicationResponse } from "@jobhub/shared/reads";
-import type { TFunction } from "i18next";
 import { ExternalLink } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { Linking, View } from "react-native";
-import { FRENCH_TIME_ZONE } from "../agenda/french-time";
 import { useApplication } from "../api/reads";
 import { ReadState } from "../screens/ReadState";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
+import { applicationFormats, matchScoreInWords } from "./application-formats";
 import { Interviews } from "./Interviews";
 import { Property } from "./Property";
 
@@ -23,32 +22,6 @@ export type AppSection = (typeof APP_SECTIONS)[number];
 
 /** Whether `value` names one of the Sections the app shows. */
 export const isAppSection = (value: string | undefined): value is AppSection => (APP_SECTIONS as readonly (string | undefined)[]).includes(value);
-
-/** How an Application's page writes its dates, in the Interface Language, in French time (ADR-0028), as the web's. */
-export function applicationFormats(locale: string) {
-  const zone = { timeZone: FRENCH_TIME_ZONE };
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", ...zone });
-  const fullDate = new Intl.DateTimeFormat(locale, { dateStyle: "full", ...zone });
-  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", ...zone });
-  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", ...zone });
-  const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", ...zone });
-  return {
-    /** « 28 octobre 2026 » */
-    date: (instant: string) => date.format(new Date(instant)),
-    /** « jeudi 12 novembre 2026 » */
-    fullDate: (instant: string) => fullDate.format(new Date(instant)),
-    /** « 14:30 » */
-    time: (instant: string) => time.format(new Date(instant)),
-    /** « jeudi 12 novembre 2026 à 14:30 » */
-    dateTime: (instant: string) => dateTime.format(new Date(instant)),
-    /** « 3 novembre 2026 à 09:00 » */
-    changedAt: (instant: string) => changedAt.format(new Date(instant)),
-  };
-}
-export type ApplicationFormats = ReturnType<typeof applicationFormats>;
-
-/** « 82 / 100 », or « Non calculable »: never 0 / 100 for a Match Score with nothing to compare (#94). */
-export const matchScoreInWords = (matchScore: number | null, t: TFunction) => (matchScore === null ? t("matchScore.notComputable") : t("matchScore.score", { score: matchScore }));
 
 /**
  * One of an Application's Sections in the Work Pane, as `GET /api/applications/:id` reads it: read again after each

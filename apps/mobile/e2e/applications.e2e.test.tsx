@@ -254,3 +254,155 @@ describe("An Application's status, changed from its Fiche", () => {
     expect(web.writes).toEqual([]);
   });
 });
+
+/** The Interviews Section of the Application `id`, opened from its Fiche in the Work Pane. */
+async function openInterviews(id = RHONE.id) {
+  await openFiche(id);
+  await userEvent.setup().press(button("Entretiens"));
+  await screen.findByRole("button", { name: "Voir dans l'agenda" });
+}
+
+/** The system's Dialog, answered by pressing its button named `answer`. */
+const answerDialogs = (answer: string) =>
+  jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => buttons?.find((each) => each.text === answer)?.onPress?.());
+
+describe("The Interviews Section, in the Work Pane", () => {
+  it("lists the Application's Interviews as the web does: when, how and where, the note, a Reschedule, a cancellation", async () => {
+    await openInterviews();
+    expect(screen.getByText("jeudi 12 novembre 2026, 14:30 – 15:15")).toBeOnTheScreen();
+    expect(screen.getByText("Visio · https://teams.microsoft.com/l/meetup-join/rhone")).toBeOnTheScreen();
+    expect(screen.getByText("Avec la DRH")).toBeOnTheScreen();
+    expect(screen.getByText("Reporté · initialement prévu le 10 novembre 2026 à 10:00")).toBeOnTheScreen();
+    expect(screen.getByText("vendredi 20 novembre 2026, 10:00 – 11:00")).toBeOnTheScreen();
+    expect(screen.getByText("Annulé le 4 novembre 2026")).toBeOnTheScreen();
+    expect(button("Modifier l'entretien du jeudi 12 novembre 2026 à 14:30")).toBeOnTheScreen();
+    expect(button("Annuler l'entretien du jeudi 12 novembre 2026 à 14:30")).toBeOnTheScreen();
+    // A Cancelled Interview cannot be cancelled again.
+    expect(screen.queryByRole("button", { name: "Annuler l'entretien du vendredi 20 novembre 2026 à 10:00" })).toBeNull();
+  });
+
+  it("adds an Interview with the web's route, lists it, and empties the form", async () => {
+    await openInterviews();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)"), "26/11/2026");
+    await user.type(screen.getByLabelText("Heure, à Paris (hh:mm)"), "10:00");
+    await user.type(screen.getByLabelText("Durée en minutes (facultatif)"), "60");
+    await user.press(screen.getByRole("radio", { name: "Sur place" }));
+    await user.type(screen.getByLabelText("Lieu ou lien (facultatif)"), "12 quai Perrache, Lyon");
+    await user.type(screen.getByLabelText("Note (facultatif)"), "Second tour");
+    await user.press(button("Ajouter l'entretien"));
+
+    expect(await screen.findByText("jeudi 26 novembre 2026, 10:00 – 11:00")).toBeOnTheScreen();
+    expect(web.writes).toEqual([
+      {
+        method: "POST",
+        path: "/api/applications/app_rhone/interviews",
+        body: { scheduledAt: "2026-11-26T10:00", durationMinutes: 60, format: "on_site", place: "12 quai Perrache, Lyon", note: "Second tour" },
+      },
+    ]);
+    expect(screen.getByText("Second tour")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)").props.value).toBe("");
+  });
+
+  it("says under the field what the web app refused, and adds nothing", async () => {
+    await openInterviews();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)"), "26/13/2026");
+    await user.type(screen.getByLabelText("Heure, à Paris (hh:mm)"), "10:00");
+    await user.press(button("Ajouter l'entretien"));
+    expect(await screen.findByText("Cette valeur n'est pas valide.")).toBeOnTheScreen();
+    expect(web.application("app_rhone").interviews).toHaveLength(2);
+
+    await user.clear(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)"));
+    await user.clear(screen.getByLabelText("Heure, à Paris (hh:mm)"));
+    await user.press(button("Ajouter l'entretien"));
+    expect(await screen.findByText("Ce champ est obligatoire.")).toBeOnTheScreen();
+  });
+
+  it("offers to add one only while the Application is at « Entretien », as the web does", async () => {
+    await openInterviews(AEROLINE.id);
+    expect(screen.getByText("Aucun entretien enregistré pour l'instant.")).toBeOnTheScreen();
+    expect(screen.getByText("Vous pourrez noter vos entretiens quand la candidature sera au statut « Entretien ».")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Ajouter l'entretien" })).toBeNull();
+  });
+
+  it("moves an Interview to another date (a Reschedule) with the web's route, and says it was Rescheduled", async () => {
+    await openInterviews();
+    const user = userEvent.setup();
+    await user.press(button("Modifier l'entretien du jeudi 12 novembre 2026 à 14:30"));
+    const date = screen.getAllByLabelText("Date de l'entretien (jj/mm/aaaa)")[0]!;
+    expect(date.props.value).toBe("12/11/2026");
+    await user.clear(date);
+    await user.type(date, "13/11/2026");
+    await user.press(button("Enregistrer l'entretien"));
+
+    expect(await screen.findByText("vendredi 13 novembre 2026, 14:30 – 15:15")).toBeOnTheScreen();
+    expect(web.writes).toEqual([
+      {
+        method: "PATCH",
+        path: "/api/applications/app_rhone/interviews/interview-rh",
+        body: { scheduledAt: "2026-11-13T14:30", durationMinutes: 45, format: "video", place: "https://teams.microsoft.com/l/meetup-join/rhone", note: "Avec la DRH" },
+      },
+    ]);
+    expect(screen.getByText("Reporté · initialement prévu le 10 novembre 2026 à 10:00")).toBeOnTheScreen();
+    expect(web.application("app_rhone").interviews[0]!.reschedules).toHaveLength(2);
+  });
+
+  it("cancels an Interview once the system's Dialog confirms it: it stays, struck through, with its date of cancellation", async () => {
+    const dialogs = answerDialogs("Oui, annuler");
+    await openInterviews();
+    await userEvent.setup().press(button("Annuler l'entretien du jeudi 12 novembre 2026 à 14:30"));
+
+    expect(dialogs).toHaveBeenCalledWith("Annuler l'entretien", "Annuler cet entretien ? Il reste dans votre agenda et dans cette candidature, barré, avec la date d'annulation.", expect.any(Array));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Annuler l'entretien du jeudi 12 novembre 2026 à 14:30" })).toBeNull());
+    expect(web.writes).toEqual([{ method: "POST", path: "/api/applications/app_rhone/interviews/interview-rh/cancel", body: undefined }]);
+    expect(screen.getAllByText(/^Annulé le /)).toHaveLength(2);
+  });
+
+  it("cancels nothing when the Dialog is answered « Non, garder »", async () => {
+    answerDialogs("Non, garder");
+    await openInterviews();
+    await userEvent.setup().press(button("Annuler l'entretien du jeudi 12 novembre 2026 à 14:30"));
+    expect(web.writes).toEqual([]);
+    expect(button("Annuler l'entretien du jeudi 12 novembre 2026 à 14:30")).toBeOnTheScreen();
+  });
+
+  it("removes an Interview entered by mistake, without a trace, as the web does", async () => {
+    await openInterviews();
+    await userEvent.setup().press(button("Supprimer l'entretien du vendredi 20 novembre 2026 à 10:00"));
+    await waitFor(() => expect(screen.queryByText("vendredi 20 novembre 2026, 10:00 – 11:00")).toBeNull());
+    expect(web.writes).toEqual([{ method: "DELETE", path: "/api/applications/app_rhone/interviews/interview-site", body: undefined }]);
+  });
+
+  it("writes nothing to the Interviews without network", async () => {
+    await openInterviews();
+    await setNetwork(false);
+    expect(button("Ajouter l'entretien")).toBeDisabled();
+    expect(button("Modifier l'entretien du jeudi 12 novembre 2026 à 14:30")).toBeDisabled();
+    expect(button("Annuler l'entretien du jeudi 12 novembre 2026 à 14:30")).toBeDisabled();
+    expect(web.writes).toEqual([]);
+  });
+
+  it("opens at the web's address of the Section: an Interview on the Agenda leads there", async () => {
+    await launch("/candidatures/app_rhone/entretiens");
+    expect(await screen.findByText("jeudi 12 novembre 2026, 14:30 – 15:15")).toBeOnTheScreen();
+    await userEvent.setup().press(button("Voir dans l'agenda"));
+    expect(screen).toHavePathname("/agenda");
+  });
+
+  it("opens in the Work Pane column beside the conversation on a tablet", async () => {
+    setWindow(IPAD_LANDSCAPE);
+    await launch("/candidatures/app_rhone");
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Entretiens" }));
+    expect(await screen.findByText("jeudi 12 novembre 2026, 14:30 – 15:15")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Votre message")).toBeOnTheScreen();
+  });
+
+  it("keeps an Archived Application readable: its Fiche and its Interviews, as on the web", async () => {
+    await openInterviews(ARCHIVED.id);
+    expect(screen.getByText("mardi 15 septembre 2026, 10:00 – 11:00")).toBeOnTheScreen();
+    await userEvent.setup().press(button("Fermer"));
+    expect(button("Statut : Refusée")).toBeOnTheScreen();
+    expect(screen.getByText("Transports Martin · Vénissieux")).toBeOnTheScreen();
+  });
+});

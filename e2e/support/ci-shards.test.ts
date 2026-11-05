@@ -17,7 +17,7 @@ type Spec = { title: string; file: string; tests: { projectName: string }[] };
 
 /**
  * Every test `playwright test --list <args>` would run, as « project › file › titles », with how many tests have that
- * name. No line numbers: with a cold transform cache, listings started side by side may map a test to another line.
+ * name. No line numbers: listings sharing a cold transform cache may map a test to another line.
  */
 async function listed(args: string[]): Promise<Map<string, number>> {
   const { stdout } = await run(path.join(root, "node_modules/.bin/playwright"), ["test", "--list", "--reporter=json", ...args], {
@@ -69,8 +69,11 @@ describe("CI's e2e shards", () => {
     expect(others.slice(0, 2)).toEqual(["--project=plan-quotas --no-deps", "--project=plan-coach-context --no-deps"]);
   });
 
-  it("together run every test of the suite once, each command some", { timeout: 180_000 }, async () => {
-    const [all, ...parts] = await Promise.all([listed([]), ...commands.map((command) => listed(command.args))]);
+  it("together run every test of the suite once, each command some", { timeout: 300_000 }, async () => {
+    // One listing at a time: side by side, they took the runner's cores from the other test files, which timed out.
+    const all = await listed([]);
+    const parts: Map<string, number>[] = [];
+    for (const command of commands) parts.push(await listed(command.args));
     const sharded = new Map<string, number>();
     parts.forEach((part, index) => {
       expect(part.size, commands[index].args.join(" ")).toBeGreaterThan(0);

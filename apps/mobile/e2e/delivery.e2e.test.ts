@@ -77,6 +77,18 @@ describe("EAS Update", () => {
     expect(resolve().runtimeVersion).toEqual({ policy: "fingerprint" });
   });
 
+  // EAS Update is served by Expo (650 Industries, United States): each launch sends Expo the install's EAS-Client-ID, its
+  // IP address, platform and runtime version. A new recipient outside the EU comes after the privacy policy version that
+  // names it (ADR-0064, docs/privacy/register.md « EAS Update in the Jobbbox app »).
+  it("stays off in the builds until a privacy policy version names Expo, its recipient outside the EU (ADR-0064)", () => {
+    const policies = join(ROOT, "packages", "help", "legal", "confidentialite");
+    const namesExpo = readdirSync(policies)
+      .filter((file) => file.endsWith(".fr.md"))
+      .some((file) => /\bExpo\b/.test(readFileSync(join(policies, file), "utf8")));
+    const updatesOn = resolve({ eas: { projectId: "0f7c1d2e-3a4b-4c5d-8e9f-0a1b2c3d4e5f" } }).updates?.enabled !== false;
+    expect({ updatesOn, namesExpo }).not.toEqual({ updatesOn: true, namesExpo: false });
+  });
+
   it("fetches its updates from the app's EAS project", () => {
     expect(resolve({ eas: { projectId: "0f7c1d2e-3a4b-4c5d-8e9f-0a1b2c3d4e5f" } }).updates?.url).toBe(
       "https://u.expo.dev/0f7c1d2e-3a4b-4c5d-8e9f-0a1b2c3d4e5f",
@@ -107,6 +119,10 @@ describe("The mobile.yml workflow, which runs EAS from GitHub", () => {
   it("publishes an update with its profile's address, as the profile's builds have it", () => {
     expect(workflow()).toContain(`EXPO_PUBLIC_WEB_APP_URL=$(jq -r --arg profile "$PROFILE" '.build[$profile].env.EXPO_PUBLIC_WEB_APP_URL' eas.json)`);
     expect(workflow()).toMatch(/export EXPO_PUBLIC_WEB_APP_URL\n\s+eas update/);
+  });
+
+  it("refuses to publish an update while EAS Update is off in the builds", () => {
+    expect(workflow()).toContain(`if [ "$(jq -r '.expo.updates.enabled' app.json)" = false ]; then`);
   });
 
   it("reads EAS's token from the repository's secrets", () => {

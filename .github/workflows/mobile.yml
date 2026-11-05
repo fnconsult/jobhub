@@ -96,6 +96,10 @@ jobs:
         if: inputs.action == 'update'
         working-directory: apps/mobile
         run: |
+          # Off in the builds until a privacy policy version names Expo (ADR-0064, docs/ops/mobile.md): no build would take it.
+          if [ "$(jq -r '.expo.updates.enabled' app.json)" = false ]; then
+            echo "::error::EAS Update is off in app.json (updates.enabled): see docs/ops/mobile.md « EAS Update et la vie privée »"; exit 1
+          fi
           EXPO_PUBLIC_WEB_APP_URL=$(jq -r --arg profile "$PROFILE" '.build[$profile].env.EXPO_PUBLIC_WEB_APP_URL' eas.json)
           export EXPO_PUBLIC_WEB_APP_URL
           eas update --channel "$PROFILE" --message "$MESSAGE" --non-interactive

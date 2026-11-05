@@ -5,6 +5,7 @@
     "scheme": "jobbbox",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
+    "updates": { "enabled": false },
     "ios": {
       "bundleIdentifier": "ai.jobbbox.app",
       "supportsTablet": true,

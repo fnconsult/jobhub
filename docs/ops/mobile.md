@@ -26,6 +26,16 @@ Un update n'atteint **que les builds au même code natif** : la runtime version 
 
 Règle : un correctif de JavaScript seul, sans changement de contrat avec le web app, peut partir en update. Tout le reste, et toute nouveauté qu'un Candidate voit, part en build.
 
+### EAS Update et la vie privée
+
+EAS Update est **coupé** dans les builds : `apps/mobile/app.json`, `updates.enabled: false`. Expo (650 Industries, États-Unis) sert les updates et reçoit à chaque lancement l'adresse IP de l'appareil et un identifiant propre à l'installation (`EAS-Client-ID`) : un **destinataire hors de l'UE**, qui n'entre en service qu'après la version de la politique de confidentialité qui le nomme (ADR-0064, registre `docs/privacy/register.md`, « Légal : » #762).
+
+- `apps/mobile/e2e/delivery.e2e.test.ts` refuse `updates.enabled` tant qu'aucune version de `packages/help/legal/confidentialite/` ne nomme Expo ;
+- `mobile.yml` refuse `action=update` tant qu'il est coupé ;
+- l'allumer (`updates.enabled: true`, ou retirer la clé) est un changement natif : une build `staging` puis `production`, par les stores. Les builds d'avant ne prendront jamais d'update.
+
+D'ici là, tout correctif, même de JavaScript seul, part en build.
+
 ## Les « Nouveautés » des stores
 
 Elles viennent de la **même Release Note** que Nouveautés (`packages/help/releases/{fr,en}/X.Y.Z.md`, ADR-0063) : le titre, puis une ligne par changement (son début en gras, ou tout le texte), en texte brut, coupé à 500 caractères pour Play. Une Version sans Release Note dit « Corrections et améliorations ».
@@ -61,7 +71,7 @@ Le skill `deploy-staging` ne lance pas la build de l'app : il dit seulement, apr
 
 ## Mise en place, une fois
 
-1. **Projet EAS** : dans `apps/mobile`, `npx eas-cli init`, puis recopier l'identifiant du projet dans `app.json`, `expo.extra.eas.projectId` (`app.config.ts` en tire l'adresse d'EAS Update, `https://u.expo.dev/<id>`).
+1. **Projet EAS** : dans `apps/mobile`, `npx eas-cli init`, puis recopier l'identifiant du projet dans `app.json`, `expo.extra.eas.projectId` (`app.config.ts` en tire l'adresse d'EAS Update, `https://u.expo.dev/<id>`) ; EAS Update reste coupé tant que la politique de confidentialité ne nomme pas Expo, voir « EAS Update et la vie privée ».
 2. **Jeton** : créer un jeton d'accès sur expo.dev (compte de l'organisation) et l'enregistrer comme secret du dépôt : `gh secret set EXPO_TOKEN`.
 3. **Identifiants des stores, gardés par EAS** (`npx eas-cli credentials`) : la clé d'API App Store Connect (iOS, signature et envoi à TestFlight) et la clé du compte de service Google Play (Android, envoi au test interne). Aucun autre secret dans le dépôt.
 4. **Fiches des stores** : créer l'app `ai.jobbbox.app` dans App Store Connect et la Play Console. Sur Play, le tout premier envoi se fait à la main (exigence de Google), les suivants par EAS Submit. Une fois l'app créée dans App Store Connect, renseigner son identifiant Apple dans `app.json` (`expo.extra.appStoreId`, pour le lien « Mettre à jour Jobbbox ») et dans `eas.json` (`submit.staging.ios.ascAppId` et `submit.production.ios.ascAppId`).

@@ -4,6 +4,9 @@
 // - EAS Update: a build takes JavaScript updates only on its channel (eas.json) and only for the same native code
 //   (`fingerprint`); a native change makes a new runtime, which reaches people through a store build and its review.
 //   Updates come from the app's EAS project, whose id `eas init` gives (docs/ops/mobile.md).
+//   EAS Update stays off (app.json's `updates.enabled: false`) until a privacy policy version names Expo, which serves it
+//   from the United States: a new recipient outside the EU (ADR-0064, docs/privacy/register.md). Switching it on is a
+//   native change, so a store build.
 import type { ConfigContext, ExpoConfig } from "expo/config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

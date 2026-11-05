@@ -83,7 +83,8 @@ export interface PushNotifications {
   /**
    * Queues `notification` for the worker to send to the person's devices (only those of `platform` when given). With
    * `once`, the event's key (its object and what happened to it: `coach_review:<review id>`), only the first call for the
-   * person queues it; one that could not be queued gives its key back and throws. Whether it was queued.
+   * person queues it; one that could not be queued gives its key back and throws. Nothing for an event the person
+   * switched off in Rappels. Whether it was queued.
    */
   notify(personId: string, notification: PushNotification, options?: NotifyOptions): Promise<boolean>;
   /**
@@ -170,6 +171,8 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
 
     async notify(personId, notification, options = {}) {
       if (!deps.queue) throw new Error("Push notifications: no job queue to queue a notification on");
+      // An event switched off is not queued, nor its key taken (`send` asks again: it may be switched off meanwhile).
+      if (notification.event !== "test" && !(await this.settings(personId))[notification.event]) return false;
       const { once } = options;
       if (once !== undefined) {
         const { rowCount } = await database.query(

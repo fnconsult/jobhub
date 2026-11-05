@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createPushNotifications, migratePushNotifications, purgeExpiredPushFailures, pushNotificationsOf, PUSH_NOTIFICATIONS_QUEUE, type PushNotifications } from "./index";
+import { createPushNotifications, migratePushNotifications, purgeExpiredPushFailures, pushNotificationsOf, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, type PushNotification, type PushNotifications } from "./index";
 import type { PushDevice, PushOutcome, PushPlatform, PushSender } from "./senders";
 import type { PushMessage } from "./messages";
 
@@ -231,6 +231,32 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       expect(queued).toHaveLength(1);
     });
 
+    it("queues nothing for an event switched off in Rappels, every one of them, and takes no key: switched on again, it goes", async () => {
+      const marie = await signIn("marie@example.fr");
+      const OBJECT = "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b";
+      const each: Record<PushEvent, PushNotification> = {
+        job_search_results: { event: "job_search_results", jobSearchId: OBJECT },
+        job_digest: { event: "job_digest", jobDigestId: OBJECT },
+        appointment_reminder: { event: "appointment_reminder" },
+        coach_review: { event: "coach_review", applicationId: OBJECT },
+        coaching_session_changed: { event: "coaching_session_changed" },
+        follow_up_due: { event: "follow_up_due", applicationId: OBJECT },
+        coach_access_granted: { event: "coach_access_granted", candidateId: OBJECT },
+        coaching_session_paid: { event: "coaching_session_paid" },
+        coaching_session_changed_by_candidate: { event: "coaching_session_changed_by_candidate" },
+      };
+      for (const event of PUSH_EVENT_IDS) {
+        await notifying.setEnabled(marie.id, event, false);
+        expect(await notifying.notify(marie.id, each[event], { once: `${event}:1` })).toBe(false);
+      }
+      expect(queued).toEqual([]);
+      for (const event of PUSH_EVENT_IDS) {
+        await notifying.setEnabled(marie.id, event, true);
+        expect(await notifying.notify(marie.id, each[event], { once: `${event}:1` })).toBe(true);
+      }
+      expect(queued.map(({ data }) => (data as { notification: PushNotification }).notification)).toEqual(PUSH_EVENT_IDS.map((event) => each[event]));
+    });
+
     it("keeps each person's keys apart, and queues every notification given no key", async () => {
       const marie = await signIn("marie@example.fr");
       const paul = await signIn("paul@example.fr");
@@ -298,7 +324,7 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
 describe("queueing a Push notification for the worker", () => {
   it("queues the person, the notification and the platform, sending nothing itself", async () => {
     const queued: { name: string; data: object }[] = [];
-    const push = createPushNotifications({} as Pool, { senders: () => ({}), queue: { send: async (name, data) => void queued.push({ name, data }) } });
+    const push = createPushNotifications({ query: async () => ({ rows: [] }) } as unknown as Pool, { senders: () => ({}), queue: { send: async (name, data) => void queued.push({ name, data }) } });
     await push.notify("cand_marie", { event: "job_digest", jobDigestId: "digest-1" });
     await push.notify("cand_admin", { event: "test" }, { platform: "android" });
     expect(queued).toEqual([

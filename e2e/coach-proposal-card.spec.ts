@@ -112,6 +112,26 @@ test.describe("a Coach proposal in the thread: « Appliquer », « Annuler », �
     await server?.stop();
   });
 
+  test("after a long message, the reply and its Action Card arrive whole in view, under the Top Bar, above the box (#786)", async ({ browser }) => {
+    const { page, id } = await withApplication(browser);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/candidatures/${id}`);
+    const pasted = Array.from({ length: 24 }, (_, i) => `Ligne collée ${i + 1} de l'offre.`).join("\n");
+    await conversation(page).getByLabel(fr.coachPanel.messageLabel).fill(`${pasted}\nE2E_COACH_TOOL=e2e_proposer_statut:${JSON.stringify({ id, status: "interview" })}`);
+    await conversation(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+    await expect(cardOf(page)).toBeVisible({ timeout: 30_000 });
+
+    await expect(async () => {
+      const bar = (await page.getByRole("banner").boundingBox())!;
+      const foot = (await conversation(page).locator(".page-conversation-foot").boundingBox())!;
+      for (const part of [messages(page).last(), cardOf(page)]) {
+        const shown = (await part.boundingBox())!;
+        expect(shown.y).toBeGreaterThanOrEqual(bar.y + bar.height - 1);
+        expect(shown.y + shown.height).toBeLessThanOrEqual(foot.y + 1);
+      }
+    }).toPass({ timeout: 5_000 });
+  });
+
   test("proposal → « Appliquer » → the status changed, « Origine » says so → « Annuler » → the status before", async ({ browser }) => {
     const { page, id } = await withApplication(browser);
     await page.goto(`/candidatures/${id}`);

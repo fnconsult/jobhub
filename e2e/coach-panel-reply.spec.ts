@@ -70,19 +70,20 @@ test.describe("a conversation's replies", () => {
     await expect(mine).toHaveCSS("background-color", accent);
   });
 
-  test("the page scrolls to the latest answer", async ({ page }) => {
+  test("the thread scrolls to the latest answer, shown from its first line", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await signInWithMagicLink(page, newAddress("coach-scroll"));
     await openCoachAndAsk(page, "E2E_COACH_LONG Dites-moi tout.");
 
-    await expect(coachPanel(page).getByText("FIN DE LA RÉPONSE")).toBeInViewport();
-    // The page was scrolled, the start of the answer is above the fold.
-    await expect(coachPanel(page).getByText("Paragraphe 1 :")).not.toBeInViewport();
+    // Taller than the thread's column, the answer shows from its start; its end is further down (e2e/conversation-scroll.spec.ts).
+    await expect(coachPanel(page).getByText("Paragraphe 1 :")).toBeInViewport();
+    await expect(coachPanel(page).getByText("FIN DE LA RÉPONSE")).not.toBeInViewport();
 
-    // A second answer arrives: still at the latest message.
+    // A second answer arrives: the thread goes on to it, from its first line.
     await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).fill("E2E_COACH_LONG Encore.");
     await coachPanel(page).getByRole("button", { name: fr.coachPanel.send }).click();
     await expect(coachPanel(page).getByText("FIN DE LA RÉPONSE")).toHaveCount(2);
-    await expect(coachPanel(page).getByText("FIN DE LA RÉPONSE").last()).toBeInViewport();
+    await expect(coachPanel(page).getByText("Paragraphe 1 :").last()).toBeInViewport();
+    await expect(coachPanel(page).getByText("Paragraphe 1 :").first()).not.toBeInViewport();
   });
 });

@@ -200,6 +200,8 @@ test.describe("On-demand AI Coach job search", () => {
     expect(exported.profiles.find((p: { id: string }) => p.id === profileId).jobSearches).toEqual([
       expect.objectContaining({ id: searchId, startedAt: expect.any(String), finishedAt: expect.any(String), jobOfferIds: expect.arrayContaining([expect.any(String)]) }),
     ]);
+    // Its new results told the Candidate's devices, once (#699).
+    expect(exported.pushNotifications.sent).toEqual([expect.objectContaining({ event: "job_search_results" })]);
   });
 
   test("starts from a Profile, shows the Job Offers found by Match Score with their key facts, and saves one in one click", async ({ page }) => {

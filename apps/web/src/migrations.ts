@@ -36,6 +36,7 @@ import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateLegalTextNotices } from "./legal-text-notices/index";
 import { migrateNouveautesEmails } from "./nouveautes-email/index";
+import { backfillOfferBox, migrateOfferBox } from "./offer-box/index";
 import { migrateOrders } from "./orders/index";
 import { migratePlatformSettings } from "./platform-settings/index";
 import { migrateProfiles } from "./profiles/index";
@@ -114,6 +115,12 @@ export async function migrateDatabase(
     ["« Propositions du coach » is up to date", () => migrateCoachProposalsDisplay(database)],
     ["The offers of Received offer emails are up to date", () => migrateEmailReadings(database)],
     ["The Recipient list's changes are up to date", () => migrateRecipientList(database)],
+    // After every door's table (Job Searches, Job Digests, Received offer emails, Coach Conversations): at the deployment
+    // that brings it, the Offer box is filled from their last 30 days (ADR-0090); run again, it changes nothing.
+    ["The Offer box is up to date", async () => {
+      await migrateOfferBox(database);
+      await backfillOfferBox(database, new Date());
+    }],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

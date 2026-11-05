@@ -5821,6 +5821,17 @@
     "openSampleSection": "Open a sample Section",
     "sampleSection": "Sample Section",
     "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here.",
+    "documents": {
+      "title": "Documents",
+      "none": "No document yet: ask the coach for a tailored CV or a cover letter.",
+      "updatedOn": "Changed on {{date}}",
+      "open": "Open",
+      "share": "Share",
+      "subject": "Subject: {{subject}}",
+      "readOnly": "In the app, documents are read, shared and downloaded; they are changed on jobbbox.ai.",
+      "failed": "The document could not be opened. Check your connection and try again.",
+      "notFound": "This application's documents cannot be found: it does not exist or is not yours."
+    },
     "appSettings": "App settings",
     "appLock": {
       "setting": "Lock the app",
@@ -5859,7 +5870,26 @@
       "openPosting": "View the posting",
       "shareLink": "Share the link"
     },
-    "jobOfferPlaceholder": "The job offer will open here, with its Match Score."
+    "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
+    "profiles": {
+      "positioning": "Positioning",
+      "contracts": "Contracts",
+      "sectors": "Sectors",
+      "criterion": "{{label}}: {{value}}",
+      "masterCvVersion": "Version {{version}} · {{name}}",
+      "edit": "Edit the profile",
+      "editTitle": "Edit: {{name}}",
+      "editOnWeb": "The profile is changed on jobbbox.ai: “Edit the profile” opens its page.",
+      "title": "Profile",
+      "none": "No profile yet: create one on jobbbox.ai.",
+      "notFound": "This profile cannot be found: it does not exist or is not yours."
+    },
+    "reads": {
+      "loading": "Loading…",
+      "failed": "This could not be loaded. Check your connection and try again.",
+      "retry": "Try again",
+      "offline": "Offline: this will load as soon as the network is back."
+    }
   },
   "coachProposals": {
     "fields": {

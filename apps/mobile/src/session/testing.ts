@@ -1,11 +1,27 @@
 import CookieManager from "@preeternal/react-native-cookie-manager";
 import { API_CLIENT_HEADER, APP_ORIGIN, APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED, type SecondStepRead } from "@jobhub/shared";
 import type { SignInProviderButton } from "@jobhub/shared/sign-in-providers";
-import type { LegalStepsResponse, ShownLegalTextRead } from "@jobhub/shared/reads";
+import {
+  agendaResponseSchema,
+  applicationResponseSchema,
+  profileResponseSchema,
+  tailoredDocumentsResponseSchema,
+  type AgendaResponse,
+  type ApplicationResponse,
+  type LegalStepsResponse,
+  type ProfileResponse,
+  type ProfilesResponse,
+  type ShownLegalTextRead,
+  type TailoredDocumentsResponse,
+} from "@jobhub/shared/reads";
 import { fakeWebView, type WebViewCookie } from "../testing-device";
 import type { AuthBrowser, DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";
 
+const NO_AGENDA: AgendaResponse = { toSchedule: [], days: [] };
+
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
+/** The reads of the account's own the fake answers with its writes (#689), not with the Candidate's data (#695). */
+const ACCOUNT_READS = new Set(["/api/coach-space", "/api/account/legal-steps"]);
 const COOKIE = "__Secure-better-auth.session_token";
 
 /** Secure storage as the Keychain or Keystore keeps it, in memory: what the app leaves on the device is `values`. */
@@ -87,6 +103,17 @@ export type AtProvider =
   | "nothing";
 
 /**
+ * What a Candidate has on the web app, as its reads answer it (#684, `@jobhub/shared/reads`): their Profiles, an
+ * archived one included, and their Applications, each with its Tailored Documents.
+ */
+export interface CandidateData {
+  profiles?: ProfileResponse[];
+  /** Their Agenda (#693); an empty one when not given. */
+  agenda?: AgendaResponse;
+  applications?: { application: ApplicationResponse; documents: TailoredDocumentsResponse }[];
+}
+
+/**
  * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts and
  * sign-in-code.test.ts prove the real ones): the magic link asked from the app's origin alone, the session as a cookie,
  * a session pending its second step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a
@@ -106,6 +133,12 @@ export function fakeWebApp() {
   /** The code each address's last email carries, and the wrong tries made with it. */
   const codes = new Map<string, { code: string; tries: number }>();
   const emailed: { email: string; callbackURL: string; link: string; code: string }[] = [];
+  /** Each Candidate's data, by their email, parsed with the reads' own schemas so a test cannot give the app what the web app would never answer. */
+  const data = new Map<string, Required<CandidateData>>();
+  /** What the app read of the Candidate's reads (`/api/*` but `/api/auth/*`), its path and query, and with whose session. */
+  const reads: { path: string; as: string | null }[] = [];
+  /** A read answered `status` instead, `times` in a row, as a server failing would. */
+  const failing = new Map<string, { status: number; times: number }>();
   let next = 0;
   let offline = false;
   const humanCoaches = new Set<string>();
@@ -151,6 +184,30 @@ export function fakeWebApp() {
     const { setCookie } = newSession(atProvider.signIn, true);
     return { type: "success", url: `${flow.callbackURL}?cookie=${encodeURIComponent(setCookie)}` };
   };
+
+  /**
+   * The Candidate's reads, as the routes under apps/web/src/app/api answer them: 401 without a session, 404 for what is
+   * not the Candidate's; `GET /api/profiles` leaves the Archived Profiles out, `GET /api/profiles/:id` does not.
+   */
+  function read(path: string, email: string | null): Response {
+    if (!email) return json({ error: "unauthorized" }, 401);
+    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [] };
+    const notFound = json({ error: "not_found" }, 404);
+    if (path === "/api/agenda") return json(mine.agenda);
+    if (path === "/api/profiles") return json(mine.profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name })) satisfies ProfilesResponse);
+    const profile = /^\/api\/profiles\/([^/]+)$/.exec(path);
+    if (profile) {
+      const found = mine.profiles.find((candidate) => candidate.id === decodeURIComponent(profile[1]!));
+      return found ? json(found) : notFound;
+    }
+    const application = /^\/api\/applications\/([^/]+)(\/documents)?$/.exec(path);
+    if (application) {
+      const found = mine.applications.find((candidate) => candidate.application.id === decodeURIComponent(application[1]!));
+      if (!found) return notFound;
+      return json(application[2] ? found.documents : found.application);
+    }
+    return notFound;
+  }
 
   async function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     if (offline) throw new TypeError("Network request failed");
@@ -211,6 +268,18 @@ export function fakeWebApp() {
       if (!found?.session) return json({ error: "unauthorized" }, 401);
       if (request.method !== "GET" && !fromApp) return json({ error: "forbidden" }, 403);
       return answerSecondStep(request, url.pathname, found.session);
+    }
+    // The Candidate's reads: a session pending its second step reaches none (above), as on the web app (#688). The
+    // account's own (the Espace coach entry, the legal steps; #689) are answered with its writes, below.
+    if (url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/auth/") && request.method === "GET" && !ACCOUNT_READS.has(url.pathname)) {
+      const as = found?.session?.email ?? null;
+      reads.push({ path: `${url.pathname}${url.search}`, as });
+      const failure = failing.get(url.pathname);
+      if (failure) {
+        if (--failure.times === 0) failing.delete(url.pathname);
+        return json({ error: "internal_error" }, failure.status);
+      }
+      return read(url.pathname, as);
     }
     if (path === "/get-session" && request.method === "GET") {
       if (!found?.session) return json(null, 200, found ? cleared : undefined);
@@ -346,5 +415,19 @@ export function fakeWebApp() {
     browserOpened,
     /** The sign-ins through a provider the app asked for. */
     signInsAsked: () => signInsAsked,
+    /** What `email`'s Candidate has on the web app, as its reads answer it. */
+    has: (email: string, candidate: CandidateData) =>
+      void data.set(email, {
+        profiles: (candidate.profiles ?? []).map((profile) => profileResponseSchema.parse(profile)),
+        agenda: agendaResponseSchema.parse(candidate.agenda ?? NO_AGENDA),
+        applications: (candidate.applications ?? []).map(({ application, documents }) => ({
+          application: applicationResponseSchema.parse(application),
+          documents: tailoredDocumentsResponseSchema.parse(documents),
+        })),
+      }),
+    /** The Candidate's reads the app made, in order, and with whose session. */
+    reads,
+    /** The next `times` calls to the read at `path` fail with `status`, as a server error would. */
+    failNext: (path: string, status = 500, times = 1) => void failing.set(path, { status, times }),
   };
 }

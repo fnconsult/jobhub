@@ -212,6 +212,11 @@ test.describe("Explainer Videos in the Help Centre (#568)", () => {
   test("the Coach Panel's card of the Tutorial says « Voir la vidéo (durée) » and opens it in the Help Centre, playing nothing", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("help-centre-videos"));
     const asked = bucketRequests(page, media.origin);
+    // The card's link waits for /api/help-videos, which `next dev` compiles on its first request: over 5 s while the
+    // other projects load the machine (#698's CI). That compile is not what this test checks, so the route is asked once
+    // first, as an HTTP request, and says the published duration.
+    const durations = await page.request.get(`${server.origin}/api/help-videos?locale=fr`, { timeout: 120_000 });
+    expect(await durations.json()).toEqual({ durations: { "e2e-video": 65.4 } });
     // The home page's conversation, on this spec's server.
     await page.goto(`${server.origin}/`, { timeout: 120_000 });
     const panel = conversationOf(page);

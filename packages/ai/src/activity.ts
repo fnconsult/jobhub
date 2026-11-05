@@ -42,7 +42,7 @@ type CoachActionTool = Extract<(typeof TOOLS)[number], { category: typeof COACH_
 /**
  * Each Tool's default Activity, or why it has none of its own: `by_task` for an AI model or web search, whose
  * step is the AI task it served; `not_a_step` for a Tool no AI action calls (billing, mail, sign-in, places,
- * reference data); `act` for a Coach Action's group, and only for one.
+ * reference data, push notifications); `act` for a Coach Action's group, and only for one.
  */
 export const TOOL_STEPS = {
   anthropic: "by_task",
@@ -74,6 +74,8 @@ export const TOOL_STEPS = {
   stripe: "not_a_step",
   "brevo-api": "not_a_step",
   "brevo-smtp": "not_a_step",
+  apns: "not_a_step",
+  fcm: "not_a_step",
   /** Email intake: receiving the email is the first step of the Job Offers it gives (CONTEXT.md, Received offer email). */
   "email-intake": "read",
   google: "not_a_step",

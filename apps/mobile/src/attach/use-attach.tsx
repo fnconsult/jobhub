@@ -1,6 +1,7 @@
 import { formatTimeOfDay } from "@jobhub/shared";
 import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
+import { File } from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -48,7 +49,8 @@ export type Attach = {
  * - A CV (PDF, DOCX) is refused at once when over 10 MB or of another format (ADR-0068), and otherwise read by
  *   `POST /api/cv/draft` as the web's form reads it, « Arrêter » meanwhile; the server decides. What it read shows in
  *   the thread, saved as a new Profile by « Créer le profil », which then opens. A draft the server finds incomplete is
- *   finished on jobbbox.ai. Nothing is saved before « Créer le profil ».
+ *   finished on jobbbox.ai. Nothing is saved before « Créer le profil », and the file's copy in the app's cache is deleted
+ *   once read or refused.
  */
 export function useAttach({ onJobOfferLink }: { onJobOfferLink: (url: string) => void | Promise<void> }): Attach {
   const { t } = useTranslation();
@@ -60,6 +62,15 @@ export function useAttach({ onJobOfferLink }: { onJobOfferLink: (url: string) =>
   const readingError = (error: CvReadingError) => t(`cvUpload.errors.${error}`);
 
   const attach = async (attachment: Attachment) => {
+    try {
+      await take(attachment);
+    } finally {
+      // The system's copy in the app's cache, once read or refused: the device keeps no CV (docs/privacy/register.md).
+      if (attachment.kind === "cv" || attachment.kind === "refused") forget(attachment.file.uri);
+    }
+  };
+
+  const take = async (attachment: Attachment) => {
     if (attachment.kind === "nothing") return setShown({ kind: "notice", text: t("mobile.attachments.nothingDropped") });
     if (attachment.kind === "jobOfferLink") {
       setShown({ kind: "none" });
@@ -98,6 +109,16 @@ export function useAttach({ onJobOfferLink }: { onJobOfferLink: (url: string) =>
     drop: (items) => void attach(attachmentOfDrop(items)),
     shown: <Shown shown={shown} onChange={setShown} />,
   };
+}
+
+/** Deletes a file the system copied into the app's cache; one already gone is left. */
+function forget(uri: string) {
+  try {
+    const file = new File(uri);
+    if (file.exists) file.delete();
+  } catch {
+    // The system clears its cache in its own time.
+  }
 }
 
 function Shown({ shown, onChange }: { shown: Shown; onChange: (shown: Shown) => void }) {

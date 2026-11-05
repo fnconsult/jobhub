@@ -11,7 +11,11 @@ export type DroppedItem = ({ kind: "file" } & GivenFile) | { kind: "text"; text:
  * Share capture sends one; a CV, read by `POST /api/cv/draft` as the web's form reads it; a file refused before it is
  * sent (ADR-0068: the server still decides about the rest); or nothing it can take (text without a link).
  */
-export type Attachment = { kind: "jobOfferLink"; url: string } | { kind: "cv"; file: GivenFile } | { kind: "refused"; problem: CvFileProblem } | { kind: "nothing" };
+export type Attachment =
+  | { kind: "jobOfferLink"; url: string }
+  | { kind: "cv"; file: GivenFile }
+  | { kind: "refused"; file: GivenFile; problem: CvFileProblem }
+  | { kind: "nothing" };
 
 /** The first web link in `text` (a link copied or dropped alone, or within the words around it), null when none. */
 export function linkIn(text: string): string | null {
@@ -23,7 +27,7 @@ export function linkIn(text: string): string | null {
 export function attachmentOfFile(file: GivenFile): Attachment {
   // A size the system did not say is the server's to judge.
   const problem = cvFileProblem({ name: file.name, size: file.size ?? 0 });
-  return problem ? { kind: "refused", problem } : { kind: "cv", file };
+  return problem ? { kind: "refused", file, problem } : { kind: "cv", file };
 }
 
 /** What the first item dropped on the box is to the conversation; the others are left. */

@@ -15,6 +15,15 @@ import type { DroppedItem } from "./attachment";
 // The system's document picker and clipboard, as the person answers them.
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 jest.mock("expo-clipboard", () => ({ getStringAsync: jest.fn() }));
+// The app's cache, where the system copies a file picked or dropped: what the app deletes from it.
+const mockDeleted: string[] = [];
+jest.mock("expo-file-system", () => ({
+  File: function MockFile(this: { uri: string; exists: boolean; delete: () => void }, mockUri: string) {
+    this.uri = mockUri;
+    this.exists = true;
+    this.delete = () => void mockDeleted.push(mockUri);
+  },
+}));
 
 const MB = 1024 * 1024;
 const PDF = "application/pdf";
@@ -24,7 +33,10 @@ beforeEach(() => {
   web = fakeCoachWeb();
   jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  mockDeleted.splice(0);
+});
 
 /** The person picks `file` in the system's document picker; null, they close it. */
 function picks(file: { name: string; size?: number; mimeType?: string } | null) {
@@ -109,6 +121,19 @@ describe("« Joindre un CV », from « + » in the box", () => {
     expect(screen.getByText("Poste recherché : Responsable qualité")).toBeOnTheScreen();
     expect(screen.getByText("Lieux : Lyon, Grenoble")).toBeOnTheScreen();
     expect(web.profiles).toHaveLength(0);
+  });
+
+  it("keeps no copy of the CV on the device once it is read, or refused", async () => {
+    picks({ name: "CV.pdf", size: 300_000, mimeType: PDF });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
+    await choose("Joindre un CV");
+    expect(mockDeleted).toEqual([]);
+    await act(async () => web.readCv(200, DRAFT));
+    expect(mockDeleted).toEqual(["file:///cache/CV.pdf"]);
+
+    picks({ name: "Film.mp4", size: 300 * MB, mimeType: "video/mp4" });
+    await choose("Joindre un CV");
+    expect(mockDeleted).toEqual(["file:///cache/CV.pdf", "file:///cache/Film.mp4"]);
   });
 
   it("says why the server could not read it: the server decides", async () => {

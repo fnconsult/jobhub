@@ -41,6 +41,16 @@
               "scheme": "https",
               "host": "staging.jobbbox.ai",
               "pathPrefix": "/connexion/app"
+            },
+            {
+              "scheme": "https",
+              "host": "jobbbox.ai",
+              "pathPrefix": "/coachs/paiement"
+            },
+            {
+              "scheme": "https",
+              "host": "staging.jobbbox.ai",
+              "pathPrefix": "/coachs/paiement"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]

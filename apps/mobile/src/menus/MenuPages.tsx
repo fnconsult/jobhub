@@ -1,6 +1,5 @@
 import {
   applicationsResponseSchema,
-  coachingResponseSchema,
   jobDigestsResponseSchema,
   jobSearchesResponseSchema,
   type ApplicationRow,
@@ -21,6 +20,7 @@ import { AgendaList } from "../agenda/AgendaList";
 import { systemSheets } from "../agenda/system-sheets";
 import { useAgenda, useRead } from "../api/reads";
 import { CoachConversation, useCoachBox } from "../coach/CoachConversation";
+import { HumanCoaches } from "../coaching/HumanCoaches";
 import type { SubjectRef } from "../coach/coach-reply";
 import { shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
@@ -432,61 +432,19 @@ export function AgendaMenu() {
   );
 }
 
-/** Mes coachs humains: the Coaching Sessions, then the Human Coaches to book. */
+/**
+ * Mes coachs humains: the Coaching Sessions, then the Human Coaches to book (src/coaching/HumanCoaches, #694): each to
+ * book and pay, its date to enter, « Renoncer au contrat ici » while it can be withdrawn from.
+ */
 export function HumanCoachesMenu() {
-  const { t, i18n } = useTranslation();
-  const read = useRead("humanCoaches", "/api/coaching", coachingResponseSchema);
-  const date = new Intl.DateTimeFormat(i18n.language, {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: "Europe/Paris",
-  });
+  const { t } = useTranslation();
   return (
     <CoachConversation
       conversationId={null}
       subject={SUBJECTS.humanCoaches}
       route={paths.humanCoaches}
       introduction={<AppText>{t("humanCoachesMenu.introduction")}</AppText>}
-      card={
-        <Loaded read={read}>
-          {(data) => (
-            <View style={{ gap: space[3] }}>
-              <MenuCard title={t("humanCoaches.sessionsTitle")}>
-                {data.sessions.length === 0 ? (
-                  <AppText>{t("humanCoachesMenu.sessionsNone")}</AppText>
-                ) : null}
-                {data.sessions.map((session) => (
-                  <Line
-                    key={session.id}
-                    label={
-                      session.scheduledAt
-                        ? t("humanCoaches.sessionOn", {
-                            name: session.coach.name,
-                            date: date.format(new Date(session.scheduledAt)),
-                          })
-                        : t("humanCoaches.sessionPaidOn", {
-                            name: session.coach.name,
-                            date: date.format(new Date(session.paidAt)),
-                          })
-                    }
-                    {...(session.scheduledAt
-                      ? {}
-                      : { meta: t("humanCoaches.toSchedule") })}
-                  />
-                ))}
-              </MenuCard>
-              <MenuCard title={t("humanCoaches.listTitle")}>
-                {data.coaches.length === 0 ? (
-                  <AppText>{t("humanCoaches.none")}</AppText>
-                ) : null}
-                {data.coaches.map((coach) => (
-                  <Line key={coach.id} label={coach.name} meta={coach.bio} />
-                ))}
-              </MenuCard>
-            </View>
-          )}
-        </Loaded>
-      }
+      card={<HumanCoaches />}
     />
   );
 }

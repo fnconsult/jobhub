@@ -228,9 +228,10 @@ export type AgendaResponse = z.infer<typeof agendaResponseSchema>;
 
 /**
  * `GET /api/coaching`: the Human Coaches to book (`accessGranted`: the Candidate granted them Coach Access), the
- * Candidate's Coaching Sessions (`scheduledAt` null: to schedule on the Human Coach's booking page), and the price of a
- * Coaching Session for them, in the currency's smallest unit (`amount` below `regularAmount` with their Plan's discount;
- * null when it cannot be read). Never a Human Coach's email.
+ * Candidate's Coaching Sessions (`scheduledAt` null: to schedule on the Human Coach's booking page; `withdrawable`: still
+ * in its Withdrawal period and not held under the Immediate Performance Request, so « Renoncer au contrat ici » leads to
+ * its Withdrawal form), and the price of a Coaching Session for them, in the currency's smallest unit (`amount` below
+ * `regularAmount` with their Plan's discount; null when it cannot be read). Never a Human Coach's email.
  */
 export const coachingResponseSchema = z.object({
   coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean() })),
@@ -245,11 +246,25 @@ export const coachingResponseSchema = z.object({
       note: z.string().nullable(),
       changedBy: z.enum(["candidate", "coach"]).nullable(),
       reschedules: z.array(rescheduleSchema),
+      withdrawable: z.boolean(),
     }),
   ),
   price: z.object({ amount: z.number().int().min(0), regularAmount: z.number().int().min(0), currency: z.string() }).nullable(),
 });
 export type CoachingResponse = z.infer<typeof coachingResponseSchema>;
+
+/**
+ * `GET /api/coaching/order?coach=<id>`: the Order page of a Coaching Session as the app shows it before Stripe Checkout
+ * (#694, ADR-0074): the Human Coach, the Candidate's Coaching Session Price all taxes included (null when Stripe cannot
+ * tell it), and the CGV version to accept, with its permanent address on the web app (null while none is in effect).
+ * 404 when the Human Coach cannot be booked. `POST /api/coaching/order` places it.
+ */
+export const coachingOrderResponseSchema = z.object({
+  coach: named,
+  price: z.object({ amount: z.number().int().min(0), currency: z.string() }).nullable(),
+  cgv: z.object({ version: day, url: z.string() }).nullable(),
+});
+export type CoachingOrderResponse = z.infer<typeof coachingOrderResponseSchema>;
 
 // --- Profiles ----------------------------------------------------------------------------------------------------
 

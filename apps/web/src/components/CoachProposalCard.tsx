@@ -58,7 +58,9 @@ function hourOf(at: string, language: string): string {
  * Message): applied, its card runs the AI action the documents page runs, through its route, its steps live beside
  * « Arrêter » (and in AI Activity); done, its Result opens in the Work Pane, a Tailored CV's Review to go through change by
  * change. A draft that exists is replaced, edits included: the card says so (`replaces`), and « Rédiger » asks to confirm
- * it first (« Remplacer et rédiger » or « Garder mon brouillon »), the focus on the confirmation.
+ * it first (« Remplacer et rédiger » or « Garder mon brouillon »), the focus on the confirmation. So does « Préparer » when
+ * a Tailored CV proposal still waits for its review, answers included (#774): « Remplacer et préparer » or « Garder ma
+ * proposition ».
  */
 export function CoachProposalCard({ card, onChange, openOnArrival = false }: { card: Card; onChange: (card: Card) => void; openOnArrival?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -227,13 +229,13 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {pending && change.quota?.prompt ? <UpgradePrompt prompt={change.quota.prompt} /> : null}
       {pending && confirming ? (
         <div className="coach-proposal-card__confirm" role="group" aria-labelledby={confirmId}>
-          <p id={confirmId}>{t("coachProposals.confirmReplace")}</p>
+          <p id={confirmId}>{t(run?.kind === "tailored_cv" ? "coachProposals.confirmReplaceProposal" : "coachProposals.confirmReplace")}</p>
           <div className="actions">
             <button ref={confirmButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => void launch()}>
-              {t("coachProposals.confirmYes")}
+              {t(run?.kind === "tailored_cv" ? "coachProposals.confirmYesProposal" : "coachProposals.confirmYes")}
             </button>
             <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => setConfirming(false)}>
-              {t("coachProposals.confirmNo")}
+              {t(run?.kind === "tailored_cv" ? "coachProposals.confirmNoProposal" : "coachProposals.confirmNo")}
             </button>
           </div>
         </div>

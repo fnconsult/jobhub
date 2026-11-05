@@ -180,6 +180,25 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(screen.queryByText("Erreur de chargement")).toBeNull();
   });
 
+  it.each([
+    ["the global fetch's", () => new TypeError("Network request failed")],
+    ["the app's expo/fetch's", () => new Error("fetch failed: The network connection was lost.")],
+  ])("a read whose network failed on the way (%s error) is tried again once, by itself", async (_, failure) => {
+    let calls = 0;
+    const fetch = jest.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw failure();
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof globalThis.fetch;
+    function Applications() {
+      const read = useRead("applications", "/api/applications", z.unknown());
+      return <Text>{read.isSuccess ? "Mes candidatures" : read.isError ? "Erreur de chargement" : "Chargement"}</Text>;
+    }
+    await renderInApp(<Applications />, { fetch });
+    expect(await screen.findByText("Mes candidatures", {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(calls).toBe(2);
+  });
+
   it("answered 426 on a message to the coach, show « Mettre à jour Jobbbox »", async () => {
     await renderInApp(<CoachConversation conversationId={null} route="/" />, outdatedWebApp());
     const user = userEvent.setup();

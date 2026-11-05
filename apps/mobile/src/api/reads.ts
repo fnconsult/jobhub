@@ -31,10 +31,16 @@ export class ReadFailed extends Error {
 }
 
 /**
- * A read is tried again once by itself when the network failed on the way (fetch's TypeError) or the web app failed
- * (5xx); never when it refused it (4xx), when the app is outdated (426), nor when the answer is not the read's shape.
+ * Whether the network failed on the way: the global fetch rejects with a TypeError, the app's `expo/fetch` (`appFetch`)
+ * with a FetchError, which it does not export and whose message starts « fetch failed: » (expo's FetchErrors.ts).
  */
-const tryAgain = (failures: number, error: Error) => failures < 1 && (error instanceof ReadFailed ? error.status >= 500 : error instanceof TypeError);
+const networkFailed = (error: Error) => error instanceof TypeError || error.message.startsWith("fetch failed:");
+
+/**
+ * A read is tried again once by itself when the network failed on the way or the web app failed (5xx); never when it
+ * refused it (4xx), when the app is outdated (426), nor when the answer is not the read's shape.
+ */
+const tryAgain = (failures: number, error: Error) => failures < 1 && (error instanceof ReadFailed ? error.status >= 500 : networkFailed(error));
 
 export type Read<T> = UseQueryResult<T, Error>;
 

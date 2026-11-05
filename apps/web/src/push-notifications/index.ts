@@ -18,6 +18,7 @@ import { isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import type { PushFailureReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { isPushEvent, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, type PushNotification, type PushNotificationEvent } from "./catalog";
+import { utcBefore } from "../database/before";
 import { pushMessage } from "./messages";
 import { PUSH_ENVIRONMENTS, PUSH_PLATFORMS, type PushEnvironment, type PushOutcome, type PushPlatform, type PushSender } from "./senders";
 
@@ -236,7 +237,7 @@ export async function pushNotificationsOf(database: Pick<Pool, "query">, personI
 
 /** Deletes the failures older than FAILURE_RETENTION_DAYS; how many. */
 export async function purgeExpiredPushFailures(database: Pick<Pool, "query">, now: Date = new Date()): Promise<number> {
-  const { rowCount } = await database.query(`DELETE FROM push_notification_failure WHERE at < $1::timestamptz - make_interval(days => $2)`, [now, FAILURE_RETENTION_DAYS]);
+  const { rowCount } = await database.query(`DELETE FROM push_notification_failure WHERE at < ${utcBefore("$1", "make_interval(days => $2)")}`, [now, FAILURE_RETENTION_DAYS]);
   return rowCount ?? 0;
 }
 

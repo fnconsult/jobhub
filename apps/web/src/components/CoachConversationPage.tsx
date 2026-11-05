@@ -22,6 +22,7 @@ import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { useOpenSignalement } from "@/components/Signalement";
+import { showLatest } from "@/components/thread-scroll";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/Button";
 import { InfoDialog } from "@/design/Dialog";
@@ -412,13 +413,14 @@ export function CoachConversationPage(page: PagePlacement) {
     return true;
   }
 
-  // The page scrolls as a page: down to its latest message when the box at its foot hides it. Nothing sent yet, it stays
-  // at its top, on its Introduction.
+  // The thread scrolls in its own column, down to its latest message when the box at its foot hides it, and a reply that
+  // just arrived from its first line (thread-scroll.ts). Nothing sent yet, it stays at its top, on its Introduction.
   useEffect(() => {
     const end = messagesEnd.current;
     if (!end || messages.length === 0) return;
-    const hidden = end.getBoundingClientRect().top - (foot.current?.getBoundingClientRect().top ?? window.innerHeight);
-    if (hidden > 0) window.scrollBy(0, hidden);
+    const replied = status !== "sending" && messages.at(-1)?.from === "coach";
+    const reply = replied ? (end.parentElement?.querySelector(".coach-panel-messages > li:last-child") ?? null) : null;
+    showLatest({ end, foot: foot.current, reply });
   }, [messages, status]);
 
   function send(event: FormEvent<HTMLFormElement>) {

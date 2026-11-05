@@ -171,7 +171,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/conversations/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis « Coach » dans le menu. Elle reprend vos messages et ses réponses ; sous chaque réponse, une ligne discrète dit ce qui l'a produite, et « Cela répond à votre question ? » vous permet de le dire.\n\nÉcrivez dans la zone de message, en bas de la page. Pendant que le coach répond, « Arrêter » interrompt sa réponse.\n\nPour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste."
+      "body": "Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis « Coach » dans le menu. Elle reprend vos messages et ses réponses ; sous chaque réponse, une ligne discrète dit ce qui l'a produite, et « Cela répond à votre question ? » vous permet de le dire.\n\nÉcrivez dans la zone de message, toujours visible en bas de la page. Pendant que le coach répond, « Arrêter » interrompt sa réponse. Une réponse s'affiche depuis sa première ligne ; si elle est longue, faites défiler la conversation pour la lire jusqu'au bout. La conversation défile seule, sous la barre du haut : la fiche et l'élément ouvert à côté (une rubrique, un résultat) restent en place et défilent chacun de leur côté.\n\nPour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste."
     },
     {
       "id": "page-new-profile",
@@ -1375,7 +1375,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "La fiche, c'est la colonne à droite de la conversation sur la page d'une candidature, d'un profil, d'une recherche d'offres ou d'un Job Digest : l'objet d'un coup d'œil (pour une candidature, son statut et son profil, que vous changez sur place, sa correspondance, l'offre), puis trois groupes, « Sections », « Activité » et « Résultats ». Un clic sur le titre d'un groupe le replie ou le déplie.\n\nElle ne cache jamais la conversation : elle la pousse sur le côté. « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page. Une section ou un résultat de la fiche s'ouvre à côté de la conversation, où vous agissez dessus.\n\nSur téléphone, la fiche s'ouvre par-dessus la conversation, en plein écran, avec son titre ; « Fermer » ou la touche Échap la referme."
+      "body": "La fiche, c'est la colonne à droite de la conversation sur la page d'une candidature, d'un profil, d'une recherche d'offres ou d'un Job Digest : l'objet d'un coup d'œil (pour une candidature, son statut et son profil, que vous changez sur place, sa correspondance, l'offre), puis trois groupes, « Sections », « Activité » et « Résultats ». Un clic sur le titre d'un groupe le replie ou le déplie.\n\nElle ne cache jamais la conversation : elle la pousse sur le côté, et défile de son côté, sans bouger quand vous faites défiler la conversation. « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page. Une section ou un résultat de la fiche s'ouvre à côté de la conversation, où vous agissez dessus.\n\nSur téléphone, la fiche s'ouvre par-dessus la conversation, en plein écran, avec son titre ; « Fermer » ou la touche Échap la referme."
     },
     {
       "id": "glossary-eu-ai-consent",
@@ -3903,7 +3903,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/conversations/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Does this answer your question? » lets you say so.\n\nWrite in the message box at the foot of the page. While the coach is replying, « Stop » interrupts its reply.\n\nTo rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays."
+      "body": "This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Does this answer your question? » lets you say so.\n\nWrite in the message box, always in view at the foot of the page. While the coach is replying, « Stop » interrupts its reply. A reply shows from its first line; when it is long, scroll the conversation to read it to the end. The conversation scrolls on its own, under the top bar: the fiche and the item open beside it (a section, a result) stay in place and each scrolls on its own.\n\nTo rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays."
     },
     {
       "id": "page-new-profile",
@@ -5072,7 +5072,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "The fiche is the column on the right of the conversation on the page of an application, a profile, a job search or a Job Digest: the object at a glance (for an application, its status and profile, which you change in place, its match, the job offer), then three groups, « Sections », « Activity » and « Results ». A click on a group's title folds or unfolds it.\n\nIt never hides the conversation: it pushes it aside. « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page. A section or a result of the fiche opens beside the conversation, where you act on it.\n\nOn a phone, the fiche opens over the conversation, full screen, with its title; « Close » or the Escape key closes it."
+      "body": "The fiche is the column on the right of the conversation on the page of an application, a profile, a job search or a Job Digest: the object at a glance (for an application, its status and profile, which you change in place, its match, the job offer), then three groups, « Sections », « Activity » and « Results ». A click on a group's title folds or unfolds it.\n\nIt never hides the conversation: it pushes it aside, and scrolls on its own, staying put when you scroll the conversation. « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page. A section or a result of the fiche opens beside the conversation, where you act on it.\n\nOn a phone, the fiche opens over the conversation, full screen, with its title; « Close » or the Escape key closes it."
     },
     {
       "id": "glossary-follow-up",

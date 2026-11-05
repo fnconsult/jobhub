@@ -71,20 +71,33 @@ function fromParis(wallClock: string): string {
   return new Date(asUtc.getTime() - hours * 60 * 60 * 1000).toISOString();
 }
 
+/** What a test reads and changes of the web app's coaching routes. */
+interface CoachingRoute {
+  coaching: CoachingResponse;
+  cgv: CoachingOrderResponse["cgv"];
+  checkout: { status: number };
+  orders: Body[];
+  edits: { id: string; body: Body }[];
+  /** How many times `GET /api/coaching` was asked. */
+  reads: number;
+  /** Stripe's signed webhook: the Coaching Session paid with `coachId` is recorded. */
+  paid(coachId: string, id?: string): Session;
+}
+
 /**
  * Serves Mes coachs humains at the network (the global fetch the app's API calls go through), to `email`'s session.
  * `checkout` is what « Passer au paiement » answers (200 with Stripe's address, or an error); `orders` what it was sent;
  * `paid(coachId)` is Stripe's webhook recording a Coaching Session. Undone by `jest.restoreAllMocks()`.
  */
 export function serveCoaching(web: ReturnType<typeof fakeWebApp>, email: string) {
-  const route = {
+  const route: CoachingRoute = {
     coaching: coaching(),
-    cgv: { version: CGV_VERSION, url: `/legal/cgv/${CGV_VERSION}` } as CoachingOrderResponse["cgv"],
-    checkout: { status: 200 } as { status: number },
-    orders: [] as Body[],
-    edits: [] as { id: string; body: Body }[],
+    cgv: { version: CGV_VERSION, url: `/legal/cgv/${CGV_VERSION}` },
+    checkout: { status: 200 },
+    orders: [],
+    edits: [],
     reads: 0,
-    paid(coachId: string, id = `paid-${route.coaching.sessions.length + 1}`): Session {
+    paid(coachId, id = `paid-${route.coaching.sessions.length + 1}`) {
       const coach = [CLAIRE, PAUL].find((each) => each.id === coachId)!;
       const session: Session = { id, coach, paidAt: new Date().toISOString(), scheduledAt: null, durationMinutes: null, videoLink: null, note: null, changedBy: null, reschedules: [], withdrawable: true };
       route.coaching = { ...route.coaching, sessions: [...route.coaching.sessions, session] };

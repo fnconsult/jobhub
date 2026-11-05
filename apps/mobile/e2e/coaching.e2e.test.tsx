@@ -132,3 +132,148 @@ describe("Mes coachs humains, read from the web app", () => {
     expect(screen.queryByRole("button", { name: /^Réserver/ })).toBeNull();
   });
 });
+
+const CGV_BOX = "J'accepte les CGV (version du 01/10/2026)";
+const IMMEDIATE_BOX = /^Je demande que le service commence immédiatement/;
+
+/** Mes coachs humains, then « Réserver une séance avec Paul Durand »: the Order page, read from the web app. */
+async function openOrder() {
+  await openCoaches();
+  await userEvent.setup().press(button("Réserver une séance avec Paul Durand"));
+  await screen.findByText("Séance de coaching avec Paul Durand");
+}
+
+/** The Order confirmed, both boxes ticked: Stripe Checkout opens in the in-app browser, which stays open. */
+async function pay() {
+  await openOrder();
+  const user = userEvent.setup();
+  await user.press(screen.getByRole("checkbox", { name: CGV_BOX }));
+  await user.press(screen.getByRole("checkbox", { name: IMMEDIATE_BOX }));
+  await user.press(button("Passer au paiement"));
+  await act(async () => {});
+}
+
+describe("« Réserver »: the Order, then Stripe Checkout in the in-app browser (ADR-0074, App Store 3.1.3(d))", () => {
+  it("shows the Order as the web's Order page: the Human Coach, the price all taxes included, the two boxes, neither ticked", async () => {
+    await openOrder();
+
+    expect(screen).toHavePathname("/coachs/commande");
+    expect(screen.getByText("72,00 € TTC")).toBeOnTheScreen();
+    expect(screen.getByText("Paiement unique, sans reconduction")).toBeOnTheScreen();
+    expect(screen.getByRole("checkbox", { name: CGV_BOX })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: IMMEDIATE_BOX })).not.toBeChecked();
+    expect(screen.getByText(/^Facultatif : sans cette demande/)).toBeOnTheScreen();
+    expect(screen.getByText(/^Vous pourrez vous rétracter pendant 14 jours/)).toBeOnTheScreen();
+    // The CGV box first: nothing is sent to the web app before it is ticked.
+    expect(button("Passer au paiement")).toBeDisabled();
+  });
+
+  it("opens the CGV version to accept in the app", async () => {
+    await openOrder();
+
+    await userEvent.setup().press(screen.getByRole("link", { name: "Lire les CGV (version du 01/10/2026)" }));
+
+    expect(screen).toHavePathname(`/legal/cgv/${CGV_VERSION}`);
+  });
+
+  it("creates the Checkout Session on the server with the boxes as ticked, and opens it in the in-app browser", async () => {
+    await pay();
+
+    expect(web.orders).toEqual([{ coachId: "coach-2", cgv: CGV_VERSION, immediateExecution: "yes" }]);
+    expect(mockBrowser.opened).toEqual([CHECKOUT_URL]);
+  });
+
+  it("goes on without the Immediate Performance Request, which is never ticked for the Candidate", async () => {
+    await openOrder();
+    const user = userEvent.setup();
+    await user.press(screen.getByRole("checkbox", { name: CGV_BOX }));
+    await user.press(button("Passer au paiement"));
+
+    expect(web.orders).toEqual([{ coachId: "coach-2", cgv: CGV_VERSION, immediateExecution: null }]);
+    expect(mockBrowser.opened).toEqual([CHECKOUT_URL]);
+  });
+
+  it("opens nothing when the server creates no Checkout Session, and says why", async () => {
+    await openOrder();
+    web.checkout.status = 502;
+    const user = userEvent.setup();
+    await user.press(screen.getByRole("checkbox", { name: CGV_BOX }));
+    await user.press(button("Passer au paiement"));
+
+    expect(await screen.findByText("Le paiement n'a pas pu démarrer. Vérifiez votre connexion et réessayez.")).toBeOnTheScreen();
+    expect(mockBrowser.opened).toEqual([]);
+  });
+
+  it("asks for the CGV box again when the version in effect changed while the Order was open", async () => {
+    await openOrder();
+    web.cgv = { version: "2026-11-01", url: "/legal/cgv/2026-11-01" };
+    const user = userEvent.setup();
+    await user.press(screen.getByRole("checkbox", { name: CGV_BOX }));
+    await user.press(button("Passer au paiement"));
+
+    expect(await screen.findByText("Cochez la case « J'accepte les CGV » pour passer au paiement.")).toBeOnTheScreen();
+    expect(mockBrowser.opened).toEqual([]);
+  });
+});
+
+describe("back from Stripe Checkout: the Coaching Session is recorded by Stripe's webhook alone (ADR-0016)", () => {
+  /** The system opens the app at Checkout's return address, a universal link, as Expo Router routes it. */
+  const universalLink = (path: string) => act(() => router.navigate(path));
+
+  it("comes back by the universal link after paying: closes the in-app browser and waits for the webhook, then shows the Human Coach's booking link", async () => {
+    await pay();
+    const readsBefore = web.reads;
+
+    await universalLink("/coachs/paiement");
+
+    expect(mockBrowser.dismissed).toBe(1);
+    expect(screen).toHavePathname("/coachs");
+    expect(await screen.findByText("Paiement reçu. Nous attendons sa confirmation par Stripe : votre séance apparaît ici dans un instant.")).toBeOnTheScreen();
+    // Nothing is recorded from the return: the page waits, reading the web app again, until the webhook has come.
+    expect(screen.getAllByRole("button", { name: "Choisir mon créneau avec Paul Durand sur Cal.com" })).toHaveLength(1);
+    web.paid("coach-2", "s3");
+
+    expect(await screen.findByText(/^Votre séance avec Paul Durand est payée/, {}, { timeout: 10_000 })).toBeOnTheScreen();
+    expect(web.reads).toBeGreaterThan(readsBefore);
+    expect(screen.queryByText(/^Paiement reçu/)).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Choisir mon créneau avec Paul Durand sur Cal.com" })).toHaveLength(2);
+  });
+
+  it("shows the wait while Stripe's webhook has not come, and says so when it is slow, with « Actualiser »", async () => {
+    await pay();
+    await universalLink("/coachs/paiement");
+    expect(await screen.findByText(/^Paiement reçu. Nous attendons sa confirmation/)).toBeOnTheScreen();
+
+    // A minute later, still no webhook: the page stops asking on its own (Expo Router's renderRouter fakes the clock).
+    jest.setSystemTime(Date.now() + 61_000);
+    expect(await screen.findByText(/^La confirmation tarde/, {}, { timeout: 10_000 })).toBeOnTheScreen();
+
+    web.paid("coach-2", "s3");
+    await userEvent.setup().press(button("Actualiser"));
+    expect(await screen.findByText(/^Votre séance avec Paul Durand est payée/)).toBeOnTheScreen();
+  });
+
+  it("waits all the same when the in-app browser is closed without the universal link: the payment may have gone through", async () => {
+    await pay();
+
+    await act(async () => mockBrowser.close());
+
+    expect(screen).toHavePathname("/coachs");
+    expect(await screen.findByText("Si vous avez payé, votre séance apparaît ici dès que Stripe a confirmé le paiement.")).toBeOnTheScreen();
+    web.paid("coach-2", "s3");
+    expect(await screen.findByText(/^Votre séance avec Paul Durand est payée/, {}, { timeout: 10_000 })).toBeOnTheScreen();
+  });
+
+  it("waits for nothing when the Candidate left Checkout without paying", async () => {
+    await pay();
+    const readsBefore = web.reads;
+
+    await universalLink("/coachs/paiement?annule=1");
+
+    expect(mockBrowser.dismissed).toBe(1);
+    expect(await screen.findByText("Paiement annulé : aucune séance n'a été réservée.")).toBeOnTheScreen();
+    expect(screen.queryByText(/^Paiement reçu|^Si vous avez payé/)).toBeNull();
+    await act(async () => void jest.advanceTimersByTime(5_000));
+    expect(web.reads - readsBefore).toBeLessThanOrEqual(1);
+  });
+});

@@ -1,12 +1,15 @@
 import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/reads";
-import { useMemo, type ReactNode } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, ScrollView, View } from "react-native";
+import { ActivityIndicator, Linking, ScrollView, View } from "react-native";
 import { useRead } from "../api/reads";
 import { FRENCH_TIME_ZONE } from "../agenda/french-time";
+import { paths } from "../navigation/pages";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
+import { paymentReturn, paymentWait, readAgainWhileWaiting, usePendingCheckout, type PaymentWait } from "./payment-return";
 
 type Session = CoachingResponse["sessions"][number];
 type Coach = CoachingResponse["coaches"][number];
@@ -24,8 +27,25 @@ function coachingFormats(locale: string) {
 }
 type Formats = ReturnType<typeof coachingFormats>;
 
-/** Mes coachs humains' read (`GET /api/coaching`, #684), kept on the device for when there is no network. */
-export const useCoaching = () => useRead("humanCoaches", "/api/coaching", coachingResponseSchema);
+/** Mes coachs humains' read (`GET /api/coaching`, #684), kept on the device; read again while it waits for Stripe's webhook. */
+const useCoaching = () => useRead("humanCoaches", "/api/coaching", coachingResponseSchema, [], true, { readAgain: readAgainWhileWaiting });
+
+/**
+ * What the page says of a Stripe Checkout the Candidate came back from (payment-return.ts): waiting for Stripe's webhook
+ * (the page reads the web app again meanwhile, until it is slow), then the Coaching Session recorded, or that nothing was
+ * paid. The outcome stays on the page until the Candidate leaves it.
+ */
+function usePaymentWait(coaching: ReturnType<typeof useCoaching>) {
+  const wait = paymentWait(usePendingCheckout(), coaching.data, coaching.dataUpdatedAt);
+  const settled = wait.kind === "recorded" || wait.kind === "cancelled";
+  useFocusEffect(
+    useCallback(() => {
+      if (!settled) return undefined;
+      return () => paymentReturn.done();
+    }, [settled]),
+  );
+  return wait;
+}
 
 /**
  * Mes coachs humains (#694, ADR-0076), native: the menu's card as on the web, « Mes séances payées » (each Coaching
@@ -36,8 +56,16 @@ export const useCoaching = () => useRead("humanCoaches", "/api/coaching", coachi
  */
 export function HumanCoaches() {
   const { t } = useTranslation();
+  const pending = usePendingCheckout();
   const coaching = useCoaching();
-  if (coaching.data) return <Loaded coaching={coaching.data} />;
+  const wait = usePaymentWait(coaching);
+  // Back from Checkout: read at once, whatever was read before it opened.
+  const back = pending?.how ?? null;
+  const { refetch } = coaching;
+  useEffect(() => {
+    if (back === "paid" || back === "closed") void refetch();
+  }, [back, refetch]);
+  if (coaching.data) return <Loaded coaching={coaching.data} wait={wait} onRefresh={() => void refetch()} />;
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: space[4], padding: space[4] }}>
       {coaching.isError ? (
@@ -56,7 +84,7 @@ export function HumanCoaches() {
   );
 }
 
-function Loaded({ coaching }: { coaching: CoachingResponse }) {
+function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wait: PaymentWait; onRefresh: () => void }) {
   const { t, i18n } = useTranslation();
   const formats = useMemo(() => coachingFormats(i18n.language), [i18n.language]);
   return (
@@ -65,6 +93,7 @@ function Loaded({ coaching }: { coaching: CoachingResponse }) {
         <AppText variant="h3" heading>
           {t("humanCoaches.sessionsTitle")}
         </AppText>
+        <PaymentNotice wait={wait} onRefresh={onRefresh} />
         {coaching.sessions.length === 0 ? <AppText tone="secondary">{t("humanCoachesMenu.sessionsNone")}</AppText> : null}
         {coaching.sessions.map((session) => (
           <SessionCard key={session.id} session={session} formats={formats} />
@@ -127,15 +156,46 @@ function SessionCard({ session, formats }: { session: Session; formats: Formats 
   );
 }
 
+/** What came of the Checkout the Candidate came back from, above the Coaching Sessions. */
+function PaymentNotice({ wait, onRefresh }: { wait: PaymentWait; onRefresh: () => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  if (wait.kind === "none") return null;
+  const message =
+    wait.kind === "recorded"
+      ? t("mobile.coaching.payment.recorded", { name: wait.session.coach.name })
+      : wait.kind === "cancelled"
+        ? t("mobile.coaching.payment.cancelled")
+        : wait.slow
+          ? t("mobile.coaching.payment.slow")
+          : t(wait.paid ? "mobile.coaching.payment.waiting" : "mobile.coaching.payment.maybe");
+  return (
+    <View role="status" style={{ gap: space[2], padding: space[3], borderRadius: radius.card, backgroundColor: colors.hover }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space[2] }}>
+        {wait.kind === "waiting" && !wait.slow ? <ActivityIndicator color={colors.accent} /> : null}
+        <View style={{ flex: 1 }}>
+          <AppText>{message}</AppText>
+        </View>
+      </View>
+      {wait.kind === "waiting" && wait.slow ? (
+        <View style={{ alignSelf: "flex-start" }}>
+          <Control look="secondary" label={t("mobile.coaching.payment.refresh")} onPress={onRefresh} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** A Human Coach: their bio, whether they have Coach Access, and « Réserver une séance avec … » while one can be paid. */
 function CoachCard({ coach, bookable }: { coach: Coach; bookable: boolean }) {
   const { t } = useTranslation();
+  const router = useRouter();
   return (
     <Card label={coach.name}>
       <AppText variant="h3">{coach.name}</AppText>
       {coach.bio ? <AppText>{coach.bio}</AppText> : null}
       <AppText tone="secondary">{t(coach.accessGranted ? "humanCoaches.accessGranted" : "humanCoaches.accessNotGranted", { name: coach.name })}</AppText>
-      {bookable ? <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => {}} /> : null}
+      {bookable ? <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} /> : null}
     </Card>
   );
 }

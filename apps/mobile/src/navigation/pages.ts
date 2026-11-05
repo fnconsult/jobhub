@@ -19,6 +19,8 @@ export const paths = {
   jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",
+  /** The Order of a Coaching Session with a Human Coach, before Stripe Checkout (#694): the web's Order page's address. */
+  coachingOrder: (coachId: string) => `/coachs/commande?coach=${encodeURIComponent(coachId)}`,
   /** A Coaching Session on its Human Coaches page: where it leads from the Agenda. */
   coachingSession: (id: string) => `/coachs#seance-${encodeURIComponent(id)}`,
   conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,

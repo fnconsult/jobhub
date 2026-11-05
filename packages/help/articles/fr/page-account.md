@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon compte
-synonyms: [compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, abonnement, sécurité, vérification en deux étapes, codes de secours, application d'authentification, clé d'accès, clés d'accès, passkey, Face ID, Touch ID, Windows Hello, clé de sécurité]
+synonyms: [compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, propositions du coach, formulaire, carte, abonnement, sécurité, vérification en deux étapes, codes de secours, application d'authentification, clé d'accès, clés d'accès, passkey, Face ID, Touch ID, Windows Hello, clé de sécurité]
 route: /compte
 ---
 Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Sécurité, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.
@@ -29,6 +29,8 @@ La rubrique indique depuis quand la vérification est activée, l'application, c
 Pour un administrateur ou un coach, la vérification en deux étapes est obligatoire : la rubrique le dit et n'a pas de « Désactiver ». Si votre seul moyen de vérification est une clé d'accès, elle n'a pas de « Supprimer » : ajoutez d'abord une autre clé d'accès. Sans application, clé d'accès ni codes de secours, un super-admin la réinitialise.
 
 Dans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. La case « Recevoir un e-mail quand Jobbbox annonce une nouveauté » est décochée tant que vous ne la cochez pas : cochée, vous recevez au plus un e-mail par semaine quand une nouvelle version apporte quelque chose d'important, sans suivi d'ouverture ni de clic, et la case indique depuis quelle date vous êtes inscrit. Décochez-la, ou utilisez le lien en bas de l'e-mail, pour ne plus le recevoir.
+
+« Propositions du coach » choisit ce que vous voyez d'abord quand votre coach IA vous propose un changement, par exemple le statut d'une candidature. « Carte », le réglage par défaut : la proposition s'affiche en carte sous sa réponse. « Formulaire » : la carte s'affiche aussi, et le formulaire de la page, pré-rempli avec la proposition, s'ouvre tout seul à côté de la conversation ; si une réponse fait plusieurs propositions, seul le formulaire de la première s'ouvre. Sur téléphone, il ne s'ouvre pas pendant la saisie d'un message. Quel que soit votre choix, « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte, et rien n'est changé tant que vous n'avez pas appliqué la proposition ; une modification de votre CV de référence passe toujours par sa relecture, changement par changement. Ce réglage est enregistré avec votre compte, dès que vous le changez.
 
 Outils propose l'extension Chrome Jobbbox.
 

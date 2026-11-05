@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { stepLabel } from "@jobhub/shared";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getCoachConversations } from "@/coach-conversations/server";
+import type { CoachProposalsDisplay } from "@/coach-proposals-display";
+import { getCoachProposalsDisplays } from "@/coach-proposals-display/server";
 import type { CoachEvent, SendResult } from "@/coach-conversations";
 import { guardrailLanguage } from "@/guardrails";
 import { localeOf } from "@/i18n/server";
@@ -25,7 +27,9 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * `couldNotAnswer`: the AI Coach could not answer the question (#345): the Coach Panel offers « Poser la question à l'équipe » at once.
  * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens }.
  * `cards`: the Action Cards of the Coach proposals the reply makes (#715), under it (CoachProposalCard); absent when none.
- * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer, context, cards? } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
+ * `proposalsDisplay`, with `cards`: the Candidate's « Propositions du coach » (#717), "card" or "form" (the first card's
+ * form opens by itself in the Work Pane).
+ * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer, context, cards?, proposalsDisplay? } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
  * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation, context }.
  *
  * Live (#328), with `Accept: application/x-ndjson`: 200, one JSON event per line as the reply runs:
@@ -47,16 +51,24 @@ export async function POST(request: Request) {
   if (request.headers.get("accept")?.includes("application/x-ndjson")) {
     return ndjsonResponse(request.signal, async (write, signal) => {
       const result = await send(signal, (event) => write(event.type === "step_started" ? { ...event, label: stepLabel(event.step) } : event));
-      write(finalEvent(result));
+      write(finalEvent(result, await displayOf(candidate.id, result)));
     });
   }
   const result = await send(request.signal);
-  if (result.ok) return NextResponse.json(replyOf(result));
+  if (result.ok) return NextResponse.json(replyOf(result, await displayOf(candidate.id, result)));
   return NextResponse.json(failureOf(result), { status: STATUS[result.error] });
 }
 
-function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer, context, cards }: Extract<SendResult, { ok: true }>) {
-  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer, context, ...(cards ? { cards } : {}) };
+/** The Candidate's « Propositions du coach » (#717), read only when the reply proposes something; unread, the cards alone show. */
+async function displayOf(candidateId: string, result: SendResult): Promise<CoachProposalsDisplay | null> {
+  if (!result.ok || !result.cards?.length) return null;
+  return getCoachProposalsDisplays()
+    .of(candidateId)
+    .catch(() => null);
+}
+
+function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer, context, cards }: Extract<SendResult, { ok: true }>, proposalsDisplay: CoachProposalsDisplay | null) {
+  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer, context, ...(cards ? { cards } : {}), ...(cards && proposalsDisplay ? { proposalsDisplay } : {}) };
 }
 
 function failureOf(result: Extract<SendResult, { ok: false }>) {
@@ -66,7 +78,7 @@ function failureOf(result: Extract<SendResult, { ok: false }>) {
 }
 
 /** The stream's last event: the reply, its failure, or the Stop. */
-function finalEvent(result: SendResult) {
-  if (result.ok) return { type: "reply", ...replyOf(result) };
+function finalEvent(result: SendResult, proposalsDisplay: CoachProposalsDisplay | null) {
+  if (result.ok) return { type: "reply", ...replyOf(result, proposalsDisplay) };
   return { type: result.error === "stopped" ? "stopped" : "failed", ...failureOf(result) };
 }

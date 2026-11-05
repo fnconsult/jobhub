@@ -42,9 +42,9 @@ let answers: { status: number; body: unknown }[];
 let sent: { url: string; body: unknown }[];
 
 /** The card in a thread with a Work Pane, as « Conversation au centre » shows it; the card as the server last said it. */
-function Thread({ card = PENDING, pane = true }: { card?: Card; pane?: boolean }) {
+function Thread({ card = PENDING, pane = true, openOnArrival = false }: { card?: Card; pane?: boolean; openOnArrival?: boolean }) {
   const [shown, setShown] = useState(card);
-  const content = <CoachProposalCard card={shown} onChange={setShown} />;
+  const content = <CoachProposalCard card={shown} onChange={setShown} openOnArrival={openOnArrival} />;
   if (!pane) return content;
   return (
     <WorkPaneProvider version="1.2.3">
@@ -170,6 +170,26 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     await userEvent.click(button("Modifier avant d'appliquer"));
 
     expect((within(card()).getByRole("combobox", { name: "Statut de la candidature" }) as HTMLSelectElement).value).toBe("interview");
+  });
+
+  it("arriving under « Formulaire » (#717), opens its form in the Work Pane by itself, its buttons still on the card", () => {
+    renderInFrench(<Thread openOnArrival />);
+
+    const pane = screen.getByRole("complementary");
+    expect(within(pane).getByRole("heading", { level: 2 }).textContent).toContain("Modifier avant d'appliquer : Statut de la candidature");
+    expect((within(pane).getByRole("combobox", { name: "Statut de la candidature" }) as HTMLSelectElement).value).toBe("interview");
+    expect(within(card()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Appliquer", "Modifier avant d'appliquer", "Ignorer"]);
+    expect(sent).toEqual([]);
+  });
+
+  it("under « Carte » (the default), only the card shows: the Work Pane stays closed", () => {
+    renderInFrench(<Thread />);
+    expect(screen.queryByRole("complementary")).toBeNull();
+  });
+
+  it("arriving under « Formulaire » without a Work Pane, opens its form in the card", () => {
+    renderInFrench(<Thread pane={false} openOnArrival />);
+    expect(within(card()).getByRole("combobox", { name: "Statut de la candidature" })).toBeTruthy();
   });
 
   it("says the Plan Quota it will use, and becomes the Upgrade prompt without room", () => {

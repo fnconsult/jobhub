@@ -355,7 +355,7 @@
       "account": "your account: email address, name, language, sign-in methods and sessions, plan and quota use, European AI consent, follow-up delays, appointment reminder setting and reminders sent;",
       "profiles": "your profiles: search criteria, every version of your CV, ATS Score, job searches, Job Digest settings and the Job Digests sent;",
       "applications": "your applications: job offer, interviews, match score, tailored CV, cover letter, outreach message, follow-ups sent, coach reviews, enriched contacts and company dossier;",
-      "coaching": "your conversations with the AI coach, your coach memory (what it remembers about you), your coach's proposals, the access you granted to human coaches and the coaching sessions you paid for, with their date, duration, video call link and your note."
+      "coaching": "your conversations with the AI coach, your coach memory (what it remembers about you), your coach's proposals and your “Coach proposals” setting, the access you granted to human coaches and the coaching sessions you paid for, with their date, duration, video call link and your note."
     },
     "exportLeftOut": "It does not contain your sign-in secrets (tokens, unsubscribe link), human coaches' email addresses, our providers' internal identifiers (Stripe, contact data providers) or what each AI reply cost.",
     "export": "Download all my data",
@@ -5787,6 +5787,17 @@
       "invalid": "What you entered does not fit: check the form.",
       "failed": "The proposal could not be processed. Try again or reload the page."
     }
+  },
+  "coachProposalsDisplay": {
+    "label": "Coach proposals",
+    "card": "Card",
+    "form": "Form",
+    "hint": "What your AI coach shows you first when it proposes a change: the card under its reply, or the pre-filled form opened in the pane. “Apply” and “Edit before applying” stay on every card; nothing is applied without you.",
+    "saved": {
+      "card": "Saved: each proposal will show as a card under the reply.",
+      "form": "Saved: each proposal's form will open in the pane."
+    },
+    "error": "Your choice could not be saved. Try again."
   },
   "origin": {
     "label": "Origin",

@@ -19,6 +19,7 @@ import { migrateCoachConversations } from "./coach-conversations/index";
 import { importedPlaybooks } from "./coaching-playbooks/import";
 import { migrateCoachingPlaybooks } from "./coaching-playbooks/index";
 import { migrateCoachMemory } from "./coach-memory/index";
+import { migrateCoachProposalsDisplay } from "./coach-proposals-display/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateDiscoveryRuns } from "./discovery-runs/index";
 import { migrateEmailIntake } from "./email-intake/index";
@@ -108,6 +109,7 @@ export async function migrateDatabase(
     ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
     ["Legal Text notices are up to date", () => migrateLegalTextNotices(database)],
     ["The Nouveautés email is up to date", () => migrateNouveautesEmails(database)],
+    ["« Propositions du coach » is up to date", () => migrateCoachProposalsDisplay(database)],
     ["The offers of Received offer emails are up to date", () => migrateEmailReadings(database)],
     ["The Recipient list's changes are up to date", () => migrateRecipientList(database)],
   ];

@@ -9,19 +9,22 @@ import { ThemeProvider } from "./theme/theme";
 
 /**
  * What every screen of the app sits in: the safe areas, the translations, the system's theme, the read cache on `device`,
- * the hardware keyboard's shortcuts (`keyboard`: the native module's unless a test gives its own), the calls to the API.
+ * the hardware keyboard's shortcuts (`keyboard`: the native module's unless a test gives its own), the calls to the API,
+ * with the session's cookie (`sessionCookie`, AppSession.cookie).
  */
 export function AppProviders({
   i18n,
   initialMetrics,
   keyboard,
   device,
+  sessionCookie,
   children,
 }: {
   i18n: i18n;
   initialMetrics?: Metrics | null;
   keyboard?: HardwareKeyboard;
   device: { storage: DeviceStorage; network: Network };
+  sessionCookie?: () => Promise<string>;
   children: ReactNode;
 }) {
   return (
@@ -30,7 +33,7 @@ export function AppProviders({
         <ThemeProvider>
           <ReadCacheProvider device={device}>
             <KeyCommandsProvider keyboard={keyboard}>
-              <ApiProvider>{children}</ApiProvider>
+              <ApiProvider cookie={sessionCookie}>{children}</ApiProvider>
             </KeyCommandsProvider>
           </ReadCacheProvider>
         </ThemeProvider>

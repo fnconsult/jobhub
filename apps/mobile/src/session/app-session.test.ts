@@ -71,6 +71,17 @@ describe("the app's session (ADR-0076, #685)", () => {
     expect(await session.current()).toEqual({ kind: "secondStep" });
   });
 
+  it("gives the session cookie for the app's other requests to the web app (its calls to the API), none once signed out", async () => {
+    const { web, session } = setUp();
+    await session.askLink(EMAIL);
+    await session.openLink(web.linkFor(EMAIL));
+
+    expect(web.signedInAs({ cookie: await session.cookie() })).toBe(EMAIL);
+
+    await session.signOut();
+    expect(await session.cookie()).toBe("");
+  });
+
   it("revokes the session when signing out, and empties secure storage", async () => {
     const { web, session, keptOnDevice } = setUp();
     await session.askLink(EMAIL);

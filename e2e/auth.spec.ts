@@ -204,6 +204,19 @@ test.describe("the sign-in email's code", () => {
     await expect(page).toHaveURL(`${origin}/compte`);
   });
 
+  test("the link spends the code: the same email's code is refused after its link signed in", async ({ page, browser }) => {
+    const email = newAddress("link-spends-code");
+    const message = await askEmail(page, email);
+    await page.goto(linkIn(message));
+    await expect(page).toHaveURL(`${origin}/compte`);
+
+    const someoneElse = await browser.newContext({ baseURL: origin, extraHTTPHeaders: { "x-forwarded-for": "10.68.6.2" } });
+    const refused = await someoneElse.request.post("/api/auth/sign-in/email-otp", { data: { email, otp: codeIn(message) }, headers: { origin } });
+    expect(refused.status()).toBe(400);
+    expect((await refused.json()).code).toBe("INVALID_OTP");
+    await someoneElse.close();
+  });
+
   test("refuses a code already used", async ({ page, browser }) => {
     const email = newAddress("code-once");
     const code = codeIn(await askEmail(page, email));

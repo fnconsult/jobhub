@@ -34,6 +34,8 @@ describe("WebPage", () => {
     expect(fakeWebView.cookies).toEqual([
       expect.objectContaining({ url: TEST_BASE_URL, name: "__Secure-better-auth.session_token", value: expect.stringMatching(/^session\d+\.signature$/), secure: true, httpOnly: true }),
     ]);
+    // Host-only (ADR-0076): given a `domain`, the cookie would also go to the host's subdomains, staging.jobbbox.ai among them.
+    expect(fakeWebView.cookies[0]).not.toHaveProperty("domain");
     expect(screen.getByText("Vérification en deux étapes")).toBeOnTheScreen();
   });
 

@@ -56,8 +56,9 @@ export function WebPage({
     const origin = site.origin;
     void (async () => {
       try {
+        // No `domain`: a host-only cookie, for the web app's host alone and not its subdomains (ADR-0076).
         for (const { name, value } of await session.webCookies()) {
-          await CookieManager.set(origin, { name, value, domain: site.hostname, path: "/", secure: site.protocol === "https:", httpOnly: true }, WEBVIEWS);
+          await CookieManager.set(origin, { name, value, path: "/", secure: site.protocol === "https:", httpOnly: true }, WEBVIEWS);
           given.push(name);
         }
       } finally {

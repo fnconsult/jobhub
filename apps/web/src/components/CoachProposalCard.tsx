@@ -42,6 +42,8 @@ function hourOf(at: string, language: string): string {
  * the Work Pane, each accepted or rejected on its own (a Flagged Change waits for an explicit accept), and « Enregistrer
  * les changements acceptés » sends the accepted ones, which make one Master CV Version; its « Annuler » is a Restore.
  * The Coach Memory has no page: its card names it without a link.
+ * A proposal that launches an action (a Job Search, #720) offers « Lancer » in place of « Appliquer », says « Lancé par
+ * vous à 18:20 » and sends to AI Activity, where it is followed and stopped: it has no « Annuler ».
  */
 export function CoachProposalCard({ card, onChange, openOnArrival = false }: { card: Card; onChange: (card: Card) => void; openOnArrival?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -167,10 +169,11 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {card.status !== "pending" && card.accepted ? <p className="hint">{t("coachProposals.review.saved", { count: card.accepted.length })}</p> : null}
       {/* Its decision, said politely as it is made (ADR-0009). */}
       <p className="coach-proposal-card__decision" role="status">
-        {card.status === "accepted" && card.decidedAt ? t("coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) }) : null}
+        {card.status === "accepted" && card.decidedAt ? t(change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) }) : null}
         {card.status === "dismissed" ? t("coachProposals.dismissed") : null}
         {card.status === "undone" && card.undoneAt ? t("coachProposals.undone", { time: hourOf(card.undoneAt, i18n.language) }) : null}
       </p>
+      {card.status === "accepted" && change.launches ? <p className="hint">{t("coachProposals.launchedHint")}</p> : null}
       {problem && !formShown ? <ProblemNote problem={problem} /> : null}
       {pending && change.quota?.prompt ? <UpgradePrompt prompt={change.quota.prompt} /> : null}
       {pending && !change.quota?.prompt ? (
@@ -181,7 +184,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
             </button>
           ) : (
             <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy} onClick={() => void decide("accept")}>
-              {t("coachProposals.apply")}
+              {t(change.launches ? "coachProposals.launch" : "coachProposals.apply")}
             </button>
           )}
           {!change.review && change.fields.length > 0 ? (

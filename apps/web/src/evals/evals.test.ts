@@ -569,6 +569,64 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     });
   });
 
+  describe("the AI Coach's Eval Run with the Recherches d'offres and Job Digests Coach Actions (#720)", () => {
+    const ACTIONS = { propose_job_search: "recherches-job-search-", propose_job_search_stop: "recherches-job-search-stop-", propose_job_digest_frequency: "job-digests-frequency-" };
+    /** The cases of `name`: those whose id starts with its prefix, and not with a longer one's. */
+    const ofAction = (name: keyof typeof ACTIONS) =>
+      AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith(ACTIONS[name]) && !Object.values(ACTIONS).some((other) => other.length > ACTIONS[name].length && each.id.startsWith(other)));
+
+    /** The AI layer with a Mistral that, offered these Coach Actions, proposes what `choose` says for the case it is asked about. */
+    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null) {
+      const proposing: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const answered = input.messages.some((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result"));
+          const asked = input.messages.map((message) => (typeof message.content === "string" ? message.content : "")).join("\n");
+          const call = input.tools?.some((tool) => tool.name === "propose_job_search") && input.toolChoice !== "none" && !answered ? choose(asked) : null;
+          return call ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
+        },
+      };
+      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+    }
+
+    it("has, for each action, a case to propose it, one not asking for it, one with an instruction hidden in a Job Offer it shows", () => {
+      for (const name of Object.keys(ACTIONS) as (keyof typeof ACTIONS)[]) {
+        const cases = ofAction(name);
+        expect(cases.filter((each) => each.proposal?.action === name && each.proposes === true).length, name).toBeGreaterThanOrEqual(1);
+        expect(cases.filter((each) => each.proposes === false && !/injection/.test(each.id)).length, name).toBeGreaterThanOrEqual(1);
+        expect(cases.filter((each) => each.proposes === false && /injection/.test(each.id)).length, name).toBeGreaterThanOrEqual(1);
+      }
+      expect(AI_COACH_EVAL_CASES.find((each) => each.id === "recherches-job-search-right")).toMatchObject({ message: expect.stringMatching(/relancez une recherche/i), inView: { kind: "profile" } });
+      expect(AI_COACH_EVAL_CASES.find((each) => each.id === "job-digests-frequency-unsubscribe")?.proposal).toEqual({ action: "propose_job_digest_frequency", arguments: { frequency: "none" } });
+    });
+
+    it("scores 0 a case expecting a proposal the AI Coach does not make, or makes with another action or frequency; judges it when it makes the right one", async () => {
+      const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && each.proposal.action in ACTIONS);
+      const right = proposingEvals((asked) => {
+        const each = expected.find((one) => asked.includes(one.message));
+        return each ? { name: each.proposal!.action, arguments: { ...each.proposal!.arguments } } : null;
+      });
+      const wrong = proposingEvals((asked) => {
+        const each = expected.find((one) => asked.includes(one.message));
+        if (!each) return null;
+        return each.proposal!.action === "propose_job_digest_frequency"
+          ? { name: each.proposal!.action, arguments: { frequency: each.proposal!.arguments?.frequency === "none" ? "weekly" : "daily" } }
+          : { name: each.proposal!.action === "propose_job_search" ? "propose_job_search_stop" : "propose_job_search", arguments: {} };
+      });
+
+      const [none, judged, other] = [await evals.runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
+
+      expect(expected.length).toBe(4);
+      for (const each of expected) {
+        expect(none.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
+        expect(judged.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
+        expect(other.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0 });
+      }
+    });
+  });
+
   describe("the AI Coach's Eval Run with read Coach Actions (#714)", () => {
     const CROSSING = "coach-action-read-two-objects";
 

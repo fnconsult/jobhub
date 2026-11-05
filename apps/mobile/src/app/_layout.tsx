@@ -44,7 +44,7 @@ export default function RootLayout() {
   // Without Inter (it is bundled, so hardly ever), the system font draws the text rather than no app at all.
   if (!fontsLoaded && !fontError) return null;
   return (
-    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE}>
+    <AppProviders i18n={i18n} initialMetrics={initialWindowMetrics} device={DEVICE} sessionCookie={appSession.cookie}>
       <StatusBar style="auto" />
       <SessionGate session={appSession} link={link}>
         <AppLock>

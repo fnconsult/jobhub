@@ -6,7 +6,7 @@
  * code SECOND_STEP_REQUIRED. Applied by the proxy (src/proxy.ts) before anything else of the app's runs, the CGU
  * Acceptance gate (ADR-0062) included.
  */
-import { APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED } from "@jobhub/shared";
+import { APP_SIGN_IN_PATH, SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SECOND_STEP_REQUIRED } from "@jobhub/shared";
 import { DOMAIN_ASSOCIATION_FILES } from "../native-app/domain-association";
 import { RETURN_PARAM, safeReturnPath } from "../auth/sign-in-return";
 import { routes } from "../routes";
@@ -14,10 +14,11 @@ import { routes } from "../routes";
 /** The code a refused request answers with: `{ error: SECOND_STEP_REQUIRED }`, 401 (the extension reads it too). */
 export { SECOND_STEP_REQUIRED };
 export const SECOND_STEP_PAGE = routes.secondStep;
-/** Where the second step's page (and Mon compte, to confirm turning it off) posts a code. */
-export const SECOND_STEP_ENDPOINT = "/api/two-step-verification/second-step";
-/** Where the second step with a passkey asks its challenge and posts the browser's answer (#664). */
-export const SECOND_STEP_PASSKEY_ENDPOINT = `${SECOND_STEP_ENDPOINT}/passkey`;
+/**
+ * Where the second step's page, Mon compte (to confirm turning it off) and the native app (#688) post a code, and the
+ * app reads what the session has to do; where the second step with a passkey asks its challenge and posts the answer.
+ */
+export { SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT };
 /** Where the second step's page sets up an authenticator app, for an account that must have it and has no factor yet (#665). */
 export const SETUP_ENDPOINT = "/api/two-step-verification/setup";
 /**

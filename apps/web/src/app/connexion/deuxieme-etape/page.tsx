@@ -7,6 +7,7 @@ import { SecondStepPage } from "@/components/SecondStepPage";
 import { SignInStage } from "@/design/SignInStage";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { secondStepReturn } from "@/two-step-verification/gate";
+import { secondStepRead } from "@/two-step-verification/pending-sessions";
 import { getPendingSessions } from "@/two-step-verification/proxy-gate";
 import { getTwoStepVerification } from "@/two-step-verification/server";
 
@@ -29,8 +30,9 @@ export default async function SecondStepRoute({ searchParams }: { searchParams: 
   const pending = await getPendingSessions().of(await headers());
   if (!pending) redirect(back);
   const [locale, t, { factors }] = await Promise.all([getRequestLocale(), getServerT(), getTwoStepVerification().status(current.user.id)]);
-  const passkey = factors.some((factor) => factor.kind === "passkey");
-  const app = factors.some((factor) => factor.kind === "authenticator_app");
+  const read = secondStepRead(pending, factors);
+  const passkey = read.step === "second_step" && read.passkey;
+  const app = read.step === "second_step" && read.app;
   return (
     <SignInStage title={t("twoStep.secondStep.title")} legalLine={false}>
       <SecondStepPage step={pending.step} back={back} locale={locale} passkey={passkey} app={app} />

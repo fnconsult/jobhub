@@ -185,6 +185,7 @@ export const interviewAgendaItemSchema = z.object({
   cancelledAt: instant.nullable(),
   reschedules: z.array(rescheduleSchema),
 });
+export type InterviewAgendaItemRead = z.infer<typeof interviewAgendaItemSchema>;
 
 /** A dated Coaching Session as the Agenda shows it: it leads to its Human Coach. `changedBy` "coach": « modifié par le coach ». */
 export const coachingSessionAgendaItemSchema = z.object({
@@ -198,6 +199,7 @@ export const coachingSessionAgendaItemSchema = z.object({
   changedBy: z.enum(["candidate", "coach"]),
   reschedules: z.array(rescheduleSchema),
 });
+export type CoachingSessionAgendaItemRead = z.infer<typeof coachingSessionAgendaItemSchema>;
 
 export const agendaItemSchema = z.discriminatedUnion("kind", [interviewAgendaItemSchema, coachingSessionAgendaItemSchema]);
 export type AgendaItemRead = z.infer<typeof agendaItemSchema>;
@@ -209,6 +211,7 @@ export const unscheduledCoachingSessionSchema = z.object({
   paidAt: instant,
   reschedules: z.array(rescheduleSchema),
 });
+export type UnscheduledCoachingSessionRead = z.infer<typeof unscheduledCoachingSessionSchema>;
 
 /**
  * `GET /api/agenda` (`?periode=passes`: the past ones instead): « À planifier » first (the Unscheduled Coaching

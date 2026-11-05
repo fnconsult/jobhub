@@ -14,6 +14,7 @@ import { createAuth, type Auth, type Mailer, type SignInSetup } from "./index";
 import { swapWhenReady } from "./instances";
 import { liveMailer } from "./mailers";
 import { signInHref } from "./sign-in-return";
+import { isTrustedOrigin } from "./trusted-origin";
 
 let mailer: Mailer | undefined;
 /** How long a change made in this process waits for the rebuilt sign-in to have started. */
@@ -132,13 +133,11 @@ export async function signInRedirect(): Promise<never> {
 
 /**
  * Whether a state-changing request comes from the web app itself (or our
- * extension), not from another site riding on the Candidate's session cookie.
+ * extension, or the native app), not from another site riding on the Candidate's session cookie.
  */
 export function isFromTrustedOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
   const { baseURL, trustedOrigins } = getAuth().options;
   // Apple's origin is trusted for its sign-in callback alone, never to act for a Candidate.
   const trusted = [new URL(String(baseURL)).origin, ...(Array.isArray(trustedOrigins) ? trustedOrigins : [])].filter((candidate) => candidate !== APPLE_ORIGIN);
-  return trusted.includes(origin);
+  return isTrustedOrigin(request.headers, trusted);
 }

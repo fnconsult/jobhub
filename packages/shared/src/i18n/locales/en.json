@@ -3863,6 +3863,8 @@
     "title": "Interviews and appointments",
     "none": "No upcoming appointments. Add an interview with « Add an interview », or from each application, in its « Interviews » part.",
     "nonePast": "No past appointments.",
+    "loading": "Loading the agenda…",
+    "loadError": "The agenda could not be loaded. Try again in a few moments.",
     "showPast": "See past appointments",
     "showUpcoming": "See upcoming appointments",
     "pastTitle": "Past appointments",
@@ -5490,7 +5492,8 @@
       "extension": "Extension",
       "coach-ia": "AI Coach",
       "confidentialite": "Privacy",
-      "accessibilite": "Accessibility"
+      "accessibilite": "Accessibility",
+      "recherche": "Job search"
     },
     "changes": {
       "new": "New",
@@ -5775,8 +5778,11 @@
       "changeEmail": "Use another email address"
     },
     "secondStep": {
-      "intro": "Your account asks for a second step to finish signing in.",
-      "comingSoon": "It is coming to the app soon. Meanwhile, sign out or sign in on jobbbox.ai."
+      "passkeyIntro": "Use the passkey saved on your account: Face ID, Touch ID, your fingerprint or your security key.",
+      "setUp": "Set up verification",
+      "setUpHint": "The setup opens in a page of jobbbox.ai, here in the app. Once it is done, you come back to Jobbbox.",
+      "unreachable": "Jobbbox could not be reached. Check your connection and try again.",
+      "retry": "Try again"
     },
     "shortcuts": {
       "newConversation": "New conversation",
@@ -5803,7 +5809,10 @@
       "applicationProfile": "Application's profile",
       "followUpSent": "Follow-up sent",
       "profileStatus": "Profile status",
-      "coachMemory": "To remember"
+      "coachMemory": "To remember",
+      "jobSearch": "Job search",
+      "jobSearchStop": "Stopping the search",
+      "jobDigest": "Job Digest"
     },
     "interview": {
       "none": "None",
@@ -5816,19 +5825,34 @@
       "noFollowUp": "No follow-up sent",
       "followUps_one": "{{count}} follow-up sent",
       "followUps_other": "{{count}} follow-ups sent",
-      "followedUp": "{{sent}}, status “{{status}}”"
+      "followedUp": "{{sent}}, status “{{status}}”",
+      "noSearch": "No search run yet",
+      "lastSearch": "Last search on {{date}}",
+      "searchOn": "On the profile's criteria: {{criteria}}",
+      "searching": "Running since {{time}}",
+      "stopped": "Stopped, the job offers already found kept",
+      "noDigest": "No Job Digest"
+    },
+    "quota": {
+      "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
+      "jobSearchNone": "Your {{limit}} searches this week are used",
+      "jobSearchUnlimited": "Unlimited searches with your plan",
+      "profile": "Uses one active profile of your plan"
     },
     "by": "Proposed by your AI coach",
     "before": "Before:",
     "after": "after:",
     "changeOf": "{{what}}:",
     "apply": "Apply",
+    "launch": "Launch",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
     "undo": "Undo",
     "editTitle": "Edit before applying: {{what}}",
     "editIntro": "The page's form, filled in with your coach's proposal for “{{name}}”. What you change here is kept if you close the pane.",
     "applied": "Applied by you at {{time}}",
+    "launched": "Launched by you at {{time}}",
+    "launchedHint": "Follow it in AI activity; “Stop” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
     "problems": {
@@ -5845,9 +5869,6 @@
     },
     "coachMemory": {
       "before": "Not remembered yet"
-    },
-    "quota": {
-      "profile": "Uses one active profile of your plan"
     },
     "review": {
       "open": "Review the changes",

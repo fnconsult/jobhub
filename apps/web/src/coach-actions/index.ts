@@ -100,6 +100,8 @@ export const PROPOSAL_TARGET_KINDS = ["profile", "application", "job_offer", "jo
  * room). `also`: what else applying it changes on the same object, listed on the same card (#718: an Interview added moves
  * its Application to « Entretien »). A Master CV change (#719, ADR-0006) has no one-click « Appliquer »: its `review` holds the
  * changes the Candidate reviews one by one in the Work Pane, and the edits they come from; the accepted ones are sent explicitly.
+ * `launches`: applying it launches an action (a Job Search, #720), « Lancer » on its card, followed in AI Activity and
+ * ended with Stop: never undone.
  */
 export interface ProposedChange {
   target: { kind: ProposalTargetKind; id: string; name: string; href: string };
@@ -112,6 +114,7 @@ export interface ProposedChange {
   version: string;
   quota?: { label: string; prompt?: UpgradePrompt };
   review?: { changes: CvChange[]; edits: MasterCvEdit[] };
+  launches?: true;
 }
 
 const cvChangeSchema = z.object({
@@ -158,6 +161,7 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
     })
     .optional(),
   review: z.object({ changes: z.array(cvChangeSchema), edits: z.array(masterCvEditSchema) }).optional(),
+  launches: z.literal(true).optional(),
 }) as unknown as z.ZodType<ProposedChange>;
 
 /**

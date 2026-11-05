@@ -6,8 +6,8 @@ import { HELP_LOCALES, type HelpLocale } from "./types";
 describe("the « Espace coach » Help Articles' quoted labels (#554)", () => {
   it.each(HELP_LOCALES)("each exists in the %s catalogue", (locale: HelpLocale) => {
     const { count, missing } = unknownQuotes("espace-coach", locale);
-    // The five of #554, and why Two-step verification is asked (#665).
-    expect(count).toBe(6);
+    // The five of #554, why Two-step verification is asked (#665), and the same in the app (#688).
+    expect(count).toBe(7);
     expect(missing).toEqual([]);
   });
 });

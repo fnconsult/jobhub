@@ -7,6 +7,7 @@ import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
 import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice } from "../src/testing-device";
+import { serveAgenda } from "./agenda-web";
 
 jest.setTimeout(60_000);
 
@@ -27,7 +28,7 @@ jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey() });
   return { appSession: mockWeb.session };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
@@ -73,6 +74,7 @@ const link = (name: string) => screen.getByRole("link", { name, hidden: true });
 
 describe("Jobbbox app, on a phone", () => {
   beforeEach(() => window(...PHONE));
+  afterEach(() => jest.restoreAllMocks());
 
   it("starts on the conversation, in French, with the coach's AI disclosure", async () => {
     await launch();
@@ -142,6 +144,21 @@ describe("Jobbbox app, on a phone", () => {
     expect(button("Ouvrir une Section d'exemple")).toBeOnTheScreen();
     await user.press(button("Fermer"));
     expect(button("Menu")).toBeOnTheScreen();
+  });
+
+  it("shows the Agenda as a list, « À planifier » first, and an Interview leads to its Application's Interviews Section", async () => {
+    await signedIn();
+    serveAgenda(mockWeb.app, EMAIL);
+    await launch("/agenda");
+    expect(await screen.findByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
+    expect(button("Choisir mon créneau avec Paul Durand sur Cal.com")).toBeOnTheScreen();
+    expect(screen.getByText("Entretien annulé")).toBeOnTheScreen();
+    expect(screen.getByText("modifié par le coach")).toBeOnTheScreen();
+    expect(screen.getAllByRole("button", { name: /^Ajouter à mon calendrier/ })).toHaveLength(2);
+    const user = userEvent.setup();
+    await user.press(screen.getAllByRole("link", { name: /Responsable qualité/ })[0]!);
+    expect(screen).toHavePathname("/candidatures/a1/entretiens");
+    expect(screen.getByText("Entretiens")).toBeOnTheScreen();
   });
 
   it("has no setting for the text size, and its controls are at least 44 pt", async () => {
@@ -333,6 +350,77 @@ describe("Jobbbox app, signing in (#685)", () => {
     await user.press(await screen.findByRole("button", { name: "Se déconnecter" }));
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+});
+
+const SECOND_STEP_EMAIL = "paul.martin@example.fr";
+describe("Jobbbox app, second step (#688)", () => {
+  beforeEach(async () => {
+    window(...PHONE);
+    jest.requireMock("../src/session/instance");
+    await mockWeb.session.signOut();
+  });
+  // The other suites start signed in, as the account of EMAIL, who has no second step.
+  afterEach(async () => {
+    await mockWeb.session.signOut();
+  });
+
+  /** The app opened by the emailed link of `email`, whose account has the second step. */
+  async function pendingLaunch(email: string, factors: { app?: boolean; passkey?: boolean } = {}) {
+    mockWeb.app.withSecondStep(email, factors);
+    await launch("/", { signIn: false });
+    await mockWeb.session.askLink(email);
+    await openWith(mockWeb.app.linkFor(email));
+    await screen.findByText("Vérification en deux étapes");
+  }
+
+  it("holds a pending session on the second step screen: no screen of the app, no way in without a code", async () => {
+    await pendingLaunch(SECOND_STEP_EMAIL);
+    expect(screen.getByLabelText("Code de l'application")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Utiliser un code de secours" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Utiliser une clé d'accès" })).toBeNull();
+    expect(screen.queryByLabelText("Votre message")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Menu" })).toBeNull();
+  });
+
+  it("is released by a valid code: the app opens", async () => {
+    await pendingLaunch(SECOND_STEP_EMAIL);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Code de l'application"), mockWeb.app.appCode());
+    await user.press(button("Vérifier"));
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+  });
+
+  it("refuses a wrong code and stays pending", async () => {
+    await pendingLaunch(SECOND_STEP_EMAIL);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Code de l'application"), "000000");
+    await user.press(button("Vérifier"));
+    expect(await screen.findByText("Ce code n'est pas valide. Vérifiez-le et réessayez.")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Votre message")).toBeNull();
+  });
+
+  it("takes a backup code", async () => {
+    await pendingLaunch(SECOND_STEP_EMAIL);
+    const user = userEvent.setup();
+    await user.press(button("Utiliser un code de secours"));
+    await user.type(screen.getByLabelText("Code de secours"), mockWeb.app.backupCode(SECOND_STEP_EMAIL));
+    await user.press(button("Vérifier"));
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+  });
+
+  it("offers « Utiliser une clé d'accès » to an account that has one", async () => {
+    await pendingLaunch(SECOND_STEP_EMAIL, { app: false, passkey: true });
+    expect(button("Utiliser une clé d'accès")).toBeOnTheScreen();
+  });
+
+  it("sends a Human Coach who must have it to the setup", async () => {
+    mockWeb.app.mustSetUp("claire.coach@example.fr");
+    await launch("/", { signIn: false });
+    await mockWeb.session.askLink("claire.coach@example.fr");
+    await openWith(mockWeb.app.linkFor("claire.coach@example.fr"));
+    expect(await screen.findByRole("button", { name: "Configurer la vérification" })).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Votre message")).toBeNull();
   });
 });
 

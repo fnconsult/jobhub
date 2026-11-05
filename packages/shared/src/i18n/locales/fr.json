@@ -3863,6 +3863,8 @@
     "title": "Entretiens et rendez-vous",
     "none": "Aucun rendez-vous à venir. Ajoutez un entretien avec « Ajouter un entretien », ou depuis chaque candidature, dans sa partie « Entretiens ».",
     "nonePast": "Aucun rendez-vous passé.",
+    "loading": "Chargement de l'agenda…",
+    "loadError": "L'agenda n'a pas pu être chargé. Réessayez dans quelques instants.",
     "showPast": "Voir les rendez-vous passés",
     "showUpcoming": "Voir les rendez-vous à venir",
     "pastTitle": "Rendez-vous passés",
@@ -5490,7 +5492,8 @@
       "extension": "Extension",
       "coach-ia": "Coach IA",
       "confidentialite": "Confidentialité",
-      "accessibilite": "Accessibilité"
+      "accessibilite": "Accessibilité",
+      "recherche": "Recherche d'offres"
     },
     "changes": {
       "new": "Nouveau",
@@ -5775,8 +5778,11 @@
       "changeEmail": "Changer d'adresse e-mail"
     },
     "secondStep": {
-      "intro": "Votre compte demande une deuxième étape pour terminer la connexion.",
-      "comingSoon": "Elle arrive bientôt dans l'app. En attendant, déconnectez-vous ou connectez-vous sur jobbbox.ai."
+      "passkeyIntro": "Utilisez la clé d'accès enregistrée sur votre compte : Face ID, Touch ID, votre empreinte ou votre clé de sécurité.",
+      "setUp": "Configurer la vérification",
+      "setUpHint": "La configuration s'ouvre dans une page de jobbbox.ai, ici dans l'app. Une fois terminée, vous revenez à Jobbbox.",
+      "unreachable": "Jobbbox n'a pas pu être joint. Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer"
     },
     "shortcuts": {
       "newConversation": "Nouvelle conversation",
@@ -5803,7 +5809,10 @@
       "applicationProfile": "Profil de la candidature",
       "followUpSent": "Relance envoyée",
       "profileStatus": "Statut du profil",
-      "coachMemory": "À retenir"
+      "coachMemory": "À retenir",
+      "jobSearch": "Recherche d'offres",
+      "jobSearchStop": "Arrêt de la recherche",
+      "jobDigest": "Job Digest"
     },
     "interview": {
       "none": "Aucun",
@@ -5816,19 +5825,34 @@
       "noFollowUp": "Aucune relance envoyée",
       "followUps_one": "{{count}} relance envoyée",
       "followUps_other": "{{count}} relances envoyées",
-      "followedUp": "{{sent}}, statut « {{status}} »"
+      "followedUp": "{{sent}}, statut « {{status}} »",
+      "noSearch": "Aucune recherche lancée",
+      "lastSearch": "Dernière recherche le {{date}}",
+      "searchOn": "Sur les critères du profil : {{criteria}}",
+      "searching": "En cours depuis {{time}}",
+      "stopped": "Arrêtée, les offres déjà trouvées gardées",
+      "noDigest": "Pas de Job Digest"
+    },
+    "quota": {
+      "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
+      "jobSearchNone": "Vos {{limit}} recherches de la semaine sont utilisées",
+      "jobSearchUnlimited": "Recherches illimitées avec votre offre",
+      "profile": "Utilise un profil actif de votre forfait"
     },
     "by": "Proposé par votre coach IA",
     "before": "Avant :",
     "after": "après :",
     "changeOf": "{{what}} :",
     "apply": "Appliquer",
+    "launch": "Lancer",
     "edit": "Modifier avant d'appliquer",
     "dismiss": "Ignorer",
     "undo": "Annuler",
     "editTitle": "Modifier avant d'appliquer : {{what}}",
     "editIntro": "Le formulaire de la page, pré-rempli avec la proposition de votre coach pour « {{name}} ». Ce que vous changez ici est gardé si vous fermez le volet.",
     "applied": "Appliqué par vous à {{time}}",
+    "launched": "Lancé par vous à {{time}}",
+    "launchedHint": "Suivez-la dans Activité IA ; « Arrêter » l'interrompt.",
     "dismissed": "Ignoré",
     "undone": "Annulé à {{time}}",
     "problems": {
@@ -5845,9 +5869,6 @@
     },
     "coachMemory": {
       "before": "Pas encore retenu"
-    },
-    "quota": {
-      "profile": "Utilise un profil actif de votre forfait"
     },
     "review": {
       "open": "Relire les changements",

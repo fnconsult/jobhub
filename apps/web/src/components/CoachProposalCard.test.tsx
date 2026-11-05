@@ -210,6 +210,44 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect(within(full).queryByRole("button", { name: "Appliquer" })).toBeNull();
   });
 
+  describe("a Job Search proposed (#720): launched, never undone", () => {
+    const SEARCH: Card = {
+      id: "55555555-5555-4555-8555-555555555555",
+      status: "pending",
+      change: {
+        target: { kind: "profile", id: "p1", name: "DAF", href: "/recherches?profil=p1" },
+        what: "Recherche d'offres",
+        before: "Aucune recherche lancée",
+        after: "Sur les critères du profil : DAF · Lyon · CDI",
+        value: { profileId: "p1" },
+        fields: [],
+        quota: { label: "1 recherche sur 5 cette semaine : il vous en restera 4" },
+        launches: true,
+      },
+      undoable: false,
+    };
+    const searchCard = () => screen.getByRole("article", { name: /Recherche d'offres/ });
+
+    it("offers « Lancer » and « Ignorer », the Plan Quota it uses said; nothing to edit", () => {
+      renderInFrench(<Thread card={SEARCH} />);
+
+      expect(searchCard().textContent).toContain("1 recherche sur 5 cette semaine : il vous en restera 4");
+      expect(within(searchCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Lancer", "Ignorer"]);
+    });
+
+    it("« Lancer » launches it and says so, sending to AI Activity to follow or stop it: no « Annuler »", async () => {
+      answers = [{ status: 200, body: { status: "accepted", card: { ...SEARCH, status: "accepted", decidedAt: "2026-11-04T17:20:00.000Z", undoable: false } } }];
+      renderInFrench(<Thread card={SEARCH} />);
+
+      await userEvent.click(within(searchCard()).getByRole("button", { name: "Lancer" }));
+
+      expect(sent).toEqual([{ url: `/api/action-cards/${SEARCH.id}`, body: { decision: "accept" } }]);
+      expect(within(searchCard()).getByRole("status").textContent).toMatch(/^Lancé par vous à \d\d:\d\d$/);
+      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter » l'interrompt.");
+      expect(within(searchCard()).queryAllByRole("button")).toEqual([]);
+    });
+  });
+
   describe("an Interview proposed from the Agenda (#718)", () => {
     const INTERVIEW: Card = {
       id: "44444444-4444-4444-8444-444444444444",

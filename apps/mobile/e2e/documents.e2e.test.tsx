@@ -9,7 +9,7 @@ import type { ApplicationResponse, TailoredDocumentsResponse } from "@jobhub/sha
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { router } from "expo-router";
-import { Dimensions, Share } from "react-native";
+import { AppState, Dimensions, Share } from "react-native";
 
 jest.setTimeout(60_000);
 
@@ -368,6 +368,48 @@ describe("Tailored Documents, on a tablet", () => {
   });
 });
 
+describe("Tailored Documents, two Applications of the same title (#756)", () => {
+  it("keeps each Application's document in a file of its own, the Cover Letter and the CV apart", async () => {
+    // The same offer applied to under a second Profile: same title, same employer, another Application.
+    const SECOND: ApplicationResponse = { ...APPLICATION, id: "app_rhone_bis", profile: { id: "prof_bis", name: "Direction logistique" } };
+    const secondExports = (document: "tailored-cv" | "cover-letter") => ({
+      pdf: `/api/applications/app_rhone_bis/${document}/export?format=pdf&template=classic`,
+      docx: `/api/applications/app_rhone_bis/${document}/export?format=docx&template=classic`,
+    });
+    const SECOND_DOCUMENTS: TailoredDocumentsResponse = {
+      documentLanguage: "fr",
+      documents: [
+        { kind: "tailored_cv", language: "fr", updatedAt: "2026-11-03T10:15:00.000Z", downloads: secondExports("tailored-cv"), message: null },
+        { kind: "cover_letter", language: "fr", updatedAt: "2026-11-03T10:40:00.000Z", downloads: secondExports("cover-letter"), message: null },
+      ],
+    };
+    mockWeb.app.has(EMAIL, {
+      applications: [
+        { application: APPLICATION, documents: DOCUMENTS },
+        { application: SECOND, documents: SECOND_DOCUMENTS },
+      ],
+    });
+    const user = userEvent.setup();
+
+    await openFiche("app_rhone");
+    await user.press(await screen.findByRole("button", { name: "CV adapté" }));
+    await act(async () => router.navigate("/candidatures/app_rhone_bis"));
+    await user.press(await screen.findByRole("button", { name: "Fiche" }));
+    await user.press(await screen.findByRole("button", { name: "CV adapté" }));
+    await act(async () => router.navigate("/candidatures/app_rhone"));
+    await user.press(await screen.findByRole("button", { name: "Fiche" }));
+    await user.press(await screen.findByRole("button", { name: "Lettre de motivation" }));
+
+    const files = [...mockFiles];
+    expect(files).toHaveLength(3);
+    expect(new Set(files).size).toBe(3);
+    expect(files.filter((file) => file.includes("app_rhone-tailored_cv/"))).toHaveLength(1);
+    expect(files.filter((file) => file.includes("app_rhone-cover_letter/"))).toHaveLength(1);
+    expect(files.filter((file) => file.includes("app_rhone_bis-tailored_cv/"))).toHaveLength(1);
+    for (const file of files) expect(file).toMatch(/\.pdf$/);
+  });
+});
+
 describe("Tailored Documents, at sign-out", () => {
   it("deletes the documents downloaded into the cache from the device", async () => {
     await openFiche();
@@ -378,6 +420,22 @@ describe("Tailored Documents, at sign-out", () => {
 
     await act(async () => router.navigate("/compte"));
     await user.press(await screen.findByRole("button", { name: "Se déconnecter" }));
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect([...mockFiles]).toEqual([]);
+  });
+});
+
+describe("Tailored Documents, a session found revoked back in the foreground", () => {
+  it("deletes the documents downloaded into the cache, as « Se déconnecter » does", async () => {
+    await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
+    await userEvent.setup().press(button("CV adapté"));
+    expect([...mockFiles]).toEqual([CV_PDF]);
+
+    mockWeb.app.revokeAll(EMAIL);
+    const listeners = (AppState.addEventListener as jest.Mock).mock.calls.filter(([event]) => event === "change").map(([, listener]) => listener);
+    await act(async () => listeners.forEach((listener) => listener("active")));
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
     expect([...mockFiles]).toEqual([]);

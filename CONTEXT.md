@@ -61,15 +61,15 @@ The AI Coach's fixed first message in a new Coach Conversation, saying it is an 
 _Avoid_: Welcome message
 
 **Human Coach**:
-A real HR professional, selected by Jobbbox, whom a Candidate can book for paid sessions on top of the AI Coach.
+A real HR professional, approved by an Administrator after a Coach Enrolment (or added by an Association that was approved), whom a Candidate can book for paid sessions on top of the AI Coach. Independent or belonging to an Association; has a time zone, a Coach Page and an event type on Jobbbox's Cal.com team (ADR-0096). Jobbbox's processor for what they read and write about Candidates (ADR-0098).
 _Avoid_: Advisor, consultant, recruiter
 
 **Coaching Session**:
-A booked, paid video meeting between a Candidate and a Human Coach. Recorded when its payment is confirmed, without a date: the Candidate then books a time on the Human Coach's Cal.com page, and that time reaches Jobbbox only when the Candidate or the Human Coach enters it (date and time in French time, optional duration, video link and note; the note is the Candidate's alone, a Human Coach never sees or changes it). It keeps who last entered or changed its date, the Candidate or the Human Coach, and the Agenda says « modifié par le coach » when it was the coach. Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
+A booked, paid remote session, by video or by phone, between a Candidate and a Human Coach, bought as a Coaching Offer from its Seller (ADR-0095). Recorded when its payment is confirmed, without a date: the Candidate then picks a slot in the Cal.com embed on the same flow, and the booking sets its date through Jobbbox's Cal.com team webhook (ADR-0096); entering it by hand stays as a fallback, by the Candidate or the Human Coach (date and time in French time, optional duration, video link and note; the note is the Candidate's alone, a Human Coach never sees or changes it). It keeps who last entered or changed its date, the Candidate or the Human Coach, and the Agenda says « modifié par le coach » when it was the coach. Until then it is an Unscheduled Coaching Session. Never deleted by the Candidate.
 _Avoid_: Appointment, call, meeting
 
 **Unscheduled Coaching Session**:
-A paid Coaching Session with no date entered yet, or whose date was cleared by a cancellation. Shown at the top of the Agenda as « À planifier », with the Human Coach's booking link; not in the week or month views. One a Coach manager marked as refunded in the Back Office leaves the Agenda.
+A paid Coaching Session with no date entered yet, or whose date was cleared by a cancellation. Shown at the top of the Agenda as « À planifier », with the way to book a slot; not in the week or month views. One refunded (a Human Coach's cancellation the Candidate chose to have refunded, a Withdrawal) leaves the Agenda.
 _Avoid_: Pending session, draft session
 
 **Coach Access**:
@@ -81,12 +81,44 @@ A Human Coach's feedback on one Tailored Document of an Application. The Candida
 _Avoid_: Comment, annotation
 
 **Coach space**:
-A Human Coach's pages: the Candidates who granted Coach Access, their Profiles and Applications (read-only), the form for Coach Reviews, and their own Coaching Sessions (the Candidate shown as first name and last initial, no Coach Access needed), whose date, duration and video link they can enter or correct. They see no Agenda.
+A Human Coach's pages, under their own Sidebar (Aujourd'hui, Mes Candidates, Mes séances, Disponibilités, Profil public, Revenus, Contrat, Aide), each a single column of cards (ADR-0099): today's sessions and what needs action; each Candidate's page (their sessions with this coach and the coach's Private Coach Notes; under Coach Access only, their Profiles, Applications and Tailored Documents, read-only, and the form for Coach Reviews); their own Coaching Sessions (the Candidate shown as first name and last initial, no Coach Access needed), before, during (Shared Reading) and after (Session Report); availability, their Coach Page, Coach Earnings and the B2B contract to accept by version. They see no Agenda and no Coach Conversation. An Association has a space of the same kind, without Candidates.
 _Avoid_: Coach dashboard
 
 **Retired Human Coach**:
 A Human Coach no longer listed to Candidates and who can no longer read anything. Past Coaching Sessions and Coach Reviews are kept.
 _Avoid_: Deleted coach
+
+**Association**:
+A non-profit partner that offers Candidates Human Coaches and events: approved by an Administrator after a Coach Enrolment, it adds its own Human Coaches and may be the Seller of their Coaching Offers. It never reads its coaches' Candidates.
+_Avoid_: Partner, organisation (Organisation is a role absent from the MVP), NGO
+
+**Coach Enrolment**:
+A Human Coach's or an Association's request to join Jobbbox, approved or refused by an Administrator; the approved one then accepts the B2B contract, by version, in the Coach space.
+_Avoid_: Application (that is a Candidate's), sign-up
+
+**Coach Page**:
+A Human Coach's public profile shown to Candidates in « Mes coachs humains »: photo, presentation, specialities, languages, Coaching Offers and their Seller. Edited by the Human Coach; each change shown only once an Administrator approved it. No reviews.
+_Avoid_: Coach profile (Profile is a Candidate's), bio page
+
+**Peer Human Coach**:
+Another Human Coach proposed to a Candidate whose Coaching Session the Human Coach cancelled, beside another slot with the same coach and a refund (« un confrère »).
+_Avoid_: Replacement, substitute
+
+**Shared Reading**:
+During a Coaching Session, one document of the Candidate's (a Tailored Document or their CV) that they open for the Human Coach, who sees the same page live in Jobbbox, even without Coach Access, only that document and only during the session; the Candidate can stop it. The Human Coach can also present a PDF. Nothing is annotated or kept on the coach's side (ADR-0097).
+_Avoid_: Screen sharing (that stays in the video tool), co-editing
+
+**Private Coach Notes**:
+What a Human Coach writes for themselves about a Candidate or one Coaching Session. Never shown to the Candidate on screen, but in their Data export; deleted with the Candidate's account, unreadable once the coach is retired (ADR-0098).
+_Avoid_: Comments, Coach Review (that one is given to the Candidate)
+
+**Session Report**:
+What a Human Coach writes after a Coaching Session on a template (what was covered, next steps, resources), published in the Candidate's Coach Conversation for that session; its next steps may become Action Cards. In the Candidate's Data export.
+_Avoid_: Minutes, Session Summary (that one is generated, next phase)
+
+**Session Recording**, **Session Transcript**, **Session Summary** (next phase):
+A Coaching Session's audio, recorded only with both participants' explicit consent for that session, deleted once transcribed; its transcript, kept 30 days; and the summary generated from it on an EU-only AI task, reviewed by the Human Coach before it is published, marked as generated, inferring no emotion and assessing nobody (ADR-0098). Viewable on the web only.
+_Avoid_: Notes, minutes, call recording
 
 **Coach Panel**:
 The side panel where an Administrator talks with the Back Office Assistant. Retired from the Candidate's pages by the conversation-first design (ADR-0070): there the conversation is the page (see Coach Conversation, Fiche, Work Pane), and « Aide et coach » is gone from the Top Bar.
@@ -616,15 +648,15 @@ A change of an Agenda Item's date and time made more than an hour after it was e
 _Avoid_: Move, edit (for a date change)
 
 **Cancelled Agenda Item**:
-An Agenda Item the Candidate (or, for a Coaching Session, the Human Coach) marked as cancelled. A Cancelled Interview stays on the Agenda struck through, with the date of cancellation. A Cancelled Coaching Session goes back to Unscheduled, the cancellation kept in its Reschedule history; refunds are handled outside Jobbbox. No Appointment Reminder and no Calendar file for it.
+An Agenda Item the Candidate (or, for a Coaching Session, the Human Coach) marked as cancelled. A Cancelled Interview stays on the Agenda struck through, with the date of cancellation. A Coaching Session can be cancelled by the Candidate until 24 hours before it (after which it is due) and by the Human Coach at any time, with a reason; then the Candidate chooses a refund, another slot with the same coach or a Peer Human Coach. Cancelled without a refund, it goes back to Unscheduled, the cancellation kept in its Reschedule history. No Appointment Reminder and no Calendar file for it.
 _Avoid_: Deleted appointment
 
 **Appointment Reminder**:
-The email Jobbbox sends the Candidate at 18:00 French time the day before an Agenda Item still planned, in their Interface Language. On by default, switched off in Mon compte's Rappels Section; on every Plan, against no Plan Quota. None for an Agenda Item whose date was entered or last changed (Rescheduled included) after that time. One email per Candidate for the whole next day; a Rescheduled Agenda Item gets a new one for its new date. A Cancelled Agenda Item gets none; an Archived Application's Interview or a Retired Human Coach's Coaching Session still does. A late run still reminds items not yet started. The email links to the Rappels Section to switch reminders off. The Human Coach gets none.
+The email Jobbbox sends the Candidate at 18:00 French time the day before an Agenda Item still planned, in their Interface Language. On by default, switched off in Mon compte's Rappels Section; on every Plan, against no Plan Quota. None for an Agenda Item whose date was entered or last changed (Rescheduled included) after that time. One email per Candidate for the whole next day; a Rescheduled Agenda Item gets a new one for its new date. A Cancelled Agenda Item gets none; an Archived Application's Interview or a Retired Human Coach's Coaching Session still does. A late run still reminds items not yet started. The email links to the Rappels Section to switch reminders off. For a Coaching Session, the Candidate and the Human Coach are also reminded one hour before, with « Rejoindre », and the Human Coach gets the reminder the day before and a morning summary (ADR-0096); Cal.com's own reminders are off.
 _Avoid_: Notification, alert, Follow-up
 
 **Calendar file**:
-One Agenda Item as a downloadable .ics file (« Ajouter à mon calendrier »), in French time. Jobbbox offers no calendar subscription or sync: a later change needs a new download.
+One Agenda Item as a downloadable .ics file (« Ajouter à mon calendrier »), in French time. Jobbbox offers the Candidate no calendar subscription or sync: a later change needs a new download. A Human Coach's own calendar is synced by Cal.com (ADR-0096).
 _Avoid_: Calendar sync, feed
 
 ### Scoring
@@ -907,8 +939,28 @@ _Avoid_: Newsletter, changelog email
 ### Billing
 
 **Coaching Session Price**:
-The single price Jobbbox sets for a Coaching Session, discounted on Plans with the Coaching Session discount Plan Feature.
+The single price Jobbbox sets for a Coaching Session it sells itself, discounted on Plans with the Coaching Session discount Plan Feature. A Coaching Offer sold by a Human Coach or an Association has its Seller's price instead.
 _Avoid_: Coach rate, fee
+
+**Coaching Offer**:
+What a Candidate can buy from a Human Coach: a Coaching Session of a given length, or (next phase) a Masterclass. Each has a Seller, shown as « Vendu par » on its card, its Order and its Order Confirmation (ADR-0095).
+_Avoid_: Offer alone (ambiguous with Job Offer), product, package
+
+**Seller**:
+Who sells a Coaching Offer: Jobbbox (at the Coaching Session Price), or a Human Coach or an Association (at their own price, Jobbbox being the marketplace that collects the payment on their behalf, for a Commission). Decides the law that applies to that sale: a third-party Seller makes Jobbbox a marketplace operator for it (ADR-0095).
+_Avoid_: Vendor, merchant, provider
+
+**Commission**:
+Jobbbox's share of a Coaching Offer sold by a Human Coach or an Association, set per Seller by Administrators.
+_Avoid_: Fee, cut, margin
+
+**Coach Earnings**:
+A Human Coach's or an Association's page of what they earned, by month: sessions held, amount collected, Commission, payout through Stripe Connect and its date (once each payment's Withdrawal period is over), refunds, invoices.
+_Avoid_: Revenue, balance, wallet
+
+**Masterclass** (next phase):
+A live class, a replay or a short series by a Human Coach or an Association (an Association's event included), reviewed by an Administrator before publication, sold per unit by its Seller (free possible, never included in a Plan), on the web only (ADR-0100).
+_Avoid_: Course, webinar, training
 
 **Plan**:
 The subscription tier a Candidate is on, defined by Administrators in the Back Office: a permanent key, a name in each Interface Language, a rank, offered or hidden, one Stripe product, fixed once set (every price of that product is the Plan's), its Plan Quotas, Coach context limits and Plan Features. Free is built in: always ranked first and offered, with no Stripe product. A Plan is never deleted; a hidden Plan is not in the plan comparison, at checkout or in an Upgrade Prompt, and its subscribers keep it. Jobbbox started with Free, Standard and Premium. Coaching Sessions are paid separately.

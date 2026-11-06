@@ -6,7 +6,8 @@ import { dirname, join, relative } from "node:path";
 import { loadAll } from "js-yaml";
 import fr from "../../../packages/shared/src/i18n/locales/fr.json";
 import appJson from "../app.json";
-import { CI_HARDWARE, runsOn } from "./devices";
+import { disposition } from "../src/shell/disposition";
+import { CI_HARDWARE, DEVICES, runsOn } from "./devices";
 import { KEY_SCREENS, MAESTRO_SEED, STACK_ENV } from "./seed";
 
 const ROOT = __dirname;
@@ -86,6 +87,21 @@ describe("the Maestro flows (#705)", () => {
       .sort()
       .map((file) => parse(file).header.name);
     expect(config.executionOrder.flowsOrder).toEqual(names);
+  });
+
+  // On an iPad in portrait (64.5rem) the run's layout is columns, but an Application's Fiche, open beside the
+  // conversation, leaves the Sidebar no room: it goes to the drawer, and the flows found no « Recherches d'offres » (#705).
+  it("goes to a Sidebar link through « Menu » whenever the shell shows it, whatever the run's layout", () => {
+    const columnsYetDrawer = DEVICES.filter((device) => {
+      const window = { width: device.size.width, fontScale: 1 };
+      const page = disposition(window, { sidebar: true, pane: null, workPane: false });
+      const withFiche = disposition(window, { sidebar: true, pane: "fiche", workPane: false });
+      return page.panes === "columns" && page.sidebar === "column" && withFiche.sidebar === "drawer";
+    });
+    expect(columnsYetDrawer.map((device) => device.id)).toContain("ipad-portrait");
+    const { commands } = parse(join(ROOT, "subflows", "menu.yaml"));
+    const opensDrawer = commands.find((command) => typeof command === "object" && JSON.stringify(command).includes('"tapOn":"Menu"')) as { runFlow: { when: Record<string, unknown> } };
+    expect(opensDrawer.runFlow.when).toEqual({ visible: "Menu" });
   });
 
   it("captures each key screen once per run", () => {

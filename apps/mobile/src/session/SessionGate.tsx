@@ -4,7 +4,9 @@ import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
 import { signInCopy, type SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import { AppState, Platform, View, type TextInputProps } from "react-native";
+import { onlineManager } from "@tanstack/react-query";
 import { useForgetReads } from "../offline/read-cache";
+import { useForgetPushDevice } from "../push/PushNotifications";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -72,6 +74,7 @@ export function SessionGate({
   // sign-in reads afresh (its CGU to accept among them, #689); the WebViews' cookies (#689); and `forgetOnDevice`.
   // Nothing below the gate is shown then, so the screens need not start again.
   const forgetReads = useForgetReads();
+  const forgetPushDevice = useForgetPushDevice();
   const forgetSession = useCallback(async () => {
     await forgetReads({ restart: false }).catch(() => undefined);
     await session.forgetWebViews().catch(() => undefined);
@@ -119,6 +122,16 @@ export function SessionGate({
     return () => subscription?.remove();
   }, [refresh]);
 
+  // Back on sign-in because the web app could not be asked (UNKNOWN_OFFLINE), the session is asked again as soon as the
+  // network comes back, not only at the next return to the foreground (#756).
+  const offline = state?.offline === true;
+  useEffect(() => {
+    if (!offline) return;
+    return onlineManager.subscribe((online) => {
+      if (online) void refresh();
+    });
+  }, [offline, refresh]);
+
   useEffect(() => {
     if (!link || OPENED.get(session) === link) return;
     let current = true;
@@ -139,6 +152,8 @@ export function SessionGate({
       // killed) never leaves it without its session. The screens go first, so none reads again in between. From the
       // app and from the second step alike.
       signOut: async () => {
+        // The device first, while the session still answers: no Push notification reaches it any more (#699).
+        await forgetPushDevice().catch(() => undefined);
         setState(null);
         await forgetSession();
         await session.signOut();
@@ -147,7 +162,7 @@ export function SessionGate({
       recheck: refresh,
       webPages: session,
     }),
-    [session, refresh, forgetSession],
+    [session, refresh, forgetSession, forgetPushDevice],
   );
 
   if (!state) return null;

@@ -4,6 +4,7 @@ import { expect, test, type APIRequestContext, type Browser, type BrowserContext
 import pg from "pg";
 import { inboundRequest, type InboundTestEmail } from "../apps/web/src/email-intake/fixtures/inbound-emails";
 import { cadremploiAlert, jobijobaPromo, linkedInDigest, newsletter, OFFER_EMAILS, recruiterMessage, type OfferEmailFixture } from "../apps/web/src/email-intake/fixtures/offer-emails";
+import { offerBoxResponseSchema } from "@jobhub/shared/reads";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -139,6 +140,8 @@ async function candidate(browser: Browser, label: string): Promise<Candidate> {
   return { page, email, address: (await on.json()).address as string, candidateId, profileId: (await created.json()).id as string };
 }
 
+const offerBoxOf = async (page: Page) => offerBoxResponseSchema.parse(await (await page.request.get("/api/offer-box")).json()).entries;
+
 const jobOfferCountOf = async (urlPart: string) => (await query<{ n: number }>(`SELECT count(*)::int AS n FROM job_offer WHERE source_url LIKE $1`, [`%${urlPart}%`]))[0]!.n;
 
 test.describe("Email intake: the worker reads Received offer emails into Job Offers (#445)", () => {
@@ -188,6 +191,14 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
     const guest = await browser.newContext({ baseURL: origin });
     expect((await guest.request.get(`/api/job-offers/${alert.offers[0]!.jobOfferId}`)).status()).toBe(200);
     await guest.close();
+
+    // Email intake is an Arrival door (ADR-0090): each new offer is an Offer box entry « à traiter », under the Profile and
+    // Match Score the reading chose; « Non classées » (under 60) keep no Profile.
+    const box = await offerBoxOf(me.page);
+    const entry = (offer: ExportedOffer) => box.find((line) => line.jobOffer.id === offer.jobOfferId);
+    expect(box).toHaveLength(3);
+    expect(entry(alert.offers[0]!)).toMatchObject({ state: "to_handle", profile: { id: marie.profileId }, matchScore: alert.offers[0]!.matchScore, sources: [{ source: "email" }] });
+    for (const offer of alert.offers.slice(1)) expect(entry(offer)).toMatchObject({ state: "to_handle", profile: null, matchScore: offer.matchScore });
   });
 
   test("a Jobijoba promotion without a precise offer, and a newsletter: « autre », no Job Offer", async ({ browser }) => {
@@ -212,6 +223,10 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
     expect(again.offers.map((offer) => offer.disposition)).toEqual(["seen", "seen", "seen"]);
     expect(again.offers.map((offer) => offer.jobOfferId)).toEqual(alert.offers.map((offer) => offer.jobOfferId));
     expect(await jobOfferCountOf("cadremploi.fr/emploi/detail_offre?offreId=1587")).toBe(3);
+    // The same offers again: no new entry, none moved (still one Arrival each, « Email »; the first Arrival stays).
+    const box = await offerBoxOf(me.page);
+    expect(box).toHaveLength(3);
+    for (const line of box) expect(line.sources.map((arrival) => arrival.source)).toEqual(["email"]);
   });
 
   test("a recruiter's message forwarded by hand: a Job Offer private to the Candidate, never seen by another Candidate or a Guest", async ({ browser, request }) => {
@@ -226,6 +241,8 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
     const hers = await me.page.request.get(`/api/job-offers/${id}`);
     expect(hers.status()).toBe(200);
     expect(await hers.json()).toMatchObject({ title: "Directeur administratif et financier", location: "Lyon", contractType: "cdi" });
+    // A Private Job Offer makes an Offer box entry for its Candidate only.
+    expect((await offerBoxOf(me.page)).find((line) => line.jobOffer.id === id)).toMatchObject({ state: "to_handle", sources: [{ source: "email" }] });
     const exported = await (await me.page.request.get("/api/account/export")).json();
     expect(exported.privateJobOffers.map((offer: { id: string }) => offer.id)).toEqual([id]);
 
@@ -233,6 +250,7 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
     expect((await paul.page.request.get(`/api/job-offers/${id}`)).status()).toBe(404);
     expect((await request.get(`/api/job-offers/${id}`)).status()).toBe(404);
     expect((await (await paul.page.request.get("/api/account/export")).json()).privateJobOffers).toEqual([]);
+    expect(await offerBoxOf(paul.page)).toEqual([]);
     // Nothing of the recruiter is kept.
     expect(JSON.stringify(await hers.json())).not.toMatch(/Claire|06 00 00 00 00|claire\.exemple/);
   });

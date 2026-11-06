@@ -4,11 +4,13 @@ import type { SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import {
   agendaResponseSchema,
   applicationResponseSchema,
+  offerBoxResponseSchema,
   profileResponseSchema,
   tailoredDocumentsResponseSchema,
   type AgendaResponse,
   type ApplicationResponse,
   type LegalStepsResponse,
+  type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type ShownLegalTextRead,
@@ -18,11 +20,14 @@ import { fakeWebView, type WebViewCookie } from "../testing-device";
 import type { AuthBrowser, DevicePasskeys, SessionStorage, WebViewCookies } from "./app-session";
 
 const NO_AGENDA: AgendaResponse = { toSchedule: [], days: [] };
+const NO_OFFER_BOX: OfferBoxResponse = { today: "2026-11-05", toHandle: 0, entries: [] };
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
 /** The reads of the account's own the fake answers with its writes (#689), not with the Candidate's data (#695). */
-const ACCOUNT_READS = new Set(["/api/coach-space", "/api/account/legal-steps"]);
+const ACCOUNT_READS = new Set(["/api/coach-space", "/api/account/legal-steps", "/api/account/export"]);
 const COOKIE = "__Secure-better-auth.session_token";
+/** The name the Data export's route gives its file (`attachment; filename=…`). */
+export const EXPORT_FILE_NAME = "jobbbox-donnees-2026-11-06.json";
 
 /** Secure storage as the Keychain or Keystore keeps it, in memory: what the app leaves on the device is `values`. */
 export function memoryStorage(): SessionStorage & { values: Map<string, string> } {
@@ -111,6 +116,8 @@ export interface CandidateData {
   /** Their Agenda (#693); an empty one when not given. */
   agenda?: AgendaResponse;
   applications?: { application: ApplicationResponse; documents: TailoredDocumentsResponse }[];
+  /** Their Offer box (ADR-0090, #815); an empty one when not given. */
+  offerBox?: OfferBoxResponse;
 }
 
 /**
@@ -121,7 +128,7 @@ export interface CandidateData {
  * second step (#688) as its endpoints answer it (two-step-verification/index.ts and its routes prove the real ones):
  * what the session has to do, a code, a passkey of the account's own, the lock. The API routes of #689: whether the
  * person is a Human Coach, the legal steps after sign-in and their answers (a write refused without the app's origin),
- * each recorded in `recorded`. The Sign-in Providers shown to Candidates, and their OAuth flow (#687,
+ * each recorded in `recorded`; and a Job Search started for one of the Candidate's Profiles (#699). The Sign-in Providers shown to Candidates, and their OAuth flow (#687,
  * apps/web/src/auth/app-oauth.test.ts proves the real one): asked without a redirect, then opened in the system's
  * authentication browser (`browser`) through the Expo proxy, back in the app's scheme with the session cookie or the
  * refusal's code. Its session never waits for a second step.
@@ -151,6 +158,8 @@ export function fakeWebApp() {
   const flows = new Map<string, { callbackURL: string; errorCallbackURL: string }>();
   const signInsAsked: { provider: string; callbackURL: string; errorCallbackURL: string; idToken: boolean }[] = [];
   const browserOpened: { url: string; returnUrl: string }[] = [];
+  /** Where the Data export's route redirects, when it does (`exportMovedTo`). */
+  let exportMovedTo: string | null = null;
 
   const json = (body: unknown, status = 200, setCookie?: string) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...(setCookie ? { "set-cookie": setCookie } : {}) } });
@@ -191,9 +200,10 @@ export function fakeWebApp() {
    */
   function read(path: string, email: string | null): Response {
     if (!email) return json({ error: "unauthorized" }, 401);
-    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [] };
+    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [], offerBox: NO_OFFER_BOX };
     const notFound = json({ error: "not_found" }, 404);
     if (path === "/api/agenda") return json(mine.agenda);
+    if (path === "/api/offer-box") return json(mine.offerBox);
     if (path === "/api/profiles") return json(mine.profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name })) satisfies ProfilesResponse);
     const profile = /^\/api\/profiles\/([^/]+)$/.exec(path);
     if (profile) {
@@ -299,6 +309,12 @@ export function fakeWebApp() {
       const current = stepsOf(email);
       if (url.pathname === "/api/coach-space" && request.method === "GET") return json({ humanCoach: humanCoaches.has(email) });
       if (url.pathname === "/api/account/legal-steps" && request.method === "GET") return json(current);
+      // apps/web/src/app/api/account/export/route.ts: the Data export, an attachment (#756 follows its redirects).
+      if (url.pathname === "/api/account/export" && request.method === "GET") {
+        if (exportMovedTo) return new Response(null, { status: 302, headers: { location: exportMovedTo } });
+        const headers = { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="${EXPORT_FILE_NAME}"` };
+        return new Response(JSON.stringify({ account: { email } }), { headers });
+      }
       if (url.pathname === "/api/account/acceptances" && request.method === "POST") {
         const { version } = body as { version: string };
         if (current.acceptance?.version !== version) return json({ error: "stale" }, 409);
@@ -308,6 +324,14 @@ export function fakeWebApp() {
       if (url.pathname.startsWith("/api/privacy-change/") && request.method === "DELETE") {
         steps.set(email, { ...current, privacyChange: null });
         return new Response(null, { status: 204 });
+      }
+      // apps/web/src/app/api/job-searches/route.ts: a Job Search started for one of the Candidate's Profiles (#699).
+      if (url.pathname === "/api/job-searches" && request.method === "POST") {
+        const { profileId } = (body ?? {}) as { profileId?: string };
+        const profile = data.get(email)?.profiles.find((candidate) => candidate.id === profileId);
+        if (!profile) return json({ error: "not_found" }, 404);
+        if (profile.archived) return json({ error: "archived" }, 409);
+        return json({ id: `search${++next}` }, 201);
       }
       if (url.pathname === "/api/account/eu-ai-consent" && request.method === "PUT") {
         steps.set(email, { ...current, euAiConsentGiven: true });
@@ -402,6 +426,8 @@ export function fakeWebApp() {
     asks: (email: string, asked: Partial<LegalStepsResponse>) => void steps.set(email, { ...stepsOf(email), ...asked }),
     /** The API calls the app made, oldest first. */
     recorded,
+    /** The Data export's route redirects to `url` (another host, a storage's), or answers again (null). */
+    exportMovedTo: (url: string | null) => void (exportMovedTo = url),
     /** Whose session a request with `headers` carries, as the web app reads its cookie: the email, or null for none it knows. */
     signedInAs: (headers: HeadersInit | undefined) => sessionOf(new Headers(headers))?.session?.email ?? null,
     setOffline: (value: boolean) => void (offline = value),
@@ -424,6 +450,7 @@ export function fakeWebApp() {
           application: applicationResponseSchema.parse(application),
           documents: tailoredDocumentsResponseSchema.parse(documents),
         })),
+        offerBox: offerBoxResponseSchema.parse(candidate.offerBox ?? NO_OFFER_BOX),
       }),
     /** The Candidate's reads the app made, in order, and with whose session. */
     reads,

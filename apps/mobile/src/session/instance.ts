@@ -1,4 +1,5 @@
 import CookieManager from "@preeternal/react-native-cookie-manager";
+import { fetch as expoFetch } from "expo/fetch";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import { WEB_APP_URL } from "../web-app-url";
@@ -44,3 +45,10 @@ const browser: AuthBrowser = (url, returnUrl) => {
 
 /** The app's one session, on the web app the app calls (web-app-url.ts), its second step by the device's passkeys, its sign-in through a provider by the system's authentication browser. */
 export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys, webViewCookies, browser });
+
+/**
+ * The fetch the app's calls to the API go through (`ApiProvider`, src/api/api.tsx): `expo/fetch`, whose answer streams
+ * (the Coach's reply, NDJSON, #690), whatever EXPO_PUBLIC_USE_RN_FETCH says of the global fetch.
+ */
+export const appFetch: typeof globalThis.fetch = (input, init) =>
+  expoFetch(String(input), init as Parameters<typeof expoFetch>[1]) as unknown as Promise<Response>;

@@ -4,8 +4,8 @@
  *
  * One deep module in front of Postgres. `createSignalements(database, { version })` answers:
  *  - `send` one: checks its type and message, keeps its context (the page's path without query or `#…`, the
- *    Jobbbox version, the browser parsed to « Chrome 141, Mac », the Interface Language and the Text Size; never the
- *    raw user agent), and refuses an (SENDING_LIMIT + 1)th within a rolling SENDING_WINDOW_HOURS, counted in the
+ *    Jobbbox version, the browser parsed to « Chrome 141, Mac » or, from the Jobbbox app, its version and system
+ *    (« App Jobbbox 1.4.0, iOS 18.6 »), the Interface Language and the Text Size; never the raw user agent), and refuses an (SENDING_LIMIT + 1)th within a rolling SENDING_WINDOW_HOURS, counted in the
  *    database. A Question carries a copy of the Candidate's question and the coach's reply, never a link to the Coach
  *    Conversation, so it stays readable once that conversation is deleted;
  *  - `changeStatus` and `reply`, the team's side (the Back Office, #376), on its transaction: any status in any
@@ -30,7 +30,7 @@ import { resolveTextSize, type TextSizeSetting } from "@jobhub/shared/design";
 import type { Pool } from "pg";
 import { inTransaction, type Queryable } from "../database/pool";
 import type { FieldError } from "../validation";
-import { browserOf, pagePath } from "./context";
+import { pagePath, whereSentFrom } from "./context";
 import {
   ATTACHED_MAX_LENGTH,
   isSignalementStatus,
@@ -57,7 +57,7 @@ export interface SignalementContext {
   path: string | null;
   /** The Jobbbox version that served it. */
   version: string;
-  /** « Chrome 141, Mac »; null when the browser said nothing. */
+  /** « Chrome 141, Mac », or « App Jobbbox 1.4.0, iOS 18.6 » from the Jobbbox app (#690); null when the browser said nothing. */
   browser: string | null;
   interfaceLanguage: Locale;
   textSize: TextSizeSetting;
@@ -98,6 +98,8 @@ export interface SignalementsFilter {
 export interface SendingContext {
   /** The request's User-Agent header, read to name the browser and then dropped. */
   userAgent: string | null;
+  /** What the Jobbbox app states of its version and system (APP_DEVICE_HEADER, #690); its native fetch's user agent names neither. */
+  appDevice?: string | null;
   /** The signed-in Candidate's Interface Language. */
   interfaceLanguage: string;
 }
@@ -308,7 +310,7 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
             signalement.attachedCoachReply,
             signalement.path,
             deps.version,
-            browserOf(context.userAgent),
+            whereSentFrom(context),
             isSupportedLocale(context.interfaceLanguage) ? context.interfaceLanguage : DEFAULT_LOCALE,
             signalement.textSize,
             at,

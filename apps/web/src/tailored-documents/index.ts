@@ -33,6 +33,8 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
+import { countUse, migrateConsumption } from "../consumption";
+import { inTransaction } from "../database/pool";
 import type { EnrichedContact, EnrichedContacts } from "../enriched-contacts";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -379,22 +381,26 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       if (written === "stopped" || signal?.aborted) return { ok: false, error: "stopped" };
       if ("unavailable" in written) return { ok: false, error: "unavailable", ...(written.unavailable ? { reason: written.unavailable } : {}) };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
-      await database.query(
-        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, contact, text, provenance) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         ON CONFLICT (application_id, kind) DO UPDATE
-           SET language = $3, channel = $4, subject = $5, contact_roles = $6, contact = $7, text = $8, provenance = $9, drafted_at = now(), updated_at = now()`,
-        [
-          application.id,
-          document,
-          language,
-          document === "outreach_message" ? channel : null,
-          written.subject,
-          written.contactRoles,
-          contact ? JSON.stringify(contact) : null,
-          written.text,
-          JSON.stringify(recorder.provenance()),
-        ],
-      );
+      // The draft and its Provenance saved: one document in Consumption (#799), in the same transaction.
+      await inTransaction(database, async (client) => {
+        await client.query(
+          `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, contact, text, provenance) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (application_id, kind) DO UPDATE
+             SET language = $3, channel = $4, subject = $5, contact_roles = $6, contact = $7, text = $8, provenance = $9, drafted_at = now(), updated_at = now()`,
+          [
+            application.id,
+            document,
+            language,
+            document === "outreach_message" ? channel : null,
+            written.subject,
+            written.contactRoles,
+            contact ? JSON.stringify(contact) : null,
+            written.text,
+            JSON.stringify(recorder.provenance()),
+          ],
+        );
+        await countUse(client, candidateId, "tailoredDocument", new Date());
+      });
       return { ok: true, drafts: await draftsOf(application) };
     },
 
@@ -416,6 +422,8 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
 
 /** Creates or upgrades the Tailored Document table and the Application's Document Language. Run after the Application table. Safe to run repeatedly. */
 export async function migrateTailoredDocuments(database: Pool): Promise<void> {
+  // Each draft saved counts in Consumption (#799).
+  await migrateConsumption(database);
   const kinds = TAILORED_DOCUMENTS.map((kind) => `'${kind}'`).join(", ");
   const channels = OUTREACH_CHANNELS.map((channel) => `'${channel}'`).join(", ");
   const languages = DOCUMENT_LANGUAGES.map((language) => `'${language}'`).join(", ");

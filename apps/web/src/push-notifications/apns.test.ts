@@ -48,7 +48,8 @@ describe("APNs (token-based connection, HTTP/2)", () => {
     expect(call!.init.method).toBe("POST");
     expect(header(call!.init, "apns-topic")).toBe("ai.jobbbox.app");
     expect(header(call!.init, "apns-push-type")).toBe("alert");
-    expect(JSON.parse(String(call!.init.body))).toEqual({ aps: { alert: { title: MESSAGE.title, body: MESSAGE.body }, sound: "default" }, path: "/recherches/42" });
+    // The path twice: at the root, and under `body`, which is all the app's expo-notifications gives as its data on iOS (#699).
+    expect(JSON.parse(String(call!.init.body))).toEqual({ aps: { alert: { title: MESSAGE.title, body: MESSAGE.body }, sound: "default" }, path: "/recherches/42", body: { path: "/recherches/42" } });
 
     const jwt = readJwt(header(call!.init, "authorization")!.replace(/^bearer /, ""), key.publicKey);
     expect(jwt.valid).toBe(true);

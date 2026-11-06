@@ -16,6 +16,9 @@
  *  - `ofSubject` the conversation of a Subject with its messages, or null before its first message;
  *  - `list` the Candidate's conversations, most recently active first;
  *  - `open` one with its messages; `rename` it; `delete` it;
+ *  - `startAbout` a Job Offer the Candidate shared from another app (Share capture, #697): a new Free conversation,
+ *    named after it, saved at once with the Candidate's message and a set reply carrying its Job Offer card, with no AI
+ *    call (no Coach Message Cost, no Plan Quota), the reply's Focus the Job Offer;
  *  - `repliesAbout` a page's object: the replies whose focus it is, from any conversation, for AI Activity.
  * A conversation opened, and each `send`, say its Context bar's figures (#607, ADR-0070): its messages, and the jetons of the
  * context its latest reply was sent, as the AI Coach estimated them (kept with each reply; none for a reply sent no context),
@@ -63,8 +66,10 @@ import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, 
 import { contextBar, MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ContextUpgrade, type ConversationContext, type ContextSplit, type ReplyCost, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
+import { migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
+import { countUse, migrateConsumption } from "../consumption";
 import { utcBefore } from "../database/before";
 
 /**
@@ -163,6 +168,12 @@ export interface CoachConversations {
   rename(candidateId: string, conversationId: string, title: unknown): Promise<RenameResult>;
   /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
   delete(candidateId: string, conversationId: string): Promise<boolean>;
+  /**
+   * A new Free conversation that opens on `jobOffer`, one the Candidate may see (Share capture, #697): named after it,
+   * saved at once with `opening`'s message from the Candidate and its set reply, which carries the Job Offer card and
+   * `opening.provenance`. No AI call is made. Neither text is checked here: the caller writes them, never the browser.
+   */
+  startAbout(candidateId: string, jobOffer: Pick<JobOffer, "id" | "title" | "employer">, opening: { message: string; reply: string; provenance: Provenance }): Promise<CoachConversationSummary>;
   /** Whether the Candidate closed the conversations' welcome panel (the AI disclosure and the page's introduction): never shown again. */
   welcomeClosed(candidateId: string): Promise<boolean>;
   /** Closes the welcome panel for good; the « Coach IA » badge still shows it. Closing it again changes nothing. */
@@ -708,6 +719,24 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       return rows.map((row) => ({ at: row.at.toISOString(), provenance: savedReplyProvenance(row) }));
     },
 
+    async startAbout(candidateId, jobOffer, opening) {
+      const sentAt = now();
+      const conversation: CoachConversationSummary = { id: randomUUID(), title: titleFrom(jobOffer.title), subject: null, profile: null, lastMessageAt: sentAt };
+      const answer: Extract<CoachReply, { ok: true }> = {
+        ok: true,
+        reply: opening.reply,
+        outcome: "replied",
+        cost: null,
+        playbooks: [],
+        consultations: [],
+        // Only its id is saved with the reply: the card is read from the Job Offer whenever the conversation opens.
+        jobOffer: { id: jobOffer.id, title: jobOffer.title, source: {}, content: "" },
+        provenance: opening.provenance,
+      };
+      await save(candidateId, conversation, true, { message: opening.message, blocked: false }, { answer, blocked: false, focus: { kind: "job_offer", id: jobOffer.id }, shareCapture: true }, sentAt);
+      return conversation;
+    },
+
     async delete(candidateId, conversationId) {
       if (!UUID.test(conversationId)) return false;
       const { rowCount } = await database.query(`DELETE FROM coach_conversation WHERE id = $1 AND candidate_id = $2`, [conversationId, candidateId]);
@@ -745,13 +774,15 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   /**
    * Saves the Candidate's message and the AI Coach's reply together, `reply` null when it was stopped, with the conversation
    * when it is `isNew`; the conversation's last message is then `sentAt`. Gives back the reply's seq, null without one.
+   * An asked reply's Job Offer card is a Job Offer link's Arrival in the Offer box; a Share capture's set reply
+   * (`shareCapture`) is not: a Share capture enters the Offer box only once followed (ADR-0090).
    */
   async function save(
     candidateId: string,
     conversation: CoachConversationSummary,
     isNew: boolean,
     asked: { message: string; blocked: boolean; unchecked?: boolean },
-    reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: Focus | null } | null,
+    reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: Focus | null; shareCapture?: boolean } | null,
     sentAt: Date,
   ): Promise<string | null> {
     const client = await database.connect();
@@ -779,8 +810,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const { cost } = answer;
         const inserted = await client.query<{ seq: string }>(
           `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
-                                     provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id, ai_call_ids, ai_turn_ids, tool_rounds, tool_names)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING seq`,
+                                     provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id, share_capture, ai_call_ids, ai_turn_ids, tool_rounds, tool_names)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING seq`,
           [
             id,
             answer.reply,
@@ -801,6 +832,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             answer.contextTokens ?? null,
             answer.contextSplit ? JSON.stringify(answer.contextSplit) : null,
             answer.callId ?? null,
+            reply.shareCapture === true,
             answer.calls?.ids ?? null,
             answer.calls?.turns ?? null,
             answer.calls?.rounds ?? null,
@@ -808,6 +840,14 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           ],
         );
         replySeq = String(inserted.rows[0]!.seq);
+        // One reply, one use of the AI Coach in Consumption (#799), however many Tool rounds it took.
+        await countUse(client, candidateId, "coach", sentAt);
+        // An asked reply's Job Offer card brings its Job Offer to the Candidate's Offer box (ADR-0090), for the conversation's
+        // Profile (none: « Non classée »). Not a Share capture's: it enters only once followed.
+        if (answer.jobOffer && !reply.blocked && !reply.shareCapture) {
+          const profileId = conversation.profile?.id ?? (subject?.kind === "profile" ? subject.id : null);
+          await recordArrivals(client, { candidateId, profileId, source: "job_offer_link", at: sentAt, jobOfferIds: [answer.jobOffer.id] });
+        }
       }
       await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
       await client.query("COMMIT");
@@ -945,8 +985,14 @@ export async function purgeStaleCoachConversations(database: Pick<Pool, "query">
   return rowCount ?? 0;
 }
 
-/** Creates or upgrades the Coach Conversation tables. Run after the Profile, Job Offer, Application, Job Search and Job Digest tables. Safe to run repeatedly. */
+/**
+ * Creates or upgrades the Coach Conversation tables, and the Offer box a Job Offer card's Job Offer arrives in. Run after
+ * the Profile, Job Offer, Application, Job Search and Job Digest tables. Safe to run repeatedly.
+ */
 export async function migrateCoachConversations(database: Pool): Promise<void> {
+  // Each AI Coach reply counts in Consumption (#799).
+  await migrateConsumption(database);
+  await migrateOfferBox(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS coach_conversation (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1035,6 +1081,21 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS coach_conversation_subject_idx
       ON coach_conversation (candidate_id, subject_kind, (coalesce(application_id::text, job_search_id::text, job_digest_id::text, subject_menu, profile_id::text)))
       WHERE subject_kind IS NOT NULL;
+    -- The set reply a Share capture's conversation opens with (#697): its Job Offer card is no Job Offer link's Arrival, the Offer
+    -- box's backfill leaves it out (ADR-0090). Once, as it ships, the set replies saved before are marked by their shape: the
+    -- first coach message of a Free conversation, on its Job Offer, with no AI call, no cost, no Coaching Playbook.
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = current_schema() AND table_name = 'coach_message' AND column_name = 'share_capture') THEN
+        ALTER TABLE coach_message ADD COLUMN share_capture boolean NOT NULL DEFAULT false;
+        UPDATE coach_message m SET share_capture = true
+          FROM coach_conversation c
+         WHERE c.id = m.conversation_id AND c.subject_kind IS NULL AND m.author = 'coach' AND m.job_offer_id IS NOT NULL
+           AND m.focus_kind = 'job_offer' AND m.focus_id = m.job_offer_id AND m.ai_call_id IS NULL AND m.provider IS NULL
+           AND m.playbooks = '[]'::jsonb AND m.consultations = '[]'::jsonb
+           AND m.seq = (SELECT min(first.seq) FROM coach_message first WHERE first.conversation_id = m.conversation_id AND first.author = 'coach');
+      END IF;
+    END $$;
     -- The Candidate closed the conversations' welcome panel (the AI disclosure and the page's introduction): never shown
     -- again, the « Coach IA » badge showing it on demand.
     CREATE TABLE IF NOT EXISTS coach_welcome_closed (

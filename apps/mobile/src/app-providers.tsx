@@ -11,7 +11,8 @@ import { ThemeProvider } from "./theme/theme";
 /**
  * What every screen of the app sits in: the safe areas, the translations, the system's theme, the read cache on `device`,
  * the hardware keyboard's shortcuts (`keyboard`: the native module's unless a test gives its own), the calls to the API,
- * which carry `session`'s cookie.
+ * which carry `session`'s cookie and go through `fetch` (the app's, `appFetch`, whose answer streams; without it, the
+ * global fetch).
  */
 export function AppProviders({
   i18n,
@@ -19,6 +20,7 @@ export function AppProviders({
   keyboard,
   device,
   session,
+  fetch,
   children,
 }: {
   i18n: i18n;
@@ -27,6 +29,8 @@ export function AppProviders({
   device: { storage: DeviceStorage; network: Network };
   /** The app's session (src/session/instance.ts), whose cookie the calls to the API carry. */
   session?: Pick<AppSession, "cookie">;
+  /** The fetch the calls to the API go through (src/session/instance.ts in the app); none, the global fetch. */
+  fetch?: typeof globalThis.fetch;
   children: ReactNode;
 }) {
   return (
@@ -35,7 +39,7 @@ export function AppProviders({
         <ThemeProvider>
           <ReadCacheProvider device={device}>
             <KeyCommandsProvider keyboard={keyboard}>
-              <ApiProvider session={session}>{children}</ApiProvider>
+              <ApiProvider session={session} {...(fetch ? { fetch } : {})}>{children}</ApiProvider>
             </KeyCommandsProvider>
           </ReadCacheProvider>
         </ThemeProvider>

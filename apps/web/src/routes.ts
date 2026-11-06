@@ -76,6 +76,10 @@ export const routes = {
   allJobSearches: (lanes = false) => `/recherches?profil=tous${lanes ? "&vue=couloirs" : ""}`,
   /** « Reçues par email » under « Conversation au centre » (#606): Recherches d'offres' conversation, the Work Pane showing them. */
   receivedByEmail: "/recherches?recues=1",
+  /** « Recherches par Profil » (ADR-0090): the Job Searches by active Profile, in the Work Pane beside the Offer box. */
+  jobSearchesByProfile: "/recherches?profils=1",
+  /** An Offer box entry's Job Offer (« Lire l'offre », ADR-0090), in the Work Pane beside the Offer box. */
+  offerBoxOffer: (jobOfferId: string) => `/recherches?offre=${encodeURIComponent(jobOfferId)}`,
   /** The Job Digests page (ADR-0024). */
   jobDigests: "/job-digests",
   /** A Section of a Profile's page (ADR-0024); `profile` itself shows the first one there is. */

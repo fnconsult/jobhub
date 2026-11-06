@@ -16,6 +16,7 @@ import {
   jobDigestsResponseSchema,
   jobSearchResponseSchema,
   jobSearchesResponseSchema,
+  offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
@@ -156,6 +157,12 @@ async function seedCandidate(page: Page, email: string): Promise<Seed> {
       [candidate, profileId, [offerId, keptOfferId], doneSearchMetrics],
     );
     const digest = await db.query("INSERT INTO job_digest (candidate_id, profile_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, now()) RETURNING id", [candidate, profileId, [offerId]]);
+    // What the Job Search's report records (ADR-0090): its Job Offers in the Offer box, here seeded as it would leave them.
+    await db.query(
+      `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
+       SELECT $1, id, $2, now(), jsonb_build_object('job_search', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) FROM job_offer WHERE id = ANY ($3::uuid[])`,
+      [candidate, profileId, [offerId, keptOfferId]],
+    );
     const coach = await db.query("INSERT INTO human_coach (name, email, booking_url, bio) VALUES ($1, $2, $3, 'Ancienne DRH.') RETURNING id", [
       coachName,
       `${unique()}@coachs.e2e.jobbbox.test`,
@@ -208,6 +215,7 @@ const readPaths = (seed: Seed) => [
   `/api/applications/${seed.applicationId}/documents`,
   "/api/job-searches",
   `/api/job-searches/${seed.searchId}`,
+  "/api/offer-box",
   "/api/job-digests",
   "/api/agenda",
   "/api/coaching",
@@ -249,6 +257,13 @@ test.describe("The Jobbbox app reads over HTTP (#684)", () => {
     const byOffer = new Map(search.jobOffers.map((found) => [found.jobOffer.id, found]));
     expect(byOffer.get(seed.keptOfferId)).toMatchObject({ decision: "kept", applicationId: seed.applicationId });
     expect(byOffer.get(seed.offerId)).toMatchObject({ decision: null, applicationId: null });
+
+    // The Offer box (ADR-0090): each Job Offer that arrived, « Suivie » once it has its Application.
+    const box = await read(await get(page, "/api/offer-box"), offerBoxResponseSchema);
+    const entries = new Map(box.entries.map((entry) => [entry.jobOffer.id, entry]));
+    expect(entries.get(seed.offerId)).toMatchObject({ state: "to_handle", profile: { id: seed.profileId }, sources: [{ source: "job_search" }] });
+    expect(entries.get(seed.keptOfferId)).toMatchObject({ state: "followed", applicationId: seed.applicationId });
+    expect(box.toHandle).toBe(1);
 
     // Job Digests sent, and their frequency.
     const digests = await read(await get(page, "/api/job-digests"), jobDigestsResponseSchema);
@@ -355,6 +370,7 @@ test.describe("The Jobbbox app reads over HTTP (#684)", () => {
       expect(applications.applications).toEqual([]);
       expect((await read(await get(other, "/api/job-searches"), jobSearchesResponseSchema)).profiles.flatMap(({ searches }) => searches)).toEqual([]);
       expect((await read(await get(other, "/api/job-digests"), jobDigestsResponseSchema)).profiles.flatMap(({ digests }) => digests)).toEqual([]);
+      expect(await read(await get(other, "/api/offer-box"), offerBoxResponseSchema)).toMatchObject({ toHandle: 0, entries: [] });
       expect(await read(await get(other, "/api/coaching"), coachingResponseSchema)).toMatchObject({ sessions: [] });
       expect(await read(await get(other, "/api/agenda"), agendaResponseSchema)).toMatchObject({ toSchedule: [], days: [] });
       expect((await read(await get(other, "/api/coach/conversations"), coachConversationsResponseSchema)).conversations).toEqual([]);

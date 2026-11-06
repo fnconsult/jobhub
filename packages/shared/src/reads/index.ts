@@ -381,6 +381,98 @@ export const tailoredDocumentsResponseSchema = z.object({
 });
 export type TailoredDocumentsResponse = z.infer<typeof tailoredDocumentsResponseSchema>;
 
+// --- Company Dossier and Enriched Contacts -----------------------------------------------------------------------
+
+/** Job titles to look for at an employer, never a person: the Company Dossier's Suggested Contact Roles. */
+export const SUGGESTED_CONTACT_ROLES = ["hiring_manager", "talent_acquisition", "hr_director", "hr_manager", "chief_executive"] as const;
+export type SuggestedContactRole = (typeof SUGGESTED_CONTACT_ROLES)[number];
+
+/** The contact-data providers an Enriched Contact can come from (ADR-0015). */
+export const CONTACT_PROVIDERS = ["lusha", "kaspr", "apollo"] as const;
+export type ContactProviderId = (typeof CONTACT_PROVIDERS)[number];
+
+/** One of the employer's Company News: its title, outlet, day of publication and link, never its text. */
+const companyNewsSchema = z.object({ title: z.string(), outlet: z.string(), publishedAt: day, url: z.string() });
+
+const dossierBase = {
+  /** The employer's name the dossier was built for. */
+  employer: z.string(),
+  builtAt: instant,
+  suggestedContactRoles: z.array(z.enum(SUGGESTED_CONTACT_ROLES)),
+  /** Newest first; `newsSearched` false for a dossier built before Company News. */
+  news: z.array(companyNewsSchema),
+  newsSearched: z.boolean(),
+};
+
+/**
+ * A Company Dossier as built: from the French company register (official: the registered identity, its executives by
+ * role only, its financials newest year first), or from web sources (less reliable, with the pages its facts come
+ * from). No person is named.
+ */
+export const companyDossierSchema = z.discriminatedUnion("source", [
+  z.object({
+    ...dossierBase,
+    source: z.literal("french_register"),
+    reliability: z.literal("official"),
+    siren: z.string(),
+    name: z.string(),
+    legalForm: z.string().nullable(),
+    activity: z.string().nullable(),
+    address: z.string().nullable(),
+    headcount: z.object({ min: z.number(), max: z.number().nullable() }).nullable(),
+    financials: z.array(z.object({ year: z.number().int(), revenue: z.number().nullable(), netIncome: z.number().nullable() })),
+    executiveRoles: z.array(z.string()),
+  }),
+  z.object({
+    ...dossierBase,
+    source: z.literal("web"),
+    reliability: z.literal("less_reliable"),
+    country: z.string().nullable(),
+    address: z.string().nullable(),
+    industry: z.string().nullable(),
+    headcount: z.string().nullable(),
+    revenue: z.string().nullable(),
+    website: z.string().nullable(),
+    sources: z.array(z.string()),
+  }),
+]);
+export type CompanyDossierRead = z.infer<typeof companyDossierSchema>;
+
+/**
+ * `GET /api/applications/:id/company-dossier`: the Application's Company Dossier as last built; before it is built,
+ * whether its employer is still to be named (`employer_unknown`) or a Presumed Employer confirmed
+ * (`awaiting_confirmation`, a recruiting agency's posting).
+ */
+export const companyDossierResponseSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("not_built") }),
+  z.object({ status: z.literal("employer_unknown") }),
+  z.object({ status: z.literal("awaiting_confirmation"), presumedEmployer: z.string().nullable(), presumedEmployerDescription: z.string().nullable(), agency: z.string().nullable() }),
+  z.object({ status: z.literal("built"), dossier: companyDossierSchema }),
+]);
+export type CompanyDossierResponse = z.infer<typeof companyDossierResponseSchema>;
+
+/**
+ * `GET /api/applications/:id/enriched-contacts`: whether a contact-data provider is on (`enabled`) and can find people
+ * by job title (`searchable`), the people found at the employer (not revealed: a name and a position), and the
+ * Enriched Contacts, with their work emails and phones and where and when those were obtained.
+ */
+export const enrichedContactsResponseSchema = z.object({
+  enabled: z.boolean(),
+  searchable: z.boolean(),
+  found: z.array(z.object({ id: z.string(), name: z.string(), jobTitle: z.string().nullable() })),
+  contacts: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      jobTitle: z.string().nullable(),
+      emails: z.array(z.string()),
+      phones: z.array(z.string()),
+      source: z.object({ provider: z.enum(CONTACT_PROVIDERS), retrievedAt: instant }),
+    }),
+  ),
+});
+export type EnrichedContactsResponse = z.infer<typeof enrichedContactsResponseSchema>;
+
 // --- Coach Conversations -----------------------------------------------------------------------------------------
 
 /** What a Coach Conversation is about (ADR-0070): one of the Candidate's objects, or a Sidebar menu; null for a Free conversation. */

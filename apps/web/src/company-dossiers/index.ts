@@ -62,13 +62,13 @@ import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { fieldErrors, type FieldError } from "../validation";
 import { nameKey, sirenIn } from "./company-names";
 import { CompanyRegisterUnavailable, type CompanyRegister, type FinancialYear, type RegisteredCompany } from "./french-register";
+import { SUGGESTED_CONTACT_ROLES, type SuggestedContactRole } from "@jobhub/shared/reads";
 
 export type { CompanyRegister, FinancialYear, RegisterSearch, RegisteredCompany } from "./french-register";
 export type { CompanyNewsArticle } from "@jobhub/ai";
 
-/** Job titles to look for at the employer, never a person. Translated in the interface. */
-export const SUGGESTED_CONTACT_ROLES = ["hiring_manager", "talent_acquisition", "hr_director", "hr_manager", "chief_executive"] as const;
-export type SuggestedContactRole = (typeof SUGGESTED_CONTACT_ROLES)[number];
+/** Job titles to look for at the employer, never a person. Translated in the interface; the app reads them too. */
+export { SUGGESTED_CONTACT_ROLES, type SuggestedContactRole };
 
 interface DossierBase {
   /** The employer's name the dossier was built for, as the Job Offer or the Candidate gave it. */

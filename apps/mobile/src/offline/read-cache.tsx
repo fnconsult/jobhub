@@ -15,8 +15,9 @@ export type Network = { isConnected: () => Promise<boolean>; subscribe: (onChang
 
 /**
  * The app's reads (`@jobhub/shared/reads`, ADR-0076), each with whether the device keeps what was last seen of it for
- * when there is no network (#701): the menus' cards, an Application, the Agenda and the Job Offers seen. Never a Coach
- * Conversation, nor a Profile or a Tailored Document's download links.
+ * when there is no network (#701): the menus' cards, an Application and its Company Dossier, the Agenda and the Job
+ * Offers seen. Never a Coach Conversation, nor a Profile, a Tailored Document's download links or an Application's
+ * Enriched Contacts (#691: third parties' details).
  */
 const READS = {
   applications: true,
@@ -28,9 +29,11 @@ const READS = {
   jobOffer: true,
   jobDigests: true,
   humanCoaches: true,
+  companyDossier: true,
   profiles: false,
   profile: false,
   tailoredDocuments: false,
+  enrichedContacts: false,
   coachConversations: false,
   coachConversation: false,
 } as const satisfies Record<string, boolean>;

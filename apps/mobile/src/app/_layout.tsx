@@ -9,7 +9,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { initialWindowMetrics } from "react-native-safe-area-context";
-import { useProfile } from "../api/reads";
+import { useApplication, useProfile } from "../api/reads";
 import { AppLock } from "../app-lock/AppLock";
 import { AppProviders } from "../app-providers";
 import { startCrashReports } from "../crash-reports";
@@ -18,7 +18,7 @@ import { forgetDocuments, systemDocuments } from "../documents/system-documents"
 import { deviceI18n } from "../i18n";
 import { LegalSteps } from "../legal/LegalSteps";
 import { deviceNetwork, deviceStorage } from "../offline/device";
-import { NEW_CONVERSATION, pageFor, paths, profileIdOf } from "../navigation/pages";
+import { applicationIdOf, NEW_CONVERSATION, pageFor, paths, profileIdOf } from "../navigation/pages";
 import { useIsHumanCoach } from "../navigation/human-coach";
 import { Sidebar } from "../navigation/Sidebar";
 import { useFreeConversations } from "../navigation/FreeConversations";
@@ -89,10 +89,12 @@ function PagesInShell() {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
-  // A Profile's page is titled with its name, from the read its Fiche shows (#695); a Free conversation's with its title, as the drawer lists it.
+  // An Application's page is titled with its Job Offer and a Profile's with its name, from the read their Fiche shows
+  // (#691, #695); a Free conversation's with its title, as the drawer lists it.
+  const application = useApplication(applicationIdOf(pathname)).data;
   const profile = useProfile(profileIdOf(pathname)).data;
   const free = useFreeConversations().data?.conversations;
-  const page = pageFor(pathname, t, { profile, conversationTitle: (id) => free?.find((conversation) => conversation.id === id)?.title });
+  const page = pageFor(pathname, t, { application, profile, conversationTitle: (id) => free?.find((conversation) => conversation.id === id)?.title });
   const isHumanCoach = useIsHumanCoach();
   // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
   const reader = useMemo(() => createDocumentReader(systemDocuments), []);
@@ -102,6 +104,7 @@ function PagesInShell() {
       paneContent={page.pane === "activite" ? <ActivityPane /> : <PaneContent pathname={pathname} page={page} reader={reader} />}
       sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
+      onUp={(path) => router.navigate(path)}
       actions={<ClearConversation />}
     >
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD}>

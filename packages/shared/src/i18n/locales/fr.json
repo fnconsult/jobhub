@@ -5932,11 +5932,6 @@
       "openPlayStore": "Ouvrir Google Play"
     },
     "homeTitle": "Accueil",
-    "fichePlaceholder": "La Fiche montrera ici l'objet de la page, ses Sections, son Activité et ses Résultats.",
-    "activityPlaceholder": "Activité montrera ici la barre de contexte et l'Activité IA de la page.",
-    "openSampleSection": "Ouvrir une Section d'exemple",
-    "sampleSection": "Section d'exemple",
-    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire.",
     "documents": {
       "title": "Documents",
       "none": "Pas encore de document : demandez au coach un CV adapté ou une lettre de motivation.",
@@ -5985,6 +5980,20 @@
       "open": "Ouvrir",
       "openPosting": "Voir l'annonce",
       "shareLink": "Partager le lien"
+    },
+    "applications": {
+      "notFound": "Cette candidature est introuvable : elle n'existe pas ou n'est pas la vôtre.",
+      "readOnlySections": "Les avis de vos coachs humains se consultent sur jobbbox.ai.",
+      "dossierNotBuilt": "Le dossier entreprise se constitue sur jobbbox.ai : il apparaîtra ici une fois constitué.",
+      "dossierConfirmOnWeb": "Confirmez l'employeur sur jobbbox.ai : aucune recherche n'est faite avant votre confirmation.",
+      "dossierEmployerOnWeb": "L'offre ne nomme pas l'employeur : indiquez-le sur jobbbox.ai pour constituer le dossier.",
+      "dossierUpdateOnWeb": "Le dossier se met à jour sur jobbbox.ai.",
+      "financialYear": "{{year}} · Chiffre d'affaires : {{revenue}} · Résultat net : {{netIncome}}",
+      "contactsOnWeb": "La recherche de contacts et la demande de coordonnées se font sur jobbbox.ai : chaque demande compte dans votre quota hebdomadaire.",
+      "contactsOff": "Les contacts enrichis ne sont pas disponibles pour le moment.",
+      "statusButton": "Statut : {{status}}",
+      "interviewDate": "Date de l'entretien (jj/mm/aaaa)",
+      "interviewTime": "Heure, à Paris (hh:mm)"
     },
     "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
     "coach": {

@@ -168,9 +168,9 @@ describe("Tailored Documents, read from the web app", () => {
     expect(await screen.findByText(/Pas encore de document/)).toBeOnTheScreen();
   });
 
-  it("says an Application that is not the Candidate's has no documents to show", async () => {
+  it("says an Application that is not the Candidate's cannot be found, and shows no documents", async () => {
     await openFiche("app_de_quelquun_d_autre");
-    expect(await screen.findByText(/documents de cette candidature sont introuvables/)).toBeOnTheScreen();
+    expect(await screen.findByText(/Cette candidature est introuvable/)).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "CV adapté" })).toBeNull();
   });
 

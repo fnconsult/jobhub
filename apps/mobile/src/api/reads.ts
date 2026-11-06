@@ -7,12 +7,16 @@
 import {
   agendaResponseSchema,
   applicationResponseSchema,
+  companyDossierResponseSchema,
+  enrichedContactsResponseSchema,
   offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
   type AgendaResponse,
   type ApplicationResponse,
+  type CompanyDossierResponse,
+  type EnrichedContactsResponse,
   type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
@@ -102,8 +106,9 @@ export const useProfile = (id: string | null): Read<ProfileResponse> => useRead(
 /** `GET /api/agenda`: the Candidate's Agenda, « À planifier » then the upcoming days (#693); kept on the device (READS). */
 export const useAgenda = (): Read<AgendaResponse> => useRead("agenda", "/api/agenda", agendaResponseSchema, []);
 
-/** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named. */
-export const useApplication = (id: string): Read<ApplicationResponse> => useRead("application", `/api/applications/${segment(id)}`, applicationResponseSchema, [id]);
+/** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named, with its Interviews; not read while `id` is null. */
+export const useApplication = (id: string | null): Read<ApplicationResponse> =>
+  useRead("application", `/api/applications/${segment(id ?? "")}`, applicationResponseSchema, [id ?? ""], id !== null);
 
 /** `GET /api/applications/:id/documents`: an Application's Tailored Documents, with where to download them. */
 export const useTailoredDocuments = (applicationId: string): Read<TailoredDocumentsResponse> =>
@@ -111,3 +116,13 @@ export const useTailoredDocuments = (applicationId: string): Read<TailoredDocume
 
 /** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
 export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);
+/** `GET /api/applications/:id/company-dossier`: an Application's Company Dossier as the web app last built it; kept on the device (READS). */
+export const useCompanyDossier = (applicationId: string): Read<CompanyDossierResponse> =>
+  useRead("companyDossier", `/api/applications/${segment(applicationId)}/company-dossier`, companyDossierResponseSchema, [applicationId]);
+
+/**
+ * `GET /api/applications/:id/enriched-contacts`: the people found at an Application's employer and its Enriched
+ * Contacts; never kept on the device (READS), a third party's personal data.
+ */
+export const useEnrichedContacts = (applicationId: string): Read<EnrichedContactsResponse> =>
+  useRead("enrichedContacts", `/api/applications/${segment(applicationId)}/enriched-contacts`, enrichedContactsResponseSchema, [applicationId]);

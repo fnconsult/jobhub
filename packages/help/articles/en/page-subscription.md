@@ -3,10 +3,14 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My subscription
-synonyms: [subscription, price, pay, payment, premium, standard, free, cancel, cancellation, withdrawal, invoices, promotion code, usage]
+synonyms: [subscription, price, pay, payment, premium, standard, free, cancel, cancellation, withdrawal, invoices, promotion code, usage, consumption, billing period, ai actions, tokens]
 route: /abonnement
 ---
 This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it. Each card also gives the « Coach memory », the number of latest messages of the conversation your coach reads, and the « Coach context », the room for what it reads again before replying, compared with the simplest plan's (×1); « Unlimited » when the plan sets no limit.
+
+« Your consumption » shows what you used during the billing period: on a paid plan, from the day your subscription renewed to the day before its next renewal (for example from October 18 to November 17); on the Free plan, which is not billed, the current month. At the top, the number of AI actions in the period, each coach reply, job search, score or prepared document counting as one, and the change against the same day of the previous period; beside it, how far into the period you are (for example, day 19 of 31). « By tool, this period » gives each tool with its count and its share of your actions; « Others » groups the ATS Score, company dossiers, enriched contacts and CV reading. A tool with a weekly quota repeats it (for example, 4 of 7 this week), or says « Not included in your plan »; the others are « No limit in your plan ».
+
+« Day by day, over twelve months » shows one square per day, Monday to Sunday, one column per week: the darker it is, the more you used Jobbbox that day, and the days of the current period are outlined. Hover over a square, or move from one to the next with the keyboard's arrow keys, to see its date and each tool's count. « Bars » shows the period day by day, by tool; your choice is kept in this browser. « Show as a table » gives the same figures in a table. Everything is counted in uses, never in tokens or euros. These figures are kept 12 months, erased with your account and included in your data export; the AI models that produced each piece of content are in AI Activity.
 
 « Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: … until … », and an acknowledgement is sent to you by email.
 

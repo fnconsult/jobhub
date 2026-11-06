@@ -3,10 +3,14 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon abonnement
-synonyms: [abonnement, prix, payer, paiement, premium, standard, gratuite, résilier, résiliation, rétractation, factures, code promo, utilisation]
+synonyms: [abonnement, prix, payer, paiement, premium, standard, gratuite, résilier, résiliation, rétractation, factures, code promo, utilisation, consommation, période de facturation, actions ia, jetons]
 route: /abonnement
 ---
 Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus. Chaque carte indique aussi la « Mémoire du coach », le nombre de derniers messages de la conversation que votre coach lit, et le « Contexte du coach », la place de ce qu'il relit avant de répondre, comparée à celle de l'offre la plus simple (×1) ; « Illimité » quand l'offre ne fixe pas de limite.
+
+« Votre consommation » montre ce que vous avez utilisé pendant la période de facturation : sur une offre payante, du jour où votre abonnement a été renouvelé à la veille du prochain renouvellement (par exemple du 18 octobre au 17 novembre) ; sur l'offre Gratuite, qui n'est pas facturée, le mois en cours. En tête, le nombre d'actions IA de la période, chaque réponse du coach, recherche d'offres, score ou document préparé comptant pour une, et l'écart avec le même jour de la période précédente ; à côté, où vous en êtes de la période (par exemple, le jour 19 sur 31). « Par outil, cette période » donne chaque outil avec son nombre et sa part de vos actions ; « Autres » regroupe l'ATS Score, les dossiers entreprise, les contacts enrichis et la lecture de CV. Un outil qui a un quota chaque semaine le rappelle (par exemple, 4 sur 7 cette semaine), ou dit « Non compris dans votre offre » ; les autres sont « Sans limite dans votre offre ».
+
+« Jour par jour, sur douze mois » montre une case par jour, du lundi au dimanche, une colonne par semaine : plus elle est foncée, plus vous avez utilisé Jobbbox ce jour-là, et les jours de la période en cours sont entourés. Survolez une case, ou passez de l'une à l'autre avec les flèches du clavier, pour voir sa date et le nombre de chaque outil. « Barres » montre la période jour par jour, par outil ; votre choix est gardé dans ce navigateur. « Voir en tableau » donne les mêmes chiffres dans un tableau. Tout est compté en utilisations, jamais en jetons ni en euros. Ces chiffres sont conservés 12 mois, effacés avec votre compte et inclus dans l'export de vos données ; les modèles d'IA qui ont produit chaque contenu sont dans Activité IA.
 
 « Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.
 

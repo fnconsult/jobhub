@@ -7,9 +7,12 @@ import { getFollowUps } from "@/follow-ups/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobSearches } from "@/job-searches/server";
+import { getOrders } from "@/orders/server";
+import { getOfferBox } from "@/offer-box/server";
 import { getProfiles } from "@/profiles/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
+import { getWithdrawals } from "@/withdrawals/server";
 import { createCandidateReads, type CandidateReads } from "./index";
 
 let instance: CandidateReads | undefined;
@@ -25,10 +28,13 @@ export function getCandidateReads(): CandidateReads {
     agenda: getAgenda(),
     humanCoaches: getHumanCoaches(),
     billing: getBilling(),
+    withdrawals: getWithdrawals(),
+    orders: getOrders(),
     atsScoring: getAtsScoring(),
     tailoredCvs: getTailoredCvs(),
     tailoredDocuments: getTailoredDocuments(),
     coachConversations: getCoachConversations(),
+    offerBox: getOfferBox(),
   });
   return instance;
 }

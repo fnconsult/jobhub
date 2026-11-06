@@ -7,11 +7,17 @@
 import {
   agendaResponseSchema,
   applicationResponseSchema,
+  companyDossierResponseSchema,
+  enrichedContactsResponseSchema,
+  offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
   type AgendaResponse,
   type ApplicationResponse,
+  type CompanyDossierResponse,
+  type EnrichedContactsResponse,
+  type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type TailoredDocumentsResponse,
@@ -31,10 +37,16 @@ export class ReadFailed extends Error {
 }
 
 /**
- * A read is tried again once by itself when the network failed on the way (fetch's TypeError) or the web app failed
- * (5xx); never when it refused it (4xx), when the app is outdated (426), nor when the answer is not the read's shape.
+ * Whether the network failed on the way: the global fetch rejects with a TypeError, the app's `expo/fetch` (`appFetch`)
+ * with a FetchError, which it does not export and whose message starts « fetch failed: » (expo's FetchErrors.ts).
  */
-const tryAgain = (failures: number, error: Error) => failures < 1 && (error instanceof ReadFailed ? error.status >= 500 : error instanceof TypeError);
+const networkFailed = (error: Error) => error instanceof TypeError || error.message.startsWith("fetch failed:");
+
+/**
+ * A read is tried again once by itself when the network failed on the way or the web app failed (5xx); never when it
+ * refused it (4xx), when the app is outdated (426), nor when the answer is not the read's shape.
+ */
+const tryAgain = (failures: number, error: Error) => failures < 1 && (error instanceof ReadFailed ? error.status >= 500 : networkFailed(error));
 
 export type Read<T> = UseQueryResult<T, Error>;
 
@@ -51,7 +63,20 @@ export async function read<T>(api: ApiFetch, path: string, schema: Schema<T>, si
   return schema.parse(await response.json());
 }
 
-function useRead<T>(name: ReadName, path: string, schema: Schema<T>, params: string[], enabled = true): Read<T> {
+/**
+ * A GET of `path` through the read cache under `name` (READS says whether the device keeps it for when there is no
+ * network), parsed by `schema`; not read while `enabled` is false. A read answered 401 has the session checked. With
+ * `readAgain`, read again after the number of ms it gives for what was last read (and when), until it gives false: a
+ * page waiting for something to happen on the web app.
+ */
+export function useRead<T>(
+  name: ReadName,
+  path: string,
+  schema: Schema<T>,
+  params: readonly string[] = [],
+  enabled = true,
+  { readAgain }: { readAgain?: (data: T | undefined, readAt: number) => number | false } = {},
+): Read<T> {
   const api = useApi();
   const { recheck } = useSession();
   const query = useQuery({
@@ -59,6 +84,7 @@ function useRead<T>(name: ReadName, path: string, schema: Schema<T>, params: str
     queryFn: ({ signal }) => read(api, path, schema, signal),
     retry: tryAgain,
     enabled,
+    refetchInterval: readAgain ? (query) => readAgain(query.state.data, query.state.dataUpdatedAt) : false,
   });
   // Answered 401, the session ended on the web app (revoked, expired): checking it takes the app back to sign-in,
   // which forgets every read (SessionGate).
@@ -80,9 +106,23 @@ export const useProfile = (id: string | null): Read<ProfileResponse> => useRead(
 /** `GET /api/agenda`: the Candidate's Agenda, « À planifier » then the upcoming days (#693); kept on the device (READS). */
 export const useAgenda = (): Read<AgendaResponse> => useRead("agenda", "/api/agenda", agendaResponseSchema, []);
 
-/** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named. */
-export const useApplication = (id: string): Read<ApplicationResponse> => useRead("application", `/api/applications/${segment(id)}`, applicationResponseSchema, [id]);
+/** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named, with its Interviews; not read while `id` is null. */
+export const useApplication = (id: string | null): Read<ApplicationResponse> =>
+  useRead("application", `/api/applications/${segment(id ?? "")}`, applicationResponseSchema, [id ?? ""], id !== null);
 
 /** `GET /api/applications/:id/documents`: an Application's Tailored Documents, with where to download them. */
 export const useTailoredDocuments = (applicationId: string): Read<TailoredDocumentsResponse> =>
   useRead("tailoredDocuments", `/api/applications/${segment(applicationId)}/documents`, tailoredDocumentsResponseSchema, [applicationId]);
+
+/** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
+export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);
+/** `GET /api/applications/:id/company-dossier`: an Application's Company Dossier as the web app last built it; kept on the device (READS). */
+export const useCompanyDossier = (applicationId: string): Read<CompanyDossierResponse> =>
+  useRead("companyDossier", `/api/applications/${segment(applicationId)}/company-dossier`, companyDossierResponseSchema, [applicationId]);
+
+/**
+ * `GET /api/applications/:id/enriched-contacts`: the people found at an Application's employer and its Enriched
+ * Contacts; never kept on the device (READS), a third party's personal data.
+ */
+export const useEnrichedContacts = (applicationId: string): Read<EnrichedContactsResponse> =>
+  useRead("enrichedContacts", `/api/applications/${segment(applicationId)}/enriched-contacts`, enrichedContactsResponseSchema, [applicationId]);

@@ -40,6 +40,7 @@
  * The frequency sent is the Candidate's choice capped by their Plan; a Plan
  * without the Job Digest sends none, and the choice is kept. Opting out keeps
  * when the Job Digest last ran, so opting in again does not make it due sooner.
+ * The Job Offers a Job Digest sends reach the Candidate's Offer box (ADR-0090, `recordArrivals`).
  * Opt-ins and Job Digests belong to their Profile and are deleted with it
  * (ADR-0010); the Job Offers they list are kept.
  * A Job Digest keeps its Provenance (#336): its Match Scores, Jobbbox's rules
@@ -67,9 +68,11 @@ import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
+import type { PushNotifier } from "../push-notifications";
 import type { Billing, PlanName } from "../billing";
 import type { ReceivedOffers } from "../email-intake/received-offers";
 import { visibleTo, type JobOffers } from "../job-offers";
+import { migrateOfferBox, recordArrivals } from "../offer-box";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -212,6 +215,8 @@ export interface JobDigestsDeps {
   /** The Job Offers Email intake gave the Profile (#447): in its Job Digest like the stored ones. */
   receivedOffers: Pick<ReceivedOffers, "givenTo">;
   mailer: Mailer;
+  /** Where a Job Digest's Push notification is queued (#699). Without it, none. */
+  push?: PushNotifier;
   /** Public origin of the web app; the email's links point here. */
   baseURL: string;
   /**
@@ -261,8 +266,9 @@ export function jobDigestsConfigFromEnv(env: Record<string, string | undefined>)
   };
 }
 
-/** Creates or upgrades the Job Digest tables. Run after the Profiles', Job Offers' and Job Searches' migrations. */
+/** Creates or upgrades the Job Digest tables, and the Offer box their Job Offers arrive in. Run after the Profiles', Job Offers' and Job Searches' migrations. */
 export async function migrateJobDigests(database: Pool): Promise<void> {
+  await migrateOfferBox(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS job_digest_subscription (
       profile_id uuid PRIMARY KEY REFERENCES profile (id) ON DELETE CASCADE,
@@ -652,6 +658,8 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         "INSERT INTO job_digest (profile_id, candidate_id, job_offer_ids, sent_at, provenance) VALUES ($1, $2, $3, $4, $5) RETURNING id",
         [profile.id, candidateId, picked.map((result) => result.jobOffer.id), at, JSON.stringify(provenance)],
       );
+      // The Job Offers it sends reach the Candidate's Offer box (ADR-0090), for its Profile.
+      await recordArrivals(database, { candidateId, profileId: profile.id, source: "job_digest", at, jobOfferIds: picked.map((result) => result.jobOffer.id) });
       const digest: JobDigest = {
         id: inserted.rows[0]!.id,
         profile: { id: profile.id, name: profile.name },
@@ -664,6 +672,12 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       } catch (error) {
         // The Job Digest stays on its page; the email is not sent twice by a retry.
         console.warn("[job-digests] could not email a Job Digest:", error instanceof Error ? error.message : error);
+      }
+      try {
+        // Its devices hear of it too (#699), once, opening it.
+        await deps.push?.notify(candidateId, { event: "job_digest", jobDigestId: digest.id }, { once: `job_digest:${digest.id}` });
+      } catch (error) {
+        console.warn("[job-digests] the Push notification could not be queued:", error instanceof Error ? error.message : error);
       }
       return { digest, discovery };
     },

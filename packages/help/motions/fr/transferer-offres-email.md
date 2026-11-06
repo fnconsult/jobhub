@@ -40,6 +40,6 @@ Attendez votre prochaine alerte, ou transférez-en une à la main : « Premier e
 ## Vos offres reçues par email
 - zoom off
 - goto /recherches
-- click link « Voir les offres reçues par email »
+- click link « Reçues par email »
 
-Ouvrez la page Recherches d'offres, puis « Voir les offres reçues par email » : les offres de vos emails arrivent dans « Reçues par email », sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60.
+Ouvrez la page Recherches d'offres : les offres de vos emails arrivent dans « Offres à traiter », avec la puce « Email ». Au pied de la boîte, « Reçues par email » les range sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60.

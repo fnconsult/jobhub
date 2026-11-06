@@ -16,3 +16,11 @@ export interface ProposedMemoryItem {
 export const MAX_ITEM_LENGTH = 300;
 /** Most items in one Candidate's Coach Memory: it goes with every AI Coach message, so it stays short. */
 export const MAX_ITEMS = 30;
+
+/**
+ * A fact as Coach Memory compares it (#773): the same whatever its case, accents and spacing (« Genève » is « geneve »).
+ * Every path that tells a fact already remembered uses it: confirming one, the AI Coach's proposals, its Coach Action.
+ */
+export function sameFact(text: string): string {
+  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/\s+/g, " ").trim().toLocaleLowerCase("fr");
+}

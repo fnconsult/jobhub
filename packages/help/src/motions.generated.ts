@@ -864,14 +864,14 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               "target": {
                 "by": "role",
                 "role": "link",
-                "name": "Voir les offres reçues par email"
+                "name": "Reçues par email"
               }
             }
           ],
-          "narration": "Ouvrez la page Recherches d'offres, puis « Voir les offres reçues par email » : les offres de vos emails arrivent dans « Reçues par email », sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60."
+          "narration": "Ouvrez la page Recherches d'offres : les offres de vos emails arrivent dans « Offres à traiter », avec la puce « Email ». Au pied de la boîte, « Reçues par email » les range sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60."
         }
       ],
-      "hash": "3781777c5bba"
+      "hash": "86bf42d108dc"
     }
   ],
   "en": [
@@ -1735,14 +1735,14 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               "target": {
                 "by": "role",
                 "role": "link",
-                "name": "See the job offers received by email"
+                "name": "Received by email"
               }
             }
           ],
-          "narration": "Open the Job searches page, then « See the job offers received by email »: the job offers from your emails arrive in « Received by email », under the profile they match best, or in « Unclassified » when no profile reaches 60."
+          "narration": "Open the Job searches page: the job offers from your emails arrive in « Offers to handle », with the « Email » chip. At the foot of the box, « Received by email » sorts them under the profile they match best, or in « Unclassified » when no profile reaches 60."
         }
       ],
-      "hash": "ee9356fe822c"
+      "hash": "fd23fb5d7896"
     }
   ]
 };

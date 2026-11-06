@@ -4,8 +4,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } from "../billing";
+import { createConsumption } from "../consumption";
 import { createJobOffers, createSourceChecks, migrateJobOffers, type JobOffers } from "../job-offers";
+import { offerBoxOf } from "../offer-box";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import type { PushNotification } from "../push-notifications";
 import { createJobSearchReports, createJobSearches, JOB_DISCOVERY_QUEUE, migrateJobSearches, type JobSearches } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -23,6 +26,7 @@ const masterCv: MasterCvContent = {
 
 describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
+  let database: Pool;
   let profiles: Profiles;
   let jobOffers: JobOffers;
   let applications: Applications;
@@ -63,7 +67,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
-    const database = testAuth.auth.options.database as Pool;
+    database = testAuth.auth.options.database as Pool;
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateApplications(database);
@@ -119,6 +123,24 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     ]);
     expect(done?.results[0]).toMatchObject({ jobOffer: { employer: "Acme Industrie", location: "Lyon", contractType: "cdi" }, matchScore: { score: 100 } });
     expect(done!.results[0]!.matchScore.score).toBeGreaterThan(done!.results[1]!.matchScore.score);
+  });
+
+  it("brings the Job Offers it kept to the Candidate's Offer box, with its Profile, done, stopped or failed (ADR-0090)", async () => {
+    const found = await capture("DAF H/F", { employer: "Acme Industrie", location: "Lyon" });
+    const stoppedWith = await capture("Contrôleur de gestion", { location: "Lyon" });
+    const done = await started();
+    await jobSearches.record(done.id, { jobOfferIds: [found] });
+    const stopped = await started();
+    clock.now = new Date(clock.now.getTime() + 60_000);
+    await jobSearches.record(stopped.id, { stopped: true, jobOfferIds: [stoppedWith, found] });
+    // A later report changes nothing: the Job Search is over.
+    await jobSearches.record(done.id, { jobOfferIds: [] });
+
+    expect((await offerBoxOf(database, candidateId)).map(({ jobOfferId, profileId: profile, arrivalSources }) => [jobOfferId, profile, arrivalSources.map((arrival) => arrival.source)])).toEqual([
+      [found, profileId, ["job_search"]],
+      [stoppedWith, profileId, ["job_search"]],
+    ]);
+    expect(await offerBoxOf(database, otherCandidateId)).toEqual([]);
   });
 
   it("names the Search Criteria its Match Scores are against: the Profile's current ones", async () => {
@@ -281,6 +303,55 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("searching");
     clock.now = new Date(clock.now.getTime() + 2 * 60 * 1000);
     expect(await jobSearches.get(candidateId, forgotten.id)).toMatchObject({ status: "failed", failure: "timeout" });
+  });
+
+  describe("its Push notification (#699)", () => {
+    let notified: { personId: string; notification: PushNotification; once: string | undefined }[];
+    let reports: ReturnType<typeof createJobSearchReports>;
+    beforeEach(() => {
+      notified = [];
+      reports = createJobSearchReports(testAuth.auth.options.database as Pool, {
+        quotas: billing,
+        now: () => clock.now,
+        push: { notify: async (personId, notification, options) => (notified.push({ personId, notification, once: options?.once }), true) },
+      });
+    });
+
+    it("tells the Candidate of the new results of their Job Search, which it opens, once however often Job discovery reports", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+
+      await reports.record(jobSearch.id, { jobOfferIds: [jobOfferId] });
+      await reports.record(jobSearch.id, { jobOfferIds: [jobOfferId] });
+
+      expect(notified).toEqual([{ personId: candidateId, notification: { event: "job_search_results", jobSearchId: jobSearch.id }, once: `job_search_results:${jobSearch.id}` }]);
+    });
+
+    it("tells nothing of a Job Search that found nothing, failed, or that the Candidate stopped", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      await reports.record((await started()).id, { jobOfferIds: [] });
+      await reports.record((await started()).id, { failed: "unavailable" });
+      await reports.record((await started()).id, { stopped: true, jobOfferIds: [jobOfferId] });
+
+      expect(notified).toEqual([]);
+    });
+
+    it("records the Job Search all the same when its notification cannot be queued", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      const failing = createJobSearchReports(testAuth.auth.options.database as Pool, {
+        quotas: billing,
+        push: {
+          notify: async () => {
+            throw new Error("queue unavailable");
+          },
+        },
+      });
+
+      await failing.record(jobSearch.id, { jobOfferIds: [jobOfferId] });
+
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.status).toBe("done");
+    });
   });
 
   it("does not change a finished Job Search when Job discovery reports again", async () => {
@@ -591,6 +662,23 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
       await reports.record(kept.id, { stopped: true, jobOfferIds: [daf] });
 
+      expect(await used()).toBe(1);
+    });
+
+    it("a Job Search stopped empty, whose quota use is given back, leaves jobSearch where it was in Consumption (#799)", async () => {
+      const consumption = createConsumption(testAuth.auth.options.database as Pool);
+      const counted = async () => (await consumption.forCandidate(candidateId, { from: clock.now, to: clock.now })).totals.jobSearch;
+      const daf = await capture("DAF H/F", { location: "Lyon" });
+      const kept = await started();
+      await reports.record(kept.id, { stopped: true, jobOfferIds: [daf] });
+      expect(await counted()).toBe(1);
+
+      const empty = await started();
+      expect(await counted()).toBe(2);
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+      await reports.record(empty.id, { stopped: true, jobOfferIds: [] });
+
+      expect(await counted()).toBe(1);
       expect(await used()).toBe(1);
     });
 

@@ -109,6 +109,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coaching_session_reschedule", // issue #250: a Coaching Session's Reschedule history
         "company_careers_site", // issue #406: public careers sites / ATS found per company, shared, no Candidate
         "company_dossier", // issue #17
+        "consumption_day", // issue #799: the Candidate's daily count of uses per Tool, kept 12 months
         "discovery_run", // issue #404: the figures of a Job discovery run, with no Candidate
         "discovery_run_detail", // issue #404: what ties a run to its Candidate, kept 30 days
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
@@ -138,6 +139,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "master_cv_version",
         "nouveautes_email_sent", // issue #566: the Nouveautés emails sent, one per Candidate and per Version
         "nouveautes_email_subscription", // issue #566: the Candidates who ticked the Nouveautés email, and when
+        "offer_box_entry", // issue #815: a row per Candidate and Job Offer that arrived (ADR-0090), deleted with either and with its Profile
         "passkey", // issue #664: a Candidate's passkeys (Better Auth's plugin), their public keys, as a second step
         "plan", // issue #206: the Plans Administrators define
         "plan_coach_context", // ADR-0078: a Plan's Coach context limits
@@ -152,6 +154,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "push_device", // issue #698: the devices the Jobbbox app registered for push notifications, each tied to its session
         "push_notification_failure", // issue #698: the push notifications that did not reach a device, no Candidate, no token
+        "push_notification_sent", // issue #699: each push notification queued under its event's key, once per person
         "push_notification_setting", // issue #698: the push notification events a Candidate switched in Mon compte's Rappels
         "quota_usage",
         "received_email_activity", // issue #449: Activité › Emails reçus, one row per Received offer email, no Candidate, kept 24 months
@@ -255,6 +258,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "coaching_session_reschedule", from_column: "coaching_session_id", to_table: "coaching_session" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
+        // A day of Consumption (issue #799) goes with its Candidate.
+        { from_table: "consumption_day", from_column: "candidate_id", to_table: "candidate" },
         // A Discovery Run's detail (issue #404) goes with its run, its Candidate, Profile and Job Search.
         { from_table: "discovery_run_detail", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "discovery_run_detail", from_column: "job_search_id", to_table: "job_search" },
@@ -291,6 +296,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // The Nouveautés email (issue #566) follows its Candidate.
         { from_table: "nouveautes_email_sent", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "nouveautes_email_subscription", from_column: "candidate_id", to_table: "candidate" },
+        // The Offer box (issue #815, ADR-0090): an entry goes with its Candidate, its Job Offer and its Profile.
+        { from_table: "offer_box_entry", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "offer_box_entry", from_column: "job_offer_id", to_table: "job_offer" },
+        { from_table: "offer_box_entry", from_column: "profile_id", to_table: "profile" },
         // Passkeys (issue #664) go with their Candidate.
         { from_table: "passkey", from_column: "userId", to_table: "candidate" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
@@ -305,9 +314,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "privacy_change_seen", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         // Push notifications (issue #698): a device goes with its account and with the session signed in on it; the
-        // switches go with their Candidate; the failures name no one.
+        // switches go with their Candidate; the failures name no one. The notifications queued go with their person (#699).
         { from_table: "push_device", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "push_device", from_column: "session_id", to_table: "session" },
+        { from_table: "push_notification_sent", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "push_notification_setting", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         // Email intake (issue #442): the Received offer emails go with their Candidate; each points to its row of

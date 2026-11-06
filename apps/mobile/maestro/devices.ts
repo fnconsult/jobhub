@@ -28,6 +28,9 @@ export const CI_HARDWARE: Record<HardwareId, Hardware> = {
   "android-foldable": { id: "android-foldable", platform: "android", model: "pixel_fold" },
 };
 
+/** The name the CI job gives the iOS simulator it creates (mobile-e2e.yml). */
+export const SIMULATOR = "maestro";
+
 /** How the app's window sits on the hardware: the whole screen, half of it in Split View, a foldable closed or open. */
 export type Window = "full" | "split-half" | "folded" | "unfolded";
 
@@ -120,8 +123,12 @@ export function runsOn(hardwareId: HardwareId): Run[] {
 export function bootSetup(hardwareId: HardwareId): string[][] {
   if (CI_HARDWARE[hardwareId].platform === "ios") {
     return [
-      ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
-      ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
+      ["xcrun", "simctl", "spawn", SIMULATOR, "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
+      ["xcrun", "simctl", "spawn", SIMULATOR, "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
+      // The system reads them as it boots.
+      ["xcrun", "simctl", "shutdown", SIMULATOR],
+      ["xcrun", "simctl", "boot", SIMULATOR],
+      ["xcrun", "simctl", "bootstatus", SIMULATOR, "-b"],
     ];
   }
   return [

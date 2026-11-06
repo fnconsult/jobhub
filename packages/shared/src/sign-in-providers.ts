@@ -50,6 +50,20 @@ export interface SignInCopy {
 /** Codes a dead magic link comes back with; anything else (a provider, OAuth state) is a failed sign-in. */
 const MAGIC_LINK_ERRORS = new Set(["INVALID_TOKEN", "EXPIRED_TOKEN", "ATTEMPTS_EXCEEDED"]);
 
+/** The words between the last two names of a list of alternatives, where Intl.ListFormat is missing. */
+const OR: Record<Locale, { two: string; last: string }> = { fr: { two: " ou ", last: " ou " }, en: { two: " or ", last: ", or " } };
+
+/**
+ * « Google, Apple ou Microsoft »: Intl.ListFormat's disjunction, or the same words where it is missing, as in Hermes, the
+ * app's JavaScript engine (#705).
+ */
+function alternatives(names: readonly string[], locale: Locale): string {
+  if (typeof Intl.ListFormat === "function") return new Intl.ListFormat(locale, { type: "disjunction" }).format(names);
+  if (names.length < 2) return names.join("");
+  const or = OR[locale] ?? OR.fr;
+  return `${names.slice(0, -1).join(", ")}${names.length === 2 ? or.two : or.last}${names.at(-1)}`;
+}
+
 /**
  * What a sign-in page says around the form: the intro, and the Note shown when a sign-in comes back with an error. It
  * names only the providers whose buttons the page shows (`providers`, their display names in order), so the text never
@@ -57,7 +71,7 @@ const MAGIC_LINK_ERRORS = new Set(["INVALID_TOKEN", "EXPIRED_TOKEN", "ATTEMPTS_E
  */
 export function signInCopy({ providers, error }: { providers: readonly string[]; error?: string | undefined | null }, locale: Locale): SignInCopy {
   const { t } = createI18n(locale);
-  const named = new Intl.ListFormat(locale, { type: "disjunction" }).format(providers);
+  const named = alternatives(providers, locale);
   const failure = (): string => {
     if (error === SIGN_IN_ERRORS.accountNotLinked) return t("signIn.accountNotLinked");
     if (error === SIGN_IN_ERRORS.providerNotAllowed) return t("signIn.providerNotAllowed");

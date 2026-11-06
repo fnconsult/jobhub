@@ -14,7 +14,7 @@ describe("the Maestro runs of one CI job (#705)", () => {
     expect(first!.name).toBe("iphone-se-light");
     expect(first!.setup[0]).toEqual(["xcrun", "simctl", "ui", "booted", "appearance", "light"]);
     const env = { STACK_URL: "http://127.0.0.1:4705", STACK_EMAIL: "maestro.1@e2e.jobbbox.test", CAPTURES: "compare", CAPTURE_DIR: "iphone-se/light" };
-    const prepare = first!.prepare("maestro.1@e2e.jobbbox.test");
+    const prepare = first!.prepare("maestro.1@e2e.jobbbox.test", "/out/iphone-se-light");
     expect(prepare.slice(0, 3)).toEqual(["maestro", "test", join(ROOT, "subflows", "prepare.yaml")]);
     expect(envOf(prepare)).toMatchObject({ ...env, DEVICE: "iphone-se", ORIENTATION: "PORTRAIT" });
     const flows = first!.flows("maestro.1@e2e.jobbbox.test", "/out/iphone-se-light");
@@ -37,6 +37,15 @@ describe("the Maestro runs of one CI job (#705)", () => {
     expect(runs[0]!.setup).toContainEqual(["adb", "emu", "unfold"]);
   });
 
+  it("keeps the device's own log of each run beside Maestro's, the app's process on iOS, the emulator's logcat cleared before", () => {
+    const [ios] = planRuns("ipad", { root: ROOT, stack: STACK, captures: "compare", referenceExists: present });
+    expect(ios!.logs).toEqual(["xcrun", "simctl", "spawn", "booted", "log", "show", "--last", "30m", "--style", "compact", "--predicate", 'process == "Jobbbox"']);
+    const [android] = planRuns("android-tablet", { root: ROOT, stack: STACK, captures: "compare", referenceExists: present });
+    expect(android!.setup).toContainEqual(["adb", "logcat", "-c"]);
+    expect(android!.logs).toEqual(["adb", "logcat", "-d"]);
+    expect(ios!.prepare("someone@e2e.jobbbox.test", "/out/ipad-landscape-light")).toContain("--test-output-dir=/out/ipad-landscape-light/prepare");
+  });
+
   it("compares the key screens with their references when they exist", () => {
     const [first] = planRuns("ipad", { root: ROOT, stack: STACK, captures: "compare", referenceExists: present });
     expect(first!.captures).toEqual({ mode: "compare", missing: [], dir: "ipad-landscape/light" });
@@ -45,7 +54,7 @@ describe("the Maestro runs of one CI job (#705)", () => {
   it("draws a run's missing references, and says which, so the run fails as a missing web baseline does", () => {
     const [first] = planRuns("ipad", { root: ROOT, stack: STACK, captures: "compare", referenceExists: (path) => !path.endsWith("agenda.png") });
     expect(first!.captures).toEqual({ mode: "record", missing: [`${ROOT}/captures/ipad-landscape/light/agenda.png`], dir: "ipad-landscape/light" });
-    expect(envOf(first!.prepare("someone@e2e.jobbbox.test")).CAPTURES).toBe("record");
+    expect(envOf(first!.prepare("someone@e2e.jobbbox.test", "/out")).CAPTURES).toBe("record");
   });
 
   it("draws every reference again on purpose (`record`), and skips them (`off`)", () => {

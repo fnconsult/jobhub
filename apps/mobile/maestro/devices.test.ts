@@ -1,4 +1,4 @@
-import { bootSetup, CI_HARDWARE, DEVICES, runsOn, type Run } from "./devices";
+import { bootSetup, CI_HARDWARE, DEVICES, runsOn, SIMULATOR, type Run } from "./devices";
 
 const ids = (runs: Run[]) => runs.map((run) => `${run.device.id} ${run.theme} ${run.textSize}`);
 const run = (device: string, theme: Run["theme"], textSize: Run["textSize"]) => {
@@ -69,10 +69,14 @@ describe("the devices the Maestro flows run on (#705)", () => {
   });
 
   describe("speaks French once booted, as the flows read the app's French labels", () => {
-    it("sets an iOS simulator's language and region", () => {
+    it("sets an iOS simulator's language and region, then boots it again to take them", () => {
+      expect(SIMULATOR).toBe("maestro");
       expect(bootSetup("ipad")).toEqual([
-        ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
-        ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
+        ["xcrun", "simctl", "spawn", "maestro", "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
+        ["xcrun", "simctl", "spawn", "maestro", "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
+        ["xcrun", "simctl", "shutdown", "maestro"],
+        ["xcrun", "simctl", "boot", "maestro"],
+        ["xcrun", "simctl", "bootstatus", "maestro", "-b"],
       ]);
     });
 

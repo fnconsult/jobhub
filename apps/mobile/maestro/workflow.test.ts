@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
-import { CI_HARDWARE } from "./devices";
+import { CI_HARDWARE, SIMULATOR } from "./devices";
 
 type Step = { name?: string; run?: string; uses?: string; with?: Record<string, unknown>; env?: Record<string, string> };
 type Job = { "runs-on": string; needs?: string | string[]; env?: Record<string, string>; strategy?: { matrix: { include: Record<string, string>[] } }; steps: Step[] };
@@ -43,6 +43,10 @@ describe("the mobile-e2e workflow (#705)", () => {
     expect(booted("maestro-android")).toEqual(expected("android"));
     expect(workflow.jobs["maestro-ios"]!.needs).toBe("build-ios");
     expect(workflow.jobs["maestro-android"]!.needs).toBe("build-android");
+  });
+
+  it("creates the iOS simulator under the name run.ts sets up", () => {
+    expect(runs("maestro-ios")).toContain(`xcrun simctl create ${SIMULATOR} "\${{ matrix.model }}"`);
   });
 
   it("runs the flows by run.ts against the held stack, Maestro at a pinned version, its analytics off", () => {

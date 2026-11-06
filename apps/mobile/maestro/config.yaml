@@ -4,11 +4,12 @@ flows:
   - "flows/*"
 executionOrder:
   continueOnFailure: false
+  # By the flows' `name`, which Maestro orders them by when a flow has one.
   flowsOrder:
-    - "1-connexion"
-    - "2-ecrans-cles"
-    - "3-accueil"
-    - "4-candidature"
-    - "5-recherches"
-    - "6-agenda"
-    - "7-conversation"
+    - "Connexion par code"
+    - "Écrans clés et leurs captures de référence"
+    - "Accueil"
+    - "Une candidature, sa Fiche, son statut et ses entretiens"
+    - "Recherches d'offres, garder ou écarter une offre"
+    - "Agenda"
+    - "Une conversation, la réponse en flux"

@@ -80,6 +80,14 @@ describe("the Maestro flows (#705)", () => {
     });
   });
 
+  it("runs them in the order of their files, by their names, the key screens right after sign-in", () => {
+    const config = loadAll(readFileSync(join(ROOT, "config.yaml"), "utf8"))[0] as { executionOrder: { flowsOrder: string[] } };
+    const names = filesIn(join(ROOT, "flows"), ".yaml")
+      .sort()
+      .map((file) => parse(file).header.name);
+    expect(config.executionOrder.flowsOrder).toEqual(names);
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));

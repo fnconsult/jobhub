@@ -10,7 +10,7 @@
  * and Maestro's logs go to `<out>/<run>`; the captures to apps/mobile/maestro/captures.
  */
 import { spawnSync } from "node:child_process";
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { bootSetup, CI_HARDWARE, runsOn, type HardwareId } from "./devices";
 import { KEY_SCREENS } from "./seed";
@@ -22,8 +22,10 @@ export type PlannedRun = {
   name: string;
   setup: string[][];
   captures: { mode: CaptureMode; missing: string[]; dir: string };
-  /** Maestro's command that prepares the app for the run's Candidate `email`. */
-  prepare: (email: string) => string[];
+  /** Maestro's command that prepares the app for the run's Candidate `email`, its output in `out`/prepare. */
+  prepare: (email: string, out: string) => string[];
+  /** The command whose output is the device's own log of the run (the app's, and the system's around it). */
+  logs: string[];
   /** Maestro's command that runs the run's flows, its report and output in `out`. */
   flows: (email: string, out: string) => string[];
 };
@@ -42,9 +44,13 @@ export function planRuns(
     return {
       name: `${run.device.id}-${run.theme}${run.textSize === "largest" ? "-largest-text" : ""}`,
       // The emulator's own localhost is not the machine's: the stack's port is forwarded to it.
-      setup: [...(run.platform === "android" ? [["adb", "reverse", `tcp:${port}`, `tcp:${port}`]] : []), ...run.setup],
+      setup: [...(run.platform === "android" ? [["adb", "reverse", `tcp:${port}`, `tcp:${port}`], ["adb", "logcat", "-c"]] : []), ...run.setup],
+      logs:
+        run.platform === "android"
+          ? ["adb", "logcat", "-d"]
+          : ["xcrun", "simctl", "spawn", "booted", "log", "show", "--last", "30m", "--style", "compact", "--predicate", 'process == "Jobbbox"'],
       captures: { mode, missing, dir: run.env.CAPTURE_DIR! },
-      prepare: (email) => ["maestro", "test", join(root, "subflows", "prepare.yaml"), ...env(email)],
+      prepare: (email, out) => ["maestro", "test", join(root, "subflows", "prepare.yaml"), `--test-output-dir=${join(out, "prepare")}`, ...env(email)],
       flows: (email, out) => [
         "maestro",
         "test",
@@ -94,7 +100,8 @@ function main(argv: string[]) {
     const seeded = spawnSync("curl", ["--fail", "--silent", "--show-error", "-X", "POST", `${stack.helper}/candidates`], { encoding: "utf8" });
     const email = seeded.status === 0 ? (JSON.parse(seeded.stdout) as { email: string }).email : null;
     // Maestro writes a screenshot it takes under its working directory when it makes no bundle: the run's own.
-    const ok = setUp && email !== null && exec(run.prepare(email), dir) && exec(run.flows(email, dir), dir);
+    const ok = setUp && email !== null && exec(run.prepare(email, dir), dir) && exec(run.flows(email, dir), dir);
+    writeFileSync(join(dir, "device.log"), spawnSync(run.logs[0]!, run.logs.slice(1), { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).stdout ?? "");
     if (run.captures.mode === "record") {
       const files = (readdirSync(dir, { recursive: true }) as string[]).map((file) => join(dir, file));
       for (const [taken, reference] of recordedCaptures(files, __dirname, run.captures.dir)) {

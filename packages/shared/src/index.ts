@@ -29,3 +29,4 @@ export * from "./context-bar";
 export * from "./consumption";
 export * from "./offer-box";
 export * from "./cv-file";
+export * from "./job-search-words";

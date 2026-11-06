@@ -21,6 +21,7 @@
     "test:mobile": "npm test -w @jobhub/mobile",
     "db:up": "docker compose up -d postgres",
     "db:migrate": "npm run db:migrate -w @jobhub/web",
+    "db:backfill-consumption": "npm run --silent db:backfill-consumption -w @jobhub/web --",
     "wf:record": "npm run --silent wf:record -w @jobhub/web --",
     "stack:up": "docker compose up -d",
     "test:e2e": "playwright test"

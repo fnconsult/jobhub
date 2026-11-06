@@ -59,6 +59,7 @@
     "start": "next start",
     "typecheck": "next typegen && tsc -p tsconfig.json",
     "db:migrate": "tsx --env-file-if-exists=../../.env scripts/migrate.ts",
+    "db:backfill-consumption": "tsx --env-file-if-exists=../../.env scripts/backfill-consumption.ts",
     "wf:record": "tsx --env-file-if-exists=../../.env scripts/record-agent-run.ts",
     "edge-pages": "tsx scripts/edge-pages.ts"
   },

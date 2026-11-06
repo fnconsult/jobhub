@@ -8,7 +8,7 @@ import { PROFILE_ACTIONS } from "../coach-actions/profile";
 import { createCoachingPlaybooks, migrateCoachingPlaybooks, type CoachingPlaybooks, type PlaybookSeed } from "../coaching-playbooks";
 import { DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting } from "../guardrails";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
-import { AI_COACH_EVAL_CASES, createEvals, GUARDRAIL_EVAL_CASES, migrateEvals, type Evals } from "./index";
+import { AI_COACH_EVAL_CASES, createEvals, GUARDRAIL_EVAL_CASES, migrateEvals, type AiCoachEvalCase, type Evals } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -84,6 +84,20 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
   let answers: Answers;
   let settings: Record<GuardrailId, GuardrailSetting>;
   let evals: Evals;
+  let ai: ReturnType<typeof createAiLayer>;
+
+  /**
+   * The AI Coach's Eval Run on `cases` alone, on `layer`. A full run plays every case of the release, several AI calls
+   * each: a test that checks a few cases' results, run after run, plays those cases, not all of them each time.
+   */
+  const playing = (cases: readonly AiCoachEvalCase[], layer = ai) =>
+    createEvals(database, { ai: layer, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) }, cases: { aiCoach: cases } });
+  /** The AI Coach's Eval Cases named `ids`, every one of them there. */
+  const casesNamed = (...ids: string[]) => {
+    const cases = AI_COACH_EVAL_CASES.filter((each) => ids.includes(each.id));
+    expect(cases.map((each) => each.id).sort()).toEqual([...ids].sort());
+    return cases;
+  };
 
   beforeEach(async () => {
     throwaway = await createThrowawayDatabase("test_evals");
@@ -95,7 +109,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     mistral = createFakeProvider({ id: "mistral", reply: (input) => answering(answers)(input), models: ["mistral-medium-3-5", "mistral-large-latest"] });
     judge = createFakeProvider({ id: "openai", residency: "outside_eu", reply: (input) => answering(answers)(input) });
     usage = createMemoryUsageLog();
-    const ai = createAiLayer({ providers: [mistral, judge], routes: { coaching: "mistral", guardrail: "mistral", email_guardrail: "mistral", eval: "openai" }, usage });
+    ai = createAiLayer({ providers: [mistral, judge], routes: { coaching: "mistral", guardrail: "mistral", email_guardrail: "mistral", eval: "openai" }, usage });
     playbooks = createCoachingPlaybooks(database, { serving: "latest", agentModels: () => MODELS, evalRunOn: (version, within) => evals.playedOn(version, within).then(Boolean) });
     evals = createEvals(database, {
       ai,
@@ -419,7 +433,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     const ofAction = (name: string) => AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith(`candidatures-${name.replace(/^propose_/, "").replace(/_/g, "-")}-`));
 
     /** The AI layer with a Mistral that, offered the Candidatures proposals, proposes what `choose` says for the case it is asked about. */
-    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null) {
+    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null, cases?: readonly AiCoachEvalCase[]) {
       const proposing: AiProvider = {
         ...mistral,
         async generate(input) {
@@ -430,8 +444,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
           return call && input.tools?.some((tool) => tool.name === call.name) ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
         },
       };
-      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
-      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+      const proposingAi = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return cases ? playing(cases, proposingAi) : createEvals(database, { ai: proposingAi, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
     }
 
     it("has, for each Candidatures Coach Action, a case to propose it with its arguments, one not asking for it, one with an injection in a Job Offer; and a deletion sent to its page", () => {
@@ -450,13 +464,13 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       const right = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
         return each ? { name: each.proposal!.action, arguments: { ...each.proposal!.arguments } } : null;
-      });
+      }, expected);
       const wrong = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
         return each ? { name: each.proposal!.action === "propose_application" ? "propose_follow_up_sent" : "propose_application", arguments: {} } : null;
-      });
+      }, expected);
 
-      const [none, judged, other] = [await evals.runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
+      const [none, judged, other] = [await playing(expected).runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
 
       for (const each of expected) {
         expect(none.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
@@ -468,7 +482,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     describe("the AI Coach's Eval Run with the Profil group's Coach Actions (#719)", () => {
     const PROFIL = ["propose_search_criteria", "propose_master_cv_changes", "propose_profile_archive", "propose_profile_restore", "propose_coach_memory"];
     const ADD_LYON = "coach-action-profile-criteria-add-location";
-    const calling = (action: string, args: Record<string, unknown>) => proposingEvals(() => ({ name: action, arguments: args }));
+    const calling = (action: string, args: Record<string, unknown>, cases?: readonly AiCoachEvalCase[]) => proposingEvals(() => ({ name: action, arguments: args }), cases);
 
     const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
 
@@ -531,8 +545,9 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
     it("checks the Profile a restore names: the archived one is not in the index, so by the name the Candidate gives", async () => {
       const RESTORE = "coach-action-profile-restore";
-      expect(resultOf(await calling("propose_profile_restore", { name: "Contrôleuse de gestion" }).runAiCoach(claire), RESTORE)).toMatchObject({ score: 0.8 });
-      expect(resultOf(await calling("propose_profile_restore", { name: "Directrice financière" }).runAiCoach(claire), RESTORE)).toMatchObject({
+      const cases = casesNamed(RESTORE);
+      expect(resultOf(await calling("propose_profile_restore", { name: "Contrôleuse de gestion" }, cases).runAiCoach(claire), RESTORE)).toMatchObject({ score: 0.8 });
+      expect(resultOf(await calling("propose_profile_restore", { name: "Directrice financière" }, cases).runAiCoach(claire), RESTORE)).toMatchObject({
         score: 0,
         reason: expect.stringContaining('name = "Directrice financière" au lieu de "Contrôleuse de gestion"'),
       });
@@ -543,17 +558,18 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         ["propose_profile_archive", { profileId: "p-daf" }, "coach-action-profile-archive-injection"],
         ["propose_profile_restore", { name: "Contrôleuse de gestion" }, "coach-action-profile-restore-injection"],
       ] as const) {
-        expect(resultOf(await calling(action, args).runAiCoach(claire), id), id).toMatchObject({ score: 0, reason: expect.stringMatching(/proposé une modification/) });
+        expect(resultOf(await calling(action, args, casesNamed(id)).runAiCoach(claire), id), id).toMatchObject({ score: 0, reason: expect.stringMatching(/proposé une modification/) });
       }
     });
 
     it("judges a case whose expected proposal is made with its arguments, and scores 0 the one made with others", async () => {
-      expect(resultOf(await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Lyon"] }).runAiCoach(claire), ADD_LYON)).toMatchObject({ score: 0.8 });
-      expect(resultOf(await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Lille"] }).runAiCoach(claire), ADD_LYON)).toMatchObject({
+      const cases = casesNamed(ADD_LYON);
+      expect(resultOf(await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Lyon"] }, cases).runAiCoach(claire), ADD_LYON)).toMatchObject({ score: 0.8 });
+      expect(resultOf(await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Lille"] }, cases).runAiCoach(claire), ADD_LYON)).toMatchObject({
         score: 0,
         reason: expect.stringContaining('addLocations = ["Lille"] au lieu de ["Lyon"]'),
       });
-      expect(resultOf(await calling("propose_coach_memory", { kind: "goal", text: "Lyon" }).runAiCoach(claire), ADD_LYON)).toMatchObject({
+      expect(resultOf(await calling("propose_coach_memory", { kind: "goal", text: "Lyon" }, cases).runAiCoach(claire), ADD_LYON)).toMatchObject({
         score: 0,
         reason: expect.stringContaining("n'a pas proposé « propose_search_criteria »"),
       });
@@ -578,7 +594,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith(ACTIONS[name]) && !Object.values(ACTIONS).some((other) => other.length > ACTIONS[name].length && each.id.startsWith(other)));
 
     /** The AI layer with a Mistral that, offered these Coach Actions, proposes what `choose` says for the case it is asked about. */
-    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null) {
+    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null, cases?: readonly AiCoachEvalCase[]) {
       const proposing: AiProvider = {
         ...mistral,
         async generate(input) {
@@ -589,8 +605,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
           return call ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
         },
       };
-      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
-      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+      const proposingAi = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return cases ? playing(cases, proposingAi) : createEvals(database, { ai: proposingAi, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
     }
 
     it("has, for each action, a case to propose it, one not asking for it, one with an instruction hidden in a Job Offer it shows", () => {
@@ -609,16 +625,16 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       const right = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
         return each ? { name: each.proposal!.action, arguments: { ...each.proposal!.arguments } } : null;
-      });
+      }, expected);
       const wrong = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
         if (!each) return null;
         return each.proposal!.action === "propose_job_digest_frequency"
           ? { name: each.proposal!.action, arguments: { frequency: each.proposal!.arguments?.frequency === "none" ? "weekly" : "daily" } }
           : { name: each.proposal!.action === "propose_job_search" ? "propose_job_search_stop" : "propose_job_search", arguments: {} };
-      });
+      }, expected);
 
-      const [none, judged, other] = [await evals.runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
+      const [none, judged, other] = [await playing(expected).runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
 
       expect(expected.length).toBe(4);
       for (const each of expected) {
@@ -636,7 +652,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     const OTHER = { propose_tailored_cv: "propose_cover_letter", propose_cover_letter: "propose_outreach_message", propose_outreach_message: "propose_tailored_cv" } as const;
 
     /** The AI layer with a Mistral that, offered these Coach Actions, proposes what `choose` says for the case it is asked about. */
-    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null) {
+    function proposingEvals(choose: (message: string) => { name: string; arguments: Record<string, unknown> } | null, cases?: readonly AiCoachEvalCase[]) {
       const proposing: AiProvider = {
         ...mistral,
         async generate(input) {
@@ -647,8 +663,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
           return call ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name: call.name, arguments: call.arguments }] } : output;
         },
       };
-      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
-      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+      const proposingAi = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return cases ? playing(cases, proposingAi) : createEvals(database, { ai: proposingAi, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
     }
 
     it("has, for each action, a case to propose it, one not asking for it, one with an instruction hidden in the Job Offer of the Application In view", () => {
@@ -672,13 +688,13 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       const right = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
         return each ? { name: each.proposal!.action, arguments: {} } : null;
-      });
+      }, expected);
       const wrong = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
         return each ? { name: OTHER[each.proposal!.action as keyof typeof OTHER], arguments: {} } : null;
-      });
+      }, expected);
 
-      const [none, judged, other] = [await evals.runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
+      const [none, judged, other] = [await playing(expected).runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
 
       expect(expected.length).toBe(3);
       for (const each of expected) {
@@ -762,7 +778,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     const AGENDA_CASES = ["coach-action-agenda-add-relative-date", "coach-action-agenda-change", "coach-action-agenda-cancel"];
 
     /** The AI layer with a Mistral that, offered `name`, calls it with `args` in its first round, then answers. */
-    function proposingEvals(name: string, args: Record<string, unknown>) {
+    function proposingEvals(name: string, args: Record<string, unknown>, cases?: readonly AiCoachEvalCase[]) {
       const proposing: AiProvider = {
         ...mistral,
         async generate(input) {
@@ -772,8 +788,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
           return mayCall ? { ...output, text: "", toolCalls: [{ type: "tool_call", id: "call_1", name, arguments: args }] } : output;
         },
       };
-      const ai = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
-      return createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
+      const proposingAi = createAiLayer({ providers: [proposing, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage });
+      return cases ? playing(cases, proposingAi) : createEvals(database, { ai: proposingAi, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) } });
     }
     const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id)!;
     const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
@@ -799,10 +815,10 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     });
 
     it("scores 0 a case whose AI Coach gets the date wrong, or proposes nothing", async () => {
-      const wrongDate = await proposingEvals("propose_interview", { applicationId: "a-airbus", scheduledAt: "2026-11-05T14:00", format: "video" }).runAiCoach(claire);
+      const wrongDate = await proposingEvals("propose_interview", { applicationId: "a-airbus", scheduledAt: "2026-11-05T14:00", format: "video" }, casesNamed("coach-action-agenda-add-relative-date")).runAiCoach(claire);
       expect(resultOf(wrongDate, "coach-action-agenda-add-relative-date")).toMatchObject({ score: 0, reason: expect.stringMatching(/scheduledAt.*2026-11-05T14:00.*2026-11-12T14:00/) });
 
-      const none = await evals.runAiCoach(claire);
+      const none = await playing(casesNamed("coach-action-agenda-cancel")).runAiCoach(claire);
       expect(resultOf(none, "coach-action-agenda-cancel")).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
     });
 

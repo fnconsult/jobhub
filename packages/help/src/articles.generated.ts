@@ -364,12 +364,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "recevoir",
         "fréquence",
         "alerte",
-        "tout voir"
+        "tout voir",
+        "application",
+        "iphone",
+        "ipad",
+        "android"
       ],
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nVotre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
+      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nVotre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page.\n\nDans l'application Jobbbox (iPhone, iPad, Android), « Job Digests » est la même conversation, avec la même carte : pour chaque profil, sa fréquence, puis chaque Job Digest envoyé. Touchez-en un pour l'ouvrir sur ses offres. La fréquence se lit dans l'application et se règle sur jobbbox.ai."
     },
     {
       "id": "page-master-cv-editor",
@@ -1070,12 +1074,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "digest",
         "sélection",
-        "offres reçues"
+        "offres reçues",
+        "application",
+        "iphone",
+        "ipad",
+        "android",
+        "suivre"
       ],
       "route": "/job-digests/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation.\n\nDans l'application Jobbbox (iPhone, iPad, Android), la page d'un Job Digest montre son profil, sa date d'envoi et ses offres, de la plus proche à la moins proche de votre CV de référence, au-dessus de sa conversation. Touchez une offre pour l'ouvrir : son score de correspondance avec le profil, un bouton qui explique le score en détaillant chaque critère, son résumé et son texte. « Suivre » crée sa candidature avec ce profil ; une fois suivie, « Voir la candidature » l'ouvre."
     },
     {
       "id": "page-order",
@@ -1203,6 +1212,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "activité ia",
         "activité",
+        "en ce moment",
+        "en cours ailleurs",
+        "rien ne tourne",
         "modèles",
         "modèle",
         "tokens",
@@ -1218,7 +1230,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« Activité IA » est le bouton en haut de la page qui montre ce que l'IA a fait pour la page ouverte. Il ouvre « Cette page » : les modèles d'IA, avec où ils ont tourné, les sources (les sites lus) et les outils qui ont produit ce que la page affiche, au total puis « Par élément ».\n\nLes tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.\n\nPendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs », chaque étape s'affiche en direct, et « Arrêter » l'interrompt : ce qui était terminé est gardé. Chaque étape a son glyphe, qui bouge tant qu'elle tourne :\n\n- « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;\n- « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;\n- « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;\n- « Consulte vos données » et « Prépare une proposition » : la boîte à outils qui s'ouvre, d'où sort une clé quand le coach lit vos candidatures, votre agenda ou votre profil, une petite carte quand il vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».\n\nSi vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.\n\nUne action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne. En bas, « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité."
+      "body": "« Activité IA » est le bouton en haut de la page qui montre ce que l'IA a fait pour la page ouverte. Il ouvre « Cette page » : les modèles d'IA, avec où ils ont tourné, les sources (les sites lus) et les outils qui ont produit ce que la page affiche, au total puis « Par élément ».\n\nLes tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.\n\n« En ce moment », en tête de l'activité, juste sous le contexte de la conversation, montre les actions de l'IA en cours : d'abord celles de cette page, puis « En cours ailleurs », avec un lien vers leur page. Une recherche d'offres qui tourne pendant que le coach vous répond y figure à côté de sa réponse. Pour chacune : son glyphe, l'étape en cours, le nombre d'étapes finies et le temps écoulé ; pour une réponse du coach, chaque outil qu'il consulte, coché une fois fini. L'icône d'arrêt l'interrompt : ce qui était terminé est gardé. Une action finie quitte « En ce moment » ; sans action en cours, il indique « Rien ne tourne sur cette page. ».\n\nChaque étape a son glyphe, qui bouge tant qu'elle tourne :\n\n- « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;\n- « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;\n- « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;\n- « Consulte vos données » et « Prépare une proposition » : la boîte à outils qui s'ouvre, d'où sort une clé quand le coach lit vos candidatures, votre agenda ou votre profil, une petite carte quand il vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».\n\nSi vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.\n\nUne action arrêtée ou en échec reste dans « En ce moment », en rouge clair, et le dit en toutes lettres, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne. En bas, « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité."
     },
     {
       "id": "glossary-ats-score",
@@ -3909,12 +3921,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "digest",
         "selection",
-        "offers received"
+        "offers received",
+        "app",
+        "iphone",
+        "ipad",
+        "android",
+        "follow"
       ],
       "route": "/job-digests/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.\n\nA job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
+      "body": "A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.\n\nA job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation.\n\nIn the Jobbbox app (iPhone, iPad, Android), a Job Digest's page shows its profile, the day it was sent and its job offers, closest to your master CV first, above its conversation. Tap a job offer to open it: its Match Score against the profile, a button explaining the score detailing each criterion, its summary and its text. « Follow » creates its application with this profile; once followed, « See the application » opens it."
     },
     {
       "id": "page-job-offer",
@@ -4442,12 +4459,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "receive",
         "frequency",
         "alert",
-        "see all"
+        "see all",
+        "app",
+        "iphone",
+        "ipad",
+        "android"
       ],
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nYour coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
+      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nYour coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page.\n\nIn the Jobbbox app (iPhone, iPad, Android), « Job Digests » is the same conversation, with the same card: for each profile, how often its Job Digest comes, then each one sent. Tap one to open it on its job offers. The frequency is read in the app and set on jobbbox.ai."
     },
     {
       "id": "page-job-searches",
@@ -5082,6 +5103,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "ai activity",
         "activity",
+        "right now",
+        "running elsewhere",
+        "nothing is running",
         "models",
         "model",
         "tokens",
@@ -5095,7 +5119,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».\n\nTokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.\n\nWhile an AI action runs, on this page or « Running elsewhere », each step shows live, and « Stop » interrupts it: what was finished is kept. Each step has its glyph, which moves while it runs:\n\n- « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;\n- « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;\n- « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;\n- « Looking at your data » and « Preparing a proposal »: the toolbox opening, a key coming out when the coach reads your applications, your agenda or your profile, a small card when it prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».\n\nIf you asked your device for less motion, each glyph stays still.\n\nA stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting. At the bottom, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy."
+      "body": "« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».\n\nTokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.\n\n« Right now », at the top of the activity, just under the conversation's context, shows the AI actions under way: this page's first, then « Running elsewhere », with a link to their page. A job search running while the coach answers you shows there beside its reply. For each: its glyph, the step under way, the number of steps done and the time so far; for a coach reply, each tool it looks at, ticked once done. The stop icon interrupts it: what was finished is kept. A finished action leaves « Right now »; with nothing under way, it says « Nothing is running on this page. ».\n\nEach step has its glyph, which moves while it runs:\n\n- « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;\n- « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;\n- « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;\n- « Looking at your data » and « Preparing a proposal »: the toolbox opening, a key coming out when the coach reads your applications, your agenda or your profile, a small card when it prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».\n\nIf you asked your device for less motion, each glyph stays still.\n\nA stopped or failed action stays in « Right now », in light red, and says so in words, with its reason when known. AI activity never shows a cost or an internal setting. At the bottom, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy."
     },
     {
       "id": "glossary-ai-coach",

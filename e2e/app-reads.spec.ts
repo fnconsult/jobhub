@@ -13,6 +13,7 @@ import {
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
   coachingResponseSchema,
+  jobDigestResponseSchema,
   jobDigestsResponseSchema,
   jobSearchResponseSchema,
   jobSearchesResponseSchema,
@@ -217,6 +218,7 @@ const readPaths = (seed: Seed) => [
   `/api/job-searches/${seed.searchId}`,
   "/api/offer-box",
   "/api/job-digests",
+  `/api/job-digests/${seed.digestId}`,
   "/api/agenda",
   "/api/coaching",
   "/api/profiles",
@@ -271,6 +273,9 @@ test.describe("The Jobbbox app reads over HTTP (#684)", () => {
     expect(digested?.digests).toHaveLength(1);
     expect(digested!.digests[0]!.count).toBe(1);
     expect(digested!.frequency).toEqual(expect.any(String));
+    const digest = await read(await get(page, `/api/job-digests/${seed.digestId}`), jobDigestResponseSchema);
+    expect(digest).toMatchObject({ id: seed.digestId, profile: { id: seed.profileId } });
+    expect(digest.jobOffers).toHaveLength(1);
 
     // Agenda: « À planifier » first, then the Agenda Items by day.
     const agenda = await read(await get(page, "/api/agenda"), agendaResponseSchema);
@@ -380,6 +385,7 @@ test.describe("The Jobbbox app reads over HTTP (#684)", () => {
         `/api/applications/${seed.applicationId}`,
         `/api/applications/${seed.applicationId}/documents`,
         `/api/job-searches/${seed.searchId}`,
+        `/api/job-digests/${seed.digestId}`,
         `/api/profiles/${seed.profileId}`,
         `/api/coach/conversations/${seed.applicationConversationId}`,
       ]) {

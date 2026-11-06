@@ -30,6 +30,8 @@ function writtenClasses(source: string): string[] {
 }
 
 const SOURCES = files(src, (file) => /\.tsx$/.test(file) && !/\.test\.tsx$/.test(file));
+/** Each source's text, read once: walking the import graph reads every source for each file it visits. */
+const SOURCE_TEXT = new Map(SOURCES.map((file) => [file, readFileSync(file, "utf8")]));
 /** The classes defined where every page gets them: app.css, and the stylesheets that ship with a component. */
 const GLOBAL = new Set(
   [join(app, "app.css"), ...files(join(src, "design"), (file) => file.endsWith(".css")), ...files(join(src, "components"), (file) => file.endsWith(".css"))].flatMap((file) => [
@@ -41,14 +43,20 @@ const ROUTE_STYLESHEETS = files(app, (file) => file.endsWith(".css") && file !==
 /** Whether `file` lies in `dir`. */
 const within = (file: string, dir: string) => file.startsWith(dir + sep);
 
+const IMPORTERS = new Map<string, string[]>();
+
 /** The files that import the component in `file`, by its path from `src` (`@/components/Name`) or a relative path. */
 function importers(file: string): string[] {
+  const known = IMPORTERS.get(file);
+  if (known) return known;
   const module = relative(src, file).replace(/\.tsx$/, "");
-  return SOURCES.filter((other) => other !== file).filter((other) => {
-    const source = readFileSync(other, "utf8");
+  const found = SOURCES.filter((other) => other !== file).filter((other) => {
+    const source = SOURCE_TEXT.get(other)!;
     const relativeModule = relative(dirname(other), file).replace(/\.tsx$/, "");
     return source.includes(`"@/${module}"`) || source.includes(`"./${relativeModule}"`) || source.includes(`"${relativeModule}"`);
   });
+  IMPORTERS.set(file, found);
+  return found;
 }
 
 /** Whether `file` is drawn only within `dir`: it lies there, or every file importing it is drawn only there. */
@@ -74,12 +82,12 @@ describe("a route's own stylesheet styles only its route (#469)", () => {
   it.each(ROUTE_STYLESHEETS.map((file) => [relative(app, file), file]))("%s: its classes are written only by what its route draws", (_, stylesheet) => {
     const route = dirname(stylesheet);
     const own = [...definedClasses(readFileSync(stylesheet, "utf8"))].filter((name) => !GLOBAL.has(name));
-    const outside = SOURCES.flatMap((file) =>
-      writtenClasses(readFileSync(file, "utf8"))
-        .filter((name) => own.includes(name))
-        .filter(() => !drawnOnlyWithin(file, route))
-        .map((name) => `${relative(src, file)} writes .${name}`),
-    );
+    const outside = SOURCES.flatMap((file) => {
+      const written = writtenClasses(SOURCE_TEXT.get(file)!).filter((name) => own.includes(name));
+      // Whether the file is drawn outside the route depends on the file, not on the class: walk its importers once.
+      if (written.length === 0 || drawnOnlyWithin(file, route)) return [];
+      return written.map((name) => `${relative(src, file)} writes .${name}`);
+    });
     expect([...new Set(outside)].filter((writer) => !DRAWN_ONLY_IN_ROUTE.includes(writer))).toEqual([]);
   });
 });

@@ -17,12 +17,23 @@ const SUGGESTED_PROFILES = 3;
 /** Why a Job Search was not started: the Plan Quota spent, the Profile archived meanwhile, or anything else (offline). */
 type StartProblem = "quotaExceeded" | "archived" | "generic";
 
+/** A Job Search not started: why, and for a spent Plan Quota the web's Upgrade Prompt's words (its title and message), when it gave them. */
+export type StartRefusal = { problem: StartProblem; prompt: { title: string; message: string } | null };
+
+const upgradePromptOf = (prompt: unknown): StartRefusal["prompt"] => {
+  if (typeof prompt !== "object" || prompt === null) return null;
+  const { title, message } = prompt as { title?: unknown; message?: unknown };
+  return typeof title === "string" && typeof message === "string" ? { title, message } : null;
+};
+
 /**
  * Starts a Job Search for `profileId` with the web app's own route (`POST /api/job-searches`, the web's « Lancer une
- * recherche »), opens its page, then asks for Push notifications in context (#699, ADR-0076): « Être prévenu des
- * nouveaux résultats ? ». The page asks only once the Job Search is started: a refusal asks nothing.
+ * recherche » and « Relancer une recherche »), opens its page, then asks for Push notifications in context (#699,
+ * ADR-0076): « Être prévenu des nouveaux résultats ? ». The page asks only once the Job Search is started: a refusal
+ * asks nothing. A Job Search counts against the Plan Quota (ADR-0032): spent, the web answers 402 with its Upgrade
+ * Prompt, whose words the refusal carries.
  */
-export function useStartJobSearch(): (profileId: string) => Promise<StartProblem | null> {
+export function useStartJobSearch(): (profileId: string) => Promise<StartRefusal | null> {
   const api = useApi();
   const router = useRouter();
   const askForPush = useAskForPush();
@@ -31,17 +42,38 @@ export function useStartJobSearch(): (profileId: string) => Promise<StartProblem
     try {
       response = await api("/api/job-searches", { method: "POST", body: JSON.stringify({ profileId }) });
     } catch {
-      return "generic";
+      return { problem: "generic", prompt: null };
     }
-    const result = (await response.json().catch(() => ({}))) as { id?: unknown; error?: unknown };
+    const result = (await response.json().catch(() => ({}))) as { id?: unknown; error?: unknown; prompt?: unknown };
     if (response.status === 201 && typeof result.id === "string") {
       router.push(paths.jobSearch(result.id));
       askForPush("jobSearch");
       return null;
     }
-    if (response.status === 402) return "quotaExceeded";
-    return result.error === "archived" ? "archived" : "generic";
+    if (response.status === 402) return { problem: "quotaExceeded", prompt: upgradePromptOf(result.prompt) };
+    return { problem: result.error === "archived" ? "archived" : "generic", prompt: null };
   };
+}
+
+/**
+ * Why a Job Search was not started, in an alert: a spent Plan Quota as the web's Upgrade Prompt says it, without its
+ * link to a Plan, since nothing is bought in the app (ADR-0076); the Profile archived; or anything else.
+ */
+export function StartRefusalNotice({ refusal }: { refusal: StartRefusal }) {
+  const { t } = useTranslation();
+  const { problem, prompt } = refusal;
+  return (
+    <View role="alert" style={{ gap: space[1] }}>
+      {problem === "quotaExceeded" && prompt ? (
+        <>
+          <AppText weight="semiBold">{prompt.title}</AppText>
+          <AppText>{prompt.message}</AppText>
+        </>
+      ) : (
+        <AppText>{problem === "quotaExceeded" ? t("mobile.jobSearches.quotaExceeded") : t(`jobSearch.errors.${problem}`)}</AppText>
+      )}
+    </View>
+  );
 }
 
 /**
@@ -54,7 +86,7 @@ export function StartJobSearch() {
   const profiles = useProfiles();
   const start = useStartJobSearch();
   const [working, setWorking] = useState(false);
-  const [problem, setProblem] = useState<StartProblem | null>(null);
+  const [problem, setProblem] = useState<StartRefusal | null>(null);
   const active = profiles.data ?? [];
   if (active.length === 0) return null;
   const several = active.length > 1;
@@ -80,11 +112,7 @@ export function StartJobSearch() {
         />
       ))}
       {working ? <AppText tone="secondary">{t("jobSearch.starting")}</AppText> : null}
-      {problem ? (
-        <View role="alert">
-          <AppText>{problem === "quotaExceeded" ? t("mobile.jobSearches.quotaExceeded") : t(`jobSearch.errors.${problem}`)}</AppText>
-        </View>
-      ) : null}
+      {problem ? <StartRefusalNotice refusal={problem} /> : null}
     </View>
   );
 }

@@ -12,3 +12,7 @@ The Agenda needs each Coaching Session's date, but Jobbbox only records a Coachi
 
 - An Agenda date can be wrong or missing if nobody enters it. The « À planifier » box and the coach's ability to correct it make up for that.
 - Revisit this with a team account or an organisation-level Cal.com webhook if the number of Human Coaches grows. Data entered by hand would then become a fallback, and Reschedule history would keep working.
+
+## Amended by ADR-0096
+
+The Candidate books on Jobbbox's Cal.com team right after paying, and the booking sets the date through the team webhook. Entering the date by hand is now the fallback, with the same Reschedule rules.

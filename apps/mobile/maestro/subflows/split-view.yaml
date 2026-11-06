@@ -1,0 +1,15 @@
+# iPad Split View, half and half (#705): no simctl or Maestro command sets it, so the flow does what a person does, in
+# iPadOS 18's own screens: the multitasking button at the top of the window, « Split View », then Réglages for the
+# other half. These are the system's labels, in French or English as the simulator speaks (flows.test.ts leaves them out
+# of its check of the app's labels). To confirm on the first CI run of each new Xcode: docs/ops/mobile.md.
+appId: ai.jobbbox.app
+---
+- tapOn:
+    text: "(Multitâche|Multitasking).*"
+- tapOn:
+    text: "Split View"
+- tapOn:
+    text: "(Réglages|Settings)"
+- extendedWaitUntil:
+    visible: "Menu"
+    timeout: 20000

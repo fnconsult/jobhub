@@ -1,0 +1,9 @@
+# Types VALUE in the field labelled FIELD. A field's label is shown above it and is its accessible name too: the field
+# is the second element Maestro finds by that name (index 1), the first being the label's text.
+appId: ai.jobbbox.app
+---
+- tapOn:
+    text: ${FIELD}
+    index: 1
+- inputText: ${VALUE}
+- hideKeyboard

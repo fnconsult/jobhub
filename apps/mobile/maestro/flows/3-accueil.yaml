@@ -1,0 +1,26 @@
+# Accueil: the home page is a new conversation (ADR-0070), its quick actions under the welcome; the Sidebar holds the
+# menus and « Coach » with the Candidate's Free conversations, the seeded one among them.
+appId: ai.jobbbox.app
+name: Accueil
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- assertVisible: "Chercher des offres"
+- assertVisible: "Envoyer"
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Menu"
+- assertVisible: "Nouvelle conversation"
+- assertVisible: "Mes candidatures"
+- assertVisible: "Recherches d'offres"
+- assertVisible: "Agenda"
+- assertVisible: "Préparer mon entretien chez Aéroline"
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Fermer le menu"
+- assertVisible: "Votre message"

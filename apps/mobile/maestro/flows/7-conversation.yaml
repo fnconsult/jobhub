@@ -1,0 +1,24 @@
+# Une conversation avec réponse en flux: a new conversation, a message sent, the AI Coach's reply arriving as it is
+# written (« Arrêter » shown meanwhile), then its last line, the box free again.
+appId: ai.jobbbox.app
+name: Une conversation, la réponse en flux
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Menu"
+- tapOn: "Nouvelle conversation"
+- tapOn: "Votre message"
+- inputText: "E2E_COACH_LONG Comment préparer mon entretien ?"
+- tapOn: "Envoyer"
+- extendedWaitUntil:
+    visible: "Arrêter"
+    timeout: 20000
+- extendedWaitUntil:
+    visible: "FIN DE LA RÉPONSE"
+    timeout: 60000
+- assertVisible: "Envoyer"

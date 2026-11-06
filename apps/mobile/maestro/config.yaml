@@ -1,0 +1,14 @@
+# The Maestro workspace of the app (#705, docs/ops/mobile.md): the flows in order, each run by run.ts with the tags and
+# env of its run (devices.ts). The key screens come right after sign-in, before the flows that change the seeded data.
+flows:
+  - "flows/*"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - "1-connexion"
+    - "2-ecrans-cles"
+    - "3-accueil"
+    - "4-candidature"
+    - "5-recherches"
+    - "6-agenda"
+    - "7-conversation"

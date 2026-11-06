@@ -1,0 +1,19 @@
+# Agenda: the seeded Interview on its day, in French time, leading to its Application's Interviews Section.
+appId: ai.jobbbox.app
+name: Agenda
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Agenda"
+- extendedWaitUntil:
+    visible: "Contrôleuse de gestion"
+    timeout: 20000
+- tapOn: "Contrôleuse de gestion"
+- extendedWaitUntil:
+    visible: "Voir dans l'agenda"
+    timeout: 20000
+- assertVisible: "Avec la DRH"

@@ -1,0 +1,14 @@
+# Goes to the Sidebar's link MENU: in the drawer behind « Menu » when the Sidebar is not a column.
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Menu"
+- scrollUntilVisible:
+    element:
+      text: ${MENU}
+    direction: DOWN
+    timeout: 10000
+- tapOn: ${MENU}

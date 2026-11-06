@@ -1,0 +1,71 @@
+# The key screens, each compared with its reference capture (subflows/capture.yaml): the home page, Mes candidatures, an
+# Application's Fiche, Recherches d'offres, the Agenda and a conversation. Run in every theme and at the largest text
+# size, where a tablet's columns go full page (subflows/layout.yaml, subflows/fiche.yaml) and no text is cut.
+appId: ai.jobbbox.app
+name: Écrans clés et leurs captures de référence
+tags:
+  - key-screens
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow: ../subflows/layout.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: accueil
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Mes candidatures"
+- extendedWaitUntil:
+    visible: "Responsable qualité · Aéroline Démo"
+    timeout: 20000
+- assertVisible: "Contrôleuse de gestion · Transports Ravel Démo"
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: candidatures
+
+- tapOn: "Responsable qualité · Aéroline Démo"
+- runFlow: ../subflows/fiche.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: fiche
+- runFlow: ../subflows/close-fiche.yaml
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Recherches d'offres"
+- extendedWaitUntil:
+    visible: "Vos recherches par profil"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: recherches
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Agenda"
+- extendedWaitUntil:
+    visible: "Contrôleuse de gestion"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: agenda
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Préparer mon entretien chez Aéroline"
+- extendedWaitUntil:
+    visible: "Votre message"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: conversation

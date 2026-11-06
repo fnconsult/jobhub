@@ -1,0 +1,19 @@
+# The key screen SCREEN against its reference capture, captures/CAPTURE_DIR/SCREEN.png (ADR-0061's rule, for the app:
+# drawn and compared on CI's simulators and emulators only). CAPTURES: `compare` in CI, `record` to redraw them,
+# anything else skips them. The paths are absolute: run.ts gives CAPTURE_DIR under apps/mobile/maestro/captures.
+appId: ai.jobbbox.app
+---
+- waitForAnimationToEnd:
+    timeout: 5000
+- runFlow:
+    when:
+      true: ${CAPTURES == 'compare'}
+    commands:
+      - assertScreenshot:
+          path: ${CAPTURE_DIR}/${SCREEN}.png
+          thresholdPercentage: 99
+- runFlow:
+    when:
+      true: ${CAPTURES == 'record'}
+    commands:
+      - takeScreenshot: ${CAPTURE_DIR}/${SCREEN}

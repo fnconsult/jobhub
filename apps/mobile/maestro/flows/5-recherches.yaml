@@ -1,0 +1,18 @@
+# Recherches d'offres: the Job Searches by Profile (#690), the seeded done Job Search among them with its two Job Offers
+# found. Keeping or setting aside one of them (« Garder », « Écarter ») comes to the app with #692, which adds its steps
+# here: the seeded Job Offers are MAESTRO_SEED.jobOffers (seed.ts).
+appId: ai.jobbbox.app
+name: Recherches d'offres, garder ou écarter une offre
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Recherches d'offres"
+- extendedWaitUntil:
+    visible: "Vos recherches par profil"
+    timeout: 20000
+- assertVisible: "Lancer une recherche"
+- assertVisible: "Offres trouvées : 2"

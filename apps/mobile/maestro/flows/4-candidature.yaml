@@ -1,0 +1,60 @@
+# Une Application: its page is its conversation; its Fiche shows its status, set here from « Postulée » to
+# « Entretien »; then its Interviews Section, where an Interview is added and the Push notifications' explanation is
+# answered « Pas maintenant » (#699).
+appId: ai.jobbbox.app
+name: Une candidature, sa Fiche, son statut et ses entretiens
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Mes candidatures"
+- extendedWaitUntil:
+    visible: "Responsable qualité · Aéroline Démo"
+    timeout: 20000
+- tapOn: "Responsable qualité · Aéroline Démo"
+- runFlow: ../subflows/fiche.yaml
+- assertVisible: "Aéroline Démo · Lyon"
+- tapOn: "Statut : Postulée"
+- tapOn: "Entretien"
+- extendedWaitUntil:
+    visible: "Statut : Entretien"
+    timeout: 20000
+- tapOn: "Entretiens"
+- extendedWaitUntil:
+    visible: "Voir dans l'agenda"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/field.yaml
+    env:
+      FIELD: "Date de l'entretien \\(jj/mm/aaaa\\)"
+      VALUE: "26/11/2031"
+- runFlow:
+    file: ../subflows/field.yaml
+    env:
+      FIELD: "Heure, à Paris \\(hh:mm\\)"
+      VALUE: "10:00"
+- scrollUntilVisible:
+    element:
+      text: "Note \\(facultatif\\)"
+    direction: DOWN
+- runFlow:
+    file: ../subflows/field.yaml
+    env:
+      FIELD: "Note \\(facultatif\\)"
+      VALUE: "Second tour"
+- scrollUntilVisible:
+    element:
+      text: "Ajouter l'entretien"
+    direction: DOWN
+- tapOn: "Ajouter l'entretien"
+- runFlow:
+    when:
+      visible: "Être prévenu la veille de vos rendez-vous \\?"
+    commands:
+      - tapOn: "Pas maintenant"
+- extendedWaitUntil:
+    visible: "Second tour"
+    timeout: 20000

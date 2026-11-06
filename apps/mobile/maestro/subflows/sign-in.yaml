@@ -1,0 +1,26 @@
+# Sign-in by code (#686, ADR-0083): the run's Candidate asks for their sign-in email, then types the code it holds, which
+# the stack's helper reads from the platform's mailbox (scripts/sign-in-code.js). The keyboard's « Envoyer » submits.
+appId: ai.jobbbox.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-email"
+    timeout: 30000
+- tapOn:
+    id: "sign-in-email"
+- inputText: ${STACK_EMAIL}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-code"
+    timeout: 30000
+- assertVisible: "Me connecter avec ce code"
+- runScript: ../scripts/sign-in-code.js
+- tapOn:
+    id: "sign-in-code"
+- inputText: ${output.signInCode}
+- hideKeyboard
+- tapOn: "Me connecter avec ce code"
+- extendedWaitUntil:
+    visible: "Votre message"
+    timeout: 30000

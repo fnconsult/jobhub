@@ -1,0 +1,14 @@
+# Opens the app where it was, signs the run's Candidate in when it asks (a run that only takes the key screens comes
+# here first), and waits for a conversation's box.
+appId: ai.jobbbox.app
+---
+- launchApp:
+    stopApp: false
+- runFlow:
+    when:
+      visible:
+        id: "sign-in-email"
+    file: sign-in.yaml
+- extendedWaitUntil:
+    visible: "Votre message"
+    timeout: 30000

@@ -163,7 +163,9 @@ test.describe("« Votre consommation » on Mon abonnement (#801)", () => {
       const frame = page.locator(".consumption-grid-scroll");
       const scrolled = await frame.evaluate((element) => ({ scrolls: element.scrollWidth > element.clientWidth, atEnd: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1 }));
       expect(scrolled, `${width} px`).toEqual({ scrolls: true, atEnd: true });
-      await expect(cell(page, parisDay(0))).toBeInViewport();
+      // Today's day is within the frame, not scrolled out of it.
+      const [box, today] = [await frame.boundingBox(), await cell(page, parisDay(0)).boundingBox()];
+      expect(today!.x >= box!.x && today!.x + today!.width <= box!.x + box!.width, `${width} px: today in view`).toBe(true);
     }
     await page.evaluate(() => localStorage.setItem("jobbbox.textSize", "standard"));
   });

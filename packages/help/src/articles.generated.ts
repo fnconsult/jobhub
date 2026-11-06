@@ -364,12 +364,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "recevoir",
         "fréquence",
         "alerte",
-        "tout voir"
+        "tout voir",
+        "application",
+        "iphone",
+        "ipad",
+        "android"
       ],
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nVotre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
+      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nVotre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page.\n\nDans l'application Jobbbox (iPhone, iPad, Android), « Job Digests » est la même conversation, avec la même carte : pour chaque profil, sa fréquence, puis chaque Job Digest envoyé. Touchez-en un pour l'ouvrir sur ses offres. La fréquence se lit dans l'application et se règle sur jobbbox.ai."
     },
     {
       "id": "page-master-cv-editor",
@@ -1079,12 +1083,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "digest",
         "sélection",
-        "offres reçues"
+        "offres reçues",
+        "application",
+        "iphone",
+        "ipad",
+        "android",
+        "suivre"
       ],
       "route": "/job-digests/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation.\n\nDans l'application Jobbbox (iPhone, iPad, Android), la page d'un Job Digest montre son profil, sa date d'envoi et ses offres, de la plus proche à la moins proche de votre CV de référence, au-dessus de sa conversation. Touchez une offre pour l'ouvrir : son score de correspondance avec le profil, un bouton qui explique le score en détaillant chaque critère, son résumé et son texte. « Suivre » crée sa candidature avec ce profil ; une fois suivie, « Voir la candidature » l'ouvre."
     },
     {
       "id": "page-order",
@@ -3943,12 +3952,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "digest",
         "selection",
-        "offers received"
+        "offers received",
+        "app",
+        "iphone",
+        "ipad",
+        "android",
+        "follow"
       ],
       "route": "/job-digests/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.\n\nA job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
+      "body": "A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.\n\nA job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation.\n\nIn the Jobbbox app (iPhone, iPad, Android), a Job Digest's page shows its profile, the day it was sent and its job offers, closest to your master CV first, above its conversation. Tap a job offer to open it: its Match Score against the profile, a button explaining the score detailing each criterion, its summary and its text. « Follow » creates its application with this profile; once followed, « See the application » opens it."
     },
     {
       "id": "page-job-offer",
@@ -4478,12 +4492,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "receive",
         "frequency",
         "alert",
-        "see all"
+        "see all",
+        "app",
+        "iphone",
+        "ipad",
+        "android"
       ],
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nYour coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
+      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nYour coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page.\n\nIn the Jobbbox app (iPhone, iPad, Android), « Job Digests » is the same conversation, with the same card: for each profile, how often its Job Digest comes, then each one sent. Tap one to open it on its job offers. The frequency is read in the app and set on jobbbox.ai."
     },
     {
       "id": "page-job-searches",

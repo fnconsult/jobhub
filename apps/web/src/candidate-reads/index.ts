@@ -12,7 +12,7 @@
  * which the route answers 404. A session pending its second step never reaches it: the proxy answers it 401
  * `second_step_required` (ADR-0075), and getCurrentCandidate gives no Candidate for it.
  */
-import { matchScoreReliability, type MatchScore } from "@jobhub/shared";
+import { matchScoreReliability, type JobOffer, type MatchScore } from "@jobhub/shared";
 import type {
   AgendaItemRead,
   AgendaResponse,
@@ -23,7 +23,9 @@ import type {
   CoachConversationsResponse,
   CoachingOrderResponse,
   CoachingResponse,
+  FoundJobOffer,
   InterviewRead,
+  JobDigestResponse,
   JobDigestsResponse,
   JobOfferLine,
   JobSearchesResponse,
@@ -34,6 +36,7 @@ import type {
   RescheduleRead,
   TailoredDocumentsResponse,
 } from "@jobhub/shared/reads";
+import { matchScoreDetail } from "@jobhub/shared/reads";
 import { CV_TEMPLATES, EXPORT_FORMATS, type ExportFormat } from "../export/kinds";
 import type { Agenda, AgendaItem } from "../agenda";
 import type { Applications, Interview } from "../applications";
@@ -69,6 +72,8 @@ export interface CandidateReads {
   jobSearch(candidateId: string, jobSearchId: string): Promise<JobSearchResponse | null>;
   /** The Job Digests' card: each active Profile, its Job Digest's frequency and those sent, newest first. */
   jobDigests(candidateId: string): Promise<JobDigestsResponse>;
+  /** One of the Candidate's Job Digests sent and its Job Offers, best Match Score first; null when it is not theirs. */
+  jobDigest(candidateId: string, jobDigestId: string): Promise<JobDigestResponse | null>;
   /** The Agenda as a list: « À planifier », then the Agenda Items by day, upcoming (or the past ones, when `past`). */
   agenda(candidateId: string, options?: { past?: boolean }): Promise<AgendaResponse>;
   /** Mes coachs humains: the Human Coaches, the Candidate's Coaching Sessions and what one costs them. */
@@ -97,7 +102,7 @@ export interface CandidateReadsDeps {
   followUps: Pick<FollowUps, "notices">;
   profiles: Pick<Profiles, "list" | "get">;
   jobSearches: Pick<JobSearches, "list" | "get">;
-  jobDigests: Pick<JobDigests, "list" | "settings">;
+  jobDigests: Pick<JobDigests, "list" | "settings" | "get">;
   agenda: Pick<Agenda, "days" | "unscheduled">;
   humanCoaches: Pick<HumanCoaches, "list" | "accessGranted" | "sessions">;
   billing: Pick<Billing, "coachingSessionPrice">;
@@ -216,6 +221,16 @@ const jobOfferLine = (offer: JobOfferFacts): JobOfferLine => ({
   expiredAt: isoOrNull(offer.expiredAt),
 });
 
+/** A Job Offer a Job Search found or a Job Digest brought, with what its Work Pane shows in the app (#692). */
+const foundJobOffer = (result: { jobOffer: JobOffer; matchScore: MatchScore; applicationId: string | null; dismissed?: boolean }): FoundJobOffer => ({
+  jobOffer: { ...jobOfferLine(result.jobOffer), contractType: result.jobOffer.contractType ?? null, summary: result.jobOffer.summary ?? null, content: result.jobOffer.content },
+  matchScore: figure(result.matchScore),
+  matchScoreDetail: matchScoreDetail(result.matchScore),
+  // « Suivie »: saved as an Application; « Écartée »: from the Offer box (#816).
+  decision: result.applicationId ? ("kept" as const) : result.dismissed ? ("dismissed" as const) : null,
+  applicationId: result.applicationId,
+});
+
 /** The Offer box as `GET /api/offer-box` answers it, and as the web page reads it too (ADR-0090): the two cannot drift apart. */
 export function offerBoxResponse(box: OfferBoxContents): OfferBoxResponse {
   return {
@@ -322,13 +337,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
         status: search.status,
         failure: search.failure,
         startedAt: iso(search.startedAt),
-        jobOffers: search.results.map((result) => ({
-          jobOffer: jobOfferLine(result.jobOffer),
-          matchScore: figure(result.matchScore),
-          // « Suivie »: saved as an Application; « Écartée »: from the Offer box (#816).
-          decision: result.applicationId ? ("kept" as const) : result.dismissed ? ("dismissed" as const) : null,
-          applicationId: result.applicationId,
-        })),
+        jobOffers: search.results.map(foundJobOffer),
       };
     },
 
@@ -348,6 +357,12 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           };
         }),
       };
+    },
+
+    async jobDigest(candidateId, jobDigestId) {
+      const digest = await deps.jobDigests.get(candidateId, jobDigestId);
+      if (!digest) return null;
+      return { id: digest.id, profile: { id: digest.profile.id, name: digest.profile.name }, sentAt: iso(digest.sentAt), jobOffers: digest.results.map(foundJobOffer) };
     },
 
     async agenda(candidateId, { past = false } = {}) {

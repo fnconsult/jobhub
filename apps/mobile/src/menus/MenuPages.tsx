@@ -172,15 +172,20 @@ function Loaded<T>({
   );
 }
 
-/** A line of a card that leads nowhere in the app yet: its words, and what goes with them. */
-function Line({ label, meta }: { label: string; meta?: string }) {
+/** A line of a card: a row leading to the page `to` (its context menu shares it), and what goes with it. */
+function Line({ label, meta, to }: { label: string; meta?: string; to: string }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const open = () => router.navigate(to);
   return (
-    <View style={{ paddingHorizontal: space[3], paddingVertical: space[1] }}>
-      <AppText>{label}</AppText>
+    <View>
+      <ObjectRow label={label} onPress={open} actions={[{ label: t("mobile.rowMenu.open"), onPress: open }, shareLinkAction(t("mobile.rowMenu.shareLink"), to)]} />
       {meta ? (
-        <AppText variant="meta" tone="secondary">
-          {meta}
-        </AppText>
+        <View style={{ paddingHorizontal: space[3] }}>
+          <AppText variant="meta" tone="secondary">
+            {meta}
+          </AppText>
+        </View>
       ) : null}
     </View>
   );
@@ -321,7 +326,8 @@ export function ApplicationsMenu() {
 
 /**
  * Recherches d'offres (ADR-0090, variant B): the Offer box (« Offres à traiter ») leads the page, the menu's conversation
- * following it with its box at the foot; in it, each active Profile's Job Searches, most recent first, then
+ * following it with its box at the foot; in it, each active Profile's Job Searches, most recent first, each opening on its
+ * Job Offers (#692), then
  * « Lancer une recherche » (#699): the screen's only way to launch a Job Search, kept in the card so no screen drops it.
  */
 export function JobSearchesMenu() {
@@ -363,6 +369,7 @@ export function JobSearchesMenu() {
                         label={t("jobSearchesPage.latestOn", {
                           date: date.format(new Date(search.startedAt)),
                         })}
+                        to={paths.jobSearch(search.id)}
                         meta={[
                           `${t("jobSearchesMenu.found")} : ${search.found}`,
                           search.status === "searching"
@@ -386,7 +393,10 @@ export function JobSearchesMenu() {
   );
 }
 
-/** Job Digests: each active Profile's Job Digests sent, newest first, with how many Job Offers each lists. */
+/**
+ * Job Digests: each active Profile's frequency, then its Job Digests sent, newest first, with how many Job Offers each
+ * lists; each opens on its Job Offers (#692).
+ */
 export function JobDigestsMenu() {
   const { t, i18n } = useTranslation();
   const read = useRead(
@@ -408,9 +418,16 @@ export function JobDigestsMenu() {
         <MenuCard title={t("jobDigestsMenu.title")}>
           <Loaded read={read}>
             {(data) =>
-              data.profiles.map(({ profile, digests }) => (
+              data.profiles.map(({ profile, frequency, digests }) => (
                 <View key={profile.id} style={{ gap: space[1] }}>
                   <AppText weight="semiBold">{profile.name}</AppText>
+                  <AppText tone="secondary">
+                    {frequency === "none"
+                      ? t("mobile.jobDigests.off")
+                      : t("mobile.jobDigests.frequency", {
+                          frequency: t(`jobDigest.frequencyOptions.${frequency}`),
+                        })}
+                  </AppText>
                   {digests.length === 0 ? (
                     <AppText tone="secondary">
                       {t("jobDigestsMenu.none")}
@@ -420,6 +437,7 @@ export function JobDigestsMenu() {
                     <Line
                       key={digest.id}
                       label={`${t("jobDigestsMenu.sentOn")} ${date.format(new Date(digest.sentAt))}`}
+                      to={paths.jobDigest(digest.id)}
                       meta={`${t("jobDigestsMenu.count")} : ${digest.count}`}
                     />
                   ))}

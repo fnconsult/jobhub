@@ -8,6 +8,7 @@ import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { SessionWebPage } from "../web-pages/WebPageScreen";
+import { SearchCriteriaList } from "./SearchCriteriaList";
 
 /**
  * A Profile's Fiche in the app (ADR-0076, #695): read only. Its positioning (its current Master CV's headline), its
@@ -16,12 +17,9 @@ import { SessionWebPage } from "../web-pages/WebPageScreen";
  * (src/web-pages, #689); that is where the Profile changes.
  */
 export function ProfileSummary({ profile }: { profile: ProfileResponse }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const workPane = useWorkPane();
   const { searchCriteria: criteria, masterCv } = profile;
-  const listed = (values: readonly string[]) => (values.length > 0 ? values.join(", ") : t("profile.notSpecified"));
-  const criterion = (label: string, value: string) => <AppText>{t("mobile.profiles.criterion", { label, value })}</AppText>;
-  const salary = criteria.minSalary === undefined ? t("profile.notSpecified") : t("profile.salary", { amount: new Intl.NumberFormat(i18n.language).format(criteria.minSalary) });
   const editTitle = t("mobile.profiles.editTitle", { name: profile.name });
   const edit = () => workPane.open({ title: editTitle, fill: true, content: <SessionWebPage path={`/profils/${encodeURIComponent(profile.id)}`} /> });
 
@@ -31,12 +29,7 @@ export function ProfileSummary({ profile }: { profile: ProfileResponse }) {
         <AppText>{masterCv.content.headline || t("profile.notSpecified")}</AppText>
       </Part>
       <Part title={t("cvReview.searchCriteria")}>
-        {criterion(t("cvReview.targetRole"), criteria.targetRole || t("profile.notSpecified"))}
-        {criterion(t("cvReview.locations"), listed(criteria.locations))}
-        {criterion(t("mobile.profiles.contracts"), listed(criteria.contractTypes.map((type) => t(`cvReview.contractTypes.${type}`))))}
-        {criterion(t("cvReview.remoteWork"), listed(criteria.remoteWorkOptions.map((option) => t(`cvReview.remoteWorkOptions.${option}`))))}
-        {criterion(t("jobOffer.salary"), salary)}
-        {criterion(t("mobile.profiles.sectors"), listed(criteria.sectors))}
+        <SearchCriteriaList criteria={criteria} />
       </Part>
       <Part title={t("profile.masterCv")}>
         <AppText>{t("mobile.profiles.masterCvVersion", { version: masterCv.version, name: masterCv.content.fullName })}</AppText>

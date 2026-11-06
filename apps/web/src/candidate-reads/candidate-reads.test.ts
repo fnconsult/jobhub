@@ -5,7 +5,7 @@ import {
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
   coachingOrderResponseSchema,
-  coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+  coachingResponseSchema, jobDigestResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { rulesProvenance, type MasterCvContent } from "@jobhub/shared";
@@ -337,6 +337,21 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       expect(read.jobOffers).toMatchObject([{ jobOffer: { id: dismissed }, decision: "dismissed", applicationId: null }]);
     });
 
+    it("gives each Job Offer with what its Work Pane shows in the app: its text, contract type and why its Match Score (#692)", async () => {
+      const daf = await createProfile(marie);
+      const found = await captureOffer();
+      const search = await searched(marie, daf, [found]);
+
+      const [offer] = overHttp(jobSearchResponseSchema, await reads.jobSearch(marie, search)).jobOffers;
+
+      expect(offer!.jobOffer).toMatchObject({ contractType: "cdi", summary: null, content: "DAF H/F (1) pour un groupe industriel. Vous pilotez la consolidation IFRS sous SAP." });
+      expect(offer!.matchScoreDetail).toMatchObject({
+        location: { status: "match", offer: "Lyon", wanted: ["Lyon"] },
+        contractType: { status: "match", offer: "cdi", wanted: ["cdi"] },
+        salary: { status: "unknown", offerMin: null, offerMax: null, wanted: null },
+      });
+    });
+
     it("never gives a Candidate another Candidate's Job Search", async () => {
       const search = await searched(marie, await createProfile(marie), [await captureOffer()]);
       await createProfile(paul);
@@ -415,6 +430,22 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
           digests: [{ id: delivered.digest.id, sentAt: expect.any(String), count: delivered.digest.results.length }],
         },
       ]);
+    });
+
+    it("gives a Job Digest sent and its Job Offers, never another Candidate's (#692)", async () => {
+      await onPlan(marie, "standard");
+      const daf = await createProfile(marie);
+      const subscribed = await jobDigests.subscribe(marie, daf, "weekly");
+      if (!subscribed.ok) throw new Error("fixture subscription refused");
+      const found = await captureOffer();
+      const delivered = await jobDigests.deliver(marie, daf, async () => ({ jobOfferIds: [found], provenance: null }));
+      if (!delivered.digest) throw new Error("fixture Job Digest not sent");
+
+      const digest = overHttp(jobDigestResponseSchema, await reads.jobDigest(marie, delivered.digest.id));
+
+      expect(digest).toMatchObject({ id: delivered.digest.id, profile: { id: daf, name: "DAF" }, sentAt: expect.any(String) });
+      expect(digest.jobOffers).toEqual([expect.objectContaining({ jobOffer: expect.objectContaining({ id: found, title: "DAF H/F" }), decision: null, applicationId: null })]);
+      expect(await reads.jobDigest(paul, delivered.digest.id)).toBeNull();
     });
 
     it("leaves out an Archived Profile, and says « none » for a Profile not opted in", async () => {

@@ -208,6 +208,26 @@ describe("the Maestro flows (#705)", () => {
     expect(waited!.timeout).toBeGreaterThan(held);
   });
 
+  // A page opens on its latest message only if it had loaded when its thread was laid out: the foldable's home page was
+  // captured at its end on one run and at its start on the next (93 % alike), and a scroll from there stopped elsewhere.
+  // Every conversation's key screen starts from the thread's end, after the page is opened (#705).
+  it("brings the conversation to its end before each conversation's key screen", () => {
+    const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
+    const fromEnd: string[] = [];
+    let atEnd = false;
+    for (const command of commands) {
+      const flow = typeof command === "object" ? (command as { runFlow?: string | { file?: string; env?: Record<string, string> } }).runFlow : undefined;
+      const file = typeof flow === "string" ? flow : flow?.file;
+      if (file?.endsWith("menu.yaml") || file?.endsWith("close-fiche.yaml")) atEnd = false;
+      if (file?.endsWith("conversation-end.yaml")) atEnd = true;
+      if (file?.endsWith("capture.yaml") && typeof flow === "object") {
+        if (atEnd) fromEnd.push(flow.env!.SCREEN!);
+        atEnd = false;
+      }
+    }
+    expect(fromEnd).toEqual(["accueil", "candidatures", "agenda", "conversation"]);
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));

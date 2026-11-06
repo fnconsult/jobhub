@@ -108,3 +108,7 @@ What keeps it that way:
 - A Candidate adding a name the register lists as a sole trader's is refused (`not_a_company`). They are asked to name the company instead.
 - The query is built by the AI layer, never by the caller: the title must be one `planJobSearch` issued, and both fields are cleaned like Search Criteria (no email or phone) and capped.
 - Only the job and the area go to La Bonne Boite (France Travail, a French public API). The worker's log names a skipped company by its SIREN, never by its name.
+
+## Amended by ADR-0098
+
+Spoken content (a Session Transcript, a Session Summary) runs on an EU-only AI task, with no fallback outside the EU: Redaction cannot protect a spoken session.

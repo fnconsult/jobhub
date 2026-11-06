@@ -12,3 +12,7 @@ The Agenda shows Agenda Items as a list (the default), a week or a month. Each v
 
 - Week and month are computed in Europe/Paris, and weeks start on Monday. A Candidate abroad still sees French time.
 - Keyboard support for the month grid is plain Tab through its day buttons, not arrow-key grid navigation. Revisit this only if testing with Candidates shows a need.
+
+## Amended by ADR-0096
+
+Times are no longer all in French time: each Human Coach has a time zone, everyone sees times in their own zone, with French time beside it when it differs.

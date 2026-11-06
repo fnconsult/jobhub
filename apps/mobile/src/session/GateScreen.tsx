@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ScrollView, TextInput, View, type TextInputProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AboveKeyboard } from "../keyboard/above-keyboard";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 
@@ -9,21 +10,26 @@ export const TAPS_REACH_CONTROLS = "handled";
 
 const CENTRED = { flexGrow: 1, justifyContent: "center", padding: space[4] } as const;
 
-/** A screen of its own, before the shell: the safe areas, a reading width, centred. */
+/**
+ * A screen of its own, before the shell: the safe areas, a reading width, centred, and above the keyboard while it is up
+ * (the shell's own keeps only the signed-in pages there), scrolling to what it covers.
+ */
 export function GateScreen({ title, children }: { title: string; children: ReactNode }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ ...CENTRED, paddingTop: insets.top + space[4], paddingBottom: insets.bottom + space[4] }}
-      keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}
-    >
-      <View style={{ width: "100%", maxWidth: 28 * 16, alignSelf: "center", gap: space[4] }}>
-        <AppText variant="h1">{title}</AppText>
-        {children}
-      </View>
-    </ScrollView>
+    <AboveKeyboard testID="gate-screen">
+      <ScrollView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={{ ...CENTRED, paddingTop: insets.top + space[4], paddingBottom: insets.bottom + space[4] }}
+        keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}
+      >
+        <View style={{ width: "100%", maxWidth: 28 * 16, alignSelf: "center", gap: space[4] }}>
+          <AppText variant="h1">{title}</AppText>
+          {children}
+        </View>
+      </ScrollView>
+    </AboveKeyboard>
   );
 }
 

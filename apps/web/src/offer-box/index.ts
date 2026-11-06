@@ -13,12 +13,14 @@
  *    each with its Job Offer, its Match Score (rules only, scoreMatch: against its Profile's current Master CV, or for a
  *    « Non classée » one the active Profile it matches best), and where it stands. « Suivie » is read from the
  *    Application, not stored: an Application made anywhere (« Suivre », a Job Search's page, the extension, a Coach
- *    Action) makes its entry « Suivie » while it exists, and its deletion puts the entry back to à traiter. An entry
+ *    Action) makes its entry « Suivie » while it exists, and its deletion puts the entry back to à traiter. Making it
+ *    replaces a dismissal (`dismissalReplacedBy`, which `applications.save` runs): the latest decision wins, so an entry
+ *    écartée then suivie is à traiter, with no decision, once its Application is deleted. An entry
  *    écartée more than OFFER_BOX_DISMISSED_DAYS days ago is left out: « Écartées » shows the last 30 days'.
  *  - `.dismiss(candidateId, entryId, { reason })`: « Écarter » (#816), with a Dismissal reason or none; refused for an
  *    entry « Suivie », which is undone only by deleting its Application. Arriving again moves nothing: it stays écartée.
  *    `.reconsider(candidateId, entryId)`: « Revenir sur ce choix », the entry à traiter again, its reason forgotten.
- *  - `dismissedJobOffers(candidate)`: the SQL listing the Job Offers a Candidate écarta, which the doors read so that an
+ *  - `dismissedJobOffers(candidate)`: the SQL listing the Job Offers a Candidate écarta (and did not follow since), which the doors read so that an
  *    écartée Job Offer counts as already seen everywhere (ADR-0090): a Job Digest never sends it again, Email intake
  *    counts it « déjà vue », a Job Search's results show it « Écartée ». The shared Job Offer and other Candidates'
  *    entries are untouched.
@@ -119,7 +121,20 @@ export { DISMISSAL_REASONS, type DismissalReason };
  * `job_offer_id` each: what the doors leave out or mark, so that « Écartée » means already seen everywhere (ADR-0090).
  */
 export function dismissedJobOffers(candidate: string): string {
-  return `SELECT job_offer_id FROM offer_box_entry WHERE candidate_id = ${candidate} AND state = 'dismissed'`;
+  return `SELECT e.job_offer_id FROM offer_box_entry e
+           WHERE e.candidate_id = ${candidate} AND e.state = 'dismissed'
+             AND NOT EXISTS (SELECT 1 FROM application a WHERE a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id)`;
+}
+
+/**
+ * The statement that makes an Application's creation replace a dismissal (ADR-0090): an entry has one decision at a time,
+ * the latest, so the Candidate's entries écartées for the Job Offers `jobOffers` (SQL giving `job_offer_id`s) lose their
+ * « Écartée », its Dismissal reason and its date. Once that Application is deleted, the entry has no decision: à traiter.
+ * Run by `applications.save` in the statement that creates the Application.
+ */
+export function dismissalReplacedBy(candidate: string, jobOffers: string): string {
+  return `UPDATE offer_box_entry SET state = 'to_handle', decided_at = NULL, dismissal_reason = NULL
+           WHERE candidate_id = ${candidate} AND state = 'dismissed' AND job_offer_id IN (${jobOffers})`;
 }
 
 /** Creates or upgrades the Offer box table. Run after the Candidate, Profile and Job Offer tables. Safe to run repeatedly. */

@@ -219,6 +219,22 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       expect(await entries()).toMatchObject([{ state: "followed" }]);
     });
 
+    it("is replaced by an Application made later: once that Application is deleted the entry is à traiter, with no decision", async () => {
+      const { offer, entry } = await arrived("DAF H/F");
+      await offerBox.dismiss(marie, entry, { reason: "salary" });
+      const saved = await applications.save(marie, { jobOfferId: offer, profileId: daf });
+      if (!saved.ok) throw new Error("not saved");
+
+      expect(await entries()).toMatchObject([{ state: "followed", dismissalReason: null, dismissedAt: null }]);
+      expect((await database.query(dismissedJobOffers("$1"), [marie])).rows).toEqual([]);
+
+      await database.query("DELETE FROM application WHERE id = $1", [saved.application.id]);
+
+      expect(await offerBox.read(marie)).toMatchObject({ toHandle: 1, entries: [{ id: entry, state: "to_handle", applicationId: null, dismissalReason: null, dismissedAt: null }] });
+      expect(await offerBoxOf(database, marie)).toMatchObject([{ state: "to_handle", decidedAt: null, dismissalReason: null }]);
+      expect((await database.query(dismissedJobOffers("$1"), [marie])).rows).toEqual([]);
+    });
+
     it("touches only the Candidate's own entry: another Candidate's is not found, and their entry of the same Job Offer stays à traiter", async () => {
       const offer = await stored("Partagée");
       const paulsProfile = await createProfile(paul);

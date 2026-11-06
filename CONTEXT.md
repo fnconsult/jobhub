@@ -313,7 +313,7 @@ Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer 
 _Avoid_: Inbox, feed, offer list
 
 **Offer box entry**:
-One Job Offer in one Candidate's Offer box, made at its first Arrival and kept 12 months from it: its Profile, its Arrival sources with their dates, and where it stands: à traiter, « Plus tard », « Suivie » (its Application exists), « Écartée » (with its Dismissal reason, if given) or « Expirée sans décision » (still undecided when its Posting date, or its first Arrival when that is unknown, passed 30 days; out of the count). Only « Suivie » and « Écartée » make it treated (« traitée »); opening it treats nothing. Part of the Candidate's Data export.
+One Job Offer in one Candidate's Offer box, made at its first Arrival and kept 12 months from it: its Profile, its Arrival sources with their dates, and where it stands: à traiter, « Plus tard », « Suivie » (its Application exists), « Écartée » (with its Dismissal reason, if given) or « Expirée sans décision » (still undecided when its Posting date, or its first Arrival when that is unknown, passed 30 days; out of the count). Only « Suivie » and « Écartée » make it treated (« traitée »); opening it treats nothing. A decision replaces the previous one; deleting its Application leaves the entry with no decision (à traiter, or Expirée sans décision). Part of the Candidate's Data export.
 _Avoid_: Inbox item, notification
 
 **Arrival**:

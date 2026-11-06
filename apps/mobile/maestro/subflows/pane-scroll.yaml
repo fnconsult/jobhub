@@ -1,0 +1,15 @@
+# Scrolls the pane on the right until TEXT shows: the Fiche's or the Work Pane's column beside the conversation on a
+# tablet, the pane over the whole screen otherwise. Maestro's scrollUntilVisible swipes the middle of the screen, which on
+# a tablet is the conversation: the pane's « Note (facultatif) » was never reached.
+appId: ai.jobbbox.app
+---
+- repeat:
+    while:
+      notVisible: ${TEXT}
+    times: 10
+    commands:
+      - swipe:
+          start: "88%, 70%"
+          end: "88%, 35%"
+          duration: 600
+- assertVisible: ${TEXT}

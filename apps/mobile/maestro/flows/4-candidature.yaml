@@ -43,28 +43,31 @@ tags:
       FIELD: "interview-time"
       LABEL: "Heure, à Paris \\(hh:mm\\)"
       VALUE: "10:00"
-- scrollUntilVisible:
-    element:
-      text: "Note \\(facultatif\\)"
-    direction: DOWN
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Note \\(facultatif\\)"
 - runFlow:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-note"
       LABEL: "Note \\(facultatif\\)"
       VALUE: "Second tour"
-- scrollUntilVisible:
-    element:
-      text: "Ajouter l'entretien"
-    direction: DOWN
-- tapOn: "Ajouter l'entretien"
+# The form's title is « Ajouter l'entretien » too: its button, under the note, is the second of that name.
+- swipe:
+    from:
+      id: "pane-body"
+    direction: UP
+    duration: 600
+- tapOn:
+    text: "Ajouter l'entretien"
+    index: 1
 - runFlow:
     when:
       visible: "Être prévenu la veille de vos rendez-vous \\?"
     commands:
       - tapOn: "Pas maintenant"
-- scrollUntilVisible:
-    element:
-      text: "Second tour"
-    direction: DOWN
-    timeout: 20000
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Second tour"

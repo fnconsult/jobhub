@@ -23,4 +23,5 @@ tags:
       true: ${LAYOUT == 'fullPage'}
     commands:
       - tapOn: "Fermer le menu"
-- assertVisible: "Votre message"
+- assertVisible:
+    id: "coach-message"

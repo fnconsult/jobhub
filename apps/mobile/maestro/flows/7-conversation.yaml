@@ -12,7 +12,8 @@ tags:
     commands:
       - tapOn: "Menu"
 - tapOn: "Nouvelle conversation"
-- tapOn: "Votre message"
+- tapOn:
+    id: "coach-message"
 - inputText: "E2E_COACH_LONG Comment préparer mon entretien ?"
 - tapOn: "Envoyer"
 - extendedWaitUntil:

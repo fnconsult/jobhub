@@ -23,6 +23,11 @@ describe("the Maestro runs of one CI job (#705)", () => {
     expect(envOf(flows)).toMatchObject({ ...env, DEVICE: "iphone-se", LAYOUT: "fullPage", THEME: "light" });
   });
 
+  it("runs the key screens' flow alone in the dark theme and at the largest text size", () => {
+    const [, dark, largest] = planRuns("iphone-se", { root: ROOT, stack: STACK, captures: "compare", referenceExists: present });
+    for (const run of [dark!, largest!]) expect(run.flows("someone@e2e.jobbbox.test", "/out").slice(0, 3)).toEqual(["maestro", "test", `${ROOT}/flows/2-ecrans-cles.yaml`]);
+  });
+
   it("runs on Android with the stack's web port reached from the emulator as on the machine", () => {
     const runs = planRuns("android-foldable", { root: ROOT, stack: STACK, captures: "compare", referenceExists: present });
     expect(runs.map((run) => run.name)).toEqual([

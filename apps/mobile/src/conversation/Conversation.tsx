@@ -128,6 +128,7 @@ export function Conversation({
           <Control label={t("mobile.attach")} icon={Plus} iconOnly expanded={attaching && online} disabled={!online} onPress={() => setAttaching((open) => !open)} />
           <TextInput
             ref={inputRef}
+            testID="coach-message"
             aria-label={t("coachPanel.messageLabel")}
             placeholder={t("coachPanel.messageLabel")}
             placeholderTextColor={colors.meta}

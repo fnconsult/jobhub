@@ -15,6 +15,9 @@ import { dirname, join } from "node:path";
 import { bootSetup, CI_HARDWARE, runsOn, type HardwareId } from "./devices";
 import { KEY_SCREENS } from "./seed";
 
+/** The flow of the key screens (tag `key-screens`), run alone in the dark theme and at the largest text size. */
+export const KEY_SCREENS_FLOW = "flows/2-ecrans-cles.yaml";
+
 export type CaptureMode = "compare" | "record" | "off";
 export type Stack = { helper: string; origin: string };
 
@@ -54,8 +57,8 @@ export function planRuns(
       flows: (email, out) => [
         "maestro",
         "test",
-        root,
-        `--include-tags=${run.tags.join(",")}`,
+        // The key screens alone: their flow, since the workspace's order names flows the tag leaves out.
+        ...(run.tags.includes("flow") ? [root, `--include-tags=${run.tags.join(",")}`] : [join(root, KEY_SCREENS_FLOW)]),
         "--format=junit",
         `--output=${join(out, "report.xml")}`,
         `--test-output-dir=${out}`,

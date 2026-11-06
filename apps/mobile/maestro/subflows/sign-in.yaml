@@ -22,5 +22,6 @@ appId: ai.jobbbox.app
 - hideKeyboard
 - tapOn: "Me connecter avec ce code"
 - extendedWaitUntil:
-    visible: "Votre message"
+    visible:
+      id: "coach-message"
     timeout: 30000

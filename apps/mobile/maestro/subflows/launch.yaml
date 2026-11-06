@@ -10,5 +10,6 @@ appId: ai.jobbbox.app
         id: "sign-in-email"
     file: sign-in.yaml
 - extendedWaitUntil:
-    visible: "Votre message"
+    visible:
+      id: "coach-message"
     timeout: 30000

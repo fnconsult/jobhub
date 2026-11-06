@@ -13,7 +13,8 @@ tags:
 - launchApp:
     stopApp: false
 - extendedWaitUntil:
-    visible: "Votre message"
+    visible:
+      id: "coach-message"
     timeout: 30000
 - assertNotVisible:
     id: "sign-in-email"

@@ -1,9 +1,8 @@
-# Types VALUE in the field labelled FIELD. A field's label is shown above it and is its accessible name too: the field
-# is the second element Maestro finds by that name (index 1), the first being the label's text.
+# Types VALUE in the field whose testID is FIELD: an input's label is its accessible name on iOS, not one Maestro finds
+# on Android, so fields are found by their id.
 appId: ai.jobbbox.app
 ---
 - tapOn:
-    text: ${FIELD}
-    index: 1
+    id: ${FIELD}
 - inputText: ${VALUE}
 - hideKeyboard

@@ -36,8 +36,8 @@ function valuesOf(node: unknown, keys: readonly string[]): unknown[] {
 function labelsIn(commands: Command[]): string[] {
   const selectors = valuesOf(commands, ["tapOn", "assertVisible", "assertNotVisible", "visible", "notVisible", "element", "scrollUntilVisible"]);
   const texts = valuesOf(commands, ["text"]).filter((each): each is string => typeof each === "string");
-  // A subflow's label given by its caller: the Sidebar's link (menu.yaml), a field (field.yaml).
-  const given = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).MENU, (env as Record<string, unknown>).FIELD] : []));
+  // A subflow's label given by its caller: the Sidebar's link (menu.yaml).
+  const given = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).MENU] : []));
   return [...selectors, ...texts, ...given].filter((label): label is string => typeof label === "string" && !label.includes("${"));
 }
 
@@ -102,7 +102,10 @@ describe("the Maestro flows (#705)", () => {
   );
 
   it.each(FLOW_FILES.map((file) => [relative(ROOT, file), file]))("%s finds by id only a testID the app sets", (_name, file) => {
-    const ids = valuesOf(parse(file).commands, ["id"]).filter((each): each is string => typeof each === "string");
+    const { commands } = parse(file);
+    // A field's id, given to field.yaml by its caller.
+    const fields = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).FIELD] : []));
+    const ids = [...valuesOf(commands, ["id"]), ...fields].filter((each): each is string => typeof each === "string" && !each.includes("${"));
     expect(ids.filter((id) => !TEST_IDS.has(id))).toEqual([]);
   });
 

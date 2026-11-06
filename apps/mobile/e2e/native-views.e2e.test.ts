@@ -3,6 +3,7 @@
 // already placed, and the first one's measure is its whole width. The conversation's box, the drop target (#696), then
 // drew « + » alone: the field « Votre message » and « Envoyer » sat past its edge, undrawn and out of the accessibility
 // tree. A native view of the app that holds React children leaves their measure and layout to React Native.
+// This reads the views' source; apps/mobile/native-tests runs them on Android's own layout code (npm run test:android).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 

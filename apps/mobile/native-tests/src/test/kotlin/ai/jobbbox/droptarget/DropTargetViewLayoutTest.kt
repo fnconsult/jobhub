@@ -61,10 +61,16 @@ class DropTargetViewLayoutTest {
   private fun frame(view: View) = Rect(view.left, view.top, view.right, view.bottom)
 
   private fun assertInTheBox(width: Int, height: Int = 60) {
-    assertEquals("« + »", Rect(4, height - 48, 48, height - 4), frame(plus))
-    assertEquals("« Votre message »", Rect(52, 4, width - 52, height - 4), frame(field))
-    assertEquals("« Envoyer »", Rect(width - 48, height - 48, width - 4, height - 4), frame(send))
-    for ((name, view) in listOf("« + »" to plus, "« Votre message »" to field, "« Envoyer »" to send)) {
+    val views = mapOf("« + »" to plus, "« Votre message »" to field, "« Envoyer »" to send)
+    assertEquals(
+      mapOf(
+        "« + »" to Rect(4, height - 48, 48, height - 4),
+        "« Votre message »" to Rect(52, 4, width - 52, height - 4),
+        "« Envoyer »" to Rect(width - 48, height - 48, width - 4, height - 4),
+      ),
+      views.mapValues { (_, view) -> frame(view) },
+    )
+    for ((name, view) in views) {
       val drawn = Rect()
       assertTrue("$name is drawn on the screen", view.getGlobalVisibleRect(drawn) && !drawn.isEmpty)
     }

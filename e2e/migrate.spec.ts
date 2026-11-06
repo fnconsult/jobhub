@@ -109,6 +109,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coaching_session_reschedule", // issue #250: a Coaching Session's Reschedule history
         "company_careers_site", // issue #406: public careers sites / ATS found per company, shared, no Candidate
         "company_dossier", // issue #17
+        "consumption_day", // issue #799: the Candidate's daily count of uses per Tool, kept 12 months
         "discovery_run", // issue #404: the figures of a Job discovery run, with no Candidate
         "discovery_run_detail", // issue #404: what ties a run to its Candidate, kept 30 days
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
@@ -257,6 +258,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "coaching_session_reschedule", from_column: "coaching_session_id", to_table: "coaching_session" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
+        // A day of Consumption (issue #799) goes with its Candidate.
+        { from_table: "consumption_day", from_column: "candidate_id", to_table: "candidate" },
         // A Discovery Run's detail (issue #404) goes with its run, its Candidate, Profile and Job Search.
         { from_table: "discovery_run_detail", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "discovery_run_detail", from_column: "job_search_id", to_table: "job_search" },

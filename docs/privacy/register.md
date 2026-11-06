@@ -668,6 +668,22 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 9 (Orders and Withd
 | Retention | While the account lives; the accounting records 10 years (C. com. L123-22), at Stripe. |
 | Rights | In the Data export; erasure weighed against the accounting obligation. |
 
+## Consommation (historique d'utilisation) (#799, ADR-0091)
+
+| | |
+| --- | --- |
+| Purpose | Transparency of the service to the Candidate: show them, in « Votre consommation », how many times they used each feature over their billing period. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
+| People concerned | Candidates. |
+| Data | A count per day (French time) and per feature: the Candidate's id, the day, the Tool key (`coach`, `jobSearch`, `matchScore`, `tailoredCv`, `tailoredDocument`, `atsScore`, `companyDossier`, `enrichedContact`, `cvReading`, `CONSUMPTION_TOOLS` in `packages/shared/src/consumption.ts`) and how many uses. No text, no content, no result, no model, no provider, no tokens, no cost, and no link to a result or to AI Usage (which names no one, ADR-0007, ADR-0034). |
+| Source | Counted by the app in the transaction of the write that marks each use: an AI Coach reply saved (one per reply, whatever its Tool rounds), a Plan Quota use recorded (taken back when the use is given back), a result saved with its Provenance. An action started from the browser extension counts under its feature. |
+| Processors | None. |
+| Who can read it | The Candidate (« Votre consommation », once its section ships; nothing is shown yet). Not read in the Back Office. |
+| Storage | The `consumption_day` table in the app's Postgres database (EU). |
+| Retention | 12 months (French time): the worker's nightly job `consumption.purge` deletes older days. Deleted at once with the Candidate's account (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`consumption`: day, Tool key and count, for the 12 months kept); erased with the account. |
+| Security | Written only by the app's own modules, inside their transactions; the Tool key is checked by the database. |
+
 ## Human Coaches and Coaching Sessions (ADR-0016, ADR-0027)
 
 _Added by #338, from `docs/research/issue-498.md` § 4, item 10._

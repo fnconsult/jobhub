@@ -53,6 +53,8 @@ import {
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
+import { countUse, migrateConsumption } from "../consumption";
+import { inTransaction } from "../database/pool";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
@@ -479,10 +481,14 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       if (signal?.aborted) return stopped;
       proposal.provenance = recorder.provenance();
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
-      await database.query(
-        `INSERT INTO tailored_cv (application_id, proposal) VALUES ($1, $2) ON CONFLICT (application_id) DO UPDATE SET proposal = $2`,
-        [application.id, proposal],
-      );
+      // The proposal and its Provenance saved: one Tailored CV in Consumption (#799), in the same transaction.
+      await inTransaction(database, async (client) => {
+        await client.query(
+          `INSERT INTO tailored_cv (application_id, proposal) VALUES ($1, $2) ON CONFLICT (application_id) DO UPDATE SET proposal = $2`,
+          [application.id, proposal],
+        );
+        await countUse(client, candidateId, "tailoredCv", new Date(proposal.proposedAt));
+      });
       return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
 
@@ -537,6 +543,8 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
 
 /** Creates or upgrades the Tailored CV table. Run after migrateTailoredDocuments. Safe to run repeatedly. */
 export async function migrateTailoredCvs(database: Pool): Promise<void> {
+  // Each proposal saved counts in Consumption (#799).
+  await migrateConsumption(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS tailored_cv (
       application_id uuid PRIMARY KEY REFERENCES application (id) ON DELETE CASCADE,

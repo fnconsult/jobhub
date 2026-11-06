@@ -69,6 +69,7 @@ import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
 import { migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
+import { countUse, migrateConsumption } from "../consumption";
 import { utcBefore } from "../database/before";
 
 /**
@@ -829,6 +830,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           ],
         );
         replySeq = String(inserted.rows[0]!.seq);
+        // One reply, one use of the AI Coach in Consumption (#799), however many Tool rounds it took.
+        await countUse(client, candidateId, "coach", sentAt);
         // An asked reply's Job Offer card brings its Job Offer to the Candidate's Offer box (ADR-0090), for the conversation's
         // Profile (none: « Non classée »). Not a Share capture's: it enters only once followed.
         if (answer.jobOffer && !reply.blocked && !reply.shareCapture) {
@@ -977,6 +980,8 @@ export async function purgeStaleCoachConversations(database: Pick<Pool, "query">
  * the Profile, Job Offer, Application, Job Search and Job Digest tables. Safe to run repeatedly.
  */
 export async function migrateCoachConversations(database: Pool): Promise<void> {
+  // Each AI Coach reply counts in Consumption (#799).
+  await migrateConsumption(database);
   await migrateOfferBox(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS coach_conversation (

@@ -15,6 +15,7 @@ npm run db:backfill-consumption -- --live-from YYYY-MM-DD
 - **Staging**: the day of the first `deploy.yml` run (`target=staging`) of a commit that contains #799's (`b7ce73e4`): `gh run list --workflow deploy.yml`.
 - **Production**: the day of the Promotion of the first Version that contains it: `git tag --contains b7ce73e4 --sort=creatordate | head -1`, then that Version's GitHub Release date.
 - Check before the first run: `SELECT min(day) FROM consumption_day;` is that day or later (only live counts are there yet). If the day you found is later than it, use the earlier one.
+- The script checks it too: it refuses a `--live-from` later than the earliest day already counted live (`SELECT min(day) FROM consumption_day` on the first run), and writes nothing. The first run records its `--live-from` in `consumption_backfill`; a later run must give the same day, or it is refused.
 
 ## On the VPS
 

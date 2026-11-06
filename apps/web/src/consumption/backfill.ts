@@ -14,6 +14,10 @@
  *
  * It writes only the days from RETENTION_MONTHS ago to the day before `liveFrom`, replacing what it wrote there
  * before: run again, it gives the same rows; the days counted live, from `liveFrom`, are never touched.
+ *
+ * It refuses a `liveFrom` later than the earliest day already counted live, which it would otherwise overwrite: on
+ * the first run, the earliest day in `consumption_day` (all of it live then); on later runs, the `liveFrom` the first
+ * run recorded in `consumption_backfill`, which a later run must repeat.
  */
 import { QUOTA_CONSUMPTION_TOOLS, consumptionTools, type ConsumptionTool } from "@jobhub/shared";
 import type { Pool } from "pg";
@@ -70,6 +74,22 @@ export async function backfillConsumption(database: Pool, { liveFrom, now }: { l
   return inTransaction(database, async (client) => {
     const { rows: range } = await client.query<{ from: string }>(`SELECT ($1::date - make_interval(months => $2))::date::text AS from`, [today, RETENTION_MONTHS]);
     const from = range[0]!.from;
+    await client.query(`LOCK TABLE consumption_backfill IN EXCLUSIVE MODE`);
+    const { rows: recorded } = await client.query<{ liveFrom: string }>(`SELECT live_from::text AS "liveFrom" FROM consumption_backfill LIMIT 1`);
+    if (recorded[0]) {
+      if (recorded[0].liveFrom !== liveFrom) {
+        throw new Error(`#799's deploy date was ${recorded[0].liveFrom} on the first run, not ${liveFrom}: run again with --live-from ${recorded[0].liveFrom}`);
+      }
+    } else {
+      const { rows: earliest } = await client.query<{ day: string | null }>(`SELECT min(day)::text AS day FROM consumption_day`);
+      const earliestLive = earliest[0]?.day;
+      if (earliestLive && liveFrom > earliestLive) {
+        throw new Error(
+          `#799's deploy date ${liveFrom} is later than ${earliestLive}, the earliest day already counted live: the backfill would overwrite live counts. Check --live-from (SELECT min(day) FROM consumption_day)`,
+        );
+      }
+      await client.query(`INSERT INTO consumption_backfill (live_from) VALUES ($1::date)`, [liveFrom]);
+    }
     // Only what an earlier run wrote is there: before `liveFrom`, nothing was counted live.
     await client.query(`DELETE FROM consumption_day WHERE day >= $1::date AND day < $2::date`, [from, liveFrom]);
     const { rowCount } = await client.query(

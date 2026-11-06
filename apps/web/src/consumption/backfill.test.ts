@@ -208,6 +208,21 @@ describe.skipIf(!connectionString)("Consumption backfill: the last 12 months reb
     ]);
   });
 
+  it("refuses a deploy date later than the earliest day already counted live, and a later run's other date", async () => {
+    await coachReplies("marie", "2026-11-04T09:00:00Z");
+    await countUse(database, "marie", "coach", new Date("2026-11-06T09:00:00Z")); // live from the 6th
+    const live = await rows();
+
+    await expect(backfillConsumption(database, { liveFrom: "2026-11-07", now: NOW })).rejects.toThrow(/later than 2026-11-06, the earliest day already counted live/);
+    expect(await rows()).toEqual(live);
+
+    await backfillConsumption(database, { liveFrom: LIVE_FROM, now: NOW });
+    const backfilled = await rows();
+    await expect(backfillConsumption(database, { liveFrom: "2026-11-08", now: NOW })).rejects.toThrow(/was 2026-11-06 on the first run/);
+    await expect(backfillConsumption(database, { liveFrom: "2026-11-05", now: NOW })).rejects.toThrow(/was 2026-11-06 on the first run/);
+    expect(await rows()).toEqual(backfilled);
+  });
+
   it("refuses a deploy date it cannot read, or one still to come", async () => {
     await expect(backfillConsumption(database, { liveFrom: "6/11/2026", now: NOW })).rejects.toThrow(/YYYY-MM-DD/);
     await expect(backfillConsumption(database, { liveFrom: "2026-11-11", now: NOW })).rejects.toThrow(/to come/);

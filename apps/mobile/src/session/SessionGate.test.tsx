@@ -258,6 +258,22 @@ describe("SessionGate (#685)", () => {
     expect(forgetOnDevice).not.toHaveBeenCalled();
   });
 
+  it("asks the session again once the network comes back, after a launch that could not reach the web app (#756)", async () => {
+    const { web, session, render, network, forgetOnDevice } = setUp();
+    await session.askLink(EMAIL);
+    await session.openLink(web.linkFor(EMAIL));
+    web.setOffline(true);
+    network.set(false);
+    await render();
+    await screen.findByLabelText("Votre adresse e-mail");
+
+    web.setOffline(false);
+    await act(async () => network.set(true));
+
+    expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+    expect(forgetOnDevice).not.toHaveBeenCalled();
+  });
+
   it("forgets the read cache when a web page ends the session, so the next sign-in reads afresh (#689)", async () => {
     const { web, session, render, openWith } = setUp();
     await session.askLink(EMAIL);

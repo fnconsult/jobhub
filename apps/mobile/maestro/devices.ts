@@ -132,7 +132,8 @@ export function bootSetup(hardwareId: HardwareId): string[][] {
     ];
   }
   return [
-    ["adb", "root"],
+    // adbd restarts as root and may drop the connection that asked: what follows waits for it.
+    ["sh", "-c", "adb root || true"],
     ["adb", "wait-for-device"],
     ["adb", "shell", "setprop", "persist.sys.locale", "fr-FR"],
     ["adb", "shell", "setprop", "ctl.restart", "zygote"],

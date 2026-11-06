@@ -82,7 +82,7 @@ describe("the devices the Maestro flows run on (#705)", () => {
 
     it("sets an Android emulator's locale and restarts its framework, then waits for it", () => {
       expect(bootSetup("android-tablet")).toEqual([
-        ["adb", "root"],
+        ["sh", "-c", "adb root || true"],
         ["adb", "wait-for-device"],
         ["adb", "shell", "setprop", "persist.sys.locale", "fr-FR"],
         ["adb", "shell", "setprop", "ctl.restart", "zygote"],

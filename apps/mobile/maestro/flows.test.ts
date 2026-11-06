@@ -167,14 +167,32 @@ describe("the Maestro flows (#705)", () => {
   });
 
   // iOS may take what is typed before its keyboard is up: an iPhone SE's code field got its first digit only (#705).
-  it("types each sign-in value again until iOS shows it all", () => {
-    const { commands } = parse(join(ROOT, "subflows", "sign-in.yaml"));
-    const typed = valuesOf(commands, ["inputText"]);
-    const retried = valuesOf(commands, ["retry"]) as { commands: Command[] }[];
-    expect(typed).toEqual(["${STACK_EMAIL}", "${output.signInCode}"]);
-    for (const value of typed) {
-      const attempt = retried.find((retry) => valuesOf(retry.commands, ["inputText"]).includes(value));
-      expect(attempt && valuesOf(attempt.commands, ["assertVisible"])).toEqual([value]);
+  it.each(FLOW_FILES.filter((file) => valuesOf(parse(file).commands, ["inputText"]).length > 0).map((file) => [relative(ROOT, file), file]))(
+    "%s types each value again until iOS shows it all",
+    (_name, file) => {
+      const { commands } = parse(file);
+      const retried = valuesOf(commands, ["retry"]) as { commands: Command[] }[];
+      const typed = valuesOf(commands, ["inputText"]) as string[];
+      for (const value of typed) {
+        const attempt = retried.find((retry) => valuesOf(retry.commands, ["inputText"]).includes(value));
+        const checked = attempt ? (valuesOf(attempt.commands, ["assertVisible"]) as string[]) : [];
+        expect(checked.map((shown) => shown.replace(/\\(.)/g, "$1"))).toEqual([value]);
+      }
+    },
+  );
+
+  // The Agenda's Interview line, found by « .*Contrôleuse de gestion.* » as iOS names it all, matched on Android its
+  // « Ajouter à mon calendrier » too, named for the same Interview: the tap opened Google Agenda (#705).
+  it("taps the Agenda's Interview, not the button that adds it to the calendar", () => {
+    const button = fr.agenda.calendarFile.addFor.replace("{{what}}", fr.agenda.calendarFile.interviewTitle.replace("{{job}}", MAESTRO_SEED.interview.title).replace("{{employer}}", MAESTRO_SEED.interview.employer)).replace("{{date}}", "mercredi 12 mars 2031 à 14:30");
+    const tapped = ["6-agenda.yaml", "2-ecrans-cles.yaml"].flatMap((name) => {
+      const { commands } = parse(join(ROOT, "flows", name));
+      return [...valuesOf(commands, ["tapOn"]), ...valuesOf(commands, ["env"]).map((env) => (env as Record<string, unknown>).TEXT)].filter((each): each is string => typeof each === "string" && each.includes(MAESTRO_SEED.interview.title));
+    });
+    expect(tapped.length).toBeGreaterThan(1);
+    for (const selector of tapped) {
+      expect(new RegExp(`^(?:${selector})$`).test(MAESTRO_SEED.interview.title)).toBe(true);
+      expect(new RegExp(`^(?:${selector})$`).test(button)).toBe(false);
     }
   });
 

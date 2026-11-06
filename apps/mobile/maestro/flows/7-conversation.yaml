@@ -12,9 +12,22 @@ tags:
     commands:
       - tapOn: "Menu"
 - tapOn: "Nouvelle conversation"
-- tapOn:
-    id: "coach-message"
-- inputText: "E2E_COACH_LONG Comment préparer mon entretien ?"
+# Typed again until iOS shows it all, as the sign-in's fields (subflows/sign-in.yaml): its keyboard may not be up for the
+# first characters, and the fake coach streams its long reply only to the whole message.
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          id: "coach-message"
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - eraseText
+      - inputText: "E2E_COACH_LONG Comment préparer mon entretien ?"
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - assertVisible: "E2E_COACH_LONG Comment préparer mon entretien \\?"
 - tapOn: "Envoyer"
 - extendedWaitUntil:
     visible: "Arrêter"

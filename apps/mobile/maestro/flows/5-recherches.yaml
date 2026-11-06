@@ -21,6 +21,13 @@ tags:
       TEXT: "Cheffe de projet qualité · Industries Démo"
       DIRECTION: DOWN
 # The first entry's « Suivre »: named for its Job Offer, as VoiceOver reads it, on iOS; Android also exposes its words.
+# Scrolled to itself, not only to the entry's title: on an unfolded foldable the title showed at the thread's bottom
+# edge, its button under it out of view. Going down, the first entry's comes first.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Suivre( : Cheffe de projet qualité)?"
+      DIRECTION: DOWN
 - tapOn:
     text: "Suivre( : Cheffe de projet qualité)?"
     index: 0

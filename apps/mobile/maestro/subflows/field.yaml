@@ -10,9 +10,21 @@ appId: ai.jobbbox.app
     env:
       ID: ${FIELD}
       DIRECTION: DOWN
-- tapOn:
-    id: ${FIELD}
-- inputText: ${VALUE}
+# Typed again until iOS shows it all, as the sign-in's fields: its keyboard may not be up for the first characters.
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          id: ${FIELD}
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - eraseText
+      - inputText: ${VALUE}
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - assertVisible: ${VALUE}
 - runFlow:
     file: hide-keyboard.yaml
 - runFlow:

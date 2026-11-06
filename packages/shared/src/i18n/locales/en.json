@@ -5960,6 +5960,58 @@
       "failed": "This could not be loaded. Check your connection and try again.",
       "retry": "Try again",
       "offline": "Offline: this will load as soon as the network is back."
+    },
+    "coaching": {
+      "loading": "Loading your coaches…",
+      "loadError": "Your coaches and sessions could not be loaded. Try again in a moment.",
+      "payment": {
+        "waiting": "Payment received. We are waiting for Stripe to confirm it: your session shows here in a moment.",
+        "maybe": "If you paid, your session shows here as soon as Stripe has confirmed the payment.",
+        "slow": "The confirmation is taking a while. If you paid, your session will show here; your order confirmation is also sent to you by email.",
+        "refresh": "Refresh",
+        "recorded": "Your session with {{name}} is paid. Now pick your time on their booking page, then enter the date here.",
+        "cancelled": "Payment cancelled: no session was booked."
+      },
+      "order": {
+        "loading": "Loading your order…",
+        "opening": "Opening the payment…",
+        "failed": "The payment could not start. Check your connection and try again.",
+        "inBrowser": "The payment opens on Stripe's secure page, without leaving the app."
+      },
+      "session": {
+        "date": "Session date (dd/mm/yyyy)",
+        "time": "Time, in Paris (hh:mm)"
+      }
+    },
+    "jobSearches": {
+      "quotaExceeded": "You have reached your job search quota for this period: you can start a new one when it renews."
+    },
+    "push": {
+      "channel": "Notifications",
+      "ask": {
+        "jobSearch": {
+          "title": "Get notified of new results?",
+          "body": "Your search goes on without you: Jobbbox can notify you as soon as it finds job offers, even with the app closed."
+        },
+        "interview": {
+          "title": "Get a reminder the day before your appointments?",
+          "body": "Jobbbox can remind you of your interviews and sessions the day before at 6 PM, as well as the email if you receive it."
+        },
+        "privacy": "A notification never names a company, a job or a person: the details show once the app is open. You choose what is sent to you in My account, Reminders.",
+        "allow": "Turn on notifications",
+        "notNow": "Not now"
+      },
+      "settings": {
+        "refused": {
+          "ios": "Jobbbox's notifications are turned off on this device. To receive them, open Settings, tap Notifications, then Jobbbox, and turn on “Allow Notifications”.",
+          "android": "Jobbbox's notifications are turned off on this device. To receive them, open the device's settings, then Apps, Jobbbox, Notifications, and turn them on."
+        },
+        "openSettings": {
+          "ios": "Open Settings",
+          "android": "Open settings"
+        },
+        "declined": "The app's notifications are not turned on on this device: the choices below will apply as soon as you turn them on."
+      }
     }
   },
   "coachProposals": {
@@ -6001,7 +6053,8 @@
       "draftOf": "Draft of {{date}}",
       "draftEdited": "Draft of {{date}}, edited since",
       "newDraft": "A draft written by your AI coach · {{language}}",
-      "replacesDraft": "Your current draft will be replaced, your edits included."
+      "replacesDraft": "Your current draft will be replaced, your edits included.",
+      "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included."
     },
     "quota": {
       "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
@@ -6020,6 +6073,9 @@
     "confirmReplace": "Replace your current draft, your edits included?",
     "confirmYes": "Replace and draft",
     "confirmNo": "Keep my draft",
+    "confirmReplaceProposal": "Replace your Tailored CV proposal under review, your answers included?",
+    "confirmYesProposal": "Replace and prepare",
+    "confirmNoProposal": "Keep my proposal",
     "runHint": "The document is in the application's documents; if it was stopped, nothing was kept.",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
@@ -6028,7 +6084,7 @@
     "editIntro": "The page's form, filled in with your coach's proposal for “{{name}}”. What you change here is kept if you close the pane.",
     "applied": "Applied by you at {{time}}",
     "launched": "Launched by you at {{time}}",
-    "launchedHint": "Follow it in AI activity; “Stop” ends it.",
+    "launchedHint": "Follow it in AI activity; “Stop the job search” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
     "undoNotes": {
@@ -6143,5 +6199,13 @@
       "coaching_session_paid": "Coaching session paid",
       "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate"
     }
+  },
+  "coachingPayment": {
+    "title": "Payment complete",
+    "body": "Go back to the Jobbbox app: your session shows there as soon as Stripe has confirmed the payment, with the link to pick your time.",
+    "cancelledTitle": "Payment cancelled",
+    "cancelledBody": "Nothing was paid. You can book a session later from the app.",
+    "backToApp": "Back to the Jobbbox app",
+    "onWeb": "See my human coaches on the website"
   }
 }

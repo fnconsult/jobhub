@@ -28,6 +28,25 @@ describe("Version", () => {
   });
 });
 
+describe("Push notifications' APNs environment (#699)", () => {
+  const notifications = (config: ExpoConfig) =>
+    (config.plugins ?? []).find((plugin): plugin is [string, { mode?: string }] => Array.isArray(plugin) && plugin[0] === "expo-notifications")?.[1];
+  const profile = process.env.EAS_BUILD_PROFILE;
+  afterEach(() => {
+    if (profile === undefined) delete process.env.EAS_BUILD_PROFILE;
+    else process.env.EAS_BUILD_PROFILE = profile;
+  });
+
+  it("is APNs' sandbox for the development profile's builds, its production for TestFlight and the stores", () => {
+    process.env.EAS_BUILD_PROFILE = "development";
+    expect(notifications(resolve())?.mode).toBe("development");
+    for (const store of ["staging", "production"]) {
+      process.env.EAS_BUILD_PROFILE = store;
+      expect(notifications(resolve())?.mode).toBe("production");
+    }
+  });
+});
+
 describe("EAS Build profiles", () => {
   it("are development, staging and production", () => {
     expect(Object.keys(eas.build).sort()).toEqual(["development", "production", "staging"]);

@@ -6,6 +6,7 @@ import { createApplications, migrateApplications, type Applications } from "../a
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
+import type { PushNotification } from "../push-notifications";
 import { migrateTailoredDocuments } from "../tailored-documents";
 import { ABANDON_CARD, FOLLOW_UP_CARD, createFollowUps, followUpCardApplies, migrateFollowUps, type FollowUps } from "./index";
 
@@ -160,6 +161,50 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     await followUps.proposeDue(day("2026-11-20"));
     expect(await pendingCards()).toEqual([]);
     expect((await applications.get(candidateId, applicationId))?.status).toBe("applied");
+  });
+
+  describe("its Push notification (#699)", () => {
+    let notified: { personId: string; notification: PushNotification; once: string | undefined }[];
+    let pushing: FollowUps;
+    beforeEach(() => {
+      notified = [];
+      pushing = createFollowUps(database, {
+        actionCards: createActionCards(database),
+        applications,
+        mailer: { send: async () => {} },
+        appUrl: "https://app.jobbbox.test",
+        now: () => clock,
+        push: { notify: async (personId, notification, options) => (notified.push({ personId, notification, once: options?.once }), true) },
+      });
+    });
+
+    it("tells the Candidate of a Follow-up due, which opens its Application, once per Follow-up however often the schedule runs", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      await pushing.proposeDue(day("2026-11-12"));
+      await pushing.proposeDue(day("2026-11-13"));
+      await markSentOn(day("2026-11-12"));
+      await pushing.proposeDue(day("2026-11-26"));
+
+      expect(notified.map(({ personId, notification }) => ({ personId, notification }))).toEqual([
+        { personId: candidateId, notification: { event: "follow_up_due", applicationId } },
+        { personId: candidateId, notification: { event: "follow_up_due", applicationId } },
+      ]);
+      expect(notified[0]!.once).not.toBe(notified[1]!.once);
+    });
+
+    it("tells nothing of an « Abandonnée » suggestion: not a Follow-up", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      await pushing.proposeDue(day("2026-11-12"));
+      await markSentOn(day("2026-11-12"));
+      await pushing.proposeDue(day("2026-11-26"));
+      await markSentOn(day("2026-11-26"));
+      notified = [];
+
+      await pushing.proposeDue(day("2026-12-10"));
+
+      expect(await pendingCards()).toMatchObject([{ kind: ABANDON_CARD }]);
+      expect(notified).toEqual([]);
+    });
   });
 
   it("counts a « Relancée » the Candidate set by hand as a Follow-up sent, waiting 10 working days from it", async () => {

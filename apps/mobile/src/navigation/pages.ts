@@ -16,9 +16,13 @@ export const paths = {
   applicationSection: (id: string, section: typeof INTERVIEWS) => `/candidatures/${encodeURIComponent(id)}/${section}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
+  /** A Job Search's page, the web's in the app until it is drawn natively (#692): where « Lancer une recherche » lands. */
+  jobSearch: (id: string) => `/recherches/${encodeURIComponent(id)}`,
   jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",
+  /** The Order of a Coaching Session with a Human Coach, before Stripe Checkout (#694): the web's Order page's address. */
+  coachingOrder: (coachId: string) => `/coachs/commande?coach=${encodeURIComponent(coachId)}`,
   /** A Coaching Session on its Human Coaches page: where it leads from the Agenda. */
   coachingSession: (id: string) => `/coachs#seance-${encodeURIComponent(id)}`,
   conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,
@@ -28,8 +32,12 @@ export const paths = {
   accountSections: "/compte/rubriques",
   accountSecurity: "/compte/securite",
   accountData: "/compte/donnees",
+  /** Rappels: the reminders and the Push notifications' switches, the web's; the device's own permission above it (#699). */
+  accountReminders: "/compte/rappels",
   accountDeletion: "/compte/supprimer",
   subscription: "/abonnement",
+  /** « Renoncer au contrat ici »: the web's Withdrawal form of a contract (`plan`, `coaching-session:<id>`), in a WebView. */
+  withdrawal: (contract: string) => `/abonnement/retractation?contrat=${encodeURIComponent(contract)}`,
   legal: "/legal",
   coachSpace: "/espace-coach",
   /** Réglages de l'app, the device's own settings: the app's alone, the web has no such page. */

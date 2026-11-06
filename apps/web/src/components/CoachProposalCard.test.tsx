@@ -251,6 +251,18 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect(within(full).queryByRole("button", { name: "Appliquer" })).toBeNull();
   });
 
+  it("« Appliquer » with no room left since the proposal shows the Upgrade prompt, not a conflict; the card still waits (#773)", async () => {
+    const prompt = { title: "Profils actifs au maximum", message: "Passez à Premium.", upgradeTo: "premium" as const, action: "Voir les offres", href: "/compte/abonnement" };
+    answers = [{ status: 409, body: { error: "quota", card: { ...PENDING, change: { ...PENDING.change, quota: { label: "1 profil actif", prompt } } } } }];
+    renderInFrench(<Thread />);
+
+    await userEvent.click(button("Appliquer"));
+
+    expect(within(card()).getByRole("alert").textContent).toContain("Profils actifs au maximum");
+    expect(within(card()).queryByText(/L'objet a changé/)).toBeNull();
+    expect(within(card()).queryByRole("button", { name: "Appliquer" })).toBeNull();
+  });
+
   describe("a Job Search proposed (#720): launched, never undone", () => {
     const SEARCH: Card = {
       id: "55555555-5555-4555-8555-555555555555",
@@ -284,7 +296,7 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
 
       expect(sent).toEqual([{ url: `/api/action-cards/${SEARCH.id}`, body: { decision: "accept" } }]);
       expect(within(searchCard()).getByRole("status").textContent).toMatch(/^Lancé par vous à \d\d:\d\d$/);
-      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter » l'interrompt.");
+      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter la recherche d'offres » l'interrompt.");
       expect(within(searchCard()).queryAllByRole("button")).toEqual([]);
     });
   });

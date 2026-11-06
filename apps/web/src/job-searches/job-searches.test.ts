@@ -7,6 +7,7 @@ import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } fro
 import { createConsumption } from "../consumption";
 import { createJobOffers, createSourceChecks, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import type { PushNotification } from "../push-notifications";
 import { createJobSearchReports, createJobSearches, JOB_DISCOVERY_QUEUE, migrateJobSearches, type JobSearches } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -282,6 +283,55 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect((await jobSearches.get(candidateId, forgotten.id))?.status).toBe("searching");
     clock.now = new Date(clock.now.getTime() + 2 * 60 * 1000);
     expect(await jobSearches.get(candidateId, forgotten.id)).toMatchObject({ status: "failed", failure: "timeout" });
+  });
+
+  describe("its Push notification (#699)", () => {
+    let notified: { personId: string; notification: PushNotification; once: string | undefined }[];
+    let reports: ReturnType<typeof createJobSearchReports>;
+    beforeEach(() => {
+      notified = [];
+      reports = createJobSearchReports(testAuth.auth.options.database as Pool, {
+        quotas: billing,
+        now: () => clock.now,
+        push: { notify: async (personId, notification, options) => (notified.push({ personId, notification, once: options?.once }), true) },
+      });
+    });
+
+    it("tells the Candidate of the new results of their Job Search, which it opens, once however often Job discovery reports", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+
+      await reports.record(jobSearch.id, { jobOfferIds: [jobOfferId] });
+      await reports.record(jobSearch.id, { jobOfferIds: [jobOfferId] });
+
+      expect(notified).toEqual([{ personId: candidateId, notification: { event: "job_search_results", jobSearchId: jobSearch.id }, once: `job_search_results:${jobSearch.id}` }]);
+    });
+
+    it("tells nothing of a Job Search that found nothing, failed, or that the Candidate stopped", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      await reports.record((await started()).id, { jobOfferIds: [] });
+      await reports.record((await started()).id, { failed: "unavailable" });
+      await reports.record((await started()).id, { stopped: true, jobOfferIds: [jobOfferId] });
+
+      expect(notified).toEqual([]);
+    });
+
+    it("records the Job Search all the same when its notification cannot be queued", async () => {
+      const jobOfferId = await capture("DAF H/F", { location: "Lyon" });
+      const jobSearch = await started();
+      const failing = createJobSearchReports(testAuth.auth.options.database as Pool, {
+        quotas: billing,
+        push: {
+          notify: async () => {
+            throw new Error("queue unavailable");
+          },
+        },
+      });
+
+      await failing.record(jobSearch.id, { jobOfferIds: [jobOfferId] });
+
+      expect((await jobSearches.get(candidateId, jobSearch.id))?.status).toBe("done");
+    });
   });
 
   it("does not change a finished Job Search when Job discovery reports again", async () => {

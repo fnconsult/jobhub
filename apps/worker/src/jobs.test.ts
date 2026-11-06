@@ -742,18 +742,18 @@ describe("Livraison's daily email job", () => {
 describe("the Appointment Reminders job", () => {
   it("emails, every day at 18:00 French time, the Appointment Reminders due, saying how many", async () => {
     const logs: string[] = [];
-    const sendDue = vi.fn(async () => ({ emails: 2, items: 3, failed: 0 }));
+    const sendDue = vi.fn(async () => ({ emails: 2, items: 3, failed: 0, notified: 0 }));
     const job = createJobs({ ...otherDeps, database: noDatabase, appointmentReminders: { sendDue }, log: (line) => logs.push(line) })[APPOINTMENT_REMINDERS]!;
 
     expect(job).toMatchObject({ cron: "0 18 * * *", tz: "Europe/Paris" });
     await job.handler({});
-    sendDue.mockResolvedValueOnce({ emails: 1, items: 1, failed: 1 });
+    sendDue.mockResolvedValueOnce({ emails: 1, items: 1, failed: 1, notified: 2 });
     await job.handler({});
 
     expect(sendDue).toHaveBeenCalledTimes(2);
     expect(logs).toEqual([
       "[appointment-reminders] 2 Appointment Reminder(s) sent, for 3 Agenda Item(s)",
-      "[appointment-reminders] 1 Appointment Reminder(s) sent, for 1 Agenda Item(s); 1 could not be sent, left to the next run",
+      "[appointment-reminders] 1 Appointment Reminder(s) sent, for 1 Agenda Item(s); 1 could not be sent, left to the next run; 2 Push notification(s) queued",
     ]);
   });
 

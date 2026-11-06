@@ -4,6 +4,7 @@ import { openPostingAction, shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
 import { SAMPLE_JOB_OFFERS } from "../sample-data";
 import { JobSearchesMenu } from "../menus/MenuPages";
+import { StartJobSearch } from "../job-searches/StartJobSearch";
 import { useWorkPane } from "../shell/Shell";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
@@ -18,6 +19,7 @@ export default function JobSearches() {
   const workPane = useWorkPane();
   return (
     <JobSearchesMenu>
+      <StartJobSearch />
       <View style={{ alignSelf: "stretch", gap: space[1] }}>
         {SAMPLE_JOB_OFFERS.map((offer) => {
           const open = () => workPane.open({ title: offer.title, content: <AppText tone="secondary">{t("mobile.jobOfferPlaceholder")}</AppText> });

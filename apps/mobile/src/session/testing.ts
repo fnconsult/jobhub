@@ -121,7 +121,7 @@ export interface CandidateData {
  * second step (#688) as its endpoints answer it (two-step-verification/index.ts and its routes prove the real ones):
  * what the session has to do, a code, a passkey of the account's own, the lock. The API routes of #689: whether the
  * person is a Human Coach, the legal steps after sign-in and their answers (a write refused without the app's origin),
- * each recorded in `recorded`. The Sign-in Providers shown to Candidates, and their OAuth flow (#687,
+ * each recorded in `recorded`; and a Job Search started for one of the Candidate's Profiles (#699). The Sign-in Providers shown to Candidates, and their OAuth flow (#687,
  * apps/web/src/auth/app-oauth.test.ts proves the real one): asked without a redirect, then opened in the system's
  * authentication browser (`browser`) through the Expo proxy, back in the app's scheme with the session cookie or the
  * refusal's code. Its session never waits for a second step.
@@ -308,6 +308,14 @@ export function fakeWebApp() {
       if (url.pathname.startsWith("/api/privacy-change/") && request.method === "DELETE") {
         steps.set(email, { ...current, privacyChange: null });
         return new Response(null, { status: 204 });
+      }
+      // apps/web/src/app/api/job-searches/route.ts: a Job Search started for one of the Candidate's Profiles (#699).
+      if (url.pathname === "/api/job-searches" && request.method === "POST") {
+        const { profileId } = (body ?? {}) as { profileId?: string };
+        const profile = data.get(email)?.profiles.find((candidate) => candidate.id === profileId);
+        if (!profile) return json({ error: "not_found" }, 404);
+        if (profile.archived) return json({ error: "archived" }, 409);
+        return json({ id: `search${++next}` }, 201);
       }
       if (url.pathname === "/api/account/eu-ai-consent" && request.method === "PUT") {
         steps.set(email, { ...current, euAiConsentGiven: true });

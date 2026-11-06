@@ -12,6 +12,7 @@ import { seedReceivedOfferEmail } from "../email-intake/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, migrateJobSearches, type JobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import type { PushNotification } from "../push-notifications";
 import { createJobDigests, migrateJobDigests, type JobDigestDiscovery, type JobDigests, type JobDigestsConfig } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -661,6 +662,29 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       await database.query("UPDATE job_digest SET provenance = NULL WHERE id = $1", [digest!.id]);
 
       expect((await jobDigests.get(candidateId, digest!.id))?.provenance).toBeNull();
+    });
+
+    it("tells the Candidate of their new Job Digest by a Push notification, which opens it; nothing when there is nothing to send (#699)", async () => {
+      const notified: { personId: string; notification: PushNotification; once: string | undefined }[] = [];
+      const pushing = createJobDigests(database, {
+        profiles,
+        jobOffers,
+        applications,
+        billing,
+        receivedOffers: createReceivedOffers(database, { jobOffers, profiles, applications }),
+        mailer: { send: async (message) => void outbox.push(message) },
+        baseURL: "https://app.jobbbox.fr",
+        now: () => clock.now,
+        push: { notify: async (personId, notification, options) => (notified.push({ personId, notification, once: options?.once }), true) },
+      });
+      await strong("DAF H/F");
+      await subscribed();
+
+      const { digest } = await pushing.deliver(candidateId, profileId, async () => discovered());
+      later(7 * 24);
+      expect((await pushing.deliver(candidateId, profileId, noDiscovery)).digest).toBeNull();
+
+      expect(notified).toEqual([{ personId: candidateId, notification: { event: "job_digest", jobDigestId: digest!.id }, once: `job_digest:${digest!.id}` }]);
     });
 
     it("belongs to its Candidate", async () => {

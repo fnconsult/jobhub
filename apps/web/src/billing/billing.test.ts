@@ -790,6 +790,16 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect(premium?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);
     });
 
+    it("sends a Candidate who books from the app back to it by its universal link, paid or not (#694)", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      await t.billing.startCoachingSessionCheckout(marie, "coach-1", "fr", { inApp: true });
+
+      const [checkout] = t.stripe.callsTo("/v1/checkout/sessions").filter((call) => call.params.get("mode") === "payment");
+      expect(checkout?.params.get("success_url")).toBe("http://localhost:3000/coachs/paiement");
+      expect(checkout?.params.get("cancel_url")).toBe("http://localhost:3000/coachs/paiement?annule=1");
+    });
+
     it("reports a Coaching Session as paid only from Stripe's signed webhook, once paid", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
       const session = { id: "cs_coaching_1", candidateId: marie.id, coachId: "coach-1", amount: 9000, currency: "eur" };

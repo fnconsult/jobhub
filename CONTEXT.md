@@ -789,12 +789,20 @@ _Avoid_: Long-press menu, popover
 In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row under a mouse or trackpad pointer. Absent with a finger.
 
 **Push notification**:
-A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
+A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch. A person gets one per event key; the Appointment Reminder one has its own switch, apart from the email's. A Human Coach's go to the account of their verified email, and stop once they are retired (#699, ADR-0089).
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 
 **Provider return address**:
 The address in the app's own scheme, `/connexion/fournisseur`, where the system's authentication browser hands the person back to the app after a Sign-in Provider, with the session. Not a universal link: iOS 16.4 cannot return by one (ADR-0085).
 _Avoid_: Deep link, redirect URL (that is the address declared at the provider)
+
+**Event key**:
+An event, the object it concerns and what happened to it (e.g. a Coach Review, a Coaching Session's date changed). A person gets one Push notification per event key, however many times the event is run again.
+_Avoid_: Notification id, dedupe key
+
+**Declined (Push notification)**:
+« Pas maintenant » on the app's explanation screen, remembered on the device so the app never asks again in context. Not the same as refused, which is the system's own answer to its prompt.
+_Avoid_: Dismissed, denied
 
 **App sign-in link**:
 The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
@@ -914,6 +922,14 @@ _Avoid_: Dunning banner, billing alert
 What a Candidate confirms on Jobbbox's own page, « Votre commande », before Stripe Checkout, for a paid Plan (`/abonnement/commande`) or a Coaching Session (`/coachs/commande`): the summary (what is bought, its price all taxes included, how often a Plan is charged), the CGV box « J'accepte les CGV (version du …) » with its link to that version, the Immediate Performance Request, and where to withdraw. « Passer au paiement » is checked on the server: while a CGV version is in effect, no Checkout Session is created without its box ticked, and the page is shown again saying so. The Order is then kept with its Checkout Session, and the CGV Acceptance written with that Checkout Session and the Immediate Performance Request. A Candidate who already pays a Plan is sent to the Stripe customer portal instead, with no Order. An Order is the Candidate's: in their Data export without Stripe's identifiers, deleted with their account; the proof that outlives the account is the Acceptance.
 _Avoid_: Cart, basket, checkout (that is Stripe's page), purchase
 
+**Checkout return**:
+The address a Stripe Checkout ordered from the Jobbbox app sends the Candidate back to: `/coachs/paiement` when paid, `/coachs/paiement?annule=1` when left without paying. The app claims it (Domain association files), the web serves a public page with « Revenir dans l'app Jobbbox » when it is opened in a browser. It proves nothing: the payment is known only when Stripe's signed webhook has recorded the Coaching Session, which the app waits for, with « La confirmation tarde » after a minute (ADR-0088).
+_Avoid_: Success page, payment confirmation
+
+**App Order screen**:
+The Jobbbox app's own « Votre commande » for a Coaching Session (`/coachs/commande`): the Human Coach, the price the Candidate pays, the CGV box and the Immediate Performance Request, checked by the same server rules as the web Order, then Stripe Checkout in the in-app browser. It shows no Plan name, regular price or discount (ADR-0088). Plans are not ordered there.
+_Avoid_: Native checkout
+
 **Immediate Performance Request**:
 The Candidate's express request, on the Order page, that the service start at once, with their acknowledgement that a Withdrawal then pays for what was already provided (« Je demande que le service commence immédiatement… », C. conso. L221-25); for a Coaching Session, also that the right of withdrawal is lost once the session is held (L221-28 1°). Optional and never ticked for the Candidate: without it the Candidate pays and the service starts just the same, but a Withdrawal is refunded in full. Kept with the Order and the CGV Acceptance, and stated in the Order Confirmation.
 _Avoid_: Waiver, immediate execution consent, opt-out of withdrawal
@@ -957,7 +973,7 @@ A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as pr
 _Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
 
 **Acceptance origin**:
-Where an Acceptance was made: `web` or `mobile` (the Jobbbox app's Legal steps). Kept with the Acceptance and in the Data export.
+Where an Acceptance was made: `web` or `mobile` (the Jobbbox app's Legal steps and its own Order screen for a Coaching Session). Kept with the Acceptance and in the Data export.
 
 ### Operations
 

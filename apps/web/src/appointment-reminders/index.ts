@@ -12,6 +12,8 @@
  *    and a link to the Agenda. An item whose date was entered or last changed after that
  *    REMINDER_HOUR gets none. One reminder per item and per date: running it again, or on two
  *    workers at once, sends nothing twice, and a Rescheduled item gets one for its new date.
+ *    With the same rules, the Candidate's devices get one Push notification for the next day (#699, ADR-0076), under
+ *    its own switch in Rappels: the email switched off, it still goes, and the other way round. It opens the Agenda.
  *
  * The reminders sent are kept, and deleted with their item and with the account.
  */
@@ -21,6 +23,7 @@ import type { Pool } from "pg";
 import { frenchDateTime, frenchDayStart, INTERVIEW_TIME_ZONE, interviewWallClock } from "../applications";
 import { dayAfter } from "../agenda/calendar";
 import type { Mailer } from "../auth";
+import type { PushNotifier } from "../push-notifications";
 import type { AgendaItemTable } from "../reschedules";
 import { routes } from "../routes";
 import { appointmentReminderEmail, type ReminderEmailItem } from "./email";
@@ -34,6 +37,8 @@ export interface AppointmentRemindersDeps {
   /** The web app's address, which the email's links lead to. */
   baseURL: string;
   now?: () => Date;
+  /** Where the Appointment Reminder's Push notification is queued. Without it, none. */
+  push?: PushNotifier;
 }
 
 export interface AppointmentReminders {
@@ -44,13 +49,14 @@ export interface AppointmentReminders {
   /**
    * Emails each Candidate their Agenda Items of the day after the latest REMINDER_HOUR at or before now, those
    * not reminded yet for their date. How many emails went, listing how many Agenda Items, and how many could not
-   * be sent: those Candidates' items are left to the next run, the other Candidates' emails go all the same.
+   * be sent: those Candidates' items are left to the next run, the other Candidates' emails go all the same. And
+   * how many Candidates were notified on their devices, once for that next day.
    */
-  sendDue(): Promise<{ emails: number; items: number; failed: number }>;
+  sendDue(): Promise<{ emails: number; items: number; failed: number; notified: number }>;
 }
 
-/** One Agenda Item, as a reminder lists it. */
-type ReminderItem = { id: string; candidateId: string } & ReminderEmailItem;
+/** One Agenda Item, as a reminder lists it, and whether its Candidate gets the email (Appointment Reminders on). */
+type ReminderItem = { id: string; candidateId: string; emailed: boolean } & ReminderEmailItem;
 
 /** The day (French time, "2026-10-20") of the latest reminder time at or before `now`, and that time. */
 function latestReminder(now: Date): { day: string; at: Date } {
@@ -70,28 +76,27 @@ const ITEM_COLUMN: Record<AgendaItemTable, string> = { interview: "interview_id"
 export function createAppointmentReminders(database: Pool, deps: AppointmentRemindersDeps): AppointmentReminders {
   const now = deps.now ?? (() => new Date());
 
-  /** The Agenda Items to remind at `at`, of the Candidates who did not switch Appointment Reminders off: still planned, not started, dated on the day after the reminder's, their date set by then. */
-  async function due(at: Date): Promise<ReminderItem[]> {
+  /** The Agenda Items to remind at `at`, and the day they are on: still planned, not started, dated on the day after the reminder's, their date set by then. */
+  async function due(at: Date): Promise<{ day: string; items: ReminderItem[] }> {
     const { day, at: reminderAt } = latestReminder(at);
     const tomorrow = dayAfter(day);
     const window = [frenchDayStart(tomorrow), frenchDayStart(dayAfter(tomorrow)), reminderAt, at];
     const [interviews, sessions] = await Promise.all([
-      database.query<{ id: string; candidate_id: string; scheduled_at: Date; duration_minutes: number | null; note: string; title: string; employer: string | null; format: InterviewFormat | null; place: string }>(
-        `SELECT i.id, a.candidate_id, i.scheduled_at, i.duration_minutes, i.note, o.title, o.employer, i.format, i.place
+      database.query<{ id: string; candidate_id: string; emailed: boolean; scheduled_at: Date; duration_minutes: number | null; note: string; title: string; employer: string | null; format: InterviewFormat | null; place: string }>(
+        `SELECT i.id, a.candidate_id, ${REMINDERS_ON("a.candidate_id")} AS emailed, i.scheduled_at, i.duration_minutes, i.note, o.title, o.employer, i.format, i.place
            FROM interview i
            JOIN application a ON a.id = i.application_id
            JOIN job_offer o ON o.id = a.job_offer_id
           WHERE i.scheduled_at >= $1 AND i.scheduled_at < $2 AND i.date_set_at <= $3 AND i.scheduled_at > $4
-            AND i.cancelled_at IS NULL AND ${REMINDERS_ON("a.candidate_id")}`,
+            AND i.cancelled_at IS NULL`,
         window,
       ),
       // A cancelled Coaching Session has no date: it is Unscheduled again.
-      database.query<{ id: string; candidate_id: string; scheduled_at: Date; duration_minutes: number | null; note: string | null; coach: string; video_link: string | null }>(
-        `SELECT s.id, s.candidate_id, s.scheduled_at, s.duration_minutes, s.note, h.name AS coach, s.video_link
+      database.query<{ id: string; candidate_id: string; emailed: boolean; scheduled_at: Date; duration_minutes: number | null; note: string | null; coach: string; video_link: string | null }>(
+        `SELECT s.id, s.candidate_id, ${REMINDERS_ON("s.candidate_id")} AS emailed, s.scheduled_at, s.duration_minutes, s.note, h.name AS coach, s.video_link
            FROM coaching_session s
            JOIN human_coach h ON h.id = s.coach_id
-          WHERE s.scheduled_at >= $1 AND s.scheduled_at < $2 AND s.date_set_at <= $3 AND s.scheduled_at > $4
-            AND ${REMINDERS_ON("s.candidate_id")}`,
+          WHERE s.scheduled_at >= $1 AND s.scheduled_at < $2 AND s.date_set_at <= $3 AND s.scheduled_at > $4`,
         window,
       ),
     ]);
@@ -100,6 +105,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
         table: "interview",
         id: row.id,
         candidateId: row.candidate_id,
+        emailed: row.emailed,
         scheduledAt: row.scheduled_at,
         durationMinutes: row.duration_minutes,
         note: row.note || null,
@@ -112,6 +118,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
         table: "coaching_session",
         id: row.id,
         candidateId: row.candidate_id,
+        emailed: row.emailed,
         scheduledAt: row.scheduled_at,
         durationMinutes: row.duration_minutes,
         note: row.note || null,
@@ -119,7 +126,18 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
         videoLink: row.video_link,
       })),
     ];
-    return items.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+    return { day: tomorrow, items: items.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime()) };
+  }
+
+  /** Queues the Candidate's Push notification for `day`, once; whether it was. A failure is the next run's to try again. */
+  async function notify(candidateId: string, day: string): Promise<boolean> {
+    if (!deps.push) return false;
+    try {
+      return await deps.push.notify(candidateId, { event: "appointment_reminder" }, { once: `appointment_reminder:${day}` });
+    } catch (error) {
+      console.warn("[appointment-reminders] the Push notification could not be queued:", error instanceof Error ? error.message : error);
+      return false;
+    }
   }
 
   /** Emails the Candidate their `items` (all on one day), in their Interface Language. */
@@ -180,20 +198,25 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
     async sendDue() {
       const at = now();
       const byCandidate = new Map<string, ReminderItem[]>();
-      for (const item of await due(at)) byCandidate.set(item.candidateId, [...(byCandidate.get(item.candidateId) ?? []), item]);
+      const { day, items: dueItems } = await due(at);
+      for (const item of dueItems) byCandidate.set(item.candidateId, [...(byCandidate.get(item.candidateId) ?? []), item]);
       let emails = 0;
       let items = 0;
       let failed = 0;
+      let notified = 0;
       for (const [candidateId, candidateItems] of byCandidate) {
+        if (await notify(candidateId, day)) notified += 1;
+        const emailed = candidateItems.filter((item) => item.emailed);
+        if (emailed.length === 0) continue;
         try {
-          const claimed = await remind(candidateId, candidateItems, at);
+          const claimed = await remind(candidateId, emailed, at);
           if (claimed.length > 0) emails += 1;
           items += claimed.length;
         } catch {
           failed += 1;
         }
       }
-      return { emails, items, failed };
+      return { emails, items, failed, notified };
     },
   };
 }

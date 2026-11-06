@@ -25,6 +25,8 @@
  * tied to one Stripe product, and every price of that product is the Plan's.
  */
 import {
+  APP_COACHING_PAYMENT_PATH,
+  APP_PAYMENT_CANCELLED,
   DEFAULT_COACH_CONTEXT_LIMITS,
   FREE_PLAN,
   JOB_DIGEST_FREQUENCIES,
@@ -171,6 +173,12 @@ export interface CheckoutOptions {
    * Plan; otherwise Checkout goes on without it, and they may type one there.
    */
   promotionCode?: string | undefined;
+}
+
+/** How a Coaching Session's Checkout is asked for. */
+export interface CoachingSessionCheckoutOptions {
+  /** Booked from the app (#694): Stripe sends the Candidate back to it by its universal link, paid or not, never to the web page. */
+  inApp?: boolean | undefined;
 }
 
 /** Where a Checkout starts: Stripe's page, and its Checkout Session; or the customer portal (no Checkout Session) for a Candidate who already pays. */
@@ -631,6 +639,7 @@ export function createBilling(config: BillingConfig) {
 
   const pageURL = (query = "") => new URL(routes.subscription + query, config.baseURL).toString();
   const coachingPageURL = (query = "") => new URL(routes.coaching + query, config.baseURL).toString();
+  const appPaymentURL = (query = "") => new URL(APP_COACHING_PAYMENT_PATH + query, config.baseURL).toString();
 
   /** The Coaching Session Prices, or a BillingError when Stripe or the Prices are not configured. */
   function coachingSessionPrices(): { regular: string; discounted: string } {
@@ -1410,10 +1419,16 @@ export function createBilling(config: BillingConfig) {
      * Where to send a Candidate who books a Coaching Session with a Human Coach: a one-off
      * Stripe Checkout at their Plan's Coaching Session Price (discounted on a Plan with the
      * Coaching Session discount). The
-     * Coaching Session exists only once the signed webhook confirms the payment.
+     * Coaching Session exists only once the signed webhook confirms the payment. Booked from the app (`inApp`, #694),
+     * Stripe sends the Candidate back to the app's universal link, `?annule=1` when they left without paying.
      * Throws a BillingError("coaching_sessions_not_configured") without the Prices.
      */
-    async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<CheckoutStart> {
+    async startCoachingSessionCheckout(
+      candidate: { id: string; email: string },
+      coachId: string,
+      locale: Locale = "fr",
+      options: CoachingSessionCheckoutOptions = {},
+    ): Promise<CheckoutStart> {
       const prices = coachingSessionPrices();
       const customer = await stripeCustomerFor(candidate);
       const discounted = await hasFeature(candidate.id, "coachingSessionDiscount");
@@ -1424,8 +1439,8 @@ export function createBilling(config: BillingConfig) {
         line_items: [{ price: discounted ? prices.discounted : prices.regular, quantity: 1 }],
         metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id },
         locale,
-        success_url: coachingPageURL("?session=paid"),
-        cancel_url: coachingPageURL(),
+        success_url: options.inApp ? appPaymentURL() : coachingPageURL("?session=paid"),
+        cancel_url: options.inApp ? appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`) : coachingPageURL(),
       });
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
       return { url: session.url, checkoutSessionId: session.id };

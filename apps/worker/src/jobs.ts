@@ -515,7 +515,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if (!sent) return;
           log(
             `[appointment-reminders] ${sent.emails} Appointment Reminder(s) sent, for ${sent.items} Agenda Item(s)` +
-              (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : ""),
+              (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : "") +
+              (sent.notified ? `; ${sent.notified} Push notification(s) queued` : ""),
           );
         }),
     },

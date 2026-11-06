@@ -439,17 +439,19 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     });
   });
 
-  it("the export holds the app's devices (platform, language, dates), never their token, and the Push notification switches (#698)", async () => {
+  it("the export holds the app's devices (platform, language, dates), never their token, the Push notification switches (#698) and the notifications queued (#699)", async () => {
     const [{ id: sessionId }] = (await database.query<{ id: string }>(`SELECT id FROM session WHERE "userId" = $1`, [candidateId])).rows as [{ id: string }];
-    const push = createPushNotifications(database, { senders: () => ({}) });
+    const push = createPushNotifications(database, { senders: () => ({}), queue: { send: async () => {} } });
     const token = "a1".repeat(32);
-    expect((await candidateData.export(candidateId)).pushNotifications).toEqual({ devices: [], switches: [] });
+    expect((await candidateData.export(candidateId)).pushNotifications).toEqual({ devices: [], switches: [], sent: [] });
     await push.register({ id: candidateId, sessionId }, { platform: "ios", token, language: "fr" });
     await push.setEnabled(candidateId, "follow_up_due", false);
+    await push.notify(candidateId, { event: "appointment_reminder" }, { once: "appointment_reminder:2026-11-05" });
     const exported = await candidateData.export(candidateId);
     expect(exported.pushNotifications).toEqual({
       devices: [{ platform: "ios", language: "fr", registeredAt: expect.any(Date), lastSeenAt: expect.any(Date) }],
       switches: [{ event: "follow_up_due", enabled: false, changedAt: expect.any(Date) }],
+      sent: [{ event: "appointment_reminder", at: expect.any(Date) }],
     });
     expect(JSON.stringify(exported)).not.toContain(token);
   });

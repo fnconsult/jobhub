@@ -741,6 +741,22 @@ describe("Jobbbox app, the home page and the menus as their conversations (#690)
     expect(screen.queryByRole("button", { name: "Ajouter un entretien" })).toBeNull();
     await user.press(button("Arrêter"));
   });
+
+  it("shows Recherches d'offres as the Offer box, its menu's conversation following it with its box at the foot (ADR-0090)", async () => {
+    await launch("/recherches");
+    expect(await screen.findByRole("heading", { name: "Offres à traiter" })).toBeOnTheScreen();
+    expect(screen.getByText(/Je suis un coach IA, pas une personne/)).toBeOnTheScreen();
+    expect(screen.getByText(/Voici les offres qui vous sont arrivées/)).toBeOnTheScreen();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Laquelle regarder en premier ?");
+    await user.press(button("Envoyer"));
+    expect(mockWeb.coach.asked.at(-1)).toMatchObject({
+      subject: { kind: "menu", id: "jobSearches" },
+      message: "Laquelle regarder en premier ?",
+      route: "/recherches",
+    });
+    await user.press(button("Arrêter"));
+  });
 });
 
 describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", () => {

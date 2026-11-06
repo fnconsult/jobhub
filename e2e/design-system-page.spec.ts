@@ -158,7 +158,7 @@ test.describe("Design System page's screenshots (#463)", () => {
             // The window as tall as the page, so the whole content is drawn at once, with nothing to scroll into view.
             await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
-            await expect.soft(preview(page)).toHaveScreenshot(`design-system-${theme}-${density}-${name}.png`);
+            await expect(preview(page)).toHaveScreenshot(`design-system-${theme}-${density}-${name}.png`);
           }
         }
         await page.close();
@@ -178,7 +178,7 @@ test.describe("Design System page's screenshots (#463)", () => {
       await expect(glyphs.locator("svg.activity-glyph")).toHaveCount(ACTIVITIES.length);
       await expect(glyphs.locator('svg.activity-glyph[data-activity="act"] path')).toHaveCount(5);
       await settled(page);
-      if (comparesScreenshots()) await expect.soft(glyphs).toHaveScreenshot(`activity-glyphs-${theme}.png`);
+      if (comparesScreenshots()) await expect(glyphs).toHaveScreenshot(`activity-glyphs-${theme}.png`);
       await page.close();
     });
   }

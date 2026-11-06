@@ -942,6 +942,10 @@ _Avoid_: Downgrade (that is a Candidate changing Plan), quota cut, plan change
 What a Candidate has used, shown on Mon abonnement as « Votre consommation » (ADR-0091): AI actions over the billing period (from the Stripe subscription's current period start to its end; the calendar month in French time on Free), counted per Tool (an AI Coach reply, whatever its Tool rounds, a Job Search, a Match Score, an ATS Score, a Tailored CV, a Tailored Document, a Company Dossier, an Enriched Contact, a CV read), with its change against the same day of the previous period and a 12-month grid of days. It comes from a per-Candidate daily count per Tool, incremented with the result or the Plan Quota use and given back with it. That count holds no content, model, provider, tokens or euros, is kept 12 rolling months, is deleted with the account and is in the Data export. Never in jetons or euros (#332). Models stay in AI Activity; the week's Plan Quotas stay in the Usage Meter.
 _Avoid_: AI Usage (the Back Office's, of no one), bill, credits, token count
 
+**Consumption backfill**:
+The one-off rebuild of Consumption for the 12 months before the day #799 went live in an environment (`npm run db:backfill-consumption -- --live-from YYYY-MM-DD`, `docs/ops/consumption-backfill.md`), from the results still stored. A best effort: what was deleted is not counted, and Match Scores, which are not stored, are taken from the weekly Plan Quota use and land on that week's Monday. Replaces its own window on each run; never touches the live day or later.
+_Avoid_: Migration, import
+
 **Usage Meter**:
 The bar at the foot of the Sidebar showing how much of the week's Plan Quotas the Candidate has used: every use over every use the Plan grants, so each quota weighs what the Plan grants of it; unlimited and not-included quotas weigh nothing. Titled « Hebdomadaire » ("Weekly"), with a line under the bar saying the quota renews Monday at midnight. Its button opens a card above the meter (Escape closes it) showing each quota's use and the Job Digest frequency, and leading to the subscription page.
 _Avoid_: Credits bar, usage gauge

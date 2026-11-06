@@ -24,6 +24,7 @@ npm install
 cp .env.example .env          # repo-root .env, read by `npm run dev`, `build`, `start` and `db:migrate`
 docker compose up -d          # Postgres (host port 5433) + worker
 npm run db:migrate            # create / upgrade the database tables
+npm run db:backfill-consumption -- --live-from YYYY-MM-DD   # one-off, per environment (docs/ops/consumption-backfill.md)
 npm run dev                   # web app on http://localhost:3000
 npm run dev -w @jobhub/extension   # extension, with a Chrome dev profile; its dev server is on http://localhost:3100
 ```

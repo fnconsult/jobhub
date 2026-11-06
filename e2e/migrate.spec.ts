@@ -109,6 +109,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coaching_session_reschedule", // issue #250: a Coaching Session's Reschedule history
         "company_careers_site", // issue #406: public careers sites / ATS found per company, shared, no Candidate
         "company_dossier", // issue #17
+        "consumption_backfill", // issue #800: the Consumption backfill's deploy date, recorded by its first run
         "consumption_day", // issue #799: the Candidate's daily count of uses per Tool, kept 12 months
         "discovery_run", // issue #404: the figures of a Job discovery run, with no Candidate
         "discovery_run_detail", // issue #404: what ties a run to its Candidate, kept 30 days

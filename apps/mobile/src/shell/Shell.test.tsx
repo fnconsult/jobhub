@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, userEvent, within } from "@testing-library/react-native";
-import { Platform, Pressable, Text } from "react-native";
+import { Platform, Pressable, StyleSheet, Text } from "react-native";
 import { fakeNetwork } from "../offline/testing";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
 import { CoachConversation } from "../coach/CoachConversation";
@@ -118,6 +118,8 @@ describe("Shell, its Top Bar's title", () => {
     expect(besideTheButtons("Mes candidatures")).toBe(false);
     expect(button("Menu")).toBeOnTheScreen();
     expect(button("Activité")).toBeOnTheScreen();
+    // More buttons than one line holds beside the menu (« Effacer », « Activité », the pencil) wrap, none past the edge.
+    expect(StyleSheet.flatten(screen.getByTestId("top-bar-end").props.style)).toMatchObject({ flexShrink: 1, flexWrap: "wrap" });
   });
 
   it("goes on its own line at the largest text size, and back beside them when the window has room again", async () => {

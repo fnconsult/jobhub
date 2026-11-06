@@ -175,7 +175,8 @@ const TITLE_MIN_REM = 10;
  * The Top Bar: the menu, the page's title (with `up`, a link back to the page above it, an arrow before it, as on iOS),
  * its buttons. Where the buttons, their words beside their icons, leave the title less than `TITLE_MIN_REM` (a phone, a
  * folded foldable, a larger system text), the title goes on its own line under them, the whole width, rather than break
- * inside its words (« Mes candida / tures ») or take one letter a line and most of the screen.
+ * inside its words (« Mes candida / tures ») or take one letter a line and most of the screen. Buttons that do not fit
+ * on one line beside the menu (« Effacer », « Activité » and the pencil, at the largest text size) wrap to the next.
  */
 function TopBar({ title, up, menu, end }: { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode }) {
   const { colors } = useTheme();
@@ -226,7 +227,11 @@ function TopBar({ title, up, menu, end }: { title: string; up: { label: string; 
           {menu}
         </View>
         {ownLine ? <View style={{ flex: 1 }} /> : heading}
-        <View testID="top-bar-end" onLayout={onEnd} style={{ flexDirection: "row", alignItems: "center", gap: space[2] }}>
+        <View
+          testID="top-bar-end"
+          onLayout={onEnd}
+          style={{ flexShrink: 1, flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: space[2] }}
+        >
           {end}
         </View>
       </View>

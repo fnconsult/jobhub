@@ -9,7 +9,8 @@ type Look = "primary" | "secondary" | "quiet";
 /**
  * A button: 44 pt at least each way (ADR-0009), its label in words beside its Lucide icon. `label` alone, with `icon`,
  * draws the icon only, for the few functions ADR-0009 lets go without words; the label is then its accessible name.
- * Highlighted under a pointer as when pressed (#700).
+ * Highlighted under a pointer as when pressed (#700). Never wider than what holds it: its words wrap, at a large text
+ * size, rather than run past its edge.
  */
 export function Control({
   label,
@@ -50,6 +51,7 @@ export function Control({
       style={({ pressed }) => ({
         minHeight: TARGET,
         minWidth: TARGET,
+        maxWidth: "100%",
         flexDirection: "row",
         alignItems: "center",
         justifyContent: iconOnly ? "center" : "flex-start",
@@ -64,7 +66,7 @@ export function Control({
     >
       {Icon ? <Icon color={foreground} size={22} aria-hidden /> : null}
       {iconOnly ? null : (
-        <View>
+        <View style={{ flexShrink: 1 }}>
           <AppText weight="semiBold" tone={look === "primary" ? "onAccent" : selected ? "accent" : "text"}>
             {label}
           </AppText>

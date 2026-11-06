@@ -132,6 +132,60 @@ test.describe("The Offer box (#815, ADR-0090)", () => {
 
   test("only the Candidate who is signed in reads the Offer box", async ({ request }) => {
     expect((await request.get("/api/offer-box")).status()).toBe(401);
+    expect((await request.post("/api/offer-box/00000000-0000-4000-8000-000000000000/dismissal", { headers: { origin }, data: {} })).status()).toBe(401);
+  });
+
+  // Issue #816 (« Offres à traiter 2 »): « Écarter » with a Dismissal reason or none, the toast's « Annuler », « Écartées »
+  // and « Revenir sur ce choix », on the page and over `/api`; another Candidate's entry of the same Job Offer untouched.
+  // That a Job Digest and Email intake leave an écartée Job Offer out is asserted in their modules' tests.
+  test("« Écarter » with a reason takes the entry out of the count, « Annuler » puts it back; « Écarter sans motif » then « Revenir sur ce choix » in « Écartées »; another Candidate's entry stays à traiter", async ({ browser }) => {
+    const ines = await candidate(browser, "offer-box-dismiss");
+    await toConversation(ines.page);
+    await pasteLink(ines.page);
+    const paul = await candidate(browser, "offer-box-dismiss-other");
+    await toConversation(paul.page);
+    await pasteLink(paul.page);
+    const [entry] = (await offerBox(ines.page)).entries;
+
+    await ines.page.goto("/recherches");
+    const box = ines.page.getByRole("region", { name: /^Offres à traiter/ });
+    const line = box.getByRole("listitem", { name: TITLE });
+    await line.getByRole("button", { name: fr.offerBox.dismiss }).click();
+    const reasons = line.getByRole("group", { name: fr.offerBox.dismissWhy });
+    await expect(reasons.getByRole("button")).toHaveText([...Object.values(fr.offerBox.dismissalReasons as Record<string, string>), fr.offerBox.dismissWithoutReason]);
+    await reasons.getByRole("button", { name: fr.offerBox.dismissalReasons.salary }).click();
+
+    await expect(ines.page.getByRole("status").filter({ hasText: `« ${TITLE} » écartée.` })).toBeVisible();
+    await expect(box.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "1"))).toBeVisible();
+    expect(await offerBox(ines.page)).toMatchObject({ toHandle: 0, entries: [{ id: entry!.id, state: "dismissed", dismissalReason: "salary" }] });
+    expect((await offerBox(paul.page)).entries).toMatchObject([{ jobOffer: { id: entry!.jobOffer.id }, state: "to_handle" }]);
+
+    // « Annuler », in the toast: à traiter again.
+    await ines.page.getByRole("button", { name: fr.offerBox.undo }).click();
+    await expect(box.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "1"))).toBeHidden();
+    expect(await offerBox(ines.page)).toMatchObject({ toHandle: 1, entries: [{ state: "to_handle", dismissalReason: null }] });
+
+    // « Écarter sans motif », then « Revenir sur ce choix » from « Écartées », folded at the foot.
+    await line.getByRole("button", { name: fr.offerBox.dismiss }).click();
+    await line.getByRole("button", { name: fr.offerBox.dismissWithoutReason }).click();
+    const fold = box.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "1"));
+    await fold.click();
+    const dismissed = box.locator(".offer-box-dismissed").getByRole("listitem", { name: TITLE });
+    await expect(dismissed).toContainText(fr.offerBox.dismissed);
+    await dismissed.getByRole("button", { name: fr.offerBox.reconsiderLabel.replace("{{title}}", TITLE) }).click();
+    await expect(box.locator(".offer-box-dismissed")).toHaveCount(0);
+    expect((await offerBox(ines.page)).toHandle).toBe(1);
+
+    // Over `/api`: a reason outside the list, another Candidate's entry, an entry « Suivie ».
+    const dismiss = (page: Page, id: string, data: object) => page.request.post(`/api/offer-box/${id}/dismissal`, { headers: { origin }, data });
+    expect((await dismiss(ines.page, entry!.id, { reason: "trop loin" })).status()).toBe(400);
+    expect((await dismiss(paul.page, entry!.id, {})).status()).toBe(404);
+    expect((await paul.page.request.delete(`/api/offer-box/${entry!.id}/dismissal`, { headers: { origin } })).status()).toBe(404);
+    const saved = await ines.page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: entry!.jobOffer.id, profileId: ines.profileId } });
+    expect(saved.ok(), await saved.text()).toBe(true);
+    const refused = await dismiss(ines.page, entry!.id, { reason: "salary" });
+    expect(refused.status()).toBe(409);
+    expect(await refused.json()).toEqual({ error: "followed" });
   });
 });
 

@@ -9,6 +9,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { activityOf, conversationOf, openActivity } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
+import { showInTheme, THEMES } from "./support/theme";
 
 // Issue #806 (ADR-0086): « En ce moment », at the top of Activity under the Context bar. A Job Search launched, then a
 // question to the AI Coach on its page: the block shows both, each with its step under way, the steps it finished and its
@@ -134,9 +135,14 @@ async function dangerSurface(locator: Locator): Promise<string> {
   });
 }
 
+/** axe on `selector` in the light theme then the dark one, its colour contrast included (ADR-0009); left in light. */
 async function expectNoAxeViolations(page: Page, selector: string) {
-  const results = await new AxeBuilder({ page }).include(selector).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-  expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
+  for (const theme of THEMES) {
+    await showInTheme(page, theme);
+    const results = await new AxeBuilder({ page }).include(selector).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(results.violations.map(({ id, nodes }) => ({ theme, id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
+  }
+  await showInTheme(page, "light");
 }
 
 test.describe("« En ce moment » (#806, ADR-0086)", () => {
@@ -190,18 +196,27 @@ test.describe("« En ce moment » (#806, ADR-0086)", () => {
     await expect(reply.locator(".ai-activity-live-status")).toHaveText(fr.aiActivity.steps.think_write);
     await expectNoAxeViolations(page, ".en-ce-moment");
 
-    // The search stopped from the block: it is stopped, shown in light red; the reply runs on.
+    // The search stopped from the block: « Arrêt en cours… », then the worker stops it; the reply runs on.
     await search.getByRole("button", { name: fr.aiActivity.live.stop.job_search, exact: true }).click();
+    await expect(search.locator(".ai-activity-live-status")).toHaveText(fr.aiActivity.live.stopping);
     await expect.poll(() => statusOf(jobSearchId), { timeout: 90_000, message: workerOutput }).toBe("stopped");
-    await expect(search).toContainText(/Arrêtée à \d{2}:\d{2}/, { timeout: 10_000 });
-    expect(await search.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(search));
-    await expect(search.getByRole("button")).toHaveCount(0);
+    // On its own page, the page refreshes itself and shows it stopped: AI Activity's history takes it back (« Arrêtée à
+    // 10:42 » under « Par élément »), and the block lets it go (#806: « jusqu'à ce que l'historique la reprenne »). How long
+    // it shows in light red in the block meanwhile is the refresh's timing, so it is not asserted here; the reply's is below.
+    const searchInHistory = activityOf(page).locator(".ai-activity-element").filter({ has: page.getByText(fr.aiActivity.kinds.job_search, { exact: true }) });
+    await expect(searchInHistory).toContainText(/Arrêtée à \d{2}:\d{2}/, { timeout: 15_000 });
+    await expect(search).toHaveCount(0);
     await expect(reply.getByRole("button", { name: fr.aiActivity.live.stop.coach_reply, exact: true })).toBeVisible();
     await expectNoAxeViolations(page, ".en-ce-moment");
 
-    // The reply stopped too, from the block.
+    // The reply stopped too, from the block: it stays, in light red, in words, with no stop icon left.
     await reply.getByRole("button", { name: fr.aiActivity.live.stop.coach_reply, exact: true }).click();
     await expect(reply).toContainText(/Arrêtée à \d{2}:\d{2}/);
+    await expect(reply).toHaveAttribute("data-status", "stopped");
+    const lightRed = await dangerSurface(reply);
+    await expect.poll(() => reply.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(lightRed);
+    await expect(reply.getByRole("button")).toHaveCount(0);
+    await expectNoAxeViolations(page, ".en-ce-moment");
   });
 
   test("an action of another page shows under « En cours ailleurs », with a link to its page", async () => {

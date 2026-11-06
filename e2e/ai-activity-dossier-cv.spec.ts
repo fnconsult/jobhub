@@ -154,12 +154,14 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     // The step under way, beside « Arrêter », on the page; « Activité »'s glyph live in the Top Bar (#603).
     await expect(dossier.locator(".streamed-action-step")).toContainText(fr.aiActivity.steps.web_search);
     await expect(activityUnderWayOf(page)).toHaveCount(1);
-    // « En ce moment » (#806): the facts' web search finished (« 1 étape finie »), the news' under way.
+    // « En ce moment » (#806): the news' web search under way, the four steps before it finished (« 4 étapes finies »): the
+    // offer read for a recruiting agency, the register searched (no Globex in it), then the web searched for the facts and
+    // its pages read (apps/web/src/company-dossiers).
     await openActivity(page);
     const live = paneOf(page).locator(".ai-activity-live");
     await expect(live).toContainText(fr.aiActivity.kinds.company_dossier);
     await expect(live.locator(".ai-activity-live-status")).toHaveText(fr.aiActivity.steps.web_search);
-    await expect(live).toContainText("1 étape finie");
+    await expect(live.locator(".ai-activity-meta")).toHaveText(/^4 étapes finies · /);
     await closeActivity(page);
 
     await dossier.getByRole("button", { name: fr.aiActivity.live.stop.company_dossier, exact: true }).click();

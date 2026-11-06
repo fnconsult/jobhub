@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Conversation with the coach
-synonyms: [conversation, chat, coach, AI coach, rename a conversation, delete a conversation]
+synonyms: [conversation, chat, coach, AI coach, rename a conversation, delete a conversation, attach a CV, paste a link, drag and drop]
 route: /conversations/[id]
 ---
 This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Does this answer your question? » lets you say so.
@@ -15,3 +15,5 @@ While it replies, the coach shows what it is doing: each time it looks at your J
 To rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays.
 
 In the Jobbbox app, on iPhone, iPad or Android, you find the same conversations under « Coach » in the menu; touch and hold one to rename it (« Rename ») or delete it (« Delete »), once you confirm. While the coach is replying, the step under way shows; with VoiceOver or TalkBack, its reply is read to you once it is finished, not word by word. « Activity » shows how much of the conversation the coach reads and the AI used. Under the message box, « Report a problem » and « Suggest an idea » open the report form.
+
+In the app, « + », left of the message box, offers two choices. « Paste a job offer link » sends the coach the link you copied: it reads the offer as when you paste its link in a message. « Attach a CV » opens your files: choose a CV as a PDF or Word file (.docx), of 10 MB at most; a larger file or one of another format is refused before anything is sent. The CV is read as on jobbbox.ai (« Stop reading the CV » interrupts it), then what was read shows in the conversation: nothing is saved before « Create the profile », which creates the profile and opens it; you correct it afterwards with « Edit the profile ». On an iPad or an Android tablet, you can also drag a PDF, a Word file or a job offer's link from another app and drop it on the message box: it is handled the same way. A photo of a printed job posting is not possible yet.

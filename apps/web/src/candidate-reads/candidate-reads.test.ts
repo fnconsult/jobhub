@@ -656,7 +656,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       const subject = { kind: "menu", id: "applications" };
       const id = await send(marie, { subject, message: "Laquelle relancer ?" });
       // A Plan with none stored: what every Candidate had before they were Plan limits (ADR-0078).
-      const context = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: CONTEXT_SPLIT, upgrade: null };
+      const context = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: CONTEXT_SPLIT, upgrade: null, reply: null };
 
       expect(overHttp(coachConversationResponseSchema, await reads.coachConversation(marie, id)).conversation?.context).toEqual(context);
       expect(overHttp(coachConversationResponseSchema, await reads.coachConversationOfSubject(marie, subject)).conversation?.context).toEqual(context);

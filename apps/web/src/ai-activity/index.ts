@@ -48,7 +48,7 @@ async function offers(sources: PageSources, shown: readonly OfferShown[]): Promi
 
 async function repliesAbout(sources: PageSources, candidateId: string, focus: Parameters<CoachConversations["repliesAbout"]>[1]): Promise<ActivityElement[]> {
   const replies = await sources.coachReplies.repliesAbout(candidateId, focus);
-  return replies.map((reply) => activityElement("coach_reply", reply.provenance, { at: reply.at }));
+  return replies.map((reply) => activityElement("coach_reply", reply.provenance, { at: reply.at, sent: reply.sent }));
 }
 
 const made = (content: readonly Made[]): ActivityElement[] =>

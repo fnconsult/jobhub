@@ -6,14 +6,15 @@
  *   aiActivityPane(elements)                                 the pane: Modèles, Sources, Outils, Par élément, the Total and the closed button's summary
  *
  * An element is all that crosses to the browser: its kind, a Job Offer's title, its date, and what served it, the models
- * named for people (each raw id kept for the tooltip), where they ran, tokens and time, its Tools and Provenance sites.
- * Never a cost, prompt, AI task, Playbook Agent, Outcome, Back Office setting or internal id: none is read from the Provenance.
+ * named for people (each raw id kept for the tooltip), where they ran, tokens and time, its Tools and Provenance sites; an AI
+ * Coach reply's, what it sent in all its AI calls (`sent`, #805), its tokens only.
+ * Never a cost in euros, prompt, AI task, Playbook Agent, Outcome, Back Office setting or internal id: none is read from the Provenance.
  * An element whose Provenance was not kept (made before, or its slice not landed) is « modèle non enregistré », out of every total.
  *
  * Each model's time and each Tool's are its calls' durations summed; the Total's time is wall-clock, each element's start to end summed.
  * A time of 0 is one not kept (a Coach reply saved before Provenance), so not known (null).
  */
-import { describeModel, markOf, residencyOf, whereItRan, type Activity, type Provenance, type ProvenanceSite, type Translated } from "@jobhub/shared";
+import { describeModel, markOf, residencyOf, whereItRan, type Activity, type Provenance, type ProvenanceSite, type ReplyCost, type Translated } from "@jobhub/shared";
 
 /** What a page shows that AI may have produced, each the content a Provenance is kept with. */
 export const ELEMENT_KINDS = ["job_offer", "coach_reply", "job_search", "job_digest", "tailored_cv", "tailored_documents", "company_dossier", "action_card", "ats_score", "master_cv"] as const;
@@ -64,6 +65,12 @@ export interface ActivityElement {
    * shown under « Sources » though it is « modèle non enregistré ».
    */
   sites?: ProvenanceSite[];
+  /**
+   * On an AI Coach reply: what it sent in all its AI calls (#805), their tokens summed as its Coach Message Cost sums them
+   * (« 4 appels · 21,4k jetons envoyés »); null for a reply saved before #791, whose Provenance holds its last call only.
+   * Absent on any other element.
+   */
+  sent?: ReplyCost | null;
   /** What served it; null: « modèle non enregistré », out of the totals. */
   served: {
     models: ActivityModel[];
@@ -154,13 +161,16 @@ function endOf(provenance: Provenance | null, ended: ActionEnded | undefined): E
   return DONE;
 }
 
-/** One element of the page, as the pane shows it: what served it, read from its Provenance (null when none was kept). */
+/**
+ * One element of the page, as the pane shows it: what served it, read from its Provenance (null when none was kept); `sent`,
+ * on an AI Coach reply, what it sent in all its AI calls (#805).
+ */
 export function activityElement(
   kind: ElementKind,
   provenance: Provenance | null,
-  made: { name?: string; at?: string | null; sites?: readonly ProvenanceSite[]; ended?: ActionEnded } = {},
+  made: { name?: string; at?: string | null; sites?: readonly ProvenanceSite[]; ended?: ActionEnded; sent?: ReplyCost | null } = {},
 ): ActivityElement {
-  const named = made.name ? { name: made.name } : {};
+  const named = { ...(made.name ? { name: made.name } : {}), ...(made.sent !== undefined ? { sent: made.sent } : {}) };
   const end = endOf(provenance, made.ended);
   if (!provenance) return { kind, ...named, at: made.at ?? null, end, served: null, ...(made.sites?.length ? { sites: structuredClone([...made.sites]) } : {}) };
   const models: ActivityModel[] = [];

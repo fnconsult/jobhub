@@ -117,6 +117,12 @@ export async function migrateConsumption(database: Pool): Promise<void> {
       count integer NOT NULL CHECK (count >= 0),
       PRIMARY KEY (candidate_id, day, tool)
     );
+    -- The Consumption backfill's deploy date (#800): the first day counted live, recorded by its first run, so a later
+    -- run cannot take live days for backfilled ones. One row; no Candidate.
+    CREATE TABLE IF NOT EXISTS consumption_backfill (
+      live_from date NOT NULL,
+      ran_at timestamptz NOT NULL DEFAULT now()
+    );
   `);
   const tools = consumptionTools().map((tool) => `'${tool}'`);
   const { rows } = await database.query<{ check: string }>(

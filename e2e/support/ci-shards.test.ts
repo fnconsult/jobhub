@@ -19,7 +19,19 @@ type Spec = { title: string; file: string; tests: { projectName: string }[] };
  * Every test `playwright test --list <args>` would run, as « project › file › titles », with how many tests have that
  * name. No line numbers: listings sharing a cold transform cache may map a test to another line.
  */
-async function listed(args: string[]): Promise<Map<string, number>> {
+function listed(args: string[]): Promise<Map<string, number>> {
+  const key = args.join(" ");
+  if (!listings.has(key)) listings.set(key, listing(args));
+  return listings.get(key)!;
+}
+
+/**
+ * The listings this file already ran, by arguments. Each one is a Playwright process loading the whole suite, seconds
+ * of CPU: a test needing a listing another test made reuses it.
+ */
+const listings = new Map<string, Promise<Map<string, number>>>();
+
+async function listing(args: string[]): Promise<Map<string, number>> {
   const { stdout } = await run(path.join(root, "node_modules/.bin/playwright"), ["test", "--list", "--reporter=json", ...args], {
     cwd: root,
     maxBuffer: 64 * 1024 * 1024,
@@ -86,7 +98,8 @@ describe("CI's e2e shards", () => {
     expect(all.size).toBeGreaterThan(1000);
   });
 
-  it("run no web spec beside the Plans' quota projects", async () => {
+  // Two Playwright listings, made by the test above when the whole file runs: a process each when this one runs alone.
+  it("run no web spec beside the Plans' quota projects", { timeout: 60_000 }, async () => {
     const plans = commands.filter((command) => command.args.some((arg) => /plan-quotas|plan-coach-context/.test(arg)));
     expect(plans).toHaveLength(2);
     for (const command of plans) {

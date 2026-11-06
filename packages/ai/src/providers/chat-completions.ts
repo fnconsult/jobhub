@@ -23,7 +23,7 @@ interface ChatToolCall {
 interface ChatCompletion {
   model: string;
   choices: { message: { content: string | ContentChunk[] | null; tool_calls?: ChatToolCall[] | null } }[];
-  /** `prompt_tokens` include the cached ones, when the provider reports them (OpenAI; Mistral not documented, #127). */
+  /** `prompt_tokens` include the cached ones, when the provider reports them (OpenAI; Mistral too with its prompt cache, #790). */
   usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
 }
 
@@ -177,10 +177,16 @@ export function createMistralProvider(options: TextProviderOptions): AiProvider 
     endpoint: "api.eu.mistral.ai",
     residency: "eu",
     toolCalling: true,
+    // Mistral caches a prompt's prefix by itself; `prompt_cache_key` sends a call's Turns to the same cache (#790).
+    promptCache: "automatic",
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
       const { maxTokens, ...reasoning } = withReasoning("mistral", model, input);
-      const completion = await postChat(client, { model, max_tokens: maxTokens, messages: chatMessages("mistral", input), ...chatTools(input), ...reasoning }, input.signal);
+      const completion = await postChat(
+        client,
+        { model, max_tokens: maxTokens, messages: chatMessages("mistral", input), ...chatTools(input), ...reasoning, ...(input.cache ? { prompt_cache_key: input.cache.key } : {}) },
+        input.signal,
+      );
       return outputOf(completion);
     },
   };
@@ -202,6 +208,8 @@ export function createOpenAiProvider(options: OpenAiProviderOptions): AiProvider
     endpoint: host,
     residency: options.dataResidency === "eu" ? "eu" : "outside_eu",
     toolCalling: true,
+    // OpenAI caches a prompt's prefix by itself (#790); nothing to mark.
+    promptCache: "automatic",
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
       const { maxTokens, ...reasoning } = withReasoning("openai", model, input);

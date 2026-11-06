@@ -144,6 +144,13 @@ export interface TextInput {
   tools?: ToolDefinition[];
   /** "none": the model must answer in text, its tools only there to read the calls already made. Default "auto". */
   toolChoice?: "auto" | "none";
+  /**
+   * The stable prefix of a call with tools, for the provider's prompt cache (#790): every Turn of the call sends the same
+   * tools, system text and first `prefixMessages` messages (the conversation it was asked), then the Turns before it, so the
+   * next Turn may read them from the cache. `key` is the call's own, the same for all its Turns. Each adapter says it its
+   * way (Claude: `cache_control` breakpoints; Mistral: `prompt_cache_key`), or leaves it out. Absent: nothing is marked.
+   */
+  cache?: { key: string; prefixMessages: number };
 }
 
 /** A tool the model used during one call (e.g. its web search), as the provider reports it. Never its arguments or results. */
@@ -256,6 +263,12 @@ export interface AiProvider {
    * without them, as before tool calling.
    */
   readonly toolCalling?: boolean;
+  /**
+   * How the provider caches a prompt's prefix (#790), when `TextInput.cache` is given: "explicit", only where the call marks
+   * it (Claude's `cache_control`); "automatic", by itself, the call only helping it (Mistral's `prompt_cache_key`, OpenAI).
+   * Absent: it caches nothing, so the AI layer resends earlier Tool rounds' results as a digest.
+   */
+  readonly promptCache?: "explicit" | "automatic";
   /**
    * One web search: a query, or up to `searchContract.queriesPerCall` of them in one call (more is refused).
    * Their pages come back together, never attributed to a query.

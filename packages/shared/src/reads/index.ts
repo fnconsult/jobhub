@@ -148,6 +148,51 @@ export const jobSearchResponseSchema = z.object({
 });
 export type JobSearchResponse = z.infer<typeof jobSearchResponseSchema>;
 
+// --- Offres à traiter (the Offer box, ADR-0090) ------------------------------------------------------------------
+
+/**
+ * Where an Arrival came from, its chip: « Recherche » (a Job Search), « Job Digest », « Email » (Email intake), « Lien du
+ * coach » (a Job Offer link) and « Extension » (a Capture, once followed, #819).
+ */
+export const ARRIVAL_SOURCES = ["job_search", "job_digest", "email", "job_offer_link", "extension"] as const;
+export type ArrivalSource = (typeof ARRIVAL_SOURCES)[number];
+
+/** Where an Offer box entry stands: à traiter, or « Suivie » (its Application exists, whichever page made it). */
+export const OFFER_BOX_ENTRY_STATES = ["to_handle", "followed"] as const;
+
+/**
+ * One Offer box entry: its Job Offer, its Profile (null: « Non classée »), the Profile its Match Score is against and
+ * « Suivre » saves it with (`scoredWith`: the entry's, or for a « Non classée » one the active Profile it matches best;
+ * null when the Candidate has no active Profile), its first Arrival (`arrivalDay`, in French time) and every Arrival
+ * source with the date it first came by, oldest first; where it stands, and its Application once « Suivie ».
+ */
+export const offerBoxEntrySchema = z.object({
+  id: z.string(),
+  jobOffer: jobOfferLineSchema.extend({ contractType: z.enum(CONTRACT_TYPES).nullable() }),
+  profile: named.nullable(),
+  scoredWith: named.nullable(),
+  matchScore,
+  firstArrivalAt: instant,
+  arrivalDay: day,
+  sources: z.array(z.object({ source: z.enum(ARRIVAL_SOURCES), at: instant })),
+  state: z.enum(OFFER_BOX_ENTRY_STATES),
+  applicationId: z.string().nullable(),
+  followedAt: instant.nullable(),
+});
+export type OfferBoxEntryRead = z.infer<typeof offerBoxEntrySchema>;
+
+/**
+ * `GET /api/offer-box`: the Candidate's Offer box (« Offres à traiter »), the most recent first Arrival first, with how
+ * many entries are à traiter and today's day in French time, which « Aujourd'hui » and the posting ages are read against.
+ * `offerBoxView` (`@jobhub/shared`) lays it out as the web and the app show it.
+ */
+export const offerBoxResponseSchema = z.object({
+  today: day,
+  toHandle: z.number().int().min(0),
+  entries: z.array(offerBoxEntrySchema),
+});
+export type OfferBoxResponse = z.infer<typeof offerBoxResponseSchema>;
+
 // --- Job Digests -------------------------------------------------------------------------------------------------
 
 /**

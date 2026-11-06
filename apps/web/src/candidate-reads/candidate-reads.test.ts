@@ -5,7 +5,7 @@ import {
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
   coachingOrderResponseSchema,
-  coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+  coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { rulesProvenance, type MasterCvContent } from "@jobhub/shared";
@@ -26,6 +26,7 @@ import { createJobDigests, type JobDigests } from "../job-digests";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, type JobSearches } from "../job-searches";
 import { migrateDatabase } from "../migrations";
+import { createOfferBox } from "../offer-box";
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs, type TailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments, type TailoredDocuments } from "../tailored-documents";
@@ -210,6 +211,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       tailoredCvs,
       tailoredDocuments,
       coachConversations: conversations,
+      offerBox: createOfferBox(database, { profiles, jobOffers, now: () => NOW }),
       now: () => NOW,
     });
     marie = await signIn("marie.dupont@example.fr");
@@ -327,6 +329,42 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
 
       expect(await reads.jobSearch(paul, search)).toBeNull();
       expect(overHttp(jobSearchesResponseSchema, await reads.jobSearches(paul)).profiles.flatMap((group) => group.searches)).toEqual([]);
+    });
+  });
+
+  describe("Offres à traiter (ADR-0090)", () => {
+    it("gives the Offer box: each entry's Job Offer, Profile, Match Score, Arrival sources and where it stands, as the shared type says", async () => {
+      const daf = await createProfile(marie);
+      const found = await captureOffer();
+      const followed = await captureOffer("Directeur financier");
+      await searched(marie, daf, [found, followed]);
+      const saved = await applications.save(marie, { jobOfferId: followed, profileId: daf });
+      if (!saved.ok) throw new Error("fixture Application refused");
+
+      const box = overHttp(offerBoxResponseSchema, await reads.offerBox(marie));
+
+      expect(box).toMatchObject({ today: "2026-11-04", toHandle: 1 });
+      const byOffer = new Map(box.entries.map((entry) => [entry.jobOffer.id, entry]));
+      expect(byOffer.get(found)).toEqual({
+        id: expect.any(String),
+        jobOffer: { id: found, title: "DAF H/F", employer: "Acme Industrie", location: "Lyon", url: "https://carrieres.example.fr/daf/1", postedAt: null, expiredAt: null, contractType: "cdi" },
+        profile: { id: daf, name: "DAF" },
+        scoredWith: { id: daf, name: "DAF" },
+        matchScore: 100,
+        firstArrivalAt: NOW.toISOString(),
+        arrivalDay: "2026-11-04",
+        sources: [{ source: "job_search", at: NOW.toISOString() }],
+        state: "to_handle",
+        applicationId: null,
+        followedAt: null,
+      });
+      expect(byOffer.get(followed)).toMatchObject({ state: "followed", applicationId: saved.application.id, followedAt: expect.any(String) });
+    });
+
+    it("never gives a Candidate another Candidate's entries", async () => {
+      await searched(marie, await createProfile(marie), [await captureOffer()]);
+
+      expect(overHttp(offerBoxResponseSchema, await reads.offerBox(paul))).toEqual({ today: "2026-11-04", toHandle: 0, entries: [] });
     });
   });
 

@@ -5435,7 +5435,7 @@
     "hideArchived": "Masquer les candidatures archivées"
   },
   "jobSearchesMenu": {
-    "introduction": "Voici vos recherches d'offres, par profil. Demandez-moi quelles offres regarder en premier ou comment élargir vos critères ; pour trouver de nouvelles offres, lancez une recherche.",
+    "introduction": "Voici les offres qui vous sont arrivées : vos recherches, vos Job Digests, vos emails d'offres et les liens collés dans la conversation. Suivez celles qui vous intéressent ; demandez-moi lesquelles regarder en premier.",
     "title": "Vos recherches par profil",
     "tableLabel": "Recherches pour « {{profile}} »",
     "found": "Offres trouvées",
@@ -5445,6 +5445,60 @@
     "receivedByEmail": "Voir les offres reçues par email",
     "start": "Lancer une recherche",
     "startFor": "Lancer une recherche · {{profile}}"
+  },
+  "offerBox": {
+    "title": "Offres à traiter",
+    "label": "Offres à traiter : {{count}} à traiter",
+    "toHandle": "à traiter",
+    "treated_one": "{{count}} traitée",
+    "treated_other": "{{count}} traitées",
+    "progress": "Traitées : {{treated}} sur {{total}}",
+    "chips": "Filtrer par source",
+    "sources": {
+      "all": "Toutes",
+      "job_search": "Recherche",
+      "job_digest": "Job Digest",
+      "email": "Email",
+      "job_offer_link": "Lien du coach",
+      "extension": "Extension"
+    },
+    "chipCount": "{{source}}, {{count}} à traiter",
+    "today": "Aujourd'hui",
+    "earlier": "Précédemment",
+    "tiers": {
+      "not_to_miss": "À ne pas manquer",
+      "to_look_at": "À regarder",
+      "less_suited": "Peu adaptées"
+    },
+    "tierHints": {
+      "not_to_miss": "80 et plus",
+      "to_look_at": "60 à 79",
+      "less_suited": "moins de 60 ou non calculable"
+    },
+    "nothingToday": "Rien à traiter parmi les arrivées d'aujourd'hui.",
+    "nothingEarlier": "Rien en retard.",
+    "followedToday": "Suivies aujourd'hui ({{count}})",
+    "followedEarlier": "Déjà suivies ({{count}})",
+    "allDone": "Tout est traité",
+    "allDoneText": "Aucune offre n'attend votre décision. Les prochaines arriveront ici avec leur source : recherche, Job Digest, email ou lien collé au coach.",
+    "empty": "Aucune offre pour l'instant",
+    "emptyText": "Les offres de vos recherches, de vos Job Digests, de vos emails d'offres et des liens collés au coach arriveront ici, chacune à suivre.",
+    "arrivedOn": "arrivée le {{date}}",
+    "postedToday": "publiée aujourd'hui",
+    "postedAgo": "publiée il y a {{count}} j",
+    "leavesIn": "sort dans {{count}} j",
+    "unsorted": "Non classée",
+    "score": "Match Score {{score}}",
+    "noScore": "Match Score non calculable",
+    "notComputable": "n.c.",
+    "follow": "Suivre",
+    "following": "Suivi…",
+    "followError": "L'offre n'a pas pu être suivie. Réessayez.",
+    "read": "Lire l'offre",
+    "followed": "Suivie",
+    "seeApplication": "Voir la candidature",
+    "byProfile": "Recherches par Profil",
+    "receivedByEmail": "Reçues par email"
   },
   "jobDigestsMenu": {
     "introduction": "Voici vos Job Digests, par profil : les nouvelles offres qui correspondent à vos critères, envoyées par email. Demandez-moi lesquelles regarder en premier ; leur fréquence se règle ici.",

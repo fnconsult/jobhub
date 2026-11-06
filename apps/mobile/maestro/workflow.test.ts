@@ -49,6 +49,14 @@ describe("the mobile-e2e workflow (#705)", () => {
     expect(runs("maestro-ios")).toContain(`xcrun simctl create ${SIMULATOR} "\${{ matrix.model }}"`);
   });
 
+  // iPadOS 26 replaced Split View with windows: no multitasking button, and subflows/split-view.yaml found none (#705).
+  it("runs the iPad on iPadOS 18, which has Split View, the runtime downloaded when the image lacks it", () => {
+    const ipad = workflow.jobs["maestro-ios"]!.strategy!.matrix.include.find((entry) => entry.hardware === CI_HARDWARE.ipad.id)!;
+    expect(ipad.ios).toMatch(/^18\./);
+    expect(runs("maestro-ios")).toContain('xcodebuild -downloadPlatform iOS -buildVersion "${{ matrix.ios }}"');
+    expect(runs("maestro-ios")).toContain(`xcrun simctl create ${SIMULATOR} "\${{ matrix.model }}" $runtime`);
+  });
+
   it("runs the flows by run.ts against the held stack, Maestro at a pinned version, its analytics off", () => {
     expect(workflow.env.MAESTRO_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
     expect(workflow.env.MAESTRO_CLI_NO_ANALYTICS).toBe("1");

@@ -123,7 +123,7 @@ Un écart à la comparaison laisse dans l'artefact `maestro-results-<matériel>`
 
 ### À vérifier au premier passage d'un nouvel Xcode ou d'une nouvelle image Android
 
-Ni `simctl` ni Maestro ne mettent un iPad en Split View : `subflows/split-view.yaml` le fait comme une personne, par le bouton multitâche d'iPadOS, « Split View », puis Réglages pour l'autre moitié. Ses libellés sont ceux du système et changent avec iPadOS : à corriger dans ce fichier s'il échoue. De même, le pliable se plie par la console de l'émulateur (`adb emu fold`, `adb emu unfold`) et la langue d'Android se règle par `adb root` (`bootSetup`, `devices.ts`), ce qu'une image `google_apis` permet.
+Ni `simctl` ni Maestro ne mettent un iPad en Split View : `subflows/split-view.yaml` le fait comme une personne, par le bouton multitâche d'iPadOS, « Split View », puis Réglages pour l'autre moitié. Ses libellés sont ceux du système et changent avec iPadOS : à corriger dans ce fichier s'il échoue. iPadOS 26 n'a plus de Split View (des fenêtres à la place, sans ce bouton) : le job de l'iPad tourne sur iPadOS 18 (`ios` dans la matrice de `mobile-e2e.yml`), dont il télécharge le runtime si l'image macOS ne l'a pas. De même, le pliable se plie par la console de l'émulateur (`adb emu fold`, `adb emu unfold`) et la langue d'Android se règle par `adb root` (`bootSetup`, `devices.ts`), ce qu'une image `google_apis` permet.
 
 ### Libellés VoiceOver et TalkBack vérifiés à la main
 

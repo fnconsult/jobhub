@@ -119,8 +119,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { hardware: iphone-se, model: "iPhone SE (3rd generation)" }
-          - { hardware: ipad, model: "iPad Pro 13-inch (M4)" }
+          - { hardware: iphone-se, model: "iPhone SE (3rd generation)", ios: "" }
+          # Split View is iPadOS 18's: iPadOS 26 has windows instead, and no multitasking button (subflows/split-view.yaml).
+          - { hardware: ipad, model: "iPad Pro 13-inch (M4)", ios: "18.6" }
     env:
       DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
       # The stack's web server log (its mailbox too), kept with the results.
@@ -155,7 +156,18 @@ jobs:
           path: ${{ runner.temp }}/app
       - name: Boot the simulator and install the app
         run: |
-          xcrun simctl create maestro "${{ matrix.model }}"
+          # The runtime the matrix names (the newest installed of its version, else downloaded), or Xcode's own.
+          runtime=""
+          if [ -n "${{ matrix.ios }}" ]; then
+            pick() { xcrun simctl list runtimes -j | jq -r --arg v "${{ matrix.ios }}" '[.runtimes[] | select(.isAvailable and (.version | startswith($v)))] | sort_by(.version) | last | .identifier // empty'; }
+            runtime=$(pick)
+            if [ -z "$runtime" ]; then
+              xcodebuild -downloadPlatform iOS -buildVersion "${{ matrix.ios }}"
+              runtime=$(pick)
+            fi
+            test -n "$runtime"
+          fi
+          xcrun simctl create maestro "${{ matrix.model }}" $runtime
           xcrun simctl boot maestro
           xcrun simctl bootstatus maestro -b
           ditto -x -k "$RUNNER_TEMP/app/Jobbbox-ios.zip" "$RUNNER_TEMP/app"

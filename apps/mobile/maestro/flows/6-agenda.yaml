@@ -9,13 +9,14 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Agenda"
-# A menu's conversation opens on its latest message: its card is above.
+# A menu's conversation opens on its latest message: its card is above. The Interview's line is one link, which iOS
+# names by all it says (its time, « Entretien », the job, the employer): the job's title found within it.
 - scrollUntilVisible:
     element:
-      text: "Contrôleuse de gestion"
+      text: ".*Contrôleuse de gestion.*"
     direction: UP
     timeout: 20000
-- tapOn: "Contrôleuse de gestion"
+- tapOn: ".*Contrôleuse de gestion.*"
 - scrollUntilVisible:
     element:
       text: "Voir dans l'agenda"

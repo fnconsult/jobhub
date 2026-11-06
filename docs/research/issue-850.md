@@ -136,3 +136,19 @@ Ce qui suit vaut si #845 et #854 choisissent une visio **intégrée** (SDK WebRT
 6. Jobbbox sera-t-il inscrit au **Small Business Program** d'Apple (moins d'un million de dollars de revenus) ? Le taux de toute option payante en dépend.
 7. Autoriser `support.google.com` et `android-developers.googleblog.com` dans le réseau de la session, ou faire relire G1 à G6 par un humain, avant la soumission : la partie Google repose sur des extraits.
 8. Confirmer qu'aucun régime de lien externe ne s'applique en **Suisse** et au **Canada** sur les deux stores.
+
+
+## Errata du 2026-11-06 (vérification sur les pages officielles)
+
+Titre d'origine de la section : #850 : paiements dans l'app (Google Play)
+
+| Affirmation | Statut | Ce que dit la source | URL, lu le 2026-11-06 |
+|---|---|---|---|
+| Service en ligne payant 1:1 : pas de Play Billing si le service est entre deux personnes et n'est pas disponible en replay | **Confirmé** | « If your app provides a 1:1 online paid service, you are not required to use Google Play's billing system if: the paid service is between two individuals; the paid service is not available for replay afterwards (that is, the session is not recorded and cannot be accessed or used again) in any Play-distributed app. » Exemples : « education or hobby classes », « health coaching (such as personal trainer sessions or counseling services) », « specialist advisory services ». | https://support.google.com/googleplay/android-developer/answer/10281818?hl=en |
+| « Des notes ou un résumé écrit ne sont pas, à la lettre, un replay » | **Toujours non vérifiable** | La condition visée est « the **session** is not recorded and cannot be accessed or used again ». La page ne dit rien des notes ni des résumés. Un résumé tiré d'un enregistrement suppose que la séance a été « recorded » : c'est un point de lecture à poser à #855, pas une règle écrite. | idem |
+| EEE : depuis le 30 juin 2026, 10 % sur le premier million de dollars annuel quel que soit le moyen, plus 5 % de frais de facturation seulement avec Play Billing | **Confirmé** | Une installation est « nouvelle » si la première installation ou la première mise à jour depuis Play a eu lieu le 30 juin 2026 ou après. Premier million de dollars : 10 % + 5 % de « billing fee », que la page fait payer quand l'achat passe par Google Play Billing. Au-delà, palier standard : 20 % (nouvelles installations) ou 25 % (anciennes), + 5 % avec Play Billing ; abonnements 10 % ; liens externes 20 %. | https://support.google.com/googleplay/android-developer/answer/14659200?hl=en |
+| Frais des liens externes contradictoires (20 % au palier standard ou 10 %/20 % et 1,20 € par installation) | **Corrigé (contradiction levée)** | Tous ces chiffres sont justes, chacun pour un cas différent. Ils s'appliquent aux transactions et installations faites **dans les 24 h** après le lien. Frais d'acquisition initiale : 0 %. Abonnements : 10 %. Autres achats : **20 %** au palier standard, 15 % dans les programmes « Apps & Games », **10 % sur le premier million de dollars annuel**. Lien vers un téléchargement d'app : **1,20 € par installation**. | idem |
+| Facturation alternative dans l'EEE | **Précisé** | Avec le « user choice billing », les frais de facturation ne s'appliquent qu'aux achats faits par Play Billing. Avec le « programme EEE » (facturation alternative seule), les frais de service standard sont diminués de **3 points**. | idem |
+
+---
+

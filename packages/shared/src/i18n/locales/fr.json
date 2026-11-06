@@ -6110,6 +6110,9 @@
         },
         "declined": "Les notifications de l'app ne sont pas activées sur cet appareil : les choix ci-dessous s'appliqueront dès que vous les activerez."
       }
+    },
+    "jobOffer": {
+      "followCreates": "« Suivre » crée sa candidature avec le profil « {{profile}} »."
     }
   },
   "coachProposals": {

@@ -6110,6 +6110,9 @@
         },
         "declined": "The app's notifications are not turned on on this device: the choices below will apply as soon as you turn them on."
       }
+    },
+    "jobOffer": {
+      "followCreates": "“Follow” creates its application with the “{{profile}}” profile."
     }
   },
   "coachProposals": {

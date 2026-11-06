@@ -239,6 +239,20 @@ describe("the Maestro flows (#705)", () => {
     expect(new RegExp(`^(?:${waits[0]})$`).test(reply.replace(/\n/g, " "))).toBe(true);
   });
 
+  // A swipe fast enough to fling stops where the fling ends, a few points apart from one run to the next: the unfolded
+  // foldable's Mes candidatures at the largest text size, compared with its reference, was 93 to 94 % alike (#705). The
+  // conversation's steps, which key screens are scrolled by, move no faster than Android flings from (50 dp/s, at most
+  // 2.625 px a dp on the CI's devices): 15 % of the folded foldable's 2092 px take 3 s, 105 px/s against 131.
+  it("scrolls the conversation by steps too slow to fling", () => {
+    const { commands } = parse(join(ROOT, "subflows", "conversation-scroll.yaml"));
+    const steps = valuesOf(commands, ["swipe"]) as { start: string; end: string; duration: number }[];
+    expect(steps.length).toBeGreaterThan(0);
+    for (const step of steps) {
+      const travel = Math.abs(parseFloat(step.end.split(",")[1]!) - parseFloat(step.start.split(",")[1]!)) / 100;
+      expect((travel * 2092) / (step.duration / 1000)).toBeLessThan(50 * 2.625);
+    }
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));

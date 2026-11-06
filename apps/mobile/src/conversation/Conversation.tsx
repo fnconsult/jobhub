@@ -7,6 +7,7 @@ import { DropTarget } from "../attach/DropTarget";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { useOnline } from "../offline/read-cache";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
+import { TAPS_REACH_CONTROLS } from "../session/GateScreen";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
@@ -96,8 +97,14 @@ export function Conversation({
           {children}
         </View>
       </ScrollView>
-      <View testID="conversation-box" style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2], gap: space[1] }}>
-        {aboveBox}
+      {/* What sits above the box (suggestions, the help found while typing) scrolls and shrinks when the thread leaves it
+          too little room: the box keeps its own, above the keyboard and on the screen, at any text size (#705). */}
+      <View testID="conversation-box" style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", flexShrink: 1, paddingBottom: space[2], gap: space[1] }}>
+        {aboveBox ? (
+          <ScrollView testID="conversation-above-box" style={styles.aboveBox} keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}>
+            {aboveBox}
+          </ScrollView>
+        ) : null}
         {online ? null : (
           <AppText variant="meta" tone="secondary">
             {t("mobile.offline.conversationDisabled")}
@@ -190,4 +197,5 @@ function MenuItem({ label, icon: Icon, onPress }: { label: string; icon: LucideI
 const styles = StyleSheet.create({
   // The thread sits on the box, the latest message just above it, as in a messaging app.
   thread: { flexGrow: 1, justifyContent: "flex-end", paddingVertical: space[4] },
+  aboveBox: { flexGrow: 0, flexShrink: 1 },
 });

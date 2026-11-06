@@ -1,9 +1,9 @@
-import { act, fireEvent, screen } from "@testing-library/react-native";
-import { ScrollView } from "react-native";
+import { act, fireEvent, screen, within } from "@testing-library/react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import { CoachConversation } from "../coach/CoachConversation";
 import { fakeCoachWeb } from "../coach/testing";
 import { fakeNetwork } from "../offline/testing";
-import { renderInApp } from "../testing";
+import { renderInApp, setWindow } from "../testing";
 
 // What it sends and shows is CoachConversation's (its tests); here, how the conversation is drawn: its box, and its thread.
 
@@ -20,6 +20,24 @@ describe("Conversation's box", () => {
     expect(screen.getByLabelText("Votre message")).toBeEnabled();
     expect(screen.getByRole("button", { name: "Envoyer" })).toBeEnabled();
     expect(screen.queryByText(/Hors ligne/)).toBeNull();
+  });
+});
+
+// On a folded foldable the help found while a message was typed, and on an iPhone SE at the largest text size the
+// home page's suggestions, took more room than the thread left: the box went under the keyboard, or off the screen, with
+// its « Envoyer » (#705, Maestro). What sits above the box scrolls and shrinks; the box keeps its room.
+describe("Conversation's box, what sits above it taller than the room left", () => {
+  beforeEach(() => setWindow({ width: 375, height: 667, fontScale: 3.571 }));
+
+  it("scrolls what sits above the box, which shrinks, and never the box itself", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" suggestions={<Text>Chercher des offres</Text>} />, fakeCoachWeb().client);
+    const box = screen.getByTestId("conversation-box");
+    expect(StyleSheet.flatten(box.props.style)).toMatchObject({ flexShrink: 1 });
+    const above = screen.getByTestId("conversation-above-box");
+    expect(StyleSheet.flatten(above.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+    expect(above.props.keyboardShouldPersistTaps).toBe("handled");
+    expect(within(above).queryByLabelText("Votre message")).toBeNull();
+    expect(within(box).getByLabelText("Votre message")).toBeOnTheScreen();
   });
 });
 

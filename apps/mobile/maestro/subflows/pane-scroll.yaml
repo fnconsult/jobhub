@@ -2,7 +2,7 @@
 # window's right on a tablet (LAYOUT columns), the pane over the whole window otherwise, an iPad's Split View then the
 # left half only. Maestro's scrollUntilVisible swipes the middle of the screen, which on a tablet is the conversation:
 # the pane never moved. Within the pane: below the top of its body.
-# In short, slow steps (15 % of the screen's height, 800 ms, no fling): Maestro's scrollUntilVisible swipes from the
+# In short, slow steps (15 % of the screen's height, no fling): Maestro's scrollUntilVisible swipes from the
 # screen's middle by some 40 % of its height, past what a folded foldable shows at the largest text size. DIRECTION
 # first, then back the other way, should the element have come in where the steps had already been (a card still
 # loading). Then pulled within the column: iOS gives Maestro an element's whole frame, the part the column clips

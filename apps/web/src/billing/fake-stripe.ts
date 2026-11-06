@@ -197,6 +197,8 @@ export async function startFakeStripe(port = 0) {
   const refundRefusals = new Map<string, string>();
   /** When each subscription's paid period ends (in seconds), by subscription id: a month from first asked, unless set. */
   const subscriptionPeriodEnds = new Map<string, number>();
+  /** When each subscription's current period started (in seconds), by subscription id: a month before its end, unless set (#801). */
+  const subscriptionPeriodStarts = new Map<string, number>();
   /** The subscriptions whose cancellation is scheduled at the end of the period (`cancel_at_period_end`). */
   const cancellingSubscriptions = new Set<string>();
   /** A subscription as Stripe gives it: its paid period's end on its item (API versions since 2025-03-31.basil). */
@@ -209,7 +211,17 @@ export async function startFakeStripe(port = 0) {
       ...(subscriptionStarts.has(subscription) ? { start_date: subscriptionStarts.get(subscription) } : {}),
       cancel_at: null,
       cancel_at_period_end: cancellingSubscriptions.has(subscription),
-      items: { object: "list", data: [{ id: `si_fake_${subscription}`, object: "subscription_item", current_period_end: subscriptionPeriodEnds.get(subscription) }] },
+      items: {
+        object: "list",
+        data: [
+          {
+            id: `si_fake_${subscription}`,
+            object: "subscription_item",
+            current_period_start: subscriptionPeriodStarts.get(subscription) ?? subscriptionPeriodEnds.get(subscription)! - 30 * 24 * 3600,
+            current_period_end: subscriptionPeriodEnds.get(subscription),
+          },
+        ],
+      },
       discounts,
       latest_invoice: latestInvoiceOf(subscription),
     };
@@ -460,7 +472,8 @@ export async function startFakeStripe(port = 0) {
         return reply(200, { id: product, object: "product", active, default_price: defaultPriceField });
       }
       if (product) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such product: '${product}'` } });
-      // For e2e specs in another process: `discountSubscription`, and `setSubscriptionPeriodEnd` (`end` in seconds) or `payPeriod` over HTTP.
+      // For e2e specs in another process: `discountSubscription`, and `setSubscriptionPeriodEnd` (`end` in seconds, and `start`:
+      // `setSubscriptionPeriod`) or `payPeriod` over HTTP.
       const discountPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/discount$/)?.[1];
       if (discountPath) {
         subscriptionDiscounts.set(decodeURIComponent(discountPath), { promotionCode: params.get("promotion_code") ?? "", end: numberParam(params, "end") });
@@ -470,7 +483,11 @@ export async function startFakeStripe(port = 0) {
       if (periodPath) {
         // With an `amount` (#514): a paid period, its invoice the subscription's latest; without: its end alone (#513).
         if (params.has("amount")) payPeriod(decodeURIComponent(periodPath), { amount: Number(params.get("amount")), start: new Date(Number(params.get("start")) * 1000), end: new Date(Number(params.get("end")) * 1000) });
-        else subscriptionPeriodEnds.set(decodeURIComponent(periodPath), Number(params.get("end")));
+        else {
+          subscriptionPeriodEnds.set(decodeURIComponent(periodPath), Number(params.get("end")));
+          // With a `start` too (#801): the current period's start, which « Votre consommation » counts from.
+          if (params.has("start")) subscriptionPeriodStarts.set(decodeURIComponent(periodPath), Number(params.get("start")));
+        }
         return reply(200, {});
       }
       const paidPath = request.method === "POST" && path.match(/^\/__customers\/([^/]+)\/paid$/)?.[1];
@@ -550,6 +567,11 @@ export async function startFakeStripe(port = 0) {
     },
     /** Sets when a subscription's paid period ends, as Stripe gives it on the subscription's item. */
     setSubscriptionPeriodEnd: (subscriptionId: string, end: Date) => void subscriptionPeriodEnds.set(subscriptionId, Math.floor(end.getTime() / 1000)),
+    /** Sets a subscription's current period, its start and its end, as Stripe gives them on the subscription's item (#801). */
+    setSubscriptionPeriod: (subscriptionId: string, { start, end }: { start: Date; end: Date }) => {
+      subscriptionPeriodStarts.set(subscriptionId, Math.floor(start.getTime() / 1000));
+      subscriptionPeriodEnds.set(subscriptionId, Math.floor(end.getTime() / 1000));
+    },
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
     stop: () =>

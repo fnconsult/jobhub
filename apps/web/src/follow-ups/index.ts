@@ -7,7 +7,9 @@
  * `createFollowUps(database, { actionCards, applications, mailer, appUrl, ai?, now? })`:
  *  - `proposeDue(now)` — for the worker's schedule: proposes every Follow-up
  *    (or "Abandonnée" suggestion) now due, and emails each Candidate concerned.
- *    Safe to run as often as wanted: a card is proposed once per wait.
+ *    Safe to run as often as wanted: a card is proposed once per wait. A
+ *    Follow-up (not the suggestion) also goes to their devices as a Push
+ *    notification opening its Application, once per wait (#699).
  *  - `onAccept` — the Action Cards' handlers: accepting a Follow-up means the
  *    Candidate sent it themselves, and moves the Application to "Relancée";
  *    accepting the suggestion moves it to "Abandonnée".
@@ -48,6 +50,7 @@ import type { AcceptHandler, ActionCard, ActionCards } from "../action-cards";
 import type { Applications } from "../applications";
 import { readOrigin, type Origin } from "../origin";
 import type { Mailer } from "../auth";
+import type { PushNotifier } from "../push-notifications";
 import { routes } from "../routes";
 import { followUpEmail } from "./email";
 import { fieldErrors, type FieldError } from "../validation";
@@ -137,6 +140,8 @@ export interface FollowUpsDeps {
   taskPlaybooks?: TaskPlaybookReader;
   /** The clock a Follow-up is marked as sent by. Defaults to the real time. */
   now?: () => Date;
+  /** Where the Push notification of a Follow-up due is queued. Without it, none. */
+  push?: PushNotifier;
 }
 
 const delay = z.coerce.number().int().min(1).max(MAX_FOLLOW_UP_DELAY);
@@ -255,6 +260,14 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     } catch (error) {
       // The card is on the Application all the same: the email is only a notice.
       console.warn("[follow-ups] the notice email could not be sent:", error instanceof Error ? error.message : error);
+    }
+    if (kind === FOLLOW_UP_CARD && deps.push) {
+      try {
+        // Once per wait, as the card: the wait's start names it.
+        await deps.push.notify(row.candidate_id, { event: "follow_up_due", applicationId: row.id }, { once: `follow_up_due:${row.id}:${payload.since}` });
+      } catch (error) {
+        console.warn("[follow-ups] the Push notification could not be queued:", error instanceof Error ? error.message : error);
+      }
     }
     return true;
   }

@@ -1,62 +1,25 @@
-import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, screen } from "@testing-library/react-native";
 import { ScrollView } from "react-native";
+import { CoachConversation } from "../coach/CoachConversation";
+import { fakeCoachWeb } from "../coach/testing";
 import { fakeNetwork } from "../offline/testing";
-import { hardwareKeyboard, renderInApp } from "../testing";
-import { SampleConversation } from "./SampleConversation";
+import { renderInApp } from "../testing";
 
-describe("Conversation, on sample data until #690", () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+// What it sends and shows is CoachConversation's (its tests); here, how the conversation is drawn: its box, and its thread.
 
-  it("says the coach is an AI before anything is written", async () => {
-    await renderInApp(<SampleConversation />);
-    expect(screen.getByText(/Je suis un coach IA, pas une personne/)).toBeOnTheScreen();
-  });
-
-  it("sends what was typed, offers « Arrêter » while the reply streams, and « Envoyer » again once stopped", async () => {
-    await renderInApp(<SampleConversation />);
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-
-    await user.type(screen.getByLabelText("Votre message"), "Aide-moi à préparer un entretien");
-    await user.press(screen.getByRole("button", { name: "Envoyer" }));
-    expect(screen.getByText("Aide-moi à préparer un entretien")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Envoyer" })).toBeNull();
-
-    await user.press(screen.getByRole("button", { name: "Arrêter" }));
-    expect(screen.getByRole("button", { name: "Envoyer" })).toBeOnTheScreen();
-  });
-
-  it("lets the reply finish on its own", async () => {
-    await renderInApp(<SampleConversation />);
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
-    await user.press(screen.getByRole("button", { name: "Envoyer" }));
-    await act(() => jest.runAllTimers());
-    expect(screen.getByRole("button", { name: "Envoyer" })).toBeOnTheScreen();
-  });
-
+describe("Conversation's box", () => {
   it("has « + » to add a link or a document", async () => {
-    await renderInApp(<SampleConversation />);
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
     expect(screen.getByRole("button", { name: "Joindre un lien ou un document" })).toBeOnTheScreen();
   });
 
-  describe("without network", () => {
-    it("disables the box, « Envoyer » and « + », and says why", async () => {
-      await renderInApp(<SampleConversation />, { network: fakeNetwork(false) });
-      expect(screen.getByLabelText("Votre message")).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Joindre un lien ou un document" })).toBeDisabled();
-      expect(screen.getByText(/Hors ligne : vous pourrez écrire au coach dès le retour du réseau/)).toBeOnTheScreen();
-    });
-
-    it("gives them back once the network returns", async () => {
-      const network = fakeNetwork(false);
-      await renderInApp(<SampleConversation />, { network });
-      await act(() => network.set(true));
-      expect(screen.getByLabelText("Votre message")).toBeEnabled();
-      expect(screen.getByRole("button", { name: "Envoyer" })).toBeEnabled();
-      expect(screen.queryByText(/Hors ligne/)).toBeNull();
-    });
+  it("gives the box back once the network returns", async () => {
+    const network = fakeNetwork(false);
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { ...fakeCoachWeb().client, network });
+    await act(() => network.set(true));
+    expect(screen.getByLabelText("Votre message")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Envoyer" })).toBeEnabled();
+    expect(screen.queryByText(/Hors ligne/)).toBeNull();
   });
 });
 
@@ -73,42 +36,16 @@ describe("Conversation's thread, when the window changes (rotation, Split View, 
   beforeEach(() => scrollToEnd().mockClear());
 
   it("stays where the person scrolled it, back up in the thread", async () => {
-    await renderInApp(<SampleConversation />);
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
     await scrollTo(300);
     await rewrap(2600);
     expect(scrollToEnd()).not.toHaveBeenCalled();
   });
 
   it("keeps the latest message in view when the person was reading it", async () => {
-    await renderInApp(<SampleConversation />);
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
     await scrollTo(1500);
     await rewrap(2600);
     expect(scrollToEnd()).toHaveBeenCalled();
-  });
-});
-
-describe("Conversation, with a hardware keyboard", () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
-
-  it("sends the draft with ⌘↩, listed in the ⌘ panel", async () => {
-    await renderInApp(<SampleConversation />);
-    expect(hardwareKeyboard.panel()).toContain("⌘↩ Envoyer le message");
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
-
-    await hardwareKeyboard.press("⌘↩");
-    expect(screen.getByText("Bonjour")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("");
-  });
-
-  it("withdraws ⌘↩ while the reply streams, « Arrêter » being the box's button then", async () => {
-    await renderInApp(<SampleConversation />);
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
-    await hardwareKeyboard.press("⌘↩");
-    expect(hardwareKeyboard.panel()).not.toContain("⌘↩ Envoyer le message");
-    await act(() => jest.runAllTimers());
-    expect(hardwareKeyboard.panel()).toContain("⌘↩ Envoyer le message");
   });
 });

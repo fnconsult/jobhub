@@ -88,7 +88,9 @@ export function SignInForm({
 /**
  * The email sent: its Note, and the field for its code (#686), for a Candidate reading it on another device. A code
  * accepted signs in and goes on to `callbackURL` (the second step first, when the account has it: the proxy sends it
- * there, ADR-0075). A code that no longer works asks for a new email (`onResend`), which brings another code.
+ * there, ADR-0075). A code refused offers a new email (`onResend`), which brings another code, and keeps offering it
+ * (#755): Better Auth answers a code that no longer exists (spent by its link, by 5 wrong tries, replaced by a newer
+ * email) as it answers a wrong one, `INVALID_OTP`, so the page cannot tell them apart.
  */
 function EmailSent({ email, callbackURL, onResend }: { email: string; callbackURL: string; onResend: () => Promise<boolean> }) {
   const { t } = useTranslation();
@@ -96,7 +98,7 @@ function EmailSent({ email, callbackURL, onResend }: { email: string; callbackUR
   const [checking, setChecking] = useState(false);
   const [refusal, setRefusal] = useState<SignInCodeRefusal | null>(null);
   const [resending, setResending] = useState(false);
-  const spent = refusal === "signIn.codeExpired" || refusal === "signIn.codeTooManyTries";
+  const [resendOffered, setResendOffered] = useState(false);
 
   async function enterCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,6 +107,7 @@ function EmailSent({ email, callbackURL, onResend }: { email: string; callbackUR
     const { error } = await authClient.signIn.emailOtp({ email, otp: typedSignInCode(code) });
     if (!error) return window.location.assign(callbackURL);
     setRefusal(signInCodeRefusal(error.code));
+    setResendOffered(true);
     setChecking(false);
   }
 
@@ -142,7 +145,7 @@ function EmailSent({ email, callbackURL, onResend }: { email: string; callbackUR
         <Button variant="primary" type="submit" busy={checking}>
           {checking ? t("signIn.codeChecking") : t("signIn.codeSubmit")}
         </Button>
-        {spent ? (
+        {resendOffered ? (
           <Button onClick={() => void resend()} busy={resending}>
             {resending ? t("signIn.sending") : t("signIn.resend")}
           </Button>

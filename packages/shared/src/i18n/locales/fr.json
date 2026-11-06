@@ -1033,6 +1033,20 @@
     "stopped": "Réponse arrêtée",
     "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
     "thinking": "Votre coach rédige sa réponse…",
+    "consulted": {
+      "summary_one": "Le coach a consulté {{count}} élément de Jobbbox",
+      "summary_other": "Le coach a consulté {{count}} éléments de Jobbbox",
+      "pages": {
+        "application": "Candidature",
+        "applications": "Vos candidatures",
+        "profile": "Profil",
+        "job_search": "Recherche d'offres",
+        "job_searches": "Vos recherches d'offres",
+        "job_offer": "Offre",
+        "job_digest": "Job Digest",
+        "job_digests": "Vos Job Digests"
+      }
+    },
     "errors": {
       "unavailable": "Votre coach ne peut pas répondre pour le moment. Réessayez dans quelques instants.",
       "invalid": "Ce message n'a pas pu être envoyé. Raccourcissez-le et réessayez."
@@ -1121,6 +1135,48 @@
       "foot": "Signalement",
       "reportProblem": "Signaler un problème",
       "suggestIdea": "Proposer une idée"
+    },
+    "seen": {
+      "steps": {
+        "list_objects": "Consulte vos données",
+        "read_profile": "Ouvre le profil",
+        "read_application": "Ouvre la candidature",
+        "read_job_offer": "Ouvre l'offre",
+        "read_job_search": "Ouvre la recherche d'offres",
+        "read_job_digest": "Ouvre le Job Digest",
+        "read_tailored_documents": "Ouvre les documents adaptés"
+      },
+      "count": {
+        "profile_one": "{{count}} profil",
+        "profile_other": "{{count}} profils",
+        "application_one": "{{count}} candidature",
+        "application_other": "{{count}} candidatures",
+        "job_offer_one": "{{count}} offre",
+        "job_offer_other": "{{count}} offres",
+        "job_search_one": "{{count}} recherche d'offres",
+        "job_search_other": "{{count}} recherches d'offres",
+        "job_digest_one": "{{count}} Job Digest",
+        "job_digest_other": "{{count}} Job Digests",
+        "tailored_documents_one": "{{count}} dossier de documents",
+        "tailored_documents_other": "{{count}} dossiers de documents",
+        "agenda_item_one": "{{count}} rendez-vous",
+        "agenda_item_other": "{{count}} rendez-vous",
+        "coach_memory_one": "{{count}} souvenir du coach",
+        "coach_memory_other": "{{count}} souvenirs du coach",
+        "all_one": "{{count}} élément",
+        "all_other": "{{count}} éléments"
+      },
+      "types": {
+        "profile": "Profil",
+        "application": "Candidature",
+        "job_offer": "Offre",
+        "job_search": "Recherche d'offres",
+        "job_digest": "Job Digest",
+        "tailored_documents": "Documents adaptés",
+        "agenda_item": "Rendez-vous",
+        "coach_memory": "Mémoire du coach",
+        "all": "Vos données"
+      }
     }
   },
   "provenanceLine": {
@@ -1532,6 +1588,7 @@
       "title": "Connexion",
       "intro": "Les moyens de connexion, en plus du lien reçu par e-mail : Google, Apple, Microsoft et tout fournisseur OIDC. Une modification s'applique en quelques secondes, sans redéploiement ni déconnexion. Un secret saisi est chiffré et n'est jamais réaffiché.",
       "noMasterKey": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini sur ce serveur.",
+      "appleRequired": "Les candidats voient {{providers}}, mais pas Apple : l'App Store refuse l'app Jobbbox tant qu'une connexion Google ou Microsoft y est proposée sans Apple (règle 4.8). Ajoutez Apple, testez-le, puis proposez-le aux candidats.",
       "ssoTitle": "Connexion de l'équipe",
       "ssoHelp": "Activé, le back office demande à un administrateur connecté par un lien reçu par e-mail de se reconnecter avec un fournisseur autorisé pour les administrateurs. Ses pages de candidat restent accessibles. Les super-admins permanents (ADMIN_EMAILS) ne sont jamais concernés.",
       "ssoLabel": "Exiger un fournisseur de connexion pour les administrateurs",
@@ -5373,7 +5430,7 @@
     "hideArchived": "Masquer les candidatures archivées"
   },
   "jobSearchesMenu": {
-    "introduction": "Voici vos recherches d'offres, par profil. Demandez-moi quelles offres regarder en premier ou comment élargir vos critères ; pour trouver de nouvelles offres, lancez une recherche.",
+    "introduction": "Voici les offres qui vous sont arrivées : vos recherches, vos Job Digests, vos emails d'offres et les liens collés dans la conversation. Suivez celles qui vous intéressent ; demandez-moi lesquelles regarder en premier.",
     "title": "Vos recherches par profil",
     "tableLabel": "Recherches pour « {{profile}} »",
     "found": "Offres trouvées",
@@ -5383,6 +5440,60 @@
     "receivedByEmail": "Voir les offres reçues par email",
     "start": "Lancer une recherche",
     "startFor": "Lancer une recherche · {{profile}}"
+  },
+  "offerBox": {
+    "title": "Offres à traiter",
+    "label": "Offres à traiter : {{count}} à traiter",
+    "toHandle": "à traiter",
+    "treated_one": "{{count}} traitée",
+    "treated_other": "{{count}} traitées",
+    "progress": "Traitées : {{treated}} sur {{total}}",
+    "chips": "Filtrer par source",
+    "sources": {
+      "all": "Toutes",
+      "job_search": "Recherche",
+      "job_digest": "Job Digest",
+      "email": "Email",
+      "job_offer_link": "Lien du coach",
+      "extension": "Extension"
+    },
+    "chipCount": "{{source}}, {{count}} à traiter",
+    "today": "Aujourd'hui",
+    "earlier": "Précédemment",
+    "tiers": {
+      "not_to_miss": "À ne pas manquer",
+      "to_look_at": "À regarder",
+      "less_suited": "Peu adaptées"
+    },
+    "tierHints": {
+      "not_to_miss": "80 et plus",
+      "to_look_at": "60 à 79",
+      "less_suited": "moins de 60 ou non calculable"
+    },
+    "nothingToday": "Rien à traiter parmi les arrivées d'aujourd'hui.",
+    "nothingEarlier": "Rien en retard.",
+    "followedToday": "Suivies aujourd'hui ({{count}})",
+    "followedEarlier": "Déjà suivies ({{count}})",
+    "allDone": "Tout est traité",
+    "allDoneText": "Aucune offre n'attend votre décision. Les prochaines arriveront ici avec leur source : recherche, Job Digest, email ou lien collé au coach.",
+    "empty": "Aucune offre pour l'instant",
+    "emptyText": "Les offres de vos recherches, de vos Job Digests, de vos emails d'offres et des liens collés au coach arriveront ici, chacune à suivre.",
+    "arrivedOn": "arrivée le {{date}}",
+    "postedToday": "publiée aujourd'hui",
+    "postedAgo": "publiée il y a {{count}} j",
+    "leavesIn": "sort dans {{count}} j",
+    "unsorted": "Non classée",
+    "score": "Match Score {{score}}",
+    "noScore": "Match Score non calculable",
+    "notComputable": "n.c.",
+    "follow": "Suivre",
+    "following": "Suivi…",
+    "followError": "L'offre n'a pas pu être suivie. Réessayez.",
+    "read": "Lire l'offre",
+    "followed": "Suivie",
+    "seeApplication": "Voir la candidature",
+    "byProfile": "Recherches par Profil",
+    "receivedByEmail": "Reçues par email"
   },
   "jobDigestsMenu": {
     "introduction": "Voici vos Job Digests, par profil : les nouvelles offres qui correspondent à vos critères, envoyées par email. Demandez-moi lesquelles regarder en premier ; leur fréquence se règle ici.",
@@ -5812,6 +5923,23 @@
       "writeDisabled": "Hors ligne : rien ne s'enregistre avant le retour du réseau."
     },
     "attach": "Joindre un lien ou un document",
+    "attachments": {
+      "menu": "Joindre",
+      "pasteLink": "Coller un lien d'offre",
+      "joinCv": "Joindre un CV",
+      "noLink": "Le presse-papiers ne contient pas de lien. Copiez le lien de l'offre, puis réessayez.",
+      "nothingDropped": "Déposez sur la boîte le lien d'une offre, ou un CV au format PDF ou Word (.docx).",
+      "read": "CV lu : {{name}}",
+      "targetRole": "Poste recherché : {{value}}",
+      "locations": "Lieux : {{value}}",
+      "createProfile": "Créer le profil",
+      "creating": "Création du profil…",
+      "editLater": "Vous pourrez le corriger ensuite avec « Modifier le profil ».",
+      "incomplete": "Ce CV ne dit pas tout ce qu'un profil demande ({{fields}}). Créez le profil sur jobbbox.ai : vous y importez ce CV et complétez chaque champ.",
+      "incompleteFields": "certains champs",
+      "createOnWeb": "Créer le profil sur jobbbox.ai",
+      "newProfile": "Nouveau profil"
+    },
     "send": "Envoyer",
     "emptyScreen": "Cet écran arrive bientôt dans l'app.",
     "update": {
@@ -5821,11 +5949,6 @@
       "openPlayStore": "Ouvrir Google Play"
     },
     "homeTitle": "Accueil",
-    "fichePlaceholder": "La Fiche montrera ici l'objet de la page, ses Sections, son Activité et ses Résultats.",
-    "activityPlaceholder": "Activité montrera ici la barre de contexte et l'Activité IA de la page.",
-    "openSampleSection": "Ouvrir une Section d'exemple",
-    "sampleSection": "Section d'exemple",
-    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire.",
     "documents": {
       "title": "Documents",
       "none": "Pas encore de document : demandez au coach un CV adapté ou une lettre de motivation.",
@@ -5875,7 +5998,30 @@
       "openPosting": "Voir l'annonce",
       "shareLink": "Partager le lien"
     },
+    "applications": {
+      "notFound": "Cette candidature est introuvable : elle n'existe pas ou n'est pas la vôtre.",
+      "readOnlySections": "Les avis de vos coachs humains se consultent sur jobbbox.ai.",
+      "dossierNotBuilt": "Le dossier entreprise se constitue sur jobbbox.ai : il apparaîtra ici une fois constitué.",
+      "dossierConfirmOnWeb": "Confirmez l'employeur sur jobbbox.ai : aucune recherche n'est faite avant votre confirmation.",
+      "dossierEmployerOnWeb": "L'offre ne nomme pas l'employeur : indiquez-le sur jobbbox.ai pour constituer le dossier.",
+      "dossierUpdateOnWeb": "Le dossier se met à jour sur jobbbox.ai.",
+      "financialYear": "{{year}} · Chiffre d'affaires : {{revenue}} · Résultat net : {{netIncome}}",
+      "contactsOnWeb": "La recherche de contacts et la demande de coordonnées se font sur jobbbox.ai : chaque demande compte dans votre quota hebdomadaire.",
+      "contactsOff": "Les contacts enrichis ne sont pas disponibles pour le moment.",
+      "statusButton": "Statut : {{status}}",
+      "interviewDate": "Date de l'entretien (jj/mm/aaaa)",
+      "interviewTime": "Heure, à Paris (hh:mm)"
+    },
     "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
+    "coach": {
+      "replyAnnounced": "Coach IA : {{reply}}"
+    },
+    "subscriptionOnWeb": "Votre abonnement se gère sur jobbbox.ai.",
+    "signalement": {
+      "notice": "Joints automatiquement : la page, la version de Jobbbox, votre appareil, la langue et la taille du texte. Ni capture d'écran, ni conversation avec votre coach.",
+      "questionContext": "la page, la version de Jobbbox, votre appareil, la langue et la taille du texte",
+      "device": "Appareil"
+    },
     "profiles": {
       "positioning": "Positionnement",
       "contracts": "Contrats",
@@ -5894,6 +6040,58 @@
       "failed": "Ceci n'a pas pu être chargé. Vérifiez votre connexion et réessayez.",
       "retry": "Réessayer",
       "offline": "Hors ligne : ceci se chargera dès le retour du réseau."
+    },
+    "coaching": {
+      "loading": "Chargement de vos coachs…",
+      "loadError": "Vos coachs et vos séances n'ont pas pu être chargés. Réessayez dans quelques instants.",
+      "payment": {
+        "waiting": "Paiement reçu. Nous attendons sa confirmation par Stripe : votre séance apparaît ici dans un instant.",
+        "maybe": "Si vous avez payé, votre séance apparaît ici dès que Stripe a confirmé le paiement.",
+        "slow": "La confirmation tarde. Si vous avez payé, votre séance apparaîtra ici ; la confirmation de commande vous est aussi envoyée par e-mail.",
+        "refresh": "Actualiser",
+        "recorded": "Votre séance avec {{name}} est payée. Choisissez maintenant votre créneau sur sa page de réservation, puis saisissez la date ici.",
+        "cancelled": "Paiement annulé : aucune séance n'a été réservée."
+      },
+      "order": {
+        "loading": "Chargement de votre commande…",
+        "opening": "Ouverture du paiement…",
+        "failed": "Le paiement n'a pas pu démarrer. Vérifiez votre connexion et réessayez.",
+        "inBrowser": "Le paiement s'ouvre sur la page sécurisée de Stripe, sans quitter l'app."
+      },
+      "session": {
+        "date": "Date de la séance (jj/mm/aaaa)",
+        "time": "Heure, à Paris (hh:mm)"
+      }
+    },
+    "jobSearches": {
+      "quotaExceeded": "Votre quota de recherches d'offres est atteint pour cette période : vous pourrez en lancer une nouvelle à son renouvellement."
+    },
+    "push": {
+      "channel": "Notifications",
+      "ask": {
+        "jobSearch": {
+          "title": "Être prévenu des nouveaux résultats ?",
+          "body": "Votre recherche continue sans vous : Jobbbox peut vous notifier dès qu'elle trouve des offres, même l'app fermée."
+        },
+        "interview": {
+          "title": "Être prévenu la veille de vos rendez-vous ?",
+          "body": "Jobbbox peut vous rappeler vos entretiens et séances la veille à 18:00, en plus de l'e-mail si vous le recevez."
+        },
+        "privacy": "Une notification ne nomme jamais une entreprise, un poste ni une personne : le détail s'affiche une fois l'app ouverte. Vous choisissez ce qui vous est envoyé dans Mon compte, Rappels.",
+        "allow": "Activer les notifications",
+        "notNow": "Pas maintenant"
+      },
+      "settings": {
+        "refused": {
+          "ios": "Les notifications de Jobbbox sont refusées sur cet appareil. Pour les recevoir, ouvrez les Réglages, touchez Notifications, puis Jobbbox, et activez « Autoriser les notifications ».",
+          "android": "Les notifications de Jobbbox sont refusées sur cet appareil. Pour les recevoir, ouvrez les paramètres de l'appareil, puis Applications, Jobbbox, Notifications, et activez-les."
+        },
+        "openSettings": {
+          "ios": "Ouvrir les Réglages",
+          "android": "Ouvrir les paramètres"
+        },
+        "declined": "Les notifications de l'app ne sont pas activées sur cet appareil : les choix ci-dessous s'appliqueront dès que vous les activerez."
+      }
     }
   },
   "coachProposals": {
@@ -5935,7 +6133,8 @@
       "draftOf": "Brouillon du {{date}}",
       "draftEdited": "Brouillon du {{date}}, modifié depuis",
       "newDraft": "Un brouillon rédigé par votre coach IA · {{language}}",
-      "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises."
+      "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises.",
+      "replacesTailoredCvProposal": "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises."
     },
     "quota": {
       "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
@@ -5954,6 +6153,9 @@
     "confirmReplace": "Remplacer votre brouillon actuel, vos modifications comprises ?",
     "confirmYes": "Remplacer et rédiger",
     "confirmNo": "Garder mon brouillon",
+    "confirmReplaceProposal": "Remplacer votre proposition de CV adapté en cours de relecture, vos réponses comprises ?",
+    "confirmYesProposal": "Remplacer et préparer",
+    "confirmNoProposal": "Garder ma proposition",
     "runHint": "Le document est dans les documents de la candidature ; arrêté, rien n'a été gardé.",
     "edit": "Modifier avant d'appliquer",
     "dismiss": "Ignorer",
@@ -5962,9 +6164,12 @@
     "editIntro": "Le formulaire de la page, pré-rempli avec la proposition de votre coach pour « {{name}} ». Ce que vous changez ici est gardé si vous fermez le volet.",
     "applied": "Appliqué par vous à {{time}}",
     "launched": "Lancé par vous à {{time}}",
-    "launchedHint": "Suivez-la dans Activité IA ; « Arrêter » l'interrompt.",
+    "launchedHint": "Suivez-la dans Activité IA ; « Arrêter la recherche d'offres » l'interrompt.",
     "dismissed": "Ignoré",
     "undone": "Annulé à {{time}}",
+    "undoNotes": {
+      "status_kept": "Le statut de la candidature avait changé depuis : il est laissé tel quel."
+    },
     "problems": {
       "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
@@ -5998,10 +6203,10 @@
     "label": "Propositions du coach",
     "card": "Carte",
     "form": "Formulaire",
-    "hint": "Ce que votre coach IA vous montre d'abord quand il propose un changement : la carte sous sa réponse, ou le formulaire pré-rempli ouvert dans le volet. « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte ; rien n'est appliqué sans vous.",
+    "hint": "Ce que votre coach IA vous montre d'abord quand il propose un changement : la carte sous sa réponse, ou le formulaire pré-rempli de sa première proposition ouvert dans le volet, sans quitter la zone de message. « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte ; rien n'est appliqué sans vous.",
     "saved": {
       "card": "Enregistré : chaque proposition s'affichera en carte sous la réponse.",
-      "form": "Enregistré : le formulaire de chaque proposition s'ouvrira dans le volet."
+      "form": "Enregistré : le formulaire pré-rempli de la première proposition de chaque réponse s'ouvrira dans le volet."
     },
     "error": "Votre choix n'a pas pu être enregistré. Réessayez."
   },
@@ -6074,5 +6279,40 @@
       "coaching_session_paid": "Séance de coaching payée",
       "coaching_session_changed_by_candidate": "Séance déplacée ou annulée par un candidat"
     }
+  },
+  "coachingPayment": {
+    "title": "Paiement terminé",
+    "body": "Revenez dans l'app Jobbbox : votre séance y apparaît dès que Stripe a confirmé le paiement, avec le lien pour choisir votre créneau.",
+    "cancelledTitle": "Paiement annulé",
+    "cancelledBody": "Aucun paiement n'a été fait. Vous pourrez réserver une séance plus tard depuis l'app.",
+    "backToApp": "Revenir dans l'app Jobbbox",
+    "onWeb": "Voir mes coachs humains sur le site"
+  },
+  "shareCapture": {
+    "message": "Offre partagée depuis une autre app : {{title}}",
+    "reply": "J'ai enregistré cette offre dans Jobbbox. Elle n'est visible que par vous. Touchez « Scorer contre mon profil » pour voir si elle vous correspond.",
+    "title": "Partager vers Jobbbox",
+    "intro": "Vérifiez ce que vous envoyez à Jobbbox : il en fait une offre que vous seul voyez, ouverte dans sa propre conversation.",
+    "link": "Lien de l'offre",
+    "text": "Texte de l'offre",
+    "textHint": "Collez ici le texte de l'offre si son site ne laisse pas Jobbbox la lire.",
+    "send": "Envoyer à Jobbbox",
+    "sending": "Lecture de l'offre…",
+    "cancel": "Annuler",
+    "nothing": "Rien n'a été partagé. Partagez une offre depuis votre navigateur, LinkedIn, Indeed ou Mail, puis choisissez Jobbbox.",
+    "needsText": {
+      "forbiddenSite": "Ce site ne laisse pas Jobbbox lire ses offres. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le.",
+      "unreadable": "Jobbbox n'a pas pu lire cette page : le site ne l'autorise pas, demande une connexion ou ne répond pas. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le.",
+      "notAJobOffer": "Ce lien ne semble pas mener à une seule offre d'emploi. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le."
+    },
+    "notAJobOffer": "Ce texte ne semble pas être une offre d'emploi. Collez le texte complet de l'offre, puis envoyez-le.",
+    "invalid": "Ce partage ne peut pas être envoyé : il faut un lien web ou le texte d'une offre (100 000 caractères au plus).",
+    "failed": "L'offre n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.",
+    "score": "Scorer contre mon profil",
+    "scoreAgainst": "Scorer contre « {{profile}} »",
+    "scoring": "Calcul du score…",
+    "scored": "Score de correspondance : {{score}} / 100 contre « {{profile}} »",
+    "noProfile": "Pour scorer cette offre, créez d'abord un profil sur jobbbox.ai.",
+    "scoreFailed": "Le score n'a pas pu être calculé. Réessayez."
   }
 }

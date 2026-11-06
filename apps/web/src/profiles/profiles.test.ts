@@ -1,6 +1,7 @@
 import type { MasterCvContent, Provenance, SearchCriteria } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { consumptionOf } from "../consumption";
 import { createProfiles, migrateProfiles, searchCriteriaVersion, type Profiles } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -333,6 +334,17 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
           [2, undefined],
           [1, reading],
         ]);
+      });
+
+      it("counts one CV read in Consumption when its Profile is saved with the reading (#799); a Profile typed in, or refused, counts nothing", async () => {
+        const twoProfiles = createProfiles(database, { profileQuota: async () => 2 });
+        await twoProfiles.create(candidateId, { masterCv, searchCriteria: criteria });
+        expect(await consumptionOf(database, candidateId)).toEqual([]);
+        expect(await twoProfiles.create(candidateId, { masterCv, searchCriteria: criteria, provenance: reading })).toMatchObject({ ok: true });
+        // The Plan Quota of Profiles is reached: nothing is saved, nothing counted.
+        expect(await twoProfiles.create(candidateId, { masterCv, searchCriteria: criteria, provenance: reading })).toMatchObject({ ok: false });
+
+        expect(await consumptionOf(database, candidateId)).toEqual([{ day: expect.any(String), tool: "cvReading", count: 1 }]);
       });
 
       it("keeps no Provenance that is not a CV reading's, nor one this version cannot read", async () => {

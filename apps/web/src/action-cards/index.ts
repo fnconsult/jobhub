@@ -64,6 +64,8 @@ export interface ActionCard {
   edited?: unknown;
   /** When « Annuler » put the state before back. */
   undoneAt?: Date;
+  /** What « Annuler » left as it was, as its kind's handler named it (#770); shown on the card. */
+  undoNote?: string;
   /** Applied, with the state before kept: « Annuler » is offered. */
   undoable?: true;
 }
@@ -73,7 +75,9 @@ export type ActionCardDecision = "accept" | "dismiss";
 export type DecideResult =
   | { ok: true; card: ActionCard }
   | { ok: false; error: "not_found" | "already_decided" | "failed" | "conflict" }
-  | { ok: false; error: "invalid"; errors: FieldError[] };
+  | { ok: false; error: "invalid"; errors: FieldError[] }
+  /** No room left in the Plan Quota since the proposal (#773): the card stays pending, its payload now holding the Upgrade prompt. */
+  | { ok: false; error: "quota"; card: ActionCard };
 export type UndoResult = { ok: true; card: ActionCard } | { ok: false; error: "not_found" | "already_decided" | "not_undoable" | "failed" | "conflict" };
 
 /** Thrown by a handler: the object changed since the card was proposed (or applied), so nothing is changed. */
@@ -93,12 +97,26 @@ export class ActionCardInvalid extends Error {
 }
 
 /**
- * Applies an accepted card, `edited` what the Candidate changed before applying it. Throwing leaves the card pending.
- * Gives back what `undo` needs to put the state before back, if it can be.
+ * Thrown by an accept handler: the Plan Quota has no room left since the card was proposed (#773). Nothing is applied; the
+ * card stays pending with `payload`, its payload as it must now show (the Upgrade prompt in place of « Appliquer »).
  */
-export type AcceptHandler = (card: ActionCard, candidateId: string, edited?: unknown) => Promise<void | { undo?: unknown }>;
-/** Puts back the state before an applied card, from what its AcceptHandler gave back. Throwing leaves it applied. */
-export type UndoHandler = (card: ActionCard, candidateId: string, undo: unknown) => Promise<void>;
+export class ActionCardQuota extends Error {
+  override name = "ActionCardQuota";
+  constructor(readonly payload: unknown) {
+    super("no room left in the Plan Quota");
+  }
+}
+
+/**
+ * Applies an accepted card, `edited` what the Candidate changed before applying it, in the Candidate's `language` when
+ * known. Throwing leaves the card pending. Gives back what `undo` needs to put the state before back, if it can be.
+ */
+export type AcceptHandler = (card: ActionCard, candidateId: string, edited?: unknown, context?: { language?: "fr" | "en" }) => Promise<void | { undo?: unknown }>;
+/**
+ * Puts back the state before an applied card, from what its AcceptHandler gave back. Throwing leaves it applied. `note`:
+ * what it left as it was, kept with the card (#770).
+ */
+export type UndoHandler = (card: ActionCard, candidateId: string, undo: unknown) => Promise<void | { note?: string }>;
 
 export interface ActionCards {
   propose(candidateId: string, proposal: ActionCardProposal): Promise<ActionCard>;
@@ -109,7 +127,7 @@ export interface ActionCards {
   pendingOfKinds(candidateId: string, kinds: string[]): Promise<ActionCard[]>;
   /** The Candidate's cards under these replies, whatever their status, oldest first. */
   inThread(candidateId: string, replies: readonly string[]): Promise<ActionCard[]>;
-  decide(candidateId: string, cardId: string, decision: ActionCardDecision, options?: { edited?: unknown }): Promise<DecideResult>;
+  decide(candidateId: string, cardId: string, decision: ActionCardDecision, options?: { edited?: unknown; language?: "fr" | "en" }): Promise<DecideResult>;
   /** « Annuler » on an applied card. */
   undo(candidateId: string, cardId: string): Promise<UndoResult>;
   /** Takes back a pending card; false when it is not the Candidate's pending card. */
@@ -132,9 +150,10 @@ interface CardRow {
   edited: unknown;
   undo: unknown;
   undone_at: Date | null;
+  undo_note: string | null;
 }
 
-const COLUMNS = "id, kind, title, body, focus_kind, focus_id, payload, status, created_at, provenance, reply_seq, decided_at, edited, undo, undone_at";
+const COLUMNS = "id, kind, title, body, focus_kind, focus_id, payload, status, created_at, provenance, reply_seq, decided_at, edited, undo, undone_at, undo_note";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** What a page lists: its own cards, never a thread's. */
 const ON_A_PAGE = "reply_seq IS NULL";
@@ -154,6 +173,7 @@ function cardFrom(row: CardRow): ActionCard {
     ...(row.decided_at ? { decidedAt: row.decided_at } : {}),
     ...(row.edited !== null && row.edited !== undefined ? { edited: row.edited } : {}),
     ...(row.undone_at ? { undoneAt: row.undone_at } : {}),
+    ...(row.undo_note ? { undoNote: row.undo_note } : {}),
     ...(row.status === "accepted" && row.undo !== null && row.undo !== undefined ? { undoable: true as const } : {}),
   };
 }
@@ -172,8 +192,8 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
     return rows.map(cardFrom);
   }
 
-  /** Runs `change` on the Candidate's card, locked, in one transaction, committed only when its result is ok. */
-  async function onCard<R extends { ok: boolean }>(
+  /** Runs `change` on the Candidate's card, locked, in one transaction, committed only when its result is ok (or `keep`). */
+  async function onCard<R extends { ok: boolean; keep?: true }>(
     candidateId: string,
     cardId: string,
     change: (row: CardRow, client: PoolClient) => Promise<R>,
@@ -189,7 +209,8 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
         return { ok: false, error: "not_found" };
       }
       const result = await change(row, client);
-      await client.query(result.ok ? "COMMIT" : "ROLLBACK");
+      await client.query(result.ok || result.keep ? "COMMIT" : "ROLLBACK");
+      if (result.keep) delete result.keep;
       return result;
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
@@ -258,16 +279,22 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
     },
 
     decide(candidateId, cardId, decision, decideOptions = {}) {
-      return onCard<DecideResult>(candidateId, cardId, async (row, client) => {
+      return onCard<DecideResult & { keep?: true }>(candidateId, cardId, async (row, client) => {
         if (row.status !== "pending") return { ok: false, error: "already_decided" };
         const status: ActionCardStatus = decision === "accept" ? "accepted" : "dismissed";
         const edited = decision === "accept" ? (decideOptions.edited ?? null) : null;
         let undo: unknown = null;
         if (decision === "accept") {
           try {
-            const applied = await handlers[row.kind]?.(cardFrom(row), candidateId, decideOptions.edited);
+            const context = decideOptions.language ? { language: decideOptions.language } : {};
+            const applied = await handlers[row.kind]?.(cardFrom(row), candidateId, decideOptions.edited, context);
             undo = applied?.undo ?? null;
           } catch (error) {
+            if (error instanceof ActionCardQuota) {
+              // Still pending, now showing the Upgrade prompt: kept (committed), not rolled back.
+              const { rows } = await client.query<CardRow>(`UPDATE action_card SET payload = $2 WHERE id = $1 RETURNING ${COLUMNS}`, [row.id, JSON.stringify(error.payload ?? null)]);
+              return { ok: false, error: "quota", card: cardFrom(rows[0]!), keep: true };
+            }
             return refusal(row.kind, error);
           }
         }
@@ -284,12 +311,16 @@ export function createActionCards(database: Pool, options: { onAccept?: Record<s
         if (row.status === "dismissed" || row.status === "undone") return { ok: false, error: "already_decided" };
         const undoer = undoers[row.kind];
         if (row.status !== "accepted" || row.undo === null || !undoer) return { ok: false, error: "not_undoable" };
+        let note: string | null = null;
         try {
-          await undoer(cardFrom(row), candidateId, row.undo);
+          note = (await undoer(cardFrom(row), candidateId, row.undo))?.note ?? null;
         } catch (error) {
           return refusal(row.kind, error).error === "conflict" ? { ok: false, error: "conflict" } : { ok: false, error: "failed" };
         }
-        const { rows } = await client.query<CardRow>(`UPDATE action_card SET status = 'undone', undone_at = now() WHERE id = $1 RETURNING ${COLUMNS}`, [row.id]);
+        const { rows } = await client.query<CardRow>(`UPDATE action_card SET status = 'undone', undone_at = now(), undo_note = $2 WHERE id = $1 RETURNING ${COLUMNS}`, [
+          row.id,
+          note,
+        ]);
         return { ok: true, card: cardFrom(rows[0]!) };
       });
     },
@@ -324,6 +355,8 @@ export async function migrateActionCards(database: Pool): Promise<void> {
     ALTER TABLE action_card ADD COLUMN IF NOT EXISTS edited jsonb;
     ALTER TABLE action_card ADD COLUMN IF NOT EXISTS undo jsonb;
     ALTER TABLE action_card ADD COLUMN IF NOT EXISTS undone_at timestamptz;
+    -- What « Annuler » left as it was (#770): e.g. an Application Status changed since, said on the card.
+    ALTER TABLE action_card ADD COLUMN IF NOT EXISTS undo_note text;
     CREATE INDEX IF NOT EXISTS action_card_reply_idx ON action_card (reply_seq) WHERE reply_seq IS NOT NULL;
     ALTER TABLE action_card DROP CONSTRAINT IF EXISTS action_card_status_check;
     ALTER TABLE action_card ADD CONSTRAINT action_card_status_check CHECK (status IN ('pending', 'accepted', 'dismissed', 'undone'));

@@ -1,0 +1,363 @@
+/* The Offer box (« Offres à traiter », ADR-0090, variant B of the prototype): the page itself, before the menu's
+   conversation. Its header and source chips stay at the top of the page's column while it scrolls, the current day's
+   heading under them and the current tier's under that. Beside its component, as the Design System's own CSS is
+   (ADR-0053). */
+.offer-box {
+  --offer-box-head: 8rem;
+  --offer-box-day: 2.5rem;
+
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 46rem;
+  padding-bottom: var(--space-4);
+  margin-inline: auto;
+}
+
+.offer-box-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  background: var(--color-background);
+  box-shadow: 0 1px 0 var(--color-border);
+}
+
+.offer-box-count {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.offer-box-count h2 {
+  margin: 0;
+  font-size: var(--font-size-h2);
+}
+
+.offer-box-count p {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.offer-box-count b {
+  font-size: var(--font-size-h2);
+  color: var(--color-text);
+}
+
+.offer-box-count p span::before {
+  content: "· ";
+}
+
+/* The progress bar to zero, its figure said in its label. */
+.offer-box-progress {
+  height: 6px;
+  overflow: hidden;
+  background: var(--color-hover);
+  border-radius: 999px;
+}
+
+.offer-box-progress i {
+  display: block;
+  height: 100%;
+  background: var(--color-success);
+  border-radius: inherit;
+  transition: width 0.3s;
+}
+
+.offer-box-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A 44px target (ADR-0009), the chip drawn smaller inside it. */
+.offer-box-chip {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--font-size-meta);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: var(--color-background);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+}
+
+.offer-box-chip[aria-pressed="true"] {
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.offer-box-chip-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-meta);
+}
+
+.offer-box-day {
+  margin-top: var(--space-4);
+}
+
+.offer-box-day-heading {
+  position: sticky;
+  top: var(--offer-box-head);
+  z-index: 3;
+  box-sizing: border-box;
+  min-height: var(--offer-box-day);
+  padding: var(--space-2) 0;
+  margin: 0;
+  font-size: var(--font-size-h3);
+  background: var(--color-background);
+}
+
+.offer-box-tier {
+  margin-top: var(--space-3);
+}
+
+.offer-box-tier-heading {
+  position: sticky;
+  top: calc(var(--offer-box-head) + var(--offer-box-day));
+  z-index: 2;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) 0;
+  margin: 0;
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-background);
+  box-shadow: 0 1px 0 var(--color-border);
+}
+
+.offer-box-tier-heading::before {
+  width: 8px;
+  height: 8px;
+  content: "";
+  background: var(--color-border-strong);
+  border-radius: 50%;
+}
+
+.offer-box-tier[data-tier="not_to_miss"] .offer-box-tier-heading::before {
+  background: var(--color-success);
+}
+
+.offer-box-tier[data-tier="to_look_at"] .offer-box-tier-heading::before {
+  background: var(--color-warn);
+}
+
+.offer-box-tier-heading span {
+  font-weight: 400;
+  color: var(--color-text-meta);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.offer-box-nothing {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.offer-box-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  margin: var(--space-2) 0 0;
+  list-style: none;
+}
+
+.offer-box-entry {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.offer-box-entry[data-state="followed"] {
+  background: var(--color-surface);
+}
+
+.offer-box-score {
+  display: flex;
+  flex-direction: column;
+  grid-row: span 3;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: var(--font-size-lead);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.offer-box-score small {
+  margin-top: 3px;
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+  color: var(--color-text-meta);
+}
+
+.offer-box-entry[data-tier="not_to_miss"] .offer-box-score {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.offer-box-entry[data-tier="to_look_at"] .offer-box-score {
+  color: var(--color-warn);
+  background: var(--color-warn-soft);
+}
+
+.offer-box-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  font-weight: 600;
+}
+
+.offer-box-title a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.offer-box-title a:hover {
+  text-decoration: underline;
+}
+
+.offer-box-facts {
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-meta);
+  color: var(--color-text-secondary);
+}
+
+.offer-box-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  margin: 0;
+  font-size: var(--font-size-meta);
+  color: var(--color-text-meta);
+}
+
+.offer-box-source {
+  padding: 0 var(--space-2);
+  color: var(--color-text);
+  white-space: nowrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.offer-box-age[data-soon] {
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.offer-box-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-1);
+}
+
+.offer-box-actions .field-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.offer-box-followed {
+  padding-top: var(--space-2);
+  margin-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+
+.offer-box-followed summary {
+  min-height: 44px;
+  line-height: 44px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.offer-box-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-3);
+  margin: var(--space-4) 0 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.offer-box-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* « À ne pas manquer », still à traiter: a border turning slowly around it, still when the system asks for less motion. */
+@property --offer-box-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.offer-box-entry[data-tier="not_to_miss"][data-state="to_handle"] {
+  background:
+    linear-gradient(var(--color-background), var(--color-background)) padding-box,
+    conic-gradient(from var(--offer-box-angle), var(--color-success) 0deg, var(--color-success-soft) 90deg, var(--color-border) 180deg, var(--color-success-soft) 270deg, var(--color-success) 360deg) border-box;
+  border: 1.5px solid transparent;
+  animation: offer-box-turn 7s linear infinite;
+}
+
+@keyframes offer-box-turn {
+  to {
+    --offer-box-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offer-box-entry[data-tier="not_to_miss"][data-state="to_handle"] {
+    animation: none;
+  }
+
+  .offer-box-progress i {
+    transition: none;
+  }
+}
+
+@media (width < 40rem) {
+  .offer-box-entry {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+  }
+
+  .offer-box-score {
+    width: 2.625rem;
+    height: 2.625rem;
+  }
+}

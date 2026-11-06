@@ -14,7 +14,7 @@ While an AI action runs, on this page or « Running elsewhere », each step show
 - « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;
 - « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;
 - « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;
-- « Looking at your data » and « Preparing a proposal »: the pointer touching a card, when the coach reads your applications, your agenda or your profile, or prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».
+- « Looking at your data » and « Preparing a proposal »: the toolbox opening, a key coming out when the coach reads your applications, your agenda or your profile, a small card when it prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».
 
 If you asked your device for less motion, each glyph stays still.
 

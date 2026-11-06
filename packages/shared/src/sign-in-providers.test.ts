@@ -1,0 +1,73 @@
+import { describe, expect, it } from "vitest";
+import { cancelledAtProvider, signInCopy } from "./sign-in-providers";
+
+describe("what a sign-in page or the app's sign-in screen says (#470, #687)", () => {
+  it("mentions no provider when only the magic link is offered", () => {
+    const copy = signInCopy({ providers: [] }, "fr");
+    expect(copy.intro).toBe(
+      "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail. Si vous n'avez pas encore de compte, il sera créé.",
+    );
+    expect(copy.notice).toBeNull();
+  });
+
+  it("names the providers shown on the page", () => {
+    expect(signInCopy({ providers: ["Google"] }, "fr").intro).toBe(
+      "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte Google. Si vous n'avez pas encore de compte, il sera créé.",
+    );
+    expect(signInCopy({ providers: ["Google", "Apple", "Microsoft"] }, "fr").intro).toBe(
+      "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte Google, Apple ou Microsoft. Si vous n'avez pas encore de compte, il sera créé.",
+    );
+  });
+
+  it("says it in English", () => {
+    expect(signInCopy({ providers: [] }, "en").intro).toBe(
+      "No password to remember: get a sign-in link by email. If you don't have an account yet, one will be created.",
+    );
+    expect(signInCopy({ providers: ["Google", "Microsoft"] }, "en").intro).toBe(
+      "No password to remember: get a sign-in link by email, or use your Google or Microsoft account. If you don't have an account yet, one will be created.",
+    );
+  });
+
+  it("asks for a new link when a sign-in link is no longer valid", () => {
+    for (const error of ["INVALID_TOKEN", "EXPIRED_TOKEN", "ATTEMPTS_EXCEEDED"]) {
+      expect(signInCopy({ providers: ["Google"], error }, "fr").notice?.text).toBe("Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.");
+    }
+  });
+
+  it("after a failed sign-in, suggests the providers only when there are some", () => {
+    expect(signInCopy({ providers: ["Google"], error: "access_denied" }, "fr").notice?.text).toBe(
+      "La connexion n'a pas abouti. Réessayez ci-dessous, avec Google ou en recevant un lien par e-mail.",
+    );
+    expect(signInCopy({ providers: [], error: "access_denied" }, "fr").notice?.text).toBe("La connexion n'a pas abouti. Réessayez ci-dessous en recevant un lien par e-mail.");
+    expect(signInCopy({ providers: [], error: "access_denied" }, "en").notice?.text).toBe("Sign-in didn't go through. Try again below with a link by email.");
+  });
+
+  it("asks a person with an account to sign in by magic link first, then link the provider from Mon compte", () => {
+    expect(signInCopy({ providers: ["Jobbbox SSO"], error: "account_not_linked" }, "fr").notice?.text).toBe(
+      "Un compte Jobbbox utilise déjà cette adresse e-mail. Connectez-vous d'abord en recevant un lien par e-mail, puis associez ce moyen de connexion à votre compte depuis « Mon compte ».",
+    );
+  });
+
+  it("says a provider for the Jobbbox team is not for Candidates", () => {
+    expect(signInCopy({ providers: [], error: "provider_not_allowed" }, "fr").notice?.text).toBe(
+      "Ce moyen de connexion est réservé à l'équipe Jobbbox. Connectez-vous ci-dessous en recevant un lien par e-mail.",
+    );
+  });
+
+  it("shows a dead link as a warning Note, any other failed sign-in as a danger Note", () => {
+    expect(signInCopy({ providers: ["Google"], error: "EXPIRED_TOKEN" }, "fr").notice?.tone).toBe("warn");
+    for (const error of ["access_denied", "account_not_linked", "provider_not_allowed", "provider_disabled"])
+      expect(signInCopy({ providers: ["Google"], error }, "fr").notice?.tone).toBe("danger");
+  });
+});
+
+describe("a sign-in through a provider the person left (#687)", () => {
+  it("is cancelled when they refused or closed the provider's page: Google's and Microsoft's access_denied, Apple's user_cancelled_authorize", () => {
+    expect(cancelledAtProvider("access_denied")).toBe(true);
+    expect(cancelledAtProvider("user_cancelled_authorize")).toBe(true);
+  });
+
+  it("is not when Jobbbox refused it, or when it failed", () => {
+    for (const error of ["account_not_linked", "provider_disabled", "provider_not_allowed", "invalid_code", "state_mismatch"]) expect(cancelledAtProvider(error)).toBe(false);
+  });
+});

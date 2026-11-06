@@ -7,6 +7,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createHumanCoaches, migrateHumanCoaches, type HumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import { createPushNotifications, migratePushNotifications, type PushNotification } from "../push-notifications";
 import { createAppointmentReminders, migrateAppointmentReminders, type AppointmentReminders } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -149,12 +150,12 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     });
 
     at(REMINDER_TIME);
-    expect(await flaky.sendDue()).toEqual({ emails: 1, items: 1, failed: 1 });
+    expect(await flaky.sendDue()).toMatchObject({ emails: 1, items: 1, failed: 1 });
     expect(outbox.map((message) => message.to)).toEqual(["paul.martin@example.fr"]);
 
     down = false;
     at("2026-10-20T16:30:00.000Z");
-    expect(await flaky.sendDue()).toEqual({ emails: 1, items: 1, failed: 0 });
+    expect(await flaky.sendDue()).toMatchObject({ emails: 1, items: 1, failed: 0 });
     expect(outbox.map((message) => message.to)).toEqual(["paul.martin@example.fr", "marie.dupont@example.fr"]);
   });
 
@@ -266,6 +267,67 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     expect(outbox).toHaveLength(2);
     expect(forPaul.text).toContain("Contrôleur de gestion");
     expect(forPaul.text).not.toContain("DAF H/F");
+  });
+
+  describe("as a Push notification (#699)", () => {
+    let queued: { personId: string; notification: PushNotification }[];
+    let pushing: AppointmentReminders;
+
+    beforeEach(async () => {
+      await migratePushNotifications(database);
+      queued = [];
+      const push = createPushNotifications(database, {
+        senders: () => ({}),
+        now: () => clock.now,
+        queue: { send: async (_name, data) => void queued.push(data as { personId: string; notification: PushNotification }) },
+      });
+      pushing = createAppointmentReminders(database, { mailer: { send: async (message) => void outbox.push(message) }, baseURL: "https://app.jobbbox.fr", now: () => clock.now, push });
+    });
+
+    it("notifies the Candidate at 18:00 the day before, once for the whole next day, opening the Agenda; once only when the job runs again", async () => {
+      await interview(marie, "2026-10-21T09:00");
+      await interview(marie, "2026-10-21T15:00");
+
+      at(REMINDER_TIME);
+      expect(await pushing.sendDue()).toEqual({ emails: 1, items: 2, failed: 0, notified: 1 });
+      at("2026-10-20T16:30:00.000Z");
+      await Promise.all([pushing.sendDue(), pushing.sendDue()]);
+
+      expect(queued).toEqual([{ personId: marie, notification: { event: "appointment_reminder" } }]);
+    });
+
+    it("follows the email's rules: nothing for a cancelled item, one entered after 18:00, nor another day; a Rescheduled one again for its new day", async () => {
+      const { applicationId, id } = await interview(marie, "2026-10-21T09:00");
+      await applications.cancelInterview(marie, applicationId, id);
+      await interview(marie, "2026-10-22T09:00");
+      at(EVENING);
+      await interview(paul, "2026-10-21T09:00");
+      await pushing.sendDue();
+      expect(queued).toEqual([]);
+
+      const moved = await interview(paul, "2026-10-22T10:00");
+      at("2026-10-21T16:00:00.000Z");
+      await pushing.sendDue();
+      at("2026-10-22T05:00:00.000Z");
+      await applications.editInterview(paul, moved.applicationId, moved.id, { scheduledAt: "2026-10-23T11:00" });
+      at("2026-10-22T16:00:00.000Z");
+      await pushing.sendDue();
+
+      expect(queued.map(({ personId }) => personId)).toEqual([marie, paul, paul]);
+    });
+
+    it("has its own switch: the email switched off, the notification still goes; the notification switched off, the email still goes", async () => {
+      await pushing.setEnabled(marie, false);
+      await createPushNotifications(database, { senders: () => ({}) }).setEnabled(paul, "appointment_reminder", false);
+      await interview(marie, "2026-10-21T09:00");
+      await interview(paul, "2026-10-21T09:00");
+
+      at(REMINDER_TIME);
+      await pushing.sendDue();
+
+      expect(queued.map(({ personId }) => personId)).toEqual([marie]);
+      expect(outbox.map((message) => message.to)).toEqual(["paul.martin@example.fr"]);
+    });
   });
 
   it("sends nothing for the day after tomorrow, nor for later today", async () => {

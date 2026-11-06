@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, FAKE_STRIPE_PRODUCTS, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
 import type { ExternalApiCall } from "@jobhub/shared";
+import { createConsumption } from "../consumption";
 import { BillingError, createBilling, STARTING_PLAN_QUOTAS, type PaidCheckout } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
@@ -138,6 +139,24 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect(allowed.map((decision) => decision.allowed)).toEqual([true, true, true]);
       expect(allowed.map((decision) => decision.allowed && decision.remaining)).toEqual([2, 1, 0]);
       expect(refused).toEqual({ allowed: false, quota: "matchScores", plan: "free", planName: FREE, limit: 3, upgradeTo: "standard", upgradeToName: STANDARD });
+    });
+
+    it("counts each use allowed under its Tool in Consumption, the refused one not; a use given back is taken back, never below 0 (#799)", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      await t.billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, matchScores: 2, enrichedContacts: null });
+      const totals = async () => (await createConsumption(t.database).forCandidate(marie.id, { from: t.clock.now, to: t.clock.now })).totals;
+
+      await t.billing.use(marie.id, "matchScores");
+      await t.billing.use(marie.id, "matchScores");
+      await t.billing.use(marie.id, "matchScores"); // refused
+      await t.billing.use(marie.id, "enrichedContacts");
+      await t.billing.use(marie.id, "atsScores");
+      expect(await totals()).toMatchObject({ matchScore: 2, enrichedContact: 1, atsScore: 1, jobSearch: 0 });
+
+      await t.billing.release(marie.id, "atsScores");
+      await t.billing.release(marie.id, "atsScores");
+      await t.billing.release(marie.id, "jobSearches");
+      expect(await totals()).toMatchObject({ matchScore: 2, enrichedContact: 1, atsScore: 0, jobSearch: 0 });
     });
 
     it("starts counting again each Monday at midnight, in French time", async () => {
@@ -769,6 +788,16 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         cancel_url: "http://localhost:3000/coachs",
       });
       expect(premium?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);
+    });
+
+    it("sends a Candidate who books from the app back to it by its universal link, paid or not (#694)", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+
+      await t.billing.startCoachingSessionCheckout(marie, "coach-1", "fr", { inApp: true });
+
+      const [checkout] = t.stripe.callsTo("/v1/checkout/sessions").filter((call) => call.params.get("mode") === "payment");
+      expect(checkout?.params.get("success_url")).toBe("http://localhost:3000/coachs/paiement");
+      expect(checkout?.params.get("cancel_url")).toBe("http://localhost:3000/coachs/paiement?annule=1");
     });
 
     it("reports a Coaching Session as paid only from Stripe's signed webhook, once paid", async () => {

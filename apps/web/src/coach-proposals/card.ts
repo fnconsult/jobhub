@@ -5,7 +5,7 @@
  * imports: the Coach Conversation's page reads it.
  */
 import type { ActionCardStatus } from "../action-cards";
-import type { ProposedChange } from "../coach-actions";
+import type { ProposedChange, UndoNote } from "../coach-actions";
 
 export interface CoachProposalCard {
   id: string;
@@ -20,9 +20,11 @@ export interface CoachProposalCard {
   decidedAt?: string;
   /** When « Annuler » put the state before back, an ISO date. */
   undoneAt?: string;
+  /** What « Annuler » left as it was, said on the card (#770). */
+  undoNote?: UndoNote;
   /** Applied, the state before kept: « Annuler » is offered. */
   undoable: boolean;
 }
 
 /** What the server says to « Appliquer », « Ignorer » or « Annuler » on a card, as `/api/action-cards/[id]` answers it. */
-export type CardDecisionError = "conflict" | "already_decided" | "not_undoable" | "invalid" | "not_found" | "failed";
+export type CardDecisionError = "conflict" | "already_decided" | "not_undoable" | "invalid" | "not_found" | "failed" | "quota";

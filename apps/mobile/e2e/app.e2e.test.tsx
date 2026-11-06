@@ -2,19 +2,28 @@
 // screens), and a person drives it by what they see and press.
 import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
-import { AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AppStateStatus } from "react-native";
+import { Alert, AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AlertButton, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
+import type { ProfileResponse } from "@jobhub/shared/reads";
 import type { AppSession } from "../src/session/app-session";
+import { withCoach, type FakeCoachWeb } from "../src/coach/testing";
 import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice, fakeWebView } from "../src/testing-device";
-import { serveAgenda } from "./agenda-web";
+import { AGENDA } from "./agenda-web";
 
 jest.setTimeout(60_000);
 
-jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
-jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
+jest.mock("expo-localization", () => ({
+  getLocales: () => [{ languageCode: "fr" }],
+}));
+jest.mock("expo-font", () => ({
+  ...jest.requireActual("expo-font"),
+  useFonts: () => [true, null],
+}));
 // The hardware keyboard at the native module's seam (modules/key-commands), as an iPad's would be.
-const mockKeyboard = { current: null as null | ReturnType<typeof import("../src/keyboard/fake-hardware-keyboard").fakeHardwareKeyboard> };
+const mockKeyboard = {
+  current: null as null | ReturnType<typeof import("../src/keyboard/fake-hardware-keyboard").fakeHardwareKeyboard>,
+};
 jest.mock("../modules/key-commands", () => {
   mockKeyboard.current = jest.requireActual("../src/keyboard/fake-hardware-keyboard").fakeHardwareKeyboard();
   return { nativeHardwareKeyboard: mockKeyboard.current!.keyboard };
@@ -23,21 +32,67 @@ const keyboard = () => mockKeyboard.current!;
 
 // The web app the app signs in to (#685), as its endpoints answer, and the address the system opens the app with.
 // Built when the app first asks for its session, once Expo Linking is the app's (below).
-const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession; webViews: { cookies: () => unknown[] } };
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession; webViews: { cookies: () => unknown[] }; coach: FakeCoachWeb };
 jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.webViews = memoryWebViewCookies();
-  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), webViewCookies: mockWeb.webViews });
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), browser: mockWeb.app.browser, webViewCookies: mockWeb.webViews });
+  // Its API's Coach Conversation routes (#690), as src/coach/testing.ts answers them.
+  mockWeb.coach = jest.requireActual("../src/coach/testing").fakeCoachWeb({
+    conversations: [
+      { id: "c1", title: "Me présenter en deux minutes" },
+      { id: "c2", title: "Préparer la négociation du salaire" },
+    ],
+    reads: {
+      "/api/applications": {
+        applications: [
+          {
+            id: "a1",
+            title: "Responsable qualité",
+            employer: "Aéroline",
+            status: "interview",
+            matchScore: 82,
+            toHandle: "follow_up",
+            nextDeadline: null,
+            expired: false,
+            reportedByYou: false,
+            archived: false,
+          },
+        ],
+        toHandle: 1,
+        archivedHidden: 0,
+      },
+      "/api/applications/a1": {
+        id: "a1",
+        status: "interview",
+        statusChangedAt: "2026-11-02T09:00:00.000Z",
+        createdAt: "2026-10-28T09:00:00.000Z",
+        jobOffer: { id: "o1", title: "Responsable qualité", employer: "Aéroline", location: "Toulouse", url: null, postedAt: null, expiredAt: null },
+        profile: { id: "p1", name: "Qualité aéronautique" },
+        matchScore: 82,
+        reportedUnavailableAt: null,
+        interviews: [],
+      },
+      "/api/applications/a1/documents": { documentLanguage: "fr", documents: [] },
+      "/api/agenda": { toSchedule: [], days: [] },
+    },
+  });
   return { appSession: mockWeb.session };
 });
-const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
+const mockLink = {
+  current: null as string | null,
+  listeners: new Set<() => void>(),
+};
 // Not hoisted: it replaces Expo Router's own mock (expo-router/testing-library), whose scheme is not the app's.
 jest.doMock("expo-linking", () => {
   const { useSyncExternalStore } = jest.requireActual("react");
   const subscribe = (listener: () => void) => (mockLink.listeners.add(listener), () => mockLink.listeners.delete(listener));
-  return { ...jest.requireActual("expo-linking"), useLinkingURL: () => useSyncExternalStore(subscribe, () => mockLink.current) };
+  return {
+    ...jest.requireActual("expo-linking"),
+    useLinkingURL: () => useSyncExternalStore(subscribe, () => mockLink.current),
+  };
 });
 /** The system opens the app with `url`, as a universal link or an App Link does. */
 const openWith = (url: string) => act(() => ((mockLink.current = url), mockLink.listeners.forEach((listener) => listener())));
@@ -56,7 +111,10 @@ const window = (width: number, height: number, fontScale = 1) => {
 };
 const PHONE = [390, 844] as const;
 const darkMode = { current: "light" as "light" | "dark" };
-jest.mock("react-native/Libraries/Utilities/useColorScheme", () => ({ __esModule: true, default: () => darkMode.current }));
+jest.mock("react-native/Libraries/Utilities/useColorScheme", () => ({
+  __esModule: true,
+  default: () => darkMode.current,
+}));
 const IPAD_LANDSCAPE = [1366, 1024] as const;
 /** The device's network as expo-network reports it: connected here, the offline cases live in offline.e2e.test.tsx. */
 jest.mock("expo-network", () => ({
@@ -65,15 +123,19 @@ jest.mock("expo-network", () => ({
 }));
 
 /**
- * The app's calls to the API reach the same fake web app, at the network (src/api), unless a test answers them itself
- * (agenda-web.ts, or a fetch that must stay unused).
+ * The app's calls to the API reach the same fake web app, at the network (src/api), its Coach Conversation routes
+ * answered by `mockWeb.coach` (#690), unless a test answers them itself (a fetch that must stay unused).
  */
 function serveWebApp() {
   jest.requireMock("../src/session/instance");
-  if (!jest.isMockFunction(globalThis.fetch)) jest.spyOn(globalThis, "fetch").mockImplementation((input, init) => mockWeb.app.fetch(input, init));
+  if (!jest.isMockFunction(globalThis.fetch)) jest.spyOn(globalThis, "fetch").mockImplementation(withCoach(mockWeb.coach, (input, init) => mockWeb.app.fetch(input, init)));
 }
-/** What the app asked of the network beyond the reads every launch makes (the legal steps, whether the person is a Human Coach; #689). */
-const beyondLaunch = (fetch: { mock: { calls: unknown[][] } }) => fetch.mock.calls.map(([input]) => String(input)).filter((url) => !/\/api\/(account\/legal-steps|coach-space)\b/.test(url));
+/**
+ * What the app asked of the network beyond the reads every launch makes (the legal steps, whether the person is a Human
+ * Coach, #689; the drawer's Free conversations, #690).
+ */
+const beyondLaunch = (fetch: { mock: { calls: unknown[][] } }) =>
+  fetch.mock.calls.map(([input]) => String(input)).filter((url) => !/\/api\/(account\/legal-steps\b|coach-space\b|coach\/conversations\?free=1$)/.test(url));
 /** The WebView shown, as the page drives it (src/testing-device.ts). */
 const webView = async () => (await screen.findByTestId("web-view"), fakeWebView.shown!);
 
@@ -154,28 +216,35 @@ describe("Jobbbox app, on a phone", () => {
     await launch("/candidatures/a1");
     const user = userEvent.setup();
     await user.press(button("Fiche"));
-    await user.press(button("Ouvrir une Section d'exemple"));
-    expect(screen.getByText("Section d'exemple")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Ouvrir une Section d'exemple" })).toBeNull();
+    await user.press(await screen.findByRole("button", { name: "Correspondance" }));
+    expect(screen.getByText("Le score de correspondance compare le CV de référence du profil « Qualité aéronautique » à cette offre et à vos critères de recherche.")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Correspondance" })).toBeNull();
     await user.press(button("Fermer"));
-    expect(button("Ouvrir une Section d'exemple")).toBeOnTheScreen();
+    expect(button("Correspondance")).toBeOnTheScreen();
     await user.press(button("Fermer"));
     expect(button("Menu")).toBeOnTheScreen();
   });
 
   it("shows the Agenda as a list, « À planifier » first, and an Interview leads to its Application's Interviews Section", async () => {
     await signedIn();
-    serveAgenda(mockWeb.app, EMAIL);
-    await launch("/agenda");
-    expect(await screen.findByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
-    expect(button("Choisir mon créneau avec Paul Durand sur Cal.com")).toBeOnTheScreen();
-    expect(screen.getByText("Entretien annulé")).toBeOnTheScreen();
-    expect(screen.getByText("modifié par le coach")).toBeOnTheScreen();
-    expect(screen.getAllByRole("button", { name: /^Ajouter à mon calendrier/ })).toHaveLength(2);
-    const user = userEvent.setup();
-    await user.press(screen.getAllByRole("link", { name: /Responsable qualité/ })[0]!);
-    expect(screen).toHavePathname("/candidatures/a1/entretiens");
-    expect(screen.getByText("Entretiens")).toBeOnTheScreen();
+    // The web app's API is the fake one here (src/coach/testing): it answers this Agenda (agenda.e2e.test.tsx reads it
+    // at the network, with the session's cookie).
+    const emptyAgenda = mockWeb.coach.reads["/api/agenda"];
+    mockWeb.coach.reads["/api/agenda"] = AGENDA;
+    try {
+      await launch("/agenda");
+      expect(await screen.findByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
+      expect(button("Choisir mon créneau avec Paul Durand sur Cal.com")).toBeOnTheScreen();
+      expect(screen.getByText("Entretien annulé")).toBeOnTheScreen();
+      expect(screen.getByText("modifié par le coach")).toBeOnTheScreen();
+      expect(screen.getAllByRole("button", { name: /^Ajouter à mon calendrier/ })).toHaveLength(2);
+      const user = userEvent.setup();
+      await user.press(screen.getAllByRole("link", { name: /Responsable qualité/ })[0]!);
+      expect(screen).toHavePathname("/candidatures/a1/entretiens");
+      expect(screen.getByText("Entretiens")).toBeOnTheScreen();
+    } finally {
+      mockWeb.coach.reads["/api/agenda"] = emptyAgenda;
+    }
   });
 
   it("has no setting for the text size, and its controls are at least 44 pt", async () => {
@@ -199,6 +268,9 @@ describe("Jobbbox app, on a phone", () => {
     await launch();
     const user = userEvent.setup();
     await user.press(button("Activité"));
+    // Its Context bar and AI Activity (#690), the conversation not started yet.
+    expect(screen.getByText("0 / 40 messages · 0 / 12k jetons")).toBeOnTheScreen();
+    expect(screen.getByText("Aucun contenu produit par l'IA sur cette page")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Menu" })).toBeNull();
     expect(screen.queryByLabelText("Votre message")).toBeNull();
     await user.press(button("Fermer"));
@@ -218,7 +290,7 @@ describe("Jobbbox app, at the 64rem threshold", () => {
   it("lays out in columns from exactly 64rem (1024 pt): the Fiche beside the conversation, the Sidebar a drawer for want of 28rem", async () => {
     window(1024, 768);
     await launch("/candidatures/a1");
-    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+    expect(await screen.findByText("Statut")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Fermer" })).toBeNull();
     // 64 - 16 (Sidebar) - 20 (Fiche) - 3 gutters = 25rem, under 28rem: the Sidebar leaves its column.
     expect(sidebar()).toBeNull();
@@ -257,7 +329,9 @@ describe("Jobbbox app, locked by Face ID or fingerprint", () => {
     listeners = [];
     jest.spyOn(AppState, "addEventListener").mockImplementation((_type, listener) => {
       listeners.push(listener as (state: AppStateStatus) => void);
-      return { remove: () => (listeners = listeners.filter((other) => other !== listener)) };
+      return {
+        remove: () => (listeners = listeners.filter((other) => other !== listener)),
+      };
     });
   });
   afterEach(() => jest.restoreAllMocks());
@@ -280,7 +354,10 @@ describe("Jobbbox app, locked by Face ID or fingerprint", () => {
     await awayFor(4);
     expect(message()).toBeVisible();
 
-    fakeDevice.authenticate.mockResolvedValue({ success: false, error: "user_cancel" });
+    fakeDevice.authenticate.mockResolvedValue({
+      success: false,
+      error: "user_cancel",
+    });
     await awayFor(5);
     expect(message()).not.toBeVisible();
     expect(screen.getByText("Jobbbox est verrouillée")).toBeOnTheScreen();
@@ -455,6 +532,26 @@ describe("Jobbbox app, signing in (#685)", () => {
     await act(async () => void (await mockWeb.session.signOut()));
 
     expect(mockWeb.webViews.cookies()).toEqual([]);
+    });
+
+  it("signs in with « Continuer avec Apple » in the system's browser, the app opening on its home page (#687)", async () => {
+    mockWeb.app.offerProviders([
+      { id: "google", displayName: "Google" },
+      { id: "apple", displayName: "Apple" },
+    ]);
+    mockWeb.app.atProvider({ signIn: EMAIL });
+    await launch("/", { signIn: false });
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Continuer avec Apple" }));
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+    mockWeb.app.offerProviders([]);
+  });
+
+  it("opens on its home page when the system opens it on a Sign-in Provider's return address, as Android may (#687)", async () => {
+    await launch("/connexion/fournisseur?cookie=already-kept");
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
   });
 
   it("signs out from Mon compte, back to sign-in", async () => {
@@ -546,35 +643,253 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
   });
   afterEach(() => jest.restoreAllMocks());
 
-  const rightClick = (name: string) => fireEvent(link(name), "pointerDown", { nativeEvent: { button: 2, pageX: 100, pageY: 200 } });
+  const rightClick = (name: string) =>
+    fireEvent(link(name), "pointerDown", {
+      nativeEvent: { button: 2, pageX: 100, pageY: 200 },
+    });
   const item = (name: string) => screen.getByRole("menuitem", { name });
 
   it("opens a Free conversation's context menu in the Sidebar by a right click, and shares its link", async () => {
     await launch();
+    await screen.findByRole("link", {
+      name: "Me présenter en deux minutes",
+      hidden: true,
+    });
     await rightClick("Me présenter en deux minutes");
     await userEvent.setup().press(item("Partager le lien"));
-    expect(Share.share).toHaveBeenCalledWith(expect.objectContaining({ message: "https://jobbbox.ai/conversations/c1" }));
+    expect(Share.share).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "https://jobbbox.ai/conversations/c1",
+      }),
+    );
   });
 
   it("opens an Application's context menu in Mes candidatures by a long press, and « Ouvrir » opens it", async () => {
     await launch("/candidatures");
+    await screen.findByText("1 candidature");
     const user = userEvent.setup();
-    await user.longPress(link("Aéroline · Responsable qualité"));
+    await user.longPress(link("Responsable qualité · Aéroline"));
     await user.press(item("Ouvrir"));
     expect(screen).toHavePathname("/candidatures/a1");
   });
 
+  /** Recherches d'offres' Offer box (ADR-0090), as `GET /api/offer-box` answers it: one Job Offer that arrived by a Job Search. */
+  const withOfferBox = () =>
+    mockWeb.app.has(EMAIL, {
+      offerBox: {
+        today: "2026-11-05",
+        toHandle: 1,
+        entries: [
+          {
+            id: "e1",
+            jobOffer: { id: "o1", title: "Responsable qualité", employer: "Aéroline", location: "Toulouse", url: "https://www.example.com/offres/aeroline-responsable-qualite", postedAt: null, expiredAt: null, contractType: "cdi" },
+            profile: { id: "p1", name: "Qualité" },
+            scoredWith: { id: "p1", name: "Qualité" },
+            matchScore: 82,
+            firstArrivalAt: "2026-11-05T08:00:00.000Z",
+            arrivalDay: "2026-11-05",
+            sources: [{ source: "job_search", at: "2026-11-05T08:00:00.000Z" }],
+            state: "to_handle",
+            applicationId: null,
+            followedAt: null,
+          },
+        ],
+      },
+    });
+  afterEach(() => mockWeb.app.has(EMAIL, {}));
+
   it("opens a Job Offer's context menu in Recherches d'offres, « Voir l'annonce » opening the posting", async () => {
+    withOfferBox();
     await launch("/recherches");
+    await screen.findByRole("link", { name: "Responsable qualité · Aéroline", hidden: true });
     await rightClick("Responsable qualité · Aéroline");
     await userEvent.setup().press(item("Voir l'annonce"));
     expect(Linking.openURL).toHaveBeenCalledWith("https://www.example.com/offres/aeroline-responsable-qualite");
   });
 
   it("opens a Job Offer in the Work Pane when pressed", async () => {
+    withOfferBox();
     await launch("/recherches");
+    await screen.findByRole("link", { name: "Responsable qualité · Aéroline", hidden: true });
     await userEvent.setup().press(link("Responsable qualité · Aéroline"));
     expect(screen.getByText(/L'offre s'ouvrira ici/)).toBeOnTheScreen();
+  });
+});
+
+describe("Jobbbox app, the home page and the menus as their conversations (#690)", () => {
+  beforeEach(() => window(...PHONE));
+
+  it("opens on the home page's Introduction, without an AI call, and its Quick actions above the box", async () => {
+    await launch();
+    expect(screen.getByText(/Je suis un coach IA, pas une personne/)).toBeOnTheScreen();
+    expect(screen.getByText("L'application est en cours de construction.")).toBeOnTheScreen();
+    for (const name of ["Chercher des offres", "Ajouter une candidature", "Planifier un entretien", "Demander au coach"]) expect(button(name)).toBeOnTheScreen();
+    await userEvent.setup().press(button("Planifier un entretien"));
+    expect(screen).toHavePathname("/agenda");
+  });
+
+  it("shows Mes candidatures as its conversation: its Introduction, its card read from the API, its suggestions", async () => {
+    await launch("/candidatures");
+    expect(screen.getByText(/Voici vos candidatures en cours/)).toBeOnTheScreen();
+    expect(await screen.findByText("1 candidature")).toBeOnTheScreen();
+    expect(link("Responsable qualité · Aéroline")).toBeOnTheScreen();
+    expect(screen.getByText(/Entretien · Score de correspondance 82 · Relance prête/)).toBeOnTheScreen();
+    expect(button("Relance prête : Responsable qualité")).toBeOnTheScreen();
+    expect(button("Ajouter une candidature")).toBeOnTheScreen();
+    await userEvent.setup().press(button("Chercher des offres"));
+    expect(screen).toHavePathname("/recherches");
+  });
+
+  it("sends a menu's message to its Subject's conversation, the suggestions gone once something is sent", async () => {
+    await launch("/agenda");
+    expect(await screen.findByText(/Aucun rendez-vous à venir/)).toBeOnTheScreen();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Qu'est-ce qui vient ?");
+    await user.press(button("Envoyer"));
+    expect(mockWeb.coach.asked.at(-1)).toMatchObject({
+      subject: { kind: "menu", id: "agenda" },
+      message: "Qu'est-ce qui vient ?",
+      route: "/agenda",
+    });
+    expect(screen.queryByRole("button", { name: "Ajouter un entretien" })).toBeNull();
+    await user.press(button("Arrêter"));
+  });
+
+  it("shows Recherches d'offres as the Offer box, its menu's conversation following it with its box at the foot (ADR-0090)", async () => {
+    await launch("/recherches");
+    expect(await screen.findByRole("heading", { name: "Offres à traiter" })).toBeOnTheScreen();
+    expect(screen.getByText(/Je suis un coach IA, pas une personne/)).toBeOnTheScreen();
+    expect(screen.getByText(/Voici les offres qui vous sont arrivées/)).toBeOnTheScreen();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Laquelle regarder en premier ?");
+    await user.press(button("Envoyer"));
+    expect(mockWeb.coach.asked.at(-1)).toMatchObject({
+      subject: { kind: "menu", id: "jobSearches" },
+      message: "Laquelle regarder en premier ?",
+      route: "/recherches",
+    });
+    await user.press(button("Arrêter"));
+  });
+
+  it("keeps « Lancer une recherche » (#699) on Recherches d'offres, the Offer box leading it (ADR-0090)", async () => {
+    const profile: ProfileResponse = {
+      id: "prof_lyon",
+      name: "Supply chain à Lyon",
+      archived: false,
+      searchCriteria: { targetRole: "Responsable logistique", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+      masterCv: { version: 1, content: { fullName: "Marie Dupont", email: EMAIL, phone: "", location: "Lyon", headline: "", summary: "", experience: [], education: [], skills: [], languages: [] } },
+      atsScore: null,
+    };
+    mockWeb.app.has(EMAIL, { profiles: [profile] });
+    try {
+      await launch("/recherches");
+      expect(await screen.findByRole("heading", { name: "Offres à traiter" })).toBeOnTheScreen();
+      expect(await screen.findByRole("button", { name: "Lancer une recherche" })).toBeOnTheScreen();
+    } finally {
+      mockWeb.app.has(EMAIL, {});
+    }
+  });
+});
+
+describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", () => {
+  beforeEach(() => window(...PHONE));
+  afterEach(() => jest.restoreAllMocks());
+
+  /** The confirming Dialog, the system's, answered by pressing `choice`. */
+  const confirmWith = (choice: string) => jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => buttons?.find((each) => each.text === choice)?.onPress?.());
+  const openDrawer = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.press(button("Menu"));
+  };
+  const longPressRow = async (user: ReturnType<typeof userEvent.setup>, name: string) => user.longPress(await screen.findByRole("link", { name, hidden: true }));
+
+  it("lists them under « Coach », as the web app has them, and opens one with its messages", async () => {
+    mockWeb.coach.add({
+      id: "f1",
+      title: "Écrire ma lettre",
+      messages: [
+        { from: "candidate", text: "Par où commencer ?" },
+        { from: "coach", text: "Par l'accroche." },
+      ],
+    });
+    await launch();
+    const user = userEvent.setup();
+    await openDrawer(user);
+    await user.press(
+      await screen.findByRole("link", {
+        name: "Écrire ma lettre",
+        hidden: true,
+      }),
+    );
+    expect(screen).toHavePathname("/conversations/f1");
+    expect(await screen.findByText("Par l'accroche.")).toBeOnTheScreen();
+    expect(screen.getByText("Écrire ma lettre")).toBeOnTheScreen(); // the Top Bar's title
+  });
+
+  it("renames one from its menu", async () => {
+    mockWeb.coach.add({ id: "f2", title: "Sans titre" });
+    await launch();
+    const user = userEvent.setup();
+    await openDrawer(user);
+    await longPressRow(user, "Sans titre");
+    await user.press(screen.getByRole("menuitem", { name: "Renommer" }));
+    const name = screen.getByLabelText("Nom de la conversation");
+    await user.clear(name);
+    await user.type(name, "Mon pitch");
+    await user.press(button("Enregistrer"));
+    expect(await screen.findByRole("link", { name: "Mon pitch", hidden: true })).toBeOnTheScreen();
+    expect(mockWeb.coach.saved.get("f2")?.title).toBe("Mon pitch");
+  });
+
+  it("deletes one only once the Dialog confirms it", async () => {
+    mockWeb.coach.add({ id: "f3", title: "À supprimer" });
+    await launch();
+    const user = userEvent.setup();
+    await openDrawer(user);
+
+    confirmWith("Annuler");
+    await longPressRow(user, "À supprimer");
+    await user.press(screen.getByRole("menuitem", { name: "Supprimer" }));
+    expect(Alert.alert).toHaveBeenCalledWith("Supprimer la conversation « À supprimer » ?", "Tous ses messages seront supprimés. La Mémoire du coach reste.", expect.anything());
+    expect(mockWeb.coach.saved.has("f3")).toBe(true);
+
+    confirmWith("Supprimer");
+    await longPressRow(user, "À supprimer");
+    await user.press(screen.getByRole("menuitem", { name: "Supprimer" }));
+    await waitFor(() => expect(screen.queryByRole("link", { name: "À supprimer", hidden: true })).toBeNull());
+    expect(mockWeb.coach.saved.has("f3")).toBe(false);
+  });
+
+  it("lists a new conversation once its first message is saved, at its own address", async () => {
+    await launch("/conversations/nouvelle");
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Votre message"), "Un tout nouveau sujet");
+    await user.press(button("Envoyer"));
+    await act(async () => mockWeb.coach.reply("Allons-y."));
+    const saved = [...mockWeb.coach.saved.values()].find((conversation) => conversation.title === "Un tout nouveau sujet")!;
+    await waitFor(() => expect(screen).toHavePathname(`/conversations/${saved.id}`));
+    expect(await screen.findByText("Allons-y.")).toBeOnTheScreen();
+    await openDrawer(user);
+    expect(
+      await screen.findByRole("link", {
+        name: "Un tout nouveau sujet",
+        hidden: true,
+      }),
+    ).toBeOnTheScreen();
+  });
+
+  it("clears the page's conversation with « Effacer », once the Dialog confirms it", async () => {
+    mockWeb.coach.add({
+      id: "f4",
+      title: "À effacer",
+      messages: [{ from: "candidate", text: "Un vieux message" }],
+    });
+    await launch("/conversations/f4");
+    await screen.findByText("Un vieux message");
+    confirmWith("Effacer");
+    await userEvent.setup().press(button("Effacer"));
+    expect(Alert.alert).toHaveBeenCalledWith("Effacer cette conversation ?", "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.", expect.anything());
+    await waitFor(() => expect(screen.queryByText("Un vieux message")).toBeNull());
+    expect(mockWeb.coach.saved.has("f4")).toBe(false);
   });
 });
 
@@ -593,27 +908,39 @@ describe("Jobbbox app, with the hardware keyboard's other shortcuts (#700)", () 
 
   it("closes and reopens the Fiche with ⌘I", async () => {
     await launch("/candidatures/a1");
-    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+    expect(await screen.findByText("Statut")).toBeOnTheScreen();
     await act(() => keyboard().press("⌘I"));
-    expect(screen.queryByText(/La Fiche montrera ici/)).toBeNull();
+    expect(screen.queryByText("Statut")).toBeNull();
     await act(() => keyboard().press("⌘I"));
-    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+    expect(screen.getByText("Statut")).toBeOnTheScreen();
   });
 
   it("closes the Work Pane with Échap, listed in the panel only while it is open", async () => {
     await launch("/candidatures/a1");
-    expect(keyboard().panel().some((entry) => entry.startsWith("Échap"))).toBe(false);
-    await userEvent.setup().press(button("Ouvrir une Section d'exemple"));
+    expect(
+      keyboard()
+        .panel()
+        .some((entry) => entry.startsWith("Échap")),
+    ).toBe(false);
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Correspondance" }));
     expect(keyboard().panel()).toContain("Échap Fermer le volet");
     await act(() => keyboard().press("Échap"));
-    expect(screen.queryByText(/Le Work Pane montrera ici/)).toBeNull();
-    expect(keyboard().panel().some((entry) => entry.startsWith("Échap"))).toBe(false);
+    expect(screen.queryByText(/Le score de correspondance compare/)).toBeNull();
+    expect(
+      keyboard()
+        .panel()
+        .some((entry) => entry.startsWith("Échap")),
+    ).toBe(false);
   });
 
   it("takes Ctrl in place of ⌘ on Android", async () => {
     jest.replaceProperty(Platform, "OS", "android");
     await launch("/candidatures/a1");
-    expect(keyboard().panel().every((entry) => !entry.includes("⌘"))).toBe(true);
+    expect(
+      keyboard()
+        .panel()
+        .every((entry) => !entry.includes("⌘")),
+    ).toBe(true);
     expect(keyboard().panel()).toContain("Ctrl+N Nouvelle conversation");
     await act(() => keyboard().press("⌘N"));
     expect(screen).toHavePathname("/candidatures/a1");
@@ -627,13 +954,26 @@ describe("Jobbbox app, under a pointer's hover (#700)", () => {
 
   it("highlights an Application's row while the pointer is over it", async () => {
     await launch("/candidatures");
-    const row = link("Aéroline · Responsable qualité");
+    await screen.findByText("1 candidature");
+    const row = link("Responsable qualité · Aéroline");
     const before = StyleSheet.flatten(row.props.style)?.backgroundColor;
     await fireEvent(row, "pointerEnter");
-    const over = StyleSheet.flatten(screen.getByRole("link", { name: "Aéroline · Responsable qualité", hidden: true }).props.style)?.backgroundColor;
+    const over = StyleSheet.flatten(
+      screen.getByRole("link", {
+        name: "Responsable qualité · Aéroline",
+        hidden: true,
+      }).props.style,
+    )?.backgroundColor;
     expect(over).not.toEqual(before);
     await fireEvent(row, "pointerLeave");
-    expect(StyleSheet.flatten(screen.getByRole("link", { name: "Aéroline · Responsable qualité", hidden: true }).props.style)?.backgroundColor).toEqual(before);
+    expect(
+      StyleSheet.flatten(
+        screen.getByRole("link", {
+          name: "Responsable qualité · Aéroline",
+          hidden: true,
+        }).props.style,
+      )?.backgroundColor,
+    ).toEqual(before);
   });
 });
 
@@ -694,9 +1034,15 @@ describe("Jobbbox app, in Split View, Slide Over, Stage Manager and on a foldabl
     const thread = screen.getByLabelText("Vos échanges avec votre coach");
     const scrollToEnd = (ScrollView.prototype as unknown as { scrollToEnd: jest.Mock }).scrollToEnd;
     scrollToEnd.mockClear();
-    fireEvent.scroll(thread, { nativeEvent: { contentOffset: { x: 0, y: 300 }, contentSize: { width: 600, height: 2000 }, layoutMeasurement: { width: 600, height: 500 } } });
+    fireEvent.scroll(thread, {
+      nativeEvent: {
+        contentOffset: { x: 0, y: 300 },
+        contentSize: { width: 600, height: 2000 },
+        layoutMeasurement: { width: 600, height: 500 },
+      },
+    });
     await act(() => window(...HALF));
     fireEvent(screen.getByLabelText("Vos échanges avec votre coach"), "contentSizeChange", 600, 2600);
     expect(scrollToEnd).not.toHaveBeenCalled();
-    });
   });
+});

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
-import { JobSearchesMenuPage } from "@/components/JobSearchesMenuPage";
+import { JobSearchesMenuPage, type JobSearchesPane } from "@/components/JobSearchesMenuPage";
 import { getServerT } from "@/i18n/server";
 import "./recherches.css";
 
@@ -10,17 +10,26 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("sidebar.jobSearches")} · ${t("app.name")}` };
 }
 
+/** What the address opens in the Work Pane: « profils=1 » the Job Searches by Profile, « recues=1 » « Reçues par email » (#447), « offre=… » a Job Offer of the Offer box. */
+function paneOf(params: { profils?: string; recues?: string; offre?: string }): JobSearchesPane {
+  if (typeof params.offre === "string" && params.offre) return { kind: "offer", jobOfferId: params.offre };
+  if (params.profils !== undefined) return { kind: "byProfile" };
+  if (params.recues !== undefined) return { kind: "received" };
+  return null;
+}
+
 /**
- * Recherches d'offres (#606, ADR-0070): the menu's conversation is the page, the Job Searches by Profile a card in its
- * thread (see JobSearchesMenuPage); « recues=1 » in the address opens « Reçues par email » (#447) in the Work Pane.
+ * Recherches d'offres (ADR-0090, amending ADR-0070): the Offer box (« Offres à traiter ») is the page, the menu's
+ * conversation following it (see JobSearchesMenuPage); « Recherches par Profil », « Reçues par email » and an entry's Job
+ * Offer open in the Work Pane at their own addresses.
  */
-export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ recues?: string }> }) {
+export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ profils?: string; recues?: string; offre?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
   const [t, params] = await Promise.all([getServerT(), searchParams]);
   return (
     <CandidateLayout candidateId={candidate.id} title={t("sidebar.jobSearches")}>
-      <JobSearchesMenuPage candidateId={candidate.id} received={params.recues !== undefined} />
+      <JobSearchesMenuPage candidateId={candidate.id} pane={paneOf(params)} />
     </CandidateLayout>
   );
 }

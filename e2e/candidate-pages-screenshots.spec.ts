@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import {
   expect,
   test,
@@ -453,8 +453,9 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
     {
       name: "recherches",
       path: () => "/recherches",
-      ready: (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label }).locator(".chat-card"),
-      component: "#main .chat-card .ds-card",
+      // The Offer box is the page (ADR-0090, #815), its conversation after it.
+      ready: (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label }).locator(".offer-box"),
+      component: "#main .offer-box .offer-box-chip",
       target: "#main",
       mask: () => [] as string[],
     },
@@ -534,7 +535,7 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
     await page.close();
   });
 
-  // ADR-0009 on a phone (#608): Recherches d'offres' conversation, its card listing every Profile's Job Search, never
+  // ADR-0009 on a phone (#608): Recherches d'offres, its Offer box (ADR-0090) listing every Profile's Job Offers, never
   // scrolls the page sideways. Without the worker: on the Standard Plan, for two Profiles, each Job Search seeded done.
   test("Recherches d'offres for every Profile does not scroll the page sideways at 375px", async ({ browser }) => {
     const context = await browser.newContext({ baseURL: origin, locale: "fr-FR", colorScheme: "light" });
@@ -554,11 +555,18 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
         `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, $4, $5, $6)`,
         [candidate!.id, (await created.json()).id, offerIds, "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z", doneRunMetrics(offerIds.length)],
       );
+      // What the Job Search's report records (ADR-0090): its Job Offers in the Offer box, one line each.
+      await query(
+        `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
+         SELECT $1, id, $2, now(), jsonb_build_object('job_search', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) FROM job_offer WHERE id = ANY ($3::uuid[])
+         ON CONFLICT DO NOTHING`,
+        [candidate!.id, (await created.json()).id, offerIds],
+      );
     }
 
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/recherches");
-    await expect(page.getByRole("region", { name: fr.conversationFirst.label }).locator(".chat-card")).toBeVisible();
+    await expect(page.getByRole("region", { name: fr.conversationFirst.label }).locator(".offer-box")).toBeVisible();
     await settled(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), "sideways scroll at 375px").toBe(0);
     await context.close();

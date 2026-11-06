@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { useState } from "react";
-import { screen, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { useEffect, useState } from "react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoachProposalCard as Card } from "@/coach-proposals/card";
@@ -111,6 +112,15 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect(within(screen.getAllByRole("article")[1]!).getByRole("status").textContent).toMatch(/^Annulé à \d\d:\d\d$/);
   });
 
+  it("« Annuler » that left the Application Status as it was says so on the card (#770)", async () => {
+    answers = [{ status: 200, body: { status: "undone", card: applied({ status: "undone", undoneAt: "2026-11-04T17:25:00.000Z", undoable: false, undoNote: "status_kept" }) } }];
+    renderInFrench(<Thread card={applied()} />);
+
+    await userEvent.click(button("Annuler"));
+
+    expect(within(card()).getByRole("status").textContent).toMatch(/^Annulé à \d\d:\d\d Le statut de la candidature avait changé depuis : il est laissé tel quel\.$/);
+  });
+
   it("refuses « Appliquer » when the object changed since the proposal: it says so, the card still waits", async () => {
     answers = [{ status: 409, body: { error: "conflict" } }];
     renderInFrench(<Thread />);
@@ -182,6 +192,37 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect(sent).toEqual([]);
   });
 
+  it("arriving under « Formulaire » (#775), leaves the focus where the Candidate is; « Modifier avant d'appliquer » takes it to the form", async () => {
+    const reply = { arrive: () => {} };
+    function Conversation() {
+      const [arrived, setArrived] = useState(false);
+      useEffect(() => {
+        reply.arrive = () => setArrived(true);
+      }, []);
+      return (
+        <WorkPaneProvider version="1.2.3">
+          <main id="main">
+            <textarea aria-label="Votre message" />
+            {arrived ? <CoachProposalCard card={PENDING} onChange={() => {}} openOnArrival /> : null}
+          </main>
+          <WorkPane />
+        </WorkPaneProvider>
+      );
+    }
+    renderInFrench(<Conversation />);
+    // The Candidate types their next message as the reply and its card arrive.
+    const box = screen.getByRole("textbox", { name: "Votre message" });
+    box.focus();
+    act(() => reply.arrive());
+
+    const pane = screen.getByRole("complementary");
+    expect(within(pane).getByRole("combobox", { name: "Statut de la candidature" })).toBeTruthy();
+    expect(document.activeElement).toBe(box);
+
+    await userEvent.click(button("Modifier avant d'appliquer"));
+    expect(document.activeElement).toBe(within(screen.getByRole("complementary")).getByRole("heading", { level: 2 }));
+  });
+
   it("under « Carte » (the default), only the card shows: the Work Pane stays closed", () => {
     renderInFrench(<Thread />);
     expect(screen.queryByRole("complementary")).toBeNull();
@@ -208,6 +249,18 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     const full = screen.getAllByRole("article")[1]!;
     expect(within(full).getByRole("alert").textContent).toContain("Recherches épuisées");
     expect(within(full).queryByRole("button", { name: "Appliquer" })).toBeNull();
+  });
+
+  it("« Appliquer » with no room left since the proposal shows the Upgrade prompt, not a conflict; the card still waits (#773)", async () => {
+    const prompt = { title: "Profils actifs au maximum", message: "Passez à Premium.", upgradeTo: "premium" as const, action: "Voir les offres", href: "/compte/abonnement" };
+    answers = [{ status: 409, body: { error: "quota", card: { ...PENDING, change: { ...PENDING.change, quota: { label: "1 profil actif", prompt } } } } }];
+    renderInFrench(<Thread />);
+
+    await userEvent.click(button("Appliquer"));
+
+    expect(within(card()).getByRole("alert").textContent).toContain("Profils actifs au maximum");
+    expect(within(card()).queryByText(/L'objet a changé/)).toBeNull();
+    expect(within(card()).queryByRole("button", { name: "Appliquer" })).toBeNull();
   });
 
   describe("a Job Search proposed (#720): launched, never undone", () => {
@@ -243,7 +296,7 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
 
       expect(sent).toEqual([{ url: `/api/action-cards/${SEARCH.id}`, body: { decision: "accept" } }]);
       expect(within(searchCard()).getByRole("status").textContent).toMatch(/^Lancé par vous à \d\d:\d\d$/);
-      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter » l'interrompt.");
+      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter la recherche d'offres » l'interrompt.");
       expect(within(searchCard()).queryAllByRole("button")).toEqual([]);
     });
   });
@@ -382,5 +435,30 @@ describe("a card about the Coach Memory (#719)", () => {
     const shown = screen.getByRole("article", { name: /À retenir/ });
     expect(within(shown).getByRole("heading", { level: 4 }).textContent).toBe("À retenir · Mémoire du coach");
     expect(within(shown).queryByRole("link")).toBeNull();
+  });
+});
+
+describe("the Action Card on the Design System (#788)", () => {
+  const stylesheet = () => readFileSync("apps/web/src/components/CoachProposalCard.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const ruleOf = (selector: string) => new RegExp(`(?:^|\\})\\s*${selector.replace(/[.$]/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(stylesheet())?.[1] ?? "";
+
+  it("is a Card, its title in the card's head, its buttons small Design System Buttons: primary, secondary, quiet", () => {
+    renderInFrench(<Thread />);
+
+    expect(card().classList.contains("ds-card")).toBe(true);
+    expect(card().querySelector(".ds-card__head")!.contains(within(card()).getByRole("heading", { level: 4 }))).toBe(true);
+    expect(within(card()).getAllByRole("button").map((each) => each.className)).toEqual([
+      "ds-button ds-button--primary ds-button--sm",
+      "ds-button ds-button--secondary ds-button--sm",
+      "ds-button ds-button--quiet ds-button--sm",
+    ]);
+  });
+
+  it("takes only the width it needs, 34rem at most; no accent edge of its own: the Card's border, radius and shadow", () => {
+    const rule = ruleOf(".coach-proposal-card");
+    expect(rule).toMatch(/width:\s*fit-content/);
+    expect(rule).toMatch(/max-width:\s*min\(100%,\s*34rem\)/);
+    expect(stylesheet()).not.toMatch(/border-left/);
+    expect(rule).not.toMatch(/(?:^|;|\s)(background|border|border-radius|box-shadow)\s*:/);
   });
 });

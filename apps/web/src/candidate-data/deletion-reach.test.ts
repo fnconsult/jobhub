@@ -73,7 +73,7 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(blocking).toEqual([]);
     // A Coach proposal's card in the thread (#715) hangs off its reply too, so it goes with its Coach Conversation.
     expect(foreignKeys).toContainEqual({ table: "action_card", column: "reply_seq", references: "coach_message", onDelete: "cascade" });
-    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item", "signalement", "forwarding_address", "sending_address", "legal_text_notice", "privacy_change_seen", "nouveautes_email_subscription", "nouveautes_email_sent", "coach_proposals_display"]));
+    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item", "signalement", "forwarding_address", "sending_address", "legal_text_notice", "privacy_change_seen", "nouveautes_email_subscription", "nouveautes_email_sent", "coach_proposals_display", "consumption_day"]));
   });
 
   it("every table naming a Candidate hangs off the Candidate table, so none is forgotten", async () => {

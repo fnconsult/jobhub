@@ -58,17 +58,19 @@ import { failureOf, isPersonPage, joinProvenance, provenanceLink, readProvenance
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
+import { countUse, migrateConsumption } from "../consumption";
+import { inTransaction } from "../database/pool";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { fieldErrors, type FieldError } from "../validation";
 import { nameKey, sirenIn } from "./company-names";
 import { CompanyRegisterUnavailable, type CompanyRegister, type FinancialYear, type RegisteredCompany } from "./french-register";
+import { SUGGESTED_CONTACT_ROLES, type SuggestedContactRole } from "@jobhub/shared/reads";
 
 export type { CompanyRegister, FinancialYear, RegisterSearch, RegisteredCompany } from "./french-register";
 export type { CompanyNewsArticle } from "@jobhub/ai";
 
-/** Job titles to look for at the employer, never a person. Translated in the interface. */
-export const SUGGESTED_CONTACT_ROLES = ["hiring_manager", "talent_acquisition", "hr_director", "hr_manager", "chief_executive"] as const;
-export type SuggestedContactRole = (typeof SUGGESTED_CONTACT_ROLES)[number];
+/** Job titles to look for at the employer, never a person. Translated in the interface; the app reads them too. */
+export { SUGGESTED_CONTACT_ROLES, type SuggestedContactRole };
 
 interface DossierBase {
   /** The employer's name the dossier was built for, as the Job Offer or the Candidate gave it. */
@@ -464,7 +466,9 @@ export function createCompanyDossiers(
     return rows[0];
   }
 
+  /** Saves the Application's dossier row; one that holds a dossier counts one in Consumption (#799), in the same transaction. */
   async function save(
+    candidateId: string,
     applicationId: string,
     fields: Partial<Omit<Row, "dossier" | "provenance">> & { dossier?: CompanyDossier | null; provenance: Provenance },
   ): Promise<CompanyDossierState> {
@@ -478,22 +482,25 @@ export function createCompanyDossiers(
       dossier: null,
       ...fields,
     } as Row;
-    await database.query(
-      `INSERT INTO company_dossier (application_id, presumed_employer, agency, awaiting_confirmation, confirmed_employer, dossier, presumed_employer_description, provenance, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
-       ON CONFLICT (application_id) DO UPDATE SET presumed_employer = $2, agency = $3, awaiting_confirmation = $4,
-         confirmed_employer = $5, dossier = $6, presumed_employer_description = $7, provenance = $8, updated_at = now()`,
-      [
-        applicationId,
-        row.presumed_employer,
-        row.agency,
-        row.awaiting_confirmation,
-        row.confirmed_employer,
-        fields.dossier ? JSON.stringify(stored(fields.dossier)) : null,
-        row.presumed_employer_description,
-        JSON.stringify(fields.provenance),
-      ],
-    );
+    await inTransaction(database, async (client) => {
+      await client.query(
+        `INSERT INTO company_dossier (application_id, presumed_employer, agency, awaiting_confirmation, confirmed_employer, dossier, presumed_employer_description, provenance, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
+         ON CONFLICT (application_id) DO UPDATE SET presumed_employer = $2, agency = $3, awaiting_confirmation = $4,
+           confirmed_employer = $5, dossier = $6, presumed_employer_description = $7, provenance = $8, updated_at = now()`,
+        [
+          applicationId,
+          row.presumed_employer,
+          row.agency,
+          row.awaiting_confirmation,
+          row.confirmed_employer,
+          fields.dossier ? JSON.stringify(stored(fields.dossier)) : null,
+          row.presumed_employer_description,
+          JSON.stringify(fields.provenance),
+        ],
+      );
+      if (fields.dossier) await countUse(client, candidateId, "companyDossier", now());
+    });
     return stateFrom((await rowOf(applicationId))!);
   }
 
@@ -623,8 +630,8 @@ export function createCompanyDossiers(
   }
 
   /** Saves the dossier built (or none: the employer is not a company), its Provenance `before` this build's, if any. */
-  function saveBuilt(applicationId: string, built: Built | null, recorder: ProvenanceRecorder, fields: Partial<Omit<Row, "dossier" | "provenance">>, before: Provenance | null = null) {
-    return save(applicationId, { ...fields, dossier: built?.dossier ?? null, provenance: joinProvenance(before, recorder.provenance())! });
+  function saveBuilt(candidateId: string, applicationId: string, built: Built | null, recorder: ProvenanceRecorder, fields: Partial<Omit<Row, "dossier" | "provenance">>, before: Provenance | null = null) {
+    return save(candidateId, applicationId, { ...fields, dossier: built?.dossier ?? null, provenance: joinProvenance(before, recorder.provenance())! });
   }
 
   return {
@@ -638,12 +645,12 @@ export function createCompanyDossiers(
       if (!application) return NOT_FOUND;
       return attempt(applicationId, options, async (recorder) => {
         const confirmed = (await rowOf(applicationId))?.confirmed_employer;
-        if (confirmed) return saveBuilt(applicationId, await dossierFor(candidateId, confirmed, recorder, options.signal), recorder, {});
+        if (confirmed) return saveBuilt(candidateId, applicationId, await dossierFor(candidateId, confirmed, recorder, options.signal), recorder, {});
         const { recruitingAgency, presumedEmployer } = await analyse(candidateId, application, recorder);
         if (options.signal?.aborted) throw new BuildStopped();
         if (recruitingAgency) {
           // Only a guess: nothing is looked up for it until the Candidate confirms it.
-          return save(applicationId, {
+          return save(candidateId, applicationId, {
             awaiting_confirmation: true,
             presumed_employer: presumedEmployer.name,
             presumed_employer_description: presumedEmployer.description,
@@ -654,7 +661,7 @@ export function createCompanyDossiers(
         const employer = application.jobOffer.employer;
         // No employer named, or not a company: the Candidate is asked to name it.
         const built = employer ? await dossierFor(candidateId, employer, recorder, options.signal) : null;
-        return saveBuilt(applicationId, built, recorder, { awaiting_confirmation: false, presumed_employer: null, presumed_employer_description: null, agency: null });
+        return saveBuilt(candidateId, applicationId, built, recorder, { awaiting_confirmation: false, presumed_employer: null, presumed_employer_description: null, agency: null });
       });
     },
 
@@ -669,7 +676,7 @@ export function createCompanyDossiers(
         if (!built) return NOT_A_COMPANY;
         // The reading of the offer that presumed this employer is part of how the dossier came about.
         const presumed = row?.awaiting_confirmation ? readProvenance(row.provenance) : null;
-        return saveBuilt(applicationId, built, recorder, { awaiting_confirmation: false, confirmed_employer: employer }, presumed);
+        return saveBuilt(candidateId, applicationId, built, recorder, { awaiting_confirmation: false, confirmed_employer: employer }, presumed);
       });
     },
   };
@@ -677,6 +684,8 @@ export function createCompanyDossiers(
 
 /** Creates or upgrades the Company Dossier table. Run after the Application table. Safe to run repeatedly. */
 export async function migrateCompanyDossiers(database: Pool): Promise<void> {
+  // Each dossier saved counts in Consumption (#799).
+  await migrateConsumption(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS company_dossier (
       application_id uuid PRIMARY KEY REFERENCES application (id) ON DELETE CASCADE,

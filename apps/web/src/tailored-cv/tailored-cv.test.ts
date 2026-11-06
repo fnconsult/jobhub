@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { consumptionOf } from "../consumption";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { servedTasks, taskAgent } from "../task-playbooks/test-support";
@@ -417,6 +418,20 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
     expect((await tailoredCvs.get(candidateId, applicationId))?.saved).toBeNull();
   });
 
+  it("each proposal saved with its Provenance counts one Tailored CV in Consumption (#799); the review's save, a refusal or someone else's count nothing", async () => {
+    const counted = async () => (await consumptionOf(database, candidateId)).filter((row) => row.tool === "tailoredCv").reduce((sum, row) => sum + row.count, 0);
+    await tailoredCvs.propose(candidateId, applicationId, {});
+    expect(await counted()).toBe(1);
+    const reviewed = await tailoredCvs.get(candidateId, applicationId);
+    await tailoredCvs.save(candidateId, applicationId, { revision: reviewed!.proposal!.revision, accepted: allOf(reviewed!.proposal!) });
+    await tailoredCvs.propose(await signIn("paul.martin@example.fr"), applicationId, {});
+    reply = "Désolé, je ne peux pas.";
+    await tailoredCvs.propose(candidateId, applicationId, {});
+
+    expect(await counted()).toBe(1);
+    expect(await consumptionOf(database, candidateId)).toEqual([{ day: expect.any(String), tool: "tailoredCv", count: 1 }]);
+  });
+
   it("someone else's Application has no Tailored CV, and nothing changes when the AI Coach cannot write one", async () => {
     const otherCandidateId = await signIn("paul.martin@example.fr");
     expect(await tailoredCvs.get(otherCandidateId, applicationId)).toBeNull();
@@ -598,6 +613,7 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
     expect(events.at(-1)).toMatchObject({ type: "step_ended", step: { task: "writing", outcome: "stopped" } });
     const { rows } = await database.query(`SELECT 1 FROM tailored_cv WHERE application_id = $1`, [applicationId]);
     expect(rows).toEqual([]);
+    expect(await consumptionOf(database, candidateId)).toEqual([]);
   });
 
   it("stopped once the proposal is written but before its words are checked (#334): nothing is kept", async () => {

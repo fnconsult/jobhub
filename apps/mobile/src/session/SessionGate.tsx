@@ -1,8 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
+import { signInCopy, type SignInProviderButton } from "@jobhub/shared/sign-in-providers";
+import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import { AppState, Platform, View, type TextInputProps } from "react-native";
+import { onlineManager } from "@tanstack/react-query";
 import { useForgetReads } from "../offline/read-cache";
+import { useForgetPushDevice } from "../push/PushNotifications";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -70,6 +74,7 @@ export function SessionGate({
   // sign-in reads afresh (its CGU to accept among them, #689); the WebViews' cookies (#689); and `forgetOnDevice`.
   // Nothing below the gate is shown then, so the screens need not start again.
   const forgetReads = useForgetReads();
+  const forgetPushDevice = useForgetPushDevice();
   const forgetSession = useCallback(async () => {
     await forgetReads({ restart: false }).catch(() => undefined);
     await session.forgetWebViews().catch(() => undefined);
@@ -117,6 +122,16 @@ export function SessionGate({
     return () => subscription?.remove();
   }, [refresh]);
 
+  // Back on sign-in because the web app could not be asked (UNKNOWN_OFFLINE), the session is asked again as soon as the
+  // network comes back, not only at the next return to the foreground (#756).
+  const offline = state?.offline === true;
+  useEffect(() => {
+    if (!offline) return;
+    return onlineManager.subscribe((online) => {
+      if (online) void refresh();
+    });
+  }, [offline, refresh]);
+
   useEffect(() => {
     if (!link || OPENED.get(session) === link) return;
     let current = true;
@@ -137,6 +152,8 @@ export function SessionGate({
       // killed) never leaves it without its session. The screens go first, so none reads again in between. From the
       // app and from the second step alike.
       signOut: async () => {
+        // The device first, while the session still answers: no Push notification reaches it any more (#699).
+        await forgetPushDevice().catch(() => undefined);
         setState(null);
         await forgetSession();
         await session.signOut();
@@ -145,7 +162,7 @@ export function SessionGate({
       recheck: refresh,
       webPages: session,
     }),
-    [session, refresh, forgetSession],
+    [session, refresh, forgetSession, forgetPushDevice],
   );
 
   if (!state) return null;
@@ -193,21 +210,49 @@ const CODE_FIELD = {
 } as const satisfies TextInputProps;
 
 /**
- * Sign-in by magic link: the email, « Recevoir mon lien de connexion », then waiting for the link, or « Saisir le code
- * reçu par e-mail » beside it (#686): the code signs in here (`onSignedIn`) when the email is read on another device. A
- * link no longer valid (`linkInvalid`) is said on either step, until another is asked (`onAskLink`); a code refused,
- * until another is typed or another email asked.
+ * Sign-in as on the web's sign-in page: « Continuer avec … » for each Sign-in Provider shown to Candidates (#687), which
+ * opens it in the system's authentication browser, « ou », then the magic link: the email, « Recevoir mon lien de
+ * connexion », then waiting for the link, or « Saisir le code reçu par e-mail » beside it (#686): the code signs in here
+ * (`onSignedIn`) when the email is read on another device. The intro and a provider's refusal are the web's words
+ * (signInCopy); a person closing the browser or leaving the provider's page is back on the screen as it was. A link no
+ * longer valid (`linkInvalid`) is said on either step, until another is asked (`onAskLink`); a code refused, until
+ * another is typed or another email asked.
  */
 function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppSession; linkInvalid: boolean; onAskLink: () => void; onSignedIn: (state: SessionState) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<Step>(FORM);
+  const [providers, setProviders] = useState<SignInProviderButton[]>([]);
+  /** The provider being signed in through, while the system's browser is open. */
+  const [continuing, setContinuing] = useState<string | null>(null);
+  /** The code the last sign-in through a provider came back refused with. */
+  const [providerError, setProviderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let current = true;
+    void session.providers().then((shown) => current && setProviders(shown));
+    return () => {
+      current = false;
+    };
+  }, [session]);
+
+  const continueWith = async (providerId: string) => {
+    onAskLink();
+    setProviderError(null);
+    setContinuing(providerId);
+    const outcome = await session.continueWith(providerId);
+    setContinuing(null);
+    if (outcome.kind === "cancelled") return;
+    if (outcome.kind === "providerRefused") setProviderError(outcome.error);
+    else onSignedIn(outcome);
+  };
 
   const send = async () => {
     const address = email.trim();
     if (!address) return;
     onAskLink();
+    setProviderError(null);
     setCode("");
     setStep(SENDING);
     setStep((await session.askLink(address)) ? { kind: "sent", email: address } : { kind: "form", error: true });
@@ -241,11 +286,28 @@ function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppS
   }
 
   const sending = step.kind === "sending";
-  const error = step.kind === "form" && step.error ? t("signIn.error") : linkInvalid ? t("signIn.linkError") : null;
+  const copy = signInCopy({ providers: providers.map((provider) => provider.displayName), error: providerError }, isSupportedLocale(i18n.language) ? i18n.language : DEFAULT_LOCALE);
+  const error = step.kind === "form" && step.error ? t("signIn.error") : (copy.notice?.text ?? (linkInvalid ? t("signIn.linkError") : null));
   return (
     <GateScreen title={t("signIn.title")}>
-      <AppText tone="secondary">{t("signIn.introWithoutProviders")}</AppText>
+      <AppText tone="secondary">{copy.intro}</AppText>
       {error ? <GateError message={error} /> : null}
+      {providers.length > 0 ? (
+        <View style={{ gap: space[2] }}>
+          {providers.map((provider) => (
+            <Control
+              key={provider.id}
+              look="secondary"
+              label={t("signIn.continueWith", { provider: provider.displayName })}
+              disabled={continuing !== null}
+              onPress={() => void continueWith(provider.id)}
+            />
+          ))}
+          <AppText tone="secondary" centered>
+            {t("signIn.or")}
+          </AppText>
+        </View>
+      ) : null}
       <GateField label={t("signIn.emailLabel")} value={email} onChangeText={setEmail} onSubmitEditing={() => void send()} editable={!sending} {...EMAIL_FIELD} />
       <Control look="primary" label={sending ? t("signIn.sending") : t("signIn.submit")} onPress={() => void send()} />
     </GateScreen>

@@ -4,7 +4,8 @@ import {
   applicationsResponseSchema,
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
-  coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+  coachingOrderResponseSchema,
+  coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { rulesProvenance, type MasterCvContent } from "@jobhub/shared";
@@ -25,9 +26,11 @@ import { createJobDigests, type JobDigests } from "../job-digests";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, type JobSearches } from "../job-searches";
 import { migrateDatabase } from "../migrations";
+import { createOfferBox } from "../offer-box";
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs, type TailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments, type TailoredDocuments } from "../tailored-documents";
+import { createWithdrawals } from "../withdrawals";
 import { createCandidateReads, type CandidateReads } from "./index";
 
 /** The estimate of the AI Coach's context by category, as the reply in the tests says it (#731). */
@@ -58,6 +61,9 @@ function writer(input: { system?: string; messages: { content: unknown }[] }): s
 /** Today, in the tests: a Wednesday in French winter time. */
 const NOW = new Date("2026-11-04T09:00:00.000Z");
 
+/** The CGV version in effect in the tests, as the Order page names it. */
+const CGV = { text: "cgv", version: "2026-10-01", url: "/legal/cgv/2026-10-01", sha256: "a".repeat(64), change: "substantielle" } as const;
+
 /**
  * What the app reads: the answer as it crosses HTTP (JSON), parsed with its shared schema. The parse throws, naming
  * the field, when the answer drifts from the type the app is built on: the contract test of #684.
@@ -83,6 +89,8 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let marie: string;
   let paul: string;
   let offers: number;
+  /** The clock the Withdrawals read: a Coaching Session is withdrawable within its Withdrawal period. */
+  let withdrawalsNow: Date;
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -171,6 +179,23 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       reply: async () => ({ ok: true as const, reply: "Voici mes conseils.", outcome: "replied" as const, cost: null, playbooks: [], consultations: [], provenance: rulesProvenance("ats_score", { at: NOW }), contextTokens: 3_300, contextSplit: CONTEXT_SPLIT }),
     };
     conversations = createCoachConversations(database, { coach, profiles, now: () => NOW });
+    // An hour after now: a Coaching Session is paid at the database's time.
+    withdrawalsNow = new Date(Date.now() + 60 * 60 * 1000);
+    const withdrawals = createWithdrawals(database, {
+      billing,
+      humanCoaches: coaches,
+      orders: { immediateExecutionRequested: async () => false },
+      mailer: { send: async () => {} },
+      baseURL: BASE_URL,
+      now: () => withdrawalsNow,
+    });
+    // The Order page's terms (orders.test.ts), for any Human Coach of the Candidate's: Stripe is not configured here.
+    const orders = {
+      terms: async (_candidateId: string, item: { kind: string; coachId?: string }) => {
+        const coach = (await coaches.list()).find((each) => each.id === item.coachId);
+        return coach ? { summary: { kind: "coachingSession" as const, subject: { fr: coach.name, en: coach.name }, price: { amount: 9000, currency: "eur", interval: null } }, cgv: CGV } : null;
+      },
+    };
     reads = createCandidateReads({
       applications,
       followUps,
@@ -180,10 +205,13 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       agenda: createAgenda(database),
       humanCoaches: coaches,
       billing,
+      withdrawals,
+      orders,
       atsScoring,
       tailoredCvs,
       tailoredDocuments,
       coachConversations: conversations,
+      offerBox: createOfferBox(database, { profiles, jobOffers, now: () => NOW }),
       now: () => NOW,
     });
     marie = await signIn("marie.dupont@example.fr");
@@ -304,6 +332,42 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
     });
   });
 
+  describe("Offres à traiter (ADR-0090)", () => {
+    it("gives the Offer box: each entry's Job Offer, Profile, Match Score, Arrival sources and where it stands, as the shared type says", async () => {
+      const daf = await createProfile(marie);
+      const found = await captureOffer();
+      const followed = await captureOffer("Directeur financier");
+      await searched(marie, daf, [found, followed]);
+      const saved = await applications.save(marie, { jobOfferId: followed, profileId: daf });
+      if (!saved.ok) throw new Error("fixture Application refused");
+
+      const box = overHttp(offerBoxResponseSchema, await reads.offerBox(marie));
+
+      expect(box).toMatchObject({ today: "2026-11-04", toHandle: 1 });
+      const byOffer = new Map(box.entries.map((entry) => [entry.jobOffer.id, entry]));
+      expect(byOffer.get(found)).toEqual({
+        id: expect.any(String),
+        jobOffer: { id: found, title: "DAF H/F", employer: "Acme Industrie", location: "Lyon", url: "https://carrieres.example.fr/daf/1", postedAt: null, expiredAt: null, contractType: "cdi" },
+        profile: { id: daf, name: "DAF" },
+        scoredWith: { id: daf, name: "DAF" },
+        matchScore: 100,
+        firstArrivalAt: NOW.toISOString(),
+        arrivalDay: "2026-11-04",
+        sources: [{ source: "job_search", at: NOW.toISOString() }],
+        state: "to_handle",
+        applicationId: null,
+        followedAt: null,
+      });
+      expect(byOffer.get(followed)).toMatchObject({ state: "followed", applicationId: saved.application.id, followedAt: expect.any(String) });
+    });
+
+    it("never gives a Candidate another Candidate's entries", async () => {
+      await searched(marie, await createProfile(marie), [await captureOffer()]);
+
+      expect(overHttp(offerBoxResponseSchema, await reads.offerBox(paul))).toEqual({ today: "2026-11-04", toHandle: 0, entries: [] });
+    });
+  });
+
   describe("Job Digests", () => {
     it("gives each active Profile's frequency and the Job Digests sent, as the card does", async () => {
       await onPlan(marie, "standard");
@@ -400,11 +464,30 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
           note: null,
           changedBy: null,
           reschedules: [],
+          withdrawable: true,
         },
       ]);
       // No Stripe price in the tests: the price cannot be read, as the page says.
       expect(coaching.price).toBeNull();
       expect(JSON.stringify(answer)).not.toContain("sophie@rh-conseil.fr");
+    });
+
+    it("says which Coaching Sessions can still be withdrawn from, as the Agenda does (#694)", async () => {
+      await paidSession(marie);
+
+      withdrawalsNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const coaching = overHttp(coachingResponseSchema, await reads.coaching(marie));
+
+      expect(coaching.sessions).toEqual([expect.objectContaining({ withdrawable: false })]);
+    });
+
+    it("gives the Order page of a Coaching Session the app shows before Checkout: the Human Coach, the price, the CGV version (#694)", async () => {
+      const { coach } = await paidSession(marie);
+
+      const order = overHttp(coachingOrderResponseSchema, await reads.coachingOrder(marie, coach.id));
+
+      expect(order).toEqual({ coach: { id: coach.id, name: "Sophie Martin" }, price: { amount: 9000, currency: "eur" }, cgv: { version: "2026-10-01", url: "/legal/cgv/2026-10-01" } });
+      expect(await reads.coachingOrder(marie, "8d0c6c4e-0000-4a51-9c39-0b7b2f1c9a10")).toBeNull();
     });
 
     it("never gives a Candidate another Candidate's Coaching Sessions", async () => {

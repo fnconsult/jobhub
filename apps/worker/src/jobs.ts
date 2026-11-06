@@ -23,10 +23,12 @@ import {
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
+import { purgeExpiredConsumption, RETENTION_MONTHS as CONSUMPTION_RETENTION_MONTHS } from "@jobhub/web/consumption";
 import { FAILURE_RETENTION_DAYS as PUSH_FAILURE_RETENTION_DAYS, PUSH_NOTIFICATIONS_QUEUE, PUSH_PLATFORMS, purgeExpiredPushFailures, pushNotificationOf, type PushNotifications, type PushPlatform } from "@jobhub/web/push-notifications";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
+import { OFFER_BOX_RETENTION_MONTHS, purgeExpiredOfferBoxEntries } from "@jobhub/web/offer-box";
 import {
   purgeExpiredDiscoveryRuns,
   QUERY_RETENTION_DAYS as DISCOVERY_QUERY_RETENTION_DAYS,
@@ -132,11 +134,17 @@ export const PUSH_FAILURES_PURGE = "push-notifications.purge";
 /** Queue name: delete the Signalements marked `traite` SIGNALEMENT_RETENTION_MONTHS ago or more (#374, #283). Runs nightly. */
 export const SIGNALEMENTS_PURGE = "signalements.purge";
 
+/** Queue name: delete the days of Consumption more than CONSUMPTION_RETENTION_MONTHS old, French time (#799). Runs nightly. */
+export const CONSUMPTION_PURGE = "consumption.purge";
+
 /**
  * Queue name: delete the Job discovery runs' query texts, criteria and Job Search links DISCOVERY_QUERY_RETENTION_DAYS
  * old, keeping their figures, and the runs DISCOVERY_RUN_RETENTION_MONTHS old (#404). Runs nightly.
  */
 export const DISCOVERY_RUNS_PURGE = "discovery-runs.purge";
+
+/** Queue name: delete the Offer box entries OFFER_BOX_RETENTION_MONTHS after their first Arrival (ADR-0090). Runs nightly. */
+export const OFFER_BOX_PURGE = "offer-box.purge";
 
 /**
  * Queue name: delete the Received offer emails' texts TEXT_RETENTION_HOURS after they arrived, read or not, and the
@@ -511,7 +519,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if (!sent) return;
           log(
             `[appointment-reminders] ${sent.emails} Appointment Reminder(s) sent, for ${sent.items} Agenda Item(s)` +
-              (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : ""),
+              (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : "") +
+              (sent.notified ? `; ${sent.notified} Push notification(s) queued` : ""),
           );
         }),
     },
@@ -776,6 +785,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    // A day of Consumption is kept 12 months, French time (#799); the account's deletion takes it at once. Safe to run again.
+    [CONSUMPTION_PURGE]: {
+      cron: "25 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredConsumption(deps.database, now());
+          if (purged) log(`[consumption] ${purged} day(s) of Consumption purged, ${CONSUMPTION_RETENTION_MONTHS} months old`);
+        }),
+    },
+
     // A Job discovery run's query texts are kept 30 days, its figures 24 months (#404). Safe to run again.
     [DISCOVERY_RUNS_PURGE]: {
       cron: "5 4 * * *",
@@ -787,6 +806,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
               `[discovery-runs] ${purged.queries} run(s)' query texts purged after ${DISCOVERY_QUERY_RETENTION_DAYS} days, ${purged.runs} run(s) after ${DISCOVERY_RUN_RETENTION_MONTHS} months`,
             );
           }
+        }),
+    },
+
+    // An Offer box entry is kept 12 months from its first Arrival (ADR-0090). Safe to run again.
+    [OFFER_BOX_PURGE]: {
+      cron: "25 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredOfferBoxEntries(deps.database, now());
+          if (purged) log(`[offer-box] ${purged} Offer box entry(ies) purged, ${OFFER_BOX_RETENTION_MONTHS} months after their first Arrival`);
         }),
     },
 

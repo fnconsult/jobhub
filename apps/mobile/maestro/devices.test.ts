@@ -1,4 +1,4 @@
-import { CI_HARDWARE, DEVICES, runsOn, type Run } from "./devices";
+import { bootSetup, CI_HARDWARE, DEVICES, runsOn, type Run } from "./devices";
 
 const ids = (runs: Run[]) => runs.map((run) => `${run.device.id} ${run.theme} ${run.textSize}`);
 const run = (device: string, theme: Run["theme"], textSize: Run["textSize"]) => {
@@ -65,6 +65,26 @@ describe("the devices the Maestro flows run on (#705)", () => {
 
     it.each(["ipad-landscape", "ipad-portrait", "android-tablet"])("%s opens its columns full page at the largest text size", (device) => {
       expect(run(device, "light", "largest").layout).toBe("fullPage");
+    });
+  });
+
+  describe("speaks French once booted, as the flows read the app's French labels", () => {
+    it("sets an iOS simulator's language and region", () => {
+      expect(bootSetup("ipad")).toEqual([
+        ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
+        ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
+      ]);
+    });
+
+    it("sets an Android emulator's locale and restarts its framework, then waits for it", () => {
+      expect(bootSetup("android-tablet")).toEqual([
+        ["adb", "root"],
+        ["adb", "wait-for-device"],
+        ["adb", "shell", "setprop", "persist.sys.locale", "fr-FR"],
+        ["adb", "shell", "setprop", "ctl.restart", "zygote"],
+        ["adb", "wait-for-device"],
+        ["adb", "shell", "while [ \"$(getprop sys.boot_completed)\" != 1 ]; do sleep 1; done; sleep 5"],
+      ]);
     });
   });
 

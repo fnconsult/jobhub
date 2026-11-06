@@ -94,6 +94,9 @@ export default defineConfig({
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
     { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },
+    // The seeded test stack of the app's Maestro flows (#705): its helper, checked as the flows use it; held open for them
+    // by the mobile-e2e workflow (MOBILE_STACK_READY, docs/ops/mobile.md).
+    { name: "mobile-stack", testMatch: /mobile-stack\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "fr-FR" } },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|legal-text-notices)\.spec\.ts/ },
     { name: "ai", testMatch: /(ai|ai-tool-calls|ai-actions-coach|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.

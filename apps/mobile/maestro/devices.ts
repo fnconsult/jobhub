@@ -113,6 +113,27 @@ export function runsOn(hardwareId: HardwareId): Run[] {
   );
 }
 
+/**
+ * Once the hardware is booted, before its runs: French, the app's default language, whose labels the flows look for
+ * (the app speaks the device's language, src/i18n.ts). An emulator's framework restarts to take its new locale.
+ */
+export function bootSetup(hardwareId: HardwareId): string[][] {
+  if (CI_HARDWARE[hardwareId].platform === "ios") {
+    return [
+      ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
+      ["xcrun", "simctl", "spawn", "booted", "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
+    ];
+  }
+  return [
+    ["adb", "root"],
+    ["adb", "wait-for-device"],
+    ["adb", "shell", "setprop", "persist.sys.locale", "fr-FR"],
+    ["adb", "shell", "setprop", "ctl.restart", "zygote"],
+    ["adb", "wait-for-device"],
+    ["adb", "shell", 'while [ "$(getprop sys.boot_completed)" != 1 ]; do sleep 1; done; sleep 5'],
+  ];
+}
+
 /** The booted simulator's appearance, Dynamic Type size and a fixed status bar, so captures do not change with the clock. */
 function iosSetup(theme: Theme, textSize: TextSize): string[][] {
   return [

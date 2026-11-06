@@ -262,6 +262,9 @@ async function openInterviews(id = RHONE.id) {
   await screen.findByRole("button", { name: "Voir dans l'agenda" });
 }
 
+/** The explanation before the system's prompt for Push notifications, when an Interview is added (#699). */
+const PUSH_FOR_INTERVIEWS = "Être prévenu la veille de vos rendez-vous ?";
+
 /** The system's Dialog, answered by pressing its button named `answer`. */
 const answerDialogs = (answer: string) =>
   jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => buttons?.find((each) => each.text === answer)?.onPress?.());
@@ -304,7 +307,19 @@ describe("The Interviews Section, in the Work Pane", () => {
     expect(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)").props.value).toBe("");
   });
 
-  it("says under the field what the web app refused, and adds nothing", async () => {
+  it("asks for Push notifications once the web app has added the Interview, after its own explanation (#699)", async () => {
+    await openInterviews();
+    expect(screen.queryByText(PUSH_FOR_INTERVIEWS)).toBeNull();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)"), "26/11/2026");
+    await user.type(screen.getByLabelText("Heure, à Paris (hh:mm)"), "10:00");
+    await user.press(button("Ajouter l'entretien"));
+
+    expect(await screen.findByText(PUSH_FOR_INTERVIEWS)).toBeOnTheScreen();
+    expect(web.application("app_rhone").interviews).toHaveLength(3);
+  });
+
+  it("says under the field what the web app refused, adds nothing, and asks nothing", async () => {
     await openInterviews();
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)"), "26/13/2026");
@@ -312,6 +327,7 @@ describe("The Interviews Section, in the Work Pane", () => {
     await user.press(button("Ajouter l'entretien"));
     expect(await screen.findByText("Cette valeur n'est pas valide.")).toBeOnTheScreen();
     expect(web.application("app_rhone").interviews).toHaveLength(2);
+    expect(screen.queryByText(PUSH_FOR_INTERVIEWS)).toBeNull();
 
     await user.clear(screen.getByLabelText("Date de l'entretien (jj/mm/aaaa)"));
     await user.clear(screen.getByLabelText("Heure, à Paris (hh:mm)"));

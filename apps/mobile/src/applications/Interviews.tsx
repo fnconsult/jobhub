@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, View } from "react-native";
 import { paths } from "../navigation/pages";
 import { useOnline } from "../offline/read-cache";
+import { useAskForPush } from "../push/PushNotifications";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -28,12 +29,15 @@ function when(interview: InterviewRead, formats: ApplicationFormats): string {
  * The Application's Interviews Section (#691), as the web's: each Interview changed (moved to another date, a
  * Reschedule), Cancelled or removed in place, through the web's routes; a Cancelled one stays, struck through, with its
  * date of cancellation; a Rescheduled one says when it was first planned. A form adds one while the Application is at
- * « Entretien ». « Voir dans l'agenda » leads to the Agenda. Nothing is written offline (ADR-0076).
+ * « Entretien ». « Voir dans l'agenda » leads to the Agenda. Nothing is written offline (ADR-0076). Once the web app
+ * has added an Interview, the app asks for Push notifications in context (#699): a refused add asks nothing.
  */
 export function Interviews({ application }: { application: ApplicationResponse }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const writes = useApplicationWrites(application.id);
+  const askForPush = useAskForPush();
+  const askAfterAdding = () => askForPush("interview");
   const formats = applicationFormats(i18n.language);
   const { interviews } = application;
   const atInterview = application.status === "interview";
@@ -62,7 +66,7 @@ export function Interviews({ application }: { application: ApplicationResponse }
           <AppText variant="h3" heading>
             {t("application.addInterview")}
           </AppText>
-          <InterviewForm save={writes.addInterview} />
+          <InterviewForm save={writes.addInterview} onSaved={askAfterAdding} />
         </View>
       ) : interviews.length > 0 ? (
         <AppText tone="secondary">{t("application.interviewsHint")}</AppText>

@@ -35,11 +35,13 @@ tags:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-date"
+      LABEL: "Date de l'entretien \\(jj/mm/aaaa\\)"
       VALUE: "26/11/2031"
 - runFlow:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-time"
+      LABEL: "Heure, à Paris \\(hh:mm\\)"
       VALUE: "10:00"
 - scrollUntilVisible:
     element:
@@ -49,6 +51,7 @@ tags:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-note"
+      LABEL: "Note \\(facultatif\\)"
       VALUE: "Second tour"
 - scrollUntilVisible:
     element:

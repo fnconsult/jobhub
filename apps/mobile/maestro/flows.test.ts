@@ -38,7 +38,7 @@ function labelsIn(commands: Command[]): string[] {
   const selectors = valuesOf(commands, ["tapOn", "assertVisible", "assertNotVisible", "visible", "notVisible", "element", "scrollUntilVisible"]);
   const texts = valuesOf(commands, ["text"]).filter((each): each is string => typeof each === "string");
   // A subflow's label given by its caller: the Sidebar's link (menu.yaml).
-  const given = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).MENU] : []));
+  const given = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).MENU, (env as Record<string, unknown>).LABEL] : []));
   return [...selectors, ...texts, ...given].filter((label): label is string => typeof label === "string" && !label.includes("${"));
 }
 
@@ -104,6 +104,17 @@ describe("the Maestro flows (#705)", () => {
     expect(opensDrawer.runFlow.when).toEqual({ visible: "Menu" });
   });
 
+  // iOS's keyboards may have no key that closes them, and Maestro taps a button the keyboard covers: on the keyboard.
+  it("gives each field it types in the label it closes the keyboard by on iOS", () => {
+    const calls = FLOW_FILES.flatMap((file) =>
+      valuesOf(parse(file).commands, ["runFlow"]).filter(
+        (call): call is { file: string; env: Record<string, string> } => typeof call === "object" && call !== null && String((call as { file?: string }).file).endsWith("field.yaml"),
+      ),
+    );
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.filter((call) => !call.env?.LABEL).map((call) => call.env?.FIELD)).toEqual([]);
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));
@@ -135,7 +146,7 @@ describe("the Maestro flows (#705)", () => {
   });
 
   it.each(FLOW_FILES.map((file) => [relative(ROOT, file), file]))("%s reads only the variables a run or the stack gives", (_name, file) => {
-    const given = new Set([...Object.keys(runsOn(CI_HARDWARE.ipad.id)[0]!.env), ...STACK_ENV, "output", "SCREEN", "MENU", "FIELD", "VALUE"]);
+    const given = new Set([...Object.keys(runsOn(CI_HARDWARE.ipad.id)[0]!.env), ...STACK_ENV, "output", "SCREEN", "MENU", "FIELD", "VALUE", "LABEL"]);
     // The names in each `${…}`, its quoted strings and a property after a dot left out.
     const read = [...readFileSync(file, "utf8").matchAll(/\$\{([^}]+)\}/g)].flatMap((match) =>
       [...match[1]!.replace(/'[^']*'|"[^"]*"/g, "").matchAll(/(?<![.\w])([A-Za-z_]\w*)/g)].map((each) => each[1]!),

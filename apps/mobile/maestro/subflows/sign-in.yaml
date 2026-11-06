@@ -28,6 +28,16 @@ appId: ai.jobbbox.app
             - assertVisible: ${STACK_EMAIL}
 - runFlow:
     file: hide-keyboard.yaml
+# iOS's email and number keyboards have no key that closes them, and Maestro takes a button the keyboard covers for one
+# it can tap (its tap landed on the keyboard's « y »): the keyboard closed as a person closes it, by a tap beside the
+# field, on its label (the field, named by it, comes after it).
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Votre adresse e-mail"
+          index: 0
 - scrollUntilVisible:
     element:
       text: "Recevoir mon lien de connexion"
@@ -46,6 +56,13 @@ appId: ai.jobbbox.app
 - inputText: ${output.signInCode}
 - runFlow:
     file: hide-keyboard.yaml
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Saisir le code reçu par e-mail"
+          index: 0
 - scrollUntilVisible:
     element:
       text: "Me connecter avec ce code"

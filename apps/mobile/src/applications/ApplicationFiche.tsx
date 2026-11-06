@@ -193,7 +193,7 @@ function Results({ application, reader }: { application: ApplicationResponse; re
   const { t } = useTranslation();
   return (
     <ReadState read={useTailoredDocuments(application.id)} notFound={t("mobile.documents.notFound")}>
-      {(documents) => <TailoredDocuments documents={documents} about={applicationName(application)} reader={reader} />}
+      {(documents) => <TailoredDocuments applicationId={application.id} documents={documents} about={applicationName(application)} reader={reader} />}
     </ReadState>
   );
 }

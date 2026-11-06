@@ -21,16 +21,17 @@ const documentsFolder = () => new Directory(Paths.cache, "documents");
  * (expo-file-system's preview). The folder is deleted when the session ends (`forgetDocuments`).
  */
 export const systemDocuments: DocumentDevice = {
-  async download(path, fileName) {
+  async download(path, { folder, fileName }) {
     // The session's cookie goes to the web app alone: an address the read gives on any other host (absolute, or `//host`)
     // is refused before anything is asked or sent, and the screen says the download failed.
     const address = webAppAddress(path);
     if (!isOnWebApp(address)) throw new Error("A Tailored Document is downloaded from the web app alone");
     // The export routes answer only a signed-in Candidate: without its cookie, every download would be a 401.
     const headers = { ...webAppHeaders(), cookie: await appSession.cookie() };
-    const folder = documentsFolder();
-    folder.create({ intermediates: true, idempotent: true });
-    const file = await File.downloadFileAsync(address, new File(folder, fileName), { headers, idempotent: true });
+    // Each Application's document in a folder of its own (document-reader.ts): a newer version replaces the file there.
+    const into = new Directory(documentsFolder(), folder);
+    into.create({ intermediates: true, idempotent: true });
+    const file = await File.downloadFileAsync(address, new File(into, fileName), { headers, idempotent: true });
     return file.uri;
   },
 

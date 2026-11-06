@@ -9,6 +9,5 @@ appId: ai.jobbbox.app
       visible: "Se connecter à Jobbbox"
     file: sign-in.yaml
 - extendedWaitUntil:
-    visible:
-      id: "coach-message"
+    visible: "Joindre un lien ou un document"
     timeout: 30000

@@ -119,6 +119,8 @@ jobs:
           - { hardware: ipad, model: "iPad Pro 13-inch (M4)" }
     env:
       DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
+      # The stack's web server log (its mailbox too), kept with the results.
+      E2E_SERVER_LOG: ${{ github.workspace }}/stack-server.log
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -165,6 +167,7 @@ jobs:
           path: |
             ${{ runner.temp }}/maestro
             ${{ runner.temp }}/stack.log
+            ${{ github.workspace }}/stack-server.log
           retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
@@ -199,6 +202,8 @@ jobs:
           --health-retries 30
     env:
       DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
+      # The stack's web server log (its mailbox too), kept with the results.
+      E2E_SERVER_LOG: ${{ github.workspace }}/stack-server.log
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -249,6 +254,7 @@ jobs:
           path: |
             ${{ runner.temp }}/maestro
             ${{ runner.temp }}/stack.log
+            ${{ github.workspace }}/stack-server.log
           retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()

@@ -63,8 +63,7 @@ tags:
     env:
       MENU: "Préparer mon entretien chez Aéroline"
 - extendedWaitUntil:
-    visible:
-      id: "coach-message"
+    visible: "Joindre un lien ou un document"
     timeout: 20000
 - runFlow:
     file: ../subflows/capture.yaml

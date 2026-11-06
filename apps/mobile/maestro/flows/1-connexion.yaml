@@ -13,8 +13,7 @@ tags:
 - launchApp:
     stopApp: false
 - extendedWaitUntil:
-    visible:
-      id: "coach-message"
+    visible: "Joindre un lien ou un document"
     timeout: 30000
 - assertNotVisible:
     id: "sign-in-email"

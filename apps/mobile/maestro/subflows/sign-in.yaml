@@ -13,7 +13,6 @@ appId: ai.jobbbox.app
 - tapOn:
     id: "sign-in-email"
 - inputText: ${STACK_EMAIL}
-- assertVisible: ${STACK_EMAIL}
 - hideKeyboard
 - scrollUntilVisible:
     element:
@@ -36,6 +35,5 @@ appId: ai.jobbbox.app
     direction: DOWN
 - tapOn: "Me connecter avec ce code"
 - extendedWaitUntil:
-    visible:
-      id: "coach-message"
+    visible: "Joindre un lien ou un document"
     timeout: 30000

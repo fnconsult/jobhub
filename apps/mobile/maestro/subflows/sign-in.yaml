@@ -51,11 +51,22 @@ appId: ai.jobbbox.app
     direction: DOWN
     timeout: 30000
 - runScript: ../scripts/sign-in-code.js
-- tapOn:
-    id: "sign-in-code"
-- waitForAnimationToEnd:
-    timeout: 3000
-- inputText: ${output.signInCode}
+# As the email: iOS took the code's first digit only, its keyboard not up yet for the others (« Ce code ne convient
+# pas »). Typed again until the field shows it all.
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          id: "sign-in-code"
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - eraseText
+      - inputText: ${output.signInCode}
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - assertVisible: ${output.signInCode}
 - runFlow:
     file: hide-keyboard.yaml
 - runFlow:

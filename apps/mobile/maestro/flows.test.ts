@@ -157,6 +157,18 @@ describe("the Maestro flows (#705)", () => {
     expect(commands[0]).toEqual({ runFlow: { file: "pane-scroll-id.yaml", env: { ID: "${FIELD}", DIRECTION: "DOWN" } } });
   });
 
+  // iOS may take what is typed before its keyboard is up: an iPhone SE's code field got its first digit only (#705).
+  it("types each sign-in value again until iOS shows it all", () => {
+    const { commands } = parse(join(ROOT, "subflows", "sign-in.yaml"));
+    const typed = valuesOf(commands, ["inputText"]);
+    const retried = valuesOf(commands, ["retry"]) as { commands: Command[] }[];
+    expect(typed).toEqual(["${STACK_EMAIL}", "${output.signInCode}"]);
+    for (const value of typed) {
+      const attempt = retried.find((retry) => valuesOf(retry.commands, ["inputText"]).includes(value));
+      expect(attempt && valuesOf(attempt.commands, ["assertVisible"])).toEqual([value]);
+    }
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));

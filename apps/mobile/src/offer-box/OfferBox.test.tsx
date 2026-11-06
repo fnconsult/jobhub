@@ -1,5 +1,6 @@
 import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
 import { screen, userEvent, waitFor, within } from "@testing-library/react-native";
+import { AccessibilityInfo } from "react-native";
 import { renderInApp } from "../testing";
 import { OfferBox } from "./OfferBox";
 
@@ -63,6 +64,7 @@ function serve(entries: OfferBoxEntryRead[]) {
 }
 
 describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's read", () => {
+  beforeEach(() => jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {}));
   afterEach(() => jest.restoreAllMocks());
 
   it("heads with « N à traiter » and « k traitées », then « Aujourd'hui » and « Précédemment » by Importance tier", async () => {
@@ -120,10 +122,33 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
     expect(writes).toEqual([{ path: "/api/offer-box/a/dismissal", method: "POST", body: { reason: "contract" } }]);
     await waitFor(() => expect(screen.getByText("1 à traiter · 1 traitée")).toBeOnTheScreen());
     expect(screen.getByText("« Offre a » écartée.")).toBeOnTheScreen();
+    // aria-live says nothing on iOS: VoiceOver is told.
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("« Offre a » écartée.");
 
     await user.press(screen.getByRole("button", { name: "Annuler" }));
     expect(writes.at(-1)).toEqual({ path: "/api/offer-box/a/dismissal", method: "DELETE", body: undefined });
     await waitFor(() => expect(screen.getByText("2 à traiter · 0 traitée")).toBeOnTheScreen());
+    expect(screen.queryByText(/n'a pas abouti/)).toBeNull();
+  });
+
+  it("an « Annuler » that fails tells the Candidate the offer is still écartée", async () => {
+    serve([entry("a")]);
+    const user = userEvent.setup();
+    await renderInApp(<OfferBox />);
+    const line = await screen.findByLabelText("Offre a");
+    await user.press(within(line).getByRole("button", { name: "Écarter : Offre a" }));
+    await user.press(within(line).getByRole("button", { name: "Lieu" }));
+    await screen.findByText("« Offre a » écartée.");
+    const fetch = jest.mocked(globalThis.fetch);
+    const served = fetch.getMockImplementation()!;
+    fetch.mockImplementation(async (input, init) => (init?.method === "DELETE" ? Response.json({ error: "unavailable" }, { status: 503 }) : served(input, init)));
+
+    await user.press(screen.getByRole("button", { name: "Annuler" }));
+
+    const said = "« Annuler » n'a pas abouti : l'offre reste écartée. Réessayez avec « Revenir sur ce choix », dans « Écartées ».";
+    expect(await screen.findByText(said)).toBeOnTheScreen();
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(said);
+    expect(screen.getByText("0 à traiter · 1 traitée")).toBeOnTheScreen();
   });
 
   it("« Écarter sans motif » écarte with no reason; « Écartées » folds them, each with its reason and « Revenir sur ce choix »", async () => {

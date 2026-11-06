@@ -3,7 +3,7 @@ import { DISMISSAL_REASONS, type DismissalReason, type OfferBoxEntryRead, type O
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { AccessibilityInfo, Platform, View } from "react-native";
 import { useApi } from "../api/api";
 import { useOfferBox } from "../api/reads";
 import { openPostingAction, shareLinkAction } from "../navigation/links";
@@ -21,7 +21,7 @@ import { ObjectRow } from "../ui/ObjectRow";
  * it, laid out by `offerBoxView` as the web lays it out: « N à traiter » and « k traitées », the source chips, « Aujourd'hui »
  * then « Précédemment » by Importance tier, each entry with « Suivre » (`POST /api/applications`) and « Écarter » (its
  * Dismissal reasons or « Écarter sans motif », `POST /api/offer-box/:id/dismissal`, #816), then the box read again; a
- * notice says it was écartée, with « Annuler ». « Écartées », folded at the foot, each with « Revenir sur ce choix »
+ * notice says it was écartée, with « Annuler » (and, when that fails, that the offer stays écartée). « Écartées », folded at the foot, each with « Revenir sur ce choix »
  * (`DELETE`). An entry opens in the Work Pane; its context menu opens its posting or shares its web address. It leads
  * the page: the menu's Coach Conversation follows it, its box at the foot (JobSearchesMenu, variant B of ADR-0090).
  */
@@ -67,6 +67,14 @@ const NOTICE_MS = 6000;
 /** The notice is said politely, as the web's toast is. */
 const ANNOUNCED = "polite";
 
+/**
+ * Says a notice that just appeared: `aria-live` is a live region on Android only, so iOS's VoiceOver is told it
+ * (once on each platform, never twice on Android).
+ */
+const announce = (text: string) => {
+  if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(text);
+};
+
 /** The Offer box, filtered by a source chip (« Toutes » first). */
 export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisions: OfferBoxDecisions }) {
   const { t } = useTranslation();
@@ -74,15 +82,21 @@ export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisi
   const [filter, setFilter] = useState<OfferBoxFilter>("all");
   const [dismissedOpen, setDismissedOpen] = useState(false);
   const [notice, setNotice] = useState<OfferBoxEntryRead | null>(null);
+  const [undoFailed, setUndoFailed] = useState(false);
   const view = offerBoxView(box, filter);
   useEffect(() => {
     if (!notice) return;
+    announce(t("offerBox.dismissedToast", { title: notice.jobOffer.title }));
     const timer = setTimeout(() => setNotice(null), NOTICE_MS);
     return () => clearTimeout(timer);
-  }, [notice]);
+  }, [notice, t]);
+  useEffect(() => {
+    if (undoFailed) announce(t("offerBox.undoError"));
+  }, [undoFailed, t]);
   const lineDecisions: OfferBoxDecisions = {
     follow: decisions.follow,
     dismiss: async (entry, reason) => {
+      setUndoFailed(false);
       const done = await decisions.dismiss(entry, reason);
       if (done) setNotice(entry);
       return done;
@@ -120,9 +134,14 @@ export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisi
               onPress={() => {
                 const entry = notice;
                 setNotice(null);
-                void decisions.reconsider(entry);
+                void decisions.reconsider(entry).then((undone) => setUndoFailed(!undone));
               }}
             />
+          </View>
+        ) : null}
+        {undoFailed ? (
+          <View aria-live={ANNOUNCED}>
+            <AppText tone="danger">{t("offerBox.undoError")}</AppText>
           </View>
         ) : null}
       </View>

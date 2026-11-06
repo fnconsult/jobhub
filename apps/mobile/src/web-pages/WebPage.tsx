@@ -8,11 +8,12 @@ import { Linking, Share, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewNavigation } from "react-native-webview";
 import type { FileDownloadEvent, ShouldStartLoadRequest, WebViewOpenWindowEvent } from "react-native-webview/lib/WebViewTypes";
+import { useFetchOnWebApp } from "../api/api";
 import type { AppSession } from "../session/app-session";
 import { space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
-import { isOnWebApp } from "../web-app";
+import { isOnWebApp, webAppHeaders } from "../web-app";
 
 /** On iOS, the cookies go to the WebViews' own store (WebKit's); Android has one store for both. */
 const WEBVIEWS = { iosCookieStore: "webKit" } as const;
@@ -32,6 +33,23 @@ function parsed(url: string): URL | null {
   }
 }
 
+/**
+ * The name to keep a downloaded file under in the app's cache: the one its answer gives (`attachment; filename="…"`),
+ * else its address's last segment, never a path (no `/` or `\\`, no `.` or `..`).
+ */
+export function downloadedFileName(response: Response, address: URL): string {
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+  let name = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? address.pathname.split("/").pop() ?? "";
+  try {
+    if (encoded) name = decodeURIComponent(encoded);
+  } catch {
+    // Not percent-encoded as it says: the plain name, or the address's.
+  }
+  name = name.trim().replace(/[/\\]/g, "_");
+  return name && name !== "." && name !== ".." ? name : "download";
+}
+
 /** Opens `url` out of the app: the system's browser, or the app the system gives its scheme to (mailto:, tel:). */
 function openOutside(url: string): void {
   void Linking.openURL(url).catch(() => undefined);
@@ -42,8 +60,9 @@ function openOutside(url: string): void {
  * compte, the subscription, the Withdrawal, the Legal Texts and the Coach space (#689). The WebView is given the
  * session's cookies for the web app's host alone; the page stays on that host, and any other address, or a new window
  * it asks for, opens in the system browser. Its user agent names the app (`JobbboxApp/<API Version>`). A file the page
- * downloads (the Data export) is fetched with the session into the app's cache and handed to the share sheet, to save
- * or send (iOS; Android's WebView downloads it itself).
+ * downloads (the Data export) is fetched with the session by the app's own fetch (useFetchOnWebApp), its redirects
+ * followed on the web app alone and one to any other host refused, the cookie never sent there (#756); it is written
+ * into the app's cache and handed to the share sheet, to save or send (iOS; Android's WebView downloads it itself).
  *
  * With a `title` and « Fermer » (`onClose`), the page is full screen, before the shell, and forgets the cookies it was
  * given once closed; without, it is a page of the shell, whose cookies stay in the WebViews' store until the session
@@ -71,6 +90,7 @@ export function WebPage({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const fetchOnWebApp = useFetchOnWebApp();
   const [ready, setReady] = useState(false);
   const left = useRef(false);
   const site = new URL(baseURL);
@@ -126,10 +146,17 @@ export function WebPage({
       return;
     }
     try {
-      const file = await File.downloadFileAsync(downloadUrl, Paths.cache, { headers: { cookie: await session.cookie() }, idempotent: true });
+      // The app's fetch, never the system's downloader: that one follows a redirect to any host, the cookie with it.
+      const headers = { ...webAppHeaders(), cookie: await session.cookie() };
+      const response = await fetchOnWebApp(downloadUrl, { headers, credentials: "omit" }, baseURL);
+      if (!response.ok) throw new Error(`The download was answered ${response.status}`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const file = new File(Paths.cache, downloadedFileName(response, new URL(downloadUrl)));
+      file.create({ overwrite: true });
+      await file.write(bytes);
       await Share.share({ url: file.uri });
     } catch {
-      // Offline, or the share sheet closed: the page is still there to try again.
+      // Offline, refused (a redirect off the web app), or the share sheet closed: the page is still there to try again.
     }
   };
 

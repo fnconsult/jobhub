@@ -36,6 +36,11 @@ const UPGRADE_REQUIRED = 426;
 
 const ApiContext = createContext<ApiFetch | null>(null);
 
+/** A call with the session to an address on the web app `webApp`, its redirects followed on it alone (fetchOnWebApp). */
+export type WebAppFetch = (address: string, init: RequestInit, webApp: string) => Promise<Response>;
+
+const WebAppFetchContext = createContext<WebAppFetch | null>(null);
+
 export function ApiProvider({
   baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
@@ -82,8 +87,13 @@ export function ApiProvider({
   );
 
   const value = useMemo(() => api, [api]);
+  const onWebApp = useCallback<WebAppFetch>((address, init, webApp) => fetchOnWebApp(fetch, address, init, webApp), [fetch]);
   if (outdated) return <UpdateRequired storeUrl={outdated.storeUrl} />;
-  return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
+  return (
+    <ApiContext.Provider value={value}>
+      <WebAppFetchContext.Provider value={onWebApp}>{children}</WebAppFetchContext.Provider>
+    </ApiContext.Provider>
+  );
 }
 
 /** The app's calls to the API; only inside ApiProvider. */
@@ -91,6 +101,17 @@ export function useApi(): ApiFetch {
   const api = useContext(ApiContext);
   if (!api) throw new Error("useApi() is called outside ApiProvider");
   return api;
+}
+
+/**
+ * A call with the session to a page's own address on the web app, outside `useApi()`: a file a WebPage downloads (the
+ * Data export, #756). It goes through the provider's fetch (`appFetch` in the app) and fetchOnWebApp, never the system's
+ * downloader, which follows a redirect to any host and the cookie set by hand with it. Only inside ApiProvider.
+ */
+export function useFetchOnWebApp(): WebAppFetch {
+  const onWebApp = useContext(WebAppFetchContext);
+  if (!onWebApp) throw new Error("useFetchOnWebApp() is called outside ApiProvider");
+  return onWebApp;
 }
 
 /**

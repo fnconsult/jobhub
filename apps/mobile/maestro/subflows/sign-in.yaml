@@ -10,10 +10,24 @@ appId: ai.jobbbox.app
     element:
       id: "sign-in-email"
     direction: DOWN
-- tapOn:
-    id: "sign-in-email"
-- inputText: ${STACK_EMAIL}
-- hideKeyboard
+# iOS sometimes takes the typing before its keyboard is up: typed again until the field shows it (iOS shows a field's
+# value to Maestro, Android does not).
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          id: "sign-in-email"
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - eraseText
+      - inputText: ${STACK_EMAIL}
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - assertVisible: ${STACK_EMAIL}
+- runFlow:
+    file: hide-keyboard.yaml
 - scrollUntilVisible:
     element:
       text: "Recevoir mon lien de connexion"
@@ -27,8 +41,11 @@ appId: ai.jobbbox.app
 - runScript: ../scripts/sign-in-code.js
 - tapOn:
     id: "sign-in-code"
+- waitForAnimationToEnd:
+    timeout: 3000
 - inputText: ${output.signInCode}
-- hideKeyboard
+- runFlow:
+    file: hide-keyboard.yaml
 - scrollUntilVisible:
     element:
       text: "Me connecter avec ce code"

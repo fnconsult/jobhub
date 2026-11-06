@@ -1,4 +1,4 @@
-import { act, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, screen, userEvent, within } from "@testing-library/react-native";
 import { Platform, Pressable, Text } from "react-native";
 import { fakeNetwork } from "../offline/testing";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
@@ -86,6 +86,63 @@ describe("Shell, below 64rem", () => {
   it("puts the pencil « Nouvelle conversation » in the Top Bar", async () => {
     await renderShell();
     expect(button("Nouvelle conversation")).toBeOnTheScreen();
+  });
+});
+
+describe("Shell, its Top Bar's title", () => {
+  /** What the device lays out: the Top Bar `bar` points wide, its menu button and its buttons at the end as wide as given. */
+  const laidOut = async (bar: number, menu: number, end: number) => {
+    const layout = (width: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height: 60 } } });
+    await fireEvent(screen.getByTestId("top-bar"), "layout", layout(bar));
+    await fireEvent(screen.getByTestId("top-bar-menu"), "layout", layout(menu));
+    await fireEvent(screen.getByTestId("top-bar-end"), "layout", layout(end));
+  };
+  const besideTheButtons = (title: string) => within(screen.getByTestId("top-bar-row")).queryByText(title) !== null;
+  const candidatures: ShellPage = { key: "/candidatures", title: "Mes candidatures", pane: "activite" };
+
+  it("stays beside the buttons where it has room for its words", async () => {
+    setWindow({ width: 800, height: 1280 });
+    await renderShell(candidatures);
+    await laidOut(800, 100, 170);
+    expect(screen.getByText("Mes candidatures")).toBeOnTheScreen();
+    expect(besideTheButtons("Mes candidatures")).toBe(true);
+  });
+
+  // A folded phone (412 pt), « Menu », « Activité » and the pencil beside it: « Mes candida / tures », and at the largest
+  // text size one or two letters a line, the Top Bar taking most of the screen (#705).
+  it("goes on its own line under them where they would leave it less than its words need", async () => {
+    setWindow({ width: 412, height: 800 });
+    await renderShell(candidatures);
+    await laidOut(412, 100, 170);
+    expect(screen.getByText("Mes candidatures")).toBeOnTheScreen();
+    expect(besideTheButtons("Mes candidatures")).toBe(false);
+    expect(button("Menu")).toBeOnTheScreen();
+    expect(button("Activité")).toBeOnTheScreen();
+  });
+
+  it("goes on its own line at the largest text size, and back beside them when the window has room again", async () => {
+    setWindow({ width: 412, height: 800, fontScale: 2 });
+    await renderShell(candidatures);
+    await laidOut(412, 180, 290);
+    expect(besideTheButtons("Mes candidatures")).toBe(false);
+
+    await act(() => setWindow({ width: 1280, height: 800, fontScale: 2 }));
+    await laidOut(1280, 180, 290);
+    expect(besideTheButtons("Mes candidatures")).toBe(true);
+  });
+
+  it("keeps the link back to the page above it on its own line", async () => {
+    setWindow({ width: 412, height: 800 });
+    const onUp = jest.fn();
+    await renderInApp(
+      <Shell page={{ ...application, up: { path: "/candidatures", label: "Mes candidatures" } }} onUp={onUp} paneContent={null} sidebar={() => null} onNewConversation={() => {}}>
+        <Text>La conversation</Text>
+      </Shell>,
+    );
+    await laidOut(412, 100, 140);
+    expect(besideTheButtons("Aéroline")).toBe(false);
+    await userEvent.setup().press(screen.getByRole("link", { name: "Aéroline" }));
+    expect(onUp).toHaveBeenCalledWith("/candidatures");
   });
 });
 

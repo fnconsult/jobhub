@@ -80,6 +80,26 @@ const coachWeb = (): FakeCoachWeb =>
         ],
       },
       "/api/job-searches": { profiles: [{ profile: { id: "p1", name: "Qualité aéronautique" }, searches: [] }], unseen: 0 },
+      // Recherches d'offres' Offer box: one Job Offer à traiter, its tags long (« arrivée le … », its source, its Profile).
+      "/api/offer-box": {
+        today: "2026-11-05",
+        toHandle: 1,
+        entries: [
+          {
+            id: "e1",
+            jobOffer: { ...jobOffer, contractType: "cdi" },
+            profile: { id: "p1", name: "Qualité aéronautique" },
+            scoredWith: { id: "p1", name: "Qualité aéronautique" },
+            matchScore: 82,
+            firstArrivalAt: "2026-10-28T09:00:00.000Z",
+            arrivalDay: "2026-10-28",
+            sources: [{ source: "job_search", at: "2026-10-28T09:00:00.000Z" }],
+            state: "to_handle",
+            applicationId: null,
+            followedAt: null,
+          },
+        ],
+      },
     },
   });
 
@@ -110,7 +130,8 @@ const KEY_SCREENS: [string, string, () => Promise<unknown>][] = [
   ["accueil", "/", () => screen.findByLabelText("Votre message")],
   ["candidatures", "/candidatures", () => screen.findByText("1 candidature")],
   ["fiche", "/candidatures/a1", async () => (await screen.findByLabelText("Votre message"), await openFiche())],
-  ["recherches", "/recherches", () => screen.findByText("Vos recherches par profil")],
+  // Recherches d'offres opens on its Offer box (ADR-0090), its menu's conversation below it.
+  ["recherches", "/recherches", async () => (await screen.findByRole("button", { name: `Suivre : ${jobOffer.title}` }), await screen.findByText("Vos recherches par profil"))],
   ["agenda", "/agenda", () => screen.findByText(jobOffer.title)],
   ["conversation", "/conversations/c1", () => screen.findByLabelText("Votre message")],
 ];

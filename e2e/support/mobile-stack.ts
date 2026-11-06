@@ -32,8 +32,9 @@ async function ok<T>(response: Awaited<ReturnType<Page["request"]["post"]>>, wha
 
 /**
  * A new Candidate on Standard, past the legal steps (the CGU accepted, the EU AI Consent given), with MAESTRO_SEED's
- * Profile, Applications, Interview, done Job Search and Free conversation, every date the key screens show on its fixed
- * day; then signed out of the browser that seeded them, so the app signs in afresh, by its code.
+ * Profile, Applications, Interview, done Job Search (its Job Offers in the Offer box, à traiter) and Free conversation,
+ * every date the key screens show on its fixed day; then signed out of the browser that seeded them, so the app signs in
+ * afresh, by its code.
  */
 export async function seedMaestroCandidate(browser: Browser, origin: string): Promise<SeededCandidate> {
   const email = `maestro.${unique()}@e2e.jobbbox.test`;
@@ -79,7 +80,7 @@ export async function seedMaestroCandidate(browser: Browser, origin: string): Pr
     const { scheduledAt, durationMinutes, note } = MAESTRO_SEED.interview;
     await ok(await page.request.post(`/api/applications/${interviewId}/interviews`, { headers, data: { scheduledAt, durationMinutes, format: "video", note } }), "add the Interview");
     const found = [];
-    for (const title of MAESTRO_SEED.jobOffers) found.push(await offer(title, "Industries Démo"));
+    for (const title of MAESTRO_SEED.jobOffers) found.push(await offer(title, MAESTRO_SEED.jobOffersEmployer));
     await ok(await page.request.post("/api/coach", { headers, data: { message: MAESTRO_SEED.conversation.title } }), "start the Free conversation");
 
     const candidateId = ((await (await page.request.get("/api/auth/get-session")).json()) as { user: { id: string } }).user.id;
@@ -90,6 +91,15 @@ export async function seedMaestroCandidate(browser: Browser, origin: string): Pr
       const search = await db.query<{ id: string }>(
         "INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, $4, $4, $5) RETURNING id",
         [candidateId, profile.id, found, MAESTRO_SEED.day, DONE_SEARCH_METRICS],
+      );
+      // What the Job Search's report records with it (ADR-0090, recordArrivals): its Job Offers in the Offer box, on its day,
+      // a minute apart, the first one MAESTRO_SEED names last, so the box, the most recent first, lists them in its order.
+      await db.query(
+        `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
+         SELECT $1, found.id, $2, arrival.at, jsonb_build_object('job_search', to_char(arrival.at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
+           FROM unnest($3::uuid[]) WITH ORDINALITY AS found (id, n)
+           CROSS JOIN LATERAL (SELECT $4::timestamptz - (found.n - 1) * interval '1 minute' AS at) arrival`,
+        [candidateId, profile.id, found, MAESTRO_SEED.day],
       );
       await db.query("UPDATE application SET created_at = $2, status_changed_at = $2 WHERE id = ANY($1)", [[appliedId, interviewId], MAESTRO_SEED.day]);
       await page.request.post("/api/auth/sign-out", { headers });

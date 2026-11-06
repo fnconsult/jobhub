@@ -18,8 +18,14 @@ export const MAESTRO_SEED = {
   },
   /** The Interview the Application flow adds, as the person types it. */
   addedInterview: { date: "26/11/2031", time: "10:00", note: "Second tour" },
-  /** Two Job Offers found by a done Job Search of the Profile, on a fixed day. */
+  /**
+   * Two Job Offers of one employer found by a done Job Search of the Profile, on a fixed day: in the Offer box, à traiter,
+   * in this order, which Recherches d'offres opens on (ADR-0090). The flow « Recherches d'offres » follows the first.
+   */
   jobOffers: ["Cheffe de projet qualité", "Auditrice qualité fournisseurs"],
+  jobOffersEmployer: "Industries Démo",
+  /** Their rows in the Offer box, « title · employer ». */
+  jobOfferRows: ["Cheffe de projet qualité · Industries Démo", "Auditrice qualité fournisseurs · Industries Démo"],
   /**
    * The conversation flow's message: e2e/support/fake-mistral.mjs streams a long reply to it, thirty paragraphs, then its
    * last line, so the flow sees « Arrêter » while it comes.
@@ -27,8 +33,11 @@ export const MAESTRO_SEED = {
   coach: { message: "E2E_COACH_LONG Comment préparer mon entretien ?", replyEnd: "FIN DE LA RÉPONSE" },
   /** A Free conversation, titled by its first message as the platform titles it; the key screen « conversation ». */
   conversation: { title: "Préparer mon entretien chez Aéroline" },
-  /** The fixed day of every seeded date the key screens show, so their captures do not change from one day to the next. */
-  day: "2026-10-28T09:00:00Z",
+  /**
+   * The fixed day of every seeded date the key screens show, so their captures do not change from one day to the next:
+   * more than 30 days ago (MAX_POSTING_AGE_DAYS), so the Offer box never says its Job Offers « sort dans n j ».
+   */
+  day: "2026-10-01T09:00:00Z",
 } as const;
 
 /** The key screens, captured in this order on each run (`captures/<device>/<theme>/<screen>.png`). */

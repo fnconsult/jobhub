@@ -1,7 +1,7 @@
 import { Activity, ChevronLeft, Menu, PanelLeftClose, PanelRight, SquarePen, X } from "lucide-react-native";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { BackHandler, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { BackHandler, Pressable, ScrollView, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineBanner } from "../offline/OfflineBanner";
 import { space, radius, TARGET, useTheme } from "../theme/theme";
@@ -168,42 +168,69 @@ export function Shell({
   );
 }
 
-/** The Top Bar: the menu, the page's title (with `up`, a link back to the page above it, an arrow before it, as on iOS), its buttons. */
+/** The room a page's title needs beside the Top Bar's buttons, in rem (16 pt times the system text scale). */
+const TITLE_MIN_REM = 10;
+
+/**
+ * The Top Bar: the menu, the page's title (with `up`, a link back to the page above it, an arrow before it, as on iOS),
+ * its buttons. Where the buttons, their words beside their icons, leave the title less than `TITLE_MIN_REM` (a phone, a
+ * folded foldable, a larger system text), the title goes on its own line under them, the whole width, rather than break
+ * inside its words (« Mes candida / tures ») or take one letter a line and most of the screen.
+ */
 function TopBar({ title, up, menu, end }: { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode }) {
   const { colors } = useTheme();
+  const { fontScale } = useWindowDimensions();
   const { hovered, hoverProps } = usePointerHover();
+  const [widths, setWidths] = useState({ bar: 0, menu: 0, end: 0 });
+  const measure = (part: keyof typeof widths) => (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setWidths((current) => (current[part] === width ? current : { ...current, [part]: width }));
+  };
+  const [onBar, onMenu, onEnd] = (["bar", "menu", "end"] as const).map(measure);
+  // The bar's padding on each side, and a gap on each side of the title.
+  const room = widths.bar - 4 * space[2] - widths.menu - widths.end;
+  const ownLine = widths.bar > 0 && room < TITLE_MIN_REM * 16 * fontScale;
+  const beside = ownLine ? null : { flex: 1 };
   const text = (
     <AppText variant="lead" weight="semiBold" lines={2}>
       {title}
     </AppText>
   );
+  const heading = up ? (
+    <Pressable
+      role="link"
+      aria-label={title}
+      accessibilityHint={up.label}
+      onPress={up.go}
+      {...hoverProps}
+      style={({ pressed }) => ({
+        ...beside,
+        minHeight: TARGET,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: space[1],
+        borderRadius: radius.control,
+        backgroundColor: pressed || hovered ? colors.hover : "transparent",
+      })}
+    >
+      <ChevronLeft color={colors.accent} size={22} aria-hidden />
+      <View style={{ flex: 1 }}>{text}</View>
+    </Pressable>
+  ) : (
+    <View style={beside}>{text}</View>
+  );
   return (
-    <View role="toolbar" style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingHorizontal: space[2], paddingVertical: space[1] }}>
-      {menu}
-      {up ? (
-        <Pressable
-          role="link"
-          aria-label={title}
-          accessibilityHint={up.label}
-          onPress={up.go}
-          {...hoverProps}
-          style={({ pressed }) => ({
-            flex: 1,
-            minHeight: TARGET,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: space[1],
-            borderRadius: radius.control,
-            backgroundColor: pressed || hovered ? colors.hover : "transparent",
-          })}
-        >
-          <ChevronLeft color={colors.accent} size={22} aria-hidden />
-          <View style={{ flex: 1 }}>{text}</View>
-        </Pressable>
-      ) : (
-        <View style={{ flex: 1 }}>{text}</View>
-      )}
-      {end}
+    <View role="toolbar" testID="top-bar" onLayout={onBar} style={{ gap: space[1], paddingHorizontal: space[2], paddingVertical: space[1] }}>
+      <View testID="top-bar-row" style={{ flexDirection: "row", alignItems: "center", gap: space[2] }}>
+        <View testID="top-bar-menu" onLayout={onMenu}>
+          {menu}
+        </View>
+        {ownLine ? <View style={{ flex: 1 }} /> : heading}
+        <View testID="top-bar-end" onLayout={onEnd} style={{ flexDirection: "row", alignItems: "center", gap: space[2] }}>
+          {end}
+        </View>
+      </View>
+      {ownLine ? heading : null}
     </View>
   );
 }

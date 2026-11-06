@@ -80,10 +80,10 @@ Les parcours de l'app tournent sur des simulateurs iOS et des émulateurs Androi
 | Fichier | Ce qu'il vérifie |
 | --- | --- |
 | `apps/mobile/maestro/flows/1-connexion.yaml` | connexion par code, la session gardée après relance |
-| `2-ecrans-cles.yaml` | les écrans clés (accueil, Mes candidatures, Fiche, Recherches d'offres, Agenda, une conversation), la disposition attendue, la capture de chacun |
+| `2-ecrans-cles.yaml` | les écrans clés (accueil, Mes candidatures, Fiche, Recherches d'offres sur ses Offres à traiter, Agenda, une conversation), la disposition attendue, la capture de chacun |
 | `3-accueil.yaml` | l'accueil, la Sidebar et ses menus |
 | `4-candidature.yaml` | une Application : sa Fiche, son statut passé à « Entretien », un entretien ajouté |
-| `5-recherches.yaml` | Recherches d'offres, la recherche semée et ses offres trouvées ; « Garder » et « Écarter » s'ajoutent avec #692 |
+| `5-recherches.yaml` | Recherches d'offres : la page s'ouvre sur ses Offres à traiter (ADR-0090), les deux offres de la recherche semée ; « Suivre » garde la première, qui passe dans « Déjà suivies » ; puis, sous la boîte, la recherche semée et ses offres trouvées. « Écarter » s'y ajoute avec #816 |
 | `6-agenda.yaml` | l'Agenda, l'entretien semé, qui mène à la rubrique Entretiens |
 | `7-conversation.yaml` | une conversation, la réponse en flux (« Arrêter » pendant qu'elle arrive) |
 

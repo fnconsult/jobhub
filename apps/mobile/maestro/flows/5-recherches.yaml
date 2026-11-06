@@ -1,6 +1,7 @@
-# Recherches d'offres: the Job Searches by Profile (#690), the seeded done Job Search among them with its two Job Offers
-# found. Keeping or setting aside one of them (« Garder », « Écarter ») comes to the app with #692, which adds its steps
-# here: the seeded Job Offers are MAESTRO_SEED.jobOffers (seed.ts).
+# Recherches d'offres: the page opens on its Offer box (« Offres à traiter », ADR-0090), the seeded done Job Search's two
+# Job Offers à traiter (MAESTRO_SEED.jobOfferRows, seed.ts). « Suivre » keeps the first: it goes to « Déjà suivies »,
+# the other stays à traiter. Below the box, the Job Searches by Profile (#690), the seeded one with its two Job Offers
+# found. Setting one aside (« Écarter », with its Dismissal reason) comes to the app with #816, which adds its steps here.
 appId: ai.jobbbox.app
 name: Recherches d'offres, garder ou écarter une offre
 tags:
@@ -11,11 +12,51 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Recherches d'offres"
-# A menu's conversation opens on its latest message: its card is above.
+- extendedWaitUntil:
+    visible: "Toutes, 2 à traiter"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      text: "Cheffe de projet qualité · Industries Démo"
+    direction: DOWN
+    timeout: 20000
+# The first entry's « Suivre »: named for its Job Offer, as VoiceOver reads it, on iOS; Android also exposes its words.
+- tapOn:
+    text: "Suivre( : Cheffe de projet qualité)?"
+    index: 0
+# It goes to « Déjà suivies », folded, under the other, still à traiter.
+- scrollUntilVisible:
+    element:
+      text: "Déjà suivies \\(1\\)"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: "Auditrice qualité fournisseurs · Industries Démo"
+- tapOn: "Déjà suivies \\(1\\)"
+- scrollUntilVisible:
+    element:
+      text: "Suivie"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: "Cheffe de projet qualité · Industries Démo"
+# One à traiter left, of the two.
+- scrollUntilVisible:
+    element:
+      text: "Toutes, 1 à traiter"
+    direction: UP
+    timeout: 20000
+# The menu's conversation follows the box: the Job Searches by Profile in it.
 - scrollUntilVisible:
     element:
       text: "Vos recherches par profil"
-    direction: UP
+    direction: DOWN
     timeout: 20000
-- assertVisible: "Lancer une recherche"
-- assertVisible: "Offres trouvées : 2"
+- scrollUntilVisible:
+    element:
+      text: "Offres trouvées : 2"
+    direction: DOWN
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      text: "Lancer une recherche"
+    direction: DOWN
+    timeout: 20000

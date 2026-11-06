@@ -1,5 +1,5 @@
 # The key screens, each compared with its reference capture (subflows/capture.yaml): the home page, Mes candidatures, an
-# Application's Fiche, Recherches d'offres, the Agenda and a conversation. Run in every theme and at the largest text
+# Application's Fiche, Recherches d'offres (its Offer box), the Agenda and a conversation. Run in every theme and at the largest text
 # size, where a tablet's columns go full page (subflows/layout.yaml, subflows/fiche.yaml) and no text is cut.
 appId: ai.jobbbox.app
 name: Écrans clés et leurs captures de référence
@@ -41,11 +41,10 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Recherches d'offres"
-# A menu's conversation opens on its latest message: its card is above.
-- scrollUntilVisible:
-    element:
-      text: "Vos recherches par profil"
-    direction: UP
+# Recherches d'offres opens on its Offer box (ADR-0090), its conversation below it: captured once the seeded Job Offers
+# are read, both à traiter (« Toutes », the first chip).
+- extendedWaitUntil:
+    visible: "Toutes, 2 à traiter"
     timeout: 20000
 - runFlow:
     file: ../subflows/capture.yaml

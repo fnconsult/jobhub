@@ -1446,7 +1446,9 @@
       "footKept": "Kept 12 months, erased with your account, included in {{export}}.",
       "footExport": "your data export",
       "footModels": "Which models produced each piece of content is in {{activity}}.",
-      "footActivity": "AI Activity"
+      "footActivity": "AI Activity",
+      "legend": "Legend",
+      "tipLine": "{{series}}: {{count}}"
     }
   },
   "orders": {

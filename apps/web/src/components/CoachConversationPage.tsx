@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
-import type { CoachMessage, ConversationContext, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
+import type { CoachMessage, ConversationContext, JobOfferCard as JobOfferCardData, ReplyCost } from "@/coach/conversation";
 import type { SubjectRef } from "@/coach-conversations";
 import type { CoachProposalCard as ProposalCard } from "@/coach-proposals/card";
 import { formOpenedOnArrival, readCoachProposalsDisplay } from "@/coach-proposals-display/choice";
@@ -39,9 +39,10 @@ export type InView = CoachFocus & { name: string; profileId?: string };
 
 /**
  * An AI Coach reply given in this browser about the page's object (an Application, a Profile, a Job Search, a Job Digest
- * or the Agenda): AI Activity counts it with that page at once (#332), before the page is next loaded with it.
+ * or the Agenda): AI Activity counts it with that page at once (#332), before the page is next loaded with it; `sent`, what
+ * it sent in all its AI calls (#805), as saved (null when none was kept).
  */
-export type ReplyInView = { provenance: Provenance | null; at: string };
+export type ReplyInView = { provenance: Provenance | null; at: string; sent: ReplyCost | null };
 
 /** What the suggestions above the box need from the page's conversation. */
 type Control = {
@@ -111,6 +112,8 @@ type ReplyBody = {
   jobOffer?: JobOfferCardData;
   provenance?: Provenance | null;
   at?: string;
+  /** What the reply sent in all its AI calls (#805), as saved. */
+  sent?: ReplyCost | null;
   /** The AI Coach could not answer the question (#345). */
   couldNotAnswer?: boolean;
   /** The conversation's Context bar's figures, once the message is saved (#607). */
@@ -524,7 +527,7 @@ export function CoachConversationPage(page: PagePlacement) {
           text: body.reply,
           ...(blocked?.reply ? { blocked: true as const } : {}),
           ...(body.jobOffer ? { jobOffer: body.jobOffer } : {}),
-          ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
+          ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at, sent: body.sent ?? null } : {}),
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
           ...(cards.length > 0 ? { cards } : {}),
           ...(Object.keys(seenNames).length > 0 ? { seenNames: { ...seenNames } } : {}),
@@ -534,7 +537,7 @@ export function CoachConversationPage(page: PagePlacement) {
         },
       ]);
       const at = body.at;
-      if (about && typeof at === "string") setRepliesInView((given) => [...given, { provenance: body.provenance ?? null, at }]);
+      if (about && typeof at === "string") setRepliesInView((given) => [...given, { provenance: body.provenance ?? null, at, sent: body.sent ?? null }]);
       setReadArticle(null);
       setStatus("idle");
       shownLive?.end("done");

@@ -133,6 +133,16 @@ describe("Shell, its Top Bar's title", () => {
     expect(besideTheButtons("Mes candidatures")).toBe(true);
   });
 
+  // An iPhone SE at iOS's largest (3.57): « Menu », « Activité » broken mid-word and the title took the whole screen,
+  // the conversation under them no room left (#705). The Top Bar's words grow to twice their size at most.
+  it("lets its words grow to twice their size at most, the conversation keeping its room", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderShell(candidatures);
+    await laidOut(375, 140, 170);
+    for (const words of ["Menu", "Activité", "Mes candidatures"]) expect(screen.getByText(words)).toHaveProp("maxFontSizeMultiplier", 2);
+    expect(besideTheButtons("Mes candidatures")).toBe(false);
+  });
+
   it("keeps the link back to the page above it on its own line", async () => {
     setWindow({ width: 412, height: 800 });
     const onUp = jest.fn();

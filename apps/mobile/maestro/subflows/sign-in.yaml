@@ -76,10 +76,13 @@ appId: ai.jobbbox.app
       - tapOn:
           text: "Saisir le code reçu par e-mail"
           index: 0
-- scrollUntilVisible:
-    element:
-      text: "Me connecter avec ce code"
-    direction: DOWN
+# On four lines at the largest text size on an iPhone SE, taller than half the screen: scrolled to in short steps,
+# whole, « Renvoyer le lien » under it.
+- runFlow:
+    file: gate-scroll.yaml
+    env:
+      TEXT: "Me connecter avec ce code"
+      AFTER: "Renvoyer le lien"
 - tapOn: "Me connecter avec ce code"
 - extendedWaitUntil:
     visible: "Joindre un lien ou un document"

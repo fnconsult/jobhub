@@ -38,7 +38,7 @@ function labelsIn(commands: Command[]): string[] {
   const selectors = valuesOf(commands, ["tapOn", "assertVisible", "assertNotVisible", "visible", "notVisible", "element", "scrollUntilVisible"]);
   const texts = valuesOf(commands, ["text"]).filter((each): each is string => typeof each === "string");
   // A subflow's label given by its caller: the Sidebar's link (menu.yaml).
-  const given = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).MENU, (env as Record<string, unknown>).LABEL, (env as Record<string, unknown>).TEXT] : []));
+  const given = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).MENU, (env as Record<string, unknown>).LABEL, (env as Record<string, unknown>).TEXT, (env as Record<string, unknown>).AFTER] : []));
   return [...selectors, ...texts, ...given].filter((label): label is string => typeof label === "string" && !label.includes("${"));
 }
 
@@ -284,7 +284,7 @@ describe("the Maestro flows (#705)", () => {
   });
 
   it.each(FLOW_FILES.map((file) => [relative(ROOT, file), file]))("%s reads only the variables a run or the stack gives", (_name, file) => {
-    const given = new Set([...Object.keys(runsOn(CI_HARDWARE.ipad.id)[0]!.env), ...STACK_ENV, "output", "SCREEN", "MENU", "FIELD", "VALUE", "LABEL", "TEXT", "DIRECTION", "ID"]);
+    const given = new Set([...Object.keys(runsOn(CI_HARDWARE.ipad.id)[0]!.env), ...STACK_ENV, "output", "SCREEN", "MENU", "FIELD", "VALUE", "LABEL", "TEXT", "DIRECTION", "ID", "AFTER"]);
     // The names in each `${…}`, its quoted strings and a property after a dot left out.
     const read = [...readFileSync(file, "utf8").matchAll(/\$\{([^}]+)\}/g)].flatMap((match) =>
       [...match[1]!.replace(/'[^']*'|"[^"]*"/g, "").matchAll(/(?<![.\w])([A-Za-z_]\w*)/g)].map((each) => each[1]!),

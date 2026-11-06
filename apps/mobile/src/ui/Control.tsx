@@ -1,10 +1,17 @@
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, View } from "react-native";
-import { radius, space, TARGET, useTheme } from "../theme/theme";
+import { space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "./AppText";
 import { usePointerHover } from "./pointer";
 
 type Look = "primary" | "secondary" | "quiet";
+
+/**
+ * Rounded as a 44 pt button's ends, a pill on one line: the Design System's pill radius (radius.control, 999) made a
+ * circle of a button whose words wrap at a large text size, its words' ends outside it, white on the page's white
+ * (« Me connecter avec ce code » on an iPhone SE at iOS's largest, #705).
+ */
+export const PILL = TARGET / 2;
 
 /**
  * A button: 44 pt at least each way (ADR-0009), its label in words beside its Lucide icon. `label` alone, with `icon`,
@@ -61,7 +68,7 @@ export function Control({
         justifyContent: iconOnly ? "center" : "flex-start",
         gap: space[2],
         paddingHorizontal: iconOnly ? 0 : space[3],
-        borderRadius: radius.control,
+        borderRadius: PILL,
         borderWidth: look === "secondary" ? 1 : 0,
         borderColor: colors.borderStrong,
         backgroundColor: look === "primary" ? (pressed || hovered ? colors.accentHover : colors.accent) : pressed || hovered || selected ? colors.hover : "transparent",

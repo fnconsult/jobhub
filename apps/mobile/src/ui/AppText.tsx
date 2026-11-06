@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Text, useWindowDimensions, type TextStyle } from "react-native";
 import type { Colors } from "../theme/colors";
 import { INTER, type, useTheme } from "../theme/theme";
@@ -25,6 +25,19 @@ export const WHOLE_FROM_FONT_SCALE = 1.3;
 const TITLE_MAX_SCALE = 2;
 const CAPPED: ReadonlySet<Variant> = new Set(["h1", "h2"]);
 
+/**
+ * The shell's bars (its Top Bar, a pane's header) grow with the system's text size up to twice their size, as a title
+ * does, and as iOS's own bars stop growing: at iOS's largest on an iPhone SE, « Menu », « Activité » broken mid-word and
+ * the page's title took the whole screen, and left the conversation under them no room (#705).
+ */
+export const BAR_MAX_SCALE = 2;
+const MaxScale = createContext<number | undefined>(undefined);
+
+/** Its texts, a button's words included, grow with the system's text size up to `scale` times their size. */
+export function CappedTextScale({ scale, children }: { scale: number; children: ReactNode }) {
+  return <MaxScale.Provider value={scale}>{children}</MaxScale.Provider>;
+}
+
 export function AppText({
   variant = "body",
   weight,
@@ -49,6 +62,8 @@ export function AppText({
 }) {
   const { colors } = useTheme();
   const { fontScale } = useWindowDimensions();
+  const capped = useContext(MaxScale);
+  const caps = [CAPPED.has(variant) ? TITLE_MAX_SCALE : undefined, capped].filter((cap): cap is number => cap !== undefined);
   const size = SIZE[variant];
   const style: TextStyle = {
     fontFamily: INTER[weight ?? (HEADING.has(variant) ? "bold" : "regular")],
@@ -59,7 +74,7 @@ export function AppText({
     textDecorationLine: struck ? "line-through" : undefined,
   };
   return (
-    <Text style={style} numberOfLines={fontScale < WHOLE_FROM_FONT_SCALE ? lines : undefined} maxFontSizeMultiplier={CAPPED.has(variant) ? TITLE_MAX_SCALE : undefined} role={heading ? "heading" : undefined}>
+    <Text style={style} numberOfLines={fontScale < WHOLE_FROM_FONT_SCALE ? lines : undefined} maxFontSizeMultiplier={caps.length > 0 ? Math.min(...caps) : undefined} role={heading ? "heading" : undefined}>
       {children}
     </Text>
   );

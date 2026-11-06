@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react-native";
 import { Plus } from "lucide-react-native";
 import { StyleSheet } from "react-native";
 import { renderInApp, setWindow } from "../testing";
-import { Control } from "./Control";
+import { Control, PILL } from "./Control";
 
 // A folded foldable at the largest text size: « Ajouter une candidature » ran past the right edge of the suggestions,
 // its end cut (#705, the foldable's key screens). Its words wrap within the room it has, as any text does.
@@ -15,6 +15,15 @@ describe("Control, its words wider than the room it has (#705)", () => {
     expect(StyleSheet.flatten(button.props.style)).toMatchObject({ maxWidth: "100%" });
     const words = screen.getByText("Ajouter une candidature");
     expect(StyleSheet.flatten(words.parent!.props.style)).toMatchObject({ flexShrink: 1 });
+  });
+
+  // « Me connecter avec ce code », on four lines on an iPhone SE at iOS's largest, was drawn as a circle by the pill's
+  // 999 radius, the ends of its words outside it, white on white (#705).
+  it("keeps a 44 pt pill's ends when its words wrap, not a circle around them", async () => {
+    await renderInApp(<Control label="Me connecter avec ce code" look="primary" onPress={() => {}} />);
+    const button = screen.getByRole("button", { name: "Me connecter avec ce code" });
+    expect(PILL).toBe(22);
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ borderRadius: PILL, minHeight: 44 });
   });
 });
 

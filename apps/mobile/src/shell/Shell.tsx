@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineBanner } from "../offline/OfflineBanner";
 import { space, radius, TARGET, useTheme } from "../theme/theme";
 import { useKeyCommand } from "../keyboard/key-commands";
-import { AppText } from "../ui/AppText";
+import { AppText, BAR_MAX_SCALE, CappedTextScale } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
@@ -176,9 +176,20 @@ const TITLE_MIN_REM = 10;
  * its buttons. Where the buttons, their words beside their icons, leave the title less than `TITLE_MIN_REM` (a phone, a
  * folded foldable, a larger system text), the title goes on its own line under them, the whole width, rather than break
  * inside its words (« Mes candida / tures ») or take one letter a line and most of the screen. Buttons that do not fit
- * on one line beside the menu (« Effacer », « Activité » and the pencil, at the largest text size) wrap to the next.
+ * on one line beside the menu (« Effacer », « Activité » and the pencil, at the largest text size) wrap to the next. Its
+ * words grow with the system's text size up to twice their size (`BAR_MAX_SCALE`): the page keeps its room under it.
  */
-function TopBar({ title, up, menu, end }: { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode }) {
+function TopBar(props: TopBarProps) {
+  return (
+    <CappedTextScale scale={BAR_MAX_SCALE}>
+      <TopBarContent {...props} />
+    </CappedTextScale>
+  );
+}
+
+type TopBarProps = { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode };
+
+function TopBarContent({ title, up, menu, end }: TopBarProps) {
   const { colors } = useTheme();
   const { fontScale } = useWindowDimensions();
   const { hovered, hoverProps } = usePointerHover();
@@ -190,7 +201,7 @@ function TopBar({ title, up, menu, end }: { title: string; up: { label: string; 
   const [onBar, onMenu, onEnd] = (["bar", "menu", "end"] as const).map(measure);
   // The bar's padding on each side, and a gap on each side of the title.
   const room = widths.bar - 4 * space[2] - widths.menu - widths.end;
-  const ownLine = widths.bar > 0 && room < TITLE_MIN_REM * 16 * fontScale;
+  const ownLine = widths.bar > 0 && room < TITLE_MIN_REM * 16 * Math.min(fontScale, BAR_MAX_SCALE);
   const beside = ownLine ? null : { flex: 1 };
   const text = (
     <AppText variant="lead" weight="semiBold" lines={2}>
@@ -242,15 +253,18 @@ function TopBar({ title, up, menu, end }: { title: string; up: { label: string; 
 
 function PaneHeader({ title, onClose }: { title: string; onClose: (() => void) | null }) {
   const { t } = useTranslation();
+  // A bar, as the Top Bar: its words grow up to twice their size, the pane's content keeping its room under it.
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingLeft: space[4], paddingRight: space[2], paddingVertical: space[1] }}>
-      <View style={{ flex: 1 }}>
-        <AppText variant="h3" lines={2}>
-          {title}
-        </AppText>
+    <CappedTextScale scale={BAR_MAX_SCALE}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingLeft: space[4], paddingRight: space[2], paddingVertical: space[1] }}>
+        <View style={{ flex: 1 }}>
+          <AppText variant="h3" lines={2}>
+            {title}
+          </AppText>
+        </View>
+        {onClose ? <Control label={t("conversationFirst.close")} icon={X} onPress={onClose} /> : null}
       </View>
-      {onClose ? <Control label={t("conversationFirst.close")} icon={X} onPress={onClose} /> : null}
-    </View>
+    </CappedTextScale>
   );
 }
 

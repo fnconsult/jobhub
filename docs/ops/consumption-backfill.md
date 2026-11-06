@@ -25,7 +25,7 @@ cd /opt/jobbbox/staging   # or /opt/jobbbox/production
 export JOBHUB_TARGET=staging JOBHUB_HOST=staging.jobbbox.ai JOBHUB_SLUG=jobbbox-staging \
   JOBHUB_ENV_FILE="$PWD/.env" JOBHUB_IMAGES=ghcr.io/fnconsult/jobhub JOBHUB_REVISION="$(git -C app rev-parse HEAD)"
 docker compose -f app/deploy/compose.yml -p "$JOBHUB_SLUG" --env-file .env run --rm --no-deps migrate \
-  node_modules/.bin/tsx apps/web/scripts/backfill-consumption.ts --live-from 2026-11-06
+  node_modules/.bin/tsx apps/web/scripts/backfill-consumption.ts --live-from YYYY-MM-DD   # this environment's #799 deploy day
 ```
 
 Production: `JOBHUB_TARGET=production JOBHUB_HOST=jobbbox.ai JOBHUB_SLUG=jobbbox-production`, and its own deploy date.

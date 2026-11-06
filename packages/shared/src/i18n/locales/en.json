@@ -39,6 +39,11 @@
       "title": "Something went wrong",
       "message": "We could not display this page. Your data is safe. Please try again in a moment."
     },
+    "unavailable": {
+      "title": "Jobbbox will be back in a moment",
+      "message": "Jobbbox is restarting or not answering right now. Your data is safe and nothing is lost.",
+      "reload": "This page reloads itself every {{seconds}} seconds."
+    },
     "exit": {
       "title": "You are leaving Jobbbox",
       "message": "This link leads to a site outside Jobbbox. Jobbbox is not responsible for its content or for what it does with your data.",

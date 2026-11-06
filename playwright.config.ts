@@ -94,6 +94,9 @@ export default defineConfig({
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
     { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },
+    // The edge in front of the web app (ADR-0094): Traefik, deploy/compose.yml's `edge` and a stand-in web container in docker,
+    // the stand-in forwarding to the suite's web server. Needs docker; E2E_SKIP_DOCKER=1 skips it.
+    { name: "edge", testMatch: /\/edge\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|legal-text-notices)\.spec\.ts/ },
     { name: "ai", testMatch: /(ai|ai-tool-calls|ai-actions-coach|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.

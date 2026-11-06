@@ -2714,6 +2714,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'onglet « Environnement » de Paramètres liste, sous « Variables qui ne servent plus », les variables que l'environnement du serveur définit encore mais que Jobbbox ne lit plus. La colonne « Remplacée par » dit ce qui les remplace, par exemple les Coaching Playbooks, réglés dans Playbooks. Leur valeur n'est jamais affichée.\n\nElles ne changent rien : vous pouvez les retirer du .env du serveur au prochain déploiement. Réglez à la place ce que « Remplacée par » indique. Sans variable inutilisée, la liste dit « Aucune variable inutilisée dans l'environnement. »\n\nÀ ne pas confondre avec deux autres cas :\n\n- « Réglages de l'environnement » : des variables encore lues, qui ne se changent pas dans le back office (« Pourquoi dans l'environnement » dit pourquoi) ;\n- l'avertissement « … réglages viennent de l'environnement et diffèrent de la valeur par défaut du code » et le badge « env » dans Outils : la variable est lue et remplace la valeur par défaut du code. Vérifiez qu'elle est voulue ; une valeur saisie dans le back office l'emporterait sur elle."
     },
     {
+      "id": "faq-jobbbox-back-in-a-moment",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Que faire quand Jobbbox affiche « Jobbbox revient dans un instant » ?",
+      "synonyms": [
+        "jobbbox ne répond pas",
+        "site indisponible",
+        "service indisponible",
+        "page blanche",
+        "erreur 502",
+        "erreur 503",
+        "erreur 504",
+        "bad gateway",
+        "404 page not found",
+        "mise à jour",
+        "redémarrage",
+        "panne"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Cette page s'affiche quand Jobbbox redémarre, par exemple pendant une mise à jour, ou ne répond pas pour le moment. Elle titre « Jobbbox revient dans un instant », en français puis en anglais (en anglais d'abord sur une page en anglais), avec le code de l'erreur (502, 503 ou 504) au-dessus. Vos données sont en sécurité et rien n'est perdu.\n\nVous n'avez rien à faire : la page se recharge toute seule toutes les 15 secondes et vous ramène à la page demandée dès que Jobbbox répond. Pour réessayer tout de suite, cliquez sur le bouton « Réessayer ».\n\nSi vous étiez en train d'écrire, ce que vous n'aviez pas encore enregistré peut être à saisir de nouveau.\n\nLa page dure plus de quelques minutes ? Voyez « Comment nous contacter ? »."
+    },
+    {
       "id": "faq-extension-update",
       "locale": "fr",
       "kind": "faq",
@@ -6604,6 +6630,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Coach access is a candidate's explicit consent: it lets you read their profiles and applications, and review their application documents. The candidate gives it, from their « My human coaches » page, with the « Give … access » button; you cannot ask for it from your coach space. With coach access, you read without being able to change anything.\n\nThe candidates who gave you access show in « Candidates with coach access ». If nobody has yet, the page says so: « No candidate has given you access yet. »\n\nThe candidate can withdraw access at any time, with « Withdraw …'s access ». It takes effect at once: the candidate leaves « Candidates with coach access », and their file and applications show « Page not found ». If you were writing a review at that moment, it is not sent and you go back to « My coach space ».\n\nWithdrawing access deletes nothing you have already done. The candidate keeps the reviews you sent them. The sessions they paid for with you stay in « My coaching sessions », and you can still enter their date and link: they do not depend on coach access."
+    },
+    {
+      "id": "faq-jobbbox-back-in-a-moment",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "What should I do when Jobbbox shows « Jobbbox will be back in a moment »?",
+      "synonyms": [
+        "jobbbox not responding",
+        "site down",
+        "service unavailable",
+        "blank page",
+        "error 502",
+        "error 503",
+        "error 504",
+        "bad gateway",
+        "404 page not found",
+        "update",
+        "restart",
+        "outage"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "This page shows while Jobbbox restarts, during an update for instance, or is not answering for the moment. Its title is « Jobbbox will be back in a moment », in English and in French (English first on an English page, French first otherwise), with the error's code (502, 503 or 504) above. Your data is safe and nothing is lost.\n\nYou have nothing to do: the page reloads itself every 15 seconds and takes you back to the page you asked for as soon as Jobbbox answers. To try again at once, click the « Try again » button.\n\nIf you were writing something, what you had not saved yet may need to be typed again.\n\nThe page lasts more than a few minutes? See « How do I contact you? »."
     },
     {
       "id": "faq-quota-renewal",

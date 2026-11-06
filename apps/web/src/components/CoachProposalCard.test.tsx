@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
-import { useState } from "react";
-import { screen, within } from "@testing-library/react";
+import { useEffect, useState } from "react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoachProposalCard as Card } from "@/coach-proposals/card";
@@ -192,6 +192,37 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     expect(sent).toEqual([]);
   });
 
+  it("arriving under « Formulaire » (#775), leaves the focus where the Candidate is; « Modifier avant d'appliquer » takes it to the form", async () => {
+    const reply = { arrive: () => {} };
+    function Conversation() {
+      const [arrived, setArrived] = useState(false);
+      useEffect(() => {
+        reply.arrive = () => setArrived(true);
+      }, []);
+      return (
+        <WorkPaneProvider version="1.2.3">
+          <main id="main">
+            <textarea aria-label="Votre message" />
+            {arrived ? <CoachProposalCard card={PENDING} onChange={() => {}} openOnArrival /> : null}
+          </main>
+          <WorkPane />
+        </WorkPaneProvider>
+      );
+    }
+    renderInFrench(<Conversation />);
+    // The Candidate types their next message as the reply and its card arrive.
+    const box = screen.getByRole("textbox", { name: "Votre message" });
+    box.focus();
+    act(() => reply.arrive());
+
+    const pane = screen.getByRole("complementary");
+    expect(within(pane).getByRole("combobox", { name: "Statut de la candidature" })).toBeTruthy();
+    expect(document.activeElement).toBe(box);
+
+    await userEvent.click(button("Modifier avant d'appliquer"));
+    expect(document.activeElement).toBe(within(screen.getByRole("complementary")).getByRole("heading", { level: 2 }));
+  });
+
   it("under « Carte » (the default), only the card shows: the Work Pane stays closed", () => {
     renderInFrench(<Thread />);
     expect(screen.queryByRole("complementary")).toBeNull();
@@ -218,6 +249,18 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
     const full = screen.getAllByRole("article")[1]!;
     expect(within(full).getByRole("alert").textContent).toContain("Recherches épuisées");
     expect(within(full).queryByRole("button", { name: "Appliquer" })).toBeNull();
+  });
+
+  it("« Appliquer » with no room left since the proposal shows the Upgrade prompt, not a conflict; the card still waits (#773)", async () => {
+    const prompt = { title: "Profils actifs au maximum", message: "Passez à Premium.", upgradeTo: "premium" as const, action: "Voir les offres", href: "/compte/abonnement" };
+    answers = [{ status: 409, body: { error: "quota", card: { ...PENDING, change: { ...PENDING.change, quota: { label: "1 profil actif", prompt } } } } }];
+    renderInFrench(<Thread />);
+
+    await userEvent.click(button("Appliquer"));
+
+    expect(within(card()).getByRole("alert").textContent).toContain("Profils actifs au maximum");
+    expect(within(card()).queryByText(/L'objet a changé/)).toBeNull();
+    expect(within(card()).queryByRole("button", { name: "Appliquer" })).toBeNull();
   });
 
   describe("a Job Search proposed (#720): launched, never undone", () => {
@@ -253,7 +296,7 @@ describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
 
       expect(sent).toEqual([{ url: `/api/action-cards/${SEARCH.id}`, body: { decision: "accept" } }]);
       expect(within(searchCard()).getByRole("status").textContent).toMatch(/^Lancé par vous à \d\d:\d\d$/);
-      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter » l'interrompt.");
+      expect(searchCard().textContent).toContain("Suivez-la dans Activité IA ; « Arrêter la recherche d'offres » l'interrompt.");
       expect(within(searchCard()).queryAllByRole("button")).toEqual([]);
     });
   });

@@ -21,9 +21,9 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import type { CoachConversations } from "../coach-conversations";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
-import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
+import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, sameFact, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
 
-export { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
+export { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, MAX_ITEMS, sameFact, type CoachMemoryKind, type ProposedMemoryItem } from "./kinds";
 
 /** A key fact in the Candidate's Coach Memory. */
 export interface CoachMemoryItem extends ProposedMemoryItem {
@@ -79,11 +79,6 @@ interface ItemRow {
   kind: CoachMemoryKind;
   text: string;
   updated_at: Date;
-}
-
-/** The same fact, whatever the case and spacing. */
-function sameFact(text: string): string {
-  return text.replace(/\s+/g, " ").trim().toLocaleLowerCase("fr");
 }
 
 /** The proposals neither already remembered nor proposed twice, in order. */

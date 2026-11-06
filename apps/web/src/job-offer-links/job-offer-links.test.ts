@@ -253,3 +253,38 @@ describe("the Provenance of a Job Offer read from a link (#329)", () => {
     expect(what((captures[0]!.trusted as { provenance: Provenance }).provenance)).toEqual([{ kind: "tool", activity: "read", tool: "job-site" }]);
   });
 });
+
+describe("reading a link as the Candidate's Private Job Offer (Share capture, #697)", () => {
+  it("captures the page's posting as private to the Candidate", async () => {
+    const { links, captures } = setUp({ "https://carrieres.groupe-seb.fr/robots.txt": ROBOTS_ALLOW, [POSTING_URL]: { body: jsonLdPage } });
+
+    const read = await links.read("cand-1", POSTING_URL, undefined, { privately: true });
+
+    expect(read).toMatchObject({ ok: true, jobOffer: { title: "Directeur administratif et financier H/F" } });
+    expect(captures[0]!.trusted).toMatchObject({ privateTo: "cand-1", postedAt: new Date("2026-10-12") });
+  });
+
+  it("makes a shared Job Offer already stored for the link the Candidate's own, without reading the page again", async () => {
+    const stored: JobOffer = { id: "offer-known", source: { url: POSTING_URL }, title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb", summary: "Le DAF du groupe." };
+    const { links, web, captures } = setUp({}, { stored: [stored] });
+
+    const read = await links.read("cand-1", POSTING_URL, undefined, { privately: true });
+
+    expect(read).toMatchObject({ ok: true, jobOffer: { id: "offer-1", title: "DAF H/F" } });
+    expect(captures).toEqual([
+      {
+        input: { source: { url: POSTING_URL }, title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" },
+        capturedBy: "candidate",
+        trusted: { privateTo: "cand-1", summary: "Le DAF du groupe." },
+      },
+    ]);
+    expect(web.requests).toEqual([]);
+  });
+
+  it("still never fetches a Forbidden site", async () => {
+    const { links, web, captures } = setUp({});
+    expect(await links.read("cand-1", "https://www.linkedin.com/jobs/view/123", undefined, { privately: true })).toEqual({ ok: false, reason: "forbidden_site" });
+    expect(web.requests).toEqual([]);
+    expect(captures).toEqual([]);
+  });
+});

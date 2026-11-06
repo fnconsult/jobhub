@@ -13,14 +13,17 @@ import { HelpArticleText } from "@/components/HelpArticleText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { SignalementPane, SignalementPaneForm, SignalementPaneTitle } from "@/components/Signalement";
-import { WorkPaneContext, askCoachAddress, type AddressedKind, type WorkPaneItem } from "@/components/work-pane";
+import { WorkPaneContext, askCoachAddress, type AddressedKind, type WorkPaneItem, type WorkPaneOpenOptions } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 
 const MAIN_ID = "main";
 const PANE_CLASS = "work-pane";
 
-/** What the pane shows, and how many times it was opened: each opening mounts its item afresh and takes the focus. */
-type Shown = { item: WorkPaneItem; opening: number };
+/**
+ * What the pane shows, and how many times it was opened: each opening mounts its item afresh and, unless it was opened
+ * with `focus: false`, takes the focus.
+ */
+type Shown = { item: WorkPaneItem; opening: number; focus: boolean };
 const ShownItem = createContext<{ shown: Shown | null; version: string; setSlot: (slot: HTMLElement | null) => void }>({ shown: null, version: "", setSlot: () => {} });
 /** Where a Section or a Result shown in the pane is drawn (InWorkPane): the pane's body, while it shows one. */
 const Slot = createContext<HTMLElement | null>(null);
@@ -36,12 +39,12 @@ export function WorkPaneProvider({ version, children }: { version: string; child
   const opener = useRef<HTMLElement | null>(null);
   // Counts every opening, closings in between included: an item opened as another closes still takes the focus.
   const openings = useRef(0);
-  const open = useCallback((item: WorkPaneItem) => {
+  const open = useCallback((item: WorkPaneItem, options: WorkPaneOpenOptions = {}) => {
     const active = document.activeElement;
     // Another item opened from inside the pane: the focus still goes back to what opened the pane.
     if (active instanceof HTMLElement && !active.closest(`.${PANE_CLASS}`)) opener.current = active;
     openings.current += 1;
-    setShown({ item, opening: openings.current });
+    setShown({ item, opening: openings.current, focus: options.focus !== false });
   }, []);
   // The focus goes back once the pane is gone: what opened it may only show again then (the Fiche, which gives the Work
   // Pane its place on a narrower screen, Fiche.tsx). Only when the pane had it: closed from elsewhere (« Fiche » in the
@@ -87,10 +90,12 @@ export function WorkPane() {
   const titleId = useId();
   const title = useRef<HTMLHeadingElement>(null);
   const opening = shown?.opening;
+  // Opened without the focus (a form opened by itself as a reply arrives, #775): the focus stays where the Candidate is.
+  const takesFocus = shown?.focus !== false;
 
   useEffect(() => {
-    if (opening) title.current?.focus();
-  }, [opening]);
+    if (opening && takesFocus) title.current?.focus();
+  }, [opening, takesFocus]);
 
   if (!shown || !control) return null;
   const { close } = control;
@@ -219,17 +224,32 @@ function AskCoach({ article }: { article: HelpArticle }) {
 /**
  * An object's Section or Result, at its own address (`href`), shown in the Work Pane under `title` rather than in the page
  * (#603, ADR-0070): the page renders it here, its actions working as they do on the page, and the pane draws it. Opening
- * it takes the focus to its title; closing it (✕, Escape) or opening another item in its place goes back to `back`, the
+ * it takes the focus to its title, unless `takeFocus` is false (a form opened by itself, #775: the focus stays where it
+ * is); closing it (✕, Escape) or opening another item in its place goes back to `back`, the
  * object's own address, so the address always says what is shown. Its address left otherwise (the browser's Back, a link
  * elsewhere), the pane closes with it; at another address (a Result of the Section shown, say), it is another item.
  * Nothing outside a WorkPaneProvider.
  */
-export function InWorkPane(props: { kind: AddressedKind; title: string; href: string; back: string; children: ReactNode }) {
+export function InWorkPane(props: { kind: AddressedKind; title: string; href: string; back: string; takeFocus?: boolean; children: ReactNode }) {
   return <Addressed key={`${props.kind} ${props.href}`} {...props} />;
 }
 
 /** InWorkPane, for one address: another address mounts another one, so nothing it remembers carries over to it. */
-function Addressed({ kind, title, href, back, children }: { kind: AddressedKind; title: string; href: string; back: string; children: ReactNode }) {
+function Addressed({
+  kind,
+  title,
+  href,
+  back,
+  takeFocus = true,
+  children,
+}: {
+  kind: AddressedKind;
+  title: string;
+  href: string;
+  back: string;
+  takeFocus?: boolean;
+  children: ReactNode;
+}) {
   const control = useContext(WorkPaneContext);
   const slot = useContext(Slot);
   const router = useRouter();
@@ -241,8 +261,8 @@ function Addressed({ kind, title, href, back, children }: { kind: AddressedKind;
   const shownNow = useRef(false);
 
   useEffect(() => {
-    open?.({ kind, title, href });
-  }, [open, kind, title, href]);
+    open?.({ kind, title, href }, { focus: takeFocus });
+  }, [open, kind, title, href, takeFocus]);
 
   // Closed, or replaced by another item: the address goes back to the object's.
   useEffect(() => {

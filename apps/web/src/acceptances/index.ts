@@ -59,7 +59,10 @@ export interface Acceptances {
    */
   accept(candidateId: string, version: string, origin?: AcceptanceOrigin): Promise<"accepted" | "stale">;
   /** Records the CGV in effect, accepted at a payment. Throws while no CGV version is in effect. */
-  acceptAtCheckout(candidateId: string, payment: { channel: CheckoutChannel; checkoutSessionId: string; immediateExecutionRequested: boolean }): Promise<void>;
+  acceptAtCheckout(
+    candidateId: string,
+    payment: { channel: CheckoutChannel; checkoutSessionId: string; immediateExecutionRequested: boolean; origin?: AcceptanceOrigin | undefined },
+  ): Promise<void>;
   /** The Candidate's Acceptances, oldest first. */
   of(candidateId: string): Promise<ExportedAcceptance[]>;
   /** The pseudonym the rows of the person with `email` keep: to find them again, with the secret, after the deletion. */
@@ -132,11 +135,11 @@ export function createAcceptances(database: Pool, options: Partial<AcceptancesOp
       return "accepted";
     },
 
-    async acceptAtCheckout(candidateId, { channel, ...payment }) {
+    async acceptAtCheckout(candidateId, { channel, origin = "web", ...payment }) {
       const cgv = legalTextVersionInEffect("cgv", parisDay(now()), registry());
       if (!cgv) throw new Error("No CGV version is in effect");
-      // Stripe Checkout is the web app's page, whichever device opened it.
-      await record(candidateId, cgv, channel, "web", payment);
+      // Where the Order page was: the web app's, or the Jobbbox app's own Order screen (#694).
+      await record(candidateId, cgv, channel, origin, payment);
     },
 
     of: (candidateId) => acceptancesOf(database, candidateId),

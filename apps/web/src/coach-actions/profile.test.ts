@@ -31,6 +31,8 @@ describe.skipIf(!connectionString)("Coach Actions « Profil » (#719, needs Post
   let database: Pool;
   let profiles: Profiles;
   let coachMemory: CoachMemory;
+  /** The languages the Upgrade prompt was asked in. */
+  let asked: string[] = [];
   let actionCards: ActionCards;
   let catalog: CoachAction[];
   let marie: string;
@@ -64,15 +66,20 @@ describe.skipIf(!connectionString)("Coach Actions « Profil » (#719, needs Post
     await migrateProfiles(database);
     await migrateCoachMemory(database);
     await migrateActionCards(database);
-    profiles = createProfiles(database);
+    // Without room once quotaFull: no Profile may be active (#773).
+    profiles = createProfiles(database, { profileQuota: async () => (quotaFull ? 0 : null) });
     coachMemory = createCoachMemory(database, { ai: {} as never, conversations: { open: async () => null } });
     quotaFull = false;
+    asked = [];
     catalog = profileCoachActions({
       profiles,
       coachMemory,
       places: { suggest: async (query) => (query.toLowerCase().startsWith("lyon") ? [{ name: "Lyon (69)", kind: "commune" }] : []) },
       offersOf: async () => ["Directeur financier, secteur aéronautique. Maîtrise de Kyriba."],
-      profileUpgradePrompt: async () => (quotaFull ? FULL : null),
+      profileUpgradePrompt: async (_candidateId, language) => {
+        if (quotaFull) asked.push(language);
+        return quotaFull ? FULL : null;
+      },
     });
     actionCards = createActionCards(database, coachProposalHandlers(catalog, () => APPLIED_AT));
     marie = await signIn("marie.dupont@example.fr");
@@ -243,6 +250,24 @@ describe.skipIf(!connectionString)("Coach Actions « Profil » (#719, needs Post
     });
   });
 
+  describe("propose_profile_restore without room left since the proposal (#773)", () => {
+    it("is not a conflict: the card stays pending and shows the Upgrade prompt, in the Candidate's language; nothing restored", async () => {
+      await profiles.archive(marie, profile.id);
+      const restore = await proposed(PROFILE_ACTIONS.restore, { profileId: profile.id });
+      expect(restore.change.quota?.prompt).toBeUndefined();
+      quotaFull = true; // another Profile took the room meanwhile
+
+      const decided = await actionCards.decide(marie, restore.cardId, "accept", { language: "en" });
+
+      expect(decided).toMatchObject({ ok: false, error: "quota", card: { status: "pending", payload: { change: { quota: { label: restore.change.quota!.label, prompt: FULL } } } } });
+      expect((await profiles.get(marie, profile.id))?.archived).toBe(true);
+      // Kept: the card shows the prompt when the thread is read again.
+      const { rows } = await database.query(`SELECT status, payload FROM action_card WHERE id = $1`, [restore.cardId]);
+      expect(rows[0]).toMatchObject({ status: "pending", payload: { change: { quota: { prompt: FULL } } } });
+      expect(asked).toEqual(["en"]);
+    });
+  });
+
   describe("propose_coach_memory", () => {
     it("proposes one fact to remember, confirmed by the Candidate's « Appliquer »; « Annuler » forgets it", async () => {
       const { cardId, change } = await proposed(PROFILE_ACTIONS.coachMemory, { kind: "goal", text: "Un poste de DAF à Lyon" });
@@ -253,6 +278,20 @@ describe.skipIf(!connectionString)("Coach Actions « Profil » (#719, needs Post
       expect((await coachMemory.list(marie)).map(({ kind, text }) => ({ kind, text }))).toEqual([{ kind: "constraint", text: "Pas de déplacements" }]);
       await actionCards.undo(marie, cardId);
       expect(await coachMemory.list(marie)).toEqual([]);
+    });
+
+    it("tells a fact already remembered the same way when proposing, applying and confirming it: case, spacing and accents aside (#773)", async () => {
+      await coachMemory.confirm(marie, { kind: "goal", text: "Un poste à Genève" });
+      expect(await run(PROFILE_ACTIONS.coachMemory, { kind: "goal", text: "un poste a geneve" })).toMatchObject({ ok: false, error: "refused" });
+
+      // Proposed before it was remembered, applied after: nothing added, so nothing for « Annuler » to forget.
+      await coachMemory.delete(marie, (await coachMemory.list(marie))[0]!.id);
+      const { cardId } = await proposed(PROFILE_ACTIONS.coachMemory, { kind: "goal", text: "un poste a geneve" });
+      await coachMemory.confirm(marie, { kind: "goal", text: "Un poste à Genève" });
+      const decided = await actionCards.decide(marie, cardId, "accept");
+      expect(decided).toMatchObject({ ok: true, card: { status: "accepted" } });
+      expect(decided.ok && decided.card).not.toHaveProperty("undoable");
+      expect((await coachMemory.list(marie)).map((item) => item.text)).toEqual(["Un poste à Genève"]);
     });
 
     it("refuses a fact already remembered, one over 300 characters, and any once the Coach Memory holds 30", async () => {

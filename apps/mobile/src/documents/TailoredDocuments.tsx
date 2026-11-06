@@ -20,12 +20,12 @@ const changedOn = (document: TailoredDocument, t: TFunction, locale: string) =>
  * Each opens in the Work Pane, a file's PDF at once in the system's reader; there, « Partager » and « Télécharger » go
  * through the system's share sheet. Nothing here changes a document: that is done on jobbbox.ai (ADR-0076).
  */
-export function TailoredDocuments({ documents, about, reader }: { documents: TailoredDocumentsResponse; about: string; reader: DocumentReader }) {
+export function TailoredDocuments({ applicationId, documents, about, reader }: { applicationId: string; documents: TailoredDocumentsResponse; about: string; reader: DocumentReader }) {
   const { t, i18n } = useTranslation();
   const workPane = useWorkPane();
 
   async function open(document: TailoredDocument) {
-    const name = { name: t(NAMES[document.kind]), about };
+    const name = { applicationId, name: t(NAMES[document.kind]), about };
     const show = (failed: boolean) => workPane.open({ title: name.name, content: <DocumentPane key={String(failed)} document={document} name={name} reader={reader} failed={failed} /> });
     show(false);
     try {

@@ -12,7 +12,7 @@
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
  *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent
- *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049). Profiles and Applications
+ *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049); their Offer box (ADR-0090). Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
@@ -55,6 +55,7 @@ import type { FollowUpDelays } from "../follow-ups";
 import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { ChosenFrequency } from "../job-digests";
 import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
+import { offerBoxOf, type ExportedOfferBoxEntry } from "../offer-box";
 import { pushNotificationsOf, type ExportedPushNotifications } from "../push-notifications";
 import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
 import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-email";
@@ -356,6 +357,11 @@ export interface CandidateDataExport {
   withdrawals: ExportedWithdrawal[];
   /** The Job Offers private to the Candidate (ADR-0049: a role a recruiter's message offered them), newest first. */
   privateJobOffers: ExportedPrivateJobOffer[];
+  /**
+   * Their Offer box (« Offres à traiter », ADR-0090), oldest first Arrival first: each entry's Job Offer and Profile (null:
+   * « Non classée »), its first Arrival and each Arrival source with its date, where it stands and when it was decided.
+   */
+  offerBox: ExportedOfferBoxEntry[];
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -420,6 +426,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   appointment_reminder: "appointmentReminders.sent",
   push_device: "pushNotifications.devices (platform, language, when registered and last seen; never the token nor the session)",
   push_notification_setting: "pushNotifications.switches (each event switched in Rappels, on or off, and when)",
+  push_notification_sent: "pushNotifications.sent (each notification queued under its event's key: the event and when, never the key nor the text)",
   coach_welcome_closed: "coachWelcome.closedAt",
   legal_text_notice: "legalTextNotices.emailed (the text and version each notice email told of, #547)",
   privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
@@ -459,6 +466,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   withdrawal: "withdrawals (the contract, its dates, the name and address given, when the acknowledgement went; no Stripe identifiers)",
   withdrawal_refund: "withdrawals[].refunds (amount, currency and status; no Stripe identifiers)",
   job_offer: "privateJobOffers (only the Job Offers private to the Candidate, ADR-0049; shared ones are no one's and are kept)",
+  offer_box_entry: "offerBox (each entry's Job Offer, Profile, first Arrival, Arrival sources with their dates, where it stands and its decision, ADR-0090)",
   legal_acceptance: "acceptances (each CGU and CGV version accepted, when and how; never the pseudonym kept after deletion, nor Stripe's Checkout session id)",
 };
 
@@ -773,7 +781,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, pushNotifications, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, pushNotifications, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, offerBox, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -859,10 +867,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         ordersOf(database, candidateId),
         withdrawalsOf(database, candidateId),
         privateJobOffersOf(database, candidateId),
+        offerBoxOf(database, candidateId),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, offerBox };
     },
 
     async delete(candidateId) {

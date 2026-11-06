@@ -6,6 +6,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { PgBoss } from "pg-boss";
 import { fontFloorOf, renderedTexts } from "./support/accessibility";
+import { offerBoxResponseSchema } from "@jobhub/shared/reads";
 import { signInWithMagicLink } from "./support/candidate";
 import { conversationOf, ficheOf } from "./support/conversation";
 import { placeInput, placeNames, placeOptions, removePlace, typePlace } from "./support/locations";
@@ -200,6 +201,8 @@ test.describe("On-demand AI Coach job search", () => {
     expect(exported.profiles.find((p: { id: string }) => p.id === profileId).jobSearches).toEqual([
       expect.objectContaining({ id: searchId, startedAt: expect.any(String), finishedAt: expect.any(String), jobOfferIds: expect.arrayContaining([expect.any(String)]) }),
     ]);
+    // Its new results told the Candidate's devices, once (#699).
+    expect(exported.pushNotifications.sent).toEqual([expect.objectContaining({ event: "job_search_results" })]);
   });
 
   test("starts from a Profile, shows the Job Offers found by Match Score with their key facts, and saves one in one click", async ({ page }) => {
@@ -229,8 +232,20 @@ test.describe("On-demand AI Coach job search", () => {
     const undated = results.filter({ hasText: `Responsable financier (lu par l'IA) – réf. ${tag}` });
     await expect(undated.getByText("date inconnue", { exact: true })).toBeVisible();
 
+    // A Job Search is an Arrival door (ADR-0090): each Job Offer it kept is an Offer box entry « à traiter », under the Profile.
+    const offerBox = async () => offerBoxResponseSchema.parse(await (await page.request.get("/api/offer-box")).json());
+    const before = await offerBox();
+    expect(before.toHandle).toBe(2);
+    expect(before.entries).toHaveLength(2);
+    for (const entry of before.entries) expect(entry).toMatchObject({ state: "to_handle", profile: { id: profileId }, sources: [{ source: "job_search" }] });
+
     await daf.getByRole("button", { name: "Enregistrer en candidature" }).click();
     await expect(daf.getByText("Enregistrée", { exact: true })).toBeVisible();
+    // An Application made anywhere (here, the Job Search's page) makes the entry « Suivie »; the other stays à traiter.
+    await expect
+      .poll(async () => (await offerBox()).entries.filter((entry) => entry.state === "followed").map((entry) => entry.jobOffer.title))
+      .toEqual([`Directeur administratif et financier (H/F) – réf. ${tag}`]);
+    expect((await offerBox()).toHandle).toBe(1);
     await expect(daf.getByRole("button", { name: "Enregistrer en candidature" })).toHaveCount(0);
     await daf.getByRole("link", { name: "Voir ma candidature" }).click();
     await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]+$/);
@@ -490,8 +505,8 @@ test.describe("On-demand AI Coach job search", () => {
     }
 
     const sidebarLink = (page: Page) => page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Recherches d'offres" });
-    /** An active Profile's Job Searches on the card, under its name. */
-    const searchesOf = (page: Page, profileName: string) => conversationOf(page).getByRole("region", { name: profileName, exact: true });
+    /** An active Profile's Job Searches in « Recherches par Profil », the Work Pane the Offer box opens (ADR-0090), under its name. */
+    const searchesOf = (page: Page, profileName: string) => page.getByRole("complementary", { name: "Recherches par Profil" }).getByRole("region", { name: profileName, exact: true });
 
     test("each active Profile's Job Searches: one started elsewhere shows as running and the page follows it; « Lancer une recherche » for each", async ({ page }) => {
       const { first } = await signInWithProfiles(page);
@@ -500,6 +515,8 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(page).toHaveURL(`${origin}/recherches`);
       await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toHaveText("Recherches d'offres");
       await expect(sidebarLink(page)).toHaveAttribute("aria-current", "page");
+      await conversationOf(page).getByRole("link", { name: "Recherches par Profil" }).click();
+      await expect(page).toHaveURL(`${origin}/recherches?profils=1`);
 
       // The active Profiles, each its group, its name leading to its page; the archived one left out.
       const firstGroup = searchesOf(page, searchCriteria.targetRole);

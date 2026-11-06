@@ -13,11 +13,12 @@
  * deleted and its live steps cleared; what is kept is the kind, the outcome, the sender's domain and the offers it
  * gave (`received_offer_email_offer`): the Job Offers new for the Candidate with the Profile each went to (none:
  * « Non classées ») and its Match Score, those already there for them, and those « À capturer » (a Forbidden site's,
- * kept with their title and link, no Job Offer).
+ * kept with their title and link, no Job Offer). The new ones reach the Candidate's Offer box (ADR-0090) with their Profile.
  */
 import type { ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { inTransaction } from "../database/pool";
+import { migrateOfferBox, recordArrivals } from "../offer-box";
 import { recordReading } from "./activity";
 import type { SecretCipher } from "../provider-secrets/cipher";
 import { receivedTextOf } from "./inbound";
@@ -158,6 +159,12 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
             ],
           );
         }
+        // Its new Job Offers reach the Candidate's Offer box (ADR-0090), each for the Profile it went to (none: « Non classées »).
+        const newOffers = offers.filter((offer) => offer.disposition === "new");
+        for (const profileId of new Set(newOffers.map((offer) => offer.profileId))) {
+          const jobOfferIds = newOffers.filter((offer) => offer.profileId === profileId).map((offer) => offer.jobOfferId);
+          await recordArrivals(client, { candidateId, profileId, source: "email", at: now(), jobOfferIds });
+        }
       });
     },
 
@@ -175,8 +182,12 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
   };
 }
 
-/** Creates or upgrades the table of the offers each Received offer email gave. Run after Email intake's, the Profiles' and the Job Offers' migrations. */
+/**
+ * Creates or upgrades the table of the offers each Received offer email gave, and the Offer box its new ones arrive in.
+ * Run after Email intake's, the Profiles' and the Job Offers' migrations.
+ */
 export async function migrateEmailReadings(database: Pool): Promise<void> {
+  await migrateOfferBox(database);
   await database.query(`
     -- The offers a Received offer email gave (#445), in its order: a Job Offer new for the Candidate (with the Profile
     -- it went to, null for « Non classées », and its Match Score), one already there for them (« déjà vue »), one

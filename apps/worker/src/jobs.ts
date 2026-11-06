@@ -27,6 +27,7 @@ import { FAILURE_RETENTION_DAYS as PUSH_FAILURE_RETENTION_DAYS, PUSH_NOTIFICATIO
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
+import { OFFER_BOX_RETENTION_MONTHS, purgeExpiredOfferBoxEntries } from "@jobhub/web/offer-box";
 import {
   purgeExpiredDiscoveryRuns,
   QUERY_RETENTION_DAYS as DISCOVERY_QUERY_RETENTION_DAYS,
@@ -137,6 +138,9 @@ export const SIGNALEMENTS_PURGE = "signalements.purge";
  * old, keeping their figures, and the runs DISCOVERY_RUN_RETENTION_MONTHS old (#404). Runs nightly.
  */
 export const DISCOVERY_RUNS_PURGE = "discovery-runs.purge";
+
+/** Queue name: delete the Offer box entries OFFER_BOX_RETENTION_MONTHS after their first Arrival (ADR-0090). Runs nightly. */
+export const OFFER_BOX_PURGE = "offer-box.purge";
 
 /**
  * Queue name: delete the Received offer emails' texts TEXT_RETENTION_HOURS after they arrived, read or not, and the
@@ -511,7 +515,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if (!sent) return;
           log(
             `[appointment-reminders] ${sent.emails} Appointment Reminder(s) sent, for ${sent.items} Agenda Item(s)` +
-              (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : ""),
+              (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : "") +
+              (sent.notified ? `; ${sent.notified} Push notification(s) queued` : ""),
           );
         }),
     },
@@ -787,6 +792,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
               `[discovery-runs] ${purged.queries} run(s)' query texts purged after ${DISCOVERY_QUERY_RETENTION_DAYS} days, ${purged.runs} run(s) after ${DISCOVERY_RUN_RETENTION_MONTHS} months`,
             );
           }
+        }),
+    },
+
+    // An Offer box entry is kept 12 months from its first Arrival (ADR-0090). Safe to run again.
+    [OFFER_BOX_PURGE]: {
+      cron: "25 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredOfferBoxEntries(deps.database, now());
+          if (purged) log(`[offer-box] ${purged} Offer box entry(ies) purged, ${OFFER_BOX_RETENTION_MONTHS} months after their first Arrival`);
         }),
     },
 

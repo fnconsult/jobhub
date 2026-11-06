@@ -45,7 +45,7 @@ describe("« Propositions du coach » in Mon compte › Préférences (#717, ADR
 
     expect(sent).toEqual([{ url: "/api/account/coach-proposals-display", method: "PUT", body: { display: "form" } }]);
     expect(chosen()).toBe("Formulaire");
-    expect((await screen.findByRole("status")).textContent).toBe("Enregistré : le formulaire de chaque proposition s'ouvrira dans le volet.");
+    expect((await screen.findByRole("status")).textContent).toBe("Enregistré : le formulaire pré-rempli de la première proposition de chaque réponse s'ouvrira dans le volet.");
   });
 
   it("puts the choice back when it could not be saved, and says so", async () => {

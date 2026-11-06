@@ -217,11 +217,17 @@ test.describe("a Coach proposal in the thread: « Appliquer », « Annuler », �
     expect((await exported.json()).coachProposalsDisplay).toMatchObject({ display: "form", chosenAt: expect.any(String) });
 
     await page.goto(`/candidatures/${id}`);
-    await askForStatus(page, id, "interview");
+    // Sent with Enter from the message box, where the Candidate stays: the form opening by itself leaves the focus there (#775).
+    const box = conversation(page).getByLabel(fr.coachPanel.messageLabel);
+    await box.fill(`Quel statut pour cette candidature ?\nE2E_COACH_TOOL=e2e_proposer_statut:${JSON.stringify({ id, status: "interview" })}`);
+    await box.press("Enter");
+    await expect(cardOf(page)).toBeVisible({ timeout: 30_000 });
 
     const pane = page.getByRole("complementary", { name: tr(texts.editTitle, { what: texts.fields.applicationStatus }) });
     await expect(pane).toBeVisible();
     await expect(pane.getByRole("combobox", { name: texts.fields.applicationStatus })).toHaveValue("interview");
+    await expect(box).toBeFocused();
+    await expect(pane.getByRole("heading", { level: 2 })).not.toBeFocused();
     // The card keeps both buttons; nothing is applied until the Candidate applies it.
     await expect(cardOf(page).getByRole("button")).toHaveText([texts.apply, texts.edit, texts.dismiss]);
     expect((await statusOf(id)).status).toBe("to_apply");

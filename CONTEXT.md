@@ -107,7 +107,7 @@ A saved conversation between a Candidate and the AI Coach, and on the Candidate'
 _Avoid_: Chat, thread, session
 
 **À traiter**:
-Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter.
+Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter. Said of an Offer box entry neither « Suivie » nor « Écartée » nor « Expirée sans décision » (ADR-0090): it counts in « N à traiter » on the Offer box, beside « Recherches d'offres » in the Sidebar, on the app icon's badge and in one line of the Job Digest.
 
 **Menu card**:
 The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter; Recherches d'offres: each active Profile's Job Searches with start date, status, Job Offers found and « Nouveaux résultats »; Job Digests: each active Profile's frequency and every Job Digest sent; Agenda: the list and « À planifier »; Mes coachs humains: Coaching Sessions and Human Coaches). It stays in the thread whatever is sent. An Archived Profile's Job Searches and Job Digests are left out of the cards and the Sidebar; Recherches d'offres is one conversation for all Profiles.
@@ -308,6 +308,33 @@ _Avoid_: Action Card, preview, link card
 A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par email »): its title, employer, contract and remote work, its Match Score and the actions to save it as an Application or read it. Not the Job Offer card, which is the AI Coach's.
 _Avoid_: Job Offer card, result card
 
+**Offer box**:
+Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
+_Avoid_: Inbox, feed, offer list
+
+**Offer box entry**:
+One Job Offer in one Candidate's Offer box, made at its first Arrival and kept 12 months from it: its Profile, its Arrival sources with their dates, and where it stands: à traiter, « Plus tard », « Suivie » (its Application exists), « Écartée » (with its Dismissal reason, if given) or « Expirée sans décision » (still undecided when its Posting date, or its first Arrival when that is unknown, passed 30 days; out of the count). Only « Suivie » and « Écartée » make it treated (« traitée »); opening it treats nothing. Part of the Candidate's Data export.
+_Avoid_: Inbox item, notification
+
+**Arrival**:
+A Job Offer reaching a Candidate's Offer box from one Arrival source. The first makes the Offer box entry and sets its day (Paris time); a later one adds its source to the entry without moving it.
+
+**Arrival source**:
+Where an Arrival came from, shown as a chip: « Recherche » (a Job Search), « Job Digest », « Email » (a Received offer email, Email intake), « Lien du coach » (a Job Offer link). A Capture (« Extension ») or a Share capture (« Partage ») makes an entry only once followed, already « Suivie ».
+_Avoid_: Channel, provider, Job discovery source (which is where Job discovery searches)
+
+**Écartée**:
+Said of an Offer box entry the Candidate set aside with « Écarter », with an optional **Dismissal reason** (« Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs »). Counts as already seen: never offered again by a Job Digest, « déjà vue » for Email intake, shown « Écartée » in a Job Search's results. « Revenir sur ce choix » makes it à traiter again. The shared Job Offer is untouched.
+_Avoid_: Dismissed, rejected, archived, hidden
+
+**Plus tard**:
+An Offer box entry put out of sight until the next Monday 00:00 Paris time, when it comes back under « Aujourd'hui ». Not a decision: it stays à traiter and in the count.
+_Avoid_: Snooze
+
+**Importance tier**:
+The Offer box's grouping by Match Score: « À ne pas manquer » (80 and more), « À regarder » (60 to 79), « Peu adaptées » (under 60 or not computable); the most recent Arrival first within each.
+_Avoid_: Priority, ranking
+
 **Quick actions**:
 The suggestions above the box of the home page's empty conversation that start the usual next steps: search for Job Offers, add an Application, plan an Interview, ask how the page works.
 _Avoid_: shortcuts
@@ -433,6 +460,10 @@ _Avoid_: Onboarding, setup flow
 One email Email intake took from a Linked mailbox, its kind (alerte, recruteur or autre) and its outcome: offers found, « autre » (not an offer: a newsletter, a profile view, an application's news; an alert with no precise offer is « autre » but keeps its kind), « échec » (read and tried again twice, 10 minutes apart; the third failure, or any try after 72 hours, records it), set aside as from an unrecognised sender (discarded unread), set aside as « plafond atteint » (the Linked mailbox's daily cap was already reached: discarded unread, not queued), or set aside by a Guardrail. When it arrives, an email waits as « en attente de lecture » with its text kept encrypted until read; Gmail's forwarding confirmation is kept the same way for the setup wizard, and counts against no cap. The cap's day is the Paris calendar day; an email to a Forwarding address no longer in use is dropped with no row. Each offer in an email is listed with how it turned out: new (with its Profile, or none, and its Match Score; a Match Score under 60 files it under « Non classées »), « déjà vue » (already one of the Candidate's Applications, Job Searches, Job Digests or earlier emails), « À capturer » (it links to a Forbidden site, so no Job Offer; an email whose offers all do counts as offers found) or too old (stated or email date over 30 days ago, no Job Offer). Only an email from a Recognised sender, or one the Candidate forwarded by hand from one of their own addresses, is read, and only its text: never its headers, images or attachments. Its text is never kept once read (on a failure, at most 72 hours, encrypted, to try again); Received offer emails are kept 12 months; what is kept is the outcome, the sender's domain and the Job Offers it gave, whose Provenance has its steps (reading the email with the Email intake Tool, the AI step that read the offers, deduplication and Match Score by rules) and the sender's domain as a Provenance site.
 _Avoid_: Imported email, parsed email
 
+**Non classée**:
+Said of an Offer box entry with no Profile: it came from Email intake with a Match Score under 60 or a Job Offer link pasted where no Profile is in view. It sits in the Offer box like any other entry and shows its Match Score from the active Profile it matches best; « Suivre » gives the Application that Profile.
+_Avoid_: Unsorted, orphan
+
 **Linked mailbox event**:
 What happens to a Linked mailbox's Email intake, kept without naming the Candidate for 24 months: switched on, replaced (the Forwarding address), switched off, or « plafond atteint » (the daily cap reached: once per Linked mailbox per Paris day, at the first email set aside). Shown in the Journal's « Boîtes reliées » filter, and counted « Réussi » there. Like a Received offer email's row in Activité, it survives the Candidate's deletion and is not in their Data export (ADR-0059).
 _Avoid_: Mailbox log
@@ -465,7 +496,7 @@ The AI Coach's guess at the real employer behind a Job Offer posted by a recruit
 _Avoid_: Hidden employer, client
 
 **Job Digest**:
-A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota; it goes out at 07:00 Paris time (weekly ones on Monday). Its Job Offers come first from those already stored, Job discovery only topping them up. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search) and without an Application; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
+A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota; it goes out at 07:00 Paris time (weekly ones on Monday). Its Job Offers come first from those already stored, Job discovery only topping them up. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search), without an Application and not Écartée; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
 _Avoid_: Alert, newsletter, feed
 
 **Sending address**:
@@ -789,12 +820,20 @@ _Avoid_: Long-press menu, popover
 In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row under a mouse or trackpad pointer. Absent with a finger.
 
 **Push notification**:
-A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
+A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch. A person gets one per event key; the Appointment Reminder one has its own switch, apart from the email's. A Human Coach's go to the account of their verified email, and stop once they are retired (#699, ADR-0089).
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 
 **Provider return address**:
 The address in the app's own scheme, `/connexion/fournisseur`, where the system's authentication browser hands the person back to the app after a Sign-in Provider, with the session. Not a universal link: iOS 16.4 cannot return by one (ADR-0085).
 _Avoid_: Deep link, redirect URL (that is the address declared at the provider)
+
+**Event key**:
+An event, the object it concerns and what happened to it (e.g. a Coach Review, a Coaching Session's date changed). A person gets one Push notification per event key, however many times the event is run again.
+_Avoid_: Notification id, dedupe key
+
+**Declined (Push notification)**:
+« Pas maintenant » on the app's explanation screen, remembered on the device so the app never asks again in context. Not the same as refused, which is the system's own answer to its prompt.
+_Avoid_: Dismissed, denied
 
 **App sign-in link**:
 The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
@@ -809,8 +848,14 @@ The two files the web serves so that a phone hands some web addresses to the Job
 _Avoid_: Deep-link config
 
 **Share capture**:
-Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation.
+Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation, whose messages name only the offer's title. What was shared is held in memory only: never saved on the device, logged or written into the conversation. It counts against no Plan Quota; scoring the offer against the profile counts one Match Score.
 _Avoid_: Import, clip
+
+**Share link**:
+The app's address `jobbbox://partage?url=…&text=…` that the iOS share extension and the Android share receiver open the app with.
+
+**Capture screen**:
+The app-only page « Partager vers Jobbbox » (`/partage`), where the Candidate checks the shared link and text before sending them to Jobbbox.
 
 ### Delivery
 
@@ -918,6 +963,14 @@ _Avoid_: Dunning banner, billing alert
 What a Candidate confirms on Jobbbox's own page, « Votre commande », before Stripe Checkout, for a paid Plan (`/abonnement/commande`) or a Coaching Session (`/coachs/commande`): the summary (what is bought, its price all taxes included, how often a Plan is charged), the CGV box « J'accepte les CGV (version du …) » with its link to that version, the Immediate Performance Request, and where to withdraw. « Passer au paiement » is checked on the server: while a CGV version is in effect, no Checkout Session is created without its box ticked, and the page is shown again saying so. The Order is then kept with its Checkout Session, and the CGV Acceptance written with that Checkout Session and the Immediate Performance Request. A Candidate who already pays a Plan is sent to the Stripe customer portal instead, with no Order. An Order is the Candidate's: in their Data export without Stripe's identifiers, deleted with their account; the proof that outlives the account is the Acceptance.
 _Avoid_: Cart, basket, checkout (that is Stripe's page), purchase
 
+**Checkout return**:
+The address a Stripe Checkout ordered from the Jobbbox app sends the Candidate back to: `/coachs/paiement` when paid, `/coachs/paiement?annule=1` when left without paying. The app claims it (Domain association files), the web serves a public page with « Revenir dans l'app Jobbbox » when it is opened in a browser. It proves nothing: the payment is known only when Stripe's signed webhook has recorded the Coaching Session, which the app waits for, with « La confirmation tarde » after a minute (ADR-0088).
+_Avoid_: Success page, payment confirmation
+
+**App Order screen**:
+The Jobbbox app's own « Votre commande » for a Coaching Session (`/coachs/commande`): the Human Coach, the price the Candidate pays, the CGV box and the Immediate Performance Request, checked by the same server rules as the web Order, then Stripe Checkout in the in-app browser. It shows no Plan name, regular price or discount (ADR-0088). Plans are not ordered there.
+_Avoid_: Native checkout
+
 **Immediate Performance Request**:
 The Candidate's express request, on the Order page, that the service start at once, with their acknowledgement that a Withdrawal then pays for what was already provided (« Je demande que le service commence immédiatement… », C. conso. L221-25); for a Coaching Session, also that the right of withdrawal is lost once the session is held (L221-28 1°). Optional and never ticked for the Candidate: without it the Candidate pays and the service starts just the same, but a Withdrawal is refunded in full. Kept with the Order and the CGV Acceptance, and stated in the Order Confirmation.
 _Avoid_: Waiver, immediate execution consent, opt-out of withdrawal
@@ -961,7 +1014,7 @@ A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as pr
 _Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
 
 **Acceptance origin**:
-Where an Acceptance was made: `web` or `mobile` (the Jobbbox app's Legal steps). Kept with the Acceptance and in the Data export.
+Where an Acceptance was made: `web` or `mobile` (the Jobbbox app's Legal steps and its own Order screen for a Coaching Session). Kept with the Acceptance and in the Data export.
 
 ### Operations
 
@@ -1222,7 +1275,7 @@ A question about using Jobbbox that a Candidate asked the AI Coach, or an Admini
 _Avoid_: FAQ gap, feedback, ticket
 
 **Signalement**:
-What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from under the box of a Coach Conversation or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in a Coach Conversation when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its form, in the Work Pane (a Drawer before ADR-0070), is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The form keeps an unsent draft for the visit (closing the Work Pane does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
+What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from under the box of a Coach Conversation or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in a Coach Conversation when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its form, in the Work Pane (a Drawer before ADR-0070), is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent) or, from the Jobbbox app, whose form says « votre appareil », the app's version and the device's system (« App Jobbbox 1.4.0, iOS 18.6 »), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The form keeps an unsent draft for the visit (closing the Work Pane does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
 _Avoid_: Ticket, support request, Retour
 
 **Signalement notification**:

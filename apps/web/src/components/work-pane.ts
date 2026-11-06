@@ -23,13 +23,19 @@ export type AddressedKind = "section" | "result" | "form";
 
 /**
  * The Work Pane of the Candidate's pages under « Conversation au centre »: `item`, what it shows (null: closed); `open`
- * shows `item` in its place, the focus on its title, and remembers what had the focus; `close` gives the focus back to it,
- * or to what `focusTo` finds when the item's work changed the page (a Signalement sent from « Mes signalements »).
+ * shows `item` in its place, the focus on its title (unless `focus: false`, #775), and remembers what had the focus;
+ * `close` gives the focus back to it when the pane had it, or to what `focusTo` finds when the item's work changed the page
+ * (a Signalement sent from « Mes signalements »).
  */
 export interface WorkPaneControl {
   item: WorkPaneItem | null;
-  open: (item: WorkPaneItem) => void;
+  open: (item: WorkPaneItem, options?: WorkPaneOpenOptions) => void;
   close: (focusTo?: () => HTMLElement | null) => void;
+}
+
+/** How an item opens: `focus: false` leaves the focus where it is (a form opened by itself as a reply arrives, #775). */
+export interface WorkPaneOpenOptions {
+  focus?: boolean;
 }
 
 export const WorkPaneContext = createContext<WorkPaneControl | null>(null);

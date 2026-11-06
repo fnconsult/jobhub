@@ -95,7 +95,8 @@ export function createApnsSender(config: ApnsConfig): PushSender {
         "apns-priority": "10",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ aps: { alert: { title: message.title, body: message.body }, sound: "default" }, path: message.path }),
+      // expo-notifications gives the app, as a remote notification's data on iOS, only what is under `body` (#699).
+      body: JSON.stringify({ aps: { alert: { title: message.title, body: message.body }, sound: "default" }, path: message.path, body: { path: message.path } }),
     });
 
   return {

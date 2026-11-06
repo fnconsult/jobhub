@@ -4,6 +4,7 @@ import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { registerDevice, sendPush } from "./support/push";
 
 // Issue #698: the Jobbbox app's Push notifications. The app registers its device (a token, a platform, a language) while
 // signed in; Mon compte's Rappels has one switch per event beside the Appointment Reminder by email, which stays the
@@ -18,19 +19,8 @@ const SUPER_ADMIN = "push-office@e2e.jobbbox.test";
 const EVENTS = Object.keys(fr.pushNotifications.events);
 const unique = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-/** The app registers a device, as it does while signed in (POST /api/account/push-devices). */
-const register = (page: Page, device: Record<string, unknown>) => page.request.post("/api/account/push-devices", { headers: { origin }, data: device });
-
-/** Runs the worker's send job once for `email`'s `event`, with fake providers. */
-function send(email: string, event: string, mode = "fake") {
-  const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/push-send.ts", email, event, mode], {
-    env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
-    encoding: "utf8",
-  });
-  expect(run.status, run.stderr).toBe(0);
-  const line = run.stdout.trim().split("\n").at(-1)!;
-  return JSON.parse(line) as { before: number; after: number; messages: { title: string; body: string; path: string }[]; log: string[] };
-}
+const register = registerDevice;
+const send = sendPush;
 
 async function exportedData(page: Page) {
   await page.goto("/compte/donnees");

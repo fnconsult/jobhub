@@ -5,7 +5,7 @@ import { Dimensions } from "react-native";
 import { AppProviders } from "./app-providers";
 import { fakeHardwareKeyboard } from "./keyboard/fake-hardware-keyboard";
 import { fakeNetwork, memoryStorage } from "./offline/testing";
-import type { Network } from "./offline/read-cache";
+import type { DeviceStorage, Network } from "./offline/read-cache";
 import type { AppSession } from "./session/app-session";
 
 /** A phone's window and safe areas, measured at once. */
@@ -23,13 +23,18 @@ export const hardwareKeyboard = {
 };
 
 /**
- * Renders `ui` as the app does, in French (the default language), a hardware keyboard plugged in, its read cache in
- * memory, with network unless `network` says otherwise, its calls to the API carrying `session`'s cookie (AppSession.cookie)
+ * Renders `ui` as the app does, in French (the default language), a hardware keyboard plugged in, its read cache kept
+ * on `storage` (in memory unless given), with network unless `network` says otherwise, its calls to the API carrying `session`'s cookie (AppSession.cookie)
  * and going through `fetch` (a fake web app's, `fakeCoachWeb().client`); without it, the global fetch.
  */
 export function renderInApp(
   ui: ReactElement,
-  { network = fakeNetwork(true), session, fetch }: { network?: Network; session?: Pick<AppSession, "cookie">; fetch?: typeof globalThis.fetch } = {},
+  {
+    network = fakeNetwork(true),
+    storage = memoryStorage(),
+    session,
+    fetch,
+  }: { network?: Network; storage?: DeviceStorage; session?: Pick<AppSession, "cookie">; fetch?: typeof globalThis.fetch } = {},
 ) {
   keyboard = fakeHardwareKeyboard();
   return render(
@@ -37,7 +42,7 @@ export function renderInApp(
       i18n={createI18n(DEFAULT_LOCALE)}
       initialMetrics={METRICS}
       keyboard={keyboard.keyboard}
-      device={{ storage: memoryStorage(), network }}
+      device={{ storage, network }}
       session={session}
       fetch={fetch}
     >

@@ -54,9 +54,12 @@ const BUSTER = `api-${API_VERSION}.cache-1`;
 
 /**
  * The device's copy of the read cache: written at most every SAVE_EVERY_MS, one write at a time, and `forget` drops a
- * write still waiting before it removes the copy, so nothing read before it lands after it.
+ * write still waiting before it removes the copy, so nothing read before it lands after it. A restoring still under way
+ * when it forgets gives nothing back (#756): the copy it had read belongs to the session that ended.
  */
 function devicePersister(storage: DeviceStorage): Persister & { forget: () => Promise<void> } {
+  /** How many times the cache was forgotten: a restoring started before the last one gives nothing back. */
+  let forgotten = 0;
   let waiting: PersistedClient | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let writes: Promise<void> = Promise.resolve();
@@ -74,11 +77,13 @@ function devicePersister(storage: DeviceStorage): Persister & { forget: () => Pr
       }, SAVE_EVERY_MS);
     },
     restoreClient: async () => {
+      const asked = forgotten;
       const saved = await storage.getItem(STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as PersistedClient) : undefined;
+      return saved && asked === forgotten ? (JSON.parse(saved) as PersistedClient) : undefined;
     },
     removeClient: () => queue(() => storage.removeItem(STORAGE_KEY)),
     forget: () => {
+      forgotten += 1;
       if (timer) clearTimeout(timer);
       timer = null;
       waiting = null;

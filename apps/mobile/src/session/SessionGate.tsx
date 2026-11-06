@@ -4,6 +4,7 @@ import { SIGN_IN_CODE_LENGTH, type SignInCodeRefusal } from "@jobhub/shared";
 import { signInCopy, type SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import { AppState, Platform, View, type TextInputProps } from "react-native";
+import { onlineManager } from "@tanstack/react-query";
 import { useForgetReads } from "../offline/read-cache";
 import { useForgetPushDevice } from "../push/PushNotifications";
 import { space } from "../theme/theme";
@@ -120,6 +121,16 @@ export function SessionGate({
     });
     return () => subscription?.remove();
   }, [refresh]);
+
+  // Back on sign-in because the web app could not be asked (UNKNOWN_OFFLINE), the session is asked again as soon as the
+  // network comes back, not only at the next return to the foreground (#756).
+  const offline = state?.offline === true;
+  useEffect(() => {
+    if (!offline) return;
+    return onlineManager.subscribe((online) => {
+      if (online) void refresh();
+    });
+  }, [offline, refresh]);
 
   useEffect(() => {
     if (!link || OPENED.get(session) === link) return;

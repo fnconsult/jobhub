@@ -11,10 +11,11 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Mes candidatures"
+# A menu's conversation opens on its latest message: its card is above.
 - scrollUntilVisible:
     element:
       text: "Responsable qualité · Aéroline Démo"
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - tapOn: "Responsable qualité · Aéroline Démo"
 - runFlow: ../subflows/fiche.yaml

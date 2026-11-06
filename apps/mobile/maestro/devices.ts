@@ -156,6 +156,8 @@ function androidSetup(device: Device, theme: Theme, textSize: TextSize): string[
   return [
     ["adb", "shell", "cmd", "uimode", "night", theme === "dark" ? "yes" : "no"],
     ["adb", "shell", "settings", "put", "system", "font_scale", textSize === "largest" ? "2.0" : "1.0"],
+    // The System UI lays itself out again for the new scale, and would leave the demo mode set before it.
+    ["adb", "shell", "sleep", "5"],
     ...(device.window === "folded" ? [["adb", "emu", "fold"]] : device.window === "unfolded" ? [["adb", "emu", "unfold"]] : []),
     ["adb", "shell", "settings", "put", "global", "sysui_demo_allowed", "1"],
     demo("enter"),

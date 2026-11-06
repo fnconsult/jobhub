@@ -17,10 +17,11 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Mes candidatures"
+# A menu's conversation opens on its latest message: its card is above.
 - scrollUntilVisible:
     element:
       text: "Responsable qualité · Aéroline Démo"
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - assertVisible: "Contrôleuse de gestion · Transports Ravel Démo"
 - runFlow:
@@ -40,10 +41,11 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Recherches d'offres"
+# A menu's conversation opens on its latest message: its card is above.
 - scrollUntilVisible:
     element:
       text: "Vos recherches par profil"
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - runFlow:
     file: ../subflows/capture.yaml
@@ -54,10 +56,11 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Agenda"
+# A menu's conversation opens on its latest message: its card is above.
 - scrollUntilVisible:
     element:
       text: "Contrôleuse de gestion"
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - runFlow:
     file: ../subflows/capture.yaml

@@ -11,10 +11,11 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Recherches d'offres"
+# A menu's conversation opens on its latest message: its card is above.
 - scrollUntilVisible:
     element:
       text: "Vos recherches par profil"
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - assertVisible: "Lancer une recherche"
 - assertVisible: "Offres trouvées : 2"

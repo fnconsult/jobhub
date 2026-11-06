@@ -9,10 +9,11 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Agenda"
+# A menu's conversation opens on its latest message: its card is above.
 - scrollUntilVisible:
     element:
       text: "Contrôleuse de gestion"
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - tapOn: "Contrôleuse de gestion"
 - scrollUntilVisible:

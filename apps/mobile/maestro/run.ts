@@ -80,7 +80,7 @@ function main(argv: string[]) {
   const stack = JSON.parse(readFileSync(option("stack")!, "utf8")) as Stack;
   const out = option("out", join(__dirname, "results"))!;
   const runs = planRuns(hardware as HardwareId, { root: __dirname, stack, captures: option("captures", "compare") as CaptureMode, referenceExists: existsSync });
-  // Maestro's own analytics stay off: nothing of the run leaves the CI machine (docs/privacy/register.md).
+  // Maestro's own analytics stay off: nothing of a run leaves the CI machine but its artifacts, of invented data only.
   const env = { ...process.env, MAESTRO_CLI_NO_ANALYTICS: "1", MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true" };
   const exec = (command: string[], cwd?: string) => spawnSync(command[0]!, command.slice(1), { stdio: "inherit", env, cwd }).status === 0;
 

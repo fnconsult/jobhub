@@ -13,8 +13,15 @@ public class DropTargetModule: Module {
   }
 }
 
-/// Takes the first thing dropped on it: a PDF or Word file, copied into the app's caches and sent as its file; a link
-/// or text, sent as its text. The app decides what to do with it (src/attach/attachment.ts), the server what it is.
+/// Takes the first thing dropped on it from another app: a PDF or Word file, copied into the app's caches and sent as
+/// its file; a link or text, sent as its text. The app decides what to do with it (src/attach/attachment.ts), the server
+/// what it is.
+///
+/// The box is one drop target, its text field included: UIKit hands a drop to the innermost view under it with a drop
+/// interaction that can handle it, and the text field's own (UITextView's text drop) takes links and text, so it would
+/// insert a dropped link into the draft instead. The box takes the drop interactions of the views put in it, and gives
+/// them back when they leave it (a recycled text field elsewhere takes drops again). Text dragged within the app (from
+/// the draft) is not taken: dropped on the box, it would be sent.
 class DropTargetView: ExpoView, UIDropInteractionDelegate {
   let onDropItems = EventDispatcher()
 
@@ -22,13 +29,47 @@ class DropTargetView: ExpoView, UIDropInteractionDelegate {
   private static let docx = UTType(filenameExtension: "docx") ?? UTType.data
   private static let files: [UTType] = [.pdf, docx]
 
+  /// The drop interactions taken from the views in the box, to give back when they leave it.
+  private var taken: [(view: WeakView, interaction: UIInteraction)] = []
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     addInteraction(UIDropInteraction(delegate: self))
   }
 
+  override func didAddSubview(_ subview: UIView) {
+    super.didAddSubview(subview)
+    takeDrops(in: subview)
+  }
+
+  /// A drag over the box is hit-tested through it as a touch is: one the field put back since (a new inner text view, a
+  /// change of its props) is taken before UIKit looks for the view's drop interaction.
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    subviews.forEach(takeDrops)
+    return super.hitTest(point, with: event)
+  }
+
+  override func willRemoveSubview(_ subview: UIView) {
+    taken.removeAll { entry in
+      guard let view = entry.view.view else { return true }
+      guard view.isDescendant(of: subview) else { return false }
+      view.addInteraction(entry.interaction)
+      return true
+    }
+    super.willRemoveSubview(subview)
+  }
+
+  private func takeDrops(in view: UIView) {
+    for case let interaction as UIDropInteraction in view.interactions {
+      view.removeInteraction(interaction)
+      taken.append((view: WeakView(view), interaction: interaction))
+    }
+    view.subviews.forEach(takeDrops)
+  }
+
   func dropInteraction(_ interaction: UIDropInteraction, canHandle session: UIDropSession) -> Bool {
-    session.hasItemsConforming(toTypeIdentifiers: (DropTargetView.files + [.url, .plainText]).map(\.identifier))
+    session.localDragSession == nil
+      && session.hasItemsConforming(toTypeIdentifiers: (DropTargetView.files + [.url, .plainText]).map(\.identifier))
   }
 
   func dropInteraction(_ interaction: UIDropInteraction, sessionDidUpdate session: UIDropSession) -> UIDropProposal {
@@ -78,4 +119,10 @@ class DropTargetView: ExpoView, UIDropInteractionDelegate {
       return nil
     }
   }
+}
+
+/// A view held without keeping it alive.
+private struct WeakView {
+  weak var view: UIView?
+  init(_ view: UIView) { self.view = view }
 }

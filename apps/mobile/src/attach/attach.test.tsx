@@ -226,7 +226,7 @@ describe("« Coller un lien d'offre », from « + » in the box", () => {
 });
 
 describe("a document or a link dropped on the box, on a tablet", () => {
-  /** What the native view sends when something is dropped on the box (modules/drop-target). */
+  /** What the native view sends when something is dropped on the box, its text field included (modules/drop-target). */
   const drop = (items: DroppedItem[]) => act(async () => fireEvent(screen.getByLabelText("Votre message"), "dropItems", { nativeEvent: { items } }));
 
   it("reads a dropped PDF as « Joindre un CV » does", async () => {

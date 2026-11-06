@@ -26,22 +26,27 @@ class DropTargetModule : Module() {
 }
 
 /**
- * Takes the first thing dropped on it, from this app or another one beside it (multi-window): a PDF or Word file, read
- * under the activity's drag-and-drop permissions, copied into the app's cache and sent as its file; a link or text, sent
- * as its text. The app decides what to do with it (src/attach/attachment.ts), the server what it is.
+ * Takes the first thing dropped on it from another app beside it (multi-window): a PDF or Word file, read under the
+ * activity's drag-and-drop permissions, copied into the app's cache and sent as its file; a link or text, sent as its
+ * text. The app decides what to do with it (src/attach/attachment.ts), the server what it is.
+ *
+ * The box is one drop target, its text field included: a ViewGroup hands a drop to the child under it that took the
+ * drag, and an editable EditText takes every drag, so it would insert a dropped file's content:// URI or a link into
+ * the draft instead. The box keeps such a drag from its children. A drag started in this app (text dragged within the
+ * field) still goes to them, so the field moves its own text as before.
  */
 class DropTargetView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val onDropItems by EventDispatcher()
 
-  init {
-    setOnDragListener { _, event ->
-      when (event.action) {
-        DragEvent.ACTION_DRAG_STARTED -> event.clipDescription?.let(::accepts) ?: false
-        DragEvent.ACTION_DROP -> drop(event)
-        else -> true
-      }
+  override fun dispatchDragEvent(event: DragEvent): Boolean =
+    if (event.localState != null) super.dispatchDragEvent(event) else onDrag(event)
+
+  private fun onDrag(event: DragEvent): Boolean =
+    when (event.action) {
+      DragEvent.ACTION_DRAG_STARTED -> event.clipDescription?.let(::accepts) ?: false
+      DragEvent.ACTION_DROP -> drop(event)
+      else -> true
     }
-  }
 
   private fun accepts(description: ClipDescription): Boolean =
     ACCEPTED.any { description.hasMimeType(it) }

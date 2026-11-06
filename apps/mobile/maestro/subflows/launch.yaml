@@ -6,8 +6,7 @@ appId: ai.jobbbox.app
     stopApp: false
 - runFlow:
     when:
-      visible:
-        id: "sign-in-email"
+      visible: "Se connecter à Jobbbox"
     file: sign-in.yaml
 - extendedWaitUntil:
     visible:

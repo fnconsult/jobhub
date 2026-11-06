@@ -18,6 +18,13 @@ const HEADING: ReadonlySet<Variant> = new Set(["h1", "h2", "h3"]);
  */
 export const WHOLE_FROM_FONT_SCALE = 1.3;
 
+/**
+ * A page's or a section's title (h1, h2) grows with the system's text size up to twice its size: at iOS's largest, 32 pt
+ * times 3.6 broke « Se connecter à Jobbbox » mid-word on an iPhone SE (#705). Body text and smaller titles grow freely.
+ */
+const TITLE_MAX_SCALE = 2;
+const CAPPED: ReadonlySet<Variant> = new Set(["h1", "h2"]);
+
 export function AppText({
   variant = "body",
   weight,
@@ -52,7 +59,7 @@ export function AppText({
     textDecorationLine: struck ? "line-through" : undefined,
   };
   return (
-    <Text style={style} numberOfLines={fontScale < WHOLE_FROM_FONT_SCALE ? lines : undefined} role={heading ? "heading" : undefined}>
+    <Text style={style} numberOfLines={fontScale < WHOLE_FROM_FONT_SCALE ? lines : undefined} maxFontSizeMultiplier={CAPPED.has(variant) ? TITLE_MAX_SCALE : undefined} role={heading ? "heading" : undefined}>
       {children}
     </Text>
   );

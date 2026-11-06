@@ -45,6 +45,8 @@ env:
   MAESTRO_VERSION: "2.11.0"
   MAESTRO_CLI_NO_ANALYTICS: "1"
   MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
+  # The simulator just rebooted in French (devices.ts, bootSetup): its XCTest driver takes longer to start.
+  MAESTRO_DRIVER_STARTUP_TIMEOUT: "240000"
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
@@ -58,7 +60,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # A Release build for the simulator, outside EAS: no signing, no Sentry upload (docs/ops/mobile.md, #703).
+      # A Release build for the simulator, outside EAS, signed to run locally (ad hoc): unsigned, it carries no entitlement,
+      # and the Keychain, where the session lives, refuses it (-34018). No Sentry upload (docs/ops/mobile.md, #703).
       - name: Build the e2e app for the iOS simulator
         working-directory: apps/mobile
         env:
@@ -68,7 +71,8 @@ jobs:
         run: |
           npx expo prebuild --platform ios --clean
           xcodebuild -workspace ios/Jobbbox.xcworkspace -scheme Jobbbox -configuration Release -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO | tail -n 200
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES | tail -n 200
+          test "${PIPESTATUS[0]}" = 0
           ditto -c -k --keepParent build/Build/Products/Release-iphonesimulator/Jobbbox.app "$RUNNER_TEMP/Jobbbox-ios.zip"
       - uses: actions/upload-artifact@v4
         with:

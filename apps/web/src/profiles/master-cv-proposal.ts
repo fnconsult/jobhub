@@ -35,9 +35,13 @@ export type MasterCvEdit = {
   order?: string[];
 };
 
-/** Why edits make no proposal: an item the Master CV does not have, a figure it does not state, an edit that does not read, or nothing changed. */
+/**
+ * Why edits make no proposal: an item the Master CV does not have, a skill rephrased into another one or into several
+ * (an item added under cover of a rephrasing), a figure it does not state, an edit that does not read, or nothing changed.
+ */
 export type MasterCvReviewRefusal =
   | { ok: false; error: "unknown_item"; item: string }
+  | { ok: false; error: "added_item"; text: string }
   | { ok: false; error: "invented_figure"; text: string }
   | { ok: false; error: "invalid_edit"; edit: number }
   | { ok: false; error: "no_change" };
@@ -69,6 +73,20 @@ const masterText = (cv: MasterCvContent) =>
 
 /** A figure the text states that the Master CV does not: a fact it lacks. */
 const inventedFigure = (text: string, master: string) => (normalise(text).match(/\d+/g) ?? []).some((figure) => !master.includes(` ${figure} `));
+
+/** What separates the items of a list: a skill rephrased into a list of them adds items. */
+const LIST_SEPARATOR = /[,;•·|\n]/;
+
+/**
+ * Whether `text` rephrases the skill `skill` (« SAP » → « SAP S/4HANA »): one skill, keeping a word of it; not another skill
+ * (« Excel » → « Power BI ») nor several (« SAP » → « SAP, HubSpot, Make »), which would add what the Master CV does not say.
+ */
+function rephrasesSkill(skill: string, text: string): boolean {
+  if (LIST_SEPARATOR.test(text)) return false;
+  const words = (each: string) => normalise(each).split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= 2).map(stemOf);
+  const kept = new Set(words(skill));
+  return words(text).some((word) => kept.has(word));
+}
 
 /** The Master CV with `edits` applied, and where each item of its list sections comes from. */
 function proposedOf(master: MasterCvContent, edits: readonly MasterCvEdit[]): { content: MasterCvContent; origins: CvOrigins & { experience: number[] } } | MasterCvReviewRefusal {
@@ -130,6 +148,7 @@ function proposedOf(master: MasterCvContent, edits: readonly MasterCvEdit[]): { 
       content.experience[place] = { ...job, ...(edit.title !== undefined ? { title: edit.title.trim() } : {}), ...(edit.description !== undefined ? { description: edit.description.trim() } : {}) };
     } else if (section === "skills") {
       if (!edit.text?.trim()) return invalid;
+      if (!rephrasesSkill(master.skills[origin]!, edit.text)) return { ok: false, error: "added_item", text: edit.text.trim() };
       content.skills[place] = edit.text.trim();
     } else {
       // A diploma or a language is cut, reordered or put forward, never reworded.

@@ -25,6 +25,8 @@
  * tied to one Stripe product, and every price of that product is the Plan's.
  */
 import {
+  APP_COACHING_PAYMENT_PATH,
+  APP_PAYMENT_CANCELLED,
   DEFAULT_COACH_CONTEXT_LIMITS,
   FREE_PLAN,
   JOB_DIGEST_FREQUENCIES,
@@ -44,7 +46,8 @@ import type { Pool } from "pg";
 import { recordingClient, type ExternalApiLog } from "@jobhub/shared";
 import Stripe from "stripe";
 import type { Mailer } from "../auth/index";
-import type { Queryable } from "../database/pool";
+import { countUse, giveBackUse, migrateConsumption, QUOTA_CONSUMPTION_TOOLS } from "../consumption";
+import { inTransaction, type Queryable } from "../database/pool";
 import * as z from "zod";
 import { routes } from "../routes";
 import {
@@ -172,6 +175,12 @@ export interface CheckoutOptions {
   promotionCode?: string | undefined;
 }
 
+/** How a Coaching Session's Checkout is asked for. */
+export interface CoachingSessionCheckoutOptions {
+  /** Booked from the app (#694): Stripe sends the Candidate back to it by its universal link, paid or not, never to the web page. */
+  inApp?: boolean | undefined;
+}
+
 /** Where a Checkout starts: Stripe's page, and its Checkout Session; or the customer portal (no Checkout Session) for a Candidate who already pays. */
 export interface CheckoutStart {
   url: string;
@@ -271,6 +280,8 @@ const COLUMNS = {
 
 /** Creates or upgrades the billing tables. Run after the Candidate accounts' migration. Safe to run repeatedly. */
 export async function migrateBilling(database: Pool): Promise<void> {
+  // A Plan Quota use counts in Consumption too (#799).
+  await migrateConsumption(database);
   await migratePlans(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS plan_quota (
@@ -628,6 +639,7 @@ export function createBilling(config: BillingConfig) {
 
   const pageURL = (query = "") => new URL(routes.subscription + query, config.baseURL).toString();
   const coachingPageURL = (query = "") => new URL(routes.coaching + query, config.baseURL).toString();
+  const appPaymentURL = (query = "") => new URL(APP_COACHING_PAYMENT_PATH + query, config.baseURL).toString();
 
   /** The Coaching Session Prices, or a BillingError when Stripe or the Prices are not configured. */
   function coachingSessionPrices(): { regular: string; discounted: string } {
@@ -1084,22 +1096,27 @@ export function createBilling(config: BillingConfig) {
   return {
     /**
      * Records one use of a weekly quota (a Match Score, an ATS Score, an
-     * Enriched Contact, a Job Search) if the Candidate's Plan allows it this week. Call it
+     * Enriched Contact, a Job Search) if the Candidate's Plan allows it this week, and counts it
+     * under its Tool in Consumption in the same transaction (#799). Call it
      * before doing the work; nothing is recorded when refused. Safe under
      * concurrent requests.
      */
     async use(candidateId: string, quota: WeeklyQuota): Promise<QuotaDecision> {
       const plan = await planOf(candidateId);
       const limit = (await quotasOf(plan))[quota];
-      const week = weekInFrance(now());
+      const at = now();
       if (limit !== null && limit <= 0) return refusal(plan, quota, limit);
-      const { rows } = await database.query(
-        `INSERT INTO quota_usage (candidate_id, quota, week, used) VALUES ($1, $2, $3, 1)
-         ON CONFLICT (candidate_id, quota, week) DO UPDATE SET used = quota_usage.used + 1
-         WHERE $4::integer IS NULL OR quota_usage.used < $4::integer
-         RETURNING used`,
-        [candidateId, quota, week, limit],
-      );
+      const rows = await inTransaction(database, async (client) => {
+        const { rows } = await client.query(
+          `INSERT INTO quota_usage (candidate_id, quota, week, used) VALUES ($1, $2, $3, 1)
+           ON CONFLICT (candidate_id, quota, week) DO UPDATE SET used = quota_usage.used + 1
+           WHERE $4::integer IS NULL OR quota_usage.used < $4::integer
+           RETURNING used`,
+          [candidateId, quota, weekInFrance(at), limit],
+        );
+        if (rows.length > 0) await countUse(client, candidateId, QUOTA_CONSUMPTION_TOOLS[quota], at);
+        return rows;
+      });
       if (rows.length === 0) return refusal(plan, quota, limit!);
       return { allowed: true, remaining: limit === null ? null : limit - (rows[0].used as number) };
     },
@@ -1251,13 +1268,21 @@ export function createBilling(config: BillingConfig) {
       return { allowed: true, remaining: limit - used - 1 };
     },
 
-    /** Gives back one use recorded this week by `use` whose work could not be done. Never below zero. */
+    /**
+     * Gives back one use recorded this week by `use` whose work could not be done, and takes it back from Consumption
+     * in the same transaction (#799). Never below zero.
+     */
     async release(candidateId: string, quota: WeeklyQuota): Promise<void> {
-      await database.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND week = $3 AND used > 0", [
-        candidateId,
-        quota,
-        weekInFrance(now()),
-      ]);
+      const at = now();
+      const week = weekInFrance(at);
+      await inTransaction(database, async (client) => {
+        const { rowCount } = await client.query("UPDATE quota_usage SET used = used - 1 WHERE candidate_id = $1 AND quota = $2 AND week = $3 AND used > 0", [
+          candidateId,
+          quota,
+          week,
+        ]);
+        if (rowCount) await giveBackUse(client, candidateId, QUOTA_CONSUMPTION_TOOLS[quota], at, { since: week });
+      });
     },
 
     /**
@@ -1394,10 +1419,16 @@ export function createBilling(config: BillingConfig) {
      * Where to send a Candidate who books a Coaching Session with a Human Coach: a one-off
      * Stripe Checkout at their Plan's Coaching Session Price (discounted on a Plan with the
      * Coaching Session discount). The
-     * Coaching Session exists only once the signed webhook confirms the payment.
+     * Coaching Session exists only once the signed webhook confirms the payment. Booked from the app (`inApp`, #694),
+     * Stripe sends the Candidate back to the app's universal link, `?annule=1` when they left without paying.
      * Throws a BillingError("coaching_sessions_not_configured") without the Prices.
      */
-    async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<CheckoutStart> {
+    async startCoachingSessionCheckout(
+      candidate: { id: string; email: string },
+      coachId: string,
+      locale: Locale = "fr",
+      options: CoachingSessionCheckoutOptions = {},
+    ): Promise<CheckoutStart> {
       const prices = coachingSessionPrices();
       const customer = await stripeCustomerFor(candidate);
       const discounted = await hasFeature(candidate.id, "coachingSessionDiscount");
@@ -1408,8 +1439,8 @@ export function createBilling(config: BillingConfig) {
         line_items: [{ price: discounted ? prices.discounted : prices.regular, quantity: 1 }],
         metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id },
         locale,
-        success_url: coachingPageURL("?session=paid"),
-        cancel_url: coachingPageURL(),
+        success_url: options.inApp ? appPaymentURL() : coachingPageURL("?session=paid"),
+        cancel_url: options.inApp ? appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`) : coachingPageURL(),
       });
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
       return { url: session.url, checkoutSessionId: session.id };

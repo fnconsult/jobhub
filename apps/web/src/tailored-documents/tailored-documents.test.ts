@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { consumptionOf } from "../consumption";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { EnrichedContact } from "../enriched-contacts";
@@ -368,6 +369,21 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(await documents.get(candidateId, applicationId)).toMatchObject({ documentLanguage: "fr", coverLetter: { text: "Ma version" } });
   });
 
+  it("each draft saved with its Provenance counts one document in Consumption (#799); an edit, an outage or someone else's count nothing", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+    await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+    await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma version" });
+    await documents.draft(otherCandidateId, applicationId, { document: "cover_letter" });
+    provider.generate = async () => {
+      throw new AiProviderError("mistral", "upstream timed out", 504);
+    };
+    await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    expect(await consumptionOf(database, candidateId)).toEqual([{ day: expect.any(String), tool: "tailoredDocument", count: 2 }]);
+    expect(await consumptionOf(database, otherCandidateId)).toEqual([]);
+  });
+
   it("an empty draft is no draft: unavailable, its reply unreadable (#367)", async () => {
     provider.generate = async (input) => ({ text: "   ", model: input.model ?? "fake-mistral", usage: { inputTokens: 1, outputTokens: 1 } });
 
@@ -436,6 +452,7 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(await drafting).toEqual({ ok: false, error: "stopped" });
     const { rows } = await database.query(`SELECT 1 FROM tailored_document WHERE application_id = $1`, [applicationId]);
     expect(rows).toEqual([]);
+    expect(await consumptionOf(database, candidateId)).toEqual([]);
   });
 
   it("an unknown document or channel is refused", async () => {

@@ -3,6 +3,7 @@ import type { MasterCvContent, Provenance, ProvenanceEvent, SearchCriteria } fro
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
+import { migrateOfferBox, offerBoxOf, recordArrivals } from "@jobhub/web/offer-box";
 import { createApplications, migrateApplications } from "../../web/src/applications";
 import { createCoachConversations, migrateCoachConversations } from "@jobhub/web/coach-conversations";
 import { createAcceptances, migrateAcceptances } from "@jobhub/web/acceptances";
@@ -15,6 +16,7 @@ import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-da
 import { createGuardrailStore, migrateGuardrails } from "@jobhub/web/guardrails";
 import { createUnansweredQuestions, migrateUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { createSignalements, migrateSignalements, signalementsOf } from "@jobhub/web/signalements";
+import { consumptionOf, countUse, migrateConsumption } from "@jobhub/web/consumption";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import { createDiscoveryRuns, migrateDiscoveryRuns, type DiscoveryRunRecord } from "@jobhub/web/discovery-runs";
@@ -26,7 +28,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -741,18 +743,18 @@ describe("Livraison's daily email job", () => {
 describe("the Appointment Reminders job", () => {
   it("emails, every day at 18:00 French time, the Appointment Reminders due, saying how many", async () => {
     const logs: string[] = [];
-    const sendDue = vi.fn(async () => ({ emails: 2, items: 3, failed: 0 }));
+    const sendDue = vi.fn(async () => ({ emails: 2, items: 3, failed: 0, notified: 0 }));
     const job = createJobs({ ...otherDeps, database: noDatabase, appointmentReminders: { sendDue }, log: (line) => logs.push(line) })[APPOINTMENT_REMINDERS]!;
 
     expect(job).toMatchObject({ cron: "0 18 * * *", tz: "Europe/Paris" });
     await job.handler({});
-    sendDue.mockResolvedValueOnce({ emails: 1, items: 1, failed: 1 });
+    sendDue.mockResolvedValueOnce({ emails: 1, items: 1, failed: 1, notified: 2 });
     await job.handler({});
 
     expect(sendDue).toHaveBeenCalledTimes(2);
     expect(logs).toEqual([
       "[appointment-reminders] 2 Appointment Reminder(s) sent, for 3 Agenda Item(s)",
-      "[appointment-reminders] 1 Appointment Reminder(s) sent, for 1 Agenda Item(s); 1 could not be sent, left to the next run",
+      "[appointment-reminders] 1 Appointment Reminder(s) sent, for 1 Agenda Item(s); 1 could not be sent, left to the next run; 2 Push notification(s) queued",
     ]);
   });
 
@@ -1307,6 +1309,33 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
     }
   });
 
+  it("purges, every night, the Offer box entries 12 months after their first Arrival (ADR-0090), none before the web app has created its table", async () => {
+    const testAuth = await startTestAuth();
+    const empty = await createThrowawayDatabase("test_worker_jobs_offer_box_empty");
+    try {
+      const database = testAuth.database;
+      for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateOfferBox]) await migrate(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const captured = await createJobOffers(database).capture({ source: { url: "https://carrieres.example.fr/daf" }, title: "DAF H/F", content: "Poste à pourvoir." });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      await recordArrivals(database, { candidateId, profileId: null, source: "email", at: new Date(), jobOfferIds: [captured.jobOffer.id] });
+      const logs: string[] = [];
+      const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[OFFER_BOX_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("25 4 * * *");
+      await jobAt(360).handler({});
+      expect(await offerBoxOf(database, candidateId)).toHaveLength(1);
+      await jobAt(370).handler({});
+      expect(await offerBoxOf(database, candidateId)).toEqual([]);
+      expect(logs).toEqual(["[offer-box] 1 Offer box entry(ies) purged, 12 months after their first Arrival"]);
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[OFFER_BOX_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
+      await testAuth.stop();
+    }
+  });
+
   it("has no Received offer email to purge before the web app has created its tables", async () => {
     const empty = await createThrowawayDatabase("test_worker_jobs_email_intake_empty");
     try {
@@ -1420,6 +1449,34 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       await jobAt(5_000).handler({});
       expect(await kept()).toEqual([nouveau]);
       expect(logs).toEqual(["[signalements] 1 Signalement(s) purged, 12 months after they were marked traité"]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Consumption days more than 12 months old, French time (#799)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateConsumption(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const marie = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      await countUse(database, marie, "coach", new Date("2025-11-04T12:00:00Z"));
+      await countUse(database, marie, "coach", new Date("2025-11-05T12:00:00Z"));
+      await countUse(database, marie, "jobSearch", new Date("2026-11-05T12:00:00Z"));
+      const logs: string[] = [];
+      const jobAt = (iso: string) => createJobs({ ...otherDeps, database, now: () => new Date(iso), log: (line) => logs.push(line) })[CONSUMPTION_PURGE]!;
+      const kept = async () => (await consumptionOf(database, marie)).map((row) => `${row.day} ${row.tool}`);
+
+      expect(jobAt("2026-11-05T12:00:00Z").cron).toBe("25 4 * * *");
+      await jobAt("2026-11-05T12:00:00Z").handler({});
+      expect(await kept()).toEqual(["2026-11-05 jobSearch", "2025-11-05 coach"]);
+      await jobAt("2026-11-05T23:30:00Z").handler({}); // 00:30 on the 6th in Paris
+      await jobAt("2026-11-05T23:30:00Z").handler({});
+
+      expect(await kept()).toEqual(["2026-11-05 jobSearch"]);
+      expect(logs).toEqual(["[consumption] 1 day(s) of Consumption purged, 12 months old", "[consumption] 1 day(s) of Consumption purged, 12 months old"]);
+      await expect(createJobs({ ...otherDeps, database: (await createThrowawayDatabase("test_worker_jobs_empty")).pool })[CONSUMPTION_PURGE]!.handler({})).resolves.toBeUndefined();
     } finally {
       await testAuth.stop();
     }

@@ -4,7 +4,7 @@
  * Each call goes to the platform the build points at (src/web-app-url.ts, set per EAS profile in eas.json), states the
  * API Version the app speaks and names the app as a mobile client (`@jobhub/shared/api-version`), with the app's origin,
  * which the web app trusts for a write as it trusts its own pages' (a native request has no Origin of its own; #689),
- * and a JSON body unless the call says otherwise. When the platform no
+ * and a JSON body unless the call says otherwise or sends a form (FormData, a file to upload). When the platform no
  * longer serves that API Version it answers `426 Upgrade Required` (ADR-0063): from then on the provider shows
  * « Mettre à jour Jobbbox » in place of the app, with the link to its store, and the call rejects with AppOutdatedError.
  * The app is never let back in until it is updated: a newer build is a new install.
@@ -15,6 +15,8 @@ import Constants from "expo-constants";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { UpdateRequired } from "../screens/UpdateRequired";
+import type { AppSession } from "../session/app-session";
+import { fetchOnWebApp } from "../web-app";
 import { WEB_APP_URL } from "../web-app-url";
 import { storePageFor } from "./store-page";
 
@@ -34,33 +36,46 @@ const UPGRADE_REQUIRED = 426;
 
 const ApiContext = createContext<ApiFetch | null>(null);
 
+/** A call with the session to an address on the web app `webApp`, its redirects followed on it alone (fetchOnWebApp). */
+export type WebAppFetch = (address: string, init: RequestInit, webApp: string) => Promise<Response>;
+
+const WebAppFetchContext = createContext<WebAppFetch | null>(null);
+
 export function ApiProvider({
   baseUrl = WEB_APP_URL,
   fetch = globalThis.fetch,
   storePage = storePageFor(Platform.OS, Constants.expoConfig),
-  cookie,
+  session,
   children,
 }: {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
-  /** The session cookie to send, as `@better-auth/expo` gives it (empty when signed out); none outside a session. */
-  cookie?: () => Promise<string>;
   /** This build's store page, used when the platform's 426 names none. */
   storePage?: string;
+  /** The app's session, whose cookie every call carries (src/session/instance.ts in the app); none, no cookie. */
+  session?: Pick<AppSession, "cookie">;
   children: ReactNode;
 }) {
   const [outdated, setOutdated] = useState<{ storeUrl: string } | null>(null);
 
   const api = useCallback<ApiFetch>(
     async (path, init) => {
+      // A path of the platform's own: anything else (`//host`, `@host`, no leading slash) would change host, cookie included.
+      if (!/^\/(?!\/)/.test(path)) throw new Error(`Not a path of the platform: ${path}`);
       const headers = new Headers(init?.headers);
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
       headers.set("origin", APP_ORIGIN);
-      if (init?.body !== undefined && !headers.has("content-type")) headers.set("content-type", "application/json");
-      const session = cookie ? await cookie() : "";
-      if (session) headers.set("cookie", session);
-      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });
+      // A form (a file to upload) is the system's to type: it names the multipart boundary.
+      if (init?.body !== undefined && !(init.body instanceof FormData) && !headers.has("content-type")) headers.set("content-type", "application/json");
+      // `@better-auth/expo` keeps the session in the Keychain or Keystore, not the system's cookie store: its cookie is
+      // set here by hand, and no other (`credentials: "omit"`, #693).
+      const cookie = session ? await session.cookie() : "";
+      if (cookie) headers.set("cookie", cookie);
+      else headers.delete("cookie");
+      // Its redirects followed on the platform alone (fetchOnWebApp): the cookie set by hand never goes to another host.
+      const platform = baseUrl.replace(/\/$/, "");
+      const response = await fetchOnWebApp(fetch, `${platform}${path}`, { ...init, headers, credentials: "omit" }, platform);
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
         setOutdated({ storeUrl: named ?? storePage });
@@ -68,12 +83,17 @@ export function ApiProvider({
       }
       return response;
     },
-    [baseUrl, fetch, storePage, cookie],
+    [baseUrl, fetch, storePage, session],
   );
 
   const value = useMemo(() => api, [api]);
+  const onWebApp = useCallback<WebAppFetch>((address, init, webApp) => fetchOnWebApp(fetch, address, init, webApp), [fetch]);
   if (outdated) return <UpdateRequired storeUrl={outdated.storeUrl} />;
-  return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
+  return (
+    <ApiContext.Provider value={value}>
+      <WebAppFetchContext.Provider value={onWebApp}>{children}</WebAppFetchContext.Provider>
+    </ApiContext.Provider>
+  );
 }
 
 /** The app's calls to the API; only inside ApiProvider. */
@@ -81,6 +101,17 @@ export function useApi(): ApiFetch {
   const api = useContext(ApiContext);
   if (!api) throw new Error("useApi() is called outside ApiProvider");
   return api;
+}
+
+/**
+ * A call with the session to a page's own address on the web app, outside `useApi()`: a file a WebPage downloads (the
+ * Data export, #756). It goes through the provider's fetch (`appFetch` in the app) and fetchOnWebApp, never the system's
+ * downloader, which follows a redirect to any host and the cookie set by hand with it. Only inside ApiProvider.
+ */
+export function useFetchOnWebApp(): WebAppFetch {
+  const onWebApp = useContext(WebAppFetchContext);
+  if (!onWebApp) throw new Error("useFetchOnWebApp() is called outside ApiProvider");
+  return onWebApp;
 }
 
 /**

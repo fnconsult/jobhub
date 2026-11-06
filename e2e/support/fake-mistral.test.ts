@@ -34,6 +34,21 @@ describe("fake Mistral: E2E_COACH_TOOL (#712)", () => {
     expect(usage.entries).toHaveLength(2);
   });
 
+  it("with several markers, calls each tool in turn, one a round, then answers with the last one's result (#788)", async () => {
+    const { ask, runTool } = coach();
+
+    const result = await ask('Où en suis-je ? E2E_COACH_TOOL=candidatures_lister:{"statut":"envoyée"} E2E_COACH_TOOL=candidatures_lister:{"statut":"entretien"}', {
+      maxToolRounds: 2,
+    });
+
+    expect(runTool.mock.calls.map(([call]) => [call.arguments, call.round])).toEqual([
+      [{ statut: "envoyée" }, 1],
+      [{ statut: "entretien" }, 2],
+    ]);
+    expect(result.text).toBe("Résultat de l'outil « candidatures_lister » : 2 candidatures envoyées");
+    expect(result.tools).toMatchObject({ supported: true, rounds: 2 });
+  });
+
   it("answers as before without the marker, and without tools", async () => {
     const { ask, runTool } = coach();
 

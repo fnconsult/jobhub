@@ -1,24 +1,31 @@
-import { Activity, Menu, PanelLeftClose, PanelRight, SquarePen, X } from "lucide-react-native";
+import { Activity, ChevronLeft, Menu, PanelLeftClose, PanelRight, SquarePen, X } from "lucide-react-native";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BackHandler, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineBanner } from "../offline/OfflineBanner";
-import { space, radius, useTheme } from "../theme/theme";
+import { space, radius, TARGET, useTheme } from "../theme/theme";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
+import { usePointerHover } from "../ui/pointer";
 import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
 
-/** The page the shell shows: its address (a new one closes what the last page had open), its title, its column. */
-export type ShellPage = { key: string; title: string; pane: PaneKind | null };
+/**
+ * The page the shell shows: its address (a new one closes what the last page had open), its title, its column, and
+ * `up`, the page its title leads back to (an Application's, to Mes candidatures) and what that link says, when it has one.
+ */
+export type ShellPage = { key: string; title: string; pane: PaneKind | null; up?: { path: string; label: string } };
 
-/** What the Work Pane shows: one item at a time (ADR-0070), a Section, a Result, a Help Article or a form. */
-export type WorkPaneItem = { title: string; content: ReactNode };
+/**
+ * What the Work Pane shows: one item at a time (ADR-0070), a Section, a Result, a Help Article or a form. `fill`: the
+ * content takes the pane's whole height and scrolls itself (a web page), rather than scrolling in the pane.
+ */
+export type WorkPaneItem = { title: string; content: ReactNode; fill?: boolean };
 
-const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void }>({ open: () => {} });
+const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void; close: () => void }>({ open: () => {}, close: () => {} });
 
-/** Opens an item in the page's Work Pane, in place of the one it shows. */
+/** Opens an item in the page's Work Pane, in place of the one it shows, or closes it (`close`, as its « Fermer » does). */
 export const useWorkPane = () => useContext(WorkPaneContext);
 
 type State = {
@@ -45,10 +52,16 @@ export function Shell({
   paneContent,
   sidebar,
   onNewConversation,
+  onUp,
+  actions,
   children,
 }: {
   page: ShellPage;
+  /** Goes to the page `page.up` names, from its title in the Top Bar. */
+  onUp?: (path: string) => void;
   paneContent: ReactNode;
+  /** The page's own buttons in the Top Bar, before « Fiche » or « Activité » (a conversation's « Effacer »). */
+  actions?: ReactNode;
   /** The Sidebar's menus; `closeDrawer` for a link that navigates. */
   sidebar: (closeDrawer: () => void) => ReactNode;
   onNewConversation: () => void;
@@ -90,9 +103,13 @@ export function Shell({
   // Échap closes what is on top: the drawer, a full page, the Work Pane's column; the Fiche's column stays the Top Bar's.
   useKeyCommand("closePane", drawerShown ? closeDrawer : top ? () => close(top) : workPaneColumn ? () => close("workPane") : null);
 
-  const workPane = useMemo(() => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })) }), []);
+  const workPane = useMemo(
+    () => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })), close: () => setState((current) => ({ ...current, workPane: null })) }),
+    [],
+  );
   const paneTitle = (pane: ShownPane) => (pane === "workPane" ? (state.workPane?.title ?? "") : t(pane === "fiche" ? "fiche.label" : "fiche.activity"));
   const paneBody = (pane: ShownPane) => (pane === "workPane" ? state.workPane?.content : paneContent);
+  const fills = (pane: ShownPane) => pane === "workPane" && state.workPane?.fill === true;
 
   return (
     <WorkPaneContext.Provider value={workPane}>
@@ -105,9 +122,11 @@ export function Shell({
         <View aria-hidden={pageCovered} style={{ flex: 1 }}>
           <TopBar
             title={page.title}
+            up={page.up && onUp ? { label: page.up.label, go: () => onUp(page.up!.path) } : null}
             menu={<Control label={t(layout.sidebar === "column" ? "sidebar.collapse" : "sidebar.menu")} icon={layout.sidebar === "column" ? PanelLeftClose : Menu} onPress={onMenu} />}
             end={
               <>
+                {actions}
                 {page.pane ? (
                   <Control
                     label={t(page.pane === "fiche" ? "fiche.label" : "fiche.activity")}
@@ -127,7 +146,7 @@ export function Shell({
             {layout.panes === "columns"
               ? // The Work Pane beside the conversation, the Fiche after it (as on the web).
                 [...layout.shown].reverse().map((pane) => (
-                  <Column key={pane} layout={layout} pane={pane} title={paneTitle(pane)} onClose={pane === "workPane" ? () => close(pane) : null}>
+                  <Column key={pane} layout={layout} pane={pane} title={paneTitle(pane)} fill={fills(pane)} onClose={pane === "workPane" ? () => close(pane) : null}>
                     {paneBody(pane)}
                   </Column>
                 ))
@@ -135,7 +154,7 @@ export function Shell({
           </View>
         </View>
         {fullPages.map((pane) => (
-          <FullPage key={pane} title={paneTitle(pane)} covered={pane !== top} onClose={() => close(pane)}>
+          <FullPage key={pane} title={paneTitle(pane)} covered={pane !== top} fill={fills(pane)} onClose={() => close(pane)}>
             {paneBody(pane)}
           </FullPage>
         ))}
@@ -149,15 +168,41 @@ export function Shell({
   );
 }
 
-function TopBar({ title, menu, end }: { title: string; menu: ReactNode; end: ReactNode }) {
+/** The Top Bar: the menu, the page's title (with `up`, a link back to the page above it, an arrow before it, as on iOS), its buttons. */
+function TopBar({ title, up, menu, end }: { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode }) {
+  const { colors } = useTheme();
+  const { hovered, hoverProps } = usePointerHover();
+  const text = (
+    <AppText variant="lead" weight="semiBold" lines={2}>
+      {title}
+    </AppText>
+  );
   return (
     <View role="toolbar" style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingHorizontal: space[2], paddingVertical: space[1] }}>
       {menu}
-      <View style={{ flex: 1 }}>
-        <AppText variant="lead" weight="semiBold" lines={2}>
-          {title}
-        </AppText>
-      </View>
+      {up ? (
+        <Pressable
+          role="link"
+          aria-label={title}
+          accessibilityHint={up.label}
+          onPress={up.go}
+          {...hoverProps}
+          style={({ pressed }) => ({
+            flex: 1,
+            minHeight: TARGET,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: space[1],
+            borderRadius: radius.control,
+            backgroundColor: pressed || hovered ? colors.hover : "transparent",
+          })}
+        >
+          <ChevronLeft color={colors.accent} size={22} aria-hidden />
+          <View style={{ flex: 1 }}>{text}</View>
+        </Pressable>
+      ) : (
+        <View style={{ flex: 1 }}>{text}</View>
+      )}
       {end}
     </View>
   );
@@ -177,8 +222,28 @@ function PaneHeader({ title, onClose }: { title: string; onClose: (() => void) |
   );
 }
 
+/** A pane's content: scrolling in the pane, or filling it (`fill`) when it scrolls itself. */
+function PaneBody({ fill, children }: { fill: boolean; children: ReactNode }) {
+  if (fill) return <View style={{ flex: 1, padding: space[4], paddingTop: 0 }}>{children}</View>;
+  return <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>;
+}
+
 /** A pane beside the conversation, from 64rem. */
-function Column({ layout, pane, title, onClose, children }: { layout: Disposition; pane: ShownPane; title: string; onClose: (() => void) | null; children: ReactNode }) {
+function Column({
+  layout,
+  pane,
+  title,
+  fill,
+  onClose,
+  children,
+}: {
+  layout: Disposition;
+  pane: ShownPane;
+  title: string;
+  fill: boolean;
+  onClose: (() => void) | null;
+  children: ReactNode;
+}) {
   const { colors } = useTheme();
   return (
     <View
@@ -191,13 +256,13 @@ function Column({ layout, pane, title, onClose, children }: { layout: Dispositio
       }}
     >
       <PaneHeader title={title} onClose={onClose} />
-      <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>
+      <PaneBody fill={fill}>{children}</PaneBody>
     </View>
   );
 }
 
 /** A pane over the page and its Top Bar, below 64rem: its title and « Fermer » (ADR-0070). */
-function FullPage({ title, covered, onClose, children }: { title: string; covered: boolean; onClose: () => void; children: ReactNode }) {
+function FullPage({ title, covered, fill, onClose, children }: { title: string; covered: boolean; fill: boolean; onClose: () => void; children: ReactNode }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
@@ -207,7 +272,7 @@ function FullPage({ title, covered, onClose, children }: { title: string; covere
       style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
       <PaneHeader title={title} onClose={onClose} />
-      <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>
+      <PaneBody fill={fill}>{children}</PaneBody>
     </View>
   );
 }

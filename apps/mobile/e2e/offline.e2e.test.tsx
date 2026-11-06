@@ -10,6 +10,7 @@ import { AppProviders } from "../src/app-providers";
 import { isRefusedOffline, readKey, useForgetReads, type ReadName } from "../src/offline/read-cache";
 import { fakeNetwork, memoryStorage } from "../src/offline/testing";
 import type { AppSession } from "../src/session/app-session";
+import { withCoach, type FakeCoachWeb } from "../src/coach/testing";
 import type { fakeWebApp } from "../src/session/testing";
 
 jest.setTimeout(60_000);
@@ -31,12 +32,14 @@ const setNetwork = (connected: boolean) => {
 };
 
 // The web app the app signs in to (#685), so the app's root reaches its signed-in screens, as app.e2e.test.tsx does.
-const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession; coach: FakeCoachWeb };
 jest.mock("../src/session/instance", () => {
   const { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey(), webViewCookies: memoryWebViewCookies() });
+  // Its API's Coach Conversation routes (#690), as src/coach/testing.ts answers them.
+  mockWeb.coach = jest.requireActual("../src/coach/testing").fakeCoachWeb();
   return { appSession: mockWeb.session };
 });
 // As app.e2e.test.tsx: the app's own scheme, which the magic link it asks for returns to (Expo Router's mock has another).
@@ -60,10 +63,11 @@ const beyondLaunch = (fetch: { mock: { calls: unknown[][] } }) => fetch.mock.cal
 
 /**
  * The app's root, signed in, once it has read the legal steps it may have to ask (#689); its calls to the API reach the
- * same fake web app, at the network (src/api), unless a test answers them itself.
+ * same fake web app, at the network (src/api), its Coach Conversation routes answered by `mockWeb.coach` (#690), unless
+ * a test answers them itself.
  */
 async function launch() {
-  if (!jest.isMockFunction(globalThis.fetch)) jest.spyOn(globalThis, "fetch").mockImplementation((input, init) => mockWeb.app.fetch(input, init));
+  if (!jest.isMockFunction(globalThis.fetch)) jest.spyOn(globalThis, "fetch").mockImplementation(withCoach(mockWeb.coach, (input, init) => mockWeb.app.fetch(input, init)));
   await renderRouter("./src/app", { initialUrl: "/" });
   await waitFor(() => expect(screen.queryByLabelText("Ouverture de votre compte…")).toBeNull());
 }

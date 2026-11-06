@@ -141,15 +141,30 @@ const secretCipher = secretCipherFromEnv(process.env);
 const digestApplications = createApplications(database, { jobOffers, profiles });
 // The Job Digest schedule queues jobs on the runner, which starts once the jobs exist.
 const started: { runner?: JobRunner } = {};
+/** The runner's queue, once it has started: the Job Digest schedule's, and the Push notifications' events. */
+const workerQueue = {
+  send: async (name: string, data: object) => {
+    if (!started.runner) throw new Error("the job runner has not started yet");
+    await started.runner.enqueue(name, data);
+  },
+};
+// Push notifications (#698, ADR-0076): sent directly to APNs and FCM with their Provider Secrets as they stand at each
+// send (the .p8 and the service account, Back Office over env), each call recorded under its Tool. The worker's own
+// events (results, Job Digests, Appointment Reminders, Follow-ups due) queue theirs on its runner (#699).
+const pushNotifications = createPushNotifications(database, {
+  senders: pushSendersFromEnv({ env: () => secrets.current().env, externalApis }),
+  log: (line) => console.warn(line),
+  queue: workerQueue,
+});
 const jobs = createJobs({
   database,
   discovery: worker.discovery,
   profiles,
   // A failed Job Search gives its Plan Quota use back. Releasing needs no Stripe, only the quota table.
-  jobSearches: createJobSearchReports(database, { quotas: billing }),
+  jobSearches: createJobSearchReports(database, { quotas: billing, push: pushNotifications }),
   discoveryRuns: createDiscoveryRuns(database),
   // Without an AI key the AI call fails and the Follow-up falls back to its template.
-  followUps: followUpsFromEnv(database, process.env, worker.ai, mailer),
+  followUps: followUpsFromEnv(database, process.env, worker.ai, mailer, pushNotifications),
   jobDigests: createJobDigests(database, {
     profiles,
     jobOffers,
@@ -158,17 +173,14 @@ const jobs = createJobs({
     // The Job Offers Email intake gave each Profile join its Job Digest (#447).
     receivedOffers: createReceivedOffers(database, { jobOffers, profiles, applications: digestApplications }),
     mailer,
+    push: pushNotifications,
     baseURL,
     config: () => jobDigestsConfigFromEnv(settingsEnv()),
   }),
   // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
-  appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
-  // Push notifications (#698, ADR-0076): sent directly to APNs and FCM with their Provider Secrets as they stand at each
-  // send (the .p8 and the service account, Back Office over env), each call recorded under its Tool.
-  pushNotifications: createPushNotifications(database, {
-    senders: pushSendersFromEnv({ env: () => secrets.current().env, externalApis }),
-    log: (line) => console.warn(line),
-  }),
+  // Its Push notification too, under its own switch.
+  appointmentReminders: createAppointmentReminders(database, { mailer, baseURL, push: pushNotifications }),
+  pushNotifications,
   // Livraison's daily email (18:00 Paris) to DELIVERY_STATUS_EMAIL_TO, read with GITHUB_STATUS_TOKEN (Provider Secrets over env).
   deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }) }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
@@ -207,10 +219,7 @@ const jobs = createJobs({
     guardrails: workerGuardrails(database, worker.ai),
     taskPlaybooks,
   }),
-  enqueue: async (name, data) => {
-    if (!started.runner) throw new Error("the job runner has not started yet");
-    await started.runner.enqueue(name, data);
-  },
+  enqueue: workerQueue.send,
 });
 
 // During maintenance (#542, set on Paramètres), a job taken waits until it ends.

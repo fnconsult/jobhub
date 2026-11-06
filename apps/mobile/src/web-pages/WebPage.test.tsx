@@ -4,17 +4,33 @@ import { File } from "expo-file-system";
 import { Linking, Share } from "react-native";
 import { createAppSession } from "../session/app-session";
 import { SessionGate } from "../session/SessionGate";
-import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "../session/testing";
+import { EXPORT_FILE_NAME, fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "../session/testing";
 import { fakeWebView } from "../testing-device";
 import { renderInApp } from "../testing";
-import { WebPage } from "./WebPage";
+import { downloadedFileName, WebPage } from "./WebPage";
 import { SessionWebPage } from "./WebPageScreen";
 
-// The device's files: a download lands in the app's cache, here at a fixed address.
-jest.mock("expo-file-system", () => ({
-  Paths: { cache: { uri: "file:///cache/" } },
-  File: { downloadFileAsync: jest.fn(async () => ({ uri: "file:///cache/jobbbox-export.json" })) },
-}));
+// The device's files: the app's cache at a fixed address, what is written there kept in `written` (by address). The
+// system's downloader is there to show the app never uses it: it would follow a redirect to any host, the cookie with it.
+jest.mock("expo-file-system", () => {
+  const written = new Map<string, string>();
+  class File {
+    readonly uri: string;
+    constructor(folder: { uri: string }, name: string) {
+      this.uri = `${folder.uri}${name}`;
+    }
+    create() {
+      written.set(this.uri, "");
+    }
+    write(bytes: Uint8Array) {
+      written.set(this.uri, Buffer.from(bytes).toString("utf8"));
+    }
+    static downloadFileAsync = jest.fn(async () => ({ uri: "file:///cache/jobbbox-export.json" }));
+  }
+  return { Paths: { cache: { uri: "file:///cache/" } }, File, written };
+});
+/** What the app wrote in its cache, by address. */
+const written: Map<string, string> = jest.requireMock("expo-file-system").written;
 
 const COACH = "claire.coach@example.fr";
 
@@ -55,6 +71,10 @@ describe("WebPage", () => {
     expect(fakeWebView.shown!.onShouldStartLoadWithRequest({ url: `${TEST_BASE_URL}/aide` })).toBe(true);
     expect(fakeWebView.shown!.onShouldStartLoadWithRequest({ url: "https://apps.apple.com/app/google-authenticator" })).toBe(false);
     expect(openURL).toHaveBeenCalledWith("https://apps.apple.com/app/google-authenticator");
+    // The web app's origin alone, as every address the app gives the session to (isOnWebApp): no look-alike, subdomain or other scheme.
+    for (const elsewhere of ["https://staging.jobbbox.ai.example.net/aide", "https://www.staging.jobbbox.ai/aide", "http://staging.jobbbox.ai/aide"]) {
+      expect(fakeWebView.shown!.onShouldStartLoadWithRequest({ url: elsewhere })).toBe(false);
+    }
     openURL.mockRestore();
   });
 
@@ -81,12 +101,6 @@ describe("WebPage", () => {
 
 const EMAIL = "marie.dupont@example.fr";
 
-// The device's files: a download lands in the app's cache, here at a fixed address.
-jest.mock("expo-file-system", () => ({
-  Paths: { cache: { uri: "file:///cache/" } },
-  File: { downloadFileAsync: jest.fn(async () => ({ uri: "file:///cache/jobbbox-export.json" })) },
-}));
-
 /** The app signed in, showing the web app's `path` in a WebView. */
 async function openWebPage(path: string) {
   const web = fakeWebApp();
@@ -95,16 +109,30 @@ async function openWebPage(path: string) {
   const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: web.deviceWithoutPasskey(), webViewCookies: webViews });
   await session.askLink(EMAIL);
   await session.openLink(web.linkFor(EMAIL));
+  /** Every address the app sent a request to, with whose session (the web app's reading of its cookie). */
+  const sent: { url: string; as: string | null }[] = [];
+  // A fetch as the platform's: it follows a redirect itself, with the same headers, unless asked not to (`manual`).
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    sent.push({ url: request.url, as: web.signedInAs(request.headers) });
+    const response = await web.fetch(request);
+    const location = response.headers.get("location");
+    if (init?.redirect === "manual" || response.status < 300 || response.status >= 400 || !location) return response;
+    return fetch(new URL(location, request.url).toString(), { ...init, headers: request.headers });
+  };
+  // The app's calls to the API as in the app (app-providers.tsx): the session's cookie, through the app's fetch.
   await renderInApp(
     <SessionGate session={session} link={null}>
       <SessionWebPage path={path} />
     </SessionGate>,
+    { session, fetch },
   );
   await waitFor(() => expect(fakeWebView.shown).not.toBeNull());
   const props = () => fakeWebView.shown!;
   return {
     web,
     webViews,
+    sent,
     props,
     /** The page asks to load `url` in its own frame (a link followed, a form sent, a redirect): whether the WebView loads it. */
     follow: (url: string) => props().onShouldStartLoadWithRequest({ url, isTopFrame: true, navigationType: "click" }) as boolean,
@@ -120,6 +148,7 @@ async function openWebPage(path: string) {
 let openURL: jest.SpyInstance;
 beforeEach(() => {
   openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+  (File.downloadFileAsync as jest.Mock).mockClear();
 });
 afterEach(() => openURL.mockRestore());
 
@@ -161,26 +190,46 @@ describe("a web page inside the app (#689, ADR-0076)", () => {
     expect(openURL).toHaveBeenCalledWith(`${TEST_BASE_URL}/abonnement`);
   });
 
-  it("hands a file the page downloads, the Data export, to the system's share sheet, fetched with the session", async () => {
+  it("hands a file the page downloads, the Data export, to the system's share sheet, fetched with the session by the app itself", async () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction", activityType: undefined });
-    const { download } = await openWebPage("/compte/donnees");
+    written.clear();
+    const { download, sent } = await openWebPage("/compte/donnees");
 
     await download(`${TEST_BASE_URL}/api/account/export`);
 
-    expect(File.downloadFileAsync).toHaveBeenCalledWith(`${TEST_BASE_URL}/api/account/export`, expect.anything(), {
-      headers: { cookie: expect.stringMatching(/__Secure-better-auth\.session_token=/) },
-      idempotent: true,
-    });
-    expect(share).toHaveBeenCalledWith({ url: "file:///cache/jobbbox-export.json" });
+    expect(sent).toContainEqual({ url: `${TEST_BASE_URL}/api/account/export`, as: EMAIL });
+    // In the app's cache, under the name the web app gives the file, and nowhere else.
+    expect([...written.keys()]).toEqual([`file:///cache/${EXPORT_FILE_NAME}`]);
+    expect(JSON.parse(written.get(`file:///cache/${EXPORT_FILE_NAME}`)!)).toEqual({ account: { email: EMAIL } });
+    expect(share).toHaveBeenCalledWith({ url: `file:///cache/${EXPORT_FILE_NAME}` });
+    // Never the system's downloader, which follows a redirect to any host and takes the cookie set by hand with it.
+    expect(File.downloadFileAsync).not.toHaveBeenCalled();
+    share.mockRestore();
+  });
+
+  it("refuses a redirect of the download off the web app: the session's cookie is never sent there, nothing is kept (#756)", async () => {
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction", activityType: undefined });
+    written.clear();
+    const { web, download, sent } = await openWebPage("/compte/donnees");
+    web.exportMovedTo("https://exports.example.net/jobbbox-donnees.json");
+
+    await download(`${TEST_BASE_URL}/api/account/export`);
+
+    expect(sent).toContainEqual({ url: `${TEST_BASE_URL}/api/account/export`, as: EMAIL });
+    expect(sent.filter(({ url }) => !url.startsWith(`${TEST_BASE_URL}/`))).toEqual([]);
+    expect(File.downloadFileAsync).not.toHaveBeenCalled();
+    expect(written.size).toBe(0);
+    expect(share).not.toHaveBeenCalled();
     share.mockRestore();
   });
 
   it("never sends the session with a download from elsewhere: it opens in the system's browser", async () => {
-    (File.downloadFileAsync as jest.Mock).mockClear();
-    const { download } = await openWebPage("/legal/cgu");
+    const { download, sent } = await openWebPage("/legal/cgu");
+    const before = sent.length;
 
     await download("https://example.com/brochure.pdf");
 
+    expect(sent.slice(before)).toEqual([]);
     expect(File.downloadFileAsync).not.toHaveBeenCalled();
     expect(openURL).toHaveBeenCalledWith("https://example.com/brochure.pdf");
   });
@@ -193,5 +242,21 @@ describe("a web page inside the app (#689, ADR-0076)", () => {
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
     expect(webViews.cookies()).toEqual([]);
+  });
+});
+
+describe("downloadedFileName", () => {
+  const answer = (disposition?: string) => new Response("{}", { headers: disposition ? { "content-disposition": disposition } : {} });
+  const address = new URL(`${TEST_BASE_URL}/api/account/export`);
+
+  it("keeps a download under the name its answer gives, else its address's last segment", () => {
+    expect(downloadedFileName(answer(`attachment; filename="${EXPORT_FILE_NAME}"`), address)).toBe(EXPORT_FILE_NAME);
+    expect(downloadedFileName(answer("attachment; filename*=UTF-8''donn%C3%A9es.json"), address)).toBe("données.json");
+    expect(downloadedFileName(answer(), address)).toBe("export");
+  });
+
+  it("never a path out of the app's cache", () => {
+    expect(downloadedFileName(answer('attachment; filename="../../Documents/x.json"'), address)).toBe(".._.._Documents_x.json");
+    expect(downloadedFileName(answer('attachment; filename=".."'), address)).toBe("download");
   });
 });

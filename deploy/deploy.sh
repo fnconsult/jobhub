@@ -82,6 +82,11 @@ printf '%s' "$GHCR_TOKEN" | "${DOCKER[@]}" login ghcr.io -u github-actions --pas
 if [ ${#mta[@]} -gt 0 ]; then "${mta[@]}" pull --quiet; fi
 "${DOCKER[@]}" logout ghcr.io >/dev/null
 
+# Jobbbox's error page first (ADR-0094): it answers while the web container is replaced. It reads this checkout's
+# deploy/edge, which changed under it: reload it (a bad configuration keeps the old one, nginx says why in its log).
+"${compose[@]}" up -d --no-deps edge
+"${compose[@]}" kill -s HUP edge >/dev/null
+
 "${compose[@]}" up -d --remove-orphans
 
 # `up` waits for migrate to finish before starting web and worker; check how it ended.

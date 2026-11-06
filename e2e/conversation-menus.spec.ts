@@ -1,14 +1,14 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { newAddress } from "./support/mailbox";
 import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
 
 // Issue #606 (ADR-0070): under « Conversation au centre », Recherches d'offres, Job Digests, the Agenda and Mes coachs
-// humains are their menus' conversations, one per Candidate each, their content cards in the thread: the Job Searches and
-// the Job Digests by Profile, the Agenda's list (its week, month and « Ajouter un entretien » in the Work Pane), the
+// humains are their menus' conversations, one per Candidate each, their content cards in the thread: the Job Digests by
+// Profile (Recherches d'offres opens on the Offer box instead, its conversation after it: ADR-0090, #815), the Agenda's list (its week, month and « Ajouter un entretien » in the Work Pane), the
 // Coaching Sessions and the Human Coaches. Recherches d'offres and Job Digests unfold in the Sidebar into their objects.
 // The switch changes every Candidate's pages, so this spec runs on a server of its own (own-server.ts), switched on by
 // its environment; the AI Coach is faked inside it (fake-mistral.mjs), and so are the reference data's sources.
@@ -132,44 +132,105 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await server?.stop();
   });
 
-  test("Recherches d'offres is its conversation: the Job Searches by Profile a card, « Lancer une recherche » a suggestion, « Reçues par email » in the Work Pane", async ({ browser }) => {
+  test("Recherches d'offres opens on the Offer box (ADR-0090): « Offres à traiter » by day and Importance tier, « Suivre », « Lire l'offre », « Recherches par Profil » and « Reçues par email » in the Work Pane, the conversation after it", async ({ browser }) => {
     const email = newAddress("conversation-job-searches");
     const page = await signedIn(browser, email);
     const profileId = await createProfile(page);
     const candidateId = await candidateOf(email);
+    const offer = async (title: string, details: object) => {
+      const captured = await page.request.post("/api/job-offers", {
+        data: { title, content: `${title} (réf. ${Math.random().toString(36).slice(2)}) : 15 ans d'expérience.`, ...details },
+        headers: { origin: server.origin },
+      });
+      expect(captured.status(), await captured.text()).toBe(200);
+      return (await captured.json()).id as string;
+    };
+    const strong = await offer("DAF H/F", { employer: "Acme Industrie", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] });
+    const weak = await offer("Comptable", { employer: "Société Fictive", location: "Marseille", contractType: "cdd", skills: ["Excel"] });
+    const earlier = await offer("Directeur financier adjoint", { employer: "Exemple Mécanique", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] });
     const [unseen] = await query<{ id: string }>(
-      "INSERT INTO job_search (candidate_id, profile_id, status, started_at, finished_at, notification_pending) VALUES ($1, $2, 'done', now() - interval '1 day', now() - interval '1 day', true) RETURNING id::text",
-      [candidateId, profileId],
+      "INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, notification_pending) VALUES ($1, $2, 'done', $3, now() - interval '1 day', now() - interval '1 day', true) RETURNING id::text",
+      [candidateId, profileId, [strong]],
     );
+    // What the doors record (ADR-0090): a Job Search's and an email's offers today, a Job Digest's three days ago.
+    const arrived = (jobOfferId: string, profile: string | null, source: string, ago: string) =>
+      query(
+        `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
+         VALUES ($1, $2, $3, now() - $5::interval, jsonb_build_object($4::text, to_char((now() - $5::interval) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))`,
+        [candidateId, jobOfferId, profile, source, ago],
+      );
+    await arrived(strong, profileId, "job_search", "0 minutes");
+    await arrived(weak, null, "email", "1 minute");
+    await arrived(earlier, profileId, "job_digest", "3 days");
 
     await page.goto("/recherches");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.sidebar.jobSearches);
+    const box = conversation(page).getByRole("region", { name: fr.offerBox.title });
+    await expect(box.locator(".offer-box-count b")).toHaveText("3");
+    // French counts 0 in the singular: « 0 traitée ».
+    await expect(box.getByText(tr(fr.offerBox.treated_one, { count: 0 }))).toBeVisible();
+    const chips = box.getByRole("group", { name: fr.offerBox.chips });
+    await expect(chips.getByRole("button")).toHaveCount(6);
+    const today = box.getByRole("region", { name: fr.offerBox.today });
+    await expect(today.getByRole("heading", { level: 4 })).toHaveText([`${fr.offerBox.tiers.not_to_miss} · ${fr.offerBox.tierHints.not_to_miss}`, `${fr.offerBox.tiers.less_suited} · ${fr.offerBox.tierHints.less_suited}`]);
+    await expect(today.getByRole("listitem", { name: "Comptable" })).toContainText(fr.offerBox.unsorted);
+    const previously = box.getByRole("region", { name: fr.offerBox.earlier });
+    await expect(previously.getByRole("listitem", { name: "Directeur financier adjoint" })).toContainText(tr(fr.offerBox.arrivedOn, { date: "" }).trim());
+    // Its header, the day and the tier stay in view while it scrolls; « À ne pas manquer » turns, unless motion is reduced.
+    for (const sticky of [".offer-box-head", ".offer-box-day-heading", ".offer-box-tier-heading"]) await expect(box.locator(sticky).first()).toHaveCSS("position", "sticky");
+    const notToMiss = today.getByRole("listitem", { name: "DAF H/F" });
+    await expect(notToMiss).toHaveCSS("animation-name", "offer-box-turn");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(notToMiss).toHaveCSS("animation-name", "none");
+    await page.emulateMedia({ reducedMotion: null });
+    // The conversation follows the box, its Introduction after it; « Lancer une recherche » above its box.
     await expect(messages(page).first()).toContainText(fr.jobSearchesMenu.introduction);
-    const card = conversation(page).getByRole("region", { name: fr.jobSearchesMenu.title });
-    const group = card.getByRole("region", { name: "DAF" });
-    await expect(group.getByRole("row")).toHaveCount(2);
-    await expect(group.getByRole("row").nth(1)).toContainText(fr.jobSearch.statuses.done);
-    await expect(group.getByRole("row").nth(1)).toContainText(fr.jobSearchesMenu.unseen);
     await expect(suggestions(page).getByRole("button", { name: fr.jobSearchesMenu.start })).toBeVisible();
     await noAxeViolations(page);
 
-    // The Sidebar unfolds into it, marked unseen.
-    const sublist = sidebar(page).getByRole("list", { name: fr.sidebar.jobSearches });
-    await expect(sublist.getByRole("link")).toHaveText([new RegExp(`^DAF · .*, ${texts.toHandle}$`), tr(texts.seeAll, { count: 1 })]);
+    // A source chip shows only the entries that came by it.
+    await chips.getByRole("button", { name: tr(fr.offerBox.chipCount, { source: fr.offerBox.sources.email, count: 1 }) }).click();
+    await expect(box.getByRole("listitem")).toHaveCount(1);
+    await chips.getByRole("button", { name: tr(fr.offerBox.chipCount, { source: fr.offerBox.sources.all, count: 3 }) }).click();
+
+    // « Lire l'offre » opens the Job Offer in the Work Pane, at its own address.
+    await notToMiss.getByRole("link", { name: fr.offerBox.read }).click();
+    await expect(page).toHaveURL(`${server.origin}/recherches?offre=${strong}`);
+    await expect(workPane(page).getByRole("heading", { level: 2, name: "DAF H/F" })).toBeVisible();
+    await workPane(page).getByRole("button", { name: texts.close, exact: true }).click();
+    await expect(page).toHaveURL(`${server.origin}/recherches`);
+
+    // « Suivre » makes its Application « À postuler »: the entry is « Suivie », folded under « Suivies aujourd'hui ».
+    await notToMiss.getByRole("button", { name: fr.offerBox.follow }).click();
+    await expect(today.getByText(tr(fr.offerBox.followedToday, { count: 1 }))).toBeVisible();
+    await expect(box.locator(".offer-box-count b")).toHaveText("2");
+    const applications = await page.request.get("/api/applications");
+    expect((await applications.json()).applications).toEqual([expect.objectContaining({ title: "DAF H/F", status: "to_apply" })]);
 
     // A message goes to the menu's conversation; the page keeps its address.
     await send(page, "Quelles offres regarder ?");
     await expect(page).toHaveURL(`${server.origin}/recherches`);
     await expect.poll(() => menuConversationsOf(email)).toEqual([{ subject: "menu:jobSearches", messages: 2 }]);
 
+    // The Sidebar still unfolds into the Job Searches, marked unseen.
+    const sublist = sidebar(page).getByRole("list", { name: fr.sidebar.jobSearches });
+    await expect(sublist.getByRole("link")).toHaveText([new RegExp(`^DAF · .*, ${texts.toHandle}$`), tr(texts.seeAll, { count: 1 })]);
+
     // « Reçues par email » opens in the Work Pane at its own address, and closes back to the menu's.
-    await card.getByRole("link", { name: fr.jobSearchesMenu.receivedByEmail }).click();
+    await box.getByRole("link", { name: fr.offerBox.receivedByEmail }).click();
     await expect(page).toHaveURL(`${server.origin}/recherches?recues=1`);
     await expect(workPane(page).getByRole("heading", { level: 2, name: fr.receivedByEmail.title })).toBeVisible();
     await workPane(page).getByRole("button", { name: texts.close, exact: true }).click();
     await expect(page).toHaveURL(`${server.origin}/recherches`);
 
-    // Each line opens its Job Search.
+    // « Recherches par Profil », the former card, in the Work Pane: each line opens its Job Search.
+    await box.getByRole("link", { name: fr.offerBox.byProfile }).click();
+    await expect(page).toHaveURL(`${server.origin}/recherches?profils=1`);
+    const group = workPane(page).getByRole("region", { name: "DAF" });
+    await expect(group.getByRole("row")).toHaveCount(2);
+    await expect(group.getByRole("row").nth(1)).toContainText(fr.jobSearch.statuses.done);
+    await expect(group.getByRole("row").nth(1)).toContainText(fr.jobSearchesMenu.unseen);
+    await noAxeViolations(page, { withPane: true });
     await group.getByRole("row").nth(1).getByRole("link").click();
     await expect(page).toHaveURL(`${server.origin}/recherches/${unseen!.id}`);
   });

@@ -13,6 +13,7 @@
  */
 import * as z from "zod";
 import { estimateTokens } from "../coach/context";
+import type { SeenName } from "@jobhub/shared";
 import type { CoachAction, CoachActionCall, CoachActionResult } from "./index";
 
 /** What `list_objects` indexes. */
@@ -40,6 +41,8 @@ export interface ReadObject {
   pages: string[];
   /** It holds text the Candidate did not write (a Job Offer, a Company Dossier, an imported CV). */
   untrusted: boolean;
+  /** What it is, named from Jobbbox's own fields, as the thread shows it (#788). */
+  seen?: SeenName;
 }
 
 /**
@@ -91,7 +94,9 @@ const listObjects = (reader: CoachObjectReader): CoachAction =>
       const shown = (await reader.index(call.candidateId)).filter(
         (object) => (!args.type || object.type === args.type) && (!text || folded(`${object.title} ${object.status}`).includes(text)),
       );
-      if (shown.length === 0) return { ok: true, data: "Aucun objet ne correspond." };
+      // The thread shows how many it found (#788), never which.
+      const seen: SeenName[] = [{ type: args.type ?? "all", count: shown.length }];
+      if (shown.length === 0) return { ok: true, data: "Aucun objet ne correspond.", seen };
       const told = fittedLines(
         "Objets du candidat (type, id, titre, statut, date) :",
         shown.map(indexLine),
@@ -100,11 +105,12 @@ const listObjects = (reader: CoachObjectReader): CoachAction =>
       );
       // Only what is shown counts: a Job Offer's title or employer is text the Candidate did not write.
       const lines = told.split("\n").filter((line) => line.startsWith("- ")).length;
-      return { ok: true, data: told, untrusted: shown.slice(0, lines).some((object) => object.untrusted) };
+      return { ok: true, data: told, untrusted: shown.slice(0, lines).some((object) => object.untrusted), seen };
     },
   }) as unknown as CoachAction;
 
-const found = (object: ReadObject | null): CoachActionResult => (object ? { ok: true, data: object.text, pages: object.pages, untrusted: object.untrusted } : { ok: false, error: "not_found" });
+const found = (object: ReadObject | null): CoachActionResult =>
+  object ? { ok: true, data: object.text, pages: object.pages, untrusted: object.untrusted, ...(object.seen ? { seen: [object.seen] } : {}) } : { ok: false, error: "not_found" };
 
 /** A read of one object by its id. */
 const readOne = (reader: CoachObjectReader, name: string, type: ReadObjectType, group: CoachAction["group"], description: string): CoachAction =>

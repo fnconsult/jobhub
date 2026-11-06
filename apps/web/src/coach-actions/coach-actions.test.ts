@@ -1,6 +1,6 @@
 import { createAiLayer, createProvenanceRecorder, type ToolRun, type ToolRunRecord } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
-import type { ExternalApiCall } from "@jobhub/shared";
+import type { ExternalApiCall, ProvenanceEvent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import * as z from "zod";
 import { coachActionCatalog, createCoachActions, defineCoachAction, MAX_PROPOSALS_PER_REPLY, type CoachAction, type CoachActionsSettings } from "./index";
@@ -152,6 +152,32 @@ describe("a Coach Action the model calls", () => {
     expect(reply.proposals()).toEqual([{ action: "proposer_statut", group: "applications", data: { applicationId: "a1", from: "interview", to: "offer" } }]);
     expect(recorder.provenance().steps).toEqual([expect.objectContaining({ kind: "tool", activity: "act", tool: "applications", proposes: true, outcome: "ok" })]);
     expect(calls).toMatchObject([{ provider: "applications", operation: "proposer_statut", ok: true, httpStatus: 200 }]);
+  });
+
+  it("records which Coach Action ran and what it saw: a read's object by its page, a proposal's card target; their names on the live end only (#788)", async () => {
+    const events: ProvenanceEvent[] = [];
+    const seeing = defineCoachAction({
+      ...readApplication,
+      run: async () => ({ ok: true, data: "lue", pages: ["/candidatures/a1"], seen: [{ type: "application", href: "/candidatures/a1", name: "Airbus · Contrôleuse de gestion" }] }),
+    });
+    const targeted = defineCoachAction({
+      ...proposeStatus,
+      run: async () => ({ ok: true, data: { target: { kind: "application", id: "a1", name: "Airbus · Contrôleuse de gestion", href: "/candidatures/a1" } } }),
+    });
+    const { actions } = setUp({ catalog: [seeing, targeted] });
+    const ai = createAiLayer({ providers: [createFakeProvider()], routes: { coaching: "anthropic" }, usage: createMemoryUsageLog() });
+    const recorder = createProvenanceRecorder(ai, { now: () => new Date("2026-11-04T10:00:00Z"), onEvent: (event) => events.push(event) });
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false }))!;
+
+    await reply.runTool(run(seeing.name, { id: "a1" }), {});
+    await reply.runTool(run(targeted.name, { id: "a1", status: "offer" }), {});
+
+    expect(recorder.provenance().steps).toEqual([
+      expect.objectContaining({ action: seeing.name, seen: [{ type: "application", href: "/candidatures/a1" }] }),
+      expect.objectContaining({ action: targeted.name, proposes: true, seen: [{ type: "application", href: "/candidatures/a1" }] }),
+    ]);
+    expect(JSON.stringify(recorder.provenance())).not.toContain("Airbus");
+    expect(events.flatMap((event) => (event.type === "step_ended" ? [event.names] : []))).toEqual([["Airbus · Contrôleuse de gestion"], ["Airbus · Contrôleuse de gestion"]]);
   });
 
   it("runs in the Candidate's language, so what a proposal's card says is in it (#715)", async () => {

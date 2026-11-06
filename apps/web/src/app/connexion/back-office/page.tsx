@@ -1,8 +1,8 @@
+import { signInCopy } from "@jobhub/shared/sign-in-providers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { backOfficeSignInState } from "@/admin/server";
-import { signInCopy } from "@/auth/sign-in-copy";
 import { SignInForm } from "@/components/SignInForm";
 import { Note } from "@/design/Note";
 import { PublicSite } from "@/design/PublicSite";

@@ -1,6 +1,6 @@
 // The app's session packaging (#685), checked against what the toolchain, the stores and the web host read:
 // package versions, the server's plugins and trusted origins, and the app.json links the domain association files verify.
-import { APP_IDENTIFIER, APP_ORIGIN, APP_SCHEME, APP_SIGN_IN_PATH } from "@jobhub/shared";
+import { APP_COACHING_PAYMENT_PATH, APP_IDENTIFIER, APP_ORIGIN, APP_SCHEME, APP_SIGN_IN_PATH } from "@jobhub/shared";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -54,13 +54,13 @@ describe("Universal links and App Links (#685)", () => {
     expect(expo.ios.bundleIdentifier).toBe(APP_IDENTIFIER);
   });
 
-  it("open the app from the same address on Android, verified, for the same hosts", () => {
+  it("open the app from the same addresses on Android, verified, for the same hosts: the magic link's and Stripe Checkout's return (#694)", () => {
     expect(expo.android.package).toBe(APP_IDENTIFIER);
     const filter = expo.android.intentFilters.find((f: any) => f.autoVerify); // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(filter.action).toBe("VIEW");
     expect(filter.category).toEqual(expect.arrayContaining(["BROWSABLE", "DEFAULT"]));
     expect(filter.data.map((d: any) => [d.scheme, d.host, d.pathPrefix]).sort()).toEqual( // eslint-disable-line @typescript-eslint/no-explicit-any
-      hosts.map((host) => ["https", host, APP_SIGN_IN_PATH]).sort(),
+      hosts.flatMap((host) => [APP_SIGN_IN_PATH, APP_COACHING_PAYMENT_PATH].map((path) => ["https", host, path])).sort(),
     );
   });
 
@@ -69,6 +69,7 @@ describe("Universal links and App Links (#685)", () => {
       ["apps", "web", "src", "app", ".well-known", "apple-app-site-association", "route.ts"],
       ["apps", "web", "src", "app", ".well-known", "assetlinks.json", "route.ts"],
       ["apps", "web", "src", "app", ...APP_SIGN_IN_PATH.split("/").filter(Boolean), "route.ts"],
+      ["apps", "web", "src", "app", ...APP_COACHING_PAYMENT_PATH.split("/").filter(Boolean), "page.tsx"],
     ]) {
       expect(read(...route).length).toBeGreaterThan(0);
     }

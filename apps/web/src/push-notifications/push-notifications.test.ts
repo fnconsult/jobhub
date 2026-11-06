@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createPushNotifications, migratePushNotifications, pushNotificationsOf, PUSH_NOTIFICATIONS_QUEUE, type PushNotifications } from "./index";
+import { createPushNotifications, migratePushNotifications, purgeExpiredPushFailures, pushNotificationsOf, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, type PushNotification, type PushNotifications } from "./index";
 import type { PushDevice, PushOutcome, PushPlatform, PushSender } from "./senders";
 import type { PushMessage } from "./messages";
 
@@ -215,15 +215,106 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
     });
   });
 
+  describe("one Push notification per event (#699)", () => {
+    let queued: { name: string; data: object }[];
+    let notifying: PushNotifications;
+    beforeEach(() => {
+      queued = [];
+      notifying = createPushNotifications(database, { senders: () => senders, now: () => clock.now, queue: { send: async (name, data) => void queued.push({ name, data }) } });
+    });
+
+    it("queues an event once: notified again under the same key (a run started again, a webhook delivered twice), nothing more is queued", async () => {
+      const marie = await signIn("marie@example.fr");
+      const once = "job_digest:digest-1";
+      expect(await notifying.notify(marie.id, { event: "job_digest", jobDigestId: "digest-1" }, { once })).toBe(true);
+      expect(await notifying.notify(marie.id, { event: "job_digest", jobDigestId: "digest-1" }, { once })).toBe(false);
+      expect(queued).toHaveLength(1);
+    });
+
+    it("queues nothing for an event switched off in Rappels, every one of them, and takes no key: switched on again, it goes", async () => {
+      const marie = await signIn("marie@example.fr");
+      const OBJECT = "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b";
+      const each: Record<PushEvent, PushNotification> = {
+        job_search_results: { event: "job_search_results", jobSearchId: OBJECT },
+        job_digest: { event: "job_digest", jobDigestId: OBJECT },
+        appointment_reminder: { event: "appointment_reminder" },
+        coach_review: { event: "coach_review", applicationId: OBJECT },
+        coaching_session_changed: { event: "coaching_session_changed" },
+        follow_up_due: { event: "follow_up_due", applicationId: OBJECT },
+        coach_access_granted: { event: "coach_access_granted", candidateId: OBJECT },
+        coaching_session_paid: { event: "coaching_session_paid" },
+        coaching_session_changed_by_candidate: { event: "coaching_session_changed_by_candidate" },
+      };
+      for (const event of PUSH_EVENT_IDS) {
+        await notifying.setEnabled(marie.id, event, false);
+        expect(await notifying.notify(marie.id, each[event], { once: `${event}:1` })).toBe(false);
+      }
+      expect(queued).toEqual([]);
+      for (const event of PUSH_EVENT_IDS) {
+        await notifying.setEnabled(marie.id, event, true);
+        expect(await notifying.notify(marie.id, each[event], { once: `${event}:1` })).toBe(true);
+      }
+      expect(queued.map(({ data }) => (data as { notification: PushNotification }).notification)).toEqual(PUSH_EVENT_IDS.map((event) => each[event]));
+    });
+
+    it("keeps each person's keys apart, and queues every notification given no key", async () => {
+      const marie = await signIn("marie@example.fr");
+      const paul = await signIn("paul@example.fr");
+      await notifying.notify(marie.id, { event: "appointment_reminder" }, { once: "appointment_reminder:2026-11-05" });
+      await notifying.notify(paul.id, { event: "appointment_reminder" }, { once: "appointment_reminder:2026-11-05" });
+      await notifying.notify(marie.id, { event: "test" });
+      await notifying.notify(marie.id, { event: "test" });
+      expect(queued.map(({ data }) => (data as { personId: string }).personId)).toEqual([marie.id, paul.id, marie.id, marie.id]);
+    });
+
+    it("gives the key back when the notification could not be queued, so the run started again sends it", async () => {
+      const marie = await signIn("marie@example.fr");
+      let down = true;
+      const flaky = createPushNotifications(database, {
+        senders: () => senders,
+        now: () => clock.now,
+        queue: {
+          send: async (name, data) => {
+            if (down) throw new Error("queue unavailable");
+            queued.push({ name, data });
+          },
+        },
+      });
+      await expect(flaky.notify(marie.id, { event: "coaching_session_paid" }, { once: "coaching_session_paid:cs_1" })).rejects.toThrow(/queue unavailable/);
+      down = false;
+      expect(await flaky.notify(marie.id, { event: "coaching_session_paid" }, { once: "coaching_session_paid:cs_1" })).toBe(true);
+      expect(queued).toHaveLength(1);
+    });
+
+    it("forgets the keys with the account", async () => {
+      const marie = await signIn("marie@example.fr");
+      await notifying.notify(marie.id, { event: "appointment_reminder" }, { once: "appointment_reminder:2026-11-05" });
+      await database.query(`DELETE FROM candidate WHERE id = $1`, [marie.id]);
+      expect((await database.query(`SELECT 1 FROM push_notification_sent`)).rowCount).toBe(0);
+    });
+
+    it("keeps the keys 90 days, as the failures", async () => {
+      const marie = await signIn("marie@example.fr");
+      await notifying.notify(marie.id, { event: "appointment_reminder" }, { once: "appointment_reminder:2026-11-05" });
+      await purgeExpiredPushFailures(database, new Date("2027-01-01T00:00:00Z"));
+      expect((await database.query(`SELECT 1 FROM push_notification_sent`)).rowCount).toBe(1);
+      await purgeExpiredPushFailures(database, new Date("2027-02-05T00:00:00Z"));
+      expect((await database.query(`SELECT 1 FROM push_notification_sent`)).rowCount).toBe(0);
+    });
+  });
+
   describe("the Data export", () => {
-    it("holds the person's devices (platform, language, dates), never their token, and the switches they changed", async () => {
+    it("holds the person's devices (platform, language, dates), never their token, the switches they changed and the notifications queued", async () => {
       const marie = await signIn("marie@example.fr");
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
       await push.setEnabled(marie.id, "job_digest", false);
+      const notifying = createPushNotifications(database, { senders: () => senders, now: () => clock.now, queue: { send: async () => {} } });
+      await notifying.notify(marie.id, { event: "coach_review", applicationId: "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b" }, { once: "coach_review:review-1" });
       const exported = await pushNotificationsOf(database, marie.id);
       expect(exported).toEqual({
         devices: [{ platform: "ios", language: "fr", registeredAt: clock.now, lastSeenAt: clock.now }],
         switches: [{ event: "job_digest", enabled: false, changedAt: clock.now }],
+        sent: [{ event: "coach_review", at: clock.now }],
       });
       expect(JSON.stringify(exported)).not.toContain(IPHONE);
     });
@@ -233,7 +324,7 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
 describe("queueing a Push notification for the worker", () => {
   it("queues the person, the notification and the platform, sending nothing itself", async () => {
     const queued: { name: string; data: object }[] = [];
-    const push = createPushNotifications({} as Pool, { senders: () => ({}), queue: { send: async (name, data) => void queued.push({ name, data }) } });
+    const push = createPushNotifications({ query: async () => ({ rows: [] }) } as unknown as Pool, { senders: () => ({}), queue: { send: async (name, data) => void queued.push({ name, data }) } });
     await push.notify("cand_marie", { event: "job_digest", jobDigestId: "digest-1" });
     await push.notify("cand_admin", { event: "test" }, { platform: "android" });
     expect(queued).toEqual([

@@ -148,6 +148,51 @@ export const jobSearchResponseSchema = z.object({
 });
 export type JobSearchResponse = z.infer<typeof jobSearchResponseSchema>;
 
+// --- Offres à traiter (the Offer box, ADR-0090) ------------------------------------------------------------------
+
+/**
+ * Where an Arrival came from, its chip: « Recherche » (a Job Search), « Job Digest », « Email » (Email intake), « Lien du
+ * coach » (a Job Offer link) and « Extension » (a Capture, once followed, #819).
+ */
+export const ARRIVAL_SOURCES = ["job_search", "job_digest", "email", "job_offer_link", "extension"] as const;
+export type ArrivalSource = (typeof ARRIVAL_SOURCES)[number];
+
+/** Where an Offer box entry stands: à traiter, or « Suivie » (its Application exists, whichever page made it). */
+export const OFFER_BOX_ENTRY_STATES = ["to_handle", "followed"] as const;
+
+/**
+ * One Offer box entry: its Job Offer, its Profile (null: « Non classée »), the Profile its Match Score is against and
+ * « Suivre » saves it with (`scoredWith`: the entry's, or for a « Non classée » one the active Profile it matches best;
+ * null when the Candidate has no active Profile), its first Arrival (`arrivalDay`, in French time) and every Arrival
+ * source with the date it first came by, oldest first; where it stands, and its Application once « Suivie ».
+ */
+export const offerBoxEntrySchema = z.object({
+  id: z.string(),
+  jobOffer: jobOfferLineSchema.extend({ contractType: z.enum(CONTRACT_TYPES).nullable() }),
+  profile: named.nullable(),
+  scoredWith: named.nullable(),
+  matchScore,
+  firstArrivalAt: instant,
+  arrivalDay: day,
+  sources: z.array(z.object({ source: z.enum(ARRIVAL_SOURCES), at: instant })),
+  state: z.enum(OFFER_BOX_ENTRY_STATES),
+  applicationId: z.string().nullable(),
+  followedAt: instant.nullable(),
+});
+export type OfferBoxEntryRead = z.infer<typeof offerBoxEntrySchema>;
+
+/**
+ * `GET /api/offer-box`: the Candidate's Offer box (« Offres à traiter »), the most recent first Arrival first, with how
+ * many entries are à traiter and today's day in French time, which « Aujourd'hui » and the posting ages are read against.
+ * `offerBoxView` (`@jobhub/shared`) lays it out as the web and the app show it.
+ */
+export const offerBoxResponseSchema = z.object({
+  today: day,
+  toHandle: z.number().int().min(0),
+  entries: z.array(offerBoxEntrySchema),
+});
+export type OfferBoxResponse = z.infer<typeof offerBoxResponseSchema>;
+
 // --- Job Digests -------------------------------------------------------------------------------------------------
 
 /**
@@ -228,9 +273,10 @@ export type AgendaResponse = z.infer<typeof agendaResponseSchema>;
 
 /**
  * `GET /api/coaching`: the Human Coaches to book (`accessGranted`: the Candidate granted them Coach Access), the
- * Candidate's Coaching Sessions (`scheduledAt` null: to schedule on the Human Coach's booking page), and the price of a
- * Coaching Session for them, in the currency's smallest unit (`amount` below `regularAmount` with their Plan's discount;
- * null when it cannot be read). Never a Human Coach's email.
+ * Candidate's Coaching Sessions (`scheduledAt` null: to schedule on the Human Coach's booking page; `withdrawable`: still
+ * in its Withdrawal period and not held under the Immediate Performance Request, so « Renoncer au contrat ici » leads to
+ * its Withdrawal form), and the price of a Coaching Session for them, in the currency's smallest unit (`amount` below
+ * `regularAmount` with their Plan's discount; null when it cannot be read). Never a Human Coach's email.
  */
 export const coachingResponseSchema = z.object({
   coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean() })),
@@ -245,11 +291,25 @@ export const coachingResponseSchema = z.object({
       note: z.string().nullable(),
       changedBy: z.enum(["candidate", "coach"]).nullable(),
       reschedules: z.array(rescheduleSchema),
+      withdrawable: z.boolean(),
     }),
   ),
   price: z.object({ amount: z.number().int().min(0), regularAmount: z.number().int().min(0), currency: z.string() }).nullable(),
 });
 export type CoachingResponse = z.infer<typeof coachingResponseSchema>;
+
+/**
+ * `GET /api/coaching/order?coach=<id>`: the Order page of a Coaching Session as the app shows it before Stripe Checkout
+ * (#694, ADR-0074): the Human Coach, the Candidate's Coaching Session Price all taxes included (null when Stripe cannot
+ * tell it), and the CGV version to accept, with its permanent address on the web app (null while none is in effect).
+ * 404 when the Human Coach cannot be booked. `POST /api/coaching/order` places it.
+ */
+export const coachingOrderResponseSchema = z.object({
+  coach: named,
+  price: z.object({ amount: z.number().int().min(0), currency: z.string() }).nullable(),
+  cgv: z.object({ version: day, url: z.string() }).nullable(),
+});
+export type CoachingOrderResponse = z.infer<typeof coachingOrderResponseSchema>;
 
 // --- Profiles ----------------------------------------------------------------------------------------------------
 
@@ -304,6 +364,8 @@ export const TAILORED_DOCUMENT_KINDS = ["tailored_cv", "cover_letter", "outreach
  * `GET /api/applications/:id/documents`: the Application's Tailored Documents the Candidate has (the saved Tailored CV,
  * the Cover Letter, the Outreach Message), each in its language, with when it last changed and the addresses to download
  * it (`downloads`: as a PDF, the form a phone shows, and as Word; null for one that is not a file, the Outreach Message).
+ * `message`: the words of the one that is not a file, the Outreach Message, its subject (empty when it has none) and its
+ * text, for the app to show and share as they are; null for a file.
  */
 export const tailoredDocumentsResponseSchema = z.object({
   documentLanguage: z.enum(DOCUMENT_LANGUAGES),
@@ -313,10 +375,103 @@ export const tailoredDocumentsResponseSchema = z.object({
       language: z.enum(DOCUMENT_LANGUAGES),
       updatedAt: instant,
       downloads: z.object({ pdf: z.string(), docx: z.string() }).nullable(),
+      message: z.object({ subject: z.string(), text: z.string() }).nullable(),
     }),
   ),
 });
 export type TailoredDocumentsResponse = z.infer<typeof tailoredDocumentsResponseSchema>;
+
+// --- Company Dossier and Enriched Contacts -----------------------------------------------------------------------
+
+/** Job titles to look for at an employer, never a person: the Company Dossier's Suggested Contact Roles. */
+export const SUGGESTED_CONTACT_ROLES = ["hiring_manager", "talent_acquisition", "hr_director", "hr_manager", "chief_executive"] as const;
+export type SuggestedContactRole = (typeof SUGGESTED_CONTACT_ROLES)[number];
+
+/** The contact-data providers an Enriched Contact can come from (ADR-0015). */
+export const CONTACT_PROVIDERS = ["lusha", "kaspr", "apollo"] as const;
+export type ContactProviderId = (typeof CONTACT_PROVIDERS)[number];
+
+/** One of the employer's Company News: its title, outlet, day of publication and link, never its text. */
+const companyNewsSchema = z.object({ title: z.string(), outlet: z.string(), publishedAt: day, url: z.string() });
+
+const dossierBase = {
+  /** The employer's name the dossier was built for. */
+  employer: z.string(),
+  builtAt: instant,
+  suggestedContactRoles: z.array(z.enum(SUGGESTED_CONTACT_ROLES)),
+  /** Newest first; `newsSearched` false for a dossier built before Company News. */
+  news: z.array(companyNewsSchema),
+  newsSearched: z.boolean(),
+};
+
+/**
+ * A Company Dossier as built: from the French company register (official: the registered identity, its executives by
+ * role only, its financials newest year first), or from web sources (less reliable, with the pages its facts come
+ * from). No person is named.
+ */
+export const companyDossierSchema = z.discriminatedUnion("source", [
+  z.object({
+    ...dossierBase,
+    source: z.literal("french_register"),
+    reliability: z.literal("official"),
+    siren: z.string(),
+    name: z.string(),
+    legalForm: z.string().nullable(),
+    activity: z.string().nullable(),
+    address: z.string().nullable(),
+    headcount: z.object({ min: z.number(), max: z.number().nullable() }).nullable(),
+    financials: z.array(z.object({ year: z.number().int(), revenue: z.number().nullable(), netIncome: z.number().nullable() })),
+    executiveRoles: z.array(z.string()),
+  }),
+  z.object({
+    ...dossierBase,
+    source: z.literal("web"),
+    reliability: z.literal("less_reliable"),
+    country: z.string().nullable(),
+    address: z.string().nullable(),
+    industry: z.string().nullable(),
+    headcount: z.string().nullable(),
+    revenue: z.string().nullable(),
+    website: z.string().nullable(),
+    sources: z.array(z.string()),
+  }),
+]);
+export type CompanyDossierRead = z.infer<typeof companyDossierSchema>;
+
+/**
+ * `GET /api/applications/:id/company-dossier`: the Application's Company Dossier as last built; before it is built,
+ * whether its employer is still to be named (`employer_unknown`) or a Presumed Employer confirmed
+ * (`awaiting_confirmation`, a recruiting agency's posting).
+ */
+export const companyDossierResponseSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("not_built") }),
+  z.object({ status: z.literal("employer_unknown") }),
+  z.object({ status: z.literal("awaiting_confirmation"), presumedEmployer: z.string().nullable(), presumedEmployerDescription: z.string().nullable(), agency: z.string().nullable() }),
+  z.object({ status: z.literal("built"), dossier: companyDossierSchema }),
+]);
+export type CompanyDossierResponse = z.infer<typeof companyDossierResponseSchema>;
+
+/**
+ * `GET /api/applications/:id/enriched-contacts`: whether a contact-data provider is on (`enabled`) and can find people
+ * by job title (`searchable`), the people found at the employer (not revealed: a name and a position), and the
+ * Enriched Contacts, with their work emails and phones and where and when those were obtained.
+ */
+export const enrichedContactsResponseSchema = z.object({
+  enabled: z.boolean(),
+  searchable: z.boolean(),
+  found: z.array(z.object({ id: z.string(), name: z.string(), jobTitle: z.string().nullable() })),
+  contacts: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      jobTitle: z.string().nullable(),
+      emails: z.array(z.string()),
+      phones: z.array(z.string()),
+      source: z.object({ provider: z.enum(CONTACT_PROVIDERS), retrievedAt: instant }),
+    }),
+  ),
+});
+export type EnrichedContactsResponse = z.infer<typeof enrichedContactsResponseSchema>;
 
 // --- Coach Conversations -----------------------------------------------------------------------------------------
 
@@ -392,6 +547,8 @@ export const coachMessageSchema = z.object({
   blocked: z.literal(true).optional(),
   jobOffer: z.object({ id: z.string(), title: z.string(), employer: z.string().optional(), followed: z.boolean() }).optional(),
   cards: z.array(coachProposalCardSchema).optional(),
+  /** What its Coach Actions saw, named by page as the objects are now (#788): « Le coach a consulté… ». */
+  seenNames: z.record(z.string(), z.string().max(80)).optional(),
 });
 
 /** A Coach Conversation with its messages and its Context bar's figures. */

@@ -31,6 +31,7 @@
  * from the browser) and problems come back as results, never exceptions. A
  * search the worker never answered fails ('timeout') after SEARCH_TIMEOUT_MS,
  * when it is next read or expired, whichever comes first, and gives its use back.
+ * The Job Offers a finished, stopped or failed Job Search kept reach the Candidate's Offer box (ADR-0090, `recordArrivals`).
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
@@ -55,7 +56,9 @@ import * as z from "zod";
 import type { Applications } from "../applications";
 import type { QuotaDecision } from "../billing";
 import { visibleTo, type JobOffers } from "../job-offers";
+import { migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
+import type { PushNotifier } from "../push-notifications";
 import { fieldErrors, type FieldError } from "../validation";
 
 /** Queue the worker's Job discovery listens on. Data: { candidateId, profileId, jobSearchId? }. */
@@ -237,8 +240,9 @@ export interface JobSearchQuotas {
   release(candidateId: string, quota: WeeklyQuota): Promise<void>;
 }
 
-/** Creates or upgrades the Job Search table. Run after the Profiles' and Job Offers' migrations. */
+/** Creates or upgrades the Job Search table, and the Offer box its results arrive in. Run after the Profiles' and Job Offers' migrations. */
 export async function migrateJobSearches(database: Pool): Promise<void> {
+  await migrateOfferBox(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS job_search (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -289,11 +293,12 @@ const startSchema = z.object({ profileId: z.string().trim().min(1) });
 
 /**
  * The worker's side of Job Searches alone: recording what Job discovery found.
- * The same as `createJobSearches(...).record`, without the web app's modules.
+ * The same as `createJobSearches(...).record`, without the web app's modules. With `push`, a Job Search done with Job
+ * Offers tells its Candidate of its new results by a Push notification, once (#699).
  */
 export function createJobSearchReports(
   database: Pool,
-  { quotas, now = () => new Date() }: { quotas: Pick<JobSearchQuotas, "release">; now?: () => Date },
+  { quotas, now = () => new Date(), push }: { quotas: Pick<JobSearchQuotas, "release">; now?: () => Date; push?: PushNotifier },
 ): JobSearchReports {
   return {
     async record(jobSearchId, outcome) {
@@ -303,25 +308,34 @@ export function createJobSearchReports(
       const jobOfferIds = (outcome.jobOfferIds ?? []).filter((id) => UUID.test(id));
       // A Provenance naming an id, or of a shape this version does not know, is not kept.
       const provenance = readProvenance(outcome.provenance);
+      const at = now();
       // Only the one report that moves the Job Search out of 'searching' gets a row back.
-      const { rows } = await database.query<{ candidate_id: string }>(
+      const { rows } = await database.query<{ candidate_id: string; profile_id: string }>(
         `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}, notification_pending = true,
                 provenance = $7::jsonb, progress = NULL
          WHERE id = $1 AND status = 'searching'
-         RETURNING candidate_id`,
+         RETURNING candidate_id, profile_id`,
         [
           jobSearchId,
           status,
           jobOfferIds,
           "failed" in outcome ? outcome.failed : null,
-          now(),
+          at,
           JSON.stringify(outcome.metrics ?? noDiscoveryMetrics()),
           provenance ? JSON.stringify(provenance) : null,
         ],
       );
+      // The Job Offers it kept reach the Candidate's Offer box (ADR-0090), for its Profile.
+      if (rows[0]) await recordArrivals(database, { candidateId: rows[0].candidate_id, profileId: rows[0].profile_id, source: "job_search", at, jobOfferIds });
       // A failed Job Search is not counted; a stopped one only when it kept a Job Offer.
       const counted = status === "done" || (status === "stopped" && jobOfferIds.length > 0);
       if (!counted && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
+      // New results, the Candidate away: their devices hear of them (a stopped one, the Candidate was there).
+      if (push && rows[0] && status === "done" && jobOfferIds.length > 0) {
+        await push
+          .notify(rows[0].candidate_id, { event: "job_search_results", jobSearchId }, { once: `job_search_results:${jobSearchId}` })
+          .catch((error) => console.warn("[job-searches] the Push notification could not be queued:", error instanceof Error ? error.message : error));
+      }
     },
     async progress(jobSearchId, steps) {
       if (!UUID.test(jobSearchId)) return;

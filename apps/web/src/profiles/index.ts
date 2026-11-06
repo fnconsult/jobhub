@@ -35,6 +35,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Pool, PoolClient } from "pg";
 import * as z from "zod";
 import { PROFILE_NAME_MAX_LENGTH } from "./limits";
+import { countUse, migrateConsumption } from "../consumption";
 import { readOrigin, type Origin } from "../origin";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -396,6 +397,8 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
         masterCv,
         provenance ? JSON.stringify(provenance) : null,
       ]);
+      // A CV read from a file, saved with its reading: one CV read in Consumption (#799).
+      if (provenance) await countUse(client, candidateId, "cvReading", new Date());
       return { ok: true, profile: { id, name, archived: false, searchCriteria, masterCv: { version: 1, content: masterCv } } };
     });
   }
@@ -582,6 +585,8 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
  * Profiles while it is replaced; a later release drops them.
  */
 export async function migrateProfiles(database: Pool): Promise<void> {
+  // A CV read and saved counts in Consumption (#799).
+  await migrateConsumption(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS profile (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -638,5 +643,18 @@ export async function migrateProfiles(database: Pool): Promise<void> {
     -- From a Coach proposal the Candidate applied (#719, ADR-0077): the Origin of a Master CV Version, and of the Search Criteria.
     ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS origin jsonb;
     ALTER TABLE profile ADD COLUMN IF NOT EXISTS search_criteria_origin jsonb;
+  `);
+  // A Master CV Version, once saved, is never changed (ADR-0012, ADR-0077): every change, the Candidate's or a Coach
+  // proposal they applied, is a new version. Refused by the database itself, whoever asks; deleted with its Profile.
+  await database.query(`
+    CREATE OR REPLACE FUNCTION master_cv_version_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      RAISE EXCEPTION 'a Master CV Version is never changed: save a new version'
+        USING ERRCODE = 'restrict_violation';
+    END
+    $$;
+    DROP TRIGGER IF EXISTS master_cv_version_immutable ON master_cv_version;
+    CREATE TRIGGER master_cv_version_immutable BEFORE UPDATE ON master_cv_version
+      FOR EACH ROW EXECUTE FUNCTION master_cv_version_immutable();
   `);
 }

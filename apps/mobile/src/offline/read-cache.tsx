@@ -15,8 +15,9 @@ export type Network = { isConnected: () => Promise<boolean>; subscribe: (onChang
 
 /**
  * The app's reads (`@jobhub/shared/reads`, ADR-0076), each with whether the device keeps what was last seen of it for
- * when there is no network (#701): the menus' cards, an Application, the Agenda and the Job Offers seen. Never a Coach
- * Conversation, nor a Profile or a Tailored Document's download links.
+ * when there is no network (#701): the menus' cards, an Application and its Company Dossier, the Agenda and the Job
+ * Offers seen. Never a Coach Conversation, nor a Profile, a Tailored Document's download links or an Application's
+ * Enriched Contacts (#691: third parties' details).
  */
 const READS = {
   applications: true,
@@ -24,12 +25,15 @@ const READS = {
   agenda: true,
   jobSearches: true,
   jobSearch: true,
+  offerBox: true,
   jobOffer: true,
   jobDigests: true,
   humanCoaches: true,
+  companyDossier: true,
   profiles: false,
   profile: false,
   tailoredDocuments: false,
+  enrichedContacts: false,
   coachConversations: false,
   coachConversation: false,
 } as const satisfies Record<string, boolean>;
@@ -51,9 +55,12 @@ const BUSTER = `api-${API_VERSION}.cache-1`;
 
 /**
  * The device's copy of the read cache: written at most every SAVE_EVERY_MS, one write at a time, and `forget` drops a
- * write still waiting before it removes the copy, so nothing read before it lands after it.
+ * write still waiting before it removes the copy, so nothing read before it lands after it. A restoring still under way
+ * when it forgets gives nothing back (#756): the copy it had read belongs to the session that ended.
  */
 function devicePersister(storage: DeviceStorage): Persister & { forget: () => Promise<void> } {
+  /** How many times the cache was forgotten: a restoring started before the last one gives nothing back. */
+  let forgotten = 0;
   let waiting: PersistedClient | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let writes: Promise<void> = Promise.resolve();
@@ -71,11 +78,13 @@ function devicePersister(storage: DeviceStorage): Persister & { forget: () => Pr
       }, SAVE_EVERY_MS);
     },
     restoreClient: async () => {
+      const asked = forgotten;
       const saved = await storage.getItem(STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as PersistedClient) : undefined;
+      return saved && asked === forgotten ? (JSON.parse(saved) as PersistedClient) : undefined;
     },
     removeClient: () => queue(() => storage.removeItem(STORAGE_KEY)),
     forget: () => {
+      forgotten += 1;
       if (timer) clearTimeout(timer);
       timer = null;
       waiting = null;
@@ -126,7 +135,10 @@ function readCacheClient() {
   });
 }
 
-const ForgetContext = createContext<() => Promise<void>>(async () => {});
+/** `restart`: the screens below the provider start again, empty (the default); false when none is shown, at a session's end. */
+type ForgetReads = (options?: { restart?: boolean }) => Promise<void>;
+
+const ForgetContext = createContext<ForgetReads>(async () => {});
 
 /**
  * The app's reads, cached (TanStack Query) and kept on the device for when there is no network (ADR-0076, #701): what
@@ -139,12 +151,15 @@ export function ReadCacheProvider({ device, children }: { device: { storage: Dev
   }));
   // Every screen starts again after a sign-out, so none still shows what the cache held.
   const [session, setSession] = useState(0);
-  const forget = useCallback(async () => {
-    await cache.client.cancelQueries();
-    cache.client.clear();
-    await cache.persister.forget();
-    setSession((current) => current + 1);
-  }, [cache]);
+  const forget = useCallback<ForgetReads>(
+    async ({ restart = true } = {}) => {
+      await cache.client.cancelQueries();
+      cache.client.clear();
+      await cache.persister.forget();
+      if (restart) setSession((current) => current + 1);
+    },
+    [cache],
+  );
   useNetworkFollowed(device.network);
   return (
     <PersistQueryClientProvider
@@ -164,7 +179,7 @@ export function ReadCacheProvider({ device, children }: { device: { storage: Dev
 }
 
 /**
- * Empties the read cache, in the app and on the device, a write still waiting included; to await at sign-out, before
- * the session is dropped (#685). The screens below the provider start again, empty.
+ * Empties the read cache, in the app and on the device, a write still waiting included; to await whenever a session
+ * ends (#685, #695: SessionGate). The screens below the provider start again, empty, unless `restart` is false.
  */
 export const useForgetReads = () => useContext(ForgetContext);

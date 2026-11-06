@@ -40,6 +40,6 @@ Wait for your next alert, or forward one by hand: « First email received on …
 ## Your job offers received by email
 - zoom off
 - goto /recherches
-- click link « See the job offers received by email »
+- click link « Received by email »
 
-Open the Job searches page, then « See the job offers received by email »: the job offers from your emails arrive in « Received by email », under the profile they match best, or in « Unclassified » when no profile reaches 60.
+Open the Job searches page: the job offers from your emails arrive in « Offers to handle », with the « Email » chip. At the foot of the box, « Received by email » sorts them under the profile they match best, or in « Unclassified » when no profile reaches 60.

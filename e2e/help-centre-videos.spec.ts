@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync 
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import AxeBuilder from "@axe-core/playwright";
+import AxeBuilder from "./support/axe";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { conversationOf } from "./support/conversation";

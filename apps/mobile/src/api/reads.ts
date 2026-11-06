@@ -1,37 +1,128 @@
-import { useQuery } from "@tanstack/react-query";
+/**
+ * The Candidate's reads the app's screens use (`@jobhub/shared/reads`, #684): each a GET of the web app's `/api/*`
+ * through `useApi()`, so it carries the API Version and the session, parsed with the read's own schema, and cached
+ * under its `readKey` in the read cache (#701), which keeps on the device only what READS lists. A read answered 401
+ * has the session checked (SessionGate), so a session ended on the web app signs the app out.
+ */
+import {
+  agendaResponseSchema,
+  applicationResponseSchema,
+  companyDossierResponseSchema,
+  enrichedContactsResponseSchema,
+  offerBoxResponseSchema,
+  profileResponseSchema,
+  profilesResponseSchema,
+  tailoredDocumentsResponseSchema,
+  type AgendaResponse,
+  type ApplicationResponse,
+  type CompanyDossierResponse,
+  type EnrichedContactsResponse,
+  type OfferBoxResponse,
+  type ProfileResponse,
+  type ProfilesResponse,
+  type TailoredDocumentsResponse,
+} from "@jobhub/shared/reads";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { readKey, type ReadName } from "../offline/read-cache";
+import { useSession } from "../session/SessionGate";
 import { useApi, type ApiFetch } from "./api";
 
-/** A GET the web app answered with something other than a success: `status` says what (401 signed out, 5xx down). */
+/** The web app answered a read with an error: `status` 404 for what is not the Candidate's (or does not exist). */
 export class ReadFailed extends Error {
-  constructor(
-    readonly path: string,
-    readonly status: number,
-  ) {
-    super(`GET ${path} answered ${status}`);
+  constructor(readonly status: number) {
+    super(`read answered ${status}`);
     this.name = "ReadFailed";
   }
 }
 
-/** A refusal (4xx) is answered the same way again: only a network failure or the web app's own error is tried once more. */
-const tryAgain = (failures: number, error: Error) => failures < 1 && !(error instanceof ReadFailed && error.status < 500);
+/**
+ * Whether the network failed on the way: the global fetch rejects with a TypeError, the app's `expo/fetch` (`appFetch`)
+ * with a FetchError, which it does not export and whose message starts « fetch failed: » (expo's FetchErrors.ts).
+ */
+const networkFailed = (error: Error) => error instanceof TypeError || error.message.startsWith("fetch failed:");
 
-/** A GET of `path` through `api`, its JSON body parsed by `schema`; ReadFailed on any other answer than a success. */
-export async function read<T>(api: ApiFetch, path: string, schema: { parse: (body: unknown) => T }): Promise<T> {
-  const response = await api(path);
-  if (!response.ok) throw new ReadFailed(path, response.status);
+/**
+ * A read is tried again once by itself when the network failed on the way or the web app failed (5xx); never when it
+ * refused it (4xx), when the app is outdated (426), nor when the answer is not the read's shape.
+ */
+const tryAgain = (failures: number, error: Error) => failures < 1 && (error instanceof ReadFailed ? error.status >= 500 : networkFailed(error));
+
+export type Read<T> = UseQueryResult<T, Error>;
+
+/** A read's schema, from `@jobhub/shared/reads`: what parses the web app's answer. */
+type Schema<T> = { parse: (answer: unknown) => T };
+
+/**
+ * A GET of `path` through `api`, its JSON body parsed by `schema`; ReadFailed on any other answer than a success. For a
+ * read the device never keeps and that needs no session check (LegalSteps, the Espace coach entry, #689).
+ */
+export async function read<T>(api: ApiFetch, path: string, schema: Schema<T>, signal?: AbortSignal): Promise<T> {
+  const response = await api(path, { signal });
+  if (!response.ok) throw new ReadFailed(response.status);
   return schema.parse(await response.json());
 }
 
 /**
- * A GET of the web app's API (`@jobhub/shared/reads`, ADR-0076) through the read cache under `name` (READS says whether
- * the device keeps it for when there is no network), its body parsed by `schema`, the type the route answers.
+ * A GET of `path` through the read cache under `name` (READS says whether the device keeps it for when there is no
+ * network), parsed by `schema`; not read while `enabled` is false. A read answered 401 has the session checked. With
+ * `readAgain`, read again after the number of ms it gives for what was last read (and when), until it gives false: a
+ * page waiting for something to happen on the web app.
  */
-export function useRead<T>(name: ReadName, path: string, schema: { parse: (body: unknown) => T }, params: readonly string[] = []) {
+export function useRead<T>(
+  name: ReadName,
+  path: string,
+  schema: Schema<T>,
+  params: readonly string[] = [],
+  enabled = true,
+  { readAgain }: { readAgain?: (data: T | undefined, readAt: number) => number | false } = {},
+): Read<T> {
   const api = useApi();
-  return useQuery({
+  const { recheck } = useSession();
+  const query = useQuery({
     queryKey: readKey(name, ...params),
-    queryFn: () => read(api, path, schema),
+    queryFn: ({ signal }) => read(api, path, schema, signal),
     retry: tryAgain,
+    enabled,
+    refetchInterval: readAgain ? (query) => readAgain(query.state.data, query.state.dataUpdatedAt) : false,
   });
+  // Answered 401, the session ended on the web app (revoked, expired): checking it takes the app back to sign-in,
+  // which forgets every read (SessionGate).
+  const unauthorized = query.error instanceof ReadFailed && query.error.status === 401;
+  useEffect(() => {
+    if (unauthorized) void recheck();
+  }, [unauthorized, recheck]);
+  return query;
 }
+
+const segment = encodeURIComponent;
+
+/** `GET /api/profiles`: the Candidate's active Profiles, oldest first (Mon compte). */
+export const useProfiles = (): Read<ProfilesResponse> => useRead("profiles", "/api/profiles", profilesResponseSchema, []);
+
+/** `GET /api/profiles/:id`: one of the Candidate's Profiles to read; not read while `id` is null. */
+export const useProfile = (id: string | null): Read<ProfileResponse> => useRead("profile", `/api/profiles/${segment(id ?? "")}`, profileResponseSchema, [id ?? ""], id !== null);
+
+/** `GET /api/agenda`: the Candidate's Agenda, « À planifier » then the upcoming days (#693); kept on the device (READS). */
+export const useAgenda = (): Read<AgendaResponse> => useRead("agenda", "/api/agenda", agendaResponseSchema, []);
+
+/** `GET /api/applications/:id`: one of the Candidate's Applications, its Job Offer named, with its Interviews; not read while `id` is null. */
+export const useApplication = (id: string | null): Read<ApplicationResponse> =>
+  useRead("application", `/api/applications/${segment(id ?? "")}`, applicationResponseSchema, [id ?? ""], id !== null);
+
+/** `GET /api/applications/:id/documents`: an Application's Tailored Documents, with where to download them. */
+export const useTailoredDocuments = (applicationId: string): Read<TailoredDocumentsResponse> =>
+  useRead("tailoredDocuments", `/api/applications/${segment(applicationId)}/documents`, tailoredDocumentsResponseSchema, [applicationId]);
+
+/** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
+export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);
+/** `GET /api/applications/:id/company-dossier`: an Application's Company Dossier as the web app last built it; kept on the device (READS). */
+export const useCompanyDossier = (applicationId: string): Read<CompanyDossierResponse> =>
+  useRead("companyDossier", `/api/applications/${segment(applicationId)}/company-dossier`, companyDossierResponseSchema, [applicationId]);
+
+/**
+ * `GET /api/applications/:id/enriched-contacts`: the people found at an Application's employer and its Enriched
+ * Contacts; never kept on the device (READS), a third party's personal data.
+ */
+export const useEnrichedContacts = (applicationId: string): Read<EnrichedContactsResponse> =>
+  useRead("enrichedContacts", `/api/applications/${segment(applicationId)}/enriched-contacts`, enrichedContactsResponseSchema, [applicationId]);

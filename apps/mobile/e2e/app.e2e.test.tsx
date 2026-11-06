@@ -63,6 +63,18 @@ jest.mock("../src/session/instance", () => {
         toHandle: 1,
         archivedHidden: 0,
       },
+      "/api/applications/a1": {
+        id: "a1",
+        status: "interview",
+        statusChangedAt: "2026-11-02T09:00:00.000Z",
+        createdAt: "2026-10-28T09:00:00.000Z",
+        jobOffer: { id: "o1", title: "Responsable qualité", employer: "Aéroline", location: "Toulouse", url: null, postedAt: null, expiredAt: null },
+        profile: { id: "p1", name: "Qualité aéronautique" },
+        matchScore: 82,
+        reportedUnavailableAt: null,
+        interviews: [],
+      },
+      "/api/applications/a1/documents": { documentLanguage: "fr", documents: [] },
       "/api/agenda": { toSchedule: [], days: [] },
     },
   });
@@ -203,11 +215,11 @@ describe("Jobbbox app, on a phone", () => {
     await launch("/candidatures/a1");
     const user = userEvent.setup();
     await user.press(button("Fiche"));
-    await user.press(button("Ouvrir une Section d'exemple"));
-    expect(screen.getByText("Section d'exemple")).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Ouvrir une Section d'exemple" })).toBeNull();
+    await user.press(await screen.findByRole("button", { name: "Correspondance" }));
+    expect(screen.getByText("Le score de correspondance compare le CV de référence du profil « Qualité aéronautique » à cette offre et à vos critères de recherche.")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Correspondance" })).toBeNull();
     await user.press(button("Fermer"));
-    expect(button("Ouvrir une Section d'exemple")).toBeOnTheScreen();
+    expect(button("Correspondance")).toBeOnTheScreen();
     await user.press(button("Fermer"));
     expect(button("Menu")).toBeOnTheScreen();
   });
@@ -277,7 +289,7 @@ describe("Jobbbox app, at the 64rem threshold", () => {
   it("lays out in columns from exactly 64rem (1024 pt): the Fiche beside the conversation, the Sidebar a drawer for want of 28rem", async () => {
     window(1024, 768);
     await launch("/candidatures/a1");
-    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+    expect(await screen.findByText("Statut")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Fermer" })).toBeNull();
     // 64 - 16 (Sidebar) - 20 (Fiche) - 3 gutters = 25rem, under 28rem: the Sidebar leaves its column.
     expect(sidebar()).toBeNull();
@@ -831,11 +843,11 @@ describe("Jobbbox app, with the hardware keyboard's other shortcuts (#700)", () 
 
   it("closes and reopens the Fiche with ⌘I", async () => {
     await launch("/candidatures/a1");
-    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+    expect(await screen.findByText("Statut")).toBeOnTheScreen();
     await act(() => keyboard().press("⌘I"));
-    expect(screen.queryByText(/La Fiche montrera ici/)).toBeNull();
+    expect(screen.queryByText("Statut")).toBeNull();
     await act(() => keyboard().press("⌘I"));
-    expect(screen.getByText(/La Fiche montrera ici/)).toBeOnTheScreen();
+    expect(screen.getByText("Statut")).toBeOnTheScreen();
   });
 
   it("closes the Work Pane with Échap, listed in the panel only while it is open", async () => {
@@ -845,10 +857,10 @@ describe("Jobbbox app, with the hardware keyboard's other shortcuts (#700)", () 
         .panel()
         .some((entry) => entry.startsWith("Échap")),
     ).toBe(false);
-    await userEvent.setup().press(button("Ouvrir une Section d'exemple"));
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Correspondance" }));
     expect(keyboard().panel()).toContain("Échap Fermer le volet");
     await act(() => keyboard().press("Échap"));
-    expect(screen.queryByText(/Le Work Pane montrera ici/)).toBeNull();
+    expect(screen.queryByText(/Le score de correspondance compare/)).toBeNull();
     expect(
       keyboard()
         .panel()

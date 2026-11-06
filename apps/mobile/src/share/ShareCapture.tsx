@@ -9,7 +9,7 @@ import { useOnline } from "../offline/read-cache";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
-import { Field, FieldError } from "../ui/Field";
+import { Field, FieldError } from "../ui/TextField";
 import { forgetShare, usePendingShare } from "./pending-share";
 
 /** What the screen says after « Envoyer à Jobbbox », when no Job Offer came of it. */

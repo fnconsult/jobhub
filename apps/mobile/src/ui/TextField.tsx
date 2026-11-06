@@ -1,8 +1,9 @@
-import { TextInput, View, type TextInputProps } from "react-native";
+import type { TextInputProps } from "react-native";
+import { TextInput, View } from "react-native";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
 import { AppText } from "./AppText";
 
-/** What the web app refused, said under its field (or the form) as an alert. */
+/** What the web app refused of a field, said under it, read out as an alert. */
 export function FieldError({ message }: { message: string | null }) {
   if (!message) return null;
   return (

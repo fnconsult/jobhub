@@ -6,10 +6,10 @@
  */
 import { scrubSecrets } from "@jobhub/shared";
 import type { CountryCode } from "../countries";
+import { CONTACT_PROVIDERS, type ContactProviderId } from "@jobhub/shared/reads";
 
 /** The data providers an adapter exists for. */
-export const CONTACT_PROVIDERS = ["lusha", "kaspr", "apollo"] as const;
-export type ContactProviderId = (typeof CONTACT_PROVIDERS)[number];
+export { CONTACT_PROVIDERS, type ContactProviderId };
 
 /** CONTACT_ENRICHMENT_PROVIDER's value for no provider: Enriched Contacts off (#302), as when it is left empty. */
 export const NO_PROVIDER = "none";

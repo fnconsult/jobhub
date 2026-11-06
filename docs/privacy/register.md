@@ -105,7 +105,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Purpose | Show a signed-in Candidate, without network, what the Jobbbox app last read for them, and say so (« Hors ligne »); nothing is written offline. |
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)). Storage on the device strictly necessary to the service the Candidate asks for (ePrivacy art. 5(3), exemption): no consent asked. |
 | People concerned | Candidates using the app; people named in what they read (an Interview's contact, a Human Coach's name). |
-| Data | The answers last read for the menus' cards (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), an Application with its Interviews, a Job Search's Job Offers and a Job Offer seen, as `@jobhub/shared/reads` types them, with when each was read. Never a Coach Conversation, a Profile, a Tailored Document's download links, the session or a write waiting to be sent (`apps/mobile/src/offline/read-cache.tsx`, `READS`). |
+| Data | The answers last read for the menus' cards (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), an Application with its Interviews and its Company Dossier (no person named, #691), a Job Search's Job Offers and a Job Offer seen, as `@jobhub/shared/reads` types them, with when each was read. Never a Coach Conversation, a Profile, a Tailored Document's download links, an Application's Enriched Contacts (#691), the session or a write waiting to be sent (`apps/mobile/src/offline/read-cache.tsx`, `READS`). |
 | Source | The web app's GETs, read by the app with the Candidate's session. |
 | Who can read it | Anyone who can open the app on the unlocked device: nothing is sent anywhere from it. |
 | Processors | None: it stays on the device. |
@@ -614,8 +614,8 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 8. Switched off unt
 | Data | The contact's name, position, work email and phone, LinkedIn address; the Application it is for. |
 | Source | The contact-enrichment provider chosen (Lusha, Kaspr or Apollo), which receives an employer's name or domain, job titles, a country, and returns the details. |
 | Processors | The provider chosen: Lusha Systems, Inc. (Israel, adequacy; SCC), KASPR SAS (France; place not established, SCC on request) or ZenLeads Inc., Apollo.io (United States; DPF and SCC). Each is also a controller of its own database. Claude's direct API sees only the contact's name and position, in a Tailored document. |
-| Who can read it | The Candidate. |
-| Storage | The `enriched_contact` table in the app's Postgres database (EU). |
+| Who can read it | The Candidate, on the web and in the Jobbbox app (#691): the app reads them with the Candidate's session (`GET /api/applications/:id/enriched-contacts`: the person's name, position, emails and phones, the provider and when they were obtained; never the provider's id of the person) and only shows them; an email or a number touched opens the device's mail or phone app. |
+| Storage | The `enriched_contact` table in the app's Postgres database (EU). The Jobbbox app keeps them in memory while it shows them, never on the device (not in its read cache, `READS`). |
 | Retention | While the Application lives; deleted with the account. |
 | Rights | In the Data export. A third party's request is answered by the Jobbbox team (GDPR art. 14: the source is the provider). |
 

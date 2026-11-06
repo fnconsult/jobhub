@@ -17,8 +17,10 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Mes candidatures"
-- extendedWaitUntil:
-    visible: "Responsable qualité · Aéroline Démo"
+- scrollUntilVisible:
+    element:
+      text: "Responsable qualité · Aéroline Démo"
+    direction: DOWN
     timeout: 20000
 - assertVisible: "Contrôleuse de gestion · Transports Ravel Démo"
 - runFlow:
@@ -38,8 +40,10 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Recherches d'offres"
-- extendedWaitUntil:
-    visible: "Vos recherches par profil"
+- scrollUntilVisible:
+    element:
+      text: "Vos recherches par profil"
+    direction: DOWN
     timeout: 20000
 - runFlow:
     file: ../subflows/capture.yaml
@@ -50,8 +54,10 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Agenda"
-- extendedWaitUntil:
-    visible: "Contrôleuse de gestion"
+- scrollUntilVisible:
+    element:
+      text: "Contrôleuse de gestion"
+    direction: DOWN
     timeout: 20000
 - runFlow:
     file: ../subflows/capture.yaml

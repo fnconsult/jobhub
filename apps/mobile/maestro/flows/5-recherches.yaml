@@ -11,8 +11,10 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Recherches d'offres"
-- extendedWaitUntil:
-    visible: "Vos recherches par profil"
+- scrollUntilVisible:
+    element:
+      text: "Vos recherches par profil"
+    direction: DOWN
     timeout: 20000
 - assertVisible: "Lancer une recherche"
 - assertVisible: "Offres trouvées : 2"

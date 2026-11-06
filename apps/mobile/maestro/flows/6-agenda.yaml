@@ -9,11 +9,15 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Agenda"
-- extendedWaitUntil:
-    visible: "Contrôleuse de gestion"
+- scrollUntilVisible:
+    element:
+      text: "Contrôleuse de gestion"
+    direction: DOWN
     timeout: 20000
 - tapOn: "Contrôleuse de gestion"
-- extendedWaitUntil:
-    visible: "Voir dans l'agenda"
+- scrollUntilVisible:
+    element:
+      text: "Voir dans l'agenda"
+    direction: DOWN
     timeout: 20000
 - assertVisible: "Avec la DRH"

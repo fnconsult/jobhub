@@ -11,8 +11,10 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Mes candidatures"
-- extendedWaitUntil:
-    visible: "Responsable qualité · Aéroline Démo"
+- scrollUntilVisible:
+    element:
+      text: "Responsable qualité · Aéroline Démo"
+    direction: DOWN
     timeout: 20000
 - tapOn: "Responsable qualité · Aéroline Démo"
 - runFlow: ../subflows/fiche.yaml
@@ -23,8 +25,10 @@ tags:
     visible: "Statut : Entretien"
     timeout: 20000
 - tapOn: "Entretiens"
-- extendedWaitUntil:
-    visible: "Voir dans l'agenda"
+- scrollUntilVisible:
+    element:
+      text: "Voir dans l'agenda"
+    direction: DOWN
     timeout: 20000
 - runFlow:
     file: ../subflows/field.yaml
@@ -55,6 +59,8 @@ tags:
       visible: "Être prévenu la veille de vos rendez-vous \\?"
     commands:
       - tapOn: "Pas maintenant"
-- extendedWaitUntil:
-    visible: "Second tour"
+- scrollUntilVisible:
+    element:
+      text: "Second tour"
+    direction: DOWN
     timeout: 20000

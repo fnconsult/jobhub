@@ -1,9 +1,8 @@
-# Opens the app where it was, signs the run's Candidate in when it asks (a run that only takes the key screens comes
-# here first), and waits for a conversation's box.
+# Opens the app afresh on its home page, the session kept; signs the run's Candidate in when it asks (a run that only
+# takes the key screens comes here first), and waits for a conversation's box.
 appId: ai.jobbbox.app
 ---
-- launchApp:
-    stopApp: false
+- launchApp
 - runFlow:
     when:
       visible: "Se connecter à Jobbbox"

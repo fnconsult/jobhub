@@ -9,6 +9,8 @@ import {
   applicationResponseSchema,
   companyDossierResponseSchema,
   enrichedContactsResponseSchema,
+  jobDigestResponseSchema,
+  jobSearchResponseSchema,
   offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
@@ -17,6 +19,8 @@ import {
   type ApplicationResponse,
   type CompanyDossierResponse,
   type EnrichedContactsResponse,
+  type JobDigestResponse,
+  type JobSearchResponse,
   type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
@@ -116,6 +120,22 @@ export const useTailoredDocuments = (applicationId: string): Read<TailoredDocume
 
 /** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
 export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);
+
+/** How often a Job Search's page reads it again while it searches: the web's page refreshes itself as often. */
+const WHILE_SEARCHING_MS = 5000;
+
+/**
+ * `GET /api/job-searches/:id`: one of the Candidate's Job Searches and its Job Offers, best Match Score first, read again
+ * while it searches; kept on the device (READS), so its Job Offers open offline.
+ */
+export const useJobSearch = (id: string): Read<JobSearchResponse> =>
+  useRead("jobSearch", `/api/job-searches/${segment(id)}`, jobSearchResponseSchema, [id], true, {
+    readAgain: (search) => (search?.status === "searching" ? WHILE_SEARCHING_MS : false),
+  });
+
+/** `GET /api/job-digests/:id`: one of the Candidate's Job Digests sent and its Job Offers, best Match Score first; kept on the device (READS). */
+export const useJobDigest = (id: string): Read<JobDigestResponse> => useRead("jobDigest", `/api/job-digests/${segment(id)}`, jobDigestResponseSchema, [id]);
+
 /** `GET /api/applications/:id/company-dossier`: an Application's Company Dossier as the web app last built it; kept on the device (READS). */
 export const useCompanyDossier = (applicationId: string): Read<CompanyDossierResponse> =>
   useRead("companyDossier", `/api/applications/${segment(applicationId)}/company-dossier`, companyDossierResponseSchema, [applicationId]);

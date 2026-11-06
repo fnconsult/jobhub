@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import { Briefcase, Calendar, Mail, Search, Users, type LucideIcon } from "lucide-react-native";
+import { SHARE_PATH } from "@jobhub/shared";
 import type { ApplicationResponse, ProfileResponse } from "@jobhub/shared/reads";
 import type { ShellPage } from "../shell/Shell";
 
@@ -41,6 +42,8 @@ export const paths = {
   coachSpace: "/espace-coach",
   /** Réglages de l'app, the device's own settings: the app's alone, the web has no such page. */
   appSettings: "/reglages",
+  /** The capture screen of Share capture (#697), which the share sheet opens: the app's alone too. */
+  share: SHARE_PATH,
 } as const;
 
 /** The web app's pages some of the app's open, where their address is not the app's own (#689). */
@@ -87,7 +90,7 @@ export const isCurrent = (pathname: string, path: string) => (path === paths.hom
 /**
  * The page at `pathname` as the shell shows it: its title, and its column, the Fiche on an object's page (an
  * Application's, a Profile's), Activité alone on the home page, a menu or a Free conversation, none on Mon compte, the
- * subscription, the Legal Texts, the Coach space or Réglages de l'app.
+ * subscription, the Legal Texts, the Coach space, Réglages de l'app or the capture screen of Share capture.
  * An Application's page is titled with its Job Offer once `read.application` has it (`GET /api/applications/:id`),
  * « Candidature » until then, and its title leads back to Mes candidatures (`up`, as iOS's back arrow does); a
  * Profile's page with its name once `read.profile` has it (`GET /api/profiles/:id`), « Profil » until then; a Free
@@ -117,5 +120,6 @@ export function pageFor(
   if (under(pathname, paths.legal)) return page(t("legal.documentsNav"), null);
   if (under(pathname, paths.coachSpace)) return page(t("account.coachSpace"), null);
   if (under(pathname, paths.appSettings)) return page(t("mobile.appSettings"), null);
+  if (under(pathname, paths.share)) return page(t("shareCapture.title"), null);
   return page(t("mobile.homeTitle"), "activite");
 }

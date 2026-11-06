@@ -6233,5 +6233,32 @@
     "cancelledBody": "Nothing was paid. You can book a session later from the app.",
     "backToApp": "Back to the Jobbbox app",
     "onWeb": "See my human coaches on the website"
+  },
+  "shareCapture": {
+    "message": "Job offer shared from another app: {{title}}",
+    "reply": "I saved this job offer in Jobbbox. Only you can see it. Tap “Score against my profile” to see whether it fits you.",
+    "title": "Share to Jobbbox",
+    "intro": "Check what you are sending to Jobbbox: it becomes a job offer only you can see, opened in its own conversation.",
+    "link": "Job offer link",
+    "text": "Job offer text",
+    "textHint": "Paste the job offer's text here if its site does not let Jobbbox read it.",
+    "send": "Send to Jobbbox",
+    "sending": "Reading the job offer…",
+    "cancel": "Cancel",
+    "nothing": "Nothing was shared. Share a job offer from your browser, LinkedIn, Indeed or Mail, then choose Jobbbox.",
+    "needsText": {
+      "forbiddenSite": "This site does not let Jobbbox read its job offers. Share or paste the job offer's text below, then send it.",
+      "unreadable": "Jobbbox could not read this page: the site does not allow it, asks you to sign in or does not answer. Share or paste the job offer's text below, then send it.",
+      "notAJobOffer": "This link does not seem to lead to a single job offer. Share or paste the job offer's text below, then send it."
+    },
+    "notAJobOffer": "This text does not seem to be a job offer. Paste the job offer's full text, then send it.",
+    "invalid": "This share cannot be sent: it needs a web link or a job offer's text (100,000 characters at most).",
+    "failed": "The job offer could not be sent. Check your connection and try again.",
+    "score": "Score against my profile",
+    "scoreAgainst": "Score against “{{profile}}”",
+    "scoring": "Scoring…",
+    "scored": "Match Score: {{score}} / 100 against “{{profile}}”",
+    "noProfile": "To score this job offer, first create a profile on jobbbox.ai.",
+    "scoreFailed": "The score could not be computed. Try again."
   }
 }

@@ -1,7 +1,8 @@
 # Scrolls the open pane down until TEXT shows: the Fiche's or the Work Pane's column beside the conversation on a
 # tablet (LAYOUT columns, the pane at the window's right), the pane over the whole window otherwise, an iPad's Split View
 # then the left half only. Maestro's scrollUntilVisible swipes the middle of the screen, which on a tablet is the
-# conversation: the pane's « Note (facultatif) » was never reached. In short, slow steps, as conversation-scroll.yaml.
+# conversation: the pane's « Note (facultatif) » was never reached. In short, slow steps, as conversation-scroll.yaml, until
+# TEXT starts below the top of the pane's body (iOS counts the part it clips as visible).
 appId: ai.jobbbox.app
 ---
 - runFlow:
@@ -10,7 +11,10 @@ appId: ai.jobbbox.app
     commands:
       - repeat:
           while:
-            notVisible: ${TEXT}
+            notVisible:
+              text: ${TEXT}
+              below:
+                id: "pane-body"
           times: 25
           commands:
             - swipe:
@@ -23,11 +27,17 @@ appId: ai.jobbbox.app
     commands:
       - repeat:
           while:
-            notVisible: ${TEXT}
+            notVisible:
+              text: ${TEXT}
+              below:
+                id: "pane-body"
           times: 25
           commands:
             - swipe:
                 start: "40%, 45%"
                 end: "40%, 30%"
                 duration: 800
-- assertVisible: ${TEXT}
+- assertVisible:
+    text: ${TEXT}
+    below:
+      id: "pane-body"

@@ -10,6 +10,8 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               id: ${ID}
+              below:
+                id: "pane-body"
           times: 25
           commands:
             - swipe:
@@ -24,6 +26,8 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               id: ${ID}
+              below:
+                id: "pane-body"
           times: 25
           commands:
             - swipe:
@@ -32,3 +36,5 @@ appId: ai.jobbbox.app
                 duration: 800
 - assertVisible:
     id: ${ID}
+    below:
+      id: "pane-body"

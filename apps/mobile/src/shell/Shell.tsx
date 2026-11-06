@@ -257,7 +257,12 @@ function PaneHeader({ title, onClose }: { title: string; onClose: (() => void) |
 /** A pane's content: scrolling in the pane, or filling it (`fill`) when it scrolls itself. */
 function PaneBody({ fill, children }: { fill: boolean; children: ReactNode }) {
   if (fill) return <View style={{ flex: 1, padding: space[4], paddingTop: 0 }}>{children}</View>;
-  return <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>;
+  // Its id, for the Maestro flows to scroll the pane until an element starts within it (apps/mobile/maestro/subflows).
+  return (
+    <ScrollView testID="pane-body" contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>
+      {children}
+    </ScrollView>
+  );
 }
 
 /** A pane beside the conversation, from 64rem. */

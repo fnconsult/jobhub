@@ -84,6 +84,7 @@ export function Conversation({
     <View style={{ flex: 1 }}>
       <ScrollView
         ref={thread}
+        testID="conversation-thread"
         aria-label={t("coachPanel.messagesLabel")}
         onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => (following.current = atEnd(event.nativeEvent))}
         scrollEventThrottle={100}
@@ -95,7 +96,7 @@ export function Conversation({
           {children}
         </View>
       </ScrollView>
-      <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2], gap: space[1] }}>
+      <View testID="conversation-box" style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2], gap: space[1] }}>
         {aboveBox}
         {online ? null : (
           <AppText variant="meta" tone="secondary">

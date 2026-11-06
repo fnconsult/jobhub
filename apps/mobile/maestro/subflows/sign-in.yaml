@@ -43,11 +43,13 @@ appId: ai.jobbbox.app
       text: "Recevoir mon lien de connexion"
     direction: DOWN
 - tapOn: "Recevoir mon lien de connexion"
-- extendedWaitUntil:
-    visible:
+# The code's field, below the screen's fold at the largest text size on an iPhone SE (the explanation above it takes
+# the screen): scrolled to while the email is sent.
+- scrollUntilVisible:
+    element:
       id: "sign-in-code"
+    direction: DOWN
     timeout: 30000
-- assertVisible: "Me connecter avec ce code"
 - runScript: ../scripts/sign-in-code.js
 - tapOn:
     id: "sign-in-code"

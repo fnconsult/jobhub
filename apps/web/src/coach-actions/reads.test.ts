@@ -217,7 +217,7 @@ describe("read_profile (#714)", () => {
     const huge: Profile = { ...wordy, masterCv: { ...wordy.masterCv, content: { ...wordy.masterCv.content, summary: long } } };
     const cut = await (await setUp(workspace({ profiles: [huge] }))).read("read_profile", { id: huge.id });
     expect(estimateTokens(cut.content)).toBeLessThanOrEqual(COACH_ACTION_RESULT_MAX_TOKENS + 10);
-    expect(cut.content).toContain("(la suite est coupée)");
+    expect(cut.content).toContain("(la suite est coupée : ce résultat dépassait la taille d'une lecture ; ne suppose rien de ce qui manque");
   });
 });
 
@@ -257,7 +257,7 @@ describe("read_application (#714)", () => {
     expect(estimateTokens(content)).toBeLessThanOrEqual(COACH_ACTION_RESULT_MAX_TOKENS + 10);
     expect(content).toContain("Statut : Postulée");
     expect(content).toContain("Score de correspondance");
-    expect(content).toContain("(la suite est coupée)");
+    expect(content).toContain("(la suite est coupée : ce résultat dépassait la taille d'une lecture ; ne suppose rien de ce qui manque");
   });
 });
 

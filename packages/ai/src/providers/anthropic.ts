@@ -112,6 +112,28 @@ function blockOf(block: ContentBlock): Anthropic.ContentBlockParam[] {
   }
 }
 
+const EPHEMERAL = { type: "ephemeral" } as const;
+
+/**
+ * The system text and messages with Claude's prompt cache breakpoints (#790), for `input.cache`: one on the system text
+ * (the tools and it, the same every Turn), one at the end of the conversation asked (`prefixMessages`), one at the end
+ * of the latest message, so the next Turn reads everything before it from the cache. 3 of Claude's 4; a message whose
+ * text is a string becomes one text block to carry it. Without `cache`, what was always sent.
+ */
+function cached(input: TextInput, messages: Anthropic.MessageParam[]): Pick<Anthropic.MessageCreateParamsNonStreaming, "system" | "messages"> {
+  if (!input.cache) return { ...(input.system ? { system: input.system } : {}), messages };
+  const marks = new Set([input.cache.prefixMessages - 1, messages.length - 1].filter((index) => index >= 0 && index < messages.length));
+  const marked = messages.map((message, index): Anthropic.MessageParam => {
+    if (!marks.has(index)) return message;
+    const blocks: Anthropic.ContentBlockParam[] = typeof message.content === "string" ? (message.content ? [{ type: "text", text: message.content }] : []) : [...message.content];
+    const last = blocks.at(-1);
+    if (!last) return message;
+    blocks[blocks.length - 1] = { ...last, cache_control: EPHEMERAL } as Anthropic.ContentBlockParam;
+    return { ...message, content: blocks };
+  });
+  return { ...(input.system ? { system: [{ type: "text", text: input.system, cache_control: EPHEMERAL }] } : {}), messages: marked };
+}
+
 /** The input's tools and tool choice, as Claude takes them; nothing without tools. */
 function toolsOf(input: TextInput): Pick<Anthropic.MessageCreateParamsNonStreaming, "tools" | "tool_choice"> {
   if (!input.tools?.length) return {};
@@ -160,6 +182,8 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
     endpoint: endpoint.kind === "direct" ? "api.anthropic.com" : `${endpoint.kind} ${endpoint.region}`,
     residency: residencyOf(endpoint),
     toolCalling: true,
+    // Claude caches only where the call marks it (cache_control), on the direct API, Bedrock and Vertex alike.
+    promptCache: "explicit",
 
     async generate(input: TextInput): Promise<TextOutput> {
       client ??= clientFor(options);
@@ -169,8 +193,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
         message = await client.messages.create({
           model,
           max_tokens: input.maxTokens,
-          ...(input.system ? { system: input.system } : {}),
-          messages: messagesOf(input.messages),
+          ...cached(input, messagesOf(input.messages)),
           ...toolsOf(input),
           ...(input.effort && effortHandling("anthropic", model) === "native" ? { output_config: { effort: input.effort } } : {}),
         }, input.signal ? { signal: input.signal } : undefined);

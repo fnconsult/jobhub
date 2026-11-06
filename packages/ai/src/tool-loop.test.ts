@@ -8,7 +8,7 @@ import { createAiLayer, type AiLayerOptions, type GenerateRequest, type ToolRunn
 import { costInEur } from "./cost";
 import { AiConfigError } from "./errors";
 import { createFakeProvider, createMemoryUsageLog, type FakeProviderOptions, type FakeTurn } from "./testing";
-import type { ToolDefinition } from "./types";
+import type { TokenUsage, ToolDefinition } from "./types";
 
 const TOOLS: ToolDefinition[] = [
   { name: "candidatures_lister", description: "Liste les candidatures.", parameters: { type: "object", properties: { statut: { type: "string" } } } },
@@ -410,5 +410,82 @@ describe("Stop during a call with tools (#712, #325)", () => {
       ["ok", undefined, true],
       ["failed", "stopped", false],
     ]);
+  });
+});
+
+describe("the prompt cache of a call with tools (#790)", () => {
+  /** A read result of about 1 500 tokens, as a Coach Action's read may give at most. */
+  const LONG_RESULT = `[${Array.from({ length: 120 }, (_, n) => `{"poste":"Directeur financier ${n}","statut":"envoyée","entreprise":"Globex"}`).join(",")}]`;
+
+  it("gives every Turn of the call the same cache key and the conversation asked as the stable prefix, on a provider with a prompt cache", async () => {
+    const { claude, ask } = setUp([LISTE(), LISTE("refusée"), { text: "ok" }], { fake: { promptCache: "explicit" } });
+
+    await ask({ prompt: [{ role: "user", content: "Bonjour" }, { role: "assistant", content: "Bonjour Marie." }, { role: "user", content: "Où en sont mes candidatures ?" }] });
+
+    const caches = claude.calls.map((call) => call.cache);
+    expect(caches).toHaveLength(3);
+    expect(caches[0]).toEqual({ key: expect.stringMatching(/^[0-9a-f-]{36}$/), prefixMessages: 3 });
+    expect(new Set(caches.map((cache) => cache?.key)).size).toBe(1);
+    expect(caches.every((cache) => cache?.prefixMessages === 3)).toBe(true);
+  });
+
+  it("marks nothing on a call without tools, nor on a provider without a prompt cache", async () => {
+    const withCache = setUp([{ text: "ok" }], { fake: { promptCache: "explicit" } });
+    await withCache.ask({ tools: undefined });
+    expect(withCache.claude.calls[0]).not.toHaveProperty("cache");
+
+    const withoutCache = setUp([LISTE(), { text: "ok" }]);
+    await withoutCache.ask();
+    expect(withoutCache.claude.calls.map((call) => call.cache)).toEqual([undefined, undefined]);
+  });
+
+  it("resends the earlier Tool rounds' results as a digest to a provider without a prompt cache, the latest round's whole", async () => {
+    const { claude, runTool, ask } = setUp([LISTE(), LISTE("refusée"), { text: "ok" }]);
+    runTool.mockResolvedValue({ content: LONG_RESULT });
+
+    await ask();
+
+    const third = claude.calls[2]!.messages;
+    const results = third.flatMap((message) => (typeof message.content === "string" ? [] : message.content.flatMap((block) => (block.type === "tool_result" ? [block.content] : []))));
+    expect(results).toHaveLength(2);
+    expect(results[0]!.length).toBeLessThan(800);
+    expect(results[0]).toMatch(/\[…\] \(résultat du tour 1 abrégé ici : tu l'as lu en entier à ce tour-là/);
+    expect(results[1]).toBe(LONG_RESULT);
+    // The second Turn had only one round: sent whole.
+    expect(JSON.stringify(claude.calls[1]!.messages)).not.toContain("abrégé");
+  });
+
+  it("resends every result whole to a provider with a prompt cache: they are in its cached prefix", async () => {
+    const { claude, runTool, ask } = setUp([LISTE(), LISTE("refusée"), { text: "ok" }], { fake: { promptCache: "explicit" } });
+    runTool.mockResolvedValue({ content: LONG_RESULT });
+
+    await ask();
+
+    expect(JSON.stringify(claude.calls[2]!.messages)).not.toContain("abrégé");
+  });
+
+  it("a scripted reply of 3 Turns reads its stable prefix from the cache in Turns 2 and 3: less input processed, priced lower", async () => {
+    const system = `Tu es le coach Jobbbox.\n${"Règle : réponds à partir des données du candidat. ".repeat(160)}`;
+    const play = async (cacheHits: boolean) => {
+      const { ask, runTool, usage } = setUp([LISTE(), LISTE("refusée"), { text: "Voici où en sont vos candidatures." }], { fake: { measured: true, promptCache: "explicit", cacheHits } });
+      runTool.mockResolvedValue({ content: LONG_RESULT });
+      const result = await ask({ system });
+      return { result, entries: usage.entries };
+    };
+    // Before #790: every Turn sent and billed whole. After: the same requests, read from the cache.
+    const before = await play(false);
+    const after = await play(true);
+
+    const sent = (usage: TokenUsage) => usage.inputTokens + (usage.cachedInputTokens ?? 0);
+    expect(before.entries).toHaveLength(3);
+    expect(after.entries).toHaveLength(3);
+    expect(before.result.usage.cachedInputTokens ?? 0).toBe(0);
+    // Turns 2 and 3 read the system text, the conversation asked and the earlier Turns from the cache.
+    expect(after.entries[0]!.cachedInputTokens ?? 0).toBe(0);
+    expect(after.entries[1]!.cachedInputTokens).toBeGreaterThan(0);
+    expect(after.entries[2]!.cachedInputTokens).toBeGreaterThan(after.entries[1]!.cachedInputTokens!);
+    expect((after.result.usage.cachedInputTokens ?? 0) / sent(after.result.usage)).toBeGreaterThan(0.4);
+    expect(sent(after.result.usage)).toBe(sent(before.result.usage));
+    expect(after.result.costEur).toBeLessThan(before.result.costEur * 0.75);
   });
 });

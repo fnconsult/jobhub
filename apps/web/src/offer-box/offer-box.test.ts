@@ -11,7 +11,7 @@ import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers
 import { migrateJobDigests } from "../job-digests";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { backfillOfferBox, createOfferBox, migrateOfferBox, offerBoxOf, purgeExpiredOfferBoxEntries, recordArrivals, type OfferBox } from "./index";
+import { backfillOfferBox, createOfferBox, dismissedJobOffers, migrateOfferBox, offerBoxOf, purgeExpiredOfferBoxEntries, recordArrivals, type OfferBox } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -174,6 +174,98 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
 
     await database.query("DELETE FROM application WHERE id = $1", [saved.application.id]);
     expect(await offerBox.read(marie)).toMatchObject({ toHandle: 1, entries: [{ state: "to_handle", applicationId: null }] });
+  });
+
+  describe("« Écarter » (#816)", () => {
+    async function arrived(title: string, candidateId = marie, profileId: string | null = daf) {
+      const offer = await stored(title);
+      await recordArrivals(database, { candidateId, profileId, source: "job_search", at: clock.now, jobOfferIds: [offer] });
+      const entry = (await entries(candidateId)).find((one) => one.jobOffer.id === offer)!;
+      return { offer, entry: entry.id };
+    }
+
+    it("with a Dismissal reason makes the entry « Écartée », out of the count, with its reason and when", async () => {
+      const { entry } = await arrived("DAF H/F");
+
+      expect(await offerBox.dismiss(marie, entry, { reason: "salary" })).toEqual({ ok: true });
+
+      expect(await offerBox.read(marie)).toMatchObject({ toHandle: 0, entries: [{ id: entry, state: "dismissed", dismissalReason: "salary", dismissedAt: clock.now }] });
+      expect(await offerBoxOf(database, marie)).toMatchObject([{ state: "dismissed", dismissalReason: "salary", decidedAt: clock.now }]);
+    });
+
+    it("without a reason (« Écarter sans motif ») too, and refuses a reason outside the list", async () => {
+      const { entry } = await arrived("DAF H/F");
+
+      expect(await offerBox.dismiss(marie, entry, { reason: "trop loin" })).toEqual({ ok: false, error: "invalid_reason" });
+      expect(await offerBox.dismiss(marie, entry, {})).toEqual({ ok: true });
+
+      expect(await entries()).toMatchObject([{ state: "dismissed", dismissalReason: null }]);
+    });
+
+    it("« Revenir sur ce choix » makes it à traiter again, its reason forgotten", async () => {
+      const { entry } = await arrived("DAF H/F");
+      await offerBox.dismiss(marie, entry, { reason: "location" });
+
+      expect(await offerBox.reconsider(marie, entry)).toEqual({ ok: true });
+
+      expect(await offerBox.read(marie)).toMatchObject({ toHandle: 1, entries: [{ state: "to_handle", dismissalReason: null, dismissedAt: null }] });
+    });
+
+    it("refuses an entry « Suivie »: it is undone only by deleting its Application", async () => {
+      const { offer, entry } = await arrived("DAF H/F");
+      await applications.save(marie, { jobOfferId: offer, profileId: daf });
+
+      expect(await offerBox.dismiss(marie, entry, { reason: "salary" })).toEqual({ ok: false, error: "followed" });
+      expect(await entries()).toMatchObject([{ state: "followed" }]);
+    });
+
+    it("touches only the Candidate's own entry: another Candidate's is not found, and their entry of the same Job Offer stays à traiter", async () => {
+      const offer = await stored("Partagée");
+      const paulsProfile = await createProfile(paul);
+      await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_search", at: clock.now, jobOfferIds: [offer] });
+      await recordArrivals(database, { candidateId: paul, profileId: paulsProfile, source: "job_search", at: clock.now, jobOfferIds: [offer] });
+      const [maries] = await entries(marie);
+      const [pauls] = await entries(paul);
+
+      expect(await offerBox.dismiss(paul, maries!.id, {})).toEqual({ ok: false, error: "not_found" });
+      expect(await offerBox.reconsider(paul, maries!.id)).toEqual({ ok: false, error: "not_found" });
+      await offerBox.dismiss(marie, maries!.id, { reason: "not_for_me" });
+
+      expect(await entries(paul)).toMatchObject([{ id: pauls!.id, state: "to_handle" }]);
+      expect(await jobOffers.get(offer, paul)).toMatchObject({ id: offer });
+    });
+
+    it("stays « Écartée » when the Job Offer arrives again, from another source", async () => {
+      const { offer, entry } = await arrived("DAF H/F");
+      await offerBox.dismiss(marie, entry, {});
+      await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_digest", at: clock.now, jobOfferIds: [offer] });
+
+      expect(await entries()).toMatchObject([{ state: "dismissed", sources: [{ source: "job_digest" }, { source: "job_search" }] }]);
+    });
+
+    it("is read for « Écartées » 30 days after it was écartée, no longer after", async () => {
+      const { entry: old } = await arrived("Écartée il y a 31 jours");
+      const { entry: recent } = await arrived("Écartée il y a 29 jours");
+      const today = clock.now;
+      clock.now = new Date(today.getTime() - 31 * DAY);
+      await offerBox.dismiss(marie, old, {});
+      clock.now = new Date(today.getTime() - 29 * DAY);
+      await offerBox.dismiss(marie, recent, {});
+      clock.now = today;
+
+      expect((await entries()).map((one) => one.id)).toEqual([recent]);
+    });
+
+    it("lists the Job Offers the Candidate écarta, for the doors that must not bring them again", async () => {
+      const { offer, entry } = await arrived("DAF H/F");
+      const { offer: kept } = await arrived("Gardée");
+      await offerBox.dismiss(marie, entry, {});
+
+      const { rows } = await database.query<{ job_offer_id: string }>(dismissedJobOffers("$1"), [marie]);
+      expect(rows.map((row) => row.job_offer_id)).toEqual([offer]);
+      expect(rows.map((row) => row.job_offer_id)).not.toContain(kept);
+      expect((await database.query(dismissedJobOffers("$1"), [paul])).rows).toEqual([]);
+    });
   });
 
   it("is deleted with its Profile and with the account; a « Non classée » one with the account", async () => {

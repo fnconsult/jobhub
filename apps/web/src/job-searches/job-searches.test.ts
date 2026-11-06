@@ -142,6 +142,20 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect(await offerBoxOf(database, otherCandidateId)).toEqual([]);
   });
 
+  it("shows a Job Offer the Candidate écarta from their Offer box « Écartée », and only to them (#816)", async () => {
+    const dismissed = await capture("DAF H/F", { employer: "Acme Industrie", location: "Lyon" });
+    const undecided = await capture("Contrôleur de gestion", { location: "Lyon" });
+    const theirs = await started();
+    await jobSearches.record(theirs.id, { jobOfferIds: [dismissed, undecided] });
+    const others = await started(otherCandidateId, await createProfile(otherCandidateId));
+    await jobSearches.record(others.id, { jobOfferIds: [dismissed] });
+    await database.query(`UPDATE offer_box_entry SET state = 'dismissed', decided_at = now() WHERE candidate_id = $1 AND job_offer_id = $2`, [candidateId, dismissed]);
+
+    const results = (await jobSearches.get(candidateId, theirs.id))!.results;
+    expect(Object.fromEntries(results.map((result) => [result.jobOffer.id, result.dismissed]))).toEqual({ [dismissed]: true, [undecided]: false });
+    expect((await jobSearches.get(otherCandidateId, others.id))!.results.map((result) => result.dismissed)).toEqual([false]);
+  });
+
   it("names the Search Criteria its Match Scores are against: the Profile's current ones", async () => {
     const jobSearch = await started();
     const changed = await profiles.changeSearchCriteria(candidateId, profileId, {

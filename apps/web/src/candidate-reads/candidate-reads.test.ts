@@ -26,7 +26,7 @@ import { createJobDigests, type JobDigests } from "../job-digests";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, type JobSearches } from "../job-searches";
 import { migrateDatabase } from "../migrations";
-import { createOfferBox } from "../offer-box";
+import { createOfferBox, type OfferBox } from "../offer-box";
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs, type TailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments, type TailoredDocuments } from "../tailored-documents";
@@ -86,6 +86,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let tailoredDocuments: TailoredDocuments;
   let conversations: CoachConversations;
   let reads: CandidateReads;
+  let offerBox: OfferBox;
   let marie: string;
   let paul: string;
   let offers: number;
@@ -196,6 +197,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
         return coach ? { summary: { kind: "coachingSession" as const, subject: { fr: coach.name, en: coach.name }, price: { amount: 9000, currency: "eur", interval: null } }, cgv: CGV } : null;
       },
     };
+    offerBox = createOfferBox(database, { profiles, jobOffers, now: () => NOW });
     reads = createCandidateReads({
       applications,
       followUps,
@@ -211,7 +213,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       tailoredCvs,
       tailoredDocuments,
       coachConversations: conversations,
-      offerBox: createOfferBox(database, { profiles, jobOffers, now: () => NOW }),
+      offerBox,
       now: () => NOW,
     });
     marie = await signIn("marie.dupont@example.fr");
@@ -323,6 +325,18 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       expect(read.jobOffers.find((found) => found.jobOffer.id === undecided)).toMatchObject({ decision: null, applicationId: null, jobOffer: { title: "Directeur financier", employer: "Acme Industrie" } });
     });
 
+    it("gives a Job Offer écartée from the Offer box as « Écartée » in a Job Search's Job Offers (#816)", async () => {
+      const daf = await createProfile(marie);
+      const dismissed = await captureOffer();
+      const search = await searched(marie, daf, [dismissed]);
+      const [entry] = (await reads.offerBox(marie)).entries;
+      await offerBox.dismiss(marie, entry!.id, { reason: "salary" });
+
+      const read = overHttp(jobSearchResponseSchema, await reads.jobSearch(marie, search));
+
+      expect(read.jobOffers).toMatchObject([{ jobOffer: { id: dismissed }, decision: "dismissed", applicationId: null }]);
+    });
+
     it("never gives a Candidate another Candidate's Job Search", async () => {
       const search = await searched(marie, await createProfile(marie), [await captureOffer()]);
       await createProfile(paul);
@@ -357,8 +371,20 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
         state: "to_handle",
         applicationId: null,
         followedAt: null,
+        dismissalReason: null,
+        dismissedAt: null,
       });
       expect(byOffer.get(followed)).toMatchObject({ state: "followed", applicationId: saved.application.id, followedAt: expect.any(String) });
+    });
+
+    it("gives an entry « Écartée » with its Dismissal reason and when (#816)", async () => {
+      await searched(marie, await createProfile(marie), [await captureOffer()]);
+      const [entry] = (await reads.offerBox(marie)).entries;
+      await offerBox.dismiss(marie, entry!.id, { reason: "contract" });
+
+      const box = overHttp(offerBoxResponseSchema, await reads.offerBox(marie));
+
+      expect(box).toMatchObject({ toHandle: 0, entries: [{ state: "dismissed", dismissalReason: "contract", dismissedAt: NOW.toISOString() }] });
     });
 
     it("never gives a Candidate another Candidate's entries", async () => {

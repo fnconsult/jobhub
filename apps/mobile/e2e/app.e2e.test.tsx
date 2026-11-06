@@ -692,6 +692,8 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
             state: "to_handle",
             applicationId: null,
             followedAt: null,
+            dismissalReason: null,
+            dismissedAt: null,
           },
         ],
       },

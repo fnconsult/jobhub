@@ -233,6 +233,8 @@ export function offerBoxResponse(box: OfferBoxContents): OfferBoxResponse {
       state: entry.state,
       applicationId: entry.applicationId,
       followedAt: isoOrNull(entry.followedAt),
+      dismissalReason: entry.dismissalReason,
+      dismissedAt: isoOrNull(entry.dismissedAt),
     })),
   };
 }
@@ -323,8 +325,8 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
         jobOffers: search.results.map((result) => ({
           jobOffer: jobOfferLine(result.jobOffer),
           matchScore: figure(result.matchScore),
-          // Kept: saved as an Application. Dismissing comes with the app's « Écarter » (#692).
-          decision: result.applicationId ? ("kept" as const) : null,
+          // « Suivie »: saved as an Application; « Écartée »: from the Offer box (#816).
+          decision: result.applicationId ? ("kept" as const) : result.dismissed ? ("dismissed" as const) : null,
           applicationId: result.applicationId,
         })),
       };

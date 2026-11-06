@@ -121,9 +121,8 @@ export const jobSearchesResponseSchema = z.object({
 export type JobSearchesResponse = z.infer<typeof jobSearchesResponseSchema>;
 
 /**
- * Where the Candidate stands with a Job Offer found for a Profile: « gardée » (`kept`: saved as an Application, with any
- * Profile), « écartée » (`dismissed`), or null while they have not decided. Dismissing comes with the app's « Écarter »
- * (#692): until then a Job Offer is kept or undecided.
+ * Where the Candidate stands with a Job Offer found for a Profile: « Suivie » (`kept`: saved as an Application, with any
+ * Profile), « Écartée » (`dismissed`: écartée from their Offer box, #816), or null while they have not decided.
  */
 export const JOB_OFFER_DECISIONS = ["kept", "dismissed"] as const;
 
@@ -157,14 +156,23 @@ export type JobSearchResponse = z.infer<typeof jobSearchResponseSchema>;
 export const ARRIVAL_SOURCES = ["job_search", "job_digest", "email", "job_offer_link", "extension"] as const;
 export type ArrivalSource = (typeof ARRIVAL_SOURCES)[number];
 
-/** Where an Offer box entry stands: à traiter, or « Suivie » (its Application exists, whichever page made it). */
-export const OFFER_BOX_ENTRY_STATES = ["to_handle", "followed"] as const;
+/**
+ * Where an Offer box entry stands: à traiter, « Suivie » (its Application exists, whichever page made it) or « Écartée »
+ * (#816, with its Dismissal reason, if given).
+ */
+export const OFFER_BOX_ENTRY_STATES = ["to_handle", "followed", "dismissed"] as const;
+export type OfferBoxEntryState = (typeof OFFER_BOX_ENTRY_STATES)[number];
+
+/** The Dismissal reasons « Écarter » offers (#816): « Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs ». */
+export const DISMISSAL_REASONS = ["not_for_me", "salary", "location", "contract", "applied_elsewhere"] as const;
+export type DismissalReason = (typeof DISMISSAL_REASONS)[number];
 
 /**
  * One Offer box entry: its Job Offer, its Profile (null: « Non classée »), the Profile its Match Score is against and
  * « Suivre » saves it with (`scoredWith`: the entry's, or for a « Non classée » one the active Profile it matches best;
  * null when the Candidate has no active Profile), its first Arrival (`arrivalDay`, in French time) and every Arrival
- * source with the date it first came by, oldest first; where it stands, and its Application once « Suivie ».
+ * source with the date it first came by, oldest first; where it stands, its Application once « Suivie », and its
+ * Dismissal reason (null: « Écarter sans motif ») and when, once « Écartée ».
  */
 export const offerBoxEntrySchema = z.object({
   id: z.string(),
@@ -178,13 +186,15 @@ export const offerBoxEntrySchema = z.object({
   state: z.enum(OFFER_BOX_ENTRY_STATES),
   applicationId: z.string().nullable(),
   followedAt: instant.nullable(),
+  dismissalReason: z.enum(DISMISSAL_REASONS).nullable(),
+  dismissedAt: instant.nullable(),
 });
 export type OfferBoxEntryRead = z.infer<typeof offerBoxEntrySchema>;
 
 /**
- * `GET /api/offer-box`: the Candidate's Offer box (« Offres à traiter »), the most recent first Arrival first, with how
- * many entries are à traiter and today's day in French time, which « Aujourd'hui » and the posting ages are read against.
- * `offerBoxView` (`@jobhub/shared`) lays it out as the web and the app show it.
+ * `GET /api/offer-box`: the Candidate's Offer box (« Offres à traiter »), the most recent first Arrival first (those
+ * écartées more than 30 days ago left out), with how many entries are à traiter and today's day in French time, which
+ * « Aujourd'hui » and the posting ages are read against. `offerBoxView` (`@jobhub/shared`) lays it out as the web and the app show it.
  */
 export const offerBoxResponseSchema = z.object({
   today: day,

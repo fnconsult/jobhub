@@ -13,7 +13,15 @@
  *    each with its Job Offer, its Match Score (rules only, scoreMatch: against its Profile's current Master CV, or for a
  *    « Non classée » one the active Profile it matches best), and where it stands. « Suivie » is read from the
  *    Application, not stored: an Application made anywhere (« Suivre », a Job Search's page, the extension, a Coach
- *    Action) makes its entry « Suivie » while it exists, and its deletion puts the entry back to à traiter.
+ *    Action) makes its entry « Suivie » while it exists, and its deletion puts the entry back to à traiter. An entry
+ *    écartée more than OFFER_BOX_DISMISSED_DAYS days ago is left out: « Écartées » shows the last 30 days'.
+ *  - `.dismiss(candidateId, entryId, { reason })`: « Écarter » (#816), with a Dismissal reason or none; refused for an
+ *    entry « Suivie », which is undone only by deleting its Application. Arriving again moves nothing: it stays écartée.
+ *    `.reconsider(candidateId, entryId)`: « Revenir sur ce choix », the entry à traiter again, its reason forgotten.
+ *  - `dismissedJobOffers(candidate)`: the SQL listing the Job Offers a Candidate écarta, which the doors read so that an
+ *    écartée Job Offer counts as already seen everywhere (ADR-0090): a Job Digest never sends it again, Email intake
+ *    counts it « déjà vue », a Job Search's results show it « Écartée ». The shared Job Offer and other Candidates'
+ *    entries are untouched.
  *  - `backfillOfferBox(database, now)`: at launch, the last 30 days' Arrivals the other tables already hold, without the
  *    Job Offers posted more than 30 days ago. Idempotent: run again, it changes nothing.
  *  - `purgeExpiredOfferBoxEntries(database, now)`: entries 12 months after their first Arrival, which the worker runs daily.
@@ -22,6 +30,7 @@
  * Office nor given to the AI Coach.
  */
 import { matchScoreReliability, scoreMatch, type ArrivalSource, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { DISMISSAL_REASONS, type DismissalReason } from "@jobhub/shared/reads";
 import type { Pool } from "pg";
 import { utcBefore } from "../database/before";
 import type { Queryable } from "../database/pool";
@@ -33,6 +42,9 @@ export const OFFER_BOX_RETENTION_MONTHS = 12;
 
 /** How far back the launch's backfill looks, and how old a posting it takes (ADR-0090). */
 export const OFFER_BOX_BACKFILL_DAYS = 30;
+
+/** How long « Écartées » shows an entry after it was écartée (ADR-0090). */
+export const OFFER_BOX_DISMISSED_DAYS = 30;
 
 /** Job Offers reaching a Candidate from one Arrival source, at `at`, for a Profile (null: « Non classée »). */
 export interface Arrival {
@@ -58,9 +70,12 @@ export interface OfferBoxEntry {
   arrivalDay: string;
   /** Each Arrival source, with when it first brought the Job Offer, oldest first. */
   sources: { source: ArrivalSource; at: Date }[];
-  state: "to_handle" | "followed";
+  state: "to_handle" | "followed" | "dismissed";
   applicationId: string | null;
   followedAt: Date | null;
+  /** Once « Écartée »: its Dismissal reason (null: « Écarter sans motif ») and when. */
+  dismissalReason: DismissalReason | null;
+  dismissedAt: Date | null;
 }
 
 export interface OfferBoxContents {
@@ -71,9 +86,16 @@ export interface OfferBoxContents {
   entries: OfferBoxEntry[];
 }
 
+/** What « Écarter » and « Revenir sur ce choix » answer. */
+export type OfferBoxDecision = { ok: true } | { ok: false; error: "not_found" | "followed" | "invalid_reason" };
+
 export interface OfferBox {
   /** The Candidate's Offer box, the most recent first Arrival first. */
   read(candidateId: string): Promise<OfferBoxContents>;
+  /** « Écarter » one of the Candidate's entries, with a Dismissal reason or none (`reason` absent or null). */
+  dismiss(candidateId: string, entryId: string, input: { reason?: unknown }): Promise<OfferBoxDecision>;
+  /** « Revenir sur ce choix »: one of the Candidate's entries écartée back to à traiter (one not écartée is left as it is). */
+  reconsider(candidateId: string, entryId: string): Promise<{ ok: true } | { ok: false; error: "not_found" }>;
 }
 
 /** An Offer box entry as the Candidate's Data export holds it. */
@@ -90,8 +112,15 @@ export interface ExportedOfferBoxEntry {
   laterUntil: Date | null;
 }
 
-/** The Dismissal reasons (« Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs »), #816. */
-export const DISMISSAL_REASONS = ["not_for_me", "salary", "location", "contract", "applied_elsewhere"] as const;
+export { DISMISSAL_REASONS, type DismissalReason };
+
+/**
+ * The SQL listing the Job Offers the Candidate named by `candidate` (a parameter, "$1") écarta from their Offer box, one
+ * `job_offer_id` each: what the doors leave out or mark, so that « Écartée » means already seen everywhere (ADR-0090).
+ */
+export function dismissedJobOffers(candidate: string): string {
+  return `SELECT job_offer_id FROM offer_box_entry WHERE candidate_id = ${candidate} AND state = 'dismissed'`;
+}
 
 /** Creates or upgrades the Offer box table. Run after the Candidate, Profile and Job Offer tables. Safe to run repeatedly. */
 export async function migrateOfferBox(database: Queryable): Promise<void> {
@@ -202,6 +231,9 @@ interface EntryRow {
   arrival_sources: Record<string, string>;
   application_id: string | null;
   followed_at: Date | null;
+  state: "to_handle" | "later" | "dismissed";
+  decided_at: Date | null;
+  dismissal_reason: DismissalReason | null;
 }
 
 /** An entry's Arrival sources, oldest first. */
@@ -212,7 +244,7 @@ const sourcesOf = (kept: Record<string, string>) =>
 
 /** The Candidate's Offer box entries for their Data export, oldest first Arrival first. */
 export async function offerBoxOf(database: Queryable, candidateId: string): Promise<ExportedOfferBoxEntry[]> {
-  const { rows } = await database.query<EntryRow & { state: ExportedOfferBoxEntry["state"]; decided_at: Date | null; dismissal_reason: string | null; later_until: Date | null }>(
+  const { rows } = await database.query<Omit<EntryRow, "state"> & { state: ExportedOfferBoxEntry["state"]; later_until: Date | null }>(
     `SELECT e.job_offer_id, e.profile_id, e.first_arrival_at, e.arrival_sources, e.decided_at, e.dismissal_reason, e.later_until,
             CASE WHEN a.id IS NOT NULL THEN 'followed' ELSE e.state END AS state
        FROM offer_box_entry e LEFT JOIN application a ON a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id
@@ -231,10 +263,15 @@ export async function offerBoxOf(database: Queryable, candidateId: string): Prom
   }));
 }
 
+const isDismissalReason = (reason: unknown): reason is DismissalReason => (DISMISSAL_REASONS as readonly unknown[]).includes(reason);
+
 const PARIS_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" });
 
 /** A Match Score's figure when it is computable, for picking the best Profile. */
 const figure = (score: MatchScore) => (matchScoreReliability(score) === "not_computable" ? -1 : score.score);
+
+/** An entry's id is a uuid: anything else names none (and would make Postgres refuse the query). */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface OfferBoxDeps {
   profiles: Pick<Profiles, "list" | "get">;
@@ -248,10 +285,13 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
     async read(candidateId) {
       const [{ rows }, listed] = await Promise.all([
         database.query<EntryRow>(
-          `SELECT e.id, e.job_offer_id, e.profile_id, e.first_arrival_at, e.arrival_sources, a.id AS application_id, a.created_at AS followed_at
+          `SELECT e.id, e.job_offer_id, e.profile_id, e.first_arrival_at, e.arrival_sources, e.state, e.decided_at, e.dismissal_reason,
+                  a.id AS application_id, a.created_at AS followed_at
              FROM offer_box_entry e LEFT JOIN application a ON a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id
-            WHERE e.candidate_id = $1 ORDER BY e.first_arrival_at DESC, e.id`,
-          [candidateId],
+            WHERE e.candidate_id = $1
+              AND (e.state <> 'dismissed' OR a.id IS NOT NULL OR e.decided_at >= ${utcBefore("$2", "make_interval(days => $3)")})
+            ORDER BY e.first_arrival_at DESC, e.id`,
+          [candidateId, now(), OFFER_BOX_DISMISSED_DAYS],
         ),
         deps.profiles.list(candidateId),
       ]);
@@ -271,6 +311,7 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
             const score = scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer });
             if (!best || figure(score) > figure(best.score)) best = { profile: { id: profile.id, name: profile.name }, score };
           }
+          const dismissed = !row.application_id && row.state === "dismissed";
           return {
             id: row.id,
             jobOffer,
@@ -280,14 +321,50 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
             firstArrivalAt: row.first_arrival_at,
             arrivalDay: PARIS_DAY.format(row.first_arrival_at),
             sources: sourcesOf(row.arrival_sources),
-            state: row.application_id ? "followed" : "to_handle",
+            state: row.application_id ? "followed" : dismissed ? "dismissed" : "to_handle",
             applicationId: row.application_id,
             followedAt: row.followed_at,
+            dismissalReason: dismissed ? row.dismissal_reason : null,
+            dismissedAt: dismissed ? row.decided_at : null,
           };
         }),
       );
       const kept = entries.filter((entry) => entry !== null);
       return { today: PARIS_DAY.format(now()), toHandle: kept.filter((entry) => entry.state === "to_handle").length, entries: kept };
+    },
+
+    async dismiss(candidateId, entryId, { reason = null }) {
+      if (reason !== null && !isDismissalReason(reason)) return { ok: false, error: "invalid_reason" };
+      if (!UUID.test(entryId)) return { ok: false, error: "not_found" };
+      // A data-modifying CTE runs whether or not it is read: one statement, so an Application made meanwhile cannot slip between.
+      const { rows } = await database.query<{ followed: boolean }>(
+        `WITH own AS (
+           SELECT e.id, EXISTS (SELECT 1 FROM application a WHERE a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id) AS followed
+             FROM offer_box_entry e WHERE e.id = $1 AND e.candidate_id = $2
+         ),
+         dismissed AS (
+           UPDATE offer_box_entry e SET state = 'dismissed', decided_at = $3, dismissal_reason = $4, later_until = NULL
+             FROM own WHERE e.id = own.id AND NOT own.followed
+         )
+         SELECT followed FROM own`,
+        [entryId, candidateId, now(), reason],
+      );
+      if (!rows[0]) return { ok: false, error: "not_found" };
+      return rows[0].followed ? { ok: false, error: "followed" } : { ok: true };
+    },
+
+    async reconsider(candidateId, entryId) {
+      if (!UUID.test(entryId)) return { ok: false, error: "not_found" };
+      const { rows } = await database.query(
+        `WITH own AS (SELECT id FROM offer_box_entry WHERE id = $1 AND candidate_id = $2),
+              undone AS (
+                UPDATE offer_box_entry e SET state = 'to_handle', decided_at = NULL, dismissal_reason = NULL
+                  FROM own WHERE e.id = own.id AND e.state = 'dismissed'
+              )
+         SELECT id FROM own`,
+        [entryId, candidateId],
+      );
+      return rows[0] ? { ok: true } : { ok: false, error: "not_found" };
     },
   };
 }

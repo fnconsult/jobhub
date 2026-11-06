@@ -18,6 +18,8 @@ function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBox
     state: "to_handle",
     applicationId: null,
     followedAt: null,
+    dismissalReason: null,
+    dismissedAt: null,
     ...overrides,
   };
 }

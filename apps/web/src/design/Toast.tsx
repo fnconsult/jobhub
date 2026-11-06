@@ -7,12 +7,14 @@ import "./Toast.css";
 /** How long a Toast stays, unless it holds the focus or the pointer. */
 export const TOAST_DURATION_MS = 6000;
 
-export type ToastMessage = { message: ReactNode; link?: { label: ReactNode; href: string } };
+/** A message, with a link to follow (« Voir la candidature ») or an action to take (« Annuler », #816). */
+export type ToastMessage = { message: ReactNode; link?: { label: ReactNode; href: string }; action?: { label: ReactNode; onAction: () => void } };
 
 const ShowToast = createContext<((toast: ToastMessage) => void) | null>(null);
 
 /**
- * Shows a Toast: a short message at the bottom centre of the page, with an optional link (« Voir la candidature »).
+ * Shows a Toast: a short message at the bottom centre of the page, with an optional link (« Voir la candidature ») or
+ * action (« Annuler »), which closes it.
  * Only inside a ToastProvider.
  */
 export function useToast(): (toast: ToastMessage) => void {
@@ -76,6 +78,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <Link className="ds-toast__link" href={shown.link.href} onClick={() => setShown(null)}>
                 {shown.link.label}
               </Link>
+            ) : null}
+            {shown.action ? (
+              <button
+                type="button"
+                className="ds-toast__link ds-toast__action"
+                onClick={() => {
+                  shown.action?.onAction();
+                  dismiss();
+                }}
+              >
+                {shown.action.label}
+              </button>
             ) : null}
           </div>
         ) : null}

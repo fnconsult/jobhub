@@ -61,4 +61,25 @@ describe("Toast (#462)", () => {
     act(() => vi.advanceTimersByTime(TOAST_DURATION_MS + 1));
     expect(screen.queryByRole("link", { name: "Voir la candidature" })).toBeNull();
   });
+
+  it("may hold an action instead of a link (« Annuler »): pressing it runs it and closes the Toast (#816)", async () => {
+    const user = userEvent.setup();
+    const undo = vi.fn();
+    function Dismiss() {
+      const toast = useToast();
+      return <Button onClick={() => toast({ message: "« DAF » écartée.", action: { label: "Annuler", onAction: undo } })}>Écarter</Button>;
+    }
+    renderInFrench(
+      <ToastProvider>
+        <Dismiss />
+      </ToastProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Écarter" }));
+    expect(screen.getByRole("status").textContent).toContain("« DAF » écartée.");
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+
+    expect(undo).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
+  });
 });

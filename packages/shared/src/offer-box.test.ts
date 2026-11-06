@@ -115,6 +115,17 @@ describe("The Offer box's view", () => {
     expect(view.earlier.tiers.flatMap((tier) => tier.entries).map((one) => one.id)).toEqual(["c"]);
     expect(view.toHandle).toBe(3);
   });
+
+  it("puts the entries écartées in « Écartées », the latest écartée first, out of the days and the count, counted traitées (#816)", () => {
+    const dismissed = (at: string, arrivalDay = TODAY) => ({ state: "dismissed" as const, dismissalReason: "salary" as const, dismissedAt: at, arrivalDay });
+    const view = offerBoxView(box([entry("a"), entry("old", dismissed("2026-11-01T08:00:00.000Z", "2026-10-30")), entry("new", dismissed("2026-11-05T09:00:00.000Z"))]));
+
+    expect(view.dismissed.map((one) => one.id)).toEqual(["new", "old"]);
+    expect([...view.today.tiers.flatMap((tier) => tier.entries), ...view.today.followed, ...view.earlier.tiers.flatMap((tier) => tier.entries), ...view.earlier.followed].map((one) => one.id)).toEqual(["a"]);
+    expect(view.toHandle).toBe(1);
+    expect(view.treated).toBe(2);
+    expect(view.chips[0]).toEqual({ source: "all", toHandle: 1 });
+  });
 });
 
 describe("GET /api/offer-box's schema", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { importanceTier, offerBoxView, postingAge, type OfferBoxDay, type OfferBoxFilter } from "@jobhub/shared";
-import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
+import { DISMISSAL_REASONS, type DismissalReason, type OfferBoxEntryRead, type OfferBoxResponse } from "@jobhub/shared/reads";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { buttonClass } from "@/design/button-class";
 import { EmptyState } from "@/design/EmptyState";
 import { Pill } from "@/design/Pill";
+import { ToastProvider, useToast } from "@/design/Toast";
 import { routes } from "@/routes";
 import "./OfferBox.css";
 
@@ -17,11 +18,21 @@ import "./OfferBox.css";
  * conversation following it. Its header (« N à traiter », « k traitées », a progress bar) and the source chips stay at
  * the top while it scrolls; « Aujourd'hui » then « Précédemment », each by Importance tier, their headings staying under
  * the header too. Each line: its Match Score, title, employer, place, contract, source chips, posting age and Profile,
- * « Suivre » (its Application, « À postuler ») and « Lire l'offre » (the Work Pane). An entry « À ne pas manquer » still
- * à traiter is set off by a border turning slowly (still under reduced motion). At its foot, « Recherches par Profil » and
- * « Reçues par email » open in the Work Pane. Laid out by `offerBoxView`, as the app does.
+ * « Suivre » (its Application, « À postuler »), « Écarter » (its Dismissal reasons or « Écarter sans motif », then a toast
+ * with « Annuler », #816) and « Lire l'offre » (the Work Pane). An entry « À ne pas manquer » still à traiter is set off by
+ * a border turning slowly (still under reduced motion). At its foot, « Écartées », folded, each with « Revenir sur ce
+ * choix »; then « Recherches par Profil » and « Reçues par email », which open in the Work Pane. Laid out by
+ * `offerBoxView`, as the app does.
  */
 export function OfferBox({ box }: { box: OfferBoxResponse }) {
+  return (
+    <ToastProvider>
+      <OfferBoxPage box={box} />
+    </ToastProvider>
+  );
+}
+
+function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<OfferBoxFilter>("all");
   const view = offerBoxView(box, filter);
@@ -94,6 +105,18 @@ export function OfferBox({ box }: { box: OfferBoxResponse }) {
           />
         </>
       )}
+
+      {view.dismissed.length > 0 ? (
+        <details className="offer-box-followed offer-box-dismissed">
+          <summary>{t("offerBox.dismissedBlock", { count: view.dismissed.length })}</summary>
+          <p className="offer-box-nothing">{t("offerBox.dismissedHint")}</p>
+          <ul className="offer-box-entries">
+            {view.dismissed.map((entry) => (
+              <OfferBoxLine key={entry.id} entry={entry} today={box.today} showDay />
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       <p className="offer-box-foot">
         <Link href={routes.jobSearchesByProfile}>{t("offerBox.byProfile")}</Link>
@@ -173,6 +196,9 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
       <p className="offer-box-title" id={titleId}>
         <Link href={routes.offerBoxOffer(jobOffer.id)}>{jobOffer.title}</Link>
         {entry.state === "followed" ? <Pill tone="success">{t("offerBox.followed")}</Pill> : null}
+        {entry.state === "dismissed" ? (
+          <Pill>{entry.dismissalReason ? t("offerBox.dismissedWithReason", { reason: t(`offerBox.dismissalReasons.${entry.dismissalReason}`) }) : t("offerBox.dismissed")}</Pill>
+        ) : null}
       </p>
       {facts.length > 0 ? <p className="offer-box-facts">{facts.join(" · ")}</p> : null}
       <p className="offer-box-tags">
@@ -194,9 +220,12 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
           <Link className={buttonClass({ size: "sm" })} href={routes.application(entry.applicationId)} aria-describedby={titleId}>
             {t("offerBox.seeApplication")}
           </Link>
+        ) : entry.state === "dismissed" ? (
+          <ReconsiderButton entry={entry} />
         ) : entry.scoredWith ? (
           <FollowButton jobOfferId={jobOffer.id} profileId={entry.scoredWith.id} describedBy={titleId} />
         ) : null}
+        {entry.state === "to_handle" ? <DismissButton entry={entry} describedBy={titleId} /> : null}
         <Link className={buttonClass({ variant: "quiet", size: "sm" })} href={routes.offerBoxOffer(jobOffer.id)} aria-describedby={titleId}>
           {t("offerBox.read")}
         </Link>
@@ -235,6 +264,120 @@ function FollowButton({ jobOfferId, profileId, describedBy }: { jobOfferId: stri
       {failed ? (
         <p className="field-error" role="alert">
           {t("offerBox.followError")}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** « Écarter » (`POST`) or « Revenir sur ce choix » (`DELETE`) one entry: whether it was done. */
+async function decide(entryId: string, method: "POST" | "DELETE", reason?: DismissalReason | null): Promise<boolean> {
+  const init: RequestInit =
+    method === "POST" ? { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ reason: reason ?? null }) } : { method };
+  const status = await fetch(`/api/offer-box/${encodeURIComponent(entryId)}/dismissal`, init).then(
+    (response) => response.status,
+    () => 0,
+  );
+  return status === 204;
+}
+
+/**
+ * « Écarter »: opens « Pourquoi ? (facultatif) », the Dismissal reasons and « Écarter sans motif ». Once écartée, the
+ * page refreshes (the entry leaves the count, into « Écartées ») and a toast says so, with « Annuler ».
+ */
+function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; describedBy: string }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const toast = useToast();
+  const reasonsId = useId();
+  const [open, setOpen] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const title = entry.jobOffer.title;
+
+  async function dismiss(reason: DismissalReason | null) {
+    setWorking(true);
+    setFailed(false);
+    const done = await decide(entry.id, "POST", reason);
+    setWorking(false);
+    if (!done) {
+      setFailed(true);
+      return;
+    }
+    setOpen(false);
+    toast({
+      message: t("offerBox.dismissedToast", { title }),
+      action: { label: t("offerBox.undo"), onAction: () => void decide(entry.id, "DELETE").then((undone) => undone && router.refresh()) },
+    });
+    router.refresh();
+  }
+
+  return (
+    <>
+      <button
+        className={buttonClass({ size: "sm" })}
+        type="button"
+        aria-expanded={open}
+        aria-controls={open ? reasonsId : undefined}
+        aria-describedby={describedBy}
+        onClick={() => setOpen(!open)}
+      >
+        {t("offerBox.dismiss")}
+      </button>
+      {open ? (
+        <div id={reasonsId} className="offer-box-reasons" role="group" aria-label={t("offerBox.dismissWhy")}>
+          <span aria-hidden>{t("offerBox.dismissWhy")}</span>
+          {DISMISSAL_REASONS.map((reason) => (
+            <button key={reason} className={buttonClass({ size: "sm" })} type="button" disabled={working} onClick={() => void dismiss(reason)}>
+              {t(`offerBox.dismissalReasons.${reason}`)}
+            </button>
+          ))}
+          <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={working} onClick={() => void dismiss(null)}>
+            {t("offerBox.dismissWithoutReason")}
+          </button>
+        </div>
+      ) : null}
+      {failed ? (
+        <p className="field-error" role="alert">
+          {t("offerBox.dismissError")}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** « Revenir sur ce choix »: the entry écartée is à traiter again, and the page refreshes. */
+function ReconsiderButton({ entry }: { entry: OfferBoxEntryRead }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function reconsider() {
+    setWorking(true);
+    setFailed(false);
+    if (await decide(entry.id, "DELETE")) {
+      router.refresh();
+      return;
+    }
+    setWorking(false);
+    setFailed(true);
+  }
+
+  return (
+    <>
+      <button
+        className={buttonClass({ size: "sm" })}
+        type="button"
+        disabled={working}
+        aria-label={t("offerBox.reconsiderLabel", { title: entry.jobOffer.title })}
+        onClick={() => void reconsider()}
+      >
+        {t("offerBox.reconsider")}
+      </button>
+      {failed ? (
+        <p className="field-error" role="alert">
+          {t("offerBox.reconsiderError")}
         </p>
       ) : null}
     </>

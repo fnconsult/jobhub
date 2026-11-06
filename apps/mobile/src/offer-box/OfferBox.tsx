@@ -64,6 +64,8 @@ export interface OfferBoxDecisions {
 
 /** How long the notice « … écartée. » with « Annuler » stays, as the web's toast does. */
 const NOTICE_MS = 6000;
+/** The notice is said politely, as the web's toast is. */
+const ANNOUNCED = "polite";
 
 /** The Offer box, filtered by a source chip (« Toutes » first). */
 export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisions: OfferBoxDecisions }) {
@@ -110,7 +112,7 @@ export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisi
           ))}
         </View>
         {notice ? (
-          <View aria-live="polite" style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[2], padding: space[2], borderRadius: radius.md, backgroundColor: colors.surface }}>
+          <View aria-live={ANNOUNCED} style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[2], padding: space[2], borderRadius: radius.md, backgroundColor: colors.surface }}>
             <AppText>{t("offerBox.dismissedToast", { title: notice.jobOffer.title })}</AppText>
             <Control
               label={t("offerBox.undo")}
@@ -251,6 +253,9 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
     setFailed(done ? null : kind);
     if (done) setReasonsOpen(false);
   };
+  const follow = () => void decide("follow", () => decisions.follow(entry));
+  const dismiss = (reason: DismissalReason | null) => void decide("dismiss", () => decisions.dismiss(entry, reason));
+  const reconsider = () => void decide("reconsider", () => decisions.reconsider(entry));
   return (
     <View
       aria-label={jobOffer.title}
@@ -292,7 +297,7 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
               accessibleName={t("offerBox.reconsiderLabel", { title: jobOffer.title })}
               look="secondary"
               disabled={working}
-              onPress={() => void decide("reconsider", () => decisions.reconsider(entry))}
+              onPress={reconsider}
             />
           </View>
         </>
@@ -304,7 +309,7 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
               accessibleName={`${t("offerBox.follow")} : ${jobOffer.title}`}
               look="primary"
               disabled={working}
-              onPress={() => void decide("follow", () => decisions.follow(entry))}
+              onPress={follow}
             />
           ) : null}
           <Control
@@ -323,9 +328,9 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
             {t("offerBox.dismissWhy")}
           </AppText>
           {DISMISSAL_REASONS.map((reason) => (
-            <Control key={reason} label={t(`offerBox.dismissalReasons.${reason}`)} look="secondary" disabled={working} onPress={() => void decide("dismiss", () => decisions.dismiss(entry, reason))} />
+            <Control key={reason} label={t(`offerBox.dismissalReasons.${reason}`)} look="secondary" disabled={working} onPress={() => dismiss(reason)} />
           ))}
-          <Control label={t("offerBox.dismissWithoutReason")} disabled={working} onPress={() => void decide("dismiss", () => decisions.dismiss(entry, null))} />
+          <Control label={t("offerBox.dismissWithoutReason")} disabled={working} onPress={() => dismiss(null)} />
         </View>
       ) : null}
       {failed ? <AppText tone="danger">{t(failed === "follow" ? "offerBox.followError" : failed === "dismiss" ? "offerBox.dismissError" : "offerBox.reconsiderError")}</AppText> : null}

@@ -665,7 +665,7 @@ function scrChoisir() {
 function scrCommande() {
   const c = coach();
   const ht = c.price - c.vat;
-  const ready = S.cgv && S.ipr;
+  const ready = S.cgv;
   const err = S.tried && !ready;
   const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap"><div class="grid2">
     <div class="stack">
@@ -697,8 +697,7 @@ function scrCommande() {
         <a href="#" class="small" data-noop>Télécharger les CGV (PDF)</a>
         <label class="check"><input type="checkbox" data-check="cgv" ${S.cgv ? "checked" : ""} aria-describedby="${err && !S.cgv ? "e-cgv" : ""}"> <span>J'ai lu et j'accepte les conditions générales de vente.</span></label>
         ${err && !S.cgv ? `<p id="e-cgv" class="small" style="color:var(--color-danger);margin:0">Acceptez les conditions pour continuer.</p>` : ""}
-        <label class="check"><input type="checkbox" data-check="ipr" ${S.ipr ? "checked" : ""}> <span>Je demande que la séance puisse avoir lieu avant la fin de mon délai de rétractation de 14 jours. Je peux me rétracter et être remboursé·e jusqu'à la séance ; une fois la séance tenue, je ne peux plus me rétracter.</span></label>
-        ${err && !S.ipr ? `<p class="small" style="color:var(--color-danger);margin:0">Cochez cette demande pour pouvoir tenir la séance dans les 14 jours.</p>` : ""}
+        <label class="check"><input type="checkbox" data-check="ipr" ${S.ipr ? "checked" : ""}> <span>Facultatif : je demande que le service commence immédiatement. Je reconnais qu'une fois la séance tenue, je ne peux plus me rétracter. Sans cette demande, la séance a lieu de la même façon, et une rétractation est remboursée en entier.</span></label>
         <p class="xs meta" style="margin:0">Si vous exercez votre droit de rétractation, la réservation chez Cal.com est annulée aussi.</p>
       </section>
     </div>
@@ -710,8 +709,8 @@ function scrCommande() {
           <span>TVA${c.vat ? " 20 %" : " (non applicable)"}</span><span class="num">${eur(c.vat)}</span>
           <span class="big">Total TTC</span><span class="big num">${eur(c.price)}</span>
         </div>
-        <div class="filedrop meta" style="border-style:solid">Carte bancaire · formulaire de paiement sécurisé (emplacement, démo)</div>
-        <button class="btn primary" data-pay>Payer ${eur(c.price)} TTC</button>
+        <button class="btn primary" data-pay>Passer au paiement</button>
+        <p class="xs meta" style="margin:0">Vous payez ${eur(c.price)} TTC sur la page sécurisée de notre prestataire de paiement, Stripe. La séance est enregistrée quand Stripe confirme le paiement.</p>
         <p class="xs meta" style="margin:0">${SELLER_LABEL[c.seller]} : ${c.sellerName}. Reçu et Order Confirmation envoyés par e-mail.</p>
       </section>
     </aside>
@@ -1067,7 +1066,7 @@ document.addEventListener("click", (e) => {
   if (d.paneOpen !== undefined) return set({ paneOpen: true });
   if (d.paneClose !== undefined) return set({ paneOpen: false });
   if (d.book) return set({ coach: d.book, screen: "commande", cgv: false, ipr: false, tried: false, paneOpen: false });
-  if (d.pay !== undefined) { if (!(S.cgv && S.ipr)) return set({ tried: true }); return set({ screen: "creneau", paid: true, slot: null, booked: false }); }
+  if (d.pay !== undefined) { if (!S.cgv) return set({ tried: true }); return set({ screen: "creneau", paid: true, slot: null, booked: false }); }
   if (d.day) return set({ day: +d.day, slot: null });
   if (d.slot) return set({ slot: +d.slot });
   if (d.confirm !== undefined) return set({ booked: true });

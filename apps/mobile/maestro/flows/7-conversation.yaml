@@ -32,7 +32,8 @@ tags:
 - extendedWaitUntil:
     visible: "Arrêter"
     timeout: 20000
+# Its last line, within the whole reply: Android exposes the reply as one text, its paragraphs joined.
 - extendedWaitUntil:
-    visible: "FIN DE LA RÉPONSE"
+    visible: ".*FIN DE LA RÉPONSE"
     timeout: 60000
 - assertVisible: "Envoyer"

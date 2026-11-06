@@ -228,6 +228,17 @@ describe("the Maestro flows (#705)", () => {
     expect(fromEnd).toEqual(["accueil", "candidatures", "agenda", "conversation"]);
   });
 
+  // Android exposes the coach's whole reply as one text, its paragraphs joined: « FIN DE LA RÉPONSE », matched against
+  // all of it, was never found, though on screen (the Android tablet, #705). Maestro matches a text with its line breaks
+  // as spaces; the reply as e2e/support/fake-mistral.mjs writes it.
+  it("finds the reply's last line within the whole reply", () => {
+    const reply = [...Array.from({ length: 30 }, (_, i) => `Paragraphe ${i + 1} : une réponse longue du Coach.`), MAESTRO_SEED.coach.replyEnd].join("\n\n");
+    const { commands } = parse(join(ROOT, "flows", "7-conversation.yaml"));
+    const waits = (valuesOf(commands, ["extendedWaitUntil"]) as { visible: string }[]).map((wait) => wait.visible).filter((visible) => visible.includes(MAESTRO_SEED.coach.replyEnd));
+    expect(waits).toHaveLength(1);
+    expect(new RegExp(`^(?:${waits[0]})$`).test(reply.replace(/\n/g, " "))).toBe(true);
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));

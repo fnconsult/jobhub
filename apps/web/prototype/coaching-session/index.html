@@ -1,0 +1,1114 @@
+<!doctype html>
+<!--
+  PROTOTYPE — jetable, jamais mergé. HTML statique, données fictives, rien n'est enregistré ni envoyé. Pas du code de production.
+  Ticket : #857 (carte #841). Question : réserver puis tenir une Coaching Session, côté Candidate et côté Human Coach,
+  tel que #851, #852, #853, #854 et #855 l'ont décidé (v0 : pas de visio intégrée, pas d'IA ; lien Zoom/Meet/Teams).
+  Écran via ?screen=choisir|commande|creneau|attente|rappel|seance-candidat|seance-coach|apres|annulation|phase-suivante ;
+  rôle via ?role=candidat|coach (rappel, apres, annulation, phase-suivante) ; thème via ?theme=dark ; fuseau via ?tz=mtl|par|lis.
+  Tokens : ceux de Mercury, copiés du prototype #586 (conversation-au-centre). Mise en page du Candidate : ADR-0070.
+  Ouvrir le fichier directement dans un navigateur ; réduire la fenêtre sous 768 px pour le téléphone.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coaching Session · Jobbbox (prototype)</title>
+<style>
+/* Tokens Mercury, rendus depuis packages/shared/src/design (renderDesignCss) le 2026-10-30. */
+@layer base, components;
+
+:root {
+  color-scheme: light;
+  --color-background: #ffffff;
+  --color-canvas: #ffffff;
+  --color-nav: #f6f6f8;
+  --color-surface: #f8f8fa;
+  --color-hover: #efeff3;
+  --color-border: #e6e6ec;
+  --color-border-strong: #d6d6de;
+  --color-text: #1b1b26;
+  --color-secondary: #575866;
+  --color-meta: #686978;
+  --color-accent: #4f5fe0;
+  --color-accent-hover: #4352cc;
+  --color-accent-soft: #eef0fd;
+  --color-accent-line: #c9cff7;
+  --color-on-accent: #ffffff;
+  --color-success: #1c7445;
+  --color-success-soft: #eaf6ef;
+  --color-warn: #855700;
+  --color-warn-soft: #fdf5e3;
+  --color-danger: #bb3030;
+  --color-danger-soft: #fdeeee;
+  --color-chart-1: #6a78ee;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(106 120 238 / 18%);
+  --color-inverse: #1b1b26;
+  --color-on-inverse: #ffffff;
+  --color-scrim: rgb(20 20 40 / 28%);
+  --color-text-secondary: #575866;
+  --color-text-meta: #686978;
+  --color-surface-hover: #efeff3;
+  --color-danger-surface: #fdeeee;
+  --color-focus-ring: #4f5fe0;
+  --shadow-card: 0 1px 2px rgb(20 20 40 / 4%);
+  --shadow-pop: 0 12px 32px rgb(20 20 40 / 14%);
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+  --line-height-heading: 1.25;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-card: 10px;
+  --radius-control: 999px;
+  --radius-lg: var(--radius-card);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --motion-fast: 150ms;
+  --motion-base: 180ms;
+  --motion-slow: 220ms;
+  --motion-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #121219;
+  --color-canvas: #121219;
+  --color-nav: #17171f;
+  --color-surface: #1b1b24;
+  --color-hover: #24242f;
+  --color-border: #2a2a36;
+  --color-border-strong: #383846;
+  --color-text: #ececf3;
+  --color-secondary: #a9aab8;
+  --color-meta: #9a9bab;
+  --color-accent: #8d9bff;
+  --color-accent-hover: #a3aeff;
+  --color-accent-soft: #242845;
+  --color-accent-line: #3b4277;
+  --color-on-accent: #10101a;
+  --color-success: #6fd29b;
+  --color-success-soft: #16301f;
+  --color-warn: #f2c25c;
+  --color-warn-soft: #33290f;
+  --color-danger: #ff8a8a;
+  --color-danger-soft: #3a1b1b;
+  --color-chart-1: #8d9bff;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(141 155 255 / 22%);
+  --color-inverse: #ececf3;
+  --color-on-inverse: #121219;
+  --color-scrim: rgb(0 0 0 / 50%);
+  --color-text-secondary: #a9aab8;
+  --color-text-meta: #9a9bab;
+  --color-surface-hover: #24242f;
+  --color-danger-surface: #3a1b1b;
+  --color-focus-ring: #8d9bff;
+  --shadow-card: none;
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 50%);
+}
+
+[data-density="confort"] {
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+}
+
+[data-density="compact"] {
+  --font-size-body: 0.875rem;
+  --font-size-lead: 0.9375rem;
+  --font-size-h3: 1rem;
+  --font-size-h2: 1.125rem;
+  --font-size-h1: 1.5rem;
+  --font-size-meta: 0.78125rem;
+  --line-height-body: 1.45;
+  --size-control: 2rem;
+  --space-row: 0.4375rem;
+}
+
+[data-density]:not(:root) {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+html {
+  font-size: 16px;
+}
+
+html[data-text-size="small"] {
+  font-size: 16px;
+}
+
+html[data-text-size="standard"] {
+  font-size: 17px;
+}
+
+html[data-text-size="large"] {
+  font-size: 18px;
+}
+
+html[data-text-size="xlarge"] {
+  font-size: 20px;
+}
+
+@layer base {
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+h1, h2, h3 {
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-h3); }
+
+a {
+  color: var(--color-accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+table, time, data, .num {
+  font-variant-numeric: tabular-nums;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.is-scrolling {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+:root {
+  --motion-fast: 0ms;
+  --motion-base: 0ms;
+  --motion-slow: 0ms;
+}
+}
+
+</style>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-canvas); color: var(--color-text); height: 100vh; overflow: hidden; }
+button { cursor: pointer; font: inherit; color: inherit; }
+p { margin: .4rem 0; }
+.app { display: flex; height: 100vh; }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.meta { color: var(--color-meta); }
+.small { font-size: .875rem; }
+.xs { font-size: .78rem; }
+
+/* ── Sidebar (Candidate et coach) ── */
+.sb { width: 16rem; flex: none; background: var(--color-nav); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; padding: .75rem .5rem; gap: 2px; overflow: auto; }
+.sb .brand { display: flex; align-items: center; gap: .5rem; font-weight: 600; padding: .25rem .5rem .75rem; }
+.sb .brand i { width: 1.5rem; height: 1.5rem; border-radius: 6px; background: var(--color-accent); color: var(--color-on-accent); display: grid; place-items: center; font-style: normal; font-size: .8rem; }
+.sb .brand small { font-weight: 400; color: var(--color-meta); }
+.sb .profile { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 8px; padding: .45rem .6rem; margin-bottom: .5rem; display: flex; justify-content: space-between; font-weight: 500; }
+.sb .new { display: flex; gap: .5rem; align-items: center; border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .45rem .75rem; margin-bottom: .5rem; font-weight: 500; }
+.nav { border: 0; background: none; text-align: left; padding: .4rem .6rem; border-radius: 6px; display: flex; gap: .55rem; align-items: center; width: 100%; color: var(--color-text); }
+.nav:hover { background: var(--color-hover); }
+.nav.on { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 500; }
+.nav .chev { margin-left: auto; color: var(--color-meta); font-size: .75rem; }
+.nav .count { margin-left: auto; font-size: .72rem; background: var(--color-accent-soft); color: var(--color-accent); border-radius: 999px; padding: 0 .45rem; }
+.sub { margin: 0 0 .25rem 1.35rem; border-left: 1px solid var(--color-border); padding-left: .35rem; }
+.sub .nav { font-size: .875rem; padding: .3rem .5rem; color: var(--color-text-secondary); }
+.sub .nav.on { color: var(--color-accent); }
+.sb .foot { margin-top: auto; border-top: 1px solid var(--color-border); padding-top: .5rem; }
+
+/* ── Main ── */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.top { min-height: 3.25rem; flex: none; display: flex; align-items: center; gap: .5rem; padding: .4rem 1rem; border-bottom: 1px solid var(--color-border); }
+.top h1 { font-size: 1rem; font-weight: 600; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top .crumb { color: var(--color-meta); font-weight: 400; }
+.top .sp { flex: 1; }
+.iconbtn { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .35rem .7rem; display: inline-flex; gap: .4rem; align-items: center; font-size: .875rem; white-space: nowrap; }
+.menu-btn { display: none; }
+.body { flex: 1; min-height: 0; display: flex; }
+.convo { flex: 1; min-width: 20rem; display: flex; flex-direction: column; }
+.thread { flex: 1; overflow: auto; padding: 1.5rem 1rem 1rem; }
+.col { max-width: 46rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
+.page { flex: 1; overflow: auto; padding: 1.5rem 1rem 5rem; }
+.wrap { max-width: 64rem; margin: 0 auto; }
+.wrap.narrow { max-width: 46rem; }
+.page h2 { font-size: 1.25rem; margin: 0 0 .5rem; }
+.page h3, .card h3 { font-size: 1rem; margin: 0 0 .4rem; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1rem; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+
+/* messages */
+.msg { line-height: 1.55; min-width: 0; }
+.msg.me { align-self: flex-end; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px 14px 4px 14px; padding: .55rem .85rem; max-width: 80%; }
+.who { display: inline-flex; gap: .35rem; align-items: center; font-size: .75rem; border-radius: 999px; padding: .1rem .5rem; margin-bottom: .35rem; font-weight: 500; }
+.who.ai { color: var(--color-accent); background: var(--color-accent-soft); }
+.who.human { color: var(--color-success); background: var(--color-success-soft); }
+.prov { font-size: .72rem; color: var(--color-meta); margin-top: .35rem; }
+.day { text-align: center; font-size: .75rem; color: var(--color-meta); }
+.note { border: 1px solid var(--color-accent-line); background: var(--color-accent-soft); border-radius: 8px; padding: .55rem .8rem; font-size: .875rem; }
+.note.warn { border-color: transparent; background: var(--color-warn-soft); color: var(--color-text); }
+.note.warn b { color: var(--color-warn); }
+.note.danger { border-color: transparent; background: var(--color-danger-soft); }
+.note.danger b { color: var(--color-danger); }
+.note.ok { border-color: transparent; background: var(--color-success-soft); }
+.note.ok b { color: var(--color-success); }
+
+/* cards */
+.card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); box-shadow: var(--shadow-card); padding: 1rem; min-width: 0; }
+.card.tight { padding: 0; overflow: hidden; }
+.card > header { display: flex; align-items: center; gap: .6rem; padding: .7rem 1rem; border-bottom: 1px solid var(--color-border); flex-wrap: wrap; }
+.card > header h2, .card > header h3 { font-size: 1rem; margin: 0; }
+.card > header .sp { flex: 1; }
+.card .in { padding: 1rem; }
+.pill { display: inline-block; font-size: .72rem; border-radius: 999px; padding: .1rem .5rem; background: var(--color-surface); border: 1px solid var(--color-border); white-space: nowrap; }
+.pill.ok { background: var(--color-success-soft); color: var(--color-success); border-color: transparent; }
+.pill.warn { background: var(--color-warn-soft); color: var(--color-warn); border-color: transparent; }
+.pill.acc { background: var(--color-accent-soft); color: var(--color-accent); border-color: transparent; }
+.pill.danger { background: var(--color-danger-soft); color: var(--color-danger); border-color: transparent; }
+.av { width: 2.75rem; height: 2.75rem; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 600; background: var(--color-accent-soft); color: var(--color-accent); }
+.av.lg { width: 4rem; height: 4rem; font-size: 1.25rem; }
+.av.sm { width: 2rem; height: 2rem; font-size: .8rem; }
+dl.props { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .6rem 1rem; margin: 0; font-size: .875rem; }
+dl.props dt { color: var(--color-meta); font-size: .75rem; }
+dl.props dd { margin: 0; font-weight: 500; }
+
+/* boutons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: var(--size-control); border-radius: var(--radius-control); border: 1px solid var(--color-border-strong); background: var(--color-background); padding: .4rem 1rem; font-weight: 500; text-decoration: none; color: var(--color-text); font-size: .9375rem; }
+.btn:hover { background: var(--color-hover); }
+.btn.primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.btn.primary:hover { background: var(--color-accent-hover); }
+.btn.danger { color: var(--color-danger); border-color: var(--color-danger); }
+.btn.sm { min-height: 2rem; padding: .2rem .75rem; font-size: .85rem; }
+.btn[aria-disabled="true"] { opacity: 1; background: var(--color-surface); border-color: var(--color-border); color: var(--color-secondary); cursor: not-allowed; }
+.row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.row .sp { flex: 1; }
+.linkish { border: 0; background: none; padding: 0; font-size: inherit; color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/* coachs */
+.coaches { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem; }
+.coach { display: flex; flex-direction: column; gap: .5rem; }
+.coach .hd { display: flex; gap: .6rem; align-items: center; }
+.coach h3 { margin: 0; font-size: 1rem; }
+.coach .tags { display: flex; flex-wrap: wrap; gap: .3rem; }
+.coach .price { font-weight: 600; }
+.coach.on { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.seller { font-size: .78rem; color: var(--color-text-secondary); }
+.seller b { color: var(--color-text); font-weight: 500; }
+
+/* colonne ancrée (ADR-0070) */
+.col-pane { flex: none; width: 22rem; display: flex; flex-direction: column; min-height: 0; }
+.col-pane > .cbody { flex: 1; overflow: auto; padding: 1rem 1rem 1rem 0; font-size: .875rem; }
+.col-pane .card > header button.x { border: 0; background: none; margin-left: auto; }
+.docp { flex: 1 1 32rem; min-width: 18rem; padding: 1rem 1rem 1rem 0; display: flex; flex-direction: column; min-height: 0; }
+.docp > .card { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.docp .cbody { flex: 1; overflow: auto; padding: 1rem; }
+.phone-close, .hide-desk { display: none; }
+
+/* document consulté ensemble */
+.page-doc { background: #fff; color: #222; border: 1px solid var(--color-border); border-radius: 8px; padding: 1.5rem 1.75rem; font-size: .8rem; line-height: 1.5; max-width: 40rem; margin: 0 auto; }
+.page-doc h4 { margin: 0; font-size: 1.15rem; color: #111; }
+.page-doc h5 { margin: 1rem 0 .3rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #3d3f8f; border-bottom: 1px solid #ddd; padding-bottom: .2rem; }
+.page-doc p, .page-doc li { margin: .2rem 0; }
+.page-doc ul { padding-left: 1.1rem; margin: .2rem 0; }
+.page-doc .sub { color: #555; border: 0; margin: 0; padding: 0; }
+.page-doc .focus { background: #fff1b8; outline: 2px dashed #b88a00; outline-offset: 2px; }
+.live { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 500; color: var(--color-success); }
+.live::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+.slide { aspect-ratio: 16 / 9; border-radius: 8px; background: linear-gradient(135deg, #2f3a8f, #4f5fe0); color: #fff; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; max-width: 40rem; margin: 0 auto; width: 100%; }
+.slide h4 { margin: 0 0 .5rem; font-size: 1.35rem; }
+.slide ul { margin: 0; padding-left: 1.2rem; }
+.tabs { display: flex; gap: .25rem; flex-wrap: wrap; }
+.tabs button { border: 0; background: none; padding: .35rem .7rem; border-radius: 6px; font-size: .875rem; color: var(--color-text-secondary); }
+.tabs button[aria-selected="true"] { background: var(--color-surface); color: var(--color-text); font-weight: 500; box-shadow: inset 0 0 0 1px var(--color-border); }
+.filedrop { border: 1px dashed var(--color-border-strong); border-radius: 8px; padding: .75rem; font-size: .875rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+
+/* formulaires */
+label.check { display: flex; gap: .6rem; align-items: flex-start; font-size: .9rem; }
+label.check input { margin-top: .25rem; width: 1.1rem; height: 1.1rem; flex: none; accent-color: var(--color-accent); }
+.field { display: flex; flex-direction: column; gap: .3rem; font-size: .875rem; }
+.field > span { font-weight: 500; }
+input[type="text"], select, textarea { border: 1px solid var(--color-border-strong); background: var(--color-background); border-radius: 8px; padding: .5rem .65rem; width: 100%; min-width: 0; }
+textarea { min-height: 7rem; resize: vertical; line-height: 1.5; }
+.legal { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 8px; padding: .75rem .9rem; font-size: .8125rem; max-height: 11rem; overflow: auto; }
+.legal h4 { margin: 0 0 .3rem; font-size: .875rem; }
+.total { display: grid; grid-template-columns: 1fr auto; gap: .25rem 1rem; font-size: .9rem; }
+.total .big { font-size: 1.25rem; font-weight: 600; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-weight: 600; padding: 0; margin-bottom: .5rem; }
+.choice { display: flex; gap: .7rem; align-items: flex-start; border: 1px solid var(--color-border); border-radius: 10px; padding: .75rem .9rem; margin-bottom: .5rem; }
+.choice:has(input:checked) { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.choice input { margin-top: .3rem; accent-color: var(--color-accent); width: 1.1rem; height: 1.1rem; flex: none; }
+.choice b { display: block; font-weight: 600; }
+
+/* Cal.com (emplacement) */
+.cal { border: 1px solid var(--color-border-strong); border-radius: 12px; overflow: hidden; background: var(--color-background); }
+.cal .calbar { display: flex; gap: .5rem; align-items: center; justify-content: space-between; padding: .5rem .9rem; background: var(--color-surface); border-bottom: 1px solid var(--color-border); font-size: .78rem; color: var(--color-meta); flex-wrap: wrap; }
+.cal .calin { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1rem; padding: 1rem; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; text-align: center; font-size: .85rem; }
+.days .dn { font-size: .72rem; color: var(--color-meta); padding: .2rem 0; }
+.days button, .days span.off { border: 0; border-radius: 8px; padding: .45rem 0; background: none; }
+.days span.off { color: var(--color-meta); }
+.days button { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
+.days button[aria-pressed="true"] { background: var(--color-accent); color: var(--color-on-accent); }
+.slots { display: flex; flex-direction: column; gap: .4rem; }
+.slots button { border: 1px solid var(--color-accent-line); background: var(--color-background); color: var(--color-text); border-radius: 8px; padding: .45rem .6rem; text-align: left; font-size: .875rem; }
+.slots button small { display: block; color: var(--color-meta); font-size: .75rem; }
+.slots button[aria-pressed="true"] { border-color: var(--color-accent); background: var(--color-accent-soft); }
+
+/* sessions list */
+.sess { display: flex; gap: .75rem; align-items: center; padding: .75rem 1rem; border-top: 1px solid var(--color-border); flex-wrap: wrap; }
+.sess:first-of-type { border-top: 0; }
+.sess .what { flex: 1 1 14rem; min-width: 0; }
+.sess .what small { display: block; color: var(--color-meta); }
+
+/* Action Cards */
+.acard { border: 1px solid var(--color-border); border-radius: 10px; padding: .75rem .9rem; background: var(--color-background); display: flex; flex-direction: column; gap: .4rem; }
+.acard .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-meta); }
+.acard.done { background: var(--color-success-soft); border-color: transparent; }
+.report h3 { font-size: .9rem; margin: .8rem 0 .2rem; }
+.report ul { margin: .2rem 0; padding-left: 1.2rem; }
+
+/* rappels */
+.mocks { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.mail { border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: var(--color-background); }
+.mail .mh { padding: .7rem 1rem; border-bottom: 1px solid var(--color-border); font-size: .8125rem; background: var(--color-surface); }
+.mail .mh div { padding: .1rem 0; }
+.mail .mb { padding: 1rem 1.25rem; }
+.phone { max-width: 20rem; margin: 0 auto; width: 100%; border-radius: 2rem; border: 8px solid var(--color-inverse); background: linear-gradient(180deg, #2b2f55, #121219); color: #fff; padding: 2.25rem .9rem 2rem; }
+.phone .clock { text-align: center; font-size: 2.5rem; font-weight: 300; }
+.phone .date { text-align: center; font-size: .85rem; opacity: .9; margin-bottom: 1rem; }
+.push { background: rgb(255 255 255 / 92%); color: #1b1b26; border-radius: 14px; padding: .65rem .8rem; font-size: .82rem; margin-bottom: .5rem; }
+.push .ph { display: flex; gap: .4rem; align-items: center; font-size: .72rem; color: #555; margin-bottom: .2rem; }
+.push .ph i { width: 1rem; height: 1rem; border-radius: 4px; background: #4f5fe0; color: #fff; font-style: normal; font-size: .6rem; display: grid; place-items: center; }
+.push .act { display: inline-block; margin-top: .4rem; background: #4f5fe0; color: #fff; border-radius: 999px; padding: .2rem .7rem; font-weight: 500; border: 0; }
+
+/* phase suivante */
+.phase { border: 2px dashed var(--color-warn); background: var(--color-warn-soft); border-radius: 12px; padding: .75rem 1rem; }
+.phase b { color: var(--color-warn); }
+.rec { display: inline-flex; align-items: center; gap: .45rem; background: var(--color-danger-soft); color: var(--color-danger); border-radius: 999px; padding: .25rem .75rem; font-weight: 600; font-size: .85rem; }
+.rec::before { content: ""; width: .6rem; height: .6rem; border-radius: 50%; background: currentColor; animation: blink 1.2s infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .rec::before { animation: none; } }
+.consent { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.consent .who-c { border: 1px solid var(--color-border); border-radius: 10px; padding: .75rem; }
+.ai-label { display: inline-flex; gap: .35rem; align-items: center; font-size: .75rem; color: var(--color-accent); background: var(--color-accent-soft); border-radius: 999px; padding: .1rem .55rem; font-weight: 500; }
+
+/* barre du prototype (PO) */
+.proto { position: fixed; bottom: .5rem; right: .5rem; z-index: 100; display: flex; align-items: center; gap: .4rem; background: #111; color: #fff; border-radius: 999px; padding: .3rem .45rem; font-size: .78rem; box-shadow: 0 6px 20px rgb(0 0 0 / 35%); font-family: ui-monospace, monospace; max-width: calc(100vw - 1rem); flex-wrap: wrap; }
+.proto button { background: #2a2a2a; border: 0; color: #fff; border-radius: 999px; padding: .25rem .6rem; font: inherit; }
+.proto button[aria-pressed="true"] { background: #fff; color: #111; }
+.proto select { background: #2a2a2a; color: #fff; border: 0; border-radius: 999px; padding: .25rem .5rem; width: auto; font: inherit; }
+.proto :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.proto .lbl { padding: 0 .3rem; white-space: nowrap; color: #ddd; }
+.proto .sep { width: 1px; height: 1rem; background: #555; }
+
+/* iPad */
+@media (max-width: 1180px) {
+  .sb { width: 14rem; }
+  .col-pane { width: 19rem; }
+  .grid2 { grid-template-columns: minmax(0, 1fr) 17rem; }
+  .cal .calin { grid-template-columns: minmax(0, 1fr) 11rem; }
+}
+@media (max-width: 960px) {
+  .grid2, .mocks { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* téléphone */
+.scrim { display: none; }
+@media (max-width: 767px) {
+  .sb { position: fixed; inset: 0 auto 0 0; z-index: 40; transform: translateX(-100%); transition: transform .2s; width: 85vw; visibility: hidden; }
+  .app.drawer .sb { transform: none; visibility: visible; }
+  .app.drawer .scrim { display: block; position: fixed; inset: 0; background: var(--color-scrim); z-index: 30; }
+  .menu-btn { display: inline-flex; }
+  .top .hide-phone { display: none; }
+  .convo { min-width: 0; }
+  .thread { padding: 1rem .75rem 4rem; }
+  .page { padding: 1rem .75rem 5rem; }
+  .col-pane, .docp { display: none; }
+  .app.pane-open .col-pane, .app.pane-open .docp { display: flex; position: fixed; inset: 0; width: auto; z-index: 50; background: var(--color-canvas); padding: .75rem; }
+  .app.pane-open .col-pane > .cbody { padding: 0; }
+  .phone-close, .hide-desk { display: inline-flex; }
+  .msg.me { max-width: 90%; }
+  .cal .calin { grid-template-columns: minmax(0, 1fr); }
+  .consent { grid-template-columns: 1fr; }
+  .page-doc { padding: 1rem; }
+  .proto { left: auto; right: .5rem; bottom: .5rem; flex-wrap: nowrap; gap: .25rem; }
+  .proto select { max-width: 8.5rem; }
+  .proto .sep { display: none; }
+  .composer { padding-bottom: 3.25rem !important; }
+}
+</style>
+</head>
+<body>
+<a class="vh" href="#contenu">Aller au contenu</a>
+<div id="root"></div>
+<script>
+// ───────────────────────────── Données fictives ─────────────────────────────
+const CAND = { first: "Sophie", last: "Lambert", short: "Sophie L.", city: "Montréal" };
+const COACHES = [
+  { id: "claire", name: "Claire Martin", ini: "CM", title: "Coach carrière, ex-DRH industrie", spec: ["Reconversion après 45 ans", "Entretiens de direction", "Négociation"], lang: ["Français", "Anglais"], tz: "Paris", price: 90, vat: 15, seller: "coach", sellerName: "Claire Martin", tool: "Zoom",
+    bio: "Vingt ans de recrutement de cadres dirigeants dans l'industrie. J'aide les dirigeantes et dirigeants de plus de 45 ans à raconter leur parcours et à préparer leurs entretiens." },
+  { id: "karim", name: "Karim Benali", ini: "KB", title: "Coach certifié, finance et opérations", spec: ["CV et LinkedIn", "Postes de DAF", "Pitch de 2 minutes"], lang: ["Français", "Arabe"], tz: "Paris", price: 75, vat: 12.5, seller: "jobbbox", sellerName: "Jobbbox", tool: "Google Meet",
+    bio: "Ancien DAF de PME. Je travaille surtout le CV, le pitch et la préparation aux entretiens de finance." },
+  { id: "helene", name: "Hélène Roux", ini: "HR", title: "Bénévole, ex-cadre RH", spec: ["Reprise d'emploi", "Confiance en entretien"], lang: ["Français", "Portugais"], tz: "Lisbonne", price: 40, vat: 0, seller: "asso", sellerName: "l'association Rebond 45+", tool: "Microsoft Teams",
+    bio: "Bénévole de Rebond 45+, j'accompagne les personnes qui reprennent un emploi après une longue pause." },
+];
+const SELLER_LABEL = { jobbbox: "Vendu par Jobbbox", coach: "Vendu par le coach", asso: "Vendu par l'association" };
+const TZ = { mtl: { label: "Montréal (UTC−5)", off: -6 }, par: { label: "Paris (UTC+1)", off: 0 }, lis: { label: "Lisbonne (UTC+0)", off: -1 } };
+const SLOT_DAYS = [ { d: 10, n: "mar. 10 nov." }, { d: 12, n: "jeu. 12 nov." }, { d: 13, n: "ven. 13 nov." }, { d: 17, n: "mar. 17 nov." } ];
+const SLOTS = [600, 690, 840, 900, 990]; // minutes, heure de Paris
+const SESSION = { day: "jeudi 12 novembre 2026", dayShort: "jeu. 12 nov.", paris: 900, dur: 60 };
+
+const SCREENS = {
+  "choisir": "Choisir un coach", "commande": "Commande", "creneau": "Créneau (Cal.com)", "attente": "À planifier",
+  "rappel": "Rappel", "seance-candidat": "Séance · Candidate", "seance-coach": "Séance · coach", "apres": "Après : compte rendu",
+  "annulation": "Annulation", "phase-suivante": "Phase suivante",
+};
+const ROLE_SCREENS = ["rappel", "apres", "annulation", "phase-suivante"];
+
+const S = {
+  screen: "choisir", role: "candidat", theme: "light", tz: "mtl",
+  coach: "claire", drawer: false, paneOpen: false,
+  cgv: false, ipr: false, paid: false, tried: false,
+  day: 12, slot: null, booked: false,
+  soon: "ouvert",            // séance : "avant" (plus de 10 min) | "ouvert"
+  shared: "tailored",        // document consulté ensemble : null | "tailored" | "cv"
+  ctab: "doc",               // côté coach : "doc" | "slides"
+  slide: 1, slidesUp: true,
+  notes: "Très claire sur le périmètre opérations. À creuser : chiffres de la réorganisation logistique (2021) — elle les minimise.\nPeur de l'objection « surqualifiée ».",
+  cards: {}, reportSent: false,
+  cancelChoice: "autre", late: false, cancelDone: false, coachReason: "", coachCancelled: false, coachTried: false,
+  consentC: true, consentK: false, recording: false, summaryOk: false,
+};
+
+// ───────────────────────────── URL ↔ état ─────────────────────────────
+function readUrl() {
+  const q = new URLSearchParams(location.search);
+  if (SCREENS[q.get("screen")]) S.screen = q.get("screen");
+  if (["candidat", "coach"].includes(q.get("role"))) S.role = q.get("role");
+  if (TZ[q.get("tz")]) S.tz = q.get("tz");
+  S.theme = q.get("theme") === "dark" ? "dark" : "light";
+}
+function writeUrl() {
+  const q = new URLSearchParams({ screen: S.screen });
+  if (ROLE_SCREENS.includes(S.screen)) q.set("role", S.role);
+  if (S.tz !== "mtl") q.set("tz", S.tz);
+  if (S.theme === "dark") q.set("theme", "dark");
+  try { history.replaceState(null, "", "?" + q); } catch {}
+}
+const set = (patch) => { Object.assign(S, patch); writeUrl(); render(); };
+const coach = () => COACHES.find((c) => c.id === S.coach) ?? COACHES[0];
+const h = String.raw;
+const eur = (n) => n.toFixed(2).replace(".", ",") + " €";
+const pad = (n) => String(n).padStart(2, "0");
+const hm = (min) => { const m = ((min % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ":" + pad(m % 60); };
+// Heure dans le fuseau du Candidate, avec l'heure de Paris rappelée quand elle diffère (#853, point 7).
+const local = (parisMin) => hm(parisMin + TZ[S.tz].off * 60);
+const at = (parisMin) => S.tz === "par" ? `<time>${local(parisMin)}</time>` : `<time>${local(parisMin)}</time> <span class="meta">(${hm(parisMin)} à Paris)</span>`;
+const atText = (parisMin) => S.tz === "par" ? local(parisMin) : `${local(parisMin)} (${hm(parisMin)} à Paris)`;
+const tzCity = () => TZ[S.tz].label.split(" ")[0];
+const isCoachView = () => S.screen === "seance-coach" || (ROLE_SCREENS.includes(S.screen) && S.role === "coach");
+
+// ───────────────────────────── Coquilles ─────────────────────────────
+function sidebarCandidate() {
+  const sessOn = ["seance-candidat", "apres", "annulation", "phase-suivante"].includes(S.screen);
+  return h`<nav class="sb" aria-label="Navigation principale">
+    <div class="brand"><i aria-hidden="true">J</i>Jobbbox</div>
+    <div class="profile">Directrice des opérations <span aria-hidden="true">⌄</span></div>
+    <button class="new">✎ Nouvelle conversation</button>
+    <button class="nav">◎ Coach</button>
+    <button class="nav">▤ Mes candidatures</button>
+    <button class="nav">▦ Agenda</button>
+    <button class="nav">⌕ Recherches d'offres</button>
+    <button class="nav">✉ Job Digests</button>
+    <button class="nav ${sessOn ? "" : "on"}" data-go="choisir" ${sessOn ? "" : 'aria-current="page"'}>☺ Mes coachs humains <span class="chev" aria-hidden="true">▾</span></button>
+    <div class="sub">
+      <button class="nav ${sessOn ? "on" : ""}" data-go="seance-candidat" ${sessOn ? 'aria-current="page"' : ""}>Séance du 12 nov. · Claire M.</button>
+      <button class="nav" data-go="apres">Séance du 22 oct. · Claire M.</button>
+    </div>
+    <div class="foot">
+      <button class="nav">⚙ Mon compte</button>
+      <button class="nav">⇥ Se déconnecter</button>
+    </div>
+  </nav>`;
+}
+function sidebarCoach() {
+  const items = ["Aujourd'hui", "Mes Candidates", "Mes séances", "Disponibilités", "Profil public", "Revenus", "Contrat", "Aide"];
+  return h`<nav class="sb" aria-label="Espace coach">
+    <div class="brand"><i aria-hidden="true">J</i>Jobbbox <small>· Espace coach</small></div>
+    <div class="profile">Claire Martin <span class="meta xs">Paris</span></div>
+    ${items.map((t) => `<button class="nav ${t === "Mes séances" ? "on" : ""}" ${t === "Mes séances" ? 'aria-current="page"' : ""}>${t}${t === "Mes séances" ? '<span class="count">2</span>' : ""}</button>`).join("")}
+    <div class="foot"><button class="nav">⇥ Se déconnecter</button></div>
+  </nav>`;
+}
+function topbar(title, extra = "") {
+  return h`<header class="top">
+    <button class="iconbtn menu-btn" data-drawer aria-label="Ouvrir le menu">☰ Menu</button>
+    <h1>${title}</h1><span class="sp"></span>${extra}
+  </header>`;
+}
+const aiMsg = (html, prov = "prototype · aucun appel IA") => `<div class="msg"><span class="who ai">✦ Coach IA</span>${html}<div class="prov">${prov}</div></div>`;
+const humanMsg = (name, html, when) => `<div class="msg"><span class="who human">● ${name} · Human Coach</span>${html}<div class="prov">${when}</div></div>`;
+const meMsg = (t) => `<div class="msg me">${t}</div>`;
+function composer(placeholder = "Écrire au Coach IA…") {
+  return h`<form class="composer" style="flex:none;padding:.5rem 1rem 1rem" onsubmit="return false">
+    <div class="col" style="gap:.4rem"><div class="card" style="padding:.5rem .6rem .5rem .9rem;border-radius:16px">
+      <label class="vh" for="msgbox">Votre message</label>
+      <textarea id="msgbox" rows="1" placeholder="${placeholder}" style="border:0;min-height:2.4rem;padding:.3rem 0;resize:none;background:none"></textarea>
+      <div class="row xs meta"><span class="pill acc">Coach IA</span><span>Une IA, pas une personne.</span><span class="sp"></span><button class="btn sm primary" type="submit">Envoyer</button></div>
+    </div></div>
+  </form>`;
+}
+
+// ───────────────────────────── Écrans ─────────────────────────────
+function coachCard(c) {
+  return h`<article class="card coach ${S.coach === c.id ? "on" : ""}" aria-labelledby="c-${c.id}">
+    <div class="hd"><div class="av" aria-hidden="true">${c.ini}</div><div><h3 id="c-${c.id}">${c.name}</h3><div class="meta xs">${c.title}</div></div></div>
+    <div class="tags">${c.spec.map((s) => `<span class="pill">${s}</span>`).join("")}</div>
+    <div class="xs meta">${c.lang.join(" · ")} · fuseau de ${c.tz} · à distance (${c.tool})</div>
+    <div class="row"><span class="price">${eur(c.price)} TTC</span><span class="meta xs">· 60 min</span><span class="sp"></span><span class="pill ${c.seller === "jobbbox" ? "acc" : c.seller === "asso" ? "ok" : ""}">${SELLER_LABEL[c.seller]}</span></div>
+    ${c.seller === "asso" ? `<div class="seller">Coach proposée par <b>Rebond 45+</b>, association validée</div>` : ""}
+    <div class="row"><button class="btn sm" data-profile="${c.id}">Voir le profil public</button><button class="btn sm primary" data-book="${c.id}">Réserver</button></div>
+  </article>`;
+}
+function profilePane() {
+  const c = coach();
+  return h`<aside class="col-pane" aria-label="Profil public de ${c.name}"><div class="cbody">
+    <section class="card tight">
+      <header><h2>Profil public</h2><button class="x btn sm phone-close" data-pane-close>Fermer</button></header>
+      <div class="in stack" style="gap:.75rem">
+        <div class="row"><div class="av lg" aria-hidden="true">${c.ini}</div><div><h3 style="margin:0">${c.name}</h3><div class="meta xs">${c.title}</div></div></div>
+        <p>${c.bio}</p>
+        <dl class="props">
+          <div><dt>Spécialités</dt><dd>${c.spec.join(", ")}</dd></div>
+          <div><dt>Langues</dt><dd>${c.lang.join(", ")}</dd></div>
+          <div><dt>Fuseau</dt><dd>${c.tz}</dd></div>
+          <div><dt>Séance</dt><dd>À distance, ${c.tool}, ou par téléphone</dd></div>
+        </dl>
+        <h3 style="margin:.25rem 0 0">Offres</h3>
+        <div class="row small"><span>Séance de coaching · 60 min</span><span class="sp"></span><b>${eur(c.price)} TTC</b></div>
+        <div class="seller">${SELLER_LABEL[c.seller]} : <b>${c.sellerName}</b>${c.seller !== "jobbbox" ? ". Jobbbox est la place de marché qui vous met en relation." : "."}</div>
+        <p class="xs meta">Profil relu et validé par l'équipe Jobbbox. Jobbbox n'affiche pas d'avis sur les coachs.</p>
+        <button class="btn primary" data-book="${c.id}">Réserver une séance avec ${c.name.split(" ")[0]}</button>
+      </div>
+    </section>
+  </div></aside>`;
+}
+function scrChoisir() {
+  const body = h`<div class="body"><section class="convo" aria-label="Conversation Mes coachs humains">
+    <div class="thread" id="contenu" tabindex="-1"><div class="col">
+      ${aiMsg("<p>Je suis le Coach IA de Jobbbox, une IA et non une personne. Ici, vous retrouvez vos séances avec des Human Coaches, des personnes, et vous pouvez en réserver une.</p>", "Introduction · message fixe")}
+      <section class="card tight" aria-labelledby="mes-seances">
+        <header><h2 id="mes-seances">Mes Coaching Sessions</h2><span class="sp"></span><span class="pill">1 à venir</span><span class="pill warn">0 à planifier</span></header>
+        <div class="sess"><div class="av sm" aria-hidden="true">CM</div><div class="what"><b>Claire Martin</b><small>${SESSION.dayShort} · ${atText(SESSION.paris)} · Zoom</small></div><span class="pill ok">À venir</span><button class="btn sm" data-go="seance-candidat">Ouvrir</button></div>
+      </section>
+      <section aria-labelledby="coachs-h"><h2 id="coachs-h" style="font-size:1.05rem;margin:0 0 .6rem">Human Coaches</h2><div class="coaches">${COACHES.map(coachCard).join("")}</div></section>
+      ${meMsg("Tu peux me réserver une séance avec Karim jeudi ?")}
+      ${aiMsg("<p>Je ne réserve pas de séance moi-même. Choisissez un coach ci-dessus et cliquez sur « Réserver » : vous paierez puis choisirez votre créneau dans la foulée.</p>")}
+    </div></div>
+    ${composer()}
+  </section>${profilePane()}</div>`;
+  return { shell: "cand", title: "Mes coachs humains", body, top: `<button class="iconbtn hide-desk" data-pane-open>Profil public</button>` };
+}
+
+function scrCommande() {
+  const c = coach();
+  const ht = c.price - c.vat;
+  const ready = S.cgv && S.ipr;
+  const err = S.tried && !ready;
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap"><div class="grid2">
+    <div class="stack">
+      <section class="card" aria-labelledby="h-order">
+        <h2 id="h-order">Votre commande</h2>
+        <div class="row" style="margin:.5rem 0 .75rem"><div class="av" aria-hidden="true">${c.ini}</div><div><b>Séance de coaching · 60 min</b><div class="meta small">avec ${c.name} · à distance (${c.tool}) ou par téléphone</div></div></div>
+        <dl class="props">
+          <div><dt>Créneau</dt><dd>Choisi juste après le paiement</dd></div>
+          <div><dt>Vendu par</dt><dd>${c.sellerName}</dd></div>
+          <div><dt>Report ou annulation</dt><dd>Jusqu'à 24 h avant</dd></div>
+        </dl>
+      </section>
+      <section class="card" aria-labelledby="h-seller">
+        <h3 id="h-seller">Qui vous vend cette séance</h3>
+        ${c.seller === "jobbbox" ? `<p class="small">Cette séance est vendue par <b>Jobbbox</b>, au prix fixé par Jobbbox. ${c.name} la tient pour Jobbbox.</p>` :
+          `<p class="small">Cette séance est vendue par <b>${c.sellerName}</b>, ${c.seller === "asso" ? "association" : "coach professionnelle"}, au prix qu'${c.seller === "asso" ? "elle" : "elle"} fixe. Jobbbox est la place de marché qui vous met en relation et encaisse le paiement pour son compte.</p>
+           <p class="small meta">Vendeur : ${c.sellerName} · SIRET 000 000 000 00000 (démo) · médiateur du vendeur : Médiateur de la consommation (démo).</p>`}
+      </section>
+      <section class="card stack" aria-labelledby="h-cgv" style="gap:.75rem">
+        <h3 id="h-cgv">Conditions</h3>
+        <div class="legal" tabindex="0" aria-label="Extrait des conditions générales de vente">
+          <h4>Conditions générales de vente · Coaching Sessions (version 3, démo)</h4>
+          <p>1. La séance dure 60 minutes, à distance, par le lien donné par le coach (Zoom, Meet, Teams) ou par téléphone.</p>
+          <p>2. Vous choisissez votre créneau après le paiement ; aucun créneau n'est réservé pendant le paiement. Une séance payée sans créneau reste « À planifier ».</p>
+          <p>3. Vous pouvez reporter ou annuler jusqu'à 24 h avant la séance, et être remboursé. Après, la séance est due.</p>
+          <p>4. Si le coach annule, vous êtes remboursé, ou vous choisissez un autre créneau ou un confrère.</p>
+          <p>5. Le coach n'enregistre pas la séance et n'utilise pas de prise de notes par IA sans votre accord.</p>
+        </div>
+        <a href="#" class="small" data-noop>Télécharger les CGV (PDF)</a>
+        <label class="check"><input type="checkbox" data-check="cgv" ${S.cgv ? "checked" : ""} aria-describedby="${err && !S.cgv ? "e-cgv" : ""}"> <span>J'ai lu et j'accepte les conditions générales de vente.</span></label>
+        ${err && !S.cgv ? `<p id="e-cgv" class="small" style="color:var(--color-danger);margin:0">Acceptez les conditions pour continuer.</p>` : ""}
+        <label class="check"><input type="checkbox" data-check="ipr" ${S.ipr ? "checked" : ""}> <span>Je demande que la séance puisse avoir lieu avant la fin de mon délai de rétractation de 14 jours. Je peux me rétracter et être remboursé·e jusqu'à la séance ; une fois la séance tenue, je ne peux plus me rétracter.</span></label>
+        ${err && !S.ipr ? `<p class="small" style="color:var(--color-danger);margin:0">Cochez cette demande pour pouvoir tenir la séance dans les 14 jours.</p>` : ""}
+        <p class="xs meta" style="margin:0">Si vous exercez votre droit de rétractation, la réservation chez Cal.com est annulée aussi.</p>
+      </section>
+    </div>
+    <aside class="stack" aria-label="Paiement">
+      <section class="card stack" aria-labelledby="h-pay" style="gap:.75rem">
+        <h2 id="h-pay" style="font-size:1rem;margin:0">Paiement</h2>
+        <div class="total">
+          <span>Prix HT</span><span class="num">${eur(ht)}</span>
+          <span>TVA${c.vat ? " 20 %" : " (non applicable)"}</span><span class="num">${eur(c.vat)}</span>
+          <span class="big">Total TTC</span><span class="big num">${eur(c.price)}</span>
+        </div>
+        <div class="filedrop meta" style="border-style:solid">Carte bancaire · formulaire de paiement sécurisé (emplacement, démo)</div>
+        <button class="btn primary" data-pay>Payer ${eur(c.price)} TTC</button>
+        <p class="xs meta" style="margin:0">${SELLER_LABEL[c.seller]} : ${c.sellerName}. Reçu et Order Confirmation envoyés par e-mail.</p>
+      </section>
+    </aside>
+  </div></div></main>`;
+  return { shell: "cand", title: `<span class="crumb hide-phone">Mes coachs humains › </span>Commande · ${c.name}`, body };
+}
+
+function scrCreneau() {
+  const c = coach();
+  const day = SLOT_DAYS.find((d) => d.d === S.day) ?? SLOT_DAYS[1];
+  const cal = [];
+  for (let i = 0; i < 6; i++) cal.push(`<span class="off" aria-hidden="true"></span>`);
+  for (let d = 1; d <= 30; d++) {
+    const sd = SLOT_DAYS.find((x) => x.d === d);
+    cal.push(sd ? `<button data-day="${d}" aria-pressed="${S.day === d}" aria-label="${sd.n}, créneaux libres">${d}</button>` : `<span class="off">${d}</span>`);
+  }
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap narrow stack">
+    <div class="note ok" role="status"><b>Paiement reçu · ${eur(c.price)} TTC.</b> Order Confirmation envoyée à sophie.lambert@exemple.ca. Choisissez maintenant votre créneau.</div>
+    <section aria-labelledby="h-slot" class="stack" style="gap:.6rem">
+      <div class="row"><h2 id="h-slot" style="margin:0">Choisir votre créneau avec ${c.name}</h2></div>
+      <label class="field" style="max-width:20rem"><span>Votre fuseau horaire</span>
+        <select data-tz>${Object.entries(TZ).map(([k, v]) => `<option value="${k}" ${S.tz === k ? "selected" : ""}>${v.label}</option>`).join("")}</select></label>
+      ${S.booked ? h`<div class="card stack" role="status" style="gap:.5rem">
+          <h3>Séance réservée</h3>
+          <p>${day.n} à ${at(S.slot)} · 60 min · avec ${c.name}</p>
+          <p class="small meta">Le bouton « Rejoindre sur ${c.tool} » apparaîtra 10 minutes avant. Rappels la veille et une heure avant.</p>
+          <div class="row"><button class="btn primary" data-go="seance-candidat">Voir la séance</button><button class="btn" data-go="choisir">Retour à Mes coachs humains</button></div>
+        </div>` : h`<div class="cal" role="region" aria-label="Agenda de réservation Cal.com intégré (emplacement)">
+        <div class="calbar"><span>Cal.com · intégré dans la page (emplacement du prototype)</span><span>Heures en ${TZ[S.tz].label}</span></div>
+        <div class="calin">
+          <div><div class="row" style="justify-content:space-between;margin-bottom:.5rem"><b>Novembre 2026</b><span class="xs meta">disponibilités de ${c.name.split(" ")[0]}</span></div>
+            <div class="days">${["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."].map((d) => `<span class="dn">${d}</span>`).join("")}${cal.join("")}</div></div>
+          <div><b class="small">${day.n}</b>
+            <div class="slots" role="group" aria-label="Créneaux du ${day.n}" style="margin-top:.4rem">${SLOTS.map((m) => `<button data-slot="${m}" aria-pressed="${S.slot === m}">${local(m)}${S.tz === "par" ? "" : `<small>${hm(m)} à Paris</small>`}</button>`).join("")}</div></div>
+        </div>
+        <div class="row" style="padding:0 1rem 1rem">${S.slot != null ? `<span class="small">${day.n} · ${at(S.slot)}</span>` : `<span class="small meta">Aucun créneau choisi</span>`}<span class="sp"></span>
+          <button class="btn primary" data-confirm ${S.slot == null ? 'aria-disabled="true"' : ""}>Confirmer ce créneau</button></div>
+      </div>
+      <p class="small">Pas maintenant ? <button class="linkish" data-go="attente">Choisir plus tard</button> : votre séance payée reste « À planifier » dans Mes coachs humains.</p>`}
+    </section>
+  </div></main>`;
+  return { shell: "cand", title: `<span class="crumb hide-phone">Commande › </span>Créneau`, body };
+}
+
+function scrAttente() {
+  const body = h`<div class="body"><section class="convo" aria-label="Conversation Mes coachs humains">
+    <div class="thread" id="contenu" tabindex="-1"><div class="col">
+      ${aiMsg("<p>Je suis le Coach IA de Jobbbox, une IA et non une personne. Ici, vous retrouvez vos séances avec des Human Coaches.</p>", "Introduction · message fixe")}
+      <section class="card tight" aria-labelledby="mes-seances">
+        <header><h2 id="mes-seances">Mes Coaching Sessions</h2><span class="sp"></span><span class="pill warn">1 à planifier</span></header>
+        <div class="sess"><div class="av sm" aria-hidden="true">KB</div><div class="what"><b>Karim Benali · 60 min</b><small>Payée le 6 nov. · ${eur(75)} TTC · vendue par Jobbbox · aucun créneau choisi</small></div><span class="pill warn">À planifier</span><button class="btn sm primary" data-coach-slot="karim">Choisir un créneau</button></div>
+        <div class="sess"><div class="av sm" aria-hidden="true">CM</div><div class="what"><b>Claire Martin · 60 min</b><small>${SESSION.dayShort} · ${atText(SESSION.paris)} · Zoom</small></div><span class="pill ok">À venir</span><button class="btn sm" data-go="seance-candidat">Ouvrir</button></div>
+      </section>
+      <div class="note"><b>Bon à savoir :</b> une séance « À planifier » est payée ; elle n'a pas encore de date. Vous pouvez choisir le créneau quand vous voulez, dans le calendrier de Karim.</div>
+      ${aiMsg("<p>Votre séance avec Karim est payée mais pas encore planifiée. Voulez-vous choisir un créneau maintenant ?</p>")}
+    </div></div>
+    ${composer()}
+  </section></div>`;
+  return { shell: "cand", title: "Mes coachs humains", body };
+}
+
+function scrRappel() {
+  const coachSide = S.role === "coach";
+  const t = coachSide ? hm(SESSION.paris) : atText(SESSION.paris);
+  const mail = coachSide ? h`<article class="mail" aria-label="E-mail récapitulatif du matin">
+      <div class="mh"><div><b>De :</b> Jobbbox &lt;espace-coach@jobbbox.ai&gt;</div><div><b>À :</b> Claire Martin</div><div><b>Objet :</b> Vos séances d'aujourd'hui · jeudi 12 novembre</div></div>
+      <div class="mb"><h2 style="font-size:1.1rem;margin-top:0">Bonjour Claire,</h2><p>Vous avez 2 séances aujourd'hui (heure de Paris) :</p>
+        <ul><li><b>11:30</b> · Marc D. · Google Meet</li><li><b>15:00</b> · Sophie L. · Zoom · 09:00 à Montréal pour elle</li></ul>
+        <p>Une chose à faire : le compte rendu de la séance du 5 nov. avec Paul R.</p>
+        <p><a class="btn primary" href="#" data-go="seance-coach">Ouvrir Aujourd'hui</a></p>
+        <p class="xs meta">Récapitulatif du matin. Vous pouvez le désactiver dans Espace coach › Notifications.</p></div>
+    </article>` : h`<article class="mail" aria-label="E-mail de rappel la veille">
+      <div class="mh"><div><b>De :</b> Jobbbox &lt;bonjour@jobbbox.ai&gt;</div><div><b>À :</b> Sophie Lambert</div><div><b>Objet :</b> Demain : votre séance avec Claire Martin</div></div>
+      <div class="mb"><h2 style="font-size:1.1rem;margin-top:0">Bonjour Sophie,</h2>
+        <p>Rappel : votre séance de coaching avec <b>Claire Martin</b> a lieu <b>demain, ${SESSION.day}, à ${t}</b>, pendant 60 minutes.</p>
+        <p>Elle se tient sur <b>Zoom</b>. Le bouton « Rejoindre sur Zoom » s'active 10 minutes avant, dans Jobbbox et dans ce lien :</p>
+        <p><a class="btn primary" href="#" data-go="seance-candidat">Rejoindre sur Zoom</a></p>
+        <p class="small">Pas d'ordinateur ? Claire peut vous appeler au numéro de votre compte.</p>
+        <p class="small">Pensez à préparer le document que vous voulez lire ensemble (votre CV ou un Tailored Document).</p>
+        <p class="xs meta">Reporter ou annuler : jusqu'à 24 h avant, soit avant aujourd'hui ${t}. Après, la séance est due.</p></div>
+    </article>`;
+  const push = coachSide
+    ? `<div class="push"><div class="ph"><i>J</i>Jobbbox · maintenant</div><b>Séance dans 1 h · Sophie L.</b><br>15:00 · Zoom<br><button class="act" data-go="seance-coach">Rejoindre sur Zoom</button></div>`
+    : `<div class="push"><div class="ph"><i>J</i>Jobbbox · maintenant</div><b>Votre séance avec Claire Martin dans 1 h</b><br>${t} · Zoom<br><button class="act" data-go="seance-candidat">Rejoindre sur Zoom</button></div>`;
+  const clock = coachSide ? "14:00" : local(SESSION.paris - 60);
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap stack">
+    <p class="small meta" style="margin:0">${coachSide ? "Côté coach : récapitulatif du matin, puis rappel une heure avant. Les rappels de Cal.com sont coupés." : "Côté Candidate : e-mail la veille, puis Push notification une heure avant. Les rappels de Cal.com sont coupés."}</p>
+    <div class="mocks">
+      <section aria-labelledby="h-mail"><h2 id="h-mail">${coachSide ? "Le matin, par e-mail" : "La veille, par e-mail"}</h2>${mail}</section>
+      <section aria-labelledby="h-push"><h2 id="h-push">Une heure avant, en Push notification</h2>
+        <div class="phone" role="img" aria-label="Écran verrouillé d'un téléphone avec la notification de rappel"><div class="clock">${clock}</div><div class="date">jeudi 12 novembre</div>${push}</div></section>
+    </div>
+  </div></main>`;
+  return { shell: coachSide ? "coach" : "cand", title: coachSide ? "Rappels · coach" : "Rappels · Candidate", body };
+}
+
+function sharedDoc(focus = true) {
+  if (S.shared === "cv") return h`<div class="page-doc" aria-label="CV maître de Sophie Lambert">
+    <h4>Sophie Lambert</h4><p class="sub">Directrice des opérations · Montréal · 23 ans d'expérience</p>
+    <h5>Expérience</h5><p><b>Directrice des opérations</b> · Groupe Nordis · 2016–2026</p><ul><li>Pilotage de 4 sites logistiques, 320 personnes.</li><li>Réorganisation de la chaîne d'approvisionnement.</li></ul>
+    <p><b>Responsable supply chain</b> · Lactalis · 2008–2016</p><h5>Formation</h5><p>Master Logistique, Université de Lille</p></div>`;
+  return h`<div class="page-doc" aria-label="Tailored Document : CV pour Decathlon">
+    <h4>Sophie Lambert</h4><p class="sub">Directrice des opérations · candidature Decathlon</p>
+    <h5>Profil</h5><p>Dirigeante des opérations, 23 ans dans la grande distribution et l'industrie agroalimentaire. Je fais tourner des sites complexes et j'emmène les équipes dans les réorganisations.</p>
+    <h5>Expérience</h5>
+    <p><b>Directrice des opérations</b> · Groupe Nordis · 2016–2026</p>
+    <ul><li class="${focus ? "focus" : ""}">Réorganisation logistique de 4 entrepôts : délais de livraison réduits de 18 %, 2,4 M€ d'économies par an.</li><li>Management de 320 personnes, dont 12 managers directs.</li><li>Déploiement d'un WMS sur 4 sites en 9 mois.</li></ul>
+    <p><b>Responsable supply chain</b> · Lactalis · 2008–2016</p><ul><li>Plan S&OP pour 3 usines.</li></ul>
+    <h5>Compétences</h5><p>Lean, S&OP, pilotage multi-sites, conduite du changement · Anglais courant</p></div>`;
+}
+function slidesView(coachSide) {
+  const SL = [["Votre pitch en 3 temps", ["Qui je suis", "Ce que j'ai fait", "Ce que je veux faire pour vous"]], ["L'objection « surqualifiée »", ["La reconnaître", "Répondre par l'envie", "Ramener au poste"]], ["Vos chiffres", ["18 % de délais en moins", "2,4 M€ par an", "320 personnes"]]];
+  const [t, li] = SL[S.slide - 1];
+  return h`<div class="stack" style="gap:.6rem">
+    ${coachSide ? `<div class="filedrop"><span>Slides de la séance :</span> <b>pitch-sophie.pdf</b> <span class="meta">(PDF, 3 pages)</span><span class="sp" style="flex:1"></span><label class="btn sm">Remplacer le PDF<input type="file" accept="application/pdf" class="vh"></label></div>` : ""}
+    <div class="slide" role="img" aria-label="Diapositive ${S.slide} sur 3 : ${t}"><h4>${t}</h4><ul>${li.map((x) => `<li>${x}</li>`).join("")}</ul></div>
+    <div class="row" style="justify-content:center"><button class="btn sm" data-slide="-1" ${S.slide === 1 ? 'aria-disabled="true"' : ""}>Précédente</button><span class="small" aria-live="polite">${S.slide} / 3</span><button class="btn sm" data-slide="1" ${S.slide === 3 ? 'aria-disabled="true"' : ""}>Suivante</button></div>
+  </div>`;
+}
+function joinBlock(coachSide) {
+  if (S.soon === "avant") return `<a class="btn" aria-disabled="true" role="link">« Rejoindre sur Zoom » à ${coachSide ? "14:50" : local(SESSION.paris - 10)}</a>`;
+  return `<a class="btn primary" href="#" data-noop>Rejoindre sur Zoom ↗</a>`;
+}
+function scrSeanceCandidat() {
+  const docs = [["tailored", "CV · Decathlon (Tailored Document)"], ["cv", "CV maître"]];
+  const pane = h`<section class="docp" aria-label="Document consulté ensemble"><div class="card">
+    <header><h2 style="font-size:.95rem">Lu ensemble</h2>
+      ${S.shared ? `<span class="live">Claire voit cette page en direct</span>` : `<span class="meta xs">Rien n'est partagé</span>`}
+      <span class="sp"></span><button class="btn sm phone-close" data-pane-close>Fermer</button></header>
+    <div class="cbody stack" style="gap:.75rem">
+      <div class="row"><label class="field" style="flex:1 1 14rem"><span>Document à lire avec Claire</span>
+        <select data-share>${docs.map(([k, l]) => `<option value="${k}" ${S.shared === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        ${S.shared ? `<button class="btn sm danger" data-unshare style="align-self:flex-end">Arrêter le partage</button>` : `<button class="btn sm primary" data-reshare style="align-self:flex-end">Lire ensemble</button>`}</div>
+      <p class="xs meta" style="margin:0">Claire voit seulement ce document, seulement pendant la séance, même sans Coach Access. Elle ne peut ni l'annoter ni le garder. Le partage d'écran se fait dans Zoom.</p>
+      ${S.shared ? sharedDoc(false) : `<div class="note">Choisissez un document et cliquez sur « Lire ensemble » pour que Claire le voie.</div>`}
+      <details class="small"><summary>Slides de Claire (PDF, 3 pages)</summary><div style="margin-top:.6rem">${slidesView(false)}</div></details>
+    </div></div></section>`;
+  const body = h`<div class="body"><section class="convo" aria-label="Coach Conversation de la séance">
+    <div class="thread" id="contenu" tabindex="-1"><div class="col">
+      <section class="card stack" aria-labelledby="h-sess" style="gap:.6rem">
+        <div class="row"><div class="av" aria-hidden="true">CM</div><div style="flex:1;min-width:0"><h2 id="h-sess" style="font-size:1.05rem;margin:0">Séance avec Claire Martin</h2><div class="small meta">${SESSION.day} · ${atText(SESSION.paris)} · 60 min</div></div><span class="pill ok">${S.soon === "avant" ? "Aujourd'hui" : "Commence bientôt"}</span></div>
+        <div class="row">${joinBlock(false)}<span class="small meta">ou par téléphone : Claire vous appelle au +1 514 ••• ••42</span></div>
+        <div class="row"><button class="btn sm" data-pane-open>Lire un document ensemble</button><button class="btn sm" data-go="annulation">Reporter ou annuler</button></div>
+        <p class="xs meta" style="margin:0">Jobbbox ne fait ni la visio ni l'enregistrement. Claire n'enregistre pas et n'utilise pas de prise de notes par IA sans votre accord.</p>
+      </section>
+      ${humanMsg("Claire Martin", "<p>Bonjour Sophie, à tout à l'heure ! Ouvrez votre CV Decathlon pendant la séance, on le lira ensemble.</p>", "hier, " + atText(SESSION.paris + 120))}
+      ${meMsg("Parfait, je l'ai sous la main. À tout à l'heure.")}
+      ${aiMsg("<p>Je ne participe pas à la séance. Après, Claire publiera ici son compte rendu, et je pourrai vous proposer les prochaines étapes.</p>")}
+    </div></div>
+    ${composer("Écrire à Claire…")}
+  </section>${pane}</div>`;
+  return { shell: "cand", title: `<span class="crumb hide-phone">Mes coachs humains › </span>Séance du 12 nov. · Claire M.`, body,
+    top: `<label class="small hide-phone">Démo <select data-soon style="width:auto;padding:.2rem .4rem"><option value="avant" ${S.soon === "avant" ? "selected" : ""}>plus de 10 min avant</option><option value="ouvert" ${S.soon === "ouvert" ? "selected" : ""}>10 min avant</option></select></label>` };
+}
+
+function scrSeanceCoach() {
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap"><div class="stack">
+    <section class="card stack" aria-labelledby="h-cs" style="gap:.6rem">
+      <div class="row"><div class="av" aria-hidden="true">SL</div><div style="flex:1;min-width:0"><h2 id="h-cs" style="margin:0;font-size:1.05rem">Séance avec Sophie L.</h2><div class="small meta">${SESSION.day} · 15:00 (heure de Paris) · 09:00 à Montréal pour Sophie · 60 min</div></div><span class="pill ok">Pendant</span></div>
+      <div class="row">${joinBlock(true)}<span class="small meta">Lien permanent · ou appeler Sophie au +1 514 ••• ••42</span></div>
+      <div class="row small"><span class="pill">Avant</span><span class="pill acc">Pendant</span><span class="pill">Après : compte rendu</span><span class="sp"></span><button class="btn sm" data-coach-cancel>Annuler la séance</button></div>
+    </section>
+    <div class="grid2">
+      <section class="card tight" aria-labelledby="h-live">
+        <header><h3 id="h-live">Lu ensemble</h3>
+          <div class="tabs" role="tablist" aria-label="Contenu affiché"><button role="tab" aria-selected="${S.ctab === "doc"}" data-ctab="doc">Document de Sophie</button><button role="tab" aria-selected="${S.ctab === "slides"}" data-ctab="slides">Mes slides (PDF)</button></div></header>
+        <div class="in stack" style="gap:.6rem" role="tabpanel">
+          ${S.ctab === "doc" ? h`<div class="row"><span class="live">Sophie partage : CV · Decathlon</span><span class="sp"></span><span class="xs meta">en direct · lecture seule</span></div>
+            <p class="xs meta" style="margin:0">Vous voyez ce document seulement pendant la séance, sans Coach Access. Pas d'annotation, rien n'est gardé dans votre espace. Sophie peut arrêter le partage.</p>
+            ${sharedDoc(true)}` : slidesView(true)}
+        </div>
+      </section>
+      <aside class="card stack" aria-labelledby="h-notes" style="gap:.6rem">
+        <h3 id="h-notes">Notes privées</h3>
+        <label class="field"><span>Notes sur cette séance avec Sophie L.</span><textarea data-notes rows="9">${S.notes}</textarea></label>
+        <p class="xs meta" style="margin:0">Sophie ne les voit jamais à l'écran. Elles figurent dans son Data export (droit d'accès) et sont effacées avec son compte. Sans IA.</p>
+        <p class="xs meta" style="margin:0" aria-live="polite">Enregistré automatiquement · 15:22</p>
+        <h3 style="margin-top:.4rem">Séances précédentes</h3>
+        <p class="small" style="margin:0">22 oct. · compte rendu publié</p>
+        <button class="btn sm" data-go-role="apres:coach">Écrire le compte rendu</button>
+      </aside>
+    </div>
+  </div></div></main>`;
+  return { shell: "coach", title: `<span class="crumb hide-phone">Mes séances › </span>Sophie L. · 12 nov.`, body };
+}
+
+function scrApres() {
+  if (S.role === "coach") {
+    const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap"><div class="grid2">
+      <section class="card stack" aria-labelledby="h-cr" style="gap:.75rem">
+        <h2 id="h-cr" style="margin:0">Compte rendu pour Sophie L.</h2>
+        <p class="small meta" style="margin:0">Publié dans la Coach Conversation de la séance de Sophie, et versé à son Data export.</p>
+        ${S.reportSent ? `<div class="note ok" role="status"><b>Compte rendu publié.</b> Sophie le voit dans « Mes coachs humains › Séance du 12 nov. ».</div>` : ""}
+        <label class="field"><span>Ce qu'on a vu</span><textarea rows="4">Le pitch de 2 minutes, l'objection « surqualifiée », la ligne du CV sur la réorganisation logistique.</textarea></label>
+        <label class="field"><span>Prochaines étapes</span><textarea rows="4">1. Postuler chez Ledger (Head of Finance) avant le 20 nov.\n2. Préparer l'entretien Decathlon du mar. 18 nov. avec les 3 chiffres.</textarea></label>
+        <label class="field"><span>Ressources</span><textarea rows="2">Slides « pitch-sophie.pdf » ; fiche « Répondre à l'objection surqualifiée ».</textarea></label>
+        <div class="row"><button class="btn primary" data-report>${S.reportSent ? "Mettre à jour" : "Publier à Sophie"}</button><button class="btn">Enregistrer le brouillon</button></div>
+      </section>
+      <aside class="card stack" aria-labelledby="h-np" style="gap:.5rem">
+        <h3 id="h-np">Notes privées</h3><p class="small" style="white-space:pre-line;margin:0">${S.notes}</p>
+        <p class="xs meta" style="margin:0">Jamais publiées. Elles restent hors du compte rendu.</p>
+      </aside>
+    </div></div></main>`;
+    return { shell: "coach", title: `<span class="crumb hide-phone">Mes séances › Sophie L. › </span>Compte rendu`, body };
+  }
+  const card = (k, kind, title, sub) => S.cards[k] === "ok"
+    ? `<div class="acard done" role="status"><span class="k">${kind}</span><b>${title}</b><span class="small">Fait. <a href="#" data-noop>Ouvrir</a></span></div>`
+    : S.cards[k] === "no" ? `<div class="acard"><span class="k">${kind}</span><span class="small meta">Ignorée : ${title}</span></div>`
+    : `<div class="acard"><span class="k">${kind}</span><b>${title}</b><span class="small meta">${sub}</span><div class="row"><button class="btn sm primary" data-card="${k}:ok">${kind === "Créer une Application" ? "Créer" : "Ajouter"}</button><button class="btn sm" data-card="${k}:no">Ignorer</button></div></div>`;
+  const body = h`<div class="body"><section class="convo" aria-label="Coach Conversation de la séance">
+    <div class="thread" id="contenu" tabindex="-1"><div class="col">
+      <section class="card" aria-labelledby="h-done"><div class="row"><div class="av sm" aria-hidden="true">CM</div><div style="flex:1;min-width:0"><h2 id="h-done" style="font-size:1rem;margin:0">Séance avec Claire Martin</h2><div class="small meta">${SESSION.day} · ${atText(SESSION.paris)} · 60 min</div></div><span class="pill">Passée</span></div></section>
+      <div class="day">Aujourd'hui, ${atText(SESSION.paris + 90)}</div>
+      ${humanMsg("Claire Martin", h`<div class="report"><p><b>Compte rendu de séance</b></p>
+        <h3>Ce qu'on a vu</h3><p>Le pitch de 2 minutes, l'objection « surqualifiée », la ligne du CV sur la réorganisation logistique.</p>
+        <h3>Prochaines étapes</h3><ul><li>Postuler chez Ledger (Head of Finance) avant le 20 nov.</li><li>Préparer l'entretien Decathlon du mar. 18 nov. avec les 3 chiffres.</li></ul>
+        <h3>Ressources</h3><ul><li><a href="#" data-noop>pitch-sophie.pdf</a> (slides de la séance)</li><li>Fiche « Répondre à l'objection surqualifiée »</li></ul></div>`, "Compte rendu publié par Claire · dans votre Data export")}
+      ${aiMsg(h`<p>Claire propose deux prochaines étapes. Je peux les ajouter pour vous :</p>
+        <div class="stack" style="gap:.5rem;margin-top:.5rem">
+          ${card("app", "Créer une Application", "Ledger · Head of Finance", "Dans Mes candidatures, statut « À postuler »")}
+          ${card("itw", "Ajouter un Interview", "Decathlon · mar. 18 nov. · " + atText(1020), "Dans la candidature Decathlon et l'Agenda")}
+        </div>`)}
+    </div></div>
+    ${composer()}
+  </section></div>`;
+  return { shell: "cand", title: `<span class="crumb hide-phone">Mes coachs humains › </span>Séance du 12 nov. · compte rendu`, body };
+}
+
+function scrAnnulation() {
+  if (S.role === "coach") {
+    const err = S.coachTried && !S.coachReason.trim();
+    const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap narrow stack">
+      <section class="card stack" aria-labelledby="h-cc" style="gap:.75rem">
+        <h2 id="h-cc" style="margin:0">Annuler la séance avec Sophie L. ?</h2>
+        <p class="small" style="margin:0">${SESSION.day} · 15:00 (Paris). Vous pouvez annuler à tout moment.</p>
+        ${S.coachCancelled ? `<div class="note ok" role="status"><b>Séance annulée.</b> Sophie est prévenue par e-mail et Push notification. Elle choisit : remboursement, autre créneau avec vous, ou un confrère. La réservation Cal.com est annulée.</div>` : h`
+        <label class="field"><span>Raison (Sophie la verra)</span><textarea data-reason rows="3" aria-invalid="${err}" aria-describedby="r-help ${err ? "r-err" : ""}">${S.coachReason}</textarea></label>
+        <p id="r-help" class="xs meta" style="margin:0">Obligatoire.</p>
+        ${err ? `<p id="r-err" class="small" style="color:var(--color-danger);margin:0">Indiquez une raison pour annuler.</p>` : ""}
+        <div class="note"><b>Ce que Sophie se verra proposer :</b> le remboursement de ${eur(90)} dans Jobbbox, un autre créneau avec vous, ou une séance avec un confrère.</div>
+        <div class="row"><button class="btn danger" data-coach-confirm>Annuler la séance</button><button class="btn" data-go="seance-coach">Garder la séance</button></div>`}
+      </section>
+    </div></main>`;
+    return { shell: "coach", title: `<span class="crumb hide-phone">Mes séances › </span>Annuler`, body };
+  }
+  const opt = (v, t, d) => `<label class="choice"><input type="radio" name="cc" value="${v}" data-cancel-choice ${S.cancelChoice === v ? "checked" : ""}><span><b>${t}</b><span class="small meta">${d}</span></span></label>`;
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap narrow stack">
+    <section class="card stack" aria-labelledby="h-kc" style="gap:.75rem">
+      <div class="note danger" role="status"><b>Claire Martin a annulé la séance du ${SESSION.dayShort} à ${atText(SESSION.paris)}.</b> Sa raison : « Un empêchement familial, je suis désolée. »</div>
+      <h2 id="h-kc" style="margin:0">Que préférez-vous ?</h2>
+      ${S.cancelDone ? `<div class="note ok" role="status"><b>${S.cancelChoice === "rembourse" ? "Remboursement lancé : 90,00 € sur votre carte, sous 5 à 10 jours." : S.cancelChoice === "autre" ? "Choisissez votre nouveau créneau avec Claire." : "Choisissez votre confrère : la séance reste payée."}</b></div>
+        ${S.cancelChoice === "rembourse" ? "" : `<button class="btn primary" data-go="creneau">Ouvrir le calendrier</button>`}` : h`
+      <fieldset><legend class="vh">Votre choix</legend>
+        ${opt("autre", "Un autre créneau avec Claire", "Votre séance reste payée ; vous choisissez une nouvelle date dans son calendrier.")}
+        ${opt("confrere", "Une séance avec un confrère", "Karim Benali ou Hélène Roux, au même prix ou moins, sans repayer.")}
+        ${opt("rembourse", "Être remboursé·e", "90,00 € TTC remboursés dans Jobbbox, sur votre carte.")}
+      </fieldset>
+      <div class="row"><button class="btn primary" data-cancel-ok>Valider mon choix</button></div>`}
+    </section>
+    <section class="card stack" aria-labelledby="h-me" style="gap:.6rem">
+      <h2 id="h-me" style="margin:0;font-size:1.05rem">Et si c'est vous qui annulez ?</h2>
+      <div class="tabs" role="tablist" aria-label="Moment de l'annulation (démo)"><button role="tab" aria-selected="${!S.late}" data-late="0">Plus de 24 h avant</button><button role="tab" aria-selected="${S.late}" data-late="1">Moins de 24 h avant</button></div>
+      <div role="tabpanel">${S.late
+        ? `<div class="note warn"><b>La séance est due.</b> Il reste moins de 24 h avant votre séance, le ${SESSION.dayShort} à ${atText(SESSION.paris)} : vous ne pouvez plus la reporter ni l'annuler avec remboursement. Vous pouvez écrire à Claire.</div><div class="row" style="margin-top:.6rem"><button class="btn" aria-disabled="true">Reporter</button><button class="btn" aria-disabled="true">Annuler</button><button class="btn">Écrire à Claire</button></div>`
+        : `<p class="small" style="margin:0">Vous pouvez reporter ou annuler jusqu'au ${"mer. 11 nov."} à ${atText(SESSION.paris)}. Annuler vous rembourse ${eur(90)} ; la réservation chez Cal.com est annulée aussi.</p><div class="row" style="margin-top:.6rem"><button class="btn" data-go="creneau">Reporter</button><button class="btn danger">Annuler et être remboursé·e</button></div>`}</div>
+    </section>
+  </div></main>`;
+  return { shell: "cand", title: `<span class="crumb hide-phone">Mes coachs humains › </span>Séance annulée`, body };
+}
+
+function scrPhase() {
+  const coachSide = S.role === "coach";
+  const both = S.consentC && S.consentK;
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap stack">
+    <div class="phase" role="note"><b>Phase suivante — pas dans la v0.</b> Règles fixées par #855 : enregistrement jamais par défaut, consentement des deux participants à chaque séance, témoin visible, arrêt à tout moment, AIPD avant l'ouverture. Consultable sur le web seulement, jamais dans la Jobbbox app.</div>
+    <div class="grid2">
+      <section class="card stack" aria-labelledby="h-rec" style="gap:.75rem">
+        <div class="row"><h2 id="h-rec" style="margin:0;font-size:1.05rem">Enregistrer cette séance ?</h2><span class="sp"></span>${S.recording ? `<span class="rec" role="status">Enregistrement en cours</span>` : `<span class="pill">Pas d'enregistrement</span>`}</div>
+        <p class="small" style="margin:0">L'enregistrement sert seulement à la transcription et au résumé de la séance. Les deux participants doivent dire oui, à chaque séance.</p>
+        <div class="consent">
+          <div class="who-c"><b>Sophie L.</b> ${coachSide ? "" : "(vous)"}<br>
+            ${coachSide ? (S.consentC ? `<span class="pill ok">A accepté</span>` : `<span class="pill">En attente</span>`) : `<label class="check" style="margin-top:.4rem"><input type="checkbox" data-consent="C" ${S.consentC ? "checked" : ""}> <span>J'accepte l'enregistrement de cette séance</span></label>`}</div>
+          <div class="who-c"><b>Claire Martin</b> ${coachSide ? "(vous)" : ""}<br>
+            ${!coachSide ? (S.consentK ? `<span class="pill ok">A accepté</span>` : `<span class="pill">En attente</span>`) : `<label class="check" style="margin-top:.4rem"><input type="checkbox" data-consent="K" ${S.consentK ? "checked" : ""}> <span>J'accepte l'enregistrement de cette séance</span></label>`}</div>
+        </div>
+        ${!coachSide && !S.consentK ? `<button class="linkish small" data-consent-demo style="align-self:flex-start">Démo : Claire accepte</button>` : ""}
+        <div class="row">${S.recording ? `<button class="btn danger" data-rec="0">Arrêter l'enregistrement</button>` : `<button class="btn primary" data-rec="1" ${both ? "" : 'aria-disabled="true"'}>Démarrer l'enregistrement</button>`}
+          <span class="xs meta">${both ? "Chacun peut l'arrêter à tout moment." : "Il faut l'accord des deux."}</span></div>
+        <p class="xs meta" style="margin:0">Audio effacé après la transcription ; transcription effacée à 30 jours. Transcription et résumé par une IA hébergée dans l'UE, sans entraînement sur vos données. Inclus dans la séance, sans Plan Quota. Sous-titres en direct dans la visio intégrée.</p>
+      </section>
+      <aside class="card stack" aria-labelledby="h-app" style="gap:.5rem">
+        <h3 id="h-app">Dans la Jobbbox app</h3>
+        <div class="note">L'enregistrement et sa transcription se consultent sur le web seulement, sur jobbbox.ai.</div>
+        <p class="xs meta" style="margin:0">Le témoin « Enregistrement en cours » reste visible pour les deux participants pendant toute la séance.</p>
+      </aside>
+    </div>
+    <section class="card stack" aria-labelledby="h-sum" style="gap:.6rem">
+      <div class="row"><h2 id="h-sum" style="margin:0;font-size:1.05rem">${coachSide ? "Relire le résumé avant de le publier" : "Résumé de la séance"}</h2><span class="sp"></span><span class="ai-label">✦ Généré par IA${S.summaryOk || !coachSide ? ", relu par Claire Martin" : " · à relire"}</span></div>
+      ${coachSide ? h`<label class="field"><span>Résumé proposé (modifiable)</span><textarea rows="6">Thèmes abordés : pitch de 2 minutes, réponse à l'objection « surqualifiée », mise en avant des chiffres de la réorganisation logistique.\nProchaines étapes évoquées : candidature Ledger avant le 20 nov. ; préparation de l'entretien Decathlon du 18 nov.</textarea></label>
+        <p class="xs meta" style="margin:0">Le résumé reprend ce qui a été dit : aucune émotion déduite, aucune évaluation de Sophie. Rien n'est publié sans votre relecture.</p>
+        ${S.summaryOk ? `<div class="note ok" role="status"><b>Résumé publié</b> dans la Coach Conversation de Sophie, marqué « Généré par IA, relu par Claire Martin ».</div>` : ""}
+        <div class="row"><button class="btn primary" data-sum>J'ai relu, publier</button><button class="btn">Ne pas publier</button></div>`
+      : `<p class="small" style="margin:0">Thèmes abordés : pitch de 2 minutes, réponse à l'objection « surqualifiée », mise en avant des chiffres de la réorganisation logistique. Prochaines étapes évoquées : candidature Ledger avant le 20 nov. ; préparation de l'entretien Decathlon du 18 nov.</p>
+        <p class="xs meta" style="margin:0">Généré par IA à partir de la transcription, relu et publié par Claire. Ni émotion déduite, ni évaluation de vous.</p>`}
+    </section>
+  </div></main>`;
+  return { shell: coachSide ? "coach" : "cand", title: `<span class="pill warn" style="font-size:.75rem">Phase suivante</span> Enregistrement et résumé`, body };
+}
+
+const RENDER = { choisir: scrChoisir, commande: scrCommande, creneau: scrCreneau, attente: scrAttente, rappel: scrRappel,
+  "seance-candidat": scrSeanceCandidat, "seance-coach": scrSeanceCoach, apres: scrApres, annulation: scrAnnulation, "phase-suivante": scrPhase };
+
+// ───────────────────────────── Rendu + barre prototype ─────────────────────────────
+function proto() {
+  const roleOn = ROLE_SCREENS.includes(S.screen);
+  return h`<div class="proto" role="region" aria-label="Barre du prototype">
+    <label class="vh" for="p-screen">Écran</label>
+    <select id="p-screen" data-pscreen>${Object.entries(SCREENS).map(([k, v]) => `<option value="${k}" ${S.screen === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+    ${roleOn ? `<span class="sep" aria-hidden="true"></span><button data-role="candidat" aria-pressed="${S.role === "candidat"}">Candidate</button><button data-role="coach" aria-pressed="${S.role === "coach"}">Coach</button>` : ""}
+    <span class="sep" aria-hidden="true"></span><button data-theme aria-pressed="${S.theme === "dark"}">${S.theme === "dark" ? "Sombre" : "Clair"}</button>
+  </div>`;
+}
+function render() {
+  document.documentElement.dataset.theme = S.theme;
+  const keyOf = (el) => el.tagName + JSON.stringify(el.dataset) + (el.type === "radio" ? el.value : "");
+  const active = document.activeElement;
+  const focusKey = active && active.dataset && Object.keys(active.dataset).length ? keyOf(active) : null;
+  const r = RENDER[S.screen]();
+  const shell = r.shell === "coach" ? sidebarCoach() : sidebarCandidate();
+  document.getElementById("root").innerHTML =
+    `<div class="app ${S.drawer ? "drawer" : ""} ${S.paneOpen === true ? "pane-open" : ""}">${shell}<div class="scrim" data-drawer></div><div class="main">${topbar(r.title, r.top ?? "")}${r.body}</div></div>${proto()}`;
+  const th = document.querySelector(".thread");
+  if (th && S.screen === "apres") th.scrollTop = th.scrollHeight; // comme une conversation : on arrive sur le plus récent
+  document.title = `${SCREENS[S.screen]}${ROLE_SCREENS.includes(S.screen) ? " · " + S.role : ""} — Coaching Session (prototype)`;
+  if (focusKey) {
+    const el = [...document.querySelectorAll("button, select, input, textarea")].find((e) => keyOf(e) === focusKey);
+    el?.focus();
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("button, a");
+  if (!el) return;
+  const d = el.dataset;
+  if (el.tagName === "A") e.preventDefault();
+  if (el.getAttribute("aria-disabled") === "true") return;
+  if (d.drawer !== undefined) return set({ drawer: !S.drawer });
+  if (d.theme !== undefined) return set({ theme: S.theme === "dark" ? "light" : "dark" });
+  if (d.role) return set({ role: d.role });
+  if (d.goRole) { const [s, r] = d.goRole.split(":"); return set({ screen: s, role: r, drawer: false, paneOpen: false }); }
+  if (d.go) return set({ screen: d.go, drawer: false, paneOpen: false, role: d.go === "seance-coach" ? "coach" : ["choisir", "commande", "creneau", "attente", "seance-candidat"].includes(d.go) ? "candidat" : S.role });
+  if (d.profile) return set({ coach: d.profile, paneOpen: true });
+  if (d.paneOpen !== undefined) return set({ paneOpen: true });
+  if (d.paneClose !== undefined) return set({ paneOpen: false });
+  if (d.book) return set({ coach: d.book, screen: "commande", cgv: false, ipr: false, tried: false, paneOpen: false });
+  if (d.pay !== undefined) { if (!(S.cgv && S.ipr)) return set({ tried: true }); return set({ screen: "creneau", paid: true, slot: null, booked: false }); }
+  if (d.day) return set({ day: +d.day, slot: null });
+  if (d.slot) return set({ slot: +d.slot });
+  if (d.confirm !== undefined) return set({ booked: true });
+  if (d.coachSlot) return set({ coach: d.coachSlot, screen: "creneau", slot: null, booked: false });
+  if (d.unshare !== undefined) return set({ shared: null });
+  if (d.reshare !== undefined) return set({ shared: document.querySelector("[data-share]")?.value || "tailored" });
+  if (d.slide) return set({ slide: Math.min(3, Math.max(1, S.slide + +d.slide)) });
+  if (d.ctab) return set({ ctab: d.ctab });
+  if (d.card) { const [k, v] = d.card.split(":"); S.cards[k] = v; return render(); }
+  if (d.report !== undefined) return set({ reportSent: true });
+  if (d.cancelOk !== undefined) return set({ cancelDone: true });
+  if (d.late) return set({ late: d.late === "1" });
+  if (d.coachCancel !== undefined) return set({ screen: "annulation", role: "coach", coachCancelled: false, coachTried: false });
+  if (d.coachConfirm !== undefined) { if (!S.coachReason.trim()) return set({ coachTried: true }); return set({ coachCancelled: true }); }
+  if (d.rec) return set({ recording: d.rec === "1" });
+  if (d.consentDemo !== undefined) return set({ consentK: true });
+  if (d.sum !== undefined) return set({ summaryOk: true });
+});
+document.addEventListener("change", (e) => {
+  const t = e.target, d = t.dataset;
+  if (d.pscreen !== undefined) return set({ screen: t.value, drawer: false, paneOpen: false, role: t.value === "seance-coach" ? "coach" : ROLE_SCREENS.includes(t.value) ? S.role : "candidat" });
+  if (d.check) return set({ [d.check]: t.checked });
+  if (d.tz !== undefined) return set({ tz: t.value });
+  if (d.share !== undefined) return set({ shared: t.value });
+  if (d.soon !== undefined) return set({ soon: t.value });
+  if (d.cancelChoice !== undefined) { S.cancelChoice = t.value; return; }
+  if (d.consent) return set({ ["consent" + d.consent]: t.checked, recording: t.checked ? S.recording : false });
+});
+document.addEventListener("input", (e) => {
+  if (e.target.dataset.notes !== undefined) S.notes = e.target.value;
+  if (e.target.dataset.reason !== undefined) S.coachReason = e.target.value;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && (S.drawer || S.paneOpen)) set({ drawer: false, paneOpen: false });
+});
+
+readUrl();
+if (S.screen === "seance-coach") S.role = "coach";
+else if (!ROLE_SCREENS.includes(S.screen)) S.role = "candidat";
+if (S.screen === "creneau") S.paid = true;
+writeUrl(); render();
+</script>
+</body>
+</html>

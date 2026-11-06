@@ -32,6 +32,7 @@ import { showNotificationsInForeground } from "../push/device";
 import { SessionGate } from "../session/SessionGate";
 import { PaneContent } from "../screens/PaneContent";
 import { Shell } from "../shell/Shell";
+import { useHoldShareFrom, useResumeShare } from "../share/pending-share";
 
 const DEVICE = { storage: deviceStorage, network: deviceNetwork };
 
@@ -55,6 +56,8 @@ export default function RootLayout() {
   const i18n = useMemo(() => deviceI18n(), []);
   // The address the app was opened with, a universal link or an App Link: a magic link signs in.
   const link = useLinkingURL();
+  // A share link (Share capture, #697) is held at once, signed in or not: the capture screen opens on it once signed in.
+  useHoldShareFrom(link);
   usePortraitOnPhones();
   // Without Inter (it is bundled, so hardly ever), the system font draws the text rather than no app at all.
   if (!fontsLoaded && !fontError) return null;
@@ -96,6 +99,8 @@ function PagesInShell() {
   const free = useFreeConversations().data?.conversations;
   const page = pageFor(pathname, t, { application, profile, conversationTitle: (id) => free?.find((conversation) => conversation.id === id)?.title });
   const isHumanCoach = useIsHumanCoach();
+  // What another app shared while signed out, or while another page was shown: the capture screen opens on it.
+  useResumeShare(pathname, (path) => router.navigate(path));
   // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
   const reader = useMemo(() => createDocumentReader(systemDocuments), []);
   return (

@@ -1,0 +1,22 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!--
+      Share capture (#697, ADR-0076): « Partager → Jobbbox » from a browser, LinkedIn, Indeed or Mail. A share is text
+      (a link, a sentence and a link, or a posting's text): never "*/*". The activity has no screen of its own: it opens
+      the app on the share link and ends.
+    -->
+    <activity
+      android:name="ai.jobbbox.shareintent.ShareReceiverActivity"
+      android:exported="true"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:label="Jobbbox"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

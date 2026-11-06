@@ -16,6 +16,9 @@
  *  - `ofSubject` the conversation of a Subject with its messages, or null before its first message;
  *  - `list` the Candidate's conversations, most recently active first;
  *  - `open` one with its messages; `rename` it; `delete` it;
+ *  - `startAbout` a Job Offer the Candidate shared from another app (Share capture, #697): a new Free conversation,
+ *    named after it, saved at once with the Candidate's message and a set reply carrying its Job Offer card, with no AI
+ *    call (no Coach Message Cost, no Plan Quota), the reply's Focus the Job Offer;
  *  - `repliesAbout` a page's object: the replies whose focus it is, from any conversation, for AI Activity.
  * A conversation opened, and each `send`, say its Context bar's figures (#607, ADR-0070): its messages, and the jetons of the
  * context its latest reply was sent, as the AI Coach estimated them (kept with each reply; none for a reply sent no context),
@@ -163,6 +166,12 @@ export interface CoachConversations {
   rename(candidateId: string, conversationId: string, title: unknown): Promise<RenameResult>;
   /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
   delete(candidateId: string, conversationId: string): Promise<boolean>;
+  /**
+   * A new Free conversation that opens on `jobOffer`, one the Candidate may see (Share capture, #697): named after it,
+   * saved at once with `opening`'s message from the Candidate and its set reply, which carries the Job Offer card and
+   * `opening.provenance`. No AI call is made. Neither text is checked here: the caller writes them, never the browser.
+   */
+  startAbout(candidateId: string, jobOffer: Pick<JobOffer, "id" | "title" | "employer">, opening: { message: string; reply: string; provenance: Provenance }): Promise<CoachConversationSummary>;
   /** Whether the Candidate closed the conversations' welcome panel (the AI disclosure and the page's introduction): never shown again. */
   welcomeClosed(candidateId: string): Promise<boolean>;
   /** Closes the welcome panel for good; the « Coach IA » badge still shows it. Closing it again changes nothing. */
@@ -700,6 +709,24 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         [candidateId, focus.kind, focus.kind === "agenda" ? null : focus.id],
       );
       return rows.map((row) => ({ at: row.at.toISOString(), provenance: savedReplyProvenance(row) }));
+    },
+
+    async startAbout(candidateId, jobOffer, opening) {
+      const sentAt = now();
+      const conversation: CoachConversationSummary = { id: randomUUID(), title: titleFrom(jobOffer.title), subject: null, profile: null, lastMessageAt: sentAt };
+      const answer: Extract<CoachReply, { ok: true }> = {
+        ok: true,
+        reply: opening.reply,
+        outcome: "replied",
+        cost: null,
+        playbooks: [],
+        consultations: [],
+        // Only its id is saved with the reply: the card is read from the Job Offer whenever the conversation opens.
+        jobOffer: { id: jobOffer.id, title: jobOffer.title, source: {}, content: "" },
+        provenance: opening.provenance,
+      };
+      await save(candidateId, conversation, true, { message: opening.message, blocked: false }, { answer, blocked: false, focus: { kind: "job_offer", id: jobOffer.id } }, sentAt);
+      return conversation;
     },
 
     async delete(candidateId, conversationId) {

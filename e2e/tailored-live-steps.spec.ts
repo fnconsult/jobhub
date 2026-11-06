@@ -121,7 +121,7 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     const models = paneOf(page).locator(".ai-activity-section").filter({ has: page.getByRole("button", { name: fr.aiActivity.sections.models }) });
     await expect(models.locator(".ai-activity-row").filter({ hasText: "Mistral" })).toContainText(/\d · \d+(,\d)? s/);
     await expect(paneOf(page).locator(".ai-activity-total")).toContainText(/\d+(,\d)?k? tokens · \d+(,\d)? s/);
-    // Done, each action left AI Activity's live sections: its document says it.
+    // Done, each action left « En ce moment » (#806): its document says it.
     await expect(paneOf(page).locator(".ai-activity-live")).toHaveCount(0);
     expect(await paneOf(page).locator(".fiche-activity").innerHTML()).not.toContain(id);
     await closeActivity(page);
@@ -148,7 +148,8 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await expect(letter.locator(".live-action-step")).toContainText(fr.aiActivity.steps.write);
     const action = paneOf(page).locator(".ai-activity-live");
     await expect(action).toContainText(fr.aiActivity.kinds.tailored_documents);
-    await expect(action.getByRole("list", { name: fr.aiActivity.live.steps })).toContainText(fr.aiActivity.steps.write);
+    // « En ce moment » (#806): its step under way, in words.
+    await expect(action.locator(".ai-activity-live-status")).toHaveText(fr.aiActivity.steps.write);
     await letter.getByRole("button", { name: fr.aiActivity.stop, exact: true }).click();
 
     const stopped = letter.locator(".live-action-stopped");

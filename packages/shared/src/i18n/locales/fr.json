@@ -5059,7 +5059,6 @@
       "nothing": "Rien ne tourne sur cette page.",
       "finished_one": "{{count}} étape finie",
       "finished_other": "{{count}} étapes finies",
-      "running": "En cours · {{time}}",
       "stopping": "Arrêt en cours…",
       "stopped": "Arrêtée à {{time}}",
       "failed": "Échec à {{time}}",
@@ -5067,15 +5066,6 @@
       "unknownReason": "Elle n'a pas pu aboutir.",
       "stepStopped": "arrêtée",
       "stepFailed": "échouée",
-      "stepWarning": "avec un avertissement",
-      "done": {
-        "job_search": "Dernière recherche · {{time}}",
-        "coach_reply": "Dernière réponse · {{time}}",
-        "company_dossier": "Dernier dossier · {{time}}",
-        "cv_reading": "Dernière lecture · {{time}}",
-        "tailored_cv": "CV adapté proposé · {{time}}",
-        "tailored_documents": "Document rédigé · {{time}}"
-      },
       "result": {
         "think_one": "{{count}} analyse",
         "think_other": "{{count}} analyses",
@@ -5098,8 +5088,6 @@
         "propose_one": "{{count}} proposition préparée",
         "propose_other": "{{count}} propositions préparées"
       },
-      "earlierSteps_one": "{{count}} étape terminée plus tôt",
-      "earlierSteps_other": "{{count}} étapes terminées plus tôt",
       "steps": "Étapes",
       "stop": {
         "job_search": "Arrêter la recherche d'offres",

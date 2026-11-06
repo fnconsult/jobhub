@@ -5059,7 +5059,6 @@
       "nothing": "Nothing is running on this page.",
       "finished_one": "{{count}} step done",
       "finished_other": "{{count}} steps done",
-      "running": "Running · {{time}}",
       "stopping": "Stopping…",
       "stopped": "Stopped at {{time}}",
       "failed": "Failed at {{time}}",
@@ -5067,15 +5066,6 @@
       "unknownReason": "It could not finish.",
       "stepStopped": "stopped",
       "stepFailed": "failed",
-      "stepWarning": "with a warning",
-      "done": {
-        "job_search": "Last search · {{time}}",
-        "coach_reply": "Last reply · {{time}}",
-        "company_dossier": "Last dossier · {{time}}",
-        "cv_reading": "Last reading · {{time}}",
-        "tailored_cv": "Tailored CV proposed · {{time}}",
-        "tailored_documents": "Document drafted · {{time}}"
-      },
       "result": {
         "think_one": "{{count}} analysis",
         "think_other": "{{count}} analyses",
@@ -5098,8 +5088,6 @@
         "propose_one": "{{count}} proposal prepared",
         "propose_other": "{{count}} proposals prepared"
       },
-      "earlierSteps_one": "{{count}} step finished earlier",
-      "earlierSteps_other": "{{count}} steps finished earlier",
       "steps": "Steps",
       "stop": {
         "job_search": "Stop the job search",

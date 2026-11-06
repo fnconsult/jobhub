@@ -37,4 +37,16 @@ describe("GateScreen, the keyboard up (#705)", () => {
     await act(async () => DeviceEventEmitter.emit("keyboardWillHide", { ...KEYBOARD, endCoordinates: { ...KEYBOARD.endCoordinates, screenY: SE.height } }));
     expect(roomUnder()).toBe(0);
   });
+
+  // Android 15 draws the app edge to edge, under the keyboard, which no longer resizes the window: on the Android tablet
+  // the conversation's box and its « Envoyer » stayed under the keyboard while a message was typed (#705, Maestro).
+  it("lays its content out again above the keyboard on Android, which draws the app edge to edge", async () => {
+    jest.replaceProperty(Platform, "OS", "android");
+    await renderGate();
+    expect(roomUnder()).toBe(0);
+    await act(async () => DeviceEventEmitter.emit("keyboardDidShow", KEYBOARD));
+    expect(roomUnder()).toBe(216);
+    await act(async () => DeviceEventEmitter.emit("keyboardDidHide", { ...KEYBOARD, endCoordinates: { ...KEYBOARD.endCoordinates, screenY: SE.height } }));
+    expect(roomUnder()).toBe(0);
+  });
 });

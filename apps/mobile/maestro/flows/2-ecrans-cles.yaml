@@ -18,11 +18,11 @@ tags:
     env:
       MENU: "Mes candidatures"
 # A menu's conversation opens on its latest message: its card is above.
-- scrollUntilVisible:
-    element:
-      text: "Responsable qualité · Aéroline Démo"
-    direction: UP
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Responsable qualité · Aéroline Démo"
+      DIRECTION: UP
 - assertVisible: "Contrôleuse de gestion · Transports Ravel Démo"
 - runFlow:
     file: ../subflows/capture.yaml
@@ -57,11 +57,11 @@ tags:
       MENU: "Agenda"
 # A menu's conversation opens on its latest message: its card is above. The Interview's line is one link, which iOS
 # names by all it says (its time, « Entretien », the job, the employer): the job's title found within it.
-- scrollUntilVisible:
-    element:
-      text: ".*Contrôleuse de gestion.*"
-    direction: UP
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: ".*Contrôleuse de gestion.*"
+      DIRECTION: UP
 - runFlow:
     file: ../subflows/capture.yaml
     env:

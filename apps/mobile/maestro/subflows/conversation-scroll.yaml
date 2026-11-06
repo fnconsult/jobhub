@@ -1,0 +1,34 @@
+# Scrolls the conversation until TEXT shows: UP to what came before, DOWN to what follows (DIRECTION). In short, slow
+# steps (15 % of the screen's height, no fling), at 40 % of its width: the conversation on every layout, a tablet's
+# Sidebar column left of it, its Fiche right of it, and an iPad's Split View, whose app is the left half. Maestro's
+# scrollUntilVisible swipes from the screen's middle by some 40 % of its height and wants its element whole: on a folded
+# foldable at the largest text size the conversation shows less than that, and the Agenda's Interview was swiped past.
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${DIRECTION == 'UP'}
+    commands:
+      - repeat:
+          while:
+            notVisible: ${TEXT}
+          times: 25
+          commands:
+            - swipe:
+                start: "40%, 30%"
+                end: "40%, 45%"
+                duration: 800
+- runFlow:
+    when:
+      true: ${DIRECTION == 'DOWN'}
+    commands:
+      - repeat:
+          while:
+            notVisible: ${TEXT}
+          times: 25
+          commands:
+            - swipe:
+                start: "40%, 45%"
+                end: "40%, 30%"
+                duration: 800
+- assertVisible: ${TEXT}

@@ -12,11 +12,11 @@ tags:
     env:
       MENU: "Mes candidatures"
 # A menu's conversation opens on its latest message: its card is above.
-- scrollUntilVisible:
-    element:
-      text: "Responsable qualité · Aéroline Démo"
-    direction: UP
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Responsable qualité · Aéroline Démo"
+      DIRECTION: UP
 - tapOn: "Responsable qualité · Aéroline Démo"
 - runFlow: ../subflows/fiche.yaml
 - assertVisible: "Aéroline Démo · Lyon"
@@ -25,12 +25,15 @@ tags:
 - extendedWaitUntil:
     visible: "Statut : Entretien"
     timeout: 20000
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Entretiens"
 - tapOn: "Entretiens"
-- scrollUntilVisible:
-    element:
-      text: "Voir dans l'agenda"
-    direction: DOWN
-    timeout: 20000
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Voir dans l'agenda"
 - runFlow:
     file: ../subflows/field.yaml
     env:
@@ -53,15 +56,13 @@ tags:
       FIELD: "interview-note"
       LABEL: "Note \\(facultatif\\)"
       VALUE: "Second tour"
-# The form's title is « Ajouter l'entretien » too: its button, under the note, is the second of that name.
-- swipe:
-    from:
-      id: "pane-body"
-    direction: UP
-    duration: 600
+# The form's title is « Ajouter l'entretien » too, in view or not as the pane scrolled: its button found by its id.
+- runFlow:
+    file: ../subflows/pane-scroll-id.yaml
+    env:
+      ID: "interview-submit"
 - tapOn:
-    text: "Ajouter l'entretien"
-    index: 1
+    id: "interview-submit"
 - runFlow:
     when:
       visible: "Être prévenu la veille de vos rendez-vous \\?"

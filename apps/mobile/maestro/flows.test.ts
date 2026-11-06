@@ -115,6 +115,22 @@ describe("the Maestro flows (#705)", () => {
     expect(calls.filter((call) => !call.env?.LABEL).map((call) => call.env?.FIELD)).toEqual([]);
   });
 
+  // A tablet's Fiche: once the pane scrolled to its button, the Interview form's title « Ajouter l'entretien » was out of
+  // view, and « the second of that name » was no more (4-candidature.yaml, #705). Which matches a selector finds is what
+  // is in view: a flow names what it taps by a testID, never by its rank among the matches.
+  it.each(FLOW_FILES.map((file) => [relative(ROOT, file), file]))("%s picks no match by a rank past the first", (_name, file) => {
+    const ranks = valuesOf(parse(file).commands, ["index"]);
+    expect(ranks.filter((rank) => rank !== 0)).toEqual([]);
+  });
+
+  // Maestro's scrollUntilVisible swipes from the screen's middle by some 40 % of its height and wants its element whole:
+  // on a tablet the middle is the conversation, not the pane; on a folded foldable at the largest text size the
+  // conversation shows less than such a swipe, and the Agenda's Interview, taller than the rest, was swiped past (#705).
+  // A flow scrolls its own column in short steps (subflows/conversation-scroll.yaml, subflows/pane-scroll.yaml).
+  it.each(filesIn(join(ROOT, "flows"), ".yaml").map((file) => [relative(ROOT, file), file]))("%s scrolls a column in short steps, not from the screen's middle", (_name, file) => {
+    expect(valuesOf(parse(file).commands, ["scrollUntilVisible"])).toEqual([]);
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));
@@ -130,8 +146,8 @@ describe("the Maestro flows (#705)", () => {
 
   it.each(FLOW_FILES.map((file) => [relative(ROOT, file), file]))("%s finds by id only a testID the app sets", (_name, file) => {
     const { commands } = parse(file);
-    // A field's id, given to field.yaml by its caller.
-    const fields = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).FIELD] : []));
+    // A field's id, given to field.yaml by its caller; an element's, to pane-scroll-id.yaml.
+    const fields = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" ? [(env as Record<string, unknown>).FIELD, (env as Record<string, unknown>).ID] : []));
     const ids = [...valuesOf(commands, ["id"]), ...fields].filter((each): each is string => typeof each === "string" && !each.includes("${"));
     expect(ids.filter((id) => !TEST_IDS.has(id))).toEqual([]);
   });
@@ -146,7 +162,7 @@ describe("the Maestro flows (#705)", () => {
   });
 
   it.each(FLOW_FILES.map((file) => [relative(ROOT, file), file]))("%s reads only the variables a run or the stack gives", (_name, file) => {
-    const given = new Set([...Object.keys(runsOn(CI_HARDWARE.ipad.id)[0]!.env), ...STACK_ENV, "output", "SCREEN", "MENU", "FIELD", "VALUE", "LABEL", "TEXT"]);
+    const given = new Set([...Object.keys(runsOn(CI_HARDWARE.ipad.id)[0]!.env), ...STACK_ENV, "output", "SCREEN", "MENU", "FIELD", "VALUE", "LABEL", "TEXT", "DIRECTION", "ID"]);
     // The names in each `${…}`, its quoted strings and a property after a dot left out.
     const read = [...readFileSync(file, "utf8").matchAll(/\$\{([^}]+)\}/g)].flatMap((match) =>
       [...match[1]!.replace(/'[^']*'|"[^"]*"/g, "").matchAll(/(?<![.\w])([A-Za-z_]\w*)/g)].map((each) => each[1]!),

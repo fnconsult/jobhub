@@ -17,3 +17,11 @@ describe("Control, its words wider than the room it has (#705)", () => {
     expect(StyleSheet.flatten(words.parent!.props.style)).toMatchObject({ flexShrink: 1 });
   });
 });
+
+// The Interview form's button is named as the form's title, « Ajouter l'entretien »: the e2e flows find it by its id.
+describe("Control, its id for the e2e flows (#705)", () => {
+  it("carries the testID its caller gives", async () => {
+    await renderInApp(<Control testID="interview-submit" label="Ajouter l'entretien" look="primary" onPress={() => {}} />);
+    expect(screen.getByTestId("interview-submit")).toBe(screen.getByRole("button", { name: "Ajouter l'entretien" }));
+  });
+});

@@ -97,6 +97,7 @@ export function InterviewForm({
       {online ? null : <AppText tone="secondary">{t("mobile.offline.writeDisabled")}</AppText>}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
         <Control
+          testID="interview-submit"
           look="primary"
           label={working ? t("application.working") : t(interview ? "application.saveInterview" : "application.addInterview")}
           disabled={working || !online}

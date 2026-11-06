@@ -15,48 +15,48 @@ tags:
 - extendedWaitUntil:
     visible: "Toutes, 2 à traiter"
     timeout: 20000
-- scrollUntilVisible:
-    element:
-      text: "Cheffe de projet qualité · Industries Démo"
-    direction: DOWN
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Cheffe de projet qualité · Industries Démo"
+      DIRECTION: DOWN
 # The first entry's « Suivre »: named for its Job Offer, as VoiceOver reads it, on iOS; Android also exposes its words.
 - tapOn:
     text: "Suivre( : Cheffe de projet qualité)?"
     index: 0
 # It goes to « Déjà suivies », folded, under the other, still à traiter.
-- scrollUntilVisible:
-    element:
-      text: "Déjà suivies \\(1\\)"
-    direction: DOWN
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Déjà suivies \\(1\\)"
+      DIRECTION: DOWN
 - assertVisible: "Auditrice qualité fournisseurs · Industries Démo"
 - tapOn: "Déjà suivies \\(1\\)"
-- scrollUntilVisible:
-    element:
-      text: "Suivie"
-    direction: DOWN
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Suivie"
+      DIRECTION: DOWN
 - assertVisible: "Cheffe de projet qualité · Industries Démo"
 # One à traiter left, of the two.
-- scrollUntilVisible:
-    element:
-      text: "Toutes, 1 à traiter"
-    direction: UP
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Toutes, 1 à traiter"
+      DIRECTION: UP
 # The menu's conversation follows the box: the Job Searches by Profile in it.
-- scrollUntilVisible:
-    element:
-      text: "Vos recherches par profil"
-    direction: DOWN
-    timeout: 20000
-- scrollUntilVisible:
-    element:
-      text: "Offres trouvées : 2"
-    direction: DOWN
-    timeout: 20000
-- scrollUntilVisible:
-    element:
-      text: "Lancer une recherche"
-    direction: DOWN
-    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Vos recherches par profil"
+      DIRECTION: DOWN
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Offres trouvées : 2"
+      DIRECTION: DOWN
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Lancer une recherche"
+      DIRECTION: DOWN

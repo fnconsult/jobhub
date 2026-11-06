@@ -22,6 +22,7 @@ export function Control({
   selected,
   disabled = false,
   onPress,
+  testID,
 }: {
   label: string;
   /** Its accessible name when the label alone does not say which, among several alike: the label otherwise. */
@@ -34,6 +35,8 @@ export function Control({
   /** Not usable for now (« Hors ligne »): its caller says why beside it. */
   disabled?: boolean;
   onPress: () => void;
+  /** Its id for the e2e flows, where its label is not the only one of its name on screen (apps/mobile/maestro). */
+  testID?: string;
 }) {
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
@@ -47,6 +50,7 @@ export function Control({
       aria-disabled={disabled}
       disabled={disabled}
       onPress={onPress}
+      testID={testID}
       {...hoverProps}
       style={({ pressed }) => ({
         minHeight: TARGET,

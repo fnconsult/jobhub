@@ -1,0 +1,34 @@
+# Scrolls the open pane down until the element whose testID is ID shows, as pane-scroll.yaml does for a text: for a
+# button whose label the pane shows elsewhere too (the Interview form's « Ajouter l'entretien », its title as well).
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - repeat:
+          while:
+            notVisible:
+              id: ${ID}
+          times: 25
+          commands:
+            - swipe:
+                start: "88%, 45%"
+                end: "88%, 30%"
+                duration: 800
+- runFlow:
+    when:
+      true: ${LAYOUT != 'columns'}
+    commands:
+      - repeat:
+          while:
+            notVisible:
+              id: ${ID}
+          times: 25
+          commands:
+            - swipe:
+                start: "40%, 45%"
+                end: "40%, 30%"
+                duration: 800
+- assertVisible:
+    id: ${ID}

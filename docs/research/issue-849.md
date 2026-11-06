@@ -337,3 +337,20 @@ Hors périmètre CGV, à confier à l'expert-comptable : présomption de l'art. 
 - **#847** : image, voix et enregistrement des participants.
 - **#860** : termes à poser : masterclass, vendeur, la variante « contenu numérique » de l'Immediate Performance Request, signalement de contenu (distinct du Signalement).
 - **#861** : issues « Légal : » attendues, selon le modèle retenu : CGV (masterclass), CGU de la place de marché, conditions de vente types des coachs, rubrique classement et avis, politique de confidentialité (section Human Coach vendeur, DAC7).
+
+
+## Errata du 2026-11-06 (vérification sur les pages officielles)
+
+Titre d'origine de la section : #849 : place de marché ou revendeur (DSA, DAC7)
+
+EUR-Lex est resté inaccessible (page de contrôle anti-robot, réponse `202` vide). Aucune autre page officielle ouverte ne reproduit ces textes.
+
+| Affirmation | Statut | Ce que dit la source | URL, lu le 2026-11-06 |
+|---|---|---|---|
+| DSA art. 6(3) : l'hébergeur perd l'exemption s'il fait croire qu'il fournit l'offre | **Toujours non vérifiable** | Page non lue. | https://eur-lex.europa.eu/eli/reg/2022/2065/oj (202, vide) |
+| Art. 16 (notification) et 17 (motivation) dus par tout hébergeur, micro compris | **Toujours non vérifiable** | Page non lue. | idem |
+| Art. 19 : section 3 (art. 20 à 28) exclue pour les micro et petites entreprises, sauf l'art. 24(3) ; l'exemption dure 12 mois après la perte du statut | **Toujours non vérifiable** | Page non lue. | idem |
+| Art. 25 (interfaces) exempté, car en section 3 | **Toujours non vérifiable** | Page non lue. | idem |
+| Art. 29 : section 4 (art. 30 à 32) exclue pour les micro et petites entreprises, donc l'art. 30 (traçabilité) aussi | **Toujours non vérifiable** | Page non lue. | idem |
+| DAC7 : « services personnels » dans le champ ; seuil de 30 ventes et 2 000 € réservé aux biens, aucun seuil pour les services | **Toujours non vérifiable** | Page non lue. Aucune page officielle Stripe sur DAC7 n'a été trouvée sur docs.stripe.com (index sans entrée DAC7). | https://eur-lex.europa.eu/eli/dir/2021/514/oj (202, vide) |
+

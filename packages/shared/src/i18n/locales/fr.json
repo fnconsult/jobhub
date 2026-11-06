@@ -5929,7 +5929,14 @@
     },
     "applications": {
       "notFound": "Cette candidature est introuvable : elle n'existe pas ou n'est pas la vôtre.",
-      "readOnlySections": "Les autres rubriques (dossier entreprise, contacts, avis des coachs) se consultent sur jobbbox.ai.",
+      "readOnlySections": "Les avis de vos coachs humains se consultent sur jobbbox.ai.",
+      "dossierNotBuilt": "Le dossier entreprise se constitue sur jobbbox.ai : il apparaîtra ici une fois constitué.",
+      "dossierConfirmOnWeb": "Confirmez l'employeur sur jobbbox.ai : aucune recherche n'est faite avant votre confirmation.",
+      "dossierEmployerOnWeb": "L'offre ne nomme pas l'employeur : indiquez-le sur jobbbox.ai pour constituer le dossier.",
+      "dossierUpdateOnWeb": "Le dossier se met à jour sur jobbbox.ai.",
+      "financialYear": "{{year}} · Chiffre d'affaires : {{revenue}} · Résultat net : {{netIncome}}",
+      "contactsOnWeb": "La recherche de contacts et la demande de coordonnées se font sur jobbbox.ai : chaque demande compte dans votre quota hebdomadaire.",
+      "contactsOff": "Les contacts enrichis ne sont pas disponibles pour le moment.",
       "statusButton": "Statut : {{status}}",
       "interviewDate": "Date de l'entretien (jj/mm/aaaa)",
       "interviewTime": "Heure, à Paris (hh:mm)"

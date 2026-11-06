@@ -4,9 +4,20 @@
 // Application (`GET /api/applications/:id`), its status (`PATCH /api/applications/:id`), and its Interviews: added
 // (`POST …/interviews`, only at « Entretien »), changed or Rescheduled (`PATCH …/interviews/:id`), Cancelled
 // (`POST …/interviews/:id/cancel`) or removed (`DELETE …/interviews/:id`), each checked as the web's Applications module
-// checks it. Every other request goes on to `rest`: the coach's fake, then the fake web app's session endpoints.
+// checks it; its Company Dossier (`GET …/company-dossier`) and Enriched Contacts (`GET …/enriched-contacts`), to read.
+// Every other request goes on to `rest`: the coach's fake, then the fake web app's session endpoints.
 import { APP_ORIGIN, APPLICATION_STATUSES, FINAL_APPLICATION_STATUSES, INTERVIEW_FORMATS, type ApplicationStatus } from "@jobhub/shared";
-import { applicationResponseSchema, applicationsResponseSchema, type ApplicationResponse, type ApplicationsResponse, type InterviewRead } from "@jobhub/shared/reads";
+import {
+  applicationResponseSchema,
+  applicationsResponseSchema,
+  companyDossierResponseSchema,
+  enrichedContactsResponseSchema,
+  type ApplicationResponse,
+  type ApplicationsResponse,
+  type CompanyDossierResponse,
+  type EnrichedContactsResponse,
+  type InterviewRead,
+} from "@jobhub/shared/reads";
 import type { fakeWebApp } from "../src/session/testing";
 
 /** A body as the app sent it. */
@@ -47,12 +58,20 @@ function refusals(body: Body, adding: boolean): FieldError[] {
 
 const blank = (value: unknown) => value === undefined || value === null || value === "";
 
-/** One of the Candidate's Applications on the web app: its read, whether its Profile is archived, what waits there. */
+/**
+ * One of the Candidate's Applications on the web app: its read, whether its Profile is archived, what waits there, its
+ * Company Dossier (not built unless given) and its Enriched Contacts (no provider on, none found, unless given).
+ */
 export interface HeldApplication {
   application: ApplicationResponse;
   profileArchived?: boolean;
   toHandle?: "follow_up" | "abandon_suggestion" | null;
+  companyDossier?: CompanyDossierResponse;
+  enrichedContacts?: EnrichedContactsResponse;
 }
+
+const NOT_BUILT: CompanyDossierResponse = { status: "not_built" };
+const NO_CONTACTS: EnrichedContactsResponse = { enabled: false, searchable: false, found: [], contacts: [] };
 
 /** An Archived Application: at an end state, or on an archived Profile (apps/web/src/applications/list-view.ts). */
 const isArchived = ({ application, profileArchived }: HeldApplication) => (FINAL_APPLICATION_STATUSES as readonly ApplicationStatus[]).includes(application.status) || profileArchived === true;
@@ -120,6 +139,14 @@ export function serveApplications(web: ReturnType<typeof fakeWebApp>, email: str
     if (url.pathname === "/api/applications" && request.method === "GET") return json(card(url.searchParams.get("archivees") === "1"));
     const [, id, interviews, interviewId, cancel] = /^\/api\/applications\/([^/]+)(?:\/(interviews)(?:\/([^/]+)(?:\/(cancel))?)?)?$/.exec(url.pathname) ?? [];
     const found = id ? route.held.find((each) => each.application.id === decodeURIComponent(id)) : undefined;
+    const read = /^\/api\/applications\/([^/]+)\/(company-dossier|enriched-contacts)$/.exec(url.pathname);
+    if (read && request.method === "GET") {
+      const held = route.held.find((each) => each.application.id === decodeURIComponent(read[1]!));
+      if (!held) return notFound();
+      return read[2] === "company-dossier"
+        ? json(companyDossierResponseSchema.parse(held.companyDossier ?? NOT_BUILT))
+        : json(enrichedContactsResponseSchema.parse(held.enrichedContacts ?? NO_CONTACTS));
+    }
     if (request.method === "GET") return found && !interviews ? json(found.application) : notFound();
 
     if (request.headers.get("origin") !== APP_ORIGIN) return json({ error: "forbidden" }, 403);

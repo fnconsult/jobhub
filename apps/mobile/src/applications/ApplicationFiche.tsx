@@ -3,7 +3,7 @@ import { ChevronRight, ExternalLink } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Linking, Pressable, View } from "react-native";
-import { useApplication, useTailoredDocuments } from "../api/reads";
+import { useApplication, useEnrichedContacts, useTailoredDocuments } from "../api/reads";
 import { ActivityPane } from "../coach/ActivityPane";
 import type { DocumentReader } from "../documents/document-reader";
 import { TailoredDocuments } from "../documents/TailoredDocuments";
@@ -15,6 +15,7 @@ import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 import { applicationFormats, matchScoreInWords, siteOf } from "./application-formats";
 import { ApplicationSection, APP_SECTIONS, type AppSection } from "./ApplicationSections";
+import { showsContacts } from "./EnrichedContacts";
 import { Property } from "./Property";
 import { StatusField } from "./StatusField";
 
@@ -130,13 +131,18 @@ function useOpenSection(applicationId: string) {
   return (section: AppSection) => workPane.open({ title: t(`application.sections.${section}`), content: <ApplicationSection applicationId={applicationId} section={section} /> });
 }
 
-/** The Sections the app shows, in the web's order (ADR-0024), each to open in the Work Pane. */
+/**
+ * The Sections the app shows, in the web's order (ADR-0024), each to open in the Work Pane; « Contacts » only once the
+ * web app says it shows them (a contact-data provider on, or some found).
+ */
 function Sections({ application }: { application: ApplicationResponse }) {
   const { t } = useTranslation();
   const open = useOpenSection(application.id);
+  const contacts = useEnrichedContacts(application.id).data;
+  const shown = APP_SECTIONS.filter((section) => section !== "contacts" || (contacts !== undefined && showsContacts(contacts)));
   return (
     <View style={{ gap: space[2] }}>
-      {APP_SECTIONS.map((section) => (
+      {shown.map((section) => (
         <FicheLink key={section} label={t(`application.sections.${section}`)} onPress={() => open(section)} />
       ))}
       <AppText variant="meta" tone="meta">

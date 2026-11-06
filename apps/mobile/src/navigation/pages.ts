@@ -12,7 +12,7 @@ export const paths = {
   applications: "/candidatures",
   application: (id: string) => `/candidatures/${encodeURIComponent(id)}`,
   /** One of an Application's Sections the app shows (#691): an Interview on the Agenda leads to its « entretiens ». */
-  applicationSection: (id: string, section: "correspondance" | typeof INTERVIEWS | "offre") => `/candidatures/${encodeURIComponent(id)}/${section}`,
+  applicationSection: (id: string, section: "correspondance" | typeof INTERVIEWS | "dossier" | "contacts" | "offre") => `/candidatures/${encodeURIComponent(id)}/${section}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
   /** A Job Search's page, the web's in the app until it is drawn natively (#692): where « Lancer une recherche » lands. */

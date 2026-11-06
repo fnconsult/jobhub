@@ -4,7 +4,7 @@
 // origin, the Coach Conversation's routes (src/coach/testing.ts) and the session's endpoints (src/session/testing.ts).
 // Only the device's native modules are faked besides: the system's Dialog (Alert) and browser (Linking).
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { ApplicationResponse } from "@jobhub/shared/reads";
+import type { ApplicationResponse, CompanyDossierResponse, EnrichedContactsResponse } from "@jobhub/shared/reads";
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { Alert, Dimensions, Linking, type AlertButton } from "react-native";
@@ -99,7 +99,48 @@ const ARCHIVED: ApplicationResponse = {
   jobOffer: jobOffer("offer_ancienne", "Cheffe de quai", "Transports Martin", "Vénissieux"),
   interviews: [{ ...RHONE.interviews[1]!, id: "interview-ancien", scheduledAt: "2026-09-15T08:00:00.000Z", cancelledAt: null }],
 };
-const HELD: HeldApplication[] = [{ application: AEROLINE, toHandle: "follow_up" }, { application: RHONE }, { application: ARCHIVED }];
+/** Aéroline's Company Dossier, built from the French company register. */
+const AEROLINE_DOSSIER: CompanyDossierResponse = {
+  status: "built",
+  dossier: {
+    source: "french_register",
+    reliability: "official",
+    employer: "Aéroline",
+    builtAt: "2026-11-02T09:00:00.000Z",
+    siren: "552100554",
+    name: "AEROLINE SAS",
+    legalForm: "SAS, société par actions simplifiée",
+    activity: "30.30Z",
+    address: "4 avenue Didier Daurat, 31700 Blagnac",
+    headcount: { min: 250, max: 499 },
+    financials: [{ year: 2025, revenue: 48_200_000, netIncome: null }],
+    executiveRoles: ["Président de SAS"],
+    suggestedContactRoles: ["hiring_manager", "hr_director"],
+    news: [{ title: "Aéroline agrandit son site de Blagnac", outlet: "La Dépêche du Midi", publishedAt: "2026-10-12", url: "https://www.ladepeche.fr/aeroline-blagnac" }],
+    newsSearched: true,
+  },
+};
+/** The people found at Aéroline, and the one whose details Marie obtained (Premium). */
+const AEROLINE_CONTACTS: EnrichedContactsResponse = {
+  enabled: true,
+  searchable: true,
+  found: [{ id: "contact-found", name: "Paul Martin", jobTitle: "Responsable recrutement" }],
+  contacts: [
+    {
+      id: "contact-claire",
+      name: "Claire Durand",
+      jobTitle: "DRH",
+      emails: ["claire.durand@aeroline.fr"],
+      phones: ["+33 5 61 00 00 00"],
+      source: { provider: "lusha", retrievedAt: "2026-11-03T08:00:00.000Z" },
+    },
+  ],
+};
+const HELD: HeldApplication[] = [
+  { application: AEROLINE, toHandle: "follow_up", companyDossier: AEROLINE_DOSSIER, enrichedContacts: AEROLINE_CONTACTS },
+  { application: RHONE },
+  { application: ARCHIVED },
+];
 
 let web: ApplicationsRoute;
 /** Signed in, the web app serving Mes candidatures (`held`), the app opened at `url`, past the legal steps (#689). */
@@ -181,7 +222,7 @@ describe("An Application's page", () => {
   it("lists its Sections, its Activity and its Results on the Fiche", async () => {
     await openFiche();
     expect(screen.getByRole("heading", { name: "Sections" })).toBeOnTheScreen();
-    for (const section of ["Correspondance", "Entretiens", "L'offre"]) expect(button(section)).toBeOnTheScreen();
+    for (const section of ["Correspondance", "Entretiens", "Dossier entreprise", "Contacts", "L'offre"]) expect(await screen.findByRole("button", { name: section })).toBeOnTheScreen();
     expect(screen.getByRole("heading", { name: "Activité" })).toBeOnTheScreen();
     expect(screen.getByText("Aucun contenu produit par l'IA sur cette page")).toBeOnTheScreen();
     expect(screen.getByRole("heading", { name: "Résultats" })).toBeOnTheScreen();
@@ -446,5 +487,86 @@ describe("An Application's other Sections, to read in the Work Pane", () => {
     expect(screen.getByText("Toulouse")).toBeOnTheScreen();
     expect(screen.getByText("20 octobre 2026")).toBeOnTheScreen();
     expect(screen.getAllByRole("button").map((control) => control.props.accessibilityLabel)).toEqual(["Fermer", "Voir l'offre sur welcometothejungle.com"]);
+  });
+});
+
+describe("An Application's Company Dossier and Enriched Contacts, to read in the Work Pane", () => {
+  it("opens the Dossier entreprise as the web app built it: the register's facts, its figures, the roles to contact, its news", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    await openFiche();
+    await userEvent.setup().press(button("Dossier entreprise"));
+
+    expect(await screen.findByText("Source officielle.")).toBeOnTheScreen();
+    expect(screen.getByText("AEROLINE SAS")).toBeOnTheScreen();
+    expect(screen.getByText("552100554")).toBeOnTheScreen();
+    expect(screen.getByText("4 avenue Didier Daurat, 31700 Blagnac")).toBeOnTheScreen();
+    expect(screen.getByText("250 à 499 salariés")).toBeOnTheScreen();
+    expect(screen.getByText("Chiffres clés")).toBeOnTheScreen();
+    expect(screen.getByText(/^2025 · Chiffre d'affaires : 48,2\sM\s?€ · Résultat net : —$/)).toBeOnTheScreen();
+    expect(screen.getByText("Président de SAS")).toBeOnTheScreen();
+    expect(screen.getByText("Directeur ou directrice des ressources humaines (DRH)")).toBeOnTheScreen();
+    expect(screen.getByText("La Dépêche du Midi, 12 octobre 2026")).toBeOnTheScreen();
+    expect(screen.getByText("Dossier constitué le 2 novembre 2026 pour « Aéroline ».")).toBeOnTheScreen();
+    // To read: nothing to build, confirm or update here; an article opens in the system's browser.
+    expect(screen.getAllByRole("button").map((control) => control.props.accessibilityLabel)).toEqual(["Fermer"]);
+    await userEvent.setup().press(link("Aéroline agrandit son site de Blagnac"));
+    expect(openURL).toHaveBeenCalledWith("https://www.ladepeche.fr/aeroline-blagnac");
+  });
+
+  it("says a dossier from web sources is less reliable, and lists the pages its facts come from", async () => {
+    const web: CompanyDossierResponse = {
+      status: "built",
+      dossier: {
+        source: "web",
+        reliability: "less_reliable",
+        employer: "Rhône Distribution",
+        builtAt: "2026-11-02T09:00:00.000Z",
+        country: "France",
+        address: null,
+        industry: "Logistique",
+        headcount: "environ 300",
+        revenue: null,
+        website: "https://rhone-distribution.fr",
+        sources: ["https://rhone-distribution.fr/qui-sommes-nous"],
+        suggestedContactRoles: ["hr_manager"],
+        news: [],
+        newsSearched: true,
+      },
+    };
+    await launch(`/candidatures/${RHONE.id}/dossier`, [{ application: RHONE, companyDossier: web }]);
+    expect(await screen.findByText("Sources web, fiabilité moindre.")).toBeOnTheScreen();
+    expect(screen.getByText("environ 300")).toBeOnTheScreen();
+    expect(link("https://rhone-distribution.fr")).toBeOnTheScreen();
+    expect(link("https://rhone-distribution.fr/qui-sommes-nous")).toBeOnTheScreen();
+    expect(screen.getByText("Aucun article récent trouvé.")).toBeOnTheScreen();
+  });
+
+  it("says a dossier not built yet is built on jobbbox.ai", async () => {
+    await openFiche(RHONE.id);
+    await userEvent.setup().press(button("Dossier entreprise"));
+    expect(await screen.findByText("Le dossier entreprise se constitue sur jobbbox.ai : il apparaîtra ici une fois constitué.")).toBeOnTheScreen();
+  });
+
+  it("opens the Contacts: the people found, and the Enriched Contacts with their details and where they come from", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    await openFiche();
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Contacts" }));
+
+    expect(await screen.findByText("Paul Martin · Responsable recrutement")).toBeOnTheScreen();
+    expect(screen.getByText("Claire Durand · DRH")).toBeOnTheScreen();
+    expect(screen.getByText("Source : Lusha, coordonnées obtenues le 3 novembre 2026.")).toBeOnTheScreen();
+    // Asking a found person's details counts against the Plan Quota: that is done on jobbbox.ai.
+    expect(screen.queryByRole("button", { name: /Obtenir les coordonnées/ })).toBeNull();
+    await userEvent.setup().press(link("claire.durand@aeroline.fr"));
+    expect(openURL).toHaveBeenCalledWith("mailto:claire.durand@aeroline.fr");
+    await userEvent.setup().press(link("+33 5 61 00 00 00"));
+    expect(openURL).toHaveBeenCalledWith("tel:+33561000000");
+  });
+
+  it("leaves Contacts out of the Fiche while no contact-data provider is on and none was found, as the web does", async () => {
+    await openFiche(RHONE.id);
+    expect(await screen.findByRole("button", { name: "Dossier entreprise" })).toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryByText("Pas encore de document", { exact: false })).toBeOnTheScreen());
+    expect(screen.queryByRole("button", { name: "Contacts" })).toBeNull();
   });
 });

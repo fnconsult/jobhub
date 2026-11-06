@@ -8,33 +8,40 @@ import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { applicationFormats, matchScoreInWords, siteOf } from "./application-formats";
+import { CompanyDossier } from "./CompanyDossier";
+import { EnrichedContacts } from "./EnrichedContacts";
 import { Interviews } from "./Interviews";
 import { Property } from "./Property";
 
 /**
  * The Sections of an Application the app shows, in the web's order (ADR-0024, apps/web/src/routes.ts), each at the
- * web's address (`/candidatures/:id/<section>`): its Match Score, its Interviews, its Job Offer. The others, which
- * `GET /api/applications/:id` does not read (the Company Dossier, the Enriched Contacts, the Coach Reviews), stay on
- * jobbbox.ai; the AI Coach's proposals are cards in the conversation.
+ * web's address (`/candidatures/:id/<section>`): its Match Score, its Interviews, its Company Dossier, its Enriched
+ * Contacts (on the Fiche only where the web shows them, `showsContacts`), its Job Offer. Its Tailored Documents are its
+ * Results; the Coach Reviews, which no GET reads yet, stay on jobbbox.ai; the AI Coach's proposals are cards in the
+ * conversation.
  */
-export const APP_SECTIONS = ["correspondance", "entretiens", "offre"] as const;
+export const APP_SECTIONS = ["correspondance", "entretiens", "dossier", "contacts", "offre"] as const;
 export type AppSection = (typeof APP_SECTIONS)[number];
 
 /** Whether `value` names one of the Sections the app shows. */
 export const isAppSection = (value: string | undefined): value is AppSection => (APP_SECTIONS as readonly (string | undefined)[]).includes(value);
 
 /**
- * One of an Application's Sections in the Work Pane, as `GET /api/applications/:id` reads it: read again after each
- * change made there, so it always shows what the web app holds.
+ * One of an Application's Sections in the Work Pane, as the web app reads it (`GET /api/applications/:id`, or the
+ * Section's own GET for the Company Dossier and the Enriched Contacts): read again after each change made there, so it
+ * always shows what the web app holds.
  */
 export function ApplicationSection({ applicationId, section }: { applicationId: string; section: AppSection }) {
   const { t } = useTranslation();
+  const application = useApplication(applicationId);
+  if (section === "dossier") return <CompanyDossier applicationId={applicationId} />;
+  if (section === "contacts") return <EnrichedContacts applicationId={applicationId} />;
   return (
-    <ReadState read={useApplication(applicationId)} notFound={t("mobile.applications.notFound")}>
-      {(application) => {
-        if (section === "entretiens") return <Interviews application={application} />;
-        if (section === "correspondance") return <MatchScore application={application} />;
-        return <JobOffer application={application} />;
+    <ReadState read={application} notFound={t("mobile.applications.notFound")}>
+      {(read) => {
+        if (section === "entretiens") return <Interviews application={read} />;
+        if (section === "correspondance") return <MatchScore application={read} />;
+        return <JobOffer application={read} />;
       }}
     </ReadState>
   );

@@ -7,11 +7,15 @@
 import {
   agendaResponseSchema,
   applicationResponseSchema,
+  companyDossierResponseSchema,
+  enrichedContactsResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
   type AgendaResponse,
   type ApplicationResponse,
+  type CompanyDossierResponse,
+  type EnrichedContactsResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type TailoredDocumentsResponse,
@@ -107,3 +111,14 @@ export const useApplication = (id: string | null): Read<ApplicationResponse> =>
 /** `GET /api/applications/:id/documents`: an Application's Tailored Documents, with where to download them. */
 export const useTailoredDocuments = (applicationId: string): Read<TailoredDocumentsResponse> =>
   useRead("tailoredDocuments", `/api/applications/${segment(applicationId)}/documents`, tailoredDocumentsResponseSchema, [applicationId]);
+
+/** `GET /api/applications/:id/company-dossier`: an Application's Company Dossier as the web app last built it; kept on the device (READS). */
+export const useCompanyDossier = (applicationId: string): Read<CompanyDossierResponse> =>
+  useRead("companyDossier", `/api/applications/${segment(applicationId)}/company-dossier`, companyDossierResponseSchema, [applicationId]);
+
+/**
+ * `GET /api/applications/:id/enriched-contacts`: the people found at an Application's employer and its Enriched
+ * Contacts; never kept on the device (READS), a third party's personal data.
+ */
+export const useEnrichedContacts = (applicationId: string): Read<EnrichedContactsResponse> =>
+  useRead("enrichedContacts", `/api/applications/${segment(applicationId)}/enriched-contacts`, enrichedContactsResponseSchema, [applicationId]);

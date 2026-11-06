@@ -5929,7 +5929,14 @@
     },
     "applications": {
       "notFound": "This application cannot be found: it does not exist or is not yours.",
-      "readOnlySections": "The other sections (company dossier, contacts, coach reviews) are on jobbbox.ai.",
+      "readOnlySections": "Your human coaches' reviews are on jobbbox.ai.",
+      "dossierNotBuilt": "The company dossier is built on jobbbox.ai: it will show here once built.",
+      "dossierConfirmOnWeb": "Confirm the employer on jobbbox.ai: nothing is looked up before you confirm.",
+      "dossierEmployerOnWeb": "The job offer does not name the employer: name it on jobbbox.ai to build the dossier.",
+      "dossierUpdateOnWeb": "The dossier is updated on jobbbox.ai.",
+      "financialYear": "{{year}} · Revenue: {{revenue}} · Net income: {{netIncome}}",
+      "contactsOnWeb": "Contacts are searched for, and their details asked for, on jobbbox.ai: each request counts against your weekly quota.",
+      "contactsOff": "Enriched contacts are not available at the moment.",
       "statusButton": "Status: {{status}}",
       "interviewDate": "Interview date (dd/mm/yyyy)",
       "interviewTime": "Time, in Paris (hh:mm)"

@@ -1442,11 +1442,11 @@
       "tableDay": "Day",
       "tableTotal": "Total",
       "tableEmpty": "No AI action on these days.",
-      "footUnits": "Counted in uses, never in tokens or euros.",
-      "footKept": "Kept 12 months, erased with your account, included in {{export}}.",
+      "footUnits": "Counted in uses.",
+      "footKept": "Kept 12 months, deleted with your account, included in {{export}}.",
       "footExport": "your data export",
-      "footModels": "Which models produced each piece of content is in {{activity}}.",
-      "footActivity": "AI Activity",
+      "footModels": "The models used for each item are shown in {{activity}}.",
+      "footActivity": "AI activity",
       "legend": "Legend",
       "tipLine": "{{series}}: {{count}}"
     }

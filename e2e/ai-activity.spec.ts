@@ -212,10 +212,7 @@ test.describe("AI Activity (#332)", () => {
     await askTheCoachAbout(page, await storedJobOffer("DAF Lyon"), "Que pensez-vous de cette offre ?");
 
     await page.goto("/abonnement");
-    // « Votre consommation »'s foot alone names them, to say it never counts in them (#801, ADR-0091).
-    await expect(page.getByText(fr.billing.consumption.footUnits, { exact: false })).toBeVisible();
-    const shown = (await page.getByRole("main").innerText()).replace(fr.billing.consumption.footUnits, "");
-    expect(shown).not.toMatch(/tokens?|jetons?/i);
+    await expect(page.getByRole("main")).not.toContainText(/tokens?|jetons?/i);
     await page.getByRole("button", { name: new RegExp(fr.usageMeter.title) }).click();
     await expect(page.locator(".sidebar-docked")).not.toContainText(/tokens?|jetons?/i);
   });

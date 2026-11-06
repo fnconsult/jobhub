@@ -84,6 +84,9 @@ test.describe("« Votre consommation » on Mon abonnement (#801)", () => {
     // Between the summary and the Plans.
     const order = await page.locator(".subscription > *").evaluateAll((children) => children.map((child) => child.className));
     expect(order.indexOf("ds-card consumption")).toBe(order.indexOf("subscription-summary") + 1);
+    // Counted in uses: its foot names neither jetons nor euros, not even to say it does not count in them (#332, ADR-0091).
+    await expect(card.locator(".consumption-foot")).toContainText(c.footUnits);
+    await expect(card).not.toContainText(/jetons?|tokens?|euros?|€/i);
     await expectNoAxeViolations(page);
   });
 

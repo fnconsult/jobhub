@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { consumptionPeriod, consumptionSection } from "@/consumption/section";
 import { renderInFrench } from "@/design/testing";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import { CONSUMPTION_VIEW_KEY, ConsumptionSection } from "./ConsumptionSection";
 
 const NOW = new Date("2026-11-05T10:00:00Z");
@@ -37,6 +38,27 @@ describe("« Votre consommation » on Mon abonnement (#801, ADR-0091)", () => {
     expect(within(section).getByText("Période de facturation du 18 octobre au 17 novembre")).toBeTruthy();
     expect(within(section).getByRole("link", { name: "Activité IA" }).getAttribute("href")).toBe(links.aiActivity);
     expect(within(section).getByRole("link", { name: "l'export de vos données" }).getAttribute("href")).toBe(links.dataExport);
+  });
+
+  it("ends on its foot, which names neither jetons nor euros (#801, #332)", () => {
+    renderInFrench(<ConsumptionSection view={view} links={links} />);
+    expect(document.querySelector(".consumption-foot")!.textContent).toBe(
+      "Compté en nombre d'utilisations. Conservé 12 mois, effacé avec votre compte, inclus dans l'export de vos données. Le détail des modèles utilisés pour chaque contenu est dans Activité IA.",
+    );
+    expect(screen.getByRole("region", { name: "Votre consommation" }).textContent).not.toMatch(/jetons?|tokens?|euros?|€/i);
+  });
+
+  it("ends on the same foot in English", () => {
+    render(
+      <I18nProvider locale="en">
+        <ConsumptionSection view={view} links={links} />
+      </I18nProvider>,
+    );
+    expect(document.querySelector(".consumption-foot")!.textContent).toBe(
+      "Counted in uses. Kept 12 months, deleted with your account, included in your data export. The models used for each item are shown in AI activity.",
+    );
+    expect(screen.getByRole("link", { name: "AI activity" }).getAttribute("href")).toBe(links.aiActivity);
+    expect(screen.getByRole("region", { name: "Your consumption" }).textContent).not.toMatch(/jetons?|tokens?|euros?|€/i);
   });
 
   it("opens on the grid: 12 months of days, a column per week, Monday first, the current period outlined", () => {

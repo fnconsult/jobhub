@@ -9,11 +9,8 @@ import { usageMeter } from "./usage-meter";
 const TOKENS = /tokens?|jetons?/i;
 /** An amount in euros (« 9,90 € », « 19 EUR », « 12 euros »): never on « Votre consommation » (ADR-0091). */
 const EURO_AMOUNT = /\d[\d\s.,\u00a0\u202f]*\s?(?:€|eur\b|euros?)|€\s?\d/i;
-/**
- * The one line that names jetons, to say they are not used: « Votre consommation »'s foot (ADR-0091), « Compté en
- * utilisations, jamais en jetons ni en euros. »
- */
-const NEVER_IN_TOKENS = /^(?:Compté en utilisations, jamais en jetons ni en euros\.|Counted in uses, never in tokens or euros\.)$/;
+/** Euros named at all, even to say they are not counted: « Votre consommation » never does (#801, ADR-0091). */
+const EUROS = /€|\beuros?\b/i;
 
 function texts(tree: unknown): string[] {
   if (typeof tree === "string") return [tree];
@@ -26,17 +23,16 @@ describe("Plan Quotas never count tokens (#332, CONTEXT.md « AI Activity »)", 
       const { usageMeter: meter, billing } = resources[locale].translation;
 
       expect(texts(meter).filter((text) => TOKENS.test(text))).toEqual([]);
-      expect(texts(billing).filter((text) => TOKENS.test(text) && !NEVER_IN_TOKENS.test(text))).toEqual([]);
+      expect(texts(billing).filter((text) => TOKENS.test(text))).toEqual([]);
     }
   });
 
-  it("say no token count and no amount in euros on « Votre consommation » (#801), whose foot alone says it counts neither", () => {
+  it("name neither jetons nor euros on « Votre consommation » (#801), not even its foot to say it counts neither", () => {
     for (const locale of SUPPORTED_LOCALES) {
       const { consumption } = resources[locale].translation.billing;
-      const mentions = texts(consumption).filter((text) => TOKENS.test(text));
 
-      expect(mentions).toEqual([consumption.footUnits]);
-      expect(consumption.footUnits).toMatch(NEVER_IN_TOKENS);
+      expect(texts(consumption).filter((text) => TOKENS.test(text))).toEqual([]);
+      expect(texts(consumption).filter((text) => EUROS.test(text))).toEqual([]);
       expect(texts(consumption).filter((text) => EURO_AMOUNT.test(text))).toEqual([]);
     }
   });
@@ -54,6 +50,7 @@ describe("Plan Quotas never count tokens (#332, CONTEXT.md « AI Activity »)", 
 
       expect(props).not.toMatch(TOKENS);
       expect(props).not.toMatch(EURO_AMOUNT);
+      expect(props).not.toMatch(EUROS);
     }
   });
 

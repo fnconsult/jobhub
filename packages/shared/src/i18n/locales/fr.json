@@ -1442,7 +1442,7 @@
       "tableDay": "Jour",
       "tableTotal": "Total",
       "tableEmpty": "Aucune action IA sur ces jours.",
-      "footUnits": "Compté en utilisations, jamais en jetons ni en euros.",
+      "footUnits": "Compté en nombre d'utilisations.",
       "footKept": "Conservé 12 mois, effacé avec votre compte, inclus dans {{export}}.",
       "footExport": "l'export de vos données",
       "footModels": "Le détail des modèles utilisés pour chaque contenu est dans {{activity}}.",

@@ -107,7 +107,7 @@ A saved conversation between a Candidate and the AI Coach, and on the Candidate'
 _Avoid_: Chat, thread, session
 
 **À traiter**:
-Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter.
+Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter. Said of an Offer box entry neither « Suivie » nor « Écartée » nor « Expirée sans décision » (ADR-0090): it counts in « N à traiter » on the Offer box, beside « Recherches d'offres » in the Sidebar, on the app icon's badge and in one line of the Job Digest.
 
 **Menu card**:
 The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter; Recherches d'offres: each active Profile's Job Searches with start date, status, Job Offers found and « Nouveaux résultats »; Job Digests: each active Profile's frequency and every Job Digest sent; Agenda: the list and « À planifier »; Mes coachs humains: Coaching Sessions and Human Coaches). It stays in the thread whatever is sent. An Archived Profile's Job Searches and Job Digests are left out of the cards and the Sidebar; Recherches d'offres is one conversation for all Profiles.
@@ -308,6 +308,33 @@ _Avoid_: Action Card, preview, link card
 A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par email »): its title, employer, contract and remote work, its Match Score and the actions to save it as an Application or read it. Not the Job Offer card, which is the AI Coach's.
 _Avoid_: Job Offer card, result card
 
+**Offer box**:
+Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
+_Avoid_: Inbox, feed, offer list
+
+**Offer box entry**:
+One Job Offer in one Candidate's Offer box, made at its first Arrival and kept 12 months from it: its Profile, its Arrival sources with their dates, and where it stands: à traiter, « Plus tard », « Suivie » (its Application exists), « Écartée » (with its Dismissal reason, if given) or « Expirée sans décision » (still undecided when its Posting date, or its first Arrival when that is unknown, passed 30 days; out of the count). Only « Suivie » and « Écartée » make it treated (« traitée »); opening it treats nothing. Part of the Candidate's Data export.
+_Avoid_: Inbox item, notification
+
+**Arrival**:
+A Job Offer reaching a Candidate's Offer box from one Arrival source. The first makes the Offer box entry and sets its day (Paris time); a later one adds its source to the entry without moving it.
+
+**Arrival source**:
+Where an Arrival came from, shown as a chip: « Recherche » (a Job Search), « Job Digest », « Email » (a Received offer email, Email intake), « Lien du coach » (a Job Offer link). A Capture (« Extension ») or a Share capture (« Partage ») makes an entry only once followed, already « Suivie ».
+_Avoid_: Channel, provider, Job discovery source (which is where Job discovery searches)
+
+**Écartée**:
+Said of an Offer box entry the Candidate set aside with « Écarter », with an optional **Dismissal reason** (« Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs »). Counts as already seen: never offered again by a Job Digest, « déjà vue » for Email intake, shown « Écartée » in a Job Search's results. « Revenir sur ce choix » makes it à traiter again. The shared Job Offer is untouched.
+_Avoid_: Dismissed, rejected, archived, hidden
+
+**Plus tard**:
+An Offer box entry put out of sight until the next Monday 00:00 Paris time, when it comes back under « Aujourd'hui ». Not a decision: it stays à traiter and in the count.
+_Avoid_: Snooze
+
+**Importance tier**:
+The Offer box's grouping by Match Score: « À ne pas manquer » (80 and more), « À regarder » (60 to 79), « Peu adaptées » (under 60 or not computable); the most recent Arrival first within each.
+_Avoid_: Priority, ranking
+
 **Quick actions**:
 The suggestions above the box of the home page's empty conversation that start the usual next steps: search for Job Offers, add an Application, plan an Interview, ask how the page works.
 _Avoid_: shortcuts
@@ -469,7 +496,7 @@ The AI Coach's guess at the real employer behind a Job Offer posted by a recruit
 _Avoid_: Hidden employer, client
 
 **Job Digest**:
-A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota; it goes out at 07:00 Paris time (weekly ones on Monday). Its Job Offers come first from those already stored, Job discovery only topping them up. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search) and without an Application; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
+A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota; it goes out at 07:00 Paris time (weekly ones on Monday). Its Job Offers come first from those already stored, Job discovery only topping them up. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search), without an Application and not Écartée; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
 _Avoid_: Alert, newsletter, feed
 
 **Sending address**:

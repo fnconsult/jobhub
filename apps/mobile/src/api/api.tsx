@@ -4,7 +4,7 @@
  * Each call goes to the platform the build points at (src/web-app-url.ts, set per EAS profile in eas.json), states the
  * API Version the app speaks and names the app as a mobile client (`@jobhub/shared/api-version`), with the app's origin,
  * which the web app trusts for a write as it trusts its own pages' (a native request has no Origin of its own; #689),
- * and a JSON body unless the call says otherwise. When the platform no
+ * and a JSON body unless the call says otherwise or sends a form (FormData, a file to upload). When the platform no
  * longer serves that API Version it answers `426 Upgrade Required` (ADR-0063): from then on the provider shows
  * « Mettre à jour Jobbbox » in place of the app, with the link to its store, and the call rejects with AppOutdatedError.
  * The app is never let back in until it is updated: a newer build is a new install.
@@ -60,7 +60,8 @@ export function ApiProvider({
       headers.set(API_VERSION_HEADER, String(API_VERSION));
       headers.set(API_CLIENT_HEADER, MOBILE_CLIENT);
       headers.set("origin", APP_ORIGIN);
-      if (init?.body !== undefined && !headers.has("content-type")) headers.set("content-type", "application/json");
+      // A form (a file to upload) is the system's to type: it names the multipart boundary.
+      if (init?.body !== undefined && !(init.body instanceof FormData) && !headers.has("content-type")) headers.set("content-type", "application/json");
       // `@better-auth/expo` keeps the session in the Keychain or Keystore, not the system's cookie store: its cookie is
       // set here by hand, and no other (`credentials: "omit"`, #693).
       const cookie = session ? await session.cookie() : "";

@@ -11,6 +11,7 @@ import { createReceivedOffers } from "../email-intake/received-offers";
 import { seedReceivedOfferEmail } from "../email-intake/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, migrateJobSearches, type JobSearches } from "../job-searches";
+import { offerBoxOf } from "../offer-box";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { PushNotification } from "../push-notifications";
 import { createJobDigests, migrateJobDigests, type JobDigestDiscovery, type JobDigests, type JobDigestsConfig } from "./index";
@@ -273,6 +274,19 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       ]);
       // Two qualified, fewer than the target count (10): Job discovery topped up.
       expect(discovery).toBe("ran");
+    });
+
+    it("brings the Job Offers it sent to the Candidate's Offer box, with its Profile, at the time it is sent (ADR-0090)", async () => {
+      const best = await strong("DAF H/F");
+      await weak("Contrôleur de gestion");
+      await subscribed();
+
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
+
+      expect(await offerBoxOf(database, candidateId)).toEqual([
+        expect.objectContaining({ jobOfferId: best, profileId, firstArrivalAt: clock.now, arrivalSources: [{ source: "job_digest", at: clock.now }] }),
+      ]);
+      expect(await offerBoxOf(database, otherCandidateId)).toEqual([]);
     });
 
     it("leaves out a Job Offer posted more than 30 days ago, and ranks an undated one below a dated one with an equal Match Score (#116)", async () => {

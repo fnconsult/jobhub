@@ -914,23 +914,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "topic": "utiliser",
       "title": "Recherches d'offres",
       "synonyms": [
+        "offres à traiter",
+        "à traiter",
+        "traitées",
+        "suivre",
         "recherche",
         "chercher",
         "trouver",
         "nouvelles offres",
         "lancer",
         "lancer une recherche",
+        "recherches par profil",
         "reçues par email",
         "offres reçues par email",
         "non classées",
         "mails ignorés",
         "alerte d'offres",
+        "à ne pas manquer",
+        "à regarder",
+        "peu adaptées",
         "tout voir"
       ],
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Recherches d'offres » est une conversation avec votre coach IA, la même à chaque visite. Votre coach y cherche des offres d'emploi selon les critères de recherche d'un profil.\n\nVos recherches y sont listées dans la carte « Vos recherches par profil » : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs. « Voir les offres reçues par email », en bas de la carte, ouvre « Reçues par email » à côté de la conversation.\n\n« Reçues par email » montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance ; enregistrez-la comme une offre trouvée par une recherche. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nVotre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise (par exemple 1 recherche sur 5 cette semaine) ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter la recherche d'offres » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
+      "body": "« Recherches d'offres » s'ouvre sur « Offres à traiter » : chaque offre qui vous est arrivée, par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach, y attend votre décision. Une offre arrivée par plusieurs chemins n'y figure qu'une fois, avec une puce pour chacun (« Recherche », « Job Digest », « Email », « Lien du coach »), au jour de sa première arrivée.\n\nEn haut, « à traiter » compte les offres qui attendent encore, à côté du nombre d'offres traitées, celles que vous avez suivies ; la barre avance vers zéro. Les puces « Toutes », « Recherche », « Job Digest », « Email », « Lien du coach » et « Extension » filtrent la liste ; chacune dit combien de ses offres sont à traiter. Ce haut de page, le jour et le palier restent visibles quand vous faites défiler.\n\nLes offres sont rangées en « Aujourd'hui », puis « Précédemment », où chaque ligne dit le jour de son arrivée ; dans chacun, par importance : « À ne pas manquer » (score de correspondance de 80 et plus, avec un liseré qui tourne lentement autour), « À regarder » (60 à 79), « Peu adaptées » (moins de 60, ou non calculable). Les plus récentes viennent en premier.\n\nChaque ligne donne le score de correspondance, l'intitulé, l'employeur, le lieu, le contrat, d'où l'offre est arrivée, depuis combien de jours elle est publiée, et pendant ses 7 derniers jours sur 30, dans combien de jours elle sort et le profil auquel elle se rapporte, ou « Non classée ». « Suivre » l'enregistre comme candidature, à « À postuler » : elle devient « Suivie ». Une candidature créée ailleurs, depuis une recherche, l'extension ou une proposition de votre coach, la rend « Suivie » aussi, tant qu'elle existe. « Lire l'offre » l'ouvre à côté, avec son score expliqué. Les offres suivies aujourd'hui sont repliées sous « Suivies aujourd'hui ».\n\nEn bas d'« Offres à traiter », « Recherches par Profil » ouvre à côté vos recherches, par profil : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs.\n\n« Reçues par email », en bas aussi, montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nLa conversation avec votre coach IA suit « Offres à traiter », sa zone de message en bas de page : demandez-lui quelles offres regarder en premier.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nVotre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise (par exemple 1 recherche sur 5 cette semaine) ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter la recherche d'offres » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-withdrawal",
@@ -1448,6 +1456,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'IA européenne est un accord que vous donnez, ou non, dans Mon compte, rubrique « IA européenne ». Avec votre accord, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'enregistre, avec sa date ; « Retirer mon accord » le retire, à tout moment.\n\nCe qui change d'un choix à l'autre :\n\n- Avec l'accord : les demandes qui contiennent vos données d'identité sont traitées par Mistral AI, dans l'Union européenne.\n- Sans l'accord : elles sont traitées par notre fournisseur habituel, qui peut être hors de l'Union européenne.\n\nDans les deux cas, avant l'envoi, Jobbbox retire votre identité de chaque demande. Aucun des deux choix n'est recommandé : choisissez celui qui vous convient. La lecture de vos e-mails d'offres reste dans l'Union européenne dans les deux cas. Le détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia)."
     },
     {
+      "id": "glossary-importance",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Importance",
+      "synonyms": [
+        "paliers",
+        "palier",
+        "à ne pas manquer",
+        "à regarder",
+        "peu adaptées",
+        "priorité",
+        "classement",
+        "liseré"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Dans « Offres à traiter », l'importance range les offres en trois paliers, d'après leur score de correspondance : « À ne pas manquer » (80 et plus), « À regarder » (60 à 79) et « Peu adaptées » (moins de 60, ou non calculable). Dans chaque palier, les offres arrivées le plus récemment viennent en premier.\n\nUne offre « À ne pas manquer » encore à traiter est entourée d'un liseré qui tourne lentement ; il reste immobile si votre appareil demande de réduire les animations. L'importance se calcule sans IA, par les règles du score de correspondance."
+    },
+    {
       "id": "glossary-job-digest",
       "locale": "fr",
       "kind": "glossary",
@@ -1532,6 +1562,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Une offre privée est une offre que vous seul voyez. C'est celle que Jobbbox tire du message d'un recruteur que vous lui transférez : ce message vous était adressé, et le poste n'est parfois jamais publié.\n\nElle se suit comme toute offre : score de correspondance, CV adapté, lettre de motivation, candidature. Mais elle n'est jamais montrée à un autre candidat, ni mêlée à la même offre trouvée ailleurs : si le poste est publié plus tard, il devient une autre offre, et l'offre privée reste telle quelle.\n\nElle est supprimée avec votre compte, et fait partie de vos données téléchargées. Une offre tirée d'une alerte d'un site d'emploi, elle, décrit une annonce publique : elle n'est pas privée."
+    },
+    {
+      "id": "glossary-offers-to-handle",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Offres à traiter",
+      "synonyms": [
+        "à traiter",
+        "traitée",
+        "traitées",
+        "suivie",
+        "suivre",
+        "boîte d'offres",
+        "offres arrivées",
+        "inbox"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "« Offres à traiter » rassemble, en tête de Recherches d'offres, chaque offre qui vous est arrivée : par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach. Une même offre n'y figure qu'une fois, avec une puce pour chaque chemin par lequel elle est arrivée.\n\nUne offre est à traiter tant que vous n'avez rien décidé. « Suivre » en fait une candidature, à « À postuler » : elle est alors « Suivie », et comptée parmi les traitées. L'ouvrir ou la lire ne la traite pas.\n\nChaque offre y est gardée 12 mois après son arrivée, et supprimée avec votre compte ou avec son profil."
     },
     {
       "id": "glossary-share-capture",
@@ -4375,23 +4427,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "topic": "utiliser",
       "title": "Job searches",
       "synonyms": [
+        "offers to handle",
+        "to handle",
+        "handled",
+        "follow",
         "search",
         "look for",
         "find",
         "new job offers",
         "start",
         "start a search",
+        "searches by profile",
         "received by email",
         "offers received by email",
         "unclassified",
         "ignored emails",
         "job alert",
+        "not to miss",
+        "worth a look",
+        "less suited",
         "see all"
       ],
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job searches » is a conversation with your AI coach, the same one every visit. There your coach searches for job offers that meet a profile's search criteria.\n\nYour searches are listed there in the card « Your job searches by profile »: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several. « See the job offers received by email », at the bottom of the card, opens « Received by email » beside the conversation.\n\n« Received by email » shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score; save it as you would a job offer found by a search. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nYour coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop the job search » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
+      "body": "« Job searches » opens on « Offers to handle »: every job offer that reached you, through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach, waits there for your decision. A job offer that arrived by several ways is listed once, with a chip for each (« Search », « Job Digest », « Email », « Coach link »), on the day it first arrived.\n\nAt the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link » and « Extension » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.\n\nJob offers are sorted into « Today », then « Earlier », where each line says the day it arrived; in each, by importance: « Not to miss » (Match Score of 80 and above, with a border turning slowly around it), « Worth a look » (60 to 79), « Less suited » (under 60, or not computable). The most recent come first.\n\nEach line gives the Match Score, the title, the employer, the place, the contract, where the job offer came from, how many days it has been posted and, during its last 7 days out of 30, in how many days it leaves and the profile it relates to, or « Unsorted ». « Follow » saves it as an application, at « To apply »: it becomes « Followed ». An application created elsewhere, from a search, the extension or a proposal of your coach, makes it « Followed » too, as long as it exists. « Read the job offer » opens it alongside, with its score explained. The job offers followed today are folded under « Followed today ».\n\nAt the foot of « Offers to handle », « Searches by profile » opens your searches alongside, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several.\n\n« Received by email », at the foot too, shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nThe conversation with your AI coach follows « Offers to handle », its message box at the foot of the page: ask it which job offers to look at first.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nYour coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop the job search » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
     },
     {
       "id": "page-account",
@@ -5317,6 +5377,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "A playbook version (of a Coaching Playbook, the Core Digest or an AI task) or a Guardrail message is Human-validated when a named Administrator, not one of its authors, has reviewed and approved it, with the date. The page shows it « validated by … on … ». A review by an AI never counts.\n\nIn production, only validated playbooks and Guardrail messages are served. Elsewhere, the latest version is served, validated or not. A playbook version is validated only after an Eval Run on it; no score blocks it, it is the person's call. A Guardrail message is validated language by language; until then, Jobbbox's default text applies.\n\nChanging a validated version makes a new one, to be validated in turn. Each validation is recorded in Administrator actions."
     },
     {
+      "id": "glossary-importance",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Importance",
+      "synonyms": [
+        "tiers",
+        "tier",
+        "not to miss",
+        "worth a look",
+        "less suited",
+        "priority",
+        "ranking",
+        "border"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "In « Offers to handle », importance sorts job offers into three tiers, from their Match Score: « Not to miss » (80 and above), « Worth a look » (60 to 79) and « Less suited » (under 60, or not computable). Within each tier, the job offers that arrived most recently come first.\n\nA « Not to miss » job offer still to handle has a border turning slowly around it; it stays still when your device asks for reduced motion. Importance is worked out without AI, by the Match Score's rules."
+    },
+    {
       "id": "glossary-job-digest",
       "locale": "en",
       "kind": "glossary",
@@ -5388,6 +5470,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "A score out of 100 that says how well a CV fits a job offer: skills, experience, location, contract type and salary.\n\nThe breakdown shows, criterion by criterion, what matches and what is missing. A criterion the job offer or your criteria say nothing about does not count; when too few criteria could be compared, the score is called partial.\n\nIt is worked out with the profile's Master CV, and with your Tailored CV if you have one."
+    },
+    {
+      "id": "glossary-offers-to-handle",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Offers to handle",
+      "synonyms": [
+        "to handle",
+        "handled",
+        "followed",
+        "follow",
+        "offer box",
+        "arrived job offers",
+        "inbox"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "« Offers to handle » gathers, at the top of Job searches, every job offer that reached you: through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach. The same job offer is listed once, with a chip for each way it arrived.\n\nA job offer is to handle as long as you have not decided anything. « Follow » makes it an application, at « To apply »: it is then « Followed », and counted among those handled. Opening or reading it does not handle it.\n\nEach job offer is kept there 12 months after it arrived, and deleted with your account or with its profile."
     },
     {
       "id": "glossary-passkey",

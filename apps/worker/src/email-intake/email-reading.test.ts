@@ -16,6 +16,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../../web/src/email-intake";
 import { inboundRequest, type InboundTestEmail } from "../../../web/src/email-intake/fixtures/inbound-emails";
 import { cadremploiAlert, jobijobaPromo, linkedInDigest, newsletter, recruiterMessage, replyToOfferEmail } from "../../../web/src/email-intake/fixtures/offer-emails";
+import { offerBoxOf } from "../../../web/src/offer-box";
 import { createAesGcmCipher, type SecretCipher } from "../../../web/src/provider-secrets/cipher";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "@jobhub/web/guardrails/checks";
 import { createEmailReading, MAX_READING_TRIES, type EmailReading } from "./index";
@@ -181,6 +182,13 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       ]);
       // Its Posting date is the email's, the offers stating none.
       expect(stored[0]!.postedAt).toEqual(new Date("2026-10-26T22:18:15Z"));
+      // Each new one reaches the Candidate's Offer box (ADR-0090), with the Profile it went to: none, « Non classées ».
+      const box = await offerBoxOf(database, marie);
+      expect(box.map(({ jobOfferId, profileId: profile, arrivalSources }) => ({ jobOfferId, profile, sources: arrivalSources.map((arrival) => arrival.source) })).sort((a, b) => (a.jobOfferId < b.jobOfferId ? -1 : 1))).toEqual(
+        email.offers
+          .map((offer) => ({ jobOfferId: offer.jobOfferId!, profile: offer.profileId ?? null, sources: ["email"] }))
+          .sort((a, b) => (a.jobOfferId < b.jobOfferId ? -1 : 1)),
+      );
     });
 
     it("a Jobijoba promotion without a precise offer: « autre », nothing made", async () => {

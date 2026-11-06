@@ -9,6 +9,7 @@ import {
   applicationResponseSchema,
   companyDossierResponseSchema,
   enrichedContactsResponseSchema,
+  offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
@@ -16,6 +17,7 @@ import {
   type ApplicationResponse,
   type CompanyDossierResponse,
   type EnrichedContactsResponse,
+  type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type TailoredDocumentsResponse,
@@ -112,6 +114,8 @@ export const useApplication = (id: string | null): Read<ApplicationResponse> =>
 export const useTailoredDocuments = (applicationId: string): Read<TailoredDocumentsResponse> =>
   useRead("tailoredDocuments", `/api/applications/${segment(applicationId)}/documents`, tailoredDocumentsResponseSchema, [applicationId]);
 
+/** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
+export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);
 /** `GET /api/applications/:id/company-dossier`: an Application's Company Dossier as the web app last built it; kept on the device (READS). */
 export const useCompanyDossier = (applicationId: string): Read<CompanyDossierResponse> =>
   useRead("companyDossier", `/api/applications/${segment(applicationId)}/company-dossier`, companyDossierResponseSchema, [applicationId]);

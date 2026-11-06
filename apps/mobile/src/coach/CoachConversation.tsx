@@ -22,8 +22,9 @@ import { useCoachConversation, type Announce, type ReplyStatus, type ShownMessag
  * (null: a new Free conversation, or a Subject's before its first message); `subject`, the object or Sidebar menu the
  * page is (its conversation is read by it, and its first message starts it); `route`, the page's address, sent with
  * each message; `introduction`, what its first message says after the AI disclosure; `card`, the menu's content, a card
- * in the thread that stays; `suggestions`, above the box while nothing is sent; `onSaved`, a new Free conversation's
- * first message saved it.
+ * in the thread that stays; `suggestions`, above the box while nothing is sent; `lead`, the page's own view before the
+ * thread, the conversation following it with its box at the foot (Recherches d'offres' Offer box, ADR-0090); `onSaved`,
+ * a new Free conversation's first message saved it.
  */
 export type PagePlacement = {
   conversationId: string | null;
@@ -32,6 +33,7 @@ export type PagePlacement = {
   introduction?: ReactNode;
   card?: ReactNode;
   suggestions?: ReactNode;
+  lead?: ReactNode;
   onSaved?: (conversation: ConversationSummary) => void;
 };
 
@@ -139,6 +141,7 @@ export function CoachConversation(page: PagePlacement) {
         onStop={coach.stop}
         attach={attach}
         inputRef={input}
+        lead={page.lead}
         // The help's articles, while the Candidate types, take the page's suggestions' place (shown until something is sent).
         aboveBox={
           found.length > 0 ? (

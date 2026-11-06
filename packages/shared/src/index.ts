@@ -26,4 +26,5 @@ export * from "./share-capture";
 export * from "./second-step";
 export * from "./sign-in-code";
 export * from "./context-bar";
+export * from "./offer-box";
 export * from "./cv-file";

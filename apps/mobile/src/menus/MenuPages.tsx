@@ -21,9 +21,11 @@ import { systemSheets } from "../agenda/system-sheets";
 import { useAgenda, useRead } from "../api/reads";
 import { CoachConversation, useCoachBox } from "../coach/CoachConversation";
 import { HumanCoaches } from "../coaching/HumanCoaches";
+import { StartJobSearch } from "../job-searches/StartJobSearch";
 import type { SubjectRef } from "../coach/coach-reply";
 import { shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
+import { OfferBox } from "../offer-box/OfferBox";
 import { ReadState } from "../screens/ReadState";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
@@ -317,8 +319,12 @@ export function ApplicationsMenu() {
   );
 }
 
-/** Recherches d'offres: each active Profile's Job Searches, most recent first. `children`: what the page lists after them. */
-export function JobSearchesMenu({ children }: { children?: ReactNode }) {
+/**
+ * Recherches d'offres (ADR-0090, variant B): the Offer box (« Offres à traiter ») leads the page, the menu's conversation
+ * following it with its box at the foot; in it, each active Profile's Job Searches, most recent first, then
+ * « Lancer une recherche » (#699): the screen's only way to launch a Job Search, kept in the card so no screen drops it.
+ */
+export function JobSearchesMenu() {
   const { t, i18n } = useTranslation();
   const read = useRead(
     "jobSearches",
@@ -334,6 +340,7 @@ export function JobSearchesMenu({ children }: { children?: ReactNode }) {
       conversationId={null}
       subject={SUBJECTS.jobSearches}
       route={paths.jobSearches}
+      lead={<OfferBox />}
       introduction={<AppText>{t("jobSearchesMenu.introduction")}</AppText>}
       card={
         <MenuCard title={t("jobSearchesMenu.title")}>
@@ -372,7 +379,7 @@ export function JobSearchesMenu({ children }: { children?: ReactNode }) {
               )
             }
           </Loaded>
-          {children}
+          <StartJobSearch />
         </MenuCard>
       }
     />

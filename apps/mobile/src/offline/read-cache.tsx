@@ -25,6 +25,7 @@ const READS = {
   agenda: true,
   jobSearches: true,
   jobSearch: true,
+  offerBox: true,
   jobOffer: true,
   jobDigests: true,
   humanCoaches: true,

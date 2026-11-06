@@ -234,7 +234,8 @@ test.describe("Coach context limits of a Plan (#731)", () => {
       await expect(card("Gratuite").locator("li").filter({ hasText: size })).toContainText("×1");
       await expect(card("Standard").locator("li").filter({ hasText: memory })).toContainText("40 messages");
       await expect(card("Standard").locator("li").filter({ hasText: size })).toContainText("×2");
-      await expect(page.locator(".subscription")).not.toContainText(/jetons?|tokens?/i);
+      // « Votre consommation »'s foot alone names them, to say it never counts in them (#801, ADR-0091).
+      expect((await page.locator(".subscription").innerText()).replace(fr.billing.consumption.footUnits, "")).not.toMatch(/jetons?|tokens?/i);
 
       // 4 messages of 4: nearly full, Standard is named, the next Plan up that reads more.
       let reply = await ask(page, "Question 1");

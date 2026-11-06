@@ -108,6 +108,11 @@
   justify-content: space-between;
 }
 
+/* On the Candidate's pages, the switch's options reach the 44px target floor (ADR-0009). */
+.consumption .ds-segmented__option {
+  min-height: var(--control-height);
+}
+
 .consumption-daily-head {
   display: flex;
   flex-wrap: wrap;

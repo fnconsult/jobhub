@@ -5055,6 +5055,10 @@
     "live": {
       "starting": "Starting",
       "elsewhere": "Running elsewhere",
+      "now": "Right now",
+      "nothing": "Nothing is running on this page.",
+      "finished_one": "{{count}} step done",
+      "finished_other": "{{count}} steps done",
       "running": "Running · {{time}}",
       "stopping": "Stopping…",
       "stopped": "Stopped at {{time}}",

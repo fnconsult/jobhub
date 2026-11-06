@@ -5055,6 +5055,10 @@
     "live": {
       "starting": "Démarrage",
       "elsewhere": "En cours ailleurs",
+      "now": "En ce moment",
+      "nothing": "Rien ne tourne sur cette page.",
+      "finished_one": "{{count}} étape finie",
+      "finished_other": "{{count}} étapes finies",
       "running": "En cours · {{time}}",
       "stopping": "Arrêt en cours…",
       "stopped": "Arrêtée à {{time}}",

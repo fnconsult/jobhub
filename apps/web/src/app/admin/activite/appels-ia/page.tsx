@@ -32,6 +32,26 @@ function contextFigures({ estimate, measure, gap }: ContextMeasure, locale: stri
   return { estimate: count.format(estimate), measure: count.format(measure), gap: estimate > 0 ? `${signed.format(gap)}, ${share.format(gap / estimate)}` : signed.format(gap) };
 }
 
+/**
+ * The whole AI Coach reply a call served (#790): its calls, their input in all against the estimate (signed gap and share),
+ * the share read from the prompt cache, its Tool rounds and Tools; and which Turn this call is. Null before #790.
+ */
+function replyFigures({ estimate, turn, reply }: ContextMeasure, locale: string) {
+  if (!reply) return null;
+  const count = new Intl.NumberFormat(locale);
+  const signed = new Intl.NumberFormat(locale, { signDisplay: "exceptZero" });
+  const share = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
+  return {
+    calls: reply.calls,
+    total: count.format(reply.total),
+    gap: estimate > 0 ? `${signed.format(reply.gap)}, ×${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(reply.total / estimate)}` : signed.format(reply.gap),
+    cached: reply.total > 0 ? share.format(reply.cached / reply.total) : share.format(0),
+    rounds: reply.rounds,
+    tools: reply.tools.join(", "),
+    turn: turn ?? null,
+  };
+}
+
 /** This tab of Activité (#404). */
 const TAB: ActivityTabId = "aiMessages";
 /** The filter fields of a run's calls (#404), kept as the other filters change. */
@@ -49,8 +69,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * Activité › Appels IA (formerly Journaux IA, #404): super-admins find an AI Message Log (#218): newest first, filtered by task, model, Candidate
  * email, day, Outcome and Failure Reason (#259), a warning's code too (#260). The list shows no text, only how each
  * call ended and why; opening a log writes the view to the Back Office Audit. A call that wrote an AI Coach reply shows the
- * reply's estimate of its context against the provider's count, with the gap (ADR-0078, #731), to correct the estimate by
- * provider and model.
+ * reply's estimate of its context against the provider's count of its first Turn, with the gap (ADR-0078, #731), to correct
+ * the estimate by provider and model; and, on each of the reply's calls, the whole reply: its calls' input in all against the
+ * estimate, the gap, the cached share, its Tool rounds and Tools (#790).
  */
 export default async function AiMessagesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const { access } = await requireBackOffice("aiMessages");
@@ -136,6 +157,21 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
                 {
                   header: t("admin.aiMessages.context"),
                   cell: (log) => (log.context ? t("admin.aiMessages.contextValue", contextFigures(log.context, locale)) : t("admin.aiMessages.noContext")),
+                },
+                {
+                  header: t("admin.aiMessages.reply"),
+                  cell: (log) => {
+                    const figures = log.context ? replyFigures(log.context, locale) : null;
+                    if (!figures) return t("admin.aiMessages.noContext");
+                    const { turn, tools, ...rest } = figures;
+                    return (
+                      <>
+                        {t("admin.aiMessages.replyValue", { ...rest, count: rest.calls })}
+                        {tools ? ` · ${tools}` : null}
+                        {turn ? ` · ${t("admin.aiMessages.replyTurn", { turn })}` : null}
+                      </>
+                    );
+                  },
                 },
                 {
                   header: t("admin.aiMessages.result"),

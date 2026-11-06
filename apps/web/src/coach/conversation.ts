@@ -61,7 +61,7 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-export { CONTEXT_CATEGORIES, contextBar, type ContextBar, type ContextCategory, type ContextSplit, type ContextUpgrade, type ConversationContext } from "@jobhub/shared";
+export { CONTEXT_CATEGORIES, contextBar, type ContextBar, type ContextCategory, type ContextSplit, type ContextUpgrade, type ConversationContext, type ReplyCost } from "@jobhub/shared";
 
 /** One line of the Context bar's breakdown: a category of the context, or the room left under the ceiling (`free`). */
 export type ContextBreakdownLine = { category: ContextCategory | "free"; tokens: number; share: number };

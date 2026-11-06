@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 import path from "node:path";
 import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import { chromium, expect, test, type BrowserContext, type Page, type Worker } from "@playwright/test";
+import { UPDATE_STORAGE_KEY } from "../apps/extension/src/extension-update";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
@@ -1227,6 +1228,16 @@ test.describe("Guest Capture and Match Score", () => {
     const profile = analysis.getByLabel(fr.analysis.profileLabel);
     await expect(profile.getByRole("option")).toHaveText(["Contrôleuse de gestion", fr.analysis.newProfileFromCv], { timeout: 15_000 });
     await profile.selectOption({ label: fr.analysis.newProfileFromCv });
+    // The panel is drawn again before « Enregistrer » (another tab in view, the session changed, #797): here an
+    // earlier build's update asked, which this build ignores, makes it render. The choice is still theirs.
+    await profile.evaluate((select) => (select.dataset.drawnBefore = "true"));
+    await analysis.evaluate(
+      ([key, apiVersion]) =>
+        (globalThis as unknown as { chrome: { storage: { local: { set(items: object): Promise<void> } } } }).chrome.storage.local.set({ [key]: { apiVersion, storeUrl: "" } }),
+      [UPDATE_STORAGE_KEY, API_VERSION - 1] as const,
+    );
+    await expect(analysis.locator("#profile:not([data-drawn-before])")).toHaveCount(1);
+    await expect(profile).toHaveValue("");
     await analysis.getByRole("button", { name: fr.analysis.save }).click();
 
     await expect(analysis.getByText(fr.analysis.saved)).toBeVisible();

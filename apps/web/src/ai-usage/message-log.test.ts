@@ -118,6 +118,30 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     expect(scoring).toMatchObject({ task: "scoring", context: null });
   });
 
+  it("reads, on each call of an AI Coach reply, the estimate against its first Turn and the whole reply across all its calls (#790)", async () => {
+    // The Playbook Agent choice, then the reply written in three Turns: each fake call counts 10 input tokens.
+    const choice = await ai.generate({ task: "coaching", candidateId: marie, prompt: "Choix" });
+    const turns = [];
+    for (const prompt of ["Tour 1", "Tour 2", "Tour 3"]) turns.push(await ai.generate({ task: "coaching", candidateId: marie, prompt }));
+    await settled();
+    await database.query("UPDATE ai_usage SET cached_input_tokens = 30 WHERE id = $1", [turns[2]!.callId]);
+    const { rows } = await database.query<{ id: string }>("INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'Profil') RETURNING id", [marie]);
+    const turnIds = turns.map((turn) => turn.callId!);
+    await database.query(
+      `INSERT INTO coach_message (conversation_id, author, text, context_tokens, ai_call_id, ai_call_ids, ai_turn_ids, tool_rounds, tool_names)
+       VALUES ($1, 'coach', 'Réponse', 8, $2, $3, $4, 2, $5)`,
+      [rows[0]!.id, turnIds[2], [choice.callId, ...turnIds], turnIds, ["lire_profil"]],
+    );
+
+    const listed = await logs.list();
+    expect(listed).toHaveLength(4);
+    const reply = { calls: 4, total: 70, cached: 30, gap: 62, rounds: 2, tools: ["lire_profil"] };
+    // Every call of the reply shows it; the estimate is set against the first Turn, the context it was sent with.
+    for (const log of listed) expect(log.context).toMatchObject({ estimate: 8, measure: 10, gap: 2, reply });
+    expect(listed.find((log) => log.id && log.context?.turn === 1)).toBeTruthy();
+    expect(listed.filter((log) => log.context?.turn === null)).toHaveLength(1);
+  });
+
   it("writes every view of a message log to the Back Office Audit: who viewed which, when", async () => {
     await ai.generate({ task: "coaching", candidateId: marie, prompt: "Bonjour" });
     await settled();

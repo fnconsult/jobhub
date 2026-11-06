@@ -1326,12 +1326,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "le coach oublie",
         "messages lus",
         "détail du contexte",
-        "espace libre"
+        "espace libre",
+        "cette réponse",
+        "jetons envoyés",
+        "appels",
+        "tours"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Le contexte de la conversation, c'est ce que votre coach IA relit avant chaque réponse : les derniers messages de la conversation et ce qu'il sait de vous et de la page. « Activité », en haut de la page, le montre dans une barre : le nombre de messages de la conversation sur ceux que le coach lit, et les jetons de son contexte sur son plafond. Ces deux limites dépendent de votre offre (40 messages et 12k jetons, sauf si votre offre en prévoit d'autres), et peuvent être illimitées. Un jeton est un petit morceau de texte, environ quatre caractères ; ce n'est pas votre quota.\n\nSur une recherche d'offres, une sélection d'offres, une candidature ou une offre, le coach lit aussi le CV de référence du profil contre lequel les offres sont notées, sans votre nom ni vos coordonnées, et les raisons de chaque score de correspondance : compétences présentes et manquantes, séniorité, lieu, salaire et contrat. Quand vous lui demandez quelles offres vous correspondent, il s'appuie sur vos expériences et vos compétences ; s'il lui manque une information, comme vos expériences ou ce qui compte pour vous, il vous la demande.\n\nCes chiffres viennent de Jobbbox : ce sont ceux du contexte envoyé au coach pour sa dernière réponse. À partir de 80 %, la barre vous dit que le coach ne lit que les messages les plus récents et propose « Effacer la conversation » : après confirmation, tous les messages de la conversation sont supprimés, et la mémoire du coach reste. Quand une offre au-dessus de la vôtre en fait lire davantage au coach, la barre la nomme aussi, avec « Découvrir l'offre … », qui mène à sa carte dans Mon abonnement.\n\n« Voir le détail », sous la barre, ouvre le détail du contexte : Messages, Instructions du coach, Profil et CV, Conseils des agents, Sources et Espace libre, en barre et en liste, en jetons et en pourcentage du plafond de votre offre. C'est une estimation, celle de la dernière réponse du coach : le détail est vide avant sa première réponse et après « Effacer »."
+      "body": "Le contexte de la conversation, c'est ce que votre coach IA relit avant chaque réponse : les derniers messages de la conversation et ce qu'il sait de vous et de la page. « Activité », en haut de la page, le montre dans une barre : le nombre de messages de la conversation sur ceux que le coach lit, et les jetons de son contexte sur son plafond. Ces deux limites dépendent de votre offre (40 messages et 12k jetons, sauf si votre offre en prévoit d'autres), et peuvent être illimitées. Un jeton est un petit morceau de texte, environ quatre caractères ; ce n'est pas votre quota.\n\nSur une recherche d'offres, une sélection d'offres, une candidature ou une offre, le coach lit aussi le CV de référence du profil contre lequel les offres sont notées, sans votre nom ni vos coordonnées, et les raisons de chaque score de correspondance : compétences présentes et manquantes, séniorité, lieu, salaire et contrat. Quand vous lui demandez quelles offres vous correspondent, il s'appuie sur vos expériences et vos compétences ; s'il lui manque une information, comme vos expériences ou ce qui compte pour vous, il vous la demande.\n\nCes chiffres viennent de Jobbbox : ce sont ceux du contexte envoyé au coach pour sa dernière réponse. À partir de 80 %, la barre vous dit que le coach ne lit que les messages les plus récents et propose « Effacer la conversation » : après confirmation, tous les messages de la conversation sont supprimés, et la mémoire du coach reste. Quand une offre au-dessus de la vôtre en fait lire davantage au coach, la barre la nomme aussi, avec « Découvrir l'offre … », qui mène à sa carte dans Mon abonnement.\n\n« Voir le détail », sous la barre, ouvre le détail du contexte : Messages, Instructions du coach, Profil et CV, Conseils des agents, Sources et Espace libre, en barre et en liste, en jetons et en pourcentage du plafond de votre offre. C'est une estimation, celle de la dernière réponse du coach : le détail est vide avant sa première réponse et après « Effacer ».\n\nSous ce détail, « Cette réponse » dit ce que la dernière réponse a demandé en tout : son nombre d'appels et les jetons envoyés au total, le nombre de tours où le coach a consulté vos données, et la part relue dans le cache du fournisseur. Ce total peut dépasser de beaucoup la taille du contexte : pour une seule réponse, le coach fait plusieurs appels (le choix des conseils, les agents, les vérifications, puis un appel par tour où il consulte vos données), et chacun renvoie tout le contexte, avec ce qu'il a déjà lu. La barre mesure ce que le coach lit, pas ce que coûte la réponse. Ces jetons sont une mesure technique : ils ne comptent pas dans votre offre."
     },
     {
       "id": "glossary-tailored-cv",
@@ -2678,6 +2682,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "L'onglet « Environnement » de Paramètres liste, sous « Variables qui ne servent plus », les variables que l'environnement du serveur définit encore mais que Jobbbox ne lit plus. La colonne « Remplacée par » dit ce qui les remplace, par exemple les Coaching Playbooks, réglés dans Playbooks. Leur valeur n'est jamais affichée.\n\nElles ne changent rien : vous pouvez les retirer du .env du serveur au prochain déploiement. Réglez à la place ce que « Remplacée par » indique. Sans variable inutilisée, la liste dit « Aucune variable inutilisée dans l'environnement. »\n\nÀ ne pas confondre avec deux autres cas :\n\n- « Réglages de l'environnement » : des variables encore lues, qui ne se changent pas dans le back office (« Pourquoi dans l'environnement » dit pourquoi) ;\n- l'avertissement « … réglages viennent de l'environnement et diffèrent de la valeur par défaut du code » et le badge « env » dans Outils : la variable est lue et remplace la valeur par défaut du code. Vérifiez qu'elle est voulue ; une valeur saisie dans le back office l'emporterait sur elle."
+    },
+    {
+      "id": "faq-jobbbox-back-in-a-moment",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Que faire quand Jobbbox affiche « Jobbbox revient dans un instant » ?",
+      "synonyms": [
+        "jobbbox ne répond pas",
+        "site indisponible",
+        "service indisponible",
+        "page blanche",
+        "erreur 502",
+        "erreur 503",
+        "erreur 504",
+        "bad gateway",
+        "404 page not found",
+        "mise à jour",
+        "redémarrage",
+        "panne"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Cette page s'affiche quand Jobbbox redémarre, par exemple pendant une mise à jour, ou ne répond pas pour le moment. Elle titre « Jobbbox revient dans un instant », en français puis en anglais (en anglais d'abord sur une page en anglais), avec le code de l'erreur (502, 503 ou 504) au-dessus. Vos données sont en sécurité et rien n'est perdu.\n\nVous n'avez rien à faire : la page se recharge toute seule toutes les 15 secondes et vous ramène à la page demandée dès que Jobbbox répond. Pour réessayer tout de suite, cliquez sur le bouton « Réessayer ».\n\nSi vous étiez en train d'écrire, ce que vous n'aviez pas encore enregistré peut être à saisir de nouveau.\n\nLa page dure plus de quelques minutes ? Voyez « Comment nous contacter ? »."
     },
     {
       "id": "faq-extension-update",
@@ -5255,12 +5285,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "the coach forgets",
         "messages read",
         "context breakdown",
-        "free space"
+        "free space",
+        "this reply",
+        "tokens sent",
+        "calls",
+        "rounds"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "The conversation context is what your AI coach reads again before each reply: the conversation's latest messages and what it knows of you and of the page. « Activity », at the top of the page, shows it in a bar: the conversation's number of messages out of those the coach reads, and the tokens of its context out of its ceiling. Both limits depend on your plan (40 messages and 12k tokens, unless your plan sets others), and may be unlimited. A token is a small piece of text, about four characters; it is not your quota.\n\nOn a job search, a job digest, an application or a job offer, the coach also reads the reference CV of the profile the offers are scored against, without your name or contact details, and the reasons behind each match score: skills present and missing, seniority, location, salary and contract. When you ask which offers suit you, it relies on your experience and skills; if it lacks something, such as your experience or what matters to you, it asks you for it.\n\nThese figures come from Jobbbox: they are those of the context sent to the coach for its latest reply. From 80 %, the bar tells you that the coach reads only the latest messages and offers « Clear the conversation »: once you confirm, every message of the conversation is deleted, and the coach's memory stays. When a plan above yours has the coach read more, the bar also names it, with « Discover the … plan », which leads to its card in My subscription.\n\n« See the breakdown », under the bar, opens the context breakdown: Messages, Coach instructions, Profile and CV, Agents' advice, Sources and Free space, as a bar and a list, in tokens and as a percentage of your plan's ceiling. It is an estimate, that of the coach's latest reply: the breakdown is empty before its first reply and after « Clear »."
+      "body": "The conversation context is what your AI coach reads again before each reply: the conversation's latest messages and what it knows of you and of the page. « Activity », at the top of the page, shows it in a bar: the conversation's number of messages out of those the coach reads, and the tokens of its context out of its ceiling. Both limits depend on your plan (40 messages and 12k tokens, unless your plan sets others), and may be unlimited. A token is a small piece of text, about four characters; it is not your quota.\n\nOn a job search, a job digest, an application or a job offer, the coach also reads the reference CV of the profile the offers are scored against, without your name or contact details, and the reasons behind each match score: skills present and missing, seniority, location, salary and contract. When you ask which offers suit you, it relies on your experience and skills; if it lacks something, such as your experience or what matters to you, it asks you for it.\n\nThese figures come from Jobbbox: they are those of the context sent to the coach for its latest reply. From 80 %, the bar tells you that the coach reads only the latest messages and offers « Clear the conversation »: once you confirm, every message of the conversation is deleted, and the coach's memory stays. When a plan above yours has the coach read more, the bar also names it, with « Discover the … plan », which leads to its card in My subscription.\n\n« See the breakdown », under the bar, opens the context breakdown: Messages, Coach instructions, Profile and CV, Agents' advice, Sources and Free space, as a bar and a list, in tokens and as a percentage of your plan's ceiling. It is an estimate, that of the coach's latest reply: the breakdown is empty before its first reply and after « Clear ».\n\nUnder the breakdown, « This reply » says what the latest reply took in all: its number of calls and the tokens sent in all, the number of rounds in which the coach looked at your data, and the share read again from the provider's cache. This total can be well above the context size: for a single reply, the coach makes several calls (choosing the advice, the agents, the checks, then one call per round in which it looks at your data), and each one sends the whole context again, with what it has already read. The bar measures what the coach reads, not what the reply costs. These tokens are a technical measure: they do not count against your plan."
     },
     {
       "id": "glossary-eu-ai-consent",
@@ -6539,6 +6573,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Coach access is a candidate's explicit consent: it lets you read their profiles and applications, and review their application documents. The candidate gives it, from their « My human coaches » page, with the « Give … access » button; you cannot ask for it from your coach space. With coach access, you read without being able to change anything.\n\nThe candidates who gave you access show in « Candidates with coach access ». If nobody has yet, the page says so: « No candidate has given you access yet. »\n\nThe candidate can withdraw access at any time, with « Withdraw …'s access ». It takes effect at once: the candidate leaves « Candidates with coach access », and their file and applications show « Page not found ». If you were writing a review at that moment, it is not sent and you go back to « My coach space ».\n\nWithdrawing access deletes nothing you have already done. The candidate keeps the reviews you sent them. The sessions they paid for with you stay in « My coaching sessions », and you can still enter their date and link: they do not depend on coach access."
+    },
+    {
+      "id": "faq-jobbbox-back-in-a-moment",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "What should I do when Jobbbox shows « Jobbbox will be back in a moment »?",
+      "synonyms": [
+        "jobbbox not responding",
+        "site down",
+        "service unavailable",
+        "blank page",
+        "error 502",
+        "error 503",
+        "error 504",
+        "bad gateway",
+        "404 page not found",
+        "update",
+        "restart",
+        "outage"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "This page shows while Jobbbox restarts, during an update for instance, or is not answering for the moment. Its title is « Jobbbox will be back in a moment », in English and in French (English first on an English page, French first otherwise), with the error's code (502, 503 or 504) above. Your data is safe and nothing is lost.\n\nYou have nothing to do: the page reloads itself every 15 seconds and takes you back to the page you asked for as soon as Jobbbox answers. To try again at once, click the « Try again » button.\n\nIf you were writing something, what you had not saved yet may need to be typed again.\n\nThe page lasts more than a few minutes? See « How do I contact you? »."
     },
     {
       "id": "faq-quota-renewal",

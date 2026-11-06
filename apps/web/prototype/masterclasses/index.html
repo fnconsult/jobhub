@@ -1,0 +1,1200 @@
+<!doctype html>
+<!--
+  PROTOTYPE — jetable, jamais mergé. HTML statique, données de démonstration fictives, rien n'est enregistré ni envoyé, aucun appel IA ni paiement.
+  Ticket : #859 (carte #841). Question : à quoi ressemble la marketplace de masterclasses décidée par #858 (et le vendeur par offre de #851),
+  côté Candidate, côté Human Coach (ou association) et côté Administrator ?
+  Écran via ?screen=catalogue|masterclass|commande|lecteur|coach-creer|coach-suivi|admin-relecture|signaler ;
+  masterclass via ?mc=pitch|linkedin|nego|rebond|reconv (fiche, commande, lecteur) ; lecteur via ?mode=live|replay ; thème via ?theme=dark.
+  Mise en page du Candidate : conversation au centre (ADR-0070), comme le prototype #857 (Coaching Session).
+  Espace coach : variante A du prototype #856 (Sidebar + une colonne de cartes), retenue par le product owner.
+  Tokens : ceux de Mercury, copiés du prototype #857. Aucun script ni police externe.
+  Ouvrir le fichier directement dans un navigateur ; sous 768 px le Sidebar devient un tiroir (téléphone).
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masterclasses · Jobbbox (prototype)</title>
+<style>
+/* Tokens Mercury, rendus depuis packages/shared/src/design (renderDesignCss) le 2026-10-30. */
+@layer base, components;
+
+:root {
+  color-scheme: light;
+  --color-background: #ffffff;
+  --color-canvas: #ffffff;
+  --color-nav: #f6f6f8;
+  --color-surface: #f8f8fa;
+  --color-hover: #efeff3;
+  --color-border: #e6e6ec;
+  --color-border-strong: #d6d6de;
+  --color-text: #1b1b26;
+  --color-secondary: #575866;
+  --color-meta: #686978;
+  --color-accent: #4f5fe0;
+  --color-accent-hover: #4352cc;
+  --color-accent-soft: #eef0fd;
+  --color-accent-line: #c9cff7;
+  --color-on-accent: #ffffff;
+  --color-success: #1c7445;
+  --color-success-soft: #eaf6ef;
+  --color-warn: #855700;
+  --color-warn-soft: #fdf5e3;
+  --color-danger: #bb3030;
+  --color-danger-soft: #fdeeee;
+  --color-chart-1: #6a78ee;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(106 120 238 / 18%);
+  --color-inverse: #1b1b26;
+  --color-on-inverse: #ffffff;
+  --color-scrim: rgb(20 20 40 / 28%);
+  --color-text-secondary: #575866;
+  --color-text-meta: #686978;
+  --color-surface-hover: #efeff3;
+  --color-danger-surface: #fdeeee;
+  --color-focus-ring: #4f5fe0;
+  --shadow-card: 0 1px 2px rgb(20 20 40 / 4%);
+  --shadow-pop: 0 12px 32px rgb(20 20 40 / 14%);
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+  --line-height-heading: 1.25;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-card: 10px;
+  --radius-control: 999px;
+  --radius-lg: var(--radius-card);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --motion-fast: 150ms;
+  --motion-base: 180ms;
+  --motion-slow: 220ms;
+  --motion-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #121219;
+  --color-canvas: #121219;
+  --color-nav: #17171f;
+  --color-surface: #1b1b24;
+  --color-hover: #24242f;
+  --color-border: #2a2a36;
+  --color-border-strong: #383846;
+  --color-text: #ececf3;
+  --color-secondary: #a9aab8;
+  --color-meta: #9a9bab;
+  --color-accent: #8d9bff;
+  --color-accent-hover: #a3aeff;
+  --color-accent-soft: #242845;
+  --color-accent-line: #3b4277;
+  --color-on-accent: #10101a;
+  --color-success: #6fd29b;
+  --color-success-soft: #16301f;
+  --color-warn: #f2c25c;
+  --color-warn-soft: #33290f;
+  --color-danger: #ff8a8a;
+  --color-danger-soft: #3a1b1b;
+  --color-chart-1: #8d9bff;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(141 155 255 / 22%);
+  --color-inverse: #ececf3;
+  --color-on-inverse: #121219;
+  --color-scrim: rgb(0 0 0 / 50%);
+  --color-text-secondary: #a9aab8;
+  --color-text-meta: #9a9bab;
+  --color-surface-hover: #24242f;
+  --color-danger-surface: #3a1b1b;
+  --color-focus-ring: #8d9bff;
+  --shadow-card: none;
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 50%);
+}
+
+[data-density="confort"] {
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+}
+
+[data-density="compact"] {
+  --font-size-body: 0.875rem;
+  --font-size-lead: 0.9375rem;
+  --font-size-h3: 1rem;
+  --font-size-h2: 1.125rem;
+  --font-size-h1: 1.5rem;
+  --font-size-meta: 0.78125rem;
+  --line-height-body: 1.45;
+  --size-control: 2rem;
+  --space-row: 0.4375rem;
+}
+
+[data-density]:not(:root) {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+html {
+  font-size: 16px;
+}
+
+html[data-text-size="small"] {
+  font-size: 16px;
+}
+
+html[data-text-size="standard"] {
+  font-size: 17px;
+}
+
+html[data-text-size="large"] {
+  font-size: 18px;
+}
+
+html[data-text-size="xlarge"] {
+  font-size: 20px;
+}
+
+@layer base {
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+h1, h2, h3 {
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-h3); }
+
+a {
+  color: var(--color-accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+table, time, data, .num {
+  font-variant-numeric: tabular-nums;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.is-scrolling {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+:root {
+  --motion-fast: 0ms;
+  --motion-base: 0ms;
+  --motion-slow: 0ms;
+}
+}
+
+</style>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-canvas); color: var(--color-text); height: 100vh; overflow: hidden; }
+button { cursor: pointer; font: inherit; color: inherit; }
+p { margin: .4rem 0; }
+.app { display: flex; height: 100vh; }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -999px; top: .5rem; z-index: 200; background: var(--color-background); padding: .5rem .75rem; border-radius: 6px; }
+.skip:focus { left: .5rem; }
+.meta { color: var(--color-meta); }
+.sec { color: var(--color-text-secondary); }
+.small { font-size: .875rem; }
+.xs { font-size: .78rem; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── Sidebar (Candidate, coach, Back Office) ── */
+.sb { width: 16rem; flex: none; background: var(--color-nav); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; padding: .75rem .5rem; gap: 2px; overflow: auto; }
+.sb .brand { display: flex; align-items: center; gap: .5rem; font-weight: 600; padding: .25rem .5rem .75rem; }
+.sb .brand i { width: 1.5rem; height: 1.5rem; border-radius: 6px; background: var(--color-accent); color: var(--color-on-accent); display: grid; place-items: center; font-style: normal; font-size: .8rem; }
+.sb .brand small { font-weight: 400; color: var(--color-meta); }
+.sb .brand.bo i { background: var(--color-inverse); color: var(--color-on-inverse); }
+.sb .profile { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 8px; padding: .45rem .6rem; margin-bottom: .5rem; display: flex; justify-content: space-between; gap: .5rem; font-weight: 500; }
+.sb .new { display: flex; gap: .5rem; align-items: center; border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .45rem .75rem; margin-bottom: .5rem; font-weight: 500; }
+.sb .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-meta); padding: .75rem .6rem .25rem; margin: 0; font-weight: 500; }
+.nav { border: 0; background: none; text-align: left; padding: .4rem .6rem; border-radius: 6px; display: flex; gap: .55rem; align-items: center; width: 100%; color: var(--color-text); min-height: 2.25rem; }
+.nav:hover { background: var(--color-hover); }
+.nav.on { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 500; }
+.nav .chev { margin-left: auto; color: var(--color-meta); font-size: .75rem; }
+.nav .count { margin-left: auto; font-size: .72rem; background: var(--color-warn-soft); color: var(--color-warn); border-radius: 999px; padding: 0 .45rem; font-weight: 500; }
+.sub { margin: 0 0 .25rem 1.35rem; border-left: 1px solid var(--color-border); padding-left: .35rem; }
+.sub .nav { font-size: .875rem; padding: .3rem .5rem; color: var(--color-text-secondary); }
+.sub .nav.on { color: var(--color-accent); }
+.sb .foot { margin-top: auto; border-top: 1px solid var(--color-border); padding-top: .5rem; }
+
+/* ── Main ── */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.top { min-height: 3.25rem; flex: none; display: flex; align-items: center; gap: .5rem; padding: .4rem 1rem; border-bottom: 1px solid var(--color-border); background: var(--color-background); }
+.top h1 { font-size: 1rem; font-weight: 600; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top .crumb { color: var(--color-meta); font-weight: 400; }
+.top .sp { flex: 1; }
+.iconbtn { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .35rem .7rem; display: inline-flex; gap: .4rem; align-items: center; font-size: .875rem; white-space: nowrap; min-height: 2.25rem; }
+.menu-btn { display: none; }
+.body { flex: 1; min-height: 0; display: flex; }
+.convo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.thread { flex: 1; overflow: auto; padding: 1.5rem 1rem 1rem; }
+.col { max-width: 50rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
+.page { flex: 1; overflow: auto; padding: 1.5rem 1rem 5rem; }
+.wrap { max-width: 64rem; margin: 0 auto; }
+.wrap.narrow { max-width: 50rem; display: flex; flex-direction: column; gap: 1rem; }
+.ph h2 { font-size: var(--font-size-h2); margin: .25rem 0; }
+.ph p { margin: 0; color: var(--color-text-secondary); }
+.page h2 { font-size: 1.15rem; margin: 0 0 .5rem; }
+.page h3, .card h3 { font-size: 1rem; margin: 0 0 .4rem; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1rem; align-items: start; }
+.stack { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+
+/* messages */
+.msg { line-height: 1.55; min-width: 0; }
+.msg.me { align-self: flex-end; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px 14px 4px 14px; padding: .55rem .85rem; max-width: 80%; }
+.who { display: inline-flex; gap: .35rem; align-items: center; font-size: .75rem; border-radius: 999px; padding: .1rem .5rem; margin-bottom: .35rem; font-weight: 500; }
+.who.ai { color: var(--color-accent); background: var(--color-accent-soft); }
+.prov { font-size: .72rem; color: var(--color-meta); margin-top: .35rem; }
+.note { border: 1px solid var(--color-accent-line); background: var(--color-accent-soft); border-radius: 8px; padding: .55rem .8rem; font-size: .875rem; }
+.note.warn { border-color: transparent; background: var(--color-warn-soft); }
+.note.warn b { color: var(--color-warn); }
+.note.danger { border-color: transparent; background: var(--color-danger-soft); }
+.note.danger b { color: var(--color-danger); }
+.note.ok { border-color: transparent; background: var(--color-success-soft); }
+.note.ok b { color: var(--color-success); }
+.note.plain { border-color: var(--color-border); background: var(--color-surface); }
+
+/* cards */
+.card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); box-shadow: var(--shadow-card); padding: 1rem; min-width: 0; }
+.card.tight { padding: 0; overflow: hidden; }
+.card > header { display: flex; align-items: center; gap: .6rem; padding: .7rem 1rem; border-bottom: 1px solid var(--color-border); flex-wrap: wrap; }
+.card > header h2, .card > header h3 { font-size: 1rem; margin: 0; }
+.card > header .sp { flex: 1; }
+.card .in { padding: 1rem; }
+.pill { display: inline-block; font-size: .75rem; border-radius: 999px; padding: .1rem .5rem; background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text-secondary); white-space: nowrap; font-weight: 500; }
+.pill.ok { background: var(--color-success-soft); color: var(--color-success); border-color: transparent; }
+.pill.warn { background: var(--color-warn-soft); color: var(--color-warn); border-color: transparent; }
+.pill.acc { background: var(--color-accent-soft); color: var(--color-accent); border-color: transparent; }
+.pill.danger { background: var(--color-danger-soft); color: var(--color-danger); border-color: transparent; }
+.av { width: 2.75rem; height: 2.75rem; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 600; background: var(--color-accent-soft); color: var(--color-accent); }
+.av.lg { width: 4rem; height: 4rem; font-size: 1.25rem; }
+.av.sm { width: 2rem; height: 2rem; font-size: .8rem; }
+dl.props { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .6rem 1rem; margin: 0; font-size: .875rem; }
+dl.props dt { color: var(--color-meta); font-size: .75rem; }
+dl.props dd { margin: 0; font-weight: 500; }
+
+/* boutons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: var(--size-control); border-radius: var(--radius-control); border: 1px solid var(--color-border-strong); background: var(--color-background); padding: .4rem 1rem; font-weight: 500; text-decoration: none; color: var(--color-text); font-size: .9375rem; }
+.btn:hover { background: var(--color-hover); }
+.btn.primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.btn.primary:hover { background: var(--color-accent-hover); }
+.btn.danger { color: var(--color-danger); border-color: var(--color-danger); }
+.btn.sm { min-height: 2.25rem; padding: .2rem .8rem; font-size: .85rem; }
+.btn.block { width: 100%; }
+.row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.row .sp { flex: 1; }
+.linkish { border: 0; background: none; padding: 0; font-size: inherit; color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/* catalogue */
+.filters { display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end; }
+.filters .field { flex: 1 1 10rem; }
+.chips { display: flex; gap: .35rem; flex-wrap: wrap; }
+.chips button { border: 1px solid var(--color-border-strong); background: var(--color-background); border-radius: 999px; padding: .3rem .8rem; font-size: .85rem; min-height: 2.25rem; }
+.chips button[aria-pressed="true"] { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.mcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem; }
+.mc { display: flex; flex-direction: column; gap: .5rem; }
+.mc h3 { margin: 0; font-size: 1rem; line-height: 1.35; }
+.mc .cover { aspect-ratio: 16 / 7; border-radius: 8px; display: flex; align-items: flex-end; padding: .5rem .6rem; color: #fff; font-size: .75rem; font-weight: 600; }
+.mc.reco { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.c-entretien { background: linear-gradient(135deg, #2f3a8f, #4f5fe0); }
+.c-visibilite { background: linear-gradient(135deg, #7a2350, #b23a6f); }
+.c-negociation { background: linear-gradient(135deg, #1d5a3a, #2f8a5a); }
+.c-reconversion { background: linear-gradient(135deg, #6a4300, #9a6200); }
+.price { font-weight: 600; }
+.strike { text-decoration: line-through; color: var(--color-meta); font-weight: 400; font-size: .85em; }
+.seller { font-size: .8rem; color: var(--color-text-secondary); }
+.seller b { color: var(--color-text); font-weight: 500; }
+.empty { border: 1px dashed var(--color-border-strong); border-radius: 10px; padding: 1rem; text-align: center; }
+
+/* fiche */
+ol.prog { margin: .25rem 0; padding-left: 1.25rem; }
+ol.prog li { margin: .3rem 0; }
+.res { display: flex; gap: .6rem; align-items: center; padding: .5rem 0; border-top: 1px solid var(--color-border); flex-wrap: wrap; }
+.res:first-of-type { border-top: 0; }
+.res .what { flex: 1 1 12rem; min-width: 0; }
+.seats { height: .5rem; border-radius: 999px; background: var(--color-surface); border: 1px solid var(--color-border); overflow: hidden; }
+.seats i { display: block; height: 100%; background: var(--color-accent); }
+
+/* formulaires */
+label.check { display: flex; gap: .6rem; align-items: flex-start; font-size: .9rem; }
+label.check input { margin-top: .25rem; width: 1.15rem; height: 1.15rem; flex: none; accent-color: var(--color-accent); }
+.field { display: flex; flex-direction: column; gap: .3rem; font-size: .875rem; min-width: 0; }
+.field > span, .field > label { font-weight: 500; }
+.field .hint { color: var(--color-meta); font-size: .78rem; font-weight: 400; }
+input[type="text"], input[type="email"], input[type="number"], input[type="date"], input[type="time"], input[type="url"], select, textarea { border: 1px solid var(--color-border-strong); background: var(--color-background); border-radius: 8px; padding: .5rem .65rem; width: 100%; min-width: 0; min-height: 2.5rem; }
+[aria-invalid="true"] { border-color: var(--color-danger) !important; }
+.err { color: var(--color-danger); font-size: .85rem; margin: 0; }
+textarea { min-height: 6rem; resize: vertical; line-height: 1.5; }
+.fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem 1rem; }
+.legal { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 8px; padding: .75rem .9rem; font-size: .8125rem; max-height: 11rem; overflow: auto; }
+.legal h4 { margin: 0 0 .3rem; font-size: .875rem; }
+.total { display: grid; grid-template-columns: 1fr auto; gap: .25rem 1rem; font-size: .9rem; }
+.total .big { font-size: 1.25rem; font-weight: 600; }
+.total .disc { color: var(--color-success); }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-weight: 600; padding: 0; margin-bottom: .5rem; }
+.choice { display: flex; gap: .7rem; align-items: flex-start; border: 1px solid var(--color-border); border-radius: 10px; padding: .65rem .85rem; margin-bottom: .5rem; }
+.choice:has(input:checked) { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.choice input { margin-top: .3rem; accent-color: var(--color-accent); width: 1.1rem; height: 1.1rem; flex: none; }
+.choice b { display: block; font-weight: 600; }
+.choices3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .5rem; }
+.choices3 .choice { margin: 0; }
+.filedrop { border: 1px dashed var(--color-border-strong); border-radius: 8px; padding: .75rem; font-size: .875rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+
+/* lecteur */
+.player { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: linear-gradient(135deg, #1f2560, #3b47b8); color: #fff; }
+.player .slide { position: absolute; inset: 0; padding: 6% 7%; display: flex; flex-direction: column; justify-content: center; }
+.player .slide h4 { margin: 0 0 .5rem; font-size: clamp(1rem, 2.4vw, 1.6rem); }
+.player .slide ul { margin: 0; padding-left: 1.2rem; font-size: clamp(.75rem, 1.4vw, 1rem); }
+.player .pip { position: absolute; right: 3%; top: 5%; width: 18%; aspect-ratio: 4 / 3; border-radius: 8px; background: #11163f; border: 2px solid rgb(255 255 255 / 60%); display: grid; place-items: center; font-weight: 600; font-size: clamp(.7rem, 1.4vw, 1rem); }
+.player .cap { position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); width: max-content; max-width: 86%; background: rgb(0 0 0 / 82%); color: #fff; padding: .25rem .6rem; border-radius: 4px; font-size: clamp(.75rem, 1.6vw, 1.05rem); text-align: center; }
+.ctrls { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; padding: .6rem 0 0; }
+.ctrls input[type="range"] { flex: 1 1 10rem; min-width: 6rem; accent-color: var(--color-accent); }
+.ctrls select { width: auto; }
+.ctrls button[aria-pressed="true"] { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); }
+.chap { list-style: none; margin: 0; padding: 0; }
+.chap li { display: flex; gap: .75rem; padding: .45rem 0; border-top: 1px solid var(--color-border); }
+.chap li:first-child { border-top: 0; }
+.chap time { width: 3rem; flex: none; color: var(--color-meta); }
+.chap li.on { color: var(--color-accent); font-weight: 500; }
+.wait { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: .4rem; padding: 1rem; }
+.wait .big { font-size: clamp(1.6rem, 5vw, 2.75rem); font-weight: 600; font-variant-numeric: tabular-nums; }
+.dev { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+/* tableaux, KPI */
+.tw { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: .875rem; }
+table.t th, table.t td { padding: .6rem .5rem; border-top: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+table.t thead th { border-top: 0; color: var(--color-meta); font-weight: 500; font-size: .78rem; }
+table.t td.r, table.t th.r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.t tfoot td { font-weight: 600; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; }
+.kpi { border: 1px solid var(--color-border); border-radius: 10px; padding: .75rem .9rem; background: var(--color-background); }
+.kpi .k { color: var(--color-meta); font-size: .8125rem; }
+.kpi .v { font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows > li { display: flex; gap: .75rem; align-items: center; padding: .65rem 0; border-top: 1px solid var(--color-border); flex-wrap: wrap; }
+.rows > li:first-child { border-top: 0; }
+.rows .what { flex: 1 1 14rem; min-width: 0; }
+.rows .what small { display: block; color: var(--color-meta); }
+
+/* Back Office */
+.tabs { display: flex; gap: .25rem; flex-wrap: wrap; border-bottom: 1px solid var(--color-border); }
+.tabs button { border: 0; background: none; padding: .5rem .8rem; border-bottom: 2px solid transparent; font-size: .9rem; color: var(--color-text-secondary); margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--color-text); font-weight: 600; border-bottom-color: var(--color-accent); }
+.queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+.queue button { width: 100%; text-align: left; border: 1px solid var(--color-border); background: var(--color-background); border-radius: 10px; padding: .6rem .75rem; display: flex; flex-direction: column; gap: .15rem; }
+.queue button[aria-current="true"] { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.queue small { color: var(--color-meta); }
+.bo-grid { display: grid; grid-template-columns: 17rem minmax(0, 1fr); gap: 1rem; align-items: start; }
+.checklist { list-style: none; margin: 0; padding: 0; font-size: .9rem; }
+.checklist li { display: flex; gap: .5rem; padding: .3rem 0; }
+.checklist .ok { color: var(--color-success); font-weight: 700; }
+.checklist .ko { color: var(--color-warn); font-weight: 700; }
+blockquote.q { margin: .25rem 0; padding: .5rem .8rem; border-left: 3px solid var(--color-border-strong); background: var(--color-surface); border-radius: 0 8px 8px 0; font-size: .9rem; }
+
+/* page publique (signalement) */
+.pub { height: 100vh; display: flex; flex-direction: column; }
+.pub .top { justify-content: space-between; }
+.pub .brandp { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
+.pub .brandp i { width: 1.5rem; height: 1.5rem; border-radius: 6px; background: var(--color-accent); color: var(--color-on-accent); display: grid; place-items: center; font-style: normal; font-size: .8rem; }
+
+/* barre du prototype (PO) */
+.proto { position: fixed; bottom: .5rem; right: .5rem; z-index: 100; display: flex; align-items: center; gap: .4rem; background: #111; color: #fff; border-radius: 999px; padding: .3rem .45rem; font-size: .78rem; box-shadow: 0 6px 20px rgb(0 0 0 / 35%); font-family: ui-monospace, monospace; max-width: calc(100vw - 1rem); flex-wrap: wrap; }
+.proto button { background: #2a2a2a; border: 0; color: #fff; border-radius: 999px; padding: .25rem .6rem; font: inherit; min-height: 1.75rem; }
+.proto button[aria-pressed="true"] { background: #fff; color: #111; }
+.proto select { background: #2a2a2a; color: #fff; border: 0; border-radius: 999px; padding: .25rem .5rem; width: auto; font: inherit; min-height: 1.75rem; }
+.proto :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.proto .lbl { padding: 0 .3rem; white-space: nowrap; color: #ddd; }
+.proto .sep { width: 1px; height: 1rem; background: #555; }
+
+/* iPad */
+@media (max-width: 1180px) {
+  .sb { width: 14rem; }
+  .grid2 { grid-template-columns: minmax(0, 1fr) 17rem; }
+  .bo-grid { grid-template-columns: 14rem minmax(0, 1fr); }
+}
+@media (max-width: 960px) {
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .bo-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* téléphone */
+.scrim { display: none; }
+@media (max-width: 767px) {
+  .sb { position: fixed; inset: 0 auto 0 0; z-index: 40; transform: translateX(-100%); transition: transform var(--motion-base) var(--motion-easing); width: min(85vw, 18rem); visibility: hidden; }
+  .app.drawer .sb { transform: none; visibility: visible; }
+  .app.drawer .scrim { display: block; position: fixed; inset: 0; background: var(--color-scrim); z-index: 30; }
+  .menu-btn { display: inline-flex; }
+  .top .hide-phone { display: none; }
+  .thread { padding: 1rem .75rem 4rem; }
+  .page { padding: 1rem .75rem 5.5rem; }
+  .msg.me { max-width: 90%; }
+  .proto { left: auto; right: .5rem; bottom: .5rem; gap: .25rem; }
+  .proto select { max-width: 8.5rem; }
+  .proto .sep { display: none; }
+  .composer { padding-bottom: 3.25rem !important; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ───────────────────────────── Données fictives ─────────────────────────────
+const CAND = { first: "Sophie", short: "Sophie L.", plan: "Premium", profile: "Directrice des opérations · 52 ans · vise un poste de direction industrielle, entretiens à venir" };
+const SPEAKERS = {
+  claire: { name: "Claire Martin", ini: "CM", kind: "Human Coach validée", title: "Coach carrière, ex-DRH industrie", bio: "Vingt ans de recrutement de cadres dirigeants dans l'industrie. Elle aide les plus de 45 ans à raconter leur parcours et à préparer leurs entretiens." },
+  karim: { name: "Karim Benali", ini: "KB", kind: "Human Coach validé", title: "Coach certifié, finance et opérations", bio: "Ancien DAF de PME. Il prépare aux entretiens de finance et à la négociation de la rémunération des cadres." },
+  helene: { name: "Hélène Roux", ini: "HR", kind: "Bénévole de l'association Rebond 45+", title: "Bénévole, ex-cadre RH", bio: "Bénévole de Rebond 45+, elle accompagne les personnes qui reprennent un emploi après une longue pause." },
+};
+const SELLER_LABEL = { jobbbox: "Vendu par Jobbbox", coach: "Vendu par le coach", asso: "Proposé par l'association" };
+const FORMAT = { live: "Live", replay: "Replay", serie: "Série" };
+const MCS = [
+  { id: "pitch", title: "Raconter vingt ans de carrière en deux minutes", theme: "Entretien", cover: "c-entretien", format: "live", when: "nov", date: "jeu. 19 nov. 2026", time: "18:30", dur: 60, seats: 30, left: 7, price: 29, seller: "coach", sellerName: "Claire Martin", sp: "claire",
+    prog: ["Ce que le recruteur cherche dans les deux premières minutes", "Choisir trois moments de carrière, pas trente", "Transformer l'âge en expérience lisible", "Exercice en direct : votre pitch, réécrit par écrit dans les questions"],
+    res: [["Support de la masterclass", "PDF · 2,1 Mo"], ["Grille de pitch à remplir", "PDF · 180 Ko"]] },
+  { id: "linkedin", title: "LinkedIn après 45 ans : se rendre visible sans s'épuiser", theme: "Visibilité", cover: "c-visibilite", format: "replay", when: "replay", dur: 75, price: 19, seller: "jobbbox", sellerName: "Jobbbox", sp: "karim",
+    prog: ["Titre et résumé : ce que lisent les recruteurs", "Trois publications par mois suffisent", "Demander une recommandation sans gêne", "Questions des participants du live d'origine (voix de l'intervenant seulement)"],
+    res: [["Support de la masterclass", "PDF · 3,4 Mo"]] },
+  { id: "nego", title: "Négocier sa rémunération de cadre", theme: "Négociation", cover: "c-negociation", format: "serie", when: "dec", date: "3 séances · 1er, 8 et 15 déc. 2026", time: "12:30", dur: 45, seats: 25, left: 12, price: 79, seller: "jobbbox", sellerName: "Jobbbox", sp: "karim",
+    sessions: ["mar. 1er déc. · 12:30 · Connaître sa valeur de marché", "mar. 8 déc. · 12:30 · Les variables au-delà du fixe", "mar. 15 déc. · 12:30 · Jeu de rôle commenté"],
+    prog: ["Séance 1 : connaître sa valeur de marché", "Séance 2 : les variables au-delà du fixe (voiture, télétravail, préavis)", "Séance 3 : jeu de rôle commenté par l'intervenant", "Chaque séance a son replay, disponible 12 mois"],
+    res: [["Fiche de calcul du package", "PDF · 220 Ko"], ["Phrases de négociation", "PDF · 140 Ko"]] },
+  { id: "rebond", title: "Reprendre un emploi après une longue pause", theme: "Reconversion", cover: "c-reconversion", format: "live", when: "nov", date: "mar. 24 nov. 2026", time: "14:00", dur: 90, seats: 50, left: 22, price: 0, seller: "asso", sellerName: "Rebond 45+", sp: "helene",
+    prog: ["Expliquer la pause sans se justifier", "Les dispositifs de reprise (démo)", "Témoignages lus par l'intervenante", "Questions écrites des participants"],
+    res: [["Livret de l'association", "PDF · 1,2 Mo"]] },
+  { id: "reconv", title: "Tester un métier avant de se reconvertir", theme: "Reconversion", cover: "c-reconversion", format: "replay", when: "replay", dur: 50, price: 24, seller: "coach", sellerName: "Claire Martin", sp: "claire",
+    prog: ["Immersion, mission courte, bénévolat : trois façons de tester", "Parler à dix personnes du métier en un mois", "Décider avec une grille simple"],
+    res: [["Grille de décision", "PDF · 160 Ko"]] },
+];
+const PLAN_DISCOUNT = 0.2; // Plan Feature « remise masterclasses » du Plan Premium (démo)
+const COMMISSION = 0.2;    // commission de Jobbbox sur une offre vendue par un tiers (démo)
+const THEMES = ["Entretien", "Visibilité", "Négociation", "Reconversion"];
+const RECO = ["pitch", "nego"];
+
+const SCREENS = {
+  catalogue: "Catalogue · Candidate", masterclass: "Fiche · Candidate", commande: "Commande · Candidate", lecteur: "Lecteur · Candidate",
+  "coach-creer": "Créer · coach", "coach-suivi": "Inscrits et revenus · coach", "admin-relecture": "Relecture · Administrator", signaler: "Signaler · public",
+};
+const SHELL = { catalogue: "cand", masterclass: "cand", commande: "cand", lecteur: "cand", "coach-creer": "coach", "coach-suivi": "coach", "admin-relecture": "bo", signaler: "pub" };
+
+const S = {
+  screen: "catalogue", theme: "light", mc: null, mode: "replay", drawer: false, focus: null,
+  fTheme: "", fFormat: "", fWhen: "",
+  cgv: false, ipr: false, dig: false, tried: false, stage: "form",
+  playing: false, cc: true, t: 9, speed: "1",
+  c: { title: "", theme: "Entretien", format: "live", date: "2026-12-10", time: "18:30", dur: "60", seats: "30", price: "29", free: false, prog: "", licence: false, speakerOnly: false },
+  cTried: false, cSent: false,
+  atab: "relire", rsel: "r1", rDec: {}, rReason: "", rTried: false, gsel: "g1", gDec: {}, gChoice: "retirer", gReason: "", gTried: false,
+  s: { url: "", motif: "", text: "", name: "", mail: "", good: false }, sTried: false, sDone: false,
+};
+
+// ───────────────────────────── URL ↔ état ─────────────────────────────
+function readUrl() {
+  const q = new URLSearchParams(location.search);
+  if (SCREENS[q.get("screen")]) S.screen = q.get("screen");
+  if (MCS.some((m) => m.id === q.get("mc"))) S.mc = q.get("mc");
+  if (["live", "replay"].includes(q.get("mode"))) S.mode = q.get("mode");
+  S.theme = q.get("theme") === "dark" ? "dark" : "light";
+}
+const defaultMc = () => ({ commande: "nego", lecteur: S.mode === "live" ? "pitch" : "linkedin", signaler: "reconv" }[S.screen] ?? "pitch");
+const mcId = () => S.mc ?? defaultMc();
+const mc = () => MCS.find((m) => m.id === mcId());
+function writeUrl() {
+  const q = new URLSearchParams({ screen: S.screen });
+  if (["masterclass", "commande", "lecteur", "signaler"].includes(S.screen) && S.mc) q.set("mc", S.mc);
+  if (S.screen === "lecteur") q.set("mode", S.mode);
+  if (S.theme === "dark") q.set("theme", "dark");
+  try { history.replaceState(null, "", "?" + q); } catch {}
+}
+const set = (patch) => { Object.assign(S, patch); writeUrl(); render(); };
+const h = String.raw;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const eur = (n) => n.toFixed(2).replace(".", ",").replace(/,00$/, "") + " €";
+const eur2 = (n) => n.toFixed(2).replace(".", ",") + " €";
+const net = (m) => m.price === 0 ? 0 : Math.round(m.price * (1 - PLAN_DISCOUNT) * 100) / 100; // prix après remise du Plan
+const priceHtml = (m) => m.price === 0 ? `<span class="price">Gratuit</span>` :
+  `<span class="price">${eur2(net(m))} TTC</span> <span class="strike" aria-label="au lieu de ${eur2(m.price)}">${eur2(m.price)}</span>`;
+const whenText = (m) => m.format === "replay" ? `Replay · à regarder quand vous voulez · ${m.dur} min` : `${m.date} · ${m.time} (heure de Paris) · ${m.dur} min`;
+const sellerPill = (m) => `<span class="pill ${m.seller === "jobbbox" ? "acc" : m.seller === "asso" ? "ok" : ""}">${SELLER_LABEL[m.seller]}</span>`;
+const fmtPill = (m) => `<span class="pill ${m.format === "live" ? "danger" : m.format === "serie" ? "warn" : ""}">${FORMAT[m.format]}</span>`;
+
+// ───────────────────────────── Coquilles ─────────────────────────────
+function sidebarCandidate() {
+  const sub = (k, l) => `<button class="nav ${S.screen === k ? "on" : ""}" data-go="${k}" ${S.screen === k ? 'aria-current="page"' : ""}>${l}</button>`;
+  return h`<nav class="sb" id="sidebar" aria-label="Navigation principale">
+    <div class="brand"><i aria-hidden="true">J</i>Jobbbox</div>
+    <div class="profile">Directrice des opérations <span aria-hidden="true">⌄</span></div>
+    <button class="new" data-noop>✎ Nouvelle conversation</button>
+    <button class="nav" data-noop>◎ Coach</button>
+    <button class="nav" data-noop>▤ Mes candidatures</button>
+    <button class="nav" data-noop>▦ Agenda</button>
+    <button class="nav" data-noop>⌕ Recherches d'offres</button>
+    <button class="nav" data-noop>☺ Mes coachs humains</button>
+    <button class="nav ${S.screen === "catalogue" ? "on" : ""}" data-go="catalogue" ${S.screen === "catalogue" ? 'aria-current="page"' : ""}>▶ Masterclasses <span class="chev" aria-hidden="true">▾</span></button>
+    <div class="sub">
+      ${sub("masterclass", "Fiche en cours")}
+      ${sub("lecteur", "Mes inscriptions")}
+    </div>
+    <div class="foot">
+      <button class="nav" data-noop>⚙ Mon compte</button>
+      <button class="nav" data-noop>⇥ Se déconnecter</button>
+    </div>
+  </nav>`;
+}
+function sidebarCoach() {
+  const items = ["Aujourd'hui", "Mes Candidates", "Mes séances", "Disponibilités", "Profil public"];
+  const sub = (k, l) => `<button class="nav ${S.screen === k ? "on" : ""}" data-go="${k}" ${S.screen === k ? 'aria-current="page"' : ""}>${l}</button>`;
+  return h`<nav class="sb" id="sidebar" aria-label="Espace coach">
+    <div class="brand"><i aria-hidden="true">J</i>Jobbbox <small>· Espace coach</small></div>
+    <div class="profile">Claire Martin <span class="meta xs">Paris</span></div>
+    ${items.map((t) => `<button class="nav" data-noop>${t}</button>`).join("")}
+    <button class="nav" data-go="coach-creer">Masterclasses <span class="count" aria-label="1 en relecture">1</span></button>
+    <div class="sub">${sub("coach-creer", "Créer et publier")}${sub("coach-suivi", "Inscrits et revenus")}</div>
+    <button class="nav" data-noop>Revenus</button>
+    <button class="nav" data-noop>Contrat</button>
+    <button class="nav" data-noop>Aide</button>
+    <div class="foot"><button class="nav" data-noop>⇥ Se déconnecter</button></div>
+  </nav>`;
+}
+function sidebarBo() {
+  return h`<nav class="sb" id="sidebar" aria-label="Back Office">
+    <div class="brand bo"><i aria-hidden="true">J</i>Jobbbox <small>· Back Office</small></div>
+    <div class="profile">Nadia (Administrator)</div>
+    <button class="nav" data-noop>Tableau de bord</button>
+    <button class="nav" data-noop>Candidates</button>
+    <button class="nav" data-noop>Candidatures de coachs <span class="count">2</span></button>
+    <p class="label">Masterclasses</p>
+    <button class="nav ${S.atab === "relire" ? "on" : ""}" data-atab="relire" ${S.atab === "relire" ? 'aria-current="page"' : ""}>Relecture <span class="count">3</span></button>
+    <button class="nav ${S.atab === "signal" ? "on" : ""}" data-atab="signal" ${S.atab === "signal" ? 'aria-current="page"' : ""}>Signalements <span class="count">2</span></button>
+    <button class="nav" data-noop>Publiées</button>
+    <p class="label">Ventes</p>
+    <button class="nav" data-noop>Orders</button>
+    <button class="nav" data-noop>Remboursements</button>
+    <div class="foot"><button class="nav" data-noop>⇥ Se déconnecter</button></div>
+  </nav>`;
+}
+function topbar(title, extra = "") {
+  return h`<header class="top">
+    <button class="iconbtn menu-btn" data-drawer aria-expanded="${S.drawer}" aria-controls="sidebar">☰ Menu</button>
+    <h1>${title}</h1><span class="sp"></span>${extra}
+  </header>`;
+}
+const aiMsg = (html, prov = "prototype · aucun appel IA") => `<div class="msg"><span class="who ai">✦ Coach IA</span>${html}<div class="prov">${prov}</div></div>`;
+const meMsg = (t) => `<div class="msg me">${t}</div>`;
+function composer() {
+  return h`<form class="composer" style="flex:none;padding:.5rem 1rem 1rem" onsubmit="return false">
+    <div class="col" style="gap:.4rem"><div class="card" style="padding:.5rem .6rem .5rem .9rem;border-radius:16px">
+      <label class="vh" for="msgbox">Votre message au Coach IA</label>
+      <textarea id="msgbox" rows="1" placeholder="Demander une masterclass au Coach IA…" style="border:0;min-height:2.4rem;padding:.3rem 0;resize:none;background:none"></textarea>
+      <div class="row xs meta"><span class="pill acc">Coach IA</span><span>Une IA, pas une personne. Il conseille, il n'achète jamais.</span><span class="sp"></span><button class="btn sm primary" type="submit">Envoyer</button></div>
+    </div></div>
+  </form>`;
+}
+
+// ───────────────────────────── Candidate ─────────────────────────────
+function mcCard(m, reco = false) {
+  const left = m.format === "replay" ? "" : m.price === 0 ? `· ${m.left} places restantes` : `· ${m.left} places restantes`;
+  return h`<article class="card mc ${reco ? "reco" : ""}" aria-labelledby="t-${m.id}">
+    <div class="cover ${m.cover}" aria-hidden="true">${m.theme}</div>
+    <div class="row">${fmtPill(m)}${reco ? `<span class="pill acc">Conseillée par le Coach IA</span>` : ""}</div>
+    <h3 id="t-${m.id}">${m.title}</h3>
+    <div class="xs meta">${m.format === "replay" ? `Replay · ${m.dur} min` : `${m.date} · ${m.time}`} ${left}</div>
+    <div class="xs">avec <b>${SPEAKERS[m.sp].name}</b></div>
+    <div class="row">${priceHtml(m)}<span class="sp"></span>${sellerPill(m)}</div>
+    <div class="row"><button class="btn sm primary" data-open="${m.id}" aria-label="Voir la masterclass « ${m.title} »">Voir la masterclass</button></div>
+  </article>`;
+}
+function scrCatalogue() {
+  const list = MCS.filter((m) => (!S.fTheme || m.theme === S.fTheme) && (!S.fFormat || m.format === S.fFormat) && (!S.fWhen || m.when === S.fWhen));
+  const chip = (v, l) => `<button type="button" data-ffmt="${v}" aria-pressed="${S.fFormat === v}">${l}</button>`;
+  const body = h`<div class="body"><section class="convo" aria-label="Conversation Masterclasses">
+    <div class="thread" id="contenu" tabindex="-1"><div class="col">
+      ${aiMsg("<p>Ici, des Human Coaches et des associations validés par Jobbbox proposent des masterclasses : en live, en replay ou en série de quelques séances. Chacune s'achète à l'unité ; votre Plan Premium vous donne <b>20 % de remise</b>. Certaines, souvent celles des associations, sont gratuites.</p>", "Introduction · message fixe")}
+      <section class="card stack" aria-labelledby="h-filt" style="gap:.75rem">
+        <div class="row"><h2 id="h-filt" style="font-size:1.05rem;margin:0">Catalogue</h2><span class="sp"></span><span class="meta xs" role="status">${list.length} masterclass${list.length > 1 ? "es" : ""}</span></div>
+        <div class="filters">
+          <div class="field"><label for="f-theme">Thème</label><select id="f-theme" data-ftheme><option value="">Tous les thèmes</option>${THEMES.map((t) => `<option ${S.fTheme === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+          <div class="field"><label for="f-when">Date</label><select id="f-when" data-fwhen>
+            ${[["", "Toutes les dates"], ["nov", "En novembre"], ["dec", "En décembre"], ["replay", "Replays, à tout moment"]].map(([v, l]) => `<option value="${v}" ${S.fWhen === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+          <div class="field" style="flex:2 1 16rem"><span id="l-fmt">Format</span><div class="chips" role="group" aria-labelledby="l-fmt">${chip("", "Tous")}${chip("live", "Live")}${chip("replay", "Replay")}${chip("serie", "Série")}</div></div>
+        </div>
+        ${list.length ? `<div class="mcgrid">${list.map((m) => mcCard(m, RECO.includes(m.id))).join("")}</div>` :
+          `<div class="empty"><p>Aucune masterclass ne correspond à ces filtres.</p><button class="btn sm" data-freset>Effacer les filtres</button></div>`}
+        <p class="xs meta" style="margin:0">Pas d'avis ni de notes : chaque masterclass est relue par l'équipe Jobbbox avant publication. Masterclasses vendues et suivies sur le web seulement, pas dans la Jobbbox app.</p>
+      </section>
+      ${meMsg("Laquelle me conseilles-tu pour mes entretiens de direction ?")}
+      ${aiMsg(`<p>D'après votre Profile (<i>${CAND.profile}</i>), je vous en propose deux, encadrées dans le catalogue :</p>
+        <ul><li><b>Raconter vingt ans de carrière en deux minutes</b>, en live le 19 nov. : votre pitch est le premier point à travailler avant vos entretiens. Il reste 7 places.</li>
+        <li><b>Négocier sa rémunération de cadre</b>, une série de trois séances en décembre, utile une fois l'offre reçue.</li></ul>
+        <p>Je ne peux ni réserver ni acheter à votre place : ouvrez la fiche et commandez vous-même si elle vous convient.</p>
+        <div class="row"><button class="btn sm" data-open="pitch">Ouvrir « Raconter vingt ans… »</button><button class="btn sm" data-open="nego">Ouvrir « Négocier… »</button></div>`, "Recommandation d'après votre Profile · aucun achat · prototype, aucun appel IA")}
+    </div></div>
+    ${composer()}
+  </section></div>`;
+  return { title: "Masterclasses", body };
+}
+
+function scrMasterclass() {
+  const m = mc(), sp = SPEAKERS[m.sp];
+  const pct = m.seats ? Math.round((1 - m.left / m.seats) * 100) : 0;
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap"><div class="grid2">
+    <div class="stack">
+      <section class="card stack" aria-labelledby="h-mc" style="gap:.6rem">
+        <div class="cover ${m.cover}" style="aspect-ratio:16/3;border-radius:8px;display:flex;align-items:flex-end;padding:.6rem .8rem;color:#fff;font-weight:600" aria-hidden="true">${m.theme}</div>
+        <div class="row">${fmtPill(m)}<span class="pill">${m.theme}</span>${sellerPill(m)}</div>
+        <h2 id="h-mc" style="font-size:1.5rem;margin:0">${m.title}</h2>
+        <dl class="props">
+          <div><dt>${m.format === "replay" ? "Disponibilité" : "Date"}</dt><dd>${m.format === "replay" ? "Replay, à tout moment, pendant 12 mois" : m.date}</dd></div>
+          ${m.format === "replay" ? "" : `<div><dt>Heure</dt><dd>${m.time} (heure de Paris)</dd></div>`}
+          <div><dt>Durée</dt><dd>${m.dur} min${m.format === "serie" ? " par séance" : ""}</dd></div>
+          <div><dt>Langue</dt><dd>Français, sous-titres français</dd></div>
+        </dl>
+        ${m.sessions ? `<h3 style="margin:.5rem 0 0">Les séances</h3><ul class="rows">${m.sessions.map((s) => `<li><div class="what">${s}</div><span class="pill">45 min</span></li>`).join("")}</ul>` : ""}
+      </section>
+      <section class="card" aria-labelledby="h-prog"><h3 id="h-prog">Programme</h3><ol class="prog">${m.prog.map((p) => `<li>${p}</li>`).join("")}</ol></section>
+      <section class="card" aria-labelledby="h-sp"><h3 id="h-sp">${m.seller === "asso" ? "Intervenante" : "Intervenant·e"}</h3>
+        <div class="row" style="align-items:flex-start;flex-wrap:nowrap"><div class="av" aria-hidden="true">${sp.ini}</div><div><b>${sp.name}</b><div class="meta xs">${sp.title} · ${sp.kind}</div><p class="small">${sp.bio}</p></div></div>
+      </section>
+      <section class="card" aria-labelledby="h-res"><h3 id="h-res">Ressources jointes</h3>
+        ${m.res.map(([t, s]) => `<div class="res"><span aria-hidden="true">▤</span><div class="what">${t}<div class="xs meta">${s}</div></div><span class="pill">Après l'inscription</span></div>`).join("")}
+      </section>
+      <section class="card stack" aria-labelledby="h-know" style="gap:.5rem"><h3 id="h-know">Bon à savoir</h3>
+        <ul class="small" style="margin:0;padding-left:1.1rem">
+          ${m.format !== "replay" ? "<li>Le live se suit dans votre navigateur, dans Jobbbox. Votre caméra et votre micro restent coupés : vous posez vos questions par écrit.</li>" : ""}
+          <li>Le replay n'enregistre que ${m.format === "replay" ? "l'intervenant" : sp.name} et son écran, jamais les participants.</li>
+          <li>Sur le web seulement : les masterclasses ne sont pas dans la Jobbbox app.</li>
+          <li>Pas d'avis ni de notes : la masterclass a été relue par l'équipe Jobbbox avant publication.</li>
+        </ul>
+        <p class="xs meta" style="margin:0">Un contenu vous semble illicite ou trompeur ? <button class="linkish" data-go="signaler">Signaler cette masterclass</button>, même sans compte.</p>
+      </section>
+    </div>
+    <aside class="stack" aria-label="Prix et inscription">
+      <section class="card stack" aria-labelledby="h-buy" style="gap:.7rem">
+        <h2 id="h-buy" class="vh">Prix et inscription</h2>
+        <div style="font-size:1.35rem">${priceHtml(m)}</div>
+        ${m.price ? `<p class="small" style="margin:0"><span class="pill ok">−20 %</span> Remise de votre Plan Premium sur les masterclasses. Prix public : ${eur2(m.price)} TTC.</p>` : `<p class="small" style="margin:0">Événement gratuit de l'association, sur inscription.</p>`}
+        <p class="seller" style="margin:0">${SELLER_LABEL[m.seller]} : <b>${m.seller === "asso" ? "l'association " : ""}${m.sellerName}</b>${m.seller !== "jobbbox" ? ". Jobbbox est la place de marché qui vous met en relation." : "."}</p>
+        ${m.format === "replay" ? `<p class="small" style="margin:0">Replay disponible tout de suite après l'achat, 12 mois.</p>` :
+          `<div><div class="row small"><b>${m.left} places restantes</b><span class="sp"></span><span class="meta xs">sur ${m.seats}</span></div><div class="seats" role="img" aria-label="${m.seats - m.left} places prises sur ${m.seats}"><i style="width:${pct}%"></i></div></div>`}
+        <button class="btn primary block" data-buy="${m.id}">${m.price ? "Commander" : "S'inscrire gratuitement"}</button>
+        <p class="xs meta" style="margin:0">Achat à l'unité. Jamais incluse dans un Plan, et pas de code promo.</p>
+      </section>
+    </aside>
+  </div></div></main>`;
+  return { title: `<button class="linkish crumb hide-phone" data-go="catalogue">Masterclasses</button><span class="crumb hide-phone"> › </span>${m.title}`, body };
+}
+
+function scrCommande() {
+  const m = mc(), sp = SPEAKERS[m.sp];
+  const free = m.price === 0, total = net(m), ht = Math.round(total / 1.2 * 100) / 100, vat = Math.round((total - ht) * 100) / 100;
+  const needIpr = m.format !== "replay" && !free, needDig = (m.format === "replay" || m.format === "serie");
+  const err = S.tried && !S.cgv;
+  const title = `<span class="crumb hide-phone">Masterclasses › </span>${free ? "Inscription" : "Commande"}`;
+  if (S.stage === "stripe") {
+    return { title, body: h`<main class="page" id="contenu" tabindex="-1"><div class="wrap narrow">
+      <section class="card stack" aria-labelledby="h-st" style="gap:.75rem">
+        <div class="row"><span class="pill">checkout.stripe.com</span><span class="meta xs">page de Stripe, hors de Jobbbox (simulée)</span></div>
+        <h2 id="h-st" style="margin:0">Vous êtes sur Stripe Checkout</h2>
+        <p class="small">Jobbbox vous a envoyée vers la page de paiement sécurisée de Stripe pour régler <b>${eur2(total)} TTC</b>. Vous y saisissez votre carte : Jobbbox ne voit jamais votre numéro de carte.</p>
+        <div class="note plain small">Le prototype ne reproduit pas la page de Stripe. Choisissez la suite :</div>
+        <div class="row"><button class="btn primary" data-stage="done">Simuler un paiement réussi</button><button class="btn" data-stage="form">Simuler un abandon (retour à la commande)</button></div>
+      </section></div></main>` };
+  }
+  if (S.stage === "done") {
+    return { title, body: h`<main class="page" id="contenu" tabindex="-1"><div class="wrap narrow">
+      <section class="card stack" aria-labelledby="h-ok" style="gap:.6rem">
+        <p class="note ok" role="status" style="margin:0"><b>${free ? "Inscription confirmée." : "Paiement confirmé par Stripe."}</b> Order Confirmation envoyée par e-mail.</p>
+        <h2 id="h-ok" style="margin:0">Order Confirmation · ${m.title}</h2>
+        <dl class="props">
+          <div><dt>Numéro</dt><dd class="num">MC-2026-11-0412</dd></div>
+          <div><dt>${m.format === "replay" ? "Accès" : "Date"}</dt><dd>${m.format === "replay" ? (S.dig ? "Tout de suite, 12 mois" : "Le 20 nov., à la fin du délai de rétractation") : m.date}</dd></div>
+          <div><dt>Montant</dt><dd>${free ? "Gratuit" : eur2(total) + " TTC"}</dd></div>
+          <div><dt>Vendu par</dt><dd>${m.seller === "asso" ? "l'association " : ""}${m.sellerName}</dd></div>
+        </dl>
+        ${m.seller !== "jobbbox" ? `<p class="xs meta" style="margin:0">Jobbbox, place de marché, a encaissé le paiement pour le compte du vendeur.</p>` : ""}
+        <div class="row">${m.format === "replay" && S.dig ? `<button class="btn primary" data-lect="replay">Regarder le replay</button>` : m.format !== "replay" ? `<button class="btn primary" data-lect="live">Voir la salle d'attente</button><button class="btn" data-noop>Ajouter à mon Agenda</button>` : ""}<button class="btn" data-go="catalogue">Retour au catalogue</button></div>
+      </section></div></main>` };
+  }
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap"><div class="grid2">
+    <div class="stack">
+      <section class="card" aria-labelledby="h-order">
+        <h2 id="h-order">${free ? "Votre inscription" : "Votre commande"}</h2>
+        <div class="row" style="margin:.5rem 0 .75rem;flex-wrap:nowrap;align-items:flex-start"><div class="av" aria-hidden="true">${sp.ini}</div><div><b>${m.title}</b><div class="meta small">${FORMAT[m.format]} · avec ${sp.name}</div></div></div>
+        <dl class="props">
+          <div><dt>${m.format === "replay" ? "Accès" : "Date"}</dt><dd>${m.format === "replay" ? "Replay, 12 mois" : m.date + ", " + m.time}</dd></div>
+          <div><dt>Vendu par</dt><dd>${m.seller === "asso" ? "l'association " : ""}${m.sellerName}</dd></div>
+          <div><dt>Où</dt><dd>Sur le web, dans Jobbbox</dd></div>
+        </dl>
+      </section>
+      <section class="card" aria-labelledby="h-seller">
+        <h3 id="h-seller">Qui vous vend cette masterclass</h3>
+        ${m.seller === "jobbbox" ? `<p class="small">Cette masterclass est vendue par <b>Jobbbox</b>, au prix fixé par Jobbbox. ${sp.name} l'anime pour Jobbbox.</p>` :
+          `<p class="small">Cette masterclass est ${free ? "proposée" : "vendue"} par <b>${m.seller === "asso" ? "l'association " : ""}${m.sellerName}</b>${m.seller === "asso" ? ", association validée" : ", coach professionnelle"}, ${free ? "gratuitement" : "au prix qu'elle fixe"}. Jobbbox est la place de marché qui vous met en relation${free ? "" : " et encaisse le paiement pour son compte"}.</p>
+           <p class="small meta">Vendeur : ${m.sellerName} · SIRET 000 000 000 00000 (démo) · médiateur du vendeur : Médiateur de la consommation (démo).</p>`}
+      </section>
+      <section class="card stack" aria-labelledby="h-cgv" style="gap:.75rem">
+        <h3 id="h-cgv">Conditions</h3>
+        <div class="legal" tabindex="0" role="region" aria-label="Extrait des conditions générales de vente">
+          <h4>Conditions générales de vente · Masterclasses (version 1, démo)</h4>
+          <p>1. Une masterclass s'achète à l'unité, sur le web. Elle n'est jamais incluse dans un Plan ; la remise de votre Plan s'applique au prix.</p>
+          <p>2. Le live se suit dans Jobbbox. Le replay n'enregistre que l'intervenant et son écran, jamais les participants.</p>
+          <p>3. Vous disposez de 14 jours pour vous rétracter, sauf dans les cas des cases ci-dessous.</p>
+          <p>4. Si le live est annulé par le vendeur, vous êtes remboursé en entier dans Jobbbox.</p>
+          <p>5. Le contenu est réservé à votre usage personnel : pas de téléchargement de la vidéo ni de rediffusion.</p>
+        </div>
+        <a href="#" class="small" data-noop>Télécharger les CGV (PDF)</a>
+        <label class="check"><input type="checkbox" data-check="cgv" ${S.cgv ? "checked" : ""} ${err ? 'aria-invalid="true" aria-describedby="e-cgv"' : ""}> <span>J'ai lu et j'accepte les conditions générales de vente.</span></label>
+        ${err ? `<p id="e-cgv" class="err">Acceptez les conditions pour continuer.</p>` : ""}
+        ${needIpr ? `<label class="check"><input type="checkbox" data-check="ipr" ${S.ipr ? "checked" : ""}> <span>Facultatif : je demande que le service commence immédiatement, avant la fin du délai de rétractation. Je reconnais qu'une fois ${m.format === "serie" ? "les séances suivies" : "le live suivi"}, je ne peux plus me rétracter. Sans cette demande, ${m.format === "serie" ? "les séances ont lieu" : "le live a lieu"} de la même façon, et une rétractation est remboursée en entier.</span></label>` : ""}
+        ${needDig ? `<label class="check"><input type="checkbox" data-check="dig" ${S.dig ? "checked" : ""}> <span>Facultatif : je veux accéder ${m.format === "serie" ? "aux replays" : "au replay"} tout de suite. Je donne mon accord pour que ce contenu numérique me soit fourni avant la fin du délai de rétractation, et je reconnais perdre mon droit de rétractation dès le début de la lecture.</span></label>
+          <p class="xs meta" style="margin:0">Sans cette case, votre achat reste rétractable 14 jours et ${m.format === "serie" ? "les replays s'ouvrent" : "le replay s'ouvre"} à la fin de ce délai. (Proposition du prototype, à valider avec le juriste.)</p>` : ""}
+      </section>
+    </div>
+    <aside class="stack" aria-label="${free ? "Inscription" : "Paiement"}">
+      <section class="card stack" aria-labelledby="h-pay" style="gap:.75rem">
+        <h2 id="h-pay" style="font-size:1rem;margin:0">${free ? "Inscription" : "Paiement"}</h2>
+        ${free ? `<div class="total"><span class="big">Total</span><span class="big">Gratuit</span></div>` : `<div class="total">
+          <span>Prix public TTC</span><span class="num">${eur2(m.price)}</span>
+          <span class="disc">Remise Plan Premium (−20 %)</span><span class="num disc">−${eur2(m.price - total)}</span>
+          <span>dont TVA 20 %</span><span class="num">${eur2(vat)}</span>
+          <span class="big">Total TTC</span><span class="big num">${eur2(total)}</span>
+        </div>`}
+        <button class="btn primary" data-pay>${free ? "Confirmer l'inscription" : "Passer au paiement"}</button>
+        ${free ? `<p class="xs meta" style="margin:0">Aucun paiement. Vous recevez la confirmation par e-mail.</p>` :
+          `<p class="xs meta" style="margin:0">Vous payez sur la page sécurisée de Stripe, notre prestataire de paiement ; aucune carte n'est saisie dans Jobbbox. La commande est enregistrée quand Stripe confirme le paiement.</p>`}
+        <p class="xs meta" style="margin:0">${SELLER_LABEL[m.seller]} : ${m.sellerName}. Pas de code promo sur les masterclasses.</p>
+      </section>
+    </aside>
+  </div></div></main>`;
+  return { title, body };
+}
+
+function scrLecteur() {
+  const m = mc(), sp = SPEAKERS[m.sp];
+  const tabs = `<div class="tabs" role="tablist" aria-label="Mes inscriptions">
+    <button role="tab" aria-selected="${S.mode === "live"}" data-lect="live">Live à venir · 19 nov.</button>
+    <button role="tab" aria-selected="${S.mode === "replay"}" data-lect="replay">Replay · LinkedIn après 45 ans</button></div>`;
+  let main;
+  if (S.mode === "live") {
+    main = h`<section class="card stack" aria-labelledby="h-live" style="gap:.75rem">
+      <div class="row"><span class="pill danger">Live</span><h2 id="h-live" style="margin:0;font-size:1.1rem">${m.title}</h2></div>
+      <div class="player" role="img" aria-label="Salle d'attente du live, la masterclass commence dans 12 minutes"><div class="wait">
+        <div class="xs" style="opacity:.9">Salle d'attente</div><div class="big">12:04</div><div>avant le début · ${m.date}, ${m.time} (heure de Paris)</div>
+        <div class="xs" style="opacity:.9">${sp.name} vous rejoint à l'heure · 23 inscrits</div></div></div>
+      <div class="note small">Votre <b>caméra</b> et votre <b>micro</b> restent coupés pendant tout le live : seuls l'intervenante et son écran sont filmés, et seuls eux figurent dans le replay. Vous posez vos questions par écrit.</div>
+      <div class="dev"><span class="pill">Caméra : coupée</span><span class="pill">Micro : coupé</span><span class="pill ok">Son et connexion : testés</span><button class="btn sm" data-noop>Tester mon son</button></div>
+      <div class="field"><label for="q-live">Préparer une question pour ${sp.name.split(" ")[0]}</label><textarea id="q-live" placeholder="Votre question, envoyée au début des questions-réponses"></textarea></div>
+      <p class="xs meta" style="margin:0">Visio intégrée de la phase suivante (#845), dans le navigateur, sur le web seulement. Sous-titres en direct proposés si la visio les permet.</p>
+    </section>`;
+  } else {
+    const caps = { 9: "« Votre titre LinkedIn n'est pas votre poste actuel : c'est ce que vous apportez. »", 20: "« Trois publications par mois suffisent, si elles parlent de votre métier. »" };
+    const cap = S.t < 15 ? caps[9] : caps[20];
+    main = h`<section class="card stack" aria-labelledby="h-rep" style="gap:.5rem">
+      <div class="row"><span class="pill">Replay</span><h2 id="h-rep" style="margin:0;font-size:1.1rem">${m.title}</h2></div>
+      <div class="player" role="region" aria-label="Lecteur vidéo, replay">
+        <div class="slide"><h4>${S.t < 15 ? "Titre et résumé" : "Publier peu, publier juste"}</h4><ul>${S.t < 15 ? "<li>Ce que vous apportez, pas votre intitulé</li><li>Trois mots-clés de votre métier</li><li>Une phrase sur ce que vous cherchez</li>" : "<li>Trois publications par mois</li><li>Un retour d'expérience, pas un avis</li><li>Commenter avant de publier</li>"}</ul></div>
+        <div class="pip" aria-hidden="true">${sp.ini}</div>
+        ${S.cc ? `<div class="cap" aria-hidden="true">${cap}</div>` : ""}
+      </div>
+      <div class="ctrls">
+        <button class="btn sm" data-play aria-pressed="${S.playing}">${S.playing ? "❚❚ Pause" : "▶ Lecture"}</button>
+        <label class="vh" for="seek">Position dans la vidéo</label>
+        <input id="seek" type="range" min="0" max="75" value="${S.t}" data-seek aria-valuetext="${S.t} minutes sur 75">
+        <span class="xs num meta" aria-hidden="true">${String(S.t).padStart(2, "0")}:00 / 75:00</span>
+        <button class="btn sm" data-cc aria-pressed="${S.cc}">CC Sous-titres${S.cc ? " : activés" : " : désactivés"}</button>
+        <label class="vh" for="speed">Vitesse de lecture</label>
+        <select id="speed" data-speed class="btn sm" style="padding:.2rem .6rem">${["0.75", "1", "1.25", "1.5"].map((v) => `<option value="${v}" ${S.speed === v ? "selected" : ""}>×${v.replace(".", ",")}</option>`).join("")}</select>
+        <button class="btn sm" data-noop>Plein écran</button>
+      </div>
+      <p class="xs meta" style="margin:0">Lecture en streaming seulement : la vidéo ne se télécharge pas. Sous-titres français relus. Replay accessible jusqu'au 6 nov. 2027.</p>
+    </section>
+    <section class="card" aria-labelledby="h-chap"><h3 id="h-chap">Chapitres</h3>
+      <ol class="chap">${[[0, "Introduction"], [9, "Titre et résumé"], [20, "Publier peu, publier juste"], [41, "Demander une recommandation"], [58, "Questions des participants"]].map(([t, l]) =>
+        `<li class="${(S.t >= t && (t === 58 || S.t < [9, 20, 41, 58, 99][[0, 9, 20, 41, 58].indexOf(t)])) ? "on" : ""}"><time>${String(t).padStart(2, "0")}:00</time><button class="linkish" data-chap="${t}">${l}</button></li>`).join("")}</ol>
+      <p class="xs meta" style="margin:.5rem 0 0">Les questions des participants sont lues par l'intervenant : leurs voix et leurs visages ne sont pas enregistrés.</p>
+    </section>`;
+  }
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap"><div class="grid2">
+    <div class="stack">${tabs}${main}</div>
+    <aside class="stack" aria-label="Ressources et aide">
+      <section class="card" aria-labelledby="h-r2"><h3 id="h-r2">Ressources jointes</h3>
+        ${m.res.map(([t, s]) => `<div class="res"><div class="what">${t}<div class="xs meta">${s}</div></div><button class="btn sm" data-noop aria-label="Télécharger ${t}">Télécharger</button></div>`).join("")}</section>
+      <section class="card small" aria-labelledby="h-r3"><h3 id="h-r3">Vendu par</h3><p style="margin:0">${m.seller === "asso" ? "l'association " : ""}${m.sellerName}</p>
+        <p class="xs meta">Un problème avec ce contenu ? <button class="linkish" data-go="signaler">Signaler</button></p></section>
+    </aside>
+  </div></div></main>`;
+  return { title: `<span class="crumb hide-phone">Masterclasses › </span>Mes inscriptions`, body };
+}
+
+// ───────────────────────────── Human Coach (variante A) ─────────────────────────────
+const MINE = [
+  { t: "Raconter vingt ans de carrière en deux minutes", f: "live", st: ["ok", "Publiée"], d: "19 nov. 2026" },
+  { t: "Tester un métier avant de se reconvertir", f: "replay", st: ["ok", "Publiée"], d: "Replay" },
+  { t: "Les entretiens avec un recruteur qui utilise l'IA", f: "live", st: ["warn", "En relecture"], d: "3 déc. 2026" },
+  { t: "Le premier mois dans un nouveau poste", f: "serie", st: ["danger", "Refusée"], d: "—", why: "Motif de l'Administrator : la licence écrite n'est pas signée et le programme cite une marque sans autorisation. Corrigez puis soumettez de nouveau." },
+];
+function fld(id, label, input, hint = "", errMsg = "") {
+  return `<div class="field"><label for="${id}">${label}${hint ? ` <span class="hint">${hint}</span>` : ""}</label>${input}${errMsg ? `<p class="err" id="e-${id}">${errMsg}</p>` : ""}</div>`;
+}
+function scrCoachCreer() {
+  const c = S.c, T = S.cTried;
+  const eTitle = T && !c.title.trim() ? "Donnez un titre." : "", eProg = T && !c.prog.trim() ? "Décrivez le programme." : "", eLic = T && !c.licence ? "La licence écrite est nécessaire pour publier." : "", eSp = T && !c.speakerOnly && c.format !== "replay" ? "Confirmez ce point pour un live." : "";
+  const inv = (e, id) => e ? `aria-invalid="true" aria-describedby="e-${id}"` : "";
+  const commission = c.free ? 0 : (+c.price || 0) * COMMISSION;
+  const sent = S.cSent ? h`<section class="card stack" aria-labelledby="h-sent" style="gap:.5rem">
+      <div class="row"><h2 id="h-sent" tabindex="-1" style="margin:0">${esc(c.title)}</h2><span class="sp"></span><span class="pill warn">En relecture</span></div>
+      <p class="note warn small" role="status" style="margin:0"><b>Envoyée en relecture.</b> Un Administrator la relit avant toute publication, en général sous deux jours ouvrés. Vous recevrez sa décision par e-mail ; un refus est toujours motivé.</p>
+      <p class="small meta" style="margin:0">Pendant la relecture, la masterclass n'est pas visible des Candidates et ne peut pas être modifiée.</p>
+      <div class="row"><button class="btn sm" data-cnew>Créer une autre masterclass</button><button class="btn sm" data-go="coach-suivi">Voir mes inscrits et revenus</button></div>
+    </section>` : "";
+  const form = S.cSent ? "" : h`<form class="card stack" aria-labelledby="h-new" style="gap:.9rem" novalidate onsubmit="return false">
+      <h2 id="h-new" style="margin:0">Nouvelle masterclass</h2>
+      ${fld("c-title", "Titre", `<input id="c-title" type="text" data-c="title" value="${esc(c.title)}" placeholder="Ex. Les entretiens avec un recruteur qui utilise l'IA" ${inv(eTitle, "c-title")}>`, "", eTitle)}
+      <div class="fgrid">
+        ${fld("c-theme", "Thème", `<select id="c-theme" data-c="theme">${THEMES.map((t) => `<option ${c.theme === t ? "selected" : ""}>${t}</option>`).join("")}</select>`)}
+        ${fld("c-dur", "Durée", `<select id="c-dur" data-c="dur">${["45", "60", "75", "90"].map((v) => `<option value="${v}" ${c.dur === v ? "selected" : ""}>${v} min</option>`).join("")}</select>`, "45 à 90 min")}
+      </div>
+      <fieldset><legend>Format</legend><div class="choices3">
+        ${[["live", "Live", "Places limitées, replay ensuite"], ["replay", "Replay seul", "Une vidéo enregistrée"], ["serie", "Série", "2 à 4 séances en live"]].map(([v, l, d]) =>
+          `<label class="choice"><input type="radio" name="fmt" value="${v}" data-c="format" ${c.format === v ? "checked" : ""}><span><b>${l}</b><span class="xs meta">${d}</span></span></label>`).join("")}
+      </div></fieldset>
+      ${c.format !== "replay" ? `<div class="fgrid">
+        ${fld("c-date", c.format === "serie" ? "Date de la 1re séance" : "Date", `<input id="c-date" type="date" data-c="date" value="${c.date}">`)}
+        ${fld("c-time", "Heure (Paris)", `<input id="c-time" type="time" data-c="time" value="${c.time}">`)}
+        ${fld("c-seats", "Places", `<input id="c-seats" type="number" min="5" max="100" data-c="seats" value="${c.seats}">`, "5 à 100")}
+      </div>` : `<div class="filedrop"><span aria-hidden="true">⬆</span><span>Déposer la vidéo (MP4, 2 Go max) et ses sous-titres (VTT). Sans sous-titres, Jobbbox en génère, à relire.</span><button type="button" class="btn sm" data-noop>Choisir des fichiers</button></div>`}
+      ${fld("c-prog", "Programme", `<textarea id="c-prog" data-c="prog" placeholder="Une partie par ligne" ${inv(eProg, "c-prog")}>${esc(c.prog)}</textarea>`, "affiché tel quel sur la fiche", eProg)}
+      <div class="filedrop"><span aria-hidden="true">▤</span><span>Ressources jointes (PDF, 10 Mo max chacune)</span><button type="button" class="btn sm" data-noop>Ajouter un PDF</button></div>
+      <fieldset><legend>Prix et vente</legend>
+        <div class="fgrid">
+          ${fld("c-price", "Prix public TTC", `<input id="c-price" type="number" min="5" step="1" data-c="price" value="${c.free ? "" : c.price}" ${c.free ? "disabled" : ""}>`, "en euros")}
+          <div class="field" style="justify-content:flex-end"><label class="check"><input type="checkbox" data-cchk="free" ${c.free ? "checked" : ""}> <span>Gratuite</span></label></div>
+        </div>
+        <p class="small" style="margin:.5rem 0 0">Vendu par : <b>vous, Claire Martin</b>, au prix que vous fixez. Jobbbox prélève une commission de 20 %${c.free ? "" : ` (${eur2(commission)} par inscription)`}, et vous reverse le reste chaque mois, une fois le délai de rétractation clos. Les Candidates d'un Plan avec la remise masterclasses paient moins : la remise est à la charge de Jobbbox (démo).</p>
+        <p class="xs meta" style="margin:.25rem 0 0">Jamais incluse dans un Plan, pas de code promo. Vendue sur le web seulement.</p>
+      </fieldset>
+      <fieldset class="stack" style="gap:.6rem"><legend>Droits et enregistrement</legend>
+        <label class="check"><input type="checkbox" data-cchk="licence" ${c.licence ? "checked" : ""} ${inv(eLic, "c-lic")}> <span>Je signe la <button type="button" class="linkish" data-noop>licence écrite de cette masterclass</button> : je cède à Jobbbox le droit de la diffuser en live et en replay, pendant 12 mois, en France et dans l'UE, pour les Candidates inscrits.</span></label>
+        ${eLic ? `<p class="err" id="e-c-lic">${eLic}</p>` : ""}
+        ${c.format !== "replay" ? `<label class="check"><input type="checkbox" data-cchk="speakerOnly" ${c.speakerOnly ? "checked" : ""} ${inv(eSp, "c-sp")}> <span>J'ai compris que le replay n'enregistre que moi et mon écran, jamais les participants, et que je lis leurs questions moi-même.</span></label>${eSp ? `<p class="err" id="e-c-sp">${eSp}</p>` : ""}` : ""}
+      </fieldset>
+      ${T && (eTitle || eProg || eLic || eSp) ? `<p class="note danger small" role="alert" style="margin:0"><b>Il manque des informations.</b> Corrigez les champs signalés.</p>` : ""}
+      <div class="row"><button type="button" class="btn primary" data-csubmit>Envoyer en relecture</button><button type="button" class="btn" data-noop>Enregistrer le brouillon</button></div>
+    </form>`;
+  const mine = h`<section class="card" aria-labelledby="h-mine"><h2 id="h-mine">Mes masterclasses</h2><ul class="rows">
+      ${(S.cSent ? [{ t: esc(c.title), f: c.format, st: ["warn", "En relecture"], d: c.format === "replay" ? "Replay" : "10 déc. 2026" }] : []).concat(MINE).map((x) =>
+        `<li><div class="what"><b>${x.t}</b><small>${FORMAT[x.f]} · ${x.d}</small>${x.why ? `<small style="color:var(--color-text-secondary)">${x.why}</small>` : ""}</div><span class="pill ${x.st[0]}">${x.st[1]}</span></li>`).join("")}
+    </ul></section>`;
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap narrow">
+    <div class="ph"><h2>Créer et publier une masterclass</h2><p>Chaque masterclass est relue par un Administrator avant d'être publiée au catalogue.</p></div>
+    ${sent}${form}${mine}
+  </div></main>`;
+  return { title: `<span class="crumb">Masterclasses › </span>Créer et publier`, body };
+}
+
+const SALES = [
+  { t: "Raconter vingt ans de carrière en deux minutes", f: "live", d: "19 nov. 2026", seats: 30, n: 23, price: 29 },
+  { t: "Tester un métier avant de se reconvertir", f: "replay", d: "Replay", n: 41, price: 24 },
+  { t: "Atelier CV pour Rebond 45+ (offert)", f: "live", d: "29 oct. 2026", seats: 40, n: 36, price: 0 },
+];
+function scrCoachSuivi() {
+  const rows = SALES.map((s) => { const ca = s.n * s.price, com = ca * COMMISSION; return { ...s, ca, com, net: ca - com }; });
+  const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
+  const people = ["Sophie L.", "Marc D.", "Isabelle P.", "Thomas G.", "Nadia K.", "Jean-Paul R."];
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap narrow">
+    <div class="ph"><h2>Inscrits et revenus</h2><p>Vos masterclasses vendues par vous. Montants TTC, en euros (démo).</p></div>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Inscrits</div><div class="v">${sum("n")}</div></div>
+      <div class="kpi"><div class="k">Ventes TTC</div><div class="v">${eur(sum("ca"))}</div></div>
+      <div class="kpi"><div class="k">Commission Jobbbox (20 %)</div><div class="v">−${eur(sum("com"))}</div></div>
+      <div class="kpi"><div class="k">À vous reverser</div><div class="v">${eur(sum("net"))}</div></div>
+    </div>
+    <section class="card" aria-labelledby="h-per"><h2 id="h-per">Par masterclass</h2><div class="tw"><table class="t">
+      <thead><tr><th scope="col">Masterclass</th><th scope="col" class="r">Inscrits</th><th scope="col" class="r">Prix</th><th scope="col" class="r">Ventes</th><th scope="col" class="r">Commission</th><th scope="col" class="r">Net</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr><td><b style="font-weight:500">${r.t}</b><div class="xs meta">${FORMAT[r.f]} · ${r.d}</div></td><td class="r">${r.n}${r.seats ? ` / ${r.seats}` : ""}</td><td class="r">${r.price ? eur(r.price) : "Gratuit"}</td><td class="r">${eur(r.ca)}</td><td class="r">−${eur(r.com)}</td><td class="r">${eur(r.net)}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><td>Total</td><td class="r">${sum("n")}</td><td></td><td class="r">${eur(sum("ca"))}</td><td class="r">−${eur(sum("com"))}</td><td class="r">${eur(sum("net"))}</td></tr></tfoot>
+    </table></div>
+    <p class="xs meta" style="margin:.5rem 0 0">Prix public. Quand un Candidate a une remise de Plan, Jobbbox la prend à sa charge : votre net ne change pas (démo, à confirmer).</p></section>
+    <section class="card" aria-labelledby="h-pay"><h2 id="h-pay">Reversements</h2><ul class="rows">
+      <li><div class="what"><b>Octobre 2026</b><small>Versé le 5 nov. par Stripe sur votre compte</small></div><span class="num">412,80 €</span><span class="pill ok">Versé</span></li>
+      <li><div class="what"><b>Novembre 2026</b><small>Versé début décembre, une fois les délais de rétractation clos</small></div><span class="num">${eur2(sum("net") - 412.8 > 0 ? sum("net") - 412.8 : 0)}</span><span class="pill warn">En cours</span></li>
+    </ul><p class="xs meta" style="margin:.5rem 0 0">Jobbbox déclare vos ventes à l'administration fiscale (DAC7) et vous envoie le récapitulatif chaque année.</p></section>
+    <section class="card" aria-labelledby="h-ins"><header style="padding:0 0 .6rem;border:0"><h2 id="h-ins" style="margin:0">Inscrits · Raconter vingt ans… (19 nov.)</h2><span class="sp"></span><span class="pill">23 / 30</span></header>
+      <ul class="rows">${people.map((p, i) => `<li><div class="av sm" aria-hidden="true">${p.split(" ").map((w) => w[0]).join("")}</div><div class="what">${p}<small>Inscrit${i % 2 ? "" : "e"} le ${3 + i} nov.</small></div>${i === 2 ? '<span class="pill warn">Rétractation possible</span>' : ""}</li>`).join("")}</ul>
+      <p class="xs meta" style="margin:.5rem 0 0">Vous voyez le prénom et l'initiale des inscrits, jamais leur e-mail ni leur Profile. Et 17 autres inscrits.</p>
+      <div class="row" style="margin-top:.5rem"><button class="btn sm" data-noop>Écrire un message aux inscrits</button><button class="btn sm danger" data-noop>Annuler le live (tous remboursés)</button></div>
+    </section>
+  </div></main>`;
+  return { title: `<span class="crumb">Masterclasses › </span>Inscrits et revenus`, body };
+}
+
+// ───────────────────────────── Administrator (Back Office) ─────────────────────────────
+const REVIEW = {
+  r1: { t: "Les entretiens avec un recruteur qui utilise l'IA", by: "Claire Martin · Human Coach", seller: "Vendu par le coach · 35 €", f: "Live · 3 déc. 2026 · 60 min · 30 places", sent: "Envoyée le 5 nov.", checks: [[1, "Licence écrite signée (5 nov.)"], [1, "Intervenant validé"], [1, "Prix fixé par le vendeur, commission 20 %"], [0, "Le programme promet « 100 % de réussite » : allégation à vérifier"], [1, "Ressources jointes : 1 PDF analysé, pas de donnée personnelle"]] },
+  r2: { t: "Préparer un entretien en anglais", by: "Rebond 45+ · association", seller: "Proposé par l'association · Gratuit", f: "Série · 3 séances · 45 min · 40 places", sent: "Envoyée le 4 nov.", checks: [[1, "Licence écrite signée (4 nov.)"], [1, "Association validée"], [1, "Gratuite"], [1, "Programme conforme"]] },
+  r3: { t: "Les bases d'Excel pour la gestion", by: "Karim Benali · Human Coach", seller: "Vendu par Jobbbox · 19 €", f: "Replay · 55 min · sous-titres générés", sent: "Envoyée le 3 nov.", checks: [[1, "Licence écrite signée"], [0, "Sous-titres générés non relus"], [1, "Vidéo : seul l'intervenant apparaît"]] },
+};
+const REPORTS = {
+  g1: { t: "Tester un métier avant de se reconvertir", who: "Signalement sans compte · Jean Dupont · jean.dupont@exemple.fr", motif: "Atteinte aux droits d'auteur", text: "Les diapositives 4 à 9 reprennent mot pour mot mon livre publié en 2023, sans autorisation.", when: "Reçu le 5 nov. · délai visé : 7 jours" },
+  g2: { t: "Raconter vingt ans de carrière en deux minutes", who: "Signalement d'un Candidate inscrit", motif: "Contenu trompeur", text: "La fiche annonce 60 minutes, le live a duré 35 minutes.", when: "Reçu le 6 nov." },
+};
+function scrAdmin() {
+  const tabs = `<div class="tabs" role="tablist" aria-label="File de modération"><button role="tab" aria-selected="${S.atab === "relire"}" data-atab="relire">À relire (3)</button><button role="tab" aria-selected="${S.atab === "signal"}" data-atab="signal">Signalements (2)</button></div>`;
+  let content;
+  if (S.atab === "relire") {
+    const r = REVIEW[S.rsel], dec = S.rDec[S.rsel];
+    const eR = S.rTried && !S.rReason.trim();
+    content = h`<div class="bo-grid">
+      <ul class="queue" aria-label="Masterclasses à relire">${Object.entries(REVIEW).map(([k, x]) => `<li><button data-rsel="${k}" aria-current="${S.rsel === k}"><b>${x.t}</b><small>${x.by}</small><small>${x.sent}${S.rDec[k] ? ` · ${S.rDec[k].ok ? "Approuvée" : "Refusée"}` : ""}</small></button></li>`).join("")}</ul>
+      <section class="card stack" aria-labelledby="h-rv" style="gap:.75rem">
+        <div class="row"><h2 id="h-rv" style="margin:0">${r.t}</h2><span class="sp"></span><span class="pill ${dec ? (dec.ok ? "ok" : "danger") : "warn"}">${dec ? (dec.ok ? "Publiée" : "Refusée") : "En relecture"}</span></div>
+        <dl class="props"><div><dt>Auteur</dt><dd>${r.by}</dd></div><div><dt>Vente</dt><dd>${r.seller}</dd></div><div><dt>Format</dt><dd>${r.f}</dd></div></dl>
+        <div><h3>Points à vérifier</h3><ul class="checklist">${r.checks.map(([ok, l]) => `<li><span class="${ok ? "ok" : "ko"}" aria-hidden="true">${ok ? "✓" : "!"}</span><span><span class="vh">${ok ? "Conforme : " : "À vérifier : "}</span>${l}</span></li>`).join("")}</ul></div>
+        <div class="row"><button class="btn sm" data-noop>Voir la fiche telle que publiée</button><button class="btn sm" data-noop>Lire la licence (PDF)</button></div>
+        ${dec ? `<p class="note ${dec.ok ? "ok" : "danger"} small" role="status" style="margin:0"><b>${dec.ok ? "Approuvée et publiée au catalogue." : "Refusée."}</b> ${dec.ok ? "L'auteur est prévenu par e-mail." : `Motif envoyé à l'auteur : « ${esc(dec.why)} »`}</p>` : h`
+        <div class="field"><label for="r-why">Motif du refus <span class="hint">obligatoire pour refuser, envoyé à l'auteur</span></label>
+          <textarea id="r-why" data-rreason ${eR ? 'aria-invalid="true" aria-describedby="e-r-why"' : ""} placeholder="Ex. Retirez l'allégation « 100 % de réussite », interdite comme pratique commerciale trompeuse.">${esc(S.rReason)}</textarea>
+          ${eR ? `<p class="err" id="e-r-why">Écrivez le motif du refus.</p>` : ""}</div>
+        <div class="row"><button class="btn primary" data-rok>Approuver et publier</button><button class="btn danger" data-rko>Refuser avec ce motif</button></div>`}
+      </section></div>`;
+  } else {
+    const g = REPORTS[S.gsel], dec = S.gDec[S.gsel];
+    const eG = S.gTried && !S.gReason.trim();
+    content = h`<div class="bo-grid">
+      <ul class="queue" aria-label="Signalements">${Object.entries(REPORTS).map(([k, x]) => `<li><button data-gsel="${k}" aria-current="${S.gsel === k}"><b>${x.motif}</b><small>${x.t}</small><small>${x.when}${S.gDec[k] ? " · Décidé" : ""}</small></button></li>`).join("")}</ul>
+      <section class="card stack" aria-labelledby="h-gv" style="gap:.75rem">
+        <div class="row"><h2 id="h-gv" style="margin:0">${g.motif}</h2><span class="sp"></span><span class="pill ${dec ? "ok" : "warn"}">${dec ? "Décidé" : "À traiter"}</span></div>
+        <dl class="props"><div><dt>Contenu</dt><dd>${g.t}</dd></div><div><dt>Signalé par</dt><dd>${g.who}</dd></div><div><dt>Reçu</dt><dd>${g.when}</dd></div></dl>
+        <blockquote class="q">${g.text}</blockquote>
+        ${dec ? `<p class="note ok small" role="status" style="margin:0"><b>Décision envoyée.</b> ${dec.label}. Exposé des motifs envoyé à l'auteur et à la personne qui a signalé, avec les voies de recours (réclamation interne, médiation, juge).</p>` : h`
+        <fieldset><legend>Décision</legend><div class="choices3">
+          ${[["retirer", "Retirer la masterclass", "Retrait motivé, inscrits remboursés"], ["restreindre", "Suspendre la vente", "Le temps d'une vérification"], ["maintenir", "Maintenir", "Le signalement n'est pas fondé"]].map(([v, l, d]) =>
+            `<label class="choice"><input type="radio" name="gdec" value="${v}" data-gchoice ${S.gChoice === v ? "checked" : ""}><span><b>${l}</b><span class="xs meta">${d}</span></span></label>`).join("")}
+        </div></fieldset>
+        <div class="field"><label for="g-why">Exposé des motifs <span class="hint">obligatoire, envoyé à l'auteur et à la personne qui a signalé</span></label>
+          <textarea id="g-why" data-greason ${eG ? 'aria-invalid="true" aria-describedby="e-g-why"' : ""} placeholder="Faits, règle appliquée (loi ou conditions), moyens de contester.">${esc(S.gReason)}</textarea>
+          ${eG ? `<p class="err" id="e-g-why">Écrivez l'exposé des motifs.</p>` : ""}</div>
+        <p class="xs meta" style="margin:0">Décision prise par une personne, sans outil automatisé. Elle est enregistrée pour le rapport de transparence.</p>
+        <div class="row"><button class="btn primary" data-gdecide>Envoyer la décision motivée</button></div>`}
+      </section></div>`;
+  }
+  const body = h`<main class="page" id="contenu" tabindex="-1"><div class="wrap stack" style="gap:1rem">
+    <div class="ph"><h2>Masterclasses : relecture et signalements</h2><p>Esquisse du Back Office. Rien n'est publié sans l'approbation d'un Administrator ; tout retrait est motivé.</p></div>
+    ${tabs}${content}
+  </div></main>`;
+  return { title: `<span class="crumb">Back Office › </span>Masterclasses`, body };
+}
+
+// ───────────────────────────── Page publique : signalement ─────────────────────────────
+const MOTIFS = [["", "Choisir un motif"], ["illicite", "Contenu illicite"], ["auteur", "Atteinte aux droits d'auteur"], ["trompeur", "Contenu ou fiche trompeuse"], ["haine", "Discours haineux ou harcèlement"], ["perso", "Données personnelles exposées"], ["mineur", "Abus sexuel sur mineur"], ["autre", "Autre"]];
+function scrSignaler() {
+  const f = S.s, T = S.sTried, m = mc();
+  const anon = f.motif === "mineur";
+  const e = {
+    motif: T && !f.motif ? "Choisissez un motif." : "",
+    text: T && f.text.trim().length < 20 ? "Expliquez en quelques phrases pourquoi ce contenu est illicite (20 caractères au moins)." : "",
+    name: T && !anon && !f.name.trim() ? "Indiquez votre nom." : "",
+    mail: T && !anon && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.mail) ? "Indiquez une adresse e-mail valide." : "",
+    good: T && !f.good ? "Cochez cette déclaration pour envoyer." : "",
+  };
+  const inv = (k, id) => e[k] ? `aria-invalid="true" aria-describedby="e-${id}"` : "";
+  const errs = Object.values(e).filter(Boolean).length;
+  const content = S.sDone ? h`<section class="card stack" aria-labelledby="h-done" style="gap:.6rem">
+      <p class="note ok" role="status" style="margin:0"><b>Signalement reçu.</b> Numéro : SIG-2026-11-0087.</p>
+      <h1 id="h-done" tabindex="-1" style="margin:0;font-size:1.5rem">Merci, nous l'examinons</h1>
+      <p class="small">Une personne de l'équipe Jobbbox examine votre signalement, sans outil automatisé. ${anon ? "Vous n'avez pas laissé de coordonnées : nous ne pourrons pas vous informer de la décision." : `Vous recevrez à <b>${esc(f.mail)}</b> un accusé de réception, puis la décision motivée et les moyens de la contester.`}</p>
+      <div class="row"><button class="btn" data-sreset>Faire un autre signalement</button></div>
+    </section>` : h`<form class="card stack" aria-labelledby="h-sig" style="gap:.9rem" novalidate onsubmit="return false">
+      <h1 id="h-sig" style="margin:0;font-size:1.5rem">Signaler un contenu</h1>
+      <p class="small sec" style="margin:0">Pas besoin de compte Jobbbox. Une personne examine chaque signalement et prend une décision motivée.</p>
+      ${fld("s-url", "Contenu concerné", `<input id="s-url" type="url" data-s="url" value="${esc(f.url || "https://jobbbox.ai/masterclasses/" + m.id)}">`, "lien de la masterclass")}
+      <p class="xs meta" style="margin:-.5rem 0 0">« ${m.title} », ${SELLER_LABEL[m.seller].toLowerCase()} ${m.sellerName}.</p>
+      ${fld("s-motif", "Motif", `<select id="s-motif" data-s="motif" ${inv("motif", "s-motif")}>${MOTIFS.map(([v, l]) => `<option value="${v}" ${f.motif === v ? "selected" : ""}>${l}</option>`).join("")}</select>`, "", e.motif)}
+      ${fld("s-text", "Pourquoi ce contenu est-il illicite ?", `<textarea id="s-text" data-s="text" ${inv("text", "s-text")} placeholder="Précisez ce qui pose problème et où (minute de la vidéo, page du PDF…).">${esc(f.text)}</textarea>`, "", e.text)}
+      <div class="fgrid">
+        ${fld("s-name", "Votre nom", `<input id="s-name" type="text" autocomplete="name" data-s="name" value="${esc(f.name)}" ${inv("name", "s-name")}>`, anon ? "facultatif pour ce motif" : "", e.name)}
+        ${fld("s-mail", "Votre e-mail", `<input id="s-mail" type="email" autocomplete="email" data-s="mail" value="${esc(f.mail)}" ${inv("mail", "s-mail")}>`, anon ? "facultatif pour ce motif" : "pour recevoir la décision", e.mail)}
+      </div>
+      <label class="check"><input type="checkbox" data-schk="good" ${f.good ? "checked" : ""} ${inv("good", "s-good")}> <span>Je déclare de bonne foi que les informations de ce signalement sont exactes et complètes.</span></label>
+      ${e.good ? `<p class="err" id="e-s-good">${e.good}</p>` : ""}
+      ${errs ? `<p class="note danger small" role="alert" style="margin:0"><b>${errs} champ${errs > 1 ? "s" : ""} à corriger.</b></p>` : ""}
+      <div class="row"><button type="button" class="btn primary" data-ssend>Envoyer le signalement</button></div>
+      <p class="xs meta" style="margin:0">Vos coordonnées servent seulement à traiter ce signalement ; elles ne sont pas transmises à l'auteur. Un signalement manifestement abusif peut être ignoré.</p>
+    </form>`;
+  return h`<div class="pub">
+    <header class="top"><span class="brandp"><i aria-hidden="true">J</i>Jobbbox</span><button class="btn sm" data-noop>Se connecter</button></header>
+    <main class="page" id="contenu" tabindex="-1"><div class="wrap narrow">${content}</div></main>
+  </div>`;
+}
+
+const RENDER = { catalogue: scrCatalogue, masterclass: scrMasterclass, commande: scrCommande, lecteur: scrLecteur, "coach-creer": scrCoachCreer, "coach-suivi": scrCoachSuivi, "admin-relecture": scrAdmin };
+
+// ───────────────────────────── Rendu + barre prototype ─────────────────────────────
+function proto() {
+  const mcOn = ["masterclass", "commande", "signaler"].includes(S.screen);
+  return h`<div class="proto" role="region" aria-label="Barre du prototype">
+    <label class="vh" for="p-screen">Écran</label>
+    <select id="p-screen" data-pscreen>${Object.entries(SCREENS).map(([k, v]) => `<option value="${k}" ${S.screen === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+    ${mcOn ? `<span class="sep" aria-hidden="true"></span><label class="vh" for="p-mc">Masterclass</label><select id="p-mc" data-pmc>${MCS.map((m) => `<option value="${m.id}" ${mcId() === m.id ? "selected" : ""}>${FORMAT[m.format]}${m.price ? "" : " gratuite"} · ${m.title.slice(0, 16)}…</option>`).join("")}</select>` : ""}
+    <span class="sep" aria-hidden="true"></span><button data-theme aria-pressed="${S.theme === "dark"}">${S.theme === "dark" ? "Sombre" : "Clair"}</button>
+  </div>`;
+}
+function render() {
+  document.documentElement.dataset.theme = S.theme;
+  const active = document.activeElement;
+  const key = active && active !== document.body ? (active.id || (active.dataset && Object.keys(active.dataset).length ? active.tagName + JSON.stringify(active.dataset) + (active.value ?? "") : null)) : null;
+  let html;
+  if (S.screen === "signaler") html = scrSignaler();
+  else {
+    const r = RENDER[S.screen]();
+    const sb = { cand: sidebarCandidate, coach: sidebarCoach, bo: sidebarBo }[SHELL[S.screen]]();
+    html = `<div class="app ${S.drawer ? "drawer" : ""}">${sb}<div class="scrim" data-drawer></div><div class="main">${topbar(r.title, r.top ?? "")}${r.body}</div></div>`;
+  }
+  document.getElementById("root").innerHTML = `<a class="skip" href="#contenu">Aller au contenu</a>${html}${proto()}`;
+  document.title = `${SCREENS[S.screen]} — Masterclasses (prototype)`;
+  if (S.focus) { const el = document.querySelector(S.focus); if (el) el.focus(); S.focus = null; }
+  else if (key) {
+    const el = document.getElementById(key) || [...document.querySelectorAll("button, select, input, textarea")].find((e) => e.dataset && (e.tagName + JSON.stringify(e.dataset) + (e.value ?? "")) === key);
+    el?.focus();
+  }
+}
+const firstErr = () => { S.focus = "[aria-invalid='true']"; };
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("button, a");
+  if (!el) return;
+  const d = el.dataset;
+  if (el.tagName === "A" && el.getAttribute("href") === "#") e.preventDefault();
+  if (d.noop !== undefined) return;
+  if (d.drawer !== undefined) return set({ drawer: !S.drawer });
+  if (d.theme !== undefined) return set({ theme: S.theme === "dark" ? "light" : "dark" });
+  if (d.go) return set({ screen: d.go, drawer: false, sDone: false, sTried: false, stage: "form" });
+  if (d.open) return set({ screen: "masterclass", mc: d.open, drawer: false, focus: "#contenu" });
+  if (d.ffmt !== undefined) return set({ fFormat: d.ffmt });
+  if (d.freset !== undefined) return set({ fTheme: "", fFormat: "", fWhen: "" });
+  if (d.buy) return set({ screen: "commande", mc: d.buy, cgv: false, ipr: false, dig: false, tried: false, stage: "form", focus: "#contenu" });
+  if (d.pay !== undefined) {
+    if (!S.cgv) { firstErr(); return set({ tried: true }); }
+    return set({ stage: mc().price === 0 ? "done" : "stripe", focus: "#contenu" });
+  }
+  if (d.stage) return set({ stage: d.stage, focus: "#contenu" });
+  if (d.lect) return set({ screen: "lecteur", mode: d.lect, mc: d.lect === "live" ? "pitch" : "linkedin", stage: "form" });
+  if (d.play !== undefined) return set({ playing: !S.playing });
+  if (d.cc !== undefined) return set({ cc: !S.cc });
+  if (d.chap !== undefined) return set({ t: Math.max(+d.chap, 1) });
+  if (d.csubmit !== undefined) {
+    const c = S.c;
+    if (!c.title.trim() || !c.prog.trim() || !c.licence || (c.format !== "replay" && !c.speakerOnly)) { firstErr(); return set({ cTried: true }); }
+    return set({ cSent: true, cTried: false, focus: "#h-sent" });
+  }
+  if (d.cnew !== undefined) return set({ cSent: false, c: { ...S.c, title: "", prog: "", licence: false, speakerOnly: false } });
+  if (d.atab) return set({ atab: d.atab, drawer: false });
+  if (d.rsel) return set({ rsel: d.rsel, rReason: "", rTried: false });
+  if (d.rok !== undefined) { S.rDec[S.rsel] = { ok: true }; return set({ rTried: false }); }
+  if (d.rko !== undefined) { if (!S.rReason.trim()) { firstErr(); return set({ rTried: true }); } S.rDec[S.rsel] = { ok: false, why: S.rReason }; return set({ rTried: false }); }
+  if (d.gsel) return set({ gsel: d.gsel, gReason: "", gTried: false, gChoice: "retirer" });
+  if (d.gdecide !== undefined) {
+    if (!S.gReason.trim()) { firstErr(); return set({ gTried: true }); }
+    S.gDec[S.gsel] = { label: { retirer: "Masterclass retirée, inscrits remboursés", restreindre: "Vente suspendue le temps de vérifier", maintenir: "Masterclass maintenue" }[S.gChoice] };
+    return set({ gTried: false });
+  }
+  if (d.ssend !== undefined) {
+    const f = S.s, anon = f.motif === "mineur";
+    const ok = f.motif && f.text.trim().length >= 20 && f.good && (anon || (f.name.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.mail)));
+    if (!ok) { firstErr(); return set({ sTried: true }); }
+    return set({ sDone: true, focus: "#h-done" });
+  }
+  if (d.sreset !== undefined) return set({ sDone: false, sTried: false, s: { url: "", motif: "", text: "", name: "", mail: "", good: false } });
+});
+document.addEventListener("change", (e) => {
+  const t = e.target, d = t.dataset;
+  if (d.pscreen !== undefined) return set({ screen: t.value, mc: null, drawer: false, stage: "form", tried: false, cgv: false, ipr: false, dig: false, sDone: false, sTried: false });
+  if (d.pmc !== undefined) return set({ mc: t.value, stage: "form", cgv: false, ipr: false, dig: false, tried: false });
+  if (d.ftheme !== undefined) return set({ fTheme: t.value });
+  if (d.fwhen !== undefined) return set({ fWhen: t.value });
+  if (d.check) return set({ [d.check]: t.checked });
+  if (d.speed !== undefined) return set({ speed: t.value });
+  if (d.c && (t.tagName === "SELECT" || t.type === "radio")) { S.c[d.c] = t.value; return render(); }
+  if (d.cchk) { S.c[d.cchk] = t.checked; return render(); }
+  if (d.gchoice !== undefined) { S.gChoice = t.value; return; }
+  if (d.s === "motif") { S.s.motif = t.value; return render(); }
+  if (d.schk) { S.s[d.schk] = t.checked; return render(); }
+});
+document.addEventListener("input", (e) => {
+  const t = e.target, d = t.dataset;
+  if (d.seek !== undefined) { S.t = +t.value; return render(); }
+  if (d.c && t.tagName !== "SELECT" && t.type !== "radio") S.c[d.c] = t.value;
+  if (d.rreason !== undefined) S.rReason = t.value;
+  if (d.greason !== undefined) S.gReason = t.value;
+  if (d.s && d.s !== "motif") S.s[d.s] = t.value;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && S.drawer) { set({ drawer: false }); document.querySelector("[data-drawer]")?.focus(); }
+});
+
+readUrl(); writeUrl(); render();
+</script>
+</body>
+</html>

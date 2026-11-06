@@ -141,6 +141,8 @@ export interface PricedTurn {
   provider: ProviderId;
   model: string;
   usage: TokenUsage;
+  /** Its AI Usage id (#790): what a result served by several turns links to, each of them. */
+  callId?: string;
 }
 
 /**
@@ -1015,7 +1017,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           costEur: turns.reduce((total, each) => total + each.costEur, 0),
           ...(turn.facts.callId ? { callId: turn.facts.callId } : {}),
           ...(identity ? { euAiConsent: true as const } : {}),
-          ...(tools ? { tools: { supported, rounds, runs }, turns: turns.map(({ provider, model, usage }) => ({ provider, model, usage })) } : {}),
+          ...(tools ? { tools: { supported, rounds, runs }, turns: turns.map(({ provider, model, usage, callId }) => ({ provider, model, usage, ...(callId ? { callId } : {}) })) } : {}),
         };
       }
       // The model's turn as it wrote it, the Candidate's values back in it; then each tool's result, in order.

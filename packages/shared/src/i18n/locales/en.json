@@ -2770,7 +2770,7 @@
         "user": "Request",
         "assistant": "Earlier reply"
       },
-      "reply": "Reply",
+      "reply": "Whole reply (all its calls)",
       "noReply": "No reply: the call failed.",
       "outcomes": {
         "ok": "OK",
@@ -2797,7 +2797,10 @@
       "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end.",
       "context": "Context estimated / measured",
       "contextValue": "{{estimate}} / {{measure}} ({{gap}})",
-      "noContext": "—"
+      "noContext": "—",
+      "replyValue_one": "{{calls}} call · {{total}} sent ({{gap}}) · {{cached}} cached · {{rounds}} tool rounds",
+      "replyValue_other": "{{calls}} calls · {{total}} sent ({{gap}}) · {{cached}} cached · {{rounds}} tool rounds",
+      "replyTurn": "turn {{turn}}"
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
@@ -5885,8 +5888,8 @@
     "details": "See the breakdown",
     "breakdown": {
       "title": "Context breakdown",
-      "intro": "What the coach was sent with its latest reply, estimated in tokens, out of your plan's ceiling.",
-      "introUnlimited": "What the coach was sent with its latest reply, estimated in tokens. Your plan sets no ceiling.",
+      "intro": "What the coach reads to reply, estimated in tokens, out of your plan's ceiling. It is not what the reply cost: see « This reply » below.",
+      "introUnlimited": "What the coach reads to reply, estimated in tokens. Your plan sets no ceiling. It is not what the reply cost: see « This reply » below.",
       "empty": "The breakdown shows after the coach's first reply.",
       "total": "{{tokens}} / {{maxTokens}} tokens",
       "value": "{{tokens}} tokens · {{percent}}%",
@@ -5897,6 +5900,16 @@
         "advice": "Agents' advice",
         "sources": "Sources",
         "free": "Free space"
+      },
+      "reply": {
+        "title": "This reply",
+        "total_one": "This reply: {{count}} call, {{tokens}} tokens sent in all",
+        "total_other": "This reply: {{count}} calls, {{tokens}} tokens sent in all",
+        "rounds_one": "The coach looked at your data in {{count}} round before replying.",
+        "rounds_other": "The coach looked at your data in {{count}} rounds before replying.",
+        "noRounds": "The coach replied without looking at other data.",
+        "cached": "Of which {{tokens}} read again from the provider's cache, at a lower cost.",
+        "why": "This total can exceed the context size above: each call (choosing the advice, the agents, the checks, then each round in which the coach looks at your data) sends the whole context again, with what the coach has already read. It is a technical measure, not counted against your plan."
       }
     }
   },

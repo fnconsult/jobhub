@@ -334,9 +334,21 @@ describe("AI Usage of a call with tools (#712)", () => {
     expect(usage.entries.map((entry) => entry.provider)).toEqual(["anthropic", "mistral"]);
     expect(costInEur(result)).toBeCloseTo(turns[0]! + turns[1]!, 12);
     expect(result.turns).toEqual([
-      { provider: "anthropic", model: "fake-anthropic", usage: { inputTokens: 1000, outputTokens: 50 } },
-      { provider: "mistral", model: "fake-mistral", usage: { inputTokens: 10, outputTokens: 5 } },
+      { provider: "anthropic", model: "fake-anthropic", usage: { inputTokens: 1000, outputTokens: 50 }, callId: usage.entries[0]!.id },
+      { provider: "mistral", model: "fake-mistral", usage: { inputTokens: 10, outputTokens: 5 }, callId: usage.entries[1]!.id },
     ]);
+  });
+
+  it("gives each turn the AI Usage id it is recorded under (#790), the last one the call's", async () => {
+    const { usage, ask } = setUp([LISTE(), LISTE("refusée"), { text: "ok" }]);
+
+    const result = await ask();
+
+    const ids = usage.entries.map((entry) => entry.id);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    expect(result.turns!.map((turn) => turn.callId)).toEqual(ids);
+    expect(result.callId).toBe(ids[2]);
   });
 
   it("records the feature's warnings once, with the last turn, and checks only the final reply", async () => {

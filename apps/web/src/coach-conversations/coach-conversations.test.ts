@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { CoachContextLimits, Provenance, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -280,7 +281,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       const first = await conversations.send(marie, { message: "Bonjour" });
       if (!first.ok) throw new Error("refused");
 
-      const expected = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: SPLIT, upgrade: null };
+      const expected = { messages: 2, tokens: 3_300, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: SPLIT, upgrade: null, reply: null };
       expect(first.context).toEqual(expected);
       expect((await conversations.open(marie, first.conversation.id))!.context).toEqual(expected);
 
@@ -292,7 +293,32 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       const first = await conversations.send(marie, { message: "Bonjour" });
       if (!first.ok) throw new Error("refused");
 
-      expect(first.context).toEqual({ messages: 2, tokens: 0, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: null, upgrade: null });
+      expect(first.context).toEqual({ messages: 2, tokens: 0, limits: { coachContextMessages: 4, coachContextTokens: 6_000 }, split: null, upgrade: null, reply: null });
+    });
+
+    it("keeps every AI call of a reply and says what the whole reply sent, beside the context, never as the bar's figure (#790)", async () => {
+      const calls = { ids: [randomUUID(), randomUUID(), randomUUID(), randomUUID()], turns: [randomUUID(), randomUUID(), randomUUID()], rounds: 2, tools: ["profil_lire", "candidatures_lister"] };
+      calls.ids.splice(1, 3, ...calls.turns);
+      coachReply = () => ({
+        ok: true,
+        reply: "Réponse",
+        outcome: "replied",
+        cost: { ...cost(0.01), inputTokens: 12_000, cachedInputTokens: 6_000, outputTokens: 900 },
+        provenance: PROVENANCE,
+        playbooks: [],
+        consultations: [],
+        contextTokens: 3_300,
+        contextSplit: SPLIT,
+        calls,
+      });
+      const first = await conversations.send(marie, { message: "Bonjour" });
+      if (!first.ok) throw new Error("refused");
+
+      const reply = { calls: 4, turns: 3, rounds: 2, tools: ["profil_lire", "candidatures_lister"], inputTokens: 18_000, cachedInputTokens: 6_000, outputTokens: 900 };
+      expect(first.context).toMatchObject({ tokens: 3_300, reply });
+      expect((await conversations.open(marie, first.conversation.id))!.context.reply).toEqual(reply);
+      const { rows } = await database.query("SELECT ai_call_ids, ai_turn_ids, tool_rounds, tool_names FROM coach_message WHERE author = 'coach'");
+      expect(rows).toEqual([{ ai_call_ids: calls.ids, ai_turn_ids: calls.turns, tool_rounds: 2, tool_names: calls.tools }]);
     });
 
     it("names, once the bar is nearly full, the Plan above that allows more, read for the Candidate's Plan (#732)", async () => {

@@ -564,6 +564,19 @@ export const coachConversationSchema = coachConversationSummarySchema.extend({
     split: z.object({ messages: z.number().int().min(0), instructions: z.number().int().min(0), profile: z.number().int().min(0), advice: z.number().int().min(0), sources: z.number().int().min(0) }).nullable().optional(),
     /** Once nearly full, the next offered Plan whose Coach context limits allow more (#732); null when none does or below 80 %. */
     upgrade: z.object({ plan: z.string(), name: z.object({ fr: z.string(), en: z.string() }) }).nullable().optional(),
+    /** What the latest reply sent in all its AI calls (#790), never the bar's figure; null for a reply saved before. */
+    reply: z
+      .object({
+        calls: z.number().int().min(0),
+        turns: z.number().int().min(0),
+        rounds: z.number().int().min(0),
+        tools: z.array(z.string()),
+        inputTokens: z.number().int().min(0),
+        cachedInputTokens: z.number().int().min(0),
+        outputTokens: z.number().int().min(0),
+      })
+      .nullable()
+      .optional(),
   }),
 });
 export type CoachConversationRead = z.infer<typeof coachConversationSchema>;

@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { formatTokens } from "@jobhub/shared";
-import { contextBar, contextBreakdown, type ConversationContext } from "@/coach/conversation";
+import { contextBar, contextBreakdown, type ConversationContext, type ReplyCost } from "@/coach/conversation";
 import { ClearConversationButton, useConversationFirst } from "@/components/conversation-first";
 import { buttonClass } from "@/design/button-class";
 import { Drawer } from "@/design/Drawer";
@@ -111,10 +111,31 @@ function ContextBreakdown({ context, language }: { context: ConversationContext 
               </li>
             ))}
           </ul>
+          {context?.reply ? <ReplyCostLine reply={context.reply} language={language} /> : null}
         </div>
       ) : (
         <p>{t("contextBar.breakdown.empty")}</p>
       )}
     </Drawer>
+  );
+}
+
+/**
+ * « Cette réponse » (#790): what the latest reply sent in all, every one of its AI calls summed as the provider counted them,
+ * with its Tool rounds and why it can exceed the context above (each call reads the whole context again). Tokens only, never
+ * euros; a technical measure, not the Context bar's figure and nothing counted against a Plan.
+ */
+function ReplyCostLine({ reply, language }: { reply: ReplyCost; language: "fr" | "en" }) {
+  const { t } = useTranslation();
+  return (
+    <section className="context-breakdown-reply" aria-labelledby="context-breakdown-reply-title">
+      <h3 id="context-breakdown-reply-title" className="context-breakdown-reply-title">
+        {t("contextBar.breakdown.reply.title")}
+      </h3>
+      <p className="context-breakdown-total">{t("contextBar.breakdown.reply.total", { count: reply.calls, tokens: formatTokens(reply.inputTokens, language) })}</p>
+      <p>{reply.rounds > 0 ? t("contextBar.breakdown.reply.rounds", { count: reply.rounds }) : t("contextBar.breakdown.reply.noRounds")}</p>
+      {reply.cachedInputTokens > 0 ? <p>{t("contextBar.breakdown.reply.cached", { tokens: formatTokens(reply.cachedInputTokens, language) })}</p> : null}
+      <p className="context-breakdown-reply-why">{t("contextBar.breakdown.reply.why")}</p>
+    </section>
   );
 }

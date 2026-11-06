@@ -4,10 +4,11 @@ import { importanceTier, offerBoxView, postingAge, type OfferBoxDay, type OfferB
 import { DISMISSAL_REASONS, type DismissalReason, type OfferBoxEntryRead, type OfferBoxResponse } from "@jobhub/shared/reads";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { buttonClass } from "@/design/button-class";
 import { EmptyState } from "@/design/EmptyState";
+import { useHydrated } from "@/design/hydrated";
 import { Pill } from "@/design/Pill";
 import { ToastProvider, useToast } from "@/design/Toast";
 import { routes } from "@/routes";
@@ -19,11 +20,18 @@ import "./OfferBox.css";
  * the top while it scrolls; « Aujourd'hui » then « Précédemment », each by Importance tier, their headings staying under
  * the header too. Each line: its Match Score, title, employer, place, contract, source chips, posting age and Profile,
  * « Suivre » (its Application, « À postuler »), « Écarter » (its Dismissal reasons or « Écarter sans motif », then a toast
- * with « Annuler », #816) and « Lire l'offre » (the Work Pane). An entry « À ne pas manquer » still à traiter is set off by
+ * with « Annuler », which takes the keyboard focus, #816; an « Annuler » that fails says so above the entries) and « Lire
+ * l'offre » (the Work Pane). Its buttons wait, disabled, until the page is hydrated (#446). An entry « À ne pas manquer » still à traiter is set off by
  * a border turning slowly (still under reduced motion). At its foot, « Écartées », folded, each with « Revenir sur ce
  * choix »; then « Recherches par Profil » and « Reçues par email », which open in the Work Pane. Laid out by
  * `offerBoxView`, as the app does.
  */
+/**
+ * What a line's « Écarter » needs from the page once its own button is gone: the box's heading, where the focus goes
+ * back when the toast closes, and how to say that « Annuler » failed.
+ */
+const OfferBoxPageHandle = createContext<{ heading: () => HTMLElement | null; undoFailed: (failed: boolean) => void }>({ heading: () => null, undoFailed: () => {} });
+
 export function OfferBox({ box }: { box: OfferBoxResponse }) {
   return (
     <ToastProvider>
@@ -39,6 +47,9 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   const titleId = useId();
   const root = useRef<HTMLElement>(null);
   const head = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [undoFailed, setUndoFailed] = useState(false);
+  const [handle] = useState(() => ({ heading: () => heading.current, undoFailed: setUndoFailed }));
   const total = view.toHandle + view.treated;
 
   // The day's and the tier's headings stay under the header, whatever height its chips wrap to.
@@ -53,76 +64,86 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   }, []);
 
   return (
-    <section ref={root} className="offer-box" aria-labelledby={titleId}>
-      <div ref={head} className="offer-box-head">
-        <div className="offer-box-count">
-          <h2 id={titleId}>{t("offerBox.title")}</h2>
-          <p aria-live="polite">
-            <b>{view.toHandle}</b> {t("offerBox.toHandle")}
-            <span>{t("offerBox.treated", { count: view.treated })}</span>
-          </p>
-        </div>
-        <div
-          className="offer-box-progress"
-          role="progressbar"
-          aria-label={t("offerBox.progress", { treated: view.treated, total })}
-          aria-valuemin={0}
-          aria-valuemax={total}
-          aria-valuenow={view.treated}
-        >
-          <i style={{ width: `${total === 0 ? 100 : Math.round((100 * view.treated) / total)}%` }} />
-        </div>
-        <div className="offer-box-chips" role="group" aria-label={t("offerBox.chips")}>
-          {view.chips.map(({ source, toHandle }) => (
-            <button
-              key={source}
-              type="button"
-              className="offer-box-chip"
-              aria-pressed={filter === source}
-              aria-label={t("offerBox.chipCount", { source: t(`offerBox.sources.${source}`), count: toHandle })}
-              onClick={() => setFilter(source)}
-            >
-              {t(`offerBox.sources.${source}`)}
-              <span className="offer-box-chip-count">{toHandle}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {box.entries.length === 0 ? (
-        <EmptyState headingLevel={3} title={t("offerBox.empty")}>{t("offerBox.emptyText")}</EmptyState>
-      ) : (
-        <>
-          {view.toHandle === 0 ? <EmptyState headingLevel={3} title={t("offerBox.allDone")}>{t("offerBox.allDoneText")}</EmptyState> : null}
-          <OfferBoxDaySection name={t("offerBox.today")} day={view.today} today={box.today} nothing={t("offerBox.nothingToday")} followed={(count) => t("offerBox.followedToday", { count })} />
-          <OfferBoxDaySection
-            name={t("offerBox.earlier")}
-            day={view.earlier}
-            today={box.today}
-            nothing={t("offerBox.nothingEarlier")}
-            followed={(count) => t("offerBox.followedEarlier", { count })}
-            showDay
-          />
-        </>
-      )}
-
-      {view.dismissed.length > 0 ? (
-        <details className="offer-box-followed offer-box-dismissed">
-          <summary>{t("offerBox.dismissedBlock", { count: view.dismissed.length })}</summary>
-          <p className="offer-box-nothing">{t("offerBox.dismissedHint")}</p>
-          <ul className="offer-box-entries">
-            {view.dismissed.map((entry) => (
-              <OfferBoxLine key={entry.id} entry={entry} today={box.today} showDay />
+    <OfferBoxPageHandle.Provider value={handle}>
+      <section ref={root} className="offer-box" aria-labelledby={titleId}>
+        <div ref={head} className="offer-box-head">
+          <div className="offer-box-count">
+            <h2 id={titleId} ref={heading} tabIndex={-1}>
+              {t("offerBox.title")}
+            </h2>
+            <p aria-live="polite">
+              <b>{view.toHandle}</b> {t("offerBox.toHandle")}
+              <span>{t("offerBox.treated", { count: view.treated })}</span>
+            </p>
+          </div>
+          <div
+            className="offer-box-progress"
+            role="progressbar"
+            aria-label={t("offerBox.progress", { treated: view.treated, total })}
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={view.treated}
+          >
+            <i style={{ width: `${total === 0 ? 100 : Math.round((100 * view.treated) / total)}%` }} />
+          </div>
+          <div className="offer-box-chips" role="group" aria-label={t("offerBox.chips")}>
+            {view.chips.map(({ source, toHandle }) => (
+              <button
+                key={source}
+                type="button"
+                className="offer-box-chip"
+                aria-pressed={filter === source}
+                aria-label={t("offerBox.chipCount", { source: t(`offerBox.sources.${source}`), count: toHandle })}
+                onClick={() => setFilter(source)}
+              >
+                {t(`offerBox.sources.${source}`)}
+                <span className="offer-box-chip-count">{toHandle}</span>
+              </button>
             ))}
-          </ul>
-        </details>
-      ) : null}
+          </div>
+        </div>
 
-      <p className="offer-box-foot">
-        <Link href={routes.jobSearchesByProfile}>{t("offerBox.byProfile")}</Link>
-        <Link href={routes.receivedByEmail}>{t("offerBox.receivedByEmail")}</Link>
-      </p>
-    </section>
+        {undoFailed ? (
+          <p className="field-error" role="alert">
+            {t("offerBox.undoError")}
+          </p>
+        ) : null}
+
+        {box.entries.length === 0 ? (
+          <EmptyState headingLevel={3} title={t("offerBox.empty")}>{t("offerBox.emptyText")}</EmptyState>
+        ) : (
+          <>
+            {view.toHandle === 0 ? <EmptyState headingLevel={3} title={t("offerBox.allDone")}>{t("offerBox.allDoneText")}</EmptyState> : null}
+            <OfferBoxDaySection name={t("offerBox.today")} day={view.today} today={box.today} nothing={t("offerBox.nothingToday")} followed={(count) => t("offerBox.followedToday", { count })} />
+            <OfferBoxDaySection
+              name={t("offerBox.earlier")}
+              day={view.earlier}
+              today={box.today}
+              nothing={t("offerBox.nothingEarlier")}
+              followed={(count) => t("offerBox.followedEarlier", { count })}
+              showDay
+            />
+          </>
+        )}
+
+        {view.dismissed.length > 0 ? (
+          <details className="offer-box-followed offer-box-dismissed">
+            <summary>{t("offerBox.dismissedBlock", { count: view.dismissed.length })}</summary>
+            <p className="offer-box-nothing">{t("offerBox.dismissedHint")}</p>
+            <ul className="offer-box-entries">
+              {view.dismissed.map((entry) => (
+                <OfferBoxLine key={entry.id} entry={entry} today={box.today} showDay />
+              ))}
+            </ul>
+          </details>
+        ) : null}
+
+        <p className="offer-box-foot">
+          <Link href={routes.jobSearchesByProfile}>{t("offerBox.byProfile")}</Link>
+          <Link href={routes.receivedByEmail}>{t("offerBox.receivedByEmail")}</Link>
+        </p>
+      </section>
+    </OfferBoxPageHandle.Provider>
   );
 }
 
@@ -238,6 +259,7 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
 function FollowButton({ jobOfferId, profileId, describedBy }: { jobOfferId: string; profileId: string; describedBy: string }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const hydrated = useHydrated();
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -258,7 +280,7 @@ function FollowButton({ jobOfferId, profileId, describedBy }: { jobOfferId: stri
 
   return (
     <>
-      <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={follow} disabled={working} aria-describedby={describedBy}>
+      <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={follow} disabled={!hydrated || working} aria-describedby={describedBy}>
         {working ? t("offerBox.following") : t("offerBox.follow")}
       </button>
       {failed ? (
@@ -283,12 +305,16 @@ async function decide(entryId: string, method: "POST" | "DELETE", reason?: Dismi
 
 /**
  * « Écarter »: opens « Pourquoi ? (facultatif) », the Dismissal reasons and « Écarter sans motif ». Once écartée, the
- * page refreshes (the entry leaves the count, into « Écartées ») and a toast says so, with « Annuler ».
+ * page refreshes (the entry leaves the count, into « Écartées ») and a toast says so, with « Annuler », which takes the
+ * keyboard focus since this line's buttons go; the toast closed, the focus goes to the box's heading. An « Annuler »
+ * that fails is said above the entries.
  */
 function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; describedBy: string }) {
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast();
+  const page = useContext(OfferBoxPageHandle);
+  const hydrated = useHydrated();
   const reasonsId = useId();
   const [open, setOpen] = useState(false);
   const [working, setWorking] = useState(false);
@@ -298,6 +324,7 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
   async function dismiss(reason: DismissalReason | null) {
     setWorking(true);
     setFailed(false);
+    page.undoFailed(false);
     const done = await decide(entry.id, "POST", reason);
     setWorking(false);
     if (!done) {
@@ -307,7 +334,16 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
     setOpen(false);
     toast({
       message: t("offerBox.dismissedToast", { title }),
-      action: { label: t("offerBox.undo"), onAction: () => void decide(entry.id, "DELETE").then((undone) => undone && router.refresh()) },
+      action: {
+        label: t("offerBox.undo"),
+        focus: true,
+        onAction: () =>
+          void decide(entry.id, "DELETE").then((undone) => {
+            page.undoFailed(!undone);
+            if (undone) router.refresh();
+          }),
+      },
+      returnFocus: page.heading,
     });
     router.refresh();
   }
@@ -320,6 +356,7 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
         aria-expanded={open}
         aria-controls={open ? reasonsId : undefined}
         aria-describedby={describedBy}
+        disabled={!hydrated}
         onClick={() => setOpen(!open)}
       >
         {t("offerBox.dismiss")}
@@ -328,11 +365,11 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
         <div id={reasonsId} className="offer-box-reasons" role="group" aria-label={t("offerBox.dismissWhy")}>
           <span aria-hidden>{t("offerBox.dismissWhy")}</span>
           {DISMISSAL_REASONS.map((reason) => (
-            <button key={reason} className={buttonClass({ size: "sm" })} type="button" disabled={working} onClick={() => void dismiss(reason)}>
+            <button key={reason} className={buttonClass({ size: "sm" })} type="button" disabled={!hydrated || working} onClick={() => void dismiss(reason)}>
               {t(`offerBox.dismissalReasons.${reason}`)}
             </button>
           ))}
-          <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={working} onClick={() => void dismiss(null)}>
+          <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={!hydrated || working} onClick={() => void dismiss(null)}>
             {t("offerBox.dismissWithoutReason")}
           </button>
         </div>
@@ -350,6 +387,7 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
 function ReconsiderButton({ entry }: { entry: OfferBoxEntryRead }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const hydrated = useHydrated();
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -369,7 +407,7 @@ function ReconsiderButton({ entry }: { entry: OfferBoxEntryRead }) {
       <button
         className={buttonClass({ size: "sm" })}
         type="button"
-        disabled={working}
+        disabled={!hydrated || working}
         aria-label={t("offerBox.reconsiderLabel", { title: entry.jobOffer.title })}
         onClick={() => void reconsider()}
       >

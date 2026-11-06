@@ -145,11 +145,34 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
     expect(fetch).toHaveBeenCalledWith("/api/offer-box/a/dismissal", expect.objectContaining({ method: "POST", body: JSON.stringify({ reason: "salary" }) }));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     expect(screen.getByRole("status").textContent).toContain("« Offre a » écartée.");
+    // The line's buttons are going: the keyboard focus is on « Annuler ».
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Annuler" })));
+
+    refresh.mockReset();
+    await userEvent.keyboard("{Enter}");
+    expect(fetch).toHaveBeenLastCalledWith("/api/offer-box/a/dismissal", expect.objectContaining({ method: "DELETE" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("an « Annuler » that fails tells the Candidate the offer is still écartée", async () => {
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => new Response(null, { status: init?.method === "DELETE" ? 500 : 204 }));
+    vi.stubGlobal("fetch", fetch);
+    renderInFrench(<OfferBox box={box([entry("a")])} />);
+    const line = within(offerBox()).getByRole("listitem", { name: "Offre a" });
+    await userEvent.click(within(line).getByRole("button", { name: "Écarter" }));
+    await userEvent.click(within(line).getByRole("button", { name: "Lieu" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
 
     refresh.mockReset();
     await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
-    expect(fetch).toHaveBeenLastCalledWith("/api/offer-box/a/dismissal", expect.objectContaining({ method: "DELETE" }));
-    await waitFor(() => expect(refresh).toHaveBeenCalled());
+
+    expect((await within(offerBox()).findByRole("alert")).textContent).toBe(
+      "« Annuler » n'a pas abouti : l'offre reste écartée. Réessayez avec « Revenir sur ce choix », dans « Écartées ».",
+    );
+    expect(refresh).not.toHaveBeenCalled();
+    // The toast gone, the focus is on the box's heading, not lost with the line's buttons.
+    expect(document.activeElement).toBe(within(offerBox()).getByRole("heading", { name: "Offres à traiter" }));
   });
 
   it("« Écarter sans motif » écarte the entry with no reason; a refusal says so", async () => {

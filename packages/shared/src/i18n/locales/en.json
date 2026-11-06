@@ -5517,6 +5517,7 @@
     "dismissError": "The job offer could not be set aside. Try again.",
     "dismissedToast": "« {{title}} » set aside.",
     "undo": "Undo",
+    "undoError": "« Undo » did not go through: the job offer is still set aside. Try again with « Go back on this choice », under « Set aside ».",
     "dismissed": "Set aside",
     "dismissedWithReason": "Set aside · {{reason}}",
     "dismissedBlock": "Set aside ({{count}})",

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AccountSettings } from "@/components/AccountSettings";
+import { OfferBox } from "@/components/OfferBox";
 import { SignInForm } from "@/components/SignInForm";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { Button } from "./Button";
@@ -66,6 +67,39 @@ describe("controls that only act once the page is hydrated", () => {
     renderInFrench(form);
     expect((screen.getByRole("button", { name: "Continuer avec Google" }) as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByRole("button", { name: "Recevoir mon lien de connexion" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("the Offer box's « Suivre », « Écarter » and « Revenir sur ce choix » are disabled in the server's HTML, then enabled (#816)", () => {
+    const line = (id: string, state: "to_handle" | "dismissed") => ({
+      id,
+      jobOffer: { id: `offer-${id}`, title: `Offre ${id}`, employer: null, location: null, url: null, postedAt: null, expiredAt: null, contractType: null },
+      profile: { id: "p1", name: "DAF" },
+      scoredWith: { id: "p1", name: "DAF" },
+      matchScore: 70,
+      firstArrivalAt: "2026-11-05T08:00:00.000Z",
+      arrivalDay: "2026-11-05",
+      sources: [{ source: "job_search" as const, at: "2026-11-05T08:00:00.000Z" }],
+      state,
+      applicationId: null,
+      followedAt: null,
+      dismissalReason: null,
+      dismissedAt: state === "dismissed" ? "2026-11-05T09:00:00.000Z" : null,
+    });
+    const box = <OfferBox box={{ today: "2026-11-05", toHandle: 1, entries: [line("a", "to_handle"), line("b", "dismissed")] }} />;
+    const decisions = ["Suivre", "Écarter", "Revenir sur ce choix"];
+    const decisionButtons = (root: ParentNode) => [...root.querySelectorAll("button")].filter((button) => decisions.includes(button.textContent ?? ""));
+
+    expect(decisionButtons(serverHtml(box)).map((button) => [button.textContent, button.disabled])).toEqual([
+      ["Suivre", true],
+      ["Écarter", true],
+      ["Revenir sur ce choix", true],
+    ]);
+    renderInFrench(box);
+    expect(decisionButtons(document.body).map((button) => [button.textContent, button.disabled])).toEqual([
+      ["Suivre", false],
+      ["Écarter", false],
+      ["Revenir sur ce choix", false],
+    ]);
   });
 
   it("a trigger disabled by its owner stays disabled once hydrated", () => {

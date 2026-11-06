@@ -5517,6 +5517,7 @@
     "dismissError": "L'offre n'a pas pu être écartée. Réessayez.",
     "dismissedToast": "« {{title}} » écartée.",
     "undo": "Annuler",
+    "undoError": "« Annuler » n'a pas abouti : l'offre reste écartée. Réessayez avec « Revenir sur ce choix », dans « Écartées ».",
     "dismissed": "Écartée",
     "dismissedWithReason": "Écartée · {{reason}}",
     "dismissedBlock": "Écartées ({{count}})",

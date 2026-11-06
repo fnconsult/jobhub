@@ -15,8 +15,9 @@ export type Network = { isConnected: () => Promise<boolean>; subscribe: (onChang
 
 /**
  * The app's reads (`@jobhub/shared/reads`, ADR-0076), each with whether the device keeps what was last seen of it for
- * when there is no network (#701): the menus' cards, an Application, the Agenda and the Job Offers seen. Never a Coach
- * Conversation, nor a Profile or a Tailored Document's download links.
+ * when there is no network (#701): the menus' cards, an Application and its Company Dossier, the Agenda and the Job
+ * Offers seen. Never a Coach Conversation, nor a Profile, a Tailored Document's download links or an Application's
+ * Enriched Contacts (#691: third parties' details).
  */
 const READS = {
   applications: true,
@@ -27,9 +28,11 @@ const READS = {
   jobOffer: true,
   jobDigests: true,
   humanCoaches: true,
+  companyDossier: true,
   profiles: false,
   profile: false,
   tailoredDocuments: false,
+  enrichedContacts: false,
   coachConversations: false,
   coachConversation: false,
 } as const satisfies Record<string, boolean>;
@@ -51,9 +54,12 @@ const BUSTER = `api-${API_VERSION}.cache-1`;
 
 /**
  * The device's copy of the read cache: written at most every SAVE_EVERY_MS, one write at a time, and `forget` drops a
- * write still waiting before it removes the copy, so nothing read before it lands after it.
+ * write still waiting before it removes the copy, so nothing read before it lands after it. A restoring still under way
+ * when it forgets gives nothing back (#756): the copy it had read belongs to the session that ended.
  */
 function devicePersister(storage: DeviceStorage): Persister & { forget: () => Promise<void> } {
+  /** How many times the cache was forgotten: a restoring started before the last one gives nothing back. */
+  let forgotten = 0;
   let waiting: PersistedClient | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let writes: Promise<void> = Promise.resolve();
@@ -71,11 +77,13 @@ function devicePersister(storage: DeviceStorage): Persister & { forget: () => Pr
       }, SAVE_EVERY_MS);
     },
     restoreClient: async () => {
+      const asked = forgotten;
       const saved = await storage.getItem(STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as PersistedClient) : undefined;
+      return saved && asked === forgotten ? (JSON.parse(saved) as PersistedClient) : undefined;
     },
     removeClient: () => queue(() => storage.removeItem(STORAGE_KEY)),
     forget: () => {
+      forgotten += 1;
       if (timer) clearTimeout(timer);
       timer = null;
       waiting = null;

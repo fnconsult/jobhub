@@ -5869,6 +5869,23 @@
       "writeDisabled": "Offline: nothing is saved until the network is back."
     },
     "attach": "Attach a link or a document",
+    "attachments": {
+      "menu": "Attach",
+      "pasteLink": "Paste a job offer link",
+      "joinCv": "Attach a CV",
+      "noLink": "The clipboard holds no link. Copy the job offer's link, then try again.",
+      "nothingDropped": "Drop a job offer's link on the box, or a CV as a PDF or Word file (.docx).",
+      "read": "CV read: {{name}}",
+      "targetRole": "Target role: {{value}}",
+      "locations": "Locations: {{value}}",
+      "createProfile": "Create the profile",
+      "creating": "Creating the profile…",
+      "editLater": "You can correct it afterwards with “Edit the profile”.",
+      "incomplete": "This CV does not give everything a profile needs ({{fields}}). Create the profile on jobbbox.ai: you import this CV there and complete each field.",
+      "incompleteFields": "some fields",
+      "createOnWeb": "Create the profile on jobbbox.ai",
+      "newProfile": "New profile"
+    },
     "send": "Send",
     "emptyScreen": "This screen is coming to the app soon.",
     "update": {
@@ -5878,11 +5895,6 @@
       "openPlayStore": "Open Google Play"
     },
     "homeTitle": "Home",
-    "fichePlaceholder": "The Fiche will show the page's object here, its Sections, its Activity and its Results.",
-    "activityPlaceholder": "Activity will show the page's context bar and AI Activity here.",
-    "openSampleSection": "Open a sample Section",
-    "sampleSection": "Sample Section",
-    "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here.",
     "documents": {
       "title": "Documents",
       "none": "No document yet: ask the coach for a tailored CV or a cover letter.",
@@ -5932,7 +5944,30 @@
       "openPosting": "View the posting",
       "shareLink": "Share the link"
     },
+    "applications": {
+      "notFound": "This application cannot be found: it does not exist or is not yours.",
+      "readOnlySections": "Your human coaches' reviews are on jobbbox.ai.",
+      "dossierNotBuilt": "The company dossier is built on jobbbox.ai: it will show here once built.",
+      "dossierConfirmOnWeb": "Confirm the employer on jobbbox.ai: nothing is looked up before you confirm.",
+      "dossierEmployerOnWeb": "The job offer does not name the employer: name it on jobbbox.ai to build the dossier.",
+      "dossierUpdateOnWeb": "The dossier is updated on jobbbox.ai.",
+      "financialYear": "{{year}} · Revenue: {{revenue}} · Net income: {{netIncome}}",
+      "contactsOnWeb": "Contacts are searched for, and their details asked for, on jobbbox.ai: each request counts against your weekly quota.",
+      "contactsOff": "Enriched contacts are not available at the moment.",
+      "statusButton": "Status: {{status}}",
+      "interviewDate": "Interview date (dd/mm/yyyy)",
+      "interviewTime": "Time, in Paris (hh:mm)"
+    },
     "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
+    "coach": {
+      "replyAnnounced": "AI Coach: {{reply}}"
+    },
+    "subscriptionOnWeb": "Your subscription is managed on jobbbox.ai.",
+    "signalement": {
+      "notice": "Attached automatically: the page, the Jobbbox version, your device, the language and the text size. No screenshot, no conversation with your coach.",
+      "questionContext": "the page, the Jobbbox version, your device, the language and the text size",
+      "device": "Device"
+    },
     "profiles": {
       "positioning": "Positioning",
       "contracts": "Contracts",
@@ -5951,6 +5986,58 @@
       "failed": "This could not be loaded. Check your connection and try again.",
       "retry": "Try again",
       "offline": "Offline: this will load as soon as the network is back."
+    },
+    "coaching": {
+      "loading": "Loading your coaches…",
+      "loadError": "Your coaches and sessions could not be loaded. Try again in a moment.",
+      "payment": {
+        "waiting": "Payment received. We are waiting for Stripe to confirm it: your session shows here in a moment.",
+        "maybe": "If you paid, your session shows here as soon as Stripe has confirmed the payment.",
+        "slow": "The confirmation is taking a while. If you paid, your session will show here; your order confirmation is also sent to you by email.",
+        "refresh": "Refresh",
+        "recorded": "Your session with {{name}} is paid. Now pick your time on their booking page, then enter the date here.",
+        "cancelled": "Payment cancelled: no session was booked."
+      },
+      "order": {
+        "loading": "Loading your order…",
+        "opening": "Opening the payment…",
+        "failed": "The payment could not start. Check your connection and try again.",
+        "inBrowser": "The payment opens on Stripe's secure page, without leaving the app."
+      },
+      "session": {
+        "date": "Session date (dd/mm/yyyy)",
+        "time": "Time, in Paris (hh:mm)"
+      }
+    },
+    "jobSearches": {
+      "quotaExceeded": "You have reached your job search quota for this period: you can start a new one when it renews."
+    },
+    "push": {
+      "channel": "Notifications",
+      "ask": {
+        "jobSearch": {
+          "title": "Get notified of new results?",
+          "body": "Your search goes on without you: Jobbbox can notify you as soon as it finds job offers, even with the app closed."
+        },
+        "interview": {
+          "title": "Get a reminder the day before your appointments?",
+          "body": "Jobbbox can remind you of your interviews and sessions the day before at 6 PM, as well as the email if you receive it."
+        },
+        "privacy": "A notification never names a company, a job or a person: the details show once the app is open. You choose what is sent to you in My account, Reminders.",
+        "allow": "Turn on notifications",
+        "notNow": "Not now"
+      },
+      "settings": {
+        "refused": {
+          "ios": "Jobbbox's notifications are turned off on this device. To receive them, open Settings, tap Notifications, then Jobbbox, and turn on “Allow Notifications”.",
+          "android": "Jobbbox's notifications are turned off on this device. To receive them, open the device's settings, then Apps, Jobbbox, Notifications, and turn them on."
+        },
+        "openSettings": {
+          "ios": "Open Settings",
+          "android": "Open settings"
+        },
+        "declined": "The app's notifications are not turned on on this device: the choices below will apply as soon as you turn them on."
+      }
     }
   },
   "coachProposals": {
@@ -5992,7 +6079,8 @@
       "draftOf": "Draft of {{date}}",
       "draftEdited": "Draft of {{date}}, edited since",
       "newDraft": "A draft written by your AI coach · {{language}}",
-      "replacesDraft": "Your current draft will be replaced, your edits included."
+      "replacesDraft": "Your current draft will be replaced, your edits included.",
+      "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included."
     },
     "quota": {
       "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
@@ -6011,6 +6099,9 @@
     "confirmReplace": "Replace your current draft, your edits included?",
     "confirmYes": "Replace and draft",
     "confirmNo": "Keep my draft",
+    "confirmReplaceProposal": "Replace your Tailored CV proposal under review, your answers included?",
+    "confirmYesProposal": "Replace and prepare",
+    "confirmNoProposal": "Keep my proposal",
     "runHint": "The document is in the application's documents; if it was stopped, nothing was kept.",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
@@ -6019,7 +6110,7 @@
     "editIntro": "The page's form, filled in with your coach's proposal for “{{name}}”. What you change here is kept if you close the pane.",
     "applied": "Applied by you at {{time}}",
     "launched": "Launched by you at {{time}}",
-    "launchedHint": "Follow it in AI activity; “Stop” ends it.",
+    "launchedHint": "Follow it in AI activity; “Stop the job search” ends it.",
     "dismissed": "Ignored",
     "undone": "Undone at {{time}}",
     "undoNotes": {
@@ -6058,10 +6149,10 @@
     "label": "Coach proposals",
     "card": "Card",
     "form": "Form",
-    "hint": "What your AI coach shows you first when it proposes a change: the card under its reply, or the pre-filled form opened in the pane. “Apply” and “Edit before applying” stay on every card; nothing is applied without you.",
+    "hint": "What your AI coach shows you first when it proposes a change: the card under its reply, or the pre-filled form of its first proposal opened in the pane, without leaving the message box. “Apply” and “Edit before applying” stay on every card; nothing is applied without you.",
     "saved": {
       "card": "Saved: each proposal will show as a card under the reply.",
-      "form": "Saved: each proposal's form will open in the pane."
+      "form": "Saved: the pre-filled form of each reply's first proposal will open in the pane."
     },
     "error": "Your choice could not be saved. Try again."
   },
@@ -6134,5 +6225,40 @@
       "coaching_session_paid": "Coaching session paid",
       "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate"
     }
+  },
+  "coachingPayment": {
+    "title": "Payment complete",
+    "body": "Go back to the Jobbbox app: your session shows there as soon as Stripe has confirmed the payment, with the link to pick your time.",
+    "cancelledTitle": "Payment cancelled",
+    "cancelledBody": "Nothing was paid. You can book a session later from the app.",
+    "backToApp": "Back to the Jobbbox app",
+    "onWeb": "See my human coaches on the website"
+  },
+  "shareCapture": {
+    "message": "Job offer shared from another app: {{title}}",
+    "reply": "I saved this job offer in Jobbbox. Only you can see it. Tap “Score against my profile” to see whether it fits you.",
+    "title": "Share to Jobbbox",
+    "intro": "Check what you are sending to Jobbbox: it becomes a job offer only you can see, opened in its own conversation.",
+    "link": "Job offer link",
+    "text": "Job offer text",
+    "textHint": "Paste the job offer's text here if its site does not let Jobbbox read it.",
+    "send": "Send to Jobbbox",
+    "sending": "Reading the job offer…",
+    "cancel": "Cancel",
+    "nothing": "Nothing was shared. Share a job offer from your browser, LinkedIn, Indeed or Mail, then choose Jobbbox.",
+    "needsText": {
+      "forbiddenSite": "This site does not let Jobbbox read its job offers. Share or paste the job offer's text below, then send it.",
+      "unreadable": "Jobbbox could not read this page: the site does not allow it, asks you to sign in or does not answer. Share or paste the job offer's text below, then send it.",
+      "notAJobOffer": "This link does not seem to lead to a single job offer. Share or paste the job offer's text below, then send it."
+    },
+    "notAJobOffer": "This text does not seem to be a job offer. Paste the job offer's full text, then send it.",
+    "invalid": "This share cannot be sent: it needs a web link or a job offer's text (100,000 characters at most).",
+    "failed": "The job offer could not be sent. Check your connection and try again.",
+    "score": "Score against my profile",
+    "scoreAgainst": "Score against “{{profile}}”",
+    "scoring": "Scoring…",
+    "scored": "Match Score: {{score}} / 100 against “{{profile}}”",
+    "noProfile": "To score this job offer, first create a profile on jobbbox.ai.",
+    "scoreFailed": "The score could not be computed. Try again."
   }
 }

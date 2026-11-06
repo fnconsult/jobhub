@@ -1,8 +1,12 @@
 import { useLocalSearchParams } from "expo-router";
-import { SampleConversation } from "../../conversation/SampleConversation";
+import { CoachConversation } from "../../coach/CoachConversation";
+import type { SubjectRef } from "../../coach/coach-reply";
+import { paths } from "../../navigation/pages";
 
-/** An Application's conversation; its Fiche beside it or full page, from the Top Bar. */
+const APPLICATION: SubjectRef["kind"] = "application";
+
+/** An Application's conversation, its Subject (ADR-0070); its Fiche beside it or full page, from the Top Bar. */
 export default function ApplicationConversation() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  return <SampleConversation key={id} />;
+  return <CoachConversation key={id} conversationId={null} subject={{ kind: APPLICATION, id }} route={paths.application(id)} />;
 }

@@ -2,7 +2,8 @@ import { act, screen, userEvent } from "@testing-library/react-native";
 import { Platform, Pressable, Text } from "react-native";
 import { fakeNetwork } from "../offline/testing";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
-import { SampleConversation } from "../conversation/SampleConversation";
+import { CoachConversation } from "../coach/CoachConversation";
+import { fakeCoachWeb } from "../coach/testing";
 import { Shell, useWorkPane, type ShellPage } from "./Shell";
 
 const PHONE = { width: 390, height: 844 };
@@ -169,14 +170,17 @@ describe("Shell, when multitasking or a foldable changes the window", () => {
   afterEach(() => jest.useRealTimers());
 
   async function renderWithConversation() {
+    const web = fakeCoachWeb();
     await renderInApp(
       <Shell page={application} paneContent={<Text>Contenu de la Fiche</Text>} sidebar={() => <Text>Mes candidatures</Text>} onNewConversation={() => {}}>
-        <SampleConversation />
+        <CoachConversation conversationId={null} route="/" />
       </Shell>,
+      web.client,
     );
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     await user.type(screen.getByLabelText("Votre message"), "Ma question");
     await user.press(button("Envoyer"));
+    await act(async () => web.reply("Une réponse"));
     await act(() => jest.runAllTimers());
     await user.type(screen.getByLabelText("Votre message"), "Un brouillon");
   }

@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My applications
-synonyms: [applications, tracking, saved offers, list, status, archived, to handle, see all]
+synonyms: [applications, tracking, saved offers, list, status, archived, to handle, see all, app, iphone, ipad, android]
 route: /candidatures
 ---
 « My applications » is a conversation with your AI coach, the same one at each visit. Each job offer you save becomes an application, linked to one of your profiles.
@@ -13,3 +13,5 @@ Your applications in progress are listed there in a card: their status, their Ma
 Your coach can propose to save a job offer as an application, to change an application's status, to link it to another profile or to mark a follow-up as sent. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts back what was there before; an application it had you save is removed, as long as you have added nothing to it. A job offer already saved is not saved twice: your coach gives you the link to its application.
 
 In the menu, « My applications » unfolds into your most recent applications, and those to handle, marked with a dot; « See all » leads to this page. The arrow beside it folds or unfolds the list, and this browser remembers it.
+
+In the Jobbbox app (iPhone, iPad, Android), « My applications » is the same conversation, with the same card: tap a row to open the application. « Show them » shows the archived applications too, « Hide archived applications » hides them again. On an application's page, its title at the top of the screen, an arrow before it, takes you back to « My applications ».

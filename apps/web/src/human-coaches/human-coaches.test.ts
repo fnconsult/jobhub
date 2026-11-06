@@ -7,6 +7,7 @@ import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { ApplicationTailoredCv } from "../tailored-cv";
 import type { ApplicationDrafts } from "../tailored-documents";
+import type { PushNotification } from "../push-notifications";
 import { createHumanCoaches, migrateHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -587,6 +588,141 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
         expect(await coaches.scheduleCoachedSession(sophie.id, session.id, { scheduledAt: "2026-10-23T09:00" })).toEqual({ ok: false, error: "not_found" });
         expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: new Date("2026-10-22T12:30:00.000Z"), changedBy: "candidate" })]);
       });
+    });
+  });
+
+  describe("Push notifications (#699)", () => {
+    const payment = { amount: 9000, currency: "eur" };
+    const coverLetter = { language: "fr" as const, text: "Madame, Monsieur, …", draftedAt: new Date(), updatedAt: new Date(), provenance: null };
+    let notified: { personId: string; notification: PushNotification; once: string | undefined }[];
+    let notifying: HumanCoaches;
+    let pushDown: boolean;
+
+    beforeEach(() => {
+      notified = [];
+      pushDown = false;
+      notifying = createHumanCoaches(database, {
+        profiles,
+        applications,
+        tailoredDocuments: { get: async (owner, id) => ((await applications.get(owner, id)) ? (drafts.get(id) ?? null) : null) },
+        tailoredCvs: { get: async () => null },
+        push: {
+          notify: async (personId, notification, options) => {
+            if (pushDown) throw new Error("queue unavailable");
+            notified.push({ personId, notification, once: options?.once });
+            return true;
+          },
+        },
+      });
+    });
+
+    /** Sophie, a Human Coach with her account, and Marie, a Candidate with one Application. */
+    async function sophieAndMarie() {
+      const sophie = await addCoach();
+      const sophieAccount = await signUp(SOPHIE.email);
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+      return { sophie, sophieAccount, marie };
+    }
+
+    async function paid(sophieId: string, marieId: string) {
+      await notifying.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marieId, coachId: sophieId, ...payment });
+      const [session] = await notifying.sessions(marieId);
+      notified = [];
+      return session!;
+    }
+
+    it("the Candidate hears of a Coach Review left on their Application, which it opens", async () => {
+      const { sophie, marie } = await sophieAndMarie();
+      await notifying.grantAccess(marie.id, sophie.id);
+      notified = [];
+      drafts.set(marie.applicationId, { documentLanguage: "fr", coverLetter, outreachMessage: null });
+
+      await notifying.review(sophie.id, marie.id, marie.applicationId, { document: "cover_letter", text: "Bien." });
+      await notifying.review(sophie.id, marie.id, marie.applicationId, { document: "cover_letter", text: "Encore mieux." });
+
+      expect(notified.map(({ personId, notification }) => ({ personId, notification }))).toEqual([
+        { personId: marie.id, notification: { event: "coach_review", applicationId: marie.applicationId } },
+        { personId: marie.id, notification: { event: "coach_review", applicationId: marie.applicationId } },
+      ]);
+      expect(new Set(notified.map(({ once }) => once)).size).toBe(2);
+    });
+
+    it("the Human Coach hears of Coach Access granted, once however often it is granted, again once revoked and granted anew", async () => {
+      const { sophie, sophieAccount, marie } = await sophieAndMarie();
+
+      await notifying.grantAccess(marie.id, sophie.id);
+      await notifying.grantAccess(marie.id, sophie.id);
+
+      expect(notified).toEqual([{ personId: sophieAccount, notification: { event: "coach_access_granted", candidateId: marie.id }, once: expect.any(String) }]);
+      await notifying.revokeAccess(marie.id, sophie.id);
+      await notifying.grantAccess(marie.id, sophie.id);
+      expect(notified).toHaveLength(2);
+      expect(notified[1]!.once).not.toBe(notified[0]!.once);
+    });
+
+    it("a Human Coach without an account yet hears of nothing", async () => {
+      const sophie = await addCoach();
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+
+      expect(await notifying.grantAccess(marie.id, sophie.id)).toBe(true);
+      await notifying.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie.id, coachId: sophie.id, ...payment });
+
+      expect(notified).toEqual([]);
+    });
+
+    it("the Human Coach hears of a Coaching Session paid, once however often Stripe reports it", async () => {
+      const { sophie, sophieAccount, marie } = await sophieAndMarie();
+
+      await Promise.all([1, 2, 3].map(() => notifying.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie.id, coachId: sophie.id, ...payment })));
+
+      expect(notified).toEqual([{ personId: sophieAccount, notification: { event: "coaching_session_paid" }, once: "coaching_session_paid:cs_1" }]);
+    });
+
+    it("the Candidate hears of their Coaching Session's date entered, changed or cancelled by the coach; not of a date entered again unchanged", async () => {
+      const { sophie, marie } = await sophieAndMarie();
+      const session = await paid(sophie.id, marie.id);
+
+      await notifying.scheduleCoachedSession(sophie.id, session.id, { scheduledAt: "2026-12-22T14:00" });
+      await notifying.scheduleCoachedSession(sophie.id, session.id, { scheduledAt: "2026-12-22T14:00" });
+      await notifying.cancelCoachedSession(sophie.id, session.id);
+
+      expect(notified.map(({ personId, notification }) => ({ personId, notification }))).toEqual([
+        { personId: marie.id, notification: { event: "coaching_session_changed" } },
+        { personId: marie.id, notification: { event: "coaching_session_changed" } },
+      ]);
+    });
+
+    it("the Human Coach hears of the date entered, changed or cancelled by the Candidate, and of a Withdrawal", async () => {
+      const { sophie, sophieAccount, marie } = await sophieAndMarie();
+      const session = await paid(sophie.id, marie.id);
+
+      await notifying.scheduleSession(marie.id, session.id, { scheduledAt: "2026-12-22T14:00" });
+      await notifying.cancelSession(marie.id, session.id);
+      await notifying.scheduleSession(marie.id, session.id, { scheduledAt: "2026-12-23T09:00" });
+      await notifying.withdrawSession(marie.id, session.id);
+
+      expect(notified.map(({ personId, notification }) => ({ personId, notification }))).toEqual(
+        Array.from({ length: 4 }, () => ({ personId: sophieAccount, notification: { event: "coaching_session_changed_by_candidate" } })),
+      );
+    });
+
+    it("a Retired Human Coach hears of nothing", async () => {
+      const { sophie, marie } = await sophieAndMarie();
+      const session = await paid(sophie.id, marie.id);
+      await notifying.retire(sophie.id);
+
+      await notifying.scheduleSession(marie.id, session.id, { scheduledAt: "2026-12-22T14:00" });
+
+      expect(notified).toEqual([]);
+    });
+
+    it("a notification that cannot be queued never stops what the person did", async () => {
+      const { sophie, marie } = await sophieAndMarie();
+      pushDown = true;
+
+      expect(await notifying.grantAccess(marie.id, sophie.id)).toBe(true);
+      expect(await notifying.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie.id, coachId: sophie.id, ...payment })).toBe(true);
+      expect(await notifying.coachSessions(sophie.id)).toHaveLength(1);
     });
   });
 });

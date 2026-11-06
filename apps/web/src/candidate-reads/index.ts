@@ -21,6 +21,7 @@ import type {
   CoachConversationRead,
   CoachConversationResponse,
   CoachConversationsResponse,
+  CoachingOrderResponse,
   CoachingResponse,
   InterviewRead,
   JobDigestsResponse,
@@ -45,6 +46,8 @@ import type { HumanCoaches } from "../human-coaches";
 import type { JobDigests } from "../job-digests";
 import { jobDigestsMenu } from "../job-digests/menu";
 import type { JobSearches } from "../job-searches";
+import type { Orders } from "../orders";
+import type { Withdrawals } from "../withdrawals";
 import { jobSearchesMenu } from "../job-searches/menu";
 import type { Profiles } from "../profiles";
 import type { Reschedule } from "../reschedules";
@@ -66,6 +69,8 @@ export interface CandidateReads {
   agenda(candidateId: string, options?: { past?: boolean }): Promise<AgendaResponse>;
   /** Mes coachs humains: the Human Coaches, the Candidate's Coaching Sessions and what one costs them. */
   coaching(candidateId: string): Promise<CoachingResponse>;
+  /** The Order page of a Coaching Session with `coachId`, as the app shows it before Checkout (#694); null when they cannot be booked. */
+  coachingOrder(candidateId: string, coachId: string): Promise<CoachingOrderResponse | null>;
   /** The Candidate's active Profiles, oldest first: an Archived Profile left out. */
   profiles(candidateId: string): Promise<ProfilesResponse>;
   /** One of the Candidate's Profiles to read, an archived one included; null when it is not theirs. */
@@ -92,6 +97,9 @@ export interface CandidateReadsDeps {
   agenda: Pick<Agenda, "days" | "unscheduled">;
   humanCoaches: Pick<HumanCoaches, "list" | "accessGranted" | "sessions">;
   billing: Pick<Billing, "coachingSessionPrice">;
+  /** Which Coaching Sessions « Renoncer au contrat ici » still leads from (#511). */
+  withdrawals: Pick<Withdrawals, "contracts">;
+  orders: Pick<Orders, "terms">;
   atsScoring: Pick<AtsScoring, "latest">;
   tailoredCvs: Pick<TailoredCvs, "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
@@ -324,16 +332,19 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async coaching(candidateId) {
-      const [coaches, granted, sessions, price] = await Promise.all([
+      const [coaches, granted, sessions, contracts, price] = await Promise.all([
         deps.humanCoaches.list(),
         deps.humanCoaches.accessGranted(candidateId),
         deps.humanCoaches.sessions(candidateId),
+        deps.withdrawals.contracts(candidateId),
         deps.billing.coachingSessionPrice(candidateId).catch((cause: unknown) => {
           // As the page: a price that cannot be read (Stripe unreachable) books nothing, the rest is still shown.
           console.error("[coaching] Coaching Session Price unavailable", cause);
           return null;
         }),
       ]);
+      // As the Agenda: the sessions still in their Withdrawal period, and not held under the Immediate Performance Request.
+      const withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
       return {
         // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
         coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id) })),
@@ -347,8 +358,20 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           note: session.note,
           changedBy: session.changedBy,
           reschedules: session.reschedules.map(reschedule),
+          withdrawable: withdrawable.has(session.id),
         })),
         price: price && { amount: price.amount, regularAmount: price.regularAmount, currency: price.currency },
+      };
+    },
+
+    async coachingOrder(candidateId, coachId) {
+      const terms = await deps.orders.terms(candidateId, { kind: "coachingSession", coachId });
+      if (!terms) return null;
+      const { summary, cgv } = terms;
+      return {
+        coach: { id: coachId, name: summary.subject.fr },
+        price: summary.price && { amount: summary.price.amount, currency: summary.price.currency },
+        cgv: cgv && { version: cgv.version, url: cgv.url },
       };
     },
 

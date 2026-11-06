@@ -1,16 +1,17 @@
+import type { CompanyDossierResponse } from "@jobhub/shared/reads";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
-import { companyDossierOutcome } from "@/company-dossiers/http";
+import { companyDossierOutcome, companyDossierRead } from "@/company-dossiers/http";
 import { getCompanyDossiers } from "@/company-dossiers/server";
 import { actionResponse } from "@/ndjson";
 
-/** The Company Dossier of one of the Candidate's Applications, as last built. 200 CompanyDossierState · 401 · 404 */
+/** The Company Dossier of one of the Candidate's Applications, as last built (the app's read, ADR-0076). 200 CompanyDossierResponse · 401 · 404 */
 export async function GET(_request: Request, { params }: RouteContext<"/api/applications/[id]/company-dossier">) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const state = await getCompanyDossiers().get(candidate.id, (await params).id);
   if (!state) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  return NextResponse.json(state);
+  return NextResponse.json<CompanyDossierResponse>(companyDossierRead(state));
 }
 
 /**

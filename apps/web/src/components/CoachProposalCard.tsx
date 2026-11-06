@@ -44,8 +44,9 @@ function hourOf(at: string, language: string): string {
  * (« Appliqué par vous à 18:20 », « Ignoré », « Annulé à 18:25 »), politely announced, and an applied one offers
  * « Annuler » while its object has not changed since. Refused, it says why (« L'objet a changé depuis la proposition »)
  * and stays as it was. `onChange`: the card as the server now has it. `openOnArrival`: the card has just arrived under
- * « Propositions du coach : Formulaire » (#717, formOpenedOnArrival): its form opens by itself as it mounts, as the
- * button would open it, and nothing is applied; once only, since the card mounts once in the thread.
+ * « Propositions du coach : Formulaire » (#717, formOpenedOnArrival): its form opens by itself as it mounts, and nothing
+ * is applied; once only, since the card mounts once in the thread. Opened that way, it leaves the focus where it is (the
+ * message box, #775); the button takes it to the form's title.
  *
  * A Master CV change (#719, ADR-0006) has no « Appliquer » in one click: « Relire les changements » opens its changes in
  * the Work Pane, each accepted or rejected on its own (a Flagged Change waits for an explicit accept), and « Enregistrer
@@ -57,7 +58,9 @@ function hourOf(at: string, language: string): string {
  * Message): applied, its card runs the AI action the documents page runs, through its route, its steps live beside
  * « Arrêter » (and in AI Activity); done, its Result opens in the Work Pane, a Tailored CV's Review to go through change by
  * change. A draft that exists is replaced, edits included: the card says so (`replaces`), and « Rédiger » asks to confirm
- * it first (« Remplacer et rédiger » or « Garder mon brouillon »), the focus on the confirmation.
+ * it first (« Remplacer et rédiger » or « Garder mon brouillon »), the focus on the confirmation. So does « Préparer » when
+ * a Tailored CV proposal still waits for its review, answers included (#774): « Remplacer et préparer » or « Garder ma
+ * proposition ».
  */
 export function CoachProposalCard({ card, onChange, openOnArrival = false }: { card: Card; onChange: (card: Card) => void; openOnArrival?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -71,7 +74,10 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   const [edits, setEdits] = useState<Record<string, string>>(() => ({ ...card.change.value, ...card.edited }));
   // A review's accept or reject of each change, by id, kept while the Work Pane is closed.
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
-  const [opening, setOpening] = useState(() => (openOnArrival && pane ? 1 : 0));
+  // The opening on arrival, if any: it leaves the focus in the message box, where the Candidate is (#775); the
+  // Candidate's own « Modifier avant d'appliquer » takes it to the form.
+  const [arrivalOpening] = useState(() => (openOnArrival && pane ? 1 : 0));
+  const [opening, setOpening] = useState(arrivalOpening);
   // Without a Work Pane (« Conversation au centre » off), the form opens in the card.
   const [inlineForm, setInlineForm] = useState(() => openOnArrival && !pane);
   const editButton = useRef<HTMLButtonElement>(null);
@@ -105,6 +111,11 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       return true;
     }
     const error = result.error as CardDecisionError | undefined;
+    // No room left since the proposal (#773): the card, still pending, now shows the Upgrade prompt in place of its buttons.
+    if (error === "quota" && result.card) {
+      onChange(result.card as Card);
+      return false;
+    }
     setProblem(error === "conflict" ? (decision === "undo" ? "undoConflict" : "conflict") : error === "invalid" ? "invalid" : "failed");
     return false;
   }
@@ -223,13 +234,13 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {pending && change.quota?.prompt ? <UpgradePrompt prompt={change.quota.prompt} /> : null}
       {pending && confirming ? (
         <div className="coach-proposal-card__confirm" role="group" aria-labelledby={confirmId}>
-          <p id={confirmId}>{t("coachProposals.confirmReplace")}</p>
+          <p id={confirmId}>{t(run?.kind === "tailored_cv" ? "coachProposals.confirmReplaceProposal" : "coachProposals.confirmReplace")}</p>
           <div className="actions">
             <button ref={confirmButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => void launch()}>
-              {t("coachProposals.confirmYes")}
+              {t(run?.kind === "tailored_cv" ? "coachProposals.confirmYesProposal" : "coachProposals.confirmYes")}
             </button>
             <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => setConfirming(false)}>
-              {t("coachProposals.confirmNo")}
+              {t(run?.kind === "tailored_cv" ? "coachProposals.confirmNoProposal" : "coachProposals.confirmNo")}
             </button>
           </div>
         </div>
@@ -273,7 +284,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         </div>
       ) : null}
       {pending && pane && opening > 0 ? (
-        <InWorkPane key={opening} kind={FORM} title={t(change.review ? "coachProposals.review.title" : "coachProposals.editTitle", { what: change.what })} href={formHref} back={pathname}>
+        <InWorkPane key={opening} takeFocus={opening !== arrivalOpening} kind={FORM} title={t(change.review ? "coachProposals.review.title" : "coachProposals.editTitle", { what: change.what })} href={formHref} back={pathname}>
           {form}
         </InWorkPane>
       ) : null}

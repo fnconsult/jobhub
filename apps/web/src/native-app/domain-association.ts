@@ -4,12 +4,13 @@
  * web app answers at (`jobbbox.ai`, `staging.jobbbox.ai`) serves them from its own environment; they name the app, its
  * Apple team and its signing certificates, and hold no one's data.
  *
- * iOS opens in the app the magic link's address alone (APP_SIGN_IN_PATH); on Android the app's manifest says which
- * paths it claims (app.json). Both files also let the app use the site's passkeys for the second step (#688,
+ * iOS opens in the app the magic link's address (APP_SIGN_IN_PATH) and Stripe Checkout's return from a Coaching
+ * Session paid in the app (APP_COACHING_PAYMENT_PATH, #694), no other; on Android the app's manifest says which paths
+ * it claims (app.json). Both files also let the app use the site's passkeys for the second step (#688,
  * `webcredentials` on iOS, `get_login_creds` on Android): a passkey made on jobbbox.ai is offered in the app. Until the app's signing is configured (APPLE_TEAM_ID, ANDROID_CERT_SHA256), a file is not
  * served: every link opens the web.
  */
-import { APP_IDENTIFIER, APP_SIGN_IN_PATH } from "@jobhub/shared";
+import { APP_COACHING_PAYMENT_PATH, APP_IDENTIFIER, APP_SIGN_IN_PATH } from "@jobhub/shared";
 
 type Env = Record<string, string | undefined>;
 
@@ -26,7 +27,7 @@ export function domainAssociation(file: DomainAssociationFile, env: Env): object
     const team = env.APPLE_TEAM_ID?.trim();
     if (!team) return null;
     const app = `${team}.${APP_IDENTIFIER}`;
-    return { applinks: { details: [{ appIDs: [app], components: [{ "/": APP_SIGN_IN_PATH }] }] }, webcredentials: { apps: [app] } };
+    return { applinks: { details: [{ appIDs: [app], components: [{ "/": APP_SIGN_IN_PATH }, { "/": APP_COACHING_PAYMENT_PATH }] }] }, webcredentials: { apps: [app] } };
   }
   const fingerprints = androidCertificates(env);
   if (fingerprints.length === 0) return null;

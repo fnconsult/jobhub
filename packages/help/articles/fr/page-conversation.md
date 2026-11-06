@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Conversation avec le coach
-synonyms: [conversation, discussion, coach, coach IA, renommer une conversation, supprimer une conversation]
+synonyms: [conversation, discussion, coach, coach IA, renommer une conversation, supprimer une conversation, joindre un CV, coller un lien, glisser-déposer]
 route: /conversations/[id]
 ---
 Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis « Coach » dans le menu. Elle reprend vos messages et ses réponses ; sous chaque réponse, une ligne discrète dit ce qui l'a produite, et « Cela répond à votre question ? » vous permet de le dire.
@@ -13,3 +13,7 @@ Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis �
 Pendant sa réponse, le coach montre ce qu'il fait : chaque fois qu'il consulte vos données Jobbbox ou vous prépare une proposition, une ligne le dit, avec ce qu'il a lu : « Consulte vos données » suivi du nombre d'éléments trouvés (12 candidatures), « Ouvre la candidature » ou « Ouvre le profil » suivi de son nom (Airbus · Contrôleuse de gestion), « Prépare une proposition » suivi de ce qu'elle concerne, cochée une fois faite ; « Réflexion puis rédaction » vient en dernier. Sa réponse s'affiche ensuite mot par mot, ou d'un coup si vous avez demandé moins d'animations à votre appareil. Sous une réponse pour laquelle il a consulté vos données, « Le coach a consulté … éléments de Jobbbox » s'ouvre sur chacun, par son nom tel qu'il est aujourd'hui, avec un lien vers sa page.
 
 Pour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste.
+
+Dans l'app Jobbbox, sur iPhone, iPad ou Android, vous retrouvez les mêmes conversations sous « Coach », dans le menu ; maintenez le doigt sur l'une d'elles pour la renommer (« Renommer ») ou la supprimer (« Supprimer »), après confirmation. Pendant que le coach répond, l'étape en cours s'affiche ; avec VoiceOver ou TalkBack, sa réponse vous est lue une fois terminée, pas mot à mot. « Activité » montre combien de la conversation le coach lit et l'IA utilisée. Sous la zone de message, « Signaler un problème » et « Proposer une idée » ouvrent le formulaire de signalement.
+
+Dans l'app, « + », à gauche de la zone de message, propose deux choix. « Coller un lien d'offre » envoie au coach le lien que vous avez copié : il lit l'offre comme quand vous collez son lien dans un message. « Joindre un CV » ouvre vos fichiers : choisissez un CV au format PDF ou Word (.docx), de 10 Mo au plus ; un fichier plus lourd ou d'un autre format est refusé avant tout envoi. Le CV est lu comme sur jobbbox.ai (« Arrêter la lecture du CV » l'interrompt), puis ce qui a été lu s'affiche dans la conversation : rien n'est enregistré avant « Créer le profil », qui crée le profil et l'ouvre ; vous le corrigez ensuite avec « Modifier le profil ». Sur iPad ou sur une tablette Android, vous pouvez aussi faire glisser un PDF, un fichier Word ou un lien d'offre depuis une autre app et le déposer sur la zone de message : il est traité de la même façon. La photo d'une offre imprimée n'est pas encore possible.

@@ -185,7 +185,7 @@ test.describe("the sign-in email's code", () => {
     await expect(page).toHaveURL(/\/connexion\?error=/);
   });
 
-  test("refuses a wrong code 5 times, then the right one too, until a new email is asked", async ({ page }) => {
+  test("refuses a wrong code 5 times, then the right one too, until a new email is asked, offered until then", async ({ page }) => {
     const email = newAddress("code-tries");
     const code = codeIn(await askEmail(page, email));
     const wrong = code === "000000" ? "111111" : "000000";
@@ -197,8 +197,15 @@ test.describe("the sign-in email's code", () => {
     expect((await enterCode(page, code)).status()).toBe(403);
     await expect(page.getByRole("alert").filter({ hasText: fr.signIn.codeTooManyTries })).toBeVisible();
     expect((await (await page.request.get("/api/auth/get-session")).json())?.user).toBeUndefined();
+    const resend = page.getByRole("button", { name: fr.signIn.resend });
+    await expect(resend).toBeVisible();
 
-    await page.getByRole("button", { name: fr.signIn.resend }).click();
+    // #755: the code is gone, so the next one typed is refused as wrong; the new email is still offered.
+    expect((await enterCode(page, code)).status()).toBe(400);
+    await expect(page.getByRole("alert").filter({ hasText: fr.signIn.codeWrong })).toBeVisible();
+    await expect(resend).toBeVisible();
+
+    await resend.click();
     const next = await waitForEmail(email, 1);
     await enterCode(page, codeIn(next));
     await expect(page).toHaveURL(`${origin}/compte`);

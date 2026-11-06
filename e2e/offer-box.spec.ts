@@ -187,6 +187,47 @@ test.describe("The Offer box (#815, ADR-0090)", () => {
     expect(refused.status()).toBe(409);
     expect(await refused.json()).toEqual({ error: "followed" });
   });
+
+  // « Écartées » shows the last 30 days', the most recent first, each with its reason (#816).
+  test("« Écartées » lists the entries écartées in the last 30 days, the most recent first with their reason; one écartée 40 days ago is left out", async ({ browser }) => {
+    const ines = await candidate(browser, "offer-box-dismissed-window");
+    await toConversation(ines.page);
+    await pasteLink(ines.page);
+    const [pasted] = (await offerBox(ines.page)).entries;
+    const extras = await withDatabase(databaseUrl, async (db) => {
+      const made: Record<string, string> = {};
+      for (const [key, daysAgo, reason] of [["recent", 3, "contract"], ["older", 12, "applied_elsewhere"], ["ancient", 40, "location"]] as const) {
+        const offer = await db.query(`INSERT INTO job_offer (url_key, content_fingerprint, source_url, title, content) VALUES ($1, $1, $2, $3, 'Un poste.') RETURNING id`, [`dw-${tag}-${key}`, `https://emploi-e2e.example/${tag}/dw-${key}`, `Offre ${key} ${tag}`]);
+        await db.query(
+          `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources, state, decided_at, dismissal_reason)
+           VALUES ($1, $2, $3, now() - interval '50 days', '{"job_search": "2026-01-01T00:00:00.000Z"}', 'dismissed', now() - make_interval(days => $4), $5)`,
+          [ines.candidateId, offer.rows[0].id, ines.profileId, daysAgo, reason],
+        );
+        made[key] = `Offre ${key} ${tag}`;
+      }
+      return made;
+    });
+    const dismissed = await ines.page.request.post(`/api/offer-box/${pasted!.id}/dismissal`, { headers: { origin }, data: { reason: "not_for_me" } });
+    expect(dismissed.status()).toBe(204);
+
+    const box = await offerBox(ines.page);
+    // The read keeps the last 30 days' (the one 40 days ago is out); the page orders them, the most recent first.
+    expect(box.entries.filter((entry) => entry.state === "dismissed").map((entry) => entry.jobOffer.title).sort()).toEqual([TITLE, extras.recent!, extras.older!].sort());
+
+    await ines.page.goto("/recherches");
+    const region = ines.page.getByRole("region", { name: /^Offres à traiter/ });
+    const fold = region.locator(".offer-box-dismissed");
+    await expect(fold).not.toHaveAttribute("open", "");
+    await region.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "3")).click();
+    await expect(fold.getByRole("listitem")).toHaveText([
+      new RegExp(`${TITLE}[\\s\\S]*${fr.offerBox.dismissalReasons.not_for_me}`),
+      new RegExp(`${extras.recent}[\\s\\S]*${fr.offerBox.dismissalReasons.contract}`),
+      new RegExp(`${extras.older}[\\s\\S]*${fr.offerBox.dismissalReasons.applied_elsewhere}`),
+    ]);
+    await expect(ines.page.getByText(extras.ancient!)).toHaveCount(0);
+    // Folded at the foot of the box: after the days' entries, just before the links that close it.
+    expect(await fold.evaluate((node) => node.nextElementSibling?.className)).toBe("offer-box-foot");
+  });
 });
 
 // The deployment's backfill and the nightly purge, on a database of their own: `npm run db:migrate` fills the Offer box

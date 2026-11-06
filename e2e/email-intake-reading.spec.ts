@@ -229,6 +229,35 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
     for (const line of box) expect(line.sources.map((arrival) => arrival.source)).toEqual(["email"]);
   });
 
+  // Issue #816: an offer the Candidate écarta from their Offer box counts « déjà vue », though no other door shows it to
+  // them any more (their earlier emails are gone here); another Candidate who reads the same alert is not touched.
+  test("an offer écartée from the Offer box counts « déjà vue » in the next email; the offers not écartées are new again, and another Candidate's entry stays à traiter (#816)", async ({ browser }) => {
+    const ines = await candidate(browser, "email-reading-dismiss");
+    const first = await sendAndRead(ines.page, ines.address, cadremploiAlert);
+    expect(first.offers.map((offer) => offer.disposition)).toEqual(["new", "new", "new"]);
+    const [dismissedId, ...others] = first.offers.map((offer) => offer.jobOfferId!);
+    const entries = await offerBoxOf(ines.page);
+    expect(entries).toHaveLength(3);
+    const entry = entries.find((line) => line.jobOffer.id === dismissedId)!;
+    const dismissed = await ines.page.request.post(`/api/offer-box/${entry.id}/dismissal`, { headers: { origin }, data: { reason: "location" } });
+    expect(dismissed.status()).toBe(204);
+
+    // Her earlier email is gone: only the Offer box still knows the offer.
+    await query(`DELETE FROM received_offer_email WHERE candidate_id = $1`, [ines.candidateId]);
+
+    const again = await sendAndRead(ines.page, ines.address, cadremploiAlert);
+    const dispositionOf = (id: string) => again.offers.find((offer) => offer.jobOfferId === id)?.disposition;
+    expect(dispositionOf(dismissedId)).toBe("seen");
+    for (const id of others) expect(dispositionOf(id)).toBe("new");
+    // Still écartée, with its reason: the email changed nothing of her decision.
+    expect((await offerBoxOf(ines.page)).find((line) => line.id === entry.id)).toMatchObject({ state: "dismissed", dismissalReason: "location" });
+
+    const paul = await candidate(browser, "email-reading-dismiss-other");
+    const hers = await sendAndRead(paul.page, paul.address, cadremploiAlert);
+    expect(hers.offers.map((offer) => offer.disposition)).toEqual(["new", "new", "new"]);
+    expect((await offerBoxOf(paul.page)).find((line) => line.jobOffer.id === dismissedId)).toMatchObject({ state: "to_handle" });
+  });
+
   test("a recruiter's message forwarded by hand: a Job Offer private to the Candidate, never seen by another Candidate or a Guest", async ({ browser, request }) => {
     const me = await asMarie(browser);
     const email = await sendAndRead(me.page, marie.address, recruiterMessage, { from: marie.email });

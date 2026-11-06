@@ -253,6 +253,42 @@ test.describe("On-demand AI Coach job search", () => {
     await expect(ficheOf(page).getByLabel("Profil utilisé")).toHaveValue(profileId);
   });
 
+  // Issue #816: a Job Offer écartée from the Offer box shows « Écartée » in the results of a Job Search; the Job Offer
+  // stays in the results, and another Candidate's results of it show no pill.
+  test("a Job Offer écartée from the Offer box shows « Écartée » in the Job Search's results, and still opens; another Candidate's results do not (#816)", async ({ page, browser }) => {
+    await signInWithProfile(page);
+    const other = await (await browser.newContext({ baseURL: origin })).newPage();
+    await signInWithProfile(other);
+    const search = async (who: Page) => {
+      await searchFromProfile(who);
+      await openFound(who);
+      await expect(foundJobOffers(who), workerOutput).toHaveCount(2, { timeout: 90_000 });
+    };
+    await search(page);
+    await search(other);
+    const title = `Directeur administratif et financier (H/F) – réf. ${tag}`;
+    await expect(page.getByText("Écartée", { exact: true })).toHaveCount(0);
+
+    const entries = offerBoxResponseSchema.parse(await (await page.request.get("/api/offer-box")).json()).entries;
+    const entry = entries.find((one) => one.jobOffer.title === title)!;
+    const dismissed = await page.request.post(`/api/offer-box/${entry.id}/dismissal`, { headers: { origin }, data: { reason: "salary" } });
+    expect(dismissed.status()).toBe(204);
+
+    await page.reload();
+    await expect(foundJobOffers(page)).toHaveCount(2);
+    await expect(foundJobOffers(page).filter({ hasText: title }).getByText("Écartée", { exact: true })).toBeVisible();
+    await expect(page.getByText("Écartée", { exact: true })).toHaveCount(1);
+    await other.reload();
+    await expect(foundJobOffers(other)).toHaveCount(2);
+    await expect(other.getByText("Écartée", { exact: true })).toHaveCount(0);
+
+    // « Revenir sur ce choix »: the pill goes.
+    expect((await page.request.delete(`/api/offer-box/${entry.id}/dismissal`, { headers: { origin } })).status()).toBe(204);
+    await page.reload();
+    await expect(foundJobOffers(page)).toHaveCount(2);
+    await expect(page.getByText("Écartée", { exact: true })).toHaveCount(0);
+  });
+
   // Issue #135: the page as the approved prototype (#132) lays it out, inside the sidebar layout.
   test.describe("the results page, as in the prototype", () => {
     test("reads like a document: what was searched, when and against which Search Criteria, then the Job Offers best first", async ({ page }) => {

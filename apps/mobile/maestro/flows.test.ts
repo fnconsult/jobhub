@@ -146,10 +146,19 @@ describe("the Maestro flows (#705)", () => {
     for (const relation of within) expect(conditions).toContainEqual(expect.objectContaining(relation));
     const ways = (valuesOf(commands, ["swipe"]) as { start: string; end: string }[]).map((swipe) => (parseFloat(swipe.start.split(",")[1]!) < parseFloat(swipe.end.split(",")[1]!) ? "UP" : "DOWN"));
     expect(new Set(ways)).toEqual(new Set(["UP", "DOWN"]));
+    const branches = valuesOf(commands, ["runFlow"]) as { when?: { true?: string }; commands?: unknown[] }[];
     for (const direction of ["UP", "DOWN"]) {
-      const asked = (commands as Record<string, { when?: { true?: string }; commands?: unknown[] }>[]).find((command) => command.runFlow?.when?.true === `\${DIRECTION == '${direction}'}`);
-      expect(valuesOf(asked?.runFlow?.commands, ["repeat"])).toHaveLength(2);
+      const asked = branches.filter((branch) => branch.when?.true === `\${DIRECTION == '${direction}'}`);
+      expect(asked.length).toBeGreaterThan(0);
+      for (const branch of asked) expect(valuesOf(branch.commands, ["repeat"])).toHaveLength(2);
     }
+  });
+
+  // Maestro reads a swipe's percentages as it parses the flow, before any script runs: « ${output.paneX}% » failed to
+  // parse, and every flow of the tablet's run with it (#705).
+  it.each(FLOW_FILES.map((file) => [relative(ROOT, file), file]))("%s swipes between literal percentages", (_name, file) => {
+    const points = (valuesOf(parse(file).commands, ["swipe"]) as Record<string, unknown>[]).flatMap((swipe) => [swipe.start, swipe.end].filter((point) => point !== undefined));
+    expect(points.filter((point) => typeof point !== "string" || !/^\d+%, \d+%$/.test(point))).toEqual([]);
   });
 
   it("scrolls the pane to a field before it types in it, not to its label", () => {

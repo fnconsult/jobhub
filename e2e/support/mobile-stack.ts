@@ -101,7 +101,12 @@ export async function seedMaestroCandidate(browser: Browser, origin: string): Pr
            CROSS JOIN LATERAL (SELECT $4::timestamptz - (found.n - 1) * interval '1 minute' AS at) arrival`,
         [candidateId, profile.id, found, MAESTRO_SEED.day],
       );
-      await db.query("UPDATE application SET created_at = $2, status_changed_at = $2 WHERE id = ANY($1)", [[appliedId, interviewId], MAESTRO_SEED.day]);
+      // Saved on the seeded day, the Application « Postulée » last: Mes candidatures lists the latest first, and on one
+      // same instant their order was the database's, one run's capture not the next's (#705).
+      await db.query(
+        "UPDATE application SET created_at = $2::timestamptz - (CASE WHEN id = $1 THEN interval '0' ELSE interval '1 minute' END), status_changed_at = $2 WHERE id = ANY($3)",
+        [appliedId, MAESTRO_SEED.day, [appliedId, interviewId]],
+      );
       await page.request.post("/api/auth/sign-out", { headers });
       return { email, appliedId, interviewId, jobSearchId: search.rows[0]!.id };
     } finally {

@@ -9,66 +9,135 @@
 # included, and an iPhone SE's tap on a card under the Top Bar hit the page's title.
 appId: ai.jobbbox.app
 ---
-- evalScript: "${output.paneX = LAYOUT == 'columns' ? 88 : 40}"
 - runFlow:
     when:
-      true: ${DIRECTION == 'UP'}
+      true: ${LAYOUT == 'columns'}
     commands:
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'UP'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 30%"
+                      end: "88%, 45%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 45%"
+                      end: "88%, 30%"
+                      duration: 800
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'DOWN'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 45%"
+                      end: "88%, 30%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 30%"
+                      end: "88%, 45%"
+                      duration: 800
       - repeat:
           while:
             notVisible:
               text: ${TEXT}
-          times: 25
+              below:
+                id: "pane-body"
+          times: 3
           commands:
             - swipe:
-                start: "${output.paneX}%, 30%"
-                end: "${output.paneX}%, 45%"
+                start: "88%, 30%"
+                end: "88%, 45%"
                 duration: 800
-      - repeat:
-          while:
-            notVisible:
-              text: ${TEXT}
-          times: 25
-          commands:
-            - swipe:
-                start: "${output.paneX}%, 45%"
-                end: "${output.paneX}%, 30%"
-                duration: 800
+      - assertVisible:
+          text: ${TEXT}
 - runFlow:
     when:
-      true: ${DIRECTION == 'DOWN'}
+      true: ${LAYOUT != 'columns'}
     commands:
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'UP'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 30%"
+                      end: "40%, 45%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 45%"
+                      end: "40%, 30%"
+                      duration: 800
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'DOWN'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 45%"
+                      end: "40%, 30%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 30%"
+                      end: "40%, 45%"
+                      duration: 800
       - repeat:
           while:
             notVisible:
               text: ${TEXT}
-          times: 25
+              below:
+                id: "pane-body"
+          times: 3
           commands:
             - swipe:
-                start: "${output.paneX}%, 45%"
-                end: "${output.paneX}%, 30%"
+                start: "40%, 30%"
+                end: "40%, 45%"
                 duration: 800
-      - repeat:
-          while:
-            notVisible:
-              text: ${TEXT}
-          times: 25
-          commands:
-            - swipe:
-                start: "${output.paneX}%, 30%"
-                end: "${output.paneX}%, 45%"
-                duration: 800
-- repeat:
-    while:
-      notVisible:
-        text: ${TEXT}
-        below:
-          id: "pane-body"
-    times: 3
-    commands:
-      - swipe:
-          start: "${output.paneX}%, 30%"
-          end: "${output.paneX}%, 45%"
-          duration: 800
-- assertVisible:
-    text: ${TEXT}
+      - assertVisible:
+          text: ${TEXT}

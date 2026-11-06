@@ -37,6 +37,8 @@ test("seeds a Candidate per run, whom the app signs in by the code the helper ha
       return schema.parse(await response.json());
     };
     const { applications } = await read("/api/applications", applicationsResponseSchema);
+    // In the seed's order, every run: the key screen « candidatures » is compared with its capture.
+    expect(applications.map(({ title }) => title)).toEqual([MAESTRO_SEED.applied.title, MAESTRO_SEED.interview.title]);
     const byTitle = Object.fromEntries(applications.map((application) => [application.title, application]));
     expect(byTitle[MAESTRO_SEED.applied.title]).toMatchObject({ employer: MAESTRO_SEED.applied.employer, status: "applied" });
     expect(byTitle[MAESTRO_SEED.interview.title]).toMatchObject({ employer: MAESTRO_SEED.interview.employer, status: "interview" });

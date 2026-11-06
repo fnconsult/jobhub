@@ -16,6 +16,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { Platform } from "react-native";
 import { UpdateRequired } from "../screens/UpdateRequired";
 import type { AppSession } from "../session/app-session";
+import { fetchOnWebApp } from "../web-app";
 import { WEB_APP_URL } from "../web-app-url";
 import { storePageFor } from "./store-page";
 
@@ -67,7 +68,9 @@ export function ApiProvider({
       const cookie = session ? await session.cookie() : "";
       if (cookie) headers.set("cookie", cookie);
       else headers.delete("cookie");
-      const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, { ...init, headers, credentials: "omit" });
+      // Its redirects followed on the platform alone (fetchOnWebApp): the cookie set by hand never goes to another host.
+      const platform = baseUrl.replace(/\/$/, "");
+      const response = await fetchOnWebApp(fetch, `${platform}${path}`, { ...init, headers, credentials: "omit" }, platform);
       if (response.status === UPGRADE_REQUIRED) {
         const named = await namedStorePage(response);
         setOutdated({ storeUrl: named ?? storePage });

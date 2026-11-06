@@ -13,7 +13,7 @@ import {
   Search,
   type LucideIcon,
 } from "lucide-react-native";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { AgendaList } from "../agenda/AgendaList";
@@ -45,6 +45,9 @@ const SUBJECTS = {
   agenda: menu("agenda"),
   humanCoaches: menu("humanCoaches"),
 } as const;
+
+/** The read of Mes candidatures with the Archived Applications in it: kept apart from the one without. */
+const ARCHIVED_SHOWN = "archivees";
 
 /** How many of the Applications à traiter are suggested, the most recent first (as on the web). */
 const SUGGESTED_TO_HANDLE = 2;
@@ -181,14 +184,20 @@ function Line({ label, meta }: { label: string; meta?: string }) {
   );
 }
 
-/** Mes candidatures: the list of Applications (status, Match Score, à traiter), each to its conversation. */
+/**
+ * Mes candidatures: the list of Applications (status, Match Score, à traiter), each to its conversation. The Archived
+ * Applications are left out until the Candidate asks for them (« Les afficher », `GET /api/applications?archivees=1`),
+ * as on the web.
+ */
 export function ApplicationsMenu() {
   const { t } = useTranslation();
   const router = useRouter();
+  const [showArchived, setShowArchived] = useState(false);
   const read = useRead(
     "applications",
-    "/api/applications",
+    showArchived ? "/api/applications?archivees=1" : "/api/applications",
     applicationsResponseSchema,
+    showArchived ? [ARCHIVED_SHOWN] : [],
   );
   const label = (row: ApplicationRow) =>
     [row.title, row.employer].filter(Boolean).join(" · ");
@@ -252,17 +261,32 @@ export function ApplicationsMenu() {
                       </View>
                     );
                   })}
-                  {data.archivedHidden > 0 ? (
-                    <AppText tone="secondary">
-                      {t("applications.archivedHidden", {
-                        count: data.archivedHidden,
-                      })}
-                    </AppText>
-                  ) : null}
                 </>
               )
             }
           </Loaded>
+          {read.data && read.data.archivedHidden > 0 ? (
+            <View style={{ gap: space[1], alignItems: "flex-start" }}>
+              <AppText tone="secondary">
+                {t("applications.archivedHidden", {
+                  count: read.data.archivedHidden,
+                })}
+              </AppText>
+              <Control
+                label={t("applicationsMenu.showArchived")}
+                look="secondary"
+                onPress={() => setShowArchived(true)}
+              />
+            </View>
+          ) : showArchived && read.data ? (
+            <View style={{ alignItems: "flex-start" }}>
+              <Control
+                label={t("applicationsMenu.hideArchived")}
+                look="secondary"
+                onPress={() => setShowArchived(false)}
+              />
+            </View>
+          ) : null}
         </MenuCard>
       }
       suggestions={

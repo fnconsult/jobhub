@@ -1,5 +1,5 @@
 import { createI18n, DEFAULT_LOCALE } from "@jobhub/shared/i18n";
-import { pageFor, profileIdOf } from "./pages";
+import { applicationIdOf, pageFor, profileIdOf } from "./pages";
 
 const t = createI18n(DEFAULT_LOCALE).t;
 
@@ -20,5 +20,30 @@ describe("a Profile's page (#695)", () => {
     expect(profileIdOf("/profils/prof%20lyon")).toBe("prof lyon");
     expect(profileIdOf("/compte")).toBeNull();
     expect(profileIdOf("/candidatures/app_rhone")).toBeNull();
+  });
+});
+
+describe("an Application's page (#691)", () => {
+  const read = { application: { id: "app_rhone", jobOffer: { title: "Responsable logistique" } } };
+
+  it("is titled with its Job Offer, as its read gives it, and leads back to Mes candidatures", () => {
+    expect(pageFor("/candidatures/app_rhone", t, read)).toEqual({
+      key: "/candidatures/app_rhone",
+      title: "Responsable logistique",
+      pane: "fiche",
+      up: { path: "/candidatures", label: "Retour à mes candidatures" },
+    });
+  });
+
+  it("keeps that title on one of its Sections, and « Candidature » while its read has not answered, never another's", () => {
+    expect(pageFor("/candidatures/app_rhone/entretiens", t, read).title).toBe("Responsable logistique");
+    expect(pageFor("/candidatures/app_rhone", t).title).toBe("Candidature");
+    expect(pageFor("/candidatures/app_aeroline", t, read).title).toBe("Candidature");
+  });
+
+  it("names the Application to read from its address, a Section's included, and none on any other page", () => {
+    expect(applicationIdOf("/candidatures/app%20rhone/entretiens")).toBe("app rhone");
+    expect(applicationIdOf("/candidatures")).toBeNull();
+    expect(applicationIdOf("/profils/prof_lyon")).toBeNull();
   });
 });

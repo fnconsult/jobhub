@@ -33,6 +33,18 @@ function Page({ fiche = null }: { fiche?: Parameters<typeof SidebarLayout>[0]["f
 }
 
 const topBar = () => screen.getByRole("banner");
+
+/** The Context bar, « En ce moment » and the page's AI Activity, in the order they come in `column`. */
+function inOrder(column: HTMLElement): string[] {
+  const parts = {
+    context: within(column).getByRole("group", { name: "Contexte de la conversation" }),
+    now: within(column).getByRole("region", { name: "En ce moment" }),
+    history: within(column).getByText("Aucun contenu produit par l'IA sur cette page"),
+  };
+  return Object.entries(parts)
+    .sort(([, a], [, b]) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    .map(([name]) => name);
+}
 const activityButton = () => within(topBar()).getByRole("button", { name: "Activité" });
 
 describe("« Activité » on the home page and the menus (#607, ADR-0070)", () => {
@@ -75,6 +87,17 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     expect(within(column).queryByRole("button", { name: /Fermer/ })).toBeNull();
   });
 
+  it("shows « En ce moment » under the Context bar, before the page's AI Activity (#806, ADR-0086)", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<Page />);
+
+    await user.click(activityButton());
+
+    const column = screen.getByRole("complementary", { name: "Activité" });
+    expect(inOrder(column)).toEqual(["context", "now", "history"]);
+    expect(within(within(column).getByRole("region", { name: "En ce moment" })).getByText("Rien ne tourne sur cette page.")).toBeTruthy();
+  });
+
   it("closes it again", async () => {
     const user = userEvent.setup();
     renderInFrench(<Page />);
@@ -109,5 +132,14 @@ describe("the Context bar in an object's Fiche (#607)", () => {
     const group = within(fiche).getByRole("group", { name: "Contexte de la conversation" });
     expect(within(group).getByText("12 / 40 messages · 3,1k / 12k jetons")).toBeTruthy();
     expect(group.closest("[data-group]")?.getAttribute("data-group")).toBe("activity");
+  });
+
+  it("is followed by « En ce moment », then the page's AI Activity (#806, ADR-0086)", () => {
+    renderInFrench(<Page fiche={{ card: <p>Ledger · Paris</p>, sections: [], results: [] }} />);
+
+    const fiche = screen.getByRole("complementary", { name: "Fiche" });
+    const now = within(fiche).getByRole("region", { name: "En ce moment" });
+    expect(now.closest("[data-group]")?.getAttribute("data-group")).toBe("activity");
+    expect(inOrder(fiche)).toEqual(["context", "now", "history"]);
   });
 });

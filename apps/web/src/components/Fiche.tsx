@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { AiActivityContent, useAiActivityUnderWay } from "@/components/AiActivity";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { ContextBar } from "@/components/ContextBar";
+import { EnCeMoment } from "@/components/EnCeMoment";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
@@ -276,6 +277,7 @@ export function Fiche({ content }: { content: FicheContent }) {
       </Group>
       <Group group={ACTIVITY} label={t("fiche.groups.activity")} state={state} toggle={control.toggleGroup} anchor={activity}>
         <ContextBar />
+        <EnCeMoment />
         <AiActivityContent />
       </Group>
       <Group group={RESULTS} label={t("fiche.groups.results")} state={state} toggle={control.toggleGroup}>
@@ -287,7 +289,7 @@ export function Fiche({ content }: { content: FicheContent }) {
 
 /**
  * The Activité column of the home page and the menus (#607, ADR-0070), beside the conversation, never over it: the
- * Context bar of the page's conversation, then AI Activity (the actions under way and those of late), with no heading
+ * Context bar of the page's conversation, « En ce moment » (the actions under way, ADR-0086), then AI Activity, with no heading
  * nor ✕ (the Top Bar's « Activité » closes it); on a phone, over the conversation like the Fiche, with both (#608). Nothing while it is closed, or outside a FicheProvider; hidden while it
  * has given way to the Work Pane.
  */
@@ -299,6 +301,7 @@ export function ActivityColumn() {
     <aside id={control.ficheId} className="fiche activity-column" aria-label={t("fiche.activity")} hidden={control.givenWay} onKeyDown={closeOnEscape(control)}>
       {control.wide ? null : <ColumnHead label={t("fiche.activity")} close={control.close} />}
       <ContextBar />
+      <EnCeMoment />
       <AiActivityContent />
     </aside>
   );

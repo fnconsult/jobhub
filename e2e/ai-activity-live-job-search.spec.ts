@@ -195,18 +195,16 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await expect(announcerOf(page)).toHaveText(fr.aiActivity.live.announce.started.job_search);
     await expectNoAxeViolations(page, "header.topbar");
 
-    // AI Activity: « En cours ailleurs », the search with its steps, a link to its page and its stop icon.
+    // « En ce moment » (#806): « En cours ailleurs », the search with its step under way in words, the steps it finished and
+    // its time so far, a link to its page and its stop icon.
     await openActivity(page);
     const pane = paneOf(page);
     const elsewhere = pane.locator(".ai-activity-elsewhere");
     await expect(elsewhere.getByRole("heading", { name: fr.aiActivity.live.elsewhere })).toBeVisible();
     const search = elsewhere.locator(".ai-activity-live");
     await expect(search).toContainText(`${fr.aiActivity.kinds.job_search} · `);
-    await expect(search).toContainText(/En cours · \d/);
-    await expect(search.getByRole("list", { name: fr.aiActivity.live.steps }).getByRole("listitem").first()).toBeVisible({ timeout: 30_000 });
-    // Each step shows its hour, and its label in words.
-    await expect(search.getByRole("list", { name: fr.aiActivity.live.steps }).getByRole("listitem").first().locator("time")).toHaveText(/^\d{2}:\d{2}$/);
-    await expect(search.getByRole("list", { name: fr.aiActivity.live.steps })).toContainText(new RegExp(STEP_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")));
+    await expect(search).toContainText(/\d+ étapes? finies? · \d/);
+    await expect(search.locator(".ai-activity-live-status")).toHaveText(new RegExp(`^(${STEP_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`), { timeout: 30_000 });
     await expect(search.getByRole("link", { name: fr.aiActivity.live.open.job_search })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
     const stopIcon = stopIconOf(search);
     await expect(stopIcon).toBeVisible();
@@ -246,7 +244,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
       await expect(pane.locator(".ai-activity-elsewhere")).toHaveCount(0);
       const search = pane.locator(".ai-activity-live");
       await expect(search).toBeVisible();
-      await expect(search.getByRole("list", { name: fr.aiActivity.live.steps }).locator("svg.activity-glyph").first()).toBeVisible({ timeout: 30_000 });
+      await expect(search.locator("svg.activity-glyph")).toBeVisible({ timeout: 30_000 });
       expect(await search.evaluate((element) => [...element.querySelectorAll("svg.activity-glyph")].flatMap((svg) => svg.getAnimations()).length)).toBe(0);
 
       await stopIconOf(search).click();
@@ -263,8 +261,8 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await toApplications(page);
     await openActivity(page);
     const search = paneOf(page).locator(".ai-activity-live");
-    // Once a posting is read, Perplexity goes down: the run's next web search fails.
-    await expect(search.getByRole("listitem").filter({ hasText: fr.aiActivity.steps.read }).first()).toBeVisible({ timeout: 60_000 });
+    // Once a posting is being read, Perplexity goes down: the run's next web search fails.
+    await expect(search.locator(".ai-activity-live-status")).toHaveText(fr.aiActivity.steps.read, { timeout: 60_000 });
     writeFileSync(searchDownFlag, "down");
     try {
       await expect.poll(() => statusOf(jobSearchId), { timeout: 90_000, message: workerOutput }).toBe("failed");
@@ -277,7 +275,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     }
   });
 
-  test("done, « ✓ Dernière recherche » and its wall-clock time; each step with its result and its hour", async () => {
+  test("done, it leaves « En ce moment » (#806); its end is its notification's to say, never a step", async () => {
     await freshWorker();
     const jobSearchId = await startSearch(page);
     await toApplications(page);
@@ -287,22 +285,9 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await expect(search).toBeVisible({ timeout: 30_000 });
 
     await expect.poll(() => statusOf(jobSearchId), { timeout: 120_000, message: workerOutput }).toBe("done");
-    const status = search.locator(".ai-activity-live-status");
-    await expect(status).toContainText(/Dernière recherche · \d+(,\d)? s/, { timeout: 10_000 });
-    // « ✓ »: a tick before it.
-    await expect(status.locator("svg.icon")).toBeVisible();
-    await expect(search).toHaveAttribute("data-status", "done");
-    await expect(stopIconOf(search)).toHaveCount(0);
-    // Done is not a failure: no light red.
-    expect(await search.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(await dangerSurface(search));
-    // Each ended step: its result in words (« 4 pages lues »), its hour.
-    const result = new RegExp(Object.values(fr.aiActivity.live.result as Record<string, string>).map((words) => words.replace("{{count}}", "\\d+")).join("|"));
-    const steps = search.locator(".ai-activity-live-step");
-    expect(await steps.count()).toBeGreaterThan(0);
-    for (const step of await steps.all()) {
-      await expect(step).toContainText(result);
-      await expect(step.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
-    }
+    await expect(search).toHaveCount(0, { timeout: 10_000 });
+    await expect(paneOf(page).locator(".ai-activity-elsewhere")).toHaveCount(0);
+    await expect(paneOf(page).getByRole("region", { name: fr.aiActivity.live.now })).toContainText(fr.aiActivity.live.nothing);
     // On another page than its own, its end is its notification's to say, not AI Activity's; never a step.
     const said = await announcements(page);
     expect(said).not.toContain(fr.aiActivity.live.announce.done.job_search);

@@ -56,6 +56,27 @@ jobs:
       # The native app's tests (#683): Jest with React Native Testing Library, which Vitest leaves to it.
       - run: npm run test:mobile
 
+  # The app's own Android views on the Android framework's real layout code (#835): Robolectric on the JVM, without an
+  # emulator. The conversation's box drew « + » alone once, its field and « Envoyer » laid out again past its edge.
+  android-views:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Expo's ExpoView, which the app's views extend, is compiled from the installed expo-modules-core.
+      - run: npm ci
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: apps/mobile/native-tests/*.gradle.kts
+      - run: npm run test:android -w @jobhub/mobile
+
   # The e2e suite, split across runners: one run took 58 min on one runner's two workers. Each shard builds the app,
   # gets its own Postgres, database, web server and checkout, so the projects that must run alone (worker, root-env)
   # stay one spec at a time within their shard, and never meet another shard's. e2e/support/ci-shards.test.ts fails
@@ -144,15 +165,16 @@ jobs:
           retention-days: 14
 
   # The one result the rest reads (deploy.yml, the deploy-staging skill, branch protection): green only when lint, the
-  # unit tests and every e2e shard are.
+  # unit tests, the Android views and every e2e shard are.
   check:
     if: always()
-    needs: [static, e2e]
+    needs: [static, android-views, e2e]
     runs-on: ubuntu-latest
     steps:
       - run: |
-          echo "static: ${{ needs.static.result }}, e2e: ${{ needs.e2e.result }}"
+          echo "static: ${{ needs.static.result }}, android-views: ${{ needs.android-views.result }}, e2e: ${{ needs.e2e.result }}"
           test "${{ needs.static.result }}" = success
+          test "${{ needs.android-views.result }}" = success
           test "${{ needs.e2e.result }}" = success
 
   # The screenshot baselines (#463, docs/agents/screenshot-baselines.md): every spec with a toHaveScreenshot, in the

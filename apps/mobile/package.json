@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "jest"
+    "test": "jest",
+    "test:android": "cd native-tests && ./gradlew test --no-daemon"
   },
   "dependencies": {
     "@better-auth/expo": "^1.7.7",

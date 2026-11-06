@@ -21,10 +21,26 @@ export type ContextSplit = Record<ContextCategory, number>;
  * What the server says of a Coach Conversation for its Context bar (#607): its `messages`, and `tokens`, the estimate
  * (estimateTokens) of the context sent with its latest reply: the AI Coach's system text and the messages it read;
  * `split`, that estimate by category (#731, null when none was kept), `limits`, the Coach context limits of the
- * Candidate's Plan (ADR-0078), and `upgrade`, the Plan to name once nearly full (#732). The last three may be absent from
- * what a page was given before them.
+ * Candidate's Plan (ADR-0078), `upgrade`, the Plan to name once nearly full (#732), and `reply`, what the latest reply sent in
+ * all (#790): never the bar's figure. The last four may be absent from what a page was given before them.
  */
-export type ConversationContext = { messages: number; tokens: number; limits?: CoachContextLimits; split?: ContextSplit | null; upgrade?: ContextUpgrade | null };
+export type ConversationContext = {
+  messages: number;
+  tokens: number;
+  limits?: CoachContextLimits;
+  split?: ContextSplit | null;
+  upgrade?: ContextUpgrade | null;
+  reply?: ReplyCost | null;
+};
+
+/**
+ * What the latest reply cost in tokens (#790), all its AI calls summed as the provider counted them (its Coach Message Cost's,
+ * never the euros): `calls`, how many (the Playbook Agent choice, the Playbook Agents, each Turn, each Guardrail check),
+ * `turns` and `rounds`, the Turns and Tool rounds of the reply written, `tools`, the Tools that ran; `inputTokens`, all the
+ * input sent, `cachedInputTokens` included. Each Turn sends the whole context again with the Tools' results, which is why
+ * it exceeds the context the bar shows. Null (or absent) for a reply saved before, or with no reply.
+ */
+export type ReplyCost = { calls: number; turns: number; rounds: number; tools: string[]; inputTokens: number; cachedInputTokens: number; outputTokens: number };
 
 /**
  * The offered Plan the Context bar names once nearly full (ADR-0078, #732): the next one up whose Coach context limits allow

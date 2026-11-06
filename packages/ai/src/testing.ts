@@ -59,6 +59,20 @@ export interface FakeProviderOptions {
    * reason, as `fetch` does (#325). Default: it answers at once.
    */
   pending?: boolean;
+  /**
+   * Counts its tokens from what it is sent and answers (about 4 characters a token: the tools, system text and messages as
+   * JSON), instead of `usage` (#790). Default: `usage`.
+   */
+  measured?: boolean;
+  /**
+   * The prompt cache it declares (`AiProvider.promptCache`, #790). With `measured`, it simulates one: "explicit" stores the
+   * prefix at each breakpoint Claude's adapter would mark for `TextInput.cache` (system text, end of the conversation asked,
+   * end of the latest message), "automatic" the whole request of a key; a call then reads, as cached input, the longest
+   * prefix it stored that the call starts with (512 tokens at least). Default: none.
+   */
+  promptCache?: "explicit" | "automatic";
+  /** With `measured` and `promptCache`: false declares the cache but never hits it, as calls were billed before #790. Default true. */
+  cacheHits?: boolean;
 }
 
 /** One scripted turn of the fake model (`FakeProviderOptions.turns`). */
@@ -91,6 +105,42 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
   const queries: string[] = [];
   const searches: FakeProvider["searches"] = [];
   let toolCallIds = 0;
+  /** The prefixes the simulated prompt cache holds, as sent (`promptCache` with `measured`). */
+  const cachedPrefixes: string[] = [];
+  const tokensOf = (text: string) => Math.ceil(text.length / 4);
+  /** What a call sends, as one text, and where its breakpoints end it. */
+  const serialized = (input: TextInput) => {
+    const head = JSON.stringify({ tools: input.tools ?? [], system: input.system ?? "" });
+    const ends: number[] = [];
+    let text = head;
+    for (const message of input.messages) ends.push((text += JSON.stringify(message)).length);
+    const marks = !input.cache
+      ? []
+      : options.promptCache === "explicit"
+        ? [head.length, ends[input.cache.prefixMessages - 1], ends.at(-1)]
+        : [ends.at(-1)];
+    return { text, marks: marks.filter((mark): mark is number => mark !== undefined) };
+  };
+  const measuredUsage = (input: TextInput, answered: string): TokenUsage => {
+    const { text, marks } = serialized(input);
+    const total = tokensOf(text);
+    const hit = options.promptCache && options.cacheHits !== false ? cachedPrefixes.filter((prefix) => text.startsWith(prefix)).reduce((longest, prefix) => Math.max(longest, prefix.length), 0) : 0;
+    const cachedInputTokens = tokensOf(text.slice(0, hit));
+    let written = 0;
+    for (const mark of marks) {
+      const prefix = text.slice(0, mark);
+      if (tokensOf(prefix) < 512 || cachedPrefixes.includes(prefix)) continue;
+      cachedPrefixes.push(prefix);
+      written = Math.max(written, tokensOf(prefix) - cachedInputTokens);
+    }
+    const cacheWriteTokens = options.promptCache === "explicit" && options.cacheHits !== false ? written : 0;
+    return {
+      inputTokens: total - cachedInputTokens,
+      outputTokens: Math.max(1, tokensOf(answered)),
+      ...(cachedInputTokens ? { cachedInputTokens } : {}),
+      ...(cacheWriteTokens ? { cacheWriteTokens } : {}),
+    };
+  };
   /** Settles with nothing, or rejects as `fetch` does once `signal` aborts (`pending` never settles otherwise). */
   const answering = (signal: AbortSignal | undefined, pending = options.pending): Promise<void> => {
     if (signal?.aborted) return Promise.reject(signal.reason);
@@ -104,6 +154,7 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     models: options.models ?? [`fake-${id}`],
     residency: options.residency ?? "eu",
     toolCalling: options.toolCalling ?? true,
+    ...(options.promptCache ? { promptCache: options.promptCache } : {}),
     calls,
     queries,
     searches,
@@ -129,10 +180,11 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
       const toolCalls: ToolCallBlock[] = mayCall ? (turn?.toolCalls ?? []).map((call) => ({ type: "tool_call", id: call.id ?? `call_${++toolCallIds}`, name: call.name, arguments: call.arguments })) : [];
       // A turn that calls tools has no text unless scripted, as a model calling a tool often writes none.
       const reply = turn?.text ?? (toolCalls.length > 0 ? "" : (options.reply ?? "fake reply"));
+      const text = typeof reply === "function" ? reply(input) : reply;
       return {
-        text: typeof reply === "function" ? reply(input) : reply,
+        text,
         model: input.model ?? `fake-${id}`,
-        usage: turn?.usage ?? usage,
+        usage: turn?.usage ?? (options.measured ? measuredUsage(input, text + JSON.stringify(toolCalls)) : usage),
         ...(options.tools ? { tools: options.tools } : {}),
         ...(toolCalls.length > 0 ? { toolCalls } : {}),
       };

@@ -54,7 +54,11 @@ export interface CoachObjectReader {
   read(candidateId: string, type: ReadObjectType, id: string, maxTokens: number): Promise<ReadObject | null>;
 }
 
-const CUT = " […] (la suite est coupée)";
+/**
+ * The mark ending a read cut to its room (#714): the model is told the rest exists, was not sent, and must not be guessed
+ * (#790), so it says so rather than inventing it, or answers from what it has.
+ */
+const CUT = " […] (la suite est coupée : ce résultat dépassait la taille d'une lecture ; ne suppose rien de ce qui manque, dis-le si tu en as besoin)";
 
 /** The first of `tellings` (fullest first) within `maxTokens`, else the last one cut to fit. */
 export function fitted(tellings: readonly string[], maxTokens: number): string {

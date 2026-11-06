@@ -34,18 +34,28 @@ export interface AiMessageLogSummary {
   /** Null for a call made for no Candidate (a Guest). */
   candidate: { id: string; email: string } | null;
   /**
-   * For a call that wrote an AI Coach reply (#731, ADR-0078): the reply's estimate of the context it was sent (`context_tokens`,
-   * about 4 characters a token), the provider's count of the call's input (`measure`: its input tokens, those read from its
-   * prompt cache included) and their `gap` (measure − estimate). Null for any other call, and for a reply that kept no estimate.
+   * For a call that served an AI Coach reply (#731, ADR-0078; #790 for every call of it, not only the one that wrote it): the
+   * reply's estimate of the context it was sent (`context_tokens`, about 4 characters a token), the provider's count of the input
+   * of the reply's first Turn (`measure`: what the estimate is of, its input read from the prompt cache included) and their
+   * `gap` (measure − estimate); and `reply`, the whole reply as its Coach Message Cost sums it, across all its calls. Null for
+   * any other call, and for a reply that kept no estimate.
    */
   context: ContextMeasure | null;
 }
 
-/** An AI Coach reply's context: what was estimated, what the provider counted, and the gap between them. */
+/**
+ * An AI Coach reply's context: what was estimated, what the provider counted of the call it was sent with, and the gap between
+ * them; then what the whole reply sent (#790): its `calls` (the Playbook Agent choice, the Playbook Agents, each Turn, each
+ * Guardrail check), their input `total` (cached included), of which `cached`, and the `gap` of that total over the estimate;
+ * `rounds`, the Tool rounds, and `tools`, the Tools that ran. `turn`: which Turn of the reply written this call is (1 for the
+ * first), null for another of its calls. `reply` is null for a reply saved before #790.
+ */
 export interface ContextMeasure {
   estimate: number;
   measure: number;
   gap: number;
+  turn?: number | null;
+  reply?: { calls: number; total: number; cached: number; gap: number; rounds: number; tools: string[] } | null;
 }
 
 export interface AiMessageLog extends AiMessageLogSummary {
@@ -106,10 +116,21 @@ export function aiMessageLogFilter(input: unknown): AiMessageLogFilter {
 
 const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.sent,
                         CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object('id', c.id, 'email', c.email) END AS candidate,
-                        -- The AI Coach reply the call wrote, if any: its estimate against the provider's count (#731).
-                        (SELECT json_build_object('estimate', r.context_tokens, 'measure', u.input_tokens + u.cached_input_tokens,
-                                                  'gap', u.input_tokens + u.cached_input_tokens - r.context_tokens)
-                           FROM coach_message r WHERE r.ai_call_id = u.id AND r.context_tokens IS NOT NULL LIMIT 1) AS context`;
+                        -- The AI Coach reply the call served, if any (#731, #790): its estimate against the provider's count of its
+                        -- first Turn, and the whole reply's calls summed. Found by any of its calls, or the one that wrote it before #790.
+                        (SELECT json_build_object('estimate', r.context_tokens, 'measure', f.sent, 'gap', f.sent - r.context_tokens,
+                                                  'turn', array_position(r.ai_turn_ids, u.id),
+                                                  'reply', CASE WHEN r.ai_call_ids IS NULL THEN NULL ELSE
+                                                    (SELECT json_build_object('calls', cardinality(r.ai_call_ids),
+                                                                              'total', coalesce(sum(a.input_tokens + a.cached_input_tokens), 0)::int,
+                                                                              'cached', coalesce(sum(a.cached_input_tokens), 0)::int,
+                                                                              'gap', coalesce(sum(a.input_tokens + a.cached_input_tokens), 0)::int - r.context_tokens,
+                                                                              'rounds', coalesce(r.tool_rounds, 0), 'tools', to_jsonb(coalesce(r.tool_names, '{}')))
+                                                       FROM ai_usage a WHERE a.id = ANY (r.ai_call_ids)) END)
+                           FROM coach_message r
+                          CROSS JOIN LATERAL (SELECT coalesce((SELECT a.input_tokens + a.cached_input_tokens FROM ai_usage a
+                                                                WHERE a.id = coalesce(r.ai_turn_ids[1], r.ai_call_id)), 0) AS sent) f
+                          WHERE (r.ai_call_id = u.id OR r.ai_call_ids @> ARRAY[u.id]) AND r.context_tokens IS NOT NULL LIMIT 1) AS context`;
 const FROM = `FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id LEFT JOIN candidate c ON c.id = m.candidate_id`;
 
 export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<BackOffice, "record"> }): AiMessageLogs {

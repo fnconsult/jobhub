@@ -113,12 +113,34 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * `contextTokens`: the estimate (estimateTokens) of the context the reply was written from, its system text and the messages
  * the AI Coach read (#607), what the Context bar counts; null (or absent) when the AI Coach wrote none (a Job Offer link's reply).
  * `contextSplit`: that estimate by category (#731, ADR-0078), adding up to it; null (or absent) with it.
- * `callId`: the AI call that wrote the reply (its AI Usage id, #731), whose provider's counts are read beside the estimate;
- * null (or absent) when the AI Coach wrote none.
+ * `callId`: the AI call that wrote the reply (its AI Usage id, #731; with Coach Actions, its last Turn); null (or absent)
+ * when the AI Coach wrote none.
+ * `calls` (#790): every AI call the reply was served by, as AI Usage records them: `ids`, all of them (the Playbook Agent
+ * choice, each Playbook Agent, each Turn of the reply written, each Guardrail check), what its Coach Message Cost sums;
+ * `turns`, the Turns of the reply written, in order (the first sent the context the estimate is of); `rounds`, its Tool
+ * rounds; `tools`, the names of the Tools that ran, in the order they first ran. Absent when the AI Coach wrote none.
  * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
  * `proposals`: the changes the reply proposes through Coach Actions (#713), for the Candidate to apply; absent when it was
  * offered none (Coach Actions off), empty when it proposed none or its reply was not the one shown.
  */
+/** The AI calls a Coach reply was served by (#790): see `CoachReply`. */
+export interface CoachReplyCalls {
+  ids: string[];
+  turns: string[];
+  rounds: number;
+  tools: string[];
+}
+
+/** The AI Usage ids of `call`: each of its Turns' with tools, else its own. */
+const callIdsOf = (call: GenerateResult): string[] => (call.turns ? call.turns.flatMap((turn) => (turn.callId ? [turn.callId] : [])) : call.callId ? [call.callId] : []);
+
+/** The calls of a reply (#790), from all its calls and the reply written (none when the AI Coach wrote none). */
+function replyCalls(calls: GenerateResult[], written: GenerateResult | undefined): CoachReplyCalls | undefined {
+  if (!written) return undefined;
+  const tools = [...new Set((written.tools?.runs ?? []).filter((run) => run.ran).map((run) => run.name))];
+  return { ids: calls.flatMap(callIdsOf), turns: callIdsOf(written), rounds: written.tools?.rounds ?? 0, tools };
+}
+
 export type CoachReply =
   | {
       ok: true;
@@ -134,6 +156,7 @@ export type CoachReply =
       contextTokens?: number | null;
       contextSplit?: ContextSplit | null;
       callId?: string | null;
+      calls?: CoachReplyCalls;
       proposals?: CoachProposal[];
     }
   | { ok: false; error: "invalid" }
@@ -497,6 +520,7 @@ export function createCoach(deps: CoachDeps): Coach {
           contextTokens: prepared ? estimateTokens(prepared.system) + prepared.split.messages : null,
           contextSplit: prepared?.split ?? null,
           callId: written.at(-1)?.callId ?? null,
+          ...(written.length > 0 ? { calls: replyCalls(calls, written.at(-1)) } : {}),
           // Only with the reply the Candidate sees: a blocked one proposes nothing.
           ...(proposals ? { proposals: guarded.outcome === "replied" ? proposals : [] } : {}),
         };

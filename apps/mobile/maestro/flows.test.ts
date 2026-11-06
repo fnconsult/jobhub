@@ -188,7 +188,7 @@ describe("the Maestro flows (#705)", () => {
     const button = fr.agenda.calendarFile.addFor.replace("{{what}}", fr.agenda.calendarFile.interviewTitle.replace("{{job}}", MAESTRO_SEED.interview.title).replace("{{employer}}", MAESTRO_SEED.interview.employer)).replace("{{date}}", "mercredi 12 mars 2031 à 14:30");
     const tapped = ["6-agenda.yaml", "2-ecrans-cles.yaml"].flatMap((name) => {
       const { commands } = parse(join(ROOT, "flows", name));
-      return [...valuesOf(commands, ["tapOn"]), ...valuesOf(commands, ["env"]).map((env) => (env as Record<string, unknown>).TEXT)].filter((each): each is string => typeof each === "string" && each.includes(MAESTRO_SEED.interview.title));
+      return [...valuesOf(commands, ["tapOn"]), ...valuesOf(commands, ["env"]).map((env) => (env as Record<string, unknown>).TEXT)].filter((each): each is string => typeof each === "string" && each.includes(`.*${MAESTRO_SEED.interview.title}`));
     });
     expect(tapped.length).toBeGreaterThan(1);
     for (const selector of tapped) {

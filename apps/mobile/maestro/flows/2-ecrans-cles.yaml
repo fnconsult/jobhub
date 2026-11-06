@@ -23,12 +23,22 @@ tags:
     env:
       TEXT: "Responsable qualité · Aéroline Démo"
       DIRECTION: UP
-- assertVisible: "Contrôleuse de gestion · Transports Ravel Démo"
+# The other Application, listed after it: on a folded foldable at the largest text size the thread holds one at a time.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Contrôleuse de gestion · Transports Ravel Démo"
+      DIRECTION: DOWN
 - runFlow:
     file: ../subflows/capture.yaml
     env:
       SCREEN: candidatures
 
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Responsable qualité · Aéroline Démo"
+      DIRECTION: UP
 - tapOn: "Responsable qualité · Aéroline Démo"
 - runFlow: ../subflows/fiche.yaml
 - runFlow:

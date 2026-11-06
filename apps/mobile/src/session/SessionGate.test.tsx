@@ -8,7 +8,7 @@ import { Control } from "../ui/Control";
 import { fakeWebView } from "../testing-device";
 import { readKey } from "../offline/read-cache";
 import { fakeNetwork, memoryStorage as deviceStorage } from "../offline/testing";
-import { createAppSession, type DevicePasskeys } from "./app-session";
+import { createAppSession, WEB_VIEWS_WAIT_MS, type DevicePasskeys, type WebViewCookies } from "./app-session";
 import { SessionGate, useSession } from "./SessionGate";
 import { fakeWebApp, memoryStorage, memoryWebViewCookies, TEST_BASE_URL } from "./testing";
 
@@ -39,7 +39,7 @@ function SignedInPage() {
   );
 }
 
-function setUp({ passkeys }: { passkeys?: (web: ReturnType<typeof fakeWebApp>) => DevicePasskeys } = {}) {
+function setUp({ passkeys, webViewCookies }: { passkeys?: (web: ReturnType<typeof fakeWebApp>) => DevicePasskeys; webViewCookies?: WebViewCookies } = {}) {
   reads = 0;
   const web = fakeWebApp();
   /** What the device forgets once the session ends (the Tailored Documents downloaded, #695). */
@@ -48,7 +48,7 @@ function setUp({ passkeys }: { passkeys?: (web: ReturnType<typeof fakeWebApp>) =
   /** The device's storage the read cache is kept on (#701), and its network. */
   const storage = deviceStorage();
   const network = fakeNetwork(true);
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: passkeys?.(web) ?? web.deviceWithoutPasskey(), webViewCookies: webViews, browser: web.browser });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: passkeys?.(web) ?? web.deviceWithoutPasskey(), webViewCookies: webViewCookies ?? webViews, browser: web.browser });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
   const opened = { current: null as string | null, listeners: new Set<() => void>() };
   const subscribe = (listener: () => void) => (opened.listeners.add(listener), () => void opened.listeners.delete(listener));
@@ -246,6 +246,22 @@ describe("SessionGate (#685)", () => {
     await render(web.linkFor(EMAIL));
     await screen.findByText("La conversation");
     expect(forgetOnDevice).toHaveBeenCalled();
+  });
+
+  // On iOS 18's simulator WebKit left the emptying of the WebViews' cookies unanswered, and the app, emptied for the new
+  // session, stayed blank after sign-in on every iPad run (#705).
+  it("opens the app signed in even when the WebViews' cookies are never said emptied", async () => {
+    const neverAnswered: WebViewCookies = { clear: () => new Promise<void>(() => {}) };
+    const { web, render } = setUp({ webViewCookies: neverAnswered });
+    await render();
+    const user = userEvent.setup();
+    // No session at launch: what the device kept is forgotten, the WebViews' cookies waited for at most so long.
+    const waited = { timeout: WEB_VIEWS_WAIT_MS + 5000 };
+    await user.type(await screen.findByLabelText("Votre adresse e-mail", {}, waited), EMAIL);
+    await user.press(screen.getByRole("button", { name: "Recevoir mon lien de connexion" }));
+    await user.type(await screen.findByLabelText("Saisir le code reçu par e-mail"), web.codeFor(EMAIL));
+    await user.press(screen.getByRole("button", { name: "Me connecter avec ce code" }));
+    expect(await screen.findByText("La conversation", {}, waited)).toBeOnTheScreen();
   });
 
   it("keeps what the device kept while the web app cannot be asked: the session may still be valid (#695)", async () => {

@@ -5058,7 +5058,10 @@
     "live": {
       "starting": "Démarrage",
       "elsewhere": "En cours ailleurs",
-      "running": "En cours · {{time}}",
+      "now": "En ce moment",
+      "nothing": "Rien ne tourne sur cette page.",
+      "finished_one": "{{count}} étape finie",
+      "finished_other": "{{count}} étapes finies",
       "stopping": "Arrêt en cours…",
       "stopped": "Arrêtée à {{time}}",
       "failed": "Échec à {{time}}",
@@ -5066,15 +5069,6 @@
       "unknownReason": "Elle n'a pas pu aboutir.",
       "stepStopped": "arrêtée",
       "stepFailed": "échouée",
-      "stepWarning": "avec un avertissement",
-      "done": {
-        "job_search": "Dernière recherche · {{time}}",
-        "coach_reply": "Dernière réponse · {{time}}",
-        "company_dossier": "Dernier dossier · {{time}}",
-        "cv_reading": "Dernière lecture · {{time}}",
-        "tailored_cv": "CV adapté proposé · {{time}}",
-        "tailored_documents": "Document rédigé · {{time}}"
-      },
       "result": {
         "think_one": "{{count}} analyse",
         "think_other": "{{count}} analyses",
@@ -5097,8 +5091,6 @@
         "propose_one": "{{count}} proposition préparée",
         "propose_other": "{{count}} propositions préparées"
       },
-      "earlierSteps_one": "{{count}} étape terminée plus tôt",
-      "earlierSteps_other": "{{count}} étapes terminées plus tôt",
       "steps": "Étapes",
       "stop": {
         "job_search": "Arrêter la recherche d'offres",
@@ -6082,7 +6074,10 @@
       }
     },
     "jobSearches": {
-      "quotaExceeded": "Votre quota de recherches d'offres est atteint pour cette période : vous pourrez en lancer une nouvelle à son renouvellement."
+      "quotaExceeded": "Votre quota de recherches d'offres est atteint pour cette période : vous pourrez en lancer une nouvelle à son renouvellement.",
+      "notFound": "Cette recherche est introuvable : elle n'existe pas ou n'est pas la vôtre.",
+      "criteriaOnWeb": "Les critères se modifient sur jobbbox.ai : « Modifier les critères » ouvre la page du profil.",
+      "introduction": "Cette conversation porte sur cette recherche d'offres : le coach a sous les yeux les offres trouvées et leur score de correspondance. Demandez-lui lesquelles suivre."
     },
     "push": {
       "channel": "Notifications",
@@ -6110,6 +6105,15 @@
         },
         "declined": "Les notifications de l'app ne sont pas activées sur cet appareil : les choix ci-dessous s'appliqueront dès que vous les activerez."
       }
+    },
+    "jobOffer": {
+      "followCreates": "« Suivre » crée sa candidature avec le profil « {{profile}} »."
+    },
+    "jobDigests": {
+      "notFound": "Ce Job Digest est introuvable : il n'existe pas ou n'est pas le vôtre.",
+      "off": "Job Digest désactivé pour ce profil.",
+      "frequency": "Fréquence : {{frequency}}",
+      "introduction": "Cette conversation porte sur ce Job Digest : le coach a sous les yeux ses offres et leur score de correspondance. Demandez-lui lesquelles suivre."
     }
   },
   "coachProposals": {

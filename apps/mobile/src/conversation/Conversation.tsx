@@ -19,8 +19,10 @@ const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEv
  * A page's conversation with the AI Coach (ADR-0070), as it is drawn: its thread (`children`, at its reading width,
  * following the latest message), and at its foot the box, with « + » for a link or a document and « Envoyer » or,
  * while the reply is on its way, « Arrêter ». `aboveBox` (the suggestions, the help's articles) and `belowBox` (the
- * Signalement links) sit around it. What it shows and sends is its caller's (CoachConversation). Without network the
- * box, « + » and « Envoyer » are disabled, and it says why (#701).
+ * Signalement links) sit around it. `lead`, the page's own view before the thread (Recherches d'offres' Offer box,
+ * ADR-0090): the page then opens on it, and only what is sent brings the thread down to its latest message. What it
+ * shows and sends is its caller's (CoachConversation). Without network the box, « + » and « Envoyer » are disabled, and
+ * it says why (#701).
  */
 export function Conversation({
   draft,
@@ -32,6 +34,7 @@ export function Conversation({
   aboveBox,
   belowBox,
   inputRef,
+  lead,
   children,
 }: {
   draft: string;
@@ -45,6 +48,7 @@ export function Conversation({
   belowBox?: ReactNode;
   /** The box, for its caller to put the focus in it. */
   inputRef?: RefObject<ComponentRef<typeof TextInput> | null>;
+  lead?: ReactNode;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -54,7 +58,8 @@ export function Conversation({
   const thread = useRef<ComponentRef<typeof ScrollView>>(null);
   // Whether the person reads the latest message: the thread follows it as it grows (a message, the reply streaming), but
   // stays where they scrolled back to when the window changes and the messages wrap again (Split View, a foldable).
-  const following = useRef(true);
+  // Under a page's own view (`lead`), the page opens on it: nothing follows until something is sent.
+  const following = useRef(lead === undefined);
   const send = () => {
     const text = draft.trim();
     if (!text || !online || streaming) return;
@@ -75,7 +80,10 @@ export function Conversation({
         onContentSizeChange={() => (following.current ? thread.current?.scrollToEnd({ animated: true }) : undefined)}
         contentContainerStyle={styles.thread}
       >
-        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>{children}</View>
+        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>
+          {lead}
+          {children}
+        </View>
       </ScrollView>
       <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2], gap: space[1] }}>
         {aboveBox}

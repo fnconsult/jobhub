@@ -3,7 +3,7 @@ import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useApi } from "../api/api";
 import { useOfferBox } from "../api/reads";
 import { openPostingAction, shareLinkAction } from "../navigation/links";
@@ -20,10 +20,10 @@ import { ObjectRow } from "../ui/ObjectRow";
  * Recherches d'offres in the app (ADR-0090, #815): the Offer box (« Offres à traiter ») as `GET /api/offer-box` answers
  * it, laid out by `offerBoxView` as the web lays it out: « N à traiter » and « k traitées », the source chips, « Aujourd'hui »
  * then « Précédemment » by Importance tier, each entry with « Suivre » (`POST /api/applications`, then the box read
- * again). An entry opens in the Work Pane; its context menu opens its posting or shares its web address. The coach's box
- * at the foot comes with #690.
+ * again). An entry opens in the Work Pane; its context menu opens its posting or shares its web address. It leads the
+ * page: the menu's Coach Conversation follows it, its box at the foot (JobSearchesMenu, variant B of ADR-0090).
  */
-export function OfferBoxScreen() {
+export function OfferBox() {
   const { t } = useTranslation();
   const box = useOfferBox();
   const api = useApi();
@@ -37,7 +37,7 @@ export function OfferBoxScreen() {
   };
   if (box.data) return <OfferBoxList box={box.data} onFollow={follow} />;
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: space[4] }}>
+    <View style={{ alignItems: "center", gap: space[2] }}>
       <ReadState read={box}>{() => null}</ReadState>
       <AppText tone="secondary">{t("offerBox.title")}</AppText>
     </View>
@@ -51,7 +51,7 @@ export function OfferBoxList({ box, onFollow }: { box: OfferBoxResponse; onFollo
   const [filter, setFilter] = useState<OfferBoxFilter>("all");
   const view = offerBoxView(box, filter);
   return (
-    <ScrollView contentContainerStyle={{ padding: space[4], gap: space[4] }}>
+    <View style={{ gap: space[4] }}>
       <View style={{ gap: space[2] }}>
         <AppText variant="h2" heading>
           {t("offerBox.title")}
@@ -92,7 +92,7 @@ export function OfferBoxList({ box, onFollow }: { box: OfferBoxResponse; onFollo
           />
         </>
       )}
-    </ScrollView>
+    </View>
   );
 }
 

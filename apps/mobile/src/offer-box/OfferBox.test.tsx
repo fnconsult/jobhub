@@ -1,7 +1,7 @@
 import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
 import { screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { renderInApp } from "../testing";
-import { OfferBoxScreen } from "./OfferBoxScreen";
+import { OfferBox } from "./OfferBox";
 
 const TODAY = "2026-11-05";
 
@@ -55,7 +55,7 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
       entry("old", { matchScore: 65, arrivalDay: "2026-11-02", firstArrivalAt: "2026-11-02T08:00:00.000Z" }),
       entry("done", { state: "followed", applicationId: "app-done", followedAt: "2026-11-05T09:00:00.000Z" }),
     ]);
-    await renderInApp(<OfferBoxScreen />);
+    await renderInApp(<OfferBox />);
 
     expect(await screen.findByRole("heading", { name: "Offres à traiter" })).toBeOnTheScreen();
     expect(screen.getByText("3 à traiter · 1 traitée")).toBeOnTheScreen();
@@ -67,7 +67,7 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
 
   it("filters by a source chip, each with how many of its entries are à traiter", async () => {
     serve([entry("a", { sources: [{ source: "email", at: "2026-11-05T08:00:00.000Z" }] }), entry("b")]);
-    await renderInApp(<OfferBoxScreen />);
+    await renderInApp(<OfferBox />);
     await screen.findByRole("heading", { name: "Offres à traiter" });
 
     await userEvent.setup().press(screen.getByRole("button", { name: "Email, 1 à traiter" }));
@@ -79,7 +79,7 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
 
   it("« Suivre » saves the Job Offer as an Application with the entry's Profile, and the box read again shows it « Suivie »", async () => {
     const { writes } = serve([entry("a", { profile: null, scoredWith: { id: "p2", name: "Contrôleuse" } })]);
-    await renderInApp(<OfferBoxScreen />);
+    await renderInApp(<OfferBox />);
     const line = await screen.findByLabelText("Offre a");
 
     await userEvent.setup().press(within(line).getByRole("button", { name: "Suivre : Offre a" }));
@@ -91,7 +91,7 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
 
   it("says when nothing has arrived yet", async () => {
     serve([]);
-    await renderInApp(<OfferBoxScreen />);
+    await renderInApp(<OfferBox />);
 
     expect(await screen.findByText("Aucune offre pour l'instant")).toBeOnTheScreen();
   });

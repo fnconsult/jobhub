@@ -34,19 +34,9 @@ class DropTargetModule : Module() {
  * drag, and an editable EditText takes every drag, so it would insert a dropped file's content:// URI or a link into
  * the draft instead. The box keeps such a drag from its children. A drag started in this app (text dragged within the
  * field) still goes to them, so the field moves its own text as before.
- *
- * React Native lays out what the box holds (« + », the field, « Envoyer »), as it does any view's children (#835).
- * ExpoView is a LinearLayout, which would lay them out again in a row by its own measure of each, and a React view
- * measures as wide as it is let: « + » took the whole box, the field and « Envoyer » went past its edge, undrawn and out
- * of the accessibility tree. The box keeps the size React Native gives it and leaves its children where they are put.
  */
 class DropTargetView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val onDropItems by EventDispatcher()
-
-  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) =
-    setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
-
-  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) = Unit
 
   override fun dispatchDragEvent(event: DragEvent): Boolean =
     if (event.localState != null) super.dispatchDragEvent(event) else onDrag(event)

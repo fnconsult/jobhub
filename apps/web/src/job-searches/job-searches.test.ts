@@ -6,6 +6,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS, type Billing } from "../billing";
 import { createConsumption } from "../consumption";
 import { createJobOffers, createSourceChecks, migrateJobOffers, type JobOffers } from "../job-offers";
+import { offerBoxOf } from "../offer-box";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { PushNotification } from "../push-notifications";
 import { createJobSearchReports, createJobSearches, JOB_DISCOVERY_QUEUE, migrateJobSearches, type JobSearches } from "./index";
@@ -25,6 +26,7 @@ const masterCv: MasterCvContent = {
 
 describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
+  let database: Pool;
   let profiles: Profiles;
   let jobOffers: JobOffers;
   let applications: Applications;
@@ -65,7 +67,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
-    const database = testAuth.auth.options.database as Pool;
+    database = testAuth.auth.options.database as Pool;
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateApplications(database);
@@ -121,6 +123,24 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     ]);
     expect(done?.results[0]).toMatchObject({ jobOffer: { employer: "Acme Industrie", location: "Lyon", contractType: "cdi" }, matchScore: { score: 100 } });
     expect(done!.results[0]!.matchScore.score).toBeGreaterThan(done!.results[1]!.matchScore.score);
+  });
+
+  it("brings the Job Offers it kept to the Candidate's Offer box, with its Profile, done, stopped or failed (ADR-0090)", async () => {
+    const found = await capture("DAF H/F", { employer: "Acme Industrie", location: "Lyon" });
+    const stoppedWith = await capture("Contrôleur de gestion", { location: "Lyon" });
+    const done = await started();
+    await jobSearches.record(done.id, { jobOfferIds: [found] });
+    const stopped = await started();
+    clock.now = new Date(clock.now.getTime() + 60_000);
+    await jobSearches.record(stopped.id, { stopped: true, jobOfferIds: [stoppedWith, found] });
+    // A later report changes nothing: the Job Search is over.
+    await jobSearches.record(done.id, { jobOfferIds: [] });
+
+    expect((await offerBoxOf(database, candidateId)).map(({ jobOfferId, profileId: profile, arrivalSources }) => [jobOfferId, profile, arrivalSources.map((arrival) => arrival.source)])).toEqual([
+      [found, profileId, ["job_search"]],
+      [stoppedWith, profileId, ["job_search"]],
+    ]);
+    expect(await offerBoxOf(database, otherCandidateId)).toEqual([]);
   });
 
   it("names the Search Criteria its Match Scores are against: the Profile's current ones", async () => {

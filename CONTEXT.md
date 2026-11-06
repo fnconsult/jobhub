@@ -15,7 +15,7 @@ The Candidate deletes their own account, confirmed by typing their email address
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan with its Coach context limits and Plan Quota use, EU AI Consent, Follow-up Delays, Appointment Reminder setting, Propositions du coach setting and Nouveautés email choice (with its date and the Versions it told them of); their Private Job Offers; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, the Provenance of each of these results, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log; their Signalements (with their context, status and the team's reply with when it was saved and last changed, never which Administrator changed the status or replied, nor when their Signalement notification was closed). It leaves out secrets (sign-in tokens and passwords, the Job Digest and Nouveautés email unsubscribe links), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan with its Coach context limits and Plan Quota use, EU AI Consent, Follow-up Delays, Appointment Reminder setting, Propositions du coach setting and Nouveautés email choice (with its date and the Versions it told them of); their Private Job Offers; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, the Provenance of each of these results, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log; their Consumption counts (12 months); their Signalements (with their context, status and the team's reply with when it was saved and last changed, never which Administrator changed the status or replied, nor when their Signalement notification was closed). It leaves out secrets (sign-in tokens and passwords, the Job Digest and Nouveautés email unsubscribe links), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -107,7 +107,7 @@ A saved conversation between a Candidate and the AI Coach, and on the Candidate'
 _Avoid_: Chat, thread, session
 
 **À traiter**:
-Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter.
+Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter. Said of an Offer box entry neither « Suivie » nor « Écartée » nor « Expirée sans décision » (ADR-0090): it counts in « N à traiter » on the Offer box, beside « Recherches d'offres » in the Sidebar, on the app icon's badge and in one line of the Job Digest.
 
 **Menu card**:
 The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter; Recherches d'offres: each active Profile's Job Searches with start date, status, Job Offers found and « Nouveaux résultats »; Job Digests: each active Profile's frequency and every Job Digest sent; Agenda: the list and « À planifier »; Mes coachs humains: Coaching Sessions and Human Coaches). It stays in the thread whatever is sent. An Archived Profile's Job Searches and Job Digests are left out of the cards and the Sidebar; Recherches d'offres is one conversation for all Profiles.
@@ -308,6 +308,33 @@ _Avoid_: Action Card, preview, link card
 A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par email »): its title, employer, contract and remote work, its Match Score and the actions to save it as an Application or read it. Not the Job Offer card, which is the AI Coach's.
 _Avoid_: Job Offer card, result card
 
+**Offer box**:
+Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
+_Avoid_: Inbox, feed, offer list
+
+**Offer box entry**:
+One Job Offer in one Candidate's Offer box, made at its first Arrival and kept 12 months from it: its Profile, its Arrival sources with their dates, and where it stands: à traiter, « Plus tard », « Suivie » (its Application exists), « Écartée » (with its Dismissal reason, if given) or « Expirée sans décision » (still undecided when its Posting date, or its first Arrival when that is unknown, passed 30 days; out of the count). Only « Suivie » and « Écartée » make it treated (« traitée »); opening it treats nothing. Part of the Candidate's Data export.
+_Avoid_: Inbox item, notification
+
+**Arrival**:
+A Job Offer reaching a Candidate's Offer box from one Arrival source. The first makes the Offer box entry and sets its day (Paris time); a later one adds its source to the entry without moving it.
+
+**Arrival source**:
+Where an Arrival came from, shown as a chip: « Recherche » (a Job Search), « Job Digest », « Email » (a Received offer email, Email intake), « Lien du coach » (a Job Offer link). A Capture (« Extension ») or a Share capture (« Partage ») makes an entry only once followed, already « Suivie ».
+_Avoid_: Channel, provider, Job discovery source (which is where Job discovery searches)
+
+**Écartée**:
+Said of an Offer box entry the Candidate set aside with « Écarter », with an optional **Dismissal reason** (« Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs »). Counts as already seen: never offered again by a Job Digest, « déjà vue » for Email intake, shown « Écartée » in a Job Search's results. « Revenir sur ce choix » makes it à traiter again. The shared Job Offer is untouched.
+_Avoid_: Dismissed, rejected, archived, hidden
+
+**Plus tard**:
+An Offer box entry put out of sight until the next Monday 00:00 Paris time, when it comes back under « Aujourd'hui ». Not a decision: it stays à traiter and in the count.
+_Avoid_: Snooze
+
+**Importance tier**:
+The Offer box's grouping by Match Score: « À ne pas manquer » (80 and more), « À regarder » (60 to 79), « Peu adaptées » (under 60 or not computable); the most recent Arrival first within each.
+_Avoid_: Priority, ranking
+
 **Quick actions**:
 The suggestions above the box of the home page's empty conversation that start the usual next steps: search for Job Offers, add an Application, plan an Interview, ask how the page works.
 _Avoid_: shortcuts
@@ -433,6 +460,10 @@ _Avoid_: Onboarding, setup flow
 One email Email intake took from a Linked mailbox, its kind (alerte, recruteur or autre) and its outcome: offers found, « autre » (not an offer: a newsletter, a profile view, an application's news; an alert with no precise offer is « autre » but keeps its kind), « échec » (read and tried again twice, 10 minutes apart; the third failure, or any try after 72 hours, records it), set aside as from an unrecognised sender (discarded unread), set aside as « plafond atteint » (the Linked mailbox's daily cap was already reached: discarded unread, not queued), or set aside by a Guardrail. When it arrives, an email waits as « en attente de lecture » with its text kept encrypted until read; Gmail's forwarding confirmation is kept the same way for the setup wizard, and counts against no cap. The cap's day is the Paris calendar day; an email to a Forwarding address no longer in use is dropped with no row. Each offer in an email is listed with how it turned out: new (with its Profile, or none, and its Match Score; a Match Score under 60 files it under « Non classées »), « déjà vue » (already one of the Candidate's Applications, Job Searches, Job Digests or earlier emails), « À capturer » (it links to a Forbidden site, so no Job Offer; an email whose offers all do counts as offers found) or too old (stated or email date over 30 days ago, no Job Offer). Only an email from a Recognised sender, or one the Candidate forwarded by hand from one of their own addresses, is read, and only its text: never its headers, images or attachments. Its text is never kept once read (on a failure, at most 72 hours, encrypted, to try again); Received offer emails are kept 12 months; what is kept is the outcome, the sender's domain and the Job Offers it gave, whose Provenance has its steps (reading the email with the Email intake Tool, the AI step that read the offers, deduplication and Match Score by rules) and the sender's domain as a Provenance site.
 _Avoid_: Imported email, parsed email
 
+**Non classée**:
+Said of an Offer box entry with no Profile: it came from Email intake with a Match Score under 60 or a Job Offer link pasted where no Profile is in view. It sits in the Offer box like any other entry and shows its Match Score from the active Profile it matches best; « Suivre » gives the Application that Profile.
+_Avoid_: Unsorted, orphan
+
 **Linked mailbox event**:
 What happens to a Linked mailbox's Email intake, kept without naming the Candidate for 24 months: switched on, replaced (the Forwarding address), switched off, or « plafond atteint » (the daily cap reached: once per Linked mailbox per Paris day, at the first email set aside). Shown in the Journal's « Boîtes reliées » filter, and counted « Réussi » there. Like a Received offer email's row in Activité, it survives the Candidate's deletion and is not in their Data export (ADR-0059).
 _Avoid_: Mailbox log
@@ -465,7 +496,7 @@ The AI Coach's guess at the real employer behind a Job Offer posted by a recruit
 _Avoid_: Hidden employer, client
 
 **Job Digest**:
-A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota; it goes out at 07:00 Paris time (weekly ones on Monday). Its Job Offers come first from those already stored, Job discovery only topping them up. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search) and without an Application; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
+A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota; it goes out at 07:00 Paris time (weekly ones on Monday). Its Job Offers come first from those already stored, Job discovery only topping them up. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search), without an Application and not Écartée; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
 _Avoid_: Alert, newsletter, feed
 
 **Sending address**:
@@ -817,8 +848,14 @@ The two files the web serves so that a phone hands some web addresses to the Job
 _Avoid_: Deep-link config
 
 **Share capture**:
-Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation.
+Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation, whose messages name only the offer's title. What was shared is held in memory only: never saved on the device, logged or written into the conversation. It counts against no Plan Quota; scoring the offer against the profile counts one Match Score.
 _Avoid_: Import, clip
+
+**Share link**:
+The app's address `jobbbox://partage?url=…&text=…` that the iOS share extension and the Android share receiver open the app with.
+
+**Capture screen**:
+The app-only page « Partager vers Jobbbox » (`/partage`), where the Candidate checks the shared link and text before sending them to Jobbbox.
 
 ### Delivery
 
@@ -900,6 +937,10 @@ _Avoid_: Limit, allowance, credits, monthly quota
 **Quota Reduction**:
 Lowering a paid Plan's Plan Quotas, Coach context limits or Plan Features while Candidates pay for it (a lower number, a number where it was unlimited, a rarer Job Digest, a Plan Feature taken off). It waits for an effective date at least 30 days ahead, with a reason; each paying subscriber is told by e-mail and may cancel at no cost until 30 days after that date, the unused part of the paid period refunded prorata (« Résilier sans frais »). Listed on Offres, where it can be cancelled before its date. On Free, or on a Plan nobody pays for, a reduction applies at once.
 _Avoid_: Downgrade (that is a Candidate changing Plan), quota cut, plan change
+
+**Consumption**:
+What a Candidate has used, shown on Mon abonnement as « Votre consommation » (ADR-0091): AI actions over the billing period (from the Stripe subscription's current period start to its end; the calendar month in French time on Free), counted per Tool (an AI Coach reply, whatever its Tool rounds, a Job Search, a Match Score, an ATS Score, a Tailored CV, a Tailored Document, a Company Dossier, an Enriched Contact, a CV read), with its change against the same day of the previous period and a 12-month grid of days. It comes from a per-Candidate daily count per Tool, incremented with the result or the Plan Quota use and given back with it. That count holds no content, model, provider, tokens or euros, is kept 12 rolling months, is deleted with the account and is in the Data export. Never in jetons or euros (#332). Models stay in AI Activity; the week's Plan Quotas stay in the Usage Meter.
+_Avoid_: AI Usage (the Back Office's, of no one), bill, credits, token count
 
 **Usage Meter**:
 The bar at the foot of the Sidebar showing how much of the week's Plan Quotas the Candidate has used: every use over every use the Plan grants, so each quota weighs what the Plan grants of it; unlimited and not-included quotas weigh nothing. Titled « Hebdomadaire » ("Weekly"), with a line under the bar saying the quota renews Monday at midnight. Its button opens a card above the meter (Escape closes it) showing each quota's use and the Job Digest frequency, and leading to the subscription page.

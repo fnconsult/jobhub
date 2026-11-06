@@ -28,6 +28,7 @@ import type {
   JobOfferLine,
   JobSearchesResponse,
   JobSearchResponse,
+  OfferBoxResponse,
   ProfileResponse,
   ProfilesResponse,
   RescheduleRead,
@@ -49,6 +50,7 @@ import type { JobSearches } from "../job-searches";
 import type { Orders } from "../orders";
 import type { Withdrawals } from "../withdrawals";
 import { jobSearchesMenu } from "../job-searches/menu";
+import type { OfferBox, OfferBoxContents } from "../offer-box";
 import type { Profiles } from "../profiles";
 import type { Reschedule } from "../reschedules";
 import type { TailoredCvs } from "../tailored-cv";
@@ -61,6 +63,8 @@ export interface CandidateReads {
   application(candidateId: string, applicationId: string): Promise<ApplicationResponse | null>;
   /** Recherches d'offres' card: each active Profile, in their order, with its Job Searches, most recent first. */
   jobSearches(candidateId: string): Promise<JobSearchesResponse>;
+  /** The Offer box (« Offres à traiter », ADR-0090): every entry, the most recent first Arrival first, and how many are à traiter. */
+  offerBox(candidateId: string): Promise<OfferBoxResponse>;
   /** One of the Candidate's Job Searches and its Job Offers, best Match Score first; null when it is not theirs. */
   jobSearch(candidateId: string, jobSearchId: string): Promise<JobSearchResponse | null>;
   /** The Job Digests' card: each active Profile, its Job Digest's frequency and those sent, newest first. */
@@ -104,6 +108,7 @@ export interface CandidateReadsDeps {
   tailoredCvs: Pick<TailoredCvs, "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   coachConversations: Pick<CoachConversations, "list" | "ofSubject" | "open">;
+  offerBox: OfferBox;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
 }
@@ -211,6 +216,27 @@ const jobOfferLine = (offer: JobOfferFacts): JobOfferLine => ({
   expiredAt: isoOrNull(offer.expiredAt),
 });
 
+/** The Offer box as `GET /api/offer-box` answers it, and as the web page reads it too (ADR-0090): the two cannot drift apart. */
+export function offerBoxResponse(box: OfferBoxContents): OfferBoxResponse {
+  return {
+    today: box.today,
+    toHandle: box.toHandle,
+    entries: box.entries.map((entry) => ({
+      id: entry.id,
+      jobOffer: { ...jobOfferLine(entry.jobOffer), contractType: entry.jobOffer.contractType ?? null },
+      profile: entry.profile,
+      scoredWith: entry.scoredWith,
+      matchScore: entry.matchScore ? figure(entry.matchScore) : null,
+      firstArrivalAt: iso(entry.firstArrivalAt),
+      arrivalDay: entry.arrivalDay,
+      sources: entry.sources.map(({ source, at }) => ({ source, at: iso(at) })),
+      state: entry.state,
+      applicationId: entry.applicationId,
+      followedAt: isoOrNull(entry.followedAt),
+    })),
+  };
+}
+
 /** The menus' cards name no day: the app writes it in the Candidate's language from the instant. */
 const NO_DAY_LABEL = () => "";
 
@@ -279,6 +305,10 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
         })),
         unseen: menu.unseen,
       };
+    },
+
+    async offerBox(candidateId) {
+      return offerBoxResponse(await deps.offerBox.read(candidateId));
     },
 
     async jobSearch(candidateId, jobSearchId) {

@@ -8,8 +8,11 @@ export type DocumentFormat = "pdf" | "docx";
 
 /** What the device does with a document's file (system-documents.ts on a phone or a tablet). */
 export interface DocumentDevice {
-  /** Downloads `path` (an `/api/*` route of the web app) into the app's cache as `fileName`; answers the file's address. */
-  download(path: string, fileName: string): Promise<string>;
+  /**
+   * Downloads `path` (an `/api/*` route of the web app) into the app's cache, in its `folder` of the documents' folder,
+   * as `fileName`, over what is there; answers the file's address.
+   */
+  download(path: string, place: CachePlace): Promise<string>;
   /** Shows a PDF in the system's reader: Quick Look on iOS, the PDF viewer on Android. */
   view(file: string, title: string): Promise<void>;
   /** The system's share sheet with a file in `format` (Fichiers, Mail…). */
@@ -18,8 +21,15 @@ export interface DocumentDevice {
   shareText(title: string, subject: string, text: string): Promise<void>;
 }
 
-/** How a document is named: « CV adapté », and what it is for, « Aéroline · Responsable qualité ». */
-export type DocumentName = { name: string; about: string };
+/** Where a document's file lands in the documents' folder of the app's cache: a folder, a file name. */
+export type CachePlace = { folder: string; fileName: string };
+
+/**
+ * Whose document it is, its Application's id, and how it is named: « CV adapté », and what it is for, « Aéroline ·
+ * Responsable qualité ». Two Applications can be named alike (the same Job Offer under two Profiles): the id keeps their
+ * files apart (#756).
+ */
+export type DocumentName = { applicationId: string; name: string; about: string };
 
 /**
  * An Application's Tailored Documents as the app shows them (ADR-0076, #695): to read, share and download, never to
@@ -35,8 +45,18 @@ export interface DocumentReader {
   download(document: TailoredDocument, name: DocumentName, format: DocumentFormat): Promise<void>;
 }
 
-/** A file name the device accepts: no path separator or reserved character. */
-const fileName = ({ name, about }: DocumentName, format: DocumentFormat) => `${name} – ${about}`.replace(/[/\\:*?"<>|]+/g, "-") + `.${format}`;
+/** A name the device accepts for a file or a folder: no path separator or reserved character. */
+const safe = (name: string) => name.replace(/[/\\:*?"<>|]+/g, "-");
+
+/**
+ * Where a document's file is kept: a folder of its own, named for its Application and its kind (`app_1-tailored_cv`),
+ * so no other Application's document lands in it; the file named as a person reads it in the share sheet or in
+ * Fichiers, « CV adapté – Aéroline · Responsable qualité.pdf », in its format.
+ */
+const placeOf = (document: TailoredDocument, { applicationId, name, about }: DocumentName, format: DocumentFormat): CachePlace => ({
+  folder: safe(`${applicationId}-${document.kind}`),
+  fileName: `${safe(`${name} – ${about}`)}.${format}`,
+});
 
 export function createDocumentReader(device: DocumentDevice): DocumentReader {
   const files = new Map<string, Promise<string>>();
@@ -48,7 +68,7 @@ export function createDocumentReader(device: DocumentDevice): DocumentReader {
     const key = `${path} ${document.updatedAt}`;
     let downloaded = files.get(key);
     if (!downloaded) {
-      downloaded = device.download(path, fileName(name, format));
+      downloaded = device.download(path, placeOf(document, name, format));
       files.set(key, downloaded);
       // A failed download is tried again the next time.
       downloaded.catch(() => files.delete(key));

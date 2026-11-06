@@ -7,8 +7,11 @@ import type { CoachProposal } from "../coach-actions";
 import type { CoachProposalCard } from "../coach-proposals";
 import { createApplications, migrateApplications } from "../applications";
 import { migrateCoachMemory } from "../coach-memory";
+import { migrateEmailIntake } from "../email-intake";
+import { migrateEmailReadings } from "../email-intake/reading";
 import { migrateJobDigests } from "../job-digests";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
+import { backfillOfferBox, offerBoxOf } from "../offer-box";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles } from "../profiles";
 import type { NoticedReply } from "../unanswered-questions";
@@ -714,6 +717,94 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     if (!profile.ok) throw new Error("no profile");
     await createApplications(database, { jobOffers, profiles: createProfiles(database) }).save(marie, { jobOfferId: captured.jobOffer.id, profileId: profile.profile.id });
     expect((await conversations.open(marie, sent.conversation.id))?.messages[1]).toEqual({ from: "coach", text: "J'ai lu cette offre.", jobOffer: { ...card, followed: true }, provenance: PROVENANCE, at: expect.any(String) });
+  });
+
+  it("brings the Job Offer of a reply's Job Offer card to the Candidate's Offer box, with the conversation's Profile (ADR-0090)", async () => {
+    const jobOffers = createJobOffers(database);
+    const captured = await jobOffers.capture({ source: { url: "https://carrieres.example.fr/daf" }, title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" });
+    if (!captured.ok) throw new Error("not captured");
+    const profile = await createProfiles(database).create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+    if (!profile.ok) throw new Error("no profile");
+    coachReply = () => ({ ok: true, reply: "J'ai lu cette offre.", outcome: "replied", cost: null, provenance: PROVENANCE, playbooks: [], consultations: [], jobOffer: captured.jobOffer });
+
+    await conversations.send(marie, { message: "https://carrieres.example.fr/daf", focus: { kind: "profile", id: profile.profile.id } });
+
+    expect(await offerBoxOf(database, marie)).toEqual([
+      expect.objectContaining({ jobOfferId: captured.jobOffer.id, profileId: profile.profile.id, arrivalSources: [{ source: "job_offer_link", at: now }] }),
+    ]);
+    // Without a Profile in view, it is « Non classée »; a reply without a card brings nothing.
+    await conversations.send(jean, { message: "https://carrieres.example.fr/daf" });
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [] });
+    await conversations.send(jean, { message: "Merci" });
+    expect(await offerBoxOf(database, jean)).toEqual([expect.objectContaining({ jobOfferId: captured.jobOffer.id, profileId: null })]);
+  });
+
+  describe("a conversation that opens on a Job Offer the Candidate shared from another app (Share capture, #697)", () => {
+    beforeEach(async () => {
+      // The Offer box's backfill reads every door's table.
+      await migrateEmailIntake(database);
+      await migrateEmailReadings(database);
+    });
+
+    it("is saved at once, the Candidate's message then the set reply with its Job Offer card, without the AI Coach", async () => {
+      const captured = await createJobOffers(database).capture({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" }, "candidate", { privateTo: marie });
+      if (!captured.ok) throw new Error("not captured");
+
+      const started = await conversations.startAbout(marie, captured.jobOffer, { message: "Offre partagée : DAF H/F", reply: "Je l'ai enregistrée.", provenance: PROVENANCE });
+
+      expect(started).toMatchObject({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), title: "DAF H/F", subject: null, profile: null });
+      expect(asked).toEqual([]);
+      const card = { id: captured.jobOffer.id, title: "DAF H/F", employer: "Groupe Seb", followed: false };
+      expect(await conversations.open(marie, started.id)).toMatchObject({
+        aiDisclosure: true,
+        messages: [
+          { from: "candidate", text: "Offre partagée : DAF H/F" },
+          { from: "coach", text: "Je l'ai enregistrée.", jobOffer: card, provenance: PROVENANCE },
+        ],
+      });
+      expect((await conversations.list(marie)).map((each) => each.id)).toEqual([started.id]);
+      expect(await conversations.repliesAbout(marie, { kind: "job_offer", id: captured.jobOffer.id })).toHaveLength(1);
+      expect(await conversations.open(jean, started.id)).toBeNull();
+    });
+
+    it("brings nothing to the Offer box: a Share capture enters it only once followed (ADR-0090)", async () => {
+      const captured = await createJobOffers(database).capture({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" }, "candidate", { privateTo: marie });
+      if (!captured.ok) throw new Error("not captured");
+
+      const started = await conversations.startAbout(marie, captured.jobOffer, { message: "Offre partagée : DAF H/F", reply: "Je l'ai enregistrée.", provenance: PROVENANCE });
+
+      expect(await offerBoxOf(database, marie)).toEqual([]);
+      // Nor does the launch backfill, which reads the Job Offer cards of the replies, at every deploy.
+      await backfillOfferBox(database, now);
+      expect(await offerBoxOf(database, marie)).toEqual([]);
+
+      // A Job Offer card the AI Coach gives later in that conversation, asked, is a Job Offer link's Arrival as any.
+      const linked = await createJobOffers(database).capture({ source: { url: "https://carrieres.example.fr/cdg" }, title: "Contrôleuse de gestion", content: "Airbus recrute.", employer: "Airbus" });
+      if (!linked.ok) throw new Error("not captured");
+      coachReply = () => ({ ok: true, reply: "J'ai lu cette offre.", outcome: "replied", cost: null, provenance: PROVENANCE, playbooks: [], consultations: [], jobOffer: linked.jobOffer });
+      await conversations.send(marie, { conversationId: started.id, message: "https://carrieres.example.fr/cdg" });
+      await backfillOfferBox(database, now);
+      expect(await offerBoxOf(database, marie)).toEqual([expect.objectContaining({ jobOfferId: linked.jobOffer.id, arrivalSources: [{ source: "job_offer_link", at: now }] })]);
+    });
+
+    it("marks, once, the set replies saved before the Offer box, so its backfill leaves them out, never an asked reply's card", async () => {
+      const shared = await createJobOffers(database).capture({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" }, "candidate", { privateTo: marie });
+      const linked = await createJobOffers(database).capture({ source: { url: "https://carrieres.example.fr/cdg" }, title: "Contrôleuse de gestion", content: "Airbus recrute.", employer: "Airbus" });
+      if (!shared.ok || !linked.ok) throw new Error("not captured");
+      await conversations.startAbout(marie, shared.jobOffer, { message: "Offre partagée : DAF H/F", reply: "Je l'ai enregistrée.", provenance: PROVENANCE });
+      // An asked reply as a Job Offer link's is: its card, no Coaching Playbook drawn on, on the Job Offer in view.
+      coachReply = () => ({ ok: true, reply: "J'ai lu cette offre.", outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], jobOffer: linked.jobOffer });
+      await conversations.send(marie, { message: "https://carrieres.example.fr/cdg", focus: { kind: "job_offer", id: linked.jobOffer.id } });
+      // The tables as they were before the Offer box: no mark, no entry.
+      await database.query(`ALTER TABLE coach_message DROP COLUMN share_capture`);
+      await database.query(`DELETE FROM offer_box_entry`);
+
+      await migrateCoachConversations(database);
+      await migrateCoachConversations(database);
+      await backfillOfferBox(database, now);
+
+      expect((await offerBoxOf(database, marie)).map((entry) => entry.jobOfferId)).toEqual([linked.jobOffer.id]);
+    });
   });
 
   it("names, when the conversation reopens, the Candidate's objects a reply's Coach Actions saw, as they are now, and no one else's (#788)", async () => {

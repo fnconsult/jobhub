@@ -126,6 +126,45 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(headers.get("content-type")).toBe("application/json");
   });
 
+  it("send a form as a form, its file included, for the system to name its boundary (#696)", async () => {
+    const { fetch } = server(200, {});
+    function Uploader() {
+      const api = useApi();
+      const form = new FormData();
+      form.append("cv", { uri: "file:///cache/CV.pdf", name: "CV.pdf", type: "application/pdf" } as unknown as Blob);
+      return (
+        <Pressable role="button" onPress={() => void api("/api/cv/draft", { method: "POST", body: form }).catch(() => {})}>
+          <Text>Joindre</Text>
+        </Pressable>
+      );
+    }
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE}>
+        <Uploader />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Joindre" }));
+    const init = (fetch as unknown as jest.Mock).mock.calls[0]![1] as RequestInit;
+    expect(init.body).toBeInstanceOf(FormData);
+    expect(new Headers(init.headers).has("content-type")).toBe(false);
+    expect(new Headers(init.headers).get("origin")).toBe(APP_ORIGIN);
+  });
+
+  it("never carry the session to another host a redirect leads to: the call fails there, nothing sent (#756)", async () => {
+    const calls: { url: string; cookie: string | null }[] = [];
+    // As the system's fetch does: a redirect is followed, the headers set by hand with it, unless asked otherwise.
+    const fetch = jest.fn(async function follow(url: string, init?: RequestInit): Promise<Response> {
+      calls.push({ url, cookie: new Headers(init?.headers).get("cookie") });
+      if (!url.startsWith("https://staging.jobbbox.ai/")) return new Response("[]", { status: 200 });
+      const location = "https://exports.example.net/api/applications";
+      return init?.redirect === "manual" ? new Response(null, { status: 302, headers: { location } }) : follow(location, init);
+    }) as unknown as typeof globalThis.fetch;
+
+    await read(fetch, async () => "__Secure-better-auth.session_token=session1.signature");
+
+    expect(calls).toEqual([{ url: "https://staging.jobbbox.ai/api/applications", cookie: "__Secure-better-auth.session_token=session1.signature" }]);
+  });
+
   it("carry no cookie when signed out", async () => {
     const { fetch, calls } = server(200, []);
     await read(fetch, async () => "");

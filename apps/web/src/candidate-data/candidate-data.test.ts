@@ -29,6 +29,7 @@ import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
+import { recordArrivals } from "../offer-box";
 import { createPushNotifications } from "../push-notifications";
 import { backOfficeAccess } from "../admin/access";
 import { createAssistantConversations } from "../back-office-assistant/conversations";
@@ -1261,6 +1262,23 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect(exported.privateJobOffers).toEqual([{ ...mine.jobOffer, createdAt: expect.any(Date) }]);
     expect((await candidateData.export(other)).privateJobOffers).toEqual([expect.objectContaining({ title: "RAF H/F" })]);
+  });
+
+  it("the export holds the Candidate's Offer box (ADR-0090): each entry's Job Offer, Profile, Arrival sources with their dates and where it stands; deleting the account takes it", async () => {
+    const other = await signIn("paul.martin@example.fr");
+    const profileId = await createProfile(candidateId, "DAF");
+    const application = await saveApplication(candidateId, profileId);
+    const at = new Date("2026-11-05T07:00:00Z");
+    await recordArrivals(database, { candidateId, profileId, source: "job_digest", at, jobOfferIds: [application.jobOffer.id] });
+    await recordArrivals(database, { candidateId: other, profileId: null, source: "email", at, jobOfferIds: [application.jobOffer.id] });
+
+    expect((await candidateData.export(candidateId)).offerBox).toEqual([
+      { jobOfferId: application.jobOffer.id, profileId, firstArrivalAt: at, arrivalSources: [{ source: "job_digest", at }], state: "followed", decidedAt: null, dismissalReason: null, laterUntil: null },
+    ]);
+
+    await candidateData.delete(candidateId);
+
+    expect((await database.query("SELECT candidate_id FROM offer_box_entry")).rows).toEqual([{ candidate_id: other }]);
   });
 
   it("signing up again with the same email after deletion starts an empty account", async () => {

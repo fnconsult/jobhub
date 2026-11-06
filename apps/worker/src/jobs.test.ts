@@ -3,6 +3,7 @@ import type { MasterCvContent, Provenance, ProvenanceEvent, SearchCriteria } fro
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
+import { migrateOfferBox, offerBoxOf, recordArrivals } from "@jobhub/web/offer-box";
 import { createApplications, migrateApplications } from "../../web/src/applications";
 import { createCoachConversations, migrateCoachConversations } from "@jobhub/web/coach-conversations";
 import { createAcceptances, migrateAcceptances } from "@jobhub/web/acceptances";
@@ -27,7 +28,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -1304,6 +1305,33 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       expect(await activity.linkedMailboxEvents(10)).toEqual([]);
       expect(logs).toEqual(["[email-intake] 0 Emails reçus row(s) and 1 Linked mailbox event(s) purged after 24 months"]);
     } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Offer box entries 12 months after their first Arrival (ADR-0090), none before the web app has created its table", async () => {
+    const testAuth = await startTestAuth();
+    const empty = await createThrowawayDatabase("test_worker_jobs_offer_box_empty");
+    try {
+      const database = testAuth.database;
+      for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateOfferBox]) await migrate(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const captured = await createJobOffers(database).capture({ source: { url: "https://carrieres.example.fr/daf" }, title: "DAF H/F", content: "Poste à pourvoir." });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      await recordArrivals(database, { candidateId, profileId: null, source: "email", at: new Date(), jobOfferIds: [captured.jobOffer.id] });
+      const logs: string[] = [];
+      const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[OFFER_BOX_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("25 4 * * *");
+      await jobAt(360).handler({});
+      expect(await offerBoxOf(database, candidateId)).toHaveLength(1);
+      await jobAt(370).handler({});
+      expect(await offerBoxOf(database, candidateId)).toEqual([]);
+      expect(logs).toEqual(["[offer-box] 1 Offer box entry(ies) purged, 12 months after their first Arrival"]);
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[OFFER_BOX_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
       await testAuth.stop();
     }
   });

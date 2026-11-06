@@ -139,6 +139,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "master_cv_version",
         "nouveautes_email_sent", // issue #566: the Nouveautés emails sent, one per Candidate and per Version
         "nouveautes_email_subscription", // issue #566: the Candidates who ticked the Nouveautés email, and when
+        "offer_box_entry", // issue #815: a row per Candidate and Job Offer that arrived (ADR-0090), deleted with either and with its Profile
         "passkey", // issue #664: a Candidate's passkeys (Better Auth's plugin), their public keys, as a second step
         "plan", // issue #206: the Plans Administrators define
         "plan_coach_context", // ADR-0078: a Plan's Coach context limits
@@ -295,6 +296,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // The Nouveautés email (issue #566) follows its Candidate.
         { from_table: "nouveautes_email_sent", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "nouveautes_email_subscription", from_column: "candidate_id", to_table: "candidate" },
+        // The Offer box (issue #815, ADR-0090): an entry goes with its Candidate, its Job Offer and its Profile.
+        { from_table: "offer_box_entry", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "offer_box_entry", from_column: "job_offer_id", to_table: "job_offer" },
+        { from_table: "offer_box_entry", from_column: "profile_id", to_table: "profile" },
         // Passkeys (issue #664) go with their Candidate.
         { from_table: "passkey", from_column: "userId", to_table: "candidate" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.

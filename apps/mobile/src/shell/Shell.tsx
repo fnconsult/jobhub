@@ -1,17 +1,21 @@
-import { Activity, Menu, PanelLeftClose, PanelRight, SquarePen, X } from "lucide-react-native";
+import { Activity, ChevronLeft, Menu, PanelLeftClose, PanelRight, SquarePen, X } from "lucide-react-native";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { BackHandler, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineBanner } from "../offline/OfflineBanner";
-import { space, radius, useTheme } from "../theme/theme";
+import { space, radius, TARGET, useTheme } from "../theme/theme";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
+import { usePointerHover } from "../ui/pointer";
 import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
 
-/** The page the shell shows: its address (a new one closes what the last page had open), its title, its column. */
-export type ShellPage = { key: string; title: string; pane: PaneKind | null };
+/**
+ * The page the shell shows: its address (a new one closes what the last page had open), its title, its column, and
+ * `up`, the page its title leads back to (an Application's, to Mes candidatures) and what that link says, when it has one.
+ */
+export type ShellPage = { key: string; title: string; pane: PaneKind | null; up?: { path: string; label: string } };
 
 /**
  * What the Work Pane shows: one item at a time (ADR-0070), a Section, a Result, a Help Article or a form. `fill`: the
@@ -48,10 +52,13 @@ export function Shell({
   paneContent,
   sidebar,
   onNewConversation,
+  onUp,
   actions,
   children,
 }: {
   page: ShellPage;
+  /** Goes to the page `page.up` names, from its title in the Top Bar. */
+  onUp?: (path: string) => void;
   paneContent: ReactNode;
   /** The page's own buttons in the Top Bar, before « Fiche » or « Activité » (a conversation's « Effacer »). */
   actions?: ReactNode;
@@ -115,6 +122,7 @@ export function Shell({
         <View aria-hidden={pageCovered} style={{ flex: 1 }}>
           <TopBar
             title={page.title}
+            up={page.up && onUp ? { label: page.up.label, go: () => onUp(page.up!.path) } : null}
             menu={<Control label={t(layout.sidebar === "column" ? "sidebar.collapse" : "sidebar.menu")} icon={layout.sidebar === "column" ? PanelLeftClose : Menu} onPress={onMenu} />}
             end={
               <>
@@ -160,15 +168,41 @@ export function Shell({
   );
 }
 
-function TopBar({ title, menu, end }: { title: string; menu: ReactNode; end: ReactNode }) {
+/** The Top Bar: the menu, the page's title (with `up`, a link back to the page above it, an arrow before it, as on iOS), its buttons. */
+function TopBar({ title, up, menu, end }: { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode }) {
+  const { colors } = useTheme();
+  const { hovered, hoverProps } = usePointerHover();
+  const text = (
+    <AppText variant="lead" weight="semiBold" lines={2}>
+      {title}
+    </AppText>
+  );
   return (
     <View role="toolbar" style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingHorizontal: space[2], paddingVertical: space[1] }}>
       {menu}
-      <View style={{ flex: 1 }}>
-        <AppText variant="lead" weight="semiBold" lines={2}>
-          {title}
-        </AppText>
-      </View>
+      {up ? (
+        <Pressable
+          role="link"
+          aria-label={title}
+          accessibilityHint={up.label}
+          onPress={up.go}
+          {...hoverProps}
+          style={({ pressed }) => ({
+            flex: 1,
+            minHeight: TARGET,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: space[1],
+            borderRadius: radius.control,
+            backgroundColor: pressed || hovered ? colors.hover : "transparent",
+          })}
+        >
+          <ChevronLeft color={colors.accent} size={22} aria-hidden />
+          <View style={{ flex: 1 }}>{text}</View>
+        </Pressable>
+      ) : (
+        <View style={{ flex: 1 }}>{text}</View>
+      )}
       {end}
     </View>
   );

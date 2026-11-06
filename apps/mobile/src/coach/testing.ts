@@ -58,7 +58,7 @@ export const replyEvent = (reply: string, more: object = {}) => ({
   ...more,
 });
 
-type SavedMessage = { from: "candidate" | "coach"; text: string; at?: string; provenance?: null; cards?: unknown[] };
+type SavedMessage = { from: "candidate" | "coach"; text: string; at?: string; provenance?: null; cards?: unknown[]; jobOffer?: { id: string; title: string; employer?: string; followed: boolean } };
 type Saved = {
   id: string;
   title: string;
@@ -75,8 +75,9 @@ const AT = "2026-11-05T10:00:00.000Z";
 /**
  * The web app's routes a Coach Conversation calls, as they answer (apps/web/src/app/api/coach): `POST /api/coach`
  * streaming each reply as the test writes it (`pending()`, or `reply()` for a whole one, saved as the server saves it),
- * the conversations' reads, rename and delete, `POST /api/signalements`, and any other GET from `reads` by its path.
- * `asked` is every message sent, `signalements` every Signalement.
+ * the conversations' reads, rename and delete, `POST /api/signalements`, a CV joined to the box (`POST /api/cv/draft`,
+ * read when the test says, and `POST /api/profiles`), and any other GET from `reads` by its path.
+ * `asked` is every message sent, `signalements` every Signalement, `cvs` every CV sent.
  */
 export function fakeCoachWeb({
   conversations = [],
@@ -100,6 +101,12 @@ export function fakeCoachWeb({
   const signalementDevices: (string | null)[] = [];
   const requests: { method: string; path: string; body: unknown }[] = [];
   const cards = new Map<string, Record<string, unknown>>();
+  /** Each CV sent to `POST /api/cv/draft`, as the form names it, and how its reading ends (`readCv`). */
+  const cvs: CvSent[] = [];
+  const readings: { answer: (status: number, body: object) => void }[] = [];
+  /** Each Profile created (`POST /api/profiles`), and the answer the next creation gets. */
+  const profiles: Record<string, unknown>[] = [];
+  let profileAnswer: { status: number; body: object } = { status: 201, body: { id: "p1" } };
   let next = 0;
   let offline = false;
 
@@ -178,6 +185,17 @@ export function fakeCoachWeb({
       cards.set(decodeURIComponent(card[1]!), decided);
       return Response.json({ card: decided });
     }
+    if (pathname === "/api/cv/draft" && method === "POST") {
+      cvs.push(...partsOf(init.body));
+      return new Promise<Response>((resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new DOMException("The operation was aborted.", "AbortError")));
+        readings.push({ answer: (status, answered) => resolve(Response.json(answered, { status })) });
+      });
+    }
+    if (pathname === "/api/profiles" && method === "POST") {
+      profiles.push(body!);
+      return Response.json(profileAnswer.body, { status: profileAnswer.status });
+    }
     if (pathname === "/api/signalements" && method === "POST") {
       signalements.push(body!);
       signalementDevices.push(new Headers(init.headers).get(APP_DEVICE_HEADER));
@@ -237,7 +255,27 @@ export function fakeCoachWeb({
       stream.end();
     },
     setOffline: (value: boolean) => void (offline = value),
+    /** Each CV sent to be read, as its form named it. */
+    cvs,
+    /** The CV sent last is read: `200` and its draft, or its error (`400 { error: "unreadable" }`…). */
+    readCv(status: number, answered: object) {
+      const reading = readings.shift();
+      if (!reading) throw new Error("No CV was sent to be read");
+      reading.answer(status, answered);
+    },
+    /** The Profiles created, as their body was sent. */
+    profiles,
+    /** How the web app answers the next Profile's creation (201 { id: "p1" } until then). */
+    answerProfiles: (status: number, answered: object) => void (profileAnswer = { status, body: answered }),
   };
+}
+
+/** A file part of a form sent from the app, as React Native's FormData holds it. */
+export type CvSent = { field: string; uri: string; name: string; type: string };
+
+function partsOf(body: unknown): CvSent[] {
+  const parts = (body as { getParts?: () => { fieldName: string; uri?: string; name?: string; type?: string }[] } | null)?.getParts?.() ?? [];
+  return parts.map((part) => ({ field: part.fieldName, uri: String(part.uri), name: String(part.name), type: String(part.type) }));
 }
 
 export type FakeCoachWeb = ReturnType<typeof fakeCoachWeb>;
@@ -252,7 +290,13 @@ export function withCoach(coach: FakeCoachWeb, rest: typeof globalThis.fetch): t
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const { pathname } = new URL(url);
     const coachRoute =
-      pathname === "/api/coach" || pathname.startsWith("/api/coach/") || pathname.startsWith("/api/action-cards/") || pathname === "/api/signalements" || pathname in coach.reads;
+      pathname === "/api/coach" ||
+      pathname.startsWith("/api/coach/") ||
+      pathname.startsWith("/api/action-cards/") ||
+      pathname === "/api/signalements" ||
+      pathname === "/api/cv/draft" ||
+      (pathname === "/api/profiles" && init?.method === "POST") ||
+      pathname in coach.reads;
     return coachRoute ? coach.fetch(url, init) : rest(input, init);
   };
 }

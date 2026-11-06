@@ -13,7 +13,7 @@ import {
   Search,
   type LucideIcon,
 } from "lucide-react-native";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { AgendaList } from "../agenda/AgendaList";
@@ -21,9 +21,11 @@ import { systemSheets } from "../agenda/system-sheets";
 import { useAgenda, useRead } from "../api/reads";
 import { CoachConversation, useCoachBox } from "../coach/CoachConversation";
 import { HumanCoaches } from "../coaching/HumanCoaches";
+import { StartJobSearch } from "../job-searches/StartJobSearch";
 import type { SubjectRef } from "../coach/coach-reply";
 import { shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
+import { OfferBox } from "../offer-box/OfferBox";
 import { ReadState } from "../screens/ReadState";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
@@ -45,6 +47,9 @@ const SUBJECTS = {
   agenda: menu("agenda"),
   humanCoaches: menu("humanCoaches"),
 } as const;
+
+/** The read of Mes candidatures with the Archived Applications in it: kept apart from the one without. */
+const ARCHIVED_SHOWN = "archivees";
 
 /** How many of the Applications à traiter are suggested, the most recent first (as on the web). */
 const SUGGESTED_TO_HANDLE = 2;
@@ -181,14 +186,20 @@ function Line({ label, meta }: { label: string; meta?: string }) {
   );
 }
 
-/** Mes candidatures: the list of Applications (status, Match Score, à traiter), each to its conversation. */
+/**
+ * Mes candidatures: the list of Applications (status, Match Score, à traiter), each to its conversation. The Archived
+ * Applications are left out until the Candidate asks for them (« Les afficher », `GET /api/applications?archivees=1`),
+ * as on the web.
+ */
 export function ApplicationsMenu() {
   const { t } = useTranslation();
   const router = useRouter();
+  const [showArchived, setShowArchived] = useState(false);
   const read = useRead(
     "applications",
-    "/api/applications",
+    showArchived ? "/api/applications?archivees=1" : "/api/applications",
     applicationsResponseSchema,
+    showArchived ? [ARCHIVED_SHOWN] : [],
   );
   const label = (row: ApplicationRow) =>
     [row.title, row.employer].filter(Boolean).join(" · ");
@@ -252,17 +263,32 @@ export function ApplicationsMenu() {
                       </View>
                     );
                   })}
-                  {data.archivedHidden > 0 ? (
-                    <AppText tone="secondary">
-                      {t("applications.archivedHidden", {
-                        count: data.archivedHidden,
-                      })}
-                    </AppText>
-                  ) : null}
                 </>
               )
             }
           </Loaded>
+          {read.data && read.data.archivedHidden > 0 ? (
+            <View style={{ gap: space[1], alignItems: "flex-start" }}>
+              <AppText tone="secondary">
+                {t("applications.archivedHidden", {
+                  count: read.data.archivedHidden,
+                })}
+              </AppText>
+              <Control
+                label={t("applicationsMenu.showArchived")}
+                look="secondary"
+                onPress={() => setShowArchived(true)}
+              />
+            </View>
+          ) : showArchived && read.data ? (
+            <View style={{ alignItems: "flex-start" }}>
+              <Control
+                label={t("applicationsMenu.hideArchived")}
+                look="secondary"
+                onPress={() => setShowArchived(false)}
+              />
+            </View>
+          ) : null}
         </MenuCard>
       }
       suggestions={
@@ -293,8 +319,12 @@ export function ApplicationsMenu() {
   );
 }
 
-/** Recherches d'offres: each active Profile's Job Searches, most recent first. `children`: what the page lists after them. */
-export function JobSearchesMenu({ children }: { children?: ReactNode }) {
+/**
+ * Recherches d'offres (ADR-0090, variant B): the Offer box (« Offres à traiter ») leads the page, the menu's conversation
+ * following it with its box at the foot; in it, each active Profile's Job Searches, most recent first, then
+ * « Lancer une recherche » (#699): the screen's only way to launch a Job Search, kept in the card so no screen drops it.
+ */
+export function JobSearchesMenu() {
   const { t, i18n } = useTranslation();
   const read = useRead(
     "jobSearches",
@@ -310,6 +340,7 @@ export function JobSearchesMenu({ children }: { children?: ReactNode }) {
       conversationId={null}
       subject={SUBJECTS.jobSearches}
       route={paths.jobSearches}
+      lead={<OfferBox />}
       introduction={<AppText>{t("jobSearchesMenu.introduction")}</AppText>}
       card={
         <MenuCard title={t("jobSearchesMenu.title")}>
@@ -348,7 +379,7 @@ export function JobSearchesMenu({ children }: { children?: ReactNode }) {
               )
             }
           </Loaded>
-          {children}
+          <StartJobSearch />
         </MenuCard>
       }
     />

@@ -28,9 +28,10 @@ export const MAESTRO_SEED = {
   jobOfferRows: ["Cheffe de projet qualité · Industries Démo", "Auditrice qualité fournisseurs · Industries Démo"],
   /**
    * The conversation flow's message: e2e/support/fake-mistral.mjs streams a long reply to it, thirty paragraphs, then its
-   * last line, so the flow sees « Arrêter » while it comes.
+   * last line, 15 s after it is sent (E2E_COACH_SLOW), so the flow sees « Arrêter » while it comes: Maestro's tap on
+   * « Envoyer » waits for the screen to settle, and a reply streamed at once was over by then.
    */
-  coach: { message: "E2E_COACH_LONG Comment préparer mon entretien ?", replyEnd: "FIN DE LA RÉPONSE" },
+  coach: { message: "E2E_COACH_LONG E2E_COACH_SLOW=15000 Comment préparer mon entretien ?", replyEnd: "FIN DE LA RÉPONSE" },
   /** A Free conversation, titled by its first message as the platform titles it; the key screen « conversation ». */
   conversation: { title: "Préparer mon entretien chez Aéroline" },
   /**

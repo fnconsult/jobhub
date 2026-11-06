@@ -22,12 +22,12 @@ tags:
       - waitForAnimationToEnd:
           timeout: 3000
       - eraseText
-      - inputText: "E2E_COACH_LONG Comment préparer mon entretien ?"
+      - inputText: "E2E_COACH_LONG E2E_COACH_SLOW=15000 Comment préparer mon entretien ?"
       - runFlow:
           when:
             platform: iOS
           commands:
-            - assertVisible: "E2E_COACH_LONG Comment préparer mon entretien \\?"
+            - assertVisible: "E2E_COACH_LONG E2E_COACH_SLOW=15000 Comment préparer mon entretien \\?"
 - tapOn: "Envoyer"
 - extendedWaitUntil:
     visible: "Arrêter"

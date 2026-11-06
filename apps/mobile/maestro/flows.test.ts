@@ -197,6 +197,17 @@ describe("the Maestro flows (#705)", () => {
     }
   });
 
+  // The fake coach streamed its 30 paragraphs while Maestro's tap on « Envoyer » waited for the screen to settle: the
+  // reply had ended, « Arrêter » with it, before the flow looked (the Android tablet, #705). The reply is held back.
+  it("sends the conversation a message whose reply comes late enough for « Arrêter » to be seen", () => {
+    const held = Number(/E2E_COACH_SLOW=(\d+)/.exec(MAESTRO_SEED.coach.message)?.[1] ?? 0);
+    expect(held).toBeGreaterThanOrEqual(10_000);
+    const { commands } = parse(join(ROOT, "flows", "7-conversation.yaml"));
+    expect(valuesOf(commands, ["inputText"])).toEqual([MAESTRO_SEED.coach.message]);
+    const waited = (valuesOf(commands, ["extendedWaitUntil"]) as { visible: string; timeout: number }[]).find((wait) => wait.visible === "Arrêter");
+    expect(waited!.timeout).toBeGreaterThan(held);
+  });
+
   it("captures each key screen once per run", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const captured = valuesOf(commands, ["env"]).flatMap((env) => (env && typeof env === "object" && "SCREEN" in env ? [String(env.SCREEN)] : []));

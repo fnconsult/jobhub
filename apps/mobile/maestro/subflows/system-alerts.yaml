@@ -1,0 +1,11 @@
+# Answers a system alert an earlier run left over the app, so it does not fail every run after it: iOS's « Activer
+# Dictée ? », which a tap on the keyboard's dictation key brings and which stays over any app until answered (#705).
+# The system's labels, in French or English as the simulator speaks (flows.test.ts leaves them out of its check of the
+# app's labels).
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      visible: "(Activer Dictée|Enable Dictation) ?\\?"
+    commands:
+      - tapOn: "(Plus tard|Not Now)"

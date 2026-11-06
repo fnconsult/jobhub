@@ -40,19 +40,16 @@ tags:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-date"
-      LABEL: "Date de l'entretien \\(jj/mm/aaaa\\)"
       VALUE: "26/11/2031"
 - runFlow:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-time"
-      LABEL: "Heure, à Paris \\(hh:mm\\)"
       VALUE: "10:00"
 - runFlow:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-note"
-      LABEL: "Note \\(facultatif\\)"
       VALUE: "Second tour"
 # The form's title is « Ajouter l'entretien » too, in view or not as the pane scrolled: its button found by its id.
 - runFlow:

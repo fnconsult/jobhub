@@ -397,3 +397,16 @@ describe("Shell, without network", () => {
     expect(screen.queryByText("Hors ligne")).toBeNull();
   });
 });
+
+// On an iPhone SE the keyboard covered the Interview form's last field and its label; nothing but a tap on the
+// keyboard's own keys closed it there (the number keyboards have no key that does). A drag in the pane closes it, as in
+// the iOS apps that scroll a form (#705).
+describe("Shell, a pane's keyboard", () => {
+  beforeEach(() => setWindow(PHONE));
+
+  it("closes as the pane is dragged", async () => {
+    await renderShell();
+    await userEvent.setup().press(button("Fiche"));
+    expect(screen.getByTestId("pane-body").props.keyboardDismissMode).toBe("on-drag");
+  });
+});

@@ -16,8 +16,8 @@ const filesIn = (dir: string, extension: string): string[] =>
     entry.isDirectory() ? filesIn(join(dir, entry.name), extension) : entry.name.endsWith(extension) ? [join(dir, entry.name)] : [],
   );
 const FLOW_FILES = [...filesIn(join(ROOT, "flows"), ".yaml"), ...filesIn(join(ROOT, "subflows"), ".yaml")];
-/** Subflows that drive the system's own screens (iPadOS's multitasking menu), whose labels are not the app's. */
-const SYSTEM_FLOWS = new Set([join(ROOT, "subflows", "split-view.yaml")]);
+/** Subflows that drive the system's own screens (iPadOS's multitasking menu, iOS's alerts), whose labels are not the app's. */
+const SYSTEM_FLOWS = new Set([join(ROOT, "subflows", "split-view.yaml"), join(ROOT, "subflows", "system-alerts.yaml")]);
 
 type Header = { appId?: string; name?: string; tags?: string[] };
 type Command = Record<string, unknown> | string;
@@ -104,15 +104,16 @@ describe("the Maestro flows (#705)", () => {
     expect(opensDrawer.runFlow.when).toEqual({ visible: "Menu" });
   });
 
-  // iOS's keyboards may have no key that closes them, and Maestro taps a button the keyboard covers: on the keyboard.
-  it("gives each field it types in the label it closes the keyboard by on iOS", () => {
-    const calls = FLOW_FILES.flatMap((file) =>
-      valuesOf(parse(file).commands, ["runFlow"]).filter(
-        (call): call is { file: string; env: Record<string, string> } => typeof call === "object" && call !== null && String((call as { file?: string }).file).endsWith("field.yaml"),
-      ),
-    );
-    expect(calls.length).toBeGreaterThan(0);
-    expect(calls.filter((call) => !call.env?.LABEL).map((call) => call.env?.FIELD)).toEqual([]);
+  // iOS's number keyboards have no key that closes them, and Maestro taps what the keyboard covers: on the keyboard. A
+  // tap on the field's label typed a « v » on an iPhone SE, the next ones its dictation key (#705). The field's keyboard
+  // is closed on iOS by a drag near the pane's top, which its body closes the keyboard on; no tap but the field's own.
+  it("closes a field's keyboard on iOS by a drag in the pane, never by a tap", () => {
+    const { commands } = parse(join(ROOT, "subflows", "field.yaml"));
+    expect(valuesOf(commands, ["tapOn"])).toEqual([{ id: "${FIELD}" }]);
+    const ios = (valuesOf(commands, ["runFlow"]) as { when?: { platform?: string }; commands?: Command[] }[]).find((branch) => branch.when?.platform === "iOS");
+    const drags = valuesOf(ios?.commands, ["swipe"]) as { start: string; end: string }[];
+    expect(drags.length).toBeGreaterThan(0);
+    for (const drag of drags) expect(parseFloat(drag.start.split(",")[1]!)).toBeLessThanOrEqual(36);
   });
 
   // A tablet's Fiche: once the pane scrolled to its button, the Interview form's title « Ajouter l'entretien » was out of

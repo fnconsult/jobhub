@@ -254,12 +254,17 @@ function PaneHeader({ title, onClose }: { title: string; onClose: (() => void) |
   );
 }
 
+/** A drag in a pane closes the keyboard (the ScrollView's own setting, not words). */
+const KEYBOARD_CLOSES_ON_DRAG = "on-drag";
+
 /** A pane's content: scrolling in the pane, or filling it (`fill`) when it scrolls itself. */
 function PaneBody({ fill, children }: { fill: boolean; children: ReactNode }) {
   if (fill) return <View style={{ flex: 1, padding: space[4], paddingTop: 0 }}>{children}</View>;
   // Its id, for the Maestro flows to scroll the pane until an element starts within it (apps/mobile/maestro/subflows).
+  // A drag closes the keyboard: on an iPhone the keyboard may cover the field typed in and its label, and the number
+  // keyboards have no key that closes them.
   return (
-    <ScrollView testID="pane-body" contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>
+    <ScrollView testID="pane-body" keyboardDismissMode={KEYBOARD_CLOSES_ON_DRAG} contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>
       {children}
     </ScrollView>
   );

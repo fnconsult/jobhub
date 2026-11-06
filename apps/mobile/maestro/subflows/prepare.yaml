@@ -5,6 +5,7 @@ appId: ai.jobbbox.app
 - launchApp:
     clearState: true
     clearKeychain: true
+- runFlow: system-alerts.yaml
 - runFlow:
     when:
       true: ${ORIENTATION != ''}

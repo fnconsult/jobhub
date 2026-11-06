@@ -1,10 +1,11 @@
-# Scrolls the conversation until TEXT shows: UP to what came before, DOWN to what follows (DIRECTION). In short, slow
-# steps (15 % of the screen's height, no fling), at 40 % of its width: the conversation on every layout, a tablet's
-# Sidebar column left of it, its Fiche right of it, and an iPad's Split View, whose app is the left half. Maestro's
-# scrollUntilVisible swipes from the screen's middle by some 40 % of its height and wants its element whole: on a folded
-# foldable at the largest text size the conversation shows less than that, and the Agenda's Interview was swiped past.
-# Until TEXT starts within the thread, below its top and above the conversation's box: iOS gives Maestro an element's
-# whole frame, the part the thread clips included, and an iPhone SE's tap on a card under the Top Bar hit the title.
+# Scrolls the conversation until TEXT shows, starting UP to what came before or DOWN to what follows (DIRECTION), at
+# 40 % of the screen's width: the conversation on every layout, a tablet's Sidebar column left of it, its Fiche right of
+# it, and an iPad's Split View, whose app is the left half. Within the thread: below its top, above the box.
+# In short, slow steps (15 % of the screen's height, 800 ms, no fling): Maestro's scrollUntilVisible swipes from the
+# screen's middle by some 40 % of its height, past what a folded foldable shows at the largest text size. DIRECTION
+# first, then back the other way, should the element have come in where the steps had already been (a card still
+# loading). Then pulled within the column: iOS gives Maestro an element's whole frame, the part the column clips
+# included, and an iPhone SE's tap on a card under the Top Bar hit the page's title.
 appId: ai.jobbbox.app
 ---
 - runFlow:
@@ -15,15 +16,21 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               text: ${TEXT}
-              below:
-                id: "conversation-thread"
-              above:
-                id: "conversation-box"
           times: 25
           commands:
             - swipe:
                 start: "40%, 30%"
                 end: "40%, 45%"
+                duration: 800
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+          times: 25
+          commands:
+            - swipe:
+                start: "40%, 45%"
+                end: "40%, 30%"
                 duration: 800
 - runFlow:
     when:
@@ -33,19 +40,45 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               text: ${TEXT}
-              below:
-                id: "conversation-thread"
-              above:
-                id: "conversation-box"
           times: 25
           commands:
             - swipe:
                 start: "40%, 45%"
                 end: "40%, 30%"
                 duration: 800
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+          times: 25
+          commands:
+            - swipe:
+                start: "40%, 30%"
+                end: "40%, 45%"
+                duration: 800
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+        below:
+          id: "conversation-thread"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 30%"
+          end: "40%, 45%"
+          duration: 800
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+        above:
+          id: "conversation-box"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 45%"
+          end: "40%, 30%"
+          duration: 800
 - assertVisible:
     text: ${TEXT}
-    below:
-      id: "conversation-thread"
-    above:
-      id: "conversation-box"

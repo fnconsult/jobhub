@@ -29,11 +29,13 @@ tags:
     file: ../subflows/pane-scroll.yaml
     env:
       TEXT: "Entretiens"
+      DIRECTION: DOWN
 - tapOn: "Entretiens"
 - runFlow:
     file: ../subflows/pane-scroll.yaml
     env:
       TEXT: "Voir dans l'agenda"
+      DIRECTION: DOWN
 - runFlow:
     file: ../subflows/field.yaml
     env:
@@ -47,10 +49,6 @@ tags:
       LABEL: "Heure, à Paris \\(hh:mm\\)"
       VALUE: "10:00"
 - runFlow:
-    file: ../subflows/pane-scroll.yaml
-    env:
-      TEXT: "Note \\(facultatif\\)"
-- runFlow:
     file: ../subflows/field.yaml
     env:
       FIELD: "interview-note"
@@ -61,6 +59,7 @@ tags:
     file: ../subflows/pane-scroll-id.yaml
     env:
       ID: "interview-submit"
+      DIRECTION: DOWN
 - tapOn:
     id: "interview-submit"
 - runFlow:
@@ -72,3 +71,4 @@ tags:
     file: ../subflows/pane-scroll.yaml
     env:
       TEXT: "Second tour"
+      DIRECTION: UP

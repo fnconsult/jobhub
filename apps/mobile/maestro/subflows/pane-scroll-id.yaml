@@ -1,40 +1,73 @@
-# Scrolls the open pane down until the element whose testID is ID shows, as pane-scroll.yaml does for a text: for a
-# button whose label the pane shows elsewhere too (the Interview form's « Ajouter l'entretien », its title as well).
+# Scrolls the open pane until the element whose testID is ID shows, as pane-scroll.yaml does for a text: a field
+# (field.yaml), or a button whose label the pane shows elsewhere too (the Interview form's « Ajouter l'entretien », its
+# title as well). DOWN first (DIRECTION), then back up.
+# In short, slow steps (15 % of the screen's height, 800 ms, no fling): Maestro's scrollUntilVisible swipes from the
+# screen's middle by some 40 % of its height, past what a folded foldable shows at the largest text size. DIRECTION
+# first, then back the other way, should the element have come in where the steps had already been (a card still
+# loading). Then pulled within the column: iOS gives Maestro an element's whole frame, the part the column clips
+# included, and an iPhone SE's tap on a card under the Top Bar hit the page's title.
 appId: ai.jobbbox.app
 ---
+- evalScript: "${output.paneX = LAYOUT == 'columns' ? 88 : 40}"
 - runFlow:
     when:
-      true: ${LAYOUT == 'columns'}
+      true: ${DIRECTION == 'UP'}
     commands:
       - repeat:
           while:
             notVisible:
               id: ${ID}
-              below:
-                id: "pane-body"
           times: 25
           commands:
             - swipe:
-                start: "88%, 45%"
-                end: "88%, 30%"
+                start: "${output.paneX}%, 30%"
+                end: "${output.paneX}%, 45%"
+                duration: 800
+      - repeat:
+          while:
+            notVisible:
+              id: ${ID}
+          times: 25
+          commands:
+            - swipe:
+                start: "${output.paneX}%, 45%"
+                end: "${output.paneX}%, 30%"
                 duration: 800
 - runFlow:
     when:
-      true: ${LAYOUT != 'columns'}
+      true: ${DIRECTION == 'DOWN'}
     commands:
       - repeat:
           while:
             notVisible:
               id: ${ID}
-              below:
-                id: "pane-body"
           times: 25
           commands:
             - swipe:
-                start: "40%, 45%"
-                end: "40%, 30%"
+                start: "${output.paneX}%, 45%"
+                end: "${output.paneX}%, 30%"
                 duration: 800
+      - repeat:
+          while:
+            notVisible:
+              id: ${ID}
+          times: 25
+          commands:
+            - swipe:
+                start: "${output.paneX}%, 30%"
+                end: "${output.paneX}%, 45%"
+                duration: 800
+- repeat:
+    while:
+      notVisible:
+        id: ${ID}
+        below:
+          id: "pane-body"
+    times: 3
+    commands:
+      - swipe:
+          start: "${output.paneX}%, 30%"
+          end: "${output.paneX}%, 45%"
+          duration: 800
 - assertVisible:
     id: ${ID}
-    below:
-      id: "pane-body"

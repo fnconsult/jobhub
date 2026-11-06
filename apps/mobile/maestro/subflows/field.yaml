@@ -1,9 +1,15 @@
 # Types VALUE in the field whose testID is FIELD: an input's label is its accessible name on iOS, not one Maestro finds
 # on Android, so fields are found by their id. Then closes the keyboard: Android's back; on iOS, whose keyboards may have
 # no key that closes them and whose covered buttons Maestro still takes for tappable, a tap on the field's label LABEL,
-# as a person closes it (the field, named by its label, comes after it).
+# as a person closes it (the field, named by its label, comes after it). The pane scrolled to the field first, not to its
+# label: the label in view, the field under it was not, and Maestro found no « interview-note » to tap.
 appId: ai.jobbbox.app
 ---
+- runFlow:
+    file: pane-scroll-id.yaml
+    env:
+      ID: ${FIELD}
+      DIRECTION: DOWN
 - tapOn:
     id: ${FIELD}
 - inputText: ${VALUE}

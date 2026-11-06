@@ -133,17 +133,28 @@ describe("the Maestro flows (#705)", () => {
 
   // iOS gives Maestro an element's whole frame, its part clipped by a scrolling column included: on an iPhone SE the
   // Application's card, scrolled under the Top Bar, was « visible », and the tap on it landed on the page's title (#705).
-  // A column is scrolled until its element starts within it: below the top of the thread or the pane's body, above the
-  // conversation's box.
+  // A column's element is then pulled within it: below the top of the thread or the pane's body, above the
+  // conversation's box. And a folded foldable at the largest text size scrolled past the card it looked for, to the
+  // conversation's start: the steps go back the other way when the first did not find it.
   it.each([
-    ["conversation-scroll.yaml", { below: { id: "conversation-thread" }, above: { id: "conversation-box" } }],
-    ["pane-scroll.yaml", { below: { id: "pane-body" } }],
-    ["pane-scroll-id.yaml", { below: { id: "pane-body" } }],
-  ])("subflows/%s scrolls until its element starts within the column", (name, within) => {
+    ["conversation-scroll.yaml", [{ below: { id: "conversation-thread" } }, { above: { id: "conversation-box" } }]],
+    ["pane-scroll.yaml", [{ below: { id: "pane-body" } }]],
+    ["pane-scroll-id.yaml", [{ below: { id: "pane-body" } }]],
+  ])("subflows/%s scrolls both ways, then pulls its element within the column", (name, within) => {
     const { commands } = parse(join(ROOT, "subflows", name));
-    const conditions = [...valuesOf(commands, ["notVisible"]), ...valuesOf(commands, ["assertVisible"])];
-    expect(conditions.length).toBeGreaterThan(1);
-    for (const condition of conditions) expect(condition).toMatchObject(within);
+    const conditions = valuesOf(commands, ["notVisible"]);
+    for (const relation of within) expect(conditions).toContainEqual(expect.objectContaining(relation));
+    const ways = (valuesOf(commands, ["swipe"]) as { start: string; end: string }[]).map((swipe) => (parseFloat(swipe.start.split(",")[1]!) < parseFloat(swipe.end.split(",")[1]!) ? "UP" : "DOWN"));
+    expect(new Set(ways)).toEqual(new Set(["UP", "DOWN"]));
+    for (const direction of ["UP", "DOWN"]) {
+      const asked = (commands as Record<string, { when?: { true?: string }; commands?: unknown[] }>[]).find((command) => command.runFlow?.when?.true === `\${DIRECTION == '${direction}'}`);
+      expect(valuesOf(asked?.runFlow?.commands, ["repeat"])).toHaveLength(2);
+    }
+  });
+
+  it("scrolls the pane to a field before it types in it, not to its label", () => {
+    const { commands } = parse(join(ROOT, "subflows", "field.yaml"));
+    expect(commands[0]).toEqual({ runFlow: { file: "pane-scroll-id.yaml", env: { ID: "${FIELD}", DIRECTION: "DOWN" } } });
   });
 
   it("captures each key screen once per run", () => {

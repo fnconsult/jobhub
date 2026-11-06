@@ -21,4 +21,5 @@ tags:
     file: ../subflows/pane-scroll.yaml
     env:
       TEXT: "Voir dans l'agenda"
+      DIRECTION: DOWN
 - assertVisible: "Avec la DRH"

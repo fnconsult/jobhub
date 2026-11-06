@@ -142,6 +142,43 @@ describe("the read cache", () => {
       await signOut();
       expect([...storage.entries.values()].join()).not.toContain("Aéroline");
     });
+
+    it("never brings back the reads of before when their restoring ends after the cache is forgotten (#756)", async () => {
+      const storage = memoryStorage();
+      const first = await render(
+        <ReadCacheProvider device={{ storage, network: fakeNetwork(true) }}>
+          <Read name="agenda" answer={async () => "Entretien chez Aéroline"} />
+        </ReadCacheProvider>,
+      );
+      await settle(SAVED);
+      await first.unmount();
+
+      // The device slow to give back the reads it has read, as AsyncStorage at a cold start.
+      let giveBack!: () => void;
+      const given = new Promise<void>((resolve) => (giveBack = resolve));
+      const slow = {
+        ...storage,
+        getItem: async (key: string) => {
+          const saved = await storage.getItem(key);
+          await given;
+          return saved;
+        },
+      };
+      await render(
+        <ReadCacheProvider device={{ storage: slow, network: fakeNetwork(true) }}>
+          <Read name="agenda" answer={never} />
+          <SignOut />
+        </ReadCacheProvider>,
+      );
+      await settle();
+      // The session found ended while the reads are still being restored.
+      await signOut();
+
+      await act(async () => giveBack());
+      await settle(SAVED);
+      expect(screen.queryByText("Entretien chez Aéroline")).toBeNull();
+      expect([...storage.entries.values()].join()).not.toContain("Aéroline");
+    });
   });
 
   describe("writes", () => {

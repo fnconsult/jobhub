@@ -24,8 +24,10 @@ const NO_OFFER_BOX: OfferBoxResponse = { today: "2026-11-05", toHandle: 0, entri
 
 export const TEST_BASE_URL = "https://staging.jobbbox.ai";
 /** The reads of the account's own the fake answers with its writes (#689), not with the Candidate's data (#695). */
-const ACCOUNT_READS = new Set(["/api/coach-space", "/api/account/legal-steps"]);
+const ACCOUNT_READS = new Set(["/api/coach-space", "/api/account/legal-steps", "/api/account/export"]);
 const COOKIE = "__Secure-better-auth.session_token";
+/** The name the Data export's route gives its file (`attachment; filename=…`). */
+export const EXPORT_FILE_NAME = "jobbbox-donnees-2026-11-06.json";
 
 /** Secure storage as the Keychain or Keystore keeps it, in memory: what the app leaves on the device is `values`. */
 export function memoryStorage(): SessionStorage & { values: Map<string, string> } {
@@ -156,6 +158,8 @@ export function fakeWebApp() {
   const flows = new Map<string, { callbackURL: string; errorCallbackURL: string }>();
   const signInsAsked: { provider: string; callbackURL: string; errorCallbackURL: string; idToken: boolean }[] = [];
   const browserOpened: { url: string; returnUrl: string }[] = [];
+  /** Where the Data export's route redirects, when it does (`exportMovedTo`). */
+  let exportMovedTo: string | null = null;
 
   const json = (body: unknown, status = 200, setCookie?: string) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...(setCookie ? { "set-cookie": setCookie } : {}) } });
@@ -305,6 +309,12 @@ export function fakeWebApp() {
       const current = stepsOf(email);
       if (url.pathname === "/api/coach-space" && request.method === "GET") return json({ humanCoach: humanCoaches.has(email) });
       if (url.pathname === "/api/account/legal-steps" && request.method === "GET") return json(current);
+      // apps/web/src/app/api/account/export/route.ts: the Data export, an attachment (#756 follows its redirects).
+      if (url.pathname === "/api/account/export" && request.method === "GET") {
+        if (exportMovedTo) return new Response(null, { status: 302, headers: { location: exportMovedTo } });
+        const headers = { "content-type": "application/json; charset=utf-8", "content-disposition": `attachment; filename="${EXPORT_FILE_NAME}"` };
+        return new Response(JSON.stringify({ account: { email } }), { headers });
+      }
       if (url.pathname === "/api/account/acceptances" && request.method === "POST") {
         const { version } = body as { version: string };
         if (current.acceptance?.version !== version) return json({ error: "stale" }, 409);
@@ -416,6 +426,8 @@ export function fakeWebApp() {
     asks: (email: string, asked: Partial<LegalStepsResponse>) => void steps.set(email, { ...stepsOf(email), ...asked }),
     /** The API calls the app made, oldest first. */
     recorded,
+    /** The Data export's route redirects to `url` (another host, a storage's), or answers again (null). */
+    exportMovedTo: (url: string | null) => void (exportMovedTo = url),
     /** Whose session a request with `headers` carries, as the web app reads its cookie: the email, or null for none it knows. */
     signedInAs: (headers: HeadersInit | undefined) => sessionOf(new Headers(headers))?.session?.email ?? null,
     setOffline: (value: boolean) => void (offline = value),

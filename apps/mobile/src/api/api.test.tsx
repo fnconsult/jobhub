@@ -150,6 +150,21 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(new Headers(init.headers).get("origin")).toBe(APP_ORIGIN);
   });
 
+  it("never carry the session to another host a redirect leads to: the call fails there, nothing sent (#756)", async () => {
+    const calls: { url: string; cookie: string | null }[] = [];
+    // As the system's fetch does: a redirect is followed, the headers set by hand with it, unless asked otherwise.
+    const fetch = jest.fn(async function follow(url: string, init?: RequestInit): Promise<Response> {
+      calls.push({ url, cookie: new Headers(init?.headers).get("cookie") });
+      if (!url.startsWith("https://staging.jobbbox.ai/")) return new Response("[]", { status: 200 });
+      const location = "https://exports.example.net/api/applications";
+      return init?.redirect === "manual" ? new Response(null, { status: 302, headers: { location } }) : follow(location, init);
+    }) as unknown as typeof globalThis.fetch;
+
+    await read(fetch, async () => "__Secure-better-auth.session_token=session1.signature");
+
+    expect(calls).toEqual([{ url: "https://staging.jobbbox.ai/api/applications", cookie: "__Secure-better-auth.session_token=session1.signature" }]);
+  });
+
   it("carry no cookie when signed out", async () => {
     const { fetch, calls } = server(200, []);
     await read(fetch, async () => "");

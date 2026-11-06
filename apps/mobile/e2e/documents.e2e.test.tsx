@@ -1,14 +1,15 @@
 // End-to-end for an Application's Tailored Documents (#695) through the app's real entry: Expo Router mounts the
 // Application's page with its Fiche, which reads the Candidate's own documents from the web app
 // (`GET /api/applications/:id/documents`, #684), faked at its fetch as it answers them, and the real system-documents
-// module downloads, shows and shares them. Only the device's native modules (expo-file-system, expo-sharing, React
-// Native's Share) are faked besides, and what reaches the system's PDF reader and share sheet is asserted.
+// module downloads (through the app's fetch, its redirects followed on the web app alone, #756), shows and shares them.
+// Only the device's native modules (expo-file-system, expo-sharing, React Native's Share) are faked besides, and what
+// reaches the device's cache, the system's PDF reader and its share sheet is asserted.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ApplicationResponse, TailoredDocumentsResponse } from "@jobhub/shared/reads";
 import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { router } from "expo-router";
-import { Dimensions, Share } from "react-native";
+import { AppState, Dimensions, Share } from "react-native";
 
 jest.setTimeout(60_000);
 
@@ -33,7 +34,8 @@ jest.mock("../src/session/instance", () => {
   const { createAppSession } = jest.requireActual("../src/session/app-session");
   mockWeb.app = fakeWebApp();
   mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch, passkeys: mockWeb.app.deviceWithoutPasskey() });
-  return { appSession: mockWeb.session };
+  // The app's fetch (expo/fetch in the app): the global one, faked below as the web app answers it.
+  return { appSession: mockWeb.session, appFetch: (input: RequestInfo, init?: RequestInit) => globalThis.fetch(input, init) };
 });
 const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
 // Not hoisted: it replaces Expo Router's own mock (expo-router/testing-library), whose scheme is not the app's.
@@ -50,7 +52,8 @@ async function signedIn() {
   await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
 }
 
-const mockDownloads: { url: string; to: string; headers: Record<string, string> | undefined }[] = [];
+/** The downloads asked of the web app's export routes: the address, the headers sent with it. */
+const mockDownloads: { url: string; headers: Record<string, string> | undefined }[] = [];
 const mockPreview = jest.fn<Promise<void>, [string, unknown]>(async () => {});
 const mockShare = jest.fn<Promise<void>, [string, unknown]>(async () => {});
 const mockFailNextDownload = { current: false };
@@ -77,14 +80,9 @@ jest.mock("expo-file-system", () => {
     constructor(...parts: ({ uri: string } | string)[]) {
       this.uri = parts.map((part) => (typeof part === "string" ? part : part.uri)).join("");
     }
-    static async downloadFileAsync(url: string, destination: File, options?: { headers?: Record<string, string> }) {
-      if (mockFailNextDownload.current) {
-        mockFailNextDownload.current = false;
-        throw new Error("offline");
-      }
-      mockDownloads.push({ url, to: destination.uri, headers: options?.headers });
-      mockFiles.add(destination.uri);
-      return destination;
+    create() {}
+    async write() {
+      mockFiles.add(this.uri);
     }
     preview(options: unknown) {
       return mockPreview(this.uri, options);
@@ -131,7 +129,29 @@ const DOCUMENTS: TailoredDocumentsResponse = {
     },
   ],
 };
-const CV_PDF = "file:///cache/documents/CV adapté – Rhône Distribution · Responsable logistique.pdf";
+/** Each Application's document in a folder of its own, named for the Application and the document (#756). */
+const CV_PDF = "file:///cache/documents/app_rhone-tailored_cv/CV adapté – Rhône Distribution · Responsable logistique.pdf";
+
+/** Where the web app's export routes redirect, when a test says so (`mockRedirectExports`). */
+const mockRedirectExports = { current: null as string | null };
+
+/** The web app, at the app's fetch: its export routes answer a file (or fail, or redirect); every other call, the fake web app. */
+const webAppFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const url = String(input);
+  if (!url.includes("/export?")) return mockWeb.app.fetch(input as string, init);
+  if (!url.startsWith("https://jobbbox.ai/")) return new Response("ailleurs", { status: 200 });
+  mockDownloads.push({ url, headers: init?.headers as Record<string, string> | undefined });
+  if (mockFailNextDownload.current) {
+    mockFailNextDownload.current = false;
+    throw new TypeError("Network request failed");
+  }
+  if (mockRedirectExports.current) {
+    const location = mockRedirectExports.current;
+    // As the system's fetch does: followed, the cookie with it, unless the call follows redirects itself.
+    return init?.redirect === "manual" ? new Response(null, { status: 302, headers: { location } }) : webAppFetch(location, init);
+  }
+  return new Response(new Uint8Array([37, 80, 68, 70]), { status: 200 });
+};
 
 async function openFiche(id = APPLICATION.id) {
   await signedIn();
@@ -144,10 +164,11 @@ beforeEach(async () => {
   await AsyncStorage.clear();
   mockDownloads.length = 0;
   mockFiles.clear();
+  mockRedirectExports.current = null;
   setWindow(PHONE);
   // Every call of the app's useApi() goes to the web app, faked at its fetch as the session's are.
   jest.requireMock("../src/session/instance");
-  jest.spyOn(globalThis, "fetch").mockImplementation(mockWeb.app.fetch);
+  jest.spyOn(globalThis, "fetch").mockImplementation(webAppFetch);
   mockWeb.app.has(EMAIL, { applications: [{ application: APPLICATION, documents: DOCUMENTS }] });
   mockWeb.app.reads.length = 0;
 });
@@ -191,10 +212,10 @@ describe("Tailored Documents, the system's PDF reader", () => {
     expect(mockDownloads).toEqual([
       {
         url: "https://jobbbox.ai/api/applications/app_rhone/tailored-cv/export?format=pdf&template=classic",
-        to: CV_PDF,
         headers: { "Jobbbox-Api-Version": "1", "Jobbbox-Client": "mobile", cookie: expect.any(String) },
       },
     ]);
+    expect([...mockFiles]).toEqual([CV_PDF]);
     // The download carries the session (#685), as the app's reads do: the web app reads it as Marie's, not a 401.
     expect(mockWeb.app.signedInAs(mockDownloads[0]?.headers)).toBe(EMAIL);
     expect(mockPreview).toHaveBeenCalledWith(CV_PDF, { title: "CV adapté", mimeType: "application/pdf" });
@@ -223,7 +244,7 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
     await user.press(button("Lettre de motivation"));
     await user.press(button("Télécharger en Word"));
 
-    const word = "file:///cache/documents/Lettre de motivation – Rhône Distribution · Responsable logistique.docx";
+    const word = "file:///cache/documents/app_rhone-cover_letter/Lettre de motivation – Rhône Distribution · Responsable logistique.docx";
     expect(mockDownloads.map((download) => download.url)).toEqual([
       "https://jobbbox.ai/api/applications/app_rhone/cover-letter/export?format=pdf&template=classic",
       "https://jobbbox.ai/api/applications/app_rhone/cover-letter/export?format=docx&template=classic",
@@ -234,7 +255,7 @@ describe("Tailored Documents, « Partager » and « Télécharger » through the
       dialogTitle: "Lettre de motivation",
     });
     await user.press(button("Ouvrir"));
-    expect(mockPreview).toHaveBeenLastCalledWith("file:///cache/documents/Lettre de motivation – Rhône Distribution · Responsable logistique.pdf", { title: "Lettre de motivation", mimeType: "application/pdf" });
+    expect(mockPreview).toHaveBeenLastCalledWith("file:///cache/documents/app_rhone-cover_letter/Lettre de motivation – Rhône Distribution · Responsable logistique.pdf", { title: "Lettre de motivation", mimeType: "application/pdf" });
   });
 
   it("shows the Outreach Message's words in the Work Pane and shares them, its subject for Mail", async () => {
@@ -279,6 +300,18 @@ describe("Tailored Documents, downloaded from the web app alone", () => {
       expect(mockShare).not.toHaveBeenCalled();
     });
   }
+
+  it("refuses a redirect of the web app to another host: no session cookie goes there, the download's error (#756)", async () => {
+    mockRedirectExports.current = "https://exports.example.net/cv.pdf";
+    await openFiche();
+    await userEvent.setup().press(await screen.findByRole("button", { name: "CV adapté" }));
+
+    expect(await screen.findByText(/n'a pas pu être ouvert/)).toBeOnTheScreen();
+    expect(mockDownloads.map(({ url }) => url)).toEqual(["https://jobbbox.ai/api/applications/app_rhone/tailored-cv/export?format=pdf&template=classic"]);
+    expect((globalThis.fetch as jest.Mock).mock.calls.filter(([url]) => String(url).includes("exports.example.net"))).toEqual([]);
+    expect(mockFiles.size).toBe(0);
+    expect(mockPreview).not.toHaveBeenCalled();
+  });
 });
 
 describe("Tailored Documents, kept on the device", () => {
@@ -335,6 +368,48 @@ describe("Tailored Documents, on a tablet", () => {
   });
 });
 
+describe("Tailored Documents, two Applications of the same title (#756)", () => {
+  it("keeps each Application's document in a file of its own, the Cover Letter and the CV apart", async () => {
+    // The same offer applied to under a second Profile: same title, same employer, another Application.
+    const SECOND: ApplicationResponse = { ...APPLICATION, id: "app_rhone_bis", profile: { id: "prof_bis", name: "Direction logistique" } };
+    const secondExports = (document: "tailored-cv" | "cover-letter") => ({
+      pdf: `/api/applications/app_rhone_bis/${document}/export?format=pdf&template=classic`,
+      docx: `/api/applications/app_rhone_bis/${document}/export?format=docx&template=classic`,
+    });
+    const SECOND_DOCUMENTS: TailoredDocumentsResponse = {
+      documentLanguage: "fr",
+      documents: [
+        { kind: "tailored_cv", language: "fr", updatedAt: "2026-11-03T10:15:00.000Z", downloads: secondExports("tailored-cv"), message: null },
+        { kind: "cover_letter", language: "fr", updatedAt: "2026-11-03T10:40:00.000Z", downloads: secondExports("cover-letter"), message: null },
+      ],
+    };
+    mockWeb.app.has(EMAIL, {
+      applications: [
+        { application: APPLICATION, documents: DOCUMENTS },
+        { application: SECOND, documents: SECOND_DOCUMENTS },
+      ],
+    });
+    const user = userEvent.setup();
+
+    await openFiche("app_rhone");
+    await user.press(await screen.findByRole("button", { name: "CV adapté" }));
+    await act(async () => router.navigate("/candidatures/app_rhone_bis"));
+    await user.press(await screen.findByRole("button", { name: "Fiche" }));
+    await user.press(await screen.findByRole("button", { name: "CV adapté" }));
+    await act(async () => router.navigate("/candidatures/app_rhone"));
+    await user.press(await screen.findByRole("button", { name: "Fiche" }));
+    await user.press(await screen.findByRole("button", { name: "Lettre de motivation" }));
+
+    const files = [...mockFiles];
+    expect(files).toHaveLength(3);
+    expect(new Set(files).size).toBe(3);
+    expect(files.filter((file) => file.includes("app_rhone-tailored_cv/"))).toHaveLength(1);
+    expect(files.filter((file) => file.includes("app_rhone-cover_letter/"))).toHaveLength(1);
+    expect(files.filter((file) => file.includes("app_rhone_bis-tailored_cv/"))).toHaveLength(1);
+    for (const file of files) expect(file).toMatch(/\.pdf$/);
+  });
+});
+
 describe("Tailored Documents, at sign-out", () => {
   it("deletes the documents downloaded into the cache from the device", async () => {
     await openFiche();
@@ -345,6 +420,22 @@ describe("Tailored Documents, at sign-out", () => {
 
     await act(async () => router.navigate("/compte"));
     await user.press(await screen.findByRole("button", { name: "Se déconnecter" }));
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect([...mockFiles]).toEqual([]);
+  });
+});
+
+describe("Tailored Documents, a session found revoked back in the foreground", () => {
+  it("deletes the documents downloaded into the cache, as « Se déconnecter » does", async () => {
+    await openFiche();
+    await screen.findByRole("button", { name: "CV adapté" });
+    await userEvent.setup().press(button("CV adapté"));
+    expect([...mockFiles]).toEqual([CV_PDF]);
+
+    mockWeb.app.revokeAll(EMAIL);
+    const listeners = (AppState.addEventListener as jest.Mock).mock.calls.filter(([event]) => event === "change").map(([, listener]) => listener);
+    await act(async () => listeners.forEach((listener) => listener("active")));
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
     expect([...mockFiles]).toEqual([]);

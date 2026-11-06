@@ -1,6 +1,6 @@
-import { createI18n } from "@jobhub/shared/i18n";
+import { createI18n } from "./i18n";
 import { describe, expect, it } from "vitest";
-import type { IndustryReference, MatchScore } from "@jobhub/shared";
+import type { IndustryReference, MatchScore } from "./index";
 import { matchScoreFigure, matchScoreInWords, matchScoreReasons, matchScoreReliabilityHint, matchScoreWhyInWords, searchCriteriaInWords } from "./job-search-words";
 
 /** French groups thousands with a narrow no-break space. */

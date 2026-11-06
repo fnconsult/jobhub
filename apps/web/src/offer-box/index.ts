@@ -151,7 +151,8 @@ export async function recordArrivals(database: Queryable, { candidateId, profile
 /**
  * Fills the Offer box at launch (ADR-0090) from the last OFFER_BOX_BACKFILL_DAYS days: the Job Offers of the Candidates'
  * Job Searches (those they kept), Job Digests, Received offer emails (the new ones, with their Profile) and Job Offer
- * cards, without those posted longer ago. Each source at its own date, the earliest Arrival making the entry. Idempotent.
+ * cards (not a Share capture's set reply: a Share capture enters only once followed), without those posted longer ago.
+ * Each source at its own date, the earliest Arrival making the entry. Idempotent.
  */
 export async function backfillOfferBox(database: Queryable, now: Date): Promise<number> {
   const { rowCount } = await database.query(
@@ -167,7 +168,7 @@ export async function backfillOfferBox(database: Queryable, now: Date): Promise<
        UNION ALL
        SELECT c.candidate_id, m.job_offer_id, c.profile_id, 'job_offer_link', m.created_at
          FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
-        WHERE m.author = 'coach' AND m.job_offer_id IS NOT NULL AND m.created_at >= $1
+        WHERE m.author = 'coach' AND m.job_offer_id IS NOT NULL AND NOT m.blocked AND NOT m.share_capture AND m.created_at >= $1
      ),
      kept AS (
        SELECT a.* FROM arrivals a JOIN job_offer o ON o.id = a.job_offer_id

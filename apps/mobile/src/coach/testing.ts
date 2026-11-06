@@ -58,7 +58,7 @@ export const replyEvent = (reply: string, more: object = {}) => ({
   ...more,
 });
 
-type SavedMessage = { from: "candidate" | "coach"; text: string; at?: string; provenance?: null; cards?: unknown[] };
+type SavedMessage = { from: "candidate" | "coach"; text: string; at?: string; provenance?: null; cards?: unknown[]; jobOffer?: { id: string; title: string; employer?: string; followed: boolean } };
 type Saved = {
   id: string;
   title: string;

@@ -12,7 +12,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | --- | --- |
 | `hostinger` | Hosting |
 | `scaleway` | Help videos (#568) |
-| `anthropic` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Coach Memory and Guardrails; Back Office Assistant; Job Searches, Job discovery and Job Digests; Enriched Contacts; Guest session in the browser extension |
+| `anthropic` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Coach Memory and Guardrails; Back Office Assistant; Job Searches, Job discovery and Job Digests; Enriched Contacts; Guest session in the browser extension; Share capture in the Jobbbox app |
 | `anthropic-bedrock` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
 | `anthropic-vertex` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
 | `openai` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations |
@@ -81,6 +81,22 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Retention | 23 hours after the session began at most, or until « Effacer mes données maintenant ». Once the Guest saves their work in an account, only where it went is kept, the Acceptance not carried over: the Candidate accepts the CGU on their own screen (#510). |
 | Rights | Erased by the Guest at any time (« Effacer mes données maintenant », or by closing the browser). Jobbbox holds nothing of it to give or erase. |
 | Security | Readable only by the extension's own pages. |
+
+## Share capture in the Jobbbox app (#697, ADR-0076)
+
+| | |
+| --- | --- |
+| Purpose | Turn a job posting the Candidate sends to the Jobbbox app from another app's share sheet (a browser, LinkedIn, Indeed, Mail) into their Private Job Offer (ADR-0049), opened in its own Coach Conversation. |
+| Legal basis | Performance of the service the Candidate asks for (GDPR art. 6(1)(b)): they choose « Jobbbox » in the share sheet, check what is sent on the capture screen and press « Envoyer à Jobbbox ». Legitimate interest (GDPR art. 6(1)(f)) for the third parties a shared text may name (a recruiter's email shared from Mail: its sender, a signature). |
+| People concerned | Candidates; people a shared text names. |
+| Data | What was shared: a web link and/or a text (at most 100 000 characters), as the Candidate checked it. Kept: only the Private Job Offer made from it (title, text, employer and the other posting fields, the link as its source) and the conversation's two messages, which name only its title (« Offre partagée depuis une autre app : … ») and a set reply. The shared text itself is never kept, logged, nor written into the conversation. |
+| Source | The iOS share extension and the Android share activity, which pass it to the app in the share link (`jobbbox://partage?…`) and keep nothing; the app holds it in memory until it is sent or cancelled, never on the device (not in the Read cache); `POST /api/share-captures`. |
+| Processors | Hostinger (the app). The link is read by Jobbbox's server itself under the job discovery rules (ADR-0002: robots.txt, as itself, giving up at bot protection or a sign-in; a Forbidden site is never requested): the site receives the request as from Job discovery, naming no Candidate. A text (or a page with no JobPosting data) is read by the AI as the `offer_analysis` task, after Redaction: by default Claude's direct API (Anthropic, outside the EU, see the recipients above). **To decide (#697)**: a text shared from Mail may be a recruiter's email, a third party's words, which ADR-0055 keeps in the EU for Email intake (`offer_email_reading`, `euOnly`); reading shared texts with an EU-only task would align them. |
+| Who can read it | The Candidate alone (a Private Job Offer, ADR-0049). The AI Usage row of the reading names the Candidate as any AI call does (« AI Usage »). |
+| Storage | The `job_offer` table (`private_to_candidate_id`), `coach_conversation` and `coach_message` tables in the app's Postgres database (EU). |
+| Retention | The Private Job Offer: until the Candidate's account is deleted. The conversation: as Coach Conversations (« Coach Conversations »). Nothing else. |
+| Rights | In the Data export (Private Job Offers, Coach Conversations); deleted with the account. |
+| Security | The device never reads the page (no hidden WebView, ADR-0076); the extension calls no API and holds no session. The route needs the Candidate's session and the app's trusted origin. |
 
 ## Read cache in the Jobbbox app (ADR-0076, #701)
 

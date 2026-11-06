@@ -81,6 +81,7 @@
         }
       ],
       "./plugins/with-multitasking",
+      "./plugins/with-share-extension",
       "@sentry/react-native"
     ]
   }

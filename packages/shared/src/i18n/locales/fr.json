@@ -6270,5 +6270,32 @@
     "cancelledBody": "Aucun paiement n'a été fait. Vous pourrez réserver une séance plus tard depuis l'app.",
     "backToApp": "Revenir dans l'app Jobbbox",
     "onWeb": "Voir mes coachs humains sur le site"
+  },
+  "shareCapture": {
+    "message": "Offre partagée depuis une autre app : {{title}}",
+    "reply": "J'ai enregistré cette offre dans Jobbbox. Elle n'est visible que par vous. Touchez « Scorer contre mon profil » pour voir si elle vous correspond.",
+    "title": "Partager vers Jobbbox",
+    "intro": "Vérifiez ce que vous envoyez à Jobbbox : il en fait une offre que vous seul voyez, ouverte dans sa propre conversation.",
+    "link": "Lien de l'offre",
+    "text": "Texte de l'offre",
+    "textHint": "Collez ici le texte de l'offre si son site ne laisse pas Jobbbox la lire.",
+    "send": "Envoyer à Jobbbox",
+    "sending": "Lecture de l'offre…",
+    "cancel": "Annuler",
+    "nothing": "Rien n'a été partagé. Partagez une offre depuis votre navigateur, LinkedIn, Indeed ou Mail, puis choisissez Jobbbox.",
+    "needsText": {
+      "forbiddenSite": "Ce site ne laisse pas Jobbbox lire ses offres. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le.",
+      "unreadable": "Jobbbox n'a pas pu lire cette page : le site ne l'autorise pas, demande une connexion ou ne répond pas. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le.",
+      "notAJobOffer": "Ce lien ne semble pas mener à une seule offre d'emploi. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le."
+    },
+    "notAJobOffer": "Ce texte ne semble pas être une offre d'emploi. Collez le texte complet de l'offre, puis envoyez-le.",
+    "invalid": "Ce partage ne peut pas être envoyé : il faut un lien web ou le texte d'une offre (100 000 caractères au plus).",
+    "failed": "L'offre n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.",
+    "score": "Scorer contre mon profil",
+    "scoreAgainst": "Scorer contre « {{profile}} »",
+    "scoring": "Calcul du score…",
+    "scored": "Score de correspondance : {{score}} / 100 contre « {{profile}} »",
+    "noProfile": "Pour scorer cette offre, créez d'abord un profil sur jobbbox.ai.",
+    "scoreFailed": "Le score n'a pas pu être calculé. Réessayez."
   }
 }

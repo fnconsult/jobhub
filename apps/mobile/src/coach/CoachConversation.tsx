@@ -12,6 +12,7 @@ import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import type { ConversationSummary, SubjectRef } from "./coach-reply";
 import { ProposalCard } from "./ProposalCard";
+import { ScoreSuggestion } from "./ScoreSuggestion";
 import { useRegisterPageConversation } from "./page-conversation";
 import { useCoachConversation, type Announce, type ReplyStatus, type ShownMessage } from "./use-coach-conversation";
 
@@ -47,6 +48,8 @@ export const useCoachBox = () => useContext(CoachBox);
  * « Réponse arrêtée » after « Arrêter », and why there is no reply, as on the web. VoiceOver and TalkBack hear a reply
  * once it is finished, never word by word: the thread is no live region, the reply is announced.
  *
+ * Its latest Job Offer card still to process (a Job Offer link's, a Share capture's) suggests « Scorer contre mon profil »
+ * above the box (#697).
  * The help comes first (ADR-0035): an empty conversation offers « Comment marche cette page ? » and « Souvent demandé »;
  * the Help Articles matching the draft take the suggestions' place above the box; an article opens in the Work Pane (full
  * page below 64rem) and its title goes with the next message. Under each reply, « Cela répond à votre question ? » and
@@ -90,6 +93,8 @@ export function CoachConversation(page: PagePlacement) {
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const box = useMemo(() => ({ focus: () => input.current?.focus() }), []);
   const empty = !coach.restoring && coach.messages.length === 0;
+  // The latest Job Offer card of the thread, while it is still to process: « Scorer contre mon profil » is suggested (#697).
+  const offerToScore = coach.messages.flatMap((message) => (message.from === "coach" && message.jobOffer ? [message.jobOffer] : [])).at(-1);
 
   const send = async (text: string) => {
     setDraft("");
@@ -128,7 +133,15 @@ export function CoachConversation(page: PagePlacement) {
         inputRef={input}
         lead={page.lead}
         // The help's articles, while the Candidate types, take the page's suggestions' place (shown until something is sent).
-        aboveBox={found.length > 0 ? <HelpSuggestions articles={found} onOpen={openArticle} /> : empty ? page.suggestions : null}
+        aboveBox={
+          found.length > 0 ? (
+            <HelpSuggestions articles={found} onOpen={openArticle} />
+          ) : empty ? (
+            page.suggestions
+          ) : offerToScore && !offerToScore.followed && !sending ? (
+            <ScoreSuggestion key={offerToScore.id} jobOfferId={offerToScore.id} />
+          ) : null
+        }
         belowBox={<SignalementLinks onOpen={openSignalement} />}
       >
         {coach.restoring ? (

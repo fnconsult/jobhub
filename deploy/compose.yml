@@ -53,14 +53,59 @@ services:
       traefik:
         # Email intake's MTA (deploy/mta/compose.yml) posts each email here, over this network.
         aliases: ["${JOBHUB_SLUG}-web"]
+    # Two routers (ADR-0094). The pages': when this container does not answer (a 502 or a 504 from Traefik), the `edge`
+    # container's page replaces Traefik's bare text; the app's own answers, 500 and maintenance's 503 included, pass
+    # untouched. The API's, above it: its JSON passes untouched, the 502 of a refused payment included. While this
+    # container is not routed at all (stopped, starting, unhealthy), both routers are gone and `edge`'s takes the host.
     labels:
       - traefik.enable=true
       - traefik.docker.network=n8n_default
       - "traefik.http.routers.${JOBHUB_SLUG:?JOBHUB_SLUG is required}.rule=Host(`${JOBHUB_HOST}`)"
+      - "traefik.http.routers.${JOBHUB_SLUG}.priority=20"
       - "traefik.http.routers.${JOBHUB_SLUG}.entrypoints=websecure"
       - "traefik.http.routers.${JOBHUB_SLUG}.tls=true"
       - "traefik.http.routers.${JOBHUB_SLUG}.tls.certresolver=mytlschallenge"
+      - "traefik.http.routers.${JOBHUB_SLUG}.service=${JOBHUB_SLUG}"
+      - "traefik.http.routers.${JOBHUB_SLUG}.middlewares=${JOBHUB_SLUG}-unreachable"
+      - "traefik.http.routers.${JOBHUB_SLUG}-api.rule=Host(`${JOBHUB_HOST}`) && (Path(`/api`) || PathPrefix(`/api/`))"
+      - "traefik.http.routers.${JOBHUB_SLUG}-api.priority=30"
+      - "traefik.http.routers.${JOBHUB_SLUG}-api.entrypoints=websecure"
+      - "traefik.http.routers.${JOBHUB_SLUG}-api.tls=true"
+      - "traefik.http.routers.${JOBHUB_SLUG}-api.tls.certresolver=mytlschallenge"
+      - "traefik.http.routers.${JOBHUB_SLUG}-api.service=${JOBHUB_SLUG}"
       - "traefik.http.services.${JOBHUB_SLUG}.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.${JOBHUB_SLUG}-unreachable.errors.status=502,504"
+      - "traefik.http.middlewares.${JOBHUB_SLUG}-unreachable.errors.service=${JOBHUB_SLUG}-edge"
+      - "traefik.http.middlewares.${JOBHUB_SLUG}-unreachable.errors.query=/__edge/{status}"
+    restart: unless-stopped
+
+  # Jobbbox's error page when the web app does not answer (ADR-0094, deploy/edge/nginx.conf): without it, Traefik
+  # answers `404 page not found` for the whole time no web container is routed, each deploy included. Its router has
+  # the lowest priority, so it only answers while the web container's are gone. Its files are the checkout's, read
+  # from the directory (a single-file mount would keep the file an earlier revision's checkout replaced); deploy.sh
+  # reloads it before the web container is replaced.
+  edge:
+    image: nginx:1.27-alpine
+    command: ["nginx", "-c", "/etc/jobbbox-edge/nginx.conf", "-g", "daemon off;"]
+    volumes:
+      - ./edge:/etc/jobbbox-edge:ro
+    networks:
+      traefik:
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n_default
+      - "traefik.http.routers.${JOBHUB_SLUG}-edge.rule=Host(`${JOBHUB_HOST}`)"
+      - "traefik.http.routers.${JOBHUB_SLUG}-edge.priority=1"
+      - "traefik.http.routers.${JOBHUB_SLUG}-edge.entrypoints=websecure"
+      - "traefik.http.routers.${JOBHUB_SLUG}-edge.tls=true"
+      - "traefik.http.routers.${JOBHUB_SLUG}-edge.tls.certresolver=mytlschallenge"
+      - "traefik.http.routers.${JOBHUB_SLUG}-edge.service=${JOBHUB_SLUG}-edge"
+      - "traefik.http.services.${JOBHUB_SLUG}-edge.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:8080/__edge/502"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     restart: unless-stopped
 
   worker:

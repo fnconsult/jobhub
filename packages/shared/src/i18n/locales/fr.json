@@ -39,6 +39,11 @@
       "title": "Un problème est survenu",
       "message": "Nous n'avons pas pu afficher cette page. Vos données sont en sécurité. Réessayez dans un instant."
     },
+    "unavailable": {
+      "title": "Jobbbox revient dans un instant",
+      "message": "Jobbbox redémarre ou ne répond pas pour le moment. Vos données sont en sécurité et rien n'est perdu.",
+      "reload": "Cette page se recharge toute seule toutes les {{seconds}} secondes."
+    },
     "exit": {
       "title": "Vous quittez Jobbbox",
       "message": "Ce lien mène vers un site extérieur à Jobbbox. Jobbbox n'est pas responsable de son contenu ni de ce qu'il fait de vos données.",
@@ -2765,7 +2770,7 @@
         "user": "Demande",
         "assistant": "Réponse précédente"
       },
-      "reply": "Réponse",
+      "reply": "Réponse entière (tous ses appels)",
       "noReply": "Aucune réponse : l'appel a échoué.",
       "outcomes": {
         "ok": "OK",
@@ -2792,7 +2797,10 @@
       "ofRun": "Les appels IA d'un run de recherche d'offres : ceux de son candidat, de son début à une minute après sa fin.",
       "context": "Contexte estimé / mesuré",
       "contextValue": "{{estimate}} / {{measure}} ({{gap}})",
-      "noContext": "—"
+      "noContext": "—",
+      "replyValue_one": "{{calls}} appel · {{total}} envoyés ({{gap}}) · {{cached}} en cache · {{rounds}} tours d'outils",
+      "replyValue_other": "{{calls}} appels · {{total}} envoyés ({{gap}}) · {{cached}} en cache · {{rounds}} tours d'outils",
+      "replyTurn": "tour {{turn}}"
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",
@@ -5880,8 +5888,8 @@
     "details": "Voir le détail",
     "breakdown": {
       "title": "Détail du contexte",
-      "intro": "Ce que le coach a reçu avec sa dernière réponse, estimé en jetons, sur le plafond de votre offre.",
-      "introUnlimited": "Ce que le coach a reçu avec sa dernière réponse, estimé en jetons. Votre offre ne fixe pas de plafond.",
+      "intro": "Ce que le coach lit pour répondre, estimé en jetons, sur le plafond de votre offre. Ce n'est pas le coût de la réponse : voyez « Cette réponse » plus bas.",
+      "introUnlimited": "Ce que le coach lit pour répondre, estimé en jetons. Votre offre ne fixe pas de plafond. Ce n'est pas le coût de la réponse : voyez « Cette réponse » plus bas.",
       "empty": "Le détail s'affiche après la première réponse du coach.",
       "total": "{{tokens}} / {{maxTokens}} jetons",
       "value": "{{tokens}} jetons · {{percent}} %",
@@ -5892,6 +5900,16 @@
         "advice": "Conseils des agents",
         "sources": "Sources",
         "free": "Espace libre"
+      },
+      "reply": {
+        "title": "Cette réponse",
+        "total_one": "Cette réponse : {{count}} appel, {{tokens}} jetons envoyés au total",
+        "total_other": "Cette réponse : {{count}} appels, {{tokens}} jetons envoyés au total",
+        "rounds_one": "Le coach a consulté vos données en {{count}} tour avant de répondre.",
+        "rounds_other": "Le coach a consulté vos données en {{count}} tours avant de répondre.",
+        "noRounds": "Le coach a répondu sans consulter d'autres données.",
+        "cached": "Dont {{tokens}} relus dans le cache du fournisseur, moins coûteux.",
+        "why": "Ce total peut dépasser la taille du contexte ci-dessus : à chaque appel (le choix des conseils, les agents, les vérifications, puis chaque tour où le coach consulte vos données), tout le contexte est renvoyé, avec ce que le coach a déjà lu. C'est une mesure technique, qui ne compte pas dans votre offre."
       }
     }
   },

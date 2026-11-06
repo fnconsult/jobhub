@@ -29,3 +29,13 @@ The Context bar (ADR-0070) shows « 2 / 40 messages · 4,1k / 12k jetons ». Bot
 - CONTEXT.md: **Context bar** now reads « out of the Plan's limits »; two new terms, **Coach context limits** and the estimate against the measure.
 - Help Articles on plans and quotas (FR and EN) mention the two lines.
 - Tickets to open: the Plan limits and the Quotas page; the Plan cards and pricing page; enforcement and the Context bar's upsell; the breakdown card; the provider's counts and the AI Activity column.
+
+## Amendment of 2026-11-05: the estimate is one call's, the reply is the sum of all its calls (#790)
+
+With Coach Actions (ADR-0077) a reply makes up to three Turns, each sending the whole context again with the Tools' results, beside the Playbook Agent choice, the Playbook Agents and the Guardrail checks. Its Provenance (« 56,7k ») sums them all, while the Context bar shows the estimate of one call (« 4k / 12k jetons »), so the Candidate read the two as contradicting each other, and `coach_message.ai_call_id` linked only the last Turn, whose input carries the tool results: the gap the AI Message Log showed was not the estimate's.
+
+- **The bar keeps its meaning**: the Coach context, against the Plan's limit. It is never presented as the reply's cost.
+- **Every call is linked.** Each Turn keeps its AI Usage id (`GenerateResult.turns[].callId`), and a reply keeps all its calls (`coach_message.ai_call_ids`), its Turns in order (`ai_turn_ids`), its Tool rounds and the Tools that ran. No foreign key, as for `ai_call_id`.
+- **The estimate is checked against the first Turn**, the call the context was sent with; replies saved before keep their `ai_call_id`.
+- **The breakdown card says the whole reply**: « Cette réponse : N appels, X jetons envoyés au total », its Tool rounds, the cached share, and why it can exceed the context. Tokens only, never euros, never the Tools' internal names; the rule of #332 holds (no jetons on Mon abonnement, Plans or Upgrade Prompts).
+- **The AI Message Log** shows, on every call of a reply, the reply's calls summed against the estimate, the gap (also as a multiple), the cached share and its Tool rounds and Tools.

@@ -97,6 +97,9 @@ export default defineConfig({
     // The seeded test stack of the app's Maestro flows (#705): its helper, checked as the flows use it; held open for them
     // by the mobile-e2e workflow (MOBILE_STACK_READY, docs/ops/mobile.md).
     { name: "mobile-stack", testMatch: /mobile-stack\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "fr-FR" } },
+    // The edge in front of the web app (ADR-0094): Traefik, deploy/compose.yml's `edge` and a stand-in web container in docker,
+    // the stand-in forwarding to the suite's web server. Needs docker; E2E_SKIP_DOCKER=1 skips it.
+    { name: "edge", testMatch: /\/edge\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|legal-text-notices)\.spec\.ts/ },
     { name: "ai", testMatch: /(ai|ai-tool-calls|ai-actions-coach|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.

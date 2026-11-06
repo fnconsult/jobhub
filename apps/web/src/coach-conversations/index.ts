@@ -63,7 +63,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, type PlaybookConsultation, type PlaybookUsed } from "../coach";
-import { contextBar, MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ContextUpgrade, type ConversationContext, type ContextSplit, type JobOfferCard } from "../coach/conversation";
+import { contextBar, MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ContextUpgrade, type ConversationContext, type ContextSplit, type ReplyCost, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
 import { migrateOfferBox, recordArrivals } from "../offer-box";
@@ -427,15 +427,21 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
    * their split (null when none was kept), out of `limits`, the Candidate's Plan's.
    */
   async function contextOf(conversationId: string, { plan, ...limits }: CoachContextLimits & { plan?: string }): Promise<ConversationContext> {
-    const { rows } = await database.query<{ messages: number; latest: { tokens: number; split: ContextSplit | null } | null }>(
+    const { rows } = await database.query<{ messages: number; latest: { tokens: number; split: ContextSplit | null; reply: ReplyCost | null } | null }>(
       `SELECT count(*)::int AS messages,
-              (SELECT jsonb_build_object('tokens', context_tokens, 'split', context_split) FROM coach_message
+              (SELECT jsonb_build_object('tokens', context_tokens, 'split', context_split,
+                        -- What the whole reply sent (#790): the sum of all its calls, as its Coach Message Cost; none before.
+                        'reply', CASE WHEN ai_call_ids IS NULL THEN NULL ELSE jsonb_build_object(
+                          'calls', cardinality(ai_call_ids), 'turns', cardinality(coalesce(ai_turn_ids, '{}')), 'rounds', coalesce(tool_rounds, 0),
+                          'tools', to_jsonb(coalesce(tool_names, '{}')), 'inputTokens', coalesce(input_tokens, 0) + coalesce(cached_input_tokens, 0),
+                          'cachedInputTokens', coalesce(cached_input_tokens, 0), 'outputTokens', coalesce(output_tokens, 0)) END)
+                 FROM coach_message
                 WHERE conversation_id = $1 AND context_tokens IS NOT NULL ORDER BY seq DESC LIMIT 1) AS latest
          FROM coach_message WHERE conversation_id = $1`,
       [conversationId],
     );
     const { messages = 0, latest = null } = rows[0] ?? {};
-    const context: ConversationContext = { messages, tokens: latest?.tokens ?? 0, limits, split: latest?.split ?? null };
+    const context: ConversationContext = { messages, tokens: latest?.tokens ?? 0, limits, split: latest?.split ?? null, reply: latest?.reply ?? null };
     // The Plan to name is read only once the bar is nearly full, the only time it shows it.
     const upgrade = plan && deps.billing?.coachContextUpgrade && contextBar(context).nearlyFull ? await deps.billing.coachContextUpgrade(plan) : null;
     return { ...context, upgrade };
@@ -804,8 +810,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const { cost } = answer;
         const inserted = await client.query<{ seq: string }>(
           `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
-                                     provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id, share_capture)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING seq`,
+                                     provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id, share_capture, ai_call_ids, ai_turn_ids, tool_rounds, tool_names)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING seq`,
           [
             id,
             answer.reply,
@@ -827,6 +833,10 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             answer.contextSplit ? JSON.stringify(answer.contextSplit) : null,
             answer.callId ?? null,
             reply.shareCapture === true,
+            answer.calls?.ids ?? null,
+            answer.calls?.turns ?? null,
+            answer.calls?.rounds ?? null,
+            answer.calls?.tools ?? null,
           ],
         );
         replySeq = String(inserted.rows[0]!.seq);
@@ -1038,6 +1048,14 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     -- No foreign key: AI Usage is recorded after the reply, and kept for its own time. Null on the Candidate's messages and before.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS ai_call_id uuid;
     CREATE INDEX IF NOT EXISTS coach_message_ai_call_idx ON coach_message (ai_call_id) WHERE ai_call_id IS NOT NULL;
+    -- Every AI call an AI Coach reply was served by (#790), its Coach Message Cost's: ai_usage ids, the Playbook Agent choice,
+    -- each Playbook Agent, each Turn and each Guardrail check; the Turns of the reply written, in order (the first sent the
+    -- context its estimate is of); its Tool rounds and the Tools that ran. Null on the Candidate's messages and before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS ai_call_ids uuid[];
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS ai_turn_ids uuid[];
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS tool_rounds smallint;
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS tool_names text[];
+    CREATE INDEX IF NOT EXISTS coach_message_ai_call_ids_idx ON coach_message USING gin (ai_call_ids) WHERE ai_call_ids IS NOT NULL;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
     -- The conversations saved before they had a Subject are deleted, once, as it ships (ADR-0070): attached to a Profile with mixed

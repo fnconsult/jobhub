@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AccountSettings } from "@/components/AccountSettings";
+import { SignInForm } from "@/components/SignInForm";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./Dialog";
@@ -11,6 +12,7 @@ import { Drawer } from "./Drawer";
 import { renderInFrench } from "./testing";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
+vi.mock("@/auth/client", () => ({ authClient: { signIn: { magicLink: vi.fn(), emailOtp: vi.fn(), social: vi.fn() } } }));
 
 /** The HTML the server sends: what a person (or a test) can use before the page's scripts have run. */
 function serverHtml(ui: ReactNode): HTMLElement {
@@ -50,6 +52,20 @@ describe("controls that only act once the page is hydrated", () => {
     expect(serverHtml(confirm).querySelector("button")!.disabled).toBe(true);
     renderInFrench(confirm);
     expect((screen.getByRole("button", { name: "Supprimer" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  // Submitted before, the form was the browser's own: a GET to /connexion?email=…, the address in the URL and no email
+  // sent (e2e/job-digest.spec.ts #300 hung on a sign-in link never asked for, #816). A provider's button did nothing.
+  it("the sign-in page's « Recevoir mon lien de connexion » and each Sign-in Provider's button are disabled in the server's HTML, then enabled", () => {
+    const form = <SignInForm providers={[{ id: "google", displayName: "Google" }]} callbackURL="/compte" errorURL="/connexion" />;
+    const buttons = [...serverHtml(form).querySelectorAll("button")];
+    expect(buttons.map((button) => [button.textContent, button.disabled])).toEqual([
+      ["Continuer avec Google", true],
+      ["Recevoir mon lien de connexion", true],
+    ]);
+    renderInFrench(form);
+    expect((screen.getByRole("button", { name: "Continuer avec Google" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "Recevoir mon lien de connexion" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("a trigger disabled by its owner stays disabled once hydrated", () => {

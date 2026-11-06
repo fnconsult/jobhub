@@ -10,6 +10,7 @@
  */
 import * as z from "zod";
 import { APPLICATION_STATUSES, CONTRACT_TYPES, INTERVIEW_FORMATS, JOB_DIGEST_FREQUENCIES, REMOTE_WORK_OPTIONS, type MasterCvContent, type SearchCriteria } from "../domain";
+import type { MatchScore } from "../match-score";
 import { DOCUMENT_LANGUAGES } from "../document-language";
 import { provenanceSchema } from "../provenance";
 
@@ -127,10 +128,61 @@ export type JobSearchesResponse = z.infer<typeof jobSearchesResponseSchema>;
  */
 export const JOB_OFFER_DECISIONS = ["kept", "dismissed"] as const;
 
-/** One Job Offer a Job Search or a Job Digest found, with its Match Score and the Candidate's decision. */
+const criterionStatus = z.enum(["match", "partial", "mismatch", "unknown"]);
+
+/**
+ * Why a Job Offer has its Match Score (« Pourquoi 86 ? »), criterion by criterion: what the Job Offer says and what is
+ * wanted, null where unknown. `matchScoreOfDetail` gives it back as a MatchScore, for `matchScoreReasons` to word it.
+ */
+export const matchScoreDetailSchema = z.object({
+  skills: z.object({ status: criterionStatus, covered: z.array(z.string()), missing: z.array(z.string()) }),
+  seniority: z.object({ status: criterionStatus, cvYears: z.number().nullable(), requiredYears: z.number().nullable() }),
+  location: z.object({ status: criterionStatus, offer: z.string().nullable(), wanted: z.array(z.string()) }),
+  salary: z.object({ status: criterionStatus, offerMin: z.number().nullable(), offerMax: z.number().nullable(), wanted: z.number().nullable() }),
+  contractType: z.object({ status: criterionStatus, offer: z.enum(CONTRACT_TYPES).nullable(), wanted: z.array(z.enum(CONTRACT_TYPES)) }),
+});
+export type MatchScoreDetail = z.infer<typeof matchScoreDetailSchema>;
+
+const asList = <T>(wanted: T[] | T | undefined): T[] => (wanted === undefined ? [] : Array.isArray(wanted) ? wanted : [wanted]);
+const defined = <T>(value: T | null): T | undefined => value ?? undefined;
+
+/** A Match Score's breakdown as a read gives it. */
+export function matchScoreDetail({ breakdown }: Pick<MatchScore, "breakdown">): MatchScoreDetail {
+  const { skills, seniority, location, salary, contractType } = breakdown;
+  return {
+    skills: { status: skills.status, covered: skills.covered, missing: skills.missing },
+    seniority: { status: seniority.status, cvYears: seniority.cvYears ?? null, requiredYears: seniority.requiredYears ?? null },
+    location: { status: location.status, offer: location.offer ?? null, wanted: asList(location.wanted) },
+    salary: { status: salary.status, offerMin: salary.offer?.min ?? null, offerMax: salary.offer?.max ?? null, wanted: salary.wanted ?? null },
+    contractType: { status: contractType.status, offer: contractType.offer ?? null, wanted: asList(contractType.wanted) },
+  };
+}
+
+/** A read's Match Score (its figure, null when not computable, and its detail) as a MatchScore, to word it. */
+export function matchScoreOfDetail(figure: number | null, detail: MatchScoreDetail): MatchScore {
+  const { skills, seniority, location, salary, contractType } = detail;
+  const offer = salary.offerMin === null && salary.offerMax === null ? undefined : { min: defined(salary.offerMin), max: defined(salary.offerMax) };
+  return {
+    score: figure ?? 0,
+    breakdown: {
+      skills,
+      seniority: { status: seniority.status, cvYears: defined(seniority.cvYears), requiredYears: defined(seniority.requiredYears) },
+      location: { status: location.status, offer: defined(location.offer), wanted: location.wanted },
+      salary: { status: salary.status, offer, wanted: defined(salary.wanted) },
+      contractType: { status: contractType.status, offer: defined(contractType.offer), wanted: contractType.wanted },
+    },
+  };
+}
+
+/**
+ * One Job Offer a Job Search or a Job Digest found, with its Match Score and the Candidate's decision. Its Job Offer
+ * comes with what the Work Pane shows (#692): its contract type, its Job Offer Summary and its full text (`content`),
+ * so it opens with no network; its Match Score with why (`matchScoreDetail`).
+ */
 export const foundJobOfferSchema = z.object({
-  jobOffer: jobOfferLineSchema,
+  jobOffer: jobOfferLineSchema.extend({ contractType: z.enum(CONTRACT_TYPES).nullable(), summary: z.string().nullable(), content: z.string() }),
   matchScore,
+  matchScoreDetail: matchScoreDetailSchema,
   decision: z.enum(JOB_OFFER_DECISIONS).nullable(),
   /** The Candidate's Application for it, when they kept it. */
   applicationId: z.string().nullable(),
@@ -212,6 +264,15 @@ export const jobDigestsResponseSchema = z.object({
   ),
 });
 export type JobDigestsResponse = z.infer<typeof jobDigestsResponseSchema>;
+
+/** `GET /api/job-digests/:id`: one of the Candidate's Job Digests sent and its Job Offers, best Match Score first. 404 for anyone else's. */
+export const jobDigestResponseSchema = z.object({
+  id: z.string(),
+  profile: named,
+  sentAt: instant,
+  jobOffers: z.array(foundJobOfferSchema),
+});
+export type JobDigestResponse = z.infer<typeof jobDigestResponseSchema>;
 
 // --- Agenda ------------------------------------------------------------------------------------------------------
 

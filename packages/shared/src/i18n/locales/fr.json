@@ -6082,7 +6082,10 @@
       }
     },
     "jobSearches": {
-      "quotaExceeded": "Votre quota de recherches d'offres est atteint pour cette période : vous pourrez en lancer une nouvelle à son renouvellement."
+      "quotaExceeded": "Votre quota de recherches d'offres est atteint pour cette période : vous pourrez en lancer une nouvelle à son renouvellement.",
+      "notFound": "Cette recherche est introuvable : elle n'existe pas ou n'est pas la vôtre.",
+      "criteriaOnWeb": "Les critères se modifient sur jobbbox.ai : « Modifier les critères » ouvre la page du profil.",
+      "introduction": "Cette conversation porte sur cette recherche d'offres : le coach a sous les yeux les offres trouvées et leur score de correspondance. Demandez-lui lesquelles suivre."
     },
     "push": {
       "channel": "Notifications",
@@ -6110,6 +6113,15 @@
         },
         "declined": "Les notifications de l'app ne sont pas activées sur cet appareil : les choix ci-dessous s'appliqueront dès que vous les activerez."
       }
+    },
+    "jobOffer": {
+      "followCreates": "« Suivre » crée sa candidature avec le profil « {{profile}} »."
+    },
+    "jobDigests": {
+      "notFound": "Ce Job Digest est introuvable : il n'existe pas ou n'est pas le vôtre.",
+      "off": "Job Digest désactivé pour ce profil.",
+      "frequency": "Fréquence : {{frequency}}",
+      "introduction": "Cette conversation porte sur ce Job Digest : le coach a sous les yeux ses offres et leur score de correspondance. Demandez-lui lesquelles suivre."
     }
   },
   "coachProposals": {

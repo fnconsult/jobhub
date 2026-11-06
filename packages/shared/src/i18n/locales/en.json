@@ -6082,7 +6082,10 @@
       }
     },
     "jobSearches": {
-      "quotaExceeded": "You have reached your job search quota for this period: you can start a new one when it renews."
+      "quotaExceeded": "You have reached your job search quota for this period: you can start a new one when it renews.",
+      "notFound": "This search cannot be found: it does not exist or is not yours.",
+      "criteriaOnWeb": "Criteria are changed on jobbbox.ai: “Change the criteria” opens the profile's page.",
+      "introduction": "This conversation is about this job search: the coach can see the job offers found and their match scores. Ask which ones to follow."
     },
     "push": {
       "channel": "Notifications",
@@ -6110,6 +6113,15 @@
         },
         "declined": "The app's notifications are not turned on on this device: the choices below will apply as soon as you turn them on."
       }
+    },
+    "jobOffer": {
+      "followCreates": "“Follow” creates its application with the “{{profile}}” profile."
+    },
+    "jobDigests": {
+      "notFound": "This Job Digest cannot be found: it does not exist or is not yours.",
+      "off": "Job Digest turned off for this profile.",
+      "frequency": "Frequency: {{frequency}}",
+      "introduction": "This conversation is about this Job Digest: the coach can see its job offers and their match scores. Ask which ones to follow."
     }
   },
   "coachProposals": {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONSUMPTION_TOOLS, QUOTA_CONSUMPTION_TOOLS, consumptionTools, isConsumptionTool } from "./consumption";
 import { WEEKLY_QUOTAS } from "./domain";
 
-describe("the Tools « Votre consommation » counts (#799, ADR-0085)", () => {
+describe("the Tools « Votre consommation » counts (#799, ADR-0091)", () => {
   it("are the nine features of one shared list, in the order they are shown", () => {
     expect(consumptionTools()).toEqual(["coach", "jobSearch", "matchScore", "tailoredCv", "tailoredDocument", "atsScore", "companyDossier", "enrichedContact", "cvReading"]);
   });

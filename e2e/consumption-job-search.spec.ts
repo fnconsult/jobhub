@@ -10,7 +10,7 @@ import { newAddress } from "./support/mailbox";
 import { parisDay } from "./support/paris-days";
 import { subscribe } from "./support/plan";
 
-// Issue #799 (ADR-0085), « A Job Search stopped empty, whose quota use is given back, leaves `jobSearch` where it was »:
+// Issue #799 (ADR-0091), « A Job Search stopped empty, whose quota use is given back, leaves `jobSearch` where it was »:
 // driven as e2e/job-search-stop.spec.ts does, through the built web app (« Lancer une recherche », POST
 // /api/job-searches/[id]/stop) and the real worker, then read through the Data export (GET /api/account/export).
 const origin = process.env.E2E_WEB_ORIGIN!;

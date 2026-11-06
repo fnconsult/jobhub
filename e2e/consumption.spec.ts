@@ -7,7 +7,7 @@ import { newAddress } from "./support/mailbox";
 import { parisDay } from "./support/paris-days";
 import { subscribe } from "./support/plan";
 
-// Issue #799 (ADR-0085): the per-Candidate daily count of uses per Tool, « Votre consommation »'s store. Nothing of it is
+// Issue #799 (ADR-0091): the per-Candidate daily count of uses per Tool, « Votre consommation »'s store. Nothing of it is
 // shown yet, so it is driven through the public entry points that touch it: the AI Coach's HTTP API (POST /api/coach,
 // whose reply counts once whatever its Tool rounds), the Data export (GET /api/account/export, its `consumption` section),
 // the account's deletion (DELETE /api/account), and the worker's nightly purge (e2e/support/worker-job.ts). The table is read

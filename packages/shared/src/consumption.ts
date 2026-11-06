@@ -1,5 +1,5 @@
 /**
- * Consumption (#799, ADR-0085): what « Votre consommation » counts, a Candidate's uses per Tool and per day. A Tool here
+ * Consumption (#799, ADR-0091): what « Votre consommation » counts, a Candidate's uses per Tool and per day. A Tool here
  * is a feature the Candidate uses, not an external service: one key per feature, whatever started it (an action from
  * the browser extension counts under its feature), each with its French and English label and the unit its count is in.
  * The order is the one the section shows.

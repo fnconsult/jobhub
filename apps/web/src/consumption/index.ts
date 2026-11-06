@@ -1,5 +1,5 @@
 /**
- * Consumption (#799, ADR-0085): a per-Candidate daily count of uses per Tool, the store « Votre consommation » reads.
+ * Consumption (#799, ADR-0091): a per-Candidate daily count of uses per Tool, the store « Votre consommation » reads.
  * AI Usage (`ai_usage`) is another record and names no one (ADR-0007, ADR-0034); nothing here links to it.
  *
  * One small module in front of Postgres:
@@ -108,7 +108,7 @@ export async function purgeExpiredConsumption(database: Queryable, now: Date): P
  */
 export async function migrateConsumption(database: Pool): Promise<void> {
   await database.query(`
-    -- « Votre consommation » (#799, ADR-0085): how many times a Candidate used each Tool, per French day. Nothing else:
+    -- « Votre consommation » (#799, ADR-0091): how many times a Candidate used each Tool, per French day. Nothing else:
     -- no text, no result, no model, no provider, no cost. Kept 12 months.
     CREATE TABLE IF NOT EXISTS consumption_day (
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,

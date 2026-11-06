@@ -620,7 +620,7 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 9 (Orders and Withd
 | Retention | While the account lives; the accounting records 10 years (C. com. L123-22), at Stripe. |
 | Rights | In the Data export; erasure weighed against the accounting obligation. |
 
-## Consommation (historique d'utilisation) (#799, ADR-0085)
+## Consommation (historique d'utilisation) (#799, ADR-0091)
 
 | | |
 | --- | --- |

@@ -310,7 +310,7 @@ export interface CandidateDataExport {
   /** The Candidate's « Propositions du coach » setting (#717): « card » (the default) or « form », and since when (null: never chosen). */
   coachProposalsDisplay: ExportedCoachProposalsDisplay;
   /**
-   * The Candidate's Consumption (#799, ADR-0085): how many times they used each Tool, per French day, for the 12 months
+   * The Candidate's Consumption (#799, ADR-0091): how many times they used each Tool, per French day, for the 12 months
    * kept, newest day first. A count only: no result, model or provider.
    */
   consumption: ConsumptionDay[];

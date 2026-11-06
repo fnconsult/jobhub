@@ -9,3 +9,6 @@ jest.mock("expo-constants", () => {
 });
 // AsyncStorage has no native module under Jest: its own in-memory mock stands in for the device's storage (#701).
 jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
+// React Native's FormData, as on a device: a file part is `{ uri, name, type }`, sent from the file at `uri` (#696);
+// Node's own would turn it into text.
+global.FormData = require("react-native/Libraries/Network/FormData").default;

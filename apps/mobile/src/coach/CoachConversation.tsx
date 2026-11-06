@@ -3,6 +3,7 @@ import { createContext, useContext, useMemo, useRef, useState, type ComponentRef
 import { useTranslation } from "react-i18next";
 import { AccessibilityInfo, TextInput, View } from "react-native";
 import type { HelpArticle } from "@jobhub/help";
+import { useAttach } from "../attach/use-attach";
 import { Conversation } from "../conversation/Conversation";
 import { HelpArticleView, HelpForUnanswered, HelpIntro, HelpSuggestions, helpLocaleOf, ReplyFeedback, useHelpSuggestions } from "../help/Help";
 import { useWorkPane } from "../shell/Shell";
@@ -12,6 +13,7 @@ import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import type { ConversationSummary, SubjectRef } from "./coach-reply";
 import { ProposalCard } from "./ProposalCard";
+import { ScoreSuggestion } from "./ScoreSuggestion";
 import { useRegisterPageConversation } from "./page-conversation";
 import { useCoachConversation, type Announce, type ReplyStatus, type ShownMessage } from "./use-coach-conversation";
 
@@ -45,10 +47,13 @@ export const useCoachBox = () => useContext(CoachBox);
  * « Réponse arrêtée » after « Arrêter », and why there is no reply, as on the web. VoiceOver and TalkBack hear a reply
  * once it is finished, never word by word: the thread is no live region, the reply is announced.
  *
+ * Its latest Job Offer card still to process (a Job Offer link's, a Share capture's) suggests « Scorer contre mon profil »
+ * above the box (#697).
  * The help comes first (ADR-0035): an empty conversation offers « Comment marche cette page ? » and « Souvent demandé »;
  * the Help Articles matching the draft take the suggestions' place above the box; an article opens in the Work Pane (full
  * page below 64rem) and its title goes with the next message. Under each reply, « Cela répond à votre question ? » and
- * its Coach proposals; under the box, the Signalement links, whose native form opens in the Work Pane.
+ * its Coach proposals; under the box, the Signalement links, whose native form opens in the Work Pane. « + » and a drop on
+ * the box take a Job Offer's link or a CV (useAttach).
  */
 export function CoachConversation(page: PagePlacement) {
   const { t, i18n } = useTranslation();
@@ -88,6 +93,8 @@ export function CoachConversation(page: PagePlacement) {
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const box = useMemo(() => ({ focus: () => input.current?.focus() }), []);
   const empty = !coach.restoring && coach.messages.length === 0;
+  // The latest Job Offer card of the thread, while it is still to process: « Scorer contre mon profil » is suggested (#697).
+  const offerToScore = coach.messages.flatMap((message) => (message.from === "coach" && message.jobOffer ? [message.jobOffer] : [])).at(-1);
 
   const send = async (text: string) => {
     setDraft("");
@@ -111,6 +118,14 @@ export function CoachConversation(page: PagePlacement) {
       title: t(start.kind === "question" ? "signalement.question.title" : "signalement.title"),
       content: <SignalementForm start={start} path={page.route} onClose={workPane.close} />,
     });
+  // « + » and a drop on the box: a Job Offer's link goes in a message, which the server reads as one, until the Share
+  // capture (#697) takes it (while a reply is on its way, into the box, to send after it); a CV is read as the web's
+  // form reads it, and shown in the thread.
+  const attach = useAttach({
+    onJobOfferLink: async (url) => {
+      if (!(await coach.send(url))) setDraft((typed) => (typed.trim() ? `${typed.trimEnd()} ${url}` : url));
+    },
+  });
   const askTeam = (question: string, coachReply: string) => openSignalement({ kind: "question", question, coachReply });
   const intro = empty ? <HelpIntro pathname={page.route} locale={locale} onOpen={openArticle} showOftenAsked={page.suggestions === undefined} /> : null;
 
@@ -122,10 +137,18 @@ export function CoachConversation(page: PagePlacement) {
         streaming={sending}
         onSend={(text) => void send(text)}
         onStop={coach.stop}
-        onAttach={() => {}}
+        attach={attach}
         inputRef={input}
         // The help's articles, while the Candidate types, take the page's suggestions' place (shown until something is sent).
-        aboveBox={found.length > 0 ? <HelpSuggestions articles={found} onOpen={openArticle} /> : empty ? page.suggestions : null}
+        aboveBox={
+          found.length > 0 ? (
+            <HelpSuggestions articles={found} onOpen={openArticle} />
+          ) : empty ? (
+            page.suggestions
+          ) : offerToScore && !offerToScore.followed && !sending ? (
+            <ScoreSuggestion key={offerToScore.id} jobOfferId={offerToScore.id} />
+          ) : null
+        }
         belowBox={<SignalementLinks onOpen={openSignalement} />}
       >
         {coach.restoring ? (
@@ -160,6 +183,7 @@ export function CoachConversation(page: PagePlacement) {
           <AppText tone="secondary">{coach.status.live.step ? t(`aiActivity.steps.${coach.status.live.step.label}`) : t("coachPanel.thinking")}</AppText>
         ) : null}
         {coach.status.kind === "failed" || coach.status.kind === "invalid" ? <Notice>{failureText(coach.status)}</Notice> : null}
+        {attach.shown}
         {/* The help still answers when the AI Coach cannot (ADR-0035), and the team, directly (#345). */}
         {coach.status.kind === "failed" ? (
           <HelpForUnanswered

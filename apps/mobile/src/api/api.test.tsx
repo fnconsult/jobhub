@@ -126,6 +126,30 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     expect(headers.get("content-type")).toBe("application/json");
   });
 
+  it("send a form as a form, its file included, for the system to name its boundary (#696)", async () => {
+    const { fetch } = server(200, {});
+    function Uploader() {
+      const api = useApi();
+      const form = new FormData();
+      form.append("cv", { uri: "file:///cache/CV.pdf", name: "CV.pdf", type: "application/pdf" } as unknown as Blob);
+      return (
+        <Pressable role="button" onPress={() => void api("/api/cv/draft", { method: "POST", body: form }).catch(() => {})}>
+          <Text>Joindre</Text>
+        </Pressable>
+      );
+    }
+    await renderInApp(
+      <ApiProvider baseUrl="https://staging.jobbbox.ai" fetch={fetch} storePage={APP_STORE}>
+        <Uploader />
+      </ApiProvider>,
+    );
+    await userEvent.setup().press(screen.getByRole("button", { name: "Joindre" }));
+    const init = (fetch as unknown as jest.Mock).mock.calls[0]![1] as RequestInit;
+    expect(init.body).toBeInstanceOf(FormData);
+    expect(new Headers(init.headers).has("content-type")).toBe(false);
+    expect(new Headers(init.headers).get("origin")).toBe(APP_ORIGIN);
+  });
+
   it("carry no cookie when signed out", async () => {
     const { fetch, calls } = server(200, []);
     await read(fetch, async () => "");

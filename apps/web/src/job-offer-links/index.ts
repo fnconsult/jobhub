@@ -18,6 +18,10 @@
  * analysis (its Match Score, At a glance) is left to its page, where the Candidate follows it.
  * A Job Offer read is captured with its Provenance: the page read and the model that read it, on the
  * site of its page, naming no Candidate.
+ * Read `privately` (Share capture, #697), the Job Offer is the Candidate's Private Job Offer (ADR-0049): the page's
+ * posting is captured as private to them, and a Job Offer already stored for the link (shared, or already theirs) is
+ * captured again as theirs from what is stored, without reading the page again; the Job Offers' dedupe (ADR-0013) then
+ * gives back the private one they already have.
  */
 import { createProvenanceRecorder, readJobPage, type AiLayer, type ProvenanceRecorder, type TaskInstructions } from "@jobhub/ai";
 import { believablePostingDate, FORBIDDEN_SITES, isForbiddenSite, type JobOffer } from "@jobhub/shared";
@@ -29,12 +33,17 @@ export type JobOfferLinkResult = { ok: true; jobOffer: JobOffer } | { ok: false;
 /** Where a read records its steps: the reply's ProvenanceRecorder (#327). */
 export type ReadProvenance = Pick<ProvenanceRecorder, "aiFor" | "step" | "site">;
 
+export interface ReadOptions {
+  /** The Job Offer is the Candidate's Private Job Offer (ADR-0049), never a shared one. */
+  privately?: boolean;
+}
+
 export interface JobOfferLinks {
   /**
    * The Job Offer at `url`, read for the Candidate (`candidateId`, for AI Usage), or why there is none.
    * With `provenance`, the page read is recorded there: its Tool, the AI reading it, and the page as a Provenance site.
    */
-  read(candidateId: string, url: string, provenance?: ReadProvenance): Promise<JobOfferLinkResult>;
+  read(candidateId: string, url: string, provenance?: ReadProvenance, options?: ReadOptions): Promise<JobOfferLinkResult>;
 }
 
 export interface JobOfferLinksDeps {
@@ -72,17 +81,25 @@ const hostOf = (url: string) => {
 
 export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
   return {
-    async read(candidateId, url, provenance) {
+    async read(candidateId, url, provenance, options = {}) {
       const host = hostOf(url);
       if (host === null) return { ok: false, reason: "unreadable" };
       if (isForbiddenSite(host, FORBIDDEN_SITES)) return { ok: false, reason: "forbidden_site" };
+      const privateTo = options.privately ? candidateId : undefined;
+      /** A Job Offer already stored, given as is, or read privately, captured again as the Candidate's own. */
+      const known = async (stored: JobOffer): Promise<JobOfferLinkResult> => {
+        provenance?.site(stored.source.url ?? url);
+        if (!privateTo) return { ok: true, jobOffer: stored };
+        const { source, title, content, employer, location, contractType, remoteWork, salary, skills, requiredExperienceYears, postedAt, summary, sector, subsector } = stored;
+        const posting = { source, title, content, ...{ employer, location, contractType, remoteWork, salary, skills, requiredExperienceYears } };
+        const trusted = { privateTo, ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }) };
+        const captured = await deps.jobOffers.capture(posting, "candidate", trusted);
+        return captured.ok ? { ok: true, jobOffer: captured.jobOffer } : { ok: false, reason: "not_a_job_offer" };
+      };
       try {
         // A Job Offer already read from this page: the reply is built from that page, not read again.
-        const stored = await deps.jobOffers.findBySourceUrl(url);
-        if (stored) {
-          provenance?.site(stored.source.url ?? url);
-          return { ok: true, jobOffer: stored };
-        }
+        const stored = await deps.jobOffers.findBySourceUrl(url, privateTo);
+        if (stored) return await known(stored);
 
         const fetcher = createPoliteFetcher({
           fetch: deps.fetch ?? globalThis.fetch,
@@ -94,12 +111,9 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
         });
         const reading = createProvenanceRecorder(provenance ? provenance.aiFor("read_job_page") : deps.ai, deps.clock ? { now: () => new Date(deps.clock!.now()) } : {});
         // A redirect to a page already stored gives its Job Offer.
-        const fetchPage = () => reading.step({ tool: pageReadTool(url) }, () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target)));
+        const fetchPage = () => reading.step({ tool: pageReadTool(url) }, () => fetcher.page(url, (target) => deps.jobOffers.findBySourceUrl(target, privateTo)));
         const page = provenance ? await recordedPageRead(provenance, pageReadTool(url), fetchPage) : await fetchPage();
-        if (page.ok === "known") {
-          provenance?.site(page.known.source.url ?? url);
-          return { ok: true, jobOffer: page.known };
-        }
+        if (page.ok === "known") return await known(page.known);
         if (!page.ok) return { ok: false, reason: page.reason === "site_terms" ? "forbidden_site" : "unreadable" };
         if (metaRobots(page.html).some((value) => /\b(noindex|none)\b/.test(value))) return { ok: false, reason: "unreadable" };
         provenance?.site(page.url);
@@ -112,7 +126,7 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
         const { postedAt: stated, summary, sector, subsector, ...untrusted } = details;
         const postedAt = believablePostingDate(stated, new Date());
         reading.site(page.url);
-        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }), provenance: reading.provenance() };
+        const trusted = { ...(postedAt && { postedAt }), ...(summary && { summary }), ...(sector && { sector }), ...(subsector && { subsector }), provenance: reading.provenance(), ...(privateTo && { privateTo }) };
         const captured = await deps.jobOffers.capture({ source: { url: page.url }, ...untrusted }, "candidate", trusted);
         return captured.ok ? { ok: true, jobOffer: captured.jobOffer } : { ok: false, reason: "not_a_job_offer" };
       } catch (error) {

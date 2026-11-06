@@ -12,7 +12,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | --- | --- |
 | `hostinger` | Hosting |
 | `scaleway` | Help videos (#568) |
-| `anthropic` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Coach Memory and Guardrails; Back Office Assistant; Job Searches, Job discovery and Job Digests; Enriched Contacts; Guest session in the browser extension |
+| `anthropic` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Coach Memory and Guardrails; Back Office Assistant; Job Searches, Job discovery and Job Digests; Enriched Contacts; Guest session in the browser extension; Share capture in the Jobbbox app |
 | `anthropic-bedrock` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
 | `anthropic-vertex` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
 | `openai` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations |
@@ -82,6 +82,22 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Rights | Erased by the Guest at any time (« Effacer mes données maintenant », or by closing the browser). Jobbbox holds nothing of it to give or erase. |
 | Security | Readable only by the extension's own pages. |
 
+## Share capture in the Jobbbox app (#697, ADR-0076)
+
+| | |
+| --- | --- |
+| Purpose | Turn a job posting the Candidate sends to the Jobbbox app from another app's share sheet (a browser, LinkedIn, Indeed, Mail) into their Private Job Offer (ADR-0049), opened in its own Coach Conversation. |
+| Legal basis | Performance of the service the Candidate asks for (GDPR art. 6(1)(b)): they choose « Jobbbox » in the share sheet, check what is sent on the capture screen and press « Envoyer à Jobbbox ». Legitimate interest (GDPR art. 6(1)(f)) for the third parties a shared text may name (a recruiter's email shared from Mail: its sender, a signature). |
+| People concerned | Candidates; people a shared text names. |
+| Data | What was shared: a web link and/or a text (at most 100 000 characters), as the Candidate checked it. Kept: only the Private Job Offer made from it (title, text, employer and the other posting fields, the link as its source) and the conversation's two messages, which name only its title (« Offre partagée depuis une autre app : … ») and a set reply. The shared text itself is never kept, logged, nor written into the conversation. |
+| Source | The iOS share extension and the Android share activity, which pass it to the app in the share link (`jobbbox://partage?…`) and keep nothing; the app holds it in memory until it is sent or cancelled, never on the device (not in the Read cache); `POST /api/share-captures`. |
+| Processors | Hostinger (the app). The link is read by Jobbbox's server itself under the job discovery rules (ADR-0002: robots.txt, as itself, giving up at bot protection or a sign-in; a Forbidden site is never requested): the site receives the request as from Job discovery, naming no Candidate. A text (or a page with no JobPosting data) is read by the AI as the `offer_analysis` task, after Redaction: by default Claude's direct API (Anthropic, outside the EU, see the recipients above). **To decide (#697)**: a text shared from Mail may be a recruiter's email, a third party's words, which ADR-0055 keeps in the EU for Email intake (`offer_email_reading`, `euOnly`); reading shared texts with an EU-only task would align them. |
+| Who can read it | The Candidate alone (a Private Job Offer, ADR-0049). The AI Usage row of the reading names the Candidate as any AI call does (« AI Usage »). |
+| Storage | The `job_offer` table (`private_to_candidate_id`), `coach_conversation` and `coach_message` tables in the app's Postgres database (EU). |
+| Retention | The Private Job Offer: until the Candidate's account is deleted. The conversation: as Coach Conversations (« Coach Conversations »). Nothing else. |
+| Rights | In the Data export (Private Job Offers, Coach Conversations); deleted with the account. |
+| Security | The device never reads the page (no hidden WebView, ADR-0076); the extension calls no API and holds no session. The route needs the Candidate's session and the app's trusted origin. |
+
 ## Read cache in the Jobbbox app (ADR-0076, #701)
 
 | | |
@@ -111,6 +127,21 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Storage | A folder of the app's own cache on the device, `documents/` in expo-file-system's `Paths.cache` (`Library/Caches` on iOS, the app's cache directory on Android), not encrypted beyond the system's own file encryption; the session stays in the Keychain or Keystore. Neither system's backup is meant to include an app's cache (iOS leaves `Library/Caches` out of iCloud and computer backups; Android's Auto Backup leaves out the cache directory); not verified on a device. |
 | Retention | Until the session ends on the device, however it ends: signing out deletes the folder before the session is dropped, and so does the app finding the session revoked from Mon compte or expired (at launch, when it comes back to the foreground, or at a read answered 401), and any new sign-in, before it shows anything (#695). Not while the web app cannot be reached and a session is still stored, which may still be valid; with none stored, it is deleted all the same. The system may delete it sooner when the device runs low on storage. Uninstalling the app removes it. In the meantime a document changed on the web is downloaded again over its earlier file, under the same name. |
 | Rights | The Candidate erases it by signing out of the app. Jobbbox holds nothing of it beyond what the web app already holds (« Applications and their documents »). |
+
+## CV files joined in the Jobbbox app (ADR-0076, #696)
+
+| | |
+| --- | --- |
+| Purpose | Read a CV the Candidate joins to a conversation in the app (« + », « Joindre un CV », or a PDF or Word file dropped on the box on a tablet) into a draft Master CV and Search Criteria, then save it as a Profile when they ask (« Créer le profil »). The same reading as the web's form: the processing is « Master CV, Profiles and CV reading »; this entry covers the copy on the device. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). Storage on the device strictly necessary to the service the Candidate asks for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Candidates using the app; people named in their CV (a former employer, a referee). |
+| Data | The CV file the Candidate picked or dropped (PDF or .docx, 10 MB at most): the whole document, under its own name. A file over 10 MB or of another format is refused on the device and never sent. « Coller un lien d'offre » reads the clipboard only when the Candidate chooses it, and sends only the link found there, as a Coach message (« Coach Conversations »); the rest of the clipboard is neither kept nor sent. |
+| Source | The system's document picker (expo-document-picker, which copies the chosen file into the app's cache), or another app on the tablet the file is dragged from (`apps/mobile/modules/drop-target`, which copies it into the app's cache: `tmp/dropped/` on iOS, `cache/dropped/` on Android). |
+| Who can read it | Anyone who can open the app on the unlocked device, while the copy exists. The web app reads the file to answer `POST /api/cv/draft` and keeps neither the file nor what it read until « Créer le profil ». |
+| Processors | Those of « Master CV, Profiles and CV reading » for the reading; on the device, none. |
+| Storage | The app's cache on the device, not encrypted beyond the system's own file encryption. |
+| Retention | Deleted by the app as soon as the reading ends (read, refused by the server, or stopped) or the file is refused before sending (`apps/mobile/src/attach/use-attach.tsx`); the system may delete it sooner. Uninstalling the app removes it. The draft read stays in the app's memory only, until the conversation is left or « Créer le profil » saves it. |
+| Rights | Nothing to erase on the device once read; the Profile saved is erased as any Profile. |
 
 ## EAS Update in the Jobbbox app (ADR-0076, ADR-0079, #704)
 

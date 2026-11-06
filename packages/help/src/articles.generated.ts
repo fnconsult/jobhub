@@ -171,12 +171,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "coach",
         "coach IA",
         "renommer une conversation",
-        "supprimer une conversation"
+        "supprimer une conversation",
+        "joindre un CV",
+        "coller un lien",
+        "glisser-déposer"
       ],
       "route": "/conversations/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis « Coach » dans le menu. Elle reprend vos messages et ses réponses ; sous chaque réponse, une ligne discrète dit ce qui l'a produite, et « Cela répond à votre question ? » vous permet de le dire.\n\nÉcrivez dans la zone de message, toujours visible en bas de la page. Pendant que le coach répond, « Arrêter » interrompt sa réponse. Une réponse s'affiche depuis sa première ligne ; si elle est longue, faites défiler la conversation pour la lire jusqu'au bout. La conversation défile seule, sous la barre du haut : la fiche et l'élément ouvert à côté (une rubrique, un résultat) restent en place et défilent chacun de leur côté.\n\nPendant sa réponse, le coach montre ce qu'il fait : chaque fois qu'il consulte vos données Jobbbox ou vous prépare une proposition, une ligne le dit, avec ce qu'il a lu : « Consulte vos données » suivi du nombre d'éléments trouvés (12 candidatures), « Ouvre la candidature » ou « Ouvre le profil » suivi de son nom (Airbus · Contrôleuse de gestion), « Prépare une proposition » suivi de ce qu'elle concerne, cochée une fois faite ; « Réflexion puis rédaction » vient en dernier. Sa réponse s'affiche ensuite mot par mot, ou d'un coup si vous avez demandé moins d'animations à votre appareil. Sous une réponse pour laquelle il a consulté vos données, « Le coach a consulté … éléments de Jobbbox » s'ouvre sur chacun, par son nom tel qu'il est aujourd'hui, avec un lien vers sa page.\n\nPour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste.\n\nDans l'app Jobbbox, sur iPhone, iPad ou Android, vous retrouvez les mêmes conversations sous « Coach », dans le menu ; maintenez le doigt sur l'une d'elles pour la renommer (« Renommer ») ou la supprimer (« Supprimer »), après confirmation. Pendant que le coach répond, l'étape en cours s'affiche ; avec VoiceOver ou TalkBack, sa réponse vous est lue une fois terminée, pas mot à mot. « Activité » montre combien de la conversation le coach lit et l'IA utilisée. Sous la zone de message, « Signaler un problème » et « Proposer une idée » ouvrent le formulaire de signalement."
+      "body": "Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis « Coach » dans le menu. Elle reprend vos messages et ses réponses ; sous chaque réponse, une ligne discrète dit ce qui l'a produite, et « Cela répond à votre question ? » vous permet de le dire.\n\nÉcrivez dans la zone de message, toujours visible en bas de la page. Pendant que le coach répond, « Arrêter » interrompt sa réponse. Une réponse s'affiche depuis sa première ligne ; si elle est longue, faites défiler la conversation pour la lire jusqu'au bout. La conversation défile seule, sous la barre du haut : la fiche et l'élément ouvert à côté (une rubrique, un résultat) restent en place et défilent chacun de leur côté.\n\nPendant sa réponse, le coach montre ce qu'il fait : chaque fois qu'il consulte vos données Jobbbox ou vous prépare une proposition, une ligne le dit, avec ce qu'il a lu : « Consulte vos données » suivi du nombre d'éléments trouvés (12 candidatures), « Ouvre la candidature » ou « Ouvre le profil » suivi de son nom (Airbus · Contrôleuse de gestion), « Prépare une proposition » suivi de ce qu'elle concerne, cochée une fois faite ; « Réflexion puis rédaction » vient en dernier. Sa réponse s'affiche ensuite mot par mot, ou d'un coup si vous avez demandé moins d'animations à votre appareil. Sous une réponse pour laquelle il a consulté vos données, « Le coach a consulté … éléments de Jobbbox » s'ouvre sur chacun, par son nom tel qu'il est aujourd'hui, avec un lien vers sa page.\n\nPour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste.\n\nDans l'app Jobbbox, sur iPhone, iPad ou Android, vous retrouvez les mêmes conversations sous « Coach », dans le menu ; maintenez le doigt sur l'une d'elles pour la renommer (« Renommer ») ou la supprimer (« Supprimer »), après confirmation. Pendant que le coach répond, l'étape en cours s'affiche ; avec VoiceOver ou TalkBack, sa réponse vous est lue une fois terminée, pas mot à mot. « Activité » montre combien de la conversation le coach lit et l'IA utilisée. Sous la zone de message, « Signaler un problème » et « Proposer une idée » ouvrent le formulaire de signalement.\n\nDans l'app, « + », à gauche de la zone de message, propose deux choix. « Coller un lien d'offre » envoie au coach le lien que vous avez copié : il lit l'offre comme quand vous collez son lien dans un message. « Joindre un CV » ouvre vos fichiers : choisissez un CV au format PDF ou Word (.docx), de 10 Mo au plus ; un fichier plus lourd ou d'un autre format est refusé avant tout envoi. Le CV est lu comme sur jobbbox.ai (« Arrêter la lecture du CV » l'interrompt), puis ce qui a été lu s'affiche dans la conversation : rien n'est enregistré avant « Créer le profil », qui crée le profil et l'ouvre ; vous le corrigez ensuite avec « Modifier le profil ». Sur iPad ou sur une tablette Android, vous pouvez aussi faire glisser un PDF, un fichier Word ou un lien d'offre depuis une autre app et le déposer sur la zone de message : il est traité de la même façon. La photo d'une offre imprimée n'est pas encore possible."
     },
     {
       "id": "page-new-profile",
@@ -1529,6 +1532,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Une offre privée est une offre que vous seul voyez. C'est celle que Jobbbox tire du message d'un recruteur que vous lui transférez : ce message vous était adressé, et le poste n'est parfois jamais publié.\n\nElle se suit comme toute offre : score de correspondance, CV adapté, lettre de motivation, candidature. Mais elle n'est jamais montrée à un autre candidat, ni mêlée à la même offre trouvée ailleurs : si le poste est publié plus tard, il devient une autre offre, et l'offre privée reste telle quelle.\n\nElle est supprimée avec votre compte, et fait partie de vos données téléchargées. Une offre tirée d'une alerte d'un site d'emploi, elle, décrit une annonce publique : elle n'est pas privée."
+    },
+    {
+      "id": "glossary-share-capture",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Partager vers Jobbbox",
+      "synonyms": [
+        "share capture",
+        "partager",
+        "partage",
+        "feuille de partage",
+        "envoyer une offre",
+        "partager une offre",
+        "app jobbbox",
+        "linkedin",
+        "indeed",
+        "mail",
+        "navigateur"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Partager vers Jobbbox (en anglais, share capture), c'est envoyer une offre à l'app Jobbbox depuis la feuille de partage d'une autre app : votre navigateur, LinkedIn, Indeed ou Mail. Vous choisissez « Jobbbox » parmi les apps proposées, et l'app s'ouvre sur l'écran « Partager vers Jobbbox ».\n\nJobbbox lit lui-même le lien, en respectant les règles du site, comme pour sa recherche d'offres : votre téléphone ne lit jamais la page. Là où le site l'interdit (LinkedIn, Indeed…), l'écran vous demande de partager ou de coller le texte de l'offre.\n\nL'offre devient une offre privée, que vous seul voyez, ouverte dans sa propre conversation avec votre coach IA, qui vous propose « Scorer contre mon profil ». Si vous partagez deux fois la même offre, c'est la même offre privée. Rien de ce que vous avez partagé n'est gardé au-delà de l'offre créée."
     },
     {
       "id": "glossary-coach-proposal",
@@ -3404,6 +3432,38 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de vos profils, puis l'enregistre dans vos candidatures, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi. Le panneau de l'extension affiche « Connecté en tant que … ».\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ». Si l'icône Jobbbox n'est pas dans la barre, cliquez sur l'icône des extensions, la pièce de puzzle, puis sur l'épingle à côté de Jobbbox.\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. Pour comparer l'offre à un autre de vos profils, choisissez-le dans « Profil comparé à cette offre » : le score est recalculé avec lui.\n5. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature. Si vous avez importé un CV dans le panneau, « Un nouveau profil, à partir de ce CV » en fait un nouveau profil.\n6. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
     },
     {
+      "id": "tutorial-share-to-jobbbox",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Envoyer une offre à Jobbbox depuis une autre app",
+      "synonyms": [
+        "partager",
+        "partage",
+        "feuille de partage",
+        "partager vers jobbbox",
+        "envoyer une offre",
+        "safari",
+        "chrome",
+        "navigateur",
+        "linkedin",
+        "indeed",
+        "mail",
+        "e-mail",
+        "lien",
+        "coller",
+        "texte de l'offre",
+        "app jobbbox",
+        "téléphone",
+        "tablette"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Dans l'app Jobbbox, sur votre téléphone ou votre tablette, vous pouvez envoyer une offre à Jobbbox depuis votre navigateur, LinkedIn, Indeed ou Mail, sans copier son lien. Jobbbox en fait une offre privée, que vous seul voyez.\n\n1. Dans l'autre app, ouvrez l'offre et touchez le bouton de partage, puis choisissez « Jobbbox » dans la liste. Sur iPhone et iPad, s'il n'y figure pas, ajoutez-le depuis le bout de la rangée des apps.\n2. L'app Jobbbox s'ouvre sur « Partager vers Jobbbox ». Si vous n'êtes pas connecté, connectez-vous : l'écran revient ensuite, avec ce que vous avez partagé.\n3. Vérifiez le « Lien de l'offre » et le « Texte de l'offre », corrigez-les au besoin, puis touchez « Envoyer à Jobbbox ».\n4. Si le site ne laisse pas Jobbbox lire l'offre (LinkedIn, Indeed…), l'écran vous le dit. Copiez le texte de l'offre dans l'autre app, collez-le dans « Texte de l'offre », puis touchez de nouveau « Envoyer à Jobbbox ».\n5. L'offre s'ouvre dans sa propre conversation avec votre coach IA. Touchez « Scorer contre mon profil » pour voir son score de correspondance.\n\nC'est Jobbbox qui lit le lien, jamais votre téléphone, et seulement là où le site l'autorise. Rien de ce que vous partagez n'est gardé, sauf l'offre créée. Le score de correspondance compte dans les limites de votre offre, comme sur le site ; si vous les avez atteintes, l'app vous le dit, et votre abonnement se gère sur jobbbox.ai."
+    },
+    {
       "id": "tutorial-install-app",
       "locale": "fr",
       "kind": "tutorial",
@@ -4008,12 +4068,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "coach",
         "AI coach",
         "rename a conversation",
-        "delete a conversation"
+        "delete a conversation",
+        "attach a CV",
+        "paste a link",
+        "drag and drop"
       ],
       "route": "/conversations/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Does this answer your question? » lets you say so.\n\nWrite in the message box, always in view at the foot of the page. While the coach is replying, « Stop » interrupts its reply. A reply shows from its first line; when it is long, scroll the conversation to read it to the end. The conversation scrolls on its own, under the top bar: the fiche and the item open beside it (a section, a result) stay in place and each scrolls on its own.\n\nWhile it replies, the coach shows what it is doing: each time it looks at your Jobbbox data or prepares a proposal for you, a line says so, with what it read: « Looking at your data » followed by how many items it found (12 applications), « Opening the application » or « Opening the profile » followed by its name (Airbus · Contrôleuse de gestion), « Preparing a proposal » followed by what it is about, ticked once done; « Thinking, then writing » comes last. Its reply then appears word by word, or all at once if you asked your device for less motion. Under a reply for which it looked at your data, « The coach consulted … items in Jobbbox » opens on each, by its name as it is today, with a link to its page.\n\nTo rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays.\n\nIn the Jobbbox app, on iPhone, iPad or Android, you find the same conversations under « Coach » in the menu; touch and hold one to rename it (« Rename ») or delete it (« Delete »), once you confirm. While the coach is replying, the step under way shows; with VoiceOver or TalkBack, its reply is read to you once it is finished, not word by word. « Activity » shows how much of the conversation the coach reads and the AI used. Under the message box, « Report a problem » and « Suggest an idea » open the report form."
+      "body": "This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Does this answer your question? » lets you say so.\n\nWrite in the message box, always in view at the foot of the page. While the coach is replying, « Stop » interrupts its reply. A reply shows from its first line; when it is long, scroll the conversation to read it to the end. The conversation scrolls on its own, under the top bar: the fiche and the item open beside it (a section, a result) stay in place and each scrolls on its own.\n\nWhile it replies, the coach shows what it is doing: each time it looks at your Jobbbox data or prepares a proposal for you, a line says so, with what it read: « Looking at your data » followed by how many items it found (12 applications), « Opening the application » or « Opening the profile » followed by its name (Airbus · Contrôleuse de gestion), « Preparing a proposal » followed by what it is about, ticked once done; « Thinking, then writing » comes last. Its reply then appears word by word, or all at once if you asked your device for less motion. Under a reply for which it looked at your data, « The coach consulted … items in Jobbbox » opens on each, by its name as it is today, with a link to its page.\n\nTo rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays.\n\nIn the Jobbbox app, on iPhone, iPad or Android, you find the same conversations under « Coach » in the menu; touch and hold one to rename it (« Rename ») or delete it (« Delete »), once you confirm. While the coach is replying, the step under way shows; with VoiceOver or TalkBack, its reply is read to you once it is finished, not word by word. « Activity » shows how much of the conversation the coach reads and the AI used. Under the message box, « Report a problem » and « Suggest an idea » open the report form.\n\nIn the app, « + », left of the message box, offers two choices. « Paste a job offer link » sends the coach the link you copied: it reads the offer as when you paste its link in a message. « Attach a CV » opens your files: choose a CV as a PDF or Word file (.docx), of 10 MB at most; a larger file or one of another format is refused before anything is sent. The CV is read as on jobbbox.ai (« Stop reading the CV » interrupts it), then what was read shows in the conversation: nothing is saved before « Create the profile », which creates the profile and opens it; you correct it afterwards with « Edit the profile ». On an iPad or an Android tablet, you can also drag a PDF, a Word file or a job offer's link from another app and drop it on the message box: it is handled the same way. A photo of a printed job posting is not possible yet."
     },
     {
       "id": "page-new-profile",
@@ -5441,6 +5504,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Results are what your AI coach made for an application and kept with it: the Tailored CV, the cover letter, the outreach message, the follow-ups it suggests. They are listed in the fiche's « Results » group, each with where it stands (« Draft of … », « Saved on … »).\n\nA result opens beside the conversation, on its own (over it, full screen, on a phone): you review, edit, download or copy it there. Nothing is sent without your click. « Close » or the Escape key closes it."
+    },
+    {
+      "id": "glossary-share-capture",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Share to Jobbbox",
+      "synonyms": [
+        "share capture",
+        "share",
+        "sharing",
+        "share sheet",
+        "send a job offer",
+        "share a job offer",
+        "jobbbox app",
+        "linkedin",
+        "indeed",
+        "mail",
+        "browser"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Share to Jobbbox (share capture) means sending a job offer to the Jobbbox app from another app's share sheet: your browser, LinkedIn, Indeed or Mail. You choose « Jobbbox » among the apps offered, and the app opens on the « Share to Jobbbox » screen.\n\nJobbbox reads the link itself, following the site's rules, as its job search does: your phone never reads the page. Where the site forbids it (LinkedIn, Indeed…), the screen asks you to share or paste the job offer's text.\n\nThe job offer becomes a private job offer, which only you can see, opened in its own conversation with your AI coach, which offers « Score against my profile ». If you share the same job offer twice, it is the same private job offer. Nothing you shared is kept beyond the job offer created."
     },
     {
       "id": "glossary-tailored-cv",
@@ -7181,6 +7269,38 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         }
       ],
       "body": "Signed in, the Jobbbox extension works out a job offer's Match Score with one of your profiles, then saves it to your applications, without copying it out.\n\n1. Sign in to Jobbbox in your browser, then open a job offer's page. The extension's panel shows « Signed in as … ».\n2. Click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar: if it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page ». If the Jobbbox icon is not in the toolbar, click the extensions icon, the jigsaw piece, then the pin beside Jobbbox.\n3. The extension's panel shows the offer and its Match Score, worked out with one of your profiles.\n4. To compare the offer with another of your profiles, choose it in « Profile compared with this job offer »: the score is worked out again with it.\n5. At the foot of the panel, choose the profile for this application in « Profile used for this application ». If you uploaded a CV in the panel, « A new profile, from this CV » makes it a new profile.\n6. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox."
+    },
+    {
+      "id": "tutorial-share-to-jobbbox",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Send a job offer to Jobbbox from another app",
+      "synonyms": [
+        "share",
+        "sharing",
+        "share sheet",
+        "share to jobbbox",
+        "send a job offer",
+        "safari",
+        "chrome",
+        "browser",
+        "linkedin",
+        "indeed",
+        "mail",
+        "email",
+        "link",
+        "paste",
+        "job offer text",
+        "jobbbox app",
+        "phone",
+        "tablet"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "In the Jobbbox app, on your phone or tablet, you can send a job offer to Jobbbox from your browser, LinkedIn, Indeed or Mail, without copying its link. Jobbbox makes it a private job offer, which only you can see.\n\n1. In the other app, open the job offer and tap the share button, then choose « Jobbbox » in the list. On iPhone and iPad, if it is not there, add it from the end of the row of apps.\n2. The Jobbbox app opens on « Share to Jobbbox ». If you are not signed in, sign in: the screen then comes back, with what you shared.\n3. Check the « Job offer link » and the « Job offer text », correct them if need be, then tap « Send to Jobbbox ».\n4. If the site does not let Jobbbox read the job offer (LinkedIn, Indeed…), the screen says so. Copy the job offer's text in the other app, paste it in « Job offer text », then tap « Send to Jobbbox » again.\n5. The job offer opens in its own conversation with your AI coach. Tap « Score against my profile » to see its Match Score.\n\nJobbbox reads the link, never your phone, and only where the site allows it. Nothing you share is kept, except the job offer created. The Match Score counts against your plan's limits, as on the website; if you have reached them, the app says so, and your subscription is managed on jobbbox.ai."
     },
     {
       "id": "tutorial-admin-sign-in-provider",

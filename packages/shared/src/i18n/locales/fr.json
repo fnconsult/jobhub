@@ -5869,6 +5869,23 @@
       "writeDisabled": "Hors ligne : rien ne s'enregistre avant le retour du réseau."
     },
     "attach": "Joindre un lien ou un document",
+    "attachments": {
+      "menu": "Joindre",
+      "pasteLink": "Coller un lien d'offre",
+      "joinCv": "Joindre un CV",
+      "noLink": "Le presse-papiers ne contient pas de lien. Copiez le lien de l'offre, puis réessayez.",
+      "nothingDropped": "Déposez sur la boîte le lien d'une offre, ou un CV au format PDF ou Word (.docx).",
+      "read": "CV lu : {{name}}",
+      "targetRole": "Poste recherché : {{value}}",
+      "locations": "Lieux : {{value}}",
+      "createProfile": "Créer le profil",
+      "creating": "Création du profil…",
+      "editLater": "Vous pourrez le corriger ensuite avec « Modifier le profil ».",
+      "incomplete": "Ce CV ne dit pas tout ce qu'un profil demande ({{fields}}). Créez le profil sur jobbbox.ai : vous y importez ce CV et complétez chaque champ.",
+      "incompleteFields": "certains champs",
+      "createOnWeb": "Créer le profil sur jobbbox.ai",
+      "newProfile": "Nouveau profil"
+    },
     "send": "Envoyer",
     "emptyScreen": "Cet écran arrive bientôt dans l'app.",
     "update": {
@@ -6216,5 +6233,32 @@
     "cancelledBody": "Aucun paiement n'a été fait. Vous pourrez réserver une séance plus tard depuis l'app.",
     "backToApp": "Revenir dans l'app Jobbbox",
     "onWeb": "Voir mes coachs humains sur le site"
+  },
+  "shareCapture": {
+    "message": "Offre partagée depuis une autre app : {{title}}",
+    "reply": "J'ai enregistré cette offre dans Jobbbox. Elle n'est visible que par vous. Touchez « Scorer contre mon profil » pour voir si elle vous correspond.",
+    "title": "Partager vers Jobbbox",
+    "intro": "Vérifiez ce que vous envoyez à Jobbbox : il en fait une offre que vous seul voyez, ouverte dans sa propre conversation.",
+    "link": "Lien de l'offre",
+    "text": "Texte de l'offre",
+    "textHint": "Collez ici le texte de l'offre si son site ne laisse pas Jobbbox la lire.",
+    "send": "Envoyer à Jobbbox",
+    "sending": "Lecture de l'offre…",
+    "cancel": "Annuler",
+    "nothing": "Rien n'a été partagé. Partagez une offre depuis votre navigateur, LinkedIn, Indeed ou Mail, puis choisissez Jobbbox.",
+    "needsText": {
+      "forbiddenSite": "Ce site ne laisse pas Jobbbox lire ses offres. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le.",
+      "unreadable": "Jobbbox n'a pas pu lire cette page : le site ne l'autorise pas, demande une connexion ou ne répond pas. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le.",
+      "notAJobOffer": "Ce lien ne semble pas mener à une seule offre d'emploi. Partagez ou collez le texte de l'offre ci-dessous, puis envoyez-le."
+    },
+    "notAJobOffer": "Ce texte ne semble pas être une offre d'emploi. Collez le texte complet de l'offre, puis envoyez-le.",
+    "invalid": "Ce partage ne peut pas être envoyé : il faut un lien web ou le texte d'une offre (100 000 caractères au plus).",
+    "failed": "L'offre n'a pas pu être envoyée. Vérifiez votre connexion et réessayez.",
+    "score": "Scorer contre mon profil",
+    "scoreAgainst": "Scorer contre « {{profile}} »",
+    "scoring": "Calcul du score…",
+    "scored": "Score de correspondance : {{score}} / 100 contre « {{profile}} »",
+    "noProfile": "Pour scorer cette offre, créez d'abord un profil sur jobbbox.ai.",
+    "scoreFailed": "Le score n'a pas pu être calculé. Réessayez."
   }
 }

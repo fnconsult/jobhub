@@ -817,8 +817,14 @@ The two files the web serves so that a phone hands some web addresses to the Job
 _Avoid_: Deep-link config
 
 **Share capture**:
-Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation.
+Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation, whose messages name only the offer's title. What was shared is held in memory only: never saved on the device, logged or written into the conversation. It counts against no Plan Quota; scoring the offer against the profile counts one Match Score.
 _Avoid_: Import, clip
+
+**Share link**:
+The app's address `jobbbox://partage?url=…&text=…` that the iOS share extension and the Android share receiver open the app with.
+
+**Capture screen**:
+The app-only page « Partager vers Jobbbox » (`/partage`), where the Candidate checks the shared link and text before sending them to Jobbbox.
 
 ### Delivery
 

@@ -279,6 +279,54 @@ describe("Jobbbox app, on a phone", () => {
   });
 });
 
+/**
+ * The colour `element` is drawn on: the background of the nearest view around it that has one, as the person sees it
+ * (a Stack's screen draws its own, `contentStyle`).
+ */
+function backgroundOf(element: { parent: unknown; props: Record<string, unknown> }) {
+  for (let node: typeof element | null = element; node; node = node.parent as typeof element | null) {
+    for (const style of [node.props.style, node.props.contentStyle, node.props.nativeContainerStyle]) {
+      const color = StyleSheet.flatten(style as never)?.backgroundColor;
+      if (color && color !== "transparent") return color;
+    }
+  }
+  return null;
+}
+
+describe.each([
+  { device: "a phone", size: PHONE, os: "ios" },
+  { device: "an Android phone", size: PHONE, os: "android" },
+  { device: "an iPad", size: IPAD_LANDSCAPE, os: "ios" },
+  { device: "an Android tablet", size: [1280, 800] as const, os: "android" },
+] as const)("Jobbbox app in the dark theme, on $device (#836)", ({ size, os }) => {
+  const dark = (name: keyof typeof designTokens.color) => designTokens.color[name].dark;
+  beforeEach(() => {
+    window(size[0], size[1]);
+    jest.replaceProperty(Platform, "OS", os);
+    darkMode.current = "dark";
+  });
+  afterEach(() => {
+    darkMode.current = "light";
+    jest.restoreAllMocks();
+  });
+
+  it("draws the conversation's column on the theme's dark background", async () => {
+    await launch("/candidatures/a1");
+    expect(backgroundOf(screen.getByLabelText("Vos échanges avec votre coach"))).toBe(dark("background"));
+  });
+
+  it("draws the Fiche and the Work Pane on dark backgrounds, as columns or full pages", async () => {
+    await launch("/candidatures/a1");
+    const user = userEvent.setup();
+    const columns = size[0] >= 1024;
+    if (!columns) await user.press(button("Fiche"));
+    const pane = columns ? dark("surface") : dark("background");
+    expect(backgroundOf(await screen.findByText("Statut"))).toBe(pane);
+    await user.press(await screen.findByRole("button", { name: "Correspondance" }));
+    expect(backgroundOf(screen.getByText(/Le score de correspondance compare/))).toBe(pane);
+  });
+});
+
 describe("Jobbbox app, at the 64rem threshold", () => {
   it("is a phone layout just under 64rem (1023 pt) and columns from 64rem (1024 pt)", async () => {
     window(1023, 768);

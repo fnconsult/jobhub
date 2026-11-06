@@ -21,6 +21,7 @@ import { systemSheets } from "../agenda/system-sheets";
 import { useAgenda, useRead } from "../api/reads";
 import { CoachConversation, useCoachBox } from "../coach/CoachConversation";
 import { HumanCoaches } from "../coaching/HumanCoaches";
+import { StartJobSearch } from "../job-searches/StartJobSearch";
 import type { SubjectRef } from "../coach/coach-reply";
 import { shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
@@ -296,7 +297,8 @@ export function ApplicationsMenu() {
 
 /**
  * Recherches d'offres (ADR-0090, variant B): the Offer box (« Offres à traiter ») leads the page, the menu's conversation
- * following it with its box at the foot; in it, each active Profile's Job Searches, most recent first.
+ * following it with its box at the foot; in it, each active Profile's Job Searches, most recent first, then
+ * « Lancer une recherche » (#699): the screen's only way to launch a Job Search, kept in the card so no screen drops it.
  */
 export function JobSearchesMenu() {
   const { t, i18n } = useTranslation();
@@ -353,6 +355,7 @@ export function JobSearchesMenu() {
               )
             }
           </Loaded>
+          <StartJobSearch />
         </MenuCard>
       }
     />

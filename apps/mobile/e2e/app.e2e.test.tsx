@@ -4,6 +4,7 @@ import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/rea
 import { renderRouter } from "expo-router/testing-library";
 import { Alert, AppState, Dimensions, Linking, Platform, ScrollView, Share, StyleSheet, type AlertButton, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
+import type { ProfileResponse } from "@jobhub/shared/reads";
 import type { AppSession } from "../src/session/app-session";
 import { withCoach, type FakeCoachWeb } from "../src/coach/testing";
 import type { fakeWebApp } from "../src/session/testing";
@@ -756,6 +757,25 @@ describe("Jobbbox app, the home page and the menus as their conversations (#690)
       route: "/recherches",
     });
     await user.press(button("Arrêter"));
+  });
+
+  it("keeps « Lancer une recherche » (#699) on Recherches d'offres, the Offer box leading it (ADR-0090)", async () => {
+    const profile: ProfileResponse = {
+      id: "prof_lyon",
+      name: "Supply chain à Lyon",
+      archived: false,
+      searchCriteria: { targetRole: "Responsable logistique", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+      masterCv: { version: 1, content: { fullName: "Marie Dupont", email: EMAIL, phone: "", location: "Lyon", headline: "", summary: "", experience: [], education: [], skills: [], languages: [] } },
+      atsScore: null,
+    };
+    mockWeb.app.has(EMAIL, { profiles: [profile] });
+    try {
+      await launch("/recherches");
+      expect(await screen.findByRole("heading", { name: "Offres à traiter" })).toBeOnTheScreen();
+      expect(await screen.findByRole("button", { name: "Lancer une recherche" })).toBeOnTheScreen();
+    } finally {
+      mockWeb.app.has(EMAIL, {});
+    }
   });
 });
 

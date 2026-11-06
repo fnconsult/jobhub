@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { consumptionOf } from "../consumption";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
 import { servedTasks, taskAgent } from "../task-playbooks/test-support";
@@ -629,6 +630,24 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       expect(confirmed).toMatchObject({ ok: true, state: { status: "built", dossier: { employer: "Acme Industrie", siren: "552100554" } } });
       expect(rebuilt).toMatchObject({ ok: true, state: { status: "built", dossier: { employer: "Acme Industrie", siren: "552100554" } } });
       expect(register.queries).toEqual(["Acme Industrie", "Acme Industrie"]);
+    });
+
+    it("each dossier saved counts one in Consumption (#799): not the Presumed Employer awaiting confirmation, nor a build that changed nothing", async () => {
+      const database = testAuth.auth.options.database as Pool;
+      const counted = async () => (await consumptionOf(database, candidateId)).filter((row) => row.tool === "companyDossier").reduce((sum, row) => sum + row.count, 0);
+      analysis = { recruitingAgency: true, presumedEmployer: "Acme Industrie" };
+      const applicationId = await applicationFor({ employer: "Cabinet Recrutement Conseil" });
+      await dossiers.build(candidateId, applicationId);
+      expect(await counted()).toBe(0);
+
+      await dossiers.confirmEmployer(candidateId, applicationId, { employer: "Acme Industrie" });
+      expect(await counted()).toBe(1);
+      register.down = true;
+      await dossiers.build(candidateId, applicationId);
+      await dossiers.build(otherCandidateId, applicationId);
+
+      expect(await counted()).toBe(1);
+      expect(await consumptionOf(database, otherCandidateId)).toEqual([]);
     });
 
     it("lets the Candidate name another employer than the one presumed", async () => {

@@ -5514,7 +5514,6 @@
       "applied_elsewhere": "Déjà postulé ailleurs"
     },
     "dismissWithoutReason": "Écarter sans motif",
-    "dismissing": "Écart…",
     "dismissError": "L'offre n'a pas pu être écartée. Réessayez.",
     "dismissedToast": "« {{title}} » écartée.",
     "undo": "Annuler",

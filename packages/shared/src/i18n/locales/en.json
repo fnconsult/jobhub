@@ -5514,7 +5514,6 @@
       "applied_elsewhere": "Already applied elsewhere"
     },
     "dismissWithoutReason": "Set aside without a reason",
-    "dismissing": "Setting aside…",
     "dismissError": "The job offer could not be set aside. Try again.",
     "dismissedToast": "« {{title}} » set aside.",
     "undo": "Undo",

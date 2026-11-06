@@ -24,6 +24,7 @@ import { createEuAiConsents } from "../eu-ai-consent";
 import { createLegalTextNotices } from "../legal-text-notices";
 import { createNouveautesEmails } from "../nouveautes-email";
 import { createCoachProposalsDisplays } from "../coach-proposals-display";
+import { countUse } from "../consumption";
 import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -359,6 +360,22 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await createCoachProposalsDisplays(database, { now: () => at }).choose(candidateId, "form");
 
     expect((await candidateData.export(candidateId)).coachProposalsDisplay).toEqual({ display: "form", chosenAt: at });
+  });
+
+  it("the export holds the Candidate's Consumption: each day's count per Tool kept, newest first; deleting the account takes it (#799)", async () => {
+    expect((await candidateData.export(candidateId)).consumption).toEqual([]);
+    await countUse(database, candidateId, "coach", new Date("2026-10-01T10:00:00Z"));
+    await countUse(database, candidateId, "coach", new Date("2026-11-05T10:00:00Z"), 3);
+    await countUse(database, candidateId, "jobSearch", new Date("2026-11-05T10:00:00Z"));
+
+    expect((await candidateData.export(candidateId)).consumption).toEqual([
+      { day: "2026-11-05", tool: "coach", count: 3 },
+      { day: "2026-11-05", tool: "jobSearch", count: 1 },
+      { day: "2026-10-01", tool: "coach", count: 1 },
+    ]);
+    await candidateData.delete(candidateId);
+    const { rows } = await database.query(`SELECT 1 FROM consumption_day`);
+    expect(rows).toEqual([]);
   });
 
   it("the export holds the CGU and CGV versions the Candidate accepted, never the pseudonym nor the Checkout session (#510); deleting the account keeps them, nameless", async () => {

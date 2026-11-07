@@ -164,7 +164,7 @@ export function SidebarShell({
   }, []);
 
   // The Top Bar's height, for what sticks under it as the page scrolls (--topbar-height in app.css):
-  // it grows with the Text Size.
+  // it grows with the Text Size, and takes two rows on a phone but for the compact Top Bar (#897).
   useEffect(() => {
     const bar = topbar.current;
     if (!bar) return;

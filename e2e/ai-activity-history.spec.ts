@@ -117,34 +117,37 @@ test.describe("Activity's history (#808)", () => {
 
     await page.reload();
     await expect(fiche(page)).toBeVisible();
-    // Newest first: the ATS Score, Version 2, the reply whose card made it, then Version 1, saved as the Profile was.
+    // Newest first: the ATS Score, Version 2, the reply whose card made it, then Version 1, saved as the Profile was (the
+    // ATS Fixes the score proposed are entries of their own, beside it).
     const version = tr(history.titles.master_cv_version, { version: "2" });
-    await expect(rows(page)).toHaveCount(4);
-    await expect(rows(page).nth(0)).toContainText(fr.aiActivity.kinds.ats_score);
-    await expect(rows(page).nth(0)).toContainText(tr(history.cost.quota.atsScores, {}));
-    await expect(rows(page).nth(1)).toContainText(version);
-    await expect(rows(page).nth(1)).toContainText(history.cost.noAi);
-    await expect(rows(page).nth(2)).toContainText(fr.aiActivity.kinds.coach_reply);
-    await expect(rows(page).nth(2)).toContainText(/\d+ appels · [\d,]+k? jetons envoyés/);
-    await expect(rows(page).nth(3)).toContainText(tr(history.titles.master_cv_version, { version: "1" }));
-    for (const row of await rows(page).all()) await expect(row).toHaveAttribute("aria-expanded", "false");
+    const titles = await today(page).locator(".activity-entry-title").allTextContents();
+    const at = (title: string) => titles.indexOf(title);
+    expect(at(fr.aiActivity.kinds.ats_score), titles.join(" | ")).toBeGreaterThanOrEqual(0);
+    expect(at(fr.aiActivity.kinds.ats_score)).toBeLessThan(at(version));
+    expect(at(version)).toBeLessThan(at(fr.aiActivity.kinds.coach_reply));
+    expect(at(fr.aiActivity.kinds.coach_reply)).toBeLessThan(at(tr(history.titles.master_cv_version, { version: "1" })));
+    const row = (title: string) => today(page).locator(".activity-entry-row").filter({ has: page.locator(".activity-entry-title").getByText(title, { exact: true }) });
+    await expect(row(fr.aiActivity.kinds.ats_score)).toContainText(history.cost.quota.atsScores);
+    await expect(row(version)).toContainText(history.cost.noAi);
+    await expect(row(fr.aiActivity.kinds.coach_reply)).toContainText(/\d+ appels? · [\d,]+k? jetons envoyés/);
+    for (const each of await rows(page).all()) await expect(each).toHaveAttribute("aria-expanded", "false");
     await expect(fiche(page)).not.toContainText(/€|euros?\b/);
 
     // The ATS Score « suite de » Version 2, which « suite de » the reply.
-    await rows(page).nth(0).click();
-    await expect(rows(page).nth(0)).toHaveAttribute("aria-expanded", "true");
-    const score = await detailOf(page, rows(page).nth(0));
+    await row(fr.aiActivity.kinds.ats_score).click();
+    await expect(row(fr.aiActivity.kinds.ats_score)).toHaveAttribute("aria-expanded", "true");
+    const score = await detailOf(page, row(fr.aiActivity.kinds.ats_score));
     await expect(score).toContainText(`${history.after} ${version}`);
     await expect(score.getByRole("link", { name: history.open.ats_score })).toHaveAttribute("href", `/profils/${id}/ats-score`);
     await score.getByRole("button", { name: new RegExp(version) }).click();
-    await expect(rows(page).nth(1)).toHaveAttribute("aria-expanded", "true");
-    const second = await detailOf(page, rows(page).nth(1));
+    await expect(row(version)).toHaveAttribute("aria-expanded", "true");
+    const second = await detailOf(page, row(version));
     await expect(second).toContainText(`${history.after} ${fr.aiActivity.kinds.coach_reply}`);
     await expect(second).toContainText(history.origin.coach_proposal);
 
     // The reply: its question, what it proposed and what that led to.
-    await rows(page).nth(2).click();
-    const reply = await detailOf(page, rows(page).nth(2));
+    await row(fr.aiActivity.kinds.coach_reply).click();
+    const reply = await detailOf(page, row(fr.aiActivity.kinds.coach_reply));
     await expect(reply).toContainText(tr(history.you, { question: "Reformule mon expérience chez Groupe Seb" }));
     await expect(reply).toContainText(history.state.applied);
     await expect(reply).toContainText(`${history.led} ${version}`);
@@ -164,8 +167,8 @@ test.describe("Activity's history (#808)", () => {
 
     // « Dans l'activité » under the applied card opens Activity on Version 2, unfolded.
     await thread(page).getByRole("button", { name: history.inActivity }).last().click();
-    await expect(rows(page).nth(1)).toHaveAttribute("aria-expanded", "true");
-    await expect(rows(page).nth(1)).toBeFocused();
+    await expect(row(version)).toHaveAttribute("aria-expanded", "true");
+    await expect(row(version)).toBeFocused();
   });
 
   test("on a phone, « Voir dans la conversation » closes Activity over the conversation and marks the reply", async ({ browser }) => {

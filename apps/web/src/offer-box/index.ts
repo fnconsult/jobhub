@@ -28,10 +28,14 @@
  *    Job Offers posted more than 30 days ago. Idempotent: run again, it changes nothing.
  *  - `purgeExpiredOfferBoxEntries(database, now)`: entries 12 months after their first Arrival, which the worker runs daily.
  *  - `offerBoxOf(database, candidateId)`: the Candidate's entries for their Data export.
+ *  - `offersToHandle(database, candidateId, now)`, or `.toHandle(candidateId)`: « N à traiter » without reading the
+ *    entries (#818), the count the Sidebar's « Recherches d'offres », the app's menu and icon badge, the Push
+ *    notifications and the Job Digest's line show: neither « Suivie » nor « Écartée », « Plus tard » included, « Expirée
+ *    sans décision » not.
  * An entry is the Candidate's (ADR-0010): deleted with their account, and with its Profile. Never read by the Back
  * Office nor given to the AI Coach.
  */
-import { matchScoreReliability, scoreMatch, type ArrivalSource, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { MAX_POSTING_AGE_DAYS, matchScoreReliability, scoreMatch, type ArrivalSource, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { DISMISSAL_REASONS, type DismissalReason } from "@jobhub/shared/reads";
 import type { Pool } from "pg";
 import { utcBefore } from "../database/before";
@@ -98,6 +102,8 @@ export interface OfferBox {
   dismiss(candidateId: string, entryId: string, input: { reason?: unknown }): Promise<OfferBoxDecision>;
   /** « Revenir sur ce choix »: one of the Candidate's entries écartée back to à traiter (one not écartée is left as it is). */
   reconsider(candidateId: string, entryId: string): Promise<{ ok: true } | { ok: false; error: "not_found" }>;
+  /** How many of the Candidate's entries are à traiter now: `offersToHandle`. */
+  toHandle(candidateId: string): Promise<number>;
 }
 
 /** An Offer box entry as the Candidate's Data export holds it. */
@@ -238,6 +244,25 @@ export async function purgeExpiredOfferBoxEntries(database: Queryable, now: Date
   return rowCount ?? 0;
 }
 
+/**
+ * How many of the Candidate's Offer box entries are à traiter at `now` (#818, ADR-0090): neither « Suivie » (an
+ * Application of its Job Offer exists) nor « Écartée »; « Plus tard » counts, it is not a decision; « Expirée sans
+ * décision » does not: its Posting date, or its first Arrival when that is unknown, more than MAX_POSTING_AGE_DAYS French
+ * days before `now`. One query, no Match Score: cheap enough for every page's Sidebar and every Push notification.
+ */
+export async function offersToHandle(database: Queryable, candidateId: string, now: Date): Promise<number> {
+  const parisDay = (instant: string) => `(${instant} AT TIME ZONE 'Europe/Paris')::date`;
+  const { rows } = await database.query<{ count: number }>(
+    `SELECT count(*)::int AS count
+       FROM offer_box_entry e JOIN job_offer o ON o.id = e.job_offer_id
+      WHERE e.candidate_id = $1 AND e.state <> 'dismissed' AND ${visibleTo("$1", "o")}
+        AND NOT EXISTS (SELECT 1 FROM application a WHERE a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id)
+        AND ${parisDay("$2::timestamptz")} - ${parisDay("coalesce(o.posted_at, e.first_arrival_at)")} <= $3`,
+    [candidateId, now, MAX_POSTING_AGE_DAYS],
+  );
+  return rows[0]?.count ?? 0;
+}
+
 interface EntryRow {
   id: string;
   job_offer_id: string;
@@ -367,6 +392,8 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
       if (!rows[0]) return { ok: false, error: "not_found" };
       return rows[0].followed ? { ok: false, error: "followed" } : { ok: true };
     },
+
+    toHandle: (candidateId) => offersToHandle(database, candidateId, now()),
 
     async reconsider(candidateId, entryId) {
       if (!UUID.test(entryId)) return { ok: false, error: "not_found" };

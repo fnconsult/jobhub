@@ -9,4 +9,4 @@ La fiche, c'est la colonne à droite de la conversation sur la page d'une candid
 
 Elle ne cache jamais la conversation : elle la pousse sur le côté, et défile de son côté, sans bouger quand vous faites défiler la conversation. « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page. Une section ou un résultat de la fiche s'ouvre à côté de la conversation, où vous agissez dessus.
 
-Sur téléphone, la fiche s'ouvre par-dessus la conversation, en plein écran, avec son titre ; « Fermer » ou la touche Échap la referme.
+Sur téléphone, « Fiche » est l'icône en haut à droite de la page, et « Activité » est sous « … » ; la fiche s'ouvre par-dessus la conversation, en plein écran, avec son titre ; « Fermer » ou la touche Échap la referme.

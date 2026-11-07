@@ -29,3 +29,5 @@ The cost is never given in euros:
 - what Jobbbox's rules, or you, do without AI says « No AI ».
 
 At the very bottom, « This page's sources and tools », folded, lists each site read and each tool used once. AI activity never shows an internal setting. « Learn more » leads to the « AI in Jobbbox » section of the privacy policy.
+
+On a phone, the top bar keeps icons only. On the home page and the menus, « Activity » is the icon shown; on an object's page, « Fiche » is, and « Activity » is under « … », at the top right. While an AI action runs, « Activity » takes the shown icon's place, with its stop icon, then goes back under « … » once it ends.

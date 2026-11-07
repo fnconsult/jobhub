@@ -29,3 +29,5 @@ Le coût n'est jamais donné en euros :
 - ce que font les règles de Jobbbox, ou vous-même, sans IA, est dit « Sans IA ».
 
 Tout en bas, « Sources et outils de cette page », replié, liste une fois chaque site lu et chaque outil utilisé. L'activité IA ne montre jamais de réglage interne. « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité.
+
+Sur téléphone, la barre du haut ne garde que des icônes. Sur l'accueil et les menus, « Activité » est l'icône montrée ; sur la page d'un objet, c'est « Fiche », et « Activité » est sous « … », en haut à droite. Pendant qu'une action de l'IA tourne, « Activité » prend la place de l'icône montrée, avec son icône d'arrêt, puis retourne sous « … » quand elle se termine.

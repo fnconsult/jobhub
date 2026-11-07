@@ -131,9 +131,9 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
           </>
         )}
 
-        <FoldedEntries block="later" summary={t("offerBox.laterBlock", { count: view.later.length })} hint={t("offerBox.laterHint")} entries={view.later} today={box.today} />
-        <FoldedEntries block="expired" summary={t("offerBox.expiredBlock", { count: view.expired.length })} hint={t("offerBox.expiredHint")} entries={view.expired} today={box.today} />
-        <FoldedEntries block="dismissed" summary={t("offerBox.dismissedBlock", { count: view.dismissed.length })} hint={t("offerBox.dismissedHint")} entries={view.dismissed} today={box.today} />
+        <FoldedEntries className="offer-box-later" summary={t("offerBox.laterBlock", { count: view.later.length })} hint={t("offerBox.laterHint")} entries={view.later} today={box.today} />
+        <FoldedEntries className="offer-box-expired" summary={t("offerBox.expiredBlock", { count: view.expired.length })} hint={t("offerBox.expiredHint")} entries={view.expired} today={box.today} />
+        <FoldedEntries className="offer-box-dismissed" summary={t("offerBox.dismissedBlock", { count: view.dismissed.length })} hint={t("offerBox.dismissedHint")} entries={view.dismissed} today={box.today} />
 
         <p className="offer-box-foot">
           <Link href={routes.jobSearchesByProfile}>{t("offerBox.byProfile")}</Link>
@@ -145,10 +145,10 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
 }
 
 /** « Plus tard », « Expirées sans décision » or « Écartées »: folded at the foot of the box, absent when empty. */
-function FoldedEntries({ block, summary, hint, entries, today }: { block: "later" | "expired" | "dismissed"; summary: string; hint: string; entries: OfferBoxEntryRead[]; today: string }) {
+function FoldedEntries({ className, summary, hint, entries, today }: { className: string; summary: string; hint: string; entries: OfferBoxEntryRead[]; today: string }) {
   if (entries.length === 0) return null;
   return (
-    <details className={`offer-box-followed offer-box-${block}`}>
+    <details className={`offer-box-followed ${className}`}>
       <summary>{summary}</summary>
       <p className="offer-box-nothing">{hint}</p>
       <ul className="offer-box-entries">

@@ -583,6 +583,25 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       ]);
     });
 
+    it("a Capture followed of a Job Offer saved long ago, then found by a Job Search, adds « Extension » now: its entry keeps its day and Profile", async () => {
+      const offer = await stored("Enregistrée il y a longtemps, retrouvée puis capturée");
+      const other = await createProfile(marie, "Contrôleuse de gestion");
+      const first = await following.save(marie, { jobOfferId: offer, profileId: other });
+      if (!first.ok) throw new Error("not saved");
+      await database.query(`UPDATE application SET created_at = $2 WHERE id = $1`, [first.application.id, new Date(Date.now() - 10 * DAY)]);
+      const twoDaysAgo = new Date(Date.now() - 2 * DAY);
+      await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_search", at: twoDaysAgo, jobOfferIds: [offer] });
+      const before = new Date();
+
+      const again = await following.save(marie, { jobOfferId: offer, profileId: other }, { from: "extension" });
+      if (!again.ok) throw new Error("not saved");
+
+      const [entry] = await entries();
+      expect(entry).toMatchObject({ profile: { id: daf, name: "DAF" }, firstArrivalAt: twoDaysAgo, state: "followed" });
+      const extension = entry!.sources.find((arrival) => arrival.source === "extension");
+      expect(extension!.at.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+
     it("a Capture not followed records nothing: no entry, no row", async () => {
       await stored("Capturée, pas suivie");
 

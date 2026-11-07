@@ -4,7 +4,7 @@
  * Application Status.
  *
  * One deep module in front of Postgres. Callers get:
- *  - `createApplications(database, { jobOffers, profiles })`:
+ *  - `createApplications(database, { jobOffers, profiles, sentByShareCapture, now })`:
  *    - `save` a Job Offer with one of the Candidate's Profiles. A Candidate has at
  *      most one Application per Job Offer: saving it again returns the one they have.
  *      Creating it replaces the Job Offer's « Écartée » in the Offer box (ADR-0090): the
@@ -12,7 +12,9 @@
  *      Saved from the extension's Side Panel (`from: "extension"`), or of a Job Offer the
  *      Candidate sent by Share capture (`sentByShareCapture`), wherever it is saved, it is an
  *      Arrival too (#819): its entry is made, already « Suivie », or completed with the source
- *      « Extension » or « Partage », in the same transaction; anything else saved makes none;
+ *      « Extension » or « Partage », in the same transaction; anything else saved makes none.
+ *      An Application they had already arrives at the moment it is saved again, so its entry
+ *      keeps its day and Profile;
  *    - `list` the Candidate's Applications (newest first) for the list and board views;
  *    - `matchScores` the Match Score of each, for Mes candidatures' list;
  *    - `get` one Application with its Job Offer, Profile, Interviews and the Match
@@ -609,9 +611,11 @@ export function createApplications(
         const saved = inserted.rows[0]
           ? { created: true, row: inserted.rows[0] }
           : { created: false, row: (await client.query<ApplicationRow>(`SELECT ${COLUMNS} FROM application WHERE candidate_id = $1 AND job_offer_id = $2`, [candidateId, jobOffer.id])).rows[0]! };
-        // Its entry made already « Suivie », with the Application's Profile, or its source added to the one there.
+        // Its entry made already « Suivie », with the Application's Profile, or its source added to the one there. An
+        // Application they had already arrives now: dated by its own creation, it would move the entry's day and Profile back.
+        const at = saved.created ? saved.row.created_at : now();
         for (const source of arrivals) {
-          await recordArrivals(client, { candidateId, profileId: saved.row.profile_id, source, at: saved.row.created_at, jobOfferIds: [jobOffer.id] });
+          await recordArrivals(client, { candidateId, profileId: saved.row.profile_id, source, at, jobOfferIds: [jobOffer.id] });
         }
         return saved;
       });

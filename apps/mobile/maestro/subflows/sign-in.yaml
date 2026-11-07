@@ -21,9 +21,20 @@ appId: ai.jobbbox.app
     id: "sign-in-email"
 - waitForAnimationToEnd:
     timeout: 3000
+# Each try taps the field again while the address does not show in it: the first tap sometimes left it without the
+# focus, every try's typing went nowhere and the field stayed empty (iPhone SE light, runs 42361117140 and 42382627575).
+# Empty, its caret can only be at its end.
 - retry:
     maxRetries: 2
     commands:
+      - runFlow:
+          when:
+            notVisible: ${STACK_EMAIL}
+          commands:
+            - tapOn:
+                id: "sign-in-email"
+            - waitForAnimationToEnd:
+                timeout: 3000
       - eraseText
       - inputText: ${STACK_EMAIL}
       - runFlow:

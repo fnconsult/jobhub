@@ -3224,12 +3224,24 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
 .topbar.topbar-compact {
   flex-wrap: nowrap;
   gap: var(--space-1);
-  padding-inline: var(--space-2);
+  padding: var(--space-1) var(--space-2);
 }
 
 .topbar-compact .topbar-title {
   flex: 1;
   order: 0;
+}
+
+/* A Profile's name, edited in place, keeps to its one line too: it scrolls sideways while edited. */
+.topbar-compact .topbar-title > .title-field {
+  flex: 1 1 auto;
+}
+
+.topbar-compact .topbar-title textarea.title-edit {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .topbar-compact .topbar-actions:empty {

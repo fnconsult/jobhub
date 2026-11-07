@@ -175,12 +175,12 @@ test.describe("Signalement from a conversation (#345, #608)", () => {
     await page.keyboard.press("Escape");
     expect(await exportedSignalements(page)).toEqual([expect.objectContaining({ type: "idee", message: "Pouvoir exporter mes conversations avec le coach.", attachedQuestion: null })]);
 
-    // On a phone: the Top Bar holds Menu, the title, « Activité » and « Effacer »; the icon in the drawer is the way in, and
-    // the form opens over the conversation, full screen (#608).
+    // On a phone: the Top Bar holds Menu, the title, « Activité » and « … », which has « Effacer la conversation » (#897);
+    // the icon in the drawer is the way in, and the form opens over the conversation, full screen (#608).
     await page.setViewportSize({ width: 375, height: 812 });
     const topbar = page.locator(".topbar");
     const names = await topbar.locator("button:visible, a:visible").evaluateAll((elements) => elements.map((element) => element.getAttribute("title") ?? (element as HTMLElement).innerText.trim()));
-    expect(names).toEqual([fr.sidebar.menu, fr.fiche.activity, fr.conversationFirst.clear]);
+    expect(names).toEqual([fr.sidebar.menu, fr.fiche.activity, fr.sidebar.moreActions]);
     await expect(topbar.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(topbar.getByRole("button", { name: s.open })).toHaveCount(0);
     await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();

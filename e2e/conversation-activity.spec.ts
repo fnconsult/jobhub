@@ -86,9 +86,9 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     const page = await signedIn(browser, newAddress("conversation-activity"));
     await page.goto("/");
 
-    // « Activité » in place of AI Activity's button; the column closed.
+    // AI Activity's button is the Top Bar's « Activité » (#809): one button, the column closed.
+    await expect(activityButton(page)).toHaveCount(1);
     await expect(activityButton(page)).toHaveAttribute("aria-expanded", "false");
-    await expect(topBar(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) })).toHaveCount(0);
     await expect(column(page)).toHaveCount(0);
 
     // Opened: beside the conversation, never over it, with no heading nor ✕; the Context bar empty before the first message.

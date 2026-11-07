@@ -187,6 +187,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     text: message.text,
     ...(message.provenance !== undefined && { provenance: message.provenance }),
     ...(message.at !== undefined && { at: message.at }),
+    ...(message.sent !== undefined && { sent: message.sent }),
     ...(message.blocked && { blocked: message.blocked }),
     ...(message.jobOffer && { jobOffer: message.jobOffer }),
     ...(message.cards && { cards: message.cards }),
@@ -198,6 +199,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     ...(conversation.context.limits !== undefined && { limits: conversation.context.limits }),
     ...(conversation.context.split !== undefined && { split: conversation.context.split }),
     ...(conversation.context.upgrade !== undefined && { upgrade: conversation.context.upgrade }),
+    ...(conversation.context.reply !== undefined && { reply: conversation.context.reply }),
   },
 });
 

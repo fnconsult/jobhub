@@ -599,6 +599,16 @@ export const coachProposalCardSchema = z.object({
   undoable: z.boolean(),
 });
 
+/** What an AI Coach reply sent in all its AI calls (ReplyCost, #790, #805): tokens only, never euros nor the Tools' names. */
+export const replyCostSchema = z.object({
+  calls: z.number().int().min(0),
+  turns: z.number().int().min(0),
+  rounds: z.number().int().min(0),
+  inputTokens: z.number().int().min(0),
+  cachedInputTokens: z.number().int().min(0),
+  outputTokens: z.number().int().min(0),
+});
+
 /** One message of a Coach Conversation, as the web shows it. */
 export const coachMessageSchema = z.object({
   from: z.enum(["candidate", "coach"]),
@@ -610,6 +620,8 @@ export const coachMessageSchema = z.object({
   cards: z.array(coachProposalCardSchema).optional(),
   /** What its Coach Actions saw, named by page as the objects are now (#788): « Le coach a consulté… ». */
   seenNames: z.record(z.string(), z.string().max(80)).optional(),
+  /** On an AI Coach reply: what it sent in all its AI calls (#805), null for one saved before #791. */
+  sent: replyCostSchema.nullable().optional(),
 });
 
 /** A Coach Conversation with its messages and its Context bar's figures. */
@@ -626,18 +638,7 @@ export const coachConversationSchema = coachConversationSummarySchema.extend({
     /** Once nearly full, the next offered Plan whose Coach context limits allow more (#732); null when none does or below 80 %. */
     upgrade: z.object({ plan: z.string(), name: z.object({ fr: z.string(), en: z.string() }) }).nullable().optional(),
     /** What the latest reply sent in all its AI calls (#790), never the bar's figure; null for a reply saved before. */
-    reply: z
-      .object({
-        calls: z.number().int().min(0),
-        turns: z.number().int().min(0),
-        rounds: z.number().int().min(0),
-        tools: z.array(z.string()),
-        inputTokens: z.number().int().min(0),
-        cachedInputTokens: z.number().int().min(0),
-        outputTokens: z.number().int().min(0),
-      })
-      .nullable()
-      .optional(),
+    reply: replyCostSchema.nullable().optional(),
   }),
 });
 export type CoachConversationRead = z.infer<typeof coachConversationSchema>;

@@ -60,7 +60,7 @@ export function AiActivityProvider({ elements, children }: { elements: readonly 
   const pane = useMemo(() => {
     // A reply given here is counted once, though the page loaded since also has it.
     const loaded = new Set(elements.filter((element) => element.kind === "coach_reply").map((element) => element.at));
-    const added = given.map((reply) => activityElement("coach_reply", reply.provenance, { at: reply.at })).filter((element) => !loaded.has(element.at));
+    const added = given.map((reply) => activityElement("coach_reply", reply.provenance, { at: reply.at, sent: reply.sent })).filter((element) => !loaded.has(element.at));
     return aiActivityPane([...elements, ...added]);
   }, [elements, given]);
   const close = useCallback(() => {

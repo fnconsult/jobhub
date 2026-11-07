@@ -41,7 +41,7 @@ async function signedIn(browser: Browser, email: string): Promise<Page> {
 const conversation = (page: Page) => page.getByRole("region", { name: texts.label });
 const messages = (page: Page) => conversation(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 const topBar = (page: Page) => page.getByRole("banner");
-const activityButton = (page: Page) => topBar(page).getByRole("button", { name: fr.fiche.activity, exact: true });
+const activityButton = (page: Page) => topBar(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 const column = (page: Page) => page.getByRole("complementary", { name: fr.fiche.activity, exact: true });
 const contextBar = (page: Page) => column(page).getByRole("group", { name: bar.title });
 

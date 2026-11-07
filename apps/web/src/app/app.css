@@ -5208,11 +5208,9 @@ textarea.title-edit {
 
 .activity-day-title {
   margin: 0 0 var(--space-1);
-  color: var(--color-text-meta);
-  font-size: var(--font-size-meta);
+  color: var(--color-text-secondary);
+  font-size: inherit;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .activity-entries {
@@ -5307,7 +5305,6 @@ textarea.title-edit {
   flex-direction: column;
   gap: var(--space-1);
   padding: 0 var(--space-2) var(--space-2) calc(var(--space-2) + 1.75rem);
-  font-size: var(--font-size-meta);
   color: var(--color-text-secondary);
 }
 
@@ -5388,7 +5385,6 @@ textarea.title-edit {
   align-self: flex-start;
   padding: 0;
   font: inherit;
-  font-size: var(--font-size-meta);
   color: var(--color-accent);
   background: none;
   border: 0;

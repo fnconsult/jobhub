@@ -949,7 +949,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       expect(messages[3]).toEqual({ from: "coach", text: "Réponse sans rien", at: "2026-09-01T08:01:03.000Z", provenance: null, sent: null });
     });
 
-    it("gives AI Activity the Candidate's replies whose focus is a page's object, from any conversation, oldest first, with no text", async () => {
+    it("gives AI Activity the Candidate's replies whose focus is a page's object, from any conversation, oldest first, with the question each answers but not its own text", async () => {
       const jobOfferId = "22222222-2222-4222-8222-222222222222";
       now = new Date("2026-10-13T08:00:05Z");
       await conversations.send(marie, { message: "Cette offre ?", focus: { kind: "job_offer", id: jobOfferId } });
@@ -964,8 +964,8 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       const replies = await conversations.repliesAbout(marie, { kind: "job_offer", id: jobOfferId });
 
       expect(replies).toEqual([
-        { at: "2026-10-13T08:00:05.000Z", provenance: PROVENANCE, sent: null },
-        { at: "2026-10-13T08:20:05.000Z", provenance: PROVENANCE, sent: null },
+        { at: "2026-10-13T08:00:05.000Z", question: "Cette offre ?", provenance: PROVENANCE, sent: null },
+        { at: "2026-10-13T08:20:05.000Z", question: "Le salaire ?", provenance: PROVENANCE, sent: null },
       ]);
       expect(await conversations.repliesAbout(marie, { kind: "application", id: applicationId })).toHaveLength(1);
       expect(await conversations.repliesAbout(marie, { kind: "profile", id: "not-a-uuid" })).toEqual([]);

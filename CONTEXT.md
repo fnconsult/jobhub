@@ -1272,6 +1272,14 @@ _Avoid_: Row
 One line of an Activity's history (ADR-0086), newest first, by day. It is one of three things: an AI Activity element, a Master CV Version (by hand or from an applied Action Card, with its Origin), or an applied Action Card as the change it made. An AI Coach reply's entry holds the question it answered, its tool steps, what it read, its Tools and models, its proposals and their state. Each entry links to its object, to its message when it came from the conversation (« Voir dans la conversation »), and to the entry that caused it (« suite de »): a reply, then the Master CV Version its card created, then that version's ATS Score. Its cost is never in euros. A Plan Quota used is named with the week's use (« 1 recherche du forfait · 4 sur 7 cette semaine ») and links to Votre consommation (`/abonnement#consommation`). Jetons are a technical measure: the sum of all its calls for an AI Coach reply, « dernier appel seulement » for a reply saved before that sum was kept. An entry made without AI says « Sans IA ». A proposal is « en attente », « appliquée », « ignorée », « retirée » or « annulée » (applied, then undone); a version stays « suite de » its reply once its card is undone, and one change has one entry: the version a card created, not also a « change ». An entry's key is built from what it is (kind and time, a version number, a message id), never from an internal id; entries of the same time come out in a stable order, a consequence before its cause. A Profile's creation is one entry, « Création du profil », holding the CV's reading, the onboarding questionnaire, the review and the saved Profile with Version 1 and its ATS Score.
 _Avoid_: Event, log line, activity (a step's Activity is something else)
 
+**Historique**:
+The part of an Activity under « En ce moment »: its Activité entries, newest first, by day (« Aujourd'hui », « Le … »), one row each that unfolds its detail, then « Sources et outils de cette page » folded at the foot (ADR-0086).
+_Avoid_: Journal, log
+
+**Served entry**:
+An Activité entry the server builds from what only it reads (the page's elements with their Provenance, the Master CV Versions, the Coach replies about the object) and sends to the browser, which adds the replies its conversation shows. A raw Provenance never crosses (ADR-0086).
+_Avoid_: Row
+
 **En ce moment**:
 The top of an Activity, under the Context bar: the Candidate's AI actions under way, this page's then « En cours ailleurs », each with its live Activity glyph, current step, finished steps, time so far and stop icon; an AI Coach reply under way is one of them. « Rien ne tourne sur cette page. » when none runs. A finished action becomes the first Activité entry of « Aujourd'hui ».
 _Avoid_: Live pane, running tasks

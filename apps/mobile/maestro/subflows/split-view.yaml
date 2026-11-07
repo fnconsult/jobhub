@@ -12,59 +12,75 @@
 # (split-view-*.png), and the app's own layout tells whether it got half the screen: « Menu », not « Masquer le menu ».
 appId: ai.jobbbox.app
 ---
-- takeScreenshot: split-view-1-before
-- runFlow:
-    when:
-      visible: "(Multitâche|Multitasking).*"
+# The whole of it tried again until the app has its half: run 42413471132's ipad-split-half-dark tapped the multitasking
+# button before iPadOS showed it, no menu opened (split-view-2-menu.png), and Safari took the whole screen. The half is
+# read from the app's own frame (gate-screen, the sign-in page, 683 pt wide in Split View, 1376 on the whole screen).
+# Each try starts from the app in front.
+- retry:
+    maxRetries: 2
     commands:
-      - tapOn: "(Multitâche|Multitasking).*"
-- runFlow:
-    when:
-      notVisible: "(Multitâche|Multitasking).*"
-    commands:
-      - tapOn:
-          point: "50%, 1%"
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: split-view-2-menu
-- runFlow:
-    when:
-      visible: "Split View"
-    commands:
-      - tapOn: "Split View"
-- runFlow:
-    when:
-      notVisible: "Split View"
-    commands:
-      - tapOn:
-          point: "50%, 9%"
-- waitForAnimationToEnd:
-    timeout: 3000
-- takeScreenshot: split-view-3-other-app
-# The other half's app, picked on the Home Screen iPadOS shows once « Split View » is chosen (the app slid aside at the
-# top): SpringBoard's icons are not in Maestro's hierarchy either, and Réglages is on none of the simulator's pages it
-# shows (run 42348955365's split-view-3-other-app.png: Contacts, Raccourcis, Mots de passe, Santé; Messages, Safari,
-# Calendrier, Photos in the Dock). Nor can it be tapped where it is drawn: Maestro's iOS taps are placed in the app
-# under test, now slid to a strip at the screen's edge (run 42361113040: Safari's Dock icon tapped at 43 %, 93 %, the
-# Home Screen unchanged after it). Safari is opened instead while iPadOS waits for the other half's app.
-- launchApp:
-    appId: "com.apple.mobilesafari"
-    stopApp: false
-# The app in its half, signed out at this point (prepare runs before sign-in): its sign-in page, or « Menu » once
-# signed in. Safari, opened last, has the focus and its keyboard up (run 42370572968's failure screen): a tap on the
-# app's own title gives it back to the app, and the keyboard goes.
-- extendedWaitUntil:
-    visible: "(Menu|Se connecter à Jobbbox)"
-    timeout: 20000
-- runFlow:
-    when:
-      visible: "Se connecter à Jobbbox"
-    commands:
-      - tapOn: "Se connecter à Jobbbox"
-# The app made the driver's app again: launched last, Safari stayed the one Maestro reads, and the next flow found none
-# of the app's fields though its half showed them (run 42382627575: « sign-in-email » not found beside a visible form).
-# Launched without stopping, the app keeps its half.
-- launchApp:
-    appId: "ai.jobbbox.app"
-    stopApp: false
+      - launchApp:
+          appId: "ai.jobbbox.app"
+          stopApp: false
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - takeScreenshot: split-view-1-before
+      - runFlow:
+          when:
+            visible: "(Multitâche|Multitasking).*"
+          commands:
+            - tapOn: "(Multitâche|Multitasking).*"
+      - runFlow:
+          when:
+            notVisible: "(Multitâche|Multitasking).*"
+          commands:
+            - tapOn:
+                point: "50%, 1%"
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - takeScreenshot: split-view-2-menu
+      - runFlow:
+          when:
+            visible: "Split View"
+          commands:
+            - tapOn: "Split View"
+      - runFlow:
+          when:
+            notVisible: "Split View"
+          commands:
+            - tapOn:
+                point: "50%, 9%"
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - takeScreenshot: split-view-3-other-app
+      # The other half's app, picked on the Home Screen iPadOS shows once « Split View » is chosen (the app slid aside at the
+      # top): SpringBoard's icons are not in Maestro's hierarchy either, and Réglages is on none of the simulator's pages it
+      # shows (run 42348955365's split-view-3-other-app.png: Contacts, Raccourcis, Mots de passe, Santé; Messages, Safari,
+      # Calendrier, Photos in the Dock). Nor can it be tapped where it is drawn: Maestro's iOS taps are placed in the app
+      # under test, now slid to a strip at the screen's edge (run 42361113040: Safari's Dock icon tapped at 43 %, 93 %, the
+      # Home Screen unchanged after it). Safari is opened instead while iPadOS waits for the other half's app.
+      - launchApp:
+          appId: "com.apple.mobilesafari"
+          stopApp: false
+      # The app in its half, signed out at this point (prepare runs before sign-in): its sign-in page, or « Menu » once
+      # signed in. Safari, opened last, has the focus and its keyboard up (run 42370572968's failure screen): a tap on the
+      # app's own title gives it back to the app, and the keyboard goes.
+      - extendedWaitUntil:
+          visible: "(Menu|Se connecter à Jobbbox)"
+          timeout: 20000
+      - runFlow:
+          when:
+            visible: "Se connecter à Jobbbox"
+          commands:
+            - tapOn: "Se connecter à Jobbbox"
+      # The app made the driver's app again: launched last, Safari stayed the one Maestro reads, and the next flow found none
+      # of the app's fields though its half showed them (run 42382627575: « sign-in-email » not found beside a visible form).
+      # Launched without stopping, the app keeps its half.
+      - launchApp:
+          appId: "ai.jobbbox.app"
+          stopApp: false
+      - assertVisible:
+          id: "gate-screen"
+          width: 683
+          tolerance: 20
 - takeScreenshot: split-view-4-split

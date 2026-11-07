@@ -189,11 +189,13 @@ export interface CoachConversations {
 }
 
 /**
- * An AI Coach reply as AI Activity counts it with its focus's page: when it was saved, an ISO date, what served it, and what
- * it sent in all its AI calls (#805), null for one saved before #791.
+ * An AI Coach reply as AI Activity counts it with its focus's page: when it was saved, an ISO date, the question it
+ * answers, what served it, and what it sent in all its AI calls (#805), null for one saved before #791.
  */
 export interface ReplyAbout {
   at: string;
+  /** The Candidate's message it answers, on the history's first line (#808); null when there is none before it. */
+  question: string | null;
   provenance: Provenance | null;
   sent: ReplyCost | null;
 }
@@ -725,14 +727,17 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async repliesAbout(candidateId, about) {
       const focus = focusOf(about);
       if (!focus) return [];
-      const { rows } = await database.query<SavedReply & { sent: ReplyCost | null }>(
-        `SELECT ${SAVED_REPLY_COLUMNS}, ${replyCostOf("m")} AS sent
+      const { rows } = await database.query<SavedReply & { sent: ReplyCost | null; question: string | null }>(
+        `SELECT ${SAVED_REPLY_COLUMNS}, ${replyCostOf("m")} AS sent,
+                (SELECT q.text FROM coach_message q
+                  WHERE q.conversation_id = m.conversation_id AND q.author = 'candidate' AND q.seq < m.seq
+                  ORDER BY q.seq DESC LIMIT 1) AS question
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 AND m.author = 'coach' AND m.focus_kind = $2 AND m.focus_id IS NOT DISTINCT FROM $3::uuid
           ORDER BY m.created_at, m.seq`,
         [candidateId, focus.kind, focus.kind === "agenda" ? null : focus.id],
       );
-      return rows.map((row) => ({ at: row.at.toISOString(), provenance: savedReplyProvenance(row), sent: row.sent }));
+      return rows.map((row) => ({ at: row.at.toISOString(), question: row.question, provenance: savedReplyProvenance(row), sent: row.sent }));
     },
 
     async startAbout(candidateId, jobOffer, opening) {

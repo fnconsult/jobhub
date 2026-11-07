@@ -1,6 +1,6 @@
 import { readProvenance, rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { activityEntries, type CardGiven, type ReplyGiven, type VersionGiven } from "./entries";
+import { activityEntries, servedEntries, type CardGiven, type ReplyGiven, type VersionGiven } from "./entries";
 
 /**
  * The scenarios of the « Activité unifiée » prototype (ADR-0086, variant C), as the builder is given them: a Job Search
@@ -254,6 +254,19 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
         { kind: "coach_reply", messageId: "m8", after: undefined },
       ]);
       expect(undone[1]!.proposals![0]).toMatchObject({ state: "undone", led: undone[0]!.key });
+    });
+
+    it("built in two halves, the server's (its elements, versions and replies) then the thread's replies with their cards (#808), is the same", () => {
+      const served = servedEntries({ page: "profile", elements: scores, versions, replies: [{ ...strengthen, cards: [] }] });
+      // The server's half names no card but a version's Origin, which the thread's cards hold already.
+      expect(served.filter((entry) => entry.card).map(({ key, card }) => [key, card])).toEqual([["master_cv_version:7", CV_CARD]]);
+      expect(served.find((entry) => entry.kind === "master_cv_version" && entry.result.version === 7)).not.toHaveProperty("after");
+      expect(activityEntries({ page: "profile", built: served, replies: [strengthen] })).toEqual(entries);
+    });
+
+    it("keeps the server's reply when the thread does not show it, without « Voir dans la conversation » being the builder's to decide", () => {
+      const served = servedEntries({ page: "profile", replies: [{ ...strengthen, cards: [] }] });
+      expect(activityEntries({ page: "profile", built: served }).map(({ key, messageId }) => [key, messageId])).toEqual([["coach_reply:m8", "m8"]]);
     });
 
     it("counts an ATS Score in its Plan Quota, made by Jobbbox's rules without AI", () => {

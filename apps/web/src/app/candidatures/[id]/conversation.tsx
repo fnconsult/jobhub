@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { ActivityElement } from "@/ai-activity/pane";
+import type { ServedEntry } from "@/ai-activity/entries";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
 import { ExternalLink } from "@/components/ExternalLink";
@@ -26,7 +26,7 @@ const APPLICATION = "application";
  * the offer is expired or Reported Unavailable), its Sections and its Results, each opened in the Work Pane at its own
  * address (`children`, the Section or Result the address names: see sections.tsx).
  */
-export function ApplicationConversation({ data, aiActivity, children }: { data: ApplicationPageData; aiActivity: readonly ActivityElement[]; children: ReactNode }) {
+export function ApplicationConversation({ data, aiActivity, children }: { data: ApplicationPageData; aiActivity: readonly ServedEntry[]; children: ReactNode }) {
   const { candidateId, application, t, inView } = data;
   return (
     <ObjectConversation

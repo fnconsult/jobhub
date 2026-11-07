@@ -96,7 +96,7 @@ function seenText(object: LiveSeen, t: T): string {
 }
 
 /** One element of « Le coach a consulté… »: an object by its name (or kind), linked to its page; a list by its count. */
-function ConsultedLabel({ element }: { element: ConsultedElement }) {
+export function ConsultedLabel({ element }: { element: ConsultedElement }) {
   const t = plain(useTranslation().t);
   switch (element.kind) {
     case "object": {

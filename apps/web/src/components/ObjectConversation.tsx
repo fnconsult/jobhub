@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ActivityElement } from "@/ai-activity/pane";
+import type { ServedEntry } from "@/ai-activity/entries";
 import type { SubjectObjectKind } from "@/coach-conversations";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
@@ -45,7 +45,7 @@ export async function ObjectConversation({
   inView: InView;
   title: ReactNode;
   currentProfileId?: string;
-  aiActivity: readonly ActivityElement[];
+  aiActivity: readonly ServedEntry[];
   fiche: FicheContent;
   introduction: ReactNode;
   suggestions: readonly ConversationSuggestion[];

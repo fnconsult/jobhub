@@ -33,6 +33,13 @@ The product owner chose the variant. The prototype's three other questions were 
 - Master CV Versions saved by hand are entries;
 - profile creation is one grouped entry.
 
+## Decisions of the build (#808)
+
+- **The server builds the entries from Provenance; only the entries cross to the browser.** A raw Provenance is never sent (it stays server-side, as before). The server serves the entries of the page's elements, Master CV Versions and Coach replies about the object. The browser adds the replies its own conversation shows, with their questions and cards, and links a Master CV Version made by an applied card to the reply that proposed it.
+- **A reply's message is identified by the time it was saved**, which is what « Voir dans la conversation » and « Dans l'activité » use to find each other.
+- **The « Modèles » block and its Total are removed too**, as variant C has none; the three blocks named above were not the only ones.
+- **A day heading and the « Dans l'activité » button stay at body size** (ADR-0057).
+
 ## Considered Options
 
 - **A, one feed grouped by run, newest first, every entry a card**: complete, but what runs now scrolled away under older cards.

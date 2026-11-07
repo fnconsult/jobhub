@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import pg from "pg";
 import { PgBoss } from "pg-boss";
-import { jobOfferPage } from "../apps/web/src/ai-activity";
+import { jobOfferPage, paneElements } from "../apps/web/src/ai-activity";
 import { createJobOffers } from "../apps/web/src/job-offers";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -72,7 +72,7 @@ async function loadedPage(id: string) {
   const pool = new pg.Pool({ connectionString: databaseUrl });
   try {
     // This spec is about Job Offers only: no Coach reply is about the offer.
-    return await jobOfferPage({ jobOffers: createJobOffers(pool), coachReplies: { repliesAbout: async () => [] } }, candidateId, { id, title: "Offer" });
+    return paneElements(await jobOfferPage({ jobOffers: createJobOffers(pool), coachReplies: { repliesAbout: async () => [] } }, candidateId, { id, title: "Offer" }));
   } finally {
     await pool.end();
   }

@@ -8,7 +8,7 @@ import { activityButtonOf, activityOf, openActivity } from "./support/conversati
 import { EXIT_LINK_REL } from "./support/exit-page";
 
 // Issue #332: AI Activity, read from each element's stored Provenance: the page's content and the AI Coach replies about
-// its object, which « Activité » in the Candidate's Top Bar shows (#603, #607, #608). The AI is
+// its object, which « Activité » in the Candidate's Top Bar shows (#603, #607, #608), as its history's entries since #808. The AI is
 // faked inside the server (fake-mistral.mjs): every Coach reply runs on Mistral Large (api.eu.mistral.ai, in the EU).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const SUPER_ADMIN = "ai-activity-office@e2e.jobbbox.test";
@@ -47,6 +47,11 @@ async function storedJobOffer(title: string): Promise<string> {
 
 /** AI Activity on a page with no conversation, the Job Offer's (#607, #608): « Activité » opens its column beside the page. */
 const paneOf = (page: Page) => activityOf(page);
+const history = fr.aiActivity.history;
+const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
+/** The history's rows (#808): one button each, unfolding its detail. */
+const rowsOf = (pane: Locator) => pane.locator(".activity-entry-row");
+const detailOf = async (page: Page, row: Locator) => page.locator(`[id="${await row.getAttribute("aria-controls")}"]`);
 
 /** An AI Coach reply about the Job Offer `jobOfferId`, its Focus (#600): what the Coach Panel once sent from its page. */
 async function askTheCoachAbout(page: Page, jobOfferId: string, message: string) {
@@ -68,7 +73,7 @@ async function expectNothingInternal(region: Locator) {
 // Since #603, #607 and #608 the Top Bar's « Activité IA » button and its « Cette page » pane gave way to « Activité »: an
 // object's Fiche shows the page's AI Activity in its Activity group, the other pages' Activité column beside the page.
 test.describe("AI Activity (#332)", () => {
-  test("`/offres/[id]` and a Coach reply about it show in « Activité », with each model's sums, the Tools and the wall-clock total", async ({ page }) => {
+  test("`/offres/[id]` and a Coach reply about it show in « Activité »'s history, each with its models, Tools and cost, never in euros (#808)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-offer"));
     const offerId = await storedJobOffer("DAF Lyon");
     await page.goto(`/offres/${offerId}`);
@@ -79,25 +84,33 @@ test.describe("AI Activity (#332)", () => {
     await expect(paneOf(page)).toHaveCount(0);
     await expectNoAxeViolations(page, "header.topbar");
     const pane = await openActivity(page);
-    const models = pane.locator(".ai-activity-section").first();
-    await expect(models).toContainText("Perplexity");
-    await expect(models).toContainText("Claude Haiku 4.5");
-    await expect(models).toContainText("AWS Bedrock · UE (Stockholm)");
-    await expect(models).toContainText(fr.aiActivity.measure);
-    await expect(pane.locator(".ai-activity-total")).toContainText(/Total\s*\d+(,\d)?k tokens · \d+(,\d)? s/);
-    await expect(pane).toContainText("Sites d'emploi");
-    await expect(pane).toContainText("DAF Lyon");
-    await expect(pane.locator(".ai-activity-element")).toHaveCount(1);
+    // The former blocks are gone: one history, its rows folded.
+    for (const gone of ["Modèles", "Sources", "Outils", "Par élément"]) await expect(pane.getByRole("button", { name: gone, exact: true })).toHaveCount(0);
+    const offer = rowsOf(pane).filter({ hasText: "DAF Lyon" });
+    await expect(rowsOf(pane)).toHaveCount(1);
+    await expect(offer).toContainText(`${fr.aiActivity.kinds.job_offer} · DAF Lyon`);
+    await expect(offer).toContainText(/[\d,]+k jetons/);
+    await expect(offer).toHaveAttribute("aria-expanded", "false");
+    await offer.click();
+    const detail = await detailOf(page, offer);
+    await expect(detail).toContainText("Perplexity");
+    await expect(detail).toContainText("Claude Haiku 4.5");
+    await expect(detail).toContainText("AWS Bedrock · UE (Stockholm)");
+    await expect(detail).toContainText("Sites d'emploi");
+    await expect(detail.getByRole("link", { name: history.cost.consumption })).toHaveAttribute("href", "/abonnement#consommation");
     await expectNothingInternal(pane);
     await expectNoAxeViolations(page, ".activity-column");
 
-    // A Coach reply about the offer counts with the page, once, as the server read it.
+    // A Coach reply about the offer is an entry of the page, once, as the server read it.
     await askTheCoachAbout(page, offerId, "Que pensez-vous de cette offre ?");
     await page.reload();
     await openActivity(page);
-    await expect(models).toContainText("Mistral Large");
-    await expect(pane).toContainText(fr.aiActivity.kinds.coach_reply);
-    await expect(pane.locator(".ai-activity-element")).toHaveCount(2);
+    await expect(rowsOf(pane)).toHaveCount(2);
+    const reply = rowsOf(pane).filter({ hasText: fr.aiActivity.kinds.coach_reply });
+    await expect(reply).toContainText(/\d+ appels? · [\d,]+k? jetons envoyés/);
+    await reply.click();
+    await expect(await detailOf(page, reply)).toContainText("Mistral Large");
+    await expect(await detailOf(page, reply)).toContainText(tr(history.you, { question: "Que pensez-vous de cette offre ?" }));
     await expectNothingInternal(pane);
 
     // « Activité » closes it again.
@@ -106,7 +119,23 @@ test.describe("AI Activity (#332)", () => {
     await expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("works from the keyboard: the button, the sections and the Sources disclosures", async ({ page }) => {
+  test("a reply saved before #791 says « dernier appel seulement » (#808)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("ai-activity-before-791"));
+    const offerId = await storedJobOffer("DAF Lyon");
+    await askTheCoachAbout(page, offerId, "Que pensez-vous de cette offre ?");
+    // As saved before #791: no AI call kept with it, its Provenance its last call only.
+    await query("UPDATE coach_message SET ai_call_ids = NULL, ai_turn_ids = NULL WHERE author = 'coach' AND focus_id = $1", [offerId]);
+
+    await page.goto(`/offres/${offerId}`);
+    const pane = await openActivity(page);
+    const reply = rowsOf(pane).filter({ hasText: fr.aiActivity.kinds.coach_reply });
+    await expect(reply).toContainText(history.cost.partial);
+    await expect(reply).not.toContainText(/appels? ·/);
+    await reply.click();
+    await expect(await detailOf(page, reply)).toContainText(new RegExp(`[\\d,]+k? jetons · ${history.cost.partial}`));
+  });
+
+  test("works from the keyboard: a row unfolds its detail, « Sources et outils de cette page » and a site's pages", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-keyboard"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
     const button = activityButtonOf(page);
@@ -116,18 +145,25 @@ test.describe("AI Activity (#332)", () => {
     const pane = paneOf(page);
     await expect(button).toHaveAttribute("aria-expanded", "true");
 
-    // Each section folds under its title, a disclosure button.
-    const models = pane.getByRole("button", { name: fr.aiActivity.sections.models });
-    await expect(models).toHaveAttribute("aria-expanded", "true");
-    await models.focus();
+    // A row is a button that unfolds its detail.
+    const row = rowsOf(pane).first();
+    await expect(row).toHaveAttribute("aria-expanded", "false");
+    await row.focus();
     await page.keyboard.press("Enter");
-    await expect(models).toHaveAttribute("aria-expanded", "false");
-    await expect(page.locator(`[id="${await models.getAttribute("aria-controls")}"]`)).toBeHidden();
+    await expect(row).toHaveAttribute("aria-expanded", "true");
+    await expect(await detailOf(page, row)).toBeVisible();
     await page.keyboard.press("Enter");
-    await expect(models).toHaveAttribute("aria-expanded", "true");
+    await expect(row).toHaveAttribute("aria-expanded", "false");
+    await expect(await detailOf(page, row)).toBeHidden();
 
-    // A Provenance site opens its pages inline, each in a new tab without a referrer.
+    // « Sources et outils de cette page », folded at the foot: each site once, its pages in a new tab without a referrer.
+    const sources = pane.getByRole("button", { name: history.sources });
+    await expect(sources).toHaveAttribute("aria-expanded", "false");
+    await sources.focus();
+    await page.keyboard.press("Enter");
+    await expect(sources).toHaveAttribute("aria-expanded", "true");
     const site = pane.getByRole("button", { name: /welcometothejungle\.com/ });
+    await expect(site).toHaveCount(1);
     await expect(site).toHaveAttribute("aria-expanded", "false");
     await site.focus();
     await page.keyboard.press("Enter");
@@ -136,6 +172,7 @@ test.describe("AI Activity (#332)", () => {
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
     await expect(link).toHaveAttribute("rel", EXIT_LINK_REL);
+    await expect(pane).toContainText("Sites d'emploi");
     await expectNoAxeViolations(page, ".activity-column");
 
     // « Activité » closes the column, from the keyboard too.
@@ -151,7 +188,7 @@ test.describe("AI Activity (#332)", () => {
     await page.goto("/candidatures");
     await expect(activityButtonOf(page)).toHaveAttribute("aria-expanded", "false");
     const pane = await openActivity(page);
-    await expect(pane).toContainText(fr.aiActivity.noAi);
+    await expect(pane).toContainText(history.empty);
     // « En savoir plus » leads to « IA dans Jobbbox », the privacy policy's section (#338).
     await expect(pane.getByRole("link", { name: fr.aiActivity.learnMoreLabel })).toHaveAttribute("href", "/legal/confidentialite#ia");
     await expectNoAxeViolations(page, ".activity-column");
@@ -200,8 +237,8 @@ test.describe("AI Activity (#332)", () => {
     const pane = paneOf(page);
     await expect(pane.getByRole("heading", { level: 2, name: fr.fiche.activity })).toBeVisible();
     expect(await pane.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-    // Its last element is reached by scrolling the column.
-    const last = pane.locator(".ai-activity-element").last();
+    // Its last entry is reached by scrolling the column.
+    const last = pane.locator(".activity-entry").last();
     await last.scrollIntoViewIfNeeded();
     await expect(last).toBeInViewport();
     await expect(pane.getByRole("button", { name: fr.conversationFirst.close })).toBeInViewport();

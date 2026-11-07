@@ -27,6 +27,8 @@ import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/t
 // - Issue #468: the Profile (its head, its Sections as tabs, its Master CV in cards, the ATS Score card, the save bar),
 //   the File upload's states (empty, a file chosen, a file refused, a file being read) and « Documents adaptés » (the
 //   saved Tailored CV in the Viewer, beside its aside). Dates are masked.
+// - Issue #808: Activity's history in the Fiche (a Profile's, one entry unfolded) and the home page's Activité column.
+//   Its times of day are set to one fixed time.
 const fr = JSON.parse(
   readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"),
 );
@@ -370,6 +372,20 @@ async function fixDates(page: Page) {
   }, MONTHS.source);
 }
 
+/**
+ * Every time of day in Activity's history (« 14:32 », #808) becomes one fixed time: the entries' times change with the
+ * run, and a masked one would still have its own digits' width.
+ */
+async function fixTimesOfDay(page: Page) {
+  await page.evaluate(() => {
+    for (const history of document.querySelectorAll(".activity-history")) {
+      const walker = document.createTreeWalker(history, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode())
+        node.textContent = node.textContent!.replace(/\b\d{2}:\d{2}\b/g, "09:30");
+    }
+  });
+}
+
 async function expectNoAxeViolations(page: Page, selector = "#main") {
   const results = await new AxeBuilder({ page })
     .include(selector)
@@ -685,6 +701,61 @@ test.describe("Candidate pages in the Design System (#468)", () => {
         .getByRole("button", { name: fr.aiActivity.live.stop.cv_reading })
         .click();
       await expect(upload.locator(".ds-upload__step")).toHaveCount(0);
+    }
+  });
+
+  // Issue #808 (ADR-0086): the Fiche's Activity group and the Activité column hold Activity's history, by day, one row per
+  // entry, an entry unfolding its detail. On a Profile's page, Version 1 of its Master CV and the ATS Score Jobbbox's rules
+  // gave it: no AI, so nothing changes from run to run but the time of day, set to a fixed one before the shot.
+  test("Activity's history in the Fiche and in the Activité column: its rows by day, one unfolded (#808)", async ({
+    page,
+  }) => {
+    await signInWithMagicLink(page, newAddress("shots-activity"));
+    const id = await newProfile(page);
+    const scored = await page.request.post(`/api/profiles/${id}/ats-score`, {
+      headers: { origin },
+    });
+    expect(scored.ok(), await scored.text()).toBe(true);
+    const activity = page
+      .getByRole("banner")
+      .getByRole("button", { name: fr.fiche.activity, exact: true });
+    for (const { name, width, height } of SCREENSHOT_WIDTHS) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/profils/${id}`);
+      // « Activité » opens the Fiche on its Activity group, unfolded, wherever the Fiche is: beside the page, or over it.
+      // The Fiche stays as it was left: open already at a width where it was opened before.
+      await page.waitForLoadState("networkidle");
+      if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
+      await expect(activity).toHaveAttribute("aria-expanded", "true");
+      const fiche = page.getByRole("complementary", {
+        name: fr.fiche.label,
+        exact: true,
+      });
+      const today = fiche
+        .getByRole("region", { name: fr.aiActivity.history.title })
+        .getByRole("region", { name: fr.aiActivity.history.today });
+      const score = today
+        .locator(".activity-entry-row")
+        .filter({ hasText: fr.aiActivity.kinds.ats_score });
+      await score.click();
+      await expect(score).toHaveAttribute("aria-expanded", "true");
+      await fixTimesOfDay(page);
+      // Its history alone: the Fiche scrolls on its own, so the whole of it never shows at once.
+      await check(page, fiche.locator(".activity-history"), "aside.fiche", `activity-fiche-${name}`, width, false);
+
+      // The home page's column is Activité alone (#607), with the same history: here, nothing yet.
+      await page.goto("/");
+      await page.waitForLoadState("networkidle");
+      if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
+      await expect(activity).toHaveAttribute("aria-expanded", "true");
+      const column = page.getByRole("complementary", {
+        name: fr.fiche.activity,
+        exact: true,
+      });
+      await expect(
+        column.getByRole("region", { name: fr.aiActivity.history.title }),
+      ).toContainText(fr.aiActivity.history.empty);
+      await check(page, column, ".activity-column", `activity-column-${name}`, width, false);
     }
   });
 

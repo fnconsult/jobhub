@@ -10,6 +10,8 @@ An application's page is its conversation with your AI coach: it has the applica
 
 On the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.
 
+The « Activity » group shows what is running right now, then the page's history: the offer read, the tailored CV, the letter and the outreach message, the company dossier, the coach's proposals and its replies in the application's conversation, each with its models, its tools and its cost, never in euros.
+
 Its sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation. While no interview is recorded, « Show me how » there shows how to move the application to the « Interview » status so you can add one.
 
 Start with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up.

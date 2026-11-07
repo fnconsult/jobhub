@@ -4206,6 +4206,7 @@
     "why": "Pourquoi {{score}} ?",
     "whyNotComputable": "Pourquoi pas de score ?",
     "savedPill": "Enregistrée",
+    "dismissedPill": "Écartée",
     "postedOn": "Publiée le {{date}}",
     "source": "Source : {{site}}",
     "reasons": {
@@ -5493,7 +5494,29 @@
     "followed": "Suivie",
     "seeApplication": "Voir la candidature",
     "byProfile": "Recherches par Profil",
-    "receivedByEmail": "Reçues par email"
+    "receivedByEmail": "Reçues par email",
+    "dismiss": "Écarter",
+    "dismissLabel": "Écarter : {{title}}",
+    "dismissWhy": "Pourquoi ? (facultatif)",
+    "dismissalReasons": {
+      "not_for_me": "Pas pour moi",
+      "salary": "Salaire",
+      "location": "Lieu",
+      "contract": "Contrat",
+      "applied_elsewhere": "Déjà postulé ailleurs"
+    },
+    "dismissWithoutReason": "Écarter sans motif",
+    "dismissError": "L'offre n'a pas pu être écartée. Réessayez.",
+    "dismissedToast": "« {{title}} » écartée.",
+    "undo": "Annuler",
+    "undoError": "« Annuler » n'a pas abouti : l'offre reste écartée. Réessayez avec « Revenir sur ce choix », dans « Écartées ».",
+    "dismissed": "Écartée",
+    "dismissedWithReason": "Écartée · {{reason}}",
+    "dismissedBlock": "Écartées ({{count}})",
+    "dismissedHint": "Les offres écartées ces 30 derniers jours, la plus récente d'abord. Elles ne vous seront plus proposées.",
+    "reconsider": "Revenir sur ce choix",
+    "reconsiderLabel": "Revenir sur ce choix : {{title}}",
+    "reconsiderError": "Le choix n'a pas pu être annulé. Réessayez."
   },
   "jobDigestsMenu": {
     "introduction": "Voici vos Job Digests, par profil : les nouvelles offres qui correspondent à vos critères, envoyées par email. Demandez-moi lesquelles regarder en premier ; leur fréquence se règle ici.",

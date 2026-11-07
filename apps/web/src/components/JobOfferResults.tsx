@@ -17,6 +17,8 @@ export interface JobOfferResult {
   matchScore: MatchScore;
   /** The Candidate's Application for this Job Offer, if they saved it. */
   applicationId: string | null;
+  /** Écartée from the Candidate's Offer box (#816): the pill « Écartée ». */
+  dismissed?: boolean;
 }
 
 /**
@@ -24,8 +26,8 @@ export interface JobOfferResult {
  * Design System's prototype `#candidat`): the title (to the Job Offer) and its key facts on one line (its Posting
  * date, or "date inconnue"); the Match Score in its own column, a ring around the figure, said in words for screen
  * readers; the contract and remote work as pills; then a one-click save as an Application with that Profile and a
- * link to read the Job Offer (once saved: the Application, and the pill "Enregistrée"), and "Pourquoi 86 ?" opening
- * the score's reasons.
+ * link to read the Job Offer (once saved: the Application, and the pill "Enregistrée"; once écartée from the Offer box,
+ * the pill « Écartée », #816), and "Pourquoi 86 ?" opening the score's reasons.
  * The results view of Job Searches and Job Digests. Each title is a level-2
  * heading, or `headingLevel` under a heading of the page's own (results grouped by Profile);
  * `label` names the list (default "Offres trouvées"); `idScope` keeps its titles' ids apart from another list of the
@@ -87,7 +89,7 @@ function JobOfferCard({
   href: string;
 }) {
   const Heading = (["h2", "h3", "h4", "h5"] as const)[headingLevel - 2]!;
-  const { jobOffer, matchScore, applicationId } = result;
+  const { jobOffer, matchScore, applicationId, dismissed } = result;
   // The same Job Offer can be found for two Profiles shown on one page: one id each.
   const titleId = `${idScope}-${profileId}-${jobOffer.id}`;
   const site = jobOfferSite(jobOffer);
@@ -134,12 +136,12 @@ function JobOfferCard({
           {t(figure.reliability === "partial" ? "jobSearch.partialCaption" : "jobSearch.matchScoreCaption")}
         </span>
       </div>
-      {pills.length > 0 || applicationId ? (
+      {pills.length > 0 || applicationId || dismissed ? (
         <p className="job-offer-result__pills">
           {pills.map((pill) => (
             <Pill key={pill}>{pill}</Pill>
           ))}
-          {applicationId ? <Pill tone="accent">{t("jobSearch.savedPill")}</Pill> : null}
+          {applicationId ? <Pill tone="accent">{t("jobSearch.savedPill")}</Pill> : dismissed ? <Pill>{t("jobSearch.dismissedPill")}</Pill> : null}
         </p>
       ) : null}
       <div className="job-offer-result__actions">

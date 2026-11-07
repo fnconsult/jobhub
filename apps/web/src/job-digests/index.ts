@@ -35,7 +35,8 @@
  * the target count does Job discovery run, its Job Offers scored the same way;
  * if it fails, what the stored Job Offers gave is sent. A Job Offer counts as
  * shown, and is never sent, once it was in a Job Digest or a Job Search of the
- * Profile, or once the Candidate saved it as an Application. Scoring here is
+ * Profile, once the Candidate saved it as an Application, or once they écarta it
+ * from their Offer box, whatever its Profile (#816). Scoring here is
  * the shared, local Match Score: no Plan Quota is used.
  * The frequency sent is the Candidate's choice capped by their Plan; a Plan
  * without the Job Digest sends none, and the choice is kept. Opting out keeps
@@ -72,7 +73,7 @@ import type { PushNotifier } from "../push-notifications";
 import type { Billing, PlanName } from "../billing";
 import type { ReceivedOffers } from "../email-intake/received-offers";
 import { visibleTo, type JobOffers } from "../job-offers";
-import { migrateOfferBox, recordArrivals } from "../offer-box";
+import { dismissedJobOffers, migrateOfferBox, recordArrivals } from "../offer-box";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -422,12 +423,16 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return { profile, frequency };
   }
 
-  /** The Job Offers this Profile was already shown: in its Job Digests or Job Searches (done, stopped or failed: all show what they kept), or saved by the Candidate. */
+  /**
+   * The Job Offers this Profile was already shown: in its Job Digests or Job Searches (done, stopped or failed: all show
+   * what they kept), saved by the Candidate, or écartée from their Offer box (#816).
+   */
   async function shownTo(candidateId: string, profileId: string): Promise<Set<string>> {
     const [{ rows }, saved] = await Promise.all([
       database.query<{ id: string }>(
         `SELECT unnest(job_offer_ids) AS id FROM job_digest WHERE profile_id = $1 AND candidate_id = $2
-         UNION SELECT unnest(job_offer_ids) FROM job_search WHERE profile_id = $1 AND candidate_id = $2 AND status <> 'searching'`,
+         UNION SELECT unnest(job_offer_ids) FROM job_search WHERE profile_id = $1 AND candidate_id = $2 AND status <> 'searching'
+         UNION ${dismissedJobOffers("$2")}`,
         [profileId, candidateId],
       ),
       deps.applications.list(candidateId),

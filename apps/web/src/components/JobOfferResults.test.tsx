@@ -35,4 +35,14 @@ describe("Job Offers found for a Profile", () => {
     expect(screen.getByRole("link", { name: "Responsable logistique" }).getAttribute("href")).toBe("/recherches/s1/offres/o1");
     expect(screen.getByRole("link", { name: "Lire l'offre" }).getAttribute("href")).toBe("/recherches/s1/offres/o1");
   });
+
+  it("show a Job Offer écartée from the Offer box « Écartée » (#816)", () => {
+    renderInFrench(<JobOfferResults results={[{ jobOffer, matchScore, applicationId: null, dismissed: true }]} profileId="p1" t={t} locale="fr" />);
+    expect(screen.getByRole("list", { name: "Offres trouvées" }).textContent).toContain("Écartée");
+  });
+
+  it("say nothing of an écart for one not écartée", () => {
+    renderInFrench(<JobOfferResults results={[{ jobOffer, matchScore, applicationId: null }]} profileId="p1" t={t} locale="fr" />);
+    expect(screen.getByRole("list", { name: "Offres trouvées" }).textContent).not.toContain("Écartée");
+  });
 });

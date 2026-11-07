@@ -31,7 +31,8 @@
  * from the browser) and problems come back as results, never exceptions. A
  * search the worker never answered fails ('timeout') after SEARCH_TIMEOUT_MS,
  * when it is next read or expired, whichever comes first, and gives its use back.
- * The Job Offers a finished, stopped or failed Job Search kept reach the Candidate's Offer box (ADR-0090, `recordArrivals`).
+ * The Job Offers a finished, stopped or failed Job Search kept reach the Candidate's Offer box (ADR-0090, `recordArrivals`);
+ * one they écarta from it is shown « Écartée » in its results (#816).
  * Job Searches belong to their Profile and are deleted with it (ADR-0010); the
  * Job Offers they found are kept.
  */
@@ -56,7 +57,7 @@ import * as z from "zod";
 import type { Applications } from "../applications";
 import type { QuotaDecision } from "../billing";
 import { visibleTo, type JobOffers } from "../job-offers";
-import { migrateOfferBox, recordArrivals } from "../offer-box";
+import { dismissedJobOffers, migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
 import type { PushNotifier } from "../push-notifications";
 import { fieldErrors, type FieldError } from "../validation";
@@ -80,6 +81,8 @@ export interface JobSearchResult {
   matchScore: MatchScore;
   /** The Candidate's Application for this Job Offer, if they saved it (with any Profile). */
   applicationId: string | null;
+  /** Écartée from the Candidate's Offer box (#816): shown « Écartée ». Always set by `get`. */
+  dismissed?: boolean;
 }
 
 /** What a finished or failed Job Search measured, to see where Job Offers are lost and what it cost. */
@@ -388,11 +391,13 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
 
     let results: JobSearchResult[] = [];
     if (status !== "searching" && row.job_offer_ids.length > 0) {
-      const [found, saved] = await Promise.all([
+      const [found, saved, dismissed] = await Promise.all([
         Promise.all(row.job_offer_ids.map((id) => deps.jobOffers.get(id, candidateId))),
         deps.applications.list(candidateId),
+        database.query<{ job_offer_id: string }>(dismissedJobOffers("$1"), [candidateId]),
       ]);
       const applicationOf = new Map(saved.map((application) => [application.jobOffer.id, application.id]));
+      const dismissedIds = new Set(dismissed.rows.map((one) => one.job_offer_id));
       results = rankByMatchScore(
         found
           // An Expired Job Offer is no longer published at its source: nothing to apply to any more.
@@ -401,6 +406,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
             jobOffer,
             matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),
             applicationId: applicationOf.get(jobOffer.id) ?? null,
+            dismissed: dismissedIds.has(jobOffer.id),
           })),
       );
     }

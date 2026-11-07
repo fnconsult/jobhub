@@ -11,7 +11,10 @@ import { paymentFailedNotice } from "@/billing/payment-failed-notice";
 import { planCards, type PlanCard } from "@/billing/plan-cards";
 import { getBilling } from "@/billing/server";
 import { quotaBar } from "@/billing/usage-meter";
+import { consumptionPeriod, consumptionSection, readRange, type PeriodSource } from "@/consumption/section";
+import { getConsumption } from "@/consumption/server";
 import { AccountSections } from "@/components/AccountSections";
+import { ConsumptionSection } from "@/components/ConsumptionSection";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
 import { QuotaReductionNotice } from "@/components/QuotaReductionNotice";
 import { RefreshUntilPlanConfirmed } from "@/components/RefreshUntilPlanConfirmed";
@@ -46,7 +49,7 @@ const MAX_CODE_LENGTH = 40;
 /**
  * Mon compte's Subscription Section (ADR-0024), at its own address, in the Design System (#469): the Candidate's Plan
  * (and the discount their subscription gets) with the way to Stripe (and their invoices there), this week's usage as
- * bars, red once used up, the failed-payment Note, a Quota Reduction they may cancel over (#514), the offered Plans as comparison cards in rank order with their
+ * bars, red once used up, « Votre consommation » over the billing period (#801, ADR-0091, `#consommation`), the failed-payment Note, a Quota Reduction they may cancel over (#514), the offered Plans as comparison cards in rank order with their
  * prices (« Votre offre », « Conseillée »), and, on Free, a promotion code to check. A paid Plan whose cancellation is
  * not scheduled has « Résilier votre contrat » beside the way to Stripe (#513); back from confirming it, a Note says it
  * is recorded until when, and whether its acknowledgement was emailed.
@@ -65,17 +68,21 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const inApp = inAppWebView((await headers()).get("user-agent"));
   const code = typeof codeParam === "string" && !inApp ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, coachContext, prices, hasInvoices, discount, withdrawable, reduction] = await Promise.all([
+  const now = new Date();
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, coachContext, prices, hasInvoices, subscription, withdrawable, reduction, consumed] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.plans(),
     billing.planQuotas(),
     billing.coachContextLimits(),
     billing.planPrices(),
     billing.hasInvoices(candidate.id),
-    billing.activeDiscount(candidate.id),
+    // One Stripe read: the discount, and the billing period « Votre consommation » counts over (#801).
+    billing.subscriptionDetails(candidate.id),
     getWithdrawals().contracts(candidate.id),
     getQuotaReductions().openFor(candidate.id),
+    getConsumption().forCandidate(candidate.id, readRange(now)),
   ]);
+  const discount = subscription.discount;
   // « Renoncer au contrat ici » (#511): for 14 days after the subscription started.
   const planWithdrawal = withdrawable.find((contract) => contract.kind === "plan");
   const offeredKeys = plans.filter((each) => each.status === "offered" && each.key !== FREE_PLAN).map((each) => each.key);
@@ -94,6 +101,14 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   // « Résilier votre contrat » (#513): on a paid Plan, until its cancellation is scheduled (here or in Stripe's portal).
   const cancellable = plan !== FREE_PLAN && !endsAt;
   const cancelled = endsAt && (resiliation === "enregistree" || resiliation === "sans-accuse") ? { endsAt, acknowledged: resiliation === "enregistree" } : null;
+
+  // « Votre consommation » (#801, ADR-0091): over Stripe's current period on a paid Plan, the calendar month on Free (or
+  // when Stripe could not give it), for every Candidate and in the app's WebView too.
+  const periodSource: PeriodSource =
+    plan !== FREE_PLAN && subscription.period ? { kind: "billed", ...subscription.period } : { kind: "month", free: plan === FREE_PLAN, since: new Date(candidate.createdAt) };
+  const consumption = consumptionSection({ period: consumptionPeriod(periodSource, now), days: consumed.days, now, quotas, usedThisWeek, locale });
+  // Its foot's links: the Data export (Mes données) and what AI Activity is (its Help Article).
+  const consumptionLinks = { dataExport: routes.accountData, aiActivity: routes.helpArticle("utiliser", "glossary-ai-activity", locale) };
 
   const cards = planCards({ plans, current: plan, quotas: allQuotas, coachContext, prices, locale });
   const shownWeekly = WEEKLY_QUOTAS.filter((quota) => quotas[quota] !== 0);
@@ -229,6 +244,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             </dl>
           </Card>
         </div>
+
+        <ConsumptionSection view={consumption} links={consumptionLinks} />
 
         {inApp ? null : (
           <section className="subscription-plans" aria-labelledby="subscription-plans-title">

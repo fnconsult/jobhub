@@ -649,12 +649,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rétractation",
         "factures",
         "code promo",
-        "utilisation"
+        "utilisation",
+        "consommation",
+        "période de facturation",
+        "actions ia",
+        "jetons"
       ],
       "route": "/abonnement",
       "motion": null,
       "microAnimations": [],
-      "body": "Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus. Chaque carte indique aussi la « Mémoire du coach », le nombre de derniers messages de la conversation que votre coach lit, et le « Contexte du coach », la place de ce qu'il relit avant de répondre, comparée à celle de l'offre la plus simple (×1) ; « Illimité » quand l'offre ne fixe pas de limite.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte. « Factures et moyen de paiement » y mène aussi, pour télécharger vos factures.\n\n« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe. Sur l'offre Gratuite, un « Code promo » saisi ici puis « Appliquer » est vérifié, et s'appliquera au paiement d'un nouvel abonnement.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
+      "body": "Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus. Chaque carte indique aussi la « Mémoire du coach », le nombre de derniers messages de la conversation que votre coach lit, et le « Contexte du coach », la place de ce qu'il relit avant de répondre, comparée à celle de l'offre la plus simple (×1) ; « Illimité » quand l'offre ne fixe pas de limite.\n\n« Votre consommation » montre ce que vous avez utilisé pendant la période de facturation : sur une offre payante, du premier jour de la période que vous payez à la veille de la suivante (par exemple du 18 octobre au 17 novembre) ; sur l'offre Gratuite, qui n'est pas facturée, le mois en cours. En tête, le nombre d'actions IA de la période, chaque réponse du coach, recherche d'offres, score ou document préparé comptant pour une, et l'écart avec le même jour de la période précédente ; à côté, où vous en êtes de la période (par exemple, le jour 19 sur 31). « Par outil, cette période » donne chaque outil avec son nombre et sa part de vos actions ; « Autres » regroupe l'ATS Score, les dossiers entreprise, les contacts enrichis et la lecture de CV. Un outil qui a un quota chaque semaine le rappelle (par exemple, 4 sur 7 cette semaine), ou dit « Non compris dans votre offre » ; les autres sont « Sans limite dans votre offre ».\n\n« Jour par jour, sur douze mois » montre une case par jour, du lundi au dimanche, une colonne par semaine : plus elle est foncée, plus vous avez utilisé Jobbbox ce jour-là, et les jours de la période en cours sont entourés. Survolez une case, ou passez de l'une à l'autre avec les flèches du clavier, pour voir sa date et le nombre de chaque outil. « Barres » montre la période jour par jour, par outil ; votre choix est gardé dans ce navigateur. « Voir en tableau » donne les mêmes chiffres dans un tableau. Tout est compté en nombre d'utilisations. Ces chiffres sont conservés 12 mois, effacés avec votre compte et inclus dans l'export de vos données ; les modèles d'IA qui ont produit chaque contenu sont dans Activité IA.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte. « Factures et moyen de paiement » y mène aussi, pour télécharger vos factures.\n\n« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe. Sur l'offre Gratuite, un « Code promo » saisi ici puis « Appliquer » est vérifié, et s'appliquera au paiement d'un nouvel abonnement.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
     },
     {
       "id": "page-account",
@@ -1336,6 +1340,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Un code de secours remplace le code de votre application d'authentification quand vous ne l'avez pas sous la main, par exemple si vous avez perdu votre téléphone. Jobbbox vous en donne 10 quand vous activez la vérification en deux étapes, affichés une seule fois : copiez-les ou téléchargez-les, et gardez-les en lieu sûr.\n\nChaque code ne sert qu'une fois. La rubrique « Sécurité » de Mon compte indique combien il vous en reste ; « Régénérer les codes de secours » vous en donne 10 nouveaux, et les anciens cessent de fonctionner. Jobbbox ne garde pas vos codes en clair et ne peut pas vous les montrer à nouveau."
+    },
+    {
+      "id": "glossary-consumption",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Consommation",
+      "synonyms": [
+        "votre consommation",
+        "actions ia",
+        "utilisation",
+        "période de facturation",
+        "grille",
+        "jour par jour",
+        "par outil"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Ce que vous avez utilisé de Jobbbox, compté en actions IA : chaque réponse du coach, recherche d'offres, Match Score, ATS Score, CV adapté, lettre ou message d'approche, dossier entreprise, contact enrichi ou CV lu compte pour une, sous son outil.\n\n« Votre consommation », dans Mon abonnement, la montre sur la période de facturation (le mois en cours sur l'offre Gratuite), par outil et jour par jour sur douze mois. Elle ne remplace pas les quotas, qui comptent chaque semaine.\n\nElle est comptée en utilisations, jamais en jetons ni en euros, conservée 12 mois, effacée avec votre compte et incluse dans l'export de vos données. Elle ne garde aucun contenu ni le nom des modèles d'IA, qui sont dans Activité IA."
     },
     {
       "id": "glossary-conversation-context",
@@ -2961,12 +2986,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "premium",
         "quota",
         "limite",
-        "combien ça coûte"
+        "combien ça coûte",
+        "jetons",
+        "tokens",
+        "consommation"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota, mais chaque offre fixe la part de votre conversation que le coach lit à la fois (« Mémoire du coach », en messages) et la place de ce qu'il relit avant de répondre (« Contexte du coach », comparé à l'offre la plus simple : ×2 en lit deux fois plus).\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
+      "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota, mais chaque offre fixe la part de votre conversation que le coach lit à la fois (« Mémoire du coach », en messages) et la place de ce qu'il relit avant de répondre (« Contexte du coach », comparé à l'offre la plus simple : ×2 en lit deux fois plus).\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nPourquoi ne vois-je pas de jetons ? Les jetons (tokens) sont une mesure technique de ce qu'un modèle d'IA lit et écrit, et aucune offre ne se paie en jetons. « Votre consommation », dans Mon abonnement, compte donc vos utilisations : chaque réponse du coach, recherche d'offres, score ou document préparé est une action IA, comptée par outil sur la période de facturation, jamais en jetons ni en euros. Les jetons restent visibles dans Activité IA, où ils ne sont décomptés d'aucun quota.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
     },
     {
       "id": "faq-email-intake-what-is-read",
@@ -4682,12 +4710,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "withdrawal",
         "invoices",
         "promotion code",
-        "usage"
+        "usage",
+        "consumption",
+        "billing period",
+        "ai actions",
+        "tokens"
       ],
       "route": "/abonnement",
       "motion": null,
       "microAnimations": [],
-      "body": "This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it. Each card also gives the « Coach memory », the number of latest messages of the conversation your coach reads, and the « Coach context », the room for what it reads again before replying, compared with the simplest plan's (×1); « Unlimited » when the plan sets no limit.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: … until … », and an acknowledgement is sent to you by email.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number. « Invoices and payment method » leads there too, to download your invoices.\n\n« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, before payment on Stripe's page. On the Free plan, a « Promotion code » entered here, then « Apply », is checked, and will apply at payment for a new subscription.\n\nFor 14 days after you subscribe, « Withdraw from the contract here » lets you withdraw, without a reason: your subscription is cancelled at once and you are back on the Free plan. What you paid is refunded in full or, if you asked for the service to start at once, less the share of the days elapsed since the start of the period. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
+      "body": "This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it. Each card also gives the « Coach memory », the number of latest messages of the conversation your coach reads, and the « Coach context », the room for what it reads again before replying, compared with the simplest plan's (×1); « Unlimited » when the plan sets no limit.\n\n« Your consumption » shows what you used during the billing period: on a paid plan, from the first day of the period you pay for to the day before the next one (for example from October 18 to November 17); on the Free plan, which is not billed, the current month. At the top, the number of AI actions in the period, each coach reply, job search, score or prepared document counting as one, and the change against the same day of the previous period; beside it, how far into the period you are (for example, day 19 of 31). « By tool, this period » gives each tool with its count and its share of your actions; « Others » groups the ATS Score, company dossiers, enriched contacts and CV reading. A tool with a weekly quota repeats it (for example, 4 of 7 this week), or says « Not included in your plan »; the others are « No limit in your plan ».\n\n« Day by day, over twelve months » shows one square per day, Monday to Sunday, one column per week: the darker it is, the more you used Jobbbox that day, and the days of the current period are outlined. Hover over a square, or move from one to the next with the keyboard's arrow keys, to see its date and each tool's count. « Bars » shows the period day by day, by tool; your choice is kept in this browser. « Show as a table » gives the same figures in a table. Everything is counted in uses. These figures are kept 12 months, erased with your account and included in your data export; the AI models that produced each piece of content are in AI Activity.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: … until … », and an acknowledgement is sent to you by email.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number. « Invoices and payment method » leads there too, to download your invoices.\n\n« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, before payment on Stripe's page. On the Free plan, a « Promotion code » entered here, then « Apply », is checked, and will apply at payment for a new subscription.\n\nFor 14 days after you subscribe, « Withdraw from the contract here » lets you withdraw, without a reason: your subscription is cancelled at once and you are back on the Free plan. What you paid is refunded in full or, if you asked for the service to start at once, less the share of the days elapsed since the start of the period. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
     },
     {
       "id": "page-acceptance",
@@ -5347,6 +5379,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "A change your AI coach prepares during a conversation, for instance an application's status. It shows under its reply, in a card « Proposed by your AI coach »: what changes, before and after, and the item it is about.\n\nYour coach never changes anything itself and never deletes anything: you choose « Apply », « Edit before applying » or « Ignore ». An applied proposal can be undone as long as the item has not changed since. The item keeps that it was changed on your coach's proposal: « Origin » says so."
+    },
+    {
+      "id": "glossary-consumption",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Consumption",
+      "synonyms": [
+        "your consumption",
+        "ai actions",
+        "usage",
+        "billing period",
+        "grid",
+        "day by day",
+        "by tool"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "What you used of Jobbbox, counted in AI actions: each coach reply, job search, Match Score, ATS Score, tailored CV, cover letter or outreach message, company dossier, enriched contact or CV read counts as one, under its tool.\n\n« Your consumption », on My subscription, shows it over the billing period (the current month on the Free plan), by tool and day by day over twelve months. It does not replace the quotas, which count each week.\n\nIt is counted in uses, never in tokens or euros, kept 12 months, erased with your account and included in your data export. It keeps no content and no name of an AI model: those are in AI Activity."
     },
     {
       "id": "glossary-conversation-context",
@@ -6445,12 +6498,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "premium",
         "quota",
         "limit",
-        "how much does it cost"
+        "how much does it cost",
+        "tokens",
+        "consumption"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota, but each Plan sets how much of your conversation the coach reads at once (« Coach memory », in messages) and the room for what it reads again before replying (« Coach context », compared with the simplest plan: ×2 reads twice as much).\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nSessions with a human coach are paid separately, outside the Plans."
+      "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota, but each Plan sets how much of your conversation the coach reads at once (« Coach memory », in messages) and the room for what it reads again before replying (« Coach context », compared with the simplest plan: ×2 reads twice as much).\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nWhy don't I see tokens? Tokens are a technical measure of what an AI model reads and writes, and no plan is paid for in tokens. « Your consumption », on My subscription, therefore counts your uses: each coach reply, job search, score or prepared document is an AI action, counted by tool over the billing period, never in tokens or euros. Tokens stay visible in AI Activity, where they count towards no quota.\n\nSessions with a human coach are paid separately, outside the Plans."
     },
     {
       "id": "faq-search-criteria",

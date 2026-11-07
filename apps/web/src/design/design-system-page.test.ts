@@ -6,11 +6,12 @@ describe("the Design System page's tokens (#463)", () => {
   const catalogue = tokenCatalogue(designTokens);
 
   it("lists every colour token, in the tokens' order, with its CSS variable and its light and dark values", () => {
-    expect(catalogue.colors).toHaveLength(27);
+    expect(catalogue.colors).toHaveLength(31);
     expect(catalogue.colors[0]).toEqual({ token: "background", variable: "--color-background", light: "#ffffff", dark: "#121219" });
     expect(catalogue.colors).toContainEqual({ token: "text", variable: "--color-text", light: "#1b1b26", dark: "#ececf3" });
     expect(catalogue.colors).toContainEqual({ token: "borderStrong", variable: "--color-border-strong", light: "#d6d6de", dark: "#383846" });
-    expect(catalogue.colors).toContainEqual({ token: "chart1", variable: "--color-chart-1", light: "#6a78ee", dark: "#8d9bff" });
+    expect(catalogue.colors).toContainEqual({ token: "chart1", variable: "--color-chart-1", light: "#6a78ee", dark: "#6a78ee" });
+    expect(catalogue.colors).toContainEqual({ token: "chart6", variable: "--color-chart-6", light: "#008300", dark: "#008300" });
     expect(catalogue.colors.at(-1)).toEqual({ token: "scrim", variable: "--color-scrim", light: "rgb(20 20 40 / 28%)", dark: "rgb(0 0 0 / 50%)" });
   });
 

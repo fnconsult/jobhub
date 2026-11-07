@@ -69,7 +69,7 @@ describe("controls that only act once the page is hydrated", () => {
     expect((screen.getByRole("button", { name: "Recevoir mon lien de connexion" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("the Offer box's « Suivre », « Écarter » and « Revenir sur ce choix » are disabled in the server's HTML, then enabled (#816)", () => {
+  it("the Offer box's « Suivre », « Écarter », « Plus tard » and « Revenir sur ce choix » are disabled in the server's HTML, then enabled (#816, #817)", () => {
     const line = (id: string, state: "to_handle" | "dismissed") => ({
       id,
       jobOffer: { id: `offer-${id}`, title: `Offre ${id}`, employer: null, location: null, url: null, postedAt: null, expiredAt: null, contractType: null },
@@ -87,18 +87,20 @@ describe("controls that only act once the page is hydrated", () => {
       laterUntil: null,
     });
     const box = <OfferBox box={{ today: "2026-11-05", toHandle: 1, entries: [line("a", "to_handle"), line("b", "dismissed")] }} />;
-    const decisions = ["Suivre", "Écarter", "Revenir sur ce choix"];
+    const decisions = ["Suivre", "Écarter", "Plus tard", "Revenir sur ce choix"];
     const decisionButtons = (root: ParentNode) => [...root.querySelectorAll("button")].filter((button) => decisions.includes(button.textContent ?? ""));
 
     expect(decisionButtons(serverHtml(box)).map((button) => [button.textContent, button.disabled])).toEqual([
       ["Suivre", true],
       ["Écarter", true],
+      ["Plus tard", true],
       ["Revenir sur ce choix", true],
     ]);
     renderInFrench(box);
     expect(decisionButtons(document.body).map((button) => [button.textContent, button.disabled])).toEqual([
       ["Suivre", false],
       ["Écarter", false],
+      ["Plus tard", false],
       ["Revenir sur ce choix", false],
     ]);
   });

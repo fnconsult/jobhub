@@ -21,16 +21,20 @@ import "./OfferBox.css";
  * the header too. Each line: its Match Score, title, employer, place, contract, source chips, posting age and Profile,
  * « Suivre » (its Application, « À postuler »), « Écarter » (its Dismissal reasons or « Écarter sans motif », then a toast
  * with « Annuler », which takes the keyboard focus, #816; an « Annuler » that fails says so above the entries) and « Lire
- * l'offre » (the Work Pane). Its buttons wait, disabled, until the page is hydrated (#446). An entry « À ne pas manquer » still à traiter is set off by
- * a border turning slowly (still under reduced motion). At its foot, « Écartées », folded, each with « Revenir sur ce
- * choix »; then « Recherches par Profil » and « Reçues par email », which open in the Work Pane. Laid out by
- * `offerBoxView`, as the app does.
+ * l'offre » (the Work Pane), and « Plus tard » (#817: away until Monday, a toast with « Annuler »). Its buttons wait,
+ * disabled, until the page is hydrated (#446). An entry « À ne pas manquer » still à traiter is set off by a border
+ * turning slowly (still under reduced motion). Each tier of « Précédemment » with two entries or more offers « Tout
+ * écarter (n) » (#817): those the source chip shows, without a reason, a toast with « Annuler ». Then, folded, « Plus
+ * tard » (each « revient lundi n », still counted), « Expirées sans décision » (out of the count, « Écarter » only) and
+ * « Écartées », each with « Revenir sur ce choix »; then « Recherches par Profil » and « Reçues par email », which open
+ * in the Work Pane. Laid out by `offerBoxView`, as the app does.
  */
 /**
- * What a line's « Écarter » needs from the page once its own button is gone: the box's heading, where the focus goes
- * back when the toast closes, and how to say that « Annuler » failed.
+ * What a line's « Écarter » or « Plus tard », or a tier's « Tout écarter », needs from the page once its own button is
+ * gone: the box's heading, where the focus goes back when the toast closes, and how to say that « Annuler » failed
+ * (null: it did not).
  */
-const OfferBoxPageHandle = createContext<{ heading: () => HTMLElement | null; undoFailed: (failed: boolean) => void }>({ heading: () => null, undoFailed: () => {} });
+const OfferBoxPageHandle = createContext<{ heading: () => HTMLElement | null; undoFailed: (message: string | null) => void }>({ heading: () => null, undoFailed: () => {} });
 
 export function OfferBox({ box }: { box: OfferBoxResponse }) {
   return (
@@ -48,7 +52,7 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   const root = useRef<HTMLElement>(null);
   const head = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const [undoFailed, setUndoFailed] = useState(false);
+  const [undoFailed, setUndoFailed] = useState<string | null>(null);
   const [handle] = useState(() => ({ heading: () => heading.current, undoFailed: setUndoFailed }));
   const total = view.toHandle + view.treated;
 
@@ -105,7 +109,7 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
 
         {undoFailed ? (
           <p className="field-error" role="alert">
-            {t("offerBox.undoError")}
+            {undoFailed}
           </p>
         ) : null}
 
@@ -122,21 +126,14 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
               nothing={t("offerBox.nothingEarlier")}
               followed={(count) => t("offerBox.followedEarlier", { count })}
               showDay
+              dismissAll
             />
           </>
         )}
 
-        {view.dismissed.length > 0 ? (
-          <details className="offer-box-followed offer-box-dismissed">
-            <summary>{t("offerBox.dismissedBlock", { count: view.dismissed.length })}</summary>
-            <p className="offer-box-nothing">{t("offerBox.dismissedHint")}</p>
-            <ul className="offer-box-entries">
-              {view.dismissed.map((entry) => (
-                <OfferBoxLine key={entry.id} entry={entry} today={box.today} showDay />
-              ))}
-            </ul>
-          </details>
-        ) : null}
+        <FoldedEntries summary={t("offerBox.laterBlock", { count: view.later.length })} hint={t("offerBox.laterHint")} entries={view.later} today={box.today} />
+        <FoldedEntries summary={t("offerBox.expiredBlock", { count: view.expired.length })} hint={t("offerBox.expiredHint")} entries={view.expired} today={box.today} />
+        <FoldedEntries summary={t("offerBox.dismissedBlock", { count: view.dismissed.length })} hint={t("offerBox.dismissedHint")} entries={view.dismissed} today={box.today} />
 
         <p className="offer-box-foot">
           <Link href={routes.jobSearchesByProfile}>{t("offerBox.byProfile")}</Link>
@@ -147,7 +144,26 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   );
 }
 
-/** « Aujourd'hui » or « Précédemment »: its tiers, then its entries already suivies, folded. */
+/** « Plus tard », « Expirées sans décision » or « Écartées »: folded at the foot of the box, absent when empty. */
+function FoldedEntries({ summary, hint, entries, today }: { summary: string; hint: string; entries: OfferBoxEntryRead[]; today: string }) {
+  if (entries.length === 0) return null;
+  return (
+    <details className="offer-box-followed offer-box-folded">
+      <summary>{summary}</summary>
+      <p className="offer-box-nothing">{hint}</p>
+      <ul className="offer-box-entries">
+        {entries.map((entry) => (
+          <OfferBoxLine key={entry.id} entry={entry} today={today} showDay />
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/** « Tout écarter (n) » is offered on a tier of « Précédemment » from this many entries. */
+const DISMISS_ALL_FROM = 2;
+
+/** « Aujourd'hui » or « Précédemment »: its tiers (with « Tout écarter » for « Précédemment »), then its entries already suivies, folded. */
 function OfferBoxDaySection({
   name,
   day,
@@ -155,6 +171,7 @@ function OfferBoxDaySection({
   nothing,
   followed,
   showDay = false,
+  dismissAll = false,
 }: {
   name: string;
   day: OfferBoxDay;
@@ -162,6 +179,7 @@ function OfferBoxDaySection({
   nothing: string;
   followed: (count: number) => string;
   showDay?: boolean;
+  dismissAll?: boolean;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -173,10 +191,13 @@ function OfferBoxDaySection({
       {day.tiers.length === 0 ? <p className="offer-box-nothing">{nothing}</p> : null}
       {day.tiers.map(({ tier, entries }) => (
         <section key={tier} className="offer-box-tier" data-tier={tier} aria-labelledby={`${id}-${tier}`}>
-          <h4 id={`${id}-${tier}`} className="offer-box-tier-heading">
-            {t(`offerBox.tiers.${tier}`)}
-            <span> · {t(`offerBox.tierHints.${tier}`)}</span>
-          </h4>
+          <div className="offer-box-tier-heading">
+            <h4 id={`${id}-${tier}`}>
+              {t(`offerBox.tiers.${tier}`)}
+              <span> · {t(`offerBox.tierHints.${tier}`)}</span>
+            </h4>
+            {dismissAll && entries.length >= DISMISS_ALL_FROM ? <DismissAllButton entries={entries} tierName={t(`offerBox.tiers.${tier}`)} /> : null}
+          </div>
           <ul className="offer-box-entries">
             {entries.map((entry) => (
               <OfferBoxLine key={entry.id} entry={entry} today={today} showDay={showDay} />
@@ -198,13 +219,16 @@ function OfferBoxDaySection({
   );
 }
 
+/** A day as the Offer box writes it, in French time: « 9 nov. ». */
+const parisDate = (instant: string, language: string) => new Intl.DateTimeFormat(language, { day: "numeric", month: "short", timeZone: "Europe/Paris" }).format(new Date(instant));
+
 /** One Offer box entry. */
 function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; today: string; showDay: boolean }) {
   const { t, i18n } = useTranslation();
   const { jobOffer } = entry;
   const tier = importanceTier(entry.matchScore);
   const age = postingAge({ postedAt: jobOffer.postedAt, firstArrivalAt: entry.firstArrivalAt }, today);
-  const arrivedOn = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short", timeZone: "Europe/Paris" }).format(new Date(`${entry.arrivalDay}T12:00:00Z`));
+  const arrivedOn = parisDate(`${entry.arrivalDay}T12:00:00Z`, i18n.language);
   const facts = [jobOffer.employer, jobOffer.location, jobOffer.contractType ? t(`cvReview.contractTypes.${jobOffer.contractType}`) : null].filter((fact): fact is string => Boolean(fact));
   const posted = age.postedDaysAgo === null ? null : age.postedDaysAgo === 0 ? t("offerBox.postedToday") : t("offerBox.postedAgo", { count: age.postedDaysAgo });
   const titleId = useId();
@@ -217,6 +241,7 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
       <p className="offer-box-title" id={titleId}>
         <Link href={routes.offerBoxOffer(jobOffer.id)}>{jobOffer.title}</Link>
         {entry.state === "followed" ? <Pill tone="success">{t("offerBox.followed")}</Pill> : null}
+        {entry.state === "later" && entry.laterUntil ? <Pill tone="accent">{t("offerBox.laterUntil", { date: parisDate(entry.laterUntil, i18n.language) })}</Pill> : null}
         {entry.state === "dismissed" ? (
           <Pill>{entry.dismissalReason ? t("offerBox.dismissedWithReason", { reason: t(`offerBox.dismissalReasons.${entry.dismissalReason}`) }) : t("offerBox.dismissed")}</Pill>
         ) : null}
@@ -243,10 +268,11 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
           </Link>
         ) : entry.state === "dismissed" ? (
           <ReconsiderButton entry={entry} />
-        ) : entry.scoredWith ? (
+        ) : entry.state !== "expired" && entry.scoredWith ? (
           <FollowButton jobOfferId={jobOffer.id} profileId={entry.scoredWith.id} describedBy={titleId} />
         ) : null}
-        {entry.state === "to_handle" ? <DismissButton entry={entry} describedBy={titleId} /> : null}
+        {entry.state === "to_handle" || entry.state === "later" || entry.state === "expired" ? <DismissButton entry={entry} describedBy={titleId} /> : null}
+        {entry.state === "to_handle" ? <LaterButton entry={entry} /> : null}
         <Link className={buttonClass({ variant: "quiet", size: "sm" })} href={routes.offerBoxOffer(jobOffer.id)} aria-describedby={titleId}>
           {t("offerBox.read")}
         </Link>
@@ -324,7 +350,7 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
   async function dismiss(reason: DismissalReason | null) {
     setWorking(true);
     setFailed(false);
-    page.undoFailed(false);
+    page.undoFailed(null);
     const done = await decide(entry.id, "POST", reason);
     setWorking(false);
     if (!done) {
@@ -339,7 +365,7 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
         focus: true,
         onAction: () =>
           void decide(entry.id, "DELETE").then((undone) => {
-            page.undoFailed(!undone);
+            page.undoFailed(undone ? null : t("offerBox.undoError"));
             if (undone) router.refresh();
           }),
       },
@@ -416,6 +442,136 @@ function ReconsiderButton({ entry }: { entry: OfferBoxEntryRead }) {
       {failed ? (
         <p className="field-error" role="alert">
           {t("offerBox.reconsiderError")}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** A write to the Offer box: its answer's status and body (0 and null when it did not reach the server). */
+async function send(path: string, method: "POST" | "DELETE", body?: unknown): Promise<{ status: number; json: unknown }> {
+  const init: RequestInit = body === undefined ? { method } : { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
+  const response = await fetch(path, init).catch(() => null);
+  if (!response) return { status: 0, json: null };
+  return { status: response.status, json: await response.json().catch(() => null) };
+}
+
+/**
+ * « Plus tard » (#817): the entry away until the next Monday 00:00 Paris time, no date to pick. Once done, the page
+ * refreshes (the entry into « Plus tard », still counted) and a toast says when it comes back, with « Annuler », which
+ * takes the keyboard focus since this line's buttons go.
+ */
+function LaterButton({ entry }: { entry: OfferBoxEntryRead }) {
+  const { t, i18n } = useTranslation();
+  const router = useRouter();
+  const toast = useToast();
+  const page = useContext(OfferBoxPageHandle);
+  const hydrated = useHydrated();
+  const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const path = `/api/offer-box/${encodeURIComponent(entry.id)}/later`;
+
+  async function later() {
+    setWorking(true);
+    setFailed(false);
+    page.undoFailed(null);
+    const { status, json } = await send(path, "POST");
+    setWorking(false);
+    const laterUntil = json && typeof json === "object" && "laterUntil" in json && typeof json.laterUntil === "string" ? json.laterUntil : null;
+    if (status !== 200 || !laterUntil) {
+      setFailed(true);
+      return;
+    }
+    toast({
+      message: t("offerBox.laterToast", { title: entry.jobOffer.title, date: parisDate(laterUntil, i18n.language) }),
+      action: {
+        label: t("offerBox.undo"),
+        focus: true,
+        onAction: () =>
+          void send(path, "DELETE").then(({ status: undone }) => {
+            page.undoFailed(undone === 204 ? null : t("offerBox.laterUndoError"));
+            if (undone === 204) router.refresh();
+          }),
+      },
+      returnFocus: page.heading,
+    });
+    router.refresh();
+  }
+
+  return (
+    <>
+      <button
+        className={buttonClass({ variant: "quiet", size: "sm" })}
+        type="button"
+        disabled={!hydrated || working}
+        aria-label={t("offerBox.laterLabel", { title: entry.jobOffer.title })}
+        onClick={() => void later()}
+      >
+        {t("offerBox.later")}
+      </button>
+      {failed ? (
+        <p className="field-error" role="alert">
+          {t("offerBox.laterError")}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * « Tout écarter (n) » on a tier of « Précédemment » (#817): the entries it shows, within the source chip, écartées
+ * without a reason. Then the page refreshes and a toast says how many, with « Annuler », which puts back exactly those.
+ */
+function DismissAllButton({ entries, tierName }: { entries: OfferBoxEntryRead[]; tierName: string }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const toast = useToast();
+  const page = useContext(OfferBoxPageHandle);
+  const hydrated = useHydrated();
+  const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function dismissAll() {
+    setWorking(true);
+    setFailed(false);
+    page.undoFailed(null);
+    const { status, json } = await send("/api/offer-box/dismissals", "POST", { entryIds: entries.map((entry) => entry.id) });
+    setWorking(false);
+    const dismissed = json && typeof json === "object" && "dismissed" in json && Array.isArray(json.dismissed) ? (json.dismissed as string[]) : null;
+    if (status !== 200 || !dismissed) {
+      setFailed(true);
+      return;
+    }
+    toast({
+      message: t("offerBox.dismissedAllToast", { count: dismissed.length }),
+      action: {
+        label: t("offerBox.undo"),
+        focus: true,
+        onAction: () =>
+          void send("/api/offer-box/dismissals", "DELETE", { entryIds: dismissed }).then(({ status: undone }) => {
+            page.undoFailed(undone === 204 ? null : t("offerBox.undoAllError"));
+            if (undone === 204) router.refresh();
+          }),
+      },
+      returnFocus: page.heading,
+    });
+    router.refresh();
+  }
+
+  return (
+    <>
+      <button
+        className={buttonClass({ variant: "quiet", size: "sm" })}
+        type="button"
+        disabled={!hydrated || working}
+        aria-label={t("offerBox.dismissAllLabel", { tier: tierName, count: entries.length })}
+        onClick={() => void dismissAll()}
+      >
+        {t("offerBox.dismissAll", { count: entries.length })}
+      </button>
+      {failed ? (
+        <p className="field-error" role="alert">
+          {t("offerBox.dismissAllError")}
         </p>
       ) : null}
     </>

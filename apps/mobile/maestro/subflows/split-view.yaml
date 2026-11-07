@@ -44,10 +44,12 @@ appId: ai.jobbbox.app
 # The other half's app, picked on the Home Screen iPadOS shows once « Split View » is chosen (the app slid aside at the
 # top): SpringBoard's icons are not in Maestro's hierarchy either, and Réglages is on none of the simulator's pages it
 # shows (run 42348955365's split-view-3-other-app.png: Contacts, Raccourcis, Mots de passe, Santé; Messages, Safari,
-# Calendrier, Photos in the Dock). Safari, the Dock's second icon, tapped where it is drawn: some 43 % across and 93 %
-# down the landscape screen.
-- tapOn:
-    point: "43%, 93%"
+# Calendrier, Photos in the Dock). Nor can it be tapped where it is drawn: Maestro's iOS taps are placed in the app
+# under test, now slid to a strip at the screen's edge (run 42361113040: Safari's Dock icon tapped at 43 %, 93 %, the
+# Home Screen unchanged after it). Safari is opened instead while iPadOS waits for the other half's app.
+- launchApp:
+    appId: "com.apple.mobilesafari"
+    stopApp: false
 - extendedWaitUntil:
     visible: "Menu"
     timeout: 20000

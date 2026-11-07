@@ -10,10 +10,11 @@ import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 
 /**
- * The reads that show where the Candidate stands with a Job Offer (ADR-0090): the Offer box and an entry opened, a Job
- * Search's and a Job Digest's Job Offers, Mes candidatures. Each decision has them read again.
+ * The reads that show where the Candidate stands with a Job Offer (ADR-0090): the Offer box and an entry opened, its
+ * count of offers à traiter (#818), a Job Search's and a Job Digest's Job Offers, Mes candidatures. Each decision has them
+ * read again.
  */
-const SHOWING_DECISIONS: readonly ReadName[] = ["offerBox", "offerBoxOffer", "jobSearch", "jobDigest", "applications"];
+const SHOWING_DECISIONS: readonly ReadName[] = ["offerBox", "offerBoxOffer", "offersToHandle", "jobSearch", "jobDigest", "applications"];
 
 /** A decision's write, then every read that shows it read again: whether the web app answered one of `ok`. */
 function useDecisionWrite() {

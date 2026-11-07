@@ -133,7 +133,15 @@ export function createFcmSender(config: FcmConfig): PushSender {
     config.fetch(`${FCM_API}/projects/${encodeURIComponent(account.projectId)}/messages:send`, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ message: { token: device, notification: { title: message.title, body: message.body }, data: { path: message.path } } }),
+      // Android has no badge of the app's to set: the notification's count is what a launcher that shows one may show (#818).
+      body: JSON.stringify({
+        message: {
+          token: device,
+          notification: { title: message.title, body: message.body },
+          ...(message.badge ? { android: { notification: { notification_count: message.badge } } } : {}),
+          data: { path: message.path },
+        },
+      }),
     });
 
   return {

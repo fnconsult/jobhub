@@ -289,6 +289,17 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(await offerBoxOf(database, otherCandidateId)).toEqual([]);
     });
 
+    it("tells in its email the Candidate's offers à traiter, those it brings included, leading to Recherches d'offres (#818)", async () => {
+      await strong("DAF H/F");
+      await strong("DAF adjoint H/F");
+      await subscribed();
+
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
+
+      expect(outbox[0]!.text).toContain("Il vous reste 2 offres à traiter :\nhttps://app.jobbbox.fr/recherches");
+      expect(outbox[0]!.html).toContain('href="https://app.jobbbox.fr/recherches"');
+    });
+
     it("leaves out a Job Offer posted more than 30 days ago, and ranks an undated one below a dated one with an equal Match Score (#116)", async () => {
       const daysAgo = (days: number) => new Date(clock.now.getTime() - days * 24 * HOUR);
       const dated = await strong("DAF H/F – datée", { postedAt: daysAgo(5), storedAt: daysAgo(2) });

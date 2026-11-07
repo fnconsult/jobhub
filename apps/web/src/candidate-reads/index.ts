@@ -32,6 +32,7 @@ import type {
   JobSearchResponse,
   OfferBoxOfferResponse,
   OfferBoxResponse,
+  OffersToHandleResponse,
   ProfileResponse,
   ProfilesResponse,
   RescheduleRead,
@@ -69,6 +70,8 @@ export interface CandidateReads {
   jobSearches(candidateId: string): Promise<JobSearchesResponse>;
   /** The Offer box (« Offres à traiter », ADR-0090): every entry, the most recent first Arrival first, and how many are à traiter. */
   offerBox(candidateId: string): Promise<OfferBoxResponse>;
+  /** How many of the Offer box's entries are à traiter, without reading them (#818): the app's menu and icon badge. */
+  offersToHandle(candidateId: string): Promise<OffersToHandleResponse>;
   /**
    * One Offer box entry's Job Offer as its Work Pane shows it (#692), against the Profile « Suivre » saves it with; null
    * when it is not theirs, or has no Profile to be scored against.
@@ -335,6 +338,8 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     async offerBox(candidateId) {
       return offerBoxResponse(await deps.offerBox.read(candidateId));
     },
+
+    offersToHandle: async (candidateId) => ({ toHandle: await deps.offerBox.toHandle(candidateId) }),
 
     async offerBoxOffer(candidateId, entryId) {
       const entry = (await deps.offerBox.read(candidateId)).entries.find((one) => one.id === entryId);

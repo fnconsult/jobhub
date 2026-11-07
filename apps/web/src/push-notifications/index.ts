@@ -13,7 +13,8 @@
  *    once for the person, as its email is sent once (#699): a run started again, a webhook delivered twice or a request
  *    sent again queues nothing more. The keys are kept FAILURE_RETENTION_DAYS, with the event and when, never the text.
  *  - `send`: the worker's side. One notification to each of the person's devices whose session is still valid, for an
- *    event they did not switch off, in the device's language, through its platform's provider. A failure is kept with
+ *    event they did not switch off, in the device's language, through its platform's provider, with the app icon's
+ *    badge (`badge`: the person's offers à traiter, #818). A failure is kept with
  *    its Failure Reason, platform and event (never the token, the account nor the text), for FAILURE_RETENTION_DAYS.
  */
 import { isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
@@ -45,6 +46,11 @@ export interface PushNotificationsDeps {
   log?: (line: string) => void;
   /** The worker's job queue, which `notify` queues on (the web app's, or the worker's own). Without it, `notify` throws. */
   queue?: { send(name: string, data: object): Promise<void> };
+  /**
+   * The app icon's badge each notification sets: the person's offers à traiter at sending (#818, the Offer box's
+   * `offersToHandle`). Without it, or when it fails, the notification sets none.
+   */
+  badge?: (personId: string) => Promise<number>;
 }
 
 /** A device, as the person sees it: never its token. */
@@ -203,6 +209,8 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
         [personId, at, options.platform ?? null],
       );
       const senders = deps.senders();
+      // Counted once for every device; a count that fails leaves the badge as it is, never the notification unsent.
+      const badge = rows.length && deps.badge ? await deps.badge(personId).catch(() => undefined) : undefined;
       for (const device of rows) {
         const sender = senders[device.platform];
         let outcome: PushOutcome;
@@ -210,7 +218,8 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
           outcome = { ok: false, reason: "key_missing", tokenInvalid: false, status: null, message: `no ${device.platform} key entered` };
         } else {
           try {
-            outcome = await sender.send({ token: device.token, environment: device.environment }, pushMessage(notification, isSupportedLocale(device.language) ? device.language : "fr"));
+            const message = pushMessage(notification, isSupportedLocale(device.language) ? device.language : "fr");
+            outcome = await sender.send({ token: device.token, environment: device.environment }, badge === undefined ? message : { ...message, badge });
           } catch (error) {
             outcome = { ok: false, reason: "provider_unavailable", tokenInvalid: false, status: null, message: error instanceof Error ? error.message : String(error) };
           }

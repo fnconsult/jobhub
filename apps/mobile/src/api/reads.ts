@@ -13,6 +13,7 @@ import {
   jobSearchResponseSchema,
   offerBoxOfferResponseSchema,
   offerBoxResponseSchema,
+  offersToHandleResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
   tailoredDocumentsResponseSchema,
@@ -24,6 +25,7 @@ import {
   type JobSearchResponse,
   type OfferBoxOfferResponse,
   type OfferBoxResponse,
+  type OffersToHandleResponse,
   type ProfileResponse,
   type ProfilesResponse,
   type TailoredDocumentsResponse,
@@ -122,6 +124,12 @@ export const useTailoredDocuments = (applicationId: string): Read<TailoredDocume
 
 /** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
 export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);
+
+/**
+ * `GET /api/offer-box/count`: the Offer box's offers à traiter, without its entries (#818): the « N » of the Sidebar's
+ * « Recherches d'offres » and the app icon's badge.
+ */
+export const useOffersToHandle = (): Read<OffersToHandleResponse> => useRead("offersToHandle", "/api/offer-box/count", offersToHandleResponseSchema, []);
 
 /**
  * `GET /api/offer-box/:id`: one Offer box entry's Job Offer as its Work Pane shows it (#692), its text and why its Match

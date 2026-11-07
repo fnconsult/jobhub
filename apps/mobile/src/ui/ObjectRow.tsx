@@ -25,7 +25,9 @@ const ORIENTATIONS = ["portrait", "landscape"] as const;
  * A row of a list that names an object (an Application, a Job Offer, a Free conversation; #700): pressed, it opens it;
  * highlighted under a pointer; a long press or a right click opens its context menu with `actions`, which VoiceOver and
  * TalkBack also find among the row's actions. The menu closes on a choice, Échap, « Fermer », a tap beside it, or
- * Android's back. Without `actions` (a Sidebar's menu), a link highlighted under the pointer, and no menu.
+ * Android's back. Without `actions` (a Sidebar's menu), a link highlighted under the pointer, and no menu. `count`: a
+ * number at the row's end (Recherches d'offres' offers à traiter, #818), its `label` said after the row's to a screen
+ * reader; none at 0.
  */
 export function ObjectRow({
   label,
@@ -33,6 +35,7 @@ export function ObjectRow({
   current = false,
   onPress,
   actions,
+  count,
 }: {
   label: string;
   icon?: LucideIcon;
@@ -40,6 +43,7 @@ export function ObjectRow({
   current?: boolean;
   onPress: () => void;
   actions: readonly RowAction[];
+  count?: { value: number; label: string } | undefined;
 }) {
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
@@ -50,7 +54,7 @@ export function ObjectRow({
     <>
       <Pressable
         role="link"
-        aria-label={label}
+        aria-label={count && count.value > 0 ? `${label}, ${count.label}` : label}
         aria-selected={current}
         onPress={onPress}
         onLongPress={(event: GestureResponderEvent) => openMenu(event.nativeEvent)}
@@ -74,6 +78,13 @@ export function ObjectRow({
             {label}
           </AppText>
         </View>
+        {count && count.value > 0 ? (
+          <View style={{ minWidth: space[6], paddingHorizontal: space[2], borderRadius: radius.control, backgroundColor: colors.accent, alignItems: "center" }}>
+            <AppText weight="semiBold" tone="onAccent">
+              {String(count.value)}
+            </AppText>
+          </View>
+        ) : null}
       </Pressable>
       {menuAt ? <ContextMenu title={label} anchor={menuAt} actions={actions} onClose={() => setMenuAt(null)} /> : null}
     </>

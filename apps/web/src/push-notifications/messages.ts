@@ -2,11 +2,15 @@ import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { routes } from "../routes";
 import type { PushNotification } from "./catalog";
 
-/** What a device shows and opens: a fixed title and body, and the web app's path of the object (the app's deep link). */
+/**
+ * What a device shows and opens: a fixed title and body, and the web app's path of the object (the app's deep link);
+ * and, when it was counted, `badge`: the app icon's badge, the person's offers à traiter at sending (#818, ADR-0090).
+ */
 export interface PushMessage {
   title: string;
   body: string;
   path: string;
+  badge?: number;
 }
 
 /** The path a notification opens: its object's page, by id; the Agenda, the coach space or home for an event about no one object. */

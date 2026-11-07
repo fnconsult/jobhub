@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ObjectConversation } from "@/components/ObjectConversation";
+import { OffersToHandleLine } from "@/components/OffersToHandleLine";
 import { jobDigestFicheLinks } from "@/fiches";
 import { routes } from "@/routes";
 import type { JobDigestPageData } from "./job-digest-page";
@@ -13,11 +14,12 @@ const TIME_ZONE = "Europe/Paris";
 /**
  * A Job Digest's page under « Conversation au centre » (#605, ADR-0070): its Coach Conversation, whose Subject it is,
  * with its Introduction and suggestions until its first message; and the Fiche beside it: the Job Digest's card (its
- * Profile, when it was sent, how many Job Offers it brought), its Job Offers and its settings as Sections, and each Job
+ * Profile, when it was sent, how many Job Offers it brought, then « Il vous reste N offres à traiter » to Recherches
+ * d'offres while there are some, #818), its Job Offers and its settings as Sections, and each Job
  * Offer, with its Match Score, as a Result, opened in the Work Pane at its own address (`children`).
  */
 export function JobDigestConversation({ data, children }: { data: JobDigestPageData; children: ReactNode }) {
-  const { candidateId, jobDigest, t, locale, aiActivity, inView } = data;
+  const { candidateId, jobDigest, t, locale, aiActivity, inView, offersToHandle } = data;
   const { profile } = jobDigest;
   const sentOn = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: TIME_ZONE }).format(jobDigest.sentAt);
   return (
@@ -30,22 +32,25 @@ export function JobDigestConversation({ data, children }: { data: JobDigestPageD
       aiActivity={aiActivity}
       fiche={{
         card: (
-          <dl className="props">
-            <div className="prop">
-              <dt>{t("jobDigest.page.profileLabel")}</dt>
-              <dd>
-                <Link href={routes.profile(profile.id)}>{profile.name}</Link>
-              </dd>
-            </div>
-            <div className="prop">
-              <dt>{t("jobDigest.page.sentOnLabel")}</dt>
-              <dd>{sentOn}</dd>
-            </div>
-            <div className="prop">
-              <dt>{t("jobDigest.page.offersLabel")}</dt>
-              <dd>{jobDigest.results.length}</dd>
-            </div>
-          </dl>
+          <>
+            <dl className="props">
+              <div className="prop">
+                <dt>{t("jobDigest.page.profileLabel")}</dt>
+                <dd>
+                  <Link href={routes.profile(profile.id)}>{profile.name}</Link>
+                </dd>
+              </div>
+              <div className="prop">
+                <dt>{t("jobDigest.page.sentOnLabel")}</dt>
+                <dd>{sentOn}</dd>
+              </div>
+              <div className="prop">
+                <dt>{t("jobDigest.page.offersLabel")}</dt>
+                <dd>{jobDigest.results.length}</dd>
+              </div>
+            </dl>
+            <OffersToHandleLine count={offersToHandle} t={t} />
+          </>
         ),
         ...jobDigestFicheLinks(jobDigest, t),
       }}

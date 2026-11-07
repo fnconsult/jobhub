@@ -132,10 +132,11 @@ function serveWebApp() {
 }
 /**
  * What the app asked of the network beyond the reads every launch makes (the legal steps, whether the person is a Human
- * Coach, #689; the drawer's Free conversations, #690).
+ * Coach, #689; the drawer's Free conversations, #690; the offers à traiter of the Sidebar and the icon's badge, read
+ * again on each return to the foreground, #818).
  */
 const beyondLaunch = (fetch: { mock: { calls: unknown[][] } }) =>
-  fetch.mock.calls.map(([input]) => String(input)).filter((url) => !/\/api\/(account\/legal-steps\b|coach-space\b|coach\/conversations\?free=1$)/.test(url));
+  fetch.mock.calls.map(([input]) => String(input)).filter((url) => !/\/api\/(account\/legal-steps\b|coach-space\b|coach\/conversations\?free=1$|offer-box\/count$)/.test(url));
 /** The WebView shown, as the page drives it (src/testing-device.ts). */
 const webView = async () => (await screen.findByTestId("web-view"), fakeWebView.shown!);
 

@@ -11,7 +11,7 @@ import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers
 import { migrateJobDigests } from "../job-digests";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { backfillOfferBox, createOfferBox, dismissedJobOffers, migrateOfferBox, offerBoxOf, purgeExpiredOfferBoxEntries, recordArrivals, type OfferBox } from "./index";
+import { backfillOfferBox, createOfferBox, dismissedJobOffers, migrateOfferBox, offerBoxOf, offersToHandle, purgeExpiredOfferBoxEntries, recordArrivals, type OfferBox } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -326,6 +326,60 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       },
     ]);
     expect(await offerBoxOf(database, paul)).toEqual([]);
+  });
+
+  describe("the count of offers à traiter (#818): the Sidebar's, the app's badge and the Job Digest's line", () => {
+    async function arrived(title: string, options: { postedAt?: Date; at?: Date; candidateId?: string } = {}) {
+      const offer = await stored(title, options.postedAt ? { postedAt: options.postedAt } : {});
+      const candidateId = options.candidateId ?? marie;
+      await recordArrivals(database, { candidateId, profileId: candidateId === marie ? daf : null, source: "job_digest", at: options.at ?? clock.now, jobOfferIds: [offer] });
+      const { rows } = await database.query<{ id: string }>(`SELECT id FROM offer_box_entry WHERE job_offer_id = $1`, [offer]);
+      return { offer, entry: rows[0]!.id };
+    }
+
+    it("counts each entry à traiter, the Candidate's only; none is 0", async () => {
+      expect(await offersToHandle(database, marie, clock.now)).toBe(0);
+      await arrived("DAF H/F");
+      await arrived("DAF adjoint H/F");
+      await arrived("DAF de Paul", { candidateId: paul });
+
+      expect(await offersToHandle(database, marie, clock.now)).toBe(2);
+      expect(await offerBox.toHandle(marie)).toBe(2);
+      expect(await offersToHandle(database, paul, clock.now)).toBe(1);
+    });
+
+    it("counts « Plus tard »: it is not a decision", async () => {
+      const { entry } = await arrived("DAF H/F");
+      await database.query(`UPDATE offer_box_entry SET state = 'later', later_until = $2 WHERE id = $1`, [entry, new Date("2026-11-09T00:00:00+01:00")]);
+
+      expect(await offersToHandle(database, marie, clock.now)).toBe(1);
+    });
+
+    it("leaves out « Suivie » and « Écartée »; « Revenir sur ce choix » and a deleted Application count it again", async () => {
+      const { offer: followed } = await arrived("DAF H/F");
+      const { entry: dismissed } = await arrived("DAF adjoint H/F");
+      const saved = await applications.save(marie, { jobOfferId: followed, profileId: daf });
+      if (!saved.ok) throw new Error("fixture Application refused");
+      await offerBox.dismiss(marie, dismissed, { reason: "salary" });
+
+      expect(await offersToHandle(database, marie, clock.now)).toBe(0);
+
+      await offerBox.reconsider(marie, dismissed);
+      await database.query("DELETE FROM application WHERE id = $1", [saved.application.id]);
+      expect(await offersToHandle(database, marie, clock.now)).toBe(2);
+    });
+
+    it("leaves out « Expirée sans décision »: posted more than 30 French days ago, or arrived so when the Posting date is unknown", async () => {
+      // On the 5th of November in Paris, the 6th of October is 30 days before: still counted; the 5th, 31: expired.
+      await arrived("Publiée il y a 30 jours", { postedAt: new Date("2026-10-06T00:30:00+02:00") });
+      await arrived("Publiée il y a 31 jours", { postedAt: new Date("2026-10-05T23:30:00+02:00") });
+      await arrived("Sans date, arrivée il y a 31 jours", { at: new Date("2026-10-05T12:00:00+02:00") });
+      await arrived("Sans date, arrivée il y a 30 jours", { at: new Date("2026-10-06T12:00:00+02:00") });
+
+      expect(await offersToHandle(database, marie, clock.now)).toBe(2);
+      // A day later, the two left expire too.
+      expect(await offersToHandle(database, marie, new Date("2026-11-06T10:00:00+01:00"))).toBe(0);
+    });
   });
 
   describe("at launch, filled from the last 30 days", () => {

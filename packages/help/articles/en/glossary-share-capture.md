@@ -10,3 +10,5 @@ Share to Jobbbox (share capture) means sending a job offer to the Jobbbox app fr
 Jobbbox reads the link itself, following the site's rules, as its job search does: your phone never reads the page. Where the site forbids it (LinkedIn, Indeed…), the screen asks you to share or paste the job offer's text.
 
 The job offer becomes a private job offer, which only you can see, opened in its own conversation with your AI coach, which offers « Score against my profile ». If you share the same job offer twice, it is the same private job offer. Nothing you shared is kept beyond the job offer created.
+
+Shared, the job offer does not enter « Offers to handle ». Once saved as an application, on the website or by asking your coach, it arrives there already « Followed », with the chip « Share ».

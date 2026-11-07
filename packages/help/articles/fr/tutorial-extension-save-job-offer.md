@@ -3,7 +3,7 @@ kind: tutorial
 audience: candidate
 topic: extension
 title: Enregistrer une offre avec l'extension
-synonyms: [extension, navigateur, chrome, capturer, enregistrer une offre, ajouter une offre, nouvelle candidature, choisir un profil, profil utilisé, changer de profil, connecté]
+synonyms: [extension, navigateur, offres à traiter, suivie, suivre, chrome, capturer, enregistrer une offre, ajouter une offre, nouvelle candidature, choisir un profil, profil utilisé, changer de profil, connecté]
 ---
 Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de vos profils, puis l'enregistre dans vos candidatures, sans la recopier.
 
@@ -13,3 +13,5 @@ Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de v
 4. Pour comparer l'offre à un autre de vos profils, choisissez-le dans « Profil comparé à cette offre » : le score est recalculé avec lui.
 5. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature. Si vous avez importé un CV dans le panneau, « Un nouveau profil, à partir de ce CV » en fait un nouveau profil.
 6. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox.
+
+Une offre enregistrée en candidature depuis l'extension rejoint aussi « Offres à traiter », dans Recherches d'offres, déjà « Suivie », avec la puce « Extension », qui la retrouve. Une offre seulement analysée, sans « Enregistrer en candidature », n'y entre pas.

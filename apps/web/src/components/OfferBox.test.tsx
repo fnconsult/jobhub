@@ -58,7 +58,7 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
     expect(within(offerBox()).getByText("1 traitée")).toBeTruthy();
     expect(within(offerBox()).getByRole("progressbar", { name: "Traitées : 1 sur 3" }).getAttribute("aria-valuenow")).toBe("1");
     const chips = within(offerBox()).getByRole("group", { name: "Filtrer par source" });
-    expect(within(chips).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["Toutes2", "Recherche2", "Job Digest0", "Email1", "Lien du coach0", "Extension0"]);
+    expect(within(chips).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["Toutes2", "Recherche2", "Job Digest0", "Email1", "Lien du coach0", "Extension0", "Partage0"]);
     expect(within(chips).getByRole("button", { name: "Toutes, 2 à traiter" }).getAttribute("aria-pressed")).toBe("true");
   });
 
@@ -128,6 +128,30 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
 
     expect(within(offerBox()).getByRole("button", { name: "Job Digest, 1 à traiter" }).getAttribute("aria-pressed")).toBe("true");
     expect(within(offerBox()).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre a"]);
+  });
+
+  it("the « Extension » chip shows the Captures followed, and « Partage » the Share captures followed, each « Suivie » with its chip (#819)", async () => {
+    const followed = { state: "followed", applicationId: "app", followedAt: "2026-11-05T10:00:00.000Z" } as const;
+    renderInFrench(
+      <OfferBox
+        box={box([
+          entry("capturée", { sources: [{ source: "extension", at: "2026-11-05T10:00:00.000Z" }], ...followed }),
+          entry("partagée", { sources: [{ source: "share", at: "2026-11-05T11:00:00.000Z" }], ...followed }),
+          entry("trouvée"),
+        ])}
+      />,
+    );
+
+    await userEvent.click(within(offerBox()).getByRole("button", { name: "Extension, 0 à traiter" }));
+    const today = day("Aujourd'hui");
+    expect(within(today).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre capturée"]);
+    const captured = within(today).getByRole("listitem", { name: "Offre capturée" });
+    expect(captured.textContent).toContain("Suivie");
+    expect(captured.textContent).toContain("Extension");
+
+    await userEvent.click(within(offerBox()).getByRole("button", { name: "Partage, 0 à traiter" }));
+    expect(within(day("Aujourd'hui")).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre partagée"]);
+    expect(within(day("Aujourd'hui")).getByRole("listitem", { name: "Offre partagée" }).textContent).toContain("Partage");
   });
 
   it("« Écarter » opens the Dismissal reasons and « Écarter sans motif »; a reason écarte the entry, then a toast offers « Annuler » (#816)", async () => {

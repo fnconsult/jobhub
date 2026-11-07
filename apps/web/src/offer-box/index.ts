@@ -8,7 +8,9 @@
  *    Arrival of a Job Offer makes its entry, with that Arrival's Profile (none: « Non classée ») and day; a later one
  *    adds its source, with its date, and moves nothing. A Job Offer private to another Candidate (ADR-0049) makes no
  *    entry. Each door calls it where it records what it brought, in the same transaction when it has one; each door's
- *    migration creates the table (`migrateOfferBox`) for that reason.
+ *    migration creates the table (`migrateOfferBox`) for that reason. A Capture (« Extension ») and a Share capture
+ *    (« Partage ») arrive only once followed (#819): `applications.save` records them with the Application it creates,
+ *    whose existence makes the entry « Suivie »; a Capture not followed records nothing.
  *  - `createOfferBox(database, deps).read(candidateId)`: the Candidate's entries, the most recent first Arrival first,
  *    each with its Job Offer, its Match Score (rules only, scoreMatch: against its Profile's current Master CV, or for a
  *    « Non classée » one the active Profile it matches best), and where it stands. « Suivie » is read from the

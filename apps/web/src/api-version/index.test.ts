@@ -1,6 +1,6 @@
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { apiVersionRefusal, fromJobbboxApp, underApiContract } from ".";
+import { apiVersionRefusal, fromExtension, fromJobbboxApp, underApiContract } from ".";
 
 const EXTENSION = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 const STORE = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
@@ -57,6 +57,13 @@ describe("the API Version's guard (#564)", () => {
     for (const origin of [EXTENSION, "moz-extension://5f1b0e3a-1111-4c2d-9e8f-000000000000", "safari-web-extension://ABCD"]) {
       expect(underApiContract("/api/job-offers", headers({ origin }))).toBe(true);
     }
+  });
+
+  it("tells the extension's request from the web's and the app's, which « Suivre » in the Side Panel records as an Arrival « Extension » (#819)", () => {
+    expect(fromExtension(headers({ origin: EXTENSION }))).toBe(true);
+    expect(fromExtension(headers({ origin: "moz-extension://5b1c2d3e-0000-4000-8000-000000000000" }))).toBe(true);
+    expect(fromExtension(headers({ origin: "https://jobbbox.ai" }))).toBe(false);
+    expect(fromExtension(headers({ [API_CLIENT_HEADER]: MOBILE_CLIENT }))).toBe(false);
   });
 
   it("leaves out the webhooks, the health check, sign-in and the pages", () => {

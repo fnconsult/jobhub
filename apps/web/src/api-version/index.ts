@@ -33,7 +33,11 @@ export function fromJobbboxApp(headers: Headers): boolean {
   return headers.get(API_CLIENT_HEADER) === MOBILE_CLIENT;
 }
 
-function fromExtension(headers: Headers): boolean {
+/**
+ * Whether a request comes from the browser extension: by its Origin, or, on a GET, which carries none, by the fetch no
+ * page started. « Suivre » in its Side Panel is then an Arrival « Extension » in the Offer box (#819).
+ */
+export function fromExtension(headers: Headers): boolean {
   if (EXTENSION_ORIGIN.test(headers.get("origin") ?? "")) return true;
   return headers.get("sec-fetch-site") === "none" && headers.get("sec-fetch-mode") === "cors";
 }

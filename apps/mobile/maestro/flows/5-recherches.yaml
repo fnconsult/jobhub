@@ -28,6 +28,34 @@ tags:
     env:
       TEXT: "Suivre( : Cheffe de projet qualité)?"
       DIRECTION: DOWN
+# Its whole button above the box, not only its top: Maestro's « above » compares tops, and on an iPhone SE the button
+# started 19 pt above the box, its centre, where the tap goes, 3 pt inside it (run 42413471132, iphone-se light: the
+# tap hit the box, nothing followed). The next entry's title, under the button, pulled above the box too.
+- repeat:
+    while:
+      notVisible:
+        text: "Auditrice qualité fournisseurs · Industries Démo"
+        above:
+          id: "conversation-box"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 45%"
+          end: "40%, 30%"
+          duration: 3000
+# And its top still in the thread (at the largest text size, a pull too far takes it under the Top Bar).
+- repeat:
+    while:
+      notVisible:
+        text: "Suivre( : Cheffe de projet qualité)?"
+        below:
+          id: "conversation-thread"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 30%"
+          end: "40%, 45%"
+          duration: 3000
 - tapOn:
     text: "Suivre( : Cheffe de projet qualité)?"
     index: 0

@@ -50,7 +50,15 @@ appId: ai.jobbbox.app
 - launchApp:
     appId: "com.apple.mobilesafari"
     stopApp: false
+# The app in its half, signed out at this point (prepare runs before sign-in): its sign-in page, or « Menu » once
+# signed in. Safari, opened last, has the focus and its keyboard up (run 42370572968's failure screen): a tap on the
+# app's own title gives it back to the app, and the keyboard goes.
 - extendedWaitUntil:
-    visible: "Menu"
+    visible: "(Menu|Se connecter à Jobbbox)"
     timeout: 20000
+- runFlow:
+    when:
+      visible: "Se connecter à Jobbbox"
+    commands:
+      - tapOn: "Se connecter à Jobbbox"
 - takeScreenshot: split-view-4-split

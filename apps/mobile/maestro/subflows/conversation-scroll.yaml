@@ -8,6 +8,8 @@
 # first, then back the other way, should the element have come in where the steps had already been (a card still
 # loading). Then pulled within the column: iOS gives Maestro an element's whole frame, the part the column clips
 # included, and an iPhone SE's tap on a card under the Top Bar hit the page's title.
+# Up to 80 steps each way: at iOS's largest text size on an iPhone SE the coach's welcome takes a line a word, and 25
+# steps (some 2 500 pt) stopped short of Mes candidatures' cards (run 42361117140, iphone-se light-largest-text).
 appId: ai.jobbbox.app
 ---
 - runFlow:
@@ -18,7 +20,7 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               text: ${TEXT}
-          times: 25
+          times: 80
           commands:
             - swipe:
                 start: "40%, 30%"
@@ -28,7 +30,7 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               text: ${TEXT}
-          times: 25
+          times: 80
           commands:
             - swipe:
                 start: "40%, 45%"
@@ -42,7 +44,7 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               text: ${TEXT}
-          times: 25
+          times: 80
           commands:
             - swipe:
                 start: "40%, 45%"
@@ -52,7 +54,7 @@ appId: ai.jobbbox.app
           while:
             notVisible:
               text: ${TEXT}
-          times: 25
+          times: 80
           commands:
             - swipe:
                 start: "40%, 30%"

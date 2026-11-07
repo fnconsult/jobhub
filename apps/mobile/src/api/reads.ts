@@ -11,6 +11,7 @@ import {
   enrichedContactsResponseSchema,
   jobDigestResponseSchema,
   jobSearchResponseSchema,
+  offerBoxOfferResponseSchema,
   offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
@@ -21,6 +22,7 @@ import {
   type EnrichedContactsResponse,
   type JobDigestResponse,
   type JobSearchResponse,
+  type OfferBoxOfferResponse,
   type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
@@ -120,6 +122,13 @@ export const useTailoredDocuments = (applicationId: string): Read<TailoredDocume
 
 /** `GET /api/offer-box`: the Offer box (« Offres à traiter », ADR-0090), Recherches d'offres' screen; kept on the device (READS). */
 export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/api/offer-box", offerBoxResponseSchema, []);
+
+/**
+ * `GET /api/offer-box/:id`: one Offer box entry's Job Offer as its Work Pane shows it (#692), its text and why its Match
+ * Score, against the Profile « Suivre » saves it with; kept on the device (READS), as a Job Search's Job Offers.
+ */
+export const useOfferBoxOffer = (entryId: string): Read<OfferBoxOfferResponse> =>
+  useRead("offerBoxOffer", `/api/offer-box/${segment(entryId)}`, offerBoxOfferResponseSchema, [entryId]);
 
 /** How often a Job Search's page reads it again while it searches: the web's page refreshes itself as often. */
 const WHILE_SEARCHING_MS = 5000;

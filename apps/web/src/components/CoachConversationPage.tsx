@@ -10,6 +10,8 @@ import type { SubjectRef } from "@/coach-conversations";
 import type { CoachProposalCard as ProposalCard } from "@/coach-proposals/card";
 import { formOpenedOnArrival, readCoachProposalsDisplay } from "@/coach-proposals-display/choice";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
+import { threadReplies } from "@/ai-activity/thread";
+import { useShowInActivity } from "@/components/AiActivity";
 import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
 import { fetchConversation } from "@/components/chat-conversation";
 import type { ConversationSummary } from "@/components/CoachConversationList";
@@ -37,13 +39,6 @@ import { formatDuration, formatTokens, isFailureReason, type FailureReason, type
  */
 export type InView = CoachFocus & { name: string; profileId?: string };
 
-/**
- * An AI Coach reply given in this browser about the page's object (an Application, a Profile, a Job Search, a Job Digest
- * or the Agenda): AI Activity counts it with that page at once (#332), before the page is next loaded with it; `sent`, what
- * it sent in all its AI calls (#805), as saved (null when none was kept).
- */
-export type ReplyInView = { provenance: Provenance | null; at: string; sent: ReplyCost | null };
-
 /** What the suggestions above the box need from the page's conversation. */
 type Control = {
   /** Puts the focus in the message box. */
@@ -66,9 +61,6 @@ export function useAskCoach(): ((text: string) => void) | null {
 export function useFocusCoachBox(): (() => void) | null {
   return useContext(BoxControl)?.focusBox ?? null;
 }
-
-/** What a reply is kept with as its Focus (coach-conversations, the six kinds In view since #600), so counted with their page. */
-const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile", "job_search", "job_digest", "agenda"]);
 
 type Status = "idle" | "sending" | "unavailable" | "invalid";
 
@@ -257,8 +249,9 @@ export function CoachConversationPage(page: PagePlacement) {
   const messagesEnd = useRef<HTMLDivElement>(null);
   // Its foot, the box, stays at the bottom of the screen over the thread.
   const foot = useRef<HTMLDivElement>(null);
-  // The replies given about the page's object, for AI Activity (#332).
-  const [repliesInView, setRepliesInView] = useState<readonly ReplyInView[]>([]);
+  // The replies the thread shows, for its Activity's history (ADR-0086, #808): with their questions and cards.
+  const replies = useMemo(() => threadReplies(messages), [messages]);
+  const showInActivity = useShowInActivity();
   // The help (#342): the Help Articles matching the draft, once the Candidate pauses; the one read last, whose title goes
   // with the next message; the question the AI Coach could not answer, for the help to answer instead.
   const locale = helpLocale(i18n.language);
@@ -342,14 +335,14 @@ export function CoachConversationPage(page: PagePlacement) {
       conversationId: conversationOnPage,
       replying,
       context,
-      repliesInView,
+      replies,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
       // An object's or a menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
       startNew: subject ? null : () => pageActions.current?.startNew(),
       askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
-  }, [registerPage, conversationOnPage, replying, subject, context, repliesInView]);
+  }, [registerPage, conversationOnPage, replying, subject, context, replies]);
 
   /** A Help Article, from the help's suggestions or the Introduction: in the Work Pane, beside the conversation (#602). */
   function showArticle(article: HelpArticle) {
@@ -461,8 +454,6 @@ export function CoachConversationPage(page: PagePlacement) {
     sentHere.current = true;
     const before = messages;
     const current = conversation;
-    // What the reply is about, as the server keeps it: counted with that page in AI Activity.
-    const about = inView !== null && FOCUS_KINDS.has(inView.kind);
     const shown: ThreadMessage[] = [...before, { from: "candidate", text }];
     setMessages(shown);
     setDraft("");
@@ -536,8 +527,6 @@ export function CoachConversationPage(page: PagePlacement) {
           ...(wordsMove() ? { revealing: replyWordCount(body.reply) } : {}),
         },
       ]);
-      const at = body.at;
-      if (about && typeof at === "string") setRepliesInView((given) => [...given, { provenance: body.provenance ?? null, at, sent: body.sent ?? null }]);
       setReadArticle(null);
       setStatus("idle");
       shownLive?.end("done");
@@ -703,6 +692,8 @@ export function CoachConversationPage(page: PagePlacement) {
               ) : (
                 <li
                   key={index}
+                  // Where « Voir dans la conversation » brings it (#808): a saved reply, by when it was saved.
+                  data-message-id={message.from === "coach" && message.at ? message.at : undefined}
                   className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}${message.from === "coach" && message.revealing !== undefined ? " chat-revealing" : ""}`}
                   aria-busy={(message.from === "coach" && message.revealing !== undefined) || undefined}
                   style={message.from === "coach" && message.revealing !== undefined ? ({ "--reply-words": message.revealing } as CSSProperties) : undefined}
@@ -715,10 +706,15 @@ export function CoachConversationPage(page: PagePlacement) {
                   {/* What the AI Coach consulted in Jobbbox (#788), folded, before the Provenance line. */}
                   {message.from === "coach" ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
                   {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
-                  {/* Its Coach proposals (#715), each an Action Card, after its Provenance line. */}
+                  {/* « Dans l'activité » (#808): its entry in the page's Activity. */}
+                  {message.from === "coach" && message.at && showInActivity ? <InActivity onShow={() => showInActivity({ messageId: message.at! })} /> : null}
+                  {/* Its Coach proposals (#715), each an Action Card, after its Provenance line, with « Dans l'activité » once decided. */}
                   {message.from === "coach" && message.cards?.length
-                    ? message.cards.map((card) => (
-                        <CoachProposalCard key={card.id} card={card} onChange={(changed) => cardChanged(index, changed)} openOnArrival={message.openForm === card.id} />
+                    ? message.cards.map((card, at) => (
+                        <div key={card.id} className="chat-card-with-activity">
+                          <CoachProposalCard card={card} onChange={(changed) => cardChanged(index, changed)} openOnArrival={message.openForm === card.id} />
+                          {message.at && showInActivity && card.status !== "pending" ? <InActivity onShow={() => showInActivity({ messageId: message.at!, card: at })} /> : null}
+                        </div>
                       ))
                     : null}
                   {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
@@ -839,6 +835,17 @@ export function CoachConversationPage(page: PagePlacement) {
         </div>
       </section>
     </BoxControl.Provider>
+  );
+}
+
+/** « Dans l'activité » under a reply or a card of the thread (#808): opens the page's Activity on its entry. */
+function InActivity({ onShow }: { onShow: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button type="button" className="chat-in-activity" onClick={onShow}>
+      <Icons.aiActivity />
+      {t("aiActivity.history.inActivity")}
+    </button>
   );
 }
 

@@ -1,4 +1,4 @@
-import type { CoachMessage, ConversationContext, JobOfferCard } from "@/coach/conversation";
+import type { CoachMessage, ConversationContext, JobOfferCard, ReplyCost } from "@/coach/conversation";
 import type { ConversationSummary } from "@/components/CoachConversationList";
 import type { CoachProposalCard } from "@/coach-proposals/card";
 import type { Provenance } from "@jobhub/shared";
@@ -19,6 +19,8 @@ export type ServerMessage = {
   /** On a reply: what served it (#327), null when nothing was kept, and when it was saved. */
   provenance?: Provenance | null;
   at?: string;
+  /** On a saved AI Coach reply: what it sent in all its AI calls (#805), null for one saved before #791. */
+  sent?: ReplyCost | null;
   /** On an AI Coach reply: its Coach proposals' Action Cards (#715). */
   cards?: CoachProposalCard[];
   /** On an AI Coach reply: what its Coach Actions saw, named by page (#788). */
@@ -31,7 +33,7 @@ export const asShownMessage = (message: ServerMessage): CoachMessage => ({
   text: message.text,
   ...(message.blocked ? { blocked: true as const } : {}),
   ...(message.jobOffer ? { jobOffer: message.jobOffer } : {}),
-  ...(message.at ? { provenance: message.provenance ?? null, at: message.at } : {}),
+  ...(message.at ? { provenance: message.provenance ?? null, at: message.at, ...(message.sent !== undefined ? { sent: message.sent } : {}) } : {}),
   ...(Array.isArray(message.cards) && message.cards.length > 0 ? { cards: message.cards } : {}),
   ...(message.seenNames && typeof message.seenNames === "object" ? { seenNames: message.seenNames } : {}),
 });

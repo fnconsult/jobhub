@@ -100,6 +100,7 @@ test.describe("Back Office « Activité » (#404)", () => {
 
   let jobSearchId: string;
   let runId: string;
+  const candidateEmail = newAddress("activite-candidate");
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(150_000);
@@ -108,7 +109,7 @@ test.describe("Back Office « Activité » (#404)", () => {
     await expect.poll(() => workerOutput, { timeout: 90_000 }).toMatch(/\[worker\] running \d+ job\(s\)/);
 
     // A Candidate starts a Job Search for their Profile; the worker runs it.
-    const candidate = await personPage(browser, newAddress("activite-candidate"));
+    const candidate = await personPage(browser, candidateEmail);
     const created = await candidate.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], contractTypes: ["cdi"] } } });
     expect(created.status(), await created.text()).toBe(201);
     const started = await candidate.request.post("/api/job-searches", { headers: { origin }, data: { profileId: (await created.json()).id } });
@@ -179,6 +180,36 @@ test.describe("Back Office « Activité » (#404)", () => {
     await expect(viewed).toHaveCount(1);
     await expect(viewed).toContainText(admin.journal.actions.viewed);
     await expect(viewed).toContainText(SUPER_ADMIN);
+  });
+
+  // Issue #808 (ADR-0086): the Candidate's side of the same run. The Job Search's page, with its search and a reply of the AI
+  // Coach in its conversation, shows both in its Activity's history, newest first, after a reload too.
+  test("the Job Search's page shows its run and a Coach reply in its Activity's history, in the order of time, after a reload", async ({ browser }) => {
+    const candidate = await personPage(browser, candidateEmail);
+    await candidate.setViewportSize({ width: 1600, height: 1000 });
+    await candidate.goto(`/recherches/${jobSearchId}`);
+    const conversation = candidate.getByRole("region", { name: fr.conversationFirst.label });
+    await conversation.getByRole("textbox", { name: fr.coachPanel.messageLabel }).fill("Lesquelles sont les plus proches de mon profil ?");
+    await conversation.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+    await expect(conversation.locator("li[data-message-id]")).toHaveCount(1, { timeout: 30_000 });
+
+    await candidate.reload();
+    const fiche = candidate.getByRole("complementary", { name: fr.fiche.label, exact: true });
+    const titles = fiche.locator(".activity-entry-title");
+    await expect(titles.first()).toHaveText(fr.aiActivity.kinds.coach_reply);
+    await expect(titles.last()).toHaveText(fr.aiActivity.kinds.job_search);
+    // The run: its Plan Quota with the week's use, the offers it kept, and its page.
+    const run = fiche.locator(".activity-entry").filter({ has: candidate.locator(".activity-entry-title").getByText(fr.aiActivity.kinds.job_search, { exact: true }) });
+    await expect(run.locator(".activity-entry-row")).toContainText(fr.aiActivity.history.cost.quota.jobSearches);
+    await run.locator(".activity-entry-row").click();
+    await expect(run.getByRole("link", { name: fr.aiActivity.history.open.job_search })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
+    // The reply: its question, and its message in the thread.
+    const reply = fiche.locator(".activity-entry").first();
+    await reply.locator(".activity-entry-row").click();
+    await expect(reply).toContainText(tr(fr.aiActivity.history.you, { question: "Lesquelles sont les plus proches de mon profil ?" }));
+    await reply.getByRole("button", { name: fr.aiActivity.history.inConversation }).click();
+    await expect(conversation.locator("li[data-message-id]")).toHaveAttribute("data-highlighted", "true");
+    await candidate.context().close();
   });
 
   test("the former Journal and Journaux IA addresses lead to their tab of Activité, with their filters", async ({ browser }) => {

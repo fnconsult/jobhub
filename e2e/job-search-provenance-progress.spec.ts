@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
-import { jobSearchPage } from "../apps/web/src/ai-activity";
+import { jobSearchPage, paneElements } from "../apps/web/src/ai-activity";
 import { createJobOffers } from "../apps/web/src/job-offers";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -242,9 +242,11 @@ test.describe("A Job Search shows its steps while it runs and keeps its Provenan
     expect(row.job_offer_ids.length).toBeGreaterThanOrEqual(1);
     const pool = new pg.Pool({ connectionString: databaseUrl });
     try {
-      const elements = await jobSearchPage(
-        { jobOffers: createJobOffers(pool), coachReplies: { repliesAbout: async () => [] } },
-        [{ startedAt: new Date(), provenance, results: row.job_offer_ids.map((offerId) => ({ jobOffer: { id: offerId, title: "Offer" } })) }],
+      const elements = paneElements(
+        await jobSearchPage(
+          { jobOffers: createJobOffers(pool), coachReplies: { repliesAbout: async () => [] } },
+          [{ startedAt: new Date(), provenance, results: row.job_offer_ids.map((offerId) => ({ jobOffer: { id: offerId, title: "Offer" } })) }],
+        ),
       );
       expect(elements[0]!.kind).toBe("job_search");
       expect(elements[0]!.served, "the search's Provenance is read").not.toBeNull();

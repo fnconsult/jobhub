@@ -86,7 +86,7 @@ test.describe("AI Activity: stopped or failed elements in « Par élément » (#
     await expect(pane.locator(".fiche-activity")).toBeVisible();
 
     // Its element says it stopped, and when, on light red like a stopped live action.
-    const stopped = pane.locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds.job_search });
+    const stopped = pane.locator(".activity-entry").filter({ hasText: fr.aiActivity.kinds.job_search });
     await expect(stopped).toContainText(fr.aiActivity.ended.stopped.replace("{{time}}", endedAt));
     await expect(stopped).toHaveAttribute("data-end", "stopped");
     const surface = await page.evaluate(() => {
@@ -99,10 +99,11 @@ test.describe("AI Activity: stopped or failed elements in « Par élément » (#
     });
     expect(await stopped.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(surface);
 
-    // The Job Offer it kept is done; the Total still counts what the stopped search spent.
-    const kept = pane.locator(".ai-activity-element").filter({ hasText: "DAF Lyon" });
+    // The Job Offer it kept is done; the stopped search's cost still says what it spent (#808).
+    const kept = pane.locator(".activity-entry").filter({ hasText: "DAF Lyon" });
     await expect(kept).not.toHaveAttribute("data-end", /.*/);
-    await expect(pane.locator(".ai-activity-total")).toContainText("1,1k tokens");
+    await stopped.locator(".activity-entry-row").click();
+    await expect(stopped.locator(".activity-entry-detail")).toContainText("1,1k jetons");
     await expect(aiActivityButton(page)).toHaveAttribute("aria-expanded", "true");
 
     const results = await new AxeBuilder({ page }).include(".fiche-activity").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
@@ -124,9 +125,11 @@ test.describe("AI Activity: stopped or failed elements in « Par élément » (#
 
     await page.goto(`/recherches/${search!.id}`);
     await openActivity(page);
-    const failed = paneOf(page).locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds.job_search });
+    const failed = paneOf(page).locator(".activity-entry").filter({ hasText: fr.aiActivity.kinds.job_search });
     await expect(failed).toHaveAttribute("data-end", "failed");
     await expect(failed).toContainText(fr.aiActivity.ended.failedUndated);
+    // Its Failure Reason, in its detail.
+    await failed.locator(".activity-entry-row").click();
     await expect(failed).toContainText(fr.jobSearch.failureReasons.discovery_failed);
   });
 });

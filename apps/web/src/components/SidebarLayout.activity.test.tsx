@@ -3,6 +3,8 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Provenance } from "@jobhub/shared";
+import { activityEntries, type ServedEntry } from "@/ai-activity/entries";
 import { renderInFrench } from "@/design/testing";
 import { useConversationFirst, type PageConversation } from "./conversation-first";
 import { SidebarLayout } from "./SidebarLayout";
@@ -24,9 +26,9 @@ function Conversation({ context }: { context: PageConversation["context"] }) {
   return <p>La conversation</p>;
 }
 
-function Page({ fiche = null }: { fiche?: Parameters<typeof SidebarLayout>[0]["fiche"] }) {
+function Page({ fiche = null, aiActivity = [] }: { fiche?: Parameters<typeof SidebarLayout>[0]["fiche"]; aiActivity?: readonly ServedEntry[] }) {
   return (
-    <SidebarLayout profiles={[]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={[]} fiche={fiche}>
+    <SidebarLayout profiles={[]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={[]} fiche={fiche} aiActivity={aiActivity}>
       <Conversation context={{ messages: 12, tokens: 3_100 }} />
     </SidebarLayout>
   );
@@ -45,7 +47,18 @@ function inOrder(column: HTMLElement): string[] {
     .sort(([, a], [, b]) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
     .map(([name]) => name);
 }
-const activityButton = () => within(topBar()).getByRole("button", { name: "Activité" });
+/** AI Activity's button (#809, ADR-0086): « Activité » in the Top Bar, named « Activité IA » and its words. */
+const activityButton = () => within(topBar()).getByRole("button", { name: /^Activité IA/ });
+
+/** An AI Coach reply the server read, written by Mistral Large: the page's summary is « 1 modèle · 6,9k tokens ». */
+const written: Provenance = {
+  v: 1,
+  steps: [{ kind: "ai", activity: "think_write", task: "coaching", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest", tokens: { input: 6_000, output: 900 }, ms: 9_000, at: "2026-11-07T09:00:00.000Z", outcome: "ok", count: 1 }],
+  sites: [],
+  startedAt: "2026-11-07T09:00:00.000Z",
+  wallMs: 9_000,
+};
+const REPLIED = activityEntries({ page: "any", replies: [{ messageId: "m1", at: written.startedAt, question: "Et ce CV ?", provenance: written, sent: null, cards: [] }] });
 
 describe("« Activité » on the home page and the menus (#607, ADR-0070)", () => {
   beforeEach(() => {
@@ -61,13 +74,46 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("is in the Top Bar in place of AI Activity's button, the column closed", () => {
+  it("is AI Activity's button in the Top Bar, « Activité » on its frame and named « Activité IA », the column closed (#809)", () => {
     renderInFrench(<Page />);
 
+    expect(within(topBar()).getAllByRole("button", { name: /Activité/ })).toEqual([activityButton()]);
     expect(activityButton().getAttribute("aria-expanded")).toBe("false");
-    expect(within(topBar()).queryByRole("button", { name: /Activité IA/ })).toBeNull();
+    expect(activityButton().getAttribute("title")).toBe("Activité IA");
+    // A page with no AI yet: no words, its name « Activité IA » alone.
+    expect(within(topBar()).getByRole("button", { name: "Activité IA" })).toBe(activityButton());
+    expect(activityButton().textContent).toBe("Activité");
     expect(within(topBar()).queryByRole("button", { name: "Fiche" })).toBeNull();
     expect(screen.queryByRole("complementary", { name: "Activité" })).toBeNull();
+  });
+
+  it("keeps its words, the page's summary, left of its frame and in its name (#369, #809)", () => {
+    renderInFrench(<Page aiActivity={REPLIED} />);
+
+    expect(within(topBar()).getByText("1 modèle · 6,9k tokens")).toBeTruthy();
+    expect(within(topBar()).getByRole("button", { name: "Activité IA 1 modèle · 6,9k tokens" })).toBe(activityButton());
+  });
+
+  it("opens Activity when its words are clicked, the focus on the button (#809)", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<Page aiActivity={REPLIED} />);
+
+    await user.click(within(topBar()).getByText("1 modèle · 6,9k tokens"));
+
+    expect(screen.getByRole("complementary", { name: "Activité" })).toBeTruthy();
+    expect(document.activeElement).toBe(activityButton());
+  });
+
+  it("closes Activity with Escape, the focus staying on the button (#809)", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<Page />);
+    await user.click(activityButton());
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("complementary", { name: "Activité" })).toBeNull();
+    expect(activityButton().getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(activityButton());
   });
 
   it("opens the Activité column beside the conversation, with the Context bar and AI Activity, and no heading nor ✕", async () => {

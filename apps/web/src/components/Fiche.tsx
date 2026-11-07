@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AiActivityContent, useAiActivityUnderWay } from "@/components/AiActivity";
-import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { AiActivityButton, AiActivityContent } from "@/components/AiActivity";
 import { ActivityColumnControl, type ActivityColumn } from "@/components/activity-column";
 import { ContextBar } from "@/components/ContextBar";
 import { EnCeMoment } from "@/components/EnCeMoment";
@@ -67,8 +66,6 @@ const MAIN_ID = "main";
 const SECTIONS: FicheGroup = "sections";
 const ACTIVITY: FicheGroup = "activity";
 const RESULTS: FicheGroup = "results";
-/** The glyph « Activité » shows while an AI action of the page is under way, before its step is known. */
-const UNDER_WAY = "think";
 
 /** Calls `onChange` when the screen crosses 64rem: below it, the columns open over the conversation, full screen (#608). */
 function onWideChange(onChange: () => void) {
@@ -153,7 +150,7 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
     back?.focus();
   }, [state.open]);
   const control = useMemo<Control>(() => {
-    // « Fiche » and « Activité » act on what is shown: a Fiche that has given way is brought back, in the Work Pane's place.
+    // « Fiche » and AI Activity's button act on what is shown: a Fiche that has given way is brought back, in the Work Pane's place.
     const shown = { ...state, open: state.open && !givenWay };
     const bringBack = () => {
       if (givenWay) workPane?.close();
@@ -184,10 +181,14 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
       },
     };
   }, [object, state, givenWay, workPane, ficheId, activityAsked, wide]);
-  // « Dans l'activité » opens it on its Activity; « Voir dans la conversation » closes it where it covers the conversation (#808).
+  // AI Activity's button shows or hides it (#809); « Dans l'activité » opens it on its Activity; « Voir dans la
+  // conversation » closes it where it covers the conversation (#808).
   const column = useMemo<ActivityColumn>(() => {
     const shown = { ...state, open: state.open && !givenWay };
     return {
+      shown: object ? activityShown(shown) : shown.open,
+      toggle: control.toggleActivity,
+      controls: shown.open ? control.ficheId : undefined,
       open: () => {
         setActivityAsked((n) => n + 1);
         if (object ? activityShown(shown) : shown.open) return;
@@ -200,7 +201,7 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
         setChanged({ ...state, open: false });
       },
     };
-  }, [object, state, givenWay, workPane, wide]);
+  }, [object, state, givenWay, workPane, wide, control]);
   return (
     <FicheControl.Provider value={control}>
       <ActivityColumnControl.Provider value={column}>{children}</ActivityColumnControl.Provider>
@@ -209,43 +210,26 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
 }
 
 /**
- * « Fiche » and « Activité » in the Top Bar of an object's page (#603): they alone open and close the Fiche, « Activité »
- * on its Activity group, its glyph live while an AI action of the page is under way. On the home page and the menus
- * (#607), « Activité » alone, which opens and closes the Activité column. Nothing outside a FicheProvider.
+ * « Fiche » and AI Activity's button, « Activité », in the Top Bar of an object's page (#603, #809): they alone open and
+ * close the Fiche, AI Activity's button on its Activity group. On the home page and the menus (#607), AI Activity's button
+ * alone, which opens and closes the Activité column. Nothing outside a FicheProvider.
  */
 export function FicheButtons() {
   const { t } = useTranslation();
   const control = useContext(FicheControl);
-  const underWay = useAiActivityUnderWay();
   if (!control) return null;
   const { ficheId } = control;
   // What is shown: a Fiche that has given way to the Work Pane is not.
-  const state = { ...control.state, open: control.state.open && !control.givenWay };
-  const activity = activityShown(state);
+  const open = control.state.open && !control.givenWay;
   return (
     <>
       {control.object ? (
-        <button
-          className={`${buttonClass()} topbar-fiche`}
-          type="button"
-          aria-expanded={state.open}
-          aria-controls={state.open ? ficheId : undefined}
-          onClick={control.toggleFiche}
-        >
+        <button className={`${buttonClass()} topbar-fiche`} type="button" aria-expanded={open} aria-controls={open ? ficheId : undefined} onClick={control.toggleFiche}>
           <Icons.fiche />
           {t("fiche.label")}
         </button>
       ) : null}
-      <button
-        className={`${buttonClass()} topbar-activity`}
-        type="button"
-        aria-expanded={activity}
-        aria-controls={state.open ? ficheId : undefined}
-        onClick={control.toggleActivity}
-      >
-        {underWay ? <ActivityGlyph activity={UNDER_WAY} live /> : <Icons.aiActivity />}
-        {t("fiche.activity")}
-      </button>
+      <AiActivityButton />
     </>
   );
 }

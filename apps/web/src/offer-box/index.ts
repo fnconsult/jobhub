@@ -20,6 +20,17 @@
  *  - `.dismiss(candidateId, entryId, { reason })`: « Écarter » (#816), with a Dismissal reason or none; refused for an
  *    entry « Suivie », which is undone only by deleting its Application. Arriving again moves nothing: it stays écartée.
  *    `.reconsider(candidateId, entryId)`: « Revenir sur ce choix », the entry à traiter again, its reason forgotten.
+ *    « Écarter » leaves a « Plus tard » date as it is (an écartée entry reads none and counts nowhere), so that undoing it
+ *    (« Revenir sur ce choix », « Annuler », an Application made then deleted) puts the entry back exactly where it was:
+ *    still « Plus tard », or back under « Aujourd'hui » on that Monday, then on its arrival day.
+ *  - `.later(candidateId, entryId)`: « Plus tard » (#817), out of sight until the next Monday 00:00 Paris time
+ *    (`nextMondayInParis`), when it comes back under « Aujourd'hui »; not a decision: it stays à traiter and counted.
+ *    Refused for an entry « Suivie » or « Écartée ». `.cancelLater`: its « Annuler », back at once.
+ *  - `.dismissAll(candidateId, entryIds)`: « Tout écarter (n) » (#817), the entries a tier of « Précédemment » shows,
+ *    without a reason; those « Suivies » or already écartées are left as they are. `.reconsiderAll`: its « Annuler ».
+ *  - An entry still undecided whose Posting date (its first Arrival when that is unknown) passed 30 days reads
+ *    « Expirée sans décision » (`isExpiredWithoutDecision`, #817): out of the count, « Écarter » still possible, never
+ *    écartée for the Candidate. Read, not stored: nothing to run when the day comes.
  *  - `dismissedJobOffers(candidate)`: the SQL listing the Job Offers a Candidate écarta (and did not follow since), which the doors read so that an
  *    écartée Job Offer counts as already seen everywhere (ADR-0090): a Job Digest never sends it again, Email intake
  *    counts it « déjà vue », a Job Search's results show it « Écartée ». The shared Job Offer and other Candidates'
@@ -31,7 +42,7 @@
  * An entry is the Candidate's (ADR-0010): deleted with their account, and with its Profile. Never read by the Back
  * Office nor given to the AI Coach.
  */
-import { matchScoreReliability, scoreMatch, type ArrivalSource, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { isExpiredWithoutDecision, matchScoreReliability, nextMondayInParis, scoreMatch, type ArrivalSource, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { DISMISSAL_REASONS, type DismissalReason } from "@jobhub/shared/reads";
 import type { Pool } from "pg";
 import { utcBefore } from "../database/before";
@@ -72,18 +83,21 @@ export interface OfferBoxEntry {
   arrivalDay: string;
   /** Each Arrival source, with when it first brought the Job Offer, oldest first. */
   sources: { source: ArrivalSource; at: Date }[];
-  state: "to_handle" | "followed" | "dismissed";
+  /** « Plus tard » until `laterUntil`; « Expirée sans décision » once undecided past 30 days of its posting. */
+  state: "to_handle" | "later" | "followed" | "dismissed" | "expired";
   applicationId: string | null;
   followedAt: Date | null;
   /** Once « Écartée »: its Dismissal reason (null: « Écarter sans motif ») and when. */
   dismissalReason: DismissalReason | null;
   dismissedAt: Date | null;
+  /** The Monday 00:00 Paris time « Plus tard » put it away until: while « Plus tard », and once back à traiter; none while écartée. */
+  laterUntil: Date | null;
 }
 
 export interface OfferBoxContents {
   /** Today in French time, which « Aujourd'hui » is read against. */
   today: string;
-  /** The entries still à traiter. */
+  /** The entries still à traiter, « Plus tard » included, « Expirées sans décision » not. */
   toHandle: number;
   entries: OfferBoxEntry[];
 }
@@ -98,6 +112,14 @@ export interface OfferBox {
   dismiss(candidateId: string, entryId: string, input: { reason?: unknown }): Promise<OfferBoxDecision>;
   /** « Revenir sur ce choix »: one of the Candidate's entries écartée back to à traiter (one not écartée is left as it is). */
   reconsider(candidateId: string, entryId: string): Promise<{ ok: true } | { ok: false; error: "not_found" }>;
+  /** « Plus tard »: one of the Candidate's entries out of sight until the next Monday 00:00 Paris time. */
+  later(candidateId: string, entryId: string): Promise<{ ok: true; laterUntil: Date } | { ok: false; error: "not_found" | "followed" | "dismissed" }>;
+  /** The « Plus tard » notice's « Annuler »: the entry back at once (one not « Plus tard » is left as it is). */
+  cancelLater(candidateId: string, entryId: string): Promise<{ ok: true } | { ok: false; error: "not_found" }>;
+  /** « Tout écarter (n) »: the Candidate's entries named, without a reason, but those « Suivies » or already écartées. */
+  dismissAll(candidateId: string, entryIds: readonly unknown[]): Promise<{ dismissed: string[] }>;
+  /** « Tout écarter »'s « Annuler »: the Candidate's entries named, écartées, back to à traiter. */
+  reconsiderAll(candidateId: string, entryIds: readonly unknown[]): Promise<void>;
 }
 
 /** An Offer box entry as the Candidate's Data export holds it. */
@@ -127,13 +149,20 @@ export function dismissedJobOffers(candidate: string): string {
 }
 
 /**
+ * Where an entry stands once its « Écartée » is undone: « Plus tard » again when it had been put away (its date kept),
+ * which the read shows as such until that Monday and under « Aujourd'hui » on it; else à traiter.
+ */
+const UNDECIDED = `CASE WHEN later_until IS NULL THEN 'to_handle' ELSE 'later' END`;
+
+/**
  * The statement that makes an Application's creation replace a dismissal (ADR-0090): an entry has one decision at a time,
  * the latest, so the Candidate's entries écartées for the Job Offers `jobOffers` (SQL giving `job_offer_id`s) lose their
- * « Écartée », its Dismissal reason and its date. Once that Application is deleted, the entry has no decision: à traiter.
+ * « Écartée », its Dismissal reason and its date. Once that Application is deleted, the entry has no decision: à traiter
+ * (« Plus tard » until its date, if it had one).
  * Run by `applications.save` in the statement that creates the Application.
  */
 export function dismissalReplacedBy(candidate: string, jobOffers: string): string {
-  return `UPDATE offer_box_entry SET state = 'to_handle', decided_at = NULL, dismissal_reason = NULL
+  return `UPDATE offer_box_entry SET state = ${UNDECIDED}, decided_at = NULL, dismissal_reason = NULL
            WHERE candidate_id = ${candidate} AND state = 'dismissed' AND job_offer_id IN (${jobOffers})`;
 }
 
@@ -249,6 +278,7 @@ interface EntryRow {
   state: "to_handle" | "later" | "dismissed";
   decided_at: Date | null;
   dismissal_reason: DismissalReason | null;
+  later_until: Date | null;
 }
 
 /** An entry's Arrival sources, oldest first. */
@@ -288,6 +318,15 @@ const figure = (score: MatchScore) => (matchScoreReliability(score) === "not_com
 /** An entry's id is a uuid: anything else names none (and would make Postgres refuse the query). */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** The uuids among `entryIds`, once each: the others name no entry. */
+const entryIdsOf = (entryIds: readonly unknown[]) => [...new Set(entryIds.filter((id): id is string => typeof id === "string" && UUID.test(id)))];
+
+/** Where an undecided row stands at `now`, on `today` (French time): « Expirée sans décision » wins over « Plus tard ». */
+function undecidedState(row: EntryRow, jobOffer: JobOffer, now: Date, today: string): "to_handle" | "later" | "expired" {
+  if (isExpiredWithoutDecision({ postedAt: jobOffer.postedAt ?? null, firstArrivalAt: row.first_arrival_at }, today)) return "expired";
+  return row.state === "later" && row.later_until !== null && row.later_until > now ? "later" : "to_handle";
+}
+
 export interface OfferBoxDeps {
   profiles: Pick<Profiles, "list" | "get">;
   jobOffers: Pick<JobOffers, "get">;
@@ -301,7 +340,7 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
       const [{ rows }, listed] = await Promise.all([
         database.query<EntryRow>(
           `SELECT e.id, e.job_offer_id, e.profile_id, e.first_arrival_at, e.arrival_sources, e.state, e.decided_at, e.dismissal_reason,
-                  a.id AS application_id, a.created_at AS followed_at
+                  e.later_until, a.id AS application_id, a.created_at AS followed_at
              FROM offer_box_entry e LEFT JOIN application a ON a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id
             WHERE e.candidate_id = $1
               AND (e.state <> 'dismissed' OR a.id IS NOT NULL OR e.decided_at >= ${utcBefore("$2", "make_interval(days => $3)")})
@@ -314,6 +353,8 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
       const profileReads = new Map<string, ReturnType<Profiles["get"]>>();
       const profileOf = (id: string) => profileReads.get(id) ?? profileReads.set(id, deps.profiles.get(candidateId, id)).get(id)!;
       const active = listed.filter((profile) => !profile.archived);
+      const at = now();
+      const today = PARIS_DAY.format(at);
 
       const entries = await Promise.all(
         rows.map(async (row): Promise<OfferBoxEntry | null> => {
@@ -327,6 +368,7 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
             if (!best || figure(score) > figure(best.score)) best = { profile: { id: profile.id, name: profile.name }, score };
           }
           const dismissed = !row.application_id && row.state === "dismissed";
+          const state = row.application_id ? "followed" : dismissed ? "dismissed" : undecidedState(row, jobOffer, at, today);
           return {
             id: row.id,
             jobOffer,
@@ -336,16 +378,17 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
             firstArrivalAt: row.first_arrival_at,
             arrivalDay: PARIS_DAY.format(row.first_arrival_at),
             sources: sourcesOf(row.arrival_sources),
-            state: row.application_id ? "followed" : dismissed ? "dismissed" : "to_handle",
+            state,
             applicationId: row.application_id,
             followedAt: row.followed_at,
             dismissalReason: dismissed ? row.dismissal_reason : null,
             dismissedAt: dismissed ? row.decided_at : null,
+            laterUntil: (state === "later" || state === "to_handle") && row.state === "later" ? row.later_until : null,
           };
         }),
       );
       const kept = entries.filter((entry) => entry !== null);
-      return { today: PARIS_DAY.format(now()), toHandle: kept.filter((entry) => entry.state === "to_handle").length, entries: kept };
+      return { today, toHandle: kept.filter((entry) => entry.state === "to_handle" || entry.state === "later").length, entries: kept };
     },
 
     async dismiss(candidateId, entryId, { reason = null }) {
@@ -358,7 +401,7 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
              FROM offer_box_entry e WHERE e.id = $1 AND e.candidate_id = $2
          ),
          dismissed AS (
-           UPDATE offer_box_entry e SET state = 'dismissed', decided_at = $3, dismissal_reason = $4, later_until = NULL
+           UPDATE offer_box_entry e SET state = 'dismissed', decided_at = $3, dismissal_reason = $4
              FROM own WHERE e.id = own.id AND NOT own.followed
          )
          SELECT followed FROM own`,
@@ -368,12 +411,68 @@ export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
       return rows[0].followed ? { ok: false, error: "followed" } : { ok: true };
     },
 
+    async later(candidateId, entryId) {
+      if (!UUID.test(entryId)) return { ok: false, error: "not_found" };
+      const laterUntil = nextMondayInParis(now());
+      // One statement, as « Écarter »: an Application made meanwhile cannot slip between the check and the change.
+      const { rows } = await database.query<{ followed: boolean; dismissed: boolean }>(
+        `WITH own AS (
+           SELECT e.id, e.state = 'dismissed' AS dismissed,
+                  EXISTS (SELECT 1 FROM application a WHERE a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id) AS followed
+             FROM offer_box_entry e WHERE e.id = $1 AND e.candidate_id = $2
+         ),
+         later AS (
+           UPDATE offer_box_entry e SET state = 'later', later_until = $3
+             FROM own WHERE e.id = own.id AND NOT own.followed AND NOT own.dismissed
+         )
+         SELECT followed, dismissed FROM own`,
+        [entryId, candidateId, laterUntil],
+      );
+      if (!rows[0]) return { ok: false, error: "not_found" };
+      if (rows[0].followed) return { ok: false, error: "followed" };
+      return rows[0].dismissed ? { ok: false, error: "dismissed" } : { ok: true, laterUntil };
+    },
+
+    async cancelLater(candidateId, entryId) {
+      if (!UUID.test(entryId)) return { ok: false, error: "not_found" };
+      const { rows } = await database.query(
+        `WITH own AS (SELECT id FROM offer_box_entry WHERE id = $1 AND candidate_id = $2),
+              back AS (UPDATE offer_box_entry e SET state = 'to_handle', later_until = NULL FROM own WHERE e.id = own.id AND e.state = 'later')
+         SELECT id FROM own`,
+        [entryId, candidateId],
+      );
+      return rows[0] ? { ok: true } : { ok: false, error: "not_found" };
+    },
+
+    async dismissAll(candidateId, entryIds) {
+      const ids = entryIdsOf(entryIds);
+      if (ids.length === 0) return { dismissed: [] };
+      const { rows } = await database.query<{ id: string }>(
+        `UPDATE offer_box_entry e SET state = 'dismissed', decided_at = $3, dismissal_reason = NULL
+          WHERE e.id = ANY ($1::uuid[]) AND e.candidate_id = $2 AND e.state <> 'dismissed'
+            AND NOT EXISTS (SELECT 1 FROM application a WHERE a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id)
+          RETURNING e.id`,
+        [ids, candidateId, now()],
+      );
+      return { dismissed: rows.map((row) => row.id) };
+    },
+
+    async reconsiderAll(candidateId, entryIds) {
+      const ids = entryIdsOf(entryIds);
+      if (ids.length === 0) return;
+      await database.query(
+        `UPDATE offer_box_entry SET state = ${UNDECIDED}, decided_at = NULL, dismissal_reason = NULL
+          WHERE id = ANY ($1::uuid[]) AND candidate_id = $2 AND state = 'dismissed'`,
+        [ids, candidateId],
+      );
+    },
+
     async reconsider(candidateId, entryId) {
       if (!UUID.test(entryId)) return { ok: false, error: "not_found" };
       const { rows } = await database.query(
         `WITH own AS (SELECT id FROM offer_box_entry WHERE id = $1 AND candidate_id = $2),
               undone AS (
-                UPDATE offer_box_entry e SET state = 'to_handle', decided_at = NULL, dismissal_reason = NULL
+                UPDATE offer_box_entry e SET state = ${UNDECIDED}, decided_at = NULL, dismissal_reason = NULL
                   FROM own WHERE e.id = own.id AND e.state = 'dismissed'
               )
          SELECT id FROM own`,

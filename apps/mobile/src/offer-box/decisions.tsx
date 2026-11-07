@@ -50,19 +50,48 @@ export interface OfferBoxDecisions {
   dismiss(entry: OfferBoxEntryRead, reason: DismissalReason | null): Promise<boolean>;
   /** « Revenir sur ce choix », and the notice's « Annuler » (its `DELETE`). */
   reconsider(entry: OfferBoxEntryRead): Promise<boolean>;
+  /** « Plus tard » (#817, `POST /api/offer-box/:id/later`): the Monday 00:00 Paris time it comes back, or null when it was not done. */
+  later(entry: OfferBoxEntryRead): Promise<string | null>;
+  /** The « Plus tard » notice's « Annuler » (its `DELETE`). */
+  cancelLater(entry: OfferBoxEntryRead): Promise<boolean>;
+  /** « Tout écarter (n) » (#817, `POST /api/offer-box/dismissals`): the ids it écarta, or null when it was not done. */
+  dismissAll(entries: OfferBoxEntryRead[]): Promise<string[] | null>;
+  /** The « Tout écarter » notice's « Annuler » (its `DELETE`): the ids it écarta, à traiter again. */
+  reconsiderAll(entryIds: string[]): Promise<boolean>;
 }
+
+/** A write's JSON answer, when it is an object. */
+const answerOf = async (response: Response | null): Promise<Record<string, unknown> | null> => {
+  const json: unknown = response ? await response.json().catch(() => null) : null;
+  return json && typeof json === "object" ? (json as Record<string, unknown>) : null;
+};
 
 /** The Offer box's decisions on the web app's routes, wherever its entry shows: in the box, or opened in the Work Pane. */
 export function useOfferBoxDecisions(): OfferBoxDecisions {
   const write = useDecisionWrite();
   const followJobOffer = useFollowJobOffer();
   const dismissal = (entry: OfferBoxEntryRead) => `/api/offer-box/${encodeURIComponent(entry.id)}/dismissal`;
+  const later = (entry: OfferBoxEntryRead) => `/api/offer-box/${encodeURIComponent(entry.id)}/later`;
   return {
     follow: async (entry) => (entry.scoredWith ? (await followJobOffer(entry.jobOffer.id, entry.scoredWith.id)) !== null : false),
     dismiss: async (entry, reason) => (await write(dismissal(entry), { method: "POST", body: JSON.stringify({ reason }) }, [204])) !== null,
     reconsider: async (entry) => (await write(dismissal(entry), { method: "DELETE" }, [204])) !== null,
+    later: async (entry) => {
+      const answer = await answerOf(await write(later(entry), { method: "POST" }, [200]));
+      return typeof answer?.laterUntil === "string" ? answer.laterUntil : null;
+    },
+    cancelLater: async (entry) => (await write(later(entry), { method: "DELETE" }, [204])) !== null,
+    dismissAll: async (entries) => {
+      const answer = await answerOf(await write("/api/offer-box/dismissals", { method: "POST", body: JSON.stringify({ entryIds: entries.map((entry) => entry.id) }) }, [200]));
+      return Array.isArray(answer?.dismissed) ? answer.dismissed.filter((id): id is string => typeof id === "string") : null;
+    },
+    reconsiderAll: async (entryIds) => (await write("/api/offer-box/dismissals", { method: "DELETE", body: JSON.stringify({ entryIds }) }, [204])) !== null,
   };
 }
+
+/** A day as the Offer box writes it, in French time: « 9 nov. ». */
+export const parisDate = (instant: string, language: string) =>
+  new Intl.DateTimeFormat(language, { day: "numeric", month: "short", timeZone: "Europe/Paris" }).format(new Date(instant));
 
 /** How long the notice « … écartée. » with « Annuler » stays, as the web's toast does. */
 const NOTICE_MS = 6000;
@@ -77,92 +106,126 @@ const announce = (text: string) => {
   if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(text);
 };
 
+/** What the notice says of what was just done, and its « Annuler »: what it undoes, and what it says when that fails. */
+interface Notice {
+  message: string;
+  undo: () => Promise<boolean>;
+  undoError: string;
+}
+
 /**
- * The notice an « Écarter » leaves (#816), as the web's toast: « « Titre » écartée. » with « Annuler » for a few seconds,
- * announced on iOS too; an « Annuler » that fails says the offer stays écartée. `decisions` with their « Écarter »
- * showing it once done, and the `notice` to place where it is seen.
+ * The notice a decision leaves, as the web's toast: « « Titre » écartée. » after « Écarter » (#816), « « Titre » revient
+ * lundi … » after « Plus tard », « n offres écartées. » after « Tout écarter (n) » (#817), each with « Annuler » for a few
+ * seconds, announced on iOS too; an « Annuler » that fails says so. `decisions` with those three showing it once done,
+ * and the `notice` to place where it is seen.
  */
 export function useDismissalNotice(decisions: OfferBoxDecisions): { decisions: OfferBoxDecisions; notice: ReactNode } {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors } = useTheme();
-  const [shown, setShown] = useState<OfferBoxEntryRead | null>(null);
-  const [undoFailed, setUndoFailed] = useState(false);
+  const [shown, setShown] = useState<Notice | null>(null);
+  const [undoFailed, setUndoFailed] = useState<string | null>(null);
   useEffect(() => {
     if (!shown) return;
-    announce(t("offerBox.dismissedToast", { title: shown.jobOffer.title }));
+    announce(shown.message);
     const timer = setTimeout(() => setShown(null), NOTICE_MS);
     return () => clearTimeout(timer);
-  }, [shown, t]);
+  }, [shown]);
   useEffect(() => {
-    if (undoFailed) announce(t("offerBox.undoError"));
-  }, [undoFailed, t]);
-  const noticed: OfferBoxDecisions = {
-    follow: decisions.follow,
-    dismiss: async (entry, reason) => {
-      setUndoFailed(false);
-      const done = await decisions.dismiss(entry, reason);
-      if (done) setShown(entry);
-      return done;
-    },
-    reconsider: decisions.reconsider,
+    if (undoFailed) announce(undoFailed);
+  }, [undoFailed]);
+  /** A decision whose notice offers « Annuler »: the notice shown once it is done. */
+  const noticed = async <T,>(run: () => Promise<T | null>, notice: (done: T) => Notice): Promise<T | null> => {
+    setUndoFailed(null);
+    const done = await run();
+    if (done !== null) setShown(notice(done));
+    return done;
+  };
+  const withNotice: OfferBoxDecisions = {
+    ...decisions,
+    dismiss: async (entry, reason) =>
+      (await noticed(
+        async () => ((await decisions.dismiss(entry, reason)) ? true : null),
+        () => ({ message: t("offerBox.dismissedToast", { title: entry.jobOffer.title }), undo: () => decisions.reconsider(entry), undoError: t("offerBox.undoError") }),
+      )) !== null,
+    later: (entry) =>
+      noticed(
+        () => decisions.later(entry),
+        (laterUntil) => ({
+          message: t("offerBox.laterToast", { title: entry.jobOffer.title, date: parisDate(laterUntil, i18n.language) }),
+          undo: () => decisions.cancelLater(entry),
+          undoError: t("offerBox.laterUndoError"),
+        }),
+      ),
+    dismissAll: (entries) =>
+      noticed(
+        () => decisions.dismissAll(entries),
+        (dismissed) => ({ message: t("offerBox.dismissedAllToast", { count: dismissed.length }), undo: () => decisions.reconsiderAll(dismissed), undoError: t("offerBox.undoAllError") }),
+      ),
   };
   const notice = (
     <>
       {shown ? (
         <View aria-live={ANNOUNCED} style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[2], padding: space[2], borderRadius: radius.md, backgroundColor: colors.surface }}>
-          <AppText>{t("offerBox.dismissedToast", { title: shown.jobOffer.title })}</AppText>
+          <AppText>{shown.message}</AppText>
           <Control
             label={t("offerBox.undo")}
             look="secondary"
             onPress={() => {
-              const entry = shown;
+              const { undo, undoError } = shown;
               setShown(null);
-              void decisions.reconsider(entry).then((undone) => setUndoFailed(!undone));
+              void undo().then((undone) => setUndoFailed(undone ? null : undoError));
             }}
           />
         </View>
       ) : null}
       {undoFailed ? (
         <View aria-live={ANNOUNCED}>
-          <AppText tone="danger">{t("offerBox.undoError")}</AppText>
+          <AppText tone="danger">{undoFailed}</AppText>
         </View>
       ) : null}
     </>
   );
-  return { decisions: noticed, notice };
+  return { decisions: withNotice, notice };
 }
+
+/** What a decision that failed says under its entry. */
+const FAILURES = { follow: "offerBox.followError", dismiss: "offerBox.dismissError", reconsider: "offerBox.reconsiderError", later: "offerBox.laterError" } as const;
 
 /**
  * Where the Candidate stands with an Offer box entry, and what they can decide (ADR-0090): « Suivie » (or `followed`,
- * what the place shows of it); « Écartée », its reason and « Revenir sur ce choix »; à traiter, « Suivre » when it can be
- * saved with a Profile, then `followNote`, and « Écarter » with its Dismissal reasons opened under it. A decision
- * that fails is said under it.
+ * what the place shows of it); « Écartée », its reason and « Revenir sur ce choix »; undecided, « Suivre » when it can be
+ * saved with a Profile, then `followNote`, « Écarter » with its Dismissal
+ * reasons opened under it, and with `offerLater` « Plus tard » on one à traiter; one « Plus tard » says « revient lundi n ».
+ * A decision that fails is said under it.
  */
 export function OfferDecision({
   entry,
   state = entry.state,
   decisions,
   canFollow = entry.scoredWith !== null,
+  offerLater = false,
   followed,
   followNote,
 }: {
   entry: OfferBoxEntryRead;
   /** Whether « Suivre » is offered: when the entry has a Profile to be saved with, unless the place gives one. */
   canFollow?: boolean;
+  /** Whether « Plus tard » is offered on an entry à traiter: in the Offer box (#817). */
+  offerLater?: boolean;
   /** Where it stands, when the place knows better than the entry last read (a Job Offer just followed). */
   state?: OfferBoxEntryState;
   decisions: OfferBoxDecisions;
   followed?: ReactNode;
   followNote?: ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const [working, setWorking] = useState(false);
-  const [failed, setFailed] = useState<"follow" | "dismiss" | "reconsider" | null>(null);
+  const [failed, setFailed] = useState<keyof typeof FAILURES | null>(null);
   const [reasonsOpen, setReasonsOpen] = useState(false);
   const { title } = entry.jobOffer;
   /** One decision on the entry: its failure said under it. */
-  const decide = async (kind: "follow" | "dismiss" | "reconsider", run: () => Promise<boolean>) => {
+  const decide = async (kind: keyof typeof FAILURES, run: () => Promise<boolean>) => {
     setWorking(true);
     setFailed(null);
     const done = await run();
@@ -173,8 +236,11 @@ export function OfferDecision({
   const follow = () => void decide("follow", () => decisions.follow(entry));
   const dismiss = (reason: DismissalReason | null) => void decide("dismiss", () => decisions.dismiss(entry, reason));
   const reconsider = () => void decide("reconsider", () => decisions.reconsider(entry));
+  const later = () => void decide("later", async () => (await decisions.later(entry)) !== null);
+  const undecided = state === "to_handle" || state === "later" || state === "expired";
   return (
     <>
+      {state === "later" && entry.laterUntil ? <AppText tone="accent">{t("offerBox.laterUntil", { date: parisDate(entry.laterUntil, i18n.language) })}</AppText> : null}
       {state === "followed" ? (
         (followed ?? <AppText tone="success">{t("offerBox.followed")}</AppText>)
       ) : state === "dismissed" ? (
@@ -206,11 +272,14 @@ export function OfferDecision({
               disabled={working}
               onPress={() => setReasonsOpen(!reasonsOpen)}
             />
+            {offerLater && state === "to_handle" ? (
+              <Control label={t("offerBox.later")} accessibleName={t("offerBox.laterLabel", { title })} look="secondary" disabled={working} onPress={later} />
+            ) : null}
           </View>
           {followNote}
         </>
       )}
-      {state === "to_handle" && reasonsOpen ? (
+      {undecided && reasonsOpen ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[1], padding: space[2], borderRadius: radius.md, backgroundColor: colors.surface }}>
           <AppText variant="meta" tone="secondary">
             {t("offerBox.dismissWhy")}
@@ -221,7 +290,7 @@ export function OfferDecision({
           <Control label={t("offerBox.dismissWithoutReason")} disabled={working} onPress={() => dismiss(null)} />
         </View>
       ) : null}
-      {failed ? <AppText tone="danger">{t(failed === "follow" ? "offerBox.followError" : failed === "dismiss" ? "offerBox.dismissError" : "offerBox.reconsiderError")}</AppText> : null}
+      {failed ? <AppText tone="danger">{t(FAILURES[failed])}</AppText> : null}
     </>
   );
 }

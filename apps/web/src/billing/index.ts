@@ -138,6 +138,14 @@ export interface CurrentSubscription {
 }
 
 /** A paid Plan the Candidate may cancel from Jobbbox, as the confirmation page shows it. */
+/** A paid subscription's current billing period, as Stripe has it (#801): `end` is when it renews. */
+export interface BillingPeriod {
+  start: Date;
+  end: Date;
+  /** The subscription started before this period: there was a previous one. */
+  renewedBefore: boolean;
+}
+
 export interface CancellationTerms {
   plan: Plan;
   planName: PlanName;
@@ -905,6 +913,40 @@ export function createBilling(config: BillingConfig) {
     return subscription.items.data[0]?.current_period_end ?? legacy ?? null;
   }
 
+  /** When the subscription's current paid period started (on its item, as its end). */
+  function periodStartOf(subscription: Stripe.Subscription): number | null {
+    const legacy = (subscription as { current_period_start?: number }).current_period_start;
+    return subscription.items.data[0]?.current_period_start ?? legacy ?? null;
+  }
+
+  /** The discount and the current billing period of the Candidate's paid subscription, in one Stripe call (`subscriptionDetails`). */
+  async function subscriptionDetailsOf(candidateId: string): Promise<{ discount: ActiveDiscount | null; period: BillingPeriod | null }> {
+    const none = { discount: null, period: null };
+    if (!config.stripe) return none;
+    const { rows } = await database.query("SELECT plan, stripe_subscription_id, subscription_started_at FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+    const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null; subscription_started_at: Date | null } | undefined;
+    if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return none;
+    try {
+      const subscription = await stripe().client.subscriptions.retrieve(account.stripe_subscription_id, { expand: ["discounts.source.coupon"] }, QUICK);
+      let discount: ActiveDiscount | null = null;
+      for (const each of subscription.discounts) {
+        const coupon = typeof each === "object" ? each.source.coupon : null;
+        if (!coupon || typeof coupon === "string" || typeof each === "string") continue;
+        if (each.end !== null && each.end * 1000 <= now().getTime()) continue;
+        discount = { ...termsOf(coupon), endsAt: each.end === null ? null : new Date(each.end * 1000) };
+        break;
+      }
+      const start = periodStartOf(subscription);
+      const end = periodEndOf(subscription);
+      const startedAt = subscription.start_date ? new Date(subscription.start_date * 1000) : account.subscription_started_at;
+      const period = start === null || end === null ? null : { start: new Date(start * 1000), end: new Date(end * 1000), renewedBefore: startedAt !== null && startedAt.getTime() < start * 1000 };
+      return { discount, period };
+    } catch (error) {
+      console.error("[billing] could not read the subscription's discount and period from Stripe", error);
+      return none;
+    }
+  }
+
   /** The Candidate's subscription, when they are on a paid Plan whose cancellation is not scheduled. */
   const cancellable = (account: { plan: Plan; stripe_subscription_id: string | null; ends_at: Date | null } | undefined) =>
     account && account.plan !== FREE_PLAN && account.stripe_subscription_id && !account.ends_at ? account.stripe_subscription_id : null;
@@ -1384,23 +1426,17 @@ export function createBilling(config: BillingConfig) {
      * null on Free, without one, or when Stripe does not answer quickly.
      */
     async activeDiscount(candidateId: string): Promise<ActiveDiscount | null> {
-      if (!config.stripe) return null;
-      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
-      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
-      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
-      try {
-        const subscription = await stripe().client.subscriptions.retrieve(account.stripe_subscription_id, { expand: ["discounts.source.coupon"] }, QUICK);
-        for (const discount of subscription.discounts) {
-          const coupon = typeof discount === "object" ? discount.source.coupon : null;
-          if (!coupon || typeof coupon === "string" || typeof discount === "string") continue;
-          if (discount.end !== null && discount.end * 1000 <= now().getTime()) continue;
-          return { ...termsOf(coupon), endsAt: discount.end === null ? null : new Date(discount.end * 1000) };
-        }
-        return null;
-      } catch (error) {
-        console.error("[billing] could not read the subscription's discount from Stripe", error);
-        return null;
-      }
+      return (await subscriptionDetailsOf(candidateId)).discount;
+    },
+
+    /**
+     * What Mon abonnement reads of the Candidate's paid subscription, in one Stripe call: the discount it is getting
+     * (`activeDiscount`), and its current billing period (#801, « Votre consommation »): from its start to its end, and
+     * whether the subscription started before it (`renewedBefore`: there is a previous period to compare with). Both
+     * null on Free, and while Stripe cannot tell.
+     */
+    async subscriptionDetails(candidateId: string): Promise<{ discount: ActiveDiscount | null; period: BillingPeriod | null }> {
+      return subscriptionDetailsOf(candidateId);
     },
 
     /** What a Coaching Session costs the Candidate on their Plan, or null when Coaching Sessions cannot be paid yet. */

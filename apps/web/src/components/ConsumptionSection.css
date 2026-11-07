@@ -1,0 +1,421 @@
+/* « Votre consommation » (#801, ADR-0091, variant A of the prototype): the headline beside the period's progress, the
+   day-by-day views (the 12-month grid in five shades of the accent, the period's bars stacked in the six chart series),
+   the list per Tool and the foot. Drawn in HTML so its text keeps the Candidate's Text Size; every value is also in
+   words (a tooltip, the table view). Beside its component, as the Design System's own CSS is (ADR-0053). */
+
+.consumption {
+  --consumption-cell: 0.75rem;
+  --consumption-gap: 0.1875rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  scroll-margin-top: var(--space-6);
+}
+
+.consumption:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.consumption h4 {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.consumption p {
+  margin: 0;
+}
+
+.consumption-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.consumption-period,
+.consumption-progress p,
+.consumption-tool-sub,
+.consumption-parts,
+.consumption-key,
+.consumption-legend,
+.consumption-bars-axis,
+.consumption-bars-max,
+.consumption-weekdays,
+.consumption-month,
+.consumption-foot p {
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
+}
+
+/* The headline: the AI actions in large figures, their change under them; the period's progress beside. */
+.consumption-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
+  align-items: flex-end;
+}
+
+.consumption-total {
+  line-height: 1;
+}
+
+.consumption-total-number {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.consumption-total-unit {
+  font-size: var(--font-size-lead);
+  color: var(--color-secondary);
+}
+
+.consumption-change {
+  margin-top: var(--space-2);
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.consumption-progress {
+  flex: 1 1 16rem;
+  max-width: 28rem;
+}
+
+.consumption-progress-track {
+  display: block;
+  height: 0.5rem;
+  margin: var(--space-1) 0;
+  overflow: hidden;
+  background: var(--color-hover);
+  border-radius: var(--radius-control);
+}
+
+.consumption-progress-track > span {
+  display: block;
+  height: 100%;
+  background: var(--color-border-strong);
+  border-radius: var(--radius-control);
+}
+
+.consumption .consumption-progress-ends {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+/* On the Candidate's pages, the switch's options reach the 44px target floor (ADR-0009). */
+.consumption .ds-segmented__option {
+  min-height: var(--control-height);
+}
+
+.consumption-daily-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+
+/* The grid: one column per week, Monday at the top; it scrolls sideways in its own frame on a narrow screen. */
+.consumption-grid-scroll {
+  max-width: 100%;
+  padding: var(--space-1) 0 var(--space-2);
+  overflow-x: auto;
+}
+
+.consumption-grid {
+  display: flex;
+  gap: var(--consumption-gap);
+  width: max-content;
+}
+
+.consumption-weekdays,
+.consumption-week {
+  display: grid;
+  grid-template-rows: 1.5em repeat(7, var(--consumption-cell));
+  gap: var(--consumption-gap);
+}
+
+.consumption-weekdays {
+  padding-right: var(--space-1);
+  line-height: var(--consumption-cell);
+}
+
+.consumption-month {
+  position: relative;
+  display: block;
+  line-height: 1.2;
+}
+
+.consumption-month > span {
+  position: absolute;
+  left: 0;
+  white-space: nowrap;
+}
+
+.consumption-cell {
+  display: inline-block;
+  width: var(--consumption-cell);
+  height: var(--consumption-cell);
+  background: var(--color-hover);
+  border-radius: 2px;
+}
+
+.consumption-cell[data-empty] {
+  background: transparent;
+}
+
+.consumption-cell[data-level="1"] {
+  background: color-mix(in srgb, var(--color-accent) 28%, var(--color-background));
+}
+
+.consumption-cell[data-level="2"] {
+  background: color-mix(in srgb, var(--color-accent) 52%, var(--color-background));
+}
+
+.consumption-cell[data-level="3"] {
+  background: color-mix(in srgb, var(--color-accent) 76%, var(--color-background));
+}
+
+.consumption-cell[data-level="4"] {
+  background: var(--color-accent);
+}
+
+/* The current billing period, outlined day by day. */
+.consumption-cell[data-in-period] {
+  box-shadow: inset 0 0 0 1.5px var(--color-text);
+}
+
+.consumption-cell[data-day]:hover,
+.consumption-cell[data-day]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.consumption-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
+}
+
+.consumption-key > span {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+/* The bars: the period day by day, stacked in the six series from the baseline, a 2px gap between segments. */
+.consumption-bars {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 var(--space-2);
+}
+
+.consumption-bars-max {
+  align-self: start;
+  text-align: right;
+}
+
+.consumption-bars-plot {
+  display: grid;
+  gap: 2px;
+  align-items: end;
+  height: 10rem;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.consumption-bar {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  height: 100%;
+  border-radius: 4px 4px 0 0;
+}
+
+.consumption-bar[data-day]:hover,
+.consumption-bar[data-day]:focus-visible {
+  background: var(--color-hover);
+  outline: none;
+}
+
+.consumption-bar[data-day]:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.consumption-segment {
+  display: block;
+  flex: none;
+  min-height: 2px;
+  background: var(--series);
+}
+
+.consumption-segment:last-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.consumption-bars-axis {
+  display: grid;
+  grid-column: 2;
+  gap: 2px;
+  padding-top: var(--space-1);
+  white-space: nowrap;
+}
+
+.consumption-series-1 {
+  --series: var(--color-chart-1);
+}
+
+.consumption-series-2 {
+  --series: var(--color-chart-2);
+}
+
+.consumption-series-3 {
+  --series: var(--color-chart-3);
+}
+
+.consumption-series-4 {
+  --series: var(--color-chart-4);
+}
+
+.consumption-series-5 {
+  --series: var(--color-chart-5);
+}
+
+.consumption-series-6 {
+  --series: var(--color-chart-6);
+}
+
+.consumption-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.consumption-legend li {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.consumption-swatch {
+  display: inline-block;
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--series);
+  border-radius: 3px;
+}
+
+.consumption-table-toggle {
+  align-self: flex-start;
+  min-height: var(--control-height);
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.consumption-table-toggle:hover {
+  text-decoration: underline;
+}
+
+/* The list per Tool: swatch, name and count on a line, the share bar under it, then its share and Plan Quota. */
+.consumption-tools {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.consumption-tool {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.consumption-tool:first-child {
+  border-top: 0;
+}
+
+.consumption-tool-name {
+  font-weight: 500;
+}
+
+.consumption-tool-count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.consumption-share {
+  display: block;
+  grid-column: 2 / -1;
+  height: 0.375rem;
+  overflow: hidden;
+  background: var(--color-hover);
+  border-radius: var(--radius-control);
+}
+
+.consumption-share > span {
+  display: block;
+  height: 100%;
+  background: var(--series);
+  border-radius: var(--radius-control);
+}
+
+.consumption-tool-sub {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 2 / -1;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+}
+
+.consumption-parts {
+  display: flex;
+  flex-direction: column;
+  grid-column: 2 / -1;
+  gap: var(--space-1);
+  padding: 0;
+  margin: var(--space-1) 0 0;
+  list-style: none;
+}
+
+.consumption-parts li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+}
+
+.consumption-foot {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.consumption-foot a {
+  color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .consumption-share > span,
+  .consumption-progress-track > span {
+    transition: width var(--motion-base) var(--motion-easing);
+  }
+}

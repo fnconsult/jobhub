@@ -1,4 +1,4 @@
-export { designTokens, legacyColorAliases, type Density, type DesignTokens, type TextSizeSetting, type Theme, type Themed } from "./tokens";
+export { CHART_SERIES, designTokens, legacyColorAliases, type Density, type DesignTokens, type TextSizeSetting, type Theme, type Themed } from "./tokens";
 export {
   auditDesignTokens,
   contrastRatio,

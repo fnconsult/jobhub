@@ -320,6 +320,42 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
       expect(await t.billing.activeDiscount(marie.id)).toEqual({ discount: { percentOff: 50 }, duration: { months: 3 }, endsAt: new Date("2027-01-15T10:00:00Z") });
     });
 
+    it("reads the billing period from the same Stripe call as the discount (#801): its start and end, and whether it renewed", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const spring = await t.billing.createCoupon(SPRING);
+      if (!spring.ok) throw new Error("fixture refused");
+      await t.billing.startCheckout(marie, "standard", "fr", { promotionCode: "PRINTEMPS50" });
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard, status: "active", id: "sub_marie" }));
+      t.stripe.discountSubscription("sub_marie", spring.coupon.id, new Date("2027-01-15T10:00:00Z"));
+      t.stripe.setSubscriptionPeriod("sub_marie", { start: new Date("2026-10-18T08:00:00Z"), end: new Date("2026-11-18T09:00:00Z") });
+      t.stripe.setSubscriptionStart("sub_marie", new Date("2026-08-18T08:00:00Z"));
+      const before = t.stripe.callsTo("/v1/subscriptions/sub_marie").length;
+
+      const details = await t.billing.subscriptionDetails(marie.id);
+
+      expect(details).toEqual({
+        discount: { discount: { percentOff: 50 }, duration: { months: 3 }, endsAt: new Date("2027-01-15T10:00:00Z") },
+        period: { start: new Date("2026-10-18T08:00:00Z"), end: new Date("2026-11-18T09:00:00Z"), renewedBefore: true },
+      });
+      expect(t.stripe.callsTo("/v1/subscriptions/sub_marie").length - before).toBe(1);
+
+      // Its first period: nothing before it to compare with.
+      t.stripe.setSubscriptionStart("sub_marie", new Date("2026-10-18T08:00:00Z"));
+      expect((await t.billing.subscriptionDetails(marie.id)).period?.renewedBefore).toBe(false);
+    });
+
+    it("has no billing period on Free, or while Stripe cannot tell (#801)", async () => {
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const paul = await t.signUp("paul.martin@example.fr");
+      await t.billing.startCheckout(paul, "standard");
+      await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(paul.email), price: FAKE_STRIPE_PRICES.standard, status: "active", id: "sub_paul" }));
+
+      expect(await t.billing.subscriptionDetails(marie.id)).toEqual({ discount: null, period: null });
+      expect((await t.billing.subscriptionDetails(paul.id)).period).not.toBeNull();
+      t.stripe.stopAnswering();
+      expect(await t.billing.subscriptionDetails(paul.id)).toEqual({ discount: null, period: null });
+    });
+
     it("has none on Free, without a discount, or while Stripe cannot tell", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
       const paul = await t.signUp("paul.martin@example.fr");

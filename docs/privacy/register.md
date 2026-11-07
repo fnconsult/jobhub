@@ -605,11 +605,11 @@ _Added by the Offer box decision; its tickets ship the table._
 
 | | |
 | --- | --- |
-| Purpose | Show the Candidate every Job Offer that reached them (Job Searches, Job Digests, Email intake, Job Offer links, Captures they followed) until they decide on it, and remember that decision so an offer set aside is not offered again. |
+| Purpose | Show the Candidate every Job Offer that reached them (Job Searches, Job Digests, Email intake, Job Offer links, and the Captures and Share captures they followed, #819) until they decide on it, and remember that decision so an offer set aside is not offered again. A Capture or a Share capture not followed leaves no entry and no new record. |
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
 | People concerned | Candidates. |
 | Data | One Offer box entry per Candidate and Job Offer: the Profile, the first Arrival and each Arrival source with its date, where it stands (à traiter, « Plus tard » and its date, « Suivie », « Écartée », « Expirée sans décision ») with when it was decided, and the Dismissal reason when given (one of five fixed choices, never free text). |
-| Source | Jobbbox, from the Candidate's Job Searches, Job Digests, Received offer emails, Coach Conversations and Applications; the Candidate's decisions. |
+| Source | Jobbbox, from the Candidate's Job Searches, Job Digests, Received offer emails, Coach Conversations and Applications (one saved from the extension's Side Panel is an Arrival « Extension »; one of a Job Offer the Candidate sent by Share capture, read from that Share capture's conversation, is an Arrival « Partage », #819); the Candidate's decisions. |
 | Processors | None beyond hosting. No AI reads it; the Job Digest's line gives only the count, sent by Brevo with the Job Digest. |
 | Who can read it | The Candidate. Never Administrators, never the Back Office. |
 | Storage | The `offer_box_entry` table in the app's Postgres database (EU). |

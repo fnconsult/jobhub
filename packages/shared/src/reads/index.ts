@@ -203,9 +203,10 @@ export type JobSearchResponse = z.infer<typeof jobSearchResponseSchema>;
 
 /**
  * Where an Arrival came from, its chip: « Recherche » (a Job Search), « Job Digest », « Email » (Email intake), « Lien du
- * coach » (a Job Offer link) and « Extension » (a Capture, once followed, #819).
+ * coach » (a Job Offer link), « Extension » (a Capture followed from the Side Panel) and « Partage » (a Share capture,
+ * once followed). The last two bring a Job Offer only once followed: its entry is made already « Suivie » (#819).
  */
-export const ARRIVAL_SOURCES = ["job_search", "job_digest", "email", "job_offer_link", "extension"] as const;
+export const ARRIVAL_SOURCES = ["job_search", "job_digest", "email", "job_offer_link", "extension", "share"] as const;
 export type ArrivalSource = (typeof ARRIVAL_SOURCES)[number];
 
 /**

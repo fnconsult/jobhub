@@ -143,6 +143,27 @@ describe("The Offer box's view", () => {
       { source: "email", toHandle: 2 },
       { source: "job_offer_link", toHandle: 0 },
       { source: "extension", toHandle: 0 },
+      { source: "share", toHandle: 0 },
+    ]);
+  });
+
+  it("filtered by « Extension » or « Partage », shows the Captures and Share captures followed, already « Suivies » (#819)", () => {
+    const followed = { state: "followed", applicationId: "app", followedAt: "2026-11-05T10:00:00.000Z" } as const;
+    const view = (filter: "extension" | "share") =>
+      offerBoxView(
+        box([
+          entry("captured", { sources: [{ source: "extension", at: "2026-11-05T10:00:00.000Z" }], ...followed }),
+          entry("shared", { sources: [{ source: "share", at: "2026-11-05T11:00:00.000Z" }], ...followed }),
+          entry("searched"),
+        ]),
+        filter,
+      );
+
+    expect(view("extension").today).toEqual({ tiers: [], followed: [expect.objectContaining({ id: "captured" })] });
+    expect(view("share").today).toEqual({ tiers: [], followed: [expect.objectContaining({ id: "shared" })] });
+    expect(view("share").chips.slice(-2)).toEqual([
+      { source: "extension", toHandle: 0 },
+      { source: "share", toHandle: 0 },
     ]);
   });
 

@@ -31,6 +31,13 @@ const CAPPED: ReadonlySet<Variant> = new Set(["h1", "h2"]);
  * the page's title took the whole screen, and left the conversation under them no room (#705).
  */
 export const BAR_MAX_SCALE = 2;
+
+/**
+ * An object's row (ObjectRow) and the lines under it grow up to twice their size, as titles and bars do (the product
+ * owner's choice, #705): growing freely, at iOS's largest on an iPhone SE, an Application's row broke its words mid-word
+ * (« Aéroli / ne ») and stood taller than the screen.
+ */
+export const ROW_MAX_SCALE = 2;
 const MaxScale = createContext<number | undefined>(undefined);
 
 /** Its texts, a button's words included, grow with the system's text size up to `scale` times their size. */

@@ -2,6 +2,7 @@ import { fireEvent, screen, userEvent } from "@testing-library/react-native";
 import { colorsFor } from "../theme/colors";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
 import { Control } from "./Control";
+import { ROW_MAX_SCALE } from "./AppText";
 import { ObjectRow } from "./ObjectRow";
 
 const { hover } = colorsFor("light");
@@ -109,5 +110,17 @@ describe("Control, under the pointer", () => {
     expect(control).toHaveStyle({ backgroundColor: hover });
     await fireEvent(control, "pointerLeave");
     expect(control).not.toHaveStyle({ backgroundColor: hover });
+  });
+});
+
+// At iOS's largest text size on an iPhone SE, a row's words grew freely and broke mid-word in a 261 pt column
+// (« Aéroli / ne »), the row taller than the screen (#705, Maestro). The product owner's choice: a row's text grows up
+// to twice its size, as titles and bars do.
+describe("ObjectRow, at a large system text size", () => {
+  it("lets its words grow up to twice their size", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderRow();
+    expect(screen.getByText("Aéroline · Responsable qualité").props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
+    expect(ROW_MAX_SCALE).toBe(2);
   });
 });

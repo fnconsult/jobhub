@@ -1,20 +1,19 @@
 import { importanceTier, offerBoxView, postingAge, type OfferBoxDay, type OfferBoxFilter } from "@jobhub/shared";
-import { DISMISSAL_REASONS, type DismissalReason, type OfferBoxEntryRead, type OfferBoxResponse } from "@jobhub/shared/reads";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AccessibilityInfo, Platform, View } from "react-native";
-import { useApi } from "../api/api";
-import { useOfferBox } from "../api/reads";
+import { View } from "react-native";
+import { useOfferBox, useOfferBoxOffer } from "../api/reads";
+import { FoundJobOfferPane } from "../job-searches/FoundJobOffer";
 import { openPostingAction, shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
-import { readKey } from "../offline/read-cache";
 import { ReadState } from "../screens/ReadState";
 import { useWorkPane } from "../shell/Shell";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { ObjectRow } from "../ui/ObjectRow";
+import { OfferDecision, useDismissalNotice, useOfferBoxDecisions, type OfferBoxDecisions } from "./decisions";
 
 /**
  * Recherches d'offres in the app (ADR-0090, #815): the Offer box (« Offres à traiter ») as `GET /api/offer-box` answers
@@ -28,22 +27,7 @@ import { ObjectRow } from "../ui/ObjectRow";
 export function OfferBox() {
   const { t } = useTranslation();
   const box = useOfferBox();
-  const api = useApi();
-  const queries = useQueryClient();
-  /** A write, then the box read again: whether the web app answered `ok` with it. */
-  const write = async (path: string, init: RequestInit, ok: number[]): Promise<boolean> => {
-    const response = await api(path, init).catch(() => null);
-    if (!response || !ok.includes(response.status)) return false;
-    await queries.invalidateQueries({ queryKey: readKey("offerBox") });
-    return true;
-  };
-  const dismissal = (entry: OfferBoxEntryRead) => `/api/offer-box/${encodeURIComponent(entry.id)}/dismissal`;
-  const decisions: OfferBoxDecisions = {
-    follow: async (entry) =>
-      entry.scoredWith ? write("/api/applications", { method: "POST", body: JSON.stringify({ jobOfferId: entry.jobOffer.id, profileId: entry.scoredWith.id }) }, [200, 201]) : false,
-    dismiss: (entry, reason) => write(dismissal(entry), { method: "POST", body: JSON.stringify({ reason }) }, [204]),
-    reconsider: (entry) => write(dismissal(entry), { method: "DELETE" }, [204]),
-  };
+  const decisions = useOfferBoxDecisions();
   if (box.data) return <OfferBoxList box={box.data} decisions={decisions} />;
   return (
     <View style={{ alignItems: "center", gap: space[2] }}>
@@ -53,56 +37,14 @@ export function OfferBox() {
   );
 }
 
-/** What the Candidate decides on an entry, each answering whether it was done (the box then read again). */
-export interface OfferBoxDecisions {
-  follow(entry: OfferBoxEntryRead): Promise<boolean>;
-  /** « Écarter », with a Dismissal reason or none. */
-  dismiss(entry: OfferBoxEntryRead, reason: DismissalReason | null): Promise<boolean>;
-  /** « Revenir sur ce choix », and the notice's « Annuler ». */
-  reconsider(entry: OfferBoxEntryRead): Promise<boolean>;
-}
-
-/** How long the notice « … écartée. » with « Annuler » stays, as the web's toast does. */
-const NOTICE_MS = 6000;
-/** The notice is said politely, as the web's toast is. */
-const ANNOUNCED = "polite";
-
-/**
- * Says a notice that just appeared: `aria-live` is a live region on Android only, so iOS's VoiceOver is told it
- * (once on each platform, never twice on Android).
- */
-const announce = (text: string) => {
-  if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(text);
-};
-
 /** The Offer box, filtered by a source chip (« Toutes » first). */
 export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisions: OfferBoxDecisions }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [filter, setFilter] = useState<OfferBoxFilter>("all");
   const [dismissedOpen, setDismissedOpen] = useState(false);
-  const [notice, setNotice] = useState<OfferBoxEntryRead | null>(null);
-  const [undoFailed, setUndoFailed] = useState(false);
   const view = offerBoxView(box, filter);
-  useEffect(() => {
-    if (!notice) return;
-    announce(t("offerBox.dismissedToast", { title: notice.jobOffer.title }));
-    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
-    return () => clearTimeout(timer);
-  }, [notice, t]);
-  useEffect(() => {
-    if (undoFailed) announce(t("offerBox.undoError"));
-  }, [undoFailed, t]);
-  const lineDecisions: OfferBoxDecisions = {
-    follow: decisions.follow,
-    dismiss: async (entry, reason) => {
-      setUndoFailed(false);
-      const done = await decisions.dismiss(entry, reason);
-      if (done) setNotice(entry);
-      return done;
-    },
-    reconsider: decisions.reconsider,
-  };
+  const { decisions: lineDecisions, notice } = useDismissalNotice(decisions);
   return (
     <View style={{ gap: space[4] }}>
       <View style={{ gap: space[2] }}>
@@ -125,25 +67,7 @@ export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisi
             />
           ))}
         </View>
-        {notice ? (
-          <View aria-live={ANNOUNCED} style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[2], padding: space[2], borderRadius: radius.md, backgroundColor: colors.surface }}>
-            <AppText>{t("offerBox.dismissedToast", { title: notice.jobOffer.title })}</AppText>
-            <Control
-              label={t("offerBox.undo")}
-              look="secondary"
-              onPress={() => {
-                const entry = notice;
-                setNotice(null);
-                void decisions.reconsider(entry).then((undone) => setUndoFailed(!undone));
-              }}
-            />
-          </View>
-        ) : null}
-        {undoFailed ? (
-          <View aria-live={ANNOUNCED}>
-            <AppText tone="danger">{t("offerBox.undoError")}</AppText>
-          </View>
-        ) : null}
+        {notice}
       </View>
       {box.entries.length === 0 ? (
         <View style={{ gap: space[1] }}>
@@ -228,16 +152,13 @@ function Day({
 }
 
 /**
- * One Offer box entry: its row (opened in the Work Pane, its context menu), its facts; à traiter, « Suivre » and
- * « Écarter » (its reasons opened under it); « Écartée », its reason and « Revenir sur ce choix ».
+ * One Offer box entry: its row (opened in the Work Pane, its context menu), its facts, where it stands and what can be
+ * decided (OfferDecision).
  */
 function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; today: string; showDay: boolean; decisions: OfferBoxDecisions }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const workPane = useWorkPane();
-  const [working, setWorking] = useState(false);
-  const [failed, setFailed] = useState<"follow" | "dismiss" | "reconsider" | null>(null);
-  const [reasonsOpen, setReasonsOpen] = useState(false);
   const { jobOffer } = entry;
   const tier = importanceTier(entry.matchScore);
   const label = [jobOffer.title, jobOffer.employer].filter(Boolean).join(" · ");
@@ -255,26 +176,15 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
   const open = () =>
     workPane.open({
       title: jobOffer.title,
-      content: (
+      content: entry.scoredWith ? (
+        <EntryPane entryId={entry.id} />
+      ) : (
         <View style={{ gap: space[2] }}>
           <AppText weight="semiBold">{score}</AppText>
           {facts ? <AppText tone="secondary">{facts}</AppText> : null}
-          <AppText tone="secondary">{t("mobile.jobOfferPlaceholder")}</AppText>
         </View>
       ),
     });
-  /** One decision on the entry: its failure said under it. */
-  const decide = async (kind: "follow" | "dismiss" | "reconsider", run: () => Promise<boolean>) => {
-    setWorking(true);
-    setFailed(null);
-    const done = await run();
-    setWorking(false);
-    setFailed(done ? null : kind);
-    if (done) setReasonsOpen(false);
-  };
-  const follow = () => void decide("follow", () => decisions.follow(entry));
-  const dismiss = (reason: DismissalReason | null) => void decide("dismiss", () => decisions.dismiss(entry, reason));
-  const reconsider = () => void decide("reconsider", () => decisions.reconsider(entry));
   return (
     <View
       aria-label={jobOffer.title}
@@ -303,56 +213,16 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
       <AppText variant="meta" tone="secondary">
         {tags.join(" · ")}
       </AppText>
-      {entry.state === "followed" ? (
-        <AppText tone="success">{t("offerBox.followed")}</AppText>
-      ) : entry.state === "dismissed" ? (
-        <>
-          <AppText tone="secondary">
-            {entry.dismissalReason ? t("offerBox.dismissedWithReason", { reason: t(`offerBox.dismissalReasons.${entry.dismissalReason}`) }) : t("offerBox.dismissed")}
-          </AppText>
-          <View style={{ alignSelf: "flex-start" }}>
-            <Control
-              label={t("offerBox.reconsider")}
-              accessibleName={t("offerBox.reconsiderLabel", { title: jobOffer.title })}
-              look="secondary"
-              disabled={working}
-              onPress={reconsider}
-            />
-          </View>
-        </>
-      ) : (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
-          {entry.scoredWith ? (
-            <Control
-              label={working ? t("offerBox.following") : t("offerBox.follow")}
-              accessibleName={`${t("offerBox.follow")} : ${jobOffer.title}`}
-              look="primary"
-              disabled={working}
-              onPress={follow}
-            />
-          ) : null}
-          <Control
-            label={t("offerBox.dismiss")}
-            accessibleName={t("offerBox.dismissLabel", { title: jobOffer.title })}
-            look="secondary"
-            expanded={reasonsOpen}
-            disabled={working}
-            onPress={() => setReasonsOpen(!reasonsOpen)}
-          />
-        </View>
-      )}
-      {entry.state === "to_handle" && reasonsOpen ? (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space[1], padding: space[2], borderRadius: radius.md, backgroundColor: colors.surface }}>
-          <AppText variant="meta" tone="secondary">
-            {t("offerBox.dismissWhy")}
-          </AppText>
-          {DISMISSAL_REASONS.map((reason) => (
-            <Control key={reason} label={t(`offerBox.dismissalReasons.${reason}`)} look="secondary" disabled={working} onPress={() => dismiss(reason)} />
-          ))}
-          <Control label={t("offerBox.dismissWithoutReason")} disabled={working} onPress={() => dismiss(null)} />
-        </View>
-      ) : null}
-      {failed ? <AppText tone="danger">{t(failed === "follow" ? "offerBox.followError" : failed === "dismiss" ? "offerBox.dismissError" : "offerBox.reconsiderError")}</AppText> : null}
+      <OfferDecision entry={entry} decisions={decisions} />
     </View>
   );
+}
+
+/**
+ * An entry opened in the Work Pane (#692), as a Job Search's Job Offer opens (FoundJobOfferPane): its text and why its
+ * Match Score, against the Profile « Suivre » saves it with, read when it opens (`GET /api/offer-box/:id`).
+ */
+function EntryPane({ entryId }: { entryId: string }) {
+  const read = useOfferBoxOffer(entryId);
+  return <ReadState read={read}>{({ found, profile }) => <FoundJobOfferPane found={found} profile={profile} />}</ReadState>;
 }

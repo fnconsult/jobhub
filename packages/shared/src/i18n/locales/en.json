@@ -6045,7 +6045,6 @@
       "interviewDate": "Interview date (dd/mm/yyyy)",
       "interviewTime": "Time, in Paris (hh:mm)"
     },
-    "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
     "coach": {
       "replyAnnounced": "AI Coach: {{reply}}"
     },

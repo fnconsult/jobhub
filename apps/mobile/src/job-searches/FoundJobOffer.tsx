@@ -1,14 +1,12 @@
 import { matchScoreFigure, matchScoreInWords, matchScoreReasons, matchScoreReliabilityHint, matchScoreWhyInWords, type CriterionStatus } from "@jobhub/shared";
 import { matchScoreOfDetail, type FoundJobOffer } from "@jobhub/shared/reads";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { useApi } from "../api/api";
 import { openPostingAction, shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
-import { readKey } from "../offline/read-cache";
+import { useFollowJobOffer } from "../offer-box/decisions";
 import { useWorkPane } from "../shell/Shell";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
@@ -19,25 +17,6 @@ type Named = { id: string; name: string };
 
 /** A verdict is said in words; the colour only reinforces a clear match or mismatch, as on the web (MatchScoreWhy). */
 const VERDICT_TONE: Partial<Record<CriterionStatus, "success" | "danger">> = { match: "success", mismatch: "danger" };
-
-/**
- * « Suivre » (ADR-0090): saves the Job Offer as an Application with `profile`, as the Offer box's « Suivre » does
- * (`POST /api/applications`), then has every read that shows it read again (the Job Search, the Job Digest, the Offer
- * box, Mes candidatures). The Application's id, or null when it was not saved.
- */
-export function useFollowJobOffer(): (jobOfferId: string, profileId: string) => Promise<string | null> {
-  const api = useApi();
-  const queries = useQueryClient();
-  return async (jobOfferId, profileId) => {
-    const response = await api("/api/applications", { method: "POST", body: JSON.stringify({ jobOfferId, profileId }) }).catch(() => null);
-    if (!response || (response.status !== 200 && response.status !== 201)) return null;
-    const saved = (await response.json().catch(() => ({}))) as { id?: unknown };
-    await Promise.all(
-      (["jobSearch", "jobDigest", "offerBox", "applications"] as const).map((name) => queries.invalidateQueries({ queryKey: readKey(name) })),
-    );
-    return typeof saved.id === "string" ? saved.id : null;
-  };
-}
 
 /**
  * The Job Offers a Job Search found or a Job Digest brought (#692), best Match Score first as the read gives them: each

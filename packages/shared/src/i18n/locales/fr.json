@@ -5074,25 +5074,13 @@
       "propose": "Prépare une proposition"
     },
     "label": "Activité IA",
-    "title": "Cette page",
-    "close": "Fermer",
     "models_one": "{{count}} modèle",
     "models_other": "{{count}} modèles",
     "tokens": "{{tokens}} tokens",
-    "sections": {
-      "models": "Modèles",
-      "sources": "Sources",
-      "tools": "Outils",
-      "byElement": "Par élément"
-    },
-    "measure": "tokens · durée",
-    "measureHint": "mesure technique, non décomptée de vos quotas",
-    "total": "Total",
     "yourData": "Vos données : CV de référence, Profil, critères",
     "noAi": "Aucun contenu produit par l'IA sur cette page",
     "newTab": "(nouvel onglet)",
     "rules": "Règles Jobbbox",
-    "usedBy": "Pour : {{elements}}",
     "kinds": {
       "job_offer": "Offre d'emploi",
       "coach_reply": "Réponse du coach",
@@ -5195,7 +5183,84 @@
       }
     },
     "learnMore": "En savoir plus",
-    "learnMoreLabel": "En savoir plus sur l'IA dans Jobbbox"
+    "learnMoreLabel": "En savoir plus sur l'IA dans Jobbbox",
+    "history": {
+      "title": "Historique",
+      "today": "Aujourd'hui",
+      "day": "Le {{date}}",
+      "undated": "Date inconnue",
+      "empty": "Rien encore sur cette page.",
+      "titles": {
+        "master_cv_version": "Version {{version}} du CV de référence",
+        "change": "Changement appliqué · {{what}}"
+      },
+      "results": {
+        "offers_one": "{{count}} offre",
+        "offers_other": "{{count}} offres",
+        "score": "{{score}}/100",
+        "change": "{{before}} → {{after}}",
+        "version": "Version {{version}}",
+        "restored": "rétablit la version {{version}}",
+        "proposals_one": "{{count}} proposition",
+        "proposals_other": "{{count}} propositions"
+      },
+      "origin": {
+        "candidate": "Par vous",
+        "question": "À votre question",
+        "coach_proposal": "Par vous, depuis la proposition du coach",
+        "jobbbox": "Par Jobbbox"
+      },
+      "you": "Vous : {{question}}",
+      "steps": "Étapes",
+      "read": "Lu :",
+      "tools": "Outils :",
+      "models": "Modèles :",
+      "proposals": "Propositions",
+      "calls_one": "{{count}} appel",
+      "calls_other": "{{count}} appels",
+      "state": {
+        "pending": "En attente",
+        "applied": "Appliquée",
+        "dismissed": "Ignorée",
+        "withdrawn": "Retirée",
+        "undone": "Annulée"
+      },
+      "led": "→ a donné",
+      "after": "↳ suite de",
+      "inConversation": "Voir dans la conversation",
+      "inActivity": "Dans l'activité",
+      "open": {
+        "coach_reply": "Ouvrir",
+        "job_search": "Ouvrir la recherche",
+        "job_offer": "Voir l'offre",
+        "job_digest": "Ouvrir le Job Digest",
+        "tailored_cv": "Ouvrir le CV adapté",
+        "tailored_documents": "Ouvrir les documents",
+        "company_dossier": "Ouvrir le dossier entreprise",
+        "action_card": "Voir la proposition",
+        "ats_score": "Voir l'ATS Score",
+        "master_cv": "Ouvrir la version",
+        "master_cv_version": "Ouvrir la version",
+        "change": "Ouvrir {{label}}"
+      },
+      "cost": {
+        "label": "Coût :",
+        "quota": {
+          "jobSearches": "1 recherche du forfait",
+          "atsScores": "1 ATS Score du forfait",
+          "matchScores": "1 Match Score du forfait",
+          "enrichedContacts": "1 contact enrichi du forfait"
+        },
+        "week": "{{used}} sur {{limit}} cette semaine",
+        "consumption": "compté dans votre consommation",
+        "calls_one": "{{count}} appel · {{tokens}} jetons envoyés",
+        "calls_other": "{{count}} appels · {{tokens}} jetons envoyés",
+        "tokens": "{{tokens}} jetons",
+        "partial": "dernier appel seulement",
+        "noAi": "Sans IA"
+      },
+      "sources": "Sources et outils de cette page"
+    }
   },
   "signalement": {
     "open": "Signalement",

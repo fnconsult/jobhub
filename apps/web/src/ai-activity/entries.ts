@@ -185,7 +185,18 @@ export interface ActivityInput {
   replies?: readonly ReplyGiven[];
   /** Counted on a Profile's page only. */
   versions?: readonly VersionGiven[];
+  /**
+   * Entries the server built already from what it alone reads (`servedEntries`, #808): the browser adds the replies its
+   * thread shows, with their cards. A served reply the thread shows gives way to the thread's.
+   */
+  built?: readonly ServedEntry[];
 }
+
+/**
+ * An entry as the server serves it to the browser (#808): with, on a Master CV Version made from a Coach proposal, the
+ * card its Origin names (`card`), which the thread's cards already hold, so the browser can link it to the reply.
+ */
+export type ServedEntry = ActivityEntry & { card?: string };
 
 /** The element kinds each page counts; any other page counts every one it is given. */
 const SCOPED: Record<Exclude<PageScope, "any">, ReadonlySet<ElementKind>> = {
@@ -359,6 +370,18 @@ const changeOf = ({ change }: CardGiven) => ({ what: change.what, before: change
 
 /** The page's Activité entries, the newest first. */
 export function activityEntries(input: ActivityInput): ActivityEntry[] {
+  return build(input).map(shown);
+}
+
+/**
+ * The entries the server builds from the page's elements, versions and the replies it reads (#808), for the browser to
+ * finish with its thread's (`built`): what crosses to the browser, never a Provenance.
+ */
+export function servedEntries(input: Omit<ActivityInput, "built">): ServedEntry[] {
+  return build(input).map((entry) => ({ ...shown(entry), ...(entry.card ? { card: entry.card } : {}) }));
+}
+
+function build(input: ActivityInput): Built[] {
   const scoped = input.page === "any" ? null : SCOPED[input.page];
   const given = input.elements ?? [];
   const elements = given.map((element) => (scoped && !scoped.has(element.kind) ? null : elementEntry(element)));
@@ -369,15 +392,17 @@ export function activityEntries(input: ActivityInput): ActivityEntry[] {
     const cause = element.after !== undefined ? elements[element.after] : element.scored !== undefined ? version.get(element.scored) : undefined;
     if (elements[index] && cause && cause !== elements[index]) elements[index].cause = cause;
   });
+  const prior = builtBefore(input.built ?? [], new Set(replies.flatMap((entry) => (entry.kind === "coach_reply" ? [entry.messageId!] : []))));
   // A version a card created is the change it made (even once undone): it follows that card's reply, in its place.
   const madeVersion = new Set<string>();
-  for (const [, entry] of versions) {
+  for (const entry of [...versions.map(([, each]) => each), ...prior]) {
     const reply = entry.card ? replies.find((each) => each.cards?.has(entry.card!)) : undefined;
     if (!reply) continue;
     Object.assign(entry, { cause: reply, messageId: reply.messageId, proposal: reply.cards!.get(entry.card!) });
     madeVersion.add(entry.card!);
   }
   const built = newestFirst([
+    ...prior,
     ...elements.flatMap((entry) => (entry ? [entry] : [])),
     ...replies.filter((entry) => !(entry.kind === "change" && madeVersion.has(entry.card!))),
     ...versions.map(([, entry]) => entry),
@@ -387,7 +412,18 @@ export function activityEntries(input: ActivityInput): ActivityEntry[] {
     if (entry.cause) entry.after = entry.cause.key;
     if (entry.proposal) entry.proposal.led = entry.key;
   }
-  return built.map(shown);
+  return built;
+}
+
+/** The server's entries, linked again by their keys; a reply the thread shows (`shown`) gives way to the thread's. */
+function builtBefore(served: readonly ServedEntry[], shown: ReadonlySet<string>): Built[] {
+  const prior: Built[] = served.filter((entry) => !(entry.kind === "coach_reply" && shown.has(entry.messageId!))).map((entry) => structuredClone(entry));
+  const byKey = new Map(prior.map((entry) => [entry.key, entry]));
+  for (const entry of prior) {
+    const cause = entry.after ? byKey.get(entry.after) : undefined;
+    if (cause) entry.cause = cause;
+  }
+  return prior;
 }
 
 /** Keeps each entry's key unique: one alike an earlier one in the page's order is numbered. */

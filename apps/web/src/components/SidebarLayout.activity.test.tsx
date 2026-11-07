@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({
 function Conversation({ context }: { context: PageConversation["context"] }) {
   const register = useConversationFirst()?.setPage;
   useEffect(() => {
-    register?.({ conversationId: "c1", replying: false, context, repliesInView: [], clear: async () => true, startNew: null, askAbout: () => {} });
+    register?.({ conversationId: "c1", replying: false, context, replies: [], clear: async () => true, startNew: null, askAbout: () => {} });
     return () => register?.(null);
   }, [register, context]);
   return <p>La conversation</p>;
@@ -39,7 +39,7 @@ function inOrder(column: HTMLElement): string[] {
   const parts = {
     context: within(column).getByRole("group", { name: "Contexte de la conversation" }),
     now: within(column).getByRole("region", { name: "En ce moment" }),
-    history: within(column).getByText("Aucun contenu produit par l'IA sur cette page"),
+    history: within(column).getByText("Rien encore sur cette page."),
   };
   return Object.entries(parts)
     .sort(([, a], [, b]) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
@@ -82,7 +82,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     expect(screen.getByRole("main").contains(column)).toBe(false);
     expect(within(column).getByRole("group", { name: "Contexte de la conversation" })).toBeTruthy();
     expect(within(column).getByText("12 / 40 messages · 3,1k / 12k jetons")).toBeTruthy();
-    expect(within(column).getByText("Aucun contenu produit par l'IA sur cette page")).toBeTruthy();
+    expect(within(column).getByText("Rien encore sur cette page.")).toBeTruthy();
     expect(within(column).queryByRole("heading", { level: 2 })).toBeNull();
     expect(within(column).queryByRole("button", { name: /Fermer/ })).toBeNull();
   });

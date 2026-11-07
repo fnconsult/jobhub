@@ -916,7 +916,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
 
       expect(await conversations.repliesAbout(marie, { kind: "job_search", id: jobSearchId })).toHaveLength(1);
       expect(await conversations.repliesAbout(marie, { kind: "job_digest", id: jobDigestId })).toHaveLength(1);
-      expect(await conversations.repliesAbout(marie, { kind: "agenda", id: "agenda" })).toEqual([{ at: expect.any(String), provenance: PROVENANCE, sent: null }]);
+      expect(await conversations.repliesAbout(marie, { kind: "agenda", id: "agenda" })).toEqual([{ at: expect.any(String), question: "Mon agenda ?", provenance: PROVENANCE, sent: null }]);
     });
 
     it("reads a partial Provenance on the fly for a reply saved before, from its provider, model and tokens; none for one that saved nothing", async () => {

@@ -5074,25 +5074,13 @@
       "propose": "Preparing a proposal"
     },
     "label": "AI activity",
-    "title": "This page",
-    "close": "Close",
     "models_one": "{{count}} model",
     "models_other": "{{count}} models",
     "tokens": "{{tokens}} tokens",
-    "sections": {
-      "models": "Models",
-      "sources": "Sources",
-      "tools": "Tools",
-      "byElement": "By item"
-    },
-    "measure": "tokens · time",
-    "measureHint": "a technical measure, not counted against your quotas",
-    "total": "Total",
     "yourData": "Your data: Master CV, Profile, criteria",
     "noAi": "No content made by AI on this page",
     "newTab": "(new tab)",
     "rules": "Jobbbox rules",
-    "usedBy": "For: {{elements}}",
     "kinds": {
       "job_offer": "Job offer",
       "coach_reply": "Coach reply",
@@ -5195,7 +5183,84 @@
       }
     },
     "learnMore": "Learn more",
-    "learnMoreLabel": "Learn more about AI in Jobbbox"
+    "learnMoreLabel": "Learn more about AI in Jobbbox",
+    "history": {
+      "title": "History",
+      "today": "Today",
+      "day": "On {{date}}",
+      "undated": "Date unknown",
+      "empty": "Nothing on this page yet.",
+      "titles": {
+        "master_cv_version": "Master CV version {{version}}",
+        "change": "Change applied · {{what}}"
+      },
+      "results": {
+        "offers_one": "{{count}} offer",
+        "offers_other": "{{count}} offers",
+        "score": "{{score}}/100",
+        "change": "{{before}} → {{after}}",
+        "version": "Version {{version}}",
+        "restored": "restores version {{version}}",
+        "proposals_one": "{{count}} proposal",
+        "proposals_other": "{{count}} proposals"
+      },
+      "origin": {
+        "candidate": "By you",
+        "question": "To your question",
+        "coach_proposal": "By you, from the coach's proposal",
+        "jobbbox": "By Jobbbox"
+      },
+      "you": "You: {{question}}",
+      "steps": "Steps",
+      "read": "Read:",
+      "tools": "Tools:",
+      "models": "Models:",
+      "proposals": "Proposals",
+      "calls_one": "{{count}} call",
+      "calls_other": "{{count}} calls",
+      "state": {
+        "pending": "Pending",
+        "applied": "Applied",
+        "dismissed": "Dismissed",
+        "withdrawn": "Withdrawn",
+        "undone": "Undone"
+      },
+      "led": "→ led to",
+      "after": "↳ follows",
+      "inConversation": "See in the conversation",
+      "inActivity": "In Activity",
+      "open": {
+        "coach_reply": "Open",
+        "job_search": "Open the search",
+        "job_offer": "See the offer",
+        "job_digest": "Open the Job Digest",
+        "tailored_cv": "Open the tailored CV",
+        "tailored_documents": "Open the documents",
+        "company_dossier": "Open the company dossier",
+        "action_card": "See the proposal",
+        "ats_score": "See the ATS Score",
+        "master_cv": "Open the version",
+        "master_cv_version": "Open the version",
+        "change": "Open {{label}}"
+      },
+      "cost": {
+        "label": "Cost:",
+        "quota": {
+          "jobSearches": "1 search from your plan",
+          "atsScores": "1 ATS Score from your plan",
+          "matchScores": "1 Match Score from your plan",
+          "enrichedContacts": "1 enriched contact from your plan"
+        },
+        "week": "{{used}} of {{limit}} this week",
+        "consumption": "counted in your consumption",
+        "calls_one": "{{count}} call · {{tokens}} tokens sent",
+        "calls_other": "{{count}} calls · {{tokens}} tokens sent",
+        "tokens": "{{tokens}} tokens",
+        "partial": "last call only",
+        "noAi": "No AI"
+      },
+      "sources": "This page's sources and tools"
+    }
   },
   "signalement": {
     "open": "Feedback",

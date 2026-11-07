@@ -734,6 +734,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       if (name === "phone") {
         await chooseInTopBarMore(page, fr.fiche.activity);
         await expect(fiche).toBeVisible();
+        await expect(fiche.getByRole("button", { name: fr.fiche.groups.activity })).toHaveAttribute("aria-expanded", "true");
       } else {
         if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
         await expect(activity).toHaveAttribute("aria-expanded", "true");

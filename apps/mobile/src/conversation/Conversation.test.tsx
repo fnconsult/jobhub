@@ -4,6 +4,7 @@ import { CoachConversation } from "../coach/CoachConversation";
 import { fakeCoachWeb } from "../coach/testing";
 import { fakeNetwork } from "../offline/testing";
 import { renderInApp, setWindow } from "../testing";
+import { AppText, BAR_MAX_SCALE } from "../ui/AppText";
 
 // What it sends and shows is CoachConversation's (its tests); here, how the conversation is drawn: its box, and its thread.
 
@@ -62,6 +63,16 @@ describe("Conversation's box, at a large system text size", () => {
     const thread = screen.getByLabelText("Vos échanges avec votre coach");
     expect(within(thread).getByRole("button", { name: "Signaler un problème" })).toBeOnTheScreen();
     expect(within(screen.getByTestId("conversation-box")).queryByRole("button", { name: "Signaler un problème" })).toBeNull();
+  });
+
+  // The box, what sits above it included, took 272 of an iPhone SE's 667 points at the largest size, under a Top Bar of
+  // 197: the thread was left 198, less than an Application's card title (#705, Maestro). It is the conversation's bar:
+  // its texts grow up to twice their size, as the shell's bars do (BAR_MAX_SCALE) and iOS's own.
+  it("lets the box's texts grow up to twice their size, as the shell's bars", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderInApp(<CoachConversation conversationId={null} route="/" suggestions={<AppText>Chercher des offres</AppText>} />, fakeCoachWeb().client);
+    expect(screen.getByLabelText("Votre message").props.maxFontSizeMultiplier).toBe(BAR_MAX_SCALE);
+    expect(screen.getByText("Chercher des offres").props.maxFontSizeMultiplier).toBe(BAR_MAX_SCALE);
   });
 
   it("keeps what sits under the box there at the standard size", async () => {

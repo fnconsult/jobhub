@@ -8,7 +8,7 @@ import { useKeyCommand } from "../keyboard/key-commands";
 import { useOnline } from "../offline/read-cache";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
 import { TAPS_REACH_CONTROLS } from "../session/GateScreen";
-import { AppText, WHOLE_FROM_FONT_SCALE } from "../ui/AppText";
+import { AppText, BAR_MAX_SCALE, CappedTextScale, WHOLE_FROM_FONT_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 
@@ -107,7 +107,11 @@ export function Conversation({
       </ScrollView>
       {/* What sits above the box (suggestions, the help found while typing) scrolls and shrinks when the thread leaves it
           too little room: the box keeps its own, above the keyboard and on the screen, at any text size (#705). */}
-      <View testID="conversation-box" style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", flexShrink: 1, paddingBottom: space[2], gap: space[1] }}>
+      {/* The box is the conversation's bar: its texts grow up to twice their size, as the shell's bars do (BAR_MAX_SCALE)
+          and iOS's own. Growing freely, it took 272 of an iPhone SE's 667 points at the largest size, and left the
+          thread less than an Application's card title (#705). */}
+      <CappedTextScale scale={BAR_MAX_SCALE}>
+        <View testID="conversation-box" style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", flexShrink: 1, paddingBottom: space[2], gap: space[1] }}>
         {aboveBox ? (
           <ScrollView testID="conversation-above-box" style={styles.aboveBox} keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}>
             {aboveBox}
@@ -152,6 +156,7 @@ export function Conversation({
             onChangeText={onDraftChange}
             editable={online}
             aria-disabled={!online}
+            maxFontSizeMultiplier={BAR_MAX_SCALE}
             multiline
             style={{
               flex: 1,
@@ -171,7 +176,8 @@ export function Conversation({
           )}
         </DropTarget>
         {belowBoxInThread ? null : belowBox}
-      </View>
+        </View>
+      </CappedTextScale>
     </View>
   );
 }

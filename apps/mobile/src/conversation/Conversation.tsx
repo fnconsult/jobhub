@@ -8,7 +8,7 @@ import { useKeyCommand } from "../keyboard/key-commands";
 import { useOnline } from "../offline/read-cache";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
 import { TAPS_REACH_CONTROLS } from "../session/GateScreen";
-import { AppText } from "../ui/AppText";
+import { AppText, WHOLE_FROM_FONT_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 
@@ -67,6 +67,10 @@ export function Conversation({
   // Under a page's own view (`lead`), the page opens on it: nothing follows until something is sent.
   const following = useRef(lead === undefined);
   const [attaching, setAttaching] = useState(false);
+  // From the size where texts are shown whole, the box's own button (« Envoyer », « Arrêter ») is its icon, named by its
+  // words: in words, at iOS's largest size on an iPhone SE, it took the whole box, cut in two and past the screen's edge,
+  // and left the message field no width (#705).
+  const buttonIconOnly = fontScale >= WHOLE_FROM_FONT_SCALE;
   const choose = (chosen: () => void) => {
     setAttaching(false);
     chosen();
@@ -157,9 +161,9 @@ export function Conversation({
             }}
           />
           {streaming ? (
-            <Control label={t("coachPanel.stop")} icon={Square} look="secondary" onPress={onStop} />
+            <Control label={t("coachPanel.stop")} icon={Square} iconOnly={buttonIconOnly} look="secondary" onPress={onStop} />
           ) : (
-            <Control label={t("mobile.send")} icon={Send} look="primary" disabled={!online} onPress={send} />
+            <Control label={t("mobile.send")} icon={Send} iconOnly={buttonIconOnly} look="primary" disabled={!online} onPress={send} />
           )}
         </DropTarget>
         {belowBox}

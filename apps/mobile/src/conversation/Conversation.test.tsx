@@ -41,6 +41,25 @@ describe("Conversation's box, what sits above it taller than the room left", () 
   });
 });
 
+// On an iPhone SE at iOS's largest text size, « Envoyer » took the whole box: its words cut in two (« Envoy / er »), run
+// past the screen's edge, the message field left no width, the box drawn over the thread (#705, Maestro, iphone-se
+// light-largest-text). From the size where texts are shown whole, the box's button is its icon, named « Envoyer ».
+describe("Conversation's box, at a large system text size", () => {
+  it("draws « Envoyer » as its icon, named by its words, which leaves the field its width", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
+    const send = screen.getByRole("button", { name: "Envoyer" });
+    expect(send).toBeEnabled();
+    expect(within(send).queryByText("Envoyer")).toBeNull();
+  });
+
+  it("keeps « Envoyer »'s words at the standard size", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 1 });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
+    expect(within(screen.getByRole("button", { name: "Envoyer" })).getByText("Envoyer")).toBeOnTheScreen();
+  });
+});
+
 describe("Conversation's thread, when the window changes (rotation, Split View, Stage Manager, a foldable)", () => {
   // The thread's native scroll view, as Jest's React Native preset stands it in.
   const scrollToEnd = () => (ScrollView.prototype as unknown as { scrollToEnd: jest.Mock }).scrollToEnd;

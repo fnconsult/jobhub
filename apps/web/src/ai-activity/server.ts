@@ -1,13 +1,17 @@
 import { getCoachConversations } from "@/coach-conversations/server";
 import { getJobOffers } from "@/job-offers/server";
-import { agendaPage, applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type ActivityElement, type PageSources } from "./index";
+import { servedEntries, type ServedEntry } from "./entries";
+import { agendaPage, applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageActivity, type PageSources } from "./index";
 
 const sources = (): PageSources => ({ jobOffers: getJobOffers(), coachReplies: getCoachConversations() });
 
-/** Never fails the page: without its Provenance read, the pane shows nothing (and the error is logged). */
-async function quietly(load: (sources: PageSources) => Promise<ActivityElement[]>): Promise<ActivityElement[]> {
+/**
+ * The page's Activité entries the server builds (#808), what crosses to the browser. Never fails the page: without its
+ * Provenance read, the history shows only what the thread adds (and the error is logged).
+ */
+async function quietly(load: (sources: PageSources) => Promise<PageActivity>): Promise<ServedEntry[]> {
   try {
-    return await load(sources());
+    return servedEntries(await load(sources()));
   } catch (error) {
     console.error("[ai-activity] could not read the page's Provenance", error);
     return [];
@@ -16,7 +20,7 @@ async function quietly(load: (sources: PageSources) => Promise<ActivityElement[]
 
 type Rest<F> = F extends (sources: PageSources, ...rest: infer R) => unknown ? R : never;
 
-/** AI Activity's elements of each Candidate page type, read from the app's Job Offers and Coach Conversations (see ./index). */
+/** The Activité entries of each Candidate page type, read from the app's Job Offers and Coach Conversations (see ./index). */
 export const loadAiActivity = {
   jobOffer: (...args: Rest<typeof jobOfferPage>) => quietly((s) => jobOfferPage(s, ...args)),
   jobSearches: (...args: Rest<typeof jobSearchPage>) => quietly((s) => jobSearchPage(s, ...args)),

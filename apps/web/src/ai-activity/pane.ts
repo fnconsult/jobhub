@@ -113,7 +113,8 @@ function addModel(models: ActivityModel[], model: ActivityModel): void {
   same.ms = add(same.ms, model.ms);
 }
 
-function addTool<T extends ActivityTool>(tools: T[], tool: T): T {
+/** Adds `tool` to `tools`, once by its name, its time summed; returns the one kept. */
+export function addTool<T extends ActivityTool>(tools: T[], tool: T): T {
   const same = tools.find((other) => other.name === tool.name);
   if (!same) {
     const kept = { ...tool };
@@ -124,7 +125,8 @@ function addTool<T extends ActivityTool>(tools: T[], tool: T): T {
   return same;
 }
 
-function addSite(sites: ProvenanceSite[], site: ProvenanceSite): void {
+/** Adds `site` to `sites`, once per domain (the Candidate's data once), its links joined. */
+export function addSite(sites: ProvenanceSite[], site: ProvenanceSite): void {
   const same = sites.find((other) => other.kind === site.kind && (other.kind === "candidate" || (site.kind === "web" && other.domain === site.domain)));
   if (same) same.links = [...new Set([...same.links, ...site.links])];
   else sites.push(structuredClone(site));

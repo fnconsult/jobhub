@@ -33,9 +33,8 @@ const METADATA_SIZE_SELECTORS = [
   ".cv-card-meta", // a Master CV card's version line and the full editor's hint (#468)
   ".cv-job-mark", // a job's employer initials, hidden from screen readers: a mark, not text (#468)
   ".ai-activity-summary",
-  ".ai-activity-chips",
-  ".ai-activity-meta, .ai-activity-measure",
-  ".ai-activity-element-model code",
+  ".ai-activity-meta",
+  ".activity-entry-sub, .activity-entry-time", // an Activité entry's result, cost and time, under its title (#808)
   ".chart-axis span", // chart axis labels
   ".chart-x",
   ".chart-threshold-label",

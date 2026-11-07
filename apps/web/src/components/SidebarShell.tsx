@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AiActivityButton, AiActivityPane } from "@/components/AiActivity";
+import { AiActivityButton } from "@/components/AiActivity";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
 import { buttonClass } from "@/design/Button";
@@ -68,7 +68,7 @@ function setHidden(hidden: boolean) {
  * sidebar (brand and the button hiding it, `top` and the `nav` scrolling under it, the foot pinned at the bottom,
  * signing out), the Top
  * Bar with the Menu button, the page's `title`, the AI Activity button and the
- * Coach Panel button (or `topBarEnd` in its place), and the page as `<main>`, `beside` it (the Work Pane), then AI Activity's pane (both
+ * Coach Panel button (or `topBarEnd` in its place), and the page as `<main>`, `beside` it (the Work Pane, the Fiche or the Activité column; AI Activity
  * only inside an AiActivityProvider: Candidate pages, never the Back Office). `title` is the page's `<h1>`: a string, or an element that
  * is one itself (an editable title). Pages never render their own (ADR-0024).
  *
@@ -356,7 +356,6 @@ export function SidebarShell({
               {children}
             </main>
             {beside}
-            <AiActivityPane />
           </div>
         </div>
       </SidebarSections.Provider>

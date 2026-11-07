@@ -10,7 +10,7 @@ import { ProfileSwitcherMenu } from "@/components/ProfileSwitcherMenu";
 import { SignalementButton } from "@/components/Signalement";
 import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
-import type { ActivityElement } from "@/ai-activity/pane";
+import type { ServedEntry } from "@/ai-activity/entries";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
@@ -23,7 +23,7 @@ import { routes } from "@/routes";
 export type SidebarProfile = { id: string; name: string; archived: boolean };
 
 /** A page with no AI content. */
-const NO_AI_ACTIVITY: readonly ActivityElement[] = [];
+const NO_AI_ACTIVITY: readonly ServedEntry[] = [];
 
 const LABELS = {
   applications: "nav.applications",
@@ -73,7 +73,7 @@ export function SidebarLayout({
   usage?: Meter | null;
   title?: ReactNode;
   wide?: boolean;
-  aiActivity?: readonly ActivityElement[];
+  aiActivity?: readonly ServedEntry[];
   version: string;
   freeConversations: readonly FreeConversation[];
   menus?: SidebarMenus | undefined;
@@ -90,7 +90,7 @@ export function SidebarLayout({
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
   const shell = (pageInert: boolean) => (
-    <AiActivityProvider elements={aiActivity}>
+    <AiActivityProvider served={aiActivity} usage={usage}>
       <SidebarShell
         pageInert={pageInert}
         brand={{ href: routes.home, label: t("app.name") }}

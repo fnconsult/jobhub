@@ -46,9 +46,9 @@ function fakeServer(saved: boolean) {
   return { fetch, sent };
 }
 
-/** The replies the page gives AI Activity about its object (#332), as AI Activity reads them. */
+/** The replies the thread gives its Activity's history (#808), as AI Activity reads them. */
 function RepliesInView() {
-  const replies = useConversationFirst()?.page?.repliesInView ?? [];
+  const replies = useConversationFirst()?.page?.replies ?? [];
   return <output aria-label="Réponses sur cette page">{JSON.stringify(replies)}</output>;
 }
 
@@ -126,7 +126,7 @@ describe("an Application's page is its conversation (#603, ADR-0070)", () => {
     expect(within(conversation()).queryByRole("group", { name: "Suggestions" })).toBeNull();
   });
 
-  it("gives AI Activity the reply about the Application with what it sent in all its AI calls (#805)", async () => {
+  it("gives AI Activity the reply, its question and what it sent in all its AI calls (#805, #808)", async () => {
     server = fakeServer(false);
     vi.stubGlobal("fetch", server.fetch);
     const user = userEvent.setup();
@@ -135,7 +135,9 @@ describe("an Application's page is its conversation (#603, ADR-0070)", () => {
     await user.click(within(conversation()).getByRole("button", { name: "Préparer l'entretien" }));
 
     await within(thread()).findByText("Commençons par l'entreprise.");
-    expect(JSON.parse(screen.getByRole("status", { name: "Réponses sur cette page" }).textContent!)).toEqual([{ provenance: null, at: AT, sent: SENT }]);
+    expect(JSON.parse(screen.getByRole("status", { name: "Réponses sur cette page" }).textContent!)).toEqual([
+      { messageId: AT, at: AT, question: "Aide-moi à préparer l'entretien.", provenance: null, sent: SENT, cards: [] },
+    ]);
   });
 
   it("sends the next messages to the conversation the first one started", async () => {

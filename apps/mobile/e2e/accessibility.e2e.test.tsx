@@ -97,6 +97,8 @@ const coachWeb = (): FakeCoachWeb =>
             state: "to_handle",
             applicationId: null,
             followedAt: null,
+            dismissalReason: null,
+            dismissedAt: null,
           },
         ],
       },

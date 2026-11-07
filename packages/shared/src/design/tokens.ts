@@ -37,9 +37,17 @@ export const designTokens = {
     warnSoft: themed("#fdf5e3", "#33290f"),
     danger: themed("#bb3030", "#ff8a8a"),
     dangerSoft: themed("#fdeeee", "#3a1b1b"),
-    // Chart series and the area under a line: graphics, so 3:1 against the background (WCAG 1.4.11).
-    chart1: themed("#6a78ee", "#8d9bff"),
-    chart2: themed("#e46f8a", "#e46f8a"),
+    // Chart series, in their fixed order (CHART_SERIES), and the area under a line. One categorical palette, validated
+    // for colour-vision deficiency (#801: adjacent pairs ΔE ≥ 8.4 in both themes). chart2 is orange, not pink: chart5's
+    // pink beside another would not be told apart. 3:1 against the background (WCAG 1.4.11) for chart1, chart2 and
+    // chart6 in both themes and every series in the dark one; the light green, amber and pink are under it, so a chart
+    // that uses them names every series in a legend and gives its values in words (tooltip and table view).
+    chart1: themed("#6a78ee", "#6a78ee"),
+    chart2: themed("#eb6834", "#d95926"),
+    chart3: themed("#1baf7a", "#199e70"),
+    chart4: themed("#eda100", "#c98500"),
+    chart5: themed("#e87ba4", "#d55181"),
+    chart6: themed("#008300", "#008300"),
     chartFill: themed("rgb(106 120 238 / 18%)", "rgb(141 155 255 / 22%)"),
     // A Toast: the text colour as a surface, and the text on it (#462).
     inverse: themed("#1b1b26", "#ececf3"),
@@ -102,6 +110,9 @@ export const designTokens = {
     easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
   },
 } as const;
+
+/** The chart series in their fixed order: a chart's first series takes chart1, its second chart2, and so on, never cycled. */
+export const CHART_SERIES = ["chart1", "chart2", "chart3", "chart4", "chart5", "chart6"] as const satisfies readonly (keyof typeof designTokens.color)[];
 
 /**
  * Old token names, kept as aliases of the new ones until the components ticket removes them (#461):

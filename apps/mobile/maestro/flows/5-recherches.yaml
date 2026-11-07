@@ -1,0 +1,69 @@
+# Recherches d'offres: the page opens on its Offer box (« Offres à traiter », ADR-0090), the seeded done Job Search's two
+# Job Offers à traiter (MAESTRO_SEED.jobOfferRows, seed.ts). « Suivre » keeps the first: it goes to « Déjà suivies »,
+# the other stays à traiter. Below the box, the Job Searches by Profile (#690), the seeded one with its two Job Offers
+# found. Setting one aside (« Écarter », with its Dismissal reason) comes to the app with #816, which adds its steps here.
+appId: ai.jobbbox.app
+name: Recherches d'offres, garder ou écarter une offre
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Recherches d'offres"
+- extendedWaitUntil:
+    visible: "Toutes, 2 à traiter"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Cheffe de projet qualité · Industries Démo"
+      DIRECTION: DOWN
+# The first entry's « Suivre »: named for its Job Offer, as VoiceOver reads it, on iOS; Android also exposes its words.
+# Scrolled to itself, not only to the entry's title: on an unfolded foldable the title showed at the thread's bottom
+# edge, its button under it out of view. Going down, the first entry's comes first.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Suivre( : Cheffe de projet qualité)?"
+      DIRECTION: DOWN
+- tapOn:
+    text: "Suivre( : Cheffe de projet qualité)?"
+    index: 0
+# It goes to « Déjà suivies », folded, under the other, still à traiter.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Déjà suivies \\(1\\)"
+      DIRECTION: DOWN
+- assertVisible: "Auditrice qualité fournisseurs · Industries Démo"
+- tapOn: "Déjà suivies \\(1\\)"
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Suivie"
+      DIRECTION: DOWN
+- assertVisible: "Cheffe de projet qualité · Industries Démo"
+# One à traiter left, of the two.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Toutes, 1 à traiter"
+      DIRECTION: UP
+# The menu's conversation follows the box: the Job Searches by Profile in it.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Vos recherches par profil"
+      DIRECTION: DOWN
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Offres trouvées : 2"
+      DIRECTION: DOWN
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Lancer une recherche"
+      DIRECTION: DOWN

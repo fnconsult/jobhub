@@ -19,6 +19,22 @@ describe("what a sign-in page or the app's sign-in screen says (#470, #687)", ()
     );
   });
 
+  it("names them the same where Intl.ListFormat is missing, as in the app's JavaScript engine, Hermes (#705)", () => {
+    // Hermes has no Intl.ListFormat: the Maestro flows found the app's sign-in screen crashing on it.
+    const intl = Intl as { ListFormat?: typeof Intl.ListFormat };
+    const listFormat = intl.ListFormat;
+    delete intl.ListFormat;
+    try {
+      expect(signInCopy({ providers: ["Google", "Apple", "Microsoft"] }, "fr").intro).toContain("votre compte Google, Apple ou Microsoft.");
+      expect(signInCopy({ providers: ["Google", "Microsoft"] }, "fr").intro).toContain("votre compte Google ou Microsoft.");
+      expect(signInCopy({ providers: ["Google"] }, "fr").intro).toContain("votre compte Google.");
+      expect(signInCopy({ providers: ["Google", "Microsoft"] }, "en").intro).toContain("your Google or Microsoft account.");
+      expect(signInCopy({ providers: ["Google", "Apple", "Microsoft"] }, "en").intro).toContain("your Google, Apple, or Microsoft account.");
+    } finally {
+      intl.ListFormat = listFormat;
+    }
+  });
+
   it("says it in English", () => {
     expect(signInCopy({ providers: [] }, "en").intro).toBe(
       "No password to remember: get a sign-in link by email. If you don't have an account yet, one will be created.",

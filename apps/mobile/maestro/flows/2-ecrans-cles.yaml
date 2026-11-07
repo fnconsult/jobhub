@@ -1,0 +1,95 @@
+# The key screens, each compared with its reference capture (subflows/capture.yaml): the home page, Mes candidatures, an
+# Application's Fiche, Recherches d'offres (its Offer box), the Agenda and a conversation. Run in every theme and at the largest text
+# size, where a tablet's columns go full page (subflows/layout.yaml, subflows/fiche.yaml) and no text is cut.
+appId: ai.jobbbox.app
+name: Écrans clés et leurs captures de référence
+tags:
+  - key-screens
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow: ../subflows/layout.yaml
+- runFlow: ../subflows/conversation-end.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: accueil
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Mes candidatures"
+# A menu's conversation opens on its latest message: its card is above.
+- runFlow: ../subflows/conversation-end.yaml
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Responsable qualité · Aéroline Démo"
+      DIRECTION: UP
+# The other Application, listed after it: on a folded foldable at the largest text size the thread holds one at a time.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Contrôleuse de gestion · Transports Ravel Démo"
+      DIRECTION: DOWN
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: candidatures
+
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Responsable qualité · Aéroline Démo"
+      DIRECTION: UP
+- tapOn: "Responsable qualité · Aéroline Démo"
+- runFlow: ../subflows/fiche.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: fiche
+- runFlow: ../subflows/close-fiche.yaml
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Recherches d'offres"
+# Recherches d'offres opens on its Offer box (ADR-0090), its conversation below it: captured once the seeded Job Offers
+# are read, both à traiter (« Toutes », the first chip).
+- extendedWaitUntil:
+    visible: "Toutes, 2 à traiter"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: recherches
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Agenda"
+- runFlow: ../subflows/conversation-end.yaml
+# A menu's conversation opens on its latest message: its card is above. The Interview's line is one link, which iOS
+# names by all it says (its time, « Entretien », the job, the employer): the job's title found within it, but not in
+# « Ajouter à mon calendrier : Entretien — Contrôleuse de gestion… », the button inside it that Android also exposes.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "(?!Ajouter).*Contrôleuse de gestion.*"
+      DIRECTION: UP
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: agenda
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Préparer mon entretien chez Aéroline"
+- extendedWaitUntil:
+    visible: "Joindre un lien ou un document"
+    timeout: 20000
+- runFlow: ../subflows/conversation-end.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: conversation

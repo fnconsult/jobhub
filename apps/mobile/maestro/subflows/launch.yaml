@@ -1,0 +1,17 @@
+# Opens the app afresh on its home page, the session kept; signs the run's Candidate in when it asks (a run that only
+# takes the key screens comes here first), and waits for a conversation's box.
+appId: ai.jobbbox.app
+---
+- launchApp
+# The app first restores its session: whether it asks to sign in is known once one of its two screens shows. Asked
+# at once, an iPhone SE was still on its launch screen, the sign-in skipped, and its sign-in page stayed (#705).
+- extendedWaitUntil:
+    visible: "(Se connecter à Jobbbox|Joindre un lien ou un document)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Se connecter à Jobbbox"
+    file: sign-in.yaml
+- extendedWaitUntil:
+    visible: "Joindre un lien ou un document"
+    timeout: 30000

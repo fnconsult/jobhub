@@ -1,5 +1,5 @@
-import { act, screen, userEvent } from "@testing-library/react-native";
-import { Platform, Pressable, Text } from "react-native";
+import { act, fireEvent, screen, userEvent, within } from "@testing-library/react-native";
+import { Platform, Pressable, StyleSheet, Text } from "react-native";
 import { fakeNetwork } from "../offline/testing";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
 import { CoachConversation } from "../coach/CoachConversation";
@@ -86,6 +86,75 @@ describe("Shell, below 64rem", () => {
   it("puts the pencil « Nouvelle conversation » in the Top Bar", async () => {
     await renderShell();
     expect(button("Nouvelle conversation")).toBeOnTheScreen();
+  });
+});
+
+describe("Shell, its Top Bar's title", () => {
+  /** What the device lays out: the Top Bar `bar` points wide, its menu button and its buttons at the end as wide as given. */
+  const laidOut = async (bar: number, menu: number, end: number) => {
+    const layout = (width: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height: 60 } } });
+    await fireEvent(screen.getByTestId("top-bar"), "layout", layout(bar));
+    await fireEvent(screen.getByTestId("top-bar-menu"), "layout", layout(menu));
+    await fireEvent(screen.getByTestId("top-bar-end"), "layout", layout(end));
+  };
+  const besideTheButtons = (title: string) => within(screen.getByTestId("top-bar-row")).queryByText(title) !== null;
+  const candidatures: ShellPage = { key: "/candidatures", title: "Mes candidatures", pane: "activite" };
+
+  it("stays beside the buttons where it has room for its words", async () => {
+    setWindow({ width: 800, height: 1280 });
+    await renderShell(candidatures);
+    await laidOut(800, 100, 170);
+    expect(screen.getByText("Mes candidatures")).toBeOnTheScreen();
+    expect(besideTheButtons("Mes candidatures")).toBe(true);
+  });
+
+  // A folded phone (412 pt), « Menu », « Activité » and the pencil beside it: « Mes candida / tures », and at the largest
+  // text size one or two letters a line, the Top Bar taking most of the screen (#705).
+  it("goes on its own line under them where they would leave it less than its words need", async () => {
+    setWindow({ width: 412, height: 800 });
+    await renderShell(candidatures);
+    await laidOut(412, 100, 170);
+    expect(screen.getByText("Mes candidatures")).toBeOnTheScreen();
+    expect(besideTheButtons("Mes candidatures")).toBe(false);
+    expect(button("Menu")).toBeOnTheScreen();
+    expect(button("Activité")).toBeOnTheScreen();
+    // More buttons than one line holds beside the menu (« Effacer », « Activité », the pencil) wrap, none past the edge.
+    expect(StyleSheet.flatten(screen.getByTestId("top-bar-end").props.style)).toMatchObject({ flexShrink: 1, flexWrap: "wrap" });
+  });
+
+  it("goes on its own line at the largest text size, and back beside them when the window has room again", async () => {
+    setWindow({ width: 412, height: 800, fontScale: 2 });
+    await renderShell(candidatures);
+    await laidOut(412, 180, 290);
+    expect(besideTheButtons("Mes candidatures")).toBe(false);
+
+    await act(() => setWindow({ width: 1280, height: 800, fontScale: 2 }));
+    await laidOut(1280, 180, 290);
+    expect(besideTheButtons("Mes candidatures")).toBe(true);
+  });
+
+  // An iPhone SE at iOS's largest (3.57): « Menu », « Activité » broken mid-word and the title took the whole screen,
+  // the conversation under them no room left (#705). The Top Bar's words grow to twice their size at most.
+  it("lets its words grow to twice their size at most, the conversation keeping its room", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderShell(candidatures);
+    await laidOut(375, 140, 170);
+    for (const words of ["Menu", "Activité", "Mes candidatures"]) expect(screen.getByText(words)).toHaveProp("maxFontSizeMultiplier", 2);
+    expect(besideTheButtons("Mes candidatures")).toBe(false);
+  });
+
+  it("keeps the link back to the page above it on its own line", async () => {
+    setWindow({ width: 412, height: 800 });
+    const onUp = jest.fn();
+    await renderInApp(
+      <Shell page={{ ...application, up: { path: "/candidatures", label: "Mes candidatures" } }} onUp={onUp} paneContent={null} sidebar={() => null} onNewConversation={() => {}}>
+        <Text>La conversation</Text>
+      </Shell>,
+    );
+    await laidOut(412, 100, 140);
+    expect(besideTheButtons("Aéroline")).toBe(false);
+    await userEvent.setup().press(screen.getByRole("link", { name: "Aéroline" }));
+    expect(onUp).toHaveBeenCalledWith("/candidatures");
   });
 });
 
@@ -336,5 +405,18 @@ describe("Shell, without network", () => {
   it("says nothing with network", async () => {
     await renderShell(home);
     expect(screen.queryByText("Hors ligne")).toBeNull();
+  });
+});
+
+// On an iPhone SE the keyboard covered the Interview form's last field and its label; nothing but a tap on the
+// keyboard's own keys closed it there (the number keyboards have no key that does). A drag in the pane closes it, as in
+// the iOS apps that scroll a form (#705).
+describe("Shell, a pane's keyboard", () => {
+  beforeEach(() => setWindow(PHONE));
+
+  it("closes as the pane is dragged", async () => {
+    await renderShell();
+    await userEvent.setup().press(button("Fiche"));
+    expect(screen.getByTestId("pane-body").props.keyboardDismissMode).toBe("on-drag");
   });
 });

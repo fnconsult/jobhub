@@ -1,0 +1,9 @@
+# Android's back closes its keyboard; iOS's email and number keyboards have no key that does, and the screen already
+# moves above the keyboard there (src/keyboard/above-keyboard.tsx: the signed-in pages and the sign-in screens).
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard

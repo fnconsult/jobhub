@@ -97,7 +97,7 @@ jobs:
           - { shard: worker-1, args: "--project=worker --project=root-env --shard=1/3" }
           - { shard: worker-2, args: "--project=worker --project=root-env --shard=2/3" }
           - { shard: worker-3, args: "--project=worker --project=root-env --shard=3/3" }
-          - { shard: others, plans: true, args: "--project=extension --project=motions --project=stack --project=mta --project=edge --project=repo --project=ai --project=coach-knowledge --project=prototype --project=emails" }
+          - { shard: others, plans: true, args: "--project=extension --project=motions --project=mobile-stack --project=stack --project=mta --project=edge --project=repo --project=ai --project=coach-knowledge --project=prototype --project=emails" }
     services:
       postgres:
         image: postgres:17-alpine

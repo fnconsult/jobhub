@@ -1,0 +1,12 @@
+# Closes iOS's keyboard on the sign-in screen, should the tap beside its field have left it up: a short drag near the
+# screen's top, which the screen closes the keyboard on (src/session/GateScreen.tsx). On an iPad in portrait at the
+# largest text size the tap on the code's label left the keyboard over « Me connecter avec ce code », and the tap meant
+# for it typed on the keyboard (#705).
+appId: ai.jobbbox.app
+---
+- swipe:
+    start: "40%, 30%"
+    end: "40%, 36%"
+    duration: 400
+- waitForAnimationToEnd:
+    timeout: 3000

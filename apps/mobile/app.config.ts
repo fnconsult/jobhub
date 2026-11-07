@@ -9,6 +9,8 @@
 //   native change, so a store build.
 // - Push notifications (#699): the development profile's builds get their tokens from APNs' sandbox, every other build
 //   (TestFlight, the stores) from its production; the `aps-environment` entitlement says which.
+// - The Maestro e2e build (#705, JOBHUB_E2E_BUILD=1, made in CI outside EAS): it talks to the seeded stack on the CI
+//   machine, over plain HTTP, so it alone allows it (iOS's local networking, Android's cleartext), and points nowhere else.
 import type { ConfigContext, ExpoConfig } from "expo/config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,13 +23,31 @@ function withApnsEnvironment(plugins: ExpoConfig["plugins"]): ExpoConfig["plugin
   return plugins?.map((plugin) => (Array.isArray(plugin) && plugin[0] === "expo-notifications" ? [plugin[0], { ...(plugin[1] as object), mode }] : plugin));
 }
 
+/** The e2e build's exceptions to HTTPS, for the seeded stack at `EXPO_PUBLIC_WEB_APP_URL` on the CI machine. */
+function withLocalStack(config: ExpoConfig): ExpoConfig {
+  const url = process.env.EXPO_PUBLIC_WEB_APP_URL ?? "";
+  if (!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(url)) {
+    throw new Error(`An e2e build (JOBHUB_E2E_BUILD) talks only to the stack on localhost, not to ${url || "no address"}`);
+  }
+  return {
+    ...config,
+    ios: { ...config.ios, infoPlist: { ...config.ios?.infoPlist, NSAppTransportSecurity: { NSAllowsLocalNetworking: true } } },
+    plugins: config.plugins?.map((plugin) =>
+      Array.isArray(plugin) && plugin[0] === "expo-build-properties"
+        ? [plugin[0], { ...(plugin[1] as { android?: object }), android: { ...(plugin[1] as { android?: object }).android, usesCleartextTraffic: true } }]
+        : plugin,
+    ),
+  };
+}
+
 export default function appConfig({ config }: ConfigContext): ExpoConfig {
   const projectId = (config.extra?.eas as { projectId?: string } | undefined)?.projectId;
-  return {
+  const resolved: ExpoConfig = {
     ...(config as ExpoConfig),
     plugins: withApnsEnvironment(config.plugins),
     version: platformVersion,
     runtimeVersion: { policy: "fingerprint" },
     ...(projectId ? { updates: { ...config.updates, url: `https://u.expo.dev/${projectId}` } } : {}),
   };
+  return process.env.JOBHUB_E2E_BUILD === "1" ? withLocalStack(resolved) : resolved;
 }

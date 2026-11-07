@@ -69,6 +69,66 @@ gh workflow run mobile.yml -f profile=staging -f action=update -f message="Corri
 
 Le skill `deploy-staging` ne lance pas la build de l'app : il dit seulement, après avoir déployé la Beta, si `apps/mobile` a changé et quelle commande lancer.
 
+## Les e2e Maestro : le plancher de vérification en CI
+
+_#705, ADR-0076, ADR-0009, ADR-0061._
+
+Les parcours de l'app tournent sur des simulateurs iOS et des émulateurs Android, contre une **pile de test semée** : le serveur web e2e et ses faux services (`playwright.config.ts`), sa base jetable, et un petit assistant (`e2e/mobile-stack.spec.ts`, `e2e/support/mobile-stack.ts`) qui crée un Candidate inventé par passage (`MAESTRO_SEED`, `apps/mobile/maestro/seed.ts`) et donne aux flux le code de son e-mail de connexion. Le job dédié est `.github/workflows/mobile-e2e.yml`, lancé à chaque pull request et sur `main` quand `apps/mobile` ou `packages/shared` change.
+
+### Ce qui tourne
+
+| Fichier | Ce qu'il vérifie |
+| --- | --- |
+| `apps/mobile/maestro/flows/1-connexion.yaml` | connexion par code, la session gardée après relance |
+| `2-ecrans-cles.yaml` | les écrans clés (accueil, Mes candidatures, Fiche, Recherches d'offres sur ses Offres à traiter, Agenda, une conversation), la disposition attendue, la capture de chacun |
+| `3-accueil.yaml` | l'accueil, la Sidebar et ses menus |
+| `4-candidature.yaml` | une Application : sa Fiche, son statut passé à « Entretien », un entretien ajouté |
+| `5-recherches.yaml` | Recherches d'offres : la page s'ouvre sur ses Offres à traiter (ADR-0090), les deux offres de la recherche semée ; « Suivre » garde la première, qui passe dans « Déjà suivies » ; puis, sous la boîte, la recherche semée et ses offres trouvées. « Écarter » s'y ajoute avec #816 |
+| `6-agenda.yaml` | l'Agenda, l'entretien semé, qui mène à la rubrique Entretiens |
+| `7-conversation.yaml` | une conversation, la réponse en flux (« Arrêter » pendant qu'elle arrive) |
+
+Les appareils et ce que chaque passage règle sont dans `apps/mobile/maestro/devices.ts` : iPhone SE, iPad Pro 13 pouces en paysage, en portrait et en Split View (1/2), tablette Android (`pixel_tablet`), pliable (`pixel_fold`) déplié et replié. Un job par matériel ; sur chacun, chaque appareil passe trois fois : tous les flux en thème clair, puis les écrans clés en thème sombre, puis à **la plus grande taille de texte du système** (AX5 sur iOS, 200 % sur Android), où les colonnes d'une tablette passent en pleine page (`subflows/layout.yaml`). Le simulateur ou l'émulateur parle français (les flux cherchent les libellés français de l'app), sa barre d'état est figée à 09:41.
+
+Ce qui se vérifie sans simulateur tourne avec les tests de l'app (`npm run test:mobile`) :
+
+- `apps/mobile/maestro/flows.test.ts` : chaque libellé qu'un flux cherche existe dans les textes français de l'app ou dans les données semées ; un libellé renommé casse ici, pas sur un simulateur ;
+- `apps/mobile/e2e/accessibility.e2e.test.tsx` : chaque écran clé, sur un petit téléphone et une tablette, à la plus grande taille de texte d'iOS et d'Android : chaque contrôle a un nom pour VoiceOver et TalkBack (`src/testing-accessibility.ts`), aucun texte n'est coupé, les colonnes passent en pleine page.
+
+### Lancer les e2e sur un poste
+
+Un Mac pour iOS (Xcode et un simulateur), ou un émulateur Android, et [Maestro](https://maestro.dev) à la version de `MAESTRO_VERSION` (`mobile-e2e.yml`). Depuis la racine du dépôt, Postgres démarré (`npm run db:up`) :
+
+```sh
+npm run build
+E2E_WEB_PORT=3705 MOBILE_STACK_PORT=4705 bash apps/mobile/maestro/start-stack.sh /tmp/maestro-stack.json
+# la build e2e de l'app, pointée sur la pile (comme le job build-ios ou build-android du workflow) :
+cd apps/mobile && JOBHUB_E2E_BUILD=1 EXPO_PUBLIC_WEB_APP_URL=http://localhost:3705 npx expo run:ios --configuration Release   # ou run:android --variant release
+cd ../.. && npx tsx apps/mobile/maestro/run.ts iphone-se --stack /tmp/maestro-stack.json --captures off
+touch /tmp/maestro-stack.json.done   # arrête la pile
+```
+
+Seule une build e2e (`JOBHUB_E2E_BUILD=1`) accepte le HTTP, et seulement vers `localhost` (`app.config.ts`) ; une build des stores ne l'accepte jamais. Sur Android, `run.ts` renvoie le port de la pile vers l'émulateur (`adb reverse`).
+
+### Les captures de référence
+
+Les écrans clés sont comparés à `apps/mobile/maestro/captures/<appareil>/<thème>[-largest-text]/<écran>.png`, au pixel près à 1 % (`subflows/capture.yaml`). Comme pour le web (ADR-0061), elles ne sont **dessinées et comparées qu'en CI**, sur l'image des runners du workflow (`macos-26`, `ubuntu-latest` et l'image système Android `api-level: 35`) : un poste les saute (`--captures off`). Les captures claires d'un appareil qui en a une (`store`, `devices.ts`) servent aussi aux captures des stores (#708).
+
+Une capture qui manque est dessinée et fait échouer son passage, comme une capture du web qui manque. Pour **redessiner** une capture (un écran qui change exprès) :
+
+1. Lancer le workflow à la main, `gh workflow run mobile-e2e.yml --ref <branche> -f captures=record` ;
+2. Télécharger les artefacts `maestro-captures-<matériel>` de l'exécution (`gh run download <id> -p 'maestro-captures-*'`) et recopier les images changées dans `apps/mobile/maestro/captures/` ;
+3. Les relire dans la PR, image par image, puis pousser : l'exécution suivante les compare.
+
+Un écart à la comparaison laisse dans l'artefact `maestro-results-<matériel>` la capture prise et la différence.
+
+### À vérifier au premier passage d'un nouvel Xcode ou d'une nouvelle image Android
+
+Ni `simctl` ni Maestro ne mettent un iPad en Split View : `subflows/split-view.yaml` le fait comme une personne, par le bouton multitâche d'iPadOS, « Split View », puis Réglages pour l'autre moitié. Le pilote iOS de Maestro ne lit que l'app au premier plan et les barres d'état, pas le reste de SpringBoard : le bouton multitâche (•••) et son menu n'y sont jamais. Ils sont touchés là où iPadOS les dessine (le haut de la fenêtre au centre, puis le bouton du milieu du menu), chaque étape capturée dans les résultats du passage (`split-view-*.png`) ; « Menu » (et non « Masquer le menu ») dit que l'app a bien la moitié de l'écran. Ses libellés et ses positions sont ceux du système et changent avec iPadOS : à corriger dans ce fichier s'il échoue. iPadOS 26 n'a plus de Split View (des fenêtres à la place, sans ce bouton) : le job de l'iPad tourne sur iPadOS 18 (`ios` dans la matrice de `mobile-e2e.yml`), dont il télécharge le runtime si l'image macOS ne l'a pas. Sur iOS 18, WebKit laisse parfois sans réponse l'effacement des cookies des WebViews (`removeData` « started » sans « finished » dans `device.log`) : l'app ne l'attend que 3 s (`WEB_VIEWS_WAIT_MS`, `src/session/app-session.ts`), sans quoi elle restait vide après la connexion sur chaque passage de l'iPad. De même, le pliable se plie par la console de l'émulateur (`adb emu fold`, `adb emu unfold`) et la langue d'Android se règle par `adb root` (`bootSetup`, `devices.ts`), ce qu'une image `google_apis` permet.
+
+### Libellés VoiceOver et TalkBack vérifiés à la main
+
+Le contrôle automatique (`accessibility.e2e.test.tsx`) vérifie que chaque contrôle a un nom. Que ce nom se lise bien, dans l'ordre, se vérifie sur un appareil avec VoiceOver ou TalkBack ; la liste cochée va dans la PR qui change un écran clé : la connexion par code (les deux champs, « Me connecter avec ce code »), l'accueil (« Votre message », « Envoyer », « Menu »), une candidature (« Fiche », « Statut : … », « Entretiens »), l'Agenda (chaque entretien, « Ajouter à mon calendrier »), une conversation (« Arrêter » pendant la réponse, puis la réponse annoncée).
+
 ## Mise en place, une fois
 
 Le script `scripts/setup/issue-704.sh` fait ces étapes pas à pas (projet EAS, jeton, identifiants Apple et Play) ; à lancer depuis la racine du dépôt, `bash scripts/setup/issue-704.sh`.

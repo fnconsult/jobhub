@@ -10,3 +10,5 @@ Partager vers Jobbbox (en anglais, share capture), c'est envoyer une offre à l'
 Jobbbox lit lui-même le lien, en respectant les règles du site, comme pour sa recherche d'offres : votre téléphone ne lit jamais la page. Là où le site l'interdit (LinkedIn, Indeed…), l'écran vous demande de partager ou de coller le texte de l'offre.
 
 L'offre devient une offre privée, que vous seul voyez, ouverte dans sa propre conversation avec votre coach IA, qui vous propose « Scorer contre mon profil ». Si vous partagez deux fois la même offre, c'est la même offre privée. Rien de ce que vous avez partagé n'est gardé au-delà de l'offre créée.
+
+Partagée, l'offre n'entre pas dans « Offres à traiter ». Une fois enregistrée en candidature, sur le site ou en le demandant à votre coach, elle y arrive déjà « Suivie », avec la puce « Partage ».

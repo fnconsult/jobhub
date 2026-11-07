@@ -16,7 +16,16 @@ import { backfillOfferBox, offerBoxOf } from "../offer-box";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles } from "../profiles";
 import type { NoticedReply } from "../unanswered-questions";
-import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations, type CoachEvent } from "./index";
+import {
+  coachCostPerDay,
+  coachCostPerPlaybookAgent,
+  createCoachConversations,
+  migrateCoachConversations,
+  purgeStaleCoachConversations,
+  sentByShareCapture,
+  type CoachConversations,
+  type CoachEvent,
+} from "./index";
 
 const masterCv = {
   fullName: "Marie Dupont",
@@ -811,6 +820,27 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       await conversations.send(marie, { conversationId: started.id, message: "https://carrieres.example.fr/cdg" });
       await backfillOfferBox(database, now);
       expect(await offerBoxOf(database, marie)).toEqual([expect.objectContaining({ jobOfferId: linked.jobOffer.id, arrivalSources: [{ source: "job_offer_link", at: now }] })]);
+    });
+
+    it("followed, wherever, its Application makes its Offer box entry « Suivie », « Partage »; another Candidate's of the same Job Offer is no share (#819)", async () => {
+      const jobOffers = createJobOffers(database);
+      const captured = await jobOffers.capture({ title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" }, "candidate", { privateTo: marie });
+      if (!captured.ok) throw new Error("not captured");
+      expect(await sentByShareCapture(database, marie, captured.jobOffer.id)).toBe(false);
+
+      await conversations.startAbout(marie, captured.jobOffer, { message: "Offre partagée : DAF H/F", reply: "Je l'ai enregistrée.", provenance: PROVENANCE });
+
+      expect(await sentByShareCapture(database, marie, captured.jobOffer.id)).toBe(true);
+      expect(await sentByShareCapture(database, jean, captured.jobOffer.id)).toBe(false);
+      const profiles = createProfiles(database);
+      const profile = await profiles.create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+      if (!profile.ok) throw new Error("no Profile");
+      const applications = createApplications(database, { jobOffers, profiles, sentByShareCapture: (candidateId, jobOfferId) => sentByShareCapture(database, candidateId, jobOfferId) });
+      const saved = await applications.save(marie, { jobOfferId: captured.jobOffer.id, profileId: profile.profile.id });
+      if (!saved.ok) throw new Error("not saved");
+      expect(await offerBoxOf(database, marie)).toEqual([
+        expect.objectContaining({ jobOfferId: captured.jobOffer.id, profileId: profile.profile.id, arrivalSources: [{ source: "share", at: saved.application.createdAt }], state: "followed" }),
+      ]);
     });
 
     it("marks, once, the set replies saved before the Offer box, so its backfill leaves them out, never an asked reply's card", async () => {

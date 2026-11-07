@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { migrateCoachConversations } from "../coach-conversations";
+import { migrateCoachConversations, sentByShareCapture } from "../coach-conversations";
 import { migrateEmailIntake } from "../email-intake";
 import { migrateEmailReadings } from "../email-intake/reading";
 import { seedReceivedOfferEmail } from "../email-intake/test-support";
@@ -516,6 +516,142 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       },
     ]);
     expect(await offerBoxOf(database, paul)).toEqual([]);
+  });
+
+  describe("a Capture or a Share capture, once followed (#819)", () => {
+    let following: Applications;
+
+    beforeEach(async () => {
+      await migrateJobSearches(database);
+      await migrateJobDigests(database);
+      await migrateCoachConversations(database);
+      following = createApplications(database, { jobOffers, profiles, sentByShareCapture: (candidateId, jobOfferId) => sentByShareCapture(database, candidateId, jobOfferId) });
+    });
+
+    /** What a Share capture leaves (#697): its conversation's set reply, with the Job Offer card, marked as the share's. */
+    async function shared(jobOfferId: string, candidateId = marie, at = clock.now) {
+      const conversation = await database.query<{ id: string }>(
+        `INSERT INTO coach_conversation (candidate_id, title, created_at, last_message_at) VALUES ($1, 'Partagée', $2, $2) RETURNING id`,
+        [candidateId, at],
+      );
+      await database.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, job_offer_id, share_capture) VALUES ($1, 'coach', 'J''ai lu cette offre.', $2, $3, true)`, [
+        conversation.rows[0]!.id,
+        at,
+        jobOfferId,
+      ]);
+    }
+
+    const rowsOf = async (candidateId = marie) => (await database.query(`SELECT 1 FROM offer_box_entry WHERE candidate_id = $1`, [candidateId])).rowCount;
+
+    it("a Capture followed from the extension's Side Panel makes its entry, already « Suivie », with the source « Extension » and the Application's Profile", async () => {
+      const captured = await stored("Capturée sur LinkedIn");
+      const saved = await following.save(marie, { jobOfferId: captured, profileId: daf }, { from: "extension" });
+      if (!saved.ok) throw new Error("not saved");
+
+      const box = await offerBox.read(marie);
+      expect(box).toMatchObject({ toHandle: 0 });
+      expect(box.entries).toEqual([
+        expect.objectContaining({
+          jobOffer: expect.objectContaining({ id: captured }),
+          profile: { id: daf, name: "DAF" },
+          firstArrivalAt: saved.application.createdAt,
+          sources: [{ source: "extension", at: saved.application.createdAt }],
+          state: "followed",
+          applicationId: saved.application.id,
+        }),
+      ]);
+    });
+
+    it("a Capture followed of a Job Offer already in the box adds « Extension » to its entry, which keeps its day and Profile", async () => {
+      const offer = await stored("Trouvée puis capturée");
+      const other = await createProfile(marie, "Contrôleuse de gestion");
+      const twoDaysAgo = new Date(Date.now() - 2 * DAY);
+      await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_search", at: twoDaysAgo, jobOfferIds: [offer] });
+      const saved = await following.save(marie, { jobOfferId: offer, profileId: other }, { from: "extension" });
+      if (!saved.ok) throw new Error("not saved");
+
+      expect(await entries()).toEqual([
+        expect.objectContaining({
+          profile: { id: daf, name: "DAF" },
+          firstArrivalAt: twoDaysAgo,
+          sources: [
+            { source: "job_search", at: twoDaysAgo },
+            { source: "extension", at: saved.application.createdAt },
+          ],
+          state: "followed",
+        }),
+      ]);
+    });
+
+    it("a Capture followed of a Job Offer saved long ago, then found by a Job Search, adds « Extension » now: its entry keeps its day and Profile", async () => {
+      const offer = await stored("Enregistrée il y a longtemps, retrouvée puis capturée");
+      const other = await createProfile(marie, "Contrôleuse de gestion");
+      const first = await following.save(marie, { jobOfferId: offer, profileId: other });
+      if (!first.ok) throw new Error("not saved");
+      await database.query(`UPDATE application SET created_at = $2 WHERE id = $1`, [first.application.id, new Date(Date.now() - 10 * DAY)]);
+      const twoDaysAgo = new Date(Date.now() - 2 * DAY);
+      await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_search", at: twoDaysAgo, jobOfferIds: [offer] });
+      const before = new Date();
+
+      const again = await following.save(marie, { jobOfferId: offer, profileId: other }, { from: "extension" });
+      if (!again.ok) throw new Error("not saved");
+
+      const [entry] = await entries();
+      expect(entry).toMatchObject({ profile: { id: daf, name: "DAF" }, firstArrivalAt: twoDaysAgo, state: "followed" });
+      const extension = entry!.sources.find((arrival) => arrival.source === "extension");
+      expect(extension!.at.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    });
+
+    it("a Capture not followed records nothing: no entry, no row", async () => {
+      await stored("Capturée, pas suivie");
+
+      expect(await entries()).toEqual([]);
+      expect(await rowsOf()).toBe(0);
+    });
+
+    it("a Job Offer saved elsewhere than the Side Panel, and never shared, makes no entry", async () => {
+      const offer = await stored("Enregistrée depuis sa page");
+      await following.save(marie, { jobOfferId: offer, profileId: daf });
+
+      expect(await rowsOf()).toBe(0);
+    });
+
+    it("a Share capture followed, wherever (a Job Offer card's « Enregistrer », a Coach Action), makes its entry « Suivie » with the source « Partage »", async () => {
+      const offer = await stored("Partagée depuis l'app", { privateTo: marie });
+      await shared(offer);
+
+      expect(await rowsOf()).toBe(0); // shared, not followed: nothing yet (ADR-0090)
+
+      const saved = await following.save(marie, { jobOfferId: offer, profileId: daf });
+      if (!saved.ok) throw new Error("not saved");
+      expect(await entries()).toEqual([
+        expect.objectContaining({
+          jobOffer: expect.objectContaining({ id: offer }),
+          profile: { id: daf, name: "DAF" },
+          sources: [{ source: "share", at: saved.application.createdAt }],
+          state: "followed",
+          applicationId: saved.application.id,
+        }),
+      ]);
+    });
+
+    it("another Candidate's Share capture of the same Job Offer gives « Partage » to no one else", async () => {
+      const offer = await stored("Partagée par Marie");
+      await shared(offer, marie);
+      const pauls = await createProfile(paul);
+
+      await following.save(paul, { jobOfferId: offer, profileId: pauls });
+      expect(await rowsOf(paul)).toBe(0);
+    });
+
+    it("saved again, it moves nothing: its source keeps the date it first came by", async () => {
+      const captured = await stored("Capturée deux fois");
+      const first = await following.save(marie, { jobOfferId: captured, profileId: daf }, { from: "extension" });
+      if (!first.ok) throw new Error("not saved");
+      await following.save(marie, { jobOfferId: captured, profileId: daf }, { from: "extension" });
+
+      expect(await entries()).toEqual([expect.objectContaining({ sources: [{ source: "extension", at: first.application.createdAt }], state: "followed" })]);
+    });
   });
 
   describe("at launch, filled from the last 30 days", () => {

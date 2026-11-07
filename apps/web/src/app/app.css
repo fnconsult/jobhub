@@ -5308,6 +5308,13 @@ textarea.title-edit {
   color: var(--color-text-secondary);
 }
 
+/* Folded: its `hidden` wins over its flex box. */
+.activity-entry-detail[hidden],
+.activity-sources .ai-activity-list[hidden],
+.ai-activity-links[hidden] {
+  display: none;
+}
+
 .activity-entry-detail p {
   margin: 0;
   overflow-wrap: anywhere;

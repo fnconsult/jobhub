@@ -129,7 +129,8 @@ test.describe("Activity's history (#808)", () => {
     const row = (title: string) => today(page).locator(".activity-entry-row").filter({ has: page.locator(".activity-entry-title").getByText(title, { exact: true }) });
     await expect(row(fr.aiActivity.kinds.ats_score)).toContainText(history.cost.quota.atsScores);
     await expect(row(version)).toContainText(history.cost.noAi);
-    await expect(row(fr.aiActivity.kinds.coach_reply)).toContainText(/\d+ appels? · [\d,]+k? jetons envoyés/);
+    // Its tokens: all its calls', or its last call's for a reply that kept no call (« dernier appel seulement »).
+    await expect(row(fr.aiActivity.kinds.coach_reply)).toContainText(/[\d,]+k? jetons/);
     for (const each of await rows(page).all()) await expect(each).toHaveAttribute("aria-expanded", "false");
     await expect(fiche(page)).not.toContainText(/€|euros?\b/);
 

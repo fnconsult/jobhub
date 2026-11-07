@@ -6,7 +6,9 @@
 # Maestro's iOS driver reads the app in front and the status bars only, not the rest of SpringBoard: the multitasking
 # button and its menu are never in its hierarchy (« Element not found » on every run on iPadOS 18.6). They are tapped
 # where iPadOS draws them, as a person does: the button (•••) at the window's top centre, then « Split View », the
-# middle of the three buttons its menu opens in its place. Each step's screen is kept with the run's results
+# second of the menu's rows under it (« Plein écran », « Split View », « Slide Over », « Fermer », 44 pt each, as run
+# 42323647801's split-view-2-menu.png shows them, « Split View » some 90 pt from the top of the landscape screen, the
+# first row taken at 3 %). Each step's screen is kept with the run's results
 # (split-view-*.png), and the app's own layout tells whether it got half the screen: « Menu », not « Masquer le menu ».
 appId: ai.jobbbox.app
 ---
@@ -35,7 +37,7 @@ appId: ai.jobbbox.app
       notVisible: "Split View"
     commands:
       - tapOn:
-          point: "50%, 3%"
+          point: "50%, 9%"
 - waitForAnimationToEnd:
     timeout: 3000
 - takeScreenshot: split-view-3-other-app

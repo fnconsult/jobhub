@@ -10,6 +10,9 @@ appId: ai.jobbbox.app
     element:
       id: "sign-in-email"
     direction: DOWN
+    # Five screens down at the largest text size on an iPhone SE, a swipe every 4 s: 20 s, Maestro's default, ran out
+    # as the field came in (#705).
+    timeout: 60000
 # iOS sometimes takes the typing before its keyboard is up: typed again until the field shows it (iOS shows a field's
 # value to Maestro, Android does not). Tapped once, before: at the largest text size the address is wider than the
 # field, a tap on its middle put the caret there, and the next try's erasing, which deletes before the caret, left

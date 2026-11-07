@@ -103,7 +103,10 @@ function main(argv: string[]) {
     const seeded = spawnSync("curl", ["--fail", "--silent", "--show-error", "-X", "POST", `${stack.helper}/candidates`], { encoding: "utf8" });
     const email = seeded.status === 0 ? (JSON.parse(seeded.stdout) as { email: string }).email : null;
     // Maestro writes a screenshot it takes under its working directory when it makes no bundle: the run's own.
-    const ok = setUp && email !== null && exec(run.prepare(email, dir), dir) && exec(run.flows(email, dir), dir);
+    // The app's preparation (cleared, oriented, in Split View) is set-up, not a check: tried a second time should
+    // Maestro's driver give up on it (an iPhone SE's « Set orientation » hung until Maestro quit, run 42323647801).
+    const prepared = () => exec(run.prepare(email!, dir), dir);
+    const ok = setUp && email !== null && (prepared() || prepared()) && exec(run.flows(email, dir), dir);
     writeFileSync(join(dir, "device.log"), spawnSync(run.logs[0]!, run.logs.slice(1), { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).stdout ?? "");
     if (run.captures.mode === "record") {
       const files = (readdirSync(dir, { recursive: true }) as string[]).map((file) => join(dir, file));

@@ -138,6 +138,12 @@ export async function jobSearchPage(
   about?: { candidateId: string; jobSearchId: string },
 ): Promise<PageActivity> {
   const replies = about ? repliesAbout(sources, about.candidateId, { kind: "job_search", id: about.jobSearchId }) : Promise.resolve([]);
+  const [elements, read] = await Promise.all([searchElements(sources, searches), replies]);
+  return { page: "job_search", elements, replies: read };
+}
+
+/** The Job Searches shown, each followed by the Job Offers it found, « suite de » it. */
+async function searchElements(sources: PageSources, searches: Parameters<typeof jobSearchPage>[1]): Promise<PageElement[]> {
   const elements: PageElement[] = [];
   for (const search of searches) {
     const at = elements.length;
@@ -152,7 +158,7 @@ export async function jobSearchPage(
     const page = search.id ? (offer: string) => routes.jobSearchOffer(search.id!, offer) : offerPage;
     elements.push(...(await offers(sources, search.results.map((result) => result.jobOffer), page, at)));
   }
-  return { page: "job_search", elements, replies: await replies };
+  return elements;
 }
 
 /** `/job-digests/[id]`: the Job Digest (its Match Scores and top-up run, once kept), then the Job Offers it brought, and the Coach replies about it (#600). */

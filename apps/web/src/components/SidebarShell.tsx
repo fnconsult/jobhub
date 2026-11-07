@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { AiActivityButton } from "@/components/AiActivity";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
+import { CompactTopBarActions, TopBarActionsProvider, useTopBarState } from "@/components/top-bar";
 import { buttonClass } from "@/design/Button";
 import { Drawer, DrawerTitle } from "@/design/Drawer";
 import { SIDEBAR_CLOSED, SIDEBAR_OPEN, SIDEBAR_STORAGE_KEY } from "@/design/sidebar-state";
@@ -78,7 +79,12 @@ function setHidden(hidden: boolean) {
  * Escape, its close button or any link closes. `nav` gets the function its
  * links call to close the drawer, and `closeDrawerThen` for what opens beside the page
  * (the Work Pane): the page is inert behind the drawer, so that opens once the drawer has
- * closed, the focus back on the Menu button, which it then gives back to. Icons always come with words.
+ * closed, the focus back on the Menu button, which it then gives back to. Icons always come with words, but in the
+ * compact Top Bar.
+ *
+ * `compactTopBar` (the Candidate's pages, #897): on a phone, below 40rem, the Top Bar is one line, « Menu » as an icon,
+ * the title, the page's one action shown as an icon and « … » with the others in words (CompactTopBarActions); the
+ * page's buttons (`topBarEnd`) then render nothing, and offer their actions to it (useTopBarAction).
  */
 export function SidebarShell({
   brand,
@@ -92,6 +98,7 @@ export function SidebarShell({
   beside,
   pageInert = false,
   signOut = true,
+  compactTopBar = false,
   children,
 }: {
   brand: { href: string; label: string };
@@ -111,6 +118,8 @@ export function SidebarShell({
   pageInert?: boolean;
   /** « Se déconnecter » at the end of the foot; false when the foot signs out itself (the Candidate's Mon compte menu). */
   signOut?: boolean;
+  /** On a phone, the Top Bar on one line, icons alone, one action shown and the others under « … » (#897). */
+  compactTopBar?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -135,6 +144,8 @@ export function SidebarShell({
   const sectionsInSidebar = sectionsMenu !== null && cramped;
   const showSections = sectionsInSidebar && mainMenuPath !== pathname;
   const switchButton = useRef<HTMLButtonElement>(null);
+  const topBarState = useTopBarState(compactTopBar);
+  const compact = topBarState.compact;
 
   useEffect(() => {
     const main = document.getElementById(MAIN_ID);
@@ -153,7 +164,7 @@ export function SidebarShell({
   }, []);
 
   // The Top Bar's height, for what sticks under it as the page scrolls (--topbar-height in app.css):
-  // it grows with the Text Size, and takes two rows on a phone.
+  // it grows with the Text Size.
   useEffect(() => {
     const bar = topbar.current;
     if (!bar) return;
@@ -272,7 +283,7 @@ export function SidebarShell({
     </>
   );
 
-  return (
+  const shell = (
     <TopBarBack.Provider value={setShownSection}>
       <SidebarSections.Provider value={setSectionsMenu}>
         <div className="app-shell">
@@ -316,11 +327,25 @@ export function SidebarShell({
             notifications): without this, <main> stayed in reach behind the drawer.
           */}
           <div className="workspace" inert={drawerOpen} aria-hidden={drawerOpen || undefined}>
-            <header ref={topbar} className="topbar" inert={pageInert || undefined}>
-              <button ref={menuButton} className={`${buttonClass()} menu-toggle`} type="button" aria-expanded={drawerOpen} onClick={showMenu}>
-                <Icons.menu />
-                {t("sidebar.menu")}
-              </button>
+            <header ref={topbar} className={compact ? "topbar topbar-compact" : "topbar"} inert={pageInert || undefined}>
+              {compact ? (
+                <button
+                  ref={menuButton}
+                  className="topbar-icon menu-toggle"
+                  type="button"
+                  aria-label={t("sidebar.menu")}
+                  title={t("sidebar.menu")}
+                  aria-expanded={drawerOpen}
+                  onClick={showMenu}
+                >
+                  <Icons.menu />
+                </button>
+              ) : (
+                <button ref={menuButton} className={`${buttonClass()} menu-toggle`} type="button" aria-expanded={drawerOpen} onClick={showMenu}>
+                  <Icons.menu />
+                  {t("sidebar.menu")}
+                </button>
+              )}
               <div className="topbar-title">
                 {/* A Section alone on a phone: the title leads back to the list, behind an arrow, as on iOS. */}
                 {typeof title === "string" ? (
@@ -351,6 +376,7 @@ export function SidebarShell({
               </div>
               {topBarActivity}
               {topBarEnd}
+              {compact ? <CompactTopBarActions /> : null}
             </header>
             <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"} inert={pageInert || undefined}>
               {children}
@@ -361,4 +387,6 @@ export function SidebarShell({
       </SidebarSections.Provider>
     </TopBarBack.Provider>
   );
+  // The page's buttons, its own included, offer their actions to the compact Top Bar.
+  return <TopBarActionsProvider state={topBarState}>{shell}</TopBarActionsProvider>;
 }

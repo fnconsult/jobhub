@@ -3218,6 +3218,84 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   justify-content: flex-end;
 }
 
+/* The compact Top Bar on a phone (#897): one line, « Menu » as an icon, the title cut short with an ellipsis, the page's
+   one action as an icon and « … », whose menu lists the others in words. Each icon is a 44 px target, named by its
+   words (its aria-label and tooltip). */
+.topbar.topbar-compact {
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+}
+
+.topbar-compact .topbar-title {
+  flex: 1;
+  order: 0;
+}
+
+.topbar-compact .topbar-actions:empty {
+  display: none;
+}
+
+/* Over the phone's padding of the wide bar's buttons. */
+.topbar.topbar-compact .topbar-icon.menu-toggle {
+  padding: 0;
+}
+
+.topbar-compact-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.topbar-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: max(44px, 2.75rem);
+  min-height: max(44px, 2.75rem);
+  padding: 0;
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+}
+
+.topbar-icon:hover {
+  background: var(--color-hover);
+}
+
+.topbar-icon:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* « Fiche » or « Activité » while its column is shown, as in the wide bar. */
+.topbar-icon[aria-expanded="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.topbar-icon .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Activité's stop icon, while it is the action shown: a 44 px target too. */
+.topbar.topbar-compact .ai-activity-stop {
+  min-width: max(44px, 2.75rem);
+  min-height: max(44px, 2.75rem);
+}
+
+.topbar-menu .menu-item .icon {
+  flex: none;
+  width: 1.125em;
+  height: 1.125em;
+}
+
 /* Reached by the skip link: the page itself needs no ring. */
 .workspace > .page:focus {
   outline: none;

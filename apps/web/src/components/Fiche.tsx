@@ -11,6 +11,8 @@ import { ContextBar } from "@/components/ContextBar";
 import { EnCeMoment } from "@/components/EnCeMoment";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
+import { useActivityRun } from "@/components/activity-run";
+import { TOP_BAR_RANK, useCompactTopBar, useTopBarAction } from "@/components/top-bar";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { SIDEBAR_CLOSED } from "@/design/sidebar-state";
@@ -211,17 +213,41 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
 /**
  * « Fiche » and « Activité » in the Top Bar of an object's page (#603): they alone open and close the Fiche, « Activité »
  * on its Activity group, its glyph live while an AI action of the page is under way. On the home page and the menus
- * (#607), « Activité » alone, which opens and closes the Activité column. Nothing outside a FicheProvider.
+ * (#607), « Activité » alone, which opens and closes the Activité column. Nothing outside a FicheProvider. On a phone,
+ * nothing: they offer their toggles to the compact Top Bar (#897), « Activité » shown there while an action runs, with its
+ * stop icon and the step under way in its name.
  */
 export function FicheButtons() {
   const { t } = useTranslation();
   const control = useContext(FicheControl);
   const underWay = useAiActivityUnderWay();
-  if (!control) return null;
-  const { ficheId } = control;
+  // On a phone, the compact Top Bar shows them (#897): the same toggles, « Activité » shown while an action runs.
+  const compact = useCompactTopBar();
+  const run = useActivityRun();
   // What is shown: a Fiche that has given way to the Work Pane is not.
-  const state = { ...control.state, open: control.state.open && !control.givenWay };
-  const activity = activityShown(state);
+  const state = control ? { ...control.state, open: control.state.open && !control.givenWay } : null;
+  const activity = state ? activityShown(state) : false;
+  const controls = state?.open ? control?.ficheId : undefined;
+  useTopBarAction(
+    control?.object ? { id: "fiche", rank: TOP_BAR_RANK.fiche, label: t("fiche.label"), icon: Icons.fiche, run: control.toggleFiche, expanded: state?.open ?? false, controls } : null,
+  );
+  useTopBarAction(
+    control
+      ? {
+          id: "activity",
+          rank: TOP_BAR_RANK.activity,
+          label: t("fiche.activity"),
+          icon: underWay ? UnderWayGlyph : Icons.aiActivity,
+          run: control.toggleActivity,
+          expanded: activity,
+          controls,
+          running: run !== null,
+          ...(run ? { name: run.name, beside: run.stop } : {}),
+        }
+      : null,
+  );
+  if (!control || !state || compact) return null;
+  const { ficheId } = control;
   return (
     <>
       {control.object ? (
@@ -248,6 +274,11 @@ export function FicheButtons() {
       </button>
     </>
   );
+}
+
+/** « Activité »'s glyph while an AI action of the page is under way. */
+function UnderWayGlyph() {
+  return <ActivityGlyph activity={UNDER_WAY} live />;
 }
 
 /**

@@ -29,7 +29,7 @@ const before = (first: Element, second: Element) => Boolean(first.compareDocumen
 describe("the columns of an object's page, for assistive technologies (#608, ADR-0070)", () => {
   beforeEach(() => {
     // Wide enough for the Fiche and the Work Pane beside the conversation.
-    vi.stubGlobal("matchMedia", (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: !query.includes("<"), media: query, addEventListener: () => {}, removeEventListener: () => {} }));
     vi.stubGlobal(
       "ResizeObserver",
       class {

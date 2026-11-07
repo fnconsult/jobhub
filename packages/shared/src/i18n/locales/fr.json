@@ -228,7 +228,8 @@
     "subscription": "Abonnement",
     "mainMenu": "Menu principal",
     "agenda": "Agenda",
-    "helpAndLegal": "Aide et légal"
+    "helpAndLegal": "Aide et légal",
+    "moreActions": "Autres actions"
   },
   "usageMeter": {
     "title": "Hebdomadaire",

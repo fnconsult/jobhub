@@ -50,7 +50,7 @@ const activityButton = () => within(topBar()).getByRole("button", { name: "Activ
 describe("« Activité » on the home page and the menus (#607, ADR-0070)", () => {
   beforeEach(() => {
     pathname.current = "/";
-    vi.stubGlobal("matchMedia", (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: !query.includes("<"), media: query, addEventListener: () => {}, removeEventListener: () => {} }));
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -114,7 +114,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
 describe("the Context bar in an object's Fiche (#607)", () => {
   beforeEach(() => {
     pathname.current = "/candidatures/a1";
-    vi.stubGlobal("matchMedia", (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: !query.includes("<"), media: query, addEventListener: () => {}, removeEventListener: () => {} }));
     vi.stubGlobal(
       "ResizeObserver",
       class {

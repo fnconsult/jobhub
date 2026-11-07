@@ -363,7 +363,7 @@ _Avoid_: Dismissed, rejected, archived, hidden
 The button « Tout écarter (n) » on a tier of « Précédemment » holding at least two entries: it écarte, without a Dismissal reason, the tier's entries the current Arrival source chip shows. Its « Annuler » puts back exactly those entries.
 
 **Plus tard**:
-An Offer box entry put out of sight until the next Monday 00:00 Paris time (on a Monday, the Monday after; no date to pick), waiting in a folded « Plus tard » block until it comes back under « Aujourd'hui », on that Monday only, then returns to its arrival day. Not a decision: it stays à traiter and in the count. Refused on a « Suivie » or « Écartée » entry; « Expirée sans décision » wins over it. « Annuler » puts it back.
+An Offer box entry put out of sight until the next Monday 00:00 Paris time (on a Monday, the Monday after; no date to pick), listed folded under « Plus tard » at the foot of the box until then: the block shows how many it holds, each entry « revient lundi n ». On that Monday it comes back under « Aujourd'hui », on that Monday only, then returns to its arrival day. Not a decision: it stays à traiter and in the count (« N à traiter »). Refused on a « Suivie » or « Écartée » entry; « Expirée sans décision » wins over it. « Annuler » puts it back. Écarted meanwhile then put back (« Revenir sur ce choix », « Annuler »), it is where it was, its « Plus tard » date kept.
 _Avoid_: Snooze
 
 **Importance tier**:

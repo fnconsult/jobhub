@@ -257,6 +257,23 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
       expect(within(line).queryByRole("button", { name: /^Plus tard/ })).toBeNull();
     });
 
+    it("on its Monday, an entry back from « Plus tard » is under « Aujourd'hui », still counted; those still away stay folded with their count", () => {
+      const monday = {
+        ...box([
+          entry("back", { arrivalDay: "2026-11-04", firstArrivalAt: "2026-11-04T08:00:00.000Z", laterUntil: "2026-11-08T23:00:00.000Z" }),
+          entry("away", { state: "later", laterUntil: "2026-11-15T23:00:00.000Z", arrivalDay: "2026-11-09", firstArrivalAt: "2026-11-09T08:00:00.000Z" }),
+        ]),
+        today: "2026-11-09",
+      };
+      renderInFrench(<OfferBox box={monday} />);
+
+      expect(within(offerBox()).getByText("2", { selector: ".offer-box-count b" })).toBeTruthy();
+      expect(within(day("Aujourd'hui")).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre back"]);
+      expect(within(day("Précédemment")).queryByRole("listitem")).toBeNull();
+      const block = within(offerBox()).getByText("Plus tard (1)").closest("details")!;
+      expect(within(block).getByRole("listitem", { name: "Offre away" }).textContent).toContain("Plus tard · revient lundi 16 nov.");
+    });
+
     it("folds « Expirées sans décision » apart, out of the count, where « Écarter » is still offered", () => {
       renderInFrench(<OfferBox box={box([entry("a"), earlier("old", 85, { state: "expired" })])} />);
 

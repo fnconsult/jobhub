@@ -6111,7 +6111,6 @@
       "interviewDate": "Date de l'entretien (jj/mm/aaaa)",
       "interviewTime": "Heure, à Paris (hh:mm)"
     },
-    "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score.",
     "coach": {
       "replyAnnounced": "Coach IA : {{reply}}"
     },

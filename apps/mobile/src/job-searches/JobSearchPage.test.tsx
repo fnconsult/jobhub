@@ -18,7 +18,7 @@ const SEARCH: JobSearchResponse = {
   status: "done",
   failure: null,
   startedAt: "2026-11-02T08:00:00.000Z",
-  jobOffers: [found("a"), found("b", { matchScore: 64, decision: "kept", applicationId: "app-b" })],
+  jobOffers: [found("a"), found("b", { matchScore: 64, decision: "kept", applicationId: "app-b" }), found("c", { matchScore: 58, decision: "dismissed" })],
 };
 
 const PROFILE: ProfileResponse = {
@@ -79,7 +79,7 @@ async function open() {
 describe("a Job Search's page in the app (#692)", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  it("shows where it stands, its Search Criteria to read, and its Job Offers, best Match Score first", async () => {
+  it("shows where it stands, its Search Criteria to read, and its Job Offers, best Match Score first, « Suivie » or « Écartée »", async () => {
     serve({ status: 201, body: { id: "s2" } });
     await open();
 
@@ -90,6 +90,7 @@ describe("a Job Search's page in the app (#692)", () => {
       expect.arrayContaining(["Offre a · Acme Industrie", "Offre b · Acme Industrie"]),
     );
     expect(screen.getByText("Match Score 64 · Lyon · Suivie")).toBeOnTheScreen();
+    expect(screen.getByText("Match Score 58 · Lyon · Écartée")).toBeOnTheScreen();
   });
 
   it("« Relancer une recherche » starts one for its Profile, opens it, then asks for Push notifications (#699)", async () => {

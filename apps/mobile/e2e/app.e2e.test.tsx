@@ -746,6 +746,35 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
           },
         ],
       },
+      offerBoxOffers: {
+        e1: {
+          profile: { id: "p1", name: "Qualité" },
+          found: {
+            jobOffer: {
+              id: "o1",
+              title: "Responsable qualité",
+              employer: "Aéroline",
+              location: "Toulouse",
+              url: "https://www.example.com/offres/aeroline-responsable-qualite",
+              postedAt: null,
+              expiredAt: null,
+              contractType: "cdi",
+              summary: null,
+              content: "Vous pilotez le système qualité EN 9100 d'un site de production.",
+            },
+            matchScore: 82,
+            matchScoreDetail: {
+              skills: { status: "match", covered: ["EN 9100"], missing: [] },
+              seniority: { status: "unknown", cvYears: null, requiredYears: null },
+              location: { status: "match", offer: "Toulouse", wanted: ["Toulouse"] },
+              salary: { status: "unknown", offerMin: null, offerMax: null, wanted: null },
+              contractType: { status: "match", offer: "cdi", wanted: ["cdi"] },
+            },
+            decision: null,
+            applicationId: null,
+          },
+        },
+      },
     });
   afterEach(() => mockWeb.app.has(EMAIL, {}));
 
@@ -758,12 +787,13 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
     expect(Linking.openURL).toHaveBeenCalledWith("https://www.example.com/offres/aeroline-responsable-qualite");
   });
 
-  it("opens a Job Offer in the Work Pane when pressed", async () => {
+  it("opens a Job Offer in the Work Pane when pressed, with its Match Score and its text (#692)", async () => {
     withOfferBox();
     await launch("/recherches");
     await screen.findByRole("link", { name: "Responsable qualité · Aéroline", hidden: true });
     await userEvent.setup().press(link("Responsable qualité · Aéroline"));
-    expect(screen.getByText(/L'offre s'ouvrira ici/)).toBeOnTheScreen();
+    expect(await screen.findByText("Score de correspondance avec le profil « Qualité » :")).toBeOnTheScreen();
+    expect(screen.getByText("Vous pilotez le système qualité EN 9100 d'un site de production.")).toBeOnTheScreen();
   });
 });
 

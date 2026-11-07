@@ -260,6 +260,15 @@ export const offerBoxResponseSchema = z.object({
 });
 export type OfferBoxResponse = z.infer<typeof offerBoxResponseSchema>;
 
+/**
+ * `GET /api/offer-box/:id`: one Offer box entry's Job Offer as its Work Pane shows it in the app (#692), as a Job
+ * Search's: its full text, its Job Offer Summary and why it has its Match Score, against the Profile « Suivre » saves it
+ * with (the entry's `scoredWith`). Read when the entry opens, so the Offer box's own read stays light.
+ * 404 when the entry is not the Candidate's, or when it has no Profile to be scored against (no active Profile).
+ */
+export const offerBoxOfferResponseSchema = z.object({ profile: named, found: foundJobOfferSchema });
+export type OfferBoxOfferResponse = z.infer<typeof offerBoxOfferResponseSchema>;
+
 // --- Job Digests -------------------------------------------------------------------------------------------------
 
 /**

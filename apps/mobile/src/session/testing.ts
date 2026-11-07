@@ -4,12 +4,14 @@ import type { SignInProviderButton } from "@jobhub/shared/sign-in-providers";
 import {
   agendaResponseSchema,
   applicationResponseSchema,
+  offerBoxOfferResponseSchema,
   offerBoxResponseSchema,
   profileResponseSchema,
   tailoredDocumentsResponseSchema,
   type AgendaResponse,
   type ApplicationResponse,
   type LegalStepsResponse,
+  type OfferBoxOfferResponse,
   type OfferBoxResponse,
   type ProfileResponse,
   type ProfilesResponse,
@@ -118,6 +120,8 @@ export interface CandidateData {
   applications?: { application: ApplicationResponse; documents: TailoredDocumentsResponse }[];
   /** Their Offer box (ADR-0090, #815); an empty one when not given. */
   offerBox?: OfferBoxResponse;
+  /** Its entries' Job Offers as the Work Pane opens them (`GET /api/offer-box/:id`, #692), by entry id. */
+  offerBoxOffers?: Record<string, OfferBoxOfferResponse>;
 }
 
 /**
@@ -200,10 +204,15 @@ export function fakeWebApp() {
    */
   function read(path: string, email: string | null): Response {
     if (!email) return json({ error: "unauthorized" }, 401);
-    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [], offerBox: NO_OFFER_BOX };
+    const mine = data.get(email) ?? { profiles: [], agenda: NO_AGENDA, applications: [], offerBox: NO_OFFER_BOX, offerBoxOffers: {} };
     const notFound = json({ error: "not_found" }, 404);
     if (path === "/api/agenda") return json(mine.agenda);
     if (path === "/api/offer-box") return json(mine.offerBox);
+    const entry = /^\/api\/offer-box\/([^/]+)$/.exec(path);
+    if (entry) {
+      const opened = mine.offerBoxOffers[decodeURIComponent(entry[1]!)];
+      return opened ? json(opened) : notFound;
+    }
     if (path === "/api/profiles") return json(mine.profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name })) satisfies ProfilesResponse);
     const profile = /^\/api\/profiles\/([^/]+)$/.exec(path);
     if (profile) {
@@ -451,6 +460,7 @@ export function fakeWebApp() {
           documents: tailoredDocumentsResponseSchema.parse(documents),
         })),
         offerBox: offerBoxResponseSchema.parse(candidate.offerBox ?? NO_OFFER_BOX),
+        offerBoxOffers: Object.fromEntries(Object.entries(candidate.offerBoxOffers ?? {}).map(([id, opened]) => [id, offerBoxOfferResponseSchema.parse(opened)])),
       }),
     /** The Candidate's reads the app made, in order, and with whose session. */
     reads,

@@ -61,4 +61,10 @@ appId: ai.jobbbox.app
       visible: "Se connecter à Jobbbox"
     commands:
       - tapOn: "Se connecter à Jobbbox"
+# The app made the driver's app again: launched last, Safari stayed the one Maestro reads, and the next flow found none
+# of the app's fields though its half showed them (run 42382627575: « sign-in-email » not found beside a visible form).
+# Launched without stopping, the app keeps its half.
+- launchApp:
+    appId: "ai.jobbbox.app"
+    stopApp: false
 - takeScreenshot: split-view-4-split

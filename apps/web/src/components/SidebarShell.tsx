@@ -84,7 +84,8 @@ function setHidden(hidden: boolean) {
  *
  * `compactTopBar` (the Candidate's pages, #897): on a phone, below 40rem, the Top Bar is one line, « Menu » as an icon,
  * the title, the page's one action shown as an icon and « … » with the others in words (CompactTopBarActions); the
- * page's buttons (`topBarEnd`) then render nothing, and offer their actions to it (useTopBarAction).
+ * page's buttons (`topBarEnd`) then render nothing, and offer their actions to it (useTopBarAction). The server's HTML
+ * holds both bars' buttons, and app.css shows those for the screen's width: the first paint is right without JavaScript.
  */
 export function SidebarShell({
   brand,
@@ -145,7 +146,7 @@ export function SidebarShell({
   const showSections = sectionsInSidebar && mainMenuPath !== pathname;
   const switchButton = useRef<HTMLButtonElement>(null);
   const topBarState = useTopBarState(compactTopBar);
-  const compact = topBarState.compact;
+  const mode = topBarState.mode;
 
   useEffect(() => {
     const main = document.getElementById(MAIN_ID);
@@ -327,10 +328,25 @@ export function SidebarShell({
             notifications): without this, <main> stayed in reach behind the drawer.
           */}
           <div className="workspace" inert={drawerOpen} aria-hidden={drawerOpen || undefined}>
-            <header ref={topbar} className={compact ? "topbar topbar-compact" : "topbar"} inert={pageInert || undefined}>
-              {compact ? (
+            <header ref={topbar} className={compactTopBar ? "topbar topbar-compactable" : "topbar"} inert={pageInert || undefined}>
+              {/* While the width is not known, both: app.css shows the icon on a phone, the button with its words above. */}
+              {mode !== "compact" ? (
                 <button
-                  ref={menuButton}
+                  key="menu"
+                  ref={mode === "wide" ? menuButton : undefined}
+                  className={`${buttonClass()} menu-toggle`}
+                  type="button"
+                  aria-expanded={drawerOpen}
+                  onClick={showMenu}
+                >
+                  <Icons.menu />
+                  {t("sidebar.menu")}
+                </button>
+              ) : null}
+              {mode !== "wide" ? (
+                <button
+                  key="menu-icon"
+                  ref={mode === "compact" ? menuButton : undefined}
                   className="topbar-icon menu-toggle"
                   type="button"
                   aria-label={t("sidebar.menu")}
@@ -340,12 +356,7 @@ export function SidebarShell({
                 >
                   <Icons.menu />
                 </button>
-              ) : (
-                <button ref={menuButton} className={`${buttonClass()} menu-toggle`} type="button" aria-expanded={drawerOpen} onClick={showMenu}>
-                  <Icons.menu />
-                  {t("sidebar.menu")}
-                </button>
-              )}
+              ) : null}
               <div className="topbar-title">
                 {/* A Section alone on a phone: the title leads back to the list, behind an arrow, as on iOS. */}
                 {typeof title === "string" ? (
@@ -376,7 +387,7 @@ export function SidebarShell({
               </div>
               {topBarActivity}
               {topBarEnd}
-              {compact ? <CompactTopBarActions /> : null}
+              {mode !== "wide" ? <CompactTopBarActions /> : null}
             </header>
             <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"} inert={pageInert || undefined}>
               {children}

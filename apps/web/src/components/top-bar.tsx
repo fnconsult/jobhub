@@ -56,8 +56,12 @@ function createStore(): Store {
   let snapshot: readonly TopBarAction[] = [];
   return {
     set(id, action) {
-      if (action) actions.set(id, action);
-      else if (!actions.delete(id)) return;
+      if (action) {
+        const before = actions.get(id);
+        // Offered again as it was (each render of its button): nothing changes, nobody is told.
+        if (before && sameAction(before, action)) return;
+        actions.set(id, action);
+      } else if (!actions.delete(id)) return;
       snapshot = [...actions.values()];
       for (const listener of listeners) listener();
     },
@@ -70,11 +74,27 @@ function createStore(): Store {
   };
 }
 
+/** The same action, field by field. */
+function sameAction(a: TopBarAction, b: TopBarAction): boolean {
+  const keys = Object.keys(a) as Array<keyof TopBarAction>;
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.is(a[key], b[key]));
+}
+
 const NO_ACTIONS: readonly TopBarAction[] = [];
 /** « … »'s menu, under it, at the screen's right edge. */
 const MENU_ALIGN = "end";
+
+/**
+ * How the Top Bar's buttons draw themselves (#897). `wide`: each its own button with its words. `compact` (a phone):
+ * none, the compact Top Bar showing their actions (CompactTopBarActions). `both`, while the width is not known (the
+ * server's HTML, and hydration): each its button and its action's icon, app.css showing the one for the screen's width
+ * (`width < 40rem`) and hiding the other (`display: none`, out of the accessibility tree and the tab order), so the first
+ * paint is the right bar at every width, before or without JavaScript.
+ */
+export type TopBarMode = "wide" | "compact" | "both";
+
 const TopBarStore = createContext<Store | null>(null);
-const Compact = createContext(false);
+const Mode = createContext<TopBarMode>("wide");
 
 function onNarrowChange(onChange: () => void) {
   const query = typeof window.matchMedia === "function" ? window.matchMedia(NARROW) : null;
@@ -82,38 +102,45 @@ function onNarrowChange(onChange: () => void) {
   return () => query?.removeEventListener?.("change", onChange);
 }
 const narrowScreen = () => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches;
-const wideOnServer = () => false;
+/** The server does not know the screen's width. */
+const unknownOnServer = () => null;
 
-/** The Top Bar's actions and whether it is compact, held by the layout (SidebarShell). */
-export type TopBarState = { store: Store; compact: boolean };
+/** The Top Bar's actions and how its buttons draw themselves, held by the layout (SidebarShell). */
+export type TopBarState = { store: Store; mode: TopBarMode };
 
 /**
  * `compactLayout`: the layout has a compact Top Bar (the Candidate's pages, not the Back Office's), which it is on a
- * phone, below 40rem. The server's HTML has the wide one.
+ * phone, below 40rem. The server's HTML has both bars' buttons, app.css showing one (`both`).
  */
 export function useTopBarState(compactLayout: boolean): TopBarState {
   const [store] = useState(createStore);
-  const narrow = useSyncExternalStore(onNarrowChange, narrowScreen, wideOnServer);
-  return { store, compact: compactLayout && narrow };
+  const narrow = useSyncExternalStore<boolean | null>(onNarrowChange, narrowScreen, unknownOnServer);
+  const mode: TopBarMode = !compactLayout || narrow === false ? "wide" : narrow ? "compact" : "both";
+  return { store, mode };
 }
 
 /** Gives the page's buttons the Top Bar's state: they offer it their actions (useTopBarAction). */
 export function TopBarActionsProvider({ state, children }: { state: TopBarState; children: ReactNode }) {
   return (
     <TopBarStore.Provider value={state.store}>
-      <Compact.Provider value={state.compact}>{children}</Compact.Provider>
+      <Mode.Provider value={state.mode}>{children}</Mode.Provider>
     </TopBarStore.Provider>
   );
 }
 
-/** Whether the Top Bar is compact: its buttons then render nothing, the compact Top Bar showing their actions. */
-export function useCompactTopBar(): boolean {
-  return useContext(Compact);
+/** How the Top Bar's buttons draw themselves: `compact`, they render nothing, the compact Top Bar showing their actions. */
+export function useTopBarMode(): TopBarMode {
+  return useContext(Mode);
 }
 
-/** Offers `action` to the compact Top Bar, as it is at each render; null offers none. */
-export function useTopBarAction(action: TopBarAction | null): void {
+/**
+ * Offers `action` to the compact Top Bar, as it is at each render; null offers none. Returns what its button renders
+ * beside itself: while the width is not known (`both`), the action's icon, which app.css shows on a phone in the
+ * compact Top Bar's place; otherwise nothing.
+ */
+export function useTopBarAction(action: TopBarAction | null): ReactNode {
   const store = useContext(TopBarStore);
+  const mode = useContext(Mode);
   const id = action?.id;
   useLayoutEffect(() => {
     if (store && action) store.set(action.id, action);
@@ -122,47 +149,74 @@ export function useTopBarAction(action: TopBarAction | null): void {
     if (!store || !id) return;
     return () => store.set(id, null);
   }, [store, id]);
+  return mode === "both" && action ? <ActionIcon action={action} className="topbar-icon topbar-first-paint" beforeHydration /> : null;
 }
 
 /**
  * A page's own main action (#897), shown in the compact Top Bar ahead of « Fiche » and « Activité »: Recherches
- * d'offres' filter (#898). On a wider screen the page shows it itself (useCompactTopBar).
+ * d'offres' filter (#898). On a wider screen the page shows it itself (useTopBarMode).
  */
 export function useTopBarPrimary(action: Omit<TopBarAction, "rank"> | null): void {
   useTopBarAction(action ? { ...action, rank: TOP_BAR_RANK.page } : null);
 }
 
 /**
+ * An action as an icon alone, named by its words (its `aria-label` and tooltip). `beforeHydration`: drawn before the page
+ * knows its width, when a click would do nothing, so it says it is unavailable (#446) while looking as it will.
+ */
+function ActionIcon({ action, className, beforeHydration = false }: { action: TopBarAction; className: string; beforeHydration?: boolean }) {
+  return (
+    <button
+      className={className}
+      type="button"
+      aria-label={action.name ?? action.label}
+      title={action.label}
+      aria-expanded={action.expanded}
+      aria-controls={action.controls}
+      aria-disabled={beforeHydration || undefined}
+      disabled={action.disabled}
+      onClick={action.run}
+    >
+      <action.icon />
+    </button>
+  );
+}
+
+/**
  * The compact Top Bar's actions (#897): the one shown, an icon alone named by its words (its `aria-label` and tooltip),
  * then « … », a menu (arrows, Escape, the focus back on « … ») listing the others with their words. A chosen one runs
- * once the menu has closed and given the focus back to « … », so what it opens returns the focus there.
+ * once the menu has closed and given the focus back to « … », so what it opens returns the focus there. While the width
+ * is not known (`both`), « … » alone, which app.css shows on a phone after the icon its button drew (useTopBarAction).
  */
 export function CompactTopBarActions() {
   const { t } = useTranslation();
   const store = useContext(TopBarStore);
+  const mode = useContext(Mode);
   const actions = useSyncExternalStore(store?.subscribe ?? noSubscription, store?.snapshot ?? noActions, store?.snapshot ?? noActions);
   const more = useRef<HTMLButtonElement>(null);
   const chosen = useRef<string | null>(null);
+  // The focus was on the stop icon when the action ended, which took it away: « … », where Activité now is, takes it.
+  const focusMore = useRef(false);
+  useLayoutEffect(() => {
+    if (!focusMore.current) return;
+    focusMore.current = false;
+    more.current?.focus();
+  });
   const { shown, menu } = arrangeTopBar(actions);
   const moreLabel = t("sidebar.moreActions");
+  if (mode === "both")
+    return (
+      <div className="topbar-compact-actions topbar-first-paint">
+        <button className="topbar-icon topbar-more" type="button" aria-label={moreLabel} title={moreLabel} aria-haspopup="menu" aria-disabled>
+          <Icons.more />
+        </button>
+      </div>
+    );
   return (
     <div className="topbar-compact-actions">
-      {shown?.beside}
-      {shown ? (
-        // One button whatever it shows: when Activité goes back under « … », the focus stays where it was.
-        <button
-          className="topbar-icon"
-          type="button"
-          aria-label={shown.name ?? shown.label}
-          title={shown.label}
-          aria-expanded={shown.expanded}
-          aria-controls={shown.controls}
-          disabled={shown.disabled}
-          onClick={shown.run}
-        >
-          <shown.icon />
-        </button>
-      ) : null}
+      {shown?.beside ? <Beside onFocusTakenAway={() => (focusMore.current = true)}>{shown.beside}</Beside> : null}
+      {/* One button whatever it shows: when Activité goes back under « … », the focus stays where it was. */}
+      {shown ? <ActionIcon action={shown} className="topbar-icon" /> : null}
       {menu.length > 0 ? (
         <DropdownMenu.Root>
           <DropdownMenu.Trigger ref={more} className="topbar-icon topbar-more" aria-label={moreLabel} title={moreLabel}>
@@ -193,6 +247,29 @@ export function CompactTopBarActions() {
         </DropdownMenu.Root>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * What is shown before the action's icon (Activité's stop icon, #369). Told, as it goes, whether it had the focus: its
+ * cleanup runs before React takes it out of the page, while `document.activeElement` still says so.
+ */
+function Beside({ onFocusTakenAway, children }: { onFocusTakenAway: () => void; children: ReactNode }) {
+  const box = useRef<HTMLSpanElement>(null);
+  const taken = useRef(onFocusTakenAway);
+  useLayoutEffect(() => {
+    taken.current = onFocusTakenAway;
+  });
+  useLayoutEffect(() => {
+    const element = box.current;
+    return () => {
+      if (element?.contains(document.activeElement)) taken.current();
+    };
+  }, []);
+  return (
+    <span ref={box} className="topbar-beside">
+      {children}
+    </span>
   );
 }
 

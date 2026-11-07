@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Page } from "@playwright/test";
 import AxeBuilder from "./support/axe";
 import { signInWithMagicLink } from "./support/candidate";
 import { chooseInTopBarMore, ficheOf, topBarMoreOf, workPaneOf } from "./support/conversation";
@@ -193,6 +193,64 @@ test.describe("the compact Top Bar on a phone (#897)", () => {
     await expect(pane.getByRole("heading", { level: 2, name: "Mon compte" })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(pane).toHaveCount(0);
+  });
+});
+
+/** A page of the Candidate's, signed in as `page` is, that runs no script: what the server's HTML paints first. */
+async function withoutJavaScript(browser: Browser, page: Page, viewport: typeof PHONE): Promise<Page> {
+  const context = await browser.newContext({ baseURL: origin, locale: "en-US", viewport, javaScriptEnabled: false, storageState: await page.context().storageState() });
+  return context.newPage();
+}
+
+/** Where the Top Bar and its title sit. */
+async function barAndTitle(page: Page) {
+  const bar = (await topBarOf(page).boundingBox())!;
+  const title = (await topBarOf(page).getByRole("heading", { level: 1 }).boundingBox())!;
+  return { barHeight: bar.height, titleLeft: title.x, titleWidth: title.width };
+}
+
+test.describe("the Top Bar's first paint (#897)", () => {
+  test("is the compact bar on a phone before and without JavaScript, and nothing moves when the page hydrates", async ({ page, browser }) => {
+    await page.setViewportSize(PHONE);
+    const profile = await candidateWithProfile(page, "top-bar-first-paint");
+    const bare = await withoutJavaScript(browser, page, PHONE);
+    try {
+      for (const { path, shown } of [
+        { path: "/", shown: fr.fiche.activity },
+        { path: `/profils/${profile}`, shown: fr.fiche.label },
+        { path: "/compte", shown: fr.fiche.activity },
+      ]) {
+        // The server's HTML alone: Menu, the title, one action and « … », icons alone; no button with its words.
+        await bare.goto(path);
+        await expect(topBarOf(bare).getByRole("heading", { level: 1 })).toBeVisible();
+        expect(await topBarNames(bare), path).toEqual([fr.sidebar.menu, shown, fr.sidebar.moreActions]);
+        await expect(topBarOf(bare).locator("button:visible").filter({ hasText: /\S/ })).toHaveCount(0);
+        await expectOneLine(bare);
+        const firstPaint = await barAndTitle(bare);
+
+        // Hydrated: the same bar, at the same height, the title in the same place.
+        await page.goto(path);
+        await expect(topBarMoreOf(page)).toHaveAttribute("data-state", "closed");
+        expect(await topBarNames(page), path).toEqual([fr.sidebar.menu, shown, fr.sidebar.moreActions]);
+        expect(await barAndTitle(page), path).toEqual(firstPaint);
+      }
+    } finally {
+      await bare.context().close();
+    }
+  });
+
+  test("is the wide bar on a laptop without JavaScript: its buttons with their words, no icon alone, no « … »", async ({ page, browser }) => {
+    await page.setViewportSize(LAPTOP);
+    const profile = await candidateWithProfile(page, "top-bar-first-paint-laptop");
+    const bare = await withoutJavaScript(browser, page, LAPTOP);
+    try {
+      await bare.goto(`/profils/${profile}`);
+      await expect(topBarOf(bare).getByRole("heading", { level: 1 })).toBeVisible();
+      expect(await topBarNames(bare)).toEqual([fr.fiche.label, fr.fiche.activity]);
+      await expect(topBarMoreOf(bare)).toBeHidden();
+    } finally {
+      await bare.context().close();
+    }
   });
 });
 

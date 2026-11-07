@@ -10,7 +10,7 @@ import type { ConversationContext } from "@/coach/conversation";
 import type { ReplyGiven } from "@/ai-activity/entries";
 import { Icons } from "@/components/icons";
 import { CURRENT, type CloseDrawerThen } from "@/components/SidebarShell";
-import { TOP_BAR_RANK, useCompactTopBar, useTopBarAction } from "@/components/top-bar";
+import { TOP_BAR_RANK, useTopBarAction, useTopBarMode } from "@/components/top-bar";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { ConfirmDialog } from "@/design/Dialog";
@@ -438,7 +438,7 @@ export function ClearConversationButton({ inContextBar = false }: { inContextBar
   const conversationFirst = useConversationFirst();
   const page = conversationFirst?.page;
   // On a phone, under the compact Top Bar's « … » (#897): the same Dialog, opened from there.
-  const compact = useCompactTopBar() && !inContextBar;
+  const compact = useTopBarMode() === "compact" && !inContextBar;
   const [confirming, setConfirming] = useState(false);
   // « … », which opened it: the Dialog, with no trigger of its own, gives the focus back to it.
   const opener = useRef<HTMLElement | null>(null);
@@ -447,7 +447,8 @@ export function ClearConversationButton({ inContextBar = false }: { inContextBar
     if (open) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     else requestAnimationFrame(() => opener.current?.focus());
   }
-  useTopBarAction(
+  // While the width is not known, its icon too, which app.css shows on a phone (useTopBarAction).
+  const icon = useTopBarAction(
     page && !inContextBar
       ? { id: "clear", rank: TOP_BAR_RANK.clear, label: t("contextBar.clear"), icon: Icons.clear, run: () => confirm(true), disabled: page.replying }
       : null,
@@ -458,28 +459,31 @@ export function ClearConversationButton({ inContextBar = false }: { inContextBar
     if ((await page!.clear()) && conversationId) conversationFirst!.removed(conversationId);
   }
   return (
-    <ConfirmDialog
-      {...(compact
-        ? { open: confirming, onOpenChange: confirm }
-        : {
-            trigger: inContextBar ? (
-              <button className={`${buttonClass({ variant: "quiet", size: "sm" })} context-bar-clear`} type="button" disabled={page.replying}>
-                {t("contextBar.clear")}
-              </button>
-            ) : (
-              <button className={`${buttonClass()} topbar-clear`} type="button" disabled={page.replying}>
-                <Icons.clear />
-                {t("conversationFirst.clear")}
-              </button>
-            ),
-          })}
-      title={t("conversationFirst.clearTitle")}
-      confirmLabel={t("conversationFirst.clear")}
-      tone="danger"
-      onConfirm={() => void clear()}
-    >
-      {t("conversationFirst.clearText")}
-    </ConfirmDialog>
+    <>
+      <ConfirmDialog
+        {...(compact
+          ? { open: confirming, onOpenChange: confirm }
+          : {
+              trigger: inContextBar ? (
+                <button className={`${buttonClass({ variant: "quiet", size: "sm" })} context-bar-clear`} type="button" disabled={page.replying}>
+                  {t("contextBar.clear")}
+                </button>
+              ) : (
+                <button className={`${buttonClass()} topbar-clear`} type="button" disabled={page.replying}>
+                  <Icons.clear />
+                  {t("conversationFirst.clear")}
+                </button>
+              ),
+            })}
+        title={t("conversationFirst.clearTitle")}
+        confirmLabel={t("conversationFirst.clear")}
+        tone="danger"
+        onConfirm={() => void clear()}
+      >
+        {t("conversationFirst.clearText")}
+      </ConfirmDialog>
+      {icon}
+    </>
   );
 }
 
@@ -498,13 +502,16 @@ export function PageHelpButton() {
   const isConversation = conversationFirst?.page || pathname === routes.home || pathname.startsWith(routes.conversation(""));
   const open = conversationFirst && !isConversation && workPane && article ? () => workPane.open({ kind: "help", article }) : null;
   // On a phone, in the compact Top Bar (#897).
-  const compact = useCompactTopBar();
-  useTopBarAction(open ? { id: "help", rank: TOP_BAR_RANK.help, label: t("conversationFirst.help"), icon: Icons.help, run: open } : null);
-  if (!open || compact) return null;
+  const mode = useTopBarMode();
+  const icon = useTopBarAction(open ? { id: "help", rank: TOP_BAR_RANK.help, label: t("conversationFirst.help"), icon: Icons.help, run: open } : null);
+  if (!open || mode === "compact") return null;
   return (
-    <button className={`${buttonClass()} topbar-help`} type="button" onClick={open}>
-      <Icons.help />
-      {t("conversationFirst.help")}
-    </button>
+    <>
+      <button className={`${buttonClass()} topbar-help`} type="button" onClick={open}>
+        <Icons.help />
+        {t("conversationFirst.help")}
+      </button>
+      {icon}
+    </>
   );
 }

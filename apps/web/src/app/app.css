@@ -3220,37 +3220,64 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
 
 /* The compact Top Bar on a phone (#897): one line, « Menu » as an icon, the title cut short with an ellipsis, the page's
    one action as an icon and « … », whose menu lists the others in words. Each icon is a 44 px target, named by its
-   words (its aria-label and tooltip). */
-.topbar.topbar-compact {
-  flex-wrap: nowrap;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+   words (its aria-label and tooltip). The width decides, not the script: the server's HTML holds both bars' buttons
+   (top-bar.tsx), and these rules show one set and take the other out of the page (display: none), so the first paint is
+   the right bar at every width; once the page knows its width it draws only that set. */
+@media (width < 40rem) {
+  .topbar.topbar-compactable {
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .topbar-compactable .topbar-title {
+    flex: 1;
+    order: 0;
+  }
+
+  /* A Profile's name, edited in place, keeps to its one line too: it scrolls sideways while edited. */
+  .topbar-compactable .topbar-title > .title-field {
+    flex: 1 1 auto;
+  }
+
+  .topbar-compactable .topbar-title textarea.title-edit {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* The wide bar's buttons, drawn before the page knows its width: only their icons, the first of them shown. */
+  .topbar.topbar-compactable .topbar-actions {
+    flex: none;
+    gap: var(--space-1);
+  }
+
+  .topbar-compactable .topbar-actions:empty,
+  .topbar-compactable .topbar-actions > :not(.topbar-icon),
+  .topbar-compactable .topbar-actions > .topbar-icon ~ .topbar-icon,
+  html .topbar.topbar-compactable > .menu-toggle:not(.topbar-icon) {
+    display: none;
+  }
+
+  /* Over the phone's padding of the wide bar's buttons. */
+  .topbar.topbar-compactable .topbar-icon.menu-toggle {
+    padding: 0;
+  }
+
+  /* Activité's stop icon, while it is the action shown: a 44 px target too. */
+  .topbar.topbar-compactable .ai-activity-stop {
+    min-width: max(44px, 2.75rem);
+    min-height: max(44px, 2.75rem);
+  }
 }
 
-.topbar-compact .topbar-title {
-  flex: 1;
-  order: 0;
-}
-
-/* A Profile's name, edited in place, keeps to its one line too: it scrolls sideways while edited. */
-.topbar-compact .topbar-title > .title-field {
-  flex: 1 1 auto;
-}
-
-.topbar-compact .topbar-title textarea.title-edit {
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.topbar-compact .topbar-actions:empty {
-  display: none;
-}
-
-/* Over the phone's padding of the wide bar's buttons. */
-.topbar.topbar-compact .topbar-icon.menu-toggle {
-  padding: 0;
+/* Above a phone's width, the compact Top Bar's icons drawn before the page knows its width are not shown. */
+@media (width >= 40rem) {
+  .topbar-compactable .topbar-first-paint,
+  html .topbar.topbar-compactable > .menu-toggle.topbar-icon {
+    display: none;
+  }
 }
 
 .topbar-compact-actions {
@@ -3258,6 +3285,11 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   flex: none;
   gap: var(--space-1);
   align-items: center;
+}
+
+/* Activité's stop icon, before its icon. */
+.topbar-beside {
+  display: contents;
 }
 
 .topbar-icon {
@@ -3294,12 +3326,6 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
 .topbar-icon .icon {
   width: 1.25rem;
   height: 1.25rem;
-}
-
-/* Activité's stop icon, while it is the action shown: a 44 px target too. */
-.topbar.topbar-compact .ai-activity-stop {
-  min-width: max(44px, 2.75rem);
-  min-height: max(44px, 2.75rem);
 }
 
 .topbar-menu .menu-item .icon {

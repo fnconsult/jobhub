@@ -12,7 +12,7 @@ import { EnCeMoment } from "@/components/EnCeMoment";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
 import { useActivityRun } from "@/components/activity-run";
-import { TOP_BAR_RANK, useCompactTopBar, useTopBarAction } from "@/components/top-bar";
+import { TOP_BAR_RANK, useTopBarAction, useTopBarMode } from "@/components/top-bar";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { SIDEBAR_CLOSED } from "@/design/sidebar-state";
@@ -222,16 +222,17 @@ export function FicheButtons() {
   const control = useContext(FicheControl);
   const underWay = useAiActivityUnderWay();
   // On a phone, the compact Top Bar shows them (#897): the same toggles, « Activité » shown while an action runs.
-  const compact = useCompactTopBar();
+  const mode = useTopBarMode();
   const run = useActivityRun();
   // What is shown: a Fiche that has given way to the Work Pane is not.
   const state = control ? { ...control.state, open: control.state.open && !control.givenWay } : null;
   const activity = state ? activityShown(state) : false;
   const controls = state?.open ? control?.ficheId : undefined;
-  useTopBarAction(
+  // While the width is not known, each draws its icon too, which app.css shows on a phone (useTopBarAction).
+  const ficheIcon = useTopBarAction(
     control?.object ? { id: "fiche", rank: TOP_BAR_RANK.fiche, label: t("fiche.label"), icon: Icons.fiche, run: control.toggleFiche, expanded: state?.open ?? false, controls } : null,
   );
-  useTopBarAction(
+  const activityIcon = useTopBarAction(
     control
       ? {
           id: "activity",
@@ -246,7 +247,7 @@ export function FicheButtons() {
         }
       : null,
   );
-  if (!control || !state || compact) return null;
+  if (!control || !state || mode === "compact") return null;
   const { ficheId } = control;
   return (
     <>
@@ -262,6 +263,7 @@ export function FicheButtons() {
           {t("fiche.label")}
         </button>
       ) : null}
+      {ficheIcon}
       <button
         className={`${buttonClass()} topbar-activity`}
         type="button"
@@ -272,6 +274,7 @@ export function FicheButtons() {
         {underWay ? <ActivityGlyph activity={UNDER_WAY} live /> : <Icons.aiActivity />}
         {t("fiche.activity")}
       </button>
+      {activityIcon}
     </>
   );
 }

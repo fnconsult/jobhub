@@ -145,6 +145,19 @@ describe("the compact Top Bar on a phone (#897)", () => {
     expect(names(within(topBar()).getAllByRole("button"))).toEqual(["Menu", "Fiche", "Autres actions"]);
     expect(document.activeElement).toBe(shown);
   });
+
+  it("gives the focus to « … », where « Activité » goes back, when the action ends with the focus on its stop icon", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<ApplicationPage />);
+
+    await user.click(screen.getByRole("button", { name: "Lancer" }));
+    within(topBar()).getByRole("button", { name: "Arrêter la réponse du coach" }).focus();
+
+    act(() => running.action!.end("done"));
+
+    expect(within(topBar()).queryByRole("button", { name: "Arrêter la réponse du coach" })).toBeNull();
+    expect(document.activeElement).toBe(more());
+  });
 });
 
 describe("the Top Bar on a computer (#897)", () => {

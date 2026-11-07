@@ -4,11 +4,17 @@
  * Application Status.
  *
  * One deep module in front of Postgres. Callers get:
- *  - `createApplications(database, { jobOffers, profiles })`:
+ *  - `createApplications(database, { jobOffers, profiles, sentByShareCapture, now })`:
  *    - `save` a Job Offer with one of the Candidate's Profiles. A Candidate has at
  *      most one Application per Job Offer: saving it again returns the one they have.
  *      Creating it replaces the Job Offer's « Écartée » in the Offer box (ADR-0090): the
- *      latest decision wins, and deleting the Application leaves its entry à traiter;
+ *      latest decision wins, and deleting the Application leaves its entry à traiter.
+ *      Saved from the extension's Side Panel (`from: "extension"`), or of a Job Offer the
+ *      Candidate sent by Share capture (`sentByShareCapture`), wherever it is saved, it is an
+ *      Arrival too (#819): its entry is made, already « Suivie », or completed with the source
+ *      « Extension » or « Partage », in the same transaction; anything else saved makes none.
+ *      An Application they had already arrives at the moment it is saved again, so its entry
+ *      keeps its day and Profile;
  *    - `list` the Candidate's Applications (newest first) for the list and board views;
  *    - `matchScores` the Match Score of each, for Mes candidatures' list;
  *    - `get` one Application with its Job Offer, Profile, Interviews and the Match
@@ -41,12 +47,12 @@
  * come from the browser) and problems come back as results, never exceptions.
  * Applications are deleted with the account (ADR-0010), their Job Offers are kept.
  */
-import { APPLICATION_STATUSES, INTERVIEW_FORMATS, scoreMatch, type ApplicationStatus, type InterviewFormat, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { APPLICATION_STATUSES, INTERVIEW_FORMATS, scoreMatch, type ApplicationStatus, type ArrivalSource, type InterviewFormat, type JobOffer, type MatchScore } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { inTransaction, type Queryable } from "../database/pool";
 import type { JobOffers } from "../job-offers";
-import { dismissalReplacedBy, migrateOfferBox } from "../offer-box";
+import { dismissalReplacedBy, migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
 import { migrateRescheduleHistory, rescheduleHistories, revertAgendaItemDate, setAgendaItemDate, type Reschedule } from "../reschedules";
 import { readOrigin, type Origin } from "../origin";
@@ -176,9 +182,10 @@ export type RemoveApplicationResult = { ok: true } | { ok: false; error: "not_fo
 export interface Applications {
   /**
    * Saves a Job Offer as an Application ("À postuler"). `input`: { jobOfferId, profileId }. `origin`: saved from a Coach
-   * proposal (#716), its status keeps it; an Application they had already is given back as it is.
+   * proposal (#716), its status keeps it; an Application they had already is given back as it is. `from: "extension"`:
+   * saved from the extension's Side Panel, a Capture followed, which arrives in the Offer box « Extension » (#819).
    */
-  save(candidateId: string, input: unknown, options?: { origin?: Origin }): Promise<SaveApplicationResult>;
+  save(candidateId: string, input: unknown, options?: { origin?: Origin; from?: "extension" }): Promise<SaveApplicationResult>;
   /** The Application, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<Application | null>;
   /** Every Application of the Candidate, newest first. */
@@ -459,11 +466,17 @@ export function createApplications(
     jobOffers,
     profiles,
     now = () => new Date(),
+    sentByShareCapture = async () => false,
   }: {
     jobOffers: Pick<JobOffers, "get" | "keepForCandidate">;
     profiles: Pick<Profiles, "get">;
     /** The clock Interview dates are entered, Rescheduled and cancelled by. */
     now?: () => Date;
+    /**
+     * Whether the Candidate sent the Job Offer by Share capture (../coach-conversations): saving it is then an Arrival
+     * « Partage » in the Offer box (#819). Default: never.
+     */
+    sentByShareCapture?: (candidateId: string, jobOfferId: string) => Promise<boolean>;
   },
 ): Applications {
   /** The Interviews of each Application, oldest first. */
@@ -578,23 +591,35 @@ export function createApplications(
       const jobOffer = await jobOffers.keepForCandidate(jobOfferId, candidateId);
       if (!jobOffer) return { ok: false, error: "not_found" };
 
-      // One statement: the Application and the dismissal it replaces in the Offer box (ADR-0090) go together.
-      const inserted = await database.query<ApplicationRow>(
-        `WITH followed AS (
-           INSERT INTO application (candidate_id, job_offer_id, profile_id, status_origin) VALUES ($1, $2, $3, $4)
-           ON CONFLICT (candidate_id, job_offer_id) DO NOTHING
-           RETURNING ${COLUMNS}
-         ),
-         replaced AS (${dismissalReplacedBy("$1", "SELECT job_offer_id FROM followed")})
-         SELECT * FROM followed`,
-        [candidateId, jobOffer.id, profile.id, options.origin ? JSON.stringify(options.origin) : null],
-      );
-      if (inserted.rows[0]) return { ok: true, created: true, application: await applicationFrom(candidateId, inserted.rows[0]) };
-      const existing = await database.query<ApplicationRow>(
-        `SELECT ${COLUMNS} FROM application WHERE candidate_id = $1 AND job_offer_id = $2`,
-        [candidateId, jobOffer.id],
-      );
-      return { ok: true, created: false, application: await applicationFrom(candidateId, existing.rows[0]!) };
+      // A Capture followed from the Side Panel, or a Share capture followed anywhere, enters the Offer box only now (ADR-0090).
+      const arrivals: ArrivalSource[] = [];
+      if (options.from === "extension") arrivals.push("extension");
+      if (await sentByShareCapture(candidateId, jobOffer.id)) arrivals.push("share");
+
+      const { created, row } = await inTransaction(database, async (client) => {
+        // One statement: the Application and the dismissal it replaces in the Offer box (ADR-0090) go together.
+        const inserted = await client.query<ApplicationRow>(
+          `WITH followed AS (
+             INSERT INTO application (candidate_id, job_offer_id, profile_id, status_origin) VALUES ($1, $2, $3, $4)
+             ON CONFLICT (candidate_id, job_offer_id) DO NOTHING
+             RETURNING ${COLUMNS}
+           ),
+           replaced AS (${dismissalReplacedBy("$1", "SELECT job_offer_id FROM followed")})
+           SELECT * FROM followed`,
+          [candidateId, jobOffer.id, profile.id, options.origin ? JSON.stringify(options.origin) : null],
+        );
+        const saved = inserted.rows[0]
+          ? { created: true, row: inserted.rows[0] }
+          : { created: false, row: (await client.query<ApplicationRow>(`SELECT ${COLUMNS} FROM application WHERE candidate_id = $1 AND job_offer_id = $2`, [candidateId, jobOffer.id])).rows[0]! };
+        // Its entry made already « Suivie », with the Application's Profile, or its source added to the one there. An
+        // Application they had already arrives now: dated by its own creation, it would move the entry's day and Profile back.
+        const at = saved.created ? saved.row.created_at : now();
+        for (const source of arrivals) {
+          await recordArrivals(client, { candidateId, profileId: saved.row.profile_id, source, at, jobOfferIds: [jobOffer.id] });
+        }
+        return saved;
+      });
+      return { ok: true, created, application: await applicationFrom(candidateId, row) };
     },
 
     get,

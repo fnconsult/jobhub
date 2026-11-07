@@ -352,7 +352,7 @@ _Avoid_: Inbox item, notification
 A Job Offer reaching a Candidate's Offer box from one Arrival source. The first makes the Offer box entry and sets its day (Paris time); a later one adds its source to the entry without moving it.
 
 **Arrival source**:
-Where an Arrival came from, shown as a chip: « Recherche » (a Job Search), « Job Digest », « Email » (a Received offer email, Email intake), « Lien du coach » (a Job Offer link). A Capture (« Extension ») or a Share capture (« Partage ») makes an entry only once followed, already « Suivie ».
+Where an Arrival came from, shown as a chip: « Recherche » (a Job Search), « Job Digest », « Email » (a Received offer email, Email intake), « Lien du coach » (a Job Offer link). A Capture (« Extension ») or a Share capture (« Partage ») makes an entry only once followed, already « Suivie »: the source is recorded when the Application is created. « Extension » means saved from the Side Panel (recognised by the request's Origin); « Partage » means a Job Offer the Candidate sent by Share capture, whichever page it is followed from.
 _Avoid_: Channel, provider, Job discovery source (which is where Job discovery searches)
 
 **Écartée**:

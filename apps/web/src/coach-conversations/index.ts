@@ -994,6 +994,21 @@ export async function coachCostPerPlaybookAgent(database: Pick<Pool, "query">, s
   return rows;
 }
 
+/**
+ * Whether the Candidate sent the Job Offer to Jobbbox by Share capture (#697): one of their conversations holds the set
+ * reply that showed it. Following it then makes its Offer box entry « Partage » (ADR-0090, #819), wherever it is followed.
+ */
+export async function sentByShareCapture(database: Pick<Pool, "query">, candidateId: string, jobOfferId: string): Promise<boolean> {
+  const { rows } = await database.query<{ shared: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
+        WHERE c.candidate_id = $1 AND m.job_offer_id = $2 AND m.share_capture
+     ) AS shared`,
+    [candidateId, jobOfferId],
+  );
+  return rows[0]?.shared === true;
+}
+
 /** How long a Coach Conversation is kept after its last message. */
 export const RETENTION_MONTHS = 12;
 

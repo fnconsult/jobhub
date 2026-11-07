@@ -139,6 +139,27 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
     expect(screen.queryByRole("link", { name: "Offre b · Acme Industrie" })).toBeNull();
   });
 
+  it("« Partage » joins the chips: a Share capture followed is under it, « Suivie », as a Capture followed is under « Extension » (#819)", async () => {
+    const followed = { state: "followed", applicationId: "app", followedAt: "2026-11-05T10:00:00.000Z" } as const;
+    serve([
+      entry("capturée", { sources: [{ source: "extension", at: "2026-11-05T10:00:00.000Z" }], ...followed }),
+      entry("partagée", { sources: [{ source: "share", at: "2026-11-05T11:00:00.000Z" }], ...followed }),
+      entry("trouvée"),
+    ]);
+    await renderInApp(<OfferBox />);
+    await screen.findByRole("heading", { name: "Offres à traiter" });
+    const user = userEvent.setup();
+
+    await user.press(screen.getByRole("button", { name: "Partage, 0 à traiter" }));
+    await user.press(screen.getByRole("button", { name: "Suivies aujourd'hui (1)" }));
+    expect(screen.getByRole("link", { name: "Offre partagée · Acme Industrie" })).toBeOnTheScreen();
+    expect(screen.queryByRole("link", { name: "Offre capturée · Acme Industrie" })).toBeNull();
+
+    await user.press(screen.getByRole("button", { name: "Extension, 0 à traiter" }));
+    expect(screen.getByRole("link", { name: "Offre capturée · Acme Industrie" })).toBeOnTheScreen();
+    expect(screen.queryByRole("link", { name: "Offre partagée · Acme Industrie" })).toBeNull();
+  });
+
   it("« Suivre » saves the Job Offer as an Application with the entry's Profile, and the box read again shows it « Suivie »", async () => {
     const { writes } = serve([entry("a", { profile: null, scoredWith: { id: "p2", name: "Contrôleuse" } })]);
     await renderInApp(<OfferBox />);

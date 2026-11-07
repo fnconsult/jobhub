@@ -5572,7 +5572,8 @@
       "job_digest": "Job Digest",
       "email": "Email",
       "job_offer_link": "Lien du coach",
-      "extension": "Extension"
+      "extension": "Extension",
+      "share": "Partage"
     },
     "chipCount": "{{source}}, {{count}} à traiter",
     "today": "Aujourd'hui",

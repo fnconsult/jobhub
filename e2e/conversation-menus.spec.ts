@@ -170,7 +170,8 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     // French counts 0 in the singular: « 0 traitée ».
     await expect(box.getByText(tr(fr.offerBox.treated_one, { count: 0 }))).toBeVisible();
     const chips = box.getByRole("group", { name: fr.offerBox.chips });
-    await expect(chips.getByRole("button")).toHaveCount(6);
+    // « Toutes » and the six sources, « Extension » and « Partage » among them (#819).
+    await expect(chips.getByRole("button")).toHaveCount(7);
     const today = box.getByRole("region", { name: fr.offerBox.today });
     await expect(today.getByRole("heading", { level: 4 })).toHaveText([`${fr.offerBox.tiers.not_to_miss} · ${fr.offerBox.tierHints.not_to_miss}`, `${fr.offerBox.tiers.less_suited} · ${fr.offerBox.tierHints.less_suited}`]);
     await expect(today.getByRole("listitem", { name: "Comptable" })).toContainText(fr.offerBox.unsorted);

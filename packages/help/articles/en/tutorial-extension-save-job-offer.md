@@ -3,7 +3,7 @@ kind: tutorial
 audience: candidate
 topic: extension
 title: Save a job offer with the extension
-synonyms: [extension, browser, chrome, capture, save a job offer, add a job offer, new application, choose a profile, profile used, change profile, signed in]
+synonyms: [extension, browser, offers to handle, followed, follow, chrome, capture, save a job offer, add a job offer, new application, choose a profile, profile used, change profile, signed in]
 ---
 Signed in, the Jobbbox extension works out a job offer's Match Score with one of your profiles, then saves it to your applications, without copying it out.
 
@@ -13,3 +13,5 @@ Signed in, the Jobbbox extension works out a job offer's Match Score with one of
 4. To compare the offer with another of your profiles, choose it in « Profile compared with this job offer »: the score is worked out again with it.
 5. At the foot of the panel, choose the profile for this application in « Profile used for this application ». If you uploaded a CV in the panel, « A new profile, from this CV » makes it a new profile.
 6. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox.
+
+A job offer saved as an application from the extension also joins « Offers to handle », in Job searches, already « Followed », with the chip « Extension », which finds it again. A job offer only analysed, without « Save as an application », does not enter it.

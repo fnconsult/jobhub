@@ -341,7 +341,7 @@ A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par 
 _Avoid_: Job Offer card, result card
 
 **Offer box**:
-Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
+Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Plus tard », « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
 _Avoid_: Inbox, feed, offer list
 
 **Offer box entry**:
@@ -359,8 +359,11 @@ _Avoid_: Channel, provider, Job discovery source (which is where Job discovery s
 Said of an Offer box entry the Candidate set aside with « Écarter », with an optional **Dismissal reason** (« Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs »). Counts as already seen: never offered again by a Job Digest, « déjà vue » for Email intake, shown « Écartée » in a Job Search's results. « Revenir sur ce choix » makes it à traiter again. The shared Job Offer is untouched.
 _Avoid_: Dismissed, rejected, archived, hidden
 
+**Tout écarter**:
+The button « Tout écarter (n) » on a tier of « Précédemment » holding at least two entries: it écarte, without a Dismissal reason, the tier's entries the current Arrival source chip shows. Its « Annuler » puts back exactly those entries.
+
 **Plus tard**:
-An Offer box entry put out of sight until the next Monday 00:00 Paris time, when it comes back under « Aujourd'hui ». Not a decision: it stays à traiter and in the count.
+An Offer box entry put out of sight until the next Monday 00:00 Paris time (on a Monday, the Monday after; no date to pick), waiting in a folded « Plus tard » block until it comes back under « Aujourd'hui », on that Monday only, then returns to its arrival day. Not a decision: it stays à traiter and in the count. Refused on a « Suivie » or « Écartée » entry; « Expirée sans décision » wins over it. « Annuler » puts it back.
 _Avoid_: Snooze
 
 **Importance tier**:

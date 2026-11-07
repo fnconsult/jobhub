@@ -5,7 +5,7 @@ import {
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
   coachingOrderResponseSchema,
-  coachingResponseSchema, jobDigestResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+  coachingResponseSchema, jobDigestResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxOfferResponseSchema, offerBoxResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { rulesProvenance, type MasterCvContent } from "@jobhub/shared";
@@ -406,6 +406,33 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       await searched(marie, await createProfile(marie), [await captureOffer()]);
 
       expect(overHttp(offerBoxResponseSchema, await reads.offerBox(paul))).toEqual({ today: "2026-11-04", toHandle: 0, entries: [] });
+    });
+
+    it("gives one entry's Job Offer as its Work Pane shows it in the app: its text and why its Match Score, against the Profile « Suivre » saves it with (#692)", async () => {
+      const daf = await createProfile(marie);
+      const found = await captureOffer();
+      await searched(marie, daf, [found]);
+      const [entry] = (await reads.offerBox(marie)).entries;
+      await offerBox.dismiss(marie, entry!.id, { reason: "salary" });
+
+      const offer = overHttp(offerBoxOfferResponseSchema, await reads.offerBoxOffer(marie, entry!.id));
+
+      expect(offer.profile).toEqual({ id: daf, name: "DAF" });
+      expect(offer.found).toMatchObject({
+        jobOffer: { id: found, title: "DAF H/F", contractType: "cdi", summary: null, content: "DAF H/F (1) pour un groupe industriel. Vous pilotez la consolidation IFRS sous SAP." },
+        matchScore: 100,
+        decision: "dismissed",
+        applicationId: null,
+      });
+      expect(offer.found.matchScoreDetail).toMatchObject({ location: { status: "match", offer: "Lyon", wanted: ["Lyon"] }, contractType: { status: "match", offer: "cdi", wanted: ["cdi"] } });
+    });
+
+    it("never gives a Candidate another Candidate's entry, nor one that is not there", async () => {
+      await searched(marie, await createProfile(marie), [await captureOffer()]);
+      const [entry] = (await reads.offerBox(marie)).entries;
+
+      expect(await reads.offerBoxOffer(paul, entry!.id)).toBeNull();
+      expect(await reads.offerBoxOffer(marie, "missing")).toBeNull();
     });
   });
 

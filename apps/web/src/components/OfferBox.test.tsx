@@ -24,6 +24,8 @@ function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBox
     state: "to_handle",
     applicationId: null,
     followedAt: null,
+    dismissalReason: null,
+    dismissedAt: null,
     ...overrides,
   };
 }
@@ -125,6 +127,94 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
 
     expect(within(offerBox()).getByRole("button", { name: "Job Digest, 1 à traiter" }).getAttribute("aria-pressed")).toBe("true");
     expect(within(offerBox()).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre a"]);
+  });
+
+  it("« Écarter » opens the Dismissal reasons and « Écarter sans motif »; a reason écarte the entry, then a toast offers « Annuler » (#816)", async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    renderInFrench(<OfferBox box={box([entry("a")])} />);
+    const line = within(offerBox()).getByRole("listitem", { name: "Offre a" });
+
+    await userEvent.click(within(line).getByRole("button", { name: "Écarter" }));
+
+    const reasons = within(line).getByRole("group", { name: "Pourquoi ? (facultatif)" });
+    expect(within(reasons).getAllByRole("button").map((button) => button.textContent)).toEqual(["Pas pour moi", "Salaire", "Lieu", "Contrat", "Déjà postulé ailleurs", "Écarter sans motif"]);
+    expect(within(line).getByRole("button", { name: "Écarter" }).getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(within(reasons).getByRole("button", { name: "Salaire" }));
+
+    expect(fetch).toHaveBeenCalledWith("/api/offer-box/a/dismissal", expect.objectContaining({ method: "POST", body: JSON.stringify({ reason: "salary" }) }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(screen.getByRole("status").textContent).toContain("« Offre a » écartée.");
+    // The line's buttons are going: the keyboard focus is on « Annuler ».
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Annuler" })));
+
+    refresh.mockReset();
+    await userEvent.keyboard("{Enter}");
+    expect(fetch).toHaveBeenLastCalledWith("/api/offer-box/a/dismissal", expect.objectContaining({ method: "DELETE" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("an « Annuler » that fails tells the Candidate the offer is still écartée", async () => {
+    const fetch = vi.fn(async (_url: string, init?: RequestInit) => new Response(null, { status: init?.method === "DELETE" ? 500 : 204 }));
+    vi.stubGlobal("fetch", fetch);
+    renderInFrench(<OfferBox box={box([entry("a")])} />);
+    const line = within(offerBox()).getByRole("listitem", { name: "Offre a" });
+    await userEvent.click(within(line).getByRole("button", { name: "Écarter" }));
+    await userEvent.click(within(line).getByRole("button", { name: "Lieu" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+
+    refresh.mockReset();
+    await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
+
+    expect((await within(offerBox()).findByRole("alert")).textContent).toBe(
+      "« Annuler » n'a pas abouti : l'offre reste écartée. Réessayez avec « Revenir sur ce choix », dans « Écartées ».",
+    );
+    expect(refresh).not.toHaveBeenCalled();
+    // The toast gone, the focus is on the box's heading, not lost with the line's buttons.
+    expect(document.activeElement).toBe(within(offerBox()).getByRole("heading", { name: "Offres à traiter" }));
+  });
+
+  it("« Écarter sans motif » écarte the entry with no reason; a refusal says so", async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    renderInFrench(<OfferBox box={box([entry("a")])} />);
+    const line = within(offerBox()).getByRole("listitem", { name: "Offre a" });
+
+    await userEvent.click(within(line).getByRole("button", { name: "Écarter" }));
+    await userEvent.click(within(line).getByRole("button", { name: "Écarter sans motif" }));
+    expect(fetch).toHaveBeenCalledWith("/api/offer-box/a/dismissal", expect.objectContaining({ method: "POST", body: JSON.stringify({ reason: null }) }));
+
+    fetch.mockImplementation(async () => Response.json({ error: "followed" }, { status: 409 }));
+    await userEvent.click(within(line).getByRole("button", { name: "Écarter" }));
+    await userEvent.click(within(line).getByRole("button", { name: "Pas pour moi" }));
+    expect(within(line).getByRole("alert").textContent).toBe("L'offre n'a pas pu être écartée. Réessayez.");
+  });
+
+  it("an entry « Suivie » cannot be écartée", () => {
+    renderInFrench(<OfferBox box={box([entry("a", { state: "followed", applicationId: "app-a", followedAt: "2026-11-05T10:00:00.000Z" })])} />);
+
+    expect(within(offerBox()).queryByRole("button", { name: "Écarter" })).toBeNull();
+  });
+
+  it("folds « Écartées » at its foot: each with its reason and « Revenir sur ce choix », which makes it à traiter again", async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    const dismissed = { state: "dismissed" as const, dismissedAt: "2026-11-05T09:00:00.000Z" };
+    renderInFrench(<OfferBox box={box([entry("a"), entry("b", { ...dismissed, dismissalReason: "location" }), entry("c", { ...dismissed, dismissalReason: null, dismissedAt: "2026-11-05T10:00:00.000Z" })])} />);
+
+    const block = within(offerBox()).getByText("Écartées (2)").closest("details")!;
+    expect(block.hasAttribute("open")).toBe(false);
+    expect(within(block).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre c", "Offre b"]);
+    expect(within(block).getByRole("listitem", { name: "Offre b" }).textContent).toContain("Écartée · Lieu");
+    expect(within(block).getByRole("listitem", { name: "Offre c" }).textContent).toContain("Écartée");
+    expect(within(day("Aujourd'hui")).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre a"]);
+    expect(within(offerBox()).getByText("2 traitées")).toBeTruthy();
+
+    await userEvent.click(within(block).getByRole("button", { name: "Revenir sur ce choix : Offre b" }));
+
+    expect(fetch).toHaveBeenCalledWith("/api/offer-box/b/dismissal", expect.objectContaining({ method: "DELETE" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
   it("opens « Recherches par Profil » and « Reçues par email » from its foot, in the Work Pane at their own addresses", () => {

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Button } from "./Button";
 import { TOAST_DURATION_MS, ToastProvider, useToast } from "./Toast";
@@ -60,5 +61,65 @@ describe("Toast (#462)", () => {
     await user.tab({ shift: true });
     act(() => vi.advanceTimersByTime(TOAST_DURATION_MS + 1));
     expect(screen.queryByRole("link", { name: "Voir la candidature" })).toBeNull();
+  });
+
+  it("may hold an action instead of a link (« Annuler »): pressing it runs it and closes the Toast (#816)", async () => {
+    const user = userEvent.setup();
+    const undo = vi.fn();
+    function Dismiss() {
+      const toast = useToast();
+      return <Button onClick={() => toast({ message: "« DAF » écartée.", action: { label: "Annuler", onAction: undo } })}>Écarter</Button>;
+    }
+    renderInFrench(
+      <ToastProvider>
+        <Dismiss />
+      </ToastProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Écarter" }));
+    expect(screen.getByRole("status").textContent).toContain("« DAF » écartée.");
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+
+    expect(undo).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
+  });
+
+  it("gives its action the focus when asked, and the focus to `returnFocus` on close when its opener has gone (#816)", async () => {
+    const user = userEvent.setup();
+    function Dismiss() {
+      const toast = useToast();
+      const [gone, setGone] = useState(false);
+      return (
+        <>
+          <h2 tabIndex={-1}>Offres à traiter</h2>
+          {gone ? null : (
+            <Button
+              onClick={() => {
+                toast({
+                  message: "« DAF » écartée.",
+                  action: { label: "Annuler", onAction: () => {}, focus: true },
+                  returnFocus: () => screen.getByRole("heading", { name: "Offres à traiter" }),
+                });
+                setGone(true);
+              }}
+            >
+              Écarter
+            </Button>
+          )}
+        </>
+      );
+    }
+    renderInFrench(
+      <ToastProvider>
+        <Dismiss />
+      </ToastProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Écarter" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Annuler" }));
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("button", { name: "Annuler" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Offres à traiter" }));
   });
 });

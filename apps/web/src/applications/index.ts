@@ -7,6 +7,8 @@
  *  - `createApplications(database, { jobOffers, profiles })`:
  *    - `save` a Job Offer with one of the Candidate's Profiles. A Candidate has at
  *      most one Application per Job Offer: saving it again returns the one they have.
+ *      Creating it replaces the Job Offer's « Écartée » in the Offer box (ADR-0090): the
+ *      latest decision wins, and deleting the Application leaves its entry à traiter;
  *    - `list` the Candidate's Applications (newest first) for the list and board views;
  *    - `matchScores` the Match Score of each, for Mes candidatures' list;
  *    - `get` one Application with its Job Offer, Profile, Interviews and the Match
@@ -44,6 +46,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import { inTransaction, type Queryable } from "../database/pool";
 import type { JobOffers } from "../job-offers";
+import { dismissalReplacedBy, migrateOfferBox } from "../offer-box";
 import type { Profiles } from "../profiles";
 import { migrateRescheduleHistory, rescheduleHistories, revertAgendaItemDate, setAgendaItemDate, type Reschedule } from "../reschedules";
 import { readOrigin, type Origin } from "../origin";
@@ -575,10 +578,15 @@ export function createApplications(
       const jobOffer = await jobOffers.keepForCandidate(jobOfferId, candidateId);
       if (!jobOffer) return { ok: false, error: "not_found" };
 
+      // One statement: the Application and the dismissal it replaces in the Offer box (ADR-0090) go together.
       const inserted = await database.query<ApplicationRow>(
-        `INSERT INTO application (candidate_id, job_offer_id, profile_id, status_origin) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (candidate_id, job_offer_id) DO NOTHING
-         RETURNING ${COLUMNS}`,
+        `WITH followed AS (
+           INSERT INTO application (candidate_id, job_offer_id, profile_id, status_origin) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (candidate_id, job_offer_id) DO NOTHING
+           RETURNING ${COLUMNS}
+         ),
+         replaced AS (${dismissalReplacedBy("$1", "SELECT job_offer_id FROM followed")})
+         SELECT * FROM followed`,
         [candidateId, jobOffer.id, profile.id, options.origin ? JSON.stringify(options.origin) : null],
       );
       if (inserted.rows[0]) return { ok: true, created: true, application: await applicationFrom(candidateId, inserted.rows[0]) };
@@ -883,4 +891,6 @@ export async function migrateApplications(database: Pool): Promise<void> {
     ALTER TABLE application ADD COLUMN IF NOT EXISTS profile_origin jsonb;
   `);
   await migrateRescheduleHistory(database, "interview", { enteredAt: "created_at" });
+  // Saving an Application writes to the Offer box (ADR-0090).
+  await migrateOfferBox(database);
 }

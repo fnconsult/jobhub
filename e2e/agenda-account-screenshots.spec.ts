@@ -169,6 +169,14 @@ const PAGES = [
     ready: (page: Page) => page.getByRole("region", { name: fr.billing.page.comparisonTitle }),
     component: "main .ds-card",
     target: "#main",
+    // « Votre consommation » (#801): the month and the day in it, set to one value before the shot (a mask hides a
+    // text, not its width); its progress bar and its 12-month grid, which move with the day, masked.
+    fixedTexts: {
+      ".consumption-period": "Mois de novembre (l'offre Gratuite n'est pas facturée)",
+      ".consumption-progress > p:first-child": "Jour 6 sur 30",
+      ".consumption-progress-ends > span:first-child": "1 nov.",
+    },
+    mask: [".consumption-progress-track", ".consumption-grid-scroll"],
   },
 ] as const;
 
@@ -217,7 +225,10 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
             await leaveOutRelease(page);
             await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
-            await expect(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: MASK.map((selector) => page.locator(selector)) });
+            const fixedTexts: Record<string, string> = "fixedTexts" in shot ? shot.fixedTexts : {};
+            for (const [selector, text] of Object.entries(fixedTexts)) await page.locator(selector).evaluateAll((elements, value) => elements.forEach((element) => (element.textContent = value)), text);
+            const masks = [...MASK, ...("mask" in shot ? shot.mask : [])];
+            await expect(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: masks.map((selector) => page.locator(selector)) });
           }
         }
         await showInTheme(page, "light");

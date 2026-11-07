@@ -34,13 +34,13 @@ export type ConversationContext = {
 };
 
 /**
- * What the latest reply cost in tokens (#790), all its AI calls summed as the provider counted them (its Coach Message Cost's,
- * never the euros): `calls`, how many (the Playbook Agent choice, the Playbook Agents, each Turn, each Guardrail check),
- * `turns` and `rounds`, the Turns and Tool rounds of the reply written, `tools`, the Tools that ran; `inputTokens`, all the
- * input sent, `cachedInputTokens` included. Each Turn sends the whole context again with the Tools' results, which is why
- * it exceeds the context the bar shows. Null (or absent) for a reply saved before, or with no reply.
+ * What an AI Coach reply cost in tokens (#790; each reply's, #805), all its AI calls summed as the provider counted them (its
+ * Coach Message Cost's, never the euros): `calls`, how many (the Playbook Agent choice, the Playbook Agents, each Turn, each
+ * Guardrail check), `turns` and `rounds`, the Turns and Tool rounds of the reply written; `inputTokens`, all the input sent,
+ * `cachedInputTokens` included. Each Turn sends the whole context again with the Tools' results, which is why it exceeds the
+ * context the bar shows. Never the Tools' internal names (Back Office only). Null for a reply saved before #791.
  */
-export type ReplyCost = { calls: number; turns: number; rounds: number; tools: string[]; inputTokens: number; cachedInputTokens: number; outputTokens: number };
+export type ReplyCost = { calls: number; turns: number; rounds: number; inputTokens: number; cachedInputTokens: number; outputTokens: number };
 
 /**
  * The offered Plan the Context bar names once nearly full (ADR-0078, #732): the next one up whose Coach context limits allow

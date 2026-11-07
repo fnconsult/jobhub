@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditDesignTokens, contrastRatio, designTokens, type DesignTokens } from "./index";
+import { auditDesignTokens, CHART_SERIES, contrastRatio, designTokens, type DesignTokens } from "./index";
 
 describe("contrastRatio", () => {
   it("matches WCAG reference values", () => {
@@ -93,5 +93,22 @@ describe("auditDesignTokens (ADR-0009 accessibility floor, ADR-0053)", () => {
   it("flags a text-size setting that would shrink Confort body text below 16px", () => {
     const shrunk = { ...designTokens, textSize: { ...designTokens.textSize, small: 0.8 } };
     expect(auditDesignTokens(shrunk)).toContainEqual(expect.objectContaining({ rule: "min-body-size", token: "textSize.small" }));
+  });
+});
+
+describe("the six chart series (#801, ADR-0091): one categorical palette, validated for colour-vision deficiency", () => {
+  it("are chart1 to chart6 in that order, with the prototype's validated values in each theme (CVD ΔE ≥ 8.4 between neighbours)", () => {
+    expect(CHART_SERIES).toEqual(["chart1", "chart2", "chart3", "chart4", "chart5", "chart6"]);
+    expect(CHART_SERIES.map((token) => designTokens.color[token].light)).toEqual(["#6a78ee", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"]);
+    expect(CHART_SERIES.map((token) => designTokens.color[token].dark)).toEqual(["#6a78ee", "#d95926", "#199e70", "#c98500", "#d55181", "#008300"]);
+  });
+
+  it("keep 3:1 against the background in the dark theme; in the light one, at least the indigo, the orange and the green", () => {
+    for (const token of CHART_SERIES) expect(contrastRatio(designTokens.color[token].dark, designTokens.color.background.dark)).toBeGreaterThanOrEqual(3);
+    for (const token of ["chart1", "chart2", "chart6"] as const) expect(contrastRatio(designTokens.color[token].light, designTokens.color.background.light)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("holds chart2 to 3:1, now the orange: the pink is chart5's, two pinks in one palette would not be told apart", () => {
+    expect(auditDesignTokens(withColor("chart2", "light", "#f4b9a4"))).toContainEqual(expect.objectContaining({ rule: "contrast", token: "chart2", theme: "light" }));
   });
 });

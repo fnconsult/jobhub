@@ -187,6 +187,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     text: message.text,
     ...(message.provenance !== undefined && { provenance: message.provenance }),
     ...(message.at !== undefined && { at: message.at }),
+    ...(message.sent !== undefined && { sent: message.sent }),
     ...(message.blocked && { blocked: message.blocked }),
     ...(message.jobOffer && { jobOffer: message.jobOffer }),
     ...(message.cards && { cards: message.cards }),
@@ -198,6 +199,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
     ...(conversation.context.limits !== undefined && { limits: conversation.context.limits }),
     ...(conversation.context.split !== undefined && { split: conversation.context.split }),
     ...(conversation.context.upgrade !== undefined && { upgrade: conversation.context.upgrade }),
+    ...(conversation.context.reply !== undefined && { reply: conversation.context.reply }),
   },
 });
 
@@ -222,12 +224,12 @@ const jobOfferLine = (offer: JobOfferFacts): JobOfferLine => ({
 });
 
 /** A Job Offer a Job Search found or a Job Digest brought, with what its Work Pane shows in the app (#692). */
-const foundJobOffer = (result: { jobOffer: JobOffer; matchScore: MatchScore; applicationId: string | null }): FoundJobOffer => ({
+const foundJobOffer = (result: { jobOffer: JobOffer; matchScore: MatchScore; applicationId: string | null; dismissed?: boolean }): FoundJobOffer => ({
   jobOffer: { ...jobOfferLine(result.jobOffer), contractType: result.jobOffer.contractType ?? null, summary: result.jobOffer.summary ?? null, content: result.jobOffer.content },
   matchScore: figure(result.matchScore),
   matchScoreDetail: matchScoreDetail(result.matchScore),
-  // Kept: saved as an Application. Dismissing comes with the app's « Écarter » (#816).
-  decision: result.applicationId ? ("kept" as const) : null,
+  // « Suivie »: saved as an Application; « Écartée »: from the Offer box (#816).
+  decision: result.applicationId ? ("kept" as const) : result.dismissed ? ("dismissed" as const) : null,
   applicationId: result.applicationId,
 });
 
@@ -248,6 +250,8 @@ export function offerBoxResponse(box: OfferBoxContents): OfferBoxResponse {
       state: entry.state,
       applicationId: entry.applicationId,
       followedAt: isoOrNull(entry.followedAt),
+      dismissalReason: entry.dismissalReason,
+      dismissedAt: isoOrNull(entry.dismissedAt),
     })),
   };
 }

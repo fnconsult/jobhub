@@ -24,8 +24,14 @@ type ColorToken = keyof DesignTokens["color"];
 /** Colours text may take: each is audited at AA on every surface, in both themes (onAccent on the accent). */
 export const TEXT_COLORS: ColorToken[] = ["text", "secondary", "meta", "accent", "success", "warn", "danger"];
 const SURFACES: ColorToken[] = ["background", "canvas", "nav", "surface", "hover", "accentSoft", "successSoft", "warnSoft", "dangerSoft"];
-/** Graphics that carry meaning (the focus ring, chart series): 3:1 against the background (WCAG 1.4.11). */
-const GRAPHICS: ColorToken[] = ["accent", "chart1", "chart2"];
+/**
+ * Graphics that carry meaning (the focus ring, chart series): 3:1 against the background (WCAG 1.4.11). The light
+ * theme's chart3 to chart5 are under it (tokens.ts): the charts that use them carry a legend and a table view.
+ */
+const GRAPHICS: Record<Theme, ColorToken[]> = {
+  light: ["accent", "chart1", "chart2", "chart6"],
+  dark: ["accent", "chart1", "chart2", "chart3", "chart4", "chart5", "chart6"],
+};
 const THEMES: Theme[] = ["light", "dark"];
 
 function channel(hex: string, offset: number): number {
@@ -72,7 +78,7 @@ export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[
     // A solid danger button's label, and a Toast's text on the inverse surface (#462).
     requireContrast("onAccent", "danger", AA_TEXT_CONTRAST);
     requireContrast("onInverse", "inverse", AA_TEXT_CONTRAST);
-    for (const graphic of GRAPHICS) requireContrast(graphic, "background", AA_NON_TEXT_CONTRAST);
+    for (const graphic of GRAPHICS[theme]) requireContrast(graphic, "background", AA_NON_TEXT_CONTRAST);
   }
 
   for (const [density, floor] of Object.entries(DENSITY_FLOORS) as [Density, (typeof DENSITY_FLOORS)[Density]][]) {

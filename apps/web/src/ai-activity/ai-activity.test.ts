@@ -1,4 +1,4 @@
-import { rulesProvenance, type Provenance } from "@jobhub/shared";
+import { rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { agendaPage, applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
 import { aiActivityPane, byRulesOnly } from "./pane";
@@ -36,7 +36,10 @@ const JOB_DIGEST = "2b6c7d8e-9f0a-4b1c-8d3e-4f5a6b7c8d9e";
 const CANDIDATE = "cand_7Hq2LmX";
 
 /** The app's Job Offers and Coach Conversations, faked: the offer read above, the Candidate's one reply about each object. */
-function sources({ offers = { [OFFER]: read } as Record<string, Provenance | null>, replies = [{ at: replied.startedAt, provenance: replied as Provenance | null }] } = {}): PageSources {
+/** What that reply sent in all its AI calls (#805): its Turns and Guardrail checks summed. */
+const SENT: ReplyCost = { calls: 4, turns: 2, rounds: 1, inputTokens: 21_400, cachedInputTokens: 9_000, outputTokens: 800 };
+
+function sources({ offers = { [OFFER]: read } as Record<string, Provenance | null>, replies = [{ at: replied.startedAt, provenance: replied as Provenance | null, sent: SENT as ReplyCost | null }] } = {}): PageSources {
   return {
     jobOffers: { provenances: async (ids) => new Map(ids.map((id) => [id, offers[id] ?? null])) },
     coachReplies: {
@@ -62,6 +65,18 @@ describe("AI Activity's page loaders (#332)", () => {
     expect(pane.tools).toEqual([{ name: "Sites d'emploi", ms: 1600, usedBy: [0, 1] }]);
     expect(pane.total).toEqual({ tokens: 9900, ms: 15_500 });
     expect(pane.summary).toEqual({ models: 3, tokens: 9900, ms: 15_500 });
+  });
+
+  it("gives each Coach reply what it sent in all its AI calls (#805), null for one saved before #791, and no other element any", async () => {
+    const before = { at: "2026-10-01T09:00:00.000Z", provenance: null, sent: null };
+    const elements = await jobOfferPage(sources({ replies: [before, { at: replied.startedAt, provenance: replied, sent: SENT }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
+
+    expect(elements.map((element) => [element.kind, element.sent])).toEqual([
+      ["job_offer", undefined],
+      ["coach_reply", null],
+      ["coach_reply", SENT],
+    ]);
+    expect(elements[0]).not.toHaveProperty("sent");
   });
 
   it("shows an offer from before Provenance was kept as « modèle non enregistré », counted in no total", async () => {
@@ -261,9 +276,9 @@ describe("AI Activity's page loaders (#332)", () => {
   });
 
   it("lists a Coach reply saved with nothing kept as « modèle non enregistré »", async () => {
-    const elements = await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", provenance: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
+    const elements = await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", provenance: null, sent: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
 
-    expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", end: { state: "done" }, served: null });
+    expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", end: { state: "done" }, sent: null, served: null });
   });
 });
 

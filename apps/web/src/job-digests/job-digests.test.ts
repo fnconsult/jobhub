@@ -11,7 +11,7 @@ import { createReceivedOffers } from "../email-intake/received-offers";
 import { seedReceivedOfferEmail } from "../email-intake/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, migrateJobSearches, type JobSearches } from "../job-searches";
-import { offerBoxOf } from "../offer-box";
+import { offerBoxOf, recordArrivals } from "../offer-box";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { PushNotification } from "../push-notifications";
 import { createJobDigests, migrateJobDigests, type JobDigestDiscovery, type JobDigests, type JobDigestsConfig } from "./index";
@@ -354,6 +354,25 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(inDigest, guestOnly, expired, saved, searched, fresh));
 
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
+    });
+
+    it("never sends a Job Offer the Candidate écarta from their Offer box, whatever its Profile; another Candidate's Job Digest still sends it (#816)", async () => {
+      const dismissed = await strong("Écartée");
+      const fresh = await strong("Nouvelle");
+      const elsewhere = await createProfile(candidateId);
+      await recordArrivals(database, { candidateId, profileId: elsewhere, source: "email", at: clock.now, jobOfferIds: [dismissed] });
+      await database.query(`UPDATE offer_box_entry SET state = 'dismissed', decided_at = $3 WHERE candidate_id = $1 AND job_offer_id = $2`, [candidateId, dismissed, clock.now]);
+      await subscribed();
+      const paulsProfile = await createProfile(otherCandidateId);
+      await onPlan(otherCandidateId, "standard");
+      await subscribed("weekly", otherCandidateId, paulsProfile);
+
+      // Job discovery finds it again: still left out.
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(dismissed, fresh));
+      const { digest: paulsDigest } = await jobDigests.deliver(otherCandidateId, paulsProfile, async () => discovered(dismissed, fresh));
+
+      expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
+      expect(paulsDigest?.results.map((result) => result.jobOffer.id).sort()).toEqual([dismissed, fresh].sort());
     });
 
     it("leaves out a Spontaneous Application's Job Offer, whoever prepared it: it is no posting (#409)", async () => {

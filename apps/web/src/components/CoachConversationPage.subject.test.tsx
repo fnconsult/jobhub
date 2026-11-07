@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
 import { CoachConversationPage } from "./CoachConversationPage";
 import { ConversationSuggestions } from "./ConversationSuggestions";
-import { ClearConversationButton, ConversationFirstProvider, SidebarConversations } from "./conversation-first";
+import { ClearConversationButton, ConversationFirstProvider, SidebarConversations, useConversationFirst } from "./conversation-first";
 
 const ADDRESS = "/candidatures/a1";
 vi.mock("next/navigation", () => ({ usePathname: () => "/candidatures/a1", useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
@@ -20,6 +20,10 @@ const SAVED = {
   lastMessageAt: "2026-10-31T10:00:00.000Z",
 };
 
+/** What the reply sent in all its AI calls (#805), as /api/coach says it. */
+const SENT = { calls: 4, turns: 2, rounds: 1, inputTokens: 21_400, cachedInputTokens: 9_000, outputTokens: 800 };
+const AT = "2026-10-31T10:00:00.000Z";
+
 /** /api/coach and /api/coach/conversations, answering at once; every message sent is kept, and the saved conversation. */
 function fakeServer(saved: boolean) {
   const sent: Record<string, unknown>[] = [];
@@ -28,7 +32,7 @@ function fakeServer(saved: boolean) {
     if (url === "/api/coach" && init?.method === "POST") {
       sent.push(JSON.parse(String(init.body)));
       exists = true;
-      return Response.json({ conversation: SAVED, reply: "Commençons par l'entreprise." });
+      return Response.json({ conversation: SAVED, reply: "Commençons par l'entreprise.", provenance: null, at: AT, sent: SENT });
     }
     if (url === `/api/coach/conversations/${SAVED.id}` && init?.method === "DELETE") {
       exists = false;
@@ -42,10 +46,17 @@ function fakeServer(saved: boolean) {
   return { fetch, sent };
 }
 
+/** The replies the page gives AI Activity about its object (#332), as AI Activity reads them. */
+function RepliesInView() {
+  const replies = useConversationFirst()?.page?.repliesInView ?? [];
+  return <output aria-label="Réponses sur cette page">{JSON.stringify(replies)}</output>;
+}
+
 /** An Application's page under « Conversation au centre »: its conversation, with the Sidebar and « Effacer ». */
 function ApplicationPage({ conversationId = null }: { conversationId?: string | null }) {
   return (
     <ConversationFirstProvider conversations={[]}>
+      <RepliesInView />
       <nav aria-label="Menu">
         <SidebarConversations />
       </nav>
@@ -113,6 +124,18 @@ describe("an Application's page is its conversation (#603, ADR-0070)", () => {
     expect(window.location.pathname).toBe(ADDRESS);
     expect(screen.queryByRole("link", { name: "Préparer l'entretien" })).toBeNull();
     expect(within(conversation()).queryByRole("group", { name: "Suggestions" })).toBeNull();
+  });
+
+  it("gives AI Activity the reply about the Application with what it sent in all its AI calls (#805)", async () => {
+    server = fakeServer(false);
+    vi.stubGlobal("fetch", server.fetch);
+    const user = userEvent.setup();
+    renderInFrench(<ApplicationPage />);
+
+    await user.click(within(conversation()).getByRole("button", { name: "Préparer l'entretien" }));
+
+    await within(thread()).findByText("Commençons par l'entreprise.");
+    expect(JSON.parse(screen.getByRole("status", { name: "Réponses sur cette page" }).textContent!)).toEqual([{ provenance: null, at: AT, sent: SENT }]);
   });
 
   it("sends the next messages to the conversation the first one started", async () => {

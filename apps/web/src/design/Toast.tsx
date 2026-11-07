@@ -7,12 +7,24 @@ import "./Toast.css";
 /** How long a Toast stays, unless it holds the focus or the pointer. */
 export const TOAST_DURATION_MS = 6000;
 
-export type ToastMessage = { message: ReactNode; link?: { label: ReactNode; href: string } };
+/**
+ * A message, with a link to follow (« Voir la candidature ») or an action to take (« Annuler », #816). `action.focus`
+ * moves the keyboard focus to the action when the Toast appears, for an action the person just took whose control is
+ * going away; `returnFocus` gives the element the focus goes back to when the Toast closes, if the one that had it when
+ * it appeared is no longer in the page.
+ */
+export type ToastMessage = {
+  message: ReactNode;
+  link?: { label: ReactNode; href: string };
+  action?: { label: ReactNode; onAction: () => void; focus?: boolean };
+  returnFocus?: () => HTMLElement | null;
+};
 
 const ShowToast = createContext<((toast: ToastMessage) => void) | null>(null);
 
 /**
- * Shows a Toast: a short message at the bottom centre of the page, with an optional link (« Voir la candidature »).
+ * Shows a Toast: a short message at the bottom centre of the page, with an optional link (« Voir la candidature ») or
+ * action (« Annuler »), which closes it.
  * Only inside a ToastProvider.
  */
 export function useToast(): (toast: ToastMessage) => void {
@@ -24,12 +36,14 @@ export function useToast(): (toast: ToastMessage) => void {
 /**
  * Holds the page's one Toast (#462). Its message is said in a polite live region, always in the page so screen
  * readers hear it. It goes after TOAST_DURATION_MS, but never while it holds the focus or the pointer; Escape inside
- * it closes it and gives the focus back to what had it when it appeared. A new Toast replaces the one shown.
+ * it closes it and gives the focus back to what had it when it appeared (or, when that is gone, to `returnFocus`). An
+ * action with `focus` takes the focus as the Toast appears. A new Toast replaces the one shown.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [shown, setShown] = useState<(ToastMessage & { key: number }) | null>(null);
   const [held, setHeld] = useState({ focus: false, pointer: false });
   const opener = useRef<HTMLElement | null>(null);
+  const actionButton = useRef<HTMLButtonElement>(null);
 
   const show = useCallback((toast: ToastMessage) => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -43,10 +57,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [shown, holding]);
 
+  // The action takes the focus as its Toast appears, when asked to.
+  useEffect(() => {
+    if (shown?.action?.focus) actionButton.current?.focus();
+  }, [shown]);
+
   function dismiss() {
+    const back = opener.current?.isConnected ? opener.current : (shown?.returnFocus?.() ?? null);
     setShown(null);
     setHeld({ focus: false, pointer: false });
-    opener.current?.focus();
+    back?.focus();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -76,6 +96,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <Link className="ds-toast__link" href={shown.link.href} onClick={() => setShown(null)}>
                 {shown.link.label}
               </Link>
+            ) : null}
+            {shown.action ? (
+              <button
+                ref={actionButton}
+                type="button"
+                className="ds-toast__link ds-toast__action"
+                onClick={() => {
+                  shown.action?.onAction();
+                  dismiss();
+                }}
+              >
+                {shown.action.label}
+              </button>
             ) : null}
           </div>
         ) : null}

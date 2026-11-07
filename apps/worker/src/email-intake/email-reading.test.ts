@@ -16,7 +16,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../../web/src/email-intake";
 import { inboundRequest, type InboundTestEmail } from "../../../web/src/email-intake/fixtures/inbound-emails";
 import { cadremploiAlert, jobijobaPromo, linkedInDigest, newsletter, recruiterMessage, replyToOfferEmail } from "../../../web/src/email-intake/fixtures/offer-emails";
-import { offerBoxOf } from "../../../web/src/offer-box";
+import { offerBoxOf, recordArrivals } from "../../../web/src/offer-box";
 import { createAesGcmCipher, type SecretCipher } from "../../../web/src/provider-secrets/cipher";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "@jobhub/web/guardrails/checks";
 import { createEmailReading, MAX_READING_TRIES, type EmailReading } from "./index";
@@ -278,6 +278,22 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       expect((await emailOf(id!)).offers.map(({ disposition, jobOfferId }) => ({ disposition, jobOfferId }))).toEqual([
         { disposition: "seen", jobOfferId: applied.jobOffer.id },
         { disposition: "seen", jobOfferId: searched.jobOffer.id },
+        { disposition: "new", jobOfferId: expect.any(String) },
+      ]);
+    });
+
+    it("an offer the Candidate écarta from their Offer box counts « déjà vue » (#816)", async () => {
+      const dismissed = await jobOffers.capture({ source: { url: "https://www.cadremploi.fr/emploi/detail_offre?offreId=158700001" }, title: "Contrôleur de gestion industriel", content: "Poste à Lyon." });
+      if (!dismissed.ok) throw new Error("fixture refused");
+      await recordArrivals(database, { candidateId: marie, profileId, source: "job_offer_link", at: now, jobOfferIds: [dismissed.jobOffer.id] });
+      await database.query(`UPDATE offer_box_entry SET state = 'dismissed', decided_at = now() WHERE candidate_id = $1`, [marie]);
+
+      const [id] = await deliver(cadremploiAlert.email(address));
+      await reading.read(id!);
+
+      expect((await emailOf(id!)).offers.map(({ disposition, jobOfferId }) => ({ disposition, jobOfferId }))).toEqual([
+        { disposition: "seen", jobOfferId: dismissed.jobOffer.id },
+        { disposition: "new", jobOfferId: expect.any(String) },
         { disposition: "new", jobOfferId: expect.any(String) },
       ]);
     });

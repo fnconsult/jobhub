@@ -230,8 +230,11 @@ function stepsOf(provenance: Provenance | null, names: Readonly<Record<string, s
 /** Whether no AI made it: a Provenance with no AI step (Jobbbox's rules, a Coach Action's read). */
 const withoutAi = (provenance: Provenance | null): boolean => provenance !== null && !provenance.steps.some((step) => step.kind === "ai");
 
-/** An entry as built, with what linking needs besides. */
-type Built = ActivityEntry & { cause?: Built; card?: string; proposal?: EntryProposal };
+/**
+ * An entry as built, with what linking needs besides: its cause; a version's or a change's card and the proposal it
+ * fulfils; a reply's proposals by their card.
+ */
+type Built = ActivityEntry & { cause?: Built; card?: string; proposal?: EntryProposal; cards?: Map<string, EntryProposal> };
 
 /** What an element of the page, or a reply, shows from its Provenance. */
 function served(kind: ElementKind, provenance: Provenance | null, made: Parameters<typeof activityElement>[2], names?: Readonly<Record<string, string>>) {
@@ -295,10 +298,12 @@ function replyEntries(reply: ReplyGiven): Built[] {
     question: reply.question === null ? null : reply.question.replace(/\s+/g, " ").trim(),
     read: consultedElements(reply.provenance, names),
     proposals: [],
+    cards: new Map(),
   };
   const changes = (reply.cards ?? []).flatMap((card, index): Built[] => {
     const proposal: EntryProposal = { object: objectOf(card), ...changeOf(card), state: STATE[card.status], led: null };
     entry.proposals!.push(proposal);
+    entry.cards!.set(card.id, proposal);
     if (card.status !== "accepted") return [];
     return [
       {
@@ -364,24 +369,28 @@ export function activityEntries(input: ActivityInput): ActivityEntry[] {
     const cause = element.after !== undefined ? elements[element.after] : element.scored !== undefined ? version.get(element.scored) : undefined;
     if (elements[index] && cause && cause !== elements[index]) elements[index].cause = cause;
   });
-  // A version a card created is the change it made: it follows that card's reply, in its place.
-  const madeVersion = new Set<Built>();
+  // A version a card created is the change it made (even once undone): it follows that card's reply, in its place.
+  const madeVersion = new Set<string>();
   for (const [, entry] of versions) {
-    const change = entry.card ? replies.find((reply) => reply.kind === "change" && reply.card === entry.card) : undefined;
-    if (!change) continue;
-    Object.assign(entry, { cause: change.cause, messageId: change.messageId, proposal: change.proposal });
-    madeVersion.add(change);
+    const reply = entry.card ? replies.find((each) => each.cards?.has(entry.card!)) : undefined;
+    if (!reply) continue;
+    Object.assign(entry, { cause: reply, messageId: reply.messageId, proposal: reply.cards!.get(entry.card!) });
+    madeVersion.add(entry.card!);
   }
-  const built = [...elements.flatMap((entry) => (entry ? [entry] : [])), ...replies.filter((entry) => !madeVersion.has(entry)), ...versions.map(([, entry]) => entry)];
+  const built = newestFirst([
+    ...elements.flatMap((entry) => (entry ? [entry] : [])),
+    ...replies.filter((entry) => !(entry.kind === "change" && madeVersion.has(entry.card!))),
+    ...versions.map(([, entry]) => entry),
+  ]);
   keyed(built);
   for (const entry of built) {
     if (entry.cause) entry.after = entry.cause.key;
     if (entry.proposal) entry.proposal.led = entry.key;
   }
-  return newestFirst(built).map(shown);
+  return built.map(shown);
 }
 
-/** Keeps each entry's key unique: one alike an earlier one is numbered. */
+/** Keeps each entry's key unique: one alike an earlier one in the page's order is numbered. */
 function keyed(entries: Built[]): void {
   const taken = new Map<string, number>();
   for (const entry of entries) {
@@ -397,14 +406,23 @@ function shown(built: Built): ActivityEntry {
   delete entry.cause;
   delete entry.card;
   delete entry.proposal;
+  delete entry.cards;
   return entry as ActivityEntry;
 }
 
 /**
- * The newest first, one not dated last; at the same time, a consequence before what caused it, then by key, so the order
- * never depends on the order the entries were given in.
+ * The newest first, one not dated last; at the same time, a consequence before what caused it, then by what it is (its
+ * key, then its object), so the order never depends on the order the entries were given in.
  */
 function newestFirst(entries: Built[]): Built[] {
   const depth = (entry: Built, seen = new Set<Built>()): number => (entry.cause && !seen.has(entry) ? 1 + depth(entry.cause, seen.add(entry)) : 0);
-  return [...entries].sort((one, other) => (other.at ?? "").localeCompare(one.at ?? "") || depth(other) - depth(one) || (one.key < other.key ? -1 : one.key > other.key ? 1 : 0));
+  const compare = (one: string, other: string) => (one < other ? -1 : one > other ? 1 : 0);
+  return [...entries].sort(
+    (one, other) =>
+      compare(other.at ?? "", one.at ?? "") ||
+      depth(other) - depth(one) ||
+      compare(one.key, other.key) ||
+      compare(one.object.href ?? "", other.object.href ?? "") ||
+      compare(one.object.label ?? "", other.object.label ?? ""),
+  );
 }

@@ -247,6 +247,15 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
       expect(entries[5]!.models.map((model) => model.name)).toEqual(["Mistral Medium 3.5"]);
     });
 
+    it("keeps Version 7 « suite de » the reply once its card is undone, with no change entry", () => {
+      const undone = activityEntries({ page: "profile", replies: [{ ...strengthen, cards: [{ ...strengthen.cards![0]!, status: "undone" }] }], versions: versions.slice(0, 1) });
+      expect(undone.map(({ kind, messageId, after }) => ({ kind, messageId, after }))).toEqual([
+        { kind: "master_cv_version", messageId: "m8", after: "coach_reply:m8" },
+        { kind: "coach_reply", messageId: "m8", after: undefined },
+      ]);
+      expect(undone[1]!.proposals![0]).toMatchObject({ state: "undone", led: undone[0]!.key });
+    });
+
     it("counts an ATS Score in its Plan Quota, made by Jobbbox's rules without AI", () => {
       expect(entries[0]).toMatchObject({ origin: "jobbbox", cost: { quota: "atsScores", tokens: null, noAi: true }, models: [], tools: [{ name: null }] });
     });
@@ -328,6 +337,14 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
       const reversed = activityEntries({ ...input, elements: [...input.elements].reverse() });
       expect(reversed.map(({ kind, key }) => ({ kind, key }))).toEqual(entries.map(({ kind, key }) => ({ kind, key })));
       expect(new Set(entries.map((entry) => entry.key)).size).toBe(entries.length);
+    });
+
+    it("orders entries alike but for their object the same way whatever order they were given in", () => {
+      const safran = { kind: "job_offer" as const, provenance: null, name: "Safran · Contrôleur", href: `/recherches/${SEARCH}/offres/s` };
+      const airbus = { kind: "job_offer" as const, provenance: null, name: "Airbus · Contrôleuse", href: `/recherches/${SEARCH}/offres/a` };
+      const one = activityEntries({ page: "job_search", elements: [safran, airbus] });
+      const other = activityEntries({ page: "job_search", elements: [airbus, safran] });
+      expect(other.map(({ key, object }) => ({ key, object }))).toEqual(one.map(({ key, object }) => ({ key, object })));
     });
   });
 

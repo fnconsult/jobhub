@@ -84,6 +84,7 @@ describe("controls that only act once the page is hydrated", () => {
       followedAt: null,
       dismissalReason: null,
       dismissedAt: state === "dismissed" ? "2026-11-05T09:00:00.000Z" : null,
+      laterUntil: null,
     });
     const box = <OfferBox box={{ today: "2026-11-05", toHandle: 1, entries: [line("a", "to_handle"), line("b", "dismissed")] }} />;
     const decisions = ["Suivre", "Écarter", "Revenir sur ce choix"];

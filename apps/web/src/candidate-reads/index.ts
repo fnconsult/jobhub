@@ -252,6 +252,7 @@ export function offerBoxResponse(box: OfferBoxContents): OfferBoxResponse {
       followedAt: isoOrNull(entry.followedAt),
       dismissalReason: entry.dismissalReason,
       dismissedAt: isoOrNull(entry.dismissedAt),
+      laterUntil: isoOrNull(entry.laterUntil),
     })),
   };
 }

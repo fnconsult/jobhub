@@ -21,6 +21,7 @@ function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBox
     followedAt: null,
     dismissalReason: null,
     dismissedAt: null,
+    laterUntil: null,
     ...overrides,
   };
 }

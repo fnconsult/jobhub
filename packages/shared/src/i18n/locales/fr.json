@@ -4837,6 +4837,8 @@
       "offersLabel": "Offres",
       "archived": "Ce profil est archivé : il ne reçoit plus de Job Digest. Restaurez-le pour le recevoir à nouveau."
     },
+    "offersToHandle_one": "Il vous reste {{count}} offre à traiter",
+    "offersToHandle_other": "Il vous reste {{count}} offres à traiter",
     "email": {
       "subject_one": "Job Digest « {{profile}} » : {{count}} nouvelle offre",
       "subject_other": "Job Digest « {{profile}} » : {{count}} nouvelles offres",

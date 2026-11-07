@@ -101,6 +101,15 @@ describe("renderEmail: the HTML part", () => {
     expect(escaped).toContain('href="https://x/?a=1&amp;b=&quot;2&quot;"');
   });
 
+  it("draws a link block as a paragraph that leads to its page, beside the one primary button, in both parts (#818)", () => {
+    const withLink = renderEmail({ ...digest, body: [...digest.body, { link: { label: "Il vous reste 3 offres à traiter", url: "https://app.jobbbox.fr/recherches" } }] });
+    expect(withLink.html).toMatch(/<p [^>]*><a [^>]*href="https:\/\/app\.jobbbox\.fr\/recherches"[^>]*>Il vous reste 3 offres à traiter<\/a><\/p>/);
+    expect(withLink.html.match(/data-button="primary"/g)).toHaveLength(1);
+    expect(withLink.text).toContain("Voir ce Job Digest :\nhttps://app.jobbbox.fr/job-digests/9\n\nIl vous reste 3 offres à traiter :\nhttps://app.jobbbox.fr/recherches\n\nL'équipe Jobbbox");
+    expect(mailClientLint(withLink.html)).toEqual([]);
+    expect(() => renderEmail({ ...digest, body: [{ link: { label: "Go", url: "javascript:alert(1)" } }] })).toThrow(/http/);
+  });
+
   it("refuses a second primary button, or a link that is not http(s)", () => {
     const action = { action: { label: "Go", url: "https://x" } };
     expect(() => renderEmail({ ...digest, body: [action, action] })).toThrow(/one primary button/);

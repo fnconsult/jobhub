@@ -31,8 +31,11 @@ export interface EmailCard {
   url?: string;
 }
 
-/** A paragraph, a card (consecutive cards make one list), or the email's one primary button. */
-export type EmailBlock = string | { card: EmailCard } | { action: EmailLink };
+/**
+ * A paragraph, a card (consecutive cards make one list), the email's one primary button, or a link: a paragraph whose
+ * words lead to a page, quieter than the button (the Job Digest's « Il vous reste N offres à traiter », #818).
+ */
+export type EmailBlock = string | { card: EmailCard } | { action: EmailLink } | { link: EmailLink };
 
 /** What an email says, before its layout. The greeting and the signature come with the layout, in `language`. */
 export interface Email {
@@ -58,7 +61,10 @@ export interface RenderedEmail {
 
 /** Both parts of `email`. Throws on a second primary button or a link that is not http(s). */
 export function renderEmail(email: Email): RenderedEmail {
-  const links = [...email.body.flatMap((block) => (typeof block === "string" ? [] : "card" in block ? (block.card.url ? [block.card.url] : []) : [block.action.url])), ...(email.footer.link ? [email.footer.link.url] : [])];
+  const links = [
+    ...email.body.flatMap((block) => (typeof block === "string" ? [] : "card" in block ? (block.card.url ? [block.card.url] : []) : "link" in block ? [block.link.url] : [block.action.url])),
+    ...(email.footer.link ? [email.footer.link.url] : []),
+  ];
   for (const url of links) if (!/^https?:\/\//i.test(url)) throw new Error(`An email's links must be http(s): ${url}`);
   if (email.body.filter((block) => typeof block !== "string" && "action" in block).length > 1) throw new Error("An email has at most one primary button");
   const { t } = createI18n(email.language);
@@ -72,6 +78,7 @@ function textPart(email: Email, words: Words): string {
   const body = email.body.map((block) => {
     if (typeof block === "string") return block;
     if ("action" in block) return `${words.lead(block.action.label)}\n${block.action.url}`;
+    if ("link" in block) return `${words.lead(block.link.label)}\n${block.link.url}`;
     const { title, subtitle, details = [], url } = block.card;
     return [`- ${title}${subtitle ? ` (${subtitle})` : ""}`, ...[...details, ...(url ? [url] : [])].map((line) => `  ${line}`)].join("\n");
   });
@@ -131,6 +138,11 @@ function cards(list: EmailCard[]): string {
   return `<table ${TABLE} width="100%" class="jb-list" style="${css({ margin: "0 0 16px", borderCollapse: "separate", backgroundColor: light("surface"), border: `1px solid ${light("border")}`, borderRadius: radius.card })}">${rows.join("")}</table>`;
 }
 
+/** A link in the text, underlined in the text's colour: its words are what it leads to. */
+function textLink({ label, url }: EmailLink): string {
+  return `<a href="${escape(url)}" class="jb-text" style="${css({ color: light("text"), textDecoration: "underline" })}">${escape(label)}</a>`;
+}
+
 function button({ label, url }: EmailLink): string {
   const height = confort.controlHeight;
   return (
@@ -157,7 +169,9 @@ function htmlBody(email: Email, words: Words): string {
       continue;
     }
     flush();
-    parts.push(typeof block === "string" ? `<p class="jb-text" style="${paragraph}">${escape(block).replace(/\n/g, "<br>")}</p>` : button(block.action));
+    if (typeof block === "string") parts.push(`<p class="jb-text" style="${paragraph}">${escape(block).replace(/\n/g, "<br>")}</p>`);
+    else if ("link" in block) parts.push(`<p class="jb-text" style="${paragraph}">${textLink(block.link)}</p>`);
+    else parts.push(button(block.action));
   }
   flush();
   parts.push(`<p class="jb-secondary" style="${css({ margin: 0, ...font, fontSize: confort.fontSize.body, lineHeight: String(confort.lineHeight), color: light("secondary") })}">${escape(words.signature)}</p>`);

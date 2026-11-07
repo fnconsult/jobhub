@@ -400,9 +400,7 @@ function Proposals({ proposals, byKey, reveal }: { proposals: readonly EntryProp
     <ul className="activity-entry-proposals" aria-label={t("aiActivity.history.proposals")}>
       {proposals.map((proposal, index) => (
         <li key={index}>
-          <span>
-            {proposal.what} : {proposal.before} → {proposal.after}
-          </span>{" "}
+          <span>{t("aiActivity.history.results.proposal", { what: proposal.what, before: proposal.before, after: proposal.after })}</span>{" "}
           <span className="pill" data-tone={proposal.state === "applied" ? "success" : proposal.state === "pending" ? "accent" : undefined}>
             {t(`aiActivity.history.state.${proposal.state}`)}
           </span>

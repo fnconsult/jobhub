@@ -5199,6 +5199,7 @@
         "offers_other": "{{count}} offers",
         "score": "{{score}}/100",
         "change": "{{before}} → {{after}}",
+        "proposal": "{{what}}: {{before}} → {{after}}",
         "version": "Version {{version}}",
         "restored": "restores version {{version}}",
         "proposals_one": "{{count}} proposal",

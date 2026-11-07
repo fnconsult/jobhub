@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useId, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { formatTokens, type Activity } from "@jobhub/shared";
 import { activityEntries, type ActivityEntry, type ReplyGiven, type ServedEntry } from "@/ai-activity/entries";
-import { entryToOpen, type QuotaUse } from "@/ai-activity/history";
+import { entryToOpen, pageSummary, type QuotaUse } from "@/ai-activity/history";
 import { liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
 import type { UsageMeter } from "@/billing/usage-meter";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
@@ -93,14 +93,14 @@ function useLanguage(): Language {
   return i18n.language === "en" ? "en" : "fr";
 }
 
-/** « 3 modèles · 10,9k tokens »: the closed button's words, from the page's entries; null on a page where no model served. */
+/** « 3 modèles · 10,9k tokens »: the button's words, from the page's entries; null on a page where no model served. */
 function useSummary(entries: readonly ActivityEntry[]): string | null {
   const { t } = useTranslation();
   const language = useLanguage();
-  const models = new Set(entries.flatMap((entry) => entry.models.map((model) => model.name)));
-  if (models.size === 0) return null;
-  const tokens = entries.reduce<number | null>((sum, entry) => (entry.cost.tokens ? (sum ?? 0) + entry.cost.tokens.count : sum), null);
-  return [t("aiActivity.models", { count: models.size }), tokens === null ? null : t("aiActivity.tokens", { tokens: formatTokens(tokens, language) })].filter((part) => part !== null).join(" · ");
+  const summary = pageSummary(entries);
+  if (!summary) return null;
+  const { models, tokens } = summary;
+  return [t("aiActivity.models", { count: models }), tokens === null ? null : t("aiActivity.tokens", { tokens: formatTokens(tokens, language) })].filter((part) => part !== null).join(" · ");
 }
 
 /**

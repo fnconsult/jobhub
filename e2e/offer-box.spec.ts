@@ -133,6 +133,8 @@ test.describe("The Offer box (#815, ADR-0090)", () => {
   test("only the Candidate who is signed in reads the Offer box", async ({ request }) => {
     expect((await request.get("/api/offer-box")).status()).toBe(401);
     expect((await request.post("/api/offer-box/00000000-0000-4000-8000-000000000000/dismissal", { headers: { origin }, data: {} })).status()).toBe(401);
+    expect((await request.post("/api/offer-box/00000000-0000-4000-8000-000000000000/later", { headers: { origin } })).status()).toBe(401);
+    expect((await request.post("/api/offer-box/dismissals", { headers: { origin }, data: { entryIds: [] } })).status()).toBe(401);
   });
 
   // Issue #816 (« Offres à traiter 2 »): « Écarter » with a Dismissal reason or none, the toast's « Annuler », « Écartées »
@@ -227,6 +229,147 @@ test.describe("The Offer box (#815, ADR-0090)", () => {
     await expect(ines.page.getByText(extras.ancient!)).toHaveCount(0);
     // Folded at the foot of the box: after the days' entries, just before the links that close it.
     expect(await fold.evaluate((node) => node.nextElementSibling?.className)).toBe("offer-box-foot");
+  });
+  // Issue #817 (« Offres à traiter 3 »): « Plus tard » until Monday 00:00 Paris time, « Expirées sans décision » past 30
+  // days of posting, « Tout écarter (n) » per tier of « Précédemment », on the page and over `/api`. The Monday across a
+  // change of time and the 30 days in French days are asserted in @jobhub/shared's and the Offer box module's tests.
+  test("« Plus tard » keeps the entry counted until Monday, « Annuler » brings it back; an entry posted 40 days ago is « Expirée sans décision », out of the count, still écartable; « Tout écarter » écarte one tier of « Précédemment », « Annuler » puts it back", async ({ browser }) => {
+    const ines = await candidate(browser, "offer-box-later");
+    const paul = await candidate(browser, "offer-box-later-other");
+    const seeded = await withDatabase(databaseUrl, async (db) => {
+      const made: Record<string, string> = {};
+      // Today's, two arrived 3 days ago with the same posting (so one Importance tier), and one posted 40 days ago.
+      for (const [key, arrivedDaysAgo, postedDaysAgo] of [["today", 0, 1], ["earlier-1", 3, 3], ["earlier-2", 3, 3], ["expired", 3, 40]] as const) {
+        const offer = await db.query(
+          `INSERT INTO job_offer (url_key, content_fingerprint, source_url, title, content, posted_at) VALUES ($1, $1, $2, $3, 'Un poste.', now() - make_interval(days => $4)) RETURNING id`,
+          [`lt-${tag}-${key}`, `https://emploi-e2e.example/${tag}/lt-${key}`, `Offre ${key} ${tag}`, postedDaysAgo],
+        );
+        const entry = await db.query(
+          `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
+           VALUES ($1, $2, $3, now() - make_interval(days => $4), jsonb_build_object('job_search', to_char((now() - make_interval(days => $4)) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))
+           RETURNING id`,
+          [ines.candidateId, offer.rows[0].id, ines.profileId, arrivedDaysAgo],
+        );
+        made[key] = entry.rows[0].id;
+      }
+      return made;
+    });
+    const title = (key: string) => `Offre ${key} ${tag}`;
+    const stateOf = async (key: string) => (await offerBox(ines.page)).entries.find((entry) => entry.id === seeded[key])!.state;
+
+    // « Expirée sans décision »: out of the count from the start.
+    const box = await offerBox(ines.page);
+    expect(box.toHandle).toBe(3);
+    expect(await stateOf("expired")).toBe("expired");
+
+    // « Plus tard » on the page: still counted, folded under « Plus tard » with the Monday it comes back.
+    await ines.page.goto("/recherches");
+    const region = ines.page.getByRole("region", { name: /^Offres à traiter/ });
+    await region.getByRole("button", { name: fr.offerBox.laterLabel.replace("{{title}}", title("today")) }).click();
+    await expect(ines.page.getByRole("status").filter({ hasText: `« ${title("today")} » revient lundi` })).toBeVisible();
+    await expect(region.getByText(fr.offerBox.laterBlock.replace("{{count}}", "1"))).toBeVisible();
+    const later = (await offerBox(ines.page)).entries.find((entry) => entry.id === seeded.today)!;
+    expect(later.state).toBe("later");
+    expect(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "long", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(later.laterUntil!))).toBe("Monday 00:00");
+    expect((await offerBox(ines.page)).toHandle).toBe(3);
+    await region.getByText(fr.offerBox.laterBlock.replace("{{count}}", "1")).click();
+    await expect(region.locator(".offer-box-later").getByRole("listitem", { name: title("today") })).toContainText("Plus tard · revient lundi");
+
+    // « Annuler », in the toast: back at once.
+    await ines.page.getByRole("button", { name: fr.offerBox.undo }).click();
+    await expect(region.locator(".offer-box-later")).toHaveCount(0);
+    expect(await stateOf("today")).toBe("to_handle");
+
+    // « Expirées sans décision », folded: « Écarter » only.
+    await region.getByText(fr.offerBox.expiredBlock.replace("{{count}}", "1")).click();
+    const expired = region.locator(".offer-box-expired").getByRole("listitem", { name: title("expired") });
+    await expect(expired.getByRole("button", { name: fr.offerBox.follow })).toHaveCount(0);
+    await expired.getByRole("button", { name: fr.offerBox.dismiss }).click();
+    await expired.getByRole("button", { name: fr.offerBox.dismissWithoutReason }).click();
+    await expect(region.locator(".offer-box-expired")).toHaveCount(0);
+    expect(await stateOf("expired")).toBe("dismissed");
+
+    // « Tout écarter (2) » on the tier of « Précédemment » holding the two earlier entries; today's is untouched.
+    const all = region.getByRole("button", { name: /^Tout écarter dans/ });
+    await expect(all).toHaveCount(1);
+    await expect(all).toHaveText(fr.offerBox.dismissAll.replace("{{count}}", "2"));
+    await all.click();
+    await expect(ines.page.getByRole("status").filter({ hasText: "2 offres écartées." })).toBeVisible();
+    expect([await stateOf("earlier-1"), await stateOf("earlier-2"), await stateOf("today")]).toEqual(["dismissed", "dismissed", "to_handle"]);
+    await ines.page.getByRole("button", { name: fr.offerBox.undo }).click();
+    await expect.poll(async () => [await stateOf("earlier-1"), await stateOf("earlier-2")]).toEqual(["to_handle", "to_handle"]);
+
+    // Over `/api`: another Candidate's entry, an entry écartée, and « Tout écarter » naming entries not theirs.
+    const laterOf = (page: Page, id: string) => page.request.post(`/api/offer-box/${id}/later`, { headers: { origin } });
+    expect((await laterOf(paul.page, seeded.today!)).status()).toBe(404);
+    expect((await paul.page.request.delete(`/api/offer-box/${seeded.today}/later`, { headers: { origin } })).status()).toBe(404);
+    const refused = await laterOf(ines.page, seeded.expired!);
+    expect(refused.status()).toBe(409);
+    expect(await refused.json()).toEqual({ error: "dismissed" });
+    const notTheirs = await paul.page.request.post("/api/offer-box/dismissals", { headers: { origin }, data: { entryIds: [seeded["earlier-1"], seeded["earlier-2"]] } });
+    expect(await notTheirs.json()).toEqual({ dismissed: [] });
+    expect((await paul.page.request.post("/api/offer-box/dismissals", { headers: { origin }, data: { entryIds: "all" } })).status()).toBe(400);
+    expect(await stateOf("earlier-1")).toBe("to_handle");
+  });
+
+  // Issue #817, the three rules the first test leaves out: a posting date unknown (the first Arrival counts), the Monday
+  // an entry « Plus tard » comes back under « Aujourd'hui », and « Tout écarter (n) » bounded by the source chip.
+  test("a posting date unknown expires on the first Arrival's 30 days; an entry whose Monday has come is back under « Aujourd'hui », still counted; « Tout écarter » within the source chip écarte only the entries that chip shows", async ({ browser }) => {
+    const ines = await candidate(browser, "offer-box-rules");
+    const seeded = await withDatabase(databaseUrl, async (db) => {
+      const made: Record<string, string> = {};
+      // [key, arrived days ago, posted days ago (null: unknown), arrival source, back from « Plus tard » at Paris midnight today]
+      const rows = [
+        ["unknown-old", 40, null, "job_search", false],
+        ["unknown-recent", 10, null, "job_search", false],
+        ["back", 3, 3, "job_search", true],
+        ["search-1", 3, 3, "job_search", false],
+        ["search-2", 3, 3, "job_search", false],
+        ["digest-1", 3, 3, "job_digest", false],
+      ] as const;
+      for (const [key, arrivedDaysAgo, postedDaysAgo, source, back] of rows) {
+        const offer = await db.query(
+          `INSERT INTO job_offer (url_key, content_fingerprint, source_url, title, content, posted_at) VALUES ($1, $1, $2, $3, 'Un poste.', CASE WHEN $4::int IS NULL THEN NULL ELSE now() - make_interval(days => $4::int) END) RETURNING id`,
+          [`rl-${tag}-${key}`, `https://emploi-e2e.example/${tag}/rl-${key}`, `Offre ${key} ${tag}`, postedDaysAgo],
+        );
+        const entry = await db.query(
+          `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources, state, later_until)
+           VALUES ($1, $2, $3, now() - make_interval(days => $4), jsonb_build_object($5::text, to_char((now() - make_interval(days => $4)) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+                   CASE WHEN $6::boolean THEN 'later' ELSE 'to_handle' END,
+                   CASE WHEN $6::boolean THEN date_trunc('day', now() AT TIME ZONE 'Europe/Paris') AT TIME ZONE 'Europe/Paris' END)
+           RETURNING id`,
+          [ines.candidateId, offer.rows[0].id, ines.profileId, arrivedDaysAgo, source, back],
+        );
+        made[key] = entry.rows[0].id;
+      }
+      return made;
+    });
+    const entryOf = async (key: string) => (await offerBox(ines.page)).entries.find((entry) => entry.id === seeded[key])!;
+    const title = (key: string) => `Offre ${key} ${tag}`;
+
+    // Unknown posting date: the first Arrival, 40 days ago, expires it; 10 days ago does not. Never écartée for the Candidate.
+    expect((await entryOf("unknown-old")).state).toBe("expired");
+    expect((await entryOf("unknown-recent")).state).toBe("to_handle");
+    // Its Monday has come: neither « Plus tard » nor expired, counted, and not écartée.
+    expect((await entryOf("back")).state).toBe("to_handle");
+    expect((await offerBox(ines.page)).toHandle).toBe(5);
+
+    await ines.page.goto("/recherches");
+    const region = ines.page.getByRole("region", { name: /^Offres à traiter/ });
+    await expect(region.getByRole("region", { name: fr.offerBox.today }).getByRole("listitem", { name: title("back") })).toBeVisible();
+    await expect(region.getByRole("region", { name: fr.offerBox.today }).getByRole("listitem", { name: title("search-1") })).toHaveCount(0);
+
+    // « Tout écarter » within the source chip « Recherche »: the three search entries of the tier of « Précédemment » (the
+    // one back is today's, outside it); the digest's, the same tier's, stays.
+    await region.getByRole("button", { name: fr.offerBox.chipCount.replace("{{source}}", fr.offerBox.sources.job_search).replace("{{count}}", "4") }).click();
+    const all = region.getByRole("button", { name: /^Tout écarter dans/ });
+    await expect(all).toHaveCount(1);
+    await expect(all).toHaveText(fr.offerBox.dismissAll.replace("{{count}}", "3"));
+    await all.click();
+    await expect(ines.page.getByRole("status").filter({ hasText: "3 offres écartées." })).toBeVisible();
+    const states = await Promise.all(["search-1", "search-2", "unknown-recent", "digest-1", "back"].map(async (key) => (await entryOf(key)).state));
+    expect(states).toEqual(["dismissed", "dismissed", "dismissed", "to_handle", "to_handle"]);
+    expect((await entryOf("unknown-old")).state).toBe("expired");
   });
 });
 

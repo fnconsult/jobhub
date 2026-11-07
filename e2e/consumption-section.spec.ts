@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { fakeCustomerId } from "../apps/web/src/billing/fake-stripe";
+import { TEXT_SIZE_SETTINGS } from "../packages/shared/src/design";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { parisDay } from "./support/paris-days";
@@ -169,6 +170,24 @@ test.describe("« Votre consommation » on Mon abonnement (#801)", () => {
       // Today's day is within the frame, not scrolled out of it.
       const [box, today] = [await frame.boundingBox(), await cell(page, parisDay(0)).boundingBox()];
       expect(today!.x >= box!.x && today!.x + today!.width <= box!.x + box!.width, `${width} px: today in view`).toBe(true);
+    }
+    await page.evaluate(() => localStorage.setItem("jobbbox.textSize", "standard"));
+  });
+
+  // The grid's columns are in rem, so at most Text Sizes it is a fraction of a pixel wide, while a scroll offset is a
+  // whole pixel: flush against the frame's edge, the latest week (today's) lost that fraction, cut at 640px in
+  // « Très grand » on some dates and not others. Every Text Size, at both widths, so the date does not decide.
+  test("at every Text Size, today's day is whole inside the grid's frame, never cut at its edge", async ({ page }) => {
+    await standardCandidate(page, "consommation-bord");
+    for (const width of [640, 390]) {
+      for (const textSize of TEXT_SIZE_SETTINGS) {
+        await page.setViewportSize({ width, height: 800 });
+        await page.evaluate((size) => localStorage.setItem("jobbbox.textSize", size), textSize);
+        await page.goto("/abonnement");
+        await expect(section(page)).toBeVisible();
+        const [box, today] = [await page.locator(".consumption-grid-scroll").boundingBox(), await cell(page, parisDay(0)).boundingBox()];
+        expect({ left: today!.x >= box!.x, right: today!.x + today!.width <= box!.x + box!.width }, `${width} px, ${textSize} text`).toEqual({ left: true, right: true });
+      }
     }
     await page.evaluate(() => localStorage.setItem("jobbbox.textSize", "standard"));
   });

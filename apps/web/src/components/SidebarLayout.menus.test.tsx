@@ -15,15 +15,15 @@ const DIGEST = "33333333-3333-4333-8333-333333333333";
 const JOB_SEARCHES: UnfoldedMenu = { shown: [{ id: SEARCH, label: "DAF · 12 oct.", href: `/recherches/${SEARCH}`, toHandle: true }], total: 4 };
 const JOB_DIGESTS: UnfoldedMenu = { shown: [{ id: DIGEST, label: "DAF · 19 oct.", href: `/job-digests/${DIGEST}`, toHandle: false }], total: 1 };
 
-function Page() {
+function Page({ jobSearches = JOB_SEARCHES }: { jobSearches?: UnfoldedMenu }) {
   return (
-    <SidebarLayout profiles={[PROFILE]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={[]} menus={{ jobSearches: JOB_SEARCHES, jobDigests: JOB_DIGESTS }}>
+    <SidebarLayout profiles={[PROFILE]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={[]} menus={{ jobSearches, jobDigests: JOB_DIGESTS }}>
       <p>Page</p>
     </SidebarLayout>
   );
 }
 
-const sidebar = () => screen.getAllByRole("navigation").find((nav) => within(nav).queryByRole("link", { name: "Recherches d'offres" }))!;
+const sidebar = () => screen.getAllByRole("navigation").find((nav) => within(nav).queryByRole("link", { name: /^Recherches d'offres/ }))!;
 const linksOf = (list: HTMLElement) => within(list).getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")]);
 
 describe("the Sidebar's Recherches d'offres and Job Digests unfold into their objects (#606, ADR-0070)", () => {
@@ -71,6 +71,23 @@ describe("the Sidebar's Recherches d'offres and Job Digests unfold into their ob
   it("leads Recherches d'offres to its menu's page, the Profile left to the conversation", () => {
     renderInFrench(<Page />);
     expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres" }).getAttribute("href")).toBe("/recherches");
+  });
+
+  it("carries « N », the offers à traiter of the Offer box, beside Recherches d'offres, said in words to a screen reader (#818)", () => {
+    renderInFrench(<Page jobSearches={{ ...JOB_SEARCHES, count: 12 }} />);
+    const link = within(sidebar()).getByRole("link", { name: "Recherches d'offres, 12 offres à traiter" });
+    expect(link.querySelector(".sidebar-count")?.textContent).toBe("12");
+    expect(link.getAttribute("href")).toBe("/recherches");
+  });
+
+  it("carries it with no Job Search to unfold into too, « 1 offre » in the singular", () => {
+    renderInFrench(<Page jobSearches={{ shown: [], total: 0, count: 1 }} />);
+    expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres, 1 offre à traiter" }).querySelector(".sidebar-count")?.textContent).toBe("1");
+  });
+
+  it("carries nothing at zero", () => {
+    renderInFrench(<Page jobSearches={{ ...JOB_SEARCHES, count: 0 }} />);
+    expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres" }).querySelector(".sidebar-count")).toBeNull();
   });
 
 });

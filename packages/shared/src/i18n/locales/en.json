@@ -5603,6 +5603,8 @@
     "suggestions": "Suggestions",
     "unfold": "Unfold “{{menu}}”",
     "toHandle": "to handle",
+    "offersToHandle_one": "{{count}} offer to handle",
+    "offersToHandle_other": "{{count}} offers to handle",
     "seeAll": "See all ({{count}})",
     "help": "Help",
     "howThisPageWorks": "How does this page work?",

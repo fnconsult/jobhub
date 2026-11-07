@@ -5603,6 +5603,8 @@
     "suggestions": "Suggestions",
     "unfold": "Dérouler « {{menu}} »",
     "toHandle": "à traiter",
+    "offersToHandle_one": "{{count}} offre à traiter",
+    "offersToHandle_other": "{{count}} offres à traiter",
     "seeAll": "Tout voir ({{count}})",
     "help": "Aide",
     "howThisPageWorks": "Comment marche cette page ?",

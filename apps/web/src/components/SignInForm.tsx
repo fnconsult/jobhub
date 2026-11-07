@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { authClient } from "@/auth/client";
 import { Button } from "@/design/Button";
 import { Field, TextInput } from "@/design/Field";
+import { useHydrated } from "@/design/hydrated";
 import { Note } from "@/design/Note";
 import type { SignInButton } from "@/sign-in-providers/policy";
 
@@ -31,6 +32,9 @@ export function SignInForm({
   const { t, i18n } = useTranslation();
   const [status, setStatus] = useState<Status>("idle");
   const [email, setEmail] = useState("");
+  // Until the page is hydrated, the form is the browser's own: submitted, it would GET this page with the address in
+  // its URL and send no email; a provider's button would do nothing. So they wait, disabled, as a person or a test does (#446).
+  const hydrated = useHydrated();
 
   async function send(address: string): Promise<boolean> {
     // The page's language: a new account's sign-in email and Interface Language follow it (#570).
@@ -61,7 +65,7 @@ export function SignInForm({
   return (
     <>
       {providers.map((provider) => (
-        <Button key={provider.id} onClick={() => void continueWith(provider.id)}>
+        <Button key={provider.id} disabled={!hydrated} onClick={() => void continueWith(provider.id)}>
           {t("signIn.continueWith", { provider: provider.displayName })}
         </Button>
       ))}
@@ -71,7 +75,7 @@ export function SignInForm({
           <Field label={t("signIn.emailLabel")}>
             <TextInput name="email" type="email" autoComplete="email" required />
           </Field>
-          <Button variant="primary" type="submit" busy={status === "sending"}>
+          <Button variant="primary" type="submit" disabled={!hydrated} busy={status === "sending"}>
             {status === "sending" ? t("signIn.sending") : t("signIn.submit")}
           </Button>
         </form>

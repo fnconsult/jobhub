@@ -23,17 +23,18 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * With neither, a new Free conversation starts, attached to the Profile in view (or `profileId`, the one the page shows).
  * A Guardrail message answers in the Candidate's Interface Language; `blocked` says whether the message and the reply are Blocked messages (#228).
  * A link in the message is read as a Job Offer: `jobOffer` is then the reply's Job Offer card { id, title, employer?, followed }.
- * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it.
+ * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it; `sent`, what it sent in all its
+ * AI calls (#805) { calls, turns, rounds, inputTokens, cachedInputTokens, outputTokens }, tokens only, or null when none was kept.
  * `couldNotAnswer`: the AI Coach could not answer the question (#345): the Coach Panel offers « Poser la question à l'équipe » at once.
  * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens, limits, split, upgrade, reply }:
  * `limits`, the Coach context limits of the Candidate's Plan (ADR-0078, #731) { coachContextMessages, coachContextTokens }, null
  * being unlimited; `split`, the latest reply's estimate by category { messages, instructions, profile, advice, sources }, or null;
  * `upgrade`, once nearly full, the next offered Plan whose limits allow more { plan, name: { fr, en } }, or null (#732);
- * `reply`, what the latest reply sent in all its AI calls (#790) { calls, turns, rounds, tools, inputTokens, cachedInputTokens, outputTokens }, or null.
+ * `reply`, what the latest reply sent in all its AI calls (#790), as `sent` is, or null.
  * `cards`: the Action Cards of the Coach proposals the reply makes (#715), under it (CoachProposalCard); absent when none.
  * `proposalsDisplay`, with `cards`: the Candidate's « Propositions du coach » (#717), "card" or "form" (the first card's
  * form opens by itself in the Work Pane).
- * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer, context, cards?, proposalsDisplay? } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
+ * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, sent, couldNotAnswer, context, cards?, proposalsDisplay? } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
  * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation, context }.
  *
  * Live (#328), with `Accept: application/x-ndjson`: 200, one JSON event per line as the reply runs:
@@ -71,8 +72,8 @@ async function displayOf(candidateId: string, result: SendResult): Promise<Coach
     .catch(() => null);
 }
 
-function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer, context, cards }: Extract<SendResult, { ok: true }>, proposalsDisplay: CoachProposalsDisplay | null) {
-  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer, context, ...(cards ? { cards } : {}), ...(cards && proposalsDisplay ? { proposalsDisplay } : {}) };
+function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, sent, couldNotAnswer, context, cards }: Extract<SendResult, { ok: true }>, proposalsDisplay: CoachProposalsDisplay | null) {
+  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, sent, couldNotAnswer, context, ...(cards ? { cards } : {}), ...(cards && proposalsDisplay ? { proposalsDisplay } : {}) };
 }
 
 function failureOf(result: Extract<SendResult, { ok: false }>) {

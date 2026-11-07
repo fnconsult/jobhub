@@ -10,6 +10,7 @@
  */
 import * as z from "zod";
 import { APPLICATION_STATUSES, CONTRACT_TYPES, INTERVIEW_FORMATS, JOB_DIGEST_FREQUENCIES, REMOTE_WORK_OPTIONS, type MasterCvContent, type SearchCriteria } from "../domain";
+import type { MatchScore } from "../match-score";
 import { DOCUMENT_LANGUAGES } from "../document-language";
 import { provenanceSchema } from "../provenance";
 
@@ -121,16 +122,66 @@ export const jobSearchesResponseSchema = z.object({
 export type JobSearchesResponse = z.infer<typeof jobSearchesResponseSchema>;
 
 /**
- * Where the Candidate stands with a Job Offer found for a Profile: « gardée » (`kept`: saved as an Application, with any
- * Profile), « écartée » (`dismissed`), or null while they have not decided. Dismissing comes with the app's « Écarter »
- * (#692): until then a Job Offer is kept or undecided.
+ * Where the Candidate stands with a Job Offer found for a Profile: « Suivie » (`kept`: saved as an Application, with any
+ * Profile), « Écartée » (`dismissed`: écartée from their Offer box, #816), or null while they have not decided.
  */
 export const JOB_OFFER_DECISIONS = ["kept", "dismissed"] as const;
 
-/** One Job Offer a Job Search or a Job Digest found, with its Match Score and the Candidate's decision. */
+const criterionStatus = z.enum(["match", "partial", "mismatch", "unknown"]);
+
+/**
+ * Why a Job Offer has its Match Score (« Pourquoi 86 ? »), criterion by criterion: what the Job Offer says and what is
+ * wanted, null where unknown. `matchScoreOfDetail` gives it back as a MatchScore, for `matchScoreReasons` to word it.
+ */
+export const matchScoreDetailSchema = z.object({
+  skills: z.object({ status: criterionStatus, covered: z.array(z.string()), missing: z.array(z.string()) }),
+  seniority: z.object({ status: criterionStatus, cvYears: z.number().nullable(), requiredYears: z.number().nullable() }),
+  location: z.object({ status: criterionStatus, offer: z.string().nullable(), wanted: z.array(z.string()) }),
+  salary: z.object({ status: criterionStatus, offerMin: z.number().nullable(), offerMax: z.number().nullable(), wanted: z.number().nullable() }),
+  contractType: z.object({ status: criterionStatus, offer: z.enum(CONTRACT_TYPES).nullable(), wanted: z.array(z.enum(CONTRACT_TYPES)) }),
+});
+export type MatchScoreDetail = z.infer<typeof matchScoreDetailSchema>;
+
+const asList = <T>(wanted: T[] | T | undefined): T[] => (wanted === undefined ? [] : Array.isArray(wanted) ? wanted : [wanted]);
+const defined = <T>(value: T | null): T | undefined => value ?? undefined;
+
+/** A Match Score's breakdown as a read gives it. */
+export function matchScoreDetail({ breakdown }: Pick<MatchScore, "breakdown">): MatchScoreDetail {
+  const { skills, seniority, location, salary, contractType } = breakdown;
+  return {
+    skills: { status: skills.status, covered: skills.covered, missing: skills.missing },
+    seniority: { status: seniority.status, cvYears: seniority.cvYears ?? null, requiredYears: seniority.requiredYears ?? null },
+    location: { status: location.status, offer: location.offer ?? null, wanted: asList(location.wanted) },
+    salary: { status: salary.status, offerMin: salary.offer?.min ?? null, offerMax: salary.offer?.max ?? null, wanted: salary.wanted ?? null },
+    contractType: { status: contractType.status, offer: contractType.offer ?? null, wanted: asList(contractType.wanted) },
+  };
+}
+
+/** A read's Match Score (its figure, null when not computable, and its detail) as a MatchScore, to word it. */
+export function matchScoreOfDetail(figure: number | null, detail: MatchScoreDetail): MatchScore {
+  const { skills, seniority, location, salary, contractType } = detail;
+  const offer = salary.offerMin === null && salary.offerMax === null ? undefined : { min: defined(salary.offerMin), max: defined(salary.offerMax) };
+  return {
+    score: figure ?? 0,
+    breakdown: {
+      skills,
+      seniority: { status: seniority.status, cvYears: defined(seniority.cvYears), requiredYears: defined(seniority.requiredYears) },
+      location: { status: location.status, offer: defined(location.offer), wanted: location.wanted },
+      salary: { status: salary.status, offer, wanted: defined(salary.wanted) },
+      contractType: { status: contractType.status, offer: defined(contractType.offer), wanted: contractType.wanted },
+    },
+  };
+}
+
+/**
+ * One Job Offer a Job Search or a Job Digest found, with its Match Score and the Candidate's decision. Its Job Offer
+ * comes with what the Work Pane shows (#692): its contract type, its Job Offer Summary and its full text (`content`),
+ * so it opens with no network; its Match Score with why (`matchScoreDetail`).
+ */
 export const foundJobOfferSchema = z.object({
-  jobOffer: jobOfferLineSchema,
+  jobOffer: jobOfferLineSchema.extend({ contractType: z.enum(CONTRACT_TYPES).nullable(), summary: z.string().nullable(), content: z.string() }),
   matchScore,
+  matchScoreDetail: matchScoreDetailSchema,
   decision: z.enum(JOB_OFFER_DECISIONS).nullable(),
   /** The Candidate's Application for it, when they kept it. */
   applicationId: z.string().nullable(),
@@ -157,14 +208,23 @@ export type JobSearchResponse = z.infer<typeof jobSearchResponseSchema>;
 export const ARRIVAL_SOURCES = ["job_search", "job_digest", "email", "job_offer_link", "extension"] as const;
 export type ArrivalSource = (typeof ARRIVAL_SOURCES)[number];
 
-/** Where an Offer box entry stands: à traiter, or « Suivie » (its Application exists, whichever page made it). */
-export const OFFER_BOX_ENTRY_STATES = ["to_handle", "followed"] as const;
+/**
+ * Where an Offer box entry stands: à traiter, « Suivie » (its Application exists, whichever page made it) or « Écartée »
+ * (#816, with its Dismissal reason, if given).
+ */
+export const OFFER_BOX_ENTRY_STATES = ["to_handle", "followed", "dismissed"] as const;
+export type OfferBoxEntryState = (typeof OFFER_BOX_ENTRY_STATES)[number];
+
+/** The Dismissal reasons « Écarter » offers (#816): « Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs ». */
+export const DISMISSAL_REASONS = ["not_for_me", "salary", "location", "contract", "applied_elsewhere"] as const;
+export type DismissalReason = (typeof DISMISSAL_REASONS)[number];
 
 /**
  * One Offer box entry: its Job Offer, its Profile (null: « Non classée »), the Profile its Match Score is against and
  * « Suivre » saves it with (`scoredWith`: the entry's, or for a « Non classée » one the active Profile it matches best;
  * null when the Candidate has no active Profile), its first Arrival (`arrivalDay`, in French time) and every Arrival
- * source with the date it first came by, oldest first; where it stands, and its Application once « Suivie ».
+ * source with the date it first came by, oldest first; where it stands, its Application once « Suivie », and its
+ * Dismissal reason (null: « Écarter sans motif ») and when, once « Écartée ».
  */
 export const offerBoxEntrySchema = z.object({
   id: z.string(),
@@ -178,13 +238,15 @@ export const offerBoxEntrySchema = z.object({
   state: z.enum(OFFER_BOX_ENTRY_STATES),
   applicationId: z.string().nullable(),
   followedAt: instant.nullable(),
+  dismissalReason: z.enum(DISMISSAL_REASONS).nullable(),
+  dismissedAt: instant.nullable(),
 });
 export type OfferBoxEntryRead = z.infer<typeof offerBoxEntrySchema>;
 
 /**
- * `GET /api/offer-box`: the Candidate's Offer box (« Offres à traiter »), the most recent first Arrival first, with how
- * many entries are à traiter and today's day in French time, which « Aujourd'hui » and the posting ages are read against.
- * `offerBoxView` (`@jobhub/shared`) lays it out as the web and the app show it.
+ * `GET /api/offer-box`: the Candidate's Offer box (« Offres à traiter »), the most recent first Arrival first (those
+ * écartées more than 30 days ago left out), with how many entries are à traiter and today's day in French time, which
+ * « Aujourd'hui » and the posting ages are read against. `offerBoxView` (`@jobhub/shared`) lays it out as the web and the app show it.
  */
 export const offerBoxResponseSchema = z.object({
   today: day,
@@ -192,6 +254,15 @@ export const offerBoxResponseSchema = z.object({
   entries: z.array(offerBoxEntrySchema),
 });
 export type OfferBoxResponse = z.infer<typeof offerBoxResponseSchema>;
+
+/**
+ * `GET /api/offer-box/:id`: one Offer box entry's Job Offer as its Work Pane shows it in the app (#692), as a Job
+ * Search's: its full text, its Job Offer Summary and why it has its Match Score, against the Profile « Suivre » saves it
+ * with (the entry's `scoredWith`). Read when the entry opens, so the Offer box's own read stays light.
+ * 404 when the entry is not the Candidate's, or when it has no Profile to be scored against (no active Profile).
+ */
+export const offerBoxOfferResponseSchema = z.object({ profile: named, found: foundJobOfferSchema });
+export type OfferBoxOfferResponse = z.infer<typeof offerBoxOfferResponseSchema>;
 
 // --- Job Digests -------------------------------------------------------------------------------------------------
 
@@ -212,6 +283,15 @@ export const jobDigestsResponseSchema = z.object({
   ),
 });
 export type JobDigestsResponse = z.infer<typeof jobDigestsResponseSchema>;
+
+/** `GET /api/job-digests/:id`: one of the Candidate's Job Digests sent and its Job Offers, best Match Score first. 404 for anyone else's. */
+export const jobDigestResponseSchema = z.object({
+  id: z.string(),
+  profile: named,
+  sentAt: instant,
+  jobOffers: z.array(foundJobOfferSchema),
+});
+export type JobDigestResponse = z.infer<typeof jobDigestResponseSchema>;
 
 // --- Agenda ------------------------------------------------------------------------------------------------------
 
@@ -538,6 +618,16 @@ export const coachProposalCardSchema = z.object({
   undoable: z.boolean(),
 });
 
+/** What an AI Coach reply sent in all its AI calls (ReplyCost, #790, #805): tokens only, never euros nor the Tools' names. */
+export const replyCostSchema = z.object({
+  calls: z.number().int().min(0),
+  turns: z.number().int().min(0),
+  rounds: z.number().int().min(0),
+  inputTokens: z.number().int().min(0),
+  cachedInputTokens: z.number().int().min(0),
+  outputTokens: z.number().int().min(0),
+});
+
 /** One message of a Coach Conversation, as the web shows it. */
 export const coachMessageSchema = z.object({
   from: z.enum(["candidate", "coach"]),
@@ -549,6 +639,8 @@ export const coachMessageSchema = z.object({
   cards: z.array(coachProposalCardSchema).optional(),
   /** What its Coach Actions saw, named by page as the objects are now (#788): « Le coach a consulté… ». */
   seenNames: z.record(z.string(), z.string().max(80)).optional(),
+  /** On an AI Coach reply: what it sent in all its AI calls (#805), null for one saved before #791. */
+  sent: replyCostSchema.nullable().optional(),
 });
 
 /** A Coach Conversation with its messages and its Context bar's figures. */
@@ -565,18 +657,7 @@ export const coachConversationSchema = coachConversationSummarySchema.extend({
     /** Once nearly full, the next offered Plan whose Coach context limits allow more (#732); null when none does or below 80 %. */
     upgrade: z.object({ plan: z.string(), name: z.object({ fr: z.string(), en: z.string() }) }).nullable().optional(),
     /** What the latest reply sent in all its AI calls (#790), never the bar's figure; null for a reply saved before. */
-    reply: z
-      .object({
-        calls: z.number().int().min(0),
-        turns: z.number().int().min(0),
-        rounds: z.number().int().min(0),
-        tools: z.array(z.string()),
-        inputTokens: z.number().int().min(0),
-        cachedInputTokens: z.number().int().min(0),
-        outputTokens: z.number().int().min(0),
-      })
-      .nullable()
-      .optional(),
+    reply: replyCostSchema.nullable().optional(),
   }),
 });
 export type CoachConversationRead = z.infer<typeof coachConversationSchema>;

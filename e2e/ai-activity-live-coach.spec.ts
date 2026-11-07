@@ -16,6 +16,9 @@ import { activityOf, activityUnderWayOf, closeActivity, openActivity, toConversa
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const ANNOUNCEMENTS: string[] = Object.values(fr.aiActivity.live.announce as Record<string, Record<string, string>>).flatMap((byKind) => Object.values(byKind));
 
+/** « 0 étape finie · 3 s »: the steps an action finished, and its time so far (#806). */
+const FINISHED_SO_FAR = /\d+ étapes? finies? · \d/;
+
 const stopIconOf = (region: Locator) => region.getByRole("button", { name: fr.aiActivity.live.stop.coach_reply, exact: true });
 /** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
 const paneOf = (page: Page) => activityOf(page);
@@ -84,12 +87,12 @@ test.describe("AI Activity live: an AI Coach reply (#333)", () => {
     await expect.poll(strokesOf, { timeout: 5_000 }).not.toBe(drawn);
     await expectNoAxeViolations(page, "header.topbar");
 
-    // AI Activity: the reply on this page, its step running, its stop icon.
+    // « En ce moment » (#806): the reply on this page, its step running, its steps finished and time so far, its stop icon.
     await openActivity(page);
     const reply = paneOf(page).locator(".ai-activity-live");
     await expect(reply).toContainText(fr.aiActivity.kinds.coach_reply);
-    await expect(reply).toContainText(/En cours · \d/);
-    await expect(reply.getByRole("list", { name: fr.aiActivity.live.steps })).toContainText(fr.aiActivity.steps.think_write);
+    await expect(reply).toContainText(FINISHED_SO_FAR);
+    await expect(reply.locator(".ai-activity-live-status")).toHaveText(fr.aiActivity.steps.think_write);
     await expect(stopIconOf(reply)).toHaveAttribute("title", fr.aiActivity.live.stop.coach_reply);
     await expect(paneOf(page).locator(".ai-activity-elsewhere")).toHaveCount(0);
     await expectNoAxeViolations(page, ".fiche-activity");
@@ -109,7 +112,6 @@ test.describe("AI Activity live: an AI Coach reply (#333)", () => {
     await expect(stopped).toContainText(/Arrêtée à \d{2}:\d{2}/);
     expect(await stopped.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(stopped));
     await expect(stopIconOf(stopped)).toHaveCount(0);
-    await expect(stopped.getByRole("listitem").filter({ hasText: fr.aiActivity.steps.think_write })).toContainText(fr.aiActivity.live.stepStopped);
     await expect
       .poll(async () => (await query(`SELECT 1 FROM ai_usage WHERE task = 'coaching' AND at >= $1 AND reason = 'stopped'`, [askedAt])).length)
       .toBeGreaterThan(0);

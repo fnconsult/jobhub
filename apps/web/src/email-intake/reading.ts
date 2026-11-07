@@ -3,7 +3,7 @@
  *
  *   const readings = createEmailReadings(database, { cipher });
  *   const email = await readings.startTry(id);              // null: not awaiting reading (read, set aside, gone)
- *   await readings.alreadyThere(email.candidateId, jobOfferId); // « déjà vue »: in a Job Search, Job Digest, earlier email or Application of theirs
+ *   await readings.alreadyThere(email.candidateId, jobOfferId); // « déjà vue »: in a Job Search, Job Digest, earlier email or Application of theirs, or écartée (#816)
  *   await readings.progress(id, events);                     // its live steps, while it is read
  *   await readings.read(id, { kind, offers });               // offers found, or « autre »: its text deleted
  *   await readings.tryFailed(id) / readings.failed(id);      // a try that failed: text kept to try again / « échec »
@@ -18,7 +18,7 @@
 import type { ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { inTransaction } from "../database/pool";
-import { migrateOfferBox, recordArrivals } from "../offer-box";
+import { dismissedJobOffers, migrateOfferBox, recordArrivals } from "../offer-box";
 import { recordReading } from "./activity";
 import type { SecretCipher } from "../provider-secrets/cipher";
 import { receivedTextOf } from "./inbound";
@@ -60,7 +60,7 @@ export interface EmailToRead {
 export interface EmailReadings {
   /** Starts one more try at reading the email, counted now; null when it is not awaiting reading. */
   startTry(id: string): Promise<EmailToRead | null>;
-  /** Whether the Job Offer is already there for the Candidate: in a Job Search, a Job Digest, an earlier email or an Application of theirs. */
+  /** Whether the Job Offer is already there for the Candidate: in a Job Search, a Job Digest, an earlier email or an Application of theirs, or écartée from their Offer box (#816). */
   alreadyThere(candidateId: string, jobOfferId: string): Promise<boolean>;
   /** Writes its live steps (each step's latest event), for AI Activity while it is read. */
   progress(id: string, events: ProvenanceEvent[]): Promise<void>;
@@ -112,7 +112,8 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
         `SELECT EXISTS (SELECT 1 FROM application WHERE candidate_id = $1 AND job_offer_id = $2::uuid)
              OR EXISTS (SELECT 1 FROM job_search WHERE candidate_id = $1 AND $2::uuid = ANY (job_offer_ids))
              OR EXISTS (SELECT 1 FROM job_digest WHERE candidate_id = $1 AND $2::uuid = ANY (job_offer_ids))
-             OR EXISTS (SELECT 1 FROM received_offer_email_offer WHERE candidate_id = $1 AND job_offer_id = $2::uuid) AS there`,
+             OR EXISTS (SELECT 1 FROM received_offer_email_offer WHERE candidate_id = $1 AND job_offer_id = $2::uuid)
+             OR $2::uuid IN (${dismissedJobOffers("$1")}) AS there`,
         [candidateId, jobOfferId],
       );
       return rows[0]!.there;

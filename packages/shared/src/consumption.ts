@@ -6,18 +6,19 @@
  */
 import type { WeeklyQuota } from "./domain";
 
-type Wording = { label: string; unit: string };
+/** `unit` counts several, `one` a single use (and none, in French: « 0 réponse »). */
+type Wording = { label: string; unit: string; one: string };
 
 export const CONSUMPTION_TOOLS = {
-  coach: { fr: { label: "Coach IA", unit: "réponses" }, en: { label: "AI Coach", unit: "replies" } },
-  jobSearch: { fr: { label: "Recherches d'offres", unit: "recherches" }, en: { label: "Job searches", unit: "searches" } },
-  matchScore: { fr: { label: "Match Score", unit: "scores" }, en: { label: "Match Score", unit: "scores" } },
-  tailoredCv: { fr: { label: "CV adapté", unit: "CV" }, en: { label: "Tailored CV", unit: "CVs" } },
-  tailoredDocument: { fr: { label: "Lettres et messages d'approche", unit: "documents" }, en: { label: "Cover letters and outreach messages", unit: "documents" } },
-  atsScore: { fr: { label: "ATS Score", unit: "analyses" }, en: { label: "ATS Score", unit: "analyses" } },
-  companyDossier: { fr: { label: "Dossier entreprise", unit: "dossiers" }, en: { label: "Company dossier", unit: "dossiers" } },
-  enrichedContact: { fr: { label: "Contacts enrichis", unit: "contacts" }, en: { label: "Enriched contacts", unit: "contacts" } },
-  cvReading: { fr: { label: "Lecture de CV", unit: "CV lus" }, en: { label: "CV reading", unit: "CVs read" } },
+  coach: { fr: { label: "Coach IA", unit: "réponses", one: "réponse" }, en: { label: "AI Coach", unit: "replies", one: "reply" } },
+  jobSearch: { fr: { label: "Recherches d'offres", unit: "recherches", one: "recherche" }, en: { label: "Job searches", unit: "searches", one: "search" } },
+  matchScore: { fr: { label: "Match Score", unit: "scores", one: "score" }, en: { label: "Match Score", unit: "scores", one: "score" } },
+  tailoredCv: { fr: { label: "CV adapté", unit: "CV", one: "CV" }, en: { label: "Tailored CV", unit: "CVs", one: "CV" } },
+  tailoredDocument: { fr: { label: "Lettres et messages d'approche", unit: "documents", one: "document" }, en: { label: "Cover letters and outreach messages", unit: "documents", one: "document" } },
+  atsScore: { fr: { label: "ATS Score", unit: "analyses", one: "analyse" }, en: { label: "ATS Score", unit: "analyses", one: "analysis" } },
+  companyDossier: { fr: { label: "Dossier entreprise", unit: "dossiers", one: "dossier" }, en: { label: "Company dossier", unit: "dossiers", one: "dossier" } },
+  enrichedContact: { fr: { label: "Contacts enrichis", unit: "contacts", one: "contact" }, en: { label: "Enriched contacts", unit: "contacts", one: "contact" } },
+  cvReading: { fr: { label: "Lecture de CV", unit: "CV lus", one: "CV lu" }, en: { label: "CV reading", unit: "CVs read", one: "CV read" } },
 } as const satisfies Record<string, { fr: Wording; en: Wording }>;
 
 /** A Tool key of Consumption. */

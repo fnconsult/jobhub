@@ -364,12 +364,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "recevoir",
         "fréquence",
         "alerte",
-        "tout voir"
+        "tout voir",
+        "application",
+        "iphone",
+        "ipad",
+        "android"
       ],
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nVotre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
+      "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nVotre coach peut vous proposer d'abonner un profil à son Job Digest, d'en changer la fréquence dans la limite de votre offre, ou de l'en désabonner. Chaque proposition s'affiche sous sa réponse et vous la validez : « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». « Annuler » remet la fréquence d'avant. Si votre offre ne comprend pas la fréquence demandée, la proposition vous montre l'offre qui la comprend.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page.\n\nDans l'application Jobbbox (iPhone, iPad, Android), « Job Digests » est la même conversation, avec la même carte : pour chaque profil, sa fréquence, puis chaque Job Digest envoyé. Touchez-en un pour l'ouvrir sur ses offres. La fréquence se lit dans l'application et se règle sur jobbbox.ai."
     },
     {
       "id": "page-master-cv-editor",
@@ -533,12 +537,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "résultat",
         "offres trouvées",
         "recherche terminée",
-        "reçues par email"
+        "reçues par email",
+        "écartée",
+        "enregistrée"
       ],
       "route": "/recherches/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'une recherche d'offres est sa conversation avec votre coach IA : il a sous les yeux les offres trouvées et leur score de correspondance avec le profil. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Élargir mes critères », « Relancer une recherche ».\n\nÀ droite, la fiche de la recherche : son statut, sa date de lancement et les critères de recherche du profil, que « Modifier les critères » ouvre, puis « Relancer une recherche », ou « Arrêter la recherche » tant qu'elle cherche. Dans « Résultats », chaque offre trouvée avec son score de correspondance ; « Offres trouvées », dans « Sections », les liste toutes.\n\nUne offre s'ouvre à côté de la conversation, sans la cacher, avec son score, ce qui l'explique, et « Enregistrer en candidature » pour la suivre dans vos candidatures. « Fermer » ou la touche Échap la referme.\n\nLes offres que vous recevez par e-mail pour ce profil ne sont pas dans les résultats d'une recherche : elles sont dans « Reçues par email », sur la page Recherches d'offres.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'une recherche d'offres est sa conversation avec votre coach IA : il a sous les yeux les offres trouvées et leur score de correspondance avec le profil. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Élargir mes critères », « Relancer une recherche ».\n\nÀ droite, la fiche de la recherche : son statut, sa date de lancement et les critères de recherche du profil, que « Modifier les critères » ouvre, puis « Relancer une recherche », ou « Arrêter la recherche » tant qu'elle cherche. Dans « Résultats », chaque offre trouvée avec son score de correspondance ; « Offres trouvées », dans « Sections », les liste toutes. Une offre que vous avez déjà enregistrée porte l'étiquette « Enregistrée » ; une offre que vous avez écartée dans « Offres à traiter » porte l'étiquette « Écartée » : elle reste lisible, et « Revenir sur ce choix », dans « Écartées », la remet à traiter.\n\nUne offre s'ouvre à côté de la conversation, sans la cacher, avec son score, ce qui l'explique, et « Enregistrer en candidature » pour la suivre dans vos candidatures. « Fermer » ou la touche Échap la referme.\n\nLes offres que vous recevez par e-mail pour ce profil ne sont pas dans les résultats d'une recherche : elles sont dans « Reçues par email », sur la page Recherches d'offres.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation.\n\nDans l'application Jobbbox (iPhone, iPad, Android), la page d'une recherche montre sa fiche au-dessus de sa conversation : son statut, sa date de lancement et les critères de recherche du profil, à lire ; « Modifier les critères » ouvre la page du profil de jobbbox.ai dans l'application. Une fois la recherche terminée, « Relancer une recherche » en lance une nouvelle pour le même profil, dans le quota de votre offre : s'il est atteint, l'application le dit comme jobbbox.ai, sans rien à acheter. Ses offres suivent, de la plus proche à la moins proche de votre CV de référence, chacune marquée « Suivie » ou « Écartée » le cas échéant. Touchez-en une pour l'ouvrir : son score de correspondance avec le profil, un bouton qui explique le score en détaillant chaque critère, son résumé et son texte. « Suivre » crée sa candidature avec ce profil ; une fois suivie, « Voir la candidature » l'ouvre. « Écarter » la retire de vos « Offres à traiter », avec un motif si vous le souhaitez, et « Annuler » revient dessus ; une offre écartée garde « Revenir sur ce choix »."
     },
     {
       "id": "page-admin-delivery",
@@ -643,12 +649,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rétractation",
         "factures",
         "code promo",
-        "utilisation"
+        "utilisation",
+        "consommation",
+        "période de facturation",
+        "actions ia",
+        "jetons"
       ],
       "route": "/abonnement",
       "motion": null,
       "microAnimations": [],
-      "body": "Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus. Chaque carte indique aussi la « Mémoire du coach », le nombre de derniers messages de la conversation que votre coach lit, et le « Contexte du coach », la place de ce qu'il relit avant de répondre, comparée à celle de l'offre la plus simple (×1) ; « Illimité » quand l'offre ne fixe pas de limite.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte. « Factures et moyen de paiement » y mène aussi, pour télécharger vos factures.\n\n« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe. Sur l'offre Gratuite, un « Code promo » saisi ici puis « Appliquer » est vérifié, et s'appliquera au paiement d'un nouvel abonnement.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
+      "body": "Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus. Chaque carte indique aussi la « Mémoire du coach », le nombre de derniers messages de la conversation que votre coach lit, et le « Contexte du coach », la place de ce qu'il relit avant de répondre, comparée à celle de l'offre la plus simple (×1) ; « Illimité » quand l'offre ne fixe pas de limite.\n\n« Votre consommation » montre ce que vous avez utilisé pendant la période de facturation : sur une offre payante, du premier jour de la période que vous payez à la veille de la suivante (par exemple du 18 octobre au 17 novembre) ; sur l'offre Gratuite, qui n'est pas facturée, le mois en cours. En tête, le nombre d'actions IA de la période, chaque réponse du coach, recherche d'offres, score ou document préparé comptant pour une, et l'écart avec le même jour de la période précédente ; à côté, où vous en êtes de la période (par exemple, le jour 19 sur 31). « Par outil, cette période » donne chaque outil avec son nombre et sa part de vos actions ; « Autres » regroupe l'ATS Score, les dossiers entreprise, les contacts enrichis et la lecture de CV. Un outil qui a un quota chaque semaine le rappelle (par exemple, 4 sur 7 cette semaine), ou dit « Non compris dans votre offre » ; les autres sont « Sans limite dans votre offre ».\n\n« Jour par jour, sur douze mois » montre une case par jour, du lundi au dimanche, une colonne par semaine : plus elle est foncée, plus vous avez utilisé Jobbbox ce jour-là, et les jours de la période en cours sont entourés. Survolez une case, ou passez de l'une à l'autre avec les flèches du clavier, pour voir sa date et le nombre de chaque outil. « Barres » montre la période jour par jour, par outil ; votre choix est gardé dans ce navigateur. « Voir en tableau » donne les mêmes chiffres dans un tableau. Tout est compté en nombre d'utilisations. Ces chiffres sont conservés 12 mois, effacés avec votre compte et inclus dans l'export de vos données ; les modèles d'IA qui ont produit chaque contenu sont dans Activité IA.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte. « Factures et moyen de paiement » y mène aussi, pour télécharger vos factures.\n\n« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe. Sur l'offre Gratuite, un « Code promo » saisi ici puis « Appliquer » est vérifié, et s'appliquera au paiement d'un nouvel abonnement.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
     },
     {
       "id": "page-account",
@@ -918,6 +928,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "à traiter",
         "traitées",
         "suivre",
+        "écarter",
+        "écartée",
+        "écartées",
+        "motif",
+        "pas pour moi",
+        "revenir sur ce choix",
+        "annuler",
         "recherche",
         "chercher",
         "trouver",
@@ -938,7 +955,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Recherches d'offres » s'ouvre sur « Offres à traiter » : chaque offre qui vous est arrivée, par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach, y attend votre décision. Une offre arrivée par plusieurs chemins n'y figure qu'une fois, avec une puce pour chacun (« Recherche », « Job Digest », « Email », « Lien du coach »), au jour de sa première arrivée.\n\nEn haut, « à traiter » compte les offres qui attendent encore, à côté du nombre d'offres traitées, celles que vous avez suivies ; la barre avance vers zéro. Les puces « Toutes », « Recherche », « Job Digest », « Email », « Lien du coach » et « Extension » filtrent la liste ; chacune dit combien de ses offres sont à traiter. Ce haut de page, le jour et le palier restent visibles quand vous faites défiler.\n\nLes offres sont rangées en « Aujourd'hui », puis « Précédemment », où chaque ligne dit le jour de son arrivée ; dans chacun, par importance : « À ne pas manquer » (score de correspondance de 80 et plus, avec un liseré qui tourne lentement autour), « À regarder » (60 à 79), « Peu adaptées » (moins de 60, ou non calculable). Les plus récentes viennent en premier.\n\nChaque ligne donne le score de correspondance, l'intitulé, l'employeur, le lieu, le contrat, d'où l'offre est arrivée, depuis combien de jours elle est publiée, et pendant ses 7 derniers jours sur 30, dans combien de jours elle sort et le profil auquel elle se rapporte, ou « Non classée ». « Suivre » l'enregistre comme candidature, à « À postuler » : elle devient « Suivie ». Une candidature créée ailleurs, depuis une recherche, l'extension ou une proposition de votre coach, la rend « Suivie » aussi, tant qu'elle existe. « Lire l'offre » l'ouvre à côté, avec son score expliqué. Les offres suivies aujourd'hui sont repliées sous « Suivies aujourd'hui ».\n\nEn bas d'« Offres à traiter », « Recherches par Profil » ouvre à côté vos recherches, par profil : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs.\n\n« Reçues par email », en bas aussi, montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nLa conversation avec votre coach IA suit « Offres à traiter », sa zone de message en bas de page : demandez-lui quelles offres regarder en premier.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nVotre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise (par exemple 1 recherche sur 5 cette semaine) ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter la recherche d'offres » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
+      "body": "« Recherches d'offres » s'ouvre sur « Offres à traiter » : chaque offre qui vous est arrivée, par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach, y attend votre décision. Une offre arrivée par plusieurs chemins n'y figure qu'une fois, avec une puce pour chacun (« Recherche », « Job Digest », « Email », « Lien du coach »), au jour de sa première arrivée.\n\nEn haut, « à traiter » compte les offres qui attendent encore, à côté du nombre d'offres traitées, celles que vous avez suivies ou écartées ; la barre avance vers zéro. Les puces « Toutes », « Recherche », « Job Digest », « Email », « Lien du coach » et « Extension » filtrent la liste ; chacune dit combien de ses offres sont à traiter. Ce haut de page, le jour et le palier restent visibles quand vous faites défiler.\n\nLes offres sont rangées en « Aujourd'hui », puis « Précédemment », où chaque ligne dit le jour de son arrivée ; dans chacun, par importance : « À ne pas manquer » (score de correspondance de 80 et plus, avec un liseré qui tourne lentement autour), « À regarder » (60 à 79), « Peu adaptées » (moins de 60, ou non calculable). Les plus récentes viennent en premier.\n\nChaque ligne donne le score de correspondance, l'intitulé, l'employeur, le lieu, le contrat, d'où l'offre est arrivée, depuis combien de jours elle est publiée, et pendant ses 7 derniers jours sur 30, dans combien de jours elle sort et le profil auquel elle se rapporte, ou « Non classée ». « Suivre » l'enregistre comme candidature, à « À postuler » : elle devient « Suivie ». Une candidature créée ailleurs, depuis une recherche, l'extension ou une proposition de votre coach, la rend « Suivie » aussi, tant qu'elle existe. « Lire l'offre » l'ouvre à côté, avec son score expliqué. Les offres suivies aujourd'hui sont repliées sous « Suivies aujourd'hui ».\n\n**Écarter une offre.** « Écarter », sur chaque ligne à traiter, vous demande pourquoi, sans obligation : « Pas pour moi », « Salaire », « Lieu », « Contrat » ou « Déjà postulé ailleurs », ou « Écarter sans motif ». L'offre sort aussitôt du compteur, comptée parmi les traitées, et un message le confirme avec « Annuler », qui la remet à traiter. Une offre écartée ne vous est plus proposée : aucun Job Digest ne vous l'envoie à nouveau, un e-mail d'offre qui la contient la compte comme déjà vue, et elle apparaît « Écartée » dans les résultats d'une recherche. Pour les autres candidats, rien ne change. En bas de la boîte, « Écartées », replié, liste les offres écartées ces 30 derniers jours, la plus récente d'abord, avec leur motif ; « Revenir sur ce choix » remet une offre à traiter, à tout moment. Une offre suivie ne s'écarte pas : elle redevient à traiter si vous supprimez sa candidature.\n\nEn bas d'« Offres à traiter », « Recherches par Profil » ouvre à côté vos recherches, par profil : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs.\n\n« Reçues par email », en bas aussi, montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nLa conversation avec votre coach IA suit « Offres à traiter », sa zone de message en bas de page : demandez-lui quelles offres regarder en premier.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nVotre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise (par exemple 1 recherche sur 5 cette semaine) ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter la recherche d'offres » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.\n\nDans l'application Jobbbox (iPhone, iPad, Android), « Recherches d'offres » s'ouvre aussi sur « Offres à traiter », avec les mêmes compteurs, puces, paliers et décisions : « Suivre », « Écarter » et son motif, « Annuler », « Écartées » et « Revenir sur ce choix ». Touchez une offre pour l'ouvrir par-dessus la page : son score de correspondance avec le profil, un bouton qui explique le score en détaillant chaque critère, son résumé et son texte, puis « Suivre » et « Écarter » ; une fois suivie, « Voir la candidature » l'ouvre. Dans la carte « Vos recherches par profil », sous la conversation, chaque recherche dit où elle en est, combien d'offres elle a trouvées et, le cas échéant, « Nouveaux résultats » : touchez-la pour l'ouvrir. « Lancer une recherche » en démarre une, dans le quota de votre offre ; rien ne s'achète dans l'application.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-withdrawal",
@@ -1070,12 +1087,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "digest",
         "sélection",
-        "offres reçues"
+        "offres reçues",
+        "application",
+        "iphone",
+        "ipad",
+        "android",
+        "suivre"
       ],
       "route": "/job-digests/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation.\n\nDans l'application Jobbbox (iPhone, iPad, Android), la page d'un Job Digest montre son profil, sa date d'envoi et ses offres, de la plus proche à la moins proche de votre CV de référence, au-dessus de sa conversation. Touchez une offre pour l'ouvrir : son score de correspondance avec le profil, un bouton qui explique le score en détaillant chaque critère, son résumé et son texte. « Suivre » crée sa candidature avec ce profil ; une fois suivie, « Voir la candidature » l'ouvre. « Écarter » la retire de vos « Offres à traiter », avec un motif si vous le souhaitez, et « Annuler » revient dessus ; une offre écartée garde « Revenir sur ce choix »."
     },
     {
       "id": "page-order",
@@ -1203,6 +1225,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "activité ia",
         "activité",
+        "en ce moment",
+        "en cours ailleurs",
+        "rien ne tourne",
         "modèles",
         "modèle",
         "tokens",
@@ -1218,7 +1243,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« Activité IA » est le bouton en haut de la page qui montre ce que l'IA a fait pour la page ouverte. Il ouvre « Cette page » : les modèles d'IA, avec où ils ont tourné, les sources (les sites lus) et les outils qui ont produit ce que la page affiche, au total puis « Par élément ».\n\nLes tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.\n\nPendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs », chaque étape s'affiche en direct, et « Arrêter » l'interrompt : ce qui était terminé est gardé. Chaque étape a son glyphe, qui bouge tant qu'elle tourne :\n\n- « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;\n- « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;\n- « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;\n- « Consulte vos données » et « Prépare une proposition » : la boîte à outils qui s'ouvre, d'où sort une clé quand le coach lit vos candidatures, votre agenda ou votre profil, une petite carte quand il vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».\n\nSi vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.\n\nUne action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne. En bas, « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité."
+      "body": "« Activité IA » est le bouton en haut de la page qui montre ce que l'IA a fait pour la page ouverte. Il ouvre « Cette page » : les modèles d'IA, avec où ils ont tourné, les sources (les sites lus) et les outils qui ont produit ce que la page affiche, au total puis « Par élément ».\n\nLes tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.\n\n« En ce moment », en tête de l'activité, juste sous le contexte de la conversation, montre les actions de l'IA en cours : d'abord celles de cette page, puis « En cours ailleurs », avec un lien vers leur page. Une recherche d'offres qui tourne pendant que le coach vous répond y figure à côté de sa réponse. Pour chacune : son glyphe, l'étape en cours, le nombre d'étapes finies et le temps écoulé ; pour une réponse du coach, chaque outil qu'il consulte, coché une fois fini. L'icône d'arrêt l'interrompt : ce qui était terminé est gardé. Une action finie quitte « En ce moment » ; sans action en cours, il indique « Rien ne tourne sur cette page. ».\n\nChaque étape a son glyphe, qui bouge tant qu'elle tourne :\n\n- « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;\n- « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;\n- « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;\n- « Consulte vos données » et « Prépare une proposition » : la boîte à outils qui s'ouvre, d'où sort une clé quand le coach lit vos candidatures, votre agenda ou votre profil, une petite carte quand il vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».\n\nSi vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.\n\nUne action arrêtée ou en échec reste dans « En ce moment », en rouge clair, et le dit en toutes lettres, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne. En bas, « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité."
     },
     {
       "id": "glossary-ats-score",
@@ -1312,6 +1337,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Un code de secours remplace le code de votre application d'authentification quand vous ne l'avez pas sous la main, par exemple si vous avez perdu votre téléphone. Jobbbox vous en donne 10 quand vous activez la vérification en deux étapes, affichés une seule fois : copiez-les ou téléchargez-les, et gardez-les en lieu sûr.\n\nChaque code ne sert qu'une fois. La rubrique « Sécurité » de Mon compte indique combien il vous en reste ; « Régénérer les codes de secours » vous en donne 10 nouveaux, et les anciens cessent de fonctionner. Jobbbox ne garde pas vos codes en clair et ne peut pas vous les montrer à nouveau."
     },
     {
+      "id": "glossary-consumption",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Consommation",
+      "synonyms": [
+        "votre consommation",
+        "actions ia",
+        "utilisation",
+        "période de facturation",
+        "grille",
+        "jour par jour",
+        "par outil"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Ce que vous avez utilisé de Jobbbox, compté en actions IA : chaque réponse du coach, recherche d'offres, Match Score, ATS Score, CV adapté, lettre ou message d'approche, dossier entreprise, contact enrichi ou CV lu compte pour une, sous son outil.\n\n« Votre consommation », dans Mon abonnement, la montre sur la période de facturation (le mois en cours sur l'offre Gratuite), par outil et jour par jour sur douze mois. Elle ne remplace pas les quotas, qui comptent chaque semaine.\n\nElle est comptée en utilisations, jamais en jetons ni en euros, conservée 12 mois, effacée avec votre compte et incluse dans l'export de vos données. Elle ne garde aucun contenu ni le nom des modèles d'IA, qui sont dans Activité IA."
+    },
+    {
       "id": "glossary-conversation-context",
       "locale": "fr",
       "kind": "glossary",
@@ -1372,6 +1418,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Votre CV complet pour un profil : celui d'où partent tous vos CV adaptés. Jobbbox n'y ajoute jamais rien que vous n'ayez dit.\n\nChaque enregistrement crée une nouvelle version ; vous pouvez revoir les versions précédentes et revenir à l'une d'elles."
+    },
+    {
+      "id": "glossary-set-aside",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Écartée",
+      "synonyms": [
+        "écarter",
+        "écartées",
+        "motif",
+        "motif d'écart",
+        "pas pour moi",
+        "revenir sur ce choix",
+        "offre écartée",
+        "refusée",
+        "ignorée"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Une offre est « Écartée » quand vous l'avez mise de côté dans « Offres à traiter » avec « Écarter », en donnant un motif si vous le souhaitez : « Pas pour moi », « Salaire », « Lieu », « Contrat » ou « Déjà postulé ailleurs ». Elle compte alors parmi les traitées.\n\nUne offre écartée compte comme déjà vue partout : aucun Job Digest ne vous la propose à nouveau, un e-mail d'offre qui la contient la compte comme déjà vue, et elle apparaît « Écartée » dans les résultats d'une recherche. L'offre elle-même n'est pas supprimée, et les autres candidats la voient toujours.\n\nLes offres écartées ces 30 derniers jours sont dans « Écartées », en bas d'« Offres à traiter », avec leur motif. « Revenir sur ce choix » remet une offre à traiter, à tout moment. Si vous enregistrez ensuite une offre écartée, depuis une recherche par exemple, elle devient « Suivie » et n'est plus écartée ; elle redevient à traiter si vous supprimez sa candidature. Votre décision et son motif sont gardés avec l'offre, 12 mois après son arrivée, et supprimés avec votre compte ou avec son profil."
     },
     {
       "id": "glossary-clear-conversation",
@@ -1580,6 +1649,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "traitées",
         "suivie",
         "suivre",
+        "écartée",
+        "écarter",
         "boîte d'offres",
         "offres arrivées",
         "inbox"
@@ -1587,7 +1658,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« Offres à traiter » rassemble, en tête de Recherches d'offres, chaque offre qui vous est arrivée : par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach. Une même offre n'y figure qu'une fois, avec une puce pour chaque chemin par lequel elle est arrivée.\n\nUne offre est à traiter tant que vous n'avez rien décidé. « Suivre » en fait une candidature, à « À postuler » : elle est alors « Suivie », et comptée parmi les traitées. L'ouvrir ou la lire ne la traite pas.\n\nChaque offre y est gardée 12 mois après son arrivée, et supprimée avec votre compte ou avec son profil."
+      "body": "« Offres à traiter » rassemble, en tête de Recherches d'offres, chaque offre qui vous est arrivée : par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach. Une même offre n'y figure qu'une fois, avec une puce pour chaque chemin par lequel elle est arrivée.\n\nUne offre est à traiter tant que vous n'avez rien décidé. « Suivre » en fait une candidature, à « À postuler » : elle est alors « Suivie ». « Écarter » la met de côté, avec un motif si vous le souhaitez : elle est alors « Écartée ». Suivie ou écartée, elle compte parmi les traitées. L'ouvrir ou la lire ne la traite pas.\n\nChaque offre y est gardée 12 mois après son arrivée, et supprimée avec votre compte ou avec son profil."
     },
     {
       "id": "glossary-share-capture",
@@ -2908,12 +2979,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "premium",
         "quota",
         "limite",
-        "combien ça coûte"
+        "combien ça coûte",
+        "jetons",
+        "tokens",
+        "consommation"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota, mais chaque offre fixe la part de votre conversation que le coach lit à la fois (« Mémoire du coach », en messages) et la place de ce qu'il relit avant de répondre (« Contexte du coach », comparé à l'offre la plus simple : ×2 en lit deux fois plus).\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
+      "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota, mais chaque offre fixe la part de votre conversation que le coach lit à la fois (« Mémoire du coach », en messages) et la place de ce qu'il relit avant de répondre (« Contexte du coach », comparé à l'offre la plus simple : ×2 en lit deux fois plus).\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nPourquoi ne vois-je pas de jetons ? Les jetons (tokens) sont une mesure technique de ce qu'un modèle d'IA lit et écrit, et aucune offre ne se paie en jetons. « Votre consommation », dans Mon abonnement, compte donc vos utilisations : chaque réponse du coach, recherche d'offres, score ou document préparé est une action IA, comptée par outil sur la période de facturation, jamais en jetons ni en euros. Les jetons restent visibles dans Activité IA, où ils ne sont décomptés d'aucun quota.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
     },
     {
       "id": "faq-email-intake-what-is-read",
@@ -3909,12 +3983,17 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "digest",
         "selection",
-        "offers received"
+        "offers received",
+        "app",
+        "iphone",
+        "ipad",
+        "android",
+        "follow"
       ],
       "route": "/job-digests/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.\n\nA job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
+      "body": "A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.\n\nA job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation.\n\nIn the Jobbbox app (iPhone, iPad, Android), a Job Digest's page shows its profile, the day it was sent and its job offers, closest to your master CV first, above its conversation. Tap a job offer to open it: its Match Score against the profile, a button explaining the score detailing each criterion, its summary and its text. « Follow » creates its application with this profile; once followed, « See the application » opens it. « Set aside » takes it out of your « Offers to handle », with a reason if you wish, and « Undo » goes back on it; a job offer set aside keeps « Go back on this choice »."
     },
     {
       "id": "page-job-offer",
@@ -3946,12 +4025,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "results",
         "job offers found",
         "finished search",
-        "received by email"
+        "received by email",
+        "set aside",
+        "saved"
       ],
       "route": "/recherches/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "A job search's page is its conversation with your AI coach: it has the job offers found and their Match Scores with the profile in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Widen my criteria », « Search again ».\n\nOn the right, the search's fiche: its status, the day it started and the profile's search criteria, which « Change the criteria » opens, then « Search again », or « Stop the search » while it is searching. In « Results », each job offer found with its Match Score; « Job offers found », in « Sections », lists them all.\n\nA job offer opens beside the conversation, without hiding it, with its score, what explains it, and « Save as an application » to follow it in your applications. « Close » or the Escape key closes it.\n\nThe offers you receive by email for this profile are not among a search's results: they are in « Received by email », on the Job searches page.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
+      "body": "A job search's page is its conversation with your AI coach: it has the job offers found and their Match Scores with the profile in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Widen my criteria », « Search again ».\n\nOn the right, the search's fiche: its status, the day it started and the profile's search criteria, which « Change the criteria » opens, then « Search again », or « Stop the search » while it is searching. In « Results », each job offer found with its Match Score; « Job offers found », in « Sections », lists them all. A job offer you already saved carries the label « Saved »; a job offer you set aside in « Offers to handle » carries the label « Set aside »: it can still be read, and « Go back on this choice », in « Set aside », puts it back to handle.\n\nA job offer opens beside the conversation, without hiding it, with its score, what explains it, and « Save as an application » to follow it in your applications. « Close » or the Escape key closes it.\n\nThe offers you receive by email for this profile are not among a search's results: they are in « Received by email », on the Job searches page.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation.\n\nIn the Jobbbox app (iPhone, iPad, Android), a search's page shows its fiche above its conversation: its status, the day it started and the profile's search criteria, to read; « Change the criteria » opens the profile's page of jobbbox.ai in the app. Once the search has ended, « Search again » starts a new one for the same profile, within your plan's quota: when it is used, the app says so as jobbbox.ai does, with nothing to buy. Its job offers follow, closest to your master CV first, each marked « Followed » or « Set aside » when it is. Tap one to open it: its Match Score against the profile, a button explaining the score detailing each criterion, its summary and its text. « Follow » creates its application with this profile; once followed, « See the application » opens it. « Set aside » takes it out of your « Offers to handle », with a reason if you wish, and « Undo » goes back on it; a job offer set aside keeps « Go back on this choice »."
     },
     {
       "id": "page-profile",
@@ -4442,12 +4523,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "receive",
         "frequency",
         "alert",
-        "see all"
+        "see all",
+        "app",
+        "iphone",
+        "ipad",
+        "android"
       ],
       "route": "/job-digests",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nYour coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
+      "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nYour coach can propose to subscribe a profile to its Job Digest, to change how often it comes within your plan, or to unsubscribe it. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts the frequency before back. When your plan does not include the frequency asked for, the proposal shows you the plan that does.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page.\n\nIn the Jobbbox app (iPhone, iPad, Android), « Job Digests » is the same conversation, with the same card: for each profile, how often its Job Digest comes, then each one sent. Tap one to open it on its job offers. The frequency is read in the app and set on jobbbox.ai."
     },
     {
       "id": "page-job-searches",
@@ -4461,6 +4546,12 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "to handle",
         "handled",
         "follow",
+        "set aside",
+        "dismiss",
+        "reason",
+        "not for me",
+        "go back on this choice",
+        "undo",
         "search",
         "look for",
         "find",
@@ -4481,7 +4572,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job searches » opens on « Offers to handle »: every job offer that reached you, through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach, waits there for your decision. A job offer that arrived by several ways is listed once, with a chip for each (« Search », « Job Digest », « Email », « Coach link »), on the day it first arrived.\n\nAt the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link » and « Extension » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.\n\nJob offers are sorted into « Today », then « Earlier », where each line says the day it arrived; in each, by importance: « Not to miss » (Match Score of 80 and above, with a border turning slowly around it), « Worth a look » (60 to 79), « Less suited » (under 60, or not computable). The most recent come first.\n\nEach line gives the Match Score, the title, the employer, the place, the contract, where the job offer came from, how many days it has been posted and, during its last 7 days out of 30, in how many days it leaves and the profile it relates to, or « Unsorted ». « Follow » saves it as an application, at « To apply »: it becomes « Followed ». An application created elsewhere, from a search, the extension or a proposal of your coach, makes it « Followed » too, as long as it exists. « Read the job offer » opens it alongside, with its score explained. The job offers followed today are folded under « Followed today ».\n\nAt the foot of « Offers to handle », « Searches by profile » opens your searches alongside, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several.\n\n« Received by email », at the foot too, shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nThe conversation with your AI coach follows « Offers to handle », its message box at the foot of the page: ask it which job offers to look at first.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nYour coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop the job search » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
+      "body": "« Job searches » opens on « Offers to handle »: every job offer that reached you, through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach, waits there for your decision. A job offer that arrived by several ways is listed once, with a chip for each (« Search », « Job Digest », « Email », « Coach link »), on the day it first arrived.\n\nAt the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed or set aside; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link » and « Extension » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.\n\nJob offers are sorted into « Today », then « Earlier », where each line says the day it arrived; in each, by importance: « Not to miss » (Match Score of 80 and above, with a border turning slowly around it), « Worth a look » (60 to 79), « Less suited » (under 60, or not computable). The most recent come first.\n\nEach line gives the Match Score, the title, the employer, the place, the contract, where the job offer came from, how many days it has been posted and, during its last 7 days out of 30, in how many days it leaves and the profile it relates to, or « Unsorted ». « Follow » saves it as an application, at « To apply »: it becomes « Followed ». An application created elsewhere, from a search, the extension or a proposal of your coach, makes it « Followed » too, as long as it exists. « Read the job offer » opens it alongside, with its score explained. The job offers followed today are folded under « Followed today ».\n\n**Setting a job offer aside.** « Set aside », on each line to handle, asks you why, if you wish: « Not for me », « Salary », « Location », « Contract » or « Already applied elsewhere », or « Set aside without a reason ». The job offer leaves the count at once, counted among those handled, and a message confirms it with « Undo », which puts it back to handle. A job offer set aside is not offered to you again: no Job Digest sends it again, a job offer email that holds it counts it as already seen, and it shows « Set aside » in a search's results. For other candidates, nothing changes. At the foot of the box, « Set aside », folded, lists the job offers set aside in the last 30 days, the latest first, with their reason; « Go back on this choice » puts a job offer back to handle, at any time. A followed job offer cannot be set aside: it is to handle again if you delete its application.\n\nAt the foot of « Offers to handle », « Searches by profile » opens your searches alongside, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several.\n\n« Received by email », at the foot too, shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nThe conversation with your AI coach follows « Offers to handle », its message box at the foot of the page: ask it which job offers to look at first.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nYour coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop the job search » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.\n\nIn the Jobbbox app (iPhone, iPad, Android), « Job searches » also opens on « Offers to handle », with the same counts, chips, tiers and decisions: « Follow », « Set aside » and its reason, « Undo », « Set aside » folded at the foot and « Go back on this choice ». Tap a job offer to open it over the page: its Match Score against the profile, a button explaining the score detailing each criterion, its summary and its text, then « Follow » and « Set aside »; once followed, « See the application » opens it. In the « Your job searches by profile » card, under the conversation, each search says where it stands, how many job offers it found and, when there are some, « New results »: tap it to open it. « Start a search » starts one, within your plan's quota; nothing is bought in the app.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
     },
     {
       "id": "page-account",
@@ -4607,12 +4698,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "withdrawal",
         "invoices",
         "promotion code",
-        "usage"
+        "usage",
+        "consumption",
+        "billing period",
+        "ai actions",
+        "tokens"
       ],
       "route": "/abonnement",
       "motion": null,
       "microAnimations": [],
-      "body": "This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it. Each card also gives the « Coach memory », the number of latest messages of the conversation your coach reads, and the « Coach context », the room for what it reads again before replying, compared with the simplest plan's (×1); « Unlimited » when the plan sets no limit.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: … until … », and an acknowledgement is sent to you by email.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number. « Invoices and payment method » leads there too, to download your invoices.\n\n« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, before payment on Stripe's page. On the Free plan, a « Promotion code » entered here, then « Apply », is checked, and will apply at payment for a new subscription.\n\nFor 14 days after you subscribe, « Withdraw from the contract here » lets you withdraw, without a reason: your subscription is cancelled at once and you are back on the Free plan. What you paid is refunded in full or, if you asked for the service to start at once, less the share of the days elapsed since the start of the period. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
+      "body": "This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it. Each card also gives the « Coach memory », the number of latest messages of the conversation your coach reads, and the « Coach context », the room for what it reads again before replying, compared with the simplest plan's (×1); « Unlimited » when the plan sets no limit.\n\n« Your consumption » shows what you used during the billing period: on a paid plan, from the first day of the period you pay for to the day before the next one (for example from October 18 to November 17); on the Free plan, which is not billed, the current month. At the top, the number of AI actions in the period, each coach reply, job search, score or prepared document counting as one, and the change against the same day of the previous period; beside it, how far into the period you are (for example, day 19 of 31). « By tool, this period » gives each tool with its count and its share of your actions; « Others » groups the ATS Score, company dossiers, enriched contacts and CV reading. A tool with a weekly quota repeats it (for example, 4 of 7 this week), or says « Not included in your plan »; the others are « No limit in your plan ».\n\n« Day by day, over twelve months » shows one square per day, Monday to Sunday, one column per week: the darker it is, the more you used Jobbbox that day, and the days of the current period are outlined. Hover over a square, or move from one to the next with the keyboard's arrow keys, to see its date and each tool's count. « Bars » shows the period day by day, by tool; your choice is kept in this browser. « Show as a table » gives the same figures in a table. Everything is counted in uses. These figures are kept 12 months, erased with your account and included in your data export; the AI models that produced each piece of content are in AI Activity.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: … until … », and an acknowledgement is sent to you by email.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number. « Invoices and payment method » leads there too, to download your invoices.\n\n« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, before payment on Stripe's page. On the Free plan, a « Promotion code » entered here, then « Apply », is checked, and will apply at payment for a new subscription.\n\nFor 14 days after you subscribe, « Withdraw from the contract here » lets you withdraw, without a reason: your subscription is cancelled at once and you are back on the Free plan. What you paid is refunded in full or, if you asked for the service to start at once, less the share of the days elapsed since the start of the period. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
     },
     {
       "id": "page-acceptance",
@@ -5082,6 +5177,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "ai activity",
         "activity",
+        "right now",
+        "running elsewhere",
+        "nothing is running",
         "models",
         "model",
         "tokens",
@@ -5095,7 +5193,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».\n\nTokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.\n\nWhile an AI action runs, on this page or « Running elsewhere », each step shows live, and « Stop » interrupts it: what was finished is kept. Each step has its glyph, which moves while it runs:\n\n- « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;\n- « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;\n- « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;\n- « Looking at your data » and « Preparing a proposal »: the toolbox opening, a key coming out when the coach reads your applications, your agenda or your profile, a small card when it prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».\n\nIf you asked your device for less motion, each glyph stays still.\n\nA stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting. At the bottom, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy."
+      "body": "« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».\n\nTokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.\n\n« Right now », at the top of the activity, just under the conversation's context, shows the AI actions under way: this page's first, then « Running elsewhere », with a link to their page. A job search running while the coach answers you shows there beside its reply. For each: its glyph, the step under way, the number of steps done and the time so far; for a coach reply, each tool it looks at, ticked once done. The stop icon interrupts it: what was finished is kept. A finished action leaves « Right now »; with nothing under way, it says « Nothing is running on this page. ».\n\nEach step has its glyph, which moves while it runs:\n\n- « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;\n- « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;\n- « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;\n- « Looking at your data » and « Preparing a proposal »: the toolbox opening, a key coming out when the coach reads your applications, your agenda or your profile, a small card when it prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».\n\nIf you asked your device for less motion, each glyph stays still.\n\nA stopped or failed action stays in « Right now », in light red, and says so in words, with its reason when known. AI activity never shows a cost or an internal setting. At the bottom, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy."
     },
     {
       "id": "glossary-ai-coach",
@@ -5269,6 +5367,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "A change your AI coach prepares during a conversation, for instance an application's status. It shows under its reply, in a card « Proposed by your AI coach »: what changes, before and after, and the item it is about.\n\nYour coach never changes anything itself and never deletes anything: you choose « Apply », « Edit before applying » or « Ignore ». An applied proposal can be undone as long as the item has not changed since. The item keeps that it was changed on your coach's proposal: « Origin » says so."
+    },
+    {
+      "id": "glossary-consumption",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Consumption",
+      "synonyms": [
+        "your consumption",
+        "ai actions",
+        "usage",
+        "billing period",
+        "grid",
+        "day by day",
+        "by tool"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "What you used of Jobbbox, counted in AI actions: each coach reply, job search, Match Score, ATS Score, tailored CV, cover letter or outreach message, company dossier, enriched contact or CV read counts as one, under its tool.\n\n« Your consumption », on My subscription, shows it over the billing period (the current month on the Free plan), by tool and day by day over twelve months. It does not replace the quotas, which count each week.\n\nIt is counted in uses, never in tokens or euros, kept 12 months, erased with your account and included in your data export. It keeps no content and no name of an AI model: those are in AI Activity."
     },
     {
       "id": "glossary-conversation-context",
@@ -5517,6 +5636,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "handled",
         "followed",
         "follow",
+        "set aside",
         "offer box",
         "arrived job offers",
         "inbox"
@@ -5524,7 +5644,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« Offers to handle » gathers, at the top of Job searches, every job offer that reached you: through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach. The same job offer is listed once, with a chip for each way it arrived.\n\nA job offer is to handle as long as you have not decided anything. « Follow » makes it an application, at « To apply »: it is then « Followed », and counted among those handled. Opening or reading it does not handle it.\n\nEach job offer is kept there 12 months after it arrived, and deleted with your account or with its profile."
+      "body": "« Offers to handle » gathers, at the top of Job searches, every job offer that reached you: through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach. The same job offer is listed once, with a chip for each way it arrived.\n\nA job offer is to handle as long as you have not decided anything. « Follow » makes it an application, at « To apply »: it is then « Followed ». « Set aside » puts it aside, with a reason if you wish: it is then « Set aside ». Followed or set aside, it counts among those handled. Opening or reading it does not handle it.\n\nEach job offer is kept there 12 months after it arrived, and deleted with your account or with its profile."
     },
     {
       "id": "glossary-passkey",
@@ -5641,6 +5761,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Results are what your AI coach made for an application and kept with it: the Tailored CV, the cover letter, the outreach message, the follow-ups it suggests. They are listed in the fiche's « Results » group, each with where it stands (« Draft of … », « Saved on … »).\n\nA result opens beside the conversation, on its own (over it, full screen, on a phone): you review, edit, download or copy it there. Nothing is sent without your click. « Close » or the Escape key closes it."
+    },
+    {
+      "id": "glossary-set-aside",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Set aside",
+      "synonyms": [
+        "set aside",
+        "dismiss",
+        "dismissed",
+        "reason",
+        "not for me",
+        "go back on this choice",
+        "rejected",
+        "ignored"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "A job offer is « Set aside » when you put it aside in « Offers to handle » with « Set aside », giving a reason if you wish: « Not for me », « Salary », « Location », « Contract » or « Already applied elsewhere ». It then counts among those handled.\n\nA job offer set aside counts as already seen everywhere: no Job Digest offers it to you again, a job offer email that holds it counts it as already seen, and it shows « Set aside » in a search's results. The job offer itself is not deleted, and other candidates still see it.\n\nThe job offers set aside in the last 30 days are in « Set aside », at the foot of « Offers to handle », with their reason. « Go back on this choice » puts a job offer back to handle, at any time. If you then save a job offer set aside, from a search for instance, it becomes « Followed » and is no longer set aside; it is to handle again if you delete its application. Your decision and its reason are kept with the job offer, 12 months after it arrived, and deleted with your account or with its profile."
     },
     {
       "id": "glossary-share-capture",
@@ -6342,12 +6484,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "premium",
         "quota",
         "limit",
-        "how much does it cost"
+        "how much does it cost",
+        "tokens",
+        "consumption"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota, but each Plan sets how much of your conversation the coach reads at once (« Coach memory », in messages) and the room for what it reads again before replying (« Coach context », compared with the simplest plan: ×2 reads twice as much).\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nSessions with a human coach are paid separately, outside the Plans."
+      "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota, but each Plan sets how much of your conversation the coach reads at once (« Coach memory », in messages) and the room for what it reads again before replying (« Coach context », compared with the simplest plan: ×2 reads twice as much).\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nWhy don't I see tokens? Tokens are a technical measure of what an AI model reads and writes, and no plan is paid for in tokens. « Your consumption », on My subscription, therefore counts your uses: each coach reply, job search, score or prepared document is an AI action, counted by tool over the billing period, never in tokens or euros. Tokens stay visible in AI Activity, where they count towards no quota.\n\nSessions with a human coach are paid separately, outside the Plans."
     },
     {
       "id": "faq-search-criteria",

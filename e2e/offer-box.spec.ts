@@ -132,6 +132,101 @@ test.describe("The Offer box (#815, ADR-0090)", () => {
 
   test("only the Candidate who is signed in reads the Offer box", async ({ request }) => {
     expect((await request.get("/api/offer-box")).status()).toBe(401);
+    expect((await request.post("/api/offer-box/00000000-0000-4000-8000-000000000000/dismissal", { headers: { origin }, data: {} })).status()).toBe(401);
+  });
+
+  // Issue #816 (« Offres à traiter 2 »): « Écarter » with a Dismissal reason or none, the toast's « Annuler », « Écartées »
+  // and « Revenir sur ce choix », on the page and over `/api`; another Candidate's entry of the same Job Offer untouched.
+  // That a Job Digest and Email intake leave an écartée Job Offer out is asserted in their modules' tests.
+  test("« Écarter » with a reason takes the entry out of the count, « Annuler » puts it back; « Écarter sans motif » then « Revenir sur ce choix » in « Écartées »; another Candidate's entry stays à traiter", async ({ browser }) => {
+    const ines = await candidate(browser, "offer-box-dismiss");
+    await toConversation(ines.page);
+    await pasteLink(ines.page);
+    const paul = await candidate(browser, "offer-box-dismiss-other");
+    await toConversation(paul.page);
+    await pasteLink(paul.page);
+    const [entry] = (await offerBox(ines.page)).entries;
+
+    await ines.page.goto("/recherches");
+    const box = ines.page.getByRole("region", { name: /^Offres à traiter/ });
+    const line = box.getByRole("listitem", { name: TITLE });
+    await line.getByRole("button", { name: fr.offerBox.dismiss }).click();
+    const reasons = line.getByRole("group", { name: fr.offerBox.dismissWhy });
+    await expect(reasons.getByRole("button")).toHaveText([...Object.values(fr.offerBox.dismissalReasons as Record<string, string>), fr.offerBox.dismissWithoutReason]);
+    await reasons.getByRole("button", { name: fr.offerBox.dismissalReasons.salary }).click();
+
+    await expect(ines.page.getByRole("status").filter({ hasText: `« ${TITLE} » écartée.` })).toBeVisible();
+    await expect(box.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "1"))).toBeVisible();
+    expect(await offerBox(ines.page)).toMatchObject({ toHandle: 0, entries: [{ id: entry!.id, state: "dismissed", dismissalReason: "salary" }] });
+    expect((await offerBox(paul.page)).entries).toMatchObject([{ jobOffer: { id: entry!.jobOffer.id }, state: "to_handle" }]);
+
+    // « Annuler », in the toast: à traiter again.
+    await ines.page.getByRole("button", { name: fr.offerBox.undo }).click();
+    await expect(box.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "1"))).toBeHidden();
+    expect(await offerBox(ines.page)).toMatchObject({ toHandle: 1, entries: [{ state: "to_handle", dismissalReason: null }] });
+
+    // « Écarter sans motif », then « Revenir sur ce choix » from « Écartées », folded at the foot.
+    await line.getByRole("button", { name: fr.offerBox.dismiss }).click();
+    await line.getByRole("button", { name: fr.offerBox.dismissWithoutReason }).click();
+    const fold = box.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "1"));
+    await fold.click();
+    const dismissed = box.locator(".offer-box-dismissed").getByRole("listitem", { name: TITLE });
+    await expect(dismissed).toContainText(fr.offerBox.dismissed);
+    await dismissed.getByRole("button", { name: fr.offerBox.reconsiderLabel.replace("{{title}}", TITLE) }).click();
+    await expect(box.locator(".offer-box-dismissed")).toHaveCount(0);
+    expect((await offerBox(ines.page)).toHandle).toBe(1);
+
+    // Over `/api`: a reason outside the list, another Candidate's entry, an entry « Suivie ».
+    const dismiss = (page: Page, id: string, data: object) => page.request.post(`/api/offer-box/${id}/dismissal`, { headers: { origin }, data });
+    expect((await dismiss(ines.page, entry!.id, { reason: "trop loin" })).status()).toBe(400);
+    expect((await dismiss(paul.page, entry!.id, {})).status()).toBe(404);
+    expect((await paul.page.request.delete(`/api/offer-box/${entry!.id}/dismissal`, { headers: { origin } })).status()).toBe(404);
+    const saved = await ines.page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: entry!.jobOffer.id, profileId: ines.profileId } });
+    expect(saved.ok(), await saved.text()).toBe(true);
+    const refused = await dismiss(ines.page, entry!.id, { reason: "salary" });
+    expect(refused.status()).toBe(409);
+    expect(await refused.json()).toEqual({ error: "followed" });
+  });
+
+  // « Écartées » shows the last 30 days', the most recent first, each with its reason (#816).
+  test("« Écartées » lists the entries écartées in the last 30 days, the most recent first with their reason; one écartée 40 days ago is left out", async ({ browser }) => {
+    const ines = await candidate(browser, "offer-box-dismissed-window");
+    await toConversation(ines.page);
+    await pasteLink(ines.page);
+    const [pasted] = (await offerBox(ines.page)).entries;
+    const extras = await withDatabase(databaseUrl, async (db) => {
+      const made: Record<string, string> = {};
+      for (const [key, daysAgo, reason] of [["recent", 3, "contract"], ["older", 12, "applied_elsewhere"], ["ancient", 40, "location"]] as const) {
+        const offer = await db.query(`INSERT INTO job_offer (url_key, content_fingerprint, source_url, title, content) VALUES ($1, $1, $2, $3, 'Un poste.') RETURNING id`, [`dw-${tag}-${key}`, `https://emploi-e2e.example/${tag}/dw-${key}`, `Offre ${key} ${tag}`]);
+        await db.query(
+          `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources, state, decided_at, dismissal_reason)
+           VALUES ($1, $2, $3, now() - interval '50 days', '{"job_search": "2026-01-01T00:00:00.000Z"}', 'dismissed', now() - make_interval(days => $4), $5)`,
+          [ines.candidateId, offer.rows[0].id, ines.profileId, daysAgo, reason],
+        );
+        made[key] = `Offre ${key} ${tag}`;
+      }
+      return made;
+    });
+    const dismissed = await ines.page.request.post(`/api/offer-box/${pasted!.id}/dismissal`, { headers: { origin }, data: { reason: "not_for_me" } });
+    expect(dismissed.status()).toBe(204);
+
+    const box = await offerBox(ines.page);
+    // The read keeps the last 30 days' (the one 40 days ago is out); the page orders them, the most recent first.
+    expect(box.entries.filter((entry) => entry.state === "dismissed").map((entry) => entry.jobOffer.title).sort()).toEqual([TITLE, extras.recent!, extras.older!].sort());
+
+    await ines.page.goto("/recherches");
+    const region = ines.page.getByRole("region", { name: /^Offres à traiter/ });
+    const fold = region.locator(".offer-box-dismissed");
+    await expect(fold).not.toHaveAttribute("open", "");
+    await region.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "3")).click();
+    await expect(fold.getByRole("listitem")).toHaveText([
+      new RegExp(`${TITLE}[\\s\\S]*${fr.offerBox.dismissalReasons.not_for_me}`),
+      new RegExp(`${extras.recent}[\\s\\S]*${fr.offerBox.dismissalReasons.contract}`),
+      new RegExp(`${extras.older}[\\s\\S]*${fr.offerBox.dismissalReasons.applied_elsewhere}`),
+    ]);
+    await expect(ines.page.getByText(extras.ancient!)).toHaveCount(0);
+    // Folded at the foot of the box: after the days' entries, just before the links that close it.
+    expect(await fold.evaluate((node) => node.nextElementSibling?.className)).toBe("offer-box-foot");
   });
 });
 

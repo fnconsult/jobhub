@@ -624,6 +624,38 @@ test.describe("Job Digest", () => {
     expect(digestReports(profileId)).toHaveLength(1);
   });
 
+  // Issue #816: a Job Offer écartée from the Offer box is never sent by a Job Digest, whatever the Profile.
+  test("a Job Offer écartée from the Offer box is not sent by the Job Digest of another Profile of the Candidate, which still sends the other one (#816)", async ({ page }) => {
+    const address = await signIn(page, "digest-dismissed", "standard");
+    const profileId = await createProfile(page);
+    await optIn(page, profileId);
+    await optedInLastWeek(profileId);
+    await scheduleTick();
+    await waitForDigestRun(profileId, 1);
+    await expect.poll(() => emailsTo(address).length, { message: workerOutput }).toBe(1);
+    expect(emailsTo(address)[0]!.text).toContain(`- ${DAF}`);
+    expect(emailsTo(address)[0]!.text).toContain(`- ${RESPONSABLE}`);
+
+    // The Candidate écarte the DAF one from their Offer box (« Salaire »).
+    const box = offerBoxResponseSchema.parse(await (await page.request.get("/api/offer-box")).json());
+    const entry = box.entries.find((one) => one.jobOffer.title === DAF)!;
+    const dismissed = await page.request.post(`/api/offer-box/${entry.id}/dismissal`, { headers: { origin }, data: { reason: "salary" } });
+    expect(dismissed.status()).toBe(204);
+
+    // Another Profile, due on the next tick: its Job Digest was never sent either Job Offer, yet leaves out the DAF one.
+    const otherProfileId = await createProfile(page, "Directrice financière et administrative");
+    await optIn(page, otherProfileId);
+    await optedInLastWeek(otherProfileId);
+    await scheduleTick();
+    await waitForDigestRun(otherProfileId, 1);
+    await expect.poll(() => emailsTo(address).length, { message: workerOutput }).toBe(2);
+    const second = emailsTo(address)[1]!;
+    expect(second.text).toContain(`- ${RESPONSABLE}`);
+    expect(second.text).not.toContain(DAF);
+    // The decision stands: still écartée, with its reason.
+    expect(offerBoxResponseSchema.parse(await (await page.request.get("/api/offer-box")).json()).entries.find((one) => one.id === entry.id)).toMatchObject({ state: "dismissed", dismissalReason: "salary" });
+  });
+
   test("stops when the Plan no longer includes it (Premium cancelled) and for an Archived Profile; a daily choice is sent weekly once Premium is lowered to Standard; a Candidate still entitled keeps receiving theirs", async ({ browser }) => {
     const fresh = async () => (await browser.newContext({ baseURL: origin })).newPage();
     const stripe = async (page: Page, event: ReturnType<typeof subscriptionEvent>) => {

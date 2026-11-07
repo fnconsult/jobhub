@@ -1,41 +1,34 @@
 import { importanceTier, offerBoxView, postingAge, type OfferBoxDay, type OfferBoxFilter } from "@jobhub/shared";
 import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { useApi } from "../api/api";
-import { useOfferBox } from "../api/reads";
+import { useOfferBox, useOfferBoxOffer } from "../api/reads";
+import { FoundJobOfferPane } from "../job-searches/FoundJobOffer";
 import { openPostingAction, shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
-import { readKey } from "../offline/read-cache";
 import { ReadState } from "../screens/ReadState";
 import { useWorkPane } from "../shell/Shell";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { ObjectRow } from "../ui/ObjectRow";
+import { OfferDecision, useDismissalNotice, useOfferBoxDecisions, type OfferBoxDecisions } from "./decisions";
 
 /**
  * Recherches d'offres in the app (ADR-0090, #815): the Offer box (« Offres à traiter ») as `GET /api/offer-box` answers
  * it, laid out by `offerBoxView` as the web lays it out: « N à traiter » and « k traitées », the source chips, « Aujourd'hui »
- * then « Précédemment » by Importance tier, each entry with « Suivre » (`POST /api/applications`, then the box read
- * again). An entry opens in the Work Pane; its context menu opens its posting or shares its web address. It leads the
- * page: the menu's Coach Conversation follows it, its box at the foot (JobSearchesMenu, variant B of ADR-0090).
+ * then « Précédemment » by Importance tier, each entry with « Suivre » (`POST /api/applications`) and « Écarter » (its
+ * Dismissal reasons or « Écarter sans motif », `POST /api/offer-box/:id/dismissal`, #816), then the box read again; a
+ * notice says it was écartée, with « Annuler » (and, when that fails, that the offer stays écartée). « Écartées », folded at the foot, each with « Revenir sur ce choix »
+ * (`DELETE`). An entry opens in the Work Pane; its context menu opens its posting or shares its web address. It leads
+ * the page: the menu's Coach Conversation follows it, its box at the foot (JobSearchesMenu, variant B of ADR-0090).
  */
 export function OfferBox() {
   const { t } = useTranslation();
   const box = useOfferBox();
-  const api = useApi();
-  const queries = useQueryClient();
-  const follow = async (entry: OfferBoxEntryRead): Promise<boolean> => {
-    if (!entry.scoredWith) return false;
-    const response = await api("/api/applications", { method: "POST", body: JSON.stringify({ jobOfferId: entry.jobOffer.id, profileId: entry.scoredWith.id }) }).catch(() => null);
-    if (!response || (response.status !== 200 && response.status !== 201)) return false;
-    await queries.invalidateQueries({ queryKey: readKey("offerBox") });
-    return true;
-  };
-  if (box.data) return <OfferBoxList box={box.data} onFollow={follow} />;
+  const decisions = useOfferBoxDecisions();
+  if (box.data) return <OfferBoxList box={box.data} decisions={decisions} />;
   return (
     <View style={{ alignItems: "center", gap: space[2] }}>
       <ReadState read={box}>{() => null}</ReadState>
@@ -45,11 +38,13 @@ export function OfferBox() {
 }
 
 /** The Offer box, filtered by a source chip (« Toutes » first). */
-export function OfferBoxList({ box, onFollow }: { box: OfferBoxResponse; onFollow: (entry: OfferBoxEntryRead) => Promise<boolean> }) {
+export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisions: OfferBoxDecisions }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [filter, setFilter] = useState<OfferBoxFilter>("all");
+  const [dismissedOpen, setDismissedOpen] = useState(false);
   const view = offerBoxView(box, filter);
+  const { decisions: lineDecisions, notice } = useDismissalNotice(decisions);
   return (
     <View style={{ gap: space[4] }}>
       <View style={{ gap: space[2] }}>
@@ -72,6 +67,7 @@ export function OfferBoxList({ box, onFollow }: { box: OfferBoxResponse; onFollo
             />
           ))}
         </View>
+        {notice}
       </View>
       {box.entries.length === 0 ? (
         <View style={{ gap: space[1] }}>
@@ -80,18 +76,31 @@ export function OfferBoxList({ box, onFollow }: { box: OfferBoxResponse; onFollo
         </View>
       ) : (
         <>
-          <Day name={t("offerBox.today")} day={view.today} today={box.today} nothing={t("offerBox.nothingToday")} followed={(count) => t("offerBox.followedToday", { count })} onFollow={onFollow} />
+          <Day name={t("offerBox.today")} day={view.today} today={box.today} nothing={t("offerBox.nothingToday")} followed={(count) => t("offerBox.followedToday", { count })} decisions={lineDecisions} />
           <Day
             name={t("offerBox.earlier")}
             day={view.earlier}
             today={box.today}
             nothing={t("offerBox.nothingEarlier")}
             followed={(count) => t("offerBox.followedEarlier", { count })}
-            onFollow={onFollow}
+            decisions={lineDecisions}
             showDay
           />
         </>
       )}
+      {view.dismissed.length > 0 ? (
+        <View style={{ gap: space[2] }}>
+          <Control label={t("offerBox.dismissedBlock", { count: view.dismissed.length })} expanded={dismissedOpen} onPress={() => setDismissedOpen(!dismissedOpen)} />
+          {dismissedOpen ? (
+            <>
+              <AppText tone="secondary">{t("offerBox.dismissedHint")}</AppText>
+              {view.dismissed.map((entry) => (
+                <Line key={entry.id} entry={entry} today={box.today} showDay decisions={lineDecisions} />
+              ))}
+            </>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -103,7 +112,7 @@ function Day({
   today,
   nothing,
   followed,
-  onFollow,
+  decisions,
   showDay = false,
 }: {
   name: string;
@@ -111,7 +120,7 @@ function Day({
   today: string;
   nothing: string;
   followed: (count: number) => string;
-  onFollow: (entry: OfferBoxEntryRead) => Promise<boolean>;
+  decisions: OfferBoxDecisions;
   showDay?: boolean;
 }) {
   const { t } = useTranslation();
@@ -128,27 +137,28 @@ function Day({
             {t(`offerBox.tiers.${tier}`)}
           </AppText>
           {entries.map((entry) => (
-            <Line key={entry.id} entry={entry} today={today} showDay={showDay} onFollow={onFollow} />
+            <Line key={entry.id} entry={entry} today={today} showDay={showDay} decisions={decisions} />
           ))}
         </View>
       ))}
       {day.followed.length > 0 ? (
         <View style={{ gap: space[2] }}>
           <Control label={followed(day.followed.length)} expanded={open} onPress={() => setOpen(!open)} />
-          {open ? day.followed.map((entry) => <Line key={entry.id} entry={entry} today={today} showDay={showDay} onFollow={onFollow} />) : null}
+          {open ? day.followed.map((entry) => <Line key={entry.id} entry={entry} today={today} showDay={showDay} decisions={decisions} />) : null}
         </View>
       ) : null}
     </View>
   );
 }
 
-/** One Offer box entry: its row (opened in the Work Pane, its context menu), its facts, « Suivre ». */
-function Line({ entry, today, showDay, onFollow }: { entry: OfferBoxEntryRead; today: string; showDay: boolean; onFollow: (entry: OfferBoxEntryRead) => Promise<boolean> }) {
+/**
+ * One Offer box entry: its row (opened in the Work Pane, its context menu), its facts, where it stands and what can be
+ * decided (OfferDecision).
+ */
+function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; today: string; showDay: boolean; decisions: OfferBoxDecisions }) {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const workPane = useWorkPane();
-  const [working, setWorking] = useState(false);
-  const [failed, setFailed] = useState(false);
   const { jobOffer } = entry;
   const tier = importanceTier(entry.matchScore);
   const label = [jobOffer.title, jobOffer.employer].filter(Boolean).join(" · ");
@@ -166,21 +176,15 @@ function Line({ entry, today, showDay, onFollow }: { entry: OfferBoxEntryRead; t
   const open = () =>
     workPane.open({
       title: jobOffer.title,
-      content: (
+      content: entry.scoredWith ? (
+        <EntryPane entryId={entry.id} />
+      ) : (
         <View style={{ gap: space[2] }}>
           <AppText weight="semiBold">{score}</AppText>
           {facts ? <AppText tone="secondary">{facts}</AppText> : null}
-          <AppText tone="secondary">{t("mobile.jobOfferPlaceholder")}</AppText>
         </View>
       ),
     });
-  const follow = async () => {
-    setWorking(true);
-    setFailed(false);
-    const followed = await onFollow(entry);
-    setWorking(false);
-    setFailed(!followed);
-  };
   return (
     <View
       aria-label={jobOffer.title}
@@ -209,14 +213,16 @@ function Line({ entry, today, showDay, onFollow }: { entry: OfferBoxEntryRead; t
       <AppText variant="meta" tone="secondary">
         {tags.join(" · ")}
       </AppText>
-      {entry.state === "followed" ? (
-        <AppText tone="success">{t("offerBox.followed")}</AppText>
-      ) : entry.scoredWith ? (
-        <View style={{ alignSelf: "flex-start" }}>
-          <Control label={working ? t("offerBox.following") : t("offerBox.follow")} accessibleName={`${t("offerBox.follow")} : ${jobOffer.title}`} look="primary" disabled={working} onPress={() => void follow()} />
-        </View>
-      ) : null}
-      {failed ? <AppText tone="danger">{t("offerBox.followError")}</AppText> : null}
+      <OfferDecision entry={entry} decisions={decisions} />
     </View>
   );
+}
+
+/**
+ * An entry opened in the Work Pane (#692), as a Job Search's Job Offer opens (FoundJobOfferPane): its text and why its
+ * Match Score, against the Profile « Suivre » saves it with, read when it opens (`GET /api/offer-box/:id`).
+ */
+function EntryPane({ entryId }: { entryId: string }) {
+  const read = useOfferBoxOffer(entryId);
+  return <ReadState read={read}>{({ found, profile }) => <FoundJobOfferPane found={found} profile={profile} />}</ReadState>;
 }

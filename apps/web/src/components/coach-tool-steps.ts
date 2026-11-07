@@ -90,17 +90,23 @@ export function consultedElements(provenance: Provenance | null, names: Readonly
   const actions = (provenance?.steps ?? []).filter(isCoachAction) as Extract<ProvenanceStep, { kind: "tool" }>[];
   if (actions.length === 0) return [];
   const seen: SeenObject[] = actions.flatMap((step) => step.seen ?? []);
-  if (seen.length > 0) {
-    const once = seen.filter((object, index) => seen.findIndex((other) => JSON.stringify(other) === JSON.stringify(object)) === index);
-    return once.map((object): ConsultedElement => {
-      if ("count" in object) return { kind: "count", type: object.type, count: object.count };
-      const href = object.href ?? null;
-      return { kind: "object", href, page: href ? pageOf(href) : null, name: href ? (names[href] ?? null) : null, type: object.type };
-    });
-  }
+  if (seen.length > 0) return seenElements(seen, names);
   const links = provenance!.sites.flatMap((site) => (site.kind === "candidate" ? site.links : []));
   if (links.length > 0) return links.map((href) => ({ kind: "page", href, page: pageOf(href) }));
   return actions.map((step) => ({ kind: "tool", tool: step.tool }));
+}
+
+/**
+ * What Coach Actions saw, each object once, in order: by its name (`names`, by page) linked to its page, else by its kind
+ * of page; a list by how many it held. All of a reply's, or one Coach Action's, for its step in Activité (#807).
+ */
+export function seenElements(seen: readonly SeenObject[], names: Readonly<Record<string, string>> = {}): Extract<ConsultedElement, { kind: "object" | "count" }>[] {
+  const once = seen.filter((object, index) => seen.findIndex((other) => JSON.stringify(other) === JSON.stringify(object)) === index);
+  return once.map((object) => {
+    if ("count" in object) return { kind: "count", type: object.type, count: object.count };
+    const href = object.href ?? null;
+    return { kind: "object", href, page: href ? pageOf(href) : null, name: href ? (names[href] ?? null) : null, type: object.type };
+  });
 }
 
 /** A page by its path: /candidatures/a1/entretiens is an Application, /recherches/s1/offres/o1 a Job Offer. */

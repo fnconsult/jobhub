@@ -42,6 +42,8 @@ const PAGES = [
   // What Mon abonnement draws: the failed-payment Note and the quota-reached card.
   join(components, "PaymentFailedNotice.tsx"),
   join(components, "UpgradePrompt.tsx"),
+  // « Votre consommation » (#801).
+  join(components, "ConsumptionSection.tsx"),
 ];
 
 /** The old markup's classes, each with the Design System component that replaces it. */
@@ -83,7 +85,7 @@ describe("the Agenda, Mon compte and Mon abonnement in the Design System (#469, 
     expect(used.map((name) => `${name} → ${OLD_CLASSES[name]}`)).toEqual([]);
   });
 
-  it.each([join(app, "agenda/agenda.css"), join(app, "abonnement/abonnement.css"), join(app, "compte/account.css")].map((file) => [file.slice(join(app, "..").length + 1), file]))(
+  it.each([join(app, "agenda/agenda.css"), join(app, "abonnement/abonnement.css"), join(app, "compte/account.css"), join(components, "ConsumptionSection.css")].map((file) => [file.slice(join(app, "..").length + 1), file]))(
     "%s keeps its page's layout beside it, on the ADR-0009 floor and the tokens",
     (_, file) => {
       expect(auditStylesheet(readFileSync(file, "utf8"))).toEqual([]);

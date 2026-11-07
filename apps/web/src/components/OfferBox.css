@@ -292,6 +292,27 @@
   margin: 0;
 }
 
+/* « Écarter »'s Dismissal reasons, under the line's actions. */
+.offer-box-reasons {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  font-size: var(--font-size-meta);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.offer-box-reasons > span {
+  color: var(--color-text-secondary);
+}
+
+.offer-box-entry[data-state="dismissed"] {
+  background: var(--color-surface);
+}
+
 .offer-box-followed {
   padding-top: var(--space-2);
   margin-top: var(--space-3);

@@ -5380,28 +5380,71 @@ textarea.title-edit {
   align-items: center;
 }
 
-.ai-activity-live-step-words {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.ai-activity-live-step-at {
-  flex: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.ai-activity-live-step:not([data-running]) .activity-glyph {
-  stroke: var(--color-text-meta);
-}
-
 .ai-activity-live-link {
   align-self: flex-start;
 }
 
-.ai-activity-elsewhere > h3 {
-  margin: var(--space-3) 0 0;
+.ai-activity-elsewhere > h5 {
+  margin: var(--space-2) 0 0;
   font-size: inherit;
+}
+
+/* « En ce moment » (ADR-0086, #806): the top of Activity, under the Context bar. A quiet card with nothing running, in the
+   accent's soft tint while an action runs; each action on the page's background, its glyph live in the accent, a stopped
+   or failed one in very light red (above), its glyph still in the metadata colour. Contrast: en-ce-moment-contrast.test.ts. */
+.en-ce-moment {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.en-ce-moment[data-running] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-line);
+}
+
+.en-ce-moment-title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.en-ce-moment-nothing {
+  margin: 0;
+  color: var(--color-text-meta);
+}
+
+.en-ce-moment-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+  margin: 0;
+  background: var(--color-background);
+}
+
+.en-ce-moment-action > .activity-glyph {
+  margin-top: 0.15em;
+}
+
+.en-ce-moment-action:not([data-status="running"]):not([data-status="stopping"]) > .activity-glyph {
+  stroke: var(--color-text-meta);
+}
+
+.en-ce-moment-words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.en-ce-moment-words > p {
+  margin: 0;
 }
 
 /* From 64rem the pane is a card on the right of the page's column, the page making room for it. */

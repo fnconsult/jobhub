@@ -113,7 +113,8 @@ export interface CoachConversation extends CoachConversationSummary {
 
 /**
  * `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). `jobOffer`: the reply's Job Offer card, if any.
- * `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date.
+ * `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date; `sent`: what it sent in all its AI calls
+ * (#805), as it was saved (null when the AI Coach wrote none).
  * `couldNotAnswer`: the AI Coach marked the question as one it could not answer (#345), so the Coach Panel offers the team at
  * once; never saved, so a reopened conversation no longer says it.
  * `context`: the conversation's Context bar's figures once the message is saved (#607).
@@ -130,6 +131,7 @@ export type SendResult =
       jobOffer?: JobOfferCard;
       provenance: Provenance;
       at: string;
+      sent: ReplyCost | null;
       couldNotAnswer: boolean;
       context: ConversationContext;
       cards?: CoachProposalCard[];
@@ -186,10 +188,14 @@ export interface CoachConversations {
   repliesAbout(candidateId: string, focus: Focus): Promise<ReplyAbout[]>;
 }
 
-/** An AI Coach reply as AI Activity counts it with its focus's page: when it was saved, an ISO date, and what served it. */
+/**
+ * An AI Coach reply as AI Activity counts it with its focus's page: when it was saved, an ISO date, what served it, and what
+ * it sent in all its AI calls (#805), null for one saved before #791.
+ */
 export interface ReplyAbout {
   at: string;
   provenance: Provenance | null;
+  sent: ReplyCost | null;
 }
 
 export interface CoachConversationsDeps {
@@ -273,6 +279,18 @@ export const SAVED_REPLY_COLUMNS = `m.provenance, m.provider, m.model, m.input_t
        m.cached_input_tokens AS "cachedInputTokens", m.created_at AS at`;
 
 /**
+ * What a saved AI Coach reply sent in all its AI calls (#790, #805), its ReplyCost, as SQL over `coach_message` aliased `m`:
+ * the sum of all its calls kept with it, as its Coach Message Cost sums them (tokens only, never the euros nor the Tools'
+ * names); null for a reply saved before #791, which kept no call, and for a Candidate's message.
+ */
+export function replyCostOf(m: string): string {
+  return `CASE WHEN ${m}.ai_call_ids IS NULL THEN NULL ELSE jsonb_build_object(
+            'calls', cardinality(${m}.ai_call_ids), 'turns', cardinality(coalesce(${m}.ai_turn_ids, '{}')), 'rounds', coalesce(${m}.tool_rounds, 0),
+            'inputTokens', coalesce(${m}.input_tokens, 0) + coalesce(${m}.cached_input_tokens, 0),
+            'cachedInputTokens', coalesce(${m}.cached_input_tokens, 0), 'outputTokens', coalesce(${m}.output_tokens, 0)) END`;
+}
+
+/**
  * A saved AI Coach reply's Provenance (#327): the one stored, else a partial one read on the fly from its provider, model and
  * tokens (a reply saved before Provenance was kept), else none (« modèle non enregistré »).
  */
@@ -289,6 +307,7 @@ export function savedReplyProvenance(reply: SavedReply): Provenance | null {
 /** A saved message as read back, with what an AI Coach reply kept of what served it. */
 interface MessageRow extends SavedReply {
   seq: string;
+  sent: ReplyCost | null;
   from: CoachMessage["from"];
   text: string;
   blocked: boolean;
@@ -429,14 +448,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   async function contextOf(conversationId: string, { plan, ...limits }: CoachContextLimits & { plan?: string }): Promise<ConversationContext> {
     const { rows } = await database.query<{ messages: number; latest: { tokens: number; split: ContextSplit | null; reply: ReplyCost | null } | null }>(
       `SELECT count(*)::int AS messages,
-              (SELECT jsonb_build_object('tokens', context_tokens, 'split', context_split,
-                        -- What the whole reply sent (#790): the sum of all its calls, as its Coach Message Cost; none before.
-                        'reply', CASE WHEN ai_call_ids IS NULL THEN NULL ELSE jsonb_build_object(
-                          'calls', cardinality(ai_call_ids), 'turns', cardinality(coalesce(ai_turn_ids, '{}')), 'rounds', coalesce(tool_rounds, 0),
-                          'tools', to_jsonb(coalesce(tool_names, '{}')), 'inputTokens', coalesce(input_tokens, 0) + coalesce(cached_input_tokens, 0),
-                          'cachedInputTokens', coalesce(cached_input_tokens, 0), 'outputTokens', coalesce(output_tokens, 0)) END)
-                 FROM coach_message
-                WHERE conversation_id = $1 AND context_tokens IS NOT NULL ORDER BY seq DESC LIMIT 1) AS latest
+              (SELECT jsonb_build_object('tokens', m.context_tokens, 'split', m.context_split, 'reply', ${replyCostOf("m")})
+                 FROM coach_message m
+                WHERE m.conversation_id = $1 AND m.context_tokens IS NOT NULL ORDER BY m.seq DESC LIMIT 1) AS latest
          FROM coach_message WHERE conversation_id = $1`,
       [conversationId],
     );
@@ -476,7 +490,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     const { rows } = await database.query<MessageRow>(
       `SELECT recent.seq, recent.author AS "from", recent.text, recent.blocked,
               CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
-              ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}
+              ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}, ${replyCostOf("recent")} AS sent
          FROM (SELECT * FROM coach_message WHERE conversation_id = $1 ${forCoach ? "AND NOT unchecked" : ""} ORDER BY seq DESC LIMIT $2) recent
          LEFT JOIN job_offer o ON o.id = recent.job_offer_id
          LEFT JOIN application a ON a.job_offer_id = o.id AND a.candidate_id = $3
@@ -495,7 +509,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         text: row.text,
         ...(row.blocked ? { blocked: true as const } : {}),
         ...(row.jobOffer ? { jobOffer: row.jobOffer } : {}),
-        ...(row.from === "coach" ? { provenance, at: row.at.toISOString() } : {}),
+        ...(row.from === "coach" ? { provenance, at: row.at.toISOString(), sent: row.sent } : {}),
         ...(cards.has(String(row.seq)) ? { cards: cards.get(String(row.seq))! } : {}),
         ...(Object.keys(seen).length > 0 ? { seenNames: seen } : {}),
       };
@@ -631,7 +645,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
         const sentAt = now();
         const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
-        const replySeq = await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: replyFocus }, sentAt);
+        const savedReply = await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: replyFocus }, sentAt);
+        const replySeq = savedReply?.seq ?? null;
         const saved = await find(candidateId, conversation.id);
         if (!saved) return { ok: false, error: "not_found" }; // deleted meanwhile
         const cards = replySeq && answer.proposals?.length ? await placeProposals(candidateId, saved.id, replySeq, answer.proposals) : [];
@@ -651,6 +666,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}),
           provenance: answer.provenance,
           at: sentAt.toISOString(),
+          sent: savedReply?.sent ?? null,
           couldNotAnswer: answer.couldNotAnswer === true,
           context: await contextOf(saved.id, limits),
           ...(cards.length > 0 ? { cards } : {}),
@@ -709,14 +725,14 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async repliesAbout(candidateId, about) {
       const focus = focusOf(about);
       if (!focus) return [];
-      const { rows } = await database.query<SavedReply>(
-        `SELECT ${SAVED_REPLY_COLUMNS}
+      const { rows } = await database.query<SavedReply & { sent: ReplyCost | null }>(
+        `SELECT ${SAVED_REPLY_COLUMNS}, ${replyCostOf("m")} AS sent
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 AND m.author = 'coach' AND m.focus_kind = $2 AND m.focus_id IS NOT DISTINCT FROM $3::uuid
           ORDER BY m.created_at, m.seq`,
         [candidateId, focus.kind, focus.kind === "agenda" ? null : focus.id],
       );
-      return rows.map((row) => ({ at: row.at.toISOString(), provenance: savedReplyProvenance(row) }));
+      return rows.map((row) => ({ at: row.at.toISOString(), provenance: savedReplyProvenance(row), sent: row.sent }));
     },
 
     async startAbout(candidateId, jobOffer, opening) {
@@ -773,7 +789,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
   /**
    * Saves the Candidate's message and the AI Coach's reply together, `reply` null when it was stopped, with the conversation
-   * when it is `isNew`; the conversation's last message is then `sentAt`. Gives back the reply's seq, null without one.
+   * when it is `isNew`; the conversation's last message is then `sentAt`. Gives back the reply's seq and what it sent in all
+   * its AI calls as saved (#805), null without a reply.
    * An asked reply's Job Offer card is a Job Offer link's Arrival in the Offer box; a Share capture's set reply
    * (`shareCapture`) is not: a Share capture enters the Offer box only once followed (ADR-0090).
    */
@@ -784,9 +801,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     asked: { message: string; blocked: boolean; unchecked?: boolean },
     reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: Focus | null; shareCapture?: boolean } | null,
     sentAt: Date,
-  ): Promise<string | null> {
+  ): Promise<{ seq: string; sent: ReplyCost | null } | null> {
     const client = await database.connect();
-    let replySeq: string | null = null;
+    let saved: { seq: string; sent: ReplyCost | null } | null = null;
     try {
       await client.query("BEGIN");
       const { id, subject } = conversation;
@@ -808,10 +825,11 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       if (reply) {
         const { answer } = reply;
         const { cost } = answer;
-        const inserted = await client.query<{ seq: string }>(
+        const inserted = await client.query<{ seq: string; sent: ReplyCost | null }>(
           `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
                                      provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id, share_capture, ai_call_ids, ai_turn_ids, tool_rounds, tool_names)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING seq`,
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+           RETURNING seq, ${replyCostOf("coach_message")} AS sent`,
           [
             id,
             answer.reply,
@@ -839,7 +857,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             answer.calls?.tools ?? null,
           ],
         );
-        replySeq = String(inserted.rows[0]!.seq);
+        const row = inserted.rows[0]!;
+        saved = { seq: String(row.seq), sent: row.sent };
         // One reply, one use of the AI Coach in Consumption (#799), however many Tool rounds it took.
         await countUse(client, candidateId, "coach", sentAt);
         // An asked reply's Job Offer card brings its Job Offer to the Candidate's Offer box (ADR-0090), for the conversation's
@@ -851,7 +870,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       }
       await client.query(`UPDATE coach_conversation SET last_message_at = $2 WHERE id = $1`, [id, sentAt]);
       await client.query("COMMIT");
-      return replySeq;
+      return saved;
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
       throw error;

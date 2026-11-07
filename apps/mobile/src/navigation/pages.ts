@@ -16,12 +16,15 @@ export const paths = {
   applicationSection: (id: string, section: "correspondance" | typeof INTERVIEWS | "dossier" | "contacts" | "offre") => `/candidatures/${encodeURIComponent(id)}/${section}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
-  /** A Job Search's page, the web's in the app until it is drawn natively (#692): where « Lancer une recherche » lands. */
+  /** A Job Search's page (#692): its Job Offers, where « Lancer une recherche » lands. */
   jobSearch: (id: string) => `/recherches/${encodeURIComponent(id)}`,
   jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   /** An Offer box entry's Job Offer (ADR-0090): the web's « Lire l'offre », in the Work Pane beside the Offer box. */
   offerBoxOffer: (jobOfferId: string) => `/recherches?offre=${encodeURIComponent(jobOfferId)}`,
   jobDigests: "/job-digests",
+  /** A Job Digest sent and its Job Offers (#692). */
+  jobDigest: (id: string) => `/job-digests/${encodeURIComponent(id)}`,
+  jobDigestOffer: (jobDigestId: string, id: string) => `/job-digests/${encodeURIComponent(jobDigestId)}/offres/${encodeURIComponent(id)}`,
   humanCoaches: "/coachs",
   /** The Order of a Coaching Session with a Human Coach, before Stripe Checkout (#694): the web's Order page's address. */
   coachingOrder: (coachId: string) => `/coachs/commande?coach=${encodeURIComponent(coachId)}`,

@@ -6,7 +6,7 @@
  * the worker (which purges Coach Conversations) bundle it.
  */
 
-import { CONTEXT_CATEGORIES, DEFAULT_COACH_CONTEXT_LIMITS, type ContextCategory, type ConversationContext, type Provenance } from "@jobhub/shared";
+import { CONTEXT_CATEGORIES, DEFAULT_COACH_CONTEXT_LIMITS, type ContextCategory, type ConversationContext, type Provenance, type ReplyCost } from "@jobhub/shared";
 import type { CoachProposalCard } from "../coach-proposals/card";
 
 export interface CoachMessage {
@@ -19,6 +19,11 @@ export interface CoachMessage {
   provenance?: Provenance | null;
   /** On a saved AI Coach reply: when it was saved, an ISO date, for the hour its Provenance line shows. */
   at?: string;
+  /**
+   * On a saved AI Coach reply: what it sent in all its AI calls (#805), their tokens summed as its Coach Message Cost sums
+   * them (never the euros nor the Tools' names); null for a reply saved before #791. Never given to the AI Coach.
+   */
+  sent?: ReplyCost | null;
   /** A Blocked message (#228): a Candidate message a Guardrail stopped, or the Guardrail message that answered it or replaced a reply. Which Guardrail is never said. */
   blocked?: true;
   /** On an AI Coach reply to a Job Offer link: the Job Offer card it shows. Never given to the AI Coach. */

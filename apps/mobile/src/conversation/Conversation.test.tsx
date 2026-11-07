@@ -53,6 +53,23 @@ describe("Conversation's box, at a large system text size", () => {
     expect(within(send).queryByText("Envoyer")).toBeNull();
   });
 
+  // Pinned under the box, « Signaler un problème » and « Proposer une idée » took most of an iPhone SE's height at the
+  // largest size: the thread, with the page's own view (« Fiche »), was left a strip (#705, Maestro). They then end the
+  // thread, which scrolls to them, and the box sits at the bottom.
+  it("ends the thread with what sits under the box, which leaves the thread its height", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
+    const thread = screen.getByLabelText("Vos échanges avec votre coach");
+    expect(within(thread).getByRole("button", { name: "Signaler un problème" })).toBeOnTheScreen();
+    expect(within(screen.getByTestId("conversation-box")).queryByRole("button", { name: "Signaler un problème" })).toBeNull();
+  });
+
+  it("keeps what sits under the box there at the standard size", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 1 });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
+    expect(within(screen.getByTestId("conversation-box")).getByRole("button", { name: "Signaler un problème" })).toBeOnTheScreen();
+  });
+
   it("keeps « Envoyer »'s words at the standard size", async () => {
     setWindow({ width: 375, height: 667, fontScale: 1 });
     await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);

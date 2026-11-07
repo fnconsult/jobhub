@@ -114,7 +114,9 @@ jobs:
   maestro-ios:
     needs: build-ios
     runs-on: macos-26
-    timeout-minutes: 120
+    # The iPad's nine runs (landscape, portrait and Split View, each light, dark and at the largest text size) took
+    # 2 h 01 min on run 42335030772 once each got past sign-in, and were stopped at 120: 180 leaves them room (#705).
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:

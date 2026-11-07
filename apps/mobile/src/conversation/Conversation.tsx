@@ -71,6 +71,9 @@ export function Conversation({
   // words: in words, at iOS's largest size on an iPhone SE, it took the whole box, cut in two and past the screen's edge,
   // and left the message field no width (#705).
   const buttonIconOnly = fontScale >= WHOLE_FROM_FONT_SCALE;
+  // And what sits under the box (the Signalement links) ends the thread, which scrolls to it: pinned under the box, it
+  // took most of an iPhone SE's height at iOS's largest size, and left the thread, the page's own view with it, a strip.
+  const belowBoxInThread = fontScale >= WHOLE_FROM_FONT_SCALE;
   const choose = (chosen: () => void) => {
     setAttaching(false);
     chosen();
@@ -99,6 +102,7 @@ export function Conversation({
         <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>
           {lead}
           {children}
+          {belowBoxInThread ? belowBox : null}
         </View>
       </ScrollView>
       {/* What sits above the box (suggestions, the help found while typing) scrolls and shrinks when the thread leaves it
@@ -166,7 +170,7 @@ export function Conversation({
             <Control label={t("mobile.send")} icon={Send} iconOnly={buttonIconOnly} look="primary" disabled={!online} onPress={send} />
           )}
         </DropTarget>
-        {belowBox}
+        {belowBoxInThread ? null : belowBox}
       </View>
     </View>
   );

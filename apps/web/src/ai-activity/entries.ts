@@ -78,6 +78,19 @@ export interface ReplyGiven {
   cards?: readonly CardGiven[];
 }
 
+/**
+ * A Master CV Version of the Profile (MasterCvVersion): saved by hand, from a Coach proposal the Candidate applied (its
+ * Origin names the card, which never leaves the builder), or read from their file (its Provenance). `href`: the Master CV's page.
+ */
+export interface VersionGiven {
+  version: number;
+  savedAt: Date | string;
+  restoredFrom: number | null;
+  provenance?: Provenance | null;
+  origin?: { cardId: string } | null;
+  href?: string;
+}
+
 /** The kinds of entry: an AI Activity element's, a Master CV Version saved without AI, and an applied card's change. */
 export type EntryKind = ElementKind | "master_cv_version" | "change";
 
@@ -122,6 +135,9 @@ export interface EntryResult {
   offers?: number;
   score?: number;
   change?: { what: string; before: string; after: string };
+  /** A Master CV Version's number, and the earlier one it restored (« Annuler »). */
+  version?: number;
+  restoredFrom?: number | null;
 }
 
 /** A proposal of a reply, with its state, and what an applied one led to (the key of its entry). */
@@ -165,6 +181,8 @@ export interface ActivityInput {
   page: PageScope;
   elements?: readonly PageElement[];
   replies?: readonly ReplyGiven[];
+  /** Counted on a Profile's page only. */
+  versions?: readonly VersionGiven[];
 }
 
 /** The element kinds each page counts; any other page counts every one it is given. */
@@ -302,6 +320,32 @@ function replyEntries(reply: ReplyGiven): Built[] {
   return [entry, ...changes];
 }
 
+/**
+ * A Master CV Version's entry: an AI Activity element when read from the Candidate's file, else the version saved without
+ * AI, by hand or from the card its Origin names.
+ */
+function versionEntry(given: VersionGiven): Built {
+  const href = given.href ?? null;
+  if (given.provenance) {
+    const read = elementEntry({ kind: "master_cv", provenance: given.provenance, at: given.savedAt, ...(href ? { href } : {}) });
+    return { ...read, key: `master_cv:${given.version}`, result: { ...read.result, version: given.version } };
+  }
+  return {
+    key: `master_cv_version:${given.version}`,
+    kind: "master_cv_version",
+    at: iso(given.savedAt),
+    object: { href, label: null },
+    origin: given.origin ? "coach_proposal" : "candidate",
+    result: { end: { state: "done" }, version: given.version, restoredFrom: given.restoredFrom },
+    steps: [],
+    sites: [],
+    tools: [],
+    models: [],
+    cost: { quota: null, tokens: null, noAi: true },
+    ...(given.origin ? { card: given.origin.cardId } : {}),
+  };
+}
+
 const objectOf = (card: CardGiven) => ({ href: card.change.target.href, label: card.change.target.name });
 const changeOf = ({ change }: CardGiven) => ({ what: change.what, before: change.before, after: change.after });
 
@@ -310,12 +354,22 @@ export function activityEntries(input: ActivityInput): ActivityEntry[] {
   const scoped = input.page === "any" ? null : SCOPED[input.page];
   const given = input.elements ?? [];
   const elements = given.map((element) => (scoped && !scoped.has(element.kind) ? null : elementEntry(element)));
+  const replies = (input.replies ?? []).flatMap(replyEntries);
+  const versions = input.page === "profile" ? (input.versions ?? []).map((version) => [version.version, versionEntry(version)] as const) : [];
+  const version = new Map(versions);
   given.forEach((element, index) => {
-    const cause = element.after === undefined ? null : elements[element.after];
+    const cause = element.after !== undefined ? elements[element.after] : element.scored !== undefined ? version.get(element.scored) : undefined;
     if (elements[index] && cause) elements[index].cause = cause;
   });
-  const replies = (input.replies ?? []).flatMap(replyEntries);
-  const built = [...elements.flatMap((entry) => (entry ? [entry] : [])), ...replies];
+  // A version a card created is the change it made: it follows that card's reply, in its place.
+  const madeVersion = new Set<Built>();
+  for (const [, entry] of versions) {
+    const change = entry.card ? replies.find((reply) => reply.kind === "change" && reply.card === entry.card) : undefined;
+    if (!change) continue;
+    Object.assign(entry, { cause: change.cause, messageId: change.messageId, proposal: change.proposal });
+    madeVersion.add(change);
+  }
+  const built = [...elements.flatMap((entry) => (entry ? [entry] : [])), ...replies.filter((entry) => !madeVersion.has(entry)), ...versions.map(([, entry]) => entry)];
   keyed(built);
   for (const entry of built) {
     if (entry.cause) entry.after = entry.cause.key;

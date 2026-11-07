@@ -1,6 +1,6 @@
-import type { Provenance, ReplyCost } from "@jobhub/shared";
+import { rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { activityEntries, type CardGiven, type ReplyGiven } from "./entries";
+import { activityEntries, type CardGiven, type ReplyGiven, type VersionGiven } from "./entries";
 
 /**
  * The scenarios of the « Activité unifiée » prototype (ADR-0086, variant C), as the builder is given them: a Job Search
@@ -14,6 +14,8 @@ const OFFER = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
 const PROFILE = "0f4a5b6c-7d8e-4f9a-8b1c-2d3e4f5a6b7c";
 const CARD = "3c7d8e9f-0a1b-4c2d-8e4f-5a6b7c8d9e0f";
 const OTHER_CARD = "5e9f0a1b-2c3d-4e4f-8a6b-7c8d9e0f1a2b";
+const CV_CARD = "4d8e9f0a-1b2c-4d3e-9f5a-6b7c8d9e0f1a";
+const CV = `/profils/${PROFILE}/cv-de-reference`;
 
 const at = (hhmm: string, day = "2026-11-05") => `${day}T${hhmm}:00.000Z`;
 
@@ -186,6 +188,67 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
         steps: [],
         cost: { quota: null, tokens: null, noAi: true },
       });
+    });
+  });
+
+  describe("scenario 3a, a Profile's Master CV: a reply, then Version 7 its card created, then that version's ATS Score", () => {
+    /** Version 1 read from the Candidate's file by Mistral Medium. */
+    const cvRead: Provenance = {
+      v: 1,
+      steps: [{ kind: "ai", activity: "think", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 8_000, output: 1_600 }, ms: 20_000, at: at("10:31", "2026-10-12"), outcome: "ok", count: 1 }],
+      sites: [{ kind: "candidate", links: [] }],
+      startedAt: at("10:31", "2026-10-12"),
+      wallMs: 27_000,
+    };
+    const versions: VersionGiven[] = [
+      { version: 7, savedAt: new Date(at("21:18")), restoredFrom: null, origin: { cardId: CV_CARD }, href: CV },
+      { version: 6, savedAt: new Date(at("20:38", "2026-10-27")), restoredFrom: null, href: CV },
+      { version: 1, savedAt: new Date(at("10:31", "2026-10-12")), restoredFrom: null, provenance: cvRead, href: CV },
+    ];
+    const scores = [
+      { kind: "ats_score" as const, provenance: rulesProvenance("ats_score", { at: new Date(at("20:40", "2026-10-27")) }), scored: 6, href: CV, result: { score: 68 } },
+      { kind: "ats_score" as const, provenance: rulesProvenance("ats_score", { at: new Date(at("21:19")) }), scored: 7, href: CV, result: { score: 79 } },
+    ];
+    const strengthen: ReplyGiven = {
+      messageId: "m8",
+      at: at("21:14"),
+      question: "Peux-tu renforcer mon CV pour le contrôle de gestion industriel ?",
+      provenance: replyRun(at("21:14"), [{ tool: "profile", action: "propose_master_cv", seen: [{ type: "profile", href: `/profils/${PROFILE}` }], proposes: true }]),
+      sent: SENT,
+      cards: [{ id: CV_CARD, status: "accepted", decidedAt: at("21:18"), change: { target: { href: CV, name: "CV de référence" }, what: "3 modifications du CV", before: "Version 6", after: "Version 7" } }],
+    };
+    const entries = activityEntries({ page: "profile", elements: scores, replies: [strengthen], versions });
+    const byKey = new Map(entries.map((entry) => [entry.key, entry]));
+
+    it("chains the ATS Score to Version 7 and Version 7 to the reply whose card created it, newest first", () => {
+      expect(entries.map(({ kind, at, result, after }) => ({ kind, at, result, after: after ? byKey.get(after)!.kind : undefined }))).toEqual([
+        { kind: "ats_score", at: at("21:19"), result: { end: { state: "done" }, score: 79 }, after: "master_cv_version" },
+        { kind: "master_cv_version", at: at("21:18"), result: { end: { state: "done" }, version: 7, restoredFrom: null }, after: "coach_reply" },
+        { kind: "coach_reply", at: at("21:14"), result: { end: { state: "done" } }, after: undefined },
+        { kind: "ats_score", at: at("20:40", "2026-10-27"), result: { end: { state: "done" }, score: 68 }, after: "master_cv_version" },
+        { kind: "master_cv_version", at: at("20:38", "2026-10-27"), result: { end: { state: "done" }, version: 6, restoredFrom: null }, after: undefined },
+        { kind: "master_cv", at: at("10:31", "2026-10-12"), result: { end: { state: "done" }, version: 1 }, after: undefined },
+      ]);
+      expect(byKey.get(entries[0]!.after!)!.result.version).toBe(7);
+      expect(byKey.get(entries[3]!.after!)!.result.version).toBe(6);
+    });
+
+    it("makes Version 7 the change the card applied: from the coach's proposal, in the conversation, without AI, and no change entry beside it", () => {
+      const [, seventh, reply] = entries;
+      expect(seventh).toMatchObject({ object: { href: CV, label: null }, origin: "coach_proposal", messageId: "m8", cost: { quota: null, tokens: null, noAi: true } });
+      expect(entries.some((entry) => entry.kind === "change")).toBe(false);
+      expect(reply!.proposals).toEqual([{ object: { href: CV, label: "CV de référence" }, what: "3 modifications du CV", before: "Version 6", after: "Version 7", state: "applied", led: seventh!.key }]);
+    });
+
+    it("says a version saved by hand is the Candidate's, and Version 1 read from their file has its model and tokens", () => {
+      expect(entries[4]).toMatchObject({ origin: "candidate", cost: { noAi: true } });
+      expect(entries[4]).not.toHaveProperty("messageId");
+      expect(entries[5]).toMatchObject({ origin: "candidate", cost: { quota: null, tokens: { count: 9_600, calls: null, partial: false }, noAi: false } });
+      expect(entries[5]!.models.map((model) => model.name)).toEqual(["Mistral Medium 3.5"]);
+    });
+
+    it("counts an ATS Score in its Plan Quota, made by Jobbbox's rules without AI", () => {
+      expect(entries[0]).toMatchObject({ origin: "jobbbox", cost: { quota: "atsScores", tokens: null, noAi: true }, models: [], tools: [{ name: null }] });
     });
   });
 });

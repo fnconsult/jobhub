@@ -165,6 +165,8 @@ export interface ActivityEntry {
   tools: ActivityTool[];
   models: ActivityModel[];
   cost: EntryCost;
+  /** An AI Activity element whose Provenance was not kept: « modèle non enregistré », in no total. */
+  unrecorded?: true;
   /** The message of the conversation it came from (« Voir dans la conversation »). */
   messageId?: string;
   /** The entry that caused it (« suite de »), by its key. */
@@ -206,13 +208,13 @@ const once = <T>(list: readonly T[]): T[] => list.filter((item, index) => list.f
 
 /** A step as shown: steps alike (same label, Tool or model) fold into the first, their counts, times and tokens summed. */
 function stepsOf(provenance: Provenance | null, names: Readonly<Record<string, string>> = {}): EntryStep[] {
-  const steps: (EntryStep & { same: string })[] = [];
+  const steps = new Map<string, EntryStep>();
   for (const step of provenance?.steps ?? []) {
     const label = stepLabel(step);
     const tool = step.kind === "tool" ? (markOf(step).text ?? null) : null;
     const model = step.kind === "ai" && step.model ? describeModel(step.model, step.provider).name : null;
     const same = JSON.stringify([label, step.kind, tool, model]);
-    const shown = steps.find((each) => each.same === same);
+    const shown = steps.get(same);
     if (shown) {
       shown.count += step.count;
       shown.ms = add(shown.ms, known(step.ms));
@@ -220,9 +222,9 @@ function stepsOf(provenance: Provenance | null, names: Readonly<Record<string, s
       shown.seen = once([...shown.seen, ...seenOf(step, names)]);
       continue;
     }
-    steps.push({ same, label, tool, model, count: step.count, ms: known(step.ms), tokens: tokensOf(step), seen: seenOf(step, names) });
+    steps.set(same, { label, tool, model, count: step.count, ms: known(step.ms), tokens: tokensOf(step), seen: seenOf(step, names) });
   }
-  return steps.map(({ same: _same, ...step }) => step);
+  return [...steps.values()];
 }
 
 /** Whether no AI made it: a Provenance with no AI step (Jobbbox's rules, a Coach Action's read). */
@@ -243,6 +245,7 @@ function served(kind: ElementKind, provenance: Provenance | null, made: Paramete
     sites: served?.sites ?? element.sites ?? [],
     tools: served?.tools ?? [],
     models: served?.models ?? [],
+    ...(provenance ? {} : { unrecorded: true as const }),
   };
 }
 
@@ -359,7 +362,7 @@ export function activityEntries(input: ActivityInput): ActivityEntry[] {
   const version = new Map(versions);
   given.forEach((element, index) => {
     const cause = element.after !== undefined ? elements[element.after] : element.scored !== undefined ? version.get(element.scored) : undefined;
-    if (elements[index] && cause) elements[index].cause = cause;
+    if (elements[index] && cause && cause !== elements[index]) elements[index].cause = cause;
   });
   // A version a card created is the change it made: it follows that card's reply, in its place.
   const madeVersion = new Set<Built>();
@@ -375,7 +378,7 @@ export function activityEntries(input: ActivityInput): ActivityEntry[] {
     if (entry.cause) entry.after = entry.cause.key;
     if (entry.proposal) entry.proposal.led = entry.key;
   }
-  return newestFirst(built).map(({ cause: _cause, card: _card, proposal: _proposal, ...entry }) => entry);
+  return newestFirst(built).map(shown);
 }
 
 /** Keeps each entry's key unique: one alike an earlier one is numbered. */
@@ -388,7 +391,20 @@ function keyed(entries: Built[]): void {
   }
 }
 
-/** The newest first; one not dated last. */
+/** An entry as it leaves the builder: what linked it stays inside. */
+function shown(built: Built): ActivityEntry {
+  const entry: Partial<Built> = { ...built };
+  delete entry.cause;
+  delete entry.card;
+  delete entry.proposal;
+  return entry as ActivityEntry;
+}
+
+/**
+ * The newest first, one not dated last; at the same time, a consequence before what caused it, then by key, so the order
+ * never depends on the order the entries were given in.
+ */
 function newestFirst(entries: Built[]): Built[] {
-  return [...entries].sort((one, other) => (other.at ?? "").localeCompare(one.at ?? ""));
+  const depth = (entry: Built, seen = new Set<Built>()): number => (entry.cause && !seen.has(entry) ? 1 + depth(entry.cause, seen.add(entry)) : 0);
+  return [...entries].sort((one, other) => (other.at ?? "").localeCompare(one.at ?? "") || depth(other) - depth(one) || (one.key < other.key ? -1 : one.key > other.key ? 1 : 0));
 }

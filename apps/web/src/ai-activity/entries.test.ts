@@ -1,4 +1,4 @@
-import { rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared";
+import { readProvenance, rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { activityEntries, type CardGiven, type ReplyGiven, type VersionGiven } from "./entries";
 
@@ -250,5 +250,142 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
     it("counts an ATS Score in its Plan Quota, made by Jobbbox's rules without AI", () => {
       expect(entries[0]).toMatchObject({ origin: "jobbbox", cost: { quota: "atsScores", tokens: null, noAi: true }, models: [], tools: [{ name: null }] });
     });
+  });
+
+  describe("a reply saved before #791", () => {
+    /** Its partial Provenance, read from its own columns: the last call only, times unknown. */
+    const lastCall = readProvenance(null, { activity: "think_write", task: "coaching", provider: "anthropic", model: "claude-opus-5", inputTokens: 5_000, cachedInputTokens: 1_000, outputTokens: 700, at: new Date(at("09:00", "2026-10-01")) });
+    const [old] = activityEntries({ page: "any", replies: [{ messageId: "m1", at: at("09:00", "2026-10-01"), question: "Bonjour", provenance: lastCall, sent: null }] });
+
+    it("costs what its Provenance holds, marked partial (« dernier appel seulement »)", () => {
+      expect(old!.cost).toEqual({ quota: null, tokens: { count: 6_700, calls: null, partial: true }, noAi: false });
+      expect(old!.models.map((model) => model.name)).toEqual(["Claude Opus 5"]);
+      expect(old!.steps).toEqual([{ label: "think_write", tool: null, model: "Claude Opus 5", count: 1, ms: null, tokens: 6_700, seen: [] }]);
+      expect(old!.read).toEqual([]);
+    });
+
+    it("is « modèle non enregistré » when no model was saved either", () => {
+      const [none] = activityEntries({ page: "any", replies: [{ messageId: "m1", at: at("09:00", "2026-10-01"), question: null, provenance: null, sent: null }] });
+      expect(none).toMatchObject({ unrecorded: true, at: at("09:00", "2026-10-01"), question: null, cost: { tokens: null, noAi: false }, models: [], steps: [] });
+    });
+  });
+
+  describe("an element « modèle non enregistré »", () => {
+    const dossier = { kind: "company_dossier" as const, provenance: null, at: new Date(at("11:00", "2026-09-30")), href: "/candidatures/a/entreprise", sites: [{ kind: "web" as const, domain: "annuaire-entreprises.data.gouv.fr", links: [] }] };
+    const [entry] = activityEntries({ page: "any", elements: [dossier] });
+
+    it("keeps its date, page and the sites its source names, with no step, model, Tool or token, and is not said « Sans IA »", () => {
+      expect(entry).toEqual({
+        key: `company_dossier:${at("11:00", "2026-09-30")}`,
+        kind: "company_dossier",
+        at: at("11:00", "2026-09-30"),
+        object: { href: "/candidatures/a/entreprise", label: null },
+        origin: "candidate",
+        result: { end: { state: "done" } },
+        steps: [],
+        sites: dossier.sites,
+        tools: [],
+        models: [],
+        cost: { quota: null, tokens: null, noAi: false },
+        unrecorded: true,
+      });
+    });
+
+    it("has no date when none was given, and comes after every dated entry", () => {
+      const entries = activityEntries({ page: "job_search", elements: [{ kind: "job_offer", provenance: null, name: "Safran · Contrôleur" }, searchElement] });
+      expect(entries.map(({ kind, at, unrecorded }) => ({ kind, at, unrecorded }))).toEqual([
+        { kind: "job_search", at: at("14:02"), unrecorded: undefined },
+        { kind: "job_offer", at: null, unrecorded: true },
+      ]);
+    });
+  });
+
+  describe("a stable order", () => {
+    const same = at("10:00");
+    const rules = rulesProvenance("ats_score", { at: new Date(same) });
+    const reply: ReplyGiven = {
+      messageId: "m3",
+      at: same,
+      question: "Et maintenant ?",
+      provenance: null,
+      sent: null,
+      cards: [{ id: CV_CARD, status: "accepted", decidedAt: same, change: { target: { href: CV, name: "CV de référence" }, what: "Titre", before: "A", after: "B" } }],
+    };
+    const input = {
+      page: "profile" as const,
+      elements: [
+        { kind: "ats_score" as const, provenance: rules, scored: 8, href: CV },
+        { kind: "action_card" as const, provenance: rules, name: "ATS Fix", href: CV },
+        { kind: "action_card" as const, provenance: rules, name: "ATS Fix", href: CV },
+      ],
+      replies: [reply],
+      versions: [{ version: 8, savedAt: same, restoredFrom: null, origin: { cardId: CV_CARD }, href: CV }],
+    };
+
+    it("puts entries of the same time in the same order whatever order they were given in, a consequence before its cause", () => {
+      const entries = activityEntries(input);
+      expect(entries.map(({ kind }) => kind)).toEqual(["ats_score", "master_cv_version", "action_card", "action_card", "coach_reply"]);
+      const reversed = activityEntries({ ...input, elements: [...input.elements].reverse() });
+      expect(reversed.map(({ kind, key }) => ({ kind, key }))).toEqual(entries.map(({ kind, key }) => ({ kind, key })));
+      expect(new Set(entries.map((entry) => entry.key)).size).toBe(entries.length);
+    });
+  });
+
+  describe("what each page counts", () => {
+    const cvCard: ReplyGiven = {
+      messageId: "m4",
+      at: at("15:00"),
+      question: "Change mon titre",
+      provenance: null,
+      sent: null,
+      cards: [{ id: CV_CARD, status: "accepted", decidedAt: at("15:01"), change: { target: { href: CV, name: "CV de référence" }, what: "Titre", before: "A", after: "B" } }],
+    };
+    const versions: VersionGiven[] = [{ version: 9, savedAt: at("15:01"), restoredFrom: null, origin: { cardId: CV_CARD }, href: CV }];
+    const atsScore = { kind: "ats_score" as const, provenance: rulesProvenance("ats_score", { at: new Date(at("15:02")) }), scored: 9 };
+
+    it("a Profile's page: its Master CV Versions and ATS Scores, not a Job Search's run", () => {
+      const entries = activityEntries({ page: "profile", elements: [searchElement, atsScore], replies: [cvCard], versions });
+      expect(entries.map(({ kind }) => kind)).toEqual(["ats_score", "master_cv_version", "coach_reply"]);
+    });
+
+    it("a Job Search's page: its run and the Job Offers read from it, no Master CV Version (the card stays the change it made)", () => {
+      const entries = activityEntries({ page: "job_search", elements: [searchElement, offerElement, atsScore], replies: [cvCard], versions });
+      expect(entries.map(({ kind }) => kind)).toEqual(["change", "coach_reply", "job_offer", "job_search"]);
+    });
+
+    it("any page: the replies of its Coach Conversation and what it shows", () => {
+      const entries = activityEntries({ page: "any", elements: [offerElement], replies: [cvCard], versions });
+      expect(entries.map(({ kind }) => kind)).toEqual(["change", "coach_reply", "job_offer"]);
+      expect(entries[2]).not.toHaveProperty("after");
+    });
+  });
+
+  describe("a proposal's state", () => {
+    const card = (id: string, status: CardGiven["status"]): CardGiven => ({ id, status, change: { target: { href: `/profils/${PROFILE}`, name: "Contrôle de gestion" }, what: status, before: "a", after: "b" } });
+    const [reply, ...others] = activityEntries({
+      page: "any",
+      replies: [{ messageId: "m9", at: at("16:00"), question: "?", provenance: null, sent: null, cards: [card(CARD, "pending"), card(OTHER_CARD, "undone"), card(CV_CARD, "withdrawn")] }],
+    });
+
+    it("is pending, undone or withdrawn, and none of those cards is an entry", () => {
+      expect(reply!.proposals!.map(({ state, led }) => ({ state, led }))).toEqual([
+        { state: "pending", led: null },
+        { state: "undone", led: null },
+        { state: "withdrawn", led: null },
+      ]);
+      expect(others).toEqual([]);
+    });
+  });
+
+  it("never carries a card's id, an AI task, a provider's Outcome or a name not from `seenNames` (ADR-0034)", () => {
+    const entries = [
+      ...activityEntries({ page: "job_search", elements: [searchElement, offerElement], replies: [firstReply, secondReply] }),
+      ...activityEntries({ page: "profile", replies: [{ ...firstReply, seenNames: {} }] }),
+    ];
+    const json = JSON.stringify(entries);
+    for (const id of [CARD, OTHER_CARD, CV_CARD]) expect(json).not.toContain(id);
+    expect(json).not.toMatch(/"(task|outcome|provider|endpoint|cardId|id)":/);
+    const unnamed = entries.at(-1)!;
+    expect(unnamed.read!.map((element) => (element.kind === "object" ? element.name : null))).toEqual([null, null]);
   });
 });

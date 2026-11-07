@@ -16,7 +16,7 @@ export type Network = { isConnected: () => Promise<boolean>; subscribe: (onChang
 /**
  * The app's reads (`@jobhub/shared/reads`, ADR-0076), each with whether the device keeps what was last seen of it for
  * when there is no network (#701): the menus' cards, an Application and its Company Dossier, the Agenda and the Job
- * Offers seen (a Job Search's, a Job Digest's, each with why it has its Match Score: the Profile's wanted places, salary
+ * Offers seen (a Job Search's, a Job Digest's, an Offer box entry's opened, each with why it has its Match Score: the Profile's wanted places, salary
  * and contract types, the CV's years and skills; docs/privacy/register.md, « Read cache in the Jobbbox app »). Never a
  * Coach Conversation, nor a Profile read, a Tailored Document's download links or an Application's Enriched Contacts
  * (#691: third parties' details).
@@ -28,6 +28,7 @@ const READS = {
   jobSearches: true,
   jobSearch: true,
   offerBox: true,
+  offerBoxOffer: true,
   jobOffer: true,
   jobDigests: true,
   jobDigest: true,

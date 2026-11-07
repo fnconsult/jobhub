@@ -17,6 +17,7 @@ import {
   jobDigestsResponseSchema,
   jobSearchResponseSchema,
   jobSearchesResponseSchema,
+  offerBoxOfferResponseSchema,
   offerBoxResponseSchema,
   profileResponseSchema,
   profilesResponseSchema,
@@ -266,6 +267,10 @@ test.describe("The Jobbbox app reads over HTTP (#684)", () => {
     expect(entries.get(seed.offerId)).toMatchObject({ state: "to_handle", profile: { id: seed.profileId }, sources: [{ source: "job_search" }] });
     expect(entries.get(seed.keptOfferId)).toMatchObject({ state: "followed", applicationId: seed.applicationId });
     expect(box.toHandle).toBe(1);
+    // One entry, as the app's Work Pane opens it (#692): its text and why its Match Score, against its Profile.
+    const opened = await read(await get(page, `/api/offer-box/${entries.get(seed.offerId)!.id}`), offerBoxOfferResponseSchema);
+    expect(opened).toMatchObject({ profile: { id: seed.profileId }, found: { jobOffer: { id: seed.offerId }, decision: null, applicationId: null } });
+    expect(opened.found.jobOffer.content).toEqual(expect.any(String));
 
     // Job Digests sent, and their frequency.
     const digests = await read(await get(page, "/api/job-digests"), jobDigestsResponseSchema);
@@ -370,6 +375,7 @@ test.describe("The Jobbbox app reads over HTTP (#684)", () => {
     try {
       await signInWithMagicLink(other, newAddress("app-reads-other"));
       const otherProfileId = await createProfile(other, "Responsable paie");
+      const ownerEntry = (await read(await get(page, "/api/offer-box"), offerBoxResponseSchema)).entries[0]!;
 
       const applications = await read(await get(other, "/api/applications"), applicationsResponseSchema);
       expect(applications.applications).toEqual([]);
@@ -386,6 +392,7 @@ test.describe("The Jobbbox app reads over HTTP (#684)", () => {
         `/api/applications/${seed.applicationId}/documents`,
         `/api/job-searches/${seed.searchId}`,
         `/api/job-digests/${seed.digestId}`,
+        `/api/offer-box/${ownerEntry.id}`,
         `/api/profiles/${seed.profileId}`,
         `/api/coach/conversations/${seed.applicationConversationId}`,
       ]) {

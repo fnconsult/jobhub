@@ -1,25 +1,70 @@
+import type { OfferBoxEntryRead } from "@jobhub/shared/reads";
 import { screen, userEvent, waitFor } from "@testing-library/react-native";
+import { AccessibilityInfo } from "react-native";
 import { renderInApp } from "../testing";
 import { FoundJobOfferPane } from "./FoundJobOffer";
 import { found } from "./testing";
 
 const DAF = { id: "p1", name: "DAF" };
 
-/** The web app's `POST /api/applications`, at the network. */
-function serve(status = 201) {
+/** The Offer box entry the Job Search's Job Offer « a » arrived as: its own id, « e-a », not the Job Offer's. */
+const ENTRY: OfferBoxEntryRead = {
+  id: "e-a",
+  jobOffer: { id: "a", title: "Offre a", employer: "Acme Industrie", location: "Lyon", url: null, postedAt: null, expiredAt: null, contractType: "cdi" },
+  profile: DAF,
+  scoredWith: DAF,
+  matchScore: 86,
+  firstArrivalAt: "2026-11-05T08:00:00.000Z",
+  arrivalDay: "2026-11-05",
+  sources: [{ source: "job_search", at: "2026-11-05T08:00:00.000Z" }],
+  state: "to_handle",
+  applicationId: null,
+  followedAt: null,
+  dismissalReason: null,
+  dismissedAt: null,
+};
+
+/**
+ * The web app at the network: `POST /api/applications` answering `status`, and the Offer box (`GET /api/offer-box`,
+ * holding `entries`) with its `POST` / `DELETE /api/offer-box/:id/dismissal`, which écarte an entry or brings it back.
+ */
+function serve(status = 201, entries: OfferBoxEntryRead[] = [ENTRY]) {
   const writes: unknown[] = [];
+  const dismissals: { method?: string; path: string; body: unknown }[] = [];
+  let box = entries;
   jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = new URL(String(input));
+    if (url.pathname === "/api/offer-box") return Response.json({ today: "2026-11-05", toHandle: box.filter((one) => one.state === "to_handle").length, entries: box });
     if (url.pathname === "/api/applications" && init?.method === "POST") {
       writes.push(JSON.parse(String(init.body)));
       return Response.json({ id: "app-1" }, { status });
     }
+    const dismissal = /^\/api\/offer-box\/([^/]+)\/dismissal$/.exec(url.pathname);
+    if (dismissal) {
+      const body = init?.body ? (JSON.parse(String(init.body)) as { reason: OfferBoxEntryRead["dismissalReason"] }) : undefined;
+      dismissals.push({ method: init?.method, path: url.pathname, body });
+      box = box.map((one) =>
+        one.id !== decodeURIComponent(dismissal[1]!)
+          ? one
+          : init?.method === "POST"
+            ? { ...one, state: "dismissed", dismissalReason: body?.reason ?? null, dismissedAt: "2026-11-05T11:00:00.000Z" }
+            : { ...one, state: "to_handle", dismissalReason: null, dismissedAt: null },
+      );
+      return new Response(null, { status: 204 });
+    }
     return Response.json({ error: "not_found" }, { status: 404 });
   });
-  return { writes };
+  return { writes, dismissals };
+}
+
+/** The pane of the Job Offer « a », once the Offer box read has found its entry (its « Écarter » shown). */
+async function openPane() {
+  await renderInApp(<FoundJobOfferPane found={found("a")} profile={DAF} />);
+  await screen.findByRole("button", { name: "Écarter : Offre a" });
 }
 
 describe("a Job Offer a Job Search found, in the Work Pane (#692)", () => {
+  beforeEach(() => jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {}));
   afterEach(() => jest.restoreAllMocks());
 
   it("shows its Match Score against the Profile with why, its summary and its text", async () => {
@@ -37,7 +82,7 @@ describe("a Job Offer a Job Search found, in the Work Pane (#692)", () => {
 
   it("« Suivre » creates its Application with the Job Search's Profile, then leads to it", async () => {
     const { writes } = serve();
-    await renderInApp(<FoundJobOfferPane found={found("a")} profile={DAF} />);
+    await openPane();
 
     await userEvent.setup().press(screen.getByRole("button", { name: "Suivre : Offre a" }));
 
@@ -48,7 +93,7 @@ describe("a Job Offer a Job Search found, in the Work Pane (#692)", () => {
 
   it("says so when « Suivre » failed, and still offers it", async () => {
     serve(500);
-    await renderInApp(<FoundJobOfferPane found={found("a")} profile={DAF} />);
+    await openPane();
 
     await userEvent.setup().press(screen.getByRole("button", { name: "Suivre : Offre a" }));
 
@@ -62,5 +107,64 @@ describe("a Job Offer a Job Search found, in the Work Pane (#692)", () => {
 
     expect(screen.getByText("Suivie")).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: "Suivre : Offre a" })).toBeNull();
+  });
+
+  it("« Écarter » écarte it from the Offer box with a Dismissal reason, says so with « Annuler », which brings it back (#816)", async () => {
+    const { dismissals } = serve();
+    const user = userEvent.setup();
+    await renderInApp(<FoundJobOfferPane found={found("a")} profile={DAF} />);
+
+    await user.press(await screen.findByRole("button", { name: "Écarter : Offre a" }));
+    for (const reason of ["Pas pour moi", "Lieu", "Contrat", "Déjà postulé ailleurs", "Écarter sans motif"]) expect(screen.getByRole("button", { name: reason })).toBeOnTheScreen();
+    await user.press(screen.getByRole("button", { name: "Salaire" }));
+
+    expect(dismissals).toEqual([{ method: "POST", path: "/api/offer-box/e-a/dismissal", body: { reason: "salary" } }]);
+    expect(await screen.findByText("« Offre a » écartée.")).toBeOnTheScreen();
+    // aria-live says nothing on iOS: VoiceOver is told.
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith("« Offre a » écartée.");
+    expect(await screen.findByText("Écartée · Salaire")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Suivre : Offre a" })).toBeNull();
+
+    await user.press(screen.getByRole("button", { name: "Annuler" }));
+    expect(dismissals.at(-1)).toEqual({ method: "DELETE", path: "/api/offer-box/e-a/dismissal", body: undefined });
+    expect(await screen.findByRole("button", { name: "Suivre : Offre a" })).toBeOnTheScreen();
+  });
+
+  it("an offer écartée says so with its reason, and « Revenir sur ce choix » puts it back to handle", async () => {
+    const { dismissals } = serve(201, [{ ...ENTRY, state: "dismissed", dismissalReason: "location", dismissedAt: "2026-11-05T09:00:00.000Z" }]);
+    const user = userEvent.setup();
+    await renderInApp(<FoundJobOfferPane found={found("a", { decision: "dismissed" })} profile={DAF} />);
+
+    expect(await screen.findByText("Écartée · Lieu")).toBeOnTheScreen();
+    await user.press(screen.getByRole("button", { name: "Revenir sur ce choix : Offre a" }));
+
+    expect(dismissals).toEqual([{ method: "DELETE", path: "/api/offer-box/e-a/dismissal", body: undefined }]);
+    expect(await screen.findByRole("button", { name: "Écarter : Offre a" })).toBeOnTheScreen();
+  });
+
+  it("says so when « Écarter » failed, and the offer stays to handle", async () => {
+    serve();
+    const fetch = jest.mocked(globalThis.fetch);
+    const served = fetch.getMockImplementation()!;
+    fetch.mockImplementation(async (input, init) => (init?.method === "POST" && String(input).includes("/dismissal") ? Response.json({ error: "unavailable" }, { status: 503 }) : served(input, init)));
+    const user = userEvent.setup();
+    await renderInApp(<FoundJobOfferPane found={found("a")} profile={DAF} />);
+
+    await user.press(await screen.findByRole("button", { name: "Écarter : Offre a" }));
+    await user.press(screen.getByRole("button", { name: "Écarter sans motif" }));
+
+    expect(await screen.findByText(/n'a pas pu être écartée/)).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Suivre : Offre a" })).toBeOnTheScreen();
+  });
+
+  it("an offer not in the Offer box still offers « Suivre », with no « Écarter »", async () => {
+    const { writes } = serve(201, []);
+    await renderInApp(<FoundJobOfferPane found={found("a")} profile={DAF} />);
+
+    await userEvent.setup().press(screen.getByRole("button", { name: "Suivre : Offre a" }));
+
+    expect(writes).toEqual([{ jobOfferId: "a", profileId: "p1" }]);
+    expect(await screen.findByRole("button", { name: "Voir la candidature" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Écarter : Offre a" })).toBeNull();
   });
 });

@@ -30,6 +30,7 @@ import type {
   JobOfferLine,
   JobSearchesResponse,
   JobSearchResponse,
+  OfferBoxOfferResponse,
   OfferBoxResponse,
   ProfileResponse,
   ProfilesResponse,
@@ -68,6 +69,11 @@ export interface CandidateReads {
   jobSearches(candidateId: string): Promise<JobSearchesResponse>;
   /** The Offer box (« Offres à traiter », ADR-0090): every entry, the most recent first Arrival first, and how many are à traiter. */
   offerBox(candidateId: string): Promise<OfferBoxResponse>;
+  /**
+   * One Offer box entry's Job Offer as its Work Pane shows it (#692), against the Profile « Suivre » saves it with; null
+   * when it is not theirs, or has no Profile to be scored against.
+   */
+  offerBoxOffer(candidateId: string, entryId: string): Promise<OfferBoxOfferResponse | null>;
   /** One of the Candidate's Job Searches and its Job Offers, best Match Score first; null when it is not theirs. */
   jobSearch(candidateId: string, jobSearchId: string): Promise<JobSearchResponse | null>;
   /** The Job Digests' card: each active Profile, its Job Digest's frequency and those sent, newest first. */
@@ -328,6 +334,13 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
 
     async offerBox(candidateId) {
       return offerBoxResponse(await deps.offerBox.read(candidateId));
+    },
+
+    async offerBoxOffer(candidateId, entryId) {
+      const entry = (await deps.offerBox.read(candidateId)).entries.find((one) => one.id === entryId);
+      if (!entry?.scoredWith || !entry.matchScore) return null;
+      const { jobOffer, matchScore, applicationId, state } = entry;
+      return { profile: entry.scoredWith, found: foundJobOffer({ jobOffer, matchScore, applicationId, dismissed: state === "dismissed" }) };
     },
 
     async jobSearch(candidateId, jobSearchId) {

@@ -1,6 +1,8 @@
-import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
+import type { OfferBoxEntryRead, OfferBoxOfferResponse, OfferBoxResponse } from "@jobhub/shared/reads";
 import { screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
+import { found } from "../job-searches/testing";
+import { Shell } from "../shell/Shell";
 import { renderInApp } from "../testing";
 import { OfferBox } from "./OfferBox";
 
@@ -25,8 +27,24 @@ function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBox
   };
 }
 
+/** An entry's Job Offer as `GET /api/offer-box/:id` gives it (#692): Match Score 86, with why, its summary and its text. */
+function opened(one: OfferBoxEntryRead): OfferBoxOfferResponse {
+  const offer = found(one.jobOffer.id);
+  return {
+    profile: one.scoredWith!,
+    found: { ...offer, jobOffer: { ...offer.jobOffer, title: one.jobOffer.title }, applicationId: one.applicationId, decision: one.applicationId ? "kept" : one.state === "dismissed" ? "dismissed" : null },
+  };
+}
+
+/** Recherches d'offres' page in the shell, whose Work Pane an entry opens in. */
+const inShell = () => (
+  <Shell page={{ key: "/recherches", title: "Recherches d'offres", pane: null }} paneContent={null} sidebar={() => null} onNewConversation={() => {}}>
+    <OfferBox />
+  </Shell>
+);
+
 /**
- * The web app's `GET /api/offer-box`, `POST /api/applications` and `POST` / `DELETE /api/offer-box/:id/dismissal`, at
+ * The web app's `GET /api/offer-box` (and one entry's, `GET /api/offer-box/:id`), `POST /api/applications` and `POST` / `DELETE /api/offer-box/:id/dismissal`, at
  * the network: « Suivre » makes the entry's Application, so the box read again has it « Suivie »; « Écarter » makes it
  * « Écartée », « Revenir sur ce choix » à traiter again.
  */
@@ -38,6 +56,9 @@ function serve(entries: OfferBoxEntryRead[]) {
     if (url.pathname === "/api/offer-box") {
       return Response.json({ ...box, toHandle: box.entries.filter((one) => one.state === "to_handle").length });
     }
+    const one = /^\/api\/offer-box\/([^/]+)$/.exec(url.pathname);
+    const read = one && box.entries.find((each) => each.id === decodeURIComponent(one[1]!));
+    if (read) return Response.json(opened(read));
     if (url.pathname === "/api/applications" && init?.method === "POST") {
       const body = JSON.parse(String(init.body)) as { jobOfferId: string; profileId: string };
       writes.push({ path: url.pathname, body });
@@ -170,6 +191,24 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
     await user.press(screen.getByRole("button", { name: "Revenir sur ce choix : Offre b" }));
     expect(writes.at(-1)).toEqual({ path: "/api/offer-box/b/dismissal", method: "DELETE", body: undefined });
     await waitFor(() => expect(screen.getByRole("button", { name: "Écartées (1)" })).toBeOnTheScreen());
+  });
+
+  it("an entry opens in the Work Pane as a Job Search's Job Offer does: its Match Score and why, its summary, its text and « Suivre » (#692)", async () => {
+    const { writes } = serve([entry("a")]);
+    const user = userEvent.setup();
+    await renderInApp(inShell());
+
+    await user.press(await screen.findByRole("link", { name: "Offre a · Acme Industrie" }));
+
+    expect(await screen.findByText("Score de correspondance avec le profil « DAF » :")).toBeOnTheScreen();
+    await user.press(screen.getByRole("button", { name: "Pourquoi 86 ?" }));
+    expect(screen.getByText("Compétences : 1 sur 2 sur votre CV ; absentes : SAP")).toBeOnTheScreen();
+    expect(screen.getByText("Piloter la consolidation IFRS d'un groupe industriel.")).toBeOnTheScreen();
+    expect(screen.getByText("Vous pilotez la consolidation IFRS sous SAP.")).toBeOnTheScreen();
+
+    await user.press(screen.getByRole("button", { name: "Suivre : Offre a" }));
+    expect(writes).toEqual([{ path: "/api/applications", body: { jobOfferId: "offer-a", profileId: "p1" } }]);
+    expect(await screen.findByRole("button", { name: "Voir la candidature" })).toBeOnTheScreen();
   });
 
   it("says when nothing has arrived yet", async () => {

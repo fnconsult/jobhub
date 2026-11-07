@@ -60,18 +60,9 @@ appId: ai.jobbbox.app
                 start: "40%, 30%"
                 end: "40%, 45%"
                 duration: 3000
-- repeat:
-    while:
-      notVisible:
-        text: ${TEXT}
-        below:
-          id: "conversation-thread"
-    times: 3
-    commands:
-      - swipe:
-          start: "40%, 30%"
-          end: "40%, 45%"
-          duration: 3000
+# Above the box first, then below the thread's top: an element taller than the thread's room (a card's title at
+# iOS's largest text size on an iPhone SE, some 300 pt against 270) can't be both, and it is its top that must stay in
+# the thread, where its centre is tapped (run 42370572968: pushed up last, its centre fell outside, the tap missed).
 - repeat:
     while:
       notVisible:
@@ -83,6 +74,18 @@ appId: ai.jobbbox.app
       - swipe:
           start: "40%, 45%"
           end: "40%, 30%"
+          duration: 3000
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+        below:
+          id: "conversation-thread"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 30%"
+          end: "40%, 45%"
           duration: 3000
 - assertVisible:
     text: ${TEXT}

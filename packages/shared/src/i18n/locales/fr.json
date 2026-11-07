@@ -5244,7 +5244,6 @@
         "change": "Ouvrir {{label}}"
       },
       "cost": {
-        "label": "Coût :",
         "quota": {
           "jobSearches": "1 recherche du forfait",
           "atsScores": "1 ATS Score du forfait",

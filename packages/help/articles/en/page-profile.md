@@ -10,6 +10,8 @@ A profile's page is its conversation with your AI coach: it has the profile's Ma
 
 On the right, the profile's fiche: whether it is active or archived, « Search for offers », its search criteria, which you change in place, and its ATS Score, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». A profile's results are the versions of its Master CV, newest first, and its download as PDF or Word. « Fiche », at the top of the page, opens or closes it.
 
+The « Activity » group shows what is running right now, then the page's history, day by day: the coach's replies in the profile's conversation, the versions of the Master CV (saved by you or from a coach proposal, or read from your file) and the ATS Score, each linked to what caused it (« ↳ follows … »), to its page (« Open the version », « See the ATS Score ») and to its message (« See in the conversation »). At the bottom, « This page's sources and tools » stays folded.
+
 Its sections: Suggestions, as long as your coach has fixes to propose, then Master CV, ATS Score, Target companies, Download and Manage. A section, a version of the Master CV, its history or the full CV editor opens beside the conversation, without hiding it. « Close » or the Escape key closes it. Each section keeps its address.
 
 Start with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one. Each time you save the Master CV, a new version is created, and you can go back to an earlier one. « Download » exports the Master CV as PDF or Word. « Manage » lets you rename, duplicate or archive the profile.

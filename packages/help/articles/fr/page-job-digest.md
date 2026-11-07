@@ -10,6 +10,8 @@ La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les 
 
 À droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.
 
+Le groupe « Activité » montre l'historique de la page : le Job Digest, ses scores de correspondance calculés « Sans IA », les offres qu'il a apportées, chacune « ↳ suite de » lui, et les réponses du coach dans cette conversation.
+
 Une offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.
 
 Sur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation.

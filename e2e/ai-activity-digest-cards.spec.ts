@@ -74,8 +74,16 @@ async function createProfile(page: Page): Promise<string> {
 const aiActivityButton = (page: Page) => activityButtonOf(page);
 /** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
 const paneOf = (page: Page) => activityOf(page);
-/** The pane's « Par élément » entry whose title or kind says `label`. */
-const elementOf = (page: Page, label: string | RegExp) => paneOf(page).locator(".ai-activity-element").filter({ hasText: label });
+/** The history's entry whose title says `label` (#808). */
+const entryOf = (page: Page, label: string | RegExp) => paneOf(page).locator(".activity-entry").filter({ has: page.locator(".activity-entry-title").filter({ hasText: label }) });
+/** That entry, its detail unfolded: its steps, models and cost. */
+async function elementOf(page: Page, label: string | RegExp) {
+  const entry = entryOf(page, label);
+  await expect(entry).toHaveCount(1);
+  const row = entry.locator(".activity-entry-row");
+  if ((await row.getAttribute("aria-expanded")) !== "true") await row.click();
+  return entry;
+}
 
 async function openPane(page: Page) {
   await openActivity(page);
@@ -122,23 +130,21 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
 
     await openPane(page);
     const pane = paneOf(page);
-    const score = elementOf(page, fr.aiActivity.kinds.ats_score);
-    await expect(score).toHaveCount(1);
+    const score = await elementOf(page, fr.aiActivity.kinds.ats_score);
     await expect(score).toContainText(fr.aiActivity.steps.compute);
     await expect(score).not.toContainText(fr.aiActivity.modelNotRecorded);
 
-    const fix = elementOf(page, "Ajoutez « Trésorerie » à vos compétences");
-    await expect(fix).toHaveCount(1);
+    const fix = await elementOf(page, "Ajoutez « Trésorerie » à vos compétences");
     await expect(fix).toContainText(fr.aiActivity.steps.compute);
     await expect(fix).not.toContainText(fr.aiActivity.modelNotRecorded);
 
-    const old = elementOf(page, "Ancienne proposition");
+    const old = await elementOf(page, "Ancienne proposition");
     await expect(old).toContainText(fr.aiActivity.modelNotRecorded);
     await expect(old).not.toContainText(fr.aiActivity.steps.compute);
 
-    // No model in the Modèles section: the rules are an Outil.
-    await expect(pane.locator(".ai-activity-section").first()).not.toContainText(/Mistral|Claude|Perplexity/);
-    await expect(pane.locator(".ai-activity-total")).toHaveCount(0);
+    // No entry names a model: the rules are a Tool, « Sans IA ».
+    await expect(pane).not.toContainText(/Mistral|Claude|Perplexity/);
+    await expect(score).toContainText(fr.aiActivity.history.cost.noAi);
   });
 
   test("a new Job Digest shows its Match Scores as « Calcul » with no model; one made before shows « non enregistré »", async ({ page }) => {
@@ -151,14 +157,13 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     await page.goto(`/job-digests/${fresh}`);
     await expect(aiActivityButton(page)).toHaveText(fr.fiche.activity);
     await openPane(page);
-    const digest = elementOf(page, fr.aiActivity.kinds.job_digest);
-    await expect(digest).toHaveCount(1);
+    const digest = await elementOf(page, fr.aiActivity.kinds.job_digest);
     await expect(digest).toContainText(fr.aiActivity.steps.compute);
     await expect(digest).not.toContainText(fr.aiActivity.modelNotRecorded);
 
     await page.goto(`/job-digests/${before}`);
     await openPane(page);
-    const old = elementOf(page, fr.aiActivity.kinds.job_digest);
+    const old = await elementOf(page, fr.aiActivity.kinds.job_digest);
     await expect(old).toContainText(fr.aiActivity.modelNotRecorded);
     await expect(old).not.toContainText(fr.aiActivity.steps.compute);
   });
@@ -186,17 +191,13 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     await expect(page.locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`)).toBeVisible();
     await page.goto(`/candidatures/${applicationId}`);
 
-    // The Job Offer was read by Mistral, the Follow-up card written by Claude: both count; the older card adds nothing.
+    // The Job Offer was read by Mistral, the Follow-up card written by Claude: each entry names its own model.
     await openPane(page);
-    const models = paneOf(page).locator(".ai-activity-section").first().locator(".ai-activity-list > li:not(.ai-activity-total)");
-    await expect(models).toHaveCount(2);
-    await expect(models.filter({ hasText: "Claude Sonnet 5" })).toHaveCount(1);
-    await expect(models.filter({ hasText: "Mistral" })).toHaveCount(1);
-    const written = elementOf(page, "Relancer : nouvelle relance");
-    await expect(written).toHaveCount(1);
+    await expect(await elementOf(page, fr.aiActivity.kinds.job_offer)).toContainText("Mistral");
+    const written = await elementOf(page, "Relancer : nouvelle relance");
     await expect(written).toContainText("Claude Sonnet 5");
     await expect(written).not.toContainText(fr.aiActivity.modelNotRecorded);
-    const old = elementOf(page, "Relancer : ancienne relance");
+    const old = await elementOf(page, "Relancer : ancienne relance");
     await expect(old).toContainText(fr.aiActivity.modelNotRecorded);
     await expect(old).not.toContainText("Claude Sonnet 5");
   });

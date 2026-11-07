@@ -5244,7 +5244,6 @@
         "change": "Open {{label}}"
       },
       "cost": {
-        "label": "Cost:",
         "quota": {
           "jobSearches": "1 search from your plan",
           "atsScores": "1 ATS Score from your plan",

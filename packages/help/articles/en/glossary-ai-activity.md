@@ -3,11 +3,9 @@ kind: glossary
 audience: candidate
 topic: utiliser
 title: AI activity
-synonyms: [ai activity, activity, right now, running elsewhere, nothing is running, models, model, tokens, sources, tools, what the ai did, stop, running, provenance]
+synonyms: [ai activity, activity, right now, running elsewhere, nothing is running, history, today, follows, led to, see in the conversation, in activity, this page's sources and tools, no ai, last call only, counted in your consumption, models, model, tokens, sources, tools, what the ai did, stop, running, provenance]
 ---
-« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».
-
-Tokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.
+AI activity shows what AI, the coach and you did on the open page. « Activity », at the top of the page, opens it: in the Fiche's « Activity » group on an object's page (a profile, a job search, an application…), in the Activity column on the home page and the menus. From top to bottom: the conversation's context, « Right now », then the history.
 
 « Right now », at the top of the activity, just under the conversation's context, shows the AI actions under way: this page's first, then « Running elsewhere », with a link to their page. A job search running while the coach answers you shows there beside its reply. For each: its glyph, the step under way, the number of steps done and the time so far; for a coach reply, each tool it looks at, ticked once done. The stop icon interrupts it: what was finished is kept. A finished action leaves « Right now »; with nothing under way, it says « Nothing is running on this page. ».
 
@@ -16,8 +14,18 @@ Each step has its glyph, which moves while it runs:
 - « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;
 - « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;
 - « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;
-- « Looking at your data » and « Preparing a proposal »: the toolbox opening, a key coming out when the coach reads your applications, your agenda or your profile, a small card when it prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».
+- « Looking at your data » and « Preparing a proposal »: the toolbox opening, a key coming out when the coach reads your applications, your agenda or your profile, a small card when it prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named in the reply's detail.
 
 If you asked your device for less motion, each glyph stays still.
 
-A stopped or failed action stays in « Right now », in light red, and says so in words, with its reason when known. AI activity never shows a cost or an internal setting. At the bottom, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy.
+A stopped or failed action stays in « Right now », in light red, and says so in words, with its reason when known.
+
+Under « Right now », the « History » lists what happened on the page, newest first, by day (« Today », « On 27/10 »): the coach's replies, job searches, offers read, versions of the Master CV, ATS Scores, the coach's proposals you applied… Each row gives its glyph, its title, its result, its cost in short and its time. Open it for the detail: your question (« You: … »), the steps, what the coach read (« Read: … »), the tools and models, its proposals and their state, what an applied proposal led to (« → led to … »), the full cost, and « ↳ follows … » when it comes from another row: a coach reply, then the CV version its proposal created, then the ATS Score computed on that version. A link leads to the object (« Open the version », « Open the search »…), and « See in the conversation » scrolls the conversation to the message and highlights it a moment (on a phone, the activity closes first). In the conversation, « In Activity », under a coach reply or a proposal, opens the activity on its row.
+
+The cost is never given in euros:
+
+- what counts in your plan says so, with the week's use: « 1 search from your plan · 4 of 7 this week »; what has no quota is at most « counted in your consumption ». Both lead to « Your consumption » on My subscription;
+- for a coach reply: « 4 calls · 21.4k tokens sent », all its AI calls added up. Tokens are a technical measure, never counted against your quotas. An older reply kept its last call only: it says so (« last call only »);
+- what Jobbbox's rules, or you, do without AI says « No AI ».
+
+At the very bottom, « This page's sources and tools », folded, lists each site read and each tool used once. AI activity never shows an internal setting. « Learn more » leads to the « AI in Jobbbox » section of the privacy policy.

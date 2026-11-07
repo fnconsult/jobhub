@@ -96,7 +96,7 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     await expect(activityButton(page)).toHaveAttribute("aria-expanded", "true");
     await expect(contextBar(page)).toContainText("0 / 40 messages · 0 / 12k jetons");
     await expect(column(page).getByRole("heading", { level: 2 })).toHaveCount(0);
-    await expect(column(page).getByRole("button", { name: fr.aiActivity.close })).toHaveCount(0);
+    await expect(column(page).getByRole("button", { name: fr.conversationFirst.close })).toHaveCount(0);
     const thread = await conversation(page).locator(".page-conversation-thread").boundingBox();
     const beside = await column(page).boundingBox();
     expect(beside!.x).toBeGreaterThanOrEqual(thread!.x + thread!.width);
@@ -107,6 +107,14 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     await expect(contextBar(page)).toContainText(/(^|\D)2 \/ 40 messages · [\d,]+k? \/ 12k jetons/);
     await expect(contextBar(page)).not.toContainText("tokens");
     await expect(contextBar(page).getByRole("button", { name: bar.clear })).toHaveCount(0);
+    // The reply is the first entry of the column's history (#808), the same as in an object's Fiche: « Voir dans la
+    // conversation » marks it in the thread.
+    const reply = column(page).locator(".activity-entry-row").filter({ hasText: fr.aiActivity.kinds.coach_reply });
+    await expect(column(page).getByRole("region", { name: fr.aiActivity.history.today })).toBeVisible();
+    await expect(reply).toHaveCount(1);
+    await reply.click();
+    await column(page).getByRole("button", { name: fr.aiActivity.history.inConversation }).click();
+    await expect(messages(page).last()).toHaveAttribute("data-highlighted", "true");
     const axe = await new AxeBuilder({ page }).include(".activity-column").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map(({ id }) => id)).toEqual([]);
 

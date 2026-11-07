@@ -5,7 +5,7 @@ import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { activityOf, activityUnderWayOf, closeActivity, openActivity } from "./support/conversation";
+import { activityOf, activityUnderWayOf, closeActivity, openActivity, pageSourcesOf, unfoldedEntryOf } from "./support/conversation";
 import { exitHref } from "./support/exit-page";
 
 // Issue #335: a Company Dossier and the reading of an uploaded CV keep their Provenance, show their steps live (on their
@@ -23,7 +23,8 @@ const REGISTER_PAGE = "https://annuaire-entreprises.data.gouv.fr/entreprise/5521
 
 /** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
 const paneOf = (page: Page) => activityOf(page);
-const elementOf = (page: Page, kind: string) => paneOf(page).locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds[kind] });
+/** The history's entry of `kind` (#808), its detail unfolded. */
+const elementOf = (page: Page, kind: string) => unfoldedEntryOf(page, fr.aiActivity.kinds[kind]);
 const dossierOf = (page: Page) => page.getByRole("region", { name: fr.companyDossier.title });
 const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -106,10 +107,9 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(dossier.getByText(fr.companyDossier.reliability.less_reliable)).toBeVisible();
 
     await openActivity(page);
-    const built = elementOf(page, "company_dossier");
-    await expect(built).toBeVisible();
+    const built = await elementOf(page, "company_dossier");
     await expect(built).not.toContainText(fr.aiActivity.modelNotRecorded);
-    const sources = paneOf(page).locator(".ai-activity-section").filter({ has: page.getByRole("button", { name: fr.aiActivity.sections.sources }) });
+    const sources = await pageSourcesOf(page);
     await sources.getByRole("button", { name: "personleak.example" }).click();
     await expect(sources.getByRole("link", { name: /^personleak\.example\/about/ })).toHaveAttribute("href", exitHref("https://personleak.example/about"));
     await sources.getByRole("button", { name: "news.example" }).click();
@@ -137,8 +137,8 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     ]);
     await openDossier(page, old);
     await openActivity(page);
-    await expect(elementOf(page, "company_dossier")).toContainText(fr.aiActivity.modelNotRecorded);
-    const oldSources = paneOf(page).locator(".ai-activity-section").filter({ has: page.getByRole("button", { name: fr.aiActivity.sections.sources }) });
+    await expect(await elementOf(page, "company_dossier")).toContainText(fr.aiActivity.modelNotRecorded);
+    const oldSources = await pageSourcesOf(page);
     await oldSources.getByRole("button", { name: "annuaire-entreprises.data.gouv.fr" }).click();
     await expect(oldSources.getByRole("link", { name: /^annuaire-entreprises\.data\.gouv\.fr\/entreprise\/552100554/ })).toHaveAttribute("href", exitHref(REGISTER_PAGE));
   });
@@ -180,8 +180,8 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     const stopped = paneOf(page).locator(".ai-activity-live");
     await expect(stopped).toContainText(/Arrêtée à \d{2}:\d{2}/);
     expect(await stopped.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(stopped));
-    await expect(elementOf(page, "company_dossier")).not.toContainText(fr.aiActivity.modelNotRecorded);
-    await expect(paneOf(page).getByRole("button", { name: "globex-robotics.example" })).toBeVisible();
+    await expect(await elementOf(page, "company_dossier")).not.toContainText(fr.aiActivity.modelNotRecorded);
+    await expect((await pageSourcesOf(page)).getByRole("button", { name: "globex-robotics.example" })).toBeVisible();
     await expectNoAxeViolations(page, ".fiche-activity");
   });
 
@@ -251,10 +251,9 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}/);
 
     await openActivity(page);
-    const read = elementOf(page, "master_cv");
-    await expect(read).toBeVisible();
+    const read = await elementOf(page, "master_cv");
     await expect(read).not.toContainText(fr.aiActivity.modelNotRecorded);
     await expect(read).toContainText("Mistral");
-    await expect(paneOf(page)).toContainText(fr.aiActivity.yourData);
+    await expect(await pageSourcesOf(page)).toContainText(fr.aiActivity.yourData);
   });
 });

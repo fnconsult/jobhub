@@ -308,6 +308,8 @@ function Detail({ entry, reveal, byKey, inThread, cost }: { entry: ActivityEntry
   return (
     <>
       <p className="activity-entry-origin">{t(`aiActivity.history.origin.${entry.origin}`)}</p>
+      {/* A failed one's Failure Reason, when known (#368). */}
+      {entry.result.end.state === "failed" && entry.result.end.reason ? <p className="activity-entry-reason">{t(entry.result.end.reason)}</p> : null}
       {entry.question ? <p className="activity-entry-question">{t("aiActivity.history.you", { question: entry.question })}</p> : null}
       {entry.steps.length > 0 ? (
         <ol className="activity-entry-steps" aria-label={t("aiActivity.history.steps")}>
@@ -427,14 +429,14 @@ function FullCost({ cost }: { cost: CostShown }) {
   if (cost.noAi) parts.push(<span key="noAi" className="pill">{t("aiActivity.history.cost.noAi")}</span>);
   if (parts.length === 0) return null;
   return (
-    <Line label={t("aiActivity.history.cost.label")}>
+    <p className="activity-entry-cost">
       {parts.map((part, index) => (
         <span key={index}>
           {index > 0 ? " · " : null}
           {part}
         </span>
       ))}
-    </Line>
+    </p>
   );
 }
 

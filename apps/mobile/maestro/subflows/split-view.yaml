@@ -1,5 +1,5 @@
 # iPad Split View, half and half (#705): no simctl or Maestro command sets it, so the flow does what a person does, in
-# iPadOS 18's own screens: the multitasking button at the top of the window, « Split View », then Réglages for the
+# iPadOS 18's own screens: the multitasking button at the top of the window, « Split View », then Safari (in the Dock) for the
 # other half. The iPad's job runs iPadOS 18 (mobile-e2e.yml): iPadOS 26 has windows instead, and no such button. These
 # are the system's labels, in French or English as the simulator speaks (flows.test.ts leaves them out of its check of
 # the app's labels). To confirm on the first CI run of each new Xcode: docs/ops/mobile.md.
@@ -41,8 +41,13 @@ appId: ai.jobbbox.app
 - waitForAnimationToEnd:
     timeout: 3000
 - takeScreenshot: split-view-3-other-app
+# The other half's app, picked on the Home Screen iPadOS shows once « Split View » is chosen (the app slid aside at the
+# top): SpringBoard's icons are not in Maestro's hierarchy either, and Réglages is on none of the simulator's pages it
+# shows (run 42348955365's split-view-3-other-app.png: Contacts, Raccourcis, Mots de passe, Santé; Messages, Safari,
+# Calendrier, Photos in the Dock). Safari, the Dock's second icon, tapped where it is drawn: some 43 % across and 93 %
+# down the landscape screen.
 - tapOn:
-    text: "(Réglages|Settings)"
+    point: "43%, 93%"
 - extendedWaitUntil:
     visible: "Menu"
     timeout: 20000

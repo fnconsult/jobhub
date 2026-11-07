@@ -5,6 +5,8 @@ import { renderInApp } from "../testing";
 import { OfferBox } from "./OfferBox";
 
 const TODAY = "2026-11-05";
+/** Monday 9 November 2026, 00:00 in Paris: when « Plus tard » brings an entry of Thursday 5 November back. */
+const MONDAY = "2026-11-08T23:00:00.000Z";
 
 function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBoxEntryRead {
   return {
@@ -27,9 +29,10 @@ function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBox
 }
 
 /**
- * The web app's `GET /api/offer-box`, `POST /api/applications` and `POST` / `DELETE /api/offer-box/:id/dismissal`, at
- * the network: « Suivre » makes the entry's Application, so the box read again has it « Suivie »; « Écarter » makes it
- * « Écartée », « Revenir sur ce choix » à traiter again.
+ * The web app's `GET /api/offer-box`, `POST /api/applications`, `POST` / `DELETE /api/offer-box/:id/dismissal`,
+ * `/api/offer-box/:id/later` and `/api/offer-box/dismissals`, at the network: « Suivre » makes the entry's Application,
+ * so the box read again has it « Suivie »; « Écarter » makes it « Écartée », « Revenir sur ce choix » à traiter again;
+ * « Plus tard » puts it away until Monday 9 November; « Tout écarter » écarte the entries it names.
  */
 function serve(entries: OfferBoxEntryRead[]) {
   const box: OfferBoxResponse = { today: TODAY, toHandle: 0, entries };
@@ -37,7 +40,7 @@ function serve(entries: OfferBoxEntryRead[]) {
   jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = new URL(String(input));
     if (url.pathname === "/api/offer-box") {
-      return Response.json({ ...box, toHandle: box.entries.filter((one) => one.state === "to_handle").length });
+      return Response.json({ ...box, toHandle: box.entries.filter((one) => one.state === "to_handle" || one.state === "later").length });
     }
     if (url.pathname === "/api/applications" && init?.method === "POST") {
       const body = JSON.parse(String(init.body)) as { jobOfferId: string; profileId: string };
@@ -58,6 +61,23 @@ function serve(entries: OfferBoxEntryRead[]) {
             : { ...one, state: "to_handle", dismissalReason: null, dismissedAt: null },
       );
       return new Response(null, { status: 204 });
+    }
+    const later = /^\/api\/offer-box\/([^/]+)\/later$/.exec(url.pathname);
+    if (later) {
+      const id = decodeURIComponent(later[1]!);
+      writes.push({ path: url.pathname, method: init?.method, body: undefined });
+      const laterUntil = init?.method === "POST" ? MONDAY : null;
+      box.entries = box.entries.map((one) => (one.id === id ? { ...one, state: laterUntil ? "later" : "to_handle", laterUntil } : one));
+      return laterUntil ? Response.json({ laterUntil }) : new Response(null, { status: 204 });
+    }
+    if (url.pathname === "/api/offer-box/dismissals") {
+      const { entryIds } = JSON.parse(String(init?.body)) as { entryIds: string[] };
+      writes.push({ path: url.pathname, method: init?.method, body: { entryIds } });
+      const dismissing = init?.method === "POST";
+      box.entries = box.entries.map((one) =>
+        entryIds.includes(one.id) ? { ...one, state: dismissing ? "dismissed" : "to_handle", dismissedAt: dismissing ? "2026-11-05T11:00:00.000Z" : null } : one,
+      );
+      return dismissing ? Response.json({ dismissed: entryIds }) : new Response(null, { status: 204 });
     }
     return Response.json({ error: "not_found" }, { status: 404 });
   });
@@ -171,6 +191,70 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
     await user.press(screen.getByRole("button", { name: "Revenir sur ce choix : Offre b" }));
     expect(writes.at(-1)).toEqual({ path: "/api/offer-box/b/dismissal", method: "DELETE", body: undefined });
     await waitFor(() => expect(screen.getByRole("button", { name: "Écartées (1)" })).toBeOnTheScreen());
+  });
+
+  describe("« Plus tard », « Expirées sans décision » and « Tout écarter » (#817)", () => {
+    const earlier = (id: string, matchScore: number, overrides: Partial<OfferBoxEntryRead> = {}) =>
+      entry(id, { matchScore, arrivalDay: "2026-11-03", firstArrivalAt: "2026-11-03T08:00:00.000Z", ...overrides });
+
+    it("« Plus tard » puts the entry away until Monday, still counted, folded under « Plus tard » with when it comes back; « Annuler » brings it back", async () => {
+      const { writes } = serve([entry("a"), entry("b")]);
+      const user = userEvent.setup();
+      await renderInApp(<OfferBox />);
+      const line = await screen.findByLabelText("Offre a");
+
+      await user.press(within(line).getByRole("button", { name: "Plus tard : Offre a" }));
+
+      expect(writes).toEqual([{ path: "/api/offer-box/a/later", method: "POST", body: undefined }]);
+      const said = "« Offre a » revient lundi 9 nov. : elle reste dans le compteur.";
+      expect(await screen.findByText(said)).toBeOnTheScreen();
+      expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(said);
+      expect(screen.getByText("2 à traiter · 0 traitée")).toBeOnTheScreen();
+      await user.press(screen.getByRole("button", { name: "Plus tard (1)" }));
+      const away = screen.getByLabelText("Offre a");
+      expect(within(away).getByText("Plus tard · revient lundi 9 nov.")).toBeOnTheScreen();
+      expect(within(away).queryByRole("button", { name: "Plus tard : Offre a" })).toBeNull();
+      expect(within(away).getByRole("button", { name: "Écarter : Offre a" })).toBeOnTheScreen();
+
+      await user.press(screen.getByRole("button", { name: "Annuler" }));
+      expect(writes.at(-1)).toEqual({ path: "/api/offer-box/a/later", method: "DELETE", body: undefined });
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Plus tard (1)" })).toBeNull());
+    });
+
+    it("folds « Expirées sans décision », out of the count, where « Écarter » is still offered", async () => {
+      serve([entry("a"), earlier("old", 85, { state: "expired" })]);
+      const user = userEvent.setup();
+      await renderInApp(<OfferBox />);
+
+      expect(await screen.findByText("1 à traiter · 0 traitée")).toBeOnTheScreen();
+      expect(screen.queryByLabelText("Offre old")).toBeNull();
+      await user.press(screen.getByRole("button", { name: "Expirées sans décision (1)" }));
+      const line = screen.getByLabelText("Offre old");
+      expect(within(line).getByRole("button", { name: "Écarter : Offre old" })).toBeOnTheScreen();
+      expect(within(line).queryByRole("button", { name: "Suivre : Offre old" })).toBeNull();
+      expect(within(line).queryByRole("button", { name: "Plus tard : Offre old" })).toBeNull();
+    });
+
+    it("« Tout écarter (n) » in « Précédemment » écarte that tier's entries within the source chip, with « Annuler »", async () => {
+      const email = [{ source: "email" as const, at: "2026-11-03T08:00:00.000Z" }];
+      const { writes } = serve([entry("today1", { matchScore: 70 }), entry("today2", { matchScore: 72 }), earlier("m1", 70), earlier("m2", 65, { sources: email }), earlier("m3", 62)]);
+      const user = userEvent.setup();
+      await renderInApp(<OfferBox />);
+      await screen.findByRole("heading", { name: "Offres à traiter" });
+
+      // « Aujourd'hui » offers none; « Précédemment »'s « À regarder » does.
+      expect(screen.getAllByRole("button", { name: /^Tout écarter/ })).toHaveLength(1);
+      await user.press(screen.getByRole("button", { name: "Recherche, 4 à traiter" }));
+      await user.press(screen.getByRole("button", { name: "Tout écarter dans « À regarder » (2)" }));
+
+      expect(writes).toEqual([{ path: "/api/offer-box/dismissals", method: "POST", body: { entryIds: ["m1", "m3"] } }]);
+      expect(await screen.findByText("2 offres écartées.")).toBeOnTheScreen();
+      expect(screen.getByText("3 à traiter · 2 traitées")).toBeOnTheScreen();
+
+      await user.press(screen.getByRole("button", { name: "Annuler" }));
+      expect(writes.at(-1)).toEqual({ path: "/api/offer-box/dismissals", method: "DELETE", body: { entryIds: ["m1", "m3"] } });
+      await waitFor(() => expect(screen.getByText("5 à traiter · 0 traitée")).toBeOnTheScreen());
+    });
   });
 
   it("says when nothing has arrived yet", async () => {

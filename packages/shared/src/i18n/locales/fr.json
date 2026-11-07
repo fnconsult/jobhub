@@ -5576,7 +5576,7 @@
     "laterBlock": "Plus tard ({{count}})",
     "laterHint": "Elles restent à traiter et dans le compteur, et reviennent sous « Aujourd'hui » lundi.",
     "expiredBlock": "Expirées sans décision ({{count}})",
-    "expiredHint": "Publiées il y a plus de 30 jours, hors compteur. Elles ne sont jamais écartées à votre place : écartez celles qui ne vous intéressent plus.",
+    "expiredHint": "Sans décision 30 jours après leur publication (ou leur arrivée si la date est inconnue), hors compteur",
     "dismissAll": "Tout écarter ({{count}})",
     "dismissAllLabel": "Tout écarter dans « {{tier}} » ({{count}})",
     "dismissedAllToast_one": "{{count}} offre écartée.",

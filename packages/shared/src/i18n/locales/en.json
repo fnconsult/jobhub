@@ -5576,7 +5576,7 @@
     "laterBlock": "Later ({{count}})",
     "laterHint": "They stay to handle and in the count, and come back under « Today » on Monday.",
     "expiredBlock": "Expired without a decision ({{count}})",
-    "expiredHint": "Posted more than 30 days ago, out of the count. They are never set aside for you: set aside those you no longer want.",
+    "expiredHint": "No decision 30 days after they were posted (or arrived, if the date is unknown), out of the count",
     "dismissAll": "Set all aside ({{count}})",
     "dismissAllLabel": "Set all aside in « {{tier}} » ({{count}})",
     "dismissedAllToast_one": "{{count}} job offer set aside.",

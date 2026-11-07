@@ -99,6 +99,7 @@ const coachWeb = (): FakeCoachWeb =>
             followedAt: null,
             dismissalReason: null,
             dismissedAt: null,
+            laterUntil: null,
           },
         ],
       },

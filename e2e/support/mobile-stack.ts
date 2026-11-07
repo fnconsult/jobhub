@@ -13,7 +13,7 @@ import type { AddressInfo } from "node:net";
 import type { Browser, Page } from "@playwright/test";
 import { legalStepsResponseSchema } from "@jobhub/shared/reads";
 import pg from "pg";
-import { MAESTRO_SEED } from "../../apps/mobile/maestro/seed";
+import { MAESTRO_SEED, offerBoxArrivalAt } from "../../apps/mobile/maestro/seed";
 import { signInWithMagicLink } from "./candidate";
 import { codeIn, emailsTo } from "./mailbox";
 import { subscribe } from "./plan";
@@ -92,14 +92,14 @@ export async function seedMaestroCandidate(browser: Browser, origin: string): Pr
         "INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, $4, $4, $5) RETURNING id",
         [candidateId, profile.id, found, MAESTRO_SEED.day, DONE_SEARCH_METRICS],
       );
-      // What the Job Search's report records with it (ADR-0090, recordArrivals): its Job Offers in the Offer box, on its day,
+      // What the Job Search's report records with it (ADR-0090, recordArrivals): its Job Offers in the Offer box, 10 days before the run (offerBoxArrivalAt),
       // a minute apart, the first one MAESTRO_SEED names last, so the box, the most recent first, lists them in its order.
       await db.query(
         `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
          SELECT $1, found.id, $2, arrival.at, jsonb_build_object('job_search', to_char(arrival.at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
            FROM unnest($3::uuid[]) WITH ORDINALITY AS found (id, n)
            CROSS JOIN LATERAL (SELECT $4::timestamptz - (found.n - 1) * interval '1 minute' AS at) arrival`,
-        [candidateId, profile.id, found, MAESTRO_SEED.day],
+        [candidateId, profile.id, found, offerBoxArrivalAt()],
       );
       // Saved on the seeded day, the Application « Postulée » last: Mes candidatures lists the latest first, and on one
       // same instant their order was the database's, one run's capture not the next's (#705).

@@ -35,11 +35,24 @@ export const MAESTRO_SEED = {
   /** A Free conversation, titled by its first message as the platform titles it; the key screen « conversation ». */
   conversation: { title: "Préparer mon entretien chez Aéroline" },
   /**
-   * The fixed day of every seeded date the key screens show, so their captures do not change from one day to the next:
-   * more than 30 days ago (MAX_POSTING_AGE_DAYS), so the Offer box never says its Job Offers « sort dans n j ».
+   * The fixed day of every seeded date the key screens show, so their captures do not change from one day to the next,
+   * but the Offer box's Arrivals (`offerBoxArrivalAt`).
    */
   day: "2026-10-01T09:00:00Z",
 } as const;
+
+/**
+ * Its Job Offers' Arrival in the Offer box: 10 days before the run, at 09:00 UTC. A fixed day would have them « Expirées
+ * sans décision » once 30 days old (MAX_POSTING_AGE_DAYS, #817), « Suivre » hidden; 10 days keeps them à traiter and out
+ * of the last 7 days that say « sort dans n j ». Only their « arrivée le … » chip changes from one day to the next.
+ */
+export const OFFER_BOX_ARRIVAL_DAYS_AGO = 10;
+export function offerBoxArrivalAt(now: Date = new Date()): string {
+  const at = new Date(now);
+  at.setUTCDate(at.getUTCDate() - OFFER_BOX_ARRIVAL_DAYS_AGO);
+  at.setUTCHours(9, 0, 0, 0);
+  return at.toISOString();
+}
 
 /** The key screens, captured in this order on each run (`captures/<device>/<theme>/<screen>.png`). */
 export const KEY_SCREENS = ["accueil", "candidatures", "fiche", "recherches", "agenda", "conversation"] as const;

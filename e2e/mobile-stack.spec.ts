@@ -2,7 +2,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, MOBILE_CLIENT } from "@jobhub/shared";
 import { agendaResponseSchema, applicationResponseSchema, applicationsResponseSchema, coachConversationsResponseSchema, jobSearchResponseSchema, jobSearchesResponseSchema, offerBoxResponseSchema } from "@jobhub/shared/reads";
 import { expect, test } from "@playwright/test";
-import { MAESTRO_SEED } from "../apps/mobile/maestro/seed";
+import { MAESTRO_SEED, offerBoxArrivalAt } from "../apps/mobile/maestro/seed";
 import { startMobileStackHelper } from "./support/mobile-stack";
 
 // The seeded test stack of the app's Maestro flows (#705, docs/ops/mobile.md): its helper seeds a Candidate per run and
@@ -63,12 +63,12 @@ test("seeds a Candidate per run, whom the app signs in by the code the helper ha
     expect(JSON.stringify(search)).toContain(MAESTRO_SEED.jobOffers[0]);
     expect(JSON.stringify(search)).toContain(MAESTRO_SEED.jobOffers[1]);
     // Recherches d'offres opens on the Offer box (ADR-0090): the Job Search's Job Offers there, à traiter, for its Profile,
-    // as its report leaves them, on the seeded day and in the seed's order, so « Suivre » is offered on the first and the
+    // as its report leaves them, 10 days before the run and in the seed's order, so « Suivre » is offered on the first and the
     // capture shows them the same each run.
     const box = await read("/api/offer-box", offerBoxResponseSchema);
     expect(box.toHandle).toBe(MAESTRO_SEED.jobOffers.length);
     expect(box.entries.map(({ jobOffer, state, sources, arrivalDay, scoredWith }) => [[jobOffer.title, jobOffer.employer].join(" · "), state, sources.map(({ source }) => source), arrivalDay, scoredWith?.id])).toEqual(
-      MAESTRO_SEED.jobOfferRows.map((row) => [row, "to_handle", ["job_search"], MAESTRO_SEED.day.slice(0, 10), profiles[0]!.profile.id]),
+      MAESTRO_SEED.jobOfferRows.map((row) => [row, "to_handle", ["job_search"], offerBoxArrivalAt().slice(0, 10), profiles[0]!.profile.id]),
     );
 
     // A code is handed once: the next one is that of a newer email.

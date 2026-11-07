@@ -11,14 +11,16 @@ appId: ai.jobbbox.app
       id: "sign-in-email"
     direction: DOWN
 # iOS sometimes takes the typing before its keyboard is up: typed again until the field shows it (iOS shows a field's
-# value to Maestro, Android does not).
+# value to Maestro, Android does not). Tapped once, before: at the largest text size the address is wider than the
+# field, a tap on its middle put the caret there, and the next try's erasing, which deletes before the caret, left
+# « .test » after it (« maestro…@e2e.jobbbox.test.test », iPhone SE, #705). Typed in, the caret is at the end.
+- tapOn:
+    id: "sign-in-email"
+- waitForAnimationToEnd:
+    timeout: 3000
 - retry:
     maxRetries: 2
     commands:
-      - tapOn:
-          id: "sign-in-email"
-      - waitForAnimationToEnd:
-          timeout: 3000
       - eraseText
       - inputText: ${STACK_EMAIL}
       - runFlow:
@@ -38,6 +40,7 @@ appId: ai.jobbbox.app
       - tapOn:
           text: "Votre adresse e-mail"
           index: 0
+      - runFlow: close-gate-keyboard.yaml
 - scrollUntilVisible:
     element:
       text: "Recevoir mon lien de connexion"
@@ -76,6 +79,7 @@ appId: ai.jobbbox.app
       - tapOn:
           text: "Saisir le code reçu par e-mail"
           index: 0
+      - runFlow: close-gate-keyboard.yaml
 # On four lines at the largest text size on an iPhone SE, taller than half the screen: scrolled to in short steps,
 # whole, « Renvoyer le lien » under it.
 - runFlow:

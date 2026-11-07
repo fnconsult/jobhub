@@ -50,3 +50,13 @@ describe("GateScreen, the keyboard up (#705)", () => {
     expect(roomUnder()).toBe(0);
   });
 });
+
+// iOS's number keyboard has no key that closes it: on an iPad in portrait at the largest text size it stayed over « Me
+// connecter avec ce code », and the tap meant for the button landed on the keyboard (#705, Maestro).
+describe("GateScreen, closing the keyboard (#705)", () => {
+  it("closes the keyboard on a drag", async () => {
+    setWindow(SE);
+    await renderGate();
+    expect(screen.getByTestId("gate-scroll")).toHaveProp("keyboardDismissMode", "on-drag");
+  });
+});

@@ -8,6 +8,12 @@ import { AppText } from "../ui/AppText";
 /** With the keyboard up, a tap on a button presses it rather than only closing the keyboard. */
 export const TAPS_REACH_CONTROLS = "handled";
 
+/**
+ * A drag closes the keyboard, as in the shell's panes: iOS's number keyboard has no key that closes it, and on an iPad in
+ * portrait at the largest text size a tap beside the code's field left it up, over « Me connecter avec ce code » (#705).
+ */
+export const KEYBOARD_CLOSES_ON_DRAG = "on-drag";
+
 const CENTRED = { flexGrow: 1, justifyContent: "center", padding: space[4] } as const;
 
 /**
@@ -20,9 +26,11 @@ export function GateScreen({ title, children }: { title: string; children: React
   return (
     <AboveKeyboard testID="gate-screen">
       <ScrollView
+        testID="gate-scroll"
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{ ...CENTRED, paddingTop: insets.top + space[4], paddingBottom: insets.bottom + space[4] }}
         keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}
+        keyboardDismissMode={KEYBOARD_CLOSES_ON_DRAG}
       >
         <View style={{ width: "100%", maxWidth: 28 * 16, alignSelf: "center", gap: space[4] }}>
           <AppText variant="h1">{title}</AppText>

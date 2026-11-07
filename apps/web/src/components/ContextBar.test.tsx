@@ -163,7 +163,7 @@ describe("the Context bar's Plan, upsell and breakdown (ADR-0078, #732)", () => 
   });
 
   it("says what the whole reply sent, all its calls summed, apart from the context and never as the bar's figure (#790)", async () => {
-    const reply = { calls: 6, turns: 3, rounds: 2, tools: ["lire_profil"], inputTokens: 56_700, cachedInputTokens: 30_000, outputTokens: 1_200 };
+    const reply = { calls: 6, turns: 3, rounds: 2, inputTokens: 56_700, cachedInputTokens: 30_000, outputTokens: 1_200 };
     const context = { messages: 2, tokens: 4_000, limits: { coachContextMessages: 40, coachContextTokens: 12_000 }, split: SPLIT, reply };
     vi.stubGlobal("fetch", server({ saved: context, replied: context }));
     const user = userEvent.setup();

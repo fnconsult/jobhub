@@ -3,16 +3,18 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Job searches
-synonyms: [offers to handle, to handle, handled, follow, search, look for, find, new job offers, start, start a search, searches by profile, received by email, offers received by email, unclassified, ignored emails, job alert, not to miss, worth a look, less suited, see all]
+synonyms: [offers to handle, to handle, handled, follow, set aside, dismiss, reason, not for me, go back on this choice, undo, search, look for, find, new job offers, start, start a search, searches by profile, received by email, offers received by email, unclassified, ignored emails, job alert, not to miss, worth a look, less suited, see all]
 route: /recherches
 ---
 « Job searches » opens on « Offers to handle »: every job offer that reached you, through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach, waits there for your decision. A job offer that arrived by several ways is listed once, with a chip for each (« Search », « Job Digest », « Email », « Coach link »), on the day it first arrived.
 
-At the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link » and « Extension » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.
+At the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed or set aside; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link » and « Extension » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.
 
 Job offers are sorted into « Today », then « Earlier », where each line says the day it arrived; in each, by importance: « Not to miss » (Match Score of 80 and above, with a border turning slowly around it), « Worth a look » (60 to 79), « Less suited » (under 60, or not computable). The most recent come first.
 
 Each line gives the Match Score, the title, the employer, the place, the contract, where the job offer came from, how many days it has been posted and, during its last 7 days out of 30, in how many days it leaves and the profile it relates to, or « Unsorted ». « Follow » saves it as an application, at « To apply »: it becomes « Followed ». An application created elsewhere, from a search, the extension or a proposal of your coach, makes it « Followed » too, as long as it exists. « Read the job offer » opens it alongside, with its score explained. The job offers followed today are folded under « Followed today ».
+
+**Setting a job offer aside.** « Set aside », on each line to handle, asks you why, if you wish: « Not for me », « Salary », « Location », « Contract » or « Already applied elsewhere », or « Set aside without a reason ». The job offer leaves the count at once, counted among those handled, and a message confirms it with « Undo », which puts it back to handle. A job offer set aside is not offered to you again: no Job Digest sends it again, a job offer email that holds it counts it as already seen, and it shows « Set aside » in a search's results. For other candidates, nothing changes. At the foot of the box, « Set aside », folded, lists the job offers set aside in the last 30 days, the latest first, with their reason; « Go back on this choice » puts a job offer back to handle, at any time. A followed job offer cannot be set aside: it is to handle again if you delete its application.
 
 At the foot of « Offers to handle », « Searches by profile » opens your searches alongside, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several.
 

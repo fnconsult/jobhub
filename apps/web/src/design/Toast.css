@@ -44,6 +44,15 @@
     text-decoration: underline;
   }
 
+  .ds-toast__action {
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    background: none;
+    border: 0;
+  }
+
   .ds-toast__link:focus-visible {
     outline-color: var(--color-on-inverse);
   }

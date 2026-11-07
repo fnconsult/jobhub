@@ -1,7 +1,7 @@
 /**
  * The Offer box's rules (« Offres à traiter », ADR-0090), shared by the web page and the app's screen so the two lay
- * the same read out the same way: Importance tiers, « Aujourd'hui » then « Précédemment », the source chips and their
- * counts, and how old a posting is.
+ * the same read out the same way: Importance tiers, « Aujourd'hui » then « Précédemment », « Écartées », the source chips
+ * and their counts, and how old a posting is.
  *
  *   const view = offerBoxView(read, "email");   // GET /api/offer-box, filtered by the « Email » chip
  *   view.today.tiers;                           // [{ tier: "not_to_miss", entries }, …], empty tiers left out
@@ -67,12 +67,14 @@ export interface OfferBoxDay {
 export interface OfferBoxView {
   /** « N à traiter »: the whole box's, whatever the chip. */
   toHandle: number;
-  /** « k traitées »: the entries « Suivies ». */
+  /** « k traitées »: the entries « Suivies » or « Écartées ». */
   treated: number;
   /** « Toutes » then each source, with how many of its entries are still à traiter. */
   chips: { source: OfferBoxFilter; toHandle: number }[];
   today: OfferBoxDay;
   earlier: OfferBoxDay;
+  /** « Écartées », folded at the foot (#816): those the read gives (the last 30 days'), the latest écartée first. */
+  dismissed: OfferBoxEntryRead[];
 }
 
 const newestFirst = (a: OfferBoxEntryRead, b: OfferBoxEntryRead) => Date.parse(b.firstArrivalAt) - Date.parse(a.firstArrivalAt);
@@ -96,5 +98,6 @@ export function offerBoxView(box: OfferBoxResponse, filter: OfferBoxFilter = "al
     chips: [{ source: "all", toHandle: toHandle.length }, ...ARRIVAL_SOURCES.map((source) => ({ source, toHandle: toHandle.filter(cameBy(source)).length }))],
     today: dayOf(shown.filter((entry) => entry.arrivalDay === box.today)),
     earlier: dayOf(shown.filter((entry) => entry.arrivalDay !== box.today)),
+    dismissed: shown.filter((entry) => entry.state === "dismissed").sort((a, b) => Date.parse(b.dismissedAt ?? "") - Date.parse(a.dismissedAt ?? "")),
   };
 }

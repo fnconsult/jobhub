@@ -537,12 +537,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "résultat",
         "offres trouvées",
         "recherche terminée",
-        "reçues par email"
+        "reçues par email",
+        "écartée",
+        "enregistrée"
       ],
       "route": "/recherches/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'une recherche d'offres est sa conversation avec votre coach IA : il a sous les yeux les offres trouvées et leur score de correspondance avec le profil. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Élargir mes critères », « Relancer une recherche ».\n\nÀ droite, la fiche de la recherche : son statut, sa date de lancement et les critères de recherche du profil, que « Modifier les critères » ouvre, puis « Relancer une recherche », ou « Arrêter la recherche » tant qu'elle cherche. Dans « Résultats », chaque offre trouvée avec son score de correspondance ; « Offres trouvées », dans « Sections », les liste toutes.\n\nUne offre s'ouvre à côté de la conversation, sans la cacher, avec son score, ce qui l'explique, et « Enregistrer en candidature » pour la suivre dans vos candidatures. « Fermer » ou la touche Échap la referme.\n\nLes offres que vous recevez par e-mail pour ce profil ne sont pas dans les résultats d'une recherche : elles sont dans « Reçues par email », sur la page Recherches d'offres.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'une recherche d'offres est sa conversation avec votre coach IA : il a sous les yeux les offres trouvées et leur score de correspondance avec le profil. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Élargir mes critères », « Relancer une recherche ».\n\nÀ droite, la fiche de la recherche : son statut, sa date de lancement et les critères de recherche du profil, que « Modifier les critères » ouvre, puis « Relancer une recherche », ou « Arrêter la recherche » tant qu'elle cherche. Dans « Résultats », chaque offre trouvée avec son score de correspondance ; « Offres trouvées », dans « Sections », les liste toutes. Une offre que vous avez déjà enregistrée porte l'étiquette « Enregistrée » ; une offre que vous avez écartée dans « Offres à traiter » porte l'étiquette « Écartée » : elle reste lisible, et « Revenir sur ce choix », dans « Écartées », la remet à traiter.\n\nUne offre s'ouvre à côté de la conversation, sans la cacher, avec son score, ce qui l'explique, et « Enregistrer en candidature » pour la suivre dans vos candidatures. « Fermer » ou la touche Échap la referme.\n\nLes offres que vous recevez par e-mail pour ce profil ne sont pas dans les résultats d'une recherche : elles sont dans « Reçues par email », sur la page Recherches d'offres.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
       "id": "page-admin-delivery",
@@ -926,6 +928,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "à traiter",
         "traitées",
         "suivre",
+        "écarter",
+        "écartée",
+        "écartées",
+        "motif",
+        "pas pour moi",
+        "revenir sur ce choix",
+        "annuler",
         "recherche",
         "chercher",
         "trouver",
@@ -946,7 +955,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Recherches d'offres » s'ouvre sur « Offres à traiter » : chaque offre qui vous est arrivée, par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach, y attend votre décision. Une offre arrivée par plusieurs chemins n'y figure qu'une fois, avec une puce pour chacun (« Recherche », « Job Digest », « Email », « Lien du coach »), au jour de sa première arrivée.\n\nEn haut, « à traiter » compte les offres qui attendent encore, à côté du nombre d'offres traitées, celles que vous avez suivies ; la barre avance vers zéro. Les puces « Toutes », « Recherche », « Job Digest », « Email », « Lien du coach » et « Extension » filtrent la liste ; chacune dit combien de ses offres sont à traiter. Ce haut de page, le jour et le palier restent visibles quand vous faites défiler.\n\nLes offres sont rangées en « Aujourd'hui », puis « Précédemment », où chaque ligne dit le jour de son arrivée ; dans chacun, par importance : « À ne pas manquer » (score de correspondance de 80 et plus, avec un liseré qui tourne lentement autour), « À regarder » (60 à 79), « Peu adaptées » (moins de 60, ou non calculable). Les plus récentes viennent en premier.\n\nChaque ligne donne le score de correspondance, l'intitulé, l'employeur, le lieu, le contrat, d'où l'offre est arrivée, depuis combien de jours elle est publiée, et pendant ses 7 derniers jours sur 30, dans combien de jours elle sort et le profil auquel elle se rapporte, ou « Non classée ». « Suivre » l'enregistre comme candidature, à « À postuler » : elle devient « Suivie ». Une candidature créée ailleurs, depuis une recherche, l'extension ou une proposition de votre coach, la rend « Suivie » aussi, tant qu'elle existe. « Lire l'offre » l'ouvre à côté, avec son score expliqué. Les offres suivies aujourd'hui sont repliées sous « Suivies aujourd'hui ».\n\nEn bas d'« Offres à traiter », « Recherches par Profil » ouvre à côté vos recherches, par profil : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs.\n\n« Reçues par email », en bas aussi, montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nLa conversation avec votre coach IA suit « Offres à traiter », sa zone de message en bas de page : demandez-lui quelles offres regarder en premier.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nVotre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise (par exemple 1 recherche sur 5 cette semaine) ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter la recherche d'offres » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
+      "body": "« Recherches d'offres » s'ouvre sur « Offres à traiter » : chaque offre qui vous est arrivée, par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach, y attend votre décision. Une offre arrivée par plusieurs chemins n'y figure qu'une fois, avec une puce pour chacun (« Recherche », « Job Digest », « Email », « Lien du coach »), au jour de sa première arrivée.\n\nEn haut, « à traiter » compte les offres qui attendent encore, à côté du nombre d'offres traitées, celles que vous avez suivies ou écartées ; la barre avance vers zéro. Les puces « Toutes », « Recherche », « Job Digest », « Email », « Lien du coach » et « Extension » filtrent la liste ; chacune dit combien de ses offres sont à traiter. Ce haut de page, le jour et le palier restent visibles quand vous faites défiler.\n\nLes offres sont rangées en « Aujourd'hui », puis « Précédemment », où chaque ligne dit le jour de son arrivée ; dans chacun, par importance : « À ne pas manquer » (score de correspondance de 80 et plus, avec un liseré qui tourne lentement autour), « À regarder » (60 à 79), « Peu adaptées » (moins de 60, ou non calculable). Les plus récentes viennent en premier.\n\nChaque ligne donne le score de correspondance, l'intitulé, l'employeur, le lieu, le contrat, d'où l'offre est arrivée, depuis combien de jours elle est publiée, et pendant ses 7 derniers jours sur 30, dans combien de jours elle sort et le profil auquel elle se rapporte, ou « Non classée ». « Suivre » l'enregistre comme candidature, à « À postuler » : elle devient « Suivie ». Une candidature créée ailleurs, depuis une recherche, l'extension ou une proposition de votre coach, la rend « Suivie » aussi, tant qu'elle existe. « Lire l'offre » l'ouvre à côté, avec son score expliqué. Les offres suivies aujourd'hui sont repliées sous « Suivies aujourd'hui ».\n\n**Écarter une offre.** « Écarter », sur chaque ligne à traiter, vous demande pourquoi, sans obligation : « Pas pour moi », « Salaire », « Lieu », « Contrat » ou « Déjà postulé ailleurs », ou « Écarter sans motif ». L'offre sort aussitôt du compteur, comptée parmi les traitées, et un message le confirme avec « Annuler », qui la remet à traiter. Une offre écartée ne vous est plus proposée : aucun Job Digest ne vous l'envoie à nouveau, un e-mail d'offre qui la contient la compte comme déjà vue, et elle apparaît « Écartée » dans les résultats d'une recherche. Pour les autres candidats, rien ne change. En bas de la boîte, « Écartées », replié, liste les offres écartées ces 30 derniers jours, la plus récente d'abord, avec leur motif ; « Revenir sur ce choix » remet une offre à traiter, à tout moment. Une offre suivie ne s'écarte pas : elle redevient à traiter si vous supprimez sa candidature.\n\nEn bas d'« Offres à traiter », « Recherches par Profil » ouvre à côté vos recherches, par profil : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs.\n\n« Reçues par email », en bas aussi, montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nLa conversation avec votre coach IA suit « Offres à traiter », sa zone de message en bas de page : demandez-lui quelles offres regarder en premier.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nVotre coach peut vous proposer de lancer une recherche pour un profil, sur ses critères de recherche, ou d'arrêter une recherche en cours. La proposition s'affiche sous sa réponse avec le quota qu'elle utilise (par exemple 1 recherche sur 5 cette semaine) ; « Lancer » la démarre, et vous la suivez dans Activité IA, où « Arrêter la recherche d'offres » l'interrompt. Une recherche lancée ne s'annule pas : arrêtez-la. Si votre quota de la semaine est utilisé, la proposition vous montre l'offre qui en comprend davantage, et rien n'est lancé. Pour chercher sur d'autres critères, votre coach vous propose d'abord de les modifier.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-withdrawal",
@@ -1411,6 +1420,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Votre CV complet pour un profil : celui d'où partent tous vos CV adaptés. Jobbbox n'y ajoute jamais rien que vous n'ayez dit.\n\nChaque enregistrement crée une nouvelle version ; vous pouvez revoir les versions précédentes et revenir à l'une d'elles."
     },
     {
+      "id": "glossary-set-aside",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Écartée",
+      "synonyms": [
+        "écarter",
+        "écartées",
+        "motif",
+        "motif d'écart",
+        "pas pour moi",
+        "revenir sur ce choix",
+        "offre écartée",
+        "refusée",
+        "ignorée"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Une offre est « Écartée » quand vous l'avez mise de côté dans « Offres à traiter » avec « Écarter », en donnant un motif si vous le souhaitez : « Pas pour moi », « Salaire », « Lieu », « Contrat » ou « Déjà postulé ailleurs ». Elle compte alors parmi les traitées.\n\nUne offre écartée compte comme déjà vue partout : aucun Job Digest ne vous la propose à nouveau, un e-mail d'offre qui la contient la compte comme déjà vue, et elle apparaît « Écartée » dans les résultats d'une recherche. L'offre elle-même n'est pas supprimée, et les autres candidats la voient toujours.\n\nLes offres écartées ces 30 derniers jours sont dans « Écartées », en bas d'« Offres à traiter », avec leur motif. « Revenir sur ce choix » remet une offre à traiter, à tout moment. Si vous enregistrez ensuite une offre écartée, depuis une recherche par exemple, elle devient « Suivie » et n'est plus écartée ; elle redevient à traiter si vous supprimez sa candidature. Votre décision et son motif sont gardés avec l'offre, 12 mois après son arrivée, et supprimés avec votre compte ou avec son profil."
+    },
+    {
       "id": "glossary-clear-conversation",
       "locale": "fr",
       "kind": "glossary",
@@ -1617,6 +1649,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "traitées",
         "suivie",
         "suivre",
+        "écartée",
+        "écarter",
         "boîte d'offres",
         "offres arrivées",
         "inbox"
@@ -1624,7 +1658,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« Offres à traiter » rassemble, en tête de Recherches d'offres, chaque offre qui vous est arrivée : par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach. Une même offre n'y figure qu'une fois, avec une puce pour chaque chemin par lequel elle est arrivée.\n\nUne offre est à traiter tant que vous n'avez rien décidé. « Suivre » en fait une candidature, à « À postuler » : elle est alors « Suivie », et comptée parmi les traitées. L'ouvrir ou la lire ne la traite pas.\n\nChaque offre y est gardée 12 mois après son arrivée, et supprimée avec votre compte ou avec son profil."
+      "body": "« Offres à traiter » rassemble, en tête de Recherches d'offres, chaque offre qui vous est arrivée : par une recherche, un Job Digest, un e-mail d'offre que vous avez transféré ou un lien collé dans une conversation avec votre coach. Une même offre n'y figure qu'une fois, avec une puce pour chaque chemin par lequel elle est arrivée.\n\nUne offre est à traiter tant que vous n'avez rien décidé. « Suivre » en fait une candidature, à « À postuler » : elle est alors « Suivie ». « Écarter » la met de côté, avec un motif si vous le souhaitez : elle est alors « Écartée ». Suivie ou écartée, elle compte parmi les traitées. L'ouvrir ou la lire ne la traite pas.\n\nChaque offre y est gardée 12 mois après son arrivée, et supprimée avec votre compte ou avec son profil."
     },
     {
       "id": "glossary-share-capture",
@@ -3991,12 +4025,14 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "results",
         "job offers found",
         "finished search",
-        "received by email"
+        "received by email",
+        "set aside",
+        "saved"
       ],
       "route": "/recherches/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "A job search's page is its conversation with your AI coach: it has the job offers found and their Match Scores with the profile in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Widen my criteria », « Search again ».\n\nOn the right, the search's fiche: its status, the day it started and the profile's search criteria, which « Change the criteria » opens, then « Search again », or « Stop the search » while it is searching. In « Results », each job offer found with its Match Score; « Job offers found », in « Sections », lists them all.\n\nA job offer opens beside the conversation, without hiding it, with its score, what explains it, and « Save as an application » to follow it in your applications. « Close » or the Escape key closes it.\n\nThe offers you receive by email for this profile are not among a search's results: they are in « Received by email », on the Job searches page.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
+      "body": "A job search's page is its conversation with your AI coach: it has the job offers found and their Match Scores with the profile in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Widen my criteria », « Search again ».\n\nOn the right, the search's fiche: its status, the day it started and the profile's search criteria, which « Change the criteria » opens, then « Search again », or « Stop the search » while it is searching. In « Results », each job offer found with its Match Score; « Job offers found », in « Sections », lists them all. A job offer you already saved carries the label « Saved »; a job offer you set aside in « Offers to handle » carries the label « Set aside »: it can still be read, and « Go back on this choice », in « Set aside », puts it back to handle.\n\nA job offer opens beside the conversation, without hiding it, with its score, what explains it, and « Save as an application » to follow it in your applications. « Close » or the Escape key closes it.\n\nThe offers you receive by email for this profile are not among a search's results: they are in « Received by email », on the Job searches page.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
     },
     {
       "id": "page-profile",
@@ -4510,6 +4546,12 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "to handle",
         "handled",
         "follow",
+        "set aside",
+        "dismiss",
+        "reason",
+        "not for me",
+        "go back on this choice",
+        "undo",
         "search",
         "look for",
         "find",
@@ -4530,7 +4572,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/recherches",
       "motion": null,
       "microAnimations": [],
-      "body": "« Job searches » opens on « Offers to handle »: every job offer that reached you, through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach, waits there for your decision. A job offer that arrived by several ways is listed once, with a chip for each (« Search », « Job Digest », « Email », « Coach link »), on the day it first arrived.\n\nAt the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link » and « Extension » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.\n\nJob offers are sorted into « Today », then « Earlier », where each line says the day it arrived; in each, by importance: « Not to miss » (Match Score of 80 and above, with a border turning slowly around it), « Worth a look » (60 to 79), « Less suited » (under 60, or not computable). The most recent come first.\n\nEach line gives the Match Score, the title, the employer, the place, the contract, where the job offer came from, how many days it has been posted and, during its last 7 days out of 30, in how many days it leaves and the profile it relates to, or « Unsorted ». « Follow » saves it as an application, at « To apply »: it becomes « Followed ». An application created elsewhere, from a search, the extension or a proposal of your coach, makes it « Followed » too, as long as it exists. « Read the job offer » opens it alongside, with its score explained. The job offers followed today are folded under « Followed today ».\n\nAt the foot of « Offers to handle », « Searches by profile » opens your searches alongside, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several.\n\n« Received by email », at the foot too, shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nThe conversation with your AI coach follows « Offers to handle », its message box at the foot of the page: ask it which job offers to look at first.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nYour coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop the job search » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
+      "body": "« Job searches » opens on « Offers to handle »: every job offer that reached you, through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach, waits there for your decision. A job offer that arrived by several ways is listed once, with a chip for each (« Search », « Job Digest », « Email », « Coach link »), on the day it first arrived.\n\nAt the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed or set aside; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link » and « Extension » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.\n\nJob offers are sorted into « Today », then « Earlier », where each line says the day it arrived; in each, by importance: « Not to miss » (Match Score of 80 and above, with a border turning slowly around it), « Worth a look » (60 to 79), « Less suited » (under 60, or not computable). The most recent come first.\n\nEach line gives the Match Score, the title, the employer, the place, the contract, where the job offer came from, how many days it has been posted and, during its last 7 days out of 30, in how many days it leaves and the profile it relates to, or « Unsorted ». « Follow » saves it as an application, at « To apply »: it becomes « Followed ». An application created elsewhere, from a search, the extension or a proposal of your coach, makes it « Followed » too, as long as it exists. « Read the job offer » opens it alongside, with its score explained. The job offers followed today are folded under « Followed today ».\n\n**Setting a job offer aside.** « Set aside », on each line to handle, asks you why, if you wish: « Not for me », « Salary », « Location », « Contract » or « Already applied elsewhere », or « Set aside without a reason ». The job offer leaves the count at once, counted among those handled, and a message confirms it with « Undo », which puts it back to handle. A job offer set aside is not offered to you again: no Job Digest sends it again, a job offer email that holds it counts it as already seen, and it shows « Set aside » in a search's results. For other candidates, nothing changes. At the foot of the box, « Set aside », folded, lists the job offers set aside in the last 30 days, the latest first, with their reason; « Go back on this choice » puts a job offer back to handle, at any time. A followed job offer cannot be set aside: it is to handle again if you delete its application.\n\nAt the foot of « Offers to handle », « Searches by profile » opens your searches alongside, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several.\n\n« Received by email », at the foot too, shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nThe conversation with your AI coach follows « Offers to handle », its message box at the foot of the page: ask it which job offers to look at first.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nYour coach can propose to start a search for a profile, on its search criteria, or to stop a search under way. The proposal shows under its reply with the quota it uses (for example 1 search of 5 this week); « Launch » starts it, and you follow it in AI activity, where « Stop the job search » ends it. A search started cannot be undone: stop it. When your quota for the week is used, the proposal shows you the plan that includes more, and nothing is started. To search on other criteria, your coach first proposes to change them.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
     },
     {
       "id": "page-account",
@@ -5594,6 +5636,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "handled",
         "followed",
         "follow",
+        "set aside",
         "offer box",
         "arrived job offers",
         "inbox"
@@ -5601,7 +5644,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« Offers to handle » gathers, at the top of Job searches, every job offer that reached you: through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach. The same job offer is listed once, with a chip for each way it arrived.\n\nA job offer is to handle as long as you have not decided anything. « Follow » makes it an application, at « To apply »: it is then « Followed », and counted among those handled. Opening or reading it does not handle it.\n\nEach job offer is kept there 12 months after it arrived, and deleted with your account or with its profile."
+      "body": "« Offers to handle » gathers, at the top of Job searches, every job offer that reached you: through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach. The same job offer is listed once, with a chip for each way it arrived.\n\nA job offer is to handle as long as you have not decided anything. « Follow » makes it an application, at « To apply »: it is then « Followed ». « Set aside » puts it aside, with a reason if you wish: it is then « Set aside ». Followed or set aside, it counts among those handled. Opening or reading it does not handle it.\n\nEach job offer is kept there 12 months after it arrived, and deleted with your account or with its profile."
     },
     {
       "id": "glossary-passkey",
@@ -5718,6 +5761,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Results are what your AI coach made for an application and kept with it: the Tailored CV, the cover letter, the outreach message, the follow-ups it suggests. They are listed in the fiche's « Results » group, each with where it stands (« Draft of … », « Saved on … »).\n\nA result opens beside the conversation, on its own (over it, full screen, on a phone): you review, edit, download or copy it there. Nothing is sent without your click. « Close » or the Escape key closes it."
+    },
+    {
+      "id": "glossary-set-aside",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Set aside",
+      "synonyms": [
+        "set aside",
+        "dismiss",
+        "dismissed",
+        "reason",
+        "not for me",
+        "go back on this choice",
+        "rejected",
+        "ignored"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "A job offer is « Set aside » when you put it aside in « Offers to handle » with « Set aside », giving a reason if you wish: « Not for me », « Salary », « Location », « Contract » or « Already applied elsewhere ». It then counts among those handled.\n\nA job offer set aside counts as already seen everywhere: no Job Digest offers it to you again, a job offer email that holds it counts it as already seen, and it shows « Set aside » in a search's results. The job offer itself is not deleted, and other candidates still see it.\n\nThe job offers set aside in the last 30 days are in « Set aside », at the foot of « Offers to handle », with their reason. « Go back on this choice » puts a job offer back to handle, at any time. If you then save a job offer set aside, from a search for instance, it becomes « Followed » and is no longer set aside; it is to handle again if you delete its application. Your decision and its reason are kept with the job offer, 12 months after it arrived, and deleted with your account or with its profile."
     },
     {
       "id": "glossary-share-capture",

@@ -4256,6 +4256,7 @@
     "why": "Why {{score}}?",
     "whyNotComputable": "Why no score?",
     "savedPill": "Saved",
+    "dismissedPill": "Set aside",
     "postedOn": "Posted on {{date}}",
     "source": "Source: {{site}}",
     "reasons": {
@@ -5543,7 +5544,29 @@
     "followed": "Followed",
     "seeApplication": "See the application",
     "byProfile": "Searches by profile",
-    "receivedByEmail": "Received by email"
+    "receivedByEmail": "Received by email",
+    "dismiss": "Set aside",
+    "dismissLabel": "Set aside: {{title}}",
+    "dismissWhy": "Why? (optional)",
+    "dismissalReasons": {
+      "not_for_me": "Not for me",
+      "salary": "Salary",
+      "location": "Location",
+      "contract": "Contract",
+      "applied_elsewhere": "Already applied elsewhere"
+    },
+    "dismissWithoutReason": "Set aside without a reason",
+    "dismissError": "The job offer could not be set aside. Try again.",
+    "dismissedToast": "« {{title}} » set aside.",
+    "undo": "Undo",
+    "undoError": "« Undo » did not go through: the job offer is still set aside. Try again with « Go back on this choice », under « Set aside ».",
+    "dismissed": "Set aside",
+    "dismissedWithReason": "Set aside · {{reason}}",
+    "dismissedBlock": "Set aside ({{count}})",
+    "dismissedHint": "The job offers set aside in the last 30 days, the latest first. They will not be offered to you again.",
+    "reconsider": "Go back on this choice",
+    "reconsiderLabel": "Go back on this choice: {{title}}",
+    "reconsiderError": "The choice could not be undone. Try again."
   },
   "jobDigestsMenu": {
     "introduction": "Here are your Job Digests, by profile: the new job offers that match your criteria, sent by email. Ask me which ones to look at first; set how often they come here.",

@@ -340,6 +340,65 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       expect(await offerBox.dismiss(marie, entry, { reason: "location" })).toEqual({ ok: true });
       expect(await entries()).toMatchObject([{ state: "dismissed", laterUntil: null }]);
     });
+
+    it("écartée once back on its Monday, then « Annuler »: back exactly where it was, under « Aujourd'hui » that Monday, its date kept", async () => {
+      const { entry } = await arrived("DAF H/F", new Date("2026-11-04T09:00:00+01:00"));
+      await offerBox.later(marie, entry);
+      clock.now = new Date("2026-11-09T10:00:00+01:00");
+      const back = await offerBox.read(marie);
+      expect(back).toMatchObject({ toHandle: 1, entries: [{ id: entry, state: "to_handle", arrivalDay: "2026-11-04", laterUntil: new Date("2026-11-08T23:00:00Z") }] });
+
+      await offerBox.dismiss(marie, entry, { reason: "salary" });
+      expect(await offerBox.read(marie)).toMatchObject({ toHandle: 0, entries: [{ id: entry, state: "dismissed", laterUntil: null }] });
+
+      expect(await offerBox.reconsider(marie, entry)).toEqual({ ok: true });
+      expect(await offerBox.read(marie)).toEqual(back);
+      expect(await offerBoxOf(database, marie)).toMatchObject([{ state: "later", decidedAt: null, dismissalReason: null, laterUntil: new Date("2026-11-08T23:00:00Z") }]);
+    });
+
+    it("écartée while away, then « Annuler »: still « Plus tard » until the same Monday", async () => {
+      const { entry } = await arrived("DAF H/F");
+      await offerBox.later(marie, entry);
+      const away = await offerBox.read(marie);
+
+      await offerBox.dismiss(marie, entry, {});
+      expect(await offerBox.read(marie)).toMatchObject({ toHandle: 0, entries: [{ state: "dismissed", laterUntil: null }] });
+      await offerBox.reconsider(marie, entry);
+
+      expect(await offerBox.read(marie)).toEqual(away);
+      expect(away).toMatchObject({ toHandle: 1, entries: [{ state: "later", laterUntil: new Date("2026-11-08T23:00:00Z") }] });
+    });
+
+    it("écartée by « Tout écarter » once back on its Monday, then « Annuler »: back exactly where it was, the others too", async () => {
+      const [back, other] = [await stored("Revenue lundi"), await stored("Jamais mise de côté")];
+      await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_search", at: new Date("2026-11-03T09:00:00+01:00"), jobOfferIds: [back, other] });
+      const id = async (offer: string) => (await entries()).find((one) => one.jobOffer.id === offer)!.id;
+      await offerBox.later(marie, await id(back));
+      clock.now = new Date("2026-11-09T10:00:00+01:00");
+      const before = await offerBox.read(marie);
+      expect(Object.fromEntries(before.entries.map((one) => [one.jobOffer.title, [one.state, one.laterUntil]]))).toEqual({
+        "Revenue lundi": ["to_handle", new Date("2026-11-08T23:00:00Z")],
+        "Jamais mise de côté": ["to_handle", null],
+      });
+
+      const { dismissed } = await offerBox.dismissAll(marie, before.entries.map((one) => one.id));
+      expect(dismissed).toHaveLength(2);
+      expect(await offerBox.read(marie)).toMatchObject({ toHandle: 0, entries: [{ state: "dismissed", laterUntil: null }, { state: "dismissed", laterUntil: null }] });
+
+      await offerBox.reconsiderAll(marie, dismissed);
+      expect(await offerBox.read(marie)).toEqual(before);
+    });
+
+    it("écartée, then replaced by an Application deleted later: back « Plus tard » until its Monday", async () => {
+      const { offer, entry } = await arrived("DAF H/F");
+      await offerBox.later(marie, entry);
+      await offerBox.dismiss(marie, entry, {});
+      const saved = await applications.save(marie, { jobOfferId: offer, profileId: daf });
+      if (!saved.ok) throw new Error("not saved");
+      await database.query("DELETE FROM application WHERE id = $1", [saved.application.id]);
+
+      expect(await offerBox.read(marie)).toMatchObject({ toHandle: 1, entries: [{ state: "later", laterUntil: new Date("2026-11-08T23:00:00Z"), dismissalReason: null, dismissedAt: null }] });
+    });
   });
 
   describe("« Expirées sans décision » (#817)", () => {

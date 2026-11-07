@@ -4,7 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { activityOf, activityUnderWayOf, closeActivity, openActivity } from "./support/conversation";
+import { activityOf, activityUnderWayOf, closeActivity, historyEntryOf, openActivity, unfoldedEntryOf } from "./support/conversation";
 
 // Issue #334: a Tailored CV proposed and a Cover Letter or Outreach Message drafted keep their Provenance (ADR-0034): the line
 // under each says the model, tokens and time, and AI Activity's « Cette page » pane on `/candidatures/[id]/documents` lists
@@ -67,7 +67,8 @@ async function tab(page: Page, name: string): Promise<Locator> {
 /** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
 const paneOf = (page: Page) => activityOf(page);
 /** The pane's « Par élément » entry of an element kind. */
-const elementOf = (page: Page, kind: "tailored_cv" | "tailored_documents") => paneOf(page).locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds[kind] });
+/** The history's entry of `kind` (#808), its detail unfolded. */
+const elementOf = (page: Page, kind: "tailored_cv" | "tailored_documents") => unfoldedEntryOf(page, fr.aiActivity.kinds[kind]);
 
 /** The color `--color-danger-surface` resolves to, next to `element`. */
 const dangerSurface = (element: Locator) =>
@@ -112,15 +113,15 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await expect(letterLine).toContainText("Mistral");
     await expect(letterLine).toContainText(/· \d+(,\d)? s/);
 
-    // AI Activity, in the Fiche, without loading the page again: each document with the model that wrote it, its tokens and time.
+    // AI Activity, in the Fiche, without loading the page again: each document an entry of the history (#808), with the
+    // model that wrote it and its tokens.
     await openActivity(page);
     for (const kind of ["tailored_cv", "tailored_documents"] as const) {
-      await expect(elementOf(page, kind)).toContainText("Mistral");
-      await expect(elementOf(page, kind)).not.toContainText(fr.aiActivity.modelNotRecorded);
+      const entry = await elementOf(page, kind);
+      await expect(entry).toContainText("Mistral");
+      await expect(entry).toContainText(/\d+(,\d)?k? jetons/);
+      await expect(entry).not.toContainText(fr.aiActivity.modelNotRecorded);
     }
-    const models = paneOf(page).locator(".ai-activity-section").filter({ has: page.getByRole("button", { name: fr.aiActivity.sections.models }) });
-    await expect(models.locator(".ai-activity-row").filter({ hasText: "Mistral" })).toContainText(/\d · \d+(,\d)? s/);
-    await expect(paneOf(page).locator(".ai-activity-total")).toContainText(/\d+(,\d)?k? tokens · \d+(,\d)? s/);
     // Done, each action left « En ce moment » (#806): its document says it.
     await expect(paneOf(page).locator(".ai-activity-live")).toHaveCount(0);
     expect(await paneOf(page).locator(".fiche-activity").innerHTML()).not.toContain(id);
@@ -132,9 +133,10 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await expect(cv.getByRole("status")).toHaveText(tc.saved);
     await page.reload();
     await openActivity(page);
-    await expect(elementOf(page, "tailored_cv")).toHaveCount(1);
-    await expect(elementOf(page, "tailored_cv")).toContainText("Mistral");
-    await expect(elementOf(page, "tailored_documents")).toContainText("Mistral");
+    // One Tailored CV saved, its entry the proposal's.
+    await expect(historyEntryOf(page, fr.aiActivity.kinds.tailored_cv)).toHaveCount(1);
+    await expect(await elementOf(page, "tailored_cv")).toContainText("Mistral");
+    await expect(await elementOf(page, "tailored_documents")).toContainText("Mistral");
   });
 
   test("Stop mid-writing: no document is kept, AI Usage records it stopped, and the action says « Arrêtée à » in light red", async ({ page }) => {
@@ -166,7 +168,7 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     // The pane shows the stopped action, in light red, and no Cover Letter among the page's elements.
     await expect(action).toContainText(/Arrêtée à \d{2}:\d{2}/);
     expect(await action.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(action));
-    await expect(elementOf(page, "tailored_documents")).toHaveCount(0);
+    await expect(historyEntryOf(page, fr.aiActivity.kinds.tailored_documents)).toHaveCount(0);
     await closeActivity(page);
 
     // The Tailored CV too, stopped from AI Activity, « Activité »'s glyph live meanwhile (#603): no proposal kept.
@@ -182,6 +184,6 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     expect(await query(`SELECT 1 FROM tailored_cv WHERE application_id = $1 AND proposal IS NOT NULL`, [id])).toEqual([]);
     await openActivity(page);
     await expect(paneOf(page).locator(".ai-activity-live").filter({ hasText: fr.aiActivity.kinds.tailored_cv })).toContainText(/Arrêtée à \d{2}:\d{2}/);
-    await expect(paneOf(page).locator(".ai-activity-element").filter({ hasText: /CV adapté|Documents adaptés/ })).toHaveCount(0);
+    await expect(historyEntryOf(page, /CV adapté|Documents adaptés/)).toHaveCount(0);
   });
 });

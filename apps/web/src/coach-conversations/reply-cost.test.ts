@@ -138,7 +138,7 @@ describe.skipIf(!connectionString)("A Coach reply's cost, per message (#805; nee
 
     // AI Activity's `coach_reply` elements, the Agenda's page here
     const elements = await agendaPage({ jobOffers: { provenances: async () => new Map() }, coachReplies: conversations }, marie);
-    expect(elements.map((element) => element.sent)).toEqual(expected);
+    expect(elements.replies.map((reply) => reply.sent)).toEqual(expected);
   });
 
   it("never sends the browser the Tools' internal names with it, nor with the Context bar's « Cette réponse », nor any euro", async () => {
@@ -147,7 +147,7 @@ describe.skipIf(!connectionString)("A Coach reply's cost, per message (#805; nee
     const reads = createCandidateReads({ coachConversations: conversations } as unknown as CandidateReadsDeps);
     const read = await reads.coachConversation(marie, id);
     const elements = await agendaPage({ jobOffers: { provenances: async () => new Map() }, coachReplies: conversations }, marie);
-    const costs = [read!.conversation!.messages[1]!.sent, read!.conversation!.context.reply, elements[0]!.sent];
+    const costs = [read!.conversation!.messages[1]!.sent, read!.conversation!.context.reply, elements.replies[0]!.sent];
 
     expect(costs).toEqual([summed, summed, summed]);
     expect(JSON.stringify(costs)).not.toMatch(/lire_profil|tools|€|eur\b/i);

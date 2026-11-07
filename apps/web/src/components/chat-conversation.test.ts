@@ -19,4 +19,12 @@ describe("a saved message as shown", () => {
       seenNames: { "/candidatures/a1": "Airbus · DAF" },
     });
   });
+
+  it("keeps what a saved reply sent in all its AI calls (#805), so a reopened conversation's Activité sums them all", () => {
+    const sent = { calls: 3, turns: 2, rounds: 1, inputTokens: 5200, cachedInputTokens: 1200, outputTokens: 310 };
+
+    expect(asShownMessage({ from: "coach", text: "Voici", at: "2026-11-04T17:20:00.000Z", sent })).toMatchObject({ sent });
+    // Saved before #791: nothing summed, its Provenance's last call only.
+    expect(asShownMessage({ from: "coach", text: "Voici", at: "2026-11-04T17:20:00.000Z", sent: null })).toMatchObject({ sent: null });
+  });
 });

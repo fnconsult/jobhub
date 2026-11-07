@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import type { Made } from "@/ai-activity";
+import type { VersionGiven } from "@/ai-activity/entries";
 import { loadAiActivity } from "@/ai-activity/server";
 import { getActionCards } from "@/action-cards/server";
 import { atsFixOf } from "@/ats-score";
@@ -42,19 +43,37 @@ export const loadProfilePage = cache(async (id: string) => {
 
 /**
  * What the head of a Profile's page, or its Fiche, shows beside its Sections, loaded once per request: its ATS Score, the
- * versions of its Master CV, and its AI Activity: the Master CV when the AI Coach read it from the Candidate's file
- * (#335), then the ATS Score and the Action Cards (ATS Fixes among them), each with what made it (#336).
+ * versions of its Master CV, and its Activité entries: its Master CV Versions (one read from the Candidate's file, #335),
+ * its ATS Score « suite de » the version it scored, and the Action Cards (ATS Fixes among them), each with what made it (#336).
  */
 export const loadProfileAside = cache(async (id: string) => {
   const { candidateId, profile, cards } = await loadProfilePage(id);
   const [atsScore, versions] = await Promise.all([getAtsScoring().latest(candidateId, profile.id), getProfiles().masterCvVersions(candidateId, profile.id)]);
-  const read = versions?.find((version) => version.provenance);
   const made: Made[] = [
-    ...(read ? [{ kind: "master_cv" as const, at: read.savedAt, provenance: read.provenance }] : []),
-    ...(atsScore ? [{ kind: "ats_score" as const, at: atsScore.computedAt, provenance: atsScore.provenance }] : []),
-    ...cards.map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),
+    ...(atsScore
+      ? [
+          {
+            kind: "ats_score" as const,
+            at: atsScore.computedAt,
+            provenance: atsScore.provenance,
+            href: routes.profileSection(profile.id, "ats-score"),
+            scored: atsScore.version,
+            result: { score: atsScore.score.score },
+          },
+        ]
+      : []),
+    ...cards.map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance, href: routes.profileSection(profile.id, "propositions") })),
   ];
-  const aiActivity = await loadAiActivity.profile(candidateId, { id: profile.id }, made);
+  // Its Master CV Versions (ADR-0086): by hand, from a Coach proposal (its Origin), or read from the Candidate's file (#335).
+  const given: VersionGiven[] = (versions ?? []).map((version) => ({
+    version: version.version,
+    savedAt: version.savedAt,
+    restoredFrom: version.restoredFrom,
+    ...(version.provenance ? { provenance: version.provenance } : {}),
+    ...(version.origin ? { origin: { cardId: version.origin.cardId } } : {}),
+    href: routes.masterCvVersion(profile.id, version.version),
+  }));
+  const aiActivity = await loadAiActivity.profile(candidateId, { id: profile.id }, made, given);
   return { atsScore, versions: versions ?? [], aiActivity };
 });
 

@@ -112,3 +112,27 @@ export async function openFoundJobOffers(page: Page) {
   await ficheOf(page).getByRole("link", { name: fr.jobSearch.resultsLabel, exact: true }).click();
   await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+\/offres$/);
 }
+
+/**
+ * An entry of Activity's history (#808, ADR-0086) whose title says `label`: one row each, a button that unfolds its
+ * detail (its steps, models, cost and links).
+ */
+export const historyEntryOf = (page: Page, label: string | RegExp) =>
+  activityOf(page).locator(".activity-entry").filter({ has: page.locator(".activity-entry-title").filter({ hasText: label }) });
+
+/** That entry, its detail unfolded: there is one, and its row says it is open. */
+export async function unfoldedEntryOf(page: Page, label: string | RegExp) {
+  const entry = historyEntryOf(page, label).first();
+  await expect(entry).toBeVisible();
+  const row = entry.locator(".activity-entry-row");
+  if ((await row.getAttribute("aria-expanded")) !== "true") await row.click();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  return entry;
+}
+
+/** « Sources et outils de cette page », folded at the foot of Activity: unfolded, it lists each site once. */
+export async function pageSourcesOf(page: Page) {
+  const button = activityOf(page).getByRole("button", { name: fr.aiActivity.history.sources });
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+  return activityOf(page).locator(".activity-sources");
+}

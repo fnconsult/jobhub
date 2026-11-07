@@ -10,6 +10,8 @@ A job search's page is its conversation with your AI coach: it has the job offer
 
 On the right, the search's fiche: its status, the day it started and the profile's search criteria, which « Change the criteria » opens, then « Search again », or « Stop the search » while it is searching. In « Results », each job offer found with its Match Score; « Job offers found », in « Sections », lists them all. A job offer you already saved carries the label « Saved »; a job offer you set aside in « Offers to handle » carries the label « Set aside »: it can still be read, and « Go back on this choice », in « Set aside », puts it back to handle.
 
+The « Activity » group shows the search while it runs, then the page's history, in the order of time: the search, with the quota it used (« 1 search from your plan », with the week's use) and the offers it kept, the offers it read, each « ↳ follows » the search, and the coach's replies in this conversation. Each row opens on its detail and leads to its page or its message.
+
 A job offer opens beside the conversation, without hiding it, with its score, what explains it, and « Save as an application » to follow it in your applications. « Close » or the Escape key closes it.
 
 The offers you receive by email for this profile are not among a search's results: they are in « Received by email », on the Job searches page.

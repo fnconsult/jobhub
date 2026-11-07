@@ -1,6 +1,7 @@
 import { rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { agendaPage, applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
+import { servedEntries } from "./entries";
+import { agendaPage, applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, paneElements, profilePage, type PageSources } from "./index";
 import { aiActivityPane, byRulesOnly } from "./pane";
 
 /** The Job Offer: found by a web search, its page read, then read by Claude Haiku. */
@@ -39,7 +40,7 @@ const CANDIDATE = "cand_7Hq2LmX";
 /** What that reply sent in all its AI calls (#805): its Turns and Guardrail checks summed. */
 const SENT: ReplyCost = { calls: 4, turns: 2, rounds: 1, inputTokens: 21_400, cachedInputTokens: 9_000, outputTokens: 800 };
 
-function sources({ offers = { [OFFER]: read } as Record<string, Provenance | null>, replies = [{ at: replied.startedAt, provenance: replied as Provenance | null, sent: SENT as ReplyCost | null }] } = {}): PageSources {
+function sources({ offers = { [OFFER]: read } as Record<string, Provenance | null>, replies = [{ at: replied.startedAt, question: "Que pensez-vous de cette offre ?" as string | null, provenance: replied as Provenance | null, sent: SENT as ReplyCost | null }] } = {}): PageSources {
   return {
     jobOffers: { provenances: async (ids) => new Map(ids.map((id) => [id, offers[id] ?? null])) },
     coachReplies: {
@@ -50,7 +51,7 @@ function sources({ offers = { [OFFER]: read } as Record<string, Provenance | nul
 
 describe("AI Activity's page loaders (#332)", () => {
   it("shows `/offres/[id]`'s Job Offer and the Coach reply about it, with each model's and Tool's sums and the wall-clock total", async () => {
-    const elements = await jobOfferPage(sources(), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
+    const elements = paneElements(await jobOfferPage(sources(), CANDIDATE, { id: OFFER, title: "DAF Lyon" }));
     const pane = aiActivityPane(elements);
 
     expect(elements.map(({ kind, name, at }) => ({ kind, name, at }))).toEqual([
@@ -68,8 +69,8 @@ describe("AI Activity's page loaders (#332)", () => {
   });
 
   it("gives each Coach reply what it sent in all its AI calls (#805), null for one saved before #791, and no other element any", async () => {
-    const before = { at: "2026-10-01T09:00:00.000Z", provenance: null, sent: null };
-    const elements = await jobOfferPage(sources({ replies: [before, { at: replied.startedAt, provenance: replied, sent: SENT }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
+    const before = { at: "2026-10-01T09:00:00.000Z", question: null, provenance: null, sent: null };
+    const elements = paneElements(await jobOfferPage(sources({ replies: [before, { at: replied.startedAt, question: null, provenance: replied, sent: SENT }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" }));
 
     expect(elements.map((element) => [element.kind, element.sent])).toEqual([
       ["job_offer", undefined],
@@ -80,29 +81,64 @@ describe("AI Activity's page loaders (#332)", () => {
   });
 
   it("shows an offer from before Provenance was kept as « modèle non enregistré », counted in no total", async () => {
-    const pane = aiActivityPane(await jobOfferPage(sources({ offers: {} }), CANDIDATE, { id: OFFER, title: "DAF Lyon" }));
+    const pane = aiActivityPane(paneElements(await jobOfferPage(sources({ offers: {} }), CANDIDATE, { id: OFFER, title: "DAF Lyon" })));
 
     expect(pane.elements[0]).toEqual({ kind: "job_offer", name: "DAF Lyon", at: null, end: { state: "done" }, served: null });
     expect(pane.total).toEqual({ tokens: 2100, ms: 6400 });
   });
 
-  it("never carries a cost, prompt, AI task, Playbook Agent, Back Office setting, Outcome, technical error or internal id to the browser", async () => {
-    const props = JSON.stringify([
-      await jobOfferPage(sources(), CANDIDATE, { id: OFFER, title: "DAF Lyon" }),
-      await applicationPage(sources(), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [{ kind: "tailored_cv", at: new Date("2026-10-22T09:00:00Z") }]),
-      await profilePage(sources(), CANDIDATE, { id: PROFILE }, [{ kind: "action_card" }]),
-      await jobSearchPage(sources(), [{ startedAt: new Date("2026-10-20T08:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] }]),
-    ]);
+  it("serves the browser its entries (#808): never a Provenance, a cost in euros, prompt, AI task, Playbook Agent, Outcome or technical error; ids only in the pages' addresses", async () => {
+    const served = [
+      servedEntries(await jobOfferPage(sources(), CANDIDATE, { id: OFFER, title: "DAF Lyon" })),
+      servedEntries(await applicationPage(sources(), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [{ kind: "tailored_cv", at: new Date("2026-10-22T09:00:00Z") }])),
+      servedEntries(await profilePage(sources(), CANDIDATE, { id: PROFILE }, [{ kind: "action_card" }])),
+      servedEntries(await jobSearchPage(sources(), [{ id: JOB_SEARCH, startedAt: new Date("2026-10-20T08:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] }])),
+    ];
+    const props = JSON.stringify(served, (key, value) => (key === "href" ? "<page>" : value));
 
-    expect(props).not.toMatch(/€|eur\b|cost|prompt|playbook|agent|setting|coaching|guardrail|offer_analysis|web_search|outcome|failed|error/i);
-    for (const id of [OFFER, APPLICATION, PROFILE, CANDIDATE]) expect(props).not.toContain(id);
+    expect(props).not.toMatch(/€|\beur\b|prompt|playbook|agent|setting|coaching|guardrail|offer_analysis|"(task|outcome|provider|endpoint|steps":\[\{"kind|startedAt|wallMs)"?:|error/i);
+    for (const id of [OFFER, APPLICATION, PROFILE, CANDIDATE, JOB_SEARCH]) expect(props).not.toContain(id);
     expect(props).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i);
+    // Each entry links to its object's page.
+    expect(served[3]!.map(({ kind, object }) => [kind, object.href])).toEqual([
+      ["job_offer", `/recherches/${JOB_SEARCH}/offres/${OFFER}`],
+      ["job_search", `/recherches/${JOB_SEARCH}`],
+    ]);
+  });
+
+  it("links a Job Search's page's Job Offers to the run that found it, and counts the offers it kept (#808)", async () => {
+    const entries = servedEntries(
+      await jobSearchPage(sources(), [{ id: JOB_SEARCH, startedAt: new Date("2026-10-20T08:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] }], { candidateId: CANDIDATE, jobSearchId: JOB_SEARCH }),
+    );
+    const search = entries.find((entry) => entry.kind === "job_search")!;
+    expect(entries.map(({ kind, after, question }) => ({ kind, after, question }))).toEqual([
+      { kind: "coach_reply", after: undefined, question: "Que pensez-vous de cette offre ?" },
+      { kind: "job_offer", after: search.key, question: undefined },
+      { kind: "job_search", after: undefined, question: undefined },
+    ]);
+    expect(search.result).toMatchObject({ offers: 1 });
+    expect(search.cost.quota).toBe("jobSearches");
+  });
+
+  it("gives a Profile's page its Master CV Versions, the ATS Score « suite de » the version it scored (#808)", async () => {
+    const at = new Date("2026-10-24T09:00:00Z");
+    const entries = servedEntries(
+      await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [{ kind: "ats_score", at, provenance: rulesProvenance("ats_score", { at }), scored: 2, result: { score: 71 } }], [
+        { version: 2, savedAt: new Date("2026-10-24T08:59:00Z"), restoredFrom: null, origin: { cardId: "card-1" }, href: `/profils/${PROFILE}/versions/2` },
+        { version: 1, savedAt: new Date("2026-10-20T08:00:00Z"), restoredFrom: null, href: `/profils/${PROFILE}/versions/1` },
+      ]),
+    );
+    expect(entries.map(({ key, after, card }) => ({ key, after, card }))).toEqual([
+      { key: "ats_score:2026-10-24T09:00:00.000Z", after: "master_cv_version:2", card: undefined },
+      { key: "master_cv_version:2", after: undefined, card: "card-1" },
+      { key: "master_cv_version:1", after: undefined, card: undefined },
+    ]);
   });
 
   it("shows each Job Search shown on `/recherches[/id]`, « non enregistré » until its slice lands, and the Job Offers it found", async () => {
-    const elements = await jobSearchPage(sources(), [
+    const elements = paneElements(await jobSearchPage(sources(), [
       { startedAt: new Date("2026-10-20T08:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }, { jobOffer: { id: OTHER_OFFER, title: "DAF Paris" } }] },
-    ]);
+    ]));
 
     expect(elements.map(({ kind, name, at, served }) => ({ kind, name, at, recorded: served !== null }))).toEqual([
       { kind: "job_search", name: undefined, at: "2026-10-20T08:00:00.000Z", recorded: false },
@@ -113,10 +149,10 @@ describe("AI Activity's page loaders (#332)", () => {
 
   it("shows a Job Search's run Provenance once kept (#354), « non enregistré » before", async () => {
     const run: Provenance = { ...read, steps: [{ kind: "rules", activity: "compute", rule: "match_score", ms: 2, at: "2026-10-23T10:00:10.000Z", outcome: "ok", count: 1 }] };
-    const elements = await jobSearchPage(sources(), [
+    const elements = paneElements(await jobSearchPage(sources(), [
       { startedAt: new Date("2026-10-20T08:00:00Z"), provenance: run, results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] },
       { startedAt: new Date("2026-10-19T08:00:00Z"), provenance: null, results: [] },
-    ]);
+    ]));
 
     expect(elements.map(({ kind, served }) => ({ kind, recorded: served !== null }))).toEqual([
       { kind: "job_search", recorded: true },
@@ -127,12 +163,12 @@ describe("AI Activity's page loaders (#332)", () => {
 
   it("says a failed Job Search failed, with why, and a stopped one stopped, though each kept its Job Offers (#368)", async () => {
     const run: Provenance = { ...read, steps: [{ kind: "tool", activity: "read", tool: "job-site", ms: 900, at: "2026-10-23T10:00:05.000Z", outcome: "ok", count: 1 }] };
-    const elements = await jobSearchPage(sources(), [
+    const elements = paneElements(await jobSearchPage(sources(), [
       { startedAt: new Date("2026-10-23T10:00:00Z"), status: "failed", failure: "discovery_failed", provenance: run, results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] },
       { startedAt: new Date("2026-10-22T08:00:00Z"), status: "failed", failure: null, provenance: null, results: [] },
       { startedAt: new Date("2026-10-21T08:00:00Z"), status: "stopped", failure: null, provenance: run, results: [] },
       { startedAt: new Date("2026-10-20T08:00:00Z"), status: "done", failure: null, provenance: run, results: [] },
-    ]);
+    ]));
 
     expect(elements.map(({ kind, end }) => ({ kind, end }))).toEqual([
       { kind: "job_search", end: { state: "failed", at: "2026-10-23T10:00:09.100Z", reason: "jobSearch.failureReasons.discovery_failed" } },
@@ -145,7 +181,7 @@ describe("AI Activity's page loaders (#332)", () => {
   });
 
   it("shows `/job-digests/[id]`'s Job Digest, « non enregistré », and the Job Offers it brought", async () => {
-    const elements = await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] });
+    const elements = paneElements(await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] }));
 
     expect(elements.map(({ kind, served }) => ({ kind, recorded: served !== null }))).toEqual([
       { kind: "job_digest", recorded: false },
@@ -157,19 +193,19 @@ describe("AI Activity's page loaders (#332)", () => {
   it("counts with `/recherches/[id]` the Coach replies about its Job Search, never on the list of Job Searches (#600)", async () => {
     const search = { startedAt: new Date("2026-10-20T08:00:00Z"), results: [] };
 
-    expect((await jobSearchPage(sources(), [search], { candidateId: CANDIDATE, jobSearchId: JOB_SEARCH })).map(({ kind }) => kind)).toEqual(["job_search", "coach_reply"]);
-    expect((await jobSearchPage(sources(), [search])).map(({ kind }) => kind)).toEqual(["job_search"]);
+    expect((paneElements(await jobSearchPage(sources(), [search], { candidateId: CANDIDATE, jobSearchId: JOB_SEARCH }))).map(({ kind }) => kind)).toEqual(["job_search", "coach_reply"]);
+    expect((paneElements(await jobSearchPage(sources(), [search]))).map(({ kind }) => kind)).toEqual(["job_search"]);
   });
 
   it("counts with `/agenda` the Coach replies given with the Agenda In view (#600)", async () => {
-    expect(await agendaPage(sources(), CANDIDATE)).toMatchObject([{ kind: "coach_reply", at: "2026-10-23T10:40:00.000Z" }]);
-    expect(await agendaPage(sources(), "someone-else")).toEqual([]);
+    expect(paneElements(await agendaPage(sources(), CANDIDATE))).toMatchObject([{ kind: "coach_reply", at: "2026-10-23T10:40:00.000Z" }]);
+    expect(paneElements(await agendaPage(sources(), "someone-else"))).toEqual([]);
   });
 
   it("shows a new Job Digest from its Provenance (#336): its Match Scores, « Calcul » with no model, then its top-up run", async () => {
     const scoring = rulesProvenance("match_score", { at: new Date("2026-10-21T06:00:00Z"), ms: 8 });
-    const [alone] = await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), provenance: scoring, results: [] });
-    const [toppedUp] = await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), provenance: { ...read, steps: [...scoring.steps, ...read.steps] }, results: [] });
+    const [alone] = paneElements(await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), provenance: scoring, results: [] }));
+    const [toppedUp] = paneElements(await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), provenance: { ...read, steps: [...scoring.steps, ...read.steps] }, results: [] }));
 
     expect(alone).toMatchObject({ kind: "job_digest", at: "2026-10-21T06:00:00.000Z", served: { models: [], tools: [{ name: null, ms: 8 }] } });
     expect(byRulesOnly(alone!.served!)).toBe(true);
@@ -178,10 +214,10 @@ describe("AI Activity's page loaders (#332)", () => {
   });
 
   it("shows `/candidatures/[id]/*`'s Job Offer, what was made for it (« non enregistré » until their slices land) and the Coach replies about the Application", async () => {
-    const elements = await applicationPage(sources(), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
+    const elements = paneElements(await applicationPage(sources(), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
       { kind: "tailored_cv", at: new Date("2026-10-22T09:00:00Z") },
       { kind: "company_dossier" },
-    ]);
+    ]));
 
     expect(elements.map(({ kind, at, served }) => ({ kind, at, recorded: served !== null }))).toEqual([
       { kind: "job_offer", at: "2026-10-23T10:00:00.000Z", recorded: true },
@@ -193,11 +229,11 @@ describe("AI Activity's page loaders (#332)", () => {
 
   it("shows `/profils/[id]/*`'s ATS Score and ATS Fix cards as « Calcul » with no model, and an Action Card proposed before as « non enregistré » (#336)", async () => {
     const at = new Date("2026-10-24T09:00:00Z");
-    const elements = await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [
+    const elements = paneElements(await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [
       { kind: "ats_score", provenance: rulesProvenance("ats_score", { at }) },
       { kind: "action_card", name: "Ajoutez « IFRS » à vos compétences", provenance: rulesProvenance("ats_fixes", { at, ms: 2 }) },
       { kind: "action_card", name: "Ajoutez « SAP » à vos compétences", at, provenance: null },
-    ]);
+    ]));
     const pane = aiActivityPane(elements);
 
     expect(elements.map(({ kind, name, served }) => ({ kind, name, byRules: served ? byRulesOnly(served) : null }))).toEqual([
@@ -219,16 +255,16 @@ describe("AI Activity's page loaders (#332)", () => {
       startedAt: "2026-11-12T06:00:00.000Z",
       wallMs: 2100,
     };
-    const elements = await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
+    const elements = paneElements(await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
       { kind: "action_card", name: "Relancer : DAF Lyon", provenance: wrote },
-    ]);
+    ]));
 
     expect(elements[1]).toMatchObject({ kind: "action_card", name: "Relancer : DAF Lyon", at: "2026-11-12T06:00:00.000Z", served: { models: [{ name: "Claude Sonnet 5", tokens: 1020 }] } });
     expect(aiActivityPane(elements).summary).toMatchObject({ models: 3 });
   });
 
   it("shows `/profils/[id]/*`'s Action Cards, « non enregistré », and the Coach replies about the Profile", async () => {
-    const elements = await profilePage(sources(), CANDIDATE, { id: PROFILE }, [{ kind: "action_card", at: new Date("2026-10-19T09:00:00Z") }]);
+    const elements = paneElements(await profilePage(sources(), CANDIDATE, { id: PROFILE }, [{ kind: "action_card", at: new Date("2026-10-19T09:00:00Z") }]));
 
     expect(elements.map(({ kind, served }) => ({ kind, recorded: served !== null }))).toEqual([
       { kind: "action_card", recorded: false },
@@ -248,10 +284,10 @@ describe("AI Activity's page loaders (#332)", () => {
         startedAt: at,
         wallMs: 400,
       };
-      const [, fresh] = await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [{ kind: "company_dossier", provenance: built }]);
-      const old = await applicationPage(sources({ offers: {}, replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
+      const [, fresh] = paneElements(await applicationPage(sources({ replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [{ kind: "company_dossier", provenance: built }]));
+      const old = paneElements(await applicationPage(sources({ offers: {}, replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
         { kind: "company_dossier", at: new Date("2026-01-01T09:00:00Z"), provenance: null, sites: [REGISTER] },
-      ]);
+      ]));
       const pane = aiActivityPane(old);
 
       expect(fresh).toMatchObject({ kind: "company_dossier", at, served: { sites: [REGISTER], tools: [{ name: "recherche-entreprises.api.gouv.fr" }] } });
@@ -269,14 +305,14 @@ describe("AI Activity's page loaders (#332)", () => {
         startedAt: at,
         wallMs: 4300,
       };
-      const [masterCv] = await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [{ kind: "master_cv", provenance: read }]);
+      const [masterCv] = paneElements(await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [{ kind: "master_cv", provenance: read }]));
 
       expect(masterCv).toMatchObject({ kind: "master_cv", at, served: { models: [{ ids: ["mistral-medium-2508"], tokens: 1800 }], sites: [{ kind: "candidate", links: [] }], ms: 4300 } });
     });
   });
 
   it("lists a Coach reply saved with nothing kept as « modèle non enregistré »", async () => {
-    const elements = await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", provenance: null, sent: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
+    const elements = paneElements(await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", question: null, provenance: null, sent: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" }));
 
     expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", end: { state: "done" }, sent: null, served: null });
   });
@@ -305,7 +341,7 @@ describe("the Application's Tailored Documents, as AI Activity reads them on its
     ]);
 
     // As the pane shows them: the models that wrote them, their tokens and time; one written before #334, « modèle non enregistré ».
-    const elements = await applicationPage(sources({ offers: {}, replies: [] }), "candidate-1", { id: "application-1", jobOffer: { id: "offer-1", title: "DAF" } }, made);
+    const elements = paneElements(await applicationPage(sources({ offers: {}, replies: [] }), "candidate-1", { id: "application-1", jobOffer: { id: "offer-1", title: "DAF" } }, made));
     expect(elements.slice(1).map((element) => element.served?.models.map((model) => model.name) ?? null)).toEqual([["Mistral Large"], ["Mistral Medium"], ["Mistral Large"], null]);
     expect(aiActivityPane(elements).total).toEqual({ tokens: 3 * 4900, ms: 3 * 8200 });
   });

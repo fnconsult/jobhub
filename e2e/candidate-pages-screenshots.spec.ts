@@ -10,6 +10,7 @@ import {
 import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
+import { chooseInTopBarMore } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
@@ -723,14 +724,21 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       await page.setViewportSize({ width, height });
       await page.goto(`/profils/${id}`);
       // « Activité » opens the Fiche on its Activity group, unfolded, wherever the Fiche is: beside the page, or over it.
-      // The Fiche stays as it was left: open already at a width where it was opened before.
+      // The Fiche stays as it was left: open already at a width where it was opened before. On a phone, « Activité » is
+      // under the compact Top Bar's « … » (#897).
       await page.waitForLoadState("networkidle");
-      if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
-      await expect(activity).toHaveAttribute("aria-expanded", "true");
       const fiche = page.getByRole("complementary", {
         name: fr.fiche.label,
         exact: true,
       });
+      if (name === "phone") {
+        await chooseInTopBarMore(page, fr.fiche.activity);
+        await expect(fiche).toBeVisible();
+        await expect(fiche.getByRole("button", { name: fr.fiche.groups.activity })).toHaveAttribute("aria-expanded", "true");
+      } else {
+        if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
+        await expect(activity).toHaveAttribute("aria-expanded", "true");
+      }
       const today = fiche
         .getByRole("region", { name: fr.aiActivity.history.title })
         .getByRole("region", { name: fr.aiActivity.history.today });

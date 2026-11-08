@@ -44,4 +44,4 @@ Quand une nouvelle version des conditions d'utilisation doit être acceptée, l'
 
 Sous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple 0.1.0. Sur la version bêta, elle est suivie de la modification exacte servie, par exemple 0.1.0 (main·3f9c2a1) : citez-la si vous signalez un problème.
 
-Mon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte.
+Mon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (sur téléphone, « Aide » est sous « … », en haut à droite, et l'article s'ouvre par-dessus, en plein écran). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte.

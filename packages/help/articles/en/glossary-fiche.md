@@ -9,4 +9,4 @@ The fiche is the column on the right of the conversation on the page of an appli
 
 It never hides the conversation: it pushes it aside, and scrolls on its own, staying put when you scroll the conversation. « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page. A section or a result of the fiche opens beside the conversation, where you act on it.
 
-On a phone, the fiche opens over the conversation, full screen, with its title; « Close » or the Escape key closes it.
+On a phone, « Fiche » is the icon at the top right of the page, and « Activity » is under « … »; the fiche opens over the conversation, full screen, with its title; « Close » or the Escape key closes it.

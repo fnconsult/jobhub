@@ -477,7 +477,7 @@ test.describe("Job Digest", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Job Digest « Directrice administrative et financière »");
     // The same count on its page, and beside Recherches d'offres in the Sidebar (#818).
     await expect(ficheOf(page).getByRole("link", { name: "Il vous reste 2 offres à traiter" })).toHaveAttribute("href", "/recherches");
-    await expect(page.getByRole("navigation", { name: fr.sidebar.label }).getByRole("link", { name: "Recherches d'offres, 2 offres à traiter" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: fr.sidebar.label }).getByRole("link", { name: /^Recherches d'offres\s*, 2 offres à traiter$/ })).toBeVisible();
     // Its Job Offers, its Section, in the Work Pane beside its conversation (#605).
     await ficheOf(page).getByRole("link", { name: fr.jobSearch.resultsLabel, exact: true }).click();
     await expect(page).toHaveURL(`${origin}${digestLink.pathname}/offres`);
@@ -496,7 +496,7 @@ test.describe("Job Digest", () => {
 
     // The Job Digests page lists it under its Profile (#606), linking to the same page. The offer saved is « Suivie »: out of the count.
     await page.goto("/job-digests");
-    await expect(page.getByRole("navigation", { name: fr.sidebar.label }).getByRole("link", { name: "Recherches d'offres, 1 offre à traiter" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: fr.sidebar.label }).getByRole("link", { name: /^Recherches d'offres\s*, 1 offre à traiter$/ })).toBeVisible();
     await section.getByRole("table", { name: "Job Digests de « Directrice administrative et financière »" }).getByRole("link").first().click();
     await expect(page).toHaveURL(`${origin}${digestLink.pathname}`);
 

@@ -59,6 +59,12 @@ tags:
       DIRECTION: DOWN
 - tapOn:
     id: "interview-submit"
+# The first Interview asks for notifications, a moment after it is saved: waited for a few seconds, not required (on
+# iPhone SE light, run 42497351618, it came after the check for it and stayed over the Fiche).
+- extendedWaitUntil:
+    visible: "Être prévenu la veille de vos rendez-vous \\?"
+    timeout: 5000
+    optional: true
 - runFlow:
     when:
       visible: "Être prévenu la veille de vos rendez-vous \\?"

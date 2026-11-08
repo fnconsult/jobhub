@@ -120,7 +120,7 @@ describe("AI Activity's page loaders (#332)", () => {
     expect(search.cost.quota).toBe("jobSearches");
   });
 
-  it("gives a Profile's page its Master CV Versions, the ATS Score « suite de » the version it scored (#808)", async () => {
+  it("gives a Profile's page its Master CV Versions, the ATS Score « suite de » the version it scored (#808), Version 1 its creation (#810)", async () => {
     const at = new Date("2026-10-24T09:00:00Z");
     const entries = servedEntries(
       await profilePage(sources({ replies: [] }), CANDIDATE, { id: PROFILE }, [{ kind: "ats_score", at, provenance: rulesProvenance("ats_score", { at }), scored: 2, result: { score: 71 } }], [
@@ -131,8 +131,9 @@ describe("AI Activity's page loaders (#332)", () => {
     expect(entries.map(({ key, after, card }) => ({ key, after, card }))).toEqual([
       { key: "ats_score:2026-10-24T09:00:00.000Z", after: "master_cv_version:2", card: undefined },
       { key: "master_cv_version:2", after: undefined, card: "card-1" },
-      { key: "master_cv_version:1", after: undefined, card: undefined },
+      { key: "profile_creation", after: undefined, card: undefined },
     ]);
+    expect(entries[2]).toMatchObject({ object: { href: `/profils/${PROFILE}` }, result: { version: 1 } });
   });
 
   it("shows each Job Search shown on `/recherches[/id]`, « non enregistré » until its slice lands, and the Job Offers it found", async () => {

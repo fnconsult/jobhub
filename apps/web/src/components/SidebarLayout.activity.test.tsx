@@ -135,7 +135,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
   beforeEach(() => {
     pathname.current = "/";
     vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: true,
+      matches: !query.includes("<"),
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},
@@ -211,7 +211,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
   it("while a Coach reply runs on the page, has its step left of the frame, then its stop icon, both in « En ce moment » once Activity shows (#369, #809)", async () => {
     // As the other queries, but under reduced motion: the live glyph holds still (jsdom draws no path to animate).
     vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: query !== "(prefers-reduced-motion: no-preference)",
+      matches: query !== "(prefers-reduced-motion: no-preference)" && !query.includes("<"),
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},
@@ -338,7 +338,7 @@ describe("the Context bar in an object's Fiche (#607)", () => {
   beforeEach(() => {
     pathname.current = "/candidatures/a1";
     vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: true,
+      matches: !query.includes("<"),
       media: query,
       addEventListener: () => {},
       removeEventListener: () => {},

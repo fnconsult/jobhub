@@ -24,7 +24,8 @@ const topBar = () => screen.getByRole("banner");
 
 describe("an object's page under « Conversation au centre » (#603, ADR-0070)", () => {
   beforeEach(() => {
-    vi.stubGlobal("matchMedia", (query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    // A desktop: wider than every breakpoint, narrower than none (the compact Top Bar's, #897).
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: !query.includes("<"), media: query, addEventListener: () => {}, removeEventListener: () => {} }));
     vi.stubGlobal(
       "ResizeObserver",
       class {

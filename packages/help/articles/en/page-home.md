@@ -12,6 +12,6 @@ To begin, create a profile: your Master CV and your search criteria. Your coach 
 
 A question about Jobbbox? While you write, the help's matching articles show above the message box, « In the help, without AI », in place of the suggestions. An article opens beside the conversation, as « How does this page work? » does while the conversation is empty; « Ask the coach » there starts a question about it. « Activity », at the top of the page, opens beside the conversation what AI did for you and the conversation context.
 
-On a phone, the conversation takes the whole screen. An article, « Activity » or a form opens over it, full screen: « Close » closes it and brings you back to the conversation. « Menu », at the top of the page, opens the menu.
+On a phone, the conversation takes the whole screen. The top bar fits on one line: « Menu », the page's title, one action as an icon (here « Activity ») and « … », which lists the others by name, such as « Clear the conversation ». While an AI action runs, the icon shown is « Activity »'s, with its stop icon. An article, « Activity » or a form opens over it, full screen: « Close » closes it and brings you back to the conversation. « Menu », at the top of the page, opens the menu.
 
 At the foot of the menu, « My account » opens a small menu: under « Help and legal », the Help Centre (« Help »), the legal texts (« Legal ») and what's new in Jobbbox (« What's new »); then the My account page and « Sign out ». On a phone too, it is at the foot of the menu.

@@ -5,6 +5,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { newAddress } from "./support/mailbox";
 import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
+import { chooseInTopBarMore } from "./support/conversation";
 
 // Issue #601 (ADR-0070), switched on for good by #608: the Candidate's home page
 // is a new Free conversation: the Introduction in its first message, the Quick actions as suggestions above the box at the
@@ -338,7 +339,8 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     // On a phone the Work Pane takes the whole screen.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/compte");
-    await topBar(page).getByRole("button", { name: texts.help, exact: true }).click();
+    // « Aide » is under « … » in the compact Top Bar (#897).
+    await chooseInTopBarMore(page, texts.help);
     await expect(pane.getByRole("heading", { level: 2, name: "Mon compte" })).toBeFocused();
     expect(await pane.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
     await page.keyboard.press("Escape");

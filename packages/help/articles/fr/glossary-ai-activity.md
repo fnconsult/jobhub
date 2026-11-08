@@ -7,7 +7,7 @@ synonyms: [activité ia, activité, en ce moment, en cours ailleurs, rien ne tou
 ---
 L'activité IA montre ce que l'IA, le coach et vous avez fait sur la page ouverte. Le bouton « Activité », en haut de la page, l'ouvre et la referme : dans le groupe « Activité » de la Fiche sur la page d'un objet (un profil, une recherche d'offres, une candidature…), dans la colonne Activité sur l'accueil et les menus. Échap, sur le bouton, la referme aussi. On y trouve, de haut en bas, le contexte de la conversation, « En ce moment », puis l'historique.
 
-Tant que l'activité est fermée, le bouton dit à sa gauche ce que l'IA a fait sur la page, par exemple 3 modèles · 10,9k tokens, ou l'étape en cours, avec l'icône d'arrêt qui l'interrompt. Un clic sur ces mots ouvre l'activité, comme le bouton, qu'un lecteur d'écran annonce « Activité IA », suivi de ces mots. Sur téléphone, le bouton ne montre pas ces mots, et l'activité s'ouvre en plein écran, par-dessus la conversation : « Fermer », ou Échap, la referme et vous ramène au bouton.
+Tant que l'activité est fermée, le bouton dit à sa gauche ce que l'IA a fait sur la page, par exemple 3 modèles · 10,9k tokens, ou l'étape en cours, avec l'icône d'arrêt qui l'interrompt. Un clic sur ces mots ouvre l'activité, comme le bouton, qu'un lecteur d'écran annonce « Activité IA », suivi de ces mots. Sur téléphone, l'activité s'ouvre en plein écran, par-dessus la conversation : « Fermer », ou Échap, la referme et vous ramène là où vous l'avez ouverte, l'icône « Activité » ou « … » (voir plus bas).
 
 « En ce moment », en tête de l'activité, juste sous le contexte de la conversation, montre les actions de l'IA en cours : d'abord celles de cette page, puis « En cours ailleurs », avec un lien vers leur page. Une recherche d'offres qui tourne pendant que le coach vous répond y figure à côté de sa réponse. Pour chacune : son glyphe, l'étape en cours, le nombre d'étapes finies et le temps écoulé ; pour une réponse du coach, chaque outil qu'il consulte, coché une fois fini. L'icône d'arrêt l'interrompt : ce qui était terminé est gardé. Une action finie quitte « En ce moment » ; sans action en cours, il indique « Rien ne tourne sur cette page. ».
 
@@ -31,3 +31,5 @@ Le coût n'est jamais donné en euros :
 - ce que font les règles de Jobbbox, ou vous-même, sans IA, est dit « Sans IA ».
 
 Tout en bas, « Sources et outils de cette page », replié, liste une fois chaque site lu et chaque outil utilisé. L'activité IA ne montre jamais de réglage interne. « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité.
+
+Sur téléphone, la barre du haut ne garde que des icônes. Sur l'accueil et les menus, « Activité » est l'icône montrée ; sur la page d'un objet, c'est « Fiche », et « Activité » est sous « … », en haut à droite. Pendant qu'une action de l'IA tourne, « Activité » prend la place de l'icône montrée, avec son icône d'arrêt, puis retourne sous « … » quand elle se termine.

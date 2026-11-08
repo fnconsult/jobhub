@@ -4,6 +4,7 @@ import { CoachConversation } from "../coach/CoachConversation";
 import { fakeCoachWeb } from "../coach/testing";
 import { fakeNetwork } from "../offline/testing";
 import { renderInApp, setWindow } from "../testing";
+import { TARGET } from "../theme/theme";
 import { AppText, BAR_MAX_SCALE } from "../ui/AppText";
 
 // What it sends and shows is CoachConversation's (its tests); here, how the conversation is drawn: its box, and its thread.
@@ -21,6 +22,17 @@ describe("Conversation's box", () => {
     expect(screen.getByLabelText("Votre message")).toBeEnabled();
     expect(screen.getByRole("button", { name: "Envoyer" })).toBeEnabled();
     expect(screen.queryByText(/Hors ligne/)).toBeNull();
+  });
+});
+
+// Maestro compares elements by their tops: a button whose top was just above the box had its centre, where Maestro taps,
+// in the box (#705). The flows pull an element above this line instead, a touch target above the box.
+describe("Conversation's box, for the e2e flows", () => {
+  it("draws a line a touch target above itself, which takes no touch and no room", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
+    const line = screen.getByTestId("conversation-tap-line");
+    expect(StyleSheet.flatten(line.props.style)).toMatchObject({ position: "absolute", top: -TARGET, height: 1, pointerEvents: "none" });
+    expect(line.parent?.props.testID ?? line.parent?.parent?.props.testID).toBe("conversation-box");
   });
 });
 

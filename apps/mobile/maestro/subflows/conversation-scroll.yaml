@@ -63,12 +63,15 @@ appId: ai.jobbbox.app
 # Above the box first, then below the thread's top: an element taller than the thread's room (a card's title at
 # iOS's largest text size on an iPhone SE, some 300 pt against 270) can't be both, and it is its top that must stay in
 # the thread, where its centre is tapped (run 42370572968: pushed up last, its centre fell outside, the tap missed).
+# Above the box with room for a tap: its top above conversation-tap-line, a touch target above the box. Maestro's
+# « above » compares tops only, and « Déjà suivies (1) », its top just above the box's, was tapped in the box (run
+# 42434869815, iphone-se light).
 - repeat:
     while:
       notVisible:
         text: ${TEXT}
         above:
-          id: "conversation-box"
+          id: "conversation-tap-line"
     times: 3
     commands:
       - swipe:

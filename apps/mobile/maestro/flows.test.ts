@@ -135,10 +135,11 @@ describe("the Maestro flows (#705)", () => {
   // iOS gives Maestro an element's whole frame, its part clipped by a scrolling column included: on an iPhone SE the
   // Application's card, scrolled under the Top Bar, was « visible », and the tap on it landed on the page's title (#705).
   // A column's element is then pulled within it: below the top of the thread or the pane's body, above the
-  // conversation's box. And a folded foldable at the largest text size scrolled past the card it looked for, to the
-  // conversation's start: the steps go back the other way when the first did not find it.
+  // conversation's box, a touch target above it (conversation-tap-line). And a folded foldable at the largest text size
+  // scrolled past the card it looked for, to the conversation's start: the steps go back the other way when the first
+  // did not find it.
   it.each([
-    ["conversation-scroll.yaml", [{ below: { id: "conversation-thread" } }, { above: { id: "conversation-box" } }]],
+    ["conversation-scroll.yaml", [{ below: { id: "conversation-thread" } }, { above: { id: "conversation-tap-line" } }]],
     ["pane-scroll.yaml", [{ below: { id: "pane-body" } }]],
     ["pane-scroll-id.yaml", [{ below: { id: "pane-body" } }]],
   ])("subflows/%s scrolls both ways, then pulls its element within the column", (name, within) => {

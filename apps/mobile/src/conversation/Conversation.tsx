@@ -112,6 +112,10 @@ export function Conversation({
           thread less than an Application's card title (#705). */}
       <CappedTextScale scale={BAR_MAX_SCALE}>
         <View testID="conversation-box" style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", flexShrink: 1, paddingBottom: space[2], gap: space[1] }}>
+        {/* For the e2e flows (#705), a line a touch target above the box: an element of the thread whose top is above it
+            has room for its tap above the box. Maestro compares elements by their tops only, and a button whose top was
+            just above the box's had its centre, where Maestro taps, in it. Laid over nothing, touched by nothing. */}
+        <View testID="conversation-tap-line" style={{ position: "absolute", left: 0, right: 0, top: -TARGET, height: 1, pointerEvents: "none" }} />
         {aboveBox ? (
           <ScrollView testID="conversation-above-box" style={styles.aboveBox} keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}>
             {aboveBox}

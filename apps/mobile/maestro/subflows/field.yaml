@@ -1,0 +1,47 @@
+# Types VALUE in the field whose testID is FIELD, in the open pane: an input's label is its accessible name on iOS, not
+# one Maestro finds on Android, so fields are found by their id. The pane scrolled to the field first, not to its label:
+# the label in view, the field under it was not, and Maestro found no « interview-note » to tap.
+# Then closes the keyboard: Android's back; on iOS, whose number keyboards have no key that closes them, a drag in the
+# pane (its body closes the keyboard on drag, src/shell/Shell.tsx), near its top, above any keyboard. A tap on the
+# field's label did, until an iPhone SE's keyboard covered the label: the tap typed a « v », the next ones hit the
+# keyboard's dictation key, and the system's « Activer Dictée ? » covered every later run.
+appId: ai.jobbbox.app
+---
+- runFlow:
+    file: pane-scroll-id.yaml
+    env:
+      ID: ${FIELD}
+      DIRECTION: DOWN
+# Typed again until iOS shows it all, as the sign-in's fields: its keyboard may not be up for the first characters.
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          id: ${FIELD}
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - eraseText
+      - inputText: ${VALUE}
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - runFlow:
+                when:
+                  true: ${LAYOUT == 'columns'}
+                commands:
+                  - swipe:
+                      start: "88%, 30%"
+                      end: "88%, 36%"
+                      duration: 400
+            - runFlow:
+                when:
+                  true: ${LAYOUT != 'columns'}
+                commands:
+                  - swipe:
+                      start: "40%, 30%"
+                      end: "40%, 36%"
+                      duration: 400
+            - assertVisible: ${VALUE}
+- runFlow:
+    file: hide-keyboard.yaml

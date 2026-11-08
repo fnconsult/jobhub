@@ -4,7 +4,8 @@ import { Slot } from "expo-router";
 import { renderRouter } from "expo-router/testing-library";
 import { Linking, Text } from "react-native";
 import { AppProviders } from "../app-providers";
-import { METRICS } from "../testing";
+import { METRICS, setWindow } from "../testing";
+import { ROW_MAX_SCALE } from "../ui/AppText";
 import { fakeNetwork, memoryStorage } from "../offline/testing";
 import type { CalendarSheets } from "./add-to-calendar";
 import type { Agenda } from "./agenda-read";
@@ -158,5 +159,17 @@ describe("the Agenda, as a list", () => {
   it("says when nothing is planned", async () => {
     await renderAgenda({ toSchedule: [], days: [] });
     expect(screen.getByText(/Aucun rendez-vous à venir/)).toBeOnTheScreen();
+  });
+});
+
+describe("the Agenda, at a large system text size", () => {
+  afterEach(() => setWindow({ width: 375, height: 667, fontScale: 1 }));
+
+  it("lets an Agenda Item's words grow up to twice their size, as an object's row", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderAgenda();
+    for (const text of ["Responsable qualité", "Aéroline", "avec Claire Martin"]) {
+      expect(screen.getByText(text).props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
+    }
   });
 });

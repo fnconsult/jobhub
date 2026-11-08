@@ -153,6 +153,29 @@ const COOKIE_KEY = `${STORAGE_PREFIX}_cookie`;
 const STORED = [COOKIE_KEY, `${STORAGE_PREFIX}_session_data`];
 /** Where the app asks its magic link to return (app-sign-in.ts on the web turns it into APP_SIGN_IN_PATH). */
 const RETURN_ADDRESS = `${APP_ORIGIN}${APP_SIGN_IN_PATH}`;
+/**
+ * How long the session waits for the WebViews' cookies to be emptied (#705), at sign-in, at sign-out and when it is
+ * found ended. WebKit may never answer: on iOS 18's simulator, WKWebsiteDataStore's removeData left its completion
+ * uncalled about one call in five once its network process had been suspended (« removeData started », never
+ * « finished », in the app's log), the sign-in's on every iPad run, and the app, emptied for the new session, stayed
+ * blank. The emptying goes on; the session no longer hangs on it. A session's cookie left there is one the web app has
+ * revoked, or one the next session's own replaces before a WebView opens (`webCookies`).
+ */
+export const WEB_VIEWS_WAIT_MS = 3000;
+
+/** `work` done, or `ms` gone by, whichever comes first; a failure counts as done. */
+function atMost(work: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    void work
+      .catch(() => undefined)
+      .then(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+  });
+}
+
 /** Where a Sign-in Provider sends the app back, signed in or refused: the system's browser closes on it. */
 const PROVIDER_RETURN_ADDRESS = `${APP_ORIGIN}${APP_PROVIDER_RETURN_PATH}`;
 
@@ -179,7 +202,9 @@ export function createAppSession({
     plugins: [expoClient({ scheme: APP_SCHEME, storagePrefix: STORAGE_PREFIX, storage, disableCache: true }), magicLinkClient(), emailOTPClient()],
     fetchOptions: { customFetchImpl: fetch },
   });
-  const forget = () => Promise.all([...STORED.map((key) => storage.deleteItemAsync(key)), webViewCookies?.clear()]).then(() => undefined);
+  /** The WebViews' cookies emptied, waited for `WEB_VIEWS_WAIT_MS` at most: WebKit may never say it is done. */
+  const clearWebViews = () => (webViewCookies ? atMost(webViewCookies.clear(), WEB_VIEWS_WAIT_MS) : Promise.resolve());
+  const forget = () => Promise.all([...STORED.map((key) => storage.deleteItemAsync(key)), clearWebViews()]).then(() => undefined);
   /** Secure storage as the Expo plugin keeps it (a long value split in parts): the session cookie a provider brings goes there. */
   const kept = storageAdapter(storage);
   const origin = baseURL.replace(/\/$/, "");
@@ -324,9 +349,7 @@ export function createAppSession({
 
     cookie: () => client.getCookie(),
 
-    forgetWebViews: async () => {
-      await webViewCookies?.clear();
-    },
+    forgetWebViews: clearWebViews,
 
     signOut: () =>
       serial(async () => {

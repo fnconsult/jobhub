@@ -1,0 +1,19 @@
+# Connexion par code (#686): the run's Candidate, new to this device, signs in by the code of their sign-in email and
+# lands on the home page's conversation, in the layout the window calls for; relaunched, the app keeps the session.
+appId: ai.jobbbox.app
+name: Connexion par code
+tags:
+  - flow
+---
+- launchApp:
+    stopApp: false
+- runFlow: ../subflows/sign-in.yaml
+- runFlow: ../subflows/layout.yaml
+- stopApp
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Joindre un lien ou un document"
+    timeout: 30000
+- assertNotVisible:
+    id: "sign-in-email"

@@ -1,0 +1,8 @@
+# Closes the Fiche opened full page (fiche.yaml); a column stays.
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Fermer"

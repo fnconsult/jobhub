@@ -1,0 +1,39 @@
+# Une conversation avec réponse en flux: a new conversation, a message sent, the AI Coach's reply arriving as it is
+# written (« Arrêter » shown meanwhile), then its last line, the box free again.
+appId: ai.jobbbox.app
+name: Une conversation, la réponse en flux
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Menu"
+- tapOn: "Nouvelle conversation"
+# Typed again until iOS shows it all, as the sign-in's fields (subflows/sign-in.yaml): its keyboard may not be up for the
+# first characters, and the fake coach streams its long reply only to the whole message.
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn:
+          id: "coach-message"
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - eraseText
+      - inputText: "E2E_COACH_LONG E2E_COACH_SLOW=15000 Comment préparer mon entretien ?"
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - assertVisible: "E2E_COACH_LONG E2E_COACH_SLOW=15000 Comment préparer mon entretien \\?"
+- tapOn: "Envoyer"
+- extendedWaitUntil:
+    visible: "Arrêter"
+    timeout: 20000
+# Its last line, within the whole reply: Android exposes the reply as one text, its paragraphs joined.
+- extendedWaitUntil:
+    visible: ".*FIN DE LA RÉPONSE"
+    timeout: 60000
+- assertVisible: "Envoyer"

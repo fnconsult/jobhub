@@ -1,0 +1,94 @@
+# Scrolls the conversation until TEXT shows, starting UP to what came before or DOWN to what follows (DIRECTION), at
+# 40 % of the screen's width: the conversation on every layout, a tablet's Sidebar column left of it, its Fiche right of
+# it. Within the thread: below its top, above the box. Each step
+# takes 3 s, too slow for the thread to fling on: where it stops is the same each run, as a key screen's capture needs
+# (Mes candidatures, scrolled to on the unfolded foldable at the largest text size, stopped a few points apart).
+# In short, slow steps (15 % of the screen's height, no fling): Maestro's scrollUntilVisible swipes from the
+# screen's middle by some 40 % of its height, past what a folded foldable shows at the largest text size. DIRECTION
+# first, then back the other way, should the element have come in where the steps had already been (a card still
+# loading). Then pulled within the column: iOS gives Maestro an element's whole frame, the part the column clips
+# included, and an iPhone SE's tap on a card under the Top Bar hit the page's title.
+# Up to 80 steps each way: at iOS's largest text size on an iPhone SE the coach's welcome takes a line a word, and 25
+# steps (some 2 500 pt) stopped short of Mes candidatures' cards (run 42361117140, iphone-se light-largest-text).
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${DIRECTION == 'UP'}
+    commands:
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+          times: 80
+          commands:
+            - swipe:
+                start: "40%, 30%"
+                end: "40%, 45%"
+                duration: 3000
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+          times: 80
+          commands:
+            - swipe:
+                start: "40%, 45%"
+                end: "40%, 30%"
+                duration: 3000
+- runFlow:
+    when:
+      true: ${DIRECTION == 'DOWN'}
+    commands:
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+          times: 80
+          commands:
+            - swipe:
+                start: "40%, 45%"
+                end: "40%, 30%"
+                duration: 3000
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+          times: 80
+          commands:
+            - swipe:
+                start: "40%, 30%"
+                end: "40%, 45%"
+                duration: 3000
+# Above the box first, then below the thread's top: an element taller than the thread's room (a card's title at
+# iOS's largest text size on an iPhone SE, some 300 pt against 270) can't be both, and it is its top that must stay in
+# the thread, where its centre is tapped (run 42370572968: pushed up last, its centre fell outside, the tap missed).
+# Above the box with room for a tap: its top above conversation-tap-line, a touch target above the box. Maestro's
+# « above » compares tops only, and « Déjà suivies (1) », its top just above the box's, was tapped in the box (run
+# 42434869815, iphone-se light).
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+        above:
+          id: "conversation-tap-line"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 45%"
+          end: "40%, 30%"
+          duration: 3000
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+        below:
+          id: "conversation-thread"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 30%"
+          end: "40%, 45%"
+          duration: 3000
+- assertVisible:
+    text: ${TEXT}

@@ -1,0 +1,77 @@
+# Une Application: its page is its conversation; its Fiche shows its status, set here from « Postulée » to
+# « Entretien »; then its Interviews Section, where an Interview is added and the Push notifications' explanation is
+# answered « Pas maintenant » (#699).
+appId: ai.jobbbox.app
+name: Une candidature, sa Fiche, son statut et ses entretiens
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Mes candidatures"
+# A menu's conversation opens on its latest message: its card is above.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Responsable qualité · Aéroline Démo"
+      DIRECTION: UP
+- tapOn: "Responsable qualité · Aéroline Démo"
+- runFlow: ../subflows/fiche.yaml
+- assertVisible: "Aéroline Démo · Lyon"
+- tapOn: "Statut : Postulée"
+- tapOn: "Entretien"
+- extendedWaitUntil:
+    visible: "Statut : Entretien"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Entretiens"
+      DIRECTION: DOWN
+- tapOn: "Entretiens"
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Voir dans l'agenda"
+      DIRECTION: DOWN
+- runFlow:
+    file: ../subflows/field.yaml
+    env:
+      FIELD: "interview-date"
+      VALUE: "26/11/2031"
+- runFlow:
+    file: ../subflows/field.yaml
+    env:
+      FIELD: "interview-time"
+      VALUE: "10:00"
+- runFlow:
+    file: ../subflows/field.yaml
+    env:
+      FIELD: "interview-note"
+      VALUE: "Second tour"
+# The form's title is « Ajouter l'entretien » too, in view or not as the pane scrolled: its button found by its id.
+- runFlow:
+    file: ../subflows/pane-scroll-id.yaml
+    env:
+      ID: "interview-submit"
+      DIRECTION: DOWN
+- tapOn:
+    id: "interview-submit"
+# The first Interview asks for notifications, a moment after it is saved: waited for a few seconds, not required (on
+# iPhone SE light, run 42497351618, it came after the check for it and stayed over the Fiche).
+- extendedWaitUntil:
+    visible: "Être prévenu la veille de vos rendez-vous \\?"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: "Être prévenu la veille de vos rendez-vous \\?"
+    commands:
+      - tapOn: "Pas maintenant"
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Second tour"
+      DIRECTION: UP

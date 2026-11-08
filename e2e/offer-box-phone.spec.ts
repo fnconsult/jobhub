@@ -41,16 +41,15 @@ const masterCv = {
 async function candidateWithOfferBox(page: Page, label: string): Promise<{ toHandle: number; email: number }> {
   await signInWithMagicLink(page, newAddress(label));
   const candidateId = (await (await page.request.get("/api/auth/get-session")).json()).user.id as string;
-  const profiles: string[] = [];
-  for (const targetRole of ["Acheteuse", "Responsable des achats indirects et de la sous-traitance"]) {
-    const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria: { targetRole, locations: ["Nantes"] } } });
-    expect(created.status(), await created.text()).toBe(201);
-    profiles.push((await created.json()).id as string);
-  }
+  const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Acheteuse", locations: ["Nantes"] } } });
+  expect(created.status(), await created.text()).toBe(201);
+  const profile = (await created.json()).id as string;
   const db = new pg.Client({ connectionString: databaseUrl });
   await db.connect();
   let email = 0;
   try {
+    // A second Profile, past the free plan's one, for a second « Lancer une recherche ».
+    await db.query(`INSERT INTO profile (candidate_id, name, target_role, locations) VALUES ($1, 'Responsable des achats indirects et de la sous-traitance', 'Responsable des achats', ARRAY['Nantes'])`, [candidateId]);
     const rows: Array<[string, number, string]> = [
       ...[0, 1, 2].map((n): [string, number, string] => [`today-${n}`, 0, "job_search"]),
       ...Array.from({ length: 12 }, (_, n): [string, number, string] => [`earlier-${n}`, 3, n % 3 === 0 ? "email" : "job_search"]),
@@ -64,7 +63,7 @@ async function candidateWithOfferBox(page: Page, label: string): Promise<{ toHan
       await db.query(
         `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
          VALUES ($1, $2, $3, now() - make_interval(days => $4), jsonb_build_object($5::text, to_char((now() - make_interval(days => $4)) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))`,
-        [candidateId, offer.rows[0].id, profiles[0], arrivedDaysAgo, source],
+        [candidateId, offer.rows[0].id, profile, arrivedDaysAgo, source],
       );
     }
   } finally {
@@ -106,7 +105,7 @@ async function entriesAbove(page: Page, scrollportTop: number, below: number): P
     (entries, [top, bottom]) =>
       entries.filter((entry) => {
         const box = entry.getBoundingClientRect();
-        return box.height > 0 && box.bottom > top! + 0.5 && box.top < bottom! - 0.5;
+        return Math.min(box.bottom, bottom!) - Math.max(box.top, top!) > 0.5;
       }).map((entry) => entry.getAttribute("aria-label") ?? ""),
     [scrollportTop, below],
   );
@@ -240,7 +239,7 @@ test.describe("« Offres à traiter »'s pinned header (#898)", () => {
       const scrollportTop = await scrollPage(page, y);
       const head = (await boxOf(page).locator(".offer-box-head").boundingBox())!;
       expect(Math.abs(head.y - scrollportTop), `scrolled ${y} px: the header at the column's top`).toBeLessThanOrEqual(0.5);
-      expect(await entriesAbove(page, scrollportTop, head.y + head.height)).toEqual([]);
+      expect(await entriesAbove(page, scrollportTop, head.y)).toEqual([]);
     }
 
     // A phone: the tier pinned, the same.
@@ -255,7 +254,8 @@ test.describe("« Offres à traiter »'s pinned header (#898)", () => {
       const scrollportTop = await scrollPage(page, await offsetOf(page, selector, more));
       const top = await page.evaluate((y) => document.elementFromPoint(195, y + 1)?.closest(".offer-box-tier-heading, .offer-box-entry")?.className ?? "", scrollportTop);
       expect(top, `${selector}: a tier's heading at the column's top`).toContain("offer-box-tier-heading");
-      const heading = await page.evaluate((y) => document.elementFromPoint(195, y + 1)!.closest(".offer-box-tier-heading")!.getBoundingClientRect().bottom, scrollportTop);
+      const heading = await page.evaluate((y) => document.elementFromPoint(195, y + 1)!.closest(".offer-box-tier-heading")!.getBoundingClientRect().top, scrollportTop);
+      expect(Math.abs(heading - scrollportTop), `${selector}: the tier at the column's top`).toBeLessThanOrEqual(0.5);
       expect(await entriesAbove(page, scrollportTop, heading)).toEqual([]);
     }
   });

@@ -5377,7 +5377,9 @@ textarea.title-edit {
   grid-column: 2 / -1;
 }
 
-.activity-entry-part .activity-entry-title {
+/* Its own class, so that an entry is never found by the title of one of its parts. */
+.activity-entry-part-title {
+  overflow-wrap: anywhere;
   color: var(--color-text);
 }
 

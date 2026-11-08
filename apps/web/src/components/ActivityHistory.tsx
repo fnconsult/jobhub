@@ -443,7 +443,7 @@ function Parts({ parts, usage }: { parts: readonly ActivityEntry[]; usage: reado
           <li key={part.key} className="activity-entry-part" data-kind={part.kind}>
             <ActivityGlyph activity={GLYPH[part.kind]} />
             <span className="activity-entry-words">
-              <span className="activity-entry-title">{entryTitle(part, t)}</span>
+              <span className="activity-entry-part-title">{entryTitle(part, t)}</span>
               {sub ? <span className="activity-entry-sub">{sub}</span> : null}
             </span>
             {part.at ? (

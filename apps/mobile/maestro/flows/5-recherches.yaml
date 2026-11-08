@@ -66,7 +66,25 @@ tags:
       TEXT: "Déjà suivies \\(1\\)"
       DIRECTION: DOWN
 - assertVisible: "Auditrice qualité fournisseurs · Industries Démo"
-- tapOn: "Déjà suivies \\(1\\)"
+# Unfolded, it shows the Job Offer followed. Tried again while it does not: on an iPhone SE the thread went back to its
+# top between Maestro's reading of the screen and its tap, which fell on a source chip, and « Déjà suivies » stayed
+# folded (run 42489664306, iphone-se light). Tapped only while folded: a tap on it unfolded would fold it.
+- retry:
+    maxRetries: 2
+    commands:
+      - runFlow:
+          file: ../subflows/conversation-scroll.yaml
+          env:
+            TEXT: "Déjà suivies \\(1\\)"
+            DIRECTION: DOWN
+      - runFlow:
+          when:
+            notVisible: "Cheffe de projet qualité · Industries Démo"
+          commands:
+            - tapOn: "Déjà suivies \\(1\\)"
+      - extendedWaitUntil:
+          visible: "Cheffe de projet qualité · Industries Démo"
+          timeout: 5000
 - runFlow:
     file: ../subflows/conversation-scroll.yaml
     env:

@@ -9,6 +9,7 @@ import type { AppSession } from "../src/session/app-session";
 import { withCoach, type FakeCoachWeb } from "../src/coach/testing";
 import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice, fakeWebView } from "../src/testing-device";
+import { chooseFromMoreActions } from "../src/shell/testing";
 import { AGENDA } from "./agenda-web";
 
 jest.setTimeout(60_000);
@@ -958,7 +959,7 @@ describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", (
     ).toBeOnTheScreen();
   });
 
-  it("clears the page's conversation with « Effacer », once the Dialog confirms it", async () => {
+  it("clears the page's conversation with « Effacer la conversation », under the Top Bar's « … » on a phone, once the Dialog confirms it", async () => {
     mockWeb.coach.add({
       id: "f4",
       title: "À effacer",
@@ -967,7 +968,8 @@ describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", (
     await launch("/conversations/f4");
     await screen.findByText("Un vieux message");
     confirmWith("Effacer");
-    await userEvent.setup().press(button("Effacer"));
+    expect(screen.queryByRole("button", { name: "Effacer" })).toBeNull();
+    await chooseFromMoreActions("Effacer la conversation");
     expect(Alert.alert).toHaveBeenCalledWith("Effacer cette conversation ?", "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.", expect.anything());
     await waitFor(() => expect(screen.queryByText("Un vieux message")).toBeNull());
     expect(mockWeb.coach.saved.has("f4")).toBe(false);

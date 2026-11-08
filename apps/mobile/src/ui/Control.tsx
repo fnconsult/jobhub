@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react-native";
+import type { ComponentRef, Ref } from "react";
 import { Pressable, View } from "react-native";
 import { space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "./AppText";
@@ -30,6 +31,7 @@ export function Control({
   disabled = false,
   onPress,
   testID,
+  ref,
 }: {
   label: string;
   /** Its accessible name when the label alone does not say which, among several alike: the label otherwise. */
@@ -44,12 +46,15 @@ export function Control({
   onPress: () => void;
   /** Its id for the e2e flows, where its label is not the only one of its name on screen (apps/mobile/maestro). */
   testID?: string;
+  /** The button itself: to measure it, or move VoiceOver's and TalkBack's focus to it. */
+  ref?: Ref<ComponentRef<typeof View>>;
 }) {
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
   const foreground = look === "primary" ? colors.onAccent : selected ? colors.accent : colors.text;
   return (
     <Pressable
+      ref={ref}
       role="button"
       aria-label={accessibleName ?? label}
       aria-expanded={expanded}

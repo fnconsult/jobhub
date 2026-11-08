@@ -68,14 +68,9 @@ tags:
     env:
       MENU: "Agenda"
 - runFlow: ../subflows/conversation-end.yaml
-# A menu's conversation opens on its latest message: its card is above. The Interview's line is one link, which iOS
-# names by all it says (its time, « Entretien », the job, the employer): the job's title found within it, but not in
-# « Ajouter à mon calendrier : Entretien — Contrôleuse de gestion… », the button inside it that Android also exposes.
-- runFlow:
-    file: ../subflows/conversation-scroll.yaml
-    env:
-      TEXT: "(?!Ajouter).*Contrôleuse de gestion.*"
-      DIRECTION: UP
+# Captured as it opens, on its latest message, where the thread stops scrolling: scrolled up to its card, a few steps
+# from the end at the largest text size, the screen stopped some points apart from one run to the next (3 on a folded
+# foldable, 13 on an iPhone SE: 97 % of the reference, run 42452896482). The Interview's line is found by 6-agenda.yaml.
 - runFlow:
     file: ../subflows/capture.yaml
     env:

@@ -1,0 +1,84 @@
+# Runs the Consumption backfill (#800, ADR-0091, docs/ops/consumption-backfill.md) on the Beta, over SSH like
+# deploy.yml, for when nobody can reach the VPS by hand.
+#
+# Manual only, staging only: `gh workflow run consumption-backfill.yml -f live-from=YYYY-MM-DD`, where live-from is the
+# day #799 was first deployed to the Beta, French time. Production is not offered here: its backfill stays a hand step
+# of the product owner's, before the Promotion of the first Version that carries #801.
+#
+# It runs the script with the `migrate` image the Beta already runs (the deployed commit, already on the VPS), under the
+# deploy lock so it never overlaps a deployment. The script refuses a date it cannot read, a date still to come, a
+# date later than the earliest day already counted live, and, once a first run has recorded its date, any other date;
+# a run again gives the same rows.
+name: Consumption backfill
+run-name: Consumption backfill (staging, live from ${{ inputs.live-from }}) by ${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      live-from:
+        description: "The day #799 was first deployed to the Beta, French time (YYYY-MM-DD)"
+        type: string
+        required: true
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging
+      deployment: false
+    steps:
+      - name: Check the date
+        env:
+          LIVE_FROM: ${{ inputs.live-from }}
+        run: |
+          if ! [[ "$LIVE_FROM" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "::error::live-from must be YYYY-MM-DD, got « $LIVE_FROM »"
+            exit 1
+          fi
+
+      - name: Run the backfill on the VPS
+        # Pinned to a SHA, as in deploy.yml: this action receives the VPS key.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          JOBHUB_TARGET: staging
+          JOBHUB_ROOT: ${{ vars.JOBHUB_ROOT }}
+          JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
+          JOBHUB_SLUG: ${{ vars.JOBHUB_SLUG }}
+          JOBHUB_IMAGES: ghcr.io/${{ github.repository }}
+          LIVE_FROM: ${{ inputs.live-from }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 25m
+          envs: JOBHUB_TARGET,JOBHUB_ROOT,JOBHUB_HOST,JOBHUB_SLUG,JOBHUB_IMAGES,LIVE_FROM
+          script: |
+            set -euo pipefail
+            app="$JOBHUB_ROOT/app"
+            env_file="$JOBHUB_ROOT/.env"
+            [ -d "$app/.git" ] || { echo "✗ $app is not a checkout: deploy the Beta first" >&2; exit 1; }
+            # Never alongside a deployment of this environment (deploy.sh holds the same lock).
+            exec 9>"$JOBHUB_ROOT/.deploy.lock"
+            flock -n 9 || { echo "✗ a deployment of $JOBHUB_TARGET is running; try again when it is done" >&2; exit 1; }
+            JOBHUB_REVISION=$(git -C "$app" rev-parse HEAD)
+            export JOBHUB_ENV_FILE="$env_file" JOBHUB_TARGET JOBHUB_HOST JOBHUB_SLUG JOBHUB_REVISION JOBHUB_IMAGES
+            if docker info >/dev/null 2>&1; then
+              DOCKER=(docker)
+            elif sudo -n docker info >/dev/null 2>&1; then
+              DOCKER=(sudo -n --preserve-env=JOBHUB_ENV_FILE,JOBHUB_TARGET,JOBHUB_HOST,JOBHUB_SLUG,JOBHUB_REVISION,JOBHUB_IMAGES docker)
+            else
+              echo "✗ $(id -un) cannot run docker" >&2
+              exit 1
+            fi
+            echo "▸ $JOBHUB_TARGET at $JOBHUB_REVISION: backfill, live from $LIVE_FROM"
+            "${DOCKER[@]}" compose -f "$app/deploy/compose.yml" -p "$JOBHUB_SLUG" --env-file "$env_file" \
+              run --rm --no-deps migrate \
+              node_modules/.bin/tsx apps/web/scripts/backfill-consumption.ts --live-from "$LIVE_FROM"

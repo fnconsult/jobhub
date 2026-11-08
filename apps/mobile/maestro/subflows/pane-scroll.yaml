@@ -1,0 +1,143 @@
+# Scrolls the open pane until TEXT shows, starting UP or DOWN (DIRECTION): the Fiche's or the Work Pane's column at the
+# window's right on a tablet (LAYOUT columns), the pane over the whole window otherwise. Maestro's scrollUntilVisible
+# swipes the middle of the screen, which on a tablet is the conversation: the pane never moved. Within the pane: below
+# the top of its body.
+# In short, slow steps (15 % of the screen's height, no fling): Maestro's scrollUntilVisible swipes from the
+# screen's middle by some 40 % of its height, past what a folded foldable shows at the largest text size. DIRECTION
+# first, then back the other way, should the element have come in where the steps had already been (a card still
+# loading). Then pulled within the column: iOS gives Maestro an element's whole frame, the part the column clips
+# included, and an iPhone SE's tap on a card under the Top Bar hit the page's title.
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'UP'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 30%"
+                      end: "88%, 45%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 45%"
+                      end: "88%, 30%"
+                      duration: 800
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'DOWN'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 45%"
+                      end: "88%, 30%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "88%, 30%"
+                      end: "88%, 45%"
+                      duration: 800
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+              below:
+                id: "pane-body"
+          times: 3
+          commands:
+            - swipe:
+                start: "88%, 30%"
+                end: "88%, 45%"
+                duration: 800
+      - assertVisible:
+          text: ${TEXT}
+- runFlow:
+    when:
+      true: ${LAYOUT != 'columns'}
+    commands:
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'UP'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 30%"
+                      end: "40%, 45%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 45%"
+                      end: "40%, 30%"
+                      duration: 800
+      - runFlow:
+          when:
+            true: ${DIRECTION == 'DOWN'}
+          commands:
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 45%"
+                      end: "40%, 30%"
+                      duration: 800
+            - repeat:
+                while:
+                  notVisible:
+                    text: ${TEXT}
+                times: 25
+                commands:
+                  - swipe:
+                      start: "40%, 30%"
+                      end: "40%, 45%"
+                      duration: 800
+      - repeat:
+          while:
+            notVisible:
+              text: ${TEXT}
+              below:
+                id: "pane-body"
+          times: 3
+          commands:
+            - swipe:
+                start: "40%, 30%"
+                end: "40%, 45%"
+                duration: 800
+      - assertVisible:
+          text: ${TEXT}

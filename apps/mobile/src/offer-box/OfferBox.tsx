@@ -10,7 +10,7 @@ import { paths } from "../navigation/pages";
 import { ReadState } from "../screens/ReadState";
 import { useWorkPane } from "../shell/Shell";
 import { radius, space, useTheme } from "../theme/theme";
-import { AppText } from "../ui/AppText";
+import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { ObjectRow } from "../ui/ObjectRow";
 import { OfferDecision, parisDate, useDismissalNotice, useOfferBoxDecisions, type OfferBoxDecisions } from "./decisions";
@@ -250,13 +250,16 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
           shareLinkAction(t("mobile.rowMenu.shareLink"), paths.offerBoxOffer(jobOffer.id)),
         ]}
       />
-      <AppText weight="semiBold" tone={tier === "not_to_miss" ? "success" : tier === "to_look_at" ? "warn" : "secondary"}>
-        {score}
-      </AppText>
-      {facts ? <AppText tone="secondary">{facts}</AppText> : null}
-      <AppText variant="meta" tone="secondary">
-        {tags.join(" · ")}
-      </AppText>
+      {/* The row's lines grow as the row does, up to twice their size (ROW_MAX_SCALE, #705). */}
+      <CappedTextScale scale={ROW_MAX_SCALE}>
+        <AppText weight="semiBold" tone={tier === "not_to_miss" ? "success" : tier === "to_look_at" ? "warn" : "secondary"}>
+          {score}
+        </AppText>
+        {facts ? <AppText tone="secondary">{facts}</AppText> : null}
+        <AppText variant="meta" tone="secondary">
+          {tags.join(" · ")}
+        </AppText>
+      </CappedTextScale>
       {/* « Suivre » is not offered on one « Expirée sans décision » (#817): it still opens, and « Écarter » stays. */}
       <OfferDecision entry={entry} decisions={decisions} canFollow={entry.scoredWith !== null && entry.state !== "expired"} offerLater />
     </View>

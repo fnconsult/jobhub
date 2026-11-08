@@ -1,0 +1,287 @@
+name: mobile-e2e
+
+# The app's verification floor in CI (#705, ADR-0076, runbook: docs/ops/mobile.md « Les e2e Maestro »): its Maestro flows
+# on iOS simulators and Android emulators, against the seeded test stack (e2e/mobile-stack.spec.ts), on the devices of
+# apps/mobile/maestro/devices.ts, each in light, dark and at the largest system text size, the key screens compared with
+# their reference captures (apps/mobile/maestro/captures), drawn and compared here only (ADR-0061's rule for the web).
+# Run by hand with captures=record to draw them again on purpose: each job's artifact maestro-captures-<hardware> holds
+# them, to commit. Maestro runs locally, its analytics off: nothing of a run leaves the runner.
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "e2e/mobile-stack.spec.ts"
+      - "e2e/support/mobile-stack.ts"
+      - ".github/workflows/mobile-e2e.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "e2e/mobile-stack.spec.ts"
+      - "e2e/support/mobile-stack.ts"
+      - ".github/workflows/mobile-e2e.yml"
+  workflow_dispatch:
+    inputs:
+      captures:
+        description: "compare : comparer aux captures de référence ; record : les redessiner toutes (artefacts maestro-captures-*)"
+        type: choice
+        options: [compare, record]
+        default: compare
+
+concurrency:
+  group: mobile-e2e-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # The seeded stack's web server, which the e2e build points at (http://localhost:<port>), and its helper.
+  E2E_WEB_PORT: "3705"
+  MOBILE_STACK_PORT: "4705"
+  MAESTRO_VERSION: "2.11.0"
+  MAESTRO_CLI_NO_ANALYTICS: "1"
+  MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
+  # The simulator just rebooted in French (devices.ts, bootSetup): its XCTest driver takes longer to start.
+  MAESTRO_DRIVER_STARTUP_TIMEOUT: "240000"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  build-ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # A Release build for the simulator, outside EAS, signed to run locally (ad hoc): unsigned, it carries no entitlement,
+      # and the Keychain, where the session lives, refuses it (-34018). No Sentry upload (docs/ops/mobile.md, #703).
+      - name: Build the e2e app for the iOS simulator
+        working-directory: apps/mobile
+        env:
+          JOBHUB_E2E_BUILD: "1"
+          EXPO_PUBLIC_WEB_APP_URL: http://localhost:${{ env.E2E_WEB_PORT }}
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: |
+          npx expo prebuild --platform ios --clean
+          xcodebuild -workspace ios/Jobbbox.xcworkspace -scheme Jobbbox -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES | tail -n 200
+          test "${PIPESTATUS[0]}" = 0
+          ditto -c -k --keepParent build/Build/Products/Release-iphonesimulator/Jobbbox.app "$RUNNER_TEMP/Jobbbox-ios.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-ios
+          path: ${{ runner.temp }}/Jobbbox-ios.zip
+          retention-days: 3
+
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci
+      # A Release APK for the emulator's x86_64, signed with the debug key of Expo's template, outside EAS.
+      - name: Build the e2e app for the Android emulator
+        working-directory: apps/mobile
+        env:
+          JOBHUB_E2E_BUILD: "1"
+          EXPO_PUBLIC_WEB_APP_URL: http://localhost:${{ env.E2E_WEB_PORT }}
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: |
+          npx expo prebuild --platform android --clean
+          # The Gradle wrapper waits 10 s for services.gradle.org, which twice timed out its download (#705, runs
+          # 42468880781 and 42472089315): two minutes.
+          sed -i 's/^networkTimeout=.*/networkTimeout=120000/' android/gradle/wrapper/gradle-wrapper.properties
+          grep -q '^networkTimeout=120000$' android/gradle/wrapper/gradle-wrapper.properties
+          (cd android && ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon)
+          cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Jobbbox-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-android
+          path: ${{ runner.temp }}/Jobbbox-android.apk
+          retention-days: 3
+
+  maestro-ios:
+    needs: build-ios
+    runs-on: macos-26
+    # The iPad's runs (landscape, portrait and, then, Split View, each light, dark and at the largest text size) took
+    # 2 h 01 min on run 42335030772 once each got past sign-in, and were stopped at 120: 180 leaves them room (#705).
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { hardware: iphone-se, model: "iPhone SE (3rd generation)", ios: "" }
+          # iPadOS 18, whose reference captures are kept, and which has Split View for when Maestro drives it (#904):
+          # iPadOS 26 has windows instead, and no multitasking button.
+          - { hardware: ipad, model: "iPad Pro 13-inch (M4)", ios: "18.6" }
+    env:
+      DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
+      # The stack's web server log (its mailbox too), kept with the results.
+      E2E_SERVER_LOG: ${{ github.workspace }}/stack-server.log
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # No service containers on macOS runners: the stack's Postgres from Homebrew.
+      - name: Start Postgres
+        run: |
+          brew install postgresql@17
+          brew services start postgresql@17
+          export PATH="$(brew --prefix postgresql@17)/bin:$PATH"
+          until pg_isready -h localhost; do sleep 1; done
+          psql -h localhost -d postgres -c "CREATE ROLE jobhub LOGIN SUPERUSER PASSWORD 'jobhub'"
+          createdb -h localhost -O jobhub jobhub
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install chromium
+      - name: Start the seeded stack
+        run: bash apps/mobile/maestro/start-stack.sh "$RUNNER_TEMP/stack.json"
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-ios
+          path: ${{ runner.temp }}/app
+      - name: Boot the simulator and install the app
+        run: |
+          # The runtime the matrix names (the newest installed of its version, else downloaded), or Xcode's own.
+          runtime=""
+          if [ -n "${{ matrix.ios }}" ]; then
+            pick() { xcrun simctl list runtimes -j | jq -r --arg v "${{ matrix.ios }}" '[.runtimes[] | select(.isAvailable and (.version | startswith($v)))] | sort_by(.version) | last | .identifier // empty'; }
+            runtime=$(pick)
+            if [ -z "$runtime" ]; then
+              xcodebuild -downloadPlatform iOS -buildVersion "${{ matrix.ios }}"
+              runtime=$(pick)
+            fi
+            test -n "$runtime"
+          fi
+          xcrun simctl create maestro "${{ matrix.model }}" $runtime
+          xcrun simctl boot maestro
+          xcrun simctl bootstatus maestro -b
+          ditto -x -k "$RUNNER_TEMP/app/Jobbbox-ios.zip" "$RUNNER_TEMP/app"
+          xcrun simctl install booted "$RUNNER_TEMP/app/Jobbbox.app"
+      - name: Run the flows
+        run: npx tsx apps/mobile/maestro/run.ts ${{ matrix.hardware }} --stack "$RUNNER_TEMP/stack.json" --captures ${{ inputs.captures || 'compare' }} --out "$RUNNER_TEMP/maestro"
+      - if: always()
+        run: touch "$RUNNER_TEMP/stack.json.done"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-results-${{ matrix.hardware }}
+          path: |
+            ${{ runner.temp }}/maestro
+            ${{ runner.temp }}/stack.log
+            ${{ github.workspace }}/stack-server.log
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-captures-${{ matrix.hardware }}
+          path: apps/mobile/maestro/captures
+          retention-days: 14
+
+  maestro-android:
+    needs: build-android
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { hardware: android-tablet, model: pixel_tablet }
+          - { hardware: android-foldable, model: pixel_fold }
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: jobhub
+          POSTGRES_PASSWORD: jobhub
+          POSTGRES_DB: jobhub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobhub -d jobhub"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
+      # The stack's web server log (its mailbox too), kept with the results.
+      E2E_SERVER_LOG: ${{ github.workspace }}/stack-server.log
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Start the seeded stack
+        run: bash apps/mobile/maestro/start-stack.sh "$RUNNER_TEMP/stack.json"
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-android
+          path: ${{ runner.temp }}/app
+      # The emulator needs KVM on the Linux runner.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the flows on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: ${{ matrix.model }}
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            adb install "$RUNNER_TEMP/app/Jobbbox-android.apk"
+            npx tsx apps/mobile/maestro/run.ts ${{ matrix.hardware }} --stack "$RUNNER_TEMP/stack.json" --captures ${{ inputs.captures || 'compare' }} --out "$RUNNER_TEMP/maestro"
+      - if: always()
+        run: touch "$RUNNER_TEMP/stack.json.done"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-results-${{ matrix.hardware }}
+          path: |
+            ${{ runner.temp }}/maestro
+            ${{ runner.temp }}/stack.log
+            ${{ github.workspace }}/stack-server.log
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-captures-${{ matrix.hardware }}
+          path: apps/mobile/maestro/captures
+          retention-days: 14

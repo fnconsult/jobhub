@@ -274,7 +274,7 @@ function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppS
           <AppText>{t("mobile.signIn.sent", { email: step.email })}</AppText>
         </View>
         <AppText tone="secondary">{t("mobile.signIn.waiting")}</AppText>
-        <GateField label={t("signIn.codeLabel")} value={code} onChangeText={setCode} onSubmitEditing={() => void enterCode(step.email)} editable={!step.checking} {...CODE_FIELD} />
+        <GateField testID="sign-in-code" label={t("signIn.codeLabel")} value={code} onChangeText={setCode} onSubmitEditing={() => void enterCode(step.email)} editable={!step.checking} {...CODE_FIELD} />
         {step.refusal ? <GateError message={t(step.refusal)} /> : null}
         <Control look="primary" label={step.checking ? t("signIn.codeChecking") : t("signIn.codeSubmit")} onPress={() => void enterCode(step.email)} />
         <View style={{ gap: space[2] }}>
@@ -308,7 +308,7 @@ function SignIn({ session, linkInvalid, onAskLink, onSignedIn }: { session: AppS
           </AppText>
         </View>
       ) : null}
-      <GateField label={t("signIn.emailLabel")} value={email} onChangeText={setEmail} onSubmitEditing={() => void send()} editable={!sending} {...EMAIL_FIELD} />
+      <GateField testID="sign-in-email" label={t("signIn.emailLabel")} value={email} onChangeText={setEmail} onSubmitEditing={() => void send()} editable={!sending} {...EMAIL_FIELD} />
       <Control look="primary" label={sending ? t("signIn.sending") : t("signIn.submit")} onPress={() => void send()} />
     </GateScreen>
   );

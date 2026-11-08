@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Linking, Pressable, ScrollView, View } from "react-native";
 import { INTERVIEWS, paths } from "../navigation/pages";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
-import { AppText } from "../ui/AppText";
+import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { addToCalendar, type CalendarSheets } from "./add-to-calendar";
 import type {
@@ -144,7 +144,11 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** An Agenda Item's link to where it leads, with its time and what it is. */
+/**
+ * An Agenda Item's link to where it leads, with its time and what it is. Its words grow up to twice their size, as an
+ * object's row does (ROW_MAX_SCALE, #705): growing freely, at iOS's largest on an iPhone SE, an Interview's line broke
+ * its words mid-word beside its time and stood taller than the conversation's thread.
+ */
 function ItemLink({
   href,
   children,
@@ -166,7 +170,7 @@ function ItemLink({
         backgroundColor: pressed ? colors.hover : "transparent",
       })}
     >
-      {children}
+      <CappedTextScale scale={ROW_MAX_SCALE}>{children}</CappedTextScale>
     </Pressable>
   );
 }

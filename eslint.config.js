@@ -27,6 +27,11 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
+    // The app's Maestro scripts (#705): Maestro's own JavaScript, its `http`, `json` and `output`, and the run's env.
+    files: ["apps/mobile/maestro/scripts/**/*.js"],
+    languageOptions: { globals: { http: "readonly", json: "readonly", output: "writable", STACK_URL: "readonly", STACK_EMAIL: "readonly" } },
+  },
+  {
     // The native app's Metro, Babel and Jest configurations (#683) and its config plugins (#700): CommonJS, as those
     // tools load them.
     files: ["apps/mobile/*.js", "apps/mobile/plugins/**/*.js"],
@@ -57,6 +62,7 @@ export default tseslint.config(
           // `<TextInput name="value" autoComplete="new-password" aria-describedby="…-help">`; an AddressDrawer's
           // `opener` is the selector of the link that opened it. A public page names itself to its site header (#470):
           // `<PublicSite current="legal">`. A document's language is a code, never text (#473): `<ThemedHtml lang="fr">`.
+          // The app's `testID`, what its Maestro flows find a field by (#705), never read by anyone.
           "jsx-attributes": {
             include: [],
             exclude: [
@@ -86,6 +92,7 @@ export default tseslint.config(
               "opener",
               "current",
               "lang",
+              "testID",
             ],
           },
         },

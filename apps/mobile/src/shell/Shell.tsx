@@ -1,12 +1,12 @@
 import { Activity, ChevronLeft, Menu, PanelLeftClose, PanelRight, SquarePen, X } from "lucide-react-native";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { BackHandler, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { BackHandler, Pressable, ScrollView, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfflineBanner } from "../offline/OfflineBanner";
 import { space, radius, TARGET, useTheme } from "../theme/theme";
 import { useKeyCommand } from "../keyboard/key-commands";
-import { AppText } from "../ui/AppText";
+import { AppText, BAR_MAX_SCALE, CappedTextScale } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
@@ -168,64 +168,120 @@ export function Shell({
   );
 }
 
-/** The Top Bar: the menu, the page's title (with `up`, a link back to the page above it, an arrow before it, as on iOS), its buttons. */
-function TopBar({ title, up, menu, end }: { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode }) {
+/** The room a page's title needs beside the Top Bar's buttons, in rem (16 pt times the system text scale). */
+const TITLE_MIN_REM = 10;
+
+/**
+ * The Top Bar: the menu, the page's title (with `up`, a link back to the page above it, an arrow before it, as on iOS),
+ * its buttons. Where the buttons, their words beside their icons, leave the title less than `TITLE_MIN_REM` (a phone, a
+ * folded foldable, a larger system text), the title goes on its own line under them, the whole width, rather than break
+ * inside its words (« Mes candida / tures ») or take one letter a line and most of the screen. Buttons that do not fit
+ * on one line beside the menu (« Effacer », « Activité » and the pencil, at the largest text size) wrap to the next. Its
+ * words grow with the system's text size up to twice their size (`BAR_MAX_SCALE`): the page keeps its room under it.
+ */
+function TopBar(props: TopBarProps) {
+  return (
+    <CappedTextScale scale={BAR_MAX_SCALE}>
+      <TopBarContent {...props} />
+    </CappedTextScale>
+  );
+}
+
+type TopBarProps = { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode };
+
+function TopBarContent({ title, up, menu, end }: TopBarProps) {
   const { colors } = useTheme();
+  const { fontScale } = useWindowDimensions();
   const { hovered, hoverProps } = usePointerHover();
+  const [widths, setWidths] = useState({ bar: 0, menu: 0, end: 0 });
+  const measure = (part: keyof typeof widths) => (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setWidths((current) => (current[part] === width ? current : { ...current, [part]: width }));
+  };
+  const [onBar, onMenu, onEnd] = (["bar", "menu", "end"] as const).map(measure);
+  // The bar's padding on each side, and a gap on each side of the title.
+  const room = widths.bar - 4 * space[2] - widths.menu - widths.end;
+  const ownLine = widths.bar > 0 && room < TITLE_MIN_REM * 16 * Math.min(fontScale, BAR_MAX_SCALE);
+  const beside = ownLine ? null : { flex: 1 };
   const text = (
     <AppText variant="lead" weight="semiBold" lines={2}>
       {title}
     </AppText>
   );
+  const heading = up ? (
+    <Pressable
+      role="link"
+      aria-label={title}
+      accessibilityHint={up.label}
+      onPress={up.go}
+      {...hoverProps}
+      style={({ pressed }) => ({
+        ...beside,
+        minHeight: TARGET,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: space[1],
+        borderRadius: radius.control,
+        backgroundColor: pressed || hovered ? colors.hover : "transparent",
+      })}
+    >
+      <ChevronLeft color={colors.accent} size={22} aria-hidden />
+      <View style={{ flex: 1 }}>{text}</View>
+    </Pressable>
+  ) : (
+    <View style={beside}>{text}</View>
+  );
   return (
-    <View role="toolbar" style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingHorizontal: space[2], paddingVertical: space[1] }}>
-      {menu}
-      {up ? (
-        <Pressable
-          role="link"
-          aria-label={title}
-          accessibilityHint={up.label}
-          onPress={up.go}
-          {...hoverProps}
-          style={({ pressed }) => ({
-            flex: 1,
-            minHeight: TARGET,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: space[1],
-            borderRadius: radius.control,
-            backgroundColor: pressed || hovered ? colors.hover : "transparent",
-          })}
+    <View role="toolbar" testID="top-bar" onLayout={onBar} style={{ gap: space[1], paddingHorizontal: space[2], paddingVertical: space[1] }}>
+      <View testID="top-bar-row" style={{ flexDirection: "row", alignItems: "center", gap: space[2] }}>
+        <View testID="top-bar-menu" onLayout={onMenu}>
+          {menu}
+        </View>
+        {ownLine ? <View style={{ flex: 1 }} /> : heading}
+        <View
+          testID="top-bar-end"
+          onLayout={onEnd}
+          style={{ flexShrink: 1, flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: space[2] }}
         >
-          <ChevronLeft color={colors.accent} size={22} aria-hidden />
-          <View style={{ flex: 1 }}>{text}</View>
-        </Pressable>
-      ) : (
-        <View style={{ flex: 1 }}>{text}</View>
-      )}
-      {end}
+          {end}
+        </View>
+      </View>
+      {ownLine ? heading : null}
     </View>
   );
 }
 
 function PaneHeader({ title, onClose }: { title: string; onClose: (() => void) | null }) {
   const { t } = useTranslation();
+  // A bar, as the Top Bar: its words grow up to twice their size, the pane's content keeping its room under it.
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingLeft: space[4], paddingRight: space[2], paddingVertical: space[1] }}>
-      <View style={{ flex: 1 }}>
-        <AppText variant="h3" lines={2}>
-          {title}
-        </AppText>
+    <CappedTextScale scale={BAR_MAX_SCALE}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingLeft: space[4], paddingRight: space[2], paddingVertical: space[1] }}>
+        <View style={{ flex: 1 }}>
+          <AppText variant="h3" lines={2}>
+            {title}
+          </AppText>
+        </View>
+        {onClose ? <Control label={t("conversationFirst.close")} icon={X} onPress={onClose} /> : null}
       </View>
-      {onClose ? <Control label={t("conversationFirst.close")} icon={X} onPress={onClose} /> : null}
-    </View>
+    </CappedTextScale>
   );
 }
+
+/** A drag in a pane closes the keyboard (the ScrollView's own setting, not words). */
+const KEYBOARD_CLOSES_ON_DRAG = "on-drag";
 
 /** A pane's content: scrolling in the pane, or filling it (`fill`) when it scrolls itself. */
 function PaneBody({ fill, children }: { fill: boolean; children: ReactNode }) {
   if (fill) return <View style={{ flex: 1, padding: space[4], paddingTop: 0 }}>{children}</View>;
-  return <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>;
+  // Its id, for the Maestro flows to scroll the pane until an element starts within it (apps/mobile/maestro/subflows).
+  // A drag closes the keyboard: on an iPhone the keyboard may cover the field typed in and its label, and the number
+  // keyboards have no key that closes them.
+  return (
+    <ScrollView testID="pane-body" keyboardDismissMode={KEYBOARD_CLOSES_ON_DRAG} contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>
+      {children}
+    </ScrollView>
+  );
 }
 
 /** A pane beside the conversation, from 64rem. */

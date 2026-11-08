@@ -7,7 +7,7 @@ const [jsTransform] = Object.entries(preset.transform).filter(([pattern]) => pat
 module.exports = {
   preset: "jest-expo",
   setupFiles: ["<rootDir>/jest.setup.js"],
-  testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}", "<rootDir>/e2e/**/*.e2e.test.{ts,tsx}"],
+  testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}", "<rootDir>/e2e/**/*.e2e.test.{ts,tsx}", "<rootDir>/maestro/**/*.test.ts"],
   // Packages that ship ES modules (.mjs): compiled as the preset compiles the rest.
   transform: { "\\.mjs$": jsTransform[1] },
   // Lucide's icons: its CommonJS build, which Node runs as is, not the ES build the preset's "react-native" condition picks.

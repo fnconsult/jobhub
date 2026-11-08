@@ -1,0 +1,55 @@
+# Scrolls the sign-in screen (its testID gate-screen) until TEXT shows whole, for the flow to tap it: in short, slow steps,
+# down first, then back up, then pulled down until it starts within the screen, and, AFTER given (what comes right under
+# it), up until that shows too, its bottom then on the screen. Maestro's scrollUntilVisible swipes by some 40 % of the
+# screen: on an iPhone SE at iOS's largest, « Me connecter avec ce code », 371 pt on four lines, came in at the bottom,
+# then was swiped past to above the screen, the end of the page reached, and never found whole (#705).
+appId: ai.jobbbox.app
+---
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+    times: 25
+    commands:
+      - swipe:
+          start: "40%, 45%"
+          end: "40%, 30%"
+          duration: 800
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+    times: 25
+    commands:
+      - swipe:
+          start: "40%, 30%"
+          end: "40%, 45%"
+          duration: 800
+- repeat:
+    while:
+      notVisible:
+        text: ${TEXT}
+        below:
+          id: "gate-screen"
+    times: 3
+    commands:
+      - swipe:
+          start: "40%, 30%"
+          end: "40%, 45%"
+          duration: 800
+- runFlow:
+    when:
+      true: ${AFTER != ''}
+    commands:
+      - repeat:
+          while:
+            notVisible:
+              text: ${AFTER}
+          times: 3
+          commands:
+            - swipe:
+                start: "40%, 45%"
+                end: "40%, 30%"
+                duration: 800
+- assertVisible:
+    text: ${TEXT}

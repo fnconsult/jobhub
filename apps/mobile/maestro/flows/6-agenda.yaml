@@ -1,0 +1,26 @@
+# Agenda: the seeded Interview on its day, in French time, leading to its Application's Interviews Section.
+appId: ai.jobbbox.app
+name: Agenda
+tags:
+  - flow
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Agenda"
+# A menu's conversation opens on its latest message: its card is above. The Interview's line is one link, which iOS
+# names by all it says (its time, « Entretien », the job, the employer): the job's title found within it, but not in
+# « Ajouter à mon calendrier : Entretien — Contrôleuse de gestion… », the button inside it that Android also exposes.
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "(?!Ajouter).*Contrôleuse de gestion.*"
+      DIRECTION: UP
+- tapOn: "(?!Ajouter).*Contrôleuse de gestion.*"
+- runFlow:
+    file: ../subflows/pane-scroll.yaml
+    env:
+      TEXT: "Voir dans l'agenda"
+      DIRECTION: DOWN
+- assertVisible: "Avec la DRH"

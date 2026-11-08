@@ -1,0 +1,16 @@
+# Goes to the Sidebar's link MENU: in the drawer behind « Menu » when the Sidebar is not a column. Asked of the shell, not
+# of the run's LAYOUT: on a window just wide enough for columns (an iPad in portrait, 64.5rem), an Application's Fiche
+# open beside the conversation leaves the Sidebar no room, and it goes to the drawer (src/shell/disposition.ts).
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      visible: "Menu"
+    commands:
+      - tapOn: "Menu"
+- scrollUntilVisible:
+    element:
+      text: ${MENU}
+    direction: DOWN
+    timeout: 10000
+- tapOn: ${MENU}

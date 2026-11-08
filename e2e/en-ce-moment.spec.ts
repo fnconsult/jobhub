@@ -201,9 +201,9 @@ test.describe("« En ce moment » (#806, ADR-0086)", () => {
     await expect(search.locator(".ai-activity-live-status")).toHaveText(fr.aiActivity.live.stopping);
     await expect.poll(() => statusOf(jobSearchId), { timeout: 90_000, message: workerOutput }).toBe("stopped");
     // On its own page, the page refreshes itself and shows it stopped: AI Activity's history takes it back (« Arrêtée à
-    // 10:42 » under « Par élément »), and the block lets it go (#806: « jusqu'à ce que l'historique la reprenne »). How long
+    // 10:42 » on its row, #808), and the block lets it go (#806: « jusqu'à ce que l'historique la reprenne »). How long
     // it shows in light red in the block meanwhile is the refresh's timing, so it is not asserted here; the reply's is below.
-    const searchInHistory = activityOf(page).locator(".ai-activity-element").filter({ has: page.getByText(fr.aiActivity.kinds.job_search, { exact: true }) });
+    const searchInHistory = activityOf(page).locator(".activity-entry").filter({ has: page.locator(".activity-entry-title").getByText(fr.aiActivity.kinds.job_search, { exact: true }) });
     await expect(searchInHistory).toContainText(/Arrêtée à \d{2}:\d{2}/, { timeout: 15_000 });
     await expect(search).toHaveCount(0);
     await expect(reply.getByRole("button", { name: fr.aiActivity.live.stop.coach_reply, exact: true })).toBeVisible();

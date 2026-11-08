@@ -26,11 +26,12 @@ function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBox
     followedAt: null,
     dismissalReason: null,
     dismissedAt: null,
+    laterUntil: null,
     ...overrides,
   };
 }
 
-const box = (entries: OfferBoxEntryRead[]): OfferBoxResponse => ({ today: TODAY, toHandle: entries.filter((one) => one.state === "to_handle").length, entries });
+const box = (entries: OfferBoxEntryRead[]): OfferBoxResponse => ({ today: TODAY, toHandle: entries.filter((one) => one.state === "to_handle" || one.state === "later").length, entries });
 
 const offerBox = () => screen.getByRole("region", { name: /^Offres à traiter/ });
 const day = (name: string) => within(offerBox()).getByRole("region", { name });
@@ -57,7 +58,7 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
     expect(within(offerBox()).getByText("1 traitée")).toBeTruthy();
     expect(within(offerBox()).getByRole("progressbar", { name: "Traitées : 1 sur 3" }).getAttribute("aria-valuenow")).toBe("1");
     const chips = within(offerBox()).getByRole("group", { name: "Filtrer par source" });
-    expect(within(chips).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["Toutes2", "Recherche2", "Job Digest0", "Email1", "Lien du coach0", "Extension0"]);
+    expect(within(chips).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["Toutes2", "Recherche2", "Job Digest0", "Email1", "Lien du coach0", "Extension0", "Partage0"]);
     expect(within(chips).getByRole("button", { name: "Toutes, 2 à traiter" }).getAttribute("aria-pressed")).toBe("true");
   });
 
@@ -127,6 +128,30 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
 
     expect(within(offerBox()).getByRole("button", { name: "Job Digest, 1 à traiter" }).getAttribute("aria-pressed")).toBe("true");
     expect(within(offerBox()).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre a"]);
+  });
+
+  it("the « Extension » chip shows the Captures followed, and « Partage » the Share captures followed, each « Suivie » with its chip (#819)", async () => {
+    const followed = { state: "followed", applicationId: "app", followedAt: "2026-11-05T10:00:00.000Z" } as const;
+    renderInFrench(
+      <OfferBox
+        box={box([
+          entry("capturée", { sources: [{ source: "extension", at: "2026-11-05T10:00:00.000Z" }], ...followed }),
+          entry("partagée", { sources: [{ source: "share", at: "2026-11-05T11:00:00.000Z" }], ...followed }),
+          entry("trouvée"),
+        ])}
+      />,
+    );
+
+    await userEvent.click(within(offerBox()).getByRole("button", { name: "Extension, 0 à traiter" }));
+    const today = day("Aujourd'hui");
+    expect(within(today).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre capturée"]);
+    const captured = within(today).getByRole("listitem", { name: "Offre capturée" });
+    expect(captured.textContent).toContain("Suivie");
+    expect(captured.textContent).toContain("Extension");
+
+    await userEvent.click(within(offerBox()).getByRole("button", { name: "Partage, 0 à traiter" }));
+    expect(within(day("Aujourd'hui")).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre partagée"]);
+    expect(within(day("Aujourd'hui")).getByRole("listitem", { name: "Offre partagée" }).textContent).toContain("Partage");
   });
 
   it("« Écarter » opens the Dismissal reasons and « Écarter sans motif »; a reason écarte the entry, then a toast offers « Annuler » (#816)", async () => {
@@ -215,6 +240,112 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
 
     expect(fetch).toHaveBeenCalledWith("/api/offer-box/b/dismissal", expect.objectContaining({ method: "DELETE" }));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  describe("« Plus tard », « Expirées sans décision » and « Tout écarter » (#817)", () => {
+    const later = { state: "later" as const, laterUntil: "2026-11-08T23:00:00.000Z" };
+    const earlier = (id: string, matchScore: number, overrides: Partial<OfferBoxEntryRead> = {}) =>
+      entry(id, { matchScore, arrivalDay: "2026-11-03", firstArrivalAt: "2026-11-03T08:00:00.000Z", ...overrides });
+
+    it("« Plus tard » puts the entry away until Monday, with no date to pick; the toast says it stays counted and offers « Annuler »", async () => {
+      const fetch = vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === "DELETE" ? new Response(null, { status: 204 }) : Response.json({ laterUntil: "2026-11-08T23:00:00.000Z" }),
+      );
+      vi.stubGlobal("fetch", fetch);
+      renderInFrench(<OfferBox box={box([entry("a")])} />);
+
+      await userEvent.click(within(offerBox()).getByRole("button", { name: "Plus tard : Offre a" }));
+
+      expect(fetch).toHaveBeenCalledWith("/api/offer-box/a/later", expect.objectContaining({ method: "POST" }));
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+      expect(screen.getByRole("status").textContent).toContain("« Offre a » revient lundi 9 nov. : elle reste dans le compteur.");
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Annuler" })));
+
+      refresh.mockReset();
+      await userEvent.keyboard("{Enter}");
+      expect(fetch).toHaveBeenLastCalledWith("/api/offer-box/a/later", expect.objectContaining({ method: "DELETE" }));
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+    });
+
+    it("folds the entries « Plus tard » apart, each saying when it comes back, still counted, with « Suivre » and « Écarter »", () => {
+      renderInFrench(<OfferBox box={box([entry("a"), entry("b", later)])} />);
+
+      expect(within(offerBox()).getByText("2", { selector: ".offer-box-count b" })).toBeTruthy();
+      expect(within(day("Aujourd'hui")).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre a"]);
+      const block = within(offerBox()).getByText("Plus tard (1)").closest("details")!;
+      expect(block.hasAttribute("open")).toBe(false);
+      const line = within(block).getByRole("listitem", { name: "Offre b" });
+      expect(line.textContent).toContain("Plus tard · revient lundi 9 nov.");
+      expect(within(line).getByRole("button", { name: "Suivre" })).toBeTruthy();
+      expect(within(line).getByRole("button", { name: "Écarter" })).toBeTruthy();
+      expect(within(line).queryByRole("button", { name: /^Plus tard/ })).toBeNull();
+    });
+
+    it("on its Monday, an entry back from « Plus tard » is under « Aujourd'hui », still counted; those still away stay folded with their count", () => {
+      const monday = {
+        ...box([
+          entry("back", { arrivalDay: "2026-11-04", firstArrivalAt: "2026-11-04T08:00:00.000Z", laterUntil: "2026-11-08T23:00:00.000Z" }),
+          entry("away", { state: "later", laterUntil: "2026-11-15T23:00:00.000Z", arrivalDay: "2026-11-09", firstArrivalAt: "2026-11-09T08:00:00.000Z" }),
+        ]),
+        today: "2026-11-09",
+      };
+      renderInFrench(<OfferBox box={monday} />);
+
+      expect(within(offerBox()).getByText("2", { selector: ".offer-box-count b" })).toBeTruthy();
+      expect(within(day("Aujourd'hui")).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre back"]);
+      expect(within(day("Précédemment")).queryByRole("listitem")).toBeNull();
+      const block = within(offerBox()).getByText("Plus tard (1)").closest("details")!;
+      expect(within(block).getByRole("listitem", { name: "Offre away" }).textContent).toContain("Plus tard · revient lundi 16 nov.");
+    });
+
+    it("folds « Expirées sans décision » apart, out of the count, where « Écarter » is still offered", () => {
+      renderInFrench(<OfferBox box={box([entry("a"), earlier("old", 85, { state: "expired" })])} />);
+
+      expect(within(offerBox()).getByText("1", { selector: ".offer-box-count b" })).toBeTruthy();
+      const block = within(offerBox()).getByText("Expirées sans décision (1)").closest("details")!;
+      expect(block.hasAttribute("open")).toBe(false);
+      const line = within(block).getByRole("listitem", { name: "Offre old" });
+      expect(within(line).getByRole("button", { name: "Écarter" })).toBeTruthy();
+      expect(within(line).queryByRole("button", { name: "Suivre" })).toBeNull();
+      expect(within(line).queryByRole("button", { name: /^Plus tard/ })).toBeNull();
+      expect(within(day("Précédemment")).queryByRole("listitem")).toBeNull();
+    });
+
+    it("« Tout écarter (n) » in « Précédemment » écarte that tier's entries within the source chip, without a reason, with « Annuler »", async () => {
+      const fetch = vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === "DELETE" ? new Response(null, { status: 204 }) : Response.json({ dismissed: ["m1", "m3"] }),
+      );
+      vi.stubGlobal("fetch", fetch);
+      const email = [{ source: "email" as const, at: "2026-11-03T08:00:00.000Z" }];
+      renderInFrench(
+        <OfferBox box={box([entry("today1", { matchScore: 70 }), entry("today2", { matchScore: 72 }), earlier("top", 90), earlier("m1", 70), earlier("m2", 65, { sources: email }), earlier("m3", 62)])} />,
+      );
+
+      expect(within(day("Aujourd'hui")).queryByRole("button", { name: /Tout écarter/ })).toBeNull();
+      // One entry is not worth a « Tout écarter ».
+      expect(within(day("Précédemment")).getAllByRole("button", { name: /Tout écarter/ }).map((button) => button.textContent)).toEqual(["Tout écarter (3)"]);
+      await userEvent.click(within(offerBox()).getByRole("button", { name: "Recherche, 5 à traiter" }));
+      await userEvent.click(within(day("Précédemment")).getByRole("button", { name: "Tout écarter dans « À regarder » (2)" }));
+
+      expect(fetch).toHaveBeenCalledWith("/api/offer-box/dismissals", expect.objectContaining({ method: "POST", body: JSON.stringify({ entryIds: ["m1", "m3"] }) }));
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+      expect(screen.getByRole("status").textContent).toContain("2 offres écartées.");
+
+      refresh.mockReset();
+      await userEvent.click(screen.getByRole("button", { name: "Annuler" }));
+      expect(fetch).toHaveBeenLastCalledWith("/api/offer-box/dismissals", expect.objectContaining({ method: "DELETE", body: JSON.stringify({ entryIds: ["m1", "m3"] }) }));
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+    });
+
+    it("a « Tout écarter » refused says so", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 500 })));
+      renderInFrench(<OfferBox box={box([earlier("m1", 70), earlier("m2", 65)])} />);
+
+      await userEvent.click(within(day("Précédemment")).getByRole("button", { name: "Tout écarter dans « À regarder » (2)" }));
+
+      expect((await within(day("Précédemment")).findByRole("alert")).textContent).toBe("Les offres n'ont pas pu être écartées. Réessayez.");
+      expect(refresh).not.toHaveBeenCalled();
+    });
   });
 
   it("opens « Recherches par Profil » and « Reçues par email » from its foot, in the Work Pane at their own addresses", () => {

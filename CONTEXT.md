@@ -341,7 +341,7 @@ A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par 
 _Avoid_: Job Offer card, result card
 
 **Offer box**:
-Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
+Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Plus tard », « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
 _Avoid_: Inbox, feed, offer list
 
 **Offer box entry**:
@@ -352,15 +352,18 @@ _Avoid_: Inbox item, notification
 A Job Offer reaching a Candidate's Offer box from one Arrival source. The first makes the Offer box entry and sets its day (Paris time); a later one adds its source to the entry without moving it.
 
 **Arrival source**:
-Where an Arrival came from, shown as a chip: « Recherche » (a Job Search), « Job Digest », « Email » (a Received offer email, Email intake), « Lien du coach » (a Job Offer link). A Capture (« Extension ») or a Share capture (« Partage ») makes an entry only once followed, already « Suivie ».
+Where an Arrival came from, shown as a chip: « Recherche » (a Job Search), « Job Digest », « Email » (a Received offer email, Email intake), « Lien du coach » (a Job Offer link). A Capture (« Extension ») or a Share capture (« Partage ») makes an entry only once followed, already « Suivie »: the source is recorded when the Application is created. « Extension » means saved from the Side Panel (recognised by the request's Origin); « Partage » means a Job Offer the Candidate sent by Share capture, whichever page it is followed from.
 _Avoid_: Channel, provider, Job discovery source (which is where Job discovery searches)
 
 **Écartée**:
 Said of an Offer box entry the Candidate set aside with « Écarter », with an optional **Dismissal reason** (« Pas pour moi », « Salaire », « Lieu », « Contrat », « Déjà postulé ailleurs »). Counts as already seen: never offered again by a Job Digest, « déjà vue » for Email intake, shown « Écartée » in a Job Search's results. « Revenir sur ce choix » makes it à traiter again. The shared Job Offer is untouched.
 _Avoid_: Dismissed, rejected, archived, hidden
 
+**Tout écarter**:
+The button « Tout écarter (n) » on a tier of « Précédemment » holding at least two entries: it écarte, without a Dismissal reason, the tier's entries the current Arrival source chip shows. Its « Annuler » puts back exactly those entries.
+
 **Plus tard**:
-An Offer box entry put out of sight until the next Monday 00:00 Paris time, when it comes back under « Aujourd'hui ». Not a decision: it stays à traiter and in the count.
+An Offer box entry put out of sight until the next Monday 00:00 Paris time (on a Monday, the Monday after; no date to pick), listed folded under « Plus tard » at the foot of the box until then: the block shows how many it holds, each entry « revient lundi n ». On that Monday it comes back under « Aujourd'hui », on that Monday only, then returns to its arrival day. Not a decision: it stays à traiter and in the count (« N à traiter »). Refused on a « Suivie » or « Écartée » entry; « Expirée sans décision » wins over it. « Annuler » puts it back. Écarted meanwhile then put back (« Revenir sur ce choix », « Annuler »), it is where it was, its « Plus tard » date kept.
 _Avoid_: Snooze
 
 **Importance tier**:
@@ -1195,7 +1198,7 @@ What every AI call result carries about the call itself: the endpoint with its r
 _Avoid_: Metadata, usage
 
 **Provenance**:
-What served one piece of content a Candidate sees (a Job Search, a Job Offer's reading and summary, a Tailored CV or Tailored Document, a Company Dossier, a Master CV Version read from a file, an Action Card, a Job Digest, an AI Coach reply), fixed when it is made and kept with it: its steps, each with its Activity, its AI task or Tool, for an AI step the provider, where it ran (endpoint and region) and the model that actually served, tokens in and out, and its duration, start time and Outcome (stopped included); its Provenance sites; and its start time and wall-clock duration. No Candidate, no cost, no text. Lives and is deleted with its content, so it is in the Data export with it. A Tailored CV's lives in its proposal and is copied when the Candidate saves it; a Tailored Document's survives the Candidate's edits. Content made before it existed, or whose Provenance was not kept, shows « modèle non enregistré » and counts in no total; nothing is estimated. Not AI Usage, which counts calls for Jobbbox and names no one, and never linked to it.
+What served one piece of content a Candidate sees (a Job Search, a Job Offer's reading and summary, a Tailored CV or Tailored Document, a Company Dossier, a Master CV Version read from a file, an Action Card, a Job Digest, an AI Coach reply), fixed when it is made and kept with it: its steps, each with its Activity, its AI task or Tool, for an AI step the provider, where it ran (endpoint and region) and the model that actually served, tokens in and out, and its duration, start time and Outcome (stopped included); its Provenance sites; and its start time and wall-clock duration. No Candidate, no cost, no text. Lives and is deleted with its content, so it is in the Data export with it. A Tailored CV's lives in its proposal and is copied when the Candidate saves it; a Tailored Document's survives the Candidate's edits. Content made before it existed, or whose Provenance was not kept, shows « modèle non enregistré » and no tokens on its Activité entry; nothing is estimated. Not AI Usage, which counts calls for Jobbbox and names no one, and never linked to it.
 _Avoid_: Metadata, trace, lineage, usage
 
 **Provenance line**:
@@ -1262,19 +1265,27 @@ _Avoid_: Session pane, sources bar, tasks panel
 On the Candidate's pages (ADR-0070) it is the « Activité » group of an object's Fiche, and elsewhere a column opened by the Top Bar's « Activité », with the Context bar; never over the conversation.
 
 **AI Activity element**:
-One item with its own Provenance, an Activité entry of the pages that show it: a Job Offer, an AI Coach reply, a Job Search, a Company Dossier, a Master CV Version read from a file (« CV de référence, lu dans votre fichier »), and so on. An Abandonnée suggestion is not one: Jobbbox writes its text, with no AI. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. It still shows the sites its source names. Each Provenance site appears once in the page's « Sources et outils de cette page », however many elements read it.
+One item with its own Provenance, an Activité entry of the pages that show it: a Job Offer, an AI Coach reply, a Job Search, a Company Dossier, a Master CV Version read from a file (« CV de référence, lu dans votre fichier »), and so on. An Abandonnée suggestion is not one: Jobbbox writes its text, with no AI. One without a recorded Provenance shows « modèle non enregistré » and no tokens. It still shows the sites its source names. Each Provenance site appears once in the page's « Sources et outils de cette page », however many elements read it.
 _Avoid_: Row
 
 **Activité entry**:
 One line of an Activity's history (ADR-0086), newest first, by day. It is one of three things: an AI Activity element, a Master CV Version (by hand or from an applied Action Card, with its Origin), or an applied Action Card as the change it made. An AI Coach reply's entry holds the question it answered, its tool steps, what it read, its Tools and models, its proposals and their state. Each entry links to its object, to its message when it came from the conversation (« Voir dans la conversation »), and to the entry that caused it (« suite de »): a reply, then the Master CV Version its card created, then that version's ATS Score. Its cost is never in euros. A Plan Quota used is named with the week's use (« 1 recherche du forfait · 4 sur 7 cette semaine ») and links to Votre consommation (`/abonnement#consommation`). Jetons are a technical measure: the sum of all its calls for an AI Coach reply, « dernier appel seulement » for a reply saved before that sum was kept. An entry made without AI says « Sans IA ». A proposal is « en attente », « appliquée », « ignorée », « retirée » or « annulée » (applied, then undone); a version stays « suite de » its reply once its card is undone, and one change has one entry: the version a card created, not also a « change ». An entry's key is built from what it is (kind and time, a version number, a message id), never from an internal id; entries of the same time come out in a stable order, a consequence before its cause. A Profile's creation is one entry, « Création du profil », holding the CV's reading, the onboarding questionnaire, the review and the saved Profile with Version 1 and its ATS Score.
 _Avoid_: Event, log line, activity (a step's Activity is something else)
 
+**Historique**:
+The part of an Activity under « En ce moment »: its Activité entries, newest first, by day (« Aujourd'hui », « Le … »), one row each that unfolds its detail, then « Sources et outils de cette page » folded at the foot (ADR-0086).
+_Avoid_: Journal, log
+
+**Served entry**:
+An Activité entry the server builds from what only it reads (the page's elements with their Provenance, the Master CV Versions, the Coach replies about the object) and sends to the browser, which adds the replies its conversation shows. A raw Provenance never crosses (ADR-0086).
+_Avoid_: Row
+
 **En ce moment**:
 The top of an Activity, under the Context bar: the Candidate's AI actions under way, this page's then « En cours ailleurs », each with its live Activity glyph, current step, finished steps, time so far and stop icon; an AI Coach reply under way is one of them. « Rien ne tourne sur cette page. » when none runs. A finished action becomes the first Activité entry of « Aujourd'hui ».
 _Avoid_: Live pane, running tasks
 
 **End state**:
-How an AI Activity element ended, as its Activité entry shows it: done, stopped or failed. A stopped or failed element is in light red, with « Arrêtée » or « Échec » and the time (the date too on another day) and, for a failed one, its Failure Reason; its tokens and time still count in the page's Total. Stopped when its action was stopped or any step was stopped; failed when its action failed or a step that wrote its content failed; otherwise done, so a Guardrail that could not check, or one source of many, leaves it done. A Job Search counts by its own status as well, since one stopped between two steps has no stopped step. The time is when its Provenance started plus its wall-clock duration, unknown without a Provenance. Not a step's Outcome, which is never sent to the browser.
+How an AI Activity element ended, as its Activité entry shows it: done, stopped or failed. A stopped or failed element is in light red, with « Arrêtée » or « Échec » and the time (the date too on another day) and, for a failed one, its Failure Reason; its entry still shows its tokens and time. Stopped when its action was stopped or any step was stopped; failed when its action failed or a step that wrote its content failed; otherwise done, so a Guardrail that could not check, or one source of many, leaves it done. A Job Search counts by its own status as well, since one stopped between two steps has no stopped step. The time is when its Provenance started plus its wall-clock duration, unknown without a Provenance. Not a step's Outcome, which is never sent to the browser.
 _Avoid_: Status, outcome
 
 **Guardrail Trigger**:

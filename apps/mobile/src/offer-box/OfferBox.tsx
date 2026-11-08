@@ -13,15 +13,19 @@ import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { ObjectRow } from "../ui/ObjectRow";
-import { OfferDecision, useDismissalNotice, useOfferBoxDecisions, type OfferBoxDecisions } from "./decisions";
+import { OfferDecision, parisDate, useDismissalNotice, useOfferBoxDecisions, type OfferBoxDecisions } from "./decisions";
 
 /**
  * Recherches d'offres in the app (ADR-0090, #815): the Offer box (« Offres à traiter ») as `GET /api/offer-box` answers
  * it, laid out by `offerBoxView` as the web lays it out: « N à traiter » and « k traitées », the source chips, « Aujourd'hui »
  * then « Précédemment » by Importance tier, each entry with « Suivre » (`POST /api/applications`) and « Écarter » (its
  * Dismissal reasons or « Écarter sans motif », `POST /api/offer-box/:id/dismissal`, #816), then the box read again; a
- * notice says it was écartée, with « Annuler » (and, when that fails, that the offer stays écartée). « Écartées », folded at the foot, each with « Revenir sur ce choix »
- * (`DELETE`). An entry opens in the Work Pane; its context menu opens its posting or shares its web address. It leads
+ * notice says it was écartée, with « Annuler » (and, when that fails, that the offer stays écartée), and « Plus tard »
+ * (`POST /api/offer-box/:id/later`, #817: away until Monday, still counted; a notice with « Annuler », its `DELETE`). Each
+ * tier of « Précédemment » with two entries or more offers « Tout écarter (n) » (`POST /api/offer-box/dismissals`, those
+ * the source chip shows, without a reason; a notice with « Annuler », its `DELETE`). Folded at the foot: « Plus tard »
+ * (each « revient lundi n »), « Expirées sans décision » (out of the count, « Écarter » only) and « Écartées », each with
+ * « Revenir sur ce choix » (`DELETE`). An entry opens in the Work Pane; its context menu opens its posting or shares its web address. It leads
  * the page: the menu's Coach Conversation follows it, its box at the foot (JobSearchesMenu, variant B of ADR-0090).
  */
 export function OfferBox() {
@@ -42,7 +46,6 @@ export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisi
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [filter, setFilter] = useState<OfferBoxFilter>("all");
-  const [dismissedOpen, setDismissedOpen] = useState(false);
   const view = offerBoxView(box, filter);
   const { decisions: lineDecisions, notice } = useDismissalNotice(decisions);
   return (
@@ -85,22 +88,60 @@ export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisi
             followed={(count) => t("offerBox.followedEarlier", { count })}
             decisions={lineDecisions}
             showDay
+            dismissAll
           />
         </>
       )}
-      {view.dismissed.length > 0 ? (
-        <View style={{ gap: space[2] }}>
-          <Control label={t("offerBox.dismissedBlock", { count: view.dismissed.length })} expanded={dismissedOpen} onPress={() => setDismissedOpen(!dismissedOpen)} />
-          {dismissedOpen ? (
-            <>
-              <AppText tone="secondary">{t("offerBox.dismissedHint")}</AppText>
-              {view.dismissed.map((entry) => (
-                <Line key={entry.id} entry={entry} today={box.today} showDay decisions={lineDecisions} />
-              ))}
-            </>
-          ) : null}
-        </View>
+      <Folded summary={t("offerBox.laterBlock", { count: view.later.length })} hint={t("offerBox.laterHint")} entries={view.later} today={box.today} decisions={lineDecisions} />
+      <Folded summary={t("offerBox.expiredBlock", { count: view.expired.length })} hint={t("offerBox.expiredHint")} entries={view.expired} today={box.today} decisions={lineDecisions} />
+      <Folded summary={t("offerBox.dismissedBlock", { count: view.dismissed.length })} hint={t("offerBox.dismissedHint")} entries={view.dismissed} today={box.today} decisions={lineDecisions} />
+    </View>
+  );
+}
+
+/** « Plus tard », « Expirées sans décision » or « Écartées »: folded at the foot of the box, absent when empty. */
+function Folded({ summary, hint, entries, today, decisions }: { summary: string; hint: string; entries: OfferBoxEntryRead[]; today: string; decisions: OfferBoxDecisions }) {
+  const [open, setOpen] = useState(false);
+  if (entries.length === 0) return null;
+  return (
+    <View style={{ gap: space[2] }}>
+      <Control label={summary} expanded={open} onPress={() => setOpen(!open)} />
+      {open ? (
+        <>
+          <AppText tone="secondary">{hint}</AppText>
+          {entries.map((entry) => (
+            <Line key={entry.id} entry={entry} today={today} showDay decisions={decisions} />
+          ))}
+        </>
       ) : null}
+    </View>
+  );
+}
+
+/** « Tout écarter (n) » is offered on a tier of « Précédemment » from this many entries, as on the web. */
+const DISMISS_ALL_FROM = 2;
+
+/** « Tout écarter (n) » on a tier of « Précédemment » (#817), its failure said under it. */
+function DismissAll({ entries, tierName, decisions }: { entries: OfferBoxEntryRead[]; tierName: string; decisions: OfferBoxDecisions }) {
+  const { t } = useTranslation();
+  const [working, setWorking] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const dismissAll = async () => {
+    setWorking(true);
+    setFailed(false);
+    const done = await decisions.dismissAll(entries);
+    setWorking(false);
+    setFailed(done === null);
+  };
+  return (
+    <View style={{ alignSelf: "flex-start", gap: space[1] }}>
+      <Control
+        label={t("offerBox.dismissAll", { count: entries.length })}
+        accessibleName={t("offerBox.dismissAllLabel", { tier: tierName, count: entries.length })}
+        disabled={working}
+        onPress={() => void dismissAll()}
+      />
+      {failed ? <AppText tone="danger">{t("offerBox.dismissAllError")}</AppText> : null}
     </View>
   );
 }
@@ -114,6 +155,7 @@ function Day({
   followed,
   decisions,
   showDay = false,
+  dismissAll = false,
 }: {
   name: string;
   day: OfferBoxDay;
@@ -122,6 +164,7 @@ function Day({
   followed: (count: number) => string;
   decisions: OfferBoxDecisions;
   showDay?: boolean;
+  dismissAll?: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -136,6 +179,7 @@ function Day({
           <AppText variant="meta" weight="semiBold" tone="secondary" heading>
             {t(`offerBox.tiers.${tier}`)}
           </AppText>
+          {dismissAll && entries.length >= DISMISS_ALL_FROM ? <DismissAll entries={entries} tierName={t(`offerBox.tiers.${tier}`)} decisions={decisions} /> : null}
           {entries.map((entry) => (
             <Line key={entry.id} entry={entry} today={today} showDay={showDay} decisions={decisions} />
           ))}
@@ -163,7 +207,7 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
   const tier = importanceTier(entry.matchScore);
   const label = [jobOffer.title, jobOffer.employer].filter(Boolean).join(" · ");
   const age = postingAge({ postedAt: jobOffer.postedAt, firstArrivalAt: entry.firstArrivalAt }, today);
-  const arrivedOn = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short", timeZone: "Europe/Paris" }).format(new Date(`${entry.arrivalDay}T12:00:00Z`));
+  const arrivedOn = parisDate(`${entry.arrivalDay}T12:00:00Z`, i18n.language);
   const score = entry.matchScore === null ? t("offerBox.noScore") : t("offerBox.score", { score: entry.matchScore });
   const facts = [jobOffer.location, jobOffer.contractType ? t(`cvReview.contractTypes.${jobOffer.contractType}`) : null].filter(Boolean).join(" · ");
   const tags = [
@@ -213,7 +257,8 @@ function Line({ entry, today, showDay, decisions }: { entry: OfferBoxEntryRead; 
       <AppText variant="meta" tone="secondary">
         {tags.join(" · ")}
       </AppText>
-      <OfferDecision entry={entry} decisions={decisions} />
+      {/* « Suivre » is not offered on one « Expirée sans décision » (#817): it still opens, and « Écarter » stays. */}
+      <OfferDecision entry={entry} decisions={decisions} canFollow={entry.scoredWith !== null && entry.state !== "expired"} offerLater />
     </View>
   );
 }

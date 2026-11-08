@@ -2,28 +2,40 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { ParseKeys } from "i18next";
+import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { formatDuration, formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, spokenMeasure, type Activity, type ProvenanceSite } from "@jobhub/shared";
+import { formatTokens, type Activity } from "@jobhub/shared";
+import { activityEntries, type ActivityEntry, type ReplyGiven, type ServedEntry } from "@/ai-activity/entries";
+import { entryToOpen, type QuotaUse } from "@/ai-activity/history";
 import { liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
-import { activityElement, aiActivityPane, byRulesOnly, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane } from "@/ai-activity/pane";
+import type { UsageMeter } from "@/billing/usage-meter";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { ActivityHistory } from "@/components/ActivityHistory";
+import { useActivityColumn } from "@/components/activity-column";
 import { useAiActivityLive } from "@/components/AiActivityLive";
-import type { ReplyInView } from "@/components/CoachConversationPage";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
-import { ExternalLink } from "@/components/ExternalLink";
 import { routes } from "@/routes";
 
 type Language = "fr" | "en";
 
+/** « Dans l'activité » under a reply, or one of its cards (its place under the reply). */
+export type ActivityTarget = { messageId: string; card?: number };
+
 type Control = {
-  pane: AiActivityPane;
+  /** The page's Activité entries, newest first: the server's, with the replies its thread shows (ADR-0086, #808). */
+  entries: ActivityEntry[];
+  /** The replies the thread shows, by their message: « Voir dans la conversation » is offered for them only. */
+  inThread: ReadonlySet<string>;
+  /** The week's Plan Quotas as the Usage Meter reads them, for each entry's cost; null without a Usage Meter. */
+  usage: readonly QuotaUse[] | null;
+  /** The entry « Dans l'activité » last asked for, counted so asking again brings it back into view. */
+  asked: { key: string; n: number } | null;
+  /** Opens Activity on the entry of a reply or of one of its cards. */
+  show: (target: ActivityTarget) => void;
   open: boolean;
   paneId: string;
   toggle: () => void;
-  /** Closes the pane, focus back on the button. */
   close: () => void;
   button: React.RefObject<HTMLButtonElement | null>;
   /** The Candidate's AI actions running, or stopped or failed lately: this page's, and those « En cours ailleurs » (#333). */
@@ -33,71 +45,91 @@ type Control = {
 };
 
 const NO_ACTIONS: readonly LiveAction[] = [];
+const NO_ENTRIES: readonly ServedEntry[] = [];
+const NO_REPLIES: readonly ReplyGiven[] = [];
 
 const AiActivityControl = createContext<Control | null>(null);
 
-/** No AI Coach reply given here yet about the page's object. */
-const NO_REPLIES: readonly ReplyInView[] = [];
-
 /**
- * AI Activity (CONTEXT.md, #314, #332): the Candidate's top-bar button, left of « Aide et coach », and the « Cette page »
- * pane it opens, of the page's `elements` (one loader per page type, ai-activity/index.ts) and of the AI Coach replies
- * given here about the page's object since it loaded; and, live, the Candidate's AI actions as they run, here or « En cours
- * ailleurs » (AiActivityLive, #333). Candidate pages only: the Back Office mounts no provider, so neither the button nor the
- * pane renders there.
+ * AI Activity (CONTEXT.md, #314, #332, ADR-0086): the page's Activité entries, which the Fiche's « Activité » group and the
+ * Activité column show under « En ce moment »: the server's (`served`, one loader per page type, ai-activity/index.ts),
+ * finished with the AI Coach replies the page's thread shows, with their questions and cards (#808); and, live, the
+ * Candidate's AI actions as they run, here or « En cours ailleurs » (AiActivityLive, #333). `usage`: the Usage Meter's
+ * week, for the Plan Quotas the entries used. Candidate pages only: the Back Office mounts no provider.
  */
-export function AiActivityProvider({ elements, children }: { elements: readonly ActivityElement[]; children: ReactNode }) {
-  const given = useConversationFirst()?.page?.repliesInView ?? NO_REPLIES;
+export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children }: { served?: readonly ServedEntry[]; usage?: UsageMeter | null; children: ReactNode }) {
+  const replies = useConversationFirst()?.page?.replies ?? NO_REPLIES;
   const store = useAiActivityLive();
   const pathname = usePathname();
+  const column = useActivityColumn();
   const actions = store?.actions ?? NO_ACTIONS;
   const live = useMemo(() => liveView(actions, pathname), [actions, pathname]);
   const stopAction = store?.stop;
   const stop = useCallback((key: string) => stopAction?.(key), [stopAction]);
   const [open, setOpen] = useState(false);
+  const [asked, setAsked] = useState<Control["asked"]>(null);
   const button = useRef<HTMLButtonElement>(null);
   const paneId = useId();
-  const pane = useMemo(() => {
-    // A reply given here is counted once, though the page loaded since also has it.
-    const loaded = new Set(elements.filter((element) => element.kind === "coach_reply").map((element) => element.at));
-    const added = given.map((reply) => activityElement("coach_reply", reply.provenance, { at: reply.at, sent: reply.sent })).filter((element) => !loaded.has(element.at));
-    return aiActivityPane([...elements, ...added]);
-  }, [elements, given]);
+  const entries = useMemo(() => activityEntries({ page: "any", built: served, replies }), [served, replies]);
+  const inThread = useMemo(() => new Set(replies.map((reply) => reply.messageId)), [replies]);
+  const quotas = usage?.quotas ?? null;
+  const openColumn = column?.open;
+  const show = useCallback(
+    (target: ActivityTarget) => {
+      const key = entryToOpen(entries, target);
+      if (!key) return;
+      setAsked((was) => ({ key, n: (was?.n ?? 0) + 1 }));
+      openColumn?.();
+    },
+    [entries, openColumn],
+  );
   const close = useCallback(() => {
     setOpen(false);
     requestAnimationFrame(() => button.current?.focus());
   }, []);
-  const control: Control = { pane, open, paneId: `${paneId}-pane`, toggle: () => (open ? close() : setOpen(true)), close, button, live, stop };
-  return (
-    <AiActivityControl.Provider value={control}>
-      {children}
-    </AiActivityControl.Provider>
-  );
+  const control: Control = {
+    entries,
+    inThread,
+    usage: quotas,
+    asked,
+    show,
+    open,
+    paneId: `${paneId}-pane`,
+    toggle: () => (open ? close() : column ? column.open() : setOpen(true)),
+    close,
+    button,
+    live,
+    stop,
+  };
+  return <AiActivityControl.Provider value={control}>{children}</AiActivityControl.Provider>;
 }
 
+/**
+ * « Dans l'activité » under an AI Coach reply or one of its cards in the thread (#808): opens Activity on its entry. Null
+ * outside an AiActivityProvider, or for a reply the page has no entry of.
+ */
+export function useShowInActivity(): ((target: ActivityTarget) => void) | null {
+  return useContext(AiActivityControl)?.show ?? null;
+}
 
 function useLanguage(): Language {
   const { i18n } = useTranslation();
   return i18n.language === "en" ? "en" : "fr";
 }
 
-/** « 3 modèles · 10,9k tokens · 21,5 s »: the closed button's words; null on a page with no recorded AI content. */
-function useSummary(summary: AiActivityPane["summary"]): string | null {
+/** « 3 modèles · 10,9k tokens »: the closed button's words, from the page's entries; null on a page where no model served. */
+function useSummary(entries: readonly ActivityEntry[]): string | null {
   const { t } = useTranslation();
   const language = useLanguage();
-  if (!summary) return null;
-  return [
-    t("aiActivity.models", { count: summary.models }),
-    summary.tokens === null ? null : t("aiActivity.tokens", { tokens: formatTokens(summary.tokens, language) }),
-    summary.ms === null ? null : formatDuration(summary.ms, language),
-  ]
-    .filter((part) => part !== null)
-    .join(" · ");
+  const models = new Set(entries.flatMap((entry) => entry.models.map((model) => model.name)));
+  if (models.size === 0) return null;
+  const tokens = entries.reduce<number | null>((sum, entry) => (entry.cost.tokens ? (sum ?? 0) + entry.cost.tokens.count : sum), null);
+  return [t("aiActivity.models", { count: models.size }), tokens === null ? null : t("aiActivity.tokens", { tokens: formatTokens(tokens, language) })].filter((part) => part !== null).join(" · ");
 }
 
 /**
- * The button: in its frame, at rest the tasks icon, or while an action runs its live Activity glyph (#333); open, a
- * close icon. Closed, its words sit left of the frame, outside the button (#369): the page's summary, or the step under
+ * The button: in its frame, at rest the tasks icon, or while an action runs its live Activity glyph (#333); it opens
+ * Activity (ADR-0086), the Fiche on its Activity group or the Activité column; open, a close icon. Closed, its words sit left of the frame, outside the button (#369): the page's summary, or the step under
  * way with its stop icon beside them, between the words and the frame; none on a page with no AI. The words are not a
  * control of their own: clicking them opens the pane, and the button's name says them (aria-labelledby), one tab stop.
  * Its label « Activité IA » is never shown, only its name for screen readers and its tooltip. On a phone, the frame
@@ -106,7 +138,7 @@ function useSummary(summary: AiActivityPane["summary"]): string | null {
 export function AiActivityButton() {
   const { t } = useTranslation();
   const control = useContext(AiActivityControl);
-  const summary = useSummary(control?.pane.summary ?? null);
+  const summary = useSummary(control?.entries ?? []);
   const labelId = useId();
   const wordsId = useId();
   if (!control) return null;
@@ -166,81 +198,6 @@ export function StopButton({ action, stop }: { action: LiveAction; stop: (key: s
   );
 }
 
-/**
- * The « Cette page » pane: Modèles (with tokens · time and a Total), Sources, Outils and Par élément, each a section
- * that folds; or « Aucun contenu produit par l'IA sur cette page ». Beside the page from 64rem, a drawer over it while
- * the Coach Panel is docked below 81.25rem, a sheet on a phone (app.css). Escape closes it, focus back on the button.
- */
-export function AiActivityPane() {
-  const { t } = useTranslation();
-  const control = useContext(AiActivityControl);
-  const titleId = useId();
-  const title = useRef<HTMLHeadingElement>(null);
-  const body = useRef<HTMLDivElement>(null);
-  const [more, setMore] = useState(false);
-  const open = control?.open ?? false;
-
-  // Opened, the focus goes to its title, where the pane starts.
-  useEffect(() => {
-    if (open) title.current?.focus();
-  }, [open]);
-
-  // A fade at the bottom while there is more to scroll to.
-  useEffect(() => {
-    const scroller = body.current;
-    if (!open || !scroller) return;
-    const measure = () => setMore(scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight > 1);
-    const observer = new ResizeObserver(measure);
-    observer.observe(scroller);
-    for (const child of scroller.children) observer.observe(child);
-    scroller.addEventListener("scroll", measure, { passive: true });
-    measure();
-    return () => {
-      observer.disconnect();
-      scroller.removeEventListener("scroll", measure);
-    };
-  }, [open]);
-
-  if (!control || !open) return null;
-  const { pane, paneId, close } = control;
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== "Escape" || event.defaultPrevented) return;
-    event.stopPropagation();
-    close();
-  };
-
-  return (
-    <aside id={paneId} className="ai-activity-pane" aria-label={t("aiActivity.label")} data-more={more || undefined} onKeyDown={onKeyDown}>
-      <div className="ai-activity-head">
-        <h2 id={titleId} ref={title} tabIndex={-1}>
-          {t("aiActivity.title")}
-        </h2>
-        <button className="button button-quiet" type="button" onClick={close}>
-          <Icons.close />
-          {t("aiActivity.close")}
-        </button>
-      </div>
-      <div ref={body} className="ai-activity-body">
-        <ActivityContent pane={pane} />
-      </div>
-    </aside>
-  );
-}
-
-/**
- * What AI Activity shows of the page: its sections, or that the page has no AI content. What runs now is « En ce moment »'s
- * (components/EnCeMoment, ADR-0086), above it.
- */
-function ActivityContent({ pane }: { pane: AiActivityPane }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      {pane.elements.length > 0 ? <PaneSections pane={pane} /> : <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>}
-      <LearnMore />
-    </>
-  );
-}
-
 /** « En savoir plus » (#338, #320 § 12): « IA dans Jobbbox », the privacy policy's section, which names no provider. */
 function LearnMore() {
   const { t } = useTranslation();
@@ -254,284 +211,28 @@ function LearnMore() {
 }
 
 /**
- * The page's AI Activity where the Fiche shows it, in its Activity group (#603, ADR-0070): the pane's body, with no title
- * nor ✕. Says the page has no AI content outside an AiActivityProvider.
+ * The page's history where the Fiche shows it, in its Activity group (#603, ADR-0070), or the Activité column, under
+ * « En ce moment » (ADR-0086, #808): the Activité entries by day, then « Sources et outils de cette page » and « En savoir
+ * plus ». Outside an AiActivityProvider, that the page has nothing yet.
  */
 export function AiActivityContent() {
-  const { t } = useTranslation();
   const control = useContext(AiActivityControl);
-  if (!control)
-    return (
-      <>
-        <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>
-        <LearnMore />
-      </>
-    );
   return (
     <div className="fiche-activity">
-      <ActivityContent pane={control.pane} />
+      <ActivityHistory
+        entries={control?.entries ?? []}
+        inThread={control?.inThread ?? NO_MESSAGES}
+        usage={control?.usage ?? null}
+        asked={control?.asked ?? null}
+      />
+      <LearnMore />
     </div>
   );
 }
 
+const NO_MESSAGES: ReadonlySet<string> = new Set();
+
 /** Whether one of the Candidate's AI actions is under way on this page: « Activité » in the Top Bar shows it (#603). */
 export function useAiActivityUnderWay(): boolean {
   return Boolean(useContext(AiActivityControl)?.live.underWay);
-}
-
-function PaneSections({ pane }: { pane: AiActivityPane }) {
-  const { t } = useTranslation();
-  const language = useLanguage();
-  const labelOf = (element: ActivityElement) => element.name ?? t(`aiActivity.kinds.${element.kind}`);
-  return (
-    <>
-      {pane.models.length > 0 ? (
-        <Section
-          title={t("aiActivity.sections.models")}
-          aside={
-            <span className="ai-activity-measure" title={t("aiActivity.measureHint")}>
-              {t("aiActivity.measure")}
-              <span className="visually-hidden"> ({t("aiActivity.measureHint")})</span>
-            </span>
-          }
-        >
-          <ul className="ai-activity-list">
-            {pane.models.map((model) => (
-              <li key={`${model.name}-${model.where?.en ?? ""}-${model.euAiConsent}`} className="ai-activity-row">
-                <ModelName model={model} />
-                <Measure tokens={model.tokens} ms={model.ms} />
-              </li>
-            ))}
-            <li className="ai-activity-row ai-activity-total">
-              <strong>{t("aiActivity.total")}</strong>
-              <Measure tokens={pane.total.tokens} ms={pane.total.ms} withUnit />
-            </li>
-          </ul>
-        </Section>
-      ) : null}
-      {pane.sites.length > 0 ? (
-        <Section title={t("aiActivity.sections.sources")}>
-          <ul className="ai-activity-list">
-            {pane.sites.map((site) => (
-              <li key={site.kind === "web" ? site.domain : "candidate"}>
-                <SiteDisclosure site={site} />
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-      {pane.tools.length > 0 ? (
-        <Section title={t("aiActivity.sections.tools")}>
-          <ul className="ai-activity-list">
-            {pane.tools.map((tool) => (
-              <li key={tool.name ?? "rules"}>
-                <div className="ai-activity-row">
-                  <ToolName tool={tool} />
-                  <Measure tokens={null} ms={tool.ms} />
-                </div>
-                <p className="ai-activity-meta">{t("aiActivity.usedBy", { elements: [...new Set(tool.usedBy.map((index) => labelOf(pane.elements[index]!)))].join(", ") })}</p>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-      <Section title={t("aiActivity.sections.byElement")}>
-        <ul className="ai-activity-list">
-          {pane.elements.map((element, index) => (
-            <li key={index} className="ai-activity-element" data-end={element.end.state === "done" ? undefined : element.end.state}>
-              <div className="ai-activity-row">
-                <strong>{labelOf(element)}</strong>
-                {element.at ? (
-                  <time className="ai-activity-meta" dateTime={element.at}>
-                    {formatTimeOfDay(new Date(element.at), new Date(), language)}
-                  </time>
-                ) : null}
-              </div>
-              {element.name ? <p className="ai-activity-meta">{t(`aiActivity.kinds.${element.kind}`)}</p> : null}
-              {element.end.state === "done" ? null : <EndWords end={element.end} />}
-              {element.served ? (
-                <>
-                  {element.served.models.map((model) => (
-                    <p key={`${model.name}-${model.where?.en ?? ""}-${model.euAiConsent}`} className="ai-activity-element-model">
-                      {model.name} {model.ids.map((id) => <code key={id}>{id}</code>)}
-                    </p>
-                  ))}
-                  {/* Jobbbox's rules alone, no model (#336): « Calcul » where a model would be named. */}
-                  {byRulesOnly(element.served) ? <p className="ai-activity-element-model">{t("aiActivity.steps.compute")}</p> : null}
-                  <Glyphs sites={element.served.sites} tools={element.served.tools} />
-                </>
-              ) : (
-                <>
-                  <p className="ai-activity-meta">{t("aiActivity.modelNotRecorded")}</p>
-                  {/* What its own source names, though its model was not kept (#335: a Company Dossier built before). */}
-                  {element.sites ? <Glyphs sites={element.sites} tools={[]} /> : null}
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      </Section>
-    </>
-  );
-}
-
-/**
- * A stopped or failed element's end, in words, never by its light red alone (ADR-0009): « Arrêtée à 12:04 », « Échec à
- * 12:04 » (another day, « Arrêtée le 23/10 à 12:04 »), and a failed one's Failure Reason when known (#368).
- */
-function EndWords({ end }: { end: Exclude<ActivityElement["end"], { state: "done" }> }) {
-  const { t } = useTranslation();
-  const language = useLanguage();
-  const at = end.at ? new Date(end.at) : null;
-  // Another day: « Arrêtée le 23/10 à 12:04 ».
-  const today = at !== null && at.toDateString() === new Date().toDateString();
-  const words = at
-    ? t(today ? `aiActivity.ended.${end.state}` : `aiActivity.ended.${end.state}On`, { time: formatTimeOfDay(at, new Date(), language) })
-    : t(`aiActivity.ended.${end.state}Undated`);
-  return (
-    <>
-      <p className="ai-activity-element-end">{words}</p>
-      {end.state === "failed" && end.reason ? <p>{t(end.reason as ParseKeys)}</p> : null}
-    </>
-  );
-}
-
-/** A section of the pane, folded and unfolded by its title, a disclosure button. */
-function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
-  const [open, setOpen] = useState(true);
-  const id = useId();
-  return (
-    <section className="ai-activity-section">
-      <div className="ai-activity-section-head">
-        <h3>
-          <button type="button" className="ai-activity-disclosure" aria-expanded={open} aria-controls={id} onClick={() => setOpen((was) => !was)}>
-            <Icons.chevron />
-            {title}
-          </button>
-        </h3>
-        {open ? aside : null}
-      </div>
-      <div id={id} hidden={!open}>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-/** A model for people, where it ran, and its route's chip; its raw id in the tooltip. */
-function ModelName({ model }: { model: ActivityModel }) {
-  const { t } = useTranslation();
-  const language = useLanguage();
-  return (
-    <span className="ai-activity-model">
-      <span title={model.ids.join(", ")}>{model.name}</span>
-      {model.where ? <span className="ai-activity-meta">{model.where[language]}</span> : null}
-      {model.euAiConsent || model.outsideEu ? (
-        <span className="ai-activity-chips">
-          {model.euAiConsent ? <span className="provenance-chip">{t("provenanceLine.euAiConsent")}</span> : null}
-          {model.outsideEu ? <span className="provenance-chip">{t("provenanceLine.outsideEu")}</span> : null}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-/** A Tool by its logo (where its owner allowed it) and name, or « J » for Jobbbox's rules. */
-function ToolName({ tool }: { tool: ActivityTool }) {
-  const { t } = useTranslation();
-  return (
-    <span className="ai-activity-tool">
-      {tool.logo ? (
-        <img className="ai-activity-logo" src={tool.logo} alt="" />
-      ) : tool.name === null ? (
-        <span className="ai-activity-glyph" aria-hidden="true">
-          {PROVENANCE_GLYPHS.rules}
-        </span>
-      ) : null}
-      {tool.name ?? t("aiActivity.rules")}
-    </span>
-  );
-}
-
-/** « 2,1k · 6,4 s » to the eye, « 2 100 tokens, 6,4 secondes » to screen readers; the Total says « tokens ». */
-function Measure({ tokens, ms, withUnit = false }: { tokens: number | null; ms: number | null; withUnit?: boolean }) {
-  const { t } = useTranslation();
-  const language = useLanguage();
-  if (tokens === null && ms === null) return null;
-  const shown = [
-    tokens === null ? null : withUnit ? t("aiActivity.tokens", { tokens: formatTokens(tokens, language) }) : formatTokens(tokens, language),
-    ms === null ? null : formatDuration(ms, language),
-  ]
-    .filter((part) => part !== null)
-    .join(" · ");
-  return (
-    <span className="ai-activity-measure">
-      <span aria-hidden="true">{shown}</span>
-      <span className="visually-hidden">{spokenMeasure(tokens, ms, language)}</span>
-    </span>
-  );
-}
-
-/** A Provenance site: a disclosure button opening the pages read, each in a new tab without a referrer. */
-function SiteDisclosure({ site }: { site: ProvenanceSite }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const id = useId();
-  const name = site.kind === "web" ? site.domain : t("aiActivity.yourData");
-  const glyph = site.kind === "web" ? PROVENANCE_GLYPHS.site : PROVENANCE_GLYPHS.candidate;
-  const label = (
-    <>
-      <span className="ai-activity-glyph" aria-hidden="true">
-        {glyph}
-      </span>
-      {name}
-    </>
-  );
-  if (site.links.length === 0) return <span className="ai-activity-site">{label}</span>;
-  return (
-    <>
-      <button type="button" className="ai-activity-disclosure ai-activity-site" aria-expanded={open} aria-controls={id} onClick={() => setOpen((was) => !was)}>
-        {label}
-      </button>
-      <ul id={id} className="ai-activity-links" hidden={!open}>
-        {site.links.map((link) => (
-          <li key={link}>
-            <ExternalLink href={link}>
-              {site.kind === "web" ? link.replace(/^https?:\/\/(www\.)?/, "") : link}
-              <span className="visually-hidden"> {t("aiActivity.newTab")}</span>
-            </ExternalLink>
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
-
-/** What an element was built from and with, as glyphs: 🌐 a site, 👤 the Candidate's data, a Tool's logo or name, « J » the rules. */
-function Glyphs({ sites, tools }: { sites: ProvenanceSite[]; tools: ActivityTool[] }) {
-  const { t } = useTranslation();
-  if (sites.length === 0 && tools.length === 0) return null;
-  return (
-    <p className="ai-activity-glyphs">
-      {sites.map((site) => {
-        const name = site.kind === "web" ? site.domain : t("aiActivity.yourData");
-        return (
-          <span key={site.kind === "web" ? site.domain : "candidate"} className="ai-activity-glyph" title={name}>
-            <span aria-hidden="true">{site.kind === "web" ? PROVENANCE_GLYPHS.site : PROVENANCE_GLYPHS.candidate}</span>
-            <span className="visually-hidden">{name}</span>
-          </span>
-        );
-      })}
-      {tools.map((tool) =>
-        tool.logo ? (
-          <img key={tool.name} className="ai-activity-logo" src={tool.logo} alt={tool.name ?? ""} title={tool.name ?? undefined} />
-        ) : (
-          <span key={tool.name ?? "rules"} className="ai-activity-glyph" title={tool.name ?? t("aiActivity.rules")}>
-            <span aria-hidden="true">{tool.name === null ? PROVENANCE_GLYPHS.rules : tool.name.charAt(0)}</span>
-            <span className="visually-hidden">{tool.name ?? t("aiActivity.rules")}</span>
-          </span>
-        ),
-      )}
-    </p>
-  );
 }

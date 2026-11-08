@@ -10,6 +10,8 @@ A Job Digest's page is its conversation with your AI coach: it has the new job o
 
 On the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds, then, while job offers wait for you, a line saying how many you have left to handle, which leads to « Offers to handle », in Job searches. The Job Digest's email ends with the same line, under its button. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.
 
+The « Activity » group shows the page's history: the Job Digest, its Match Scores computed with « No AI », the offers it brought, each « ↳ follows » it, and the coach's replies in this conversation.
+
 A job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.
 
 On a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation.

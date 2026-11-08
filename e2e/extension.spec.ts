@@ -3,6 +3,7 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import path from "node:path";
 import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
+import type { OfferBoxResponse } from "@jobhub/shared/reads";
 import { chromium, expect, test, type BrowserContext, type Page, type Worker } from "@playwright/test";
 import { UPDATE_STORAGE_KEY } from "../apps/extension/src/extension-update";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
@@ -1058,7 +1059,7 @@ test.describe("Guest Capture and Match Score", () => {
     const id = new URL(link).pathname.split("/").pop()!;
     const response = await page.request.get(`${origin}/api/applications/${id}`);
     expect(response.status()).toBe(200);
-    return (await response.json()) as { status: string; profile: { id: string; name: string }; jobOffer: { title: string } };
+    return (await response.json()) as { id: string; status: string; profile: { id: string; name: string }; jobOffer: { title: string } };
   };
 
   test("a Guest who signs up from the extension keeps their work: their CV becomes their first Profile, the Job Offer their first Application", async () => {
@@ -1297,6 +1298,10 @@ test.describe("Guest Capture and Match Score", () => {
     expect(scores.requests).toHaveLength(2);
     scores.stop();
 
+    // Captured and scored, not followed: the Offer box has no entry of it (ADR-0090, #819).
+    const offerBox = async () => (await (await web.request.get(`${origin}/api/offer-box`)).json()) as OfferBoxResponse;
+    expect((await offerBox()).entries).toEqual([]);
+
     const profile = analysis.getByLabel(fr.analysis.profileLabel);
     await expect(profile.getByRole("option")).toHaveText(["Directrice financière", "Consultante transformation"]);
     await profile.selectOption({ label: "Consultante transformation" });
@@ -1306,6 +1311,16 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(/^Votre CV est devenu/)).toHaveCount(0);
     const application = await applicationIn(web, (await analysis.getByRole("link", { name: fr.analysis.openApplication }).getAttribute("href"))!);
     expect(application).toMatchObject({ status: "to_apply", profile: { id: profileIds[1], name: "Consultante transformation" } });
+    // Followed from the Side Panel, it is in the Offer box already « Suivie », under « Extension » (#819).
+    expect((await offerBox()).entries).toEqual([
+      expect.objectContaining({
+        jobOffer: expect.objectContaining({ title: posting.title }),
+        profile: { id: profileIds[1], name: "Consultante transformation" },
+        sources: [{ source: "extension", at: expect.any(String) }],
+        state: "followed",
+        applicationId: application.id,
+      }),
+    ]);
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 });

@@ -743,6 +743,7 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
             followedAt: null,
             dismissalReason: null,
             dismissedAt: null,
+            laterUntil: null,
           },
         ],
       },

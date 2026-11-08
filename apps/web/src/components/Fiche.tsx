@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useId, useMemo, useRef, useState,
 import { useTranslation } from "react-i18next";
 import { AiActivityContent, useAiActivityUnderWay } from "@/components/AiActivity";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { ActivityColumnControl, type ActivityColumn } from "@/components/activity-column";
 import { ContextBar } from "@/components/ContextBar";
 import { EnCeMoment } from "@/components/EnCeMoment";
 import { Icons } from "@/components/icons";
@@ -183,7 +184,28 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
       },
     };
   }, [object, state, givenWay, workPane, ficheId, activityAsked, wide]);
-  return <FicheControl.Provider value={control}>{children}</FicheControl.Provider>;
+  // « Dans l'activité » opens it on its Activity; « Voir dans la conversation » closes it where it covers the conversation (#808).
+  const column = useMemo<ActivityColumn>(() => {
+    const shown = { ...state, open: state.open && !givenWay };
+    return {
+      open: () => {
+        setActivityAsked((n) => n + 1);
+        if (object ? activityShown(shown) : shown.open) return;
+        if (givenWay) workPane?.close();
+        if (document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
+        setChanged(object ? toggleActivity(shown) : { ...shown, open: true });
+      },
+      closeOverConversation: () => {
+        if (wide || !shown.open) return;
+        setChanged({ ...state, open: false });
+      },
+    };
+  }, [object, state, givenWay, workPane, wide]);
+  return (
+    <FicheControl.Provider value={control}>
+      <ActivityColumnControl.Provider value={column}>{children}</ActivityColumnControl.Provider>
+    </FicheControl.Provider>
+  );
 }
 
 /**

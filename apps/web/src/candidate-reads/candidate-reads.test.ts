@@ -388,6 +388,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
         followedAt: null,
         dismissalReason: null,
         dismissedAt: null,
+        laterUntil: null,
       });
       expect(byOffer.get(followed)).toMatchObject({ state: "followed", applicationId: saved.application.id, followedAt: expect.any(String) });
     });
@@ -413,6 +414,17 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       const box = overHttp(offerBoxResponseSchema, await reads.offerBox(marie));
 
       expect(box).toMatchObject({ toHandle: 0, entries: [{ state: "dismissed", dismissalReason: "contract", dismissedAt: NOW.toISOString() }] });
+    });
+
+    it("gives an entry « Plus tard » with the Monday it comes back, still counted (#817)", async () => {
+      await searched(marie, await createProfile(marie), [await captureOffer()]);
+      const [entry] = (await reads.offerBox(marie)).entries;
+      const later = await offerBox.later(marie, entry!.id);
+      if (!later.ok) throw new Error("not put away");
+
+      const box = overHttp(offerBoxResponseSchema, await reads.offerBox(marie));
+
+      expect(box).toMatchObject({ toHandle: 1, entries: [{ state: "later", laterUntil: later.laterUntil.toISOString() }] });
     });
 
     it("never gives a Candidate another Candidate's entries", async () => {

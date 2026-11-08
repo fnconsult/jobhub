@@ -22,6 +22,7 @@ const ENTRY: OfferBoxEntryRead = {
   followedAt: null,
   dismissalReason: null,
   dismissedAt: null,
+  laterUntil: null,
 };
 
 /**

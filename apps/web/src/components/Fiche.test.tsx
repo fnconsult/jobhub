@@ -25,7 +25,7 @@ const CONTENT: FicheContent = {
 
 function Page({ content = CONTENT }: { content?: FicheContent }) {
   return (
-    <AiActivityProvider elements={[]}>
+    <AiActivityProvider>
       <FicheProvider>
         <header>
           <FicheButtons />
@@ -67,7 +67,7 @@ describe("the Fiche (#603, ADR-0070)", () => {
   it("shows the page's AI Activity in its Activity group", () => {
     renderInFrench(<Page />);
 
-    expect(within(fiche()).getByText(/Aucun contenu produit par l'IA sur cette page/)).toBeTruthy();
+    expect(within(fiche()).getByText(/Rien encore sur cette page/)).toBeTruthy();
     // « En savoir plus » leads to « IA dans Jobbbox » (#338).
     expect(within(fiche()).getByRole("link", { name: "En savoir plus sur l'IA dans Jobbbox" }).getAttribute("href")).toBe("/legal/confidentialite#ia");
   });
@@ -140,7 +140,7 @@ function screenOf(rem: number) {
 /** The Interviews Section's page: the Application's page, the Section shown in the Work Pane, the Fiche after it. */
 function SectionPage() {
   return (
-    <AiActivityProvider elements={[]}>
+    <AiActivityProvider>
       <WorkPaneProvider version="1.2.3">
         <FicheProvider>
           <header>

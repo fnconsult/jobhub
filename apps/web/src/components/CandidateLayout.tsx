@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { requireAcceptedTerms } from "@/acceptances/server";
-import type { ActivityElement } from "@/ai-activity/pane";
+import type { ServedEntry } from "@/ai-activity/entries";
 import type { FicheContent } from "@/components/Fiche";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
@@ -140,7 +140,7 @@ export async function CandidateLayout({
   currentProfileId?: string;
   title?: ReactNode;
   wide?: boolean;
-  aiActivity?: readonly ActivityElement[];
+  aiActivity?: readonly ServedEntry[];
   fiche?: FicheContent;
   children: ReactNode;
 }) {

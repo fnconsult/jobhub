@@ -130,6 +130,7 @@
   top: calc(var(--offer-box-head) + var(--offer-box-day));
   z-index: 2;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
   padding: var(--space-1) 0;
@@ -141,6 +142,27 @@
   letter-spacing: 0.04em;
   background: var(--color-background);
   box-shadow: 0 1px 0 var(--color-border);
+}
+
+.offer-box-tier-heading h4 {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  font: inherit;
+}
+
+/* « Tout écarter (n) », at the end of the tier's heading (#817). */
+.offer-box-tier-heading button {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.offer-box-tier-heading .field-error {
+  flex-basis: 100%;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .offer-box-tier-heading::before {

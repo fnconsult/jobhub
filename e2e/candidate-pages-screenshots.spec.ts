@@ -705,8 +705,9 @@ test.describe("Candidate pages in the Design System (#468)", () => {
   });
 
   // Issue #808 (ADR-0086): the Fiche's Activity group and the Activité column hold Activity's history, by day, one row per
-  // entry, an entry unfolding its detail. On a Profile's page, Version 1 of its Master CV and the ATS Score Jobbbox's rules
-  // gave it: no AI, so nothing changes from run to run but the time of day, set to a fixed one before the shot.
+  // entry, an entry unfolding its detail. On a Profile's page, « Création du profil » (#810): Version 1 of its Master CV and
+  // the ATS Score Jobbbox's rules gave it, its parts: no AI, so nothing changes from run to run but the time of day, set to
+  // a fixed one before the shot.
   test("Activity's history in the Fiche and in the Activité column: its rows by day, one unfolded (#808)", async ({
     page,
   }) => {
@@ -734,11 +735,11 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       const today = fiche
         .getByRole("region", { name: fr.aiActivity.history.title })
         .getByRole("region", { name: fr.aiActivity.history.today });
-      const score = today
+      const creation = today
         .locator(".activity-entry-row")
-        .filter({ hasText: fr.aiActivity.kinds.ats_score });
-      await score.click();
-      await expect(score).toHaveAttribute("aria-expanded", "true");
+        .filter({ hasText: fr.aiActivity.kinds.profile_creation });
+      if ((await creation.getAttribute("aria-expanded")) !== "true") await creation.click();
+      await expect(creation).toHaveAttribute("aria-expanded", "true");
       await fixTimesOfDay(page);
       // Its history alone: the Fiche scrolls on its own, so the whole of it never shows at once.
       await check(page, fiche.locator(".activity-history"), "aside.fiche", `activity-fiche-${name}`, width, false);

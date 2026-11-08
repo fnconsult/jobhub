@@ -164,7 +164,7 @@ describe("the history of Activity (#808)", () => {
       const [, , , created, score] = parts(detail);
       expect(created!.textContent).toMatch(/^Profil crééVersion 1 · Sans IA/);
       expect(within(created!).getByRole("link", { name: "Ouvrir la version" }).getAttribute("href")).toBe("/profils/p/versions/1");
-      expect(score!.textContent).toMatch(/^ATS Score64\/100 · 1 ATS Score du forfait · 4 sur 7 cette semaine/);
+      expect(score!.textContent).toMatch(/^ATS Score64\/100 · 1 ATS Score du forfait · 4 sur 7 cette semaine · Sans IA\d\d:\d\dCalcul · Règles Jobbbox/);
       expect(within(score!).getByRole("link", { name: "Voir l'ATS Score" }).getAttribute("href")).toBe("/profils/p/ats-score");
       expect(within(detail).getByRole("link", { name: "Ouvrir le profil" }).getAttribute("href")).toBe("/profils/p");
     });

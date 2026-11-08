@@ -438,7 +438,10 @@ function Parts({ parts, usage }: { parts: readonly ActivityEntry[]; usage: reado
     <ol className="activity-entry-parts" aria-label={t("aiActivity.history.parts")}>
       {parts.map((part) => {
         const by = part.kind === "questionnaire" ? t("aiActivity.history.writtenByJobbbox") : part.kind === "review" ? t("aiActivity.history.origin.candidate") : null;
-        const sub = [by, resultWords(part, t, language), costInShort(costShown(part, usage), t, language)].filter((words) => words !== null).join(" · ");
+        const cost = costShown(part, usage);
+        // A part from the Plan Quota says « Sans IA » too, as an entry's full cost does: Version 1's ATS Score.
+        const noAi = cost.quota && cost.noAi ? t("aiActivity.history.cost.noAi") : null;
+        const sub = [by, resultWords(part, t, language), costInShort(cost, t, language), noAi].filter((words) => words !== null).join(" · ");
         return (
           <li key={part.key} className="activity-entry-part" data-kind={part.kind}>
             <ActivityGlyph activity={GLYPH[part.kind]} />

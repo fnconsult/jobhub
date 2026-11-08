@@ -36,6 +36,11 @@ const GLYPH: Record<EntryKind, Activity> = {
   master_cv: "read",
   master_cv_version: "write",
   change: "act",
+  profile_creation: "write",
+  cv_reading: "read",
+  questionnaire: "write",
+  review: "write",
+  profile_created: "write",
 };
 
 /** `t` over keys built from an entry's kind, state or quota: a string, as react-i18next's types cannot follow them. */
@@ -73,6 +78,8 @@ const motion = () => (typeof window.matchMedia === "function" && window.matchMed
  * its proposals and what they led to, its cost in full (never in euros, linked to Votre consommation), « ↳ suite de »,
  * the link to its object and, for a reply the thread shows, « Voir dans la conversation ». At its foot, folded,
  * « Sources et outils de cette page ». `asked`: the entry « Dans l'activité » asked for, unfolded and brought into view.
+ * A Profile's creation (#810) is one entry, « Création du profil », whose detail lists its parts, each with its own
+ * result, cost and time, the CV read with its steps.
  */
 export function ActivityHistory({
   entries,
@@ -147,6 +154,7 @@ export function ActivityHistory({
                   byKey={byKey}
                   inThread={entry.messageId !== undefined && inThread.has(entry.messageId)}
                   cost={costShown(entry, usage)}
+                  usage={usage}
                 />
               ))}
             </Day>
@@ -191,13 +199,21 @@ function resultWords(entry: ActivityEntry, t: T, language: Language): string | n
   const { result } = entry;
   if (result.end.state !== "done") return endWords(result.end, t, language);
   if (entry.unrecorded) return t("aiActivity.modelNotRecorded");
+  if (entry.kind === "profile_creation") return result.version !== undefined ? t("aiActivity.history.results.created", { version: result.version }) : t("aiActivity.history.results.creating");
+  if (result.answered !== undefined) return answerWords(result.answered, result.skipped ?? 0, t);
   if (result.offers !== undefined) return t("aiActivity.history.results.offers", { count: result.offers });
   if (result.score !== undefined) return t("aiActivity.history.results.score", { score: result.score });
   if (result.change) return t("aiActivity.history.results.change", { before: result.change.before, after: result.change.after });
-  if (entry.kind === "master_cv" && result.version !== undefined) return t("aiActivity.history.results.version", { version: result.version });
+  if ((entry.kind === "master_cv" || entry.kind === "profile_created") && result.version !== undefined) return t("aiActivity.history.results.version", { version: result.version });
   if (result.restoredFrom) return t("aiActivity.history.results.restored", { version: result.restoredFrom });
   if (entry.proposals?.length) return t("aiActivity.history.results.proposals", { count: entry.proposals.length });
   return null;
+}
+
+/** The Onboarding Questionnaire's answers: « 2 réponses · 1 passée ». */
+function answerWords(answered: number, skipped: number, t: T): string {
+  const given = t("aiActivity.history.results.answered", { count: answered });
+  return skipped > 0 ? `${given} · ${t("aiActivity.history.results.skipped", { count: skipped })}` : given;
 }
 
 /**
@@ -239,6 +255,7 @@ function Entry({
   byKey,
   inThread,
   cost,
+  usage,
 }: {
   entry: ActivityEntry;
   open: boolean;
@@ -247,6 +264,7 @@ function Entry({
   byKey: ReadonlyMap<string, ActivityEntry>;
   inThread: boolean;
   cost: CostShown;
+  usage: readonly QuotaUse[] | null;
 }) {
   const t = useT();
   const language = useLanguage();
@@ -270,7 +288,7 @@ function Entry({
         <Icons.chevron />
       </button>
       <div id={detailId} className="activity-entry-detail" hidden={!open}>
-        {open ? <Detail entry={entry} reveal={reveal} byKey={byKey} inThread={inThread} cost={cost} /> : null}
+        {open ? <Detail entry={entry} reveal={reveal} byKey={byKey} inThread={inThread} cost={cost} usage={usage} /> : null}
       </div>
     </li>
   );
@@ -290,7 +308,21 @@ function EntryLink({ to, byKey, reveal }: { to: string; byKey: ReadonlyMap<strin
   );
 }
 
-function Detail({ entry, reveal, byKey, inThread, cost }: { entry: ActivityEntry; reveal: (key: string) => void; byKey: ReadonlyMap<string, ActivityEntry>; inThread: boolean; cost: CostShown }) {
+function Detail({
+  entry,
+  reveal,
+  byKey,
+  inThread,
+  cost,
+  usage,
+}: {
+  entry: ActivityEntry;
+  reveal: (key: string) => void;
+  byKey: ReadonlyMap<string, ActivityEntry>;
+  inThread: boolean;
+  cost: CostShown;
+  usage: readonly QuotaUse[] | null;
+}) {
   const t = useT();
   const language = useLanguage();
   const column = useActivityColumn();
@@ -311,6 +343,7 @@ function Detail({ entry, reveal, byKey, inThread, cost }: { entry: ActivityEntry
       {/* A failed one's Failure Reason, when known (#368). */}
       {entry.result.end.state === "failed" && entry.result.end.reason ? <p className="activity-entry-reason">{t(entry.result.end.reason)}</p> : null}
       {entry.question ? <p className="activity-entry-question">{t("aiActivity.history.you", { question: entry.question })}</p> : null}
+      {entry.parts ? <Parts parts={entry.parts} usage={usage} /> : null}
       {entry.steps.length > 0 ? (
         <ol className="activity-entry-steps" aria-label={t("aiActivity.history.steps")}>
           {entry.steps.map((step, index) => (
@@ -328,8 +361,8 @@ function Detail({ entry, reveal, byKey, inThread, cost }: { entry: ActivityEntry
           ))}
         </Line>
       ) : null}
-      {toolNames.length > 0 ? <Line label={t("aiActivity.history.tools")}>{toolNames.join(", ")}</Line> : null}
-      {entry.models.length > 0 ? (
+      {toolNames.length > 0 && !entry.parts ? <Line label={t("aiActivity.history.tools")}>{toolNames.join(", ")}</Line> : null}
+      {entry.models.length > 0 && !entry.parts ? (
         <Line label={t("aiActivity.history.models")}>
           {entry.models.map((model, index) => (
             <span key={`${model.name}-${index}`} title={model.ids.join(", ")}>
@@ -390,6 +423,50 @@ function Step({ step }: { step: EntryStep }) {
         ))}
       </span>
     </li>
+  );
+}
+
+/**
+ * The parts of a Profile's creation (#810), in their order: each its glyph, title, who made it (the questionnaire's
+ * questions, Jobbbox's), result, cost in short and time; the CV read with its steps; « Profil créé » and the ATS Score
+ * linked to their pages.
+ */
+function Parts({ parts, usage }: { parts: readonly ActivityEntry[]; usage: readonly QuotaUse[] | null }) {
+  const t = useT();
+  const language = useLanguage();
+  return (
+    <ol className="activity-entry-parts" aria-label={t("aiActivity.history.parts")}>
+      {parts.map((part) => {
+        const by = part.kind === "questionnaire" ? t("aiActivity.history.writtenByJobbbox") : part.kind === "review" ? t("aiActivity.history.origin.candidate") : null;
+        const sub = [by, resultWords(part, t, language), costInShort(costShown(part, usage), t, language)].filter((words) => words !== null).join(" · ");
+        return (
+          <li key={part.key} className="activity-entry-part" data-kind={part.kind}>
+            <ActivityGlyph activity={GLYPH[part.kind]} />
+            <span className="activity-entry-words">
+              <span className="activity-entry-title">{entryTitle(part, t)}</span>
+              {sub ? <span className="activity-entry-sub">{sub}</span> : null}
+            </span>
+            {part.at ? (
+              <time className="activity-entry-time" dateTime={part.at}>
+                {timeOf(part.at, language)}
+              </time>
+            ) : null}
+            {part.steps.length > 0 ? (
+              <ol className="activity-entry-steps" aria-label={t("aiActivity.history.steps")}>
+                {part.steps.map((step, index) => (
+                  <Step key={index} step={step} />
+                ))}
+              </ol>
+            ) : null}
+            {part.object.href ? (
+              <p className="activity-entry-links">
+                <Link href={part.object.href}>{t(`aiActivity.history.open.${part.kind}`, { label: part.object.label ?? "" })}</Link>
+              </p>
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

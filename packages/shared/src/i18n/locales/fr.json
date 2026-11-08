@@ -5092,7 +5092,11 @@
       "action_card": "Proposition du coach",
       "ats_score": "ATS Score",
       "master_cv": "CV de référence, lu dans votre fichier",
-      "cv_reading": "Lecture du CV"
+      "cv_reading": "Lecture du CV",
+      "profile_creation": "Création du profil",
+      "questionnaire": "Questionnaire d'accueil",
+      "review": "Relecture",
+      "profile_created": "Profil créé"
     },
     "live": {
       "starting": "Démarrage",
@@ -5203,7 +5207,13 @@
         "version": "Version {{version}}",
         "restored": "rétablit la version {{version}}",
         "proposals_one": "{{count}} proposition",
-        "proposals_other": "{{count}} propositions"
+        "proposals_other": "{{count}} propositions",
+        "creating": "En cours",
+        "created": "Profil créé · Version {{version}}",
+        "answered_one": "{{count}} réponse",
+        "answered_other": "{{count}} réponses",
+        "skipped_one": "{{count}} passée",
+        "skipped_other": "{{count}} passées"
       },
       "origin": {
         "candidate": "Par vous",
@@ -5213,6 +5223,8 @@
       },
       "you": "Vous : {{question}}",
       "steps": "Étapes",
+      "parts": "Étapes de la création",
+      "writtenByJobbbox": "Questions écrites par Jobbbox",
       "read": "Lu :",
       "tools": "Outils :",
       "models": "Modèles :",
@@ -5242,7 +5254,9 @@
         "ats_score": "Voir l'ATS Score",
         "master_cv": "Ouvrir la version",
         "master_cv_version": "Ouvrir la version",
-        "change": "Ouvrir {{label}}"
+        "change": "Ouvrir {{label}}",
+        "profile_creation": "Ouvrir le profil",
+        "profile_created": "Ouvrir la version"
       },
       "cost": {
         "quota": {
@@ -6058,7 +6072,8 @@
         "cached": "Dont {{tokens}} relus dans le cache du fournisseur, moins coûteux.",
         "why": "Ce total peut dépasser la taille du contexte ci-dessus : à chaque appel (le choix des conseils, les agents, les vérifications, puis chaque tour où le coach consulte vos données), tout le contexte est renvoyé, avec ce que le coach a déjà lu. C'est une mesure technique, qui ne compte pas dans votre offre."
       }
-    }
+    },
+    "noReply": "Le coach n'a pas encore répondu."
   },
   "microAnimation": {
     "show": "Voir comment",

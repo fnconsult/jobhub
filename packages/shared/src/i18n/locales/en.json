@@ -5092,7 +5092,11 @@
       "action_card": "Coach proposal",
       "ats_score": "ATS Score",
       "master_cv": "Master CV, read from your file",
-      "cv_reading": "CV reading"
+      "cv_reading": "CV reading",
+      "profile_creation": "Profile creation",
+      "questionnaire": "Onboarding questionnaire",
+      "review": "Review",
+      "profile_created": "Profile created"
     },
     "live": {
       "starting": "Starting",
@@ -5203,7 +5207,13 @@
         "version": "Version {{version}}",
         "restored": "restores version {{version}}",
         "proposals_one": "{{count}} proposal",
-        "proposals_other": "{{count}} proposals"
+        "proposals_other": "{{count}} proposals",
+        "creating": "In progress",
+        "created": "Profile created · Version {{version}}",
+        "answered_one": "{{count}} answer",
+        "answered_other": "{{count}} answers",
+        "skipped_one": "{{count}} skipped",
+        "skipped_other": "{{count}} skipped"
       },
       "origin": {
         "candidate": "By you",
@@ -5213,6 +5223,8 @@
       },
       "you": "You: {{question}}",
       "steps": "Steps",
+      "parts": "Creation steps",
+      "writtenByJobbbox": "Questions written by Jobbbox",
       "read": "Read:",
       "tools": "Tools:",
       "models": "Models:",
@@ -5242,7 +5254,9 @@
         "ats_score": "See the ATS Score",
         "master_cv": "Open the version",
         "master_cv_version": "Open the version",
-        "change": "Open {{label}}"
+        "change": "Open {{label}}",
+        "profile_creation": "Open the profile",
+        "profile_created": "Open the version"
       },
       "cost": {
         "quota": {
@@ -6058,7 +6072,8 @@
         "cached": "Of which {{tokens}} read again from the provider's cache, at a lower cost.",
         "why": "This total can exceed the context size above: each call (choosing the advice, the agents, the checks, then each round in which the coach looks at your data) sends the whole context again, with what the coach has already read. It is a technical measure, not counted against your plan."
       }
-    }
+    },
+    "noReply": "The coach has not replied yet."
   },
   "microAnimation": {
     "show": "Show me how",

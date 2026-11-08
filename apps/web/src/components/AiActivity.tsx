@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { formatTokens, type Activity } from "@jobhub/shared";
+import { creationOnPage } from "@/ai-activity/creation";
 import { activityEntries, type ActivityEntry, type ReplyGiven, type ServedEntry } from "@/ai-activity/entries";
 import { entryToOpen, type QuotaUse } from "@/ai-activity/history";
 import { liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
@@ -54,7 +55,8 @@ const AiActivityControl = createContext<Control | null>(null);
  * AI Activity (CONTEXT.md, #314, #332, ADR-0086): the page's Activité entries, which the Fiche's « Activité » group and the
  * Activité column show under « En ce moment »: the server's (`served`, one loader per page type, ai-activity/index.ts),
  * finished with the AI Coach replies the page's thread shows, with their questions and cards (#808); and, live, the
- * Candidate's AI actions as they run, here or « En cours ailleurs » (AiActivityLive, #333). `usage`: the Usage Meter's
+ * Candidate's AI actions as they run, here or « En cours ailleurs » (AiActivityLive, #333); and what the browser alone knows
+ * of a Profile being created, « Création du profil » (#810). `usage`: the Usage Meter's
  * week, for the Plan Quotas the entries used. Candidate pages only: the Back Office mounts no provider.
  */
 export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children }: { served?: readonly ServedEntry[]; usage?: UsageMeter | null; children: ReactNode }) {
@@ -70,7 +72,8 @@ export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children
   const [asked, setAsked] = useState<Control["asked"]>(null);
   const button = useRef<HTMLButtonElement>(null);
   const paneId = useId();
-  const entries = useMemo(() => activityEntries({ page: "any", built: served, replies }), [served, replies]);
+  const creation = creationOnPage(store?.creation ?? null, pathname);
+  const entries = useMemo(() => activityEntries({ page: "any", built: served, replies, ...(creation ? { creation } : {}) }), [served, replies, creation]);
   const inThread = useMemo(() => new Set(replies.map((reply) => reply.messageId)), [replies]);
   const quotas = usage?.quotas ?? null;
   const openColumn = column?.open;

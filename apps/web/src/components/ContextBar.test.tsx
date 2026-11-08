@@ -8,7 +8,8 @@ import { CoachConversationPage } from "./CoachConversationPage";
 import { ContextBar } from "./ContextBar";
 import { ConversationFirstProvider } from "./conversation-first";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
+const pathname = vi.hoisted(() => ({ current: "/" }));
+vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
 
 const CONVERSATION = { id: "33333333-3333-4333-8333-333333333333", title: "Préparer mon pitch", subject: null, profile: null, lastMessageAt: "2026-10-31T10:00:00.000Z" };
 
@@ -67,11 +68,32 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
     expect(await within(activity()).findByText("14 / 40 messages · 3,6k / 12k jetons")).toBeTruthy();
   });
 
-  it("is empty before the conversation's first message", () => {
+  it("is empty before the coach's first reply: « Le coach n'a pas encore répondu », no figures (#810)", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 404 })));
     renderInFrench(<HomePage conversationId={null} />);
 
-    expect(within(bar()).getByText("0 / 40 messages · 0 / 12k jetons")).toBeTruthy();
+    expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy();
+    expect(within(bar()).queryByText(/messages ·/)).toBeNull();
+    const meter = within(bar()).getByRole("meter", { name: "Contexte de la conversation" });
+    expect(meter.getAttribute("aria-valuenow")).toBe("0");
+    expect(meter.getAttribute("aria-valuetext")).toBe("Le coach n'a pas encore répondu.");
+  });
+
+  it("is there, empty, while a Profile is being created on `/profils/nouveau`, which has no conversation yet (#810)", () => {
+    pathname.current = "/profils/nouveau";
+    try {
+      renderInFrench(
+        <ConversationFirstProvider conversations={[]}>
+          <aside aria-label="Activité">
+            <ContextBar />
+          </aside>
+        </ConversationFirstProvider>,
+      );
+      expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy();
+      expect(within(bar()).queryByRole("button", { name: "Effacer la conversation" })).toBeNull();
+    } finally {
+      pathname.current = "/";
+    }
   });
 
   it("from 80 %, says the coach reads only the latest messages and offers « Effacer la conversation », after a confirming Dialog", async () => {
@@ -88,7 +110,7 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Effacer" }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(`/api/coach/conversations/${CONVERSATION.id}`, { method: "DELETE" }));
-    expect(await within(bar()).findByText("0 / 40 messages · 0 / 12k jetons")).toBeTruthy();
+    expect(await within(bar()).findByText("Le coach n'a pas encore répondu.")).toBeTruthy();
     expect(within(bar()).queryByRole("button", { name: "Effacer la conversation" })).toBeNull();
   });
 

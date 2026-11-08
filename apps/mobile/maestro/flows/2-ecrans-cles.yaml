@@ -18,19 +18,10 @@ tags:
     file: ../subflows/menu.yaml
     env:
       MENU: "Mes candidatures"
-# A menu's conversation opens on its latest message: its card is above.
+# Captured as it opens, on its latest message, where the thread stops scrolling, as the Agenda: scrolled to its
+# Applications, the screen stopped some points apart from one run to the next at the largest text size (96.6 % of the
+# reference on a folded foldable, run 42472408161). Its card is above, scrolled to for the Fiche.
 - runFlow: ../subflows/conversation-end.yaml
-- runFlow:
-    file: ../subflows/conversation-scroll.yaml
-    env:
-      TEXT: "Responsable qualité · Aéroline Démo"
-      DIRECTION: UP
-# The other Application, listed after it: on a folded foldable at the largest text size the thread holds one at a time.
-- runFlow:
-    file: ../subflows/conversation-scroll.yaml
-    env:
-      TEXT: "Contrôleuse de gestion · Transports Ravel Démo"
-      DIRECTION: DOWN
 - runFlow:
     file: ../subflows/capture.yaml
     env:

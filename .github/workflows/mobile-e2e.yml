@@ -103,6 +103,10 @@ jobs:
           SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: |
           npx expo prebuild --platform android --clean
+          # The Gradle wrapper waits 10 s for services.gradle.org, which twice timed out its download (#705, runs
+          # 42468880781 and 42472089315): two minutes.
+          sed -i 's/^networkTimeout=.*/networkTimeout=120000/' android/gradle/wrapper/gradle-wrapper.properties
+          grep -q '^networkTimeout=120000$' android/gradle/wrapper/gradle-wrapper.properties
           (cd android && ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon)
           cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Jobbbox-android.apk"
       - uses: actions/upload-artifact@v4

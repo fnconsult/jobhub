@@ -13,6 +13,12 @@ tags:
     file: ../subflows/capture.yaml
     env:
       SCREEN: accueil
+# The box whole, in every theme and at the largest text size: « + », the message field and « Envoyer », its icon alone
+# from 130 % on, named by its word (#835: on Android the box showed « + » only).
+- assertVisible: "Joindre un lien ou un document"
+- assertVisible:
+    id: "coach-message"
+- assertVisible: "Envoyer"
 
 - runFlow:
     file: ../subflows/menu.yaml

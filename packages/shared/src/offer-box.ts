@@ -105,6 +105,8 @@ export interface OfferBoxView {
   toHandle: number;
   /** « k traitées »: the entries « Suivies » or « Écartées ». */
   treated: number;
+  /** « n arrivées aujourd'hui » (#898): the whole box's entries whose day of Arrival is today, whatever the chip. */
+  arrivedToday: number;
   /** « Toutes » then each source, with how many of its entries are still à traiter. */
   chips: { source: OfferBoxFilter; toHandle: number }[];
   /** « Aujourd'hui »: arrived today, or back today from « Plus tard ». */
@@ -139,6 +141,7 @@ export function offerBoxView(box: OfferBoxResponse, filter: OfferBoxFilter = "al
   return {
     toHandle: toHandle.length,
     treated: box.entries.filter((entry) => entry.state === "followed" || entry.state === "dismissed").length,
+    arrivedToday: box.entries.filter((entry) => entry.arrivalDay === box.today).length,
     chips: [{ source: "all", toHandle: toHandle.length }, ...ARRIVAL_SOURCES.map((source) => ({ source, toHandle: toHandle.filter(cameBy(source)).length }))],
     today: dayOf(shown.filter(isToday)),
     earlier: dayOf(shown.filter((entry) => !isToday(entry))),

@@ -38,15 +38,18 @@ describe("the app icon's badge: the offers à traiter, set at each opening (#818
     expect(web.reads()).toBe(2);
   });
 
-  it("is not set again while the count stays the same", async () => {
-    serve(2);
+  it("is set again at each opening even when the count read is the same: a push may have set the icon's badge meanwhile", async () => {
+    // Opened with 5, then away: a Job Digest push brings 2 offers and sets the badge to 7 itself (`aps.badge`), and the
+    // Candidate handles those 2 on the web. Back in the app, the count read is 5 again: the icon must go back from 7 to 5.
+    serve(5);
     const comesBack = foreground();
     const setBadge = jest.fn(async () => {});
     await renderInApp(<AppIconBadge setBadge={setBadge} />);
-    await waitFor(() => expect(setBadge).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(setBadge).toHaveBeenCalledWith(5));
+
     await comesBack();
-    await comesBack();
-    expect(setBadge).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(setBadge).toHaveBeenCalledTimes(2));
+    expect(setBadge).toHaveBeenLastCalledWith(5);
   });
 
   it("is left as it is when the count cannot be read", async () => {

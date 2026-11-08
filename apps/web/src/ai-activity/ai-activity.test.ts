@@ -2,7 +2,7 @@ import { rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared
 import { describe, expect, it } from "vitest";
 import { servedEntries } from "./entries";
 import { agendaPage, applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, paneElements, profilePage, type PageSources } from "./index";
-import { aiActivityPane, byRulesOnly } from "./pane";
+import { byRulesOnly } from "./pane";
 
 /** The Job Offer: found by a web search, its page read, then read by Claude Haiku. */
 const read: Provenance = {
@@ -50,22 +50,25 @@ function sources({ offers = { [OFFER]: read } as Record<string, Provenance | nul
 }
 
 describe("AI Activity's page loaders (#332)", () => {
-  it("shows `/offres/[id]`'s Job Offer and the Coach reply about it, with each model's and Tool's sums and the wall-clock total", async () => {
+  it("shows `/offres/[id]`'s Job Offer and the Coach reply about it, each with its models, Tools, tokens and wall-clock time", async () => {
     const elements = paneElements(await jobOfferPage(sources(), CANDIDATE, { id: OFFER, title: "DAF Lyon" }));
-    const pane = aiActivityPane(elements);
 
     expect(elements.map(({ kind, name, at }) => ({ kind, name, at }))).toEqual([
       { kind: "job_offer", name: "DAF Lyon", at: "2026-10-23T10:00:00.000Z" },
       { kind: "coach_reply", name: undefined, at: "2026-10-23T10:40:00.000Z" },
     ]);
-    expect(pane.models.map(({ name, tokens, ms }) => ({ name, tokens, ms }))).toEqual([
-      { name: "Perplexity", tokens: 1100, ms: 4100 },
-      { name: "Claude Haiku 4.5", tokens: 6700, ms: 3900 },
-      { name: "Claude Opus 5", tokens: 2100, ms: 4200 },
+    expect(elements.map((element) => element.served?.models.map(({ name, tokens, ms }) => ({ name, tokens, ms })))).toEqual([
+      [
+        { name: "Perplexity", tokens: 1100, ms: 4100 },
+        { name: "Claude Haiku 4.5", tokens: 6700, ms: 3900 },
+      ],
+      [{ name: "Claude Opus 5", tokens: 2100, ms: 4200 }],
     ]);
-    expect(pane.tools).toEqual([{ name: "Sites d'emploi", ms: 1600, usedBy: [0, 1] }]);
-    expect(pane.total).toEqual({ tokens: 9900, ms: 15_500 });
-    expect(pane.summary).toEqual({ models: 3, tokens: 9900, ms: 15_500 });
+    expect(elements.map((element) => element.served?.tools)).toEqual([[{ name: "Sites d'emploi", ms: 900 }], [{ name: "Sites d'emploi", ms: 700 }]]);
+    expect(elements.map((element) => ({ tokens: element.served?.tokens, ms: element.served?.ms }))).toEqual([
+      { tokens: 7800, ms: 9100 },
+      { tokens: 2100, ms: 6400 },
+    ]);
   });
 
   it("gives each Coach reply what it sent in all its AI calls (#805), null for one saved before #791, and no other element any", async () => {
@@ -80,11 +83,11 @@ describe("AI Activity's page loaders (#332)", () => {
     expect(elements[0]).not.toHaveProperty("sent");
   });
 
-  it("shows an offer from before Provenance was kept as « modèle non enregistré », counted in no total", async () => {
-    const pane = aiActivityPane(paneElements(await jobOfferPage(sources({ offers: {} }), CANDIDATE, { id: OFFER, title: "DAF Lyon" })));
+  it("shows an offer from before Provenance was kept as « modèle non enregistré », nothing served", async () => {
+    const elements = paneElements(await jobOfferPage(sources({ offers: {} }), CANDIDATE, { id: OFFER, title: "DAF Lyon" }));
 
-    expect(pane.elements[0]).toEqual({ kind: "job_offer", name: "DAF Lyon", at: null, end: { state: "done" }, served: null });
-    expect(pane.total).toEqual({ tokens: 2100, ms: 6400 });
+    expect(elements[0]).toEqual({ kind: "job_offer", name: "DAF Lyon", at: null, end: { state: "done" }, served: null });
+    expect(elements[1]?.served).toMatchObject({ tokens: 2100, ms: 6400 });
   });
 
   it("serves the browser its entries (#808): never a Provenance, a cost in euros, prompt, AI task, Playbook Agent, Outcome or technical error; ids only in the pages' addresses", async () => {
@@ -235,17 +238,14 @@ describe("AI Activity's page loaders (#332)", () => {
       { kind: "action_card", name: "Ajoutez « IFRS » à vos compétences", provenance: rulesProvenance("ats_fixes", { at, ms: 2 }) },
       { kind: "action_card", name: "Ajoutez « SAP » à vos compétences", at, provenance: null },
     ]));
-    const pane = aiActivityPane(elements);
 
     expect(elements.map(({ kind, name, served }) => ({ kind, name, byRules: served ? byRulesOnly(served) : null }))).toEqual([
       { kind: "ats_score", name: undefined, byRules: true },
       { kind: "action_card", name: "Ajoutez « IFRS » à vos compétences", byRules: true },
       { kind: "action_card", name: "Ajoutez « SAP » à vos compétences", byRules: null },
     ]);
-    expect(pane.models).toEqual([]);
-    expect(pane.tools).toEqual([{ name: null, ms: 2, usedBy: [0, 1] }]);
-    // No model served the page: the closed button shows its label, not « 0 modèle ».
-    expect(pane.summary).toBeNull();
+    expect(elements.flatMap((element) => element.served?.models ?? [])).toEqual([]);
+    expect(elements.map((element) => element.served?.tools ?? null)).toEqual([[{ name: null, ms: null }], [{ name: null, ms: 2 }], null]);
   });
 
   it("shows `/candidatures/[id]/*`'s Follow-up card with the model that wrote it (#336)", async () => {
@@ -261,7 +261,6 @@ describe("AI Activity's page loaders (#332)", () => {
     ]));
 
     expect(elements[1]).toMatchObject({ kind: "action_card", name: "Relancer : DAF Lyon", at: "2026-11-12T06:00:00.000Z", served: { models: [{ name: "Claude Sonnet 5", tokens: 1020 }] } });
-    expect(aiActivityPane(elements).summary).toMatchObject({ models: 3 });
   });
 
   it("shows `/profils/[id]/*`'s Action Cards, « non enregistré », and the Coach replies about the Profile", async () => {
@@ -289,13 +288,9 @@ describe("AI Activity's page loaders (#332)", () => {
       const old = paneElements(await applicationPage(sources({ offers: {}, replies: [] }), CANDIDATE, { id: APPLICATION, jobOffer: { id: OFFER, title: "DAF Lyon" } }, [
         { kind: "company_dossier", at: new Date("2026-01-01T09:00:00Z"), provenance: null, sites: [REGISTER] },
       ]));
-      const pane = aiActivityPane(old);
 
       expect(fresh).toMatchObject({ kind: "company_dossier", at, served: { sites: [REGISTER], tools: [{ name: "recherche-entreprises.api.gouv.fr" }] } });
       expect(old[1]).toEqual({ kind: "company_dossier", at: "2026-01-01T09:00:00.000Z", end: { state: "done" }, served: null, sites: [REGISTER] });
-      // Its sites are the page's Sources; no total counts it.
-      expect(pane.sites).toEqual([REGISTER]);
-      expect(pane.total).toEqual({ tokens: null, ms: null });
     });
 
     it("shows `/profils/[id]/*`'s Master CV, read from the Candidate's file, with the model that read it", async () => {
@@ -341,10 +336,15 @@ describe("the Application's Tailored Documents, as AI Activity reads them on its
       { kind: "tailored_documents", at: day(12), model: null },
     ]);
 
-    // As the pane shows them: the models that wrote them, their tokens and time; one written before #334, « modèle non enregistré ».
+    // As Activity shows them: the models that wrote them, their tokens and time; one written before #334, « modèle non enregistré ».
     const elements = paneElements(await applicationPage(sources({ offers: {}, replies: [] }), "candidate-1", { id: "application-1", jobOffer: { id: "offer-1", title: "DAF" } }, made));
     expect(elements.slice(1).map((element) => element.served?.models.map((model) => model.name) ?? null)).toEqual([["Mistral Large"], ["Mistral Medium"], ["Mistral Large"], null]);
-    expect(aiActivityPane(elements).total).toEqual({ tokens: 3 * 4900, ms: 3 * 8200 });
+    expect(elements.slice(1).map((element) => element.served && { tokens: element.served.tokens, ms: element.served.ms })).toEqual([
+      { tokens: 4900, ms: 8200 },
+      { tokens: 4900, ms: 8200 },
+      { tokens: 4900, ms: 8200 },
+      null,
+    ]);
   });
 
   it("is nothing when none was written yet", () => {

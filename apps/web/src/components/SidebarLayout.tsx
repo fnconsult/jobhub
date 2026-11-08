@@ -44,8 +44,9 @@ const LABELS = {
  * a menu (AccountMenu): « Aide et légal » (#544), Mon compte's page and « Se déconnecter », in the drawer too on a phone.
  * Its Top Bar has « Effacer » while the page is a conversation, « Aide » on a page without one (#602). The Work Pane opens
  * beside the page (#602). `fiche`: an object's page (an Application's, #603): the Fiche beside the conversation, after
- * the Work Pane, and « Fiche » and « Activité » in the Top Bar; the Fiche shows the page's `aiActivity`. Without one (the
- * home page, the menus, #607), « Activité » alone, which opens the Activité column with the Context bar and AI Activity.
+ * the Work Pane, and « Fiche » and AI Activity's button, « Activité », in the Top Bar (#809); the Fiche shows the page's
+ * `aiActivity`. Without one (the home page, the menus, #607), AI Activity's button alone, which opens the Activité column
+ * with the Context bar and AI Activity.
  * On a phone those columns open over the conversation, full screen, the page behind out of reach (#608).
  */
 export function SidebarLayout({
@@ -110,7 +111,6 @@ export function SidebarLayout({
             {fiche ? <Fiche content={fiche} /> : <ActivityColumn />}
           </>
         }
-        topBarActivity={null}
         signOut={false}
         foot={(closeDrawer, closeDrawerThen) => (
           <>

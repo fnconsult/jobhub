@@ -27,7 +27,7 @@ import { activityElement, type ActionEnded, type ActivityElement, type ElementKi
 
 const withEnded = (ended: ActionEnded | undefined) => (ended ? { ended } : {});
 
-export { activityElement, aiActivityPane, byRulesOnly, ELEMENT_KINDS, type ActionEnded, type ActivityElement, type ElementEnd, type ActivityModel, type ActivityTool, type AiActivityPane, type ElementKind } from "./pane";
+export { activityElement, byRulesOnly, ELEMENT_KINDS, type ActionEnded, type ActivityElement, type ElementEnd, type ActivityModel, type ActivityTool, type ElementKind } from "./pane";
 
 /**
  * What a page's Activity is built from (ADR-0086, #808), on the server: which page it is, the content it shows that AI
@@ -45,8 +45,8 @@ export interface PageActivity {
 }
 
 /**
- * The page's elements as the former « Cette page » pane read them (pane.ts): its content, its Master CV read from a file,
- * then the replies; what the closed AI Activity button sums.
+ * The page's elements, flat (pane.ts): its content, its Master CV read from a file, then the replies; what the loaders'
+ * tests read (the « Cette page » pane that summed them is retired, #809).
  */
 export function paneElements(activity: PageActivity): ActivityElement[] {
   const read = (activity.versions ?? []).filter((version) => version.provenance);

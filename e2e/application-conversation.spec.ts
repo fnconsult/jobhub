@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
+import { activityButtonOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
 
@@ -117,11 +118,12 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(suggestions.getByRole("button", { name: application.conversation.suggestions.prepareInterview.label })).toBeVisible();
     await expect(suggestions.getByRole("button", { name: application.conversation.suggestions.followUp.label })).toBeVisible();
 
-    // The Top Bar: « Fiche » and « Activité », « Effacer »; no AI Activity button, no « Aide ».
+    // The Top Bar: « Fiche » and « Activité », AI Activity's one button (#809), « Effacer »; no « Aide ».
     await expect(topBar(page).getByRole("button", { name: fiche.label, exact: true })).toHaveAttribute("aria-expanded", "true");
-    await expect(topBar(page).getByRole("button", { name: fiche.activity, exact: true })).toBeVisible();
+    await expect(activityButtonOf(page)).toHaveCount(1);
+    await expect(activityButtonOf(page)).toBeVisible();
+    await expect(activityButtonOf(page)).toHaveText(fiche.activity);
     await expect(topBar(page).getByRole("button", { name: texts.clear })).toBeVisible();
-    await expect(topBar(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) })).toHaveCount(0);
     await expect(topBar(page).getByRole("button", { name: texts.help, exact: true })).toHaveCount(0);
 
     // The Fiche: the card, then Sections, Activité and Résultats; no heading nor ✕ of its own.
@@ -148,10 +150,10 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     // « Fiche » closes it, the conversation taking the room; « Activité » opens it on its Activity group.
     await topBar(page).getByRole("button", { name: fiche.label, exact: true }).click();
     await expect(ficheOf(page)).toHaveCount(0);
-    await topBar(page).getByRole("button", { name: fiche.activity, exact: true }).click();
+    await activityButtonOf(page).click();
     await expect(ficheOf(page)).toBeVisible();
     await expect(group(page, fiche.groups.activity)).toHaveAttribute("aria-expanded", "true");
-    await expect(topBar(page).getByRole("button", { name: fiche.activity, exact: true })).toHaveAttribute("aria-expanded", "true");
+    await expect(activityButtonOf(page)).toHaveAttribute("aria-expanded", "true");
   });
 
   test("the Fiche's Activité group carries the Context bar, empty before the coach's first reply (#607, #810)", async ({ browser }) => {
@@ -238,7 +240,7 @@ test.describe("« Conversation au centre »: an Application's page is its conver
 
     // While the Fiche has given way, « Fiche » and « Activité » say it is not shown, and bring it back in the pane's place.
     const ficheButton = topBar(page).getByRole("button", { name: fiche.label, exact: true });
-    const activityButton = topBar(page).getByRole("button", { name: fiche.activity, exact: true });
+    const activityButton = activityButtonOf(page);
     await entretiens.click();
     await expect(interviews).toBeVisible();
     await expect(ficheButton).toHaveAttribute("aria-expanded", "false");

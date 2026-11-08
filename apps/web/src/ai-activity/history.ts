@@ -7,6 +7,7 @@
  *   costShown(entry, usage)                      its Plan Quota with the week's use, « compté dans votre consommation », its tokens, « Sans IA »
  *   pageSources(entries)                         the page's sites and Tools, once each
  *   entryToOpen(entries, { messageId, card? })   the entry « Dans l'activité » opens, under a reply or one of its cards
+ *   pageSummary(entries)                         AI Activity's button's words: « 3 modèles · 10,9k tokens »
  *
  * Pure. Activity counts nothing itself: the week's use is the Usage Meter's (ADR-0032), what Votre consommation counts
  * is its own (ADR-0091).
@@ -93,4 +94,18 @@ export function entryToOpen(entries: readonly ActivityEntry[], target: { message
   if (!reply) return null;
   const led = target.card === undefined ? null : (reply.proposals?.[target.card]?.led ?? null);
   return led ?? reply.key;
+}
+
+/** What AI Activity's button says of the page (#369, #809): how many models served it, and its entries' tokens. */
+export type PageSummary = { models: number; tokens: number | null };
+
+/**
+ * AI Activity's words in the Top Bar: the models of the page's entries, each named once, and their tokens summed (null
+ * when none were kept); null on a page where no model served (none recorded, or Jobbbox's rules alone), which has none.
+ */
+export function pageSummary(entries: readonly ActivityEntry[]): PageSummary | null {
+  const models = new Set(entries.flatMap((entry) => entry.models.map((model) => model.name)));
+  if (models.size === 0) return null;
+  const tokens = entries.reduce<number | null>((sum, entry) => (entry.cost.tokens ? (sum ?? 0) + entry.cost.tokens.count : sum), null);
+  return { models: models.size, tokens };
 }

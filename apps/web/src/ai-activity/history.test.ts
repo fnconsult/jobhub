@@ -1,7 +1,8 @@
 import type { ProvenanceSite } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import type { ActivityEntry, EntryCost } from "./entries";
-import { costShown, entryToOpen, historyByDay, pageSources, type QuotaUse } from "./history";
+import { costShown, entryToOpen, historyByDay, pageSources, pageSummary, type QuotaUse } from "./history";
+import type { ActivityModel } from "./pane";
 
 /**
  * The history under « En ce moment » (ADR-0086, #808): the page's Activité entries by day, newest first, each with its
@@ -140,5 +141,29 @@ describe("entryToOpen", () => {
 
   it("none for a message the page has no entry of", () => {
     expect(entryToOpen(entries, { messageId: "elsewhere" })).toBeNull();
+  });
+});
+
+describe("pageSummary", () => {
+  const model = (name: string): ActivityModel => ({ name, ids: [name], where: null, euAiConsent: false, outsideEu: false, tokens: null, ms: null });
+  const tokens = (count: number): EntryCost => ({ ...NO_COST, tokens: { count, calls: null, partial: false } });
+
+  it("is what AI Activity's button says of the page (#369, #809): its models once each, and the tokens of its entries summed", () => {
+    const entries = [
+      entry("a", null, { models: [model("Claude Opus 5"), model("Mistral Small")], cost: tokens(6_900) }),
+      entry("b", null, { models: [model("Claude Opus 5")], cost: tokens(4_000) }),
+      entry("c", null, { models: [model("Mistral Large")] }),
+    ];
+
+    expect(pageSummary(entries)).toEqual({ models: 3, tokens: 10_900 });
+  });
+
+  it("has no tokens when none were kept", () => {
+    expect(pageSummary([entry("a", null, { models: [model("Claude Opus 5")] })])).toEqual({ models: 1, tokens: null });
+  });
+
+  it("is nothing on a page where no model served: none recorded, or Jobbbox's rules alone, so the button has no words", () => {
+    expect(pageSummary([])).toBeNull();
+    expect(pageSummary([entry("a", null, { cost: { ...NO_COST, noAi: true } }), entry("b", null, { unrecorded: true })])).toBeNull();
   });
 });

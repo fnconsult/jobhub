@@ -31,6 +31,16 @@ docker compose -f app/deploy/compose.yml -p "$JOBHUB_SLUG" --env-file .env run -
 
 Production: `JOBHUB_TARGET=production JOBHUB_HOST=jobbbox.ai JOBHUB_SLUG=jobbbox-production`, and its own deploy date.
 
+## Staging from GitHub, without the VPS
+
+For the Beta only, the `consumption-backfill.yml` workflow runs the same command over SSH, with the `staging` Environment's secrets, as `deploy.yml` does. It uses the `migrate` image of the commit the Beta serves, and waits for, or refuses to overlap, a deployment of staging:
+
+```sh
+gh workflow run consumption-backfill.yml -f live-from=YYYY-MM-DD   # the Beta's #799 deploy day
+```
+
+Production has no such workflow: its backfill stays a hand step on the VPS, before the Promotion of the first Version that carries #801.
+
 ## What it counts
 
 Each use on its French day, from what is still stored: AI Coach replies; Job Searches whose Plan Quota use was kept (done, or stopped with a Job Offer); Tailored CVs (the proposal under review and the one saved); Tailored Documents; Company Dossiers built; CVs read from a file (Master CV Versions with a Provenance); the ATS Score kept per Profile; Enriched Contacts whose details were retrieved. For the Tools with a weekly Plan Quota, the week's uses no stored result shows (every Match Score, since none is stored; ATS Scores replaced since) are counted on the week's Monday, for the weeks wholly before the deploy date.

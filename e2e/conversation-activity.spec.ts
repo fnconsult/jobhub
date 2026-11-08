@@ -41,7 +41,7 @@ async function signedIn(browser: Browser, email: string): Promise<Page> {
 const conversation = (page: Page) => page.getByRole("region", { name: texts.label });
 const messages = (page: Page) => conversation(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 const topBar = (page: Page) => page.getByRole("banner");
-const activityButton = (page: Page) => topBar(page).getByRole("button", { name: fr.fiche.activity, exact: true });
+const activityButton = (page: Page) => topBar(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 const column = (page: Page) => page.getByRole("complementary", { name: fr.fiche.activity, exact: true });
 const contextBar = (page: Page) => column(page).getByRole("group", { name: bar.title });
 
@@ -86,9 +86,9 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     const page = await signedIn(browser, newAddress("conversation-activity"));
     await page.goto("/");
 
-    // « Activité » in place of AI Activity's button; the column closed.
+    // AI Activity's button is the Top Bar's « Activité » (#809): one button, the column closed.
+    await expect(activityButton(page)).toHaveCount(1);
     await expect(activityButton(page)).toHaveAttribute("aria-expanded", "false");
-    await expect(topBar(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) })).toHaveCount(0);
     await expect(column(page)).toHaveCount(0);
 
     // Opened: beside the conversation, never over it, with no heading nor ✕; the Context bar empty before the coach's first

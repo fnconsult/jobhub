@@ -25,6 +25,18 @@ async function creationOf(page: Page) {
   const entry = await unfoldedEntryOf(page, new RegExp(`^${kinds.profile_creation}$`));
   return { entry, parts: entry.getByRole("list", { name: history.parts }).locator("> li") };
 }
+const q = fr.questionnaire.questions;
+const transcript = (page: Page) => page.getByRole("list", { name: fr.questionnaire.transcript });
+
+/** Answers the Onboarding Questionnaire's `question`, once it is asked: in the box, or « Passer ». */
+async function reply(page: Page, question: string, value: string | "skip") {
+  await expect(transcript(page).getByRole("listitem").last()).toContainText(question);
+  if (value === "skip") await page.getByRole("button", { name: fr.questionnaire.skip }).click();
+  else {
+    await page.getByLabel(fr.questionnaire.answerLabel).fill(value);
+    await page.getByRole("button", { name: fr.questionnaire.send, exact: true }).click();
+  }
+}
 const partKinds = (parts: Locator) => parts.evaluateAll((items) => items.map((item) => (item as HTMLElement).dataset.kind));
 
 test.describe("« Création du profil » in Activity (#810)", () => {
@@ -79,37 +91,32 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await expect(activityOf(page).locator(".activity-entry-title").getByText(kinds.master_cv, { exact: true })).toHaveCount(0);
   });
 
-  test("the Onboarding Questionnaire: its answers counted, « Questions écrites par Jobbbox », « Sans IA », gone after a reload", async ({ page }) => {
+  test("the Onboarding Questionnaire: two answers counted, « Questions écrites par Jobbbox », « Sans IA », then saved, gone after a reload", async ({ page }) => {
     test.setTimeout(120_000);
     await signInWithMagicLink(page, newAddress("activity-profile-creation-questionnaire"));
     await page.goto("/profils/nouveau");
     await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
-    const box = page.getByRole("textbox", { name: fr.questionnaire.answerLabel, exact: true });
-    // Two answers, then the third the questionnaire requires; every other question skipped.
-    await box.fill("Marie Dupont");
-    await box.press("Enter");
-    await box.fill("Directrice financière");
-    await box.press("Enter");
+    // Two answers: « Création du profil » counts them, the questions written by Jobbbox, without AI.
+    await reply(page, q.fullName, "Marie Dupont");
+    await reply(page, q.targetRole, "Directrice financière");
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(q.location);
     await openActivity(page);
     const answering = await creationOf(page);
     expect(await partKinds(answering.parts)).toEqual(["questionnaire"]);
     await expect(answering.parts.first()).toContainText(`${history.writtenByJobbbox} · ${history.results.answered_other.replace("{{count}}", "2")} · ${history.cost.noAi}`);
 
-    await box.fill("Lyon");
-    await box.press("Enter");
-    const skip = page.getByRole("button", { name: fr.questionnaire.skip, exact: true });
-    while (!(await page.getByRole("heading", { level: 2, name: fr.cvReview.title }).isVisible())) {
-      await expect(skip.or(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).first()).toBeVisible();
-      if (await skip.isVisible()) await skip.click();
-    }
+    // The third answer a Profile needs; every other question skipped.
+    await reply(page, q.location, "Lyon");
+    for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
+    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     await page.getByRole("button", { name: fr.cvReview.save }).click();
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
 
     await openActivity(page);
     const saved = await creationOf(page);
     expect(await partKinds(saved.parts)).toEqual(["questionnaire", "review", "profile_created"]);
-    await expect(saved.parts.first()).toContainText(history.results.answered_other.replace("{{count}}", "3"));
+    await expect(saved.parts.first()).toContainText(`${history.results.answered_other.replace("{{count}}", "3")} · ${history.results.skipped_other.replace("{{count}}", "7")}`);
     await expect(saved.entry.locator(".activity-entry-row")).toContainText(history.cost.noAi);
 
     await page.reload();

@@ -176,7 +176,8 @@ describe("the Maestro flows (#705)", () => {
       const typed = valuesOf(commands, ["inputText"]) as string[];
       for (const value of typed) {
         const attempt = retried.find((retry) => valuesOf(retry.commands, ["inputText"]).includes(value));
-        const checked = attempt ? (valuesOf(attempt.commands, ["assertVisible"]) as string[]) : [];
+        // Asserted, or waited for a few seconds while iOS finishes typing it.
+        const checked = attempt ? ([...valuesOf(attempt.commands, ["assertVisible"]), ...(valuesOf(attempt.commands, ["extendedWaitUntil"]) as { visible?: string }[]).map((wait) => wait.visible)] as string[]) : [];
         expect(checked.map((shown) => shown.replace(/\\(.)/g, "$1"))).toEqual([value]);
       }
     },

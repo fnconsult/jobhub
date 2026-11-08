@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Modal, Pressable, View, useWindowDimensions, type AccessibilityActionEvent, type GestureResponderEvent, type PointerEvent } from "react-native";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
-import { AppText } from "./AppText";
+import { AppText, CappedTextScale, ROW_MAX_SCALE } from "./AppText";
 import { isSecondaryClick, usePointerHover } from "./pointer";
 
 /** One of a row's actions, in its context menu and its accessibility actions. */
@@ -74,9 +74,11 @@ export function ObjectRow({
       >
         {Icon ? <Icon color={current ? colors.accent : colors.secondary} size={20} aria-hidden /> : null}
         <View style={{ flex: 1 }}>
-          <AppText weight={current ? "semiBold" : "regular"} lines={2}>
-            {label}
-          </AppText>
+          <CappedTextScale scale={ROW_MAX_SCALE}>
+            <AppText weight={current ? "semiBold" : "regular"} lines={2}>
+              {label}
+            </AppText>
+          </CappedTextScale>
         </View>
         {count && count.value > 0 ? (
           <View style={{ minWidth: space[6], paddingHorizontal: space[2], borderRadius: radius.control, backgroundColor: colors.accent, alignItems: "center" }}>

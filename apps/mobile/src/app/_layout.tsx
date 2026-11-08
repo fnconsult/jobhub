@@ -7,7 +7,6 @@ import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { KeyboardAvoidingView, Platform } from "react-native";
 import { initialWindowMetrics } from "react-native-safe-area-context";
 import { useApplication, useProfile } from "../api/reads";
 import { AppLock } from "../app-lock/AppLock";
@@ -15,6 +14,7 @@ import { AppProviders } from "../app-providers";
 import { startCrashReports } from "../crash-reports";
 import { createDocumentReader } from "../documents/document-reader";
 import { forgetDocuments, systemDocuments } from "../documents/system-documents";
+import { AboveKeyboard } from "../keyboard/above-keyboard";
 import { deviceI18n } from "../i18n";
 import { LegalSteps } from "../legal/LegalSteps";
 import { deviceNetwork, deviceStorage } from "../offline/device";
@@ -41,9 +41,6 @@ const DEVICE = { storage: deviceStorage, network: deviceNetwork };
 startCrashReports({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN, development: __DEV__ });
 // A Push notification arriving while the app is open shows as a banner (#699).
 showNotificationsInForeground();
-
-/** The box stays above the keyboard: iOS lays the page out again, Android resizes the window itself. */
-const KEYBOARD = Platform.OS === "ios" ? "padding" : undefined;
 
 /**
  * The app's root: Inter loaded (its three weights alone, bundled with the app), the device's language, the system's
@@ -114,9 +111,9 @@ function PagesInShell() {
       onUp={(path) => router.navigate(path)}
       actions={<ClearConversation />}
     >
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={KEYBOARD}>
+      <AboveKeyboard>
         <Stack screenOptions={{ headerShown: false }} />
-      </KeyboardAvoidingView>
+      </AboveKeyboard>
     </Shell>
   );
 }

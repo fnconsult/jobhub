@@ -66,10 +66,10 @@ export function InterviewForm({
     <View style={{ gap: space[3] }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[3] }}>
         <View style={{ flexGrow: 1, flexBasis: 140 }}>
-          <Field label={t("mobile.applications.interviewDate")} value={draft.date} onChangeText={change.date} {...DAY_KEYS} />
+          <Field testID="interview-date" label={t("mobile.applications.interviewDate")} value={draft.date} onChangeText={change.date} {...DAY_KEYS} />
         </View>
         <View style={{ flexGrow: 1, flexBasis: 100 }}>
-          <Field label={t("mobile.applications.interviewTime")} value={draft.time} onChangeText={change.time} {...DAY_KEYS} />
+          <Field testID="interview-time" label={t("mobile.applications.interviewTime")} value={draft.time} onChangeText={change.time} {...DAY_KEYS} />
         </View>
       </View>
       <FieldError message={refused.scheduledAt} />
@@ -92,11 +92,12 @@ export function InterviewForm({
         <FieldError message={refused.format} />
       </View>
       <Field label={t("application.interviewPlace")} hint={t("application.interviewPlaceHint")} value={draft.place} onChangeText={change.place} maxLength={500} error={refused.place} />
-      <Field label={t("application.interviewNote")} hint={t("application.interviewNoteHint")} value={draft.note} onChangeText={change.note} maxLength={500} error={refused.note} />
+      <Field testID="interview-note" label={t("application.interviewNote")} hint={t("application.interviewNoteHint")} value={draft.note} onChangeText={change.note} maxLength={500} error={refused.note} />
       {failed ? <FieldError message={t("application.error")} /> : null}
       {online ? null : <AppText tone="secondary">{t("mobile.offline.writeDisabled")}</AppText>}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
         <Control
+          testID="interview-submit"
           look="primary"
           label={working ? t("application.working") : t(interview ? "application.saveInterview" : "application.addInterview")}
           disabled={working || !online}

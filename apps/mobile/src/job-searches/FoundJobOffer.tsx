@@ -10,7 +10,7 @@ import { paths } from "../navigation/pages";
 import { OfferDecision, useDismissalNotice, useFollowJobOffer, useOfferBoxDecisions } from "../offer-box/decisions";
 import { useWorkPane } from "../shell/Shell";
 import { radius, space, useTheme } from "../theme/theme";
-import { AppText } from "../ui/AppText";
+import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { ObjectRow } from "../ui/ObjectRow";
 
@@ -43,6 +43,7 @@ export function FoundJobOffers({ jobOffers, profile, share }: { jobOffers: reado
                 shareLinkAction(t("mobile.rowMenu.shareLink"), share(jobOffer.id)),
               ]}
             />
+            <CappedTextScale scale={ROW_MAX_SCALE}>
             <View style={{ paddingHorizontal: space[3] }}>
               <AppText variant="meta" tone="secondary">
                 {[found.matchScore === null ? t("offerBox.noScore") : t("offerBox.score", { score: found.matchScore }), jobOffer.location, found.applicationId ? t("offerBox.followed") : found.decision === "dismissed" ? t("offerBox.dismissed") : null]
@@ -50,6 +51,7 @@ export function FoundJobOffers({ jobOffers, profile, share }: { jobOffers: reado
                   .join(" · ")}
               </AppText>
             </View>
+            </CappedTextScale>
           </View>
         );
       })}

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AiActivityButton } from "@/components/AiActivity";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
 import { buttonClass } from "@/design/Button";
@@ -67,9 +66,9 @@ function setHidden(hidden: boolean) {
  * The sidebar layout (#132, #134), whatever the sidebar holds: a skip link, the
  * sidebar (brand and the button hiding it, `top` and the `nav` scrolling under it, the foot pinned at the bottom,
  * signing out), the Top
- * Bar with the Menu button, the page's `title`, the AI Activity button and the
- * Coach Panel button (or `topBarEnd` in its place), and the page as `<main>`, `beside` it (the Work Pane, the Fiche or the Activité column; AI Activity
- * only inside an AiActivityProvider: Candidate pages, never the Back Office). `title` is the page's `<h1>`: a string, or an element that
+ * Bar with the Menu button, the page's `title` and `topBarEnd` (the Candidate's « Fiche », AI Activity's button, « Effacer »
+ * or « Aide », #809; the Back Office Assistant's button), and the page as `<main>`, `beside` it (the Work Pane, the Fiche or
+ * the Activité column). `title` is the page's `<h1>`: a string, or an element that
  * is one itself (an editable title). Pages never render their own (ADR-0024).
  *
  * On a wide screen the sidebar sits beside the page and can be hidden
@@ -88,7 +87,6 @@ export function SidebarShell({
   title,
   wide = false,
   topBarEnd,
-  topBarActivity = <AiActivityButton />,
   beside,
   pageInert = false,
   signOut = true,
@@ -103,8 +101,6 @@ export function SidebarShell({
   wide?: boolean;
   /** The Top Bar's last buttons: the Back Office Assistant's; « Effacer » on the Candidate's pages (#601). */
   topBarEnd?: ReactNode;
-  /** AI Activity's button, before `topBarEnd`; none on an object's page, whose Fiche shows its Activity (#603). */
-  topBarActivity?: ReactNode;
   /** The columns beside the page, never over it: the Work Pane under « Conversation au centre » (#602), and an object's Fiche (#603). */
   beside?: ReactNode;
   /** A column open over the page, full screen on a phone (#608): the Top Bar and the page are out of reach behind it. */
@@ -349,7 +345,6 @@ export function SidebarShell({
                   </>
                 )}
               </div>
-              {topBarActivity}
               {topBarEnd}
             </header>
             <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"} inert={pageInert || undefined}>

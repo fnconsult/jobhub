@@ -28,7 +28,7 @@ import { paths } from "../navigation/pages";
 import { OfferBox } from "../offer-box/OfferBox";
 import { ReadState } from "../screens/ReadState";
 import { radius, space, useTheme } from "../theme/theme";
-import { AppText } from "../ui/AppText";
+import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { ObjectRow } from "../ui/ObjectRow";
 
@@ -249,6 +249,7 @@ export function ApplicationsMenu() {
                             ),
                           ]}
                         />
+                        <CappedTextScale scale={ROW_MAX_SCALE}>
                         <AppText variant="meta" tone="secondary">
                           {[
                             t(`applicationStatuses.${row.status}`),
@@ -265,6 +266,7 @@ export function ApplicationsMenu() {
                             .filter(Boolean)
                             .join(" · ")}
                         </AppText>
+                        </CappedTextScale>
                       </View>
                     );
                   })}

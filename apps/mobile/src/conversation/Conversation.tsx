@@ -7,7 +7,8 @@ import { DropTarget } from "../attach/DropTarget";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { useOnline } from "../offline/read-cache";
 import { INTER, radius, space, TARGET, type, useTheme } from "../theme/theme";
-import { AppText } from "../ui/AppText";
+import { TAPS_REACH_CONTROLS } from "../session/GateScreen";
+import { AppText, BAR_MAX_SCALE, CappedTextScale, WHOLE_FROM_FONT_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 
@@ -66,6 +67,13 @@ export function Conversation({
   // Under a page's own view (`lead`), the page opens on it: nothing follows until something is sent.
   const following = useRef(lead === undefined);
   const [attaching, setAttaching] = useState(false);
+  // From the size where texts are shown whole, the box's own button (« Envoyer », « Arrêter ») is its icon, named by its
+  // words: in words, at iOS's largest size on an iPhone SE, it took the whole box, cut in two and past the screen's edge,
+  // and left the message field no width (#705).
+  const buttonIconOnly = fontScale >= WHOLE_FROM_FONT_SCALE;
+  // And what sits under the box (the Signalement links) ends the thread, which scrolls to it: pinned under the box, it
+  // took most of an iPhone SE's height at iOS's largest size, and left the thread, the page's own view with it, a strip.
+  const belowBoxInThread = fontScale >= WHOLE_FROM_FONT_SCALE;
   const choose = (chosen: () => void) => {
     setAttaching(false);
     chosen();
@@ -84,6 +92,7 @@ export function Conversation({
     <View style={{ flex: 1 }}>
       <ScrollView
         ref={thread}
+        testID="conversation-thread"
         aria-label={t("coachPanel.messagesLabel")}
         onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => (following.current = atEnd(event.nativeEvent))}
         scrollEventThrottle={100}
@@ -93,10 +102,25 @@ export function Conversation({
         <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>
           {lead}
           {children}
+          {belowBoxInThread ? belowBox : null}
         </View>
       </ScrollView>
-      <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2], gap: space[1] }}>
-        {aboveBox}
+      {/* What sits above the box (suggestions, the help found while typing) scrolls and shrinks when the thread leaves it
+          too little room: the box keeps its own, above the keyboard and on the screen, at any text size (#705). */}
+      {/* The box is the conversation's bar: its texts grow up to twice their size, as the shell's bars do (BAR_MAX_SCALE)
+          and iOS's own. Growing freely, it took 272 of an iPhone SE's 667 points at the largest size, and left the
+          thread less than an Application's card title (#705). */}
+      <CappedTextScale scale={BAR_MAX_SCALE}>
+        <View testID="conversation-box" style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", flexShrink: 1, paddingBottom: space[2], gap: space[1] }}>
+        {/* For the e2e flows (#705), a line a touch target above the box: an element of the thread whose top is above it
+            has room for its tap above the box. Maestro compares elements by their tops only, and a button whose top was
+            just above the box's had its centre, where Maestro taps, in it. Laid over nothing, touched by nothing. */}
+        <View testID="conversation-tap-line" style={{ position: "absolute", left: 0, right: 0, top: -TARGET, height: 1, pointerEvents: "none" }} />
+        {aboveBox ? (
+          <ScrollView testID="conversation-above-box" style={styles.aboveBox} keyboardShouldPersistTaps={TAPS_REACH_CONTROLS}>
+            {aboveBox}
+          </ScrollView>
+        ) : null}
         {online ? null : (
           <AppText variant="meta" tone="secondary">
             {t("mobile.offline.conversationDisabled")}
@@ -128,6 +152,7 @@ export function Conversation({
           <Control label={t("mobile.attach")} icon={Plus} iconOnly expanded={attaching && online} disabled={!online} onPress={() => setAttaching((open) => !open)} />
           <TextInput
             ref={inputRef}
+            testID="coach-message"
             aria-label={t("coachPanel.messageLabel")}
             placeholder={t("coachPanel.messageLabel")}
             placeholderTextColor={colors.meta}
@@ -135,6 +160,7 @@ export function Conversation({
             onChangeText={onDraftChange}
             editable={online}
             aria-disabled={!online}
+            maxFontSizeMultiplier={BAR_MAX_SCALE}
             multiline
             style={{
               flex: 1,
@@ -148,13 +174,14 @@ export function Conversation({
             }}
           />
           {streaming ? (
-            <Control label={t("coachPanel.stop")} icon={Square} look="secondary" onPress={onStop} />
+            <Control label={t("coachPanel.stop")} icon={Square} iconOnly={buttonIconOnly} look="secondary" onPress={onStop} />
           ) : (
-            <Control label={t("mobile.send")} icon={Send} look="primary" disabled={!online} onPress={send} />
+            <Control label={t("mobile.send")} icon={Send} iconOnly={buttonIconOnly} look="primary" disabled={!online} onPress={send} />
           )}
         </DropTarget>
-        {belowBox}
-      </View>
+        {belowBoxInThread ? null : belowBox}
+        </View>
+      </CappedTextScale>
     </View>
   );
 }
@@ -188,4 +215,5 @@ function MenuItem({ label, icon: Icon, onPress }: { label: string; icon: LucideI
 const styles = StyleSheet.create({
   // The thread sits on the box, the latest message just above it, as in a messaging app.
   thread: { flexGrow: 1, justifyContent: "flex-end", paddingVertical: space[4] },
+  aboveBox: { flexGrow: 0, flexShrink: 1 },
 });

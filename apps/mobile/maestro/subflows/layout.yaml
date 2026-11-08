@@ -1,0 +1,17 @@
+# The shell's layout the run expects (devices.ts, from src/shell/disposition.ts): the Sidebar a column beside the
+# conversation (« Masquer le menu »), or a drawer behind « Menu », the panes then full page. At the largest text size,
+# the columns of a tablet go full page.
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - assertVisible: "Masquer le menu"
+      - assertNotVisible: "Menu"
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - assertVisible: "Menu"
+      - assertNotVisible: "Masquer le menu"

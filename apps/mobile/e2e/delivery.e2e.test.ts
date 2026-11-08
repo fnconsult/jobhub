@@ -98,6 +98,45 @@ describe("EAS Build profiles", () => {
   });
 });
 
+describe("The Maestro e2e build (#705)", () => {
+  const saved = { flag: process.env.JOBHUB_E2E_BUILD, url: process.env.EXPO_PUBLIC_WEB_APP_URL };
+  afterEach(() => {
+    for (const [name, value] of [["JOBHUB_E2E_BUILD", saved.flag], ["EXPO_PUBLIC_WEB_APP_URL", saved.url]] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+  const buildProperties = (config: ExpoConfig) =>
+    (config.plugins ?? []).find((plugin): plugin is [string, { android?: Record<string, unknown> }] => Array.isArray(plugin) && plugin[0] === "expo-build-properties")?.[1];
+  const e2eBuild = (url: string) => {
+    process.env.JOBHUB_E2E_BUILD = "1";
+    process.env.EXPO_PUBLIC_WEB_APP_URL = url;
+    return resolve();
+  };
+
+  it("reaches the seeded stack on the CI machine over plain HTTP: iOS's local networking, Android's cleartext", () => {
+    const config = e2eBuild("http://localhost:3705");
+    expect(config.ios?.infoPlist?.NSAppTransportSecurity).toEqual({ NSAllowsLocalNetworking: true });
+    expect(buildProperties(config)?.android).toEqual({ minSdkVersion: 24, usesCleartextTraffic: true });
+    // The rest of the Info.plist stays app.json's.
+    expect(config.ios?.infoPlist?.UISupportedInterfaceOrientations).toEqual(["UIInterfaceOrientationPortrait"]);
+  });
+
+  it("is never what a store build gets: no plain HTTP without JOBHUB_E2E_BUILD", () => {
+    delete process.env.JOBHUB_E2E_BUILD;
+    const config = resolve();
+    expect(config.ios?.infoPlist?.NSAppTransportSecurity).toBeUndefined();
+    expect(buildProperties(config)?.android).toEqual({ minSdkVersion: 24 });
+    for (const profile of Object.values(eas.build as Record<string, { env: Record<string, string> }>)) expect(profile.env.JOBHUB_E2E_BUILD).toBeUndefined();
+  });
+
+  it("points only at the machine it runs on", () => {
+    expect(() => e2eBuild("https://staging.jobbbox.ai")).toThrow(/localhost/);
+    expect(() => e2eBuild("http://192.168.1.20:3000")).toThrow(/localhost/);
+    expect(() => e2eBuild("http://127.0.0.1:3705")).not.toThrow();
+  });
+});
+
 describe("EAS Update", () => {
   it("has a staging channel and a production channel, the only ones a build listens to", () => {
     const channels = Object.values(eas.build as Record<string, { channel?: string }>).flatMap((profile) => profile.channel ?? []);

@@ -1,0 +1,13 @@
+# Opens the page's Fiche: a column already open on a wide window, full page behind « Fiche » otherwise, closed by its
+# « Fermer » (ADR-0009).
+appId: ai.jobbbox.app
+---
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Fiche"
+      - assertVisible: "Fermer"
+- extendedWaitUntil:
+    visible: "Statut"
+    timeout: 20000

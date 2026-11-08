@@ -1,0 +1,87 @@
+# The key screens, each compared with its reference capture (subflows/capture.yaml): the home page, Mes candidatures, an
+# Application's Fiche, Recherches d'offres (its Offer box), the Agenda and a conversation. Run in every theme and at the largest text
+# size, where a tablet's columns go full page (subflows/layout.yaml, subflows/fiche.yaml) and no text is cut.
+appId: ai.jobbbox.app
+name: Écrans clés et leurs captures de référence
+tags:
+  - key-screens
+---
+- runFlow: ../subflows/launch.yaml
+- runFlow: ../subflows/layout.yaml
+- runFlow: ../subflows/conversation-end.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: accueil
+# The box whole, in every theme and at the largest text size: « + », the message field and « Envoyer », its icon alone
+# from 130 % on, named by its word (#835: on Android the box showed « + » only).
+- assertVisible: "Joindre un lien ou un document"
+- assertVisible:
+    id: "coach-message"
+- assertVisible: "Envoyer"
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Mes candidatures"
+# Captured as it opens, on its latest message, where the thread stops scrolling, as the Agenda: scrolled to its
+# Applications, the screen stopped some points apart from one run to the next at the largest text size (96.6 % of the
+# reference on a folded foldable, run 42472408161). Its card is above, scrolled to for the Fiche.
+- runFlow: ../subflows/conversation-end.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: candidatures
+
+- runFlow:
+    file: ../subflows/conversation-scroll.yaml
+    env:
+      TEXT: "Responsable qualité · Aéroline Démo"
+      DIRECTION: UP
+- tapOn: "Responsable qualité · Aéroline Démo"
+- runFlow: ../subflows/fiche.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: fiche
+- runFlow: ../subflows/close-fiche.yaml
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Recherches d'offres"
+# Recherches d'offres opens on its Offer box (ADR-0090), its conversation below it: captured once the seeded Job Offers
+# are read, both à traiter (« Toutes », the first chip).
+- extendedWaitUntil:
+    visible: "Toutes, 2 à traiter"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: recherches
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Agenda"
+- runFlow: ../subflows/conversation-end.yaml
+# Captured as it opens, on its latest message, where the thread stops scrolling: scrolled up to its card, a few steps
+# from the end at the largest text size, the screen stopped some points apart from one run to the next (3 on a folded
+# foldable, 13 on an iPhone SE: 97 % of the reference, run 42452896482). The Interview's line is found by 6-agenda.yaml.
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: agenda
+
+- runFlow:
+    file: ../subflows/menu.yaml
+    env:
+      MENU: "Préparer mon entretien chez Aéroline"
+- extendedWaitUntil:
+    visible: "Joindre un lien ou un document"
+    timeout: 20000
+- runFlow: ../subflows/conversation-end.yaml
+- runFlow:
+    file: ../subflows/capture.yaml
+    env:
+      SCREEN: conversation

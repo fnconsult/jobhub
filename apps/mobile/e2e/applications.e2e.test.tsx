@@ -9,6 +9,7 @@ import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { Alert, Dimensions, Linking, type AlertButton } from "react-native";
 import { fakeCoachWeb, withCoach } from "../src/coach/testing";
+import { ROW_MAX_SCALE } from "../src/ui/AppText";
 import { serveApplications, type ApplicationsRoute, type HeldApplication } from "./applications-web";
 
 jest.setTimeout(60_000);
@@ -177,6 +178,19 @@ describe("Mes candidatures, the list", () => {
     const title = await screen.findByRole("link", { name: "Responsable logistique" });
     await userEvent.setup().press(title);
     expect(screen).toHavePathname("/candidatures");
+  });
+});
+
+// At iOS's largest text size on an iPhone SE, a row and its line grew freely and broke words mid-word (« Aéroli / ne »),
+// the row taller than the screen (#705, Maestro). The product owner's choice: they grow up to twice their size.
+describe("Mes candidatures, at a large system text size", () => {
+  it("lets a row and its status line grow up to twice their size", async () => {
+    const size = { width: 375, height: 667, scale: 2, fontScale: 3.571 };
+    Dimensions.set({ window: size, screen: size });
+    await launch("/candidatures");
+    const status = await screen.findByText("Postulée · Score de correspondance 82 · Relance prête");
+    expect(status.props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
+    expect(screen.getByText("Responsable logistique · Rhône Distribution").props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
   });
 });
 

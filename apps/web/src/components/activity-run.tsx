@@ -1,26 +1,63 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useMemo, type ReactNode } from "react";
+import { useContext, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { liveView } from "@/ai-activity/live";
-import { StopButton } from "@/components/AiActivity";
-import { useAiActivityLive } from "@/components/AiActivityLive";
+import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { AiActivityControl, BEFORE_FIRST_STEP, StepWords, StopButton, useSummary } from "@/components/AiActivity";
+import { useActivityColumn } from "@/components/activity-column";
+import { Icons } from "@/components/icons";
+import { TOP_BAR_RANK, useTopBarAction } from "@/components/top-bar";
 
-const NO_ACTIONS: never[] = [];
+const NO_ENTRIES: never[] = [];
 
 /**
- * The Candidate's AI action under way on this page (#333), as the compact Top Bar's « Activité » shows it while it runs
- * (#897): its name, « Activité IA » and the step under way (« Démarrage » before its first, « Arrêt en cours… » once
- * stopped), and its stop icon (#369). Null when none runs, or outside AiActivityLiveProvider.
+ * AI Activity's button, « Activité », as the compact Top Bar has it on a phone (#897): under « … », or the icon shown on a
+ * page with no main action of its own, and while one of the Candidate's AI actions runs on this page (#333), back under
+ * « … » when it ends. It calls the very toggle AI Activity's button calls (useActivityColumn, #809), and is named as that
+ * button is: « Activité IA », then, while Activity is not shown, the page's summary or the step under way (StepWords);
+ * « Activité IA » its tooltip. While an action runs, its live glyph, and its stop icon before it (StopButton, #369),
+ * not while Activity is shown, which has it. Offers nothing outside AiActivityProvider or without a column, where AI
+ * Activity's button renders nothing. Returns what useTopBarAction returns, for FicheButtons to render.
  */
-export function useActivityRun(): { name: string; stop: ReactNode } | null {
+export function useActivityTopBarAction(): ReactNode {
   const { t } = useTranslation();
-  const live = useAiActivityLive();
-  const pathname = usePathname();
-  const actions = live?.actions ?? NO_ACTIONS;
-  const underWay = useMemo(() => liveView(actions, pathname).underWay, [actions, pathname]);
-  if (!live || !underWay) return null;
-  const step = underWay.status === "stopping" ? t("aiActivity.live.stopping") : underWay.current ? t(`aiActivity.steps.${underWay.current.label}`) : t("aiActivity.live.starting");
-  return { name: `${t("aiActivity.label")} ${step}`, stop: <StopButton action={underWay} stop={live.stop} /> };
+  const control = useContext(AiActivityControl);
+  const column = useActivityColumn();
+  const summary = useSummary(control?.entries ?? NO_ENTRIES);
+  const underWay = control?.live.underWay ?? null;
+  const stop = control?.stop;
+  const shown = column?.shown ?? false;
+  const label = t("aiActivity.label");
+  // Made again only when they change: the Top Bar is told of a change only then.
+  const look = useMemo(() => {
+    const words = shown ? null : underWay ? <StepWords action={underWay} /> : summary;
+    return {
+      name:
+        words === null ? (
+          label
+        ) : (
+          <>
+            {label} {words}
+          </>
+        ),
+      glyph: underWay ? <ActivityGlyph activity={underWay.current?.activity ?? BEFORE_FIRST_STEP} live /> : null,
+      beside: underWay && stop && !shown ? <StopButton action={underWay} stop={stop} /> : null,
+    };
+  }, [underWay, stop, shown, summary, label]);
+  return useTopBarAction(
+    control && column
+      ? {
+          id: "activity",
+          rank: TOP_BAR_RANK.activity,
+          label: t("fiche.activity"),
+          tooltip: label,
+          icon: Icons.aiActivity,
+          run: column.toggle,
+          expanded: column.shown,
+          controls: column.controls,
+          running: underWay !== null,
+          ...look,
+        }
+      : null,
+  );
 }

@@ -719,7 +719,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     expect(scored.ok(), await scored.text()).toBe(true);
     const activity = page
       .getByRole("banner")
-      .getByRole("button", { name: fr.fiche.activity, exact: true });
+      .getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
     for (const { name, width, height } of SCREENSHOT_WIDTHS) {
       await page.setViewportSize({ width, height });
       await page.goto(`/profils/${id}`);

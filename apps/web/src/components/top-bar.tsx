@@ -1,7 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { createContext, useContext, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
+import { createContext, useContext, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 
@@ -14,12 +14,16 @@ export type TopBarAction = {
   id: string;
   /** Which is shown: the lowest rank (TOP_BAR_RANK), unless one is `running`; under « … », in rank order. */
   rank: number;
-  /** Its words in « … », and the icon's name. */
+  /** Its words in « … », and the icon's name and tooltip. */
   label: string;
+  /** The icon's tooltip when it is not its words (« Activité IA », as on AI Activity's button, #809). */
+  tooltip?: string;
   icon: ComponentType;
+  /** Drawn in the icon's place while it is the one shown (Activité's live glyph while an AI action runs, #333). */
+  glyph?: ReactNode;
   run: () => void;
-  /** The icon's name when it says more than its words (Activité with the step under way). */
-  name?: string;
+  /** The icon's name when it is not its words: « Activité IA », and the page's summary or the step under way (#369, #809). */
+  name?: ReactNode;
   /** Shown before the icon while it is the one shown (Activité's stop icon, #369). */
   beside?: ReactNode;
   /** A toggle's state, and what it opens. */
@@ -161,24 +165,36 @@ export function useTopBarPrimary(action: Omit<TopBarAction, "rank"> | null): voi
 }
 
 /**
- * An action as an icon alone, named by its words (its `aria-label` and tooltip). `beforeHydration`: drawn before the page
- * knows its width, when a click would do nothing, so it says it is unavailable (#446) while looking as it will.
+ * An action as an icon alone, named by its words (its `aria-label` and tooltip), or by its `name` when it has one (its
+ * `aria-labelledby`). `beforeHydration`: drawn before the page knows its width, when a click would do nothing, so it says
+ * it is unavailable (#446) while looking as it will.
  */
 function ActionIcon({ action, className, beforeHydration = false }: { action: TopBarAction; className: string; beforeHydration?: boolean }) {
+  const nameId = useId();
+  const named = action.name !== undefined && action.name !== null;
   return (
-    <button
-      className={className}
-      type="button"
-      aria-label={action.name ?? action.label}
-      title={action.label}
-      aria-expanded={action.expanded}
-      aria-controls={action.controls}
-      aria-disabled={beforeHydration || undefined}
-      disabled={action.disabled}
-      onClick={action.run}
-    >
-      <action.icon />
-    </button>
+    <>
+      {/* Its name, outside it: the icon alone shows no words. */}
+      {named ? (
+        <span id={nameId} hidden>
+          {action.name}
+        </span>
+      ) : null}
+      <button
+        className={className}
+        type="button"
+        aria-label={named ? undefined : action.label}
+        aria-labelledby={named ? nameId : undefined}
+        title={action.tooltip ?? action.label}
+        aria-expanded={action.expanded}
+        aria-controls={action.controls}
+        aria-disabled={beforeHydration || undefined}
+        disabled={action.disabled}
+        onClick={action.run}
+      >
+        {action.glyph ?? <action.icon />}
+      </button>
+    </>
   );
 }
 

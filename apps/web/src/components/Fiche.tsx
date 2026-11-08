@@ -4,14 +4,13 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AiActivityContent, useAiActivityUnderWay } from "@/components/AiActivity";
-import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { AiActivityButton, AiActivityContent } from "@/components/AiActivity";
 import { ActivityColumnControl, type ActivityColumn } from "@/components/activity-column";
 import { ContextBar } from "@/components/ContextBar";
 import { EnCeMoment } from "@/components/EnCeMoment";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
-import { useActivityRun } from "@/components/activity-run";
+import { useActivityTopBarAction } from "@/components/activity-run";
 import { TOP_BAR_RANK, useTopBarAction, useTopBarMode } from "@/components/top-bar";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
@@ -69,8 +68,6 @@ const MAIN_ID = "main";
 const SECTIONS: FicheGroup = "sections";
 const ACTIVITY: FicheGroup = "activity";
 const RESULTS: FicheGroup = "results";
-/** The glyph « Activité » shows while an AI action of the page is under way, before its step is known. */
-const UNDER_WAY = "think";
 
 /** Calls `onChange` when the screen crosses 64rem: below it, the columns open over the conversation, full screen (#608). */
 function onWideChange(onChange: () => void) {
@@ -155,7 +152,7 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
     back?.focus();
   }, [state.open]);
   const control = useMemo<Control>(() => {
-    // « Fiche » and « Activité » act on what is shown: a Fiche that has given way is brought back, in the Work Pane's place.
+    // « Fiche » and AI Activity's button act on what is shown: a Fiche that has given way is brought back, in the Work Pane's place.
     const shown = { ...state, open: state.open && !givenWay };
     const bringBack = () => {
       if (givenWay) workPane?.close();
@@ -186,10 +183,14 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
       },
     };
   }, [object, state, givenWay, workPane, ficheId, activityAsked, wide]);
-  // « Dans l'activité » opens it on its Activity; « Voir dans la conversation » closes it where it covers the conversation (#808).
+  // AI Activity's button shows or hides it (#809); « Dans l'activité » opens it on its Activity; « Voir dans la
+  // conversation » closes it where it covers the conversation (#808).
   const column = useMemo<ActivityColumn>(() => {
     const shown = { ...state, open: state.open && !givenWay };
     return {
+      shown: object ? activityShown(shown) : shown.open,
+      toggle: control.toggleActivity,
+      controls: shown.open ? control.ficheId : undefined,
       open: () => {
         setActivityAsked((n) => n + 1);
         if (object ? activityShown(shown) : shown.open) return;
@@ -202,7 +203,7 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
         setChanged({ ...state, open: false });
       },
     };
-  }, [object, state, givenWay, workPane, wide]);
+  }, [object, state, givenWay, workPane, wide, control]);
   return (
     <FicheControl.Provider value={control}>
       <ActivityColumnControl.Provider value={column}>{children}</ActivityColumnControl.Provider>
@@ -211,77 +212,40 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
 }
 
 /**
- * « Fiche » and « Activité » in the Top Bar of an object's page (#603): they alone open and close the Fiche, « Activité »
- * on its Activity group, its glyph live while an AI action of the page is under way. On the home page and the menus
- * (#607), « Activité » alone, which opens and closes the Activité column. Nothing outside a FicheProvider. On a phone,
- * nothing: they offer their toggles to the compact Top Bar (#897), « Activité » shown there while an action runs, with its
- * stop icon and the step under way in its name.
+ * « Fiche » and AI Activity's button, « Activité », in the Top Bar of an object's page (#603, #809): they alone open and
+ * close the Fiche, AI Activity's button on its Activity group. On the home page and the menus (#607), AI Activity's button
+ * alone, which opens and closes the Activité column. Nothing outside a FicheProvider. On a phone, nothing: they offer
+ * their toggles to the compact Top Bar (#897), « Activité » shown there while an action runs (useActivityTopBarAction).
  */
 export function FicheButtons() {
   const { t } = useTranslation();
   const control = useContext(FicheControl);
-  const underWay = useAiActivityUnderWay();
-  // On a phone, the compact Top Bar shows them (#897): the same toggles, « Activité » shown while an action runs.
+  // On a phone, the compact Top Bar shows them (#897): the same toggles.
   const mode = useTopBarMode();
-  const run = useActivityRun();
   // What is shown: a Fiche that has given way to the Work Pane is not.
-  const state = control ? { ...control.state, open: control.state.open && !control.givenWay } : null;
-  const activity = state ? activityShown(state) : false;
-  const controls = state?.open ? control?.ficheId : undefined;
+  const open = control ? control.state.open && !control.givenWay : false;
   // While the width is not known, each draws its icon too, which app.css shows on a phone (useTopBarAction).
   const ficheIcon = useTopBarAction(
-    control?.object ? { id: "fiche", rank: TOP_BAR_RANK.fiche, label: t("fiche.label"), icon: Icons.fiche, run: control.toggleFiche, expanded: state?.open ?? false, controls } : null,
-  );
-  const activityIcon = useTopBarAction(
-    control
-      ? {
-          id: "activity",
-          rank: TOP_BAR_RANK.activity,
-          label: t("fiche.activity"),
-          icon: underWay ? UnderWayGlyph : Icons.aiActivity,
-          run: control.toggleActivity,
-          expanded: activity,
-          controls,
-          running: run !== null,
-          ...(run ? { name: run.name, beside: run.stop } : {}),
-        }
+    control?.object
+      ? { id: "fiche", rank: TOP_BAR_RANK.fiche, label: t("fiche.label"), icon: Icons.fiche, run: control.toggleFiche, expanded: open, controls: open ? control.ficheId : undefined }
       : null,
   );
-  if (!control || !state || mode === "compact") return null;
+  const activityIcon = useActivityTopBarAction();
+  if (!control || mode === "compact") return null;
   const { ficheId } = control;
   return (
     <>
       {control.object ? (
-        <button
-          className={`${buttonClass()} topbar-fiche`}
-          type="button"
-          aria-expanded={state.open}
-          aria-controls={state.open ? ficheId : undefined}
-          onClick={control.toggleFiche}
-        >
+        <button className={`${buttonClass()} topbar-fiche`} type="button" aria-expanded={open} aria-controls={open ? ficheId : undefined} onClick={control.toggleFiche}>
           <Icons.fiche />
           {t("fiche.label")}
         </button>
       ) : null}
       {ficheIcon}
-      <button
-        className={`${buttonClass()} topbar-activity`}
-        type="button"
-        aria-expanded={activity}
-        aria-controls={state.open ? ficheId : undefined}
-        onClick={control.toggleActivity}
-      >
-        {underWay ? <ActivityGlyph activity={UNDER_WAY} live /> : <Icons.aiActivity />}
-        {t("fiche.activity")}
-      </button>
+      <AiActivityButton />
       {activityIcon}
     </>
   );
-}
-
-/** « Activité »'s glyph while an AI action of the page is under way. */
-function UnderWayGlyph() {
-  return <ActivityGlyph activity={UNDER_WAY} live />;
 }
 
 /**

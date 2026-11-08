@@ -40,11 +40,14 @@ async function candidateWithProfile(page: Page, label: string): Promise<string> 
 
 const topBarOf = (page: Page) => page.getByRole("banner");
 
-/** The Top Bar's controls in reading order, by their names. */
+/**
+ * The Top Bar's controls in reading order, by their names: an icon's `aria-label`, or its tooltip for « Activité », named as
+ * AI Activity's button is (« Activité IA », then its words, by `aria-labelledby`, #809); a button's words.
+ */
 async function topBarNames(page: Page): Promise<string[]> {
   return topBarOf(page)
     .locator("button:visible, a:visible")
-    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label") ?? (element as HTMLElement).innerText.trim()));
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label") ?? ((element as HTMLElement).innerText.trim() || (element.getAttribute("title") ?? ""))));
 }
 
 /** The Top Bar holds one line: every control and the title on the same row. */
@@ -65,7 +68,7 @@ async function expectNamedTargets(page: Page) {
   const buttons = await topBarOf(page)
     .locator("button:visible")
     .evaluateAll((elements) =>
-      elements.map((element) => ({ name: element.getAttribute("aria-label"), text: (element as HTMLElement).innerText.trim(), box: element.getBoundingClientRect().toJSON() as DOMRect })),
+      elements.map((element) => ({ name: element.getAttribute("aria-label") ?? element.getAttribute("aria-labelledby"), text: (element as HTMLElement).innerText.trim(), box: element.getBoundingClientRect().toJSON() as DOMRect })),
     );
   for (const { name, text, box } of buttons) {
     expect(name, "an icon alone is named").toBeTruthy();
@@ -85,19 +88,21 @@ test.describe("the compact Top Bar on a phone (#897)", () => {
     await page.setViewportSize(PHONE);
     const profile = await candidateWithProfile(page, "top-bar-pages");
     const pages: Array<{ path: string; shown: string; more: string[] }> = [
-      { path: "/", shown: fr.fiche.activity, more: [fr.contextBar.clear] },
+      { path: "/", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
       { path: `/profils/${profile}`, shown: fr.fiche.label, more: [fr.fiche.activity, fr.contextBar.clear] },
-      { path: "/candidatures", shown: fr.fiche.activity, more: [fr.contextBar.clear] },
-      { path: "/recherches", shown: fr.fiche.activity, more: [fr.contextBar.clear] },
-      { path: "/job-digests", shown: fr.fiche.activity, more: [fr.contextBar.clear] },
-      { path: "/agenda", shown: fr.fiche.activity, more: [fr.contextBar.clear] },
-      { path: "/compte", shown: fr.fiche.activity, more: [fr.conversationFirst.help] },
+      { path: "/candidatures", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
+      { path: "/recherches", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
+      { path: "/job-digests", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
+      { path: "/agenda", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
+      { path: "/compte", shown: fr.aiActivity.label, more: [fr.conversationFirst.help] },
     ];
     for (const { path, shown, more } of pages) {
       await page.goto(path);
       await expect(topBarOf(page).getByRole("heading", { level: 1 })).toBeVisible();
       await expect(topBarMoreOf(page)).toBeVisible();
       expect(await topBarNames(page), path).toEqual([fr.sidebar.menu, shown, fr.sidebar.moreActions]);
+      // « Activité » shown: named as AI Activity's button is, « Activité IA » then its words, if any (#809).
+      if (shown === fr.aiActivity.label) await expect(topBarOf(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) })).toBeVisible();
       await expectOneLine(page);
       await expectNamedTargets(page);
       await expectNoAxeViolations(page);
@@ -216,9 +221,9 @@ test.describe("the Top Bar's first paint (#897)", () => {
     const bare = await withoutJavaScript(browser, page, PHONE);
     try {
       for (const { path, shown } of [
-        { path: "/", shown: fr.fiche.activity },
+        { path: "/", shown: fr.aiActivity.label },
         { path: `/profils/${profile}`, shown: fr.fiche.label },
-        { path: "/compte", shown: fr.fiche.activity },
+        { path: "/compte", shown: fr.aiActivity.label },
       ]) {
         // The server's HTML alone: Menu, the title, one action and « … », icons alone; no button with its words.
         await bare.goto(path);

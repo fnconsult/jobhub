@@ -40,6 +40,10 @@ The product owner chose the variant. The prototype's three other questions were 
 - **The « Modèles » block and its Total are removed too**, as variant C has none; the three blocks named above were not the only ones.
 - **A day heading and the « Dans l'activité » button stay at body size** (ADR-0057).
 
+## Amendment (#809)
+
+- **« Keeps its frame » means the Top Bar's « Activité » Button.** The product owner chose, on #902, to merge the AI Activity button into the « Activité » button #603 added, rather than keep a separate icon-only square beside it: two buttons doing the same toggle would be redundant. Its visible label is « Activité », with the live Activity glyph while an action runs; its words and stop icon stay beside it, and its accessible name stays « Activité IA » followed by its words. One entry point, `toggleActivity` (`ActivityColumn.toggle`), opens and closes Activity, from this button and from any other entry such as the compact phone bar's « … » (#897).
+
 ## Considered Options
 
 - **A, one feed grouped by run, newest first, every entry a card**: complete, but what runs now scrolled away under older cards.

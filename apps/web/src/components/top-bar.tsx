@@ -158,10 +158,13 @@ export function useTopBarAction(action: TopBarAction | null): ReactNode {
 
 /**
  * A page's own main action (#897), shown in the compact Top Bar ahead of « Fiche » and « Activité »: Recherches
- * d'offres' filter (#898). On a wider screen the page shows it itself (useTopBarMode).
+ * d'offres' filter (#898). On a wider screen the page shows it itself (useTopBarMode). Returns, as useTopBarAction does,
+ * its icon while the width is not known, for its caller to render in the Top Bar, in the page's title
+ * (OfferBoxTopBarTitle): app.css shows it on a phone in the compact Top Bar's place and hides the page's buttons' icons
+ * for it, so the first paint is the bar hydration leaves.
  */
-export function useTopBarPrimary(action: Omit<TopBarAction, "rank"> | null): void {
-  useTopBarAction(action ? { ...action, rank: TOP_BAR_RANK.page } : null);
+export function useTopBarPrimary(action: Omit<TopBarAction, "rank"> | null): ReactNode {
+  return useTopBarAction(action ? { ...action, rank: TOP_BAR_RANK.page } : null);
 }
 
 /**

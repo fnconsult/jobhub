@@ -5576,6 +5576,12 @@
       "share": "Share"
     },
     "chipCount": "{{source}}, {{count}} to handle",
+    "filter": "Filter the offers to handle",
+    "filterName": "Filter the offers to handle: {{count}} to handle, {{source}}",
+    "filterAll": "all sources",
+    "filterSource": "source {{source}}",
+    "todayLine_one": "{{count}} arrived today · {{toHandle}} to handle",
+    "todayLine_other": "{{count}} arrived today · {{toHandle}} to handle",
     "today": "Today",
     "earlier": "Earlier",
     "tiers": {

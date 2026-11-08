@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
-import { JobSearchesMenuPage, type JobSearchesPane } from "@/components/JobSearchesMenuPage";
+import { JobSearchesMenuPage, readOfferBox, type JobSearchesPane } from "@/components/JobSearchesMenuPage";
+import { OfferBoxFilterProvider, OfferBoxTopBarTitle } from "@/components/OfferBox";
 import { getServerT } from "@/i18n/server";
 import "./recherches.css";
 
@@ -21,15 +22,18 @@ function paneOf(params: { profils?: string; recues?: string; offre?: string }): 
 /**
  * Recherches d'offres (ADR-0090, amending ADR-0070): the Offer box (« Offres à traiter ») is the page, the menu's
  * conversation following it (see JobSearchesMenuPage); « Recherches par Profil », « Reçues par email » and an entry's Job
- * Offer open in the Work Pane at their own addresses.
+ * Offer open in the Work Pane at their own addresses. On a phone, the Offer box's header is behind the filter icon of the
+ * Top Bar, beside the title (#898): its filter is held around the layout, for the Top Bar and the page.
  */
 export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ profils?: string; recues?: string; offre?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
-  const [t, params] = await Promise.all([getServerT(), searchParams]);
+  const [t, params, box] = await Promise.all([getServerT(), searchParams, readOfferBox(candidate.id)]);
   return (
-    <CandidateLayout candidateId={candidate.id} title={t("sidebar.jobSearches")}>
-      <JobSearchesMenuPage candidateId={candidate.id} pane={paneOf(params)} />
-    </CandidateLayout>
+    <OfferBoxFilterProvider toHandle={box.toHandle}>
+      <CandidateLayout candidateId={candidate.id} title={<OfferBoxTopBarTitle title={t("sidebar.jobSearches")} />}>
+        <JobSearchesMenuPage candidateId={candidate.id} pane={paneOf(params)} />
+      </CandidateLayout>
+    </OfferBoxFilterProvider>
   );
 }

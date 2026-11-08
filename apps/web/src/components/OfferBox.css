@@ -1,10 +1,13 @@
 /* The Offer box (« Offres à traiter », ADR-0090, variant B of the prototype): the page itself, before the menu's
    conversation. Its header and source chips stay at the top of the page's column while it scrolls, the current day's
-   heading under them and the current tier's under that. Beside its component, as the Design System's own CSS is
-   (ADR-0053). */
+   heading under them and the current tier's under that. On a phone (#898) the header is behind the Top Bar's filter
+   icon, and only the tier stays pinned. Beside its component, as the Design System's own CSS is (ADR-0053). */
 .offer-box {
   --offer-box-head: 8rem;
   --offer-box-day: 2.5rem;
+  /* The very top of the page's scrolling column: a sticky top of 0 stops under its top padding, where entries scrolled
+     by above the header (#898). */
+  --offer-box-top: calc(-1 * var(--page-padding-top, 0px));
 
   box-sizing: border-box;
   width: 100%;
@@ -15,7 +18,7 @@
 
 .offer-box-head {
   position: sticky;
-  top: 0;
+  top: var(--offer-box-top);
   z-index: 4;
   display: grid;
   gap: var(--space-2);
@@ -111,7 +114,7 @@
 
 .offer-box-day-heading {
   position: sticky;
-  top: var(--offer-box-head);
+  top: calc(var(--offer-box-top) + var(--offer-box-head));
   z-index: 3;
   box-sizing: border-box;
   min-height: var(--offer-box-day);
@@ -125,9 +128,15 @@
   margin-top: var(--space-3);
 }
 
+/* For a phone (#898): « 12 arrivées aujourd'hui · 184 à traiter » under « Aujourd'hui », and the day in the pinned tier. */
+.offer-box-day-line,
+.offer-box-tier-day {
+  display: none;
+}
+
 .offer-box-tier-heading {
   position: sticky;
-  top: calc(var(--offer-box-head) + var(--offer-box-day));
+  top: calc(var(--offer-box-top) + var(--offer-box-head) + var(--offer-box-day));
   z-index: 2;
   display: flex;
   flex-wrap: wrap;
@@ -166,6 +175,7 @@
 }
 
 .offer-box-tier-heading::before {
+  flex: none;
   width: 8px;
   height: 8px;
   content: "";
@@ -395,6 +405,83 @@
 }
 
 @media (width < 40rem) {
+  /* The header behind the Top Bar's filter icon (#898): out of the page, its heading kept for screen readers. */
+  .offer-box-head:not([data-open]) {
+    position: static;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .offer-box-head:not([data-open]) > :not(.offer-box-count),
+  .offer-box-head:not([data-open]) .offer-box-count > :not(h2) {
+    display: none;
+  }
+
+  .offer-box-head:not([data-open]) h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  /* Opened by the icon: a panel under the Top Bar, over the entries, its chips on several lines. */
+  .offer-box-head[data-open] {
+    z-index: 6;
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    margin-inline: calc(-1 * var(--space-4));
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  /* The days scroll with their entries; only the tier stays pinned, at the top, on one line. */
+  .offer-box-day-heading {
+    position: static;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .offer-box-day-line {
+    display: block;
+    margin: 0;
+    font-size: var(--font-size-meta);
+    color: var(--color-text-secondary);
+  }
+
+  .offer-box-tier-heading {
+    top: var(--offer-box-top);
+    flex-wrap: nowrap;
+  }
+
+  .offer-box-tier-heading:has(.field-error) {
+    flex-wrap: wrap;
+  }
+
+  /* The day's and the tier's names cut short when need be; « Tout écarter (n) » always whole, at the right. */
+  .offer-box-tier-day,
+  .offer-box-tier-heading h4 {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .offer-box-tier-day {
+    flex: 0 1 auto;
+  }
+
+  .offer-box-tier-heading h4 {
+    flex: 1 1 0;
+  }
+
+  .offer-box-tier-heading button {
+    flex: none;
+    white-space: nowrap;
+  }
+
   .offer-box-entry {
     grid-template-columns: 2.75rem minmax(0, 1fr);
   }
@@ -403,4 +490,21 @@
     width: 2.625rem;
     height: 2.625rem;
   }
+}
+
+/* The Top Bar's filter icon while a source is chosen (#898): a dot on it. */
+.offer-box-filter-on {
+  position: relative;
+  display: inline-flex;
+}
+
+.offer-box-filter-dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  background: var(--color-accent);
+  border: 1.5px solid var(--color-background);
+  border-radius: 50%;
 }

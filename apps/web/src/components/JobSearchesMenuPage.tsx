@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cache } from "react";
 import { offerBoxResponse } from "@/candidate-reads";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { CoachConversationPage } from "@/components/CoachConversationPage";
@@ -42,6 +43,12 @@ const RESULT: AddressedKind = "result";
 /** What the address opens in the Work Pane beside the Offer box: « Recherches par Profil », « Reçues par email » or a Job Offer. */
 export type JobSearchesPane = { kind: "byProfile" } | { kind: "received" } | { kind: "offer"; jobOfferId: string } | null;
 
+/**
+ * The Candidate's Offer box, read once per request: the page's title reads its count for the filter icon in the Top Bar
+ * (#898), and the page lays it out.
+ */
+export const readOfferBox = cache((candidateId: string) => getOfferBox().read(candidateId));
+
 /** A Job Search's outcome, tinted; its words carry the meaning. */
 const STATUS_TONES: Record<JobSearchStatus, Tone> = { searching: "accent", done: "success", failed: "danger", stopped: "neutral" };
 
@@ -60,7 +67,7 @@ export async function JobSearchesMenuPage({ candidateId, pane }: { candidateId: 
     getProfiles().list(candidateId),
     getJobSearches().list(candidateId),
     getCoachConversations().ofSubject(candidateId, SUBJECT),
-    getOfferBox().read(candidateId),
+    readOfferBox(candidateId),
   ]);
   const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;

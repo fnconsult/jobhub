@@ -37,8 +37,11 @@ export async function openFreeConversation(page: Page, title: string | RegExp): 
   await expect(conversationOf(page)).toBeVisible();
 }
 
-/** « Activité » in the Top Bar of the Candidate's pages (#603, #607): AI Activity's way in since the Coach Panel left (#608). */
-export const activityButtonOf = (page: Page) => page.getByRole("banner").getByRole("button", { name: fr.fiche.activity, exact: true });
+/**
+ * AI Activity's button, « Activité » in the Top Bar of the Candidate's pages (#603, #607, #809): named « Activité IA », then its
+ * words (the page's summary, or the step under way) while Activity is not shown.
+ */
+export const activityButtonOf = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 
 /**
  * Where a page's AI Activity shows (#603, #607, ADR-0070): an object's Fiche, in its Activity group, or the Activité column

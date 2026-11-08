@@ -39,7 +39,7 @@ function HomePage() {
 const topBar = () => screen.getByRole("banner");
 const USAGE = { used: 1, allowed: 4, percent: 25, quotas: [{ quota: "jobSearches" as const, used: 1, limit: 4 }], jobDigest: "weekly" as const };
 const ficheButton = () => within(topBar()).getByRole("button", { name: "Fiche" });
-const activityButton = () => within(topBar()).getByRole("button", { name: "Activité" });
+const activityButton = () => within(topBar()).getByRole("button", { name: /^Activité IA/ });
 
 describe("an object's page on a phone (#608, ADR-0070)", () => {
   beforeEach(() => {
@@ -113,6 +113,22 @@ describe("an object's page on a phone (#608, ADR-0070)", () => {
     await user.click(within(column).getByRole("button", { name: "Fermer" }));
 
     expect(screen.queryByRole("complementary", { name: "Activité" })).toBeNull();
+    expect(document.activeElement).toBe(activityButton());
+  });
+
+  it("opens an object's Activity full screen with AI Activity's button, its Escape giving the focus back to the button (#809, ADR-0086)", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<ApplicationPage />);
+
+    await user.click(activityButton());
+    const fiche = screen.getByRole("complementary", { name: "Fiche" });
+    expect(within(fiche).getByRole("button", { name: "Activité" }).getAttribute("aria-expanded")).toBe("true");
+    expect(within(fiche).getByRole("button", { name: "Fermer" })).toBeTruthy();
+    expect(screen.getByRole("main").closest("[inert]")).not.toBeNull();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
     expect(document.activeElement).toBe(activityButton());
   });
 

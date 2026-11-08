@@ -1,9 +1,9 @@
 /**
- * AI Activity's « Cette page » pane (CONTEXT.md, #314, #332): what produced what a Candidate page shows, read from each
- * element's stored Provenance, summed for the page and listed per element.
+ * AI Activity elements (CONTEXT.md, #314, #332): what produced what a Candidate page shows, read from each element's stored
+ * Provenance, which the page's Activité entries are built from (entries.ts, ADR-0086). The « Cette page » pane that summed
+ * them for the page is retired (#809): Activity, the Fiche's group or the Activité column, shows them.
  *
- *   activityElement("job_offer", provenance, { name, at })   one element of the page, as the pane shows it
- *   aiActivityPane(elements)                                 the pane: Modèles, Sources, Outils, Par élément, the Total and the closed button's summary
+ *   activityElement("job_offer", provenance, { name, at })   one element of the page, as its Activité entry reads it
  *
  * An element is all that crosses to the browser: its kind, a Job Offer's title, its date, and what served it, the models
  * named for people (each raw id kept for the tooltip), where they ran, tokens and time, its Tools and Provenance sites; an AI
@@ -23,7 +23,7 @@ export type ElementKind = (typeof ELEMENT_KINDS)[number];
 export interface ActivityModel {
   /** Its display name, e.g. « Claude Opus 5 »; an unknown model raw. */
   name: string;
-  /** The ids that served, as the provider names them: the tooltip, and monospace in Par élément. */
+  /** The ids that served, as the provider names them: the tooltip. */
   ids: string[];
   /** Where it ran, e.g. « AWS Bedrock · UE (Stockholm) »; null when the endpoint was not kept. */
   where: Translated | null;
@@ -54,7 +54,7 @@ export type ElementEnd = { state: "done" } | { state: "stopped" | "failed"; at: 
 
 export interface ActivityElement {
   kind: ElementKind;
-  /** How its action ended: Par élément says a stopped or failed one in words, on light red. */
+  /** How its action ended: its Activité entry says a stopped or failed one in words, on light red. */
   end: ElementEnd;
   /** A Job Offer's title, an Action Card's. */
   name?: string;
@@ -80,21 +80,6 @@ export interface ActivityElement {
     /** Wall-clock, from its start to its end. */
     ms: number | null;
   } | null;
-}
-
-export interface AiActivityPane {
-  models: ActivityModel[];
-  /** The page's tokens, and its elements' wall-clock times summed. */
-  total: { tokens: number | null; ms: number | null };
-  sites: ProvenanceSite[];
-  /** `usedBy`: the elements that used it, by their place in `elements`. */
-  tools: (ActivityTool & { usedBy: number[] })[];
-  elements: ActivityElement[];
-  /**
-   * What the closed button says, « 3 modèles · 10,9k tokens · 21,5 s »; null on a page where no model served what it
-   * shows (none recorded, or Jobbbox's rules alone): the button then shows its label.
-   */
-  summary: { models: number; tokens: number | null; ms: number | null } | null;
 }
 
 const add = (sum: number | null, value: number | null): number | null => (value === null ? sum : (sum ?? 0) + value);
@@ -134,7 +119,7 @@ export function addSite(sites: ProvenanceSite[], site: ProvenanceSite): void {
 
 /**
  * Whether Jobbbox's rules alone made the element, no model (an ATS Score, an ATS Fix, a Job Digest's Match Scores):
- * Par élément says « Calcul » where a model would be named.
+ * its Activité entry says « Calcul » where a model would be named.
  */
 export const byRulesOnly = (served: NonNullable<ActivityElement["served"]>): boolean => served.models.length === 0 && served.tools.some((tool) => tool.name === null);
 
@@ -164,7 +149,7 @@ function endOf(provenance: Provenance | null, ended: ActionEnded | undefined): E
 }
 
 /**
- * One element of the page, as the pane shows it: what served it, read from its Provenance (null when none was kept); `sent`,
+ * One element of the page, as its Activité entry reads it: what served it, read from its Provenance (null when none was kept); `sent`,
  * on an AI Coach reply, what it sent in all its AI calls (#805).
  */
 export function activityElement(
@@ -201,28 +186,4 @@ export function activityElement(
   }
   for (const site of provenance.sites) addSite(sites, site);
   return { kind, ...named, at: provenance.startedAt, end, served: { models, tools, sites, tokens, ms: known(provenance.wallMs) } };
-}
-
-/** The pane for the page's elements: each model, Tool and Provenance site once with its sums, the Total, and the closed button's summary. */
-export function aiActivityPane(elements: ActivityElement[]): AiActivityPane {
-  const models: ActivityModel[] = [];
-  const tools: AiActivityPane["tools"] = [];
-  const sites: ProvenanceSite[] = [];
-  let tokens: number | null = null;
-  let ms: number | null = null;
-  elements.forEach((element, index) => {
-    if (!element.served) {
-      for (const site of element.sites ?? []) addSite(sites, site);
-      return;
-    }
-    tokens = add(tokens, element.served.tokens);
-    ms = add(ms, element.served.ms);
-    for (const model of element.served.models) addModel(models, model);
-    for (const tool of element.served.tools) {
-      const kept = addTool(tools, { ...tool, usedBy: [] as number[] });
-      if (!kept.usedBy.includes(index)) kept.usedBy.push(index);
-    }
-    for (const site of element.served.sites) addSite(sites, site);
-  });
-  return { models, total: { tokens, ms }, sites, tools, elements, summary: models.length > 0 ? { models: models.length, tokens, ms } : null };
 }

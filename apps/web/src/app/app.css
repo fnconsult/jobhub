@@ -1221,10 +1221,6 @@ button.coach-panel-badge:hover {
     align-content: start;
   }
 
-  .workspace:has(> .work-pane):has(> .ai-activity-pane) {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
   .workspace:has(> .work-pane) > .topbar {
     grid-column: 1 / -1;
   }
@@ -1567,7 +1563,7 @@ button.coach-panel-badge:hover {
     max-height: calc(100% - 2 * var(--space-4));
   }
 
-  .workspace:has(> .page > .page-conversation):not(:has(> :is(.work-pane, .fiche, .ai-activity-pane))) {
+  .workspace:has(> .page > .page-conversation):not(:has(> :is(.work-pane, .fiche))) {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -4969,66 +4965,18 @@ textarea.title-edit {
   margin: 0;
 }
 
-/* ---------- AI Activity (#314, #332): the Top Bar's button and the « Cette page » pane ----------
-   Everything in rem, so it follows the Text Size. The button sits left of « Aide et coach »; its frame holds an icon
-   alone, as high: at rest the tasks icon, while an action runs its live Activity glyph, open a close icon. Closed, its
-   words sit left of the frame, outside the button (#369): the page's summary or the step under way, metadata (#317),
-   and while an action runs its stop icon between them and the frame. Clicking the words opens the pane; they are in
-   the button's name, not a tab stop of their own. Its label « Activité IA » is for screen readers and the tooltip only. */
+/* ---------- AI Activity (#314, #332, #809): the Top Bar's button, « Activité » ----------
+   Everything in rem, so it follows the Text Size. It is a Button, as « Fiche » beside it (its frame): at rest the tasks
+   icon, while an action runs its live Activity glyph, then « Activité ». While Activity is not shown, its words sit left of
+   the frame, outside the button (#369): the page's summary or the step under way, metadata (#317), and while an action
+   runs its stop icon between them and the frame. Clicking the words clicks the button; they are in its name, not a tab
+   stop of their own. Its name starts « Activité IA », which its tooltip says too. */
 .topbar .ai-activity-control {
   display: inline-flex;
   flex: 0 1 auto;
   gap: var(--space-2);
   align-items: center;
   min-width: 0;
-}
-
-.topbar .ai-activity-toggle {
-  position: relative;
-  display: inline-flex;
-  flex: none;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-control);
-  cursor: pointer;
-}
-
-/* The frame (#464): a round pill around the icon alone, at « Aide et coach »'s height, outlined as a Button. */
-.ai-activity-frame {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--size-control);
-  min-height: var(--size-control);
-  padding: 0;
-  color: var(--color-text);
-  background: var(--color-background);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-control);
-  transition: background-color var(--motion-fast) var(--motion-easing);
-}
-
-.ai-activity-toggle:hover .ai-activity-frame {
-  background: var(--color-hover);
-}
-
-.ai-activity-frame > svg {
-  width: 1.125em;
-  height: 1.125em;
-}
-
-/* Its name is for screen readers and the tooltip; the icon and the summary say what the eye needs. */
-.ai-activity-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  white-space: nowrap;
-  clip-path: inset(50%);
 }
 
 .ai-activity-summary {
@@ -5049,71 +4997,7 @@ textarea.title-edit {
   }
 }
 
-/* The pane: a card (--radius-md) inset by --space-2, 22rem wide, its body scrolling under a thin
-   scrollbar always shown, with a fade at the bottom while there is more. */
-.ai-activity-pane {
-  position: relative;
-  z-index: 15;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  width: 22rem;
-  max-width: calc(100vw - 2 * var(--space-2));
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.ai-activity-pane[data-more]::after {
-  position: absolute;
-  right: 0.75rem;
-  bottom: 1px;
-  left: 1px;
-  height: 2.5rem;
-  pointer-events: none;
-  content: "";
-  background: linear-gradient(to bottom, transparent, var(--color-surface));
-  border-bottom-left-radius: var(--radius-md);
-}
-
-.ai-activity-head {
-  display: flex;
-  flex: none;
-  gap: var(--space-2);
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.ai-activity-head h2 {
-  margin: 0;
-  font-size: var(--font-size-h3);
-}
-
-.ai-activity-head h2:focus {
-  outline: none;
-}
-
-.ai-activity-head h2:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-.ai-activity-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: var(--space-2) var(--space-4) var(--space-6);
-  overflow-y: scroll;
-  scrollbar-width: thin;
-  overscroll-behavior: contain;
-}
-
-.ai-activity-empty {
-  margin: var(--space-2) 0;
-}
-
-/* « En savoir plus » (#338): « IA dans Jobbbox », under what the pane shows. */
+/* « En savoir plus » (#338): « IA dans Jobbbox », at the foot of Activity. */
 .ai-activity-learn-more {
   padding-top: var(--space-3);
   margin: var(--space-4) 0 0;
@@ -5433,8 +5317,8 @@ textarea.title-edit {
   overflow-wrap: anywhere;
 }
 
-/* AI Activity live (#333): the closed button shows the step under way, its glyph and its words, a stop icon beside it;
-   the pane, a section per action, stopped or failed ones in very light red, said in words too. */
+/* AI Activity live (#333): the Top Bar's button shows the step under way, its glyph and its words, a stop icon beside it;
+   « En ce moment », a section per action, stopped or failed ones in very light red, said in words too. */
 /* Stop, beside the step: a round button, its red square filled (#464). */
 .topbar .ai-activity-stop {
   display: inline-flex;
@@ -5589,30 +5473,8 @@ textarea.title-edit {
   margin: 0;
 }
 
-/* From 64rem the pane is a card on the right of the page's column, the page making room for it. */
+/* From 64rem the docked Coach Panel is a card on the right of the page. */
 @media (width >= 64rem) {
-  .workspace:has(> .ai-activity-pane) {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-content: start;
-  }
-
-  .workspace:has(> .ai-activity-pane) > .topbar {
-    grid-column: 1 / -1;
-  }
-
-  .ai-activity-pane {
-    position: sticky;
-    top: calc(var(--topbar-height, 3.5rem) + var(--space-2));
-    align-self: start;
-    max-height: calc(
-      100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-2)
-    );
-    margin: var(--space-2) var(--space-2) var(--space-2) 0;
-  }
-
-  /* The docked Coach Panel is a card the same way. */
   .coach-panel:not(.coach-panel-wide) {
     top: var(--space-2);
     right: var(--space-2);
@@ -5625,44 +5487,6 @@ textarea.title-edit {
 
   .with-coach-panel {
     margin-right: calc(var(--coach-width) + var(--space-2));
-  }
-}
-
-/* Under 81.25rem (1300px) with the Coach Panel docked, no room for both beside the page: a drawer over it. */
-@media (width >= 64rem) and (width < 81.25rem) {
-  .with-coach-panel .workspace:has(> .ai-activity-pane) {
-    display: flex;
-  }
-
-  .with-coach-panel .ai-activity-pane {
-    position: fixed;
-    /* Stretched between its insets: aligned at the start, Chrome would size it to its content. */
-    align-self: stretch;
-    top: calc(var(--topbar-height, 3.5rem) + var(--space-2));
-    right: calc(var(--coach-width) + 2 * var(--space-2));
-    bottom: var(--space-2);
-    z-index: 20;
-    max-height: none;
-    margin: 0;
-    box-shadow: var(--shadow-overlay);
-  }
-}
-
-/* Below 64rem: a sheet from the bottom of the screen, with its title and its Close button. */
-@media (width < 64rem) {
-  .ai-activity-pane {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 25;
-    width: auto;
-    max-width: none;
-    max-height: 85dvh;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    border-bottom: 0;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-    box-shadow: var(--shadow-overlay);
   }
 }
 

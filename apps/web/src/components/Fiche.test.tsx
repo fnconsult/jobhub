@@ -111,7 +111,7 @@ describe("the Fiche (#603, ADR-0070)", () => {
     const user = userEvent.setup();
     renderInFrench(<Page />);
     const ficheButton = within(topBar()).getByRole("button", { name: "Fiche" });
-    const activity = within(topBar()).getByRole("button", { name: "Activité" });
+    const activity = within(topBar()).getByRole("button", { name: "Activité IA" });
     await user.click(group("Activité"));
     await user.click(ficheButton);
     expect(activity.getAttribute("aria-expanded")).toBe("false");
@@ -176,7 +176,7 @@ describe("the Fiche giving way to the Work Pane on a narrower screen (#603, ADR-
     expect(await screen.findByText("Mardi 4 novembre, 10 h")).toBeTruthy();
     expect(shownFiche()).toBeNull();
     expect(within(topBar()).getByRole("button", { name: "Fiche" }).getAttribute("aria-expanded")).toBe("false");
-    expect(within(topBar()).getByRole("button", { name: "Activité" }).getAttribute("aria-expanded")).toBe("false");
+    expect(within(topBar()).getByRole("button", { name: "Activité IA" }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("comes back with « Fiche », which closes the Work Pane and keeps the focus", async () => {
@@ -204,7 +204,7 @@ describe("the Fiche giving way to the Work Pane on a narrower screen (#603, ADR-
     screenOf(80);
     renderInFrench(<SectionPage />);
     await screen.findByText("Mardi 4 novembre, 10 h");
-    const activity = within(topBar()).getByRole("button", { name: "Activité" });
+    const activity = within(topBar()).getByRole("button", { name: "Activité IA" });
 
     await user.click(activity);
 

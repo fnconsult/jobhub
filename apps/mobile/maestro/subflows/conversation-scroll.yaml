@@ -1,6 +1,6 @@
 # Scrolls the conversation until TEXT shows, starting UP to what came before or DOWN to what follows (DIRECTION), at
 # 40 % of the screen's width: the conversation on every layout, a tablet's Sidebar column left of it, its Fiche right of
-# it, and an iPad's Split View, whose app is the left half. Within the thread: below its top, above the box. Each step
+# it. Within the thread: below its top, above the box. Each step
 # takes 3 s, too slow for the thread to fling on: where it stops is the same each run, as a key screen's capture needs
 # (Mes candidatures, scrolled to on the unfolded foldable at the largest text size, stopped a few points apart).
 # In short, slow steps (15 % of the screen's height, no fling): Maestro's scrollUntilVisible swipes from the

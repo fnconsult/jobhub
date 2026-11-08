@@ -17,7 +17,7 @@ const filesIn = (dir: string, extension: string): string[] =>
   );
 const FLOW_FILES = [...filesIn(join(ROOT, "flows"), ".yaml"), ...filesIn(join(ROOT, "subflows"), ".yaml")];
 /** Subflows that drive the system's own screens (iPadOS's multitasking menu, iOS's alerts), whose labels are not the app's. */
-const SYSTEM_FLOWS = new Set([join(ROOT, "subflows", "split-view.yaml"), join(ROOT, "subflows", "system-alerts.yaml")]);
+const SYSTEM_FLOWS = new Set([join(ROOT, "subflows", "system-alerts.yaml")]);
 
 type Header = { appId?: string; name?: string; tags?: string[] };
 type Command = Record<string, unknown> | string;

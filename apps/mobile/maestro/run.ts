@@ -5,7 +5,7 @@
  *   npx tsx apps/mobile/maestro/run.ts <hardware> --stack <ready.json> [--captures compare|record|off] [--out <dir>]
  *
  * The hardware first set to French, then for each run: the device set up (theme, text size, fold, status bar), a new seeded Candidate, the app prepared
- * (cleared, oriented, in Split View), then the run's flows. A run with missing reference captures draws them and
+ * (cleared, oriented), then the run's flows. A run with missing reference captures draws them and
  * fails, as a missing web baseline does; `record` draws them all again, on purpose. Each run's JUnit report, screenshots
  * and Maestro's logs go to `<out>/<run>`; the captures to apps/mobile/maestro/captures.
  */
@@ -103,7 +103,7 @@ function main(argv: string[]) {
     const seeded = spawnSync("curl", ["--fail", "--silent", "--show-error", "-X", "POST", `${stack.helper}/candidates`], { encoding: "utf8" });
     const email = seeded.status === 0 ? (JSON.parse(seeded.stdout) as { email: string }).email : null;
     // Maestro writes a screenshot it takes under its working directory when it makes no bundle: the run's own.
-    // The app's preparation (cleared, oriented, in Split View) is set-up, not a check: tried a second time should
+    // The app's preparation (cleared, oriented) is set-up, not a check: tried a second time should
     // Maestro's driver give up on it (an iPhone SE's « Set orientation » hung until Maestro quit, run 42323647801).
     const prepared = () => exec(run.prepare(email!, dir), dir);
     const ok = setUp && email !== null && (prepared() || prepared()) && exec(run.flows(email, dir), dir);

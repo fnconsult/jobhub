@@ -10,12 +10,11 @@ const run = (device: string, theme: Run["theme"], textSize: Run["textSize"]) => 
 };
 
 describe("the devices the Maestro flows run on (#705)", () => {
-  it("covers a small phone, the iPad in landscape, portrait and Split View, an Android tablet and a foldable open and closed", () => {
+  it("covers a small phone, the iPad in landscape and portrait, an Android tablet and a foldable open and closed", () => {
     expect(DEVICES.map((device) => device.id)).toEqual([
       "iphone-se",
       "ipad-landscape",
       "ipad-portrait",
-      "ipad-split-half",
       "android-tablet",
       "foldable-unfolded",
       "foldable-folded",
@@ -41,9 +40,6 @@ describe("the devices the Maestro flows run on (#705)", () => {
       "ipad-portrait light default",
       "ipad-portrait dark default",
       "ipad-portrait light largest",
-      "ipad-split-half light default",
-      "ipad-split-half dark default",
-      "ipad-split-half light largest",
     ]);
     expect(run("iphone-se", "light", "default").tags).toEqual(["flow", "key-screens"]);
     expect(run("iphone-se", "dark", "default").tags).toEqual(["key-screens"]);
@@ -55,7 +51,6 @@ describe("the devices the Maestro flows run on (#705)", () => {
       ["iphone-se", "fullPage"],
       ["ipad-landscape", "columns"],
       ["ipad-portrait", "columns"],
-      ["ipad-split-half", "fullPage"],
       ["android-tablet", "columns"],
       ["foldable-unfolded", "fullPage"],
       ["foldable-folded", "fullPage"],
@@ -132,7 +127,6 @@ describe("the devices the Maestro flows run on (#705)", () => {
         CAPTURE_DIR: "ipad-portrait/dark",
       });
       expect(run("iphone-se", "light", "largest").env).toMatchObject({ CAPTURE_DIR: "iphone-se/light-largest-text", ORIENTATION: "PORTRAIT" });
-      expect(run("ipad-split-half", "light", "default").env).toMatchObject({ WINDOW: "split-half", ORIENTATION: "LANDSCAPE_LEFT" });
       expect(run("android-tablet", "light", "default").env).toMatchObject({ ORIENTATION: "" });
     });
   });

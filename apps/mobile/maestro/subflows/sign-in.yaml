@@ -2,39 +2,17 @@
 # the stack's helper reads from the platform's mailbox (scripts/sign-in-code.js).
 appId: ai.jobbbox.app
 ---
-# In an iPad's Split View, Maestro takes the screen for the app's window turned (1032 × 683 pt) while the app's elements
-# are placed on the whole landscape screen (its half at x 693 to 1376): scrollUntilVisible, which wants all of an
-# element on that screen, found half of the sign-in field and swiped until its timeout (run 42413471132,
-# ipad-split-half-light, « Visibility Percent: 0.4955 »). There, slow swipes until it shows, as elsewhere.
 # At the largest text size the field is below the screen's fold: scrolled to.
 - extendedWaitUntil:
     visible: "Se connecter à Jobbbox"
     timeout: 30000
-- runFlow:
-    when:
-      true: ${WINDOW != 'split-half'}
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: "sign-in-email"
-          direction: DOWN
-          # Five screens down at the largest text size on an iPhone SE, a swipe every 4 s: 20 s, Maestro's default, ran out
-          # as the field came in (#705).
-          timeout: 60000
-- runFlow:
-    when:
-      true: ${WINDOW == 'split-half'}
-    commands:
-      - repeat:
-          while:
-            notVisible:
-              id: "sign-in-email"
-          times: 25
-          commands:
-            - swipe:
-                start: "40%, 60%"
-                end: "40%, 30%"
-                duration: 800
+- scrollUntilVisible:
+    element:
+      id: "sign-in-email"
+    direction: DOWN
+    # Five screens down at the largest text size on an iPhone SE, a swipe every 4 s: 20 s, Maestro's default, ran out
+    # as the field came in (#705).
+    timeout: 60000
 # iOS sometimes takes the typing before its keyboard is up: typed again until the field shows it (iOS shows a field's
 # value to Maestro, Android does not). Tapped once, before, at its right end: at the largest text size the address is
 # wider than the field, a tap on its middle put the caret there, and the next try's erasing, which deletes before the
@@ -84,54 +62,18 @@ appId: ai.jobbbox.app
           text: "Votre adresse e-mail"
           index: 0
       - runFlow: close-gate-keyboard.yaml
-- runFlow:
-    when:
-      true: ${WINDOW != 'split-half'}
-    commands:
-      - scrollUntilVisible:
-          element:
-            text: "Recevoir mon lien de connexion"
-          direction: DOWN
-- runFlow:
-    when:
-      true: ${WINDOW == 'split-half'}
-    commands:
-      - repeat:
-          while:
-            notVisible:
-              text: "Recevoir mon lien de connexion"
-          times: 25
-          commands:
-            - swipe:
-                start: "40%, 60%"
-                end: "40%, 30%"
-                duration: 800
+- scrollUntilVisible:
+    element:
+      text: "Recevoir mon lien de connexion"
+    direction: DOWN
 - tapOn: "Recevoir mon lien de connexion"
 # The code's field, below the screen's fold at the largest text size on an iPhone SE (the explanation above it takes
 # the screen): scrolled to while the email is sent.
-- runFlow:
-    when:
-      true: ${WINDOW != 'split-half'}
-    commands:
-      - scrollUntilVisible:
-          element:
-            id: "sign-in-code"
-          direction: DOWN
-          timeout: 30000
-- runFlow:
-    when:
-      true: ${WINDOW == 'split-half'}
-    commands:
-      - repeat:
-          while:
-            notVisible:
-              id: "sign-in-code"
-          times: 25
-          commands:
-            - swipe:
-                start: "40%, 60%"
-                end: "40%, 30%"
-                duration: 800
+- scrollUntilVisible:
+    element:
+      id: "sign-in-code"
+    direction: DOWN
+    timeout: 30000
 - runScript: ../scripts/sign-in-code.js
 # As the email: iOS took the code's first digit only, its keyboard not up yet for the others (« Ce code ne convient
 # pas »). Typed again until the field shows it all.

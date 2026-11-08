@@ -1,7 +1,7 @@
 /**
  * The devices the app's Maestro flows run on in CI (#705), and what each run sets up and expects. One CI job boots one
- * simulator or emulator (`CI_HARDWARE`); on it, each of its devices (a window of that hardware: an orientation, Split
- * View, a fold) runs three times:
+ * simulator or emulator (`CI_HARDWARE`); on it, each of its devices (a window of that hardware: an orientation, a
+ * fold) runs three times:
  *
  * - every flow (tag `flow`) and the key screens (tag `key-screens`), light theme, default text size;
  * - the key screens again in the dark theme;
@@ -31,8 +31,8 @@ export const CI_HARDWARE: Record<HardwareId, Hardware> = {
 /** The name the CI job gives the iOS simulator it creates (mobile-e2e.yml). */
 export const SIMULATOR = "maestro";
 
-/** How the app's window sits on the hardware: the whole screen, half of it in Split View, a foldable closed or open. */
-export type Window = "full" | "split-half" | "folded" | "unfolded";
+/** How the app's window sits on the hardware: the whole screen, a foldable closed or open. */
+export type Window = "full" | "folded" | "unfolded";
 
 /** Maestro's `setOrientation`, or "" to leave the hardware's own (Android's tablets and foldables). */
 export type Orientation = "PORTRAIT" | "LANDSCAPE_LEFT" | "";
@@ -52,8 +52,9 @@ export const DEVICES: readonly Device[] = [
   { id: "iphone-se", hardware: "iphone-se", window: "full", orientation: "PORTRAIT", size: { width: 375, height: 667 }, store: "App Store, iPhone 4,7 pouces" },
   { id: "ipad-landscape", hardware: "ipad", window: "full", orientation: "LANDSCAPE_LEFT", size: { width: 1376, height: 1032 }, store: "App Store, iPad 13 pouces" },
   { id: "ipad-portrait", hardware: "ipad", window: "full", orientation: "PORTRAIT", size: { width: 1032, height: 1376 }, store: "App Store, iPad 13 pouces" },
-  // Half of the landscape screen, less the divider between the two apps.
-  { id: "ipad-split-half", hardware: "ipad", window: "split-half", orientation: "LANDSCAPE_LEFT", size: { width: 683, height: 1032 } },
+  // No Split View: Maestro's iOS driver places a split app's elements on the wrong half of the screen and its taps went
+  // to the other app (#705, four tries). Its window, 683 × 1032, is checked by the accessibility suite
+  // (e2e/accessibility.e2e.test.tsx) and on the device by hand (docs/ops/mobile.md); back in Maestro with #904.
   { id: "android-tablet", hardware: "android-tablet", window: "full", orientation: "", size: { width: 1280, height: 800 }, store: "Google Play, tablette 10 pouces" },
   { id: "foldable-unfolded", hardware: "android-foldable", window: "unfolded", orientation: "", size: { width: 841, height: 701 } },
   { id: "foldable-folded", hardware: "android-foldable", window: "folded", orientation: "", size: { width: 411, height: 797 }, store: "Google Play, téléphone" },

@@ -1,5 +1,5 @@
-# Before each run (run.ts): the app as installed, its data and its Keychain cleared, in the run's orientation and, for
-# Split View, beside another app on half of the iPad's screen. The run's Candidate signs in later, by their code.
+# Before each run (run.ts): the app as installed, its data and its Keychain cleared, in the run's orientation. The
+# run's Candidate signs in later, by their code.
 appId: ai.jobbbox.app
 ---
 - launchApp:
@@ -11,7 +11,3 @@ appId: ai.jobbbox.app
       true: ${ORIENTATION != ''}
     commands:
       - setOrientation: ${ORIENTATION}
-- runFlow:
-    when:
-      true: ${WINDOW == 'split-half'}
-    file: split-view.yaml

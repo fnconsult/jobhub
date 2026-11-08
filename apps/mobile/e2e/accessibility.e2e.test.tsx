@@ -114,6 +114,11 @@ const window = (width: number, height: number, fontScale: number) => {
 };
 const PHONE = [375, 667] as const;
 const TABLET = [1376, 1032] as const;
+/**
+ * Half of an iPad's landscape screen in Split View, less the divider. Maestro cannot drive Split View (#904): its window
+ * is checked here, and on the device by hand (docs/ops/mobile.md).
+ */
+const SPLIT_HALF = [683, 1032] as const;
 
 async function launch(path: string) {
   if ((await mockWeb.session.current()).kind !== "signedIn") {
@@ -150,6 +155,7 @@ describe.each([
   ["a small phone, iOS's largest text", PHONE, LARGEST.ios],
   ["a small phone, Android's largest text", PHONE, LARGEST.android],
   ["a tablet in landscape, iOS's largest text", TABLET, LARGEST.ios],
+  ["half of an iPad in Split View, iOS's largest text", SPLIT_HALF, LARGEST.ios],
 ])("The key screens on %s (#705)", (_name, [width, height], fontScale) => {
   beforeEach(() => window(width, height, fontScale));
 
@@ -158,6 +164,18 @@ describe.each([
     await shown();
     expect(unnamedControls()).toEqual([]);
     expect(cutTexts()).toEqual([]);
+  });
+});
+
+describe("Half of an iPad in Split View (#705, #904)", () => {
+  it("lays the app out full page, the Sidebar in a drawer behind « Menu », the Fiche behind « Fiche »", async () => {
+    window(...SPLIT_HALF, 1);
+    await launch("/candidatures/a1");
+    await screen.findByLabelText("Votre message");
+    expect(screen.getByRole("button", { name: "Menu" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Masquer le menu" })).toBeNull();
+    await openFiche();
+    expect(screen.getByRole("button", { name: "Fermer" })).toBeOnTheScreen();
   });
 });
 

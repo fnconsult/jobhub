@@ -3,36 +3,14 @@
 # open beside the conversation leaves the Sidebar no room, and it goes to the drawer (src/shell/disposition.ts).
 appId: ai.jobbbox.app
 ---
-# In an iPad's Split View, Maestro takes the screen for the app's window turned (1032 × 683 pt) while the app's elements
-# are placed on the whole landscape screen (its half at x 693 to 1376): scrollUntilVisible, which wants all of an
-# element on that screen, found half of the sign-in field and swiped until its timeout (run 42413471132,
-# ipad-split-half-light, « Visibility Percent: 0.4955 »). There, slow swipes until it shows, as elsewhere.
 - runFlow:
     when:
       visible: "Menu"
     commands:
       - tapOn: "Menu"
-- runFlow:
-    when:
-      true: ${WINDOW != 'split-half'}
-    commands:
-      - scrollUntilVisible:
-          element:
-            text: ${MENU}
-          direction: DOWN
-          timeout: 10000
-- runFlow:
-    when:
-      true: ${WINDOW == 'split-half'}
-    commands:
-      - repeat:
-          while:
-            notVisible:
-              text: ${MENU}
-          times: 25
-          commands:
-            - swipe:
-                start: "40%, 60%"
-                end: "40%, 30%"
-                duration: 800
+- scrollUntilVisible:
+    element:
+      text: ${MENU}
+    direction: DOWN
+    timeout: 10000
 - tapOn: ${MENU}

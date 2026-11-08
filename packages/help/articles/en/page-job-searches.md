@@ -3,12 +3,14 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Job searches
-synonyms: [offers to handle, to handle, extension, share, share to jobbbox, handled, follow, set aside, dismiss, reason, later, back on monday, expired without a decision, expired, set all aside, not for me, go back on this choice, undo, search, look for, find, new job offers, start, start a search, searches by profile, received by email, offers received by email, unclassified, ignored emails, job alert, not to miss, worth a look, less suited, see all]
+synonyms: [offers to handle, to handle, filter, filter the offers to handle, source, arrived today, phone, extension, share, share to jobbbox, handled, follow, set aside, dismiss, reason, later, back on monday, expired without a decision, expired, set all aside, not for me, go back on this choice, undo, search, look for, find, new job offers, start, start a search, searches by profile, received by email, offers received by email, unclassified, ignored emails, job alert, not to miss, worth a look, less suited, see all]
 route: /recherches
 ---
 « Job searches » opens on « Offers to handle »: every job offer that reached you, through a search, a Job Digest, a job offer email you forwarded or a link pasted in a conversation with your coach, waits there for your decision. A job offer that arrived by several ways is listed once, with a chip for each (« Search », « Job Digest », « Email », « Coach link »), on the day it first arrived. A job offer captured with the extension or sent from the Jobbbox app by sharing enters only if you save it as an application: it then arrives already « Followed », with the chip « Extension » or « Share ». A job offer only analysed or shared, with no application, leaves nothing there.
 
 At the top, « to handle » counts the job offers still waiting, beside the number of job offers handled, those you followed or set aside; the bar moves towards zero. The chips « All », « Search », « Job Digest », « Email », « Coach link », « Extension » and « Share » filter the list; each says how many of its job offers are to handle. This top of the page, the day and the tier stay in view while you scroll.
+
+**On a phone.** The count and the sources are behind the filter icon, at the top right, beside the page's title: « Filter the offers to handle » opens, under the bar, « Offers to handle » with the number to handle, the progress bar and those handled, then the sources' chips. Choosing a source filters the list and closes the panel; while a source other than « All » is chosen, a dot stays on the icon. Under « Today », a line says how many job offers arrived today and how many are to handle. As you scroll, only the current tier stays in view, on one line, with the day and « Set all aside » on the right. The suggestions above the message box keep to one line that scrolls sideways.
 
 Job offers are sorted into « Today », then « Earlier », where each line says the day it arrived; in each, by importance: « Not to miss » (Match Score of 80 and above, with a border turning slowly around it), « Worth a look » (60 to 79), « Less suited » (under 60, or not computable). The most recent come first.
 

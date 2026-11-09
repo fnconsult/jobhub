@@ -38,11 +38,26 @@ describe.skipIf(!connectionString)("what the AI layer takes out of a Candidate's
     await testAuth.stop();
   });
 
-  it("is the account's email and name alone without a Profile", async () => {
+  it("is the account's email and names alone without a Profile, the Preferred Name the one to leave in the clear (#921)", async () => {
     const marie = await signIn("marie.dupont@example.fr");
-    await database.query(`UPDATE candidate SET name = 'Marie Dupont' WHERE id = $1`, [marie]);
+    await database.query(`UPDATE candidate SET name = 'Marie Dupont', given_name = 'Marie', family_name = 'Dupont', preferred_name = 'Mimi' WHERE id = $1`, [marie]);
 
-    expect(await candidateIdentityOf(database)(marie)).toEqual({ fullName: ["Marie Dupont"], firstName: "Marie", email: ["marie.dupont@example.fr"], phone: [], address: [] });
+    expect(await candidateIdentityOf(database)(marie)).toEqual({
+      fullName: ["Marie Dupont"],
+      givenName: ["Marie"],
+      lastName: ["Dupont"],
+      preferredName: "Mimi",
+      email: ["marie.dupont@example.fr"],
+      phone: [],
+      address: [],
+    });
+  });
+
+  it("has no Preferred Name when the Candidate gave none, and a name alone still tells the first name", async () => {
+    const marie = await signIn("marie.dupont@example.fr");
+    await database.query(`UPDATE candidate SET name = 'Marie Dupont', given_name = NULL, family_name = NULL, preferred_name = NULL WHERE id = $1`, [marie]);
+
+    expect(await candidateIdentityOf(database)(marie)).toEqual({ fullName: ["Marie Dupont"], givenName: ["Marie"], lastName: [], preferredName: null, email: ["marie.dupont@example.fr"], phone: [], address: [] });
   });
 
   it("adds the latest Master CV's identity block, its location only when it is a postal address", async () => {
@@ -50,13 +65,13 @@ describe.skipIf(!connectionString)("what the AI layer takes out of a Candidate's
     const created = await profiles.create(marie, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
     if (!created.ok) throw new Error("fixture Profile refused");
     // "DUPONT Marie": the family name in capitals, as French CVs write it.
-    expect(await candidateIdentityOf(database)(marie)).toMatchObject({ fullName: ["DUPONT Marie"], firstName: "Marie", phone: ["06 12 34 56 78"], address: [] });
+    expect(await candidateIdentityOf(database)(marie)).toMatchObject({ fullName: ["DUPONT Marie"], givenName: ["Marie"], phone: ["06 12 34 56 78"], address: [] });
 
     await profiles.saveMasterCv(marie, created.profile.id, { basedOnVersion: 1, content: { ...masterCv, fullName: "Marie Dupont", location: "12 rue des Lilas, 69003 Lyon" } });
 
     expect(await candidateIdentityOf(database)(marie)).toMatchObject({
       fullName: ["Marie Dupont"],
-      firstName: "Marie",
+      givenName: ["Marie"],
       email: ["marie.dupont@example.fr", "m.dupont@perso.example"],
       address: ["12 rue des Lilas, 69003 Lyon"],
     });

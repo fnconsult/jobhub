@@ -446,7 +446,7 @@ describe("AI layer configured from the environment", () => {
           fetch,
           usage: createMemoryUsageLog(),
           euAiConsent: async (candidateId) => candidateId === "consenting",
-          identityOf: async () => ({ fullName: "Marie Dupont", firstName: "Marie", lastName: "Dupont" }),
+          identityOf: async () => ({ fullName: "Marie Dupont", givenName: "Marie", lastName: "Dupont" }),
         });
 
         await ai.generate({ task: "coaching", candidateId: "c", route: direct, prompt: "Je suis Marie Dupont" });

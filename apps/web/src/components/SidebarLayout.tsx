@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AccountMenu } from "@/components/AccountMenu";
+import { AccountMenu, type SidebarCandidate } from "@/components/AccountMenu";
 import { Icons } from "@/components/icons";
 import { ProfileSwitcherMenu } from "@/components/ProfileSwitcherMenu";
 import { SignalementButton } from "@/components/Signalement";
@@ -16,7 +16,7 @@ import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, Sid
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
 import { PageHelpProvider } from "@/components/page-help";
 import { ActivityColumn, Fiche, FicheButtons, FicheProvider, useColumnOverPage, type FicheContent } from "@/components/Fiche";
-import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
+import { accountLink, sidebarNav, subscriptionLink, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
 
@@ -40,8 +40,9 @@ const LABELS = {
  * « Nouvelle conversation » and « Coach » with the Candidate's `freeConversations` (#601), the Profile switcher and the
  * Candidate's labelled links, its menus with objects unfolding into them (`menus`, #604, #606), and in its foot the Usage
  * Meter of the week's Plan Quotas (null when billing could not be read). Beside « Mon compte », on its row, the
- * Signalement icon (#375), whose form opens in the Work Pane; `version` is the Jobbbox version it shows. « Mon compte » is
- * a menu (AccountMenu): « Aide et légal » (#544), Mon compte's page and « Se déconnecter », in the drawer too on a phone.
+ * Signalement icon (#375), whose form opens in the Work Pane; `version` is the Jobbbox version it shows. « Mon compte » shows
+ * the `candidate`'s name and Plan (#923) and is a menu (AccountMenu): their name and email, « Aide et légal » (#544), Mon
+ * compte's page, « Mon abonnement » and « Se déconnecter », in the drawer too on a phone.
  * Its Top Bar has « Effacer » while the page is a conversation, « Aide » on a page without one (#602). The Work Pane opens
  * beside the page (#602). `fiche`: an object's page (an Application's, #603): the Fiche beside the conversation, after
  * the Work Pane, and « Fiche » and AI Activity's button, « Activité », in the Top Bar (#809); the Fiche shows the page's
@@ -56,6 +57,7 @@ export function SidebarLayout({
   isHumanCoach = false,
   isAdministrator = false,
   usage = null,
+  candidate,
   title,
   wide = false,
   aiActivity = NO_AI_ACTIVITY,
@@ -72,6 +74,8 @@ export function SidebarLayout({
   isHumanCoach?: boolean;
   isAdministrator?: boolean;
   usage?: Meter | null;
+  /** Who « Mon compte » names, and their Plan (#923); without it, « Mon compte » alone. */
+  candidate?: SidebarCandidate | undefined;
   title?: ReactNode;
   wide?: boolean;
   aiActivity?: readonly ServedEntry[];
@@ -87,6 +91,7 @@ export function SidebarLayout({
   const pathname = usePathname();
   const items = sidebarNav({ pathname, profiles, currentProfileId, isHumanCoach, isAdministrator });
   const account = accountLink(pathname);
+  const subscription = subscriptionLink(pathname);
   const switcherProfiles = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
@@ -117,7 +122,7 @@ export function SidebarLayout({
           <>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
             <div className="sidebar-account-row">
-              <AccountMenu account={account} onNavigate={closeDrawer} />
+              <AccountMenu account={account} subscription={subscription} candidate={candidate} onNavigate={closeDrawer} />
               <SignalementButton version={version} closeDrawerThen={closeDrawerThen} />
             </div>
           </>

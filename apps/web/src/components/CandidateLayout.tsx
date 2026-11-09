@@ -6,6 +6,8 @@ import type { FicheContent } from "@/components/Fiche";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
 import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
+import { getCurrentCandidate } from "@/auth/server";
+import type { SidebarCandidate } from "@/components/AccountMenu";
 import { JobSearchNotifications } from "@/components/JobSearchNotifications";
 import { PaymentFailedBanner } from "@/components/PaymentFailedNotice";
 import { SignalementNotifications } from "@/components/SignalementNotifications";
@@ -38,15 +40,27 @@ async function privacyChange(candidateId: string) {
   }
 }
 
-/** The sidebar's Usage Meter; never fails the page: without billing, there is no meter. */
-async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
+/**
+ * The sidebar's Usage Meter and the Plan « Mon compte » shows (#923), from one read of the Candidate's entitlements;
+ * never fails the page: without billing, there is no meter and no Plan.
+ */
+async function sidebarBilling(candidateId: string): Promise<{ usage: UsageMeter | null; plan: SidebarCandidate["plan"] }> {
   try {
-    const { quotas, usedThisWeek } = await getBilling().entitlements(candidateId);
-    return usageMeter(quotas, usedThisWeek);
+    const billing = getBilling();
+    const [{ plan, endsAt, quotas, usedThisWeek }, plans] = await Promise.all([billing.entitlements(candidateId), billing.plans()]);
+    const name = plans.find((each) => each.key === plan)?.name ?? { fr: plan, en: plan };
+    return { usage: usageMeter(quotas, usedThisWeek), plan: { name, endsAt: endsAt?.toISOString() ?? null } };
   } catch (error) {
     console.error("[billing] could not read the week's usage", error);
-    return null;
+    return { usage: null, plan: null };
   }
+}
+
+/** Who « Mon compte » names (#923): the signed-in Candidate's names (#918) and email, the Plan apart. */
+async function sidebarIdentity(candidateId: string): Promise<Omit<SidebarCandidate, "plan">> {
+  const candidate = await getCurrentCandidate();
+  if (candidate?.id !== candidateId) return { givenName: null, familyName: null, preferredName: null, email: "" };
+  return { givenName: candidate.givenName ?? null, familyName: candidate.familyName ?? null, preferredName: candidate.preferredName ?? null, email: candidate.email };
 }
 
 /**
@@ -136,7 +150,7 @@ export async function CandidateLayout({
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free, menus, welcomeClosed] = await Promise.all([
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, { usage, plan }, identity, privacy, free, menus, welcomeClosed] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     Promise.all([getRequestLocale(), headers()]).then(([locale, requestHeaders]) => getPaymentFailedNotice(candidateId, locale, inAppWebView(requestHeaders.get("user-agent")))),
@@ -144,7 +158,8 @@ export async function CandidateLayout({
     getSignalements().notifications(candidateId),
     currentHumanCoach(),
     currentIsAdministrator(),
-    weekUsage(candidateId),
+    sidebarBilling(candidateId),
+    sidebarIdentity(candidateId),
     privacyChange(candidateId),
     freeConversations(candidateId),
     sidebarMenus(candidateId),
@@ -158,6 +173,7 @@ export async function CandidateLayout({
       isHumanCoach={Boolean(humanCoach)}
       isAdministrator={isAdministrator}
       usage={usage}
+      candidate={{ ...identity, plan }}
       title={title}
       wide={wide}
       aiActivity={aiActivity}

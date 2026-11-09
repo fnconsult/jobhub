@@ -70,6 +70,7 @@ import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
 import { twoStepStatusOf, type TwoStepStatus } from "../two-step-verification";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { Origin } from "../origin";
+import type { Surface } from "../request-surface";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
 export interface ExportedProfile {
@@ -405,6 +406,8 @@ export interface ExportedAiMessageLog {
   reason: { code: FailureReason; wording: string } | null;
   /** What its feature did instead (#260), each code with its wording; never what happened, which is technical. */
   warnings: { code: FailureReason; wording: string }[];
+  /** Where the call was asked from (#919): `web`, `extension`, `app`, `worker`; null when not known. */
+  surface: Surface | null;
   system: string | null;
   messages: { role: string; content: string }[];
   reply: string | null;
@@ -866,7 +869,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         rowsOf<Omit<ExportedAiMessageLog, "reason" | "warnings"> & { reason: string | null; warnings: string[] }>(
-          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.system, m.messages, m.reply
+          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.surface, m.system, m.messages, m.reply
              FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id WHERE m.candidate_id = $1 ORDER BY m.at DESC, m.id`,
           candidateId,
         ).then((logs) =>

@@ -1,7 +1,8 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import { expect, test } from "@playwright/test";
+import { composeCommand } from "./support/compose";
 
 // Issue #64: in the local docker compose stack the `worker` reads the same
 // repo-root `.env` as the web app (AI layer keys and providers), so Job Searches
@@ -18,12 +19,6 @@ const rootEnv = ".env";
 const backup = `.env.e2e-worker-backup-${process.pid}`;
 const project = `jobhub-e2e-worker-env-${process.pid}`;
 let postgresPort = Number(process.env.E2E_POSTGRES_PORT ?? 0);
-
-function composeCommand(): string[] {
-  if (spawnSync("docker", ["compose", "version"]).status === 0) return ["docker", "compose"];
-  if (spawnSync("docker-compose", ["version"]).status === 0) return ["docker-compose"];
-  return [];
-}
 
 const compose = composeCommand();
 
@@ -88,7 +83,7 @@ async function workerStarted(): Promise<string> {
 }
 
 test.describe("compose worker reads the repo-root .env (issue #64)", () => {
-  test.skip(!!process.env.E2E_SKIP_DOCKER || compose.length === 0, "docker compose not available");
+  test.skip(!!process.env.E2E_SKIP_DOCKER || compose.length === 0, "docker compose not available, or no docker daemon answers");
   test.describe.configure({ timeout: 300_000 });
 
   test.beforeAll(async () => {

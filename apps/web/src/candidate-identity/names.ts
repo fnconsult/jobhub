@@ -79,3 +79,23 @@ export function nameForCoach(
   }
   return { name: given ? (family ? `${given} ${initialOf(family)}.` : given) : `${initialOf(family)}.`, calledBy };
 }
+
+/** The name the Sidebar calls the Candidate by (#923): their Preferred Name, else their Given Name; null with neither. */
+export function calledName(names: { givenName: string | null; preferredName: string | null }): string | null {
+  return cleanName(names.preferredName ?? "") || cleanName(names.givenName ?? "") || null;
+}
+
+/** The particles a family name may start with, which its initial skips (« de La Rochefoucauld » → R, « d'Arcy » → A). */
+const PARTICLES = /^(?:(?:de|du|des)\s+(?:la\s+|l['’])?|d['’])/i;
+
+/** A name's first letter, in capitals; empty for none. */
+const initial = (name: string) => cleanName(name).match(/\p{L}/u)?.[0]?.toUpperCase() ?? "";
+
+/**
+ * The Candidate's initials (#923), the Sidebar's stand-in for their photo: their Given Name's first letter and their
+ * Family Name's, its particles skipped (« Marie de La Rochefoucauld » → MR); the one there is; null with neither.
+ */
+export function initialsOf(names: { givenName: string | null; familyName: string | null }): string | null {
+  const letters = initial(names.givenName ?? "") + initial(cleanName(names.familyName ?? "").replace(PARTICLES, ""));
+  return letters || null;
+}

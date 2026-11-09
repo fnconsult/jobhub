@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { accountButtonName } from "./support/account-menu";
 
 // The sidebar's Usage Meter (ADR-0032): the week's Plan Quotas as one bar, each weighed by
 // what the Plan grants; its button shows each quota's use, and leads to the subscription page.
@@ -67,7 +68,7 @@ for (const viewport of [
       await expectRenewalOnOneLineUnderTheBar(page, "Votre quota se renouvelle lundi minuit");
 
       // Opened, the detail is a smaller card above the meter: nothing in the sidebar's foot moves.
-      const account = page.getByRole("button", { name: fr.nav.account, exact: true }).locator("visible=true");
+      const account = page.getByRole("button", { name: accountButtonName(fr.nav.account) }).locator("visible=true");
       const accountBefore = (await account.boundingBox())!;
       const buttonBefore = (await button.boundingBox())!;
       await button.click();

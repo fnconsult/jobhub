@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentPlanLabel } from "./current-plan";
+import { currentPlanLabel, sidebarPlanLabel } from "./current-plan";
 
 const PREMIUM = { fr: "Premium", en: "Premium" };
 
@@ -23,5 +23,19 @@ describe("the current Plan on the subscription page", () => {
   it("dates the end in French time", () => {
     // 00:30 on 15 November in Paris.
     expect(currentPlanLabel({ planName: PREMIUM, endsAt: new Date("2026-11-14T23:30:00Z") }, "fr")).toBe("Votre offre actuelle : Premium jusqu'au 15 novembre 2026");
+  });
+});
+
+describe("the Plan in the Sidebar's foot (#923)", () => {
+  it("is the Plan's name while it renews, and on Free", () => {
+    expect(sidebarPlanLabel({ planName: PREMIUM, endsAt: null }, "fr")).toEqual({ plan: "Premium", until: null });
+    expect(sidebarPlanLabel({ planName: { fr: "Gratuit", en: "Free" }, endsAt: null }, "en")).toEqual({ plan: "Free", until: null });
+  });
+
+  it("says, shortly, until when a Plan whose cancellation is scheduled is kept, the day in French time", () => {
+    const endsAt = new Date("2026-11-29T23:30:00Z");
+
+    expect(sidebarPlanLabel({ planName: PREMIUM, endsAt }, "fr")).toEqual({ plan: "Premium", until: "jusqu'au 30 nov." });
+    expect(sidebarPlanLabel({ planName: PREMIUM, endsAt }, "en")).toEqual({ plan: "Premium", until: "until Nov 30" });
   });
 });

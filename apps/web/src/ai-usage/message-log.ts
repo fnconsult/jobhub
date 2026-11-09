@@ -5,7 +5,7 @@
  * there is one; purged with `purgeExpiredAiUsage`.
  *
  * Personal data, read by super-admins only (the `aiMessages` resource), on Activité › Appels IA (formerly Journaux IA):
- * `list` shows who, when, which task and model, the Outcome and Failure Reason, never the text, and for a call that wrote an
+ * `list` shows who, when, which task and model, the Surface it was asked from (« Origine », #919), the Outcome and Failure Reason, never the text, and for a call that wrote an
  * AI Coach reply, the reply's estimate of its context against the provider's count (`context`, ADR-0078, #731); `open`
  * shows the text and the technical reason, and writes
  * the view to the Back Office Audit, in the same transaction, so no log is read without a trace.
@@ -16,6 +16,8 @@ import { FAILURE_REASONS, OUTCOMES, type FailureReason, type Outcome, type Techn
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { BackOffice, BackOfficeActor } from "../admin/back-office";
+import type { Surface } from "../request-surface";
+import { SURFACE_FILTERS } from "./index";
 
 export interface AiMessageLogSummary {
   id: string;
@@ -46,6 +48,8 @@ export interface AiMessageLogSummary {
    * any other call, and for a reply that kept no estimate.
    */
   context: ContextMeasure | null;
+  /** The Surface the call was asked from (#919); null when it was not told, and for a call recorded before (« inconnue »). */
+  surface: Surface | null;
 }
 
 /**
@@ -82,7 +86,8 @@ export interface AiMessageLog extends AiMessageLogSummary {
 export interface AiMessageLogs {
   /**
    * The newest logs first, at most LIST_LIMIT. `filter` is untrusted (the page's query string):
-   * `{ task?, model?, email?, day?, outcome?, reason?, candidate?, from?, to? }`, `day` a Paris date ("2026-10-17"), `candidate` a
+   * `{ task?, model?, email?, day?, outcome?, reason?, surface?, candidate?, from?, to? }`, `day` a Paris date ("2026-10-17"), `surface` a
+   * Surface or `unknown` (the calls recorded with none), `candidate` a
    * Candidate's id and `from` / `to` ISO instants (a Job discovery run's calls, #404); a field that cannot be read is ignored.
    */
   list(filter?: unknown): Promise<AiMessageLogSummary[]>;
@@ -105,6 +110,7 @@ const filterSchema = z.object({
   day: z.iso.date().optional().catch(undefined),
   outcome: z.enum(OUTCOMES).optional().catch(undefined),
   reason: z.enum(FAILURE_REASONS).optional().catch(undefined),
+  surface: z.enum(SURFACE_FILTERS).optional().catch(undefined),
   // One Candidate's calls between two instants: a Job discovery run's, from Activité › Recherches (#404).
   candidate: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional().catch(undefined),
   from: z.iso.datetime().optional().catch(undefined),
@@ -119,7 +125,7 @@ export function aiMessageLogFilter(input: unknown): AiMessageLogFilter {
   return parsed.success ? Object.fromEntries(Object.entries(parsed.data).filter(([, value]) => value !== undefined)) : {};
 }
 
-const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.sent, (m.test OR u.task = 'eval') AS test,
+const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.sent, m.surface, (m.test OR u.task = 'eval') AS test,
                         CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object('id', c.id, 'email', c.email) END AS candidate,
                         -- The AI Coach reply the call served, if any (#731, #790): its estimate against the provider's count of its
                         -- first Turn, and the whole reply's calls summed. Found by any of its calls, or the one that wrote it before #790.
@@ -154,6 +160,7 @@ export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<Bac
       if (filter.outcome) where((param) => `u.outcome = ${param}`, filter.outcome);
       // A code, whether the call's reason or one of its warnings (a failed call's).
       if (filter.reason) where((param) => `(u.reason = ${param} OR ${param} = ANY (u.warnings))`, filter.reason);
+      if (filter.surface) where((param) => `coalesce(m.surface, 'unknown') = ${param}`, filter.surface);
       if (filter.day) where((param) => `(m.at AT TIME ZONE 'Europe/Paris')::date = ${param}::date`, filter.day);
       if (filter.candidate) where((param) => `m.candidate_id = ${param}`, filter.candidate);
       if (filter.from) where((param) => `m.at >= ${param}::timestamptz`, filter.from);

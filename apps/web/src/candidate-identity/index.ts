@@ -61,4 +61,4 @@ export {
   type Names,
   type SaveNamesResult,
 } from "./identity-names";
-export { cleanName, formalNameOf, fullNameOf, IDENTITY_NAME_MAX_LENGTH, nameForCoach, namesFromFullName, type NameForCoach } from "./names";
+export { calledName, cleanName, formalNameOf, fullNameOf, IDENTITY_NAME_MAX_LENGTH, initialsOf, nameForCoach, namesFromFullName, type NameForCoach } from "./names";

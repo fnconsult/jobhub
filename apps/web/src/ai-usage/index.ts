@@ -129,9 +129,9 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
              SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
                FROM usage, jsonb_to_recordset($12::jsonb) AS tool (name text, count integer, ok boolean, "durationMs" integer, "costEur" double precision)
            )
-           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply, sent, technical_reason, warnings, surface)
+           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply, sent, technical_reason, warnings, surface, test)
            -- A Guest's call is kept without a Candidate; a Candidate's only while they exist: never a log without its owner.
-           SELECT usage.id, $13, $1, $14, $15::jsonb, $16, $18, $19::jsonb, $21::jsonb, $23 FROM usage
+           SELECT usage.id, $13, $1, $14, $15::jsonb, $16, $18, $19::jsonb, $21::jsonb, $23, $24 FROM usage
             WHERE $13::text IS NULL OR EXISTS (SELECT 1 FROM candidate WHERE id = $13)`,
           [
             entry.at,
@@ -159,6 +159,7 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             JSON.stringify(warnings.map(({ reason, detail }) => (detail === undefined ? { reason } : { reason, detail: cleanTechnicalMessage(scrub(detail)) }))),
             entry.id ?? null,
             await asked,
+            entry.test === true,
           ],
         );
       } catch (error) {
@@ -510,5 +511,8 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     -- recorded before (« inconnue »). On both: Appels IA reads the log's, Consommation IA the usage's.
     ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS surface text;
     ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS surface text;
+    -- A call made to test the AI, for no one (#926): an Eval Run's or a route's test call, told from a Guest's on Appels IA.
+    -- An Eval Run's kept before is known by its task (eval); a route's test call kept before, not at all (30 days at most).
+    ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS test boolean NOT NULL DEFAULT false;
   `);
 }

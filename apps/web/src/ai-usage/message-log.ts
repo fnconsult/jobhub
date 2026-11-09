@@ -33,8 +33,13 @@ export interface AiMessageLogSummary {
   warnings: FailureReason[];
   /** False for a call stopped before it was sent (missing key or route, data residency). */
   sent: boolean;
-  /** Null for a call made for no Candidate (a Guest). */
+  /** Null for a call made for no Candidate: a Guest's, or a test's (`test`). */
   candidate: { id: string; email: string } | null;
+  /**
+   * True for a call made to test the AI, for no one (#926): an Eval Run's (its task, `eval`, for a call kept before they were
+   * marked) or a route's test call in Paramètres. Appels IA shows it « Eval / test », a Guest's « Invité ».
+   */
+  test: boolean;
   /**
    * For a call that served an AI Coach reply (#731, ADR-0078; #790 for every call of it, not only the one that wrote it): the
    * reply's estimate of the context it was sent (`context_tokens`, about 4 characters a token), the provider's count of the input
@@ -120,7 +125,7 @@ export function aiMessageLogFilter(input: unknown): AiMessageLogFilter {
   return parsed.success ? Object.fromEntries(Object.entries(parsed.data).filter(([, value]) => value !== undefined)) : {};
 }
 
-const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.sent, m.surface,
+const SUMMARY = `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.sent, m.surface, (m.test OR u.task = 'eval') AS test,
                         CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object('id', c.id, 'email', c.email) END AS candidate,
                         -- The AI Coach reply the call served, if any (#731, #790): its estimate against the provider's count of its
                         -- first Turn, and the whole reply's calls summed. Found by any of its calls, or the one that wrote it before #790.

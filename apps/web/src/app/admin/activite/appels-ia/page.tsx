@@ -164,7 +164,8 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
                 { header: t("admin.aiMessages.at"), rowHeader: true, cell: (log) => <time dateTime={log.at.toISOString()}>{at.format(log.at)}</time> },
                 { header: t("admin.aiMessages.task"), cell: (log) => (AI_TASKS.includes(log.task) ? t(`admin.aiUsage.tasks.${log.task as Task}`) : log.task) },
                 { header: t("admin.aiMessages.provider"), cell: (log) => (log.provider ? `${log.provider} ${log.model ?? ""}` : t("admin.aiMessages.noProvider")) },
-                { header: t("admin.aiMessages.candidate"), cell: (log) => log.candidate?.email ?? t("admin.aiMessages.noCandidate") },
+                // For no Candidate: a Guest's call, or a test's (an Eval Run's, a route's test call, #926).
+                { header: t("admin.aiMessages.candidate"), cell: (log) => log.candidate?.email ?? t(log.test ? "admin.aiMessages.test" : "admin.aiMessages.guest") },
                 { header: t("admin.aiUsage.surface"), cell: (log) => t(`admin.aiUsage.surfaces.${log.surface ?? "unknown"}`) },
                 {
                   header: t("admin.aiMessages.context"),

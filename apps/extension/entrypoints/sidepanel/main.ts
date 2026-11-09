@@ -414,7 +414,7 @@ function cvForm(cgu: CguVersion | null): { form: HTMLFormElement; submit: HTMLBu
       error.textContent = read.error === "unreachable" ? t("extension.unreachable") : t(`cvUpload.errors.${read.error}`);
       return;
     }
-    await session.keepCv(read.cv, read.searchCriteria);
+    await session.keepCv(read.cv, read.searchCriteria, read.provenance);
     cvChosen.clear();
     await render();
   });

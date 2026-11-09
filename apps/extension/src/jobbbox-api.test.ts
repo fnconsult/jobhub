@@ -64,6 +64,23 @@ describe("the Jobbbox API, from the extension", () => {
     expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });
   });
 
+  it("passes the Provenance of a CV the AI read back with the Profile made from it, so it counts as a CV read (#926)", async () => {
+    // A signed-in Candidate's CV is read by the AI (cv_parsing): the web app says so in the draft's Provenance.
+    const provenance = { v: 1, steps: [{ kind: "ai", activity: "read", task: "cv_parsing", at: "2026-11-09T10:00:00.000Z" }], startedAt: "2026-11-09T10:00:00.000Z" };
+    const app = webApp({
+      "/api/cv/draft": Response.json({ masterCv: cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] }, provenance }),
+      "/api/profiles": () => Response.json({ id: "p-1" }, { status: 201 }),
+    });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
+    const searchCriteria = { targetRole: "DAF", locations: ["Lyon"] };
+
+    const read = await api.readCv(new File(["%PDF"], "cv.pdf"));
+    expect(read).toEqual({ ok: true, cv, searchCriteria, provenance });
+    if (!read.ok) throw new Error("not read");
+    expect(await api.createProfile(read.cv, searchCriteria, read.provenance)).toEqual({ ok: true, profileId: "p-1" });
+    expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ masterCv: cv, searchCriteria, provenance });
+  });
+
   it("says why a CV could not be read, or a Job Offer scored", async () => {
     const api = createJobbboxApi(
       WEB_ORIGIN,

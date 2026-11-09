@@ -13,3 +13,5 @@ To install it, signed in: in My account, under Tools, click « Install the exten
 Once installed, pin it to Chrome's toolbar to find it again. On a job offer's page, it adds the « Analyse this offer » button; you can also open it and click « Capture this page ».
 
 Without an account, the extension works out a job offer's Match Score with your CV, then deletes everything within 24 hours. To keep the offer in your applications, sign in: « Sign in », in the extension. The rest is explained step by step in the tutorial « Save a job offer with the extension ».
+
+When something goes wrong, the extension sends Jobbbox the page's domain (never its address or its content) and its version, so that sites it does not recognise can be fixed.

@@ -31,6 +31,8 @@ With a Jobbbox account: « Sign in », in the extension, and the offer joins you
 
 On job sites, the extension recognises a job offer in your browser; it sends a page to Jobbbox only when you click. To see « Analyse this offer » on employers' career sites too, tick « Detect job offers on every site » in the panel: your browser then asks for your permission.
 
+When something goes wrong, the extension sends Jobbbox the page's domain (never its address or its content) and its version, so that sites it does not recognise can be fixed.
+
 Help: https://jobbbox.ai/aide/extension
 Privacy policy: https://jobbbox.ai/legal/confidentialite
 

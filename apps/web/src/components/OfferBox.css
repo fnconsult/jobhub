@@ -128,9 +128,11 @@
   margin-top: var(--space-3);
 }
 
-/* For a phone (#898): « 12 arrivées aujourd'hui · 184 à traiter » under « Aujourd'hui », and the day in the pinned tier. */
+/* For a phone (#898): « 12 arrivées aujourd'hui · 184 à traiter » under « Aujourd'hui », the day in the pinned tier, and
+   the scrim under the open panel. */
 .offer-box-day-line,
-.offer-box-tier-day {
+.offer-box-tier-day,
+.offer-box-scrim {
   display: none;
 }
 
@@ -427,13 +429,35 @@
     clip-path: inset(50%);
   }
 
-  /* Opened by the icon: a panel under the Top Bar, over the entries, its chips on several lines. */
+  /* Opened by the icon: a panel under the Top Bar, over the entries, its chips on several lines. Pinned to the top of
+     the page's column (`--offer-box-panel-top`, the bar's bottom, OfferBox.tsx) and out of its flow: it opens in view
+     wherever the column is scrolled, even past the box, and neither opening nor closing it moves the column. */
   .offer-box-head[data-open] {
-    z-index: 6;
+    position: fixed;
+    top: var(--offer-box-panel-top, 3.25rem);
+    inset-inline: 0;
+    z-index: 8;
+    max-height: calc(100dvh - var(--offer-box-panel-top, 3.25rem));
     padding: var(--space-3) var(--space-4) var(--space-4);
-    margin-inline: calc(-1 * var(--space-4));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-radius: 0 0 var(--radius-card) var(--radius-card);
     box-shadow: var(--shadow-overlay);
+  }
+
+  /* Under the open panel, the entries dimmed, and the conversation's box at the foot (z-index 5): they neither scroll
+     nor take a tap, which closes the panel. Under the Top Bar (z-index 10). */
+  .offer-box-scrim {
+    position: fixed;
+    inset: var(--offer-box-panel-top, 3.25rem) 0 0;
+    z-index: 7;
+    display: block;
+    touch-action: none;
+    background: var(--color-scrim);
+  }
+
+  .workspace > .page:has(.offer-box-head[data-open]) {
+    overflow-y: hidden;
   }
 
   /* The days scroll with their entries; only the tier stays pinned, at the top, on one line. */
@@ -492,10 +516,15 @@
   }
 }
 
-/* The Top Bar's filter icon while a source is chosen (#898): a dot on it. */
-.offer-box-filter-on {
+/* The Top Bar's filter icon (#898): drawn in the accent while its panel is open, the button pressed (app.css's
+   `.topbar-icon[aria-expanded="true"]`, as the prototype's « filtre ouvert »); a dot on it while a source is chosen. */
+.offer-box-filter-glyph {
   position: relative;
   display: inline-flex;
+}
+
+[aria-expanded="true"] > .offer-box-filter-glyph {
+  color: var(--color-accent);
 }
 
 .offer-box-filter-dot {

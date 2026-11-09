@@ -11,6 +11,8 @@ import { newAddress } from "./support/mailbox";
 // bar; « Aujourd'hui » says « n arrivées aujourd'hui · N à traiter »; only the tier in view stays pinned, on one line,
 // « Tout écarter (n) » whole; the coach's suggestions keep to one row. At every width, the pinned header sticks to the very
 // top of the page's scrolling column: no entry shows above it (the band under the page's top padding).
+// Open, the panel is pinned under the Top Bar wherever the column is scrolled, over a scrim that a tap closes, the icon
+// pressed; the column does not move.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 const databaseUrl = process.env.E2E_DATABASE_URL!;
@@ -78,6 +80,18 @@ const boxOf = (page: Page) => page.getByRole("region", { name: /^Offres à trait
 const dayOf = (page: Page, name: string) => boxOf(page).getByRole("region", { name, exact: true });
 /** « Précédemment »'s last tier, and its entries. */
 const LAST_EARLIER_TIER = "section.offer-box-day ~ section.offer-box-day .offer-box-tier:last-of-type";
+/** The scrim under the open panel. */
+const scrimOf = (page: Page) => page.locator(".offer-box-scrim");
+const scrollTopOf = (page: Page) => page.locator("main").evaluate((main) => main.scrollTop);
+/** `token`'s color, as the browser computes it, to compare with an element's. */
+const tokenColor = (page: Page, token: string) =>
+  page.evaluate((name) => {
+    const probe = document.body.appendChild(document.createElement("i"));
+    probe.style.color = `var(${name})`;
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  }, token);
 const filterName = (count: number, source: string) => fr.offerBox.filterName.replace("{{count}}", String(count)).replace("{{source}}", source);
 
 /** The page's scrolling column, scrolled to `top` (px), then where its scrollport begins. */
@@ -177,12 +191,19 @@ test.describe("« Offres à traiter » on a phone (#898)", () => {
     const chipBoxes = await chips.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON() as DOMRect));
     expect(new Set(chipBoxes.map((box) => Math.round(box.top))).size).toBeGreaterThan(1);
     expect(Math.max(...chipBoxes.map((box) => box.right))).toBeLessThanOrEqual(PHONE.width);
+    // As the prototype's « filtre ouvert »: the icon pressed, the entries dimmed under the panel.
+    expect(await icon.evaluate((button) => getComputedStyle(button).backgroundColor)).toBe(await tokenColor(page, "--color-accent-soft"));
+    expect(await icon.evaluate((button) => getComputedStyle(button).borderColor)).toBe(await tokenColor(page, "--color-accent"));
+    expect(await icon.locator(".offer-box-filter-glyph").evaluate((glyph) => getComputedStyle(glyph).color)).toBe(await tokenColor(page, "--color-accent"));
+    await expect(scrimOf(page)).toBeVisible();
     const axe = await new AxeBuilder({ page }).include(".topbar").include(".offer-box-head").analyze();
     expect(axe.violations).toEqual([]);
     await page.keyboard.press("Escape");
     await expect(icon).toHaveAttribute("aria-expanded", "false");
     await expect(icon).toBeFocused();
     await expect(chips).toBeHidden();
+    await expect(scrimOf(page)).toHaveCount(0);
+    expect(await icon.evaluate((button) => getComputedStyle(button).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
 
     // A source chosen with the keyboard: the box filtered, the panel closed, the focus back on the icon, which says so.
     await page.keyboard.press("Enter");
@@ -201,6 +222,59 @@ test.describe("« Offres à traiter » on a phone (#898)", () => {
     await expect(icon).toHaveAccessibleName(filterName(toHandle, fr.offerBox.filterAll));
     await expect(icon.locator(".offer-box-filter-dot")).toHaveCount(0);
     await expect(boxOf(page).locator(".offer-box-day .offer-box-entry")).toHaveCount(toHandle);
+  });
+
+  test("scrolled down to the conversation, the filter opens its panel in view under the Top Bar, over a scrim; the column neither scrolls nor moves, and a tap on the scrim closes it", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await candidateWithOfferBox(page, "phone-panel-anywhere");
+    await page.goto("/recherches");
+    await expect(dayOf(page, fr.offerBox.earlier)).toBeVisible();
+
+    // The column scrolled to its end, the conversation: the box's top far above.
+    const scrollportTop = await page.locator("main").evaluate((main) => {
+      main.scrollTop = main.scrollHeight;
+      return main.getBoundingClientRect().top;
+    });
+    await expect(page.locator(".page-conversation-foot")).toBeInViewport();
+    const before = await scrollTopOf(page);
+    expect((await boxOf(page).boundingBox())!.y, "the box's top above the screen").toBeLessThan(-PHONE.height);
+
+    const icon = filterIconOf(page);
+    await icon.click();
+    const panel = page.locator(".offer-box-head[data-open]");
+    await expect(panel).toBeVisible();
+    await expect(panel).toBeInViewport({ ratio: 1 });
+    await expect(panel.getByRole("group", { name: fr.offerBox.chips })).toBeInViewport({ ratio: 1 });
+    const top = (await panel.boundingBox())!.y;
+    expect(Math.abs(top - scrollportTop), `the panel at ${top} px, under the Top Bar at ${scrollportTop} px`).toBeLessThanOrEqual(1);
+    expect(await scrollTopOf(page), "opening it moves nothing").toBe(before);
+
+    // The scrim under it: what is below is dimmed, takes no tap and does not scroll.
+    const scrim = (await scrimOf(page).boundingBox())!;
+    expect(scrim.y).toBeCloseTo(scrollportTop, 0);
+    expect(scrim.y + scrim.height).toBeCloseTo(PHONE.height, 0);
+    const below = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.className ?? "", [PHONE.width / 2, PHONE.height - 40]);
+    expect(below).toBe("offer-box-scrim");
+    await page.mouse.move(PHONE.width / 2, PHONE.height - 40);
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(200);
+    expect(await scrollTopOf(page), "the column does not scroll behind the scrim").toBe(before);
+
+    // A tap on the scrim closes the panel, the focus back on the icon, the column where it was.
+    await page.mouse.click(PHONE.width / 2, PHONE.height - 40);
+    await expect(panel).toHaveCount(0);
+    await expect(scrimOf(page)).toHaveCount(0);
+    await expect(icon).toHaveAttribute("aria-expanded", "false");
+    await expect(icon).toBeFocused();
+    expect(await scrollTopOf(page), "closing it moves nothing").toBe(before);
+
+    // By the keyboard too: Escape closes it, the column where it was.
+    await page.keyboard.press("Enter");
+    await expect(panel).toBeInViewport({ ratio: 1 });
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+    await expect(icon).toBeFocused();
+    expect(await scrollTopOf(page)).toBe(before);
   });
 
   test("deep in « Précédemment », « Annuler » in the toast leaves the column where it was, the focus on the filter icon", async ({ page }) => {

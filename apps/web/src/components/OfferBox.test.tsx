@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { OfferBox, OfferBoxFilterProvider, OfferBoxTopBarTitle } from "./OfferBox";
-import { CompactTopBarActions, TopBarActionsProvider, useTopBarState } from "./top-bar";
+import { Icons } from "./icons";
+import { CompactTopBarActions, TOP_BAR_RANK, TopBarActionsProvider, useTopBarAction, useTopBarState } from "./top-bar";
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push: vi.fn() }), usePathname: () => "/recherches" }));
@@ -42,14 +43,20 @@ const box = (entries: OfferBoxEntryRead[]): OfferBoxResponse => ({ today: TODAY,
 
 const offerBox = () => screen.getByRole("region", { name: /^Offres à traiter/ });
 
+/** AI Activity's « Activité » in the Top Bar, as AiActivity offers it; `running`: an AI action under way (ADR-0101). */
+function Activity({ running }: { running: boolean }) {
+  return <>{useTopBarAction({ id: "activity", rank: TOP_BAR_RANK.activity, label: "Activité", icon: Icons.activity, run: () => {}, running, controls: "activity-column", expanded: false })}</>;
+}
+
 /** Recherches d'offres as SidebarShell lays it out: its title and the compact Top Bar's actions, then the page (#898). */
-function JobSearchesPage({ box: read }: { box: OfferBoxResponse }) {
+function JobSearchesPage({ box: read, running = false }: { box: OfferBoxResponse; running?: boolean }) {
   const state = useTopBarState(true);
   return (
     <OfferBoxFilterProvider toHandle={read.toHandle}>
       <TopBarActionsProvider state={state}>
         <header>
           <OfferBoxTopBarTitle title="Recherches d'offres" />
+          <Activity running={running} />
           {state.mode !== "wide" ? <CompactTopBarActions /> : null}
         </header>
         <main>
@@ -473,6 +480,72 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
       await dismiss("Offre a");
       await userEvent.keyboard("{Escape}");
       expect(document.activeElement).toBe(filterIcon());
+    });
+
+    it("while an AI action runs, Activité in the icon's place, the toast closed gives the focus to « … », where the filter is, not to the hidden heading", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} running />);
+      const more = within(screen.getByRole("banner")).getByRole("button", { name: "Autres actions" });
+      expect(within(screen.getByRole("banner")).queryByRole("button", { name: /^Filtrer les offres à traiter/ })).toBeNull();
+      const title = within(offerBox()).getByRole("heading", { name: "Offres à traiter" });
+      const focus = vi.spyOn(title, "focus");
+
+      await dismiss("Offre old");
+      await userEvent.keyboard("{Enter}");
+      await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+      expect(document.activeElement).toBe(more);
+
+      await dismiss("Offre a");
+      await userEvent.keyboard("{Escape}");
+      expect(document.activeElement).toBe(more);
+      expect(focus).not.toHaveBeenCalled();
+    });
+
+    it("with no compact Top Bar to go back to, the toast closed gives the focus to the hidden heading without scrolling the column to it", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<OfferBox box={read()} />);
+      const title = within(offerBox()).getByRole("heading", { name: "Offres à traiter" });
+      const focus = vi.spyOn(title, "focus");
+
+      await dismiss("Offre old");
+      await userEvent.keyboard("{Enter}");
+
+      await waitFor(() => expect(document.activeElement).toBe(title));
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    });
+
+    it("its panel open, a scrim dims the entries; touched, it closes the panel, the focus back on the icon", async () => {
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+      const icon = filterIcon();
+      const box = offerBox();
+      expect(box.querySelector(".offer-box-scrim")).toBeNull();
+
+      await userEvent.click(icon);
+      const scrim = box.querySelector<HTMLElement>(".offer-box-scrim")!;
+      expect(scrim.getAttribute("aria-hidden")).toBe("true");
+      await userEvent.click(scrim);
+
+      expect(icon.getAttribute("aria-expanded")).toBe("false");
+      expect(document.getElementById(icon.getAttribute("aria-controls")!)!.hasAttribute("data-open")).toBe(false);
+      expect(box.querySelector(".offer-box-scrim")).toBeNull();
+      expect(document.activeElement).toBe(icon);
+    });
+
+    it("opened from « … » while an AI action runs, the panel gives the focus back to « … » when it closes", async () => {
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} running />);
+      const more = within(screen.getByRole("banner")).getByRole("button", { name: "Autres actions" });
+
+      await userEvent.click(more);
+      await userEvent.click(await screen.findByRole("menuitem", { name: "Filtrer les offres à traiter" }));
+      await waitFor(() => expect(document.activeElement).toBe(within(offerBox()).getByRole("button", { name: "Toutes, 3 à traiter" })));
+      await userEvent.keyboard("{Escape}");
+
+      expect(offerBox().querySelector(".offer-box-head[data-open]")).toBeNull();
+      expect(document.activeElement).toBe(more);
     });
 
     it("its panel open, the toast closed gives the focus to the box's heading, in view in the panel", async () => {

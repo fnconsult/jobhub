@@ -105,7 +105,8 @@ function onNarrowChange(onChange: () => void) {
   query?.addEventListener?.("change", onChange);
   return () => query?.removeEventListener?.("change", onChange);
 }
-const narrowScreen = () => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches;
+/** Below 40rem: a phone, where the Candidate's Top Bar is compact. */
+export const narrowScreen = () => typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches;
 /** The server does not know the screen's width. */
 const unknownOnServer = () => null;
 
@@ -165,6 +166,17 @@ export function useTopBarAction(action: TopBarAction | null): ReactNode {
  */
 export function useTopBarPrimary(action: Omit<TopBarAction, "rank"> | null): ReactNode {
   return useTopBarAction(action ? { ...action, rank: TOP_BAR_RANK.page } : null);
+}
+
+/**
+ * Where the compact Top Bar has, now, the action that controls `controls` (#898): its icon while it is the one shown;
+ * « … » while it is under it, an AI action running having taken its place (ADR-0101). Null when there is no compact Top
+ * Bar (a wider screen) or before the page knows its width. The focus goes back there when what the action opened closes.
+ */
+export function compactTopBarPlaceOf(controls: string): HTMLElement | null {
+  const bar = document.querySelector<HTMLElement>(".topbar-compact-actions:not(.topbar-first-paint)");
+  if (!bar) return null;
+  return bar.querySelector<HTMLElement>(`button[aria-controls="${controls}"]`) ?? bar.querySelector<HTMLElement>(".topbar-more");
 }
 
 /**

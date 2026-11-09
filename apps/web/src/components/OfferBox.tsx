@@ -4,15 +4,15 @@ import { importanceTier, offerBoxView, postingAge, type OfferBoxDay, type OfferB
 import { DISMISSAL_REASONS, type DismissalReason, type OfferBoxEntryRead, type OfferBoxResponse } from "@jobhub/shared/reads";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useId, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
-import { useTopBarPrimary } from "@/components/top-bar";
+import { compactTopBarPlaceOf, narrowScreen, useTopBarPrimary } from "@/components/top-bar";
 import { buttonClass } from "@/design/button-class";
 import { EmptyState } from "@/design/EmptyState";
 import { useHydrated } from "@/design/hydrated";
 import { Pill } from "@/design/Pill";
-import { ToastProvider, useToast } from "@/design/Toast";
+import { ToastProvider, useToast, type ToastMessage } from "@/design/Toast";
 import { routes } from "@/routes";
 import "./OfferBox.css";
 
@@ -32,8 +32,9 @@ import "./OfferBox.css";
  * in the Work Pane. Laid out by `offerBoxView`, as the app does.
  *
  * On a phone (#898) the header leaves the page for the filter icon of the compact Top Bar (OfferBoxTopBarTitle), which
- * opens it as a panel under the bar; « Aujourd'hui » says how many arrived today and how many are à traiter, and only the
- * tier in view stays pinned, named with its day, on one line. At every width the header sticks to the very top of the
+ * opens it as a panel under the bar, wherever the column is scrolled, over a scrim that dims the entries and closes it
+ * when touched; « Aujourd'hui » says how many arrived today and how many are à traiter, and only the tier in view stays
+ * pinned, named with its day, on one line. At every width the header sticks to the very top of the
  * page's scrolling column: no entry shows above it.
  */
 /**
@@ -41,7 +42,7 @@ import "./OfferBox.css";
  * gone: where the focus goes back when the toast closes (`returnFocus`, OfferBoxPage), and how to say that « Annuler »
  * failed (null: it did not).
  */
-const OfferBoxPageHandle = createContext<{ returnFocus: () => HTMLElement | null; undoFailed: (message: string | null) => void }>({
+const OfferBoxPageHandle = createContext<{ returnFocus: NonNullable<ToastMessage["returnFocus"]>; undoFailed: (message: string | null) => void }>({
   returnFocus: () => null,
   undoFailed: () => {},
 });
@@ -84,19 +85,19 @@ export function OfferBoxFilterProvider({ toHandle, children }: { toHandle: numbe
   return <OfferBoxFilterContext.Provider value={useFilterState(toHandle)}>{children}</OfferBoxFilterContext.Provider>;
 }
 
-/** The filter icon in the Top Bar, found by the panel it controls: the focus comes back to it when the panel closes. */
-const filterIconOf = (panelId: string) => document.querySelector<HTMLElement>(`button[aria-controls="${panelId}"]:not([aria-disabled="true"])`);
-
 /**
  * Recherches d'offres' title in the Top Bar (#898), then, offered to the compact Top Bar through useTopBarPrimary, the
  * Offer box's filter icon: named by the count and the source (« Filtrer les offres à traiter : 184 à traiter, toutes les
- * sources »), a dot while a source is chosen, it opens the box's header as a panel under the bar. Before the page knows
- * its width, its icon is drawn here, in the server's HTML, where the compact bar draws it once hydrated.
+ * sources »), a dot while a source is chosen, it opens the box's header as a panel under the bar, and looks pressed
+ * while it is open. Before the page knows its width, its icon is drawn here, in the server's HTML, where the compact bar
+ * draws it once hydrated.
  */
 export function OfferBoxTopBarTitle({ title }: { title: string }) {
   const { t } = useTranslation();
   const state = useContext(OfferBoxFilterContext);
   const source = state && state.filter !== "all" ? t("offerBox.filterSource", { source: t(`offerBox.sources.${state.filter}`) }) : t("offerBox.filterAll");
+  const on = !!state && state.filter !== "all";
+  const glyph = useMemo(() => <FilterGlyph on={on} />, [on]);
   const icon = useTopBarPrimary(
     state
       ? {
@@ -104,7 +105,7 @@ export function OfferBoxTopBarTitle({ title }: { title: string }) {
           label: t("offerBox.filter"),
           name: t("offerBox.filterName", { count: state.toHandle, source }),
           icon: Icons.filter,
-          glyph: state.filter === "all" ? undefined : <FilterOn />,
+          glyph,
           run: () => state.setOpen((open) => !open),
           expanded: state.open,
           controls: state.panelId,
@@ -119,12 +120,12 @@ export function OfferBoxTopBarTitle({ title }: { title: string }) {
   );
 }
 
-/** The filter icon while a source is chosen: a dot on it. */
-function FilterOn() {
+/** The filter icon, drawn in the accent while its panel is open (OfferBox.css); while a source is chosen, a dot on it. */
+function FilterGlyph({ on }: { on: boolean }) {
   return (
-    <span className="offer-box-filter-on">
+    <span className="offer-box-filter-glyph">
       <Icons.filter />
-      <i className="offer-box-filter-dot" aria-hidden />
+      {on ? <i className="offer-box-filter-dot" aria-hidden /> : null}
     </span>
   );
 }
@@ -146,24 +147,35 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   const head = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [undoFailed, setUndoFailed] = useState<string | null>(null);
-  // The toast closed, the focus goes back to the box's heading; on a phone, with the header behind the Top Bar's filter
+  // The toast closed, the focus goes back to the box's heading. On a phone, with the header behind the Top Bar's filter
   // icon, its heading is hidden at the top of the box, and focusing it would scroll the entries back up there: the
-  // focus goes to the icon, always in view, as when the panel closes (#898).
+  // focus goes where the compact Top Bar has the filter, always in view, as when the panel closes (#898): its icon, or
+  // « … » while an AI action runs, Activité in the icon's place. With neither, to the heading, without scrolling.
   const [handle] = useState(() => ({
-    returnFocus: () => (head.current?.hasAttribute("data-open") ? null : filterIconOf(panelId)) ?? heading.current,
+    returnFocus: () => {
+      const title = heading.current;
+      if (head.current?.hasAttribute("data-open")) return title;
+      const place = compactTopBarPlaceOf(panelId);
+      if (place) return place;
+      return title && narrowScreen() ? { element: title, preventScroll: true as const } : title;
+    },
     undoFailed: setUndoFailed,
   }));
   const total = view.toHandle + view.treated;
 
-  // Opened as a panel under the Top Bar (a phone, #898): the focus on the source chosen.
-  useEffect(() => {
-    if (open) head.current?.querySelector<HTMLElement>('.offer-box-chip[aria-pressed="true"]')?.focus();
+  // Opened as a panel under the Top Bar (a phone, #898), wherever the column is scrolled: pinned to the column's top, the
+  // bar's bottom, before it is drawn; then the focus on the source chosen, the column left where it was.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const column = root.current?.closest("main");
+    if (column) root.current?.style.setProperty("--offer-box-panel-top", `${column.getBoundingClientRect().top}px`);
+    head.current?.querySelector<HTMLElement>('.offer-box-chip[aria-pressed="true"]')?.focus({ preventScroll: true });
   }, [open]);
 
-  /** Closes the panel, the focus back on the filter icon. */
+  /** Closes the panel, the focus back where the Top Bar has the filter (its icon, or « … »). */
   function close() {
     setOpen(false);
-    filterIconOf(panelId)?.focus();
+    compactTopBarPlaceOf(panelId)?.focus({ preventScroll: true });
   }
 
   function choose(source: OfferBoxFilter) {
@@ -231,6 +243,8 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
             ))}
           </div>
         </div>
+        {/* Under the open panel (a phone, #898): the entries dimmed, out of reach; touched, it closes the panel. */}
+        {open ? <div className="offer-box-scrim" aria-hidden onClick={close} /> : null}
 
         {undoFailed ? (
           <p className="field-error" role="alert">

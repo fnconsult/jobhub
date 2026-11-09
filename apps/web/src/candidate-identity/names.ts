@@ -39,6 +39,14 @@ export function namesFromFullName(fullName: string): { givenName: string; family
   return { givenName: given.map(asName).join(" "), familyName: family.map(asName).join(" ") };
 }
 
+/**
+ * The Candidate's formal name (#922): « Prénom Nom », for the Withdrawal form and any formal document; with neither
+ * entered, the account's name (a Sign-in Provider's, for an account made since #918, say); else empty.
+ */
+export function formalNameOf(names: { givenName: string | null; familyName: string | null; name: string | null }): string {
+  return fullNameOf(names) || cleanName(names.name ?? "");
+}
+
 /** The Candidate as a Human Coach names them (#922): their name, and the Preferred Name to call them by when it is not their Given Name. */
 export interface NameForCoach {
   /** « Marie Dupont » (« Marie D. » in the short form); empty when the Candidate gave no name. */
@@ -64,11 +72,10 @@ export function nameForCoach(
   const family = cleanName(names.familyName ?? "");
   const preferred = cleanName(names.preferredName ?? "");
   const calledBy = preferred && preferred.toLocaleLowerCase("fr") !== given.toLocaleLowerCase("fr") ? preferred : null;
+  if (form === "full") return { name: formalNameOf(names), calledBy };
   if (!given && !family) {
     const words = cleanName(names.name ?? "").split(" ").filter(Boolean);
-    const short = words.length < 2 ? (words[0] ?? "") : `${words[0]} ${initialOf(words.at(-1)!)}.`;
-    return { name: form === "short" ? short : words.join(" "), calledBy };
+    return { name: words.length < 2 ? (words[0] ?? "") : `${words[0]} ${initialOf(words.at(-1)!)}.`, calledBy };
   }
-  if (form === "full") return { name: fullNameOf({ givenName: given, familyName: family }), calledBy };
   return { name: given ? (family ? `${given} ${initialOf(family)}.` : given) : `${initialOf(family)}.`, calledBy };
 }

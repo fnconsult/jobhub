@@ -4818,6 +4818,7 @@
     "sessionsTitle": "Mes séances de coaching",
     "sessionsIntro": "Les séances que des candidats ont payées avec vous. Saisissez ou corrigez la date réservée et le lien de la visio : le candidat les retrouve dans son agenda.",
     "sessionsNone": "Aucune séance payée pour l'instant.",
+    "calledBy": "se fait appeler {{name}}",
     "unnamedCandidate": "Candidat sans nom",
     "sessionToSchedule": "À planifier",
     "sessionOn": "Le {{date}} (heure de Paris)",
@@ -5964,6 +5965,7 @@
       "unscheduled": "Elle n'était pas encore datée : si un créneau est réservé sur votre page Cal.com, libérez-le.",
       "held": "Elle a eu lieu le {{at}} : le Candidat n'avait pas demandé qu'elle commence avant la fin de son délai de rétractation, elle lui est donc remboursée.",
       "refunded": "Jobbbox rembourse la séance au Candidat.",
+      "calledBy": "{{candidate}} (se fait appeler {{name}})",
       "someone": "Un Candidat",
       "reason": "Vous recevez cet e-mail parce que vous êtes Human Coach sur Jobbbox."
     },

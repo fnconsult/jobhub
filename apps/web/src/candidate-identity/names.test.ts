@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, fullNameOf, IDENTITY_NAME_MAX_LENGTH, nameForCoach, namesFromFullName } from "./names";
+import { cleanName, formalNameOf, fullNameOf, IDENTITY_NAME_MAX_LENGTH, nameForCoach, namesFromFullName } from "./names";
 
 describe("a Candidate's Given Name and Family Name, worked out of a full name (#918)", () => {
   it("takes the family name a French CV writes in capitals, and writes it as a name", () => {
@@ -45,6 +45,15 @@ describe("a name the Candidate enters", () => {
 
   it("is at most 80 characters", () => {
     expect(IDENTITY_NAME_MAX_LENGTH).toBe(80);
+  });
+});
+
+describe("the Candidate's formal name, on the Withdrawal form (#922)", () => {
+  it("is « Prénom Nom », else the account's name when neither was entered, else empty", () => {
+    expect(formalNameOf({ givenName: "Marie", familyName: "Dupont", name: "Mimi" })).toBe("Marie Dupont");
+    expect(formalNameOf({ givenName: null, familyName: "Dupont", name: "Marie Dupont" })).toBe("Dupont");
+    expect(formalNameOf({ givenName: null, familyName: null, name: " Marie  Dupont " })).toBe("Marie Dupont");
+    expect(formalNameOf({ givenName: null, familyName: null, name: null })).toBe("");
   });
 });
 

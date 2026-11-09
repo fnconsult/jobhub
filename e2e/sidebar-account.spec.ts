@@ -21,8 +21,13 @@ async function sidebar(page: Page, phone: boolean): Promise<Locator> {
   return drawer;
 }
 
-async function expectNoAxeViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).exclude("#main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+/**
+ * axe on the shell, the page left out; with the menu open, on the menu alone: Radix's modal menu hides the rest from
+ * assistive technologies while it keeps focus (ADR-0018), which axe reads as hidden content still focusable.
+ */
+async function expectNoAxeViolations(page: Page, menuOpen = false) {
+  const axe = menuOpen ? new AxeBuilder({ page }).include(".account-menu") : new AxeBuilder({ page }).exclude("#main");
+  const results = await axe.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
 }
 
@@ -68,7 +73,7 @@ for (const width of [1280, 390]) {
         `${fr.account.plan}${fr.billing.plans.premium}`,
         fr.account.signOut,
       ]);
-      await expectNoAxeViolations(page);
+      await expectNoAxeViolations(page, true);
 
       await menu.getByRole("menuitem", { name: new RegExp(`^${fr.account.plan}`) }).click();
       await expect(page).toHaveURL(`${origin}/abonnement`);

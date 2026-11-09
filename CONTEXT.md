@@ -345,7 +345,7 @@ Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer 
 _Avoid_: Inbox, feed, offer list
 
 **Offer box filter icon**:
-On a phone, the page's main action in the Top Bar on Recherches d'offres (the « … » menu keeps « Activité » and « Effacer »). It opens and closes the Offer box's header under the bar, where the Arrival source is chosen (a dot on the icon while one is); choosing one or Échap closes it. It is drawn with the first paint, so the bar does not shift (ADR-0101).
+On a phone, the page's main action in the Top Bar on Recherches d'offres (the « … » menu keeps « Activité » and « Effacer »). It opens and closes the Offer box's header under the bar, where the Arrival source is chosen (a dot on the icon while one is); choosing one or Échap closes it (in the app, Android's back too, #899). It is drawn with the first paint, so the bar does not shift (ADR-0101).
 _Avoid_: Filter button, funnel
 
 **Offer box entry**:
@@ -736,7 +736,7 @@ The column that the Top Bar's « Activité » opens beside the home page and the
 _Avoid_: Activity pane
 
 **Top Bar**:
-The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and on the Candidate's pages « Fiche » and « Activité », which alone open and close those columns beside the conversation, and « Effacer » for the page's Coach Conversation; a page without a conversation (Mon compte, and the pages not yet converted to conversations) has « Aide », which opens its Help Article in the Work Pane; on the home page and the menus (no object) only « Activité », which opens the Activité column; never « Fiche » there nor on a Free conversation. Nothing else for help or Signalements goes there. Below 40rem the Candidate's Top Bar fits on one line with icons only (ADR-0101): Menu, the title, one visible action (the page's main action, otherwise « Fiche », otherwise « Activité »; « Activité » while an AI action runs) and the **« … »** menu (« Autres actions »), which lists the other actions with their labels, each calling the same function as its button. The Back Office keeps its two rows.
+The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and on the Candidate's pages « Fiche » and « Activité », which alone open and close those columns beside the conversation, and « Effacer » for the page's Coach Conversation; a page without a conversation (Mon compte, and the pages not yet converted to conversations) has « Aide », which opens its Help Article in the Work Pane; on the home page and the menus (no object) only « Activité », which opens the Activité column; never « Fiche » there nor on a Free conversation. Nothing else for help or Signalements goes there. Below 40rem the Candidate's Top Bar fits on one line with icons only (ADR-0101): Menu, the title, one visible action (the page's main action, otherwise « Fiche », otherwise « Activité »; « Activité » while an AI action runs) and the **« … »** menu (« Autres actions »), which lists the other actions with their labels, each calling the same function as its button. The Back Office keeps its two rows. In the Jobbbox app the same compact Top Bar applies wherever the panes open full page (below 64rem, ADR-0076), « … » opening the system's action sheet on iOS and a menu under it on Android; with columns its wide bar is unchanged (#899).
 _Avoid_: Header, navbar
 
 **Section**:

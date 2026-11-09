@@ -41,7 +41,8 @@
  * The frequency sent is the Candidate's choice capped by their Plan; a Plan
  * without the Job Digest sends none, and the choice is kept. Opting out keeps
  * when the Job Digest last ran, so opting in again does not make it due sooner.
- * The Job Offers a Job Digest sends reach the Candidate's Offer box (ADR-0090, `recordArrivals`).
+ * The Job Offers a Job Digest sends reach the Candidate's Offer box (ADR-0090, `recordArrivals`); its email then tells
+ * how many offers are à traiter there (#818, `offersToHandle`), with a link to Recherches d'offres, when there are some.
  * Opt-ins and Job Digests belong to their Profile and are deleted with it
  * (ADR-0010); the Job Offers they list are kept.
  * A Job Digest keeps its Provenance (#336): its Match Scores, Jobbbox's rules
@@ -73,7 +74,7 @@ import type { PushNotifier } from "../push-notifications";
 import type { Billing, PlanName } from "../billing";
 import type { ReceivedOffers } from "../email-intake/received-offers";
 import { visibleTo, type JobOffers } from "../job-offers";
-import { dismissedJobOffers, migrateOfferBox, recordArrivals } from "../offer-box";
+import { dismissedJobOffers, migrateOfferBox, offersToHandle, recordArrivals } from "../offer-box";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -511,6 +512,9 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
           url: new URL(routes.jobOffer(jobOffer.id, digest.profile.id), deps.baseURL).toString(),
         })),
         digestUrl: new URL(routes.jobDigest(digest.id), deps.baseURL).toString(),
+        // The Offer box's « N à traiter » (#818), the Job Offers it just brought included.
+        toHandle: await offersToHandle(database, candidateId, digest.sentAt),
+        offerBoxUrl: new URL(routes.jobSearches(), deps.baseURL).toString(),
         unsubscribeUrl: unsubscribePageURL(deps.baseURL, token, language),
       },
       language,

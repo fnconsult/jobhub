@@ -4875,6 +4875,8 @@
       "offersLabel": "Job offers",
       "archived": "This profile is archived: it no longer gets a Job Digest. Restore it to get it again."
     },
+    "offersToHandle_one": "You have {{count}} job offer left to handle",
+    "offersToHandle_other": "You have {{count}} job offers left to handle",
     "email": {
       "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
       "subject_other": "Job Digest “{{profile}}”: {{count}} new job offers",
@@ -5729,6 +5731,8 @@
     "suggestions": "Suggestions",
     "unfold": "Unfold “{{menu}}”",
     "toHandle": "to handle",
+    "offersToHandle_one": "{{count}} offer to handle",
+    "offersToHandle_other": "{{count}} offers to handle",
     "seeAll": "See all ({{count}})",
     "help": "Help",
     "howThisPageWorks": "How does this page work?",

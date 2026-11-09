@@ -2001,6 +2001,20 @@ button.coach-panel-badge:hover {
   border-radius: 50%;
 }
 
+/* Recherches d'offres' « N » (#818): its offers à traiter, at the line's end; none at 0. */
+.sidebar-count {
+  flex: none;
+  min-width: 1.5rem;
+  padding: 0 var(--space-2);
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-on-accent);
+  text-align: center;
+  background: var(--color-accent);
+  border-radius: 999px;
+}
+
 .sidebar-link.sidebar-see-all {
   color: var(--color-text-secondary);
 }

@@ -96,7 +96,12 @@ export function createApnsSender(config: ApnsConfig): PushSender {
         "content-type": "application/json",
       },
       // expo-notifications gives the app, as a remote notification's data on iOS, only what is under `body` (#699).
-      body: JSON.stringify({ aps: { alert: { title: message.title, body: message.body }, sound: "default" }, path: message.path, body: { path: message.path } }),
+      // `badge` is the icon's badge as a whole number, 0 taking it away (#818).
+      body: JSON.stringify({
+        aps: { alert: { title: message.title, body: message.body }, sound: "default", ...(message.badge === undefined ? {} : { badge: message.badge }) },
+        path: message.path,
+        body: { path: message.path },
+      }),
     });
 
   return {

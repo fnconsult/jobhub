@@ -23,6 +23,7 @@ import { builtVersion, currentRelease } from "@jobhub/web/release";
 import { maintenanceOf } from "@jobhub/web/maintenance";
 import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
 import { createProfiles } from "@jobhub/web/profiles";
+import { offersToHandle } from "@jobhub/web/offer-box";
 import { createPushNotifications } from "@jobhub/web/push-notifications";
 import { pushSendersFromEnv } from "@jobhub/web/push-notifications/worker";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
@@ -152,11 +153,14 @@ const workerQueue = {
 };
 // Push notifications (#698, ADR-0076): sent directly to APNs and FCM with their Provider Secrets as they stand at each
 // send (the .p8 and the service account, Back Office over env), each call recorded under its Tool. The worker's own
-// events (results, Job Digests, Appointment Reminders, Follow-ups due) queue theirs on its runner (#699).
+// events (results, Job Digests, Appointment Reminders, Follow-ups due) queue theirs on its runner (#699). Each one
+// carries the app icon's badge, the person's offers à traiter at sending (#818).
 const pushNotifications = createPushNotifications(database, {
   senders: pushSendersFromEnv({ env: () => secrets.current().env, externalApis }),
   log: (line) => console.warn(line),
   queue: workerQueue,
+  // Each notification sets the app icon's badge to the person's offers à traiter (#818, ADR-0090): no push of its own.
+  badge: (personId) => offersToHandle(database, personId, new Date()),
 });
 const jobs = createJobs({
   database,

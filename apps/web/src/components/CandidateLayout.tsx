@@ -26,6 +26,7 @@ import { inAppWebView } from "@/native-app/in-app";
 import { getJobSearches } from "@/job-searches/server";
 import { PrivacyChangeNotice } from "@/components/PrivacyChangeNotice";
 import { getLegalTextNotices } from "@/legal-text-notices/server";
+import { getOfferBox } from "@/offer-box/server";
 import { getProfiles } from "@/profiles/server";
 import { objectDay } from "@/sidebar-menus";
 import { getSignalements, jobbboxVersion } from "@/signalements/server";
@@ -89,24 +90,32 @@ async function closedWelcome(candidateId: string): Promise<boolean> {
 
 /**
  * What the Sidebar's menus with objects unfold into: Mes candidatures' Applications (#604), Recherches d'offres' Job
- * Searches and the Job Digests (#606), the active Profiles' only. Never fails the page: without them, the menus are plain
+ * Searches and the Job Digests (#606), the active Profiles' only, and the Offer box's « N » beside Recherches d'offres
+ * (#818). Never fails the page: without them, the menus are plain
  * links.
  */
 async function sidebarMenus(candidateId: string): Promise<SidebarMenus> {
   try {
-    const [applications, notices, profiles, searches, digests, locale] = await Promise.all([
+    const [applications, notices, profiles, searches, digests, locale, offersToHandle] = await Promise.all([
       getApplications().list(candidateId),
       getFollowUps().notices(candidateId),
       getProfiles().list(candidateId),
       getJobSearches().list(candidateId),
       getJobDigests().list(candidateId),
       getRequestLocale(),
+      // Without its count, Recherches d'offres carries none: the menus still unfold.
+      getOfferBox()
+        .toHandle(candidateId)
+        .catch((error: unknown) => {
+          console.error("[sidebar] could not count the offers à traiter", error);
+          return 0;
+        }),
     ]);
     const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
     const dateLabel = objectDay(locale);
     return {
       applications: applicationsMenu({ applications, notices, matchScores: new Map() }).sidebar,
-      jobSearches: jobSearchesMenu({ profiles: active, searches, dateLabel }).sidebar,
+      jobSearches: jobSearchesMenu({ profiles: active, searches, dateLabel, offersToHandle }).sidebar,
       jobDigests: jobDigestsMenu({ profiles: active, digests, dateLabel }).sidebar,
     };
   } catch (error) {

@@ -58,3 +58,8 @@ export function sidebarNav({
 export function accountLink(pathname: string): { href: string; current: boolean } {
   return { href: routes.account, current: isUnder(pathname, routes.account) || isUnder(pathname, routes.subscription) };
 }
+
+/** Mon abonnement, in Mon compte's menu (#923): current on the Subscription's pages. */
+export function subscriptionLink(pathname: string): { href: string; current: boolean } {
+  return { href: routes.subscription, current: isUnder(pathname, routes.subscription) };
+}

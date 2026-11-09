@@ -915,7 +915,7 @@ The step, run by the product owner alone, that turns what the Beta serves into a
 _Avoid_: Release, go-live, prod deploy
 
 **Extension Version**:
-The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change.
+The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token.
 _Avoid_: Version (for the extension)
 
 **API Version**:

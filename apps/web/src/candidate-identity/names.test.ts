@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanName, fullNameOf, IDENTITY_NAME_MAX_LENGTH, namesFromFullName } from "./names";
+import { calledName, cleanName, fullNameOf, IDENTITY_NAME_MAX_LENGTH, initialsOf, namesFromFullName } from "./names";
 
 describe("a Candidate's Given Name and Family Name, worked out of a full name (#918)", () => {
   it("takes the family name a French CV writes in capitals, and writes it as a name", () => {
@@ -45,5 +45,39 @@ describe("a name the Candidate enters", () => {
 
   it("is at most 80 characters", () => {
     expect(IDENTITY_NAME_MAX_LENGTH).toBe(80);
+  });
+});
+
+describe("the name the Sidebar calls the Candidate by (#923)", () => {
+  it("is the Preferred Name, else the Given Name, else none", () => {
+    expect(calledName({ givenName: "Marie", preferredName: "Mimi" })).toBe("Mimi");
+    expect(calledName({ givenName: "Marie", preferredName: null })).toBe("Marie");
+    expect(calledName({ givenName: null, preferredName: null })).toBeNull();
+  });
+
+  it("takes a name of white space alone for none", () => {
+    expect(calledName({ givenName: " Marie ", preferredName: "  " })).toBe("Marie");
+    expect(calledName({ givenName: " ", preferredName: "" })).toBeNull();
+  });
+});
+
+describe("the Candidate's initials, the Sidebar's stand-in for a photo (#923)", () => {
+  it("are the Given Name's and the Family Name's first letters", () => {
+    expect(initialsOf({ givenName: "Marie", familyName: "Dupont" })).toBe("MD");
+    expect(initialsOf({ givenName: "élodie", familyName: "ébert" })).toBe("ÉÉ");
+  });
+
+  it("skip the particles a family name starts with", () => {
+    expect(initialsOf({ givenName: "Marie-Christine", familyName: "de La Rochefoucauld-Montbazon" })).toBe("MR");
+    expect(initialsOf({ givenName: "Jean", familyName: "de la Fontaine" })).toBe("JF");
+    expect(initialsOf({ givenName: "Anne", familyName: "d'Arcy" })).toBe("AA");
+    expect(initialsOf({ givenName: "Jean-Pierre", familyName: "Le Gall" })).toBe("JL");
+  });
+
+  it("are the one name's letter when there is one, none without a name", () => {
+    expect(initialsOf({ givenName: "Marie", familyName: null })).toBe("M");
+    expect(initialsOf({ givenName: null, familyName: "Dupont" })).toBe("D");
+    expect(initialsOf({ givenName: null, familyName: null })).toBeNull();
+    expect(initialsOf({ givenName: " ", familyName: "" })).toBeNull();
   });
 });

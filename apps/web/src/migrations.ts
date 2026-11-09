@@ -30,6 +30,7 @@ import { migrateEmailReadings } from "./email-intake/reading";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateEuAiConsents } from "./eu-ai-consent/index";
 import { migrateEvals } from "./evals/index";
+import { migrateExtensionEvents } from "./extension-events/index";
 import { migrateFollowUps } from "./follow-ups/index";
 import { migrateGuardrails } from "./guardrails/store";
 import { migrateHumanCoaches } from "./human-coaches/index";
@@ -113,6 +114,7 @@ export async function migrateDatabase(
     ["Reference data is up to date", () => migrateReferenceData(database)],
     ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
     ["Signalements are up to date", () => migrateSignalements(database)],
+    ["Extension Events are up to date", () => migrateExtensionEvents(database)],
     ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
     ["Legal Text notices are up to date", () => migrateLegalTextNotices(database)],
     ["The Nouveautés email is up to date", () => migrateNouveautesEmails(database)],

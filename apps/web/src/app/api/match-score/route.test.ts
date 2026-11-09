@@ -7,6 +7,7 @@ import { migrateAiUsage } from "@/ai-usage";
 import { webPostgresUsageLog } from "@/ai-usage/web-usage-log";
 import { connectionString, startTestAuth, type TestAuth } from "@/auth/test-support";
 import { isTrustedOrigin } from "@/auth/trusted-origin";
+import { createExtensionEvents } from "@/extension-events";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "@/job-offers";
 import { createMatchScoring, type MatchScoring } from "@/match-score";
 import { createProfiles, migrateProfiles } from "@/profiles";
@@ -16,7 +17,7 @@ const EXTENSION = "chrome-extension://jobbboxextensionid";
 const TRUSTED = [WEB, EXTENSION];
 
 /** The request being handled, as Next's request scope holds it; the app's sign-in, with no one signed in (a Guest). */
-const handled = vi.hoisted(() => ({ request: null as Request | null, scoring: null as unknown }));
+const handled = vi.hoisted(() => ({ request: null as Request | null, scoring: null as unknown, extensionEvents: null as unknown }));
 vi.mock("next/headers", () => ({
   headers: async () => {
     if (!handled.request) throw new Error("outside a request");
@@ -29,6 +30,8 @@ vi.mock("@/auth/server", () => ({
   isFromTrustedOrigin: (request: Request) => isTrustedOrigin(request.headers, TRUSTED),
 }));
 vi.mock("@/match-score/server", () => ({ getMatchScoring: () => handled.scoring }));
+// A Match Score from the extension writes its Extension Event (#924), on the test's database.
+vi.mock("@/extension-events/server", async (original) => ({ ...(await original<object>()), getExtensionEvents: () => handled.extensionEvents }));
 
 const { POST } = await import("./route");
 
@@ -65,6 +68,7 @@ describe.skipIf(!connectionString)("POST /api/match-score records the Surface it
     const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: () => "{}" })], routes: { offer_analysis: "mistral" }, usage, warn: () => {} });
     const scoring: MatchScoring = createMatchScoring({ jobOffers, profiles: createProfiles(database), readOfferText: (jobOffer, candidateId, call) => readOfferFields(ai, { candidateId, jobOffer, ...call }) });
     handled.scoring = scoring;
+    handled.extensionEvents = createExtensionEvents(database);
   });
   afterEach(async () => {
     handled.request = null;

@@ -255,6 +255,22 @@ _**Off** in the builds (`apps/mobile/app.json`, `updates.enabled: false`) until 
 | Rights | In the Candidate's data export (`signalements`: every field, without the Administrator's identity); erased with the account. |
 | Security | Sending checks the signed-in Candidate and the request's origin; the type, message and limits are checked on the server. |
 
+## Extension Event (#924)
+
+| | |
+| --- | --- |
+| Purpose | Usage follow-up and error correction for the browser extension: count what is done from it (Captures, Match Scores, CV drafts, Profiles and Applications) and its errors, by Extension Version, so the team sees what the extension is used for and fixes the sites it does not recognise and the calls that fail. |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)): keeping the extension working and improving it. |
+| People concerned | Candidates who use the extension signed in; Guests, whose rows name no one and hold no identifier of any kind (no installation id, cookie or IP address). |
+| Data | When; the kind (`capture`, `match_score`, `cv_draft`, `profile_created`, `application_created`, `error`); the Candidate's id, or none for a Guest; the Extension Version the extension states (`Jobbbox-Extension-Version`); for an action, its object (`job_offer`, `profile` or `application`, and its id). For an error: its code (`captureImpossible`, `callFailed`, `unexpected`) and message key, the web app's route and HTTP status that failed (0 for the network), where it happened (`side_panel`, `content_script`, `page_button`), the browser's family and major version read from the user agent (« Chrome 141 », never the raw user agent) and the page's domain alone. Never the page's address, its text, a stack trace or an IP address; a `url` sent along is dropped. |
+| Source | Actions: written by the web app's routes the extension calls (`/api/job-offers`, `/api/match-score`, `/api/cv/draft`, `POST /api/profiles`, `POST /api/applications`), in the action's transaction where it has one, only when the request comes from the extension (its Surface, #919). Errors: sent by the extension (`POST /api/extension/events`, extension origin only, checked against a schema), at best and once; at most 30 per Candidate or per Guest's address in 10 minutes, counted in the server's memory only. |
+| Processors | Hostinger. |
+| Who can read it | The Candidate (their Data export). Super-admins in the Back Office once its Extension tab ships (#917). |
+| Storage | The `extension_event` table in the app's Postgres database (EU). |
+| Retention | 12 months; a Guest's rows (no Candidate) 30 days (the worker's nightly job `extension-events.purge`). A Candidate's are deleted at once with their account (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`extensionEvents`, every field); erased with the account. A Guest's cannot be tied to them. |
+| Security | The route checks the extension's origin and the body's schema; the page's domain must be a host name; the reporting limit is per process. |
+
 ## Job discovery runs (#404)
 
 | | |

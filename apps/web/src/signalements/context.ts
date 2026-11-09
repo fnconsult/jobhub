@@ -33,7 +33,8 @@ const BROWSERS: [name: string, version: RegExp][] = [
   ["Opera", /\b(?:OPR|OPiOS)\/(\d+)/],
   ["Samsung Internet", /\bSamsungBrowser\/(\d+)/],
   ["Firefox", /\b(?:Firefox|FxiOS)\/(\d+)/],
-  ["Chrome", /\b(?:Chrome|CriOS)\/(\d+)/],
+  // A browser run without a window (an automated one) says « HeadlessChrome ».
+  ["Chrome", /\b(?:Headless)?(?:Chrome|CriOS)\/(\d+)/],
   ["Safari", /\bVersion\/(\d+)[^]*\bSafari\//],
 ];
 
@@ -47,12 +48,18 @@ const SYSTEMS: [name: string, test: RegExp][] = [
   ["Linux", /\bLinux\b|\bX11\b/],
 ];
 
+/** The browser's family and major version of a user agent, as « Chrome 141 »; null when it cannot be told (#924's Extension Events keep only this). */
+export function browserFamilyOf(userAgent: string | null | undefined): string | null {
+  if (!userAgent) return null;
+  const browser = BROWSERS.map(([name, version]) => [name, version.exec(userAgent)?.[1]] as const).find(([, major]) => major);
+  return browser ? `${browser[0]} ${browser[1]}` : null;
+}
+
 /** The browser of a user agent, as « Chrome 141, Mac »; what cannot be told is named unknown. Null without a user agent. */
 export function browserOf(userAgent: string | null | undefined): string | null {
   if (!userAgent) return null;
-  const browser = BROWSERS.map(([name, version]) => [name, version.exec(userAgent)?.[1]] as const).find(([, major]) => major);
   const system = SYSTEMS.find(([, test]) => test.test(userAgent))?.[0];
-  return `${browser ? `${browser[0]} ${browser[1]}` : "Navigateur inconnu"}, ${system ?? "système inconnu"}`;
+  return `${browserFamilyOf(userAgent) ?? "Navigateur inconnu"}, ${system ?? "système inconnu"}`;
 }
 
 /**

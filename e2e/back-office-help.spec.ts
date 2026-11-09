@@ -206,7 +206,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     await candidate.context().close();
   });
 
-  test("« Fournisseurs et Tools » (#557): Paramètres, its Connexion, Sources and Extension tabs and Outils show their article « Sur cette page »; its 16 articles lead /admin/aide, never public", async ({ page, browser }) => {
+  test("« Fournisseurs et Tools » (#557): Paramètres, its Connexion, Sources and Extension tabs and Outils show their article « Sur cette page »; its 17 articles lead /admin/aide, never public", async ({ page, browser }) => {
     // Its own super-admin: a fresh conversation, so the assistant opens on its help.
     await signInWithMagicLink(page, "providers-help-office@e2e.jobbbox.test");
     const onThisPage = async (path: string, title: string) => {

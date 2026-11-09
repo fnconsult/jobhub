@@ -6,7 +6,7 @@ The CV never leaves the browser's session storage, and the server reads it by ru
 
 ## Amendment: a Guest's Match Score may call the AI on the Job Offer's text (issue #926, 2026-11-09)
 
-The paragraph above says the server reads a Guest's CV by rules alone, « no AI provider », which keeps an endpoint open to anyone free of AI cost. That holds for the reading of the CV (`/api/cv/draft`: `draftFromCv` skips the AI when there is no Candidate), not for the Match Score itself, as `docs/research/issue-912.md` (§ 6, item 1) found.
+The paragraph above says the server reads a Guest's CV by rules alone, « no AI provider », which keeps an endpoint open to anyone free of AI cost. That holds for the reading of the CV (`/api/cv/draft`: `draftFromCv` skips the AI when there is no Candidate), not for the Match Score itself, as research #912 (`docs/research/issue-912.md`, § 6, item 1) found.
 
 A Guest's Match Score (`/api/match-score`) is computed in two phases, as a Candidate's is. The first scores by rules from the Job Offer's structured data, with no AI. When that score is not reliable enough (`ENOUGH_FROM_STRUCTURED_DATA`) and a detail is missing, the second asks the AI to read the Job Offer's text for the fields it lacks: the `offer_analysis` task (`readOfferFields`), once per Job Offer, its reading kept on the Job Offer for every later Match Score.
 

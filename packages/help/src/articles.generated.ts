@@ -1520,12 +1520,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "colonne de droite",
         "sections",
         "rubriques",
-        "panneau de droite"
+        "panneau de droite",
+        "élargir la fiche",
+        "redimensionner la fiche",
+        "fiche trop étroite"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "La fiche, c'est la colonne à droite de la conversation sur la page d'une candidature, d'un profil, d'une recherche d'offres ou d'un Job Digest : l'objet d'un coup d'œil (pour une candidature, son statut et son profil, que vous changez sur place, sa correspondance, l'offre), puis trois groupes, « Sections », « Activité » et « Résultats ». Un clic sur le titre d'un groupe le replie ou le déplie.\n\nElle ne cache jamais la conversation : elle la pousse sur le côté, et défile de son côté, sans bouger quand vous faites défiler la conversation. « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page. Une section ou un résultat de la fiche s'ouvre à côté de la conversation, où vous agissez dessus.\n\nSur téléphone, « Fiche » est l'icône en haut à droite de la page, et « Activité » est sous « … » ; la fiche s'ouvre par-dessus la conversation, en plein écran, avec son titre ; « Fermer » ou la touche Échap la referme."
+      "body": "La fiche, c'est la colonne à droite de la conversation sur la page d'une candidature, d'un profil, d'une recherche d'offres ou d'un Job Digest : l'objet d'un coup d'œil (pour une candidature, son statut et son profil, que vous changez sur place, sa correspondance, l'offre), puis trois groupes, « Sections », « Activité » et « Résultats ». Un clic sur le titre d'un groupe le replie ou le déplie.\n\nElle ne cache jamais la conversation : elle la pousse sur le côté, et défile de son côté, sans bouger quand vous faites défiler la conversation. « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page. Une section ou un résultat de la fiche s'ouvre à côté de la conversation, où vous agissez dessus.\n\nTrop étroite pour ce qu'elle montre ? Élargissez-la : faites glisser son bord gauche, la poignée entre la conversation et la fiche, vers la gauche. Elle s'élargit jusqu'à la moitié de la fenêtre, en laissant toujours assez de place à la conversation. Un clic sur la poignée l'élargit d'un coup au maximum, un autre la ramène ; au clavier, placez-vous sur la poignée avec Tab, puis utilisez les flèches gauche et droite, ou Origine et Fin. Un double-clic lui rend sa largeur d'origine. Votre navigateur retient la largeur choisie.\n\nSur téléphone, « Fiche » est l'icône en haut à droite de la page, et « Activité » est sous « … » ; la fiche s'ouvre par-dessus la conversation, en plein écran, avec son titre ; « Fermer » ou la touche Échap la referme."
     },
     {
       "id": "glossary-eu-ai-consent",
@@ -5532,12 +5535,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "right column",
         "sections",
         "right panel",
-        "details"
+        "details",
+        "widen the fiche",
+        "resize the fiche",
+        "fiche too narrow"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "The fiche is the column on the right of the conversation on the page of an application, a profile, a job search or a Job Digest: the object at a glance (for an application, its status and profile, which you change in place, its match, the job offer), then three groups, « Sections », « Activity » and « Results ». A click on a group's title folds or unfolds it.\n\nIt never hides the conversation: it pushes it aside, and scrolls on its own, staying put when you scroll the conversation. « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page. A section or a result of the fiche opens beside the conversation, where you act on it.\n\nOn a phone, « Fiche » is the icon at the top right of the page, and « Activity » is under « … »; the fiche opens over the conversation, full screen, with its title; « Close » or the Escape key closes it."
+      "body": "The fiche is the column on the right of the conversation on the page of an application, a profile, a job search or a Job Digest: the object at a glance (for an application, its status and profile, which you change in place, its match, the job offer), then three groups, « Sections », « Activity » and « Results ». A click on a group's title folds or unfolds it.\n\nIt never hides the conversation: it pushes it aside, and scrolls on its own, staying put when you scroll the conversation. « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page. A section or a result of the fiche opens beside the conversation, where you act on it.\n\nToo narrow for what it shows? Widen it: drag its left edge, the handle between the conversation and the fiche, to the left. It widens up to half the window, always leaving the conversation enough room. A click on the handle widens it to the maximum at once, another brings it back; with the keyboard, move to the handle with Tab, then use the left and right arrows, or Home and End. A double-click gives it back its original width. Your browser remembers the width you chose.\n\nOn a phone, « Fiche » is the icon at the top right of the page, and « Activity » is under « … »; the fiche opens over the conversation, full screen, with its title; « Close » or the Escape key closes it."
     },
     {
       "id": "glossary-follow-up",

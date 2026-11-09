@@ -2731,6 +2731,16 @@
       "estimate": "Estimates at the providers' list prices, in dollars converted at €{{rate}} per $1 (an assumption, not today's rate), fixed when each call was made. Aggregates only: no Candidate, no text.",
       "coachCostLink": "Median and 90th percentile of one AI Coach reply's cost: Coach cost",
       "period": "Period",
+      "surface": "Origin",
+      "anySurface": "All",
+      "surfaces": {
+        "web": "Web",
+        "extension": "Extension",
+        "app": "App",
+        "worker": "Background jobs",
+        "unknown": "Unknown"
+      },
+      "surfaceExternal": "External APIs record no origin: they are all still counted.",
       "show": "Show",
       "periods": {
         "7d": "Last 7 days",

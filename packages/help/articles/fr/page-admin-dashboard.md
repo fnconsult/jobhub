@@ -3,14 +3,14 @@ kind: page
 audience: administrator
 topic: plateforme
 title: Dashboard et Consommation IA
-synonyms: [dashboard, tableau de bord, consommation ia, coût, coûts, dépense, budget, seuil d'alerte, recherche web, tokens, appels ia, échecs, taux d'échec, prix inconnu, fournisseur, modèle, tâche, période, run]
+synonyms: [dashboard, tableau de bord, consommation ia, coût, coûts, dépense, budget, seuil d'alerte, recherche web, tokens, appels ia, échecs, taux d'échec, prix inconnu, fournisseur, modèle, tâche, période, run, origine, extension, application, web, tâches de fond, inconnue]
 route: /admin/consommation-ia
 ---
 Le Dashboard est la première page du back office. Il montre ce que la plateforme consomme et comment se porte la recherche d'offres. Chaque bloc n'apparaît qu'aux rôles qui lisent sa rubrique : sans aucun, la page affiche « Aucun indicateur pour vos rôles : la barre latérale mène à vos rubriques. »
 
 Le bloc « Recherche d'offres : consommation et budget » donne, pour le mois en cours, la « Dépense recherche web du mois » face au seuil d'alerte, le « Coût moyen d'un run » face au « Budget par run », le « Coût par nouvelle offre », les « Runs », les « Runs passés au secours » (sur le fournisseur de secours) et les « Appels IA en échec ». Ses graphiques montrent la dépense quotidienne par Search provider, le « Cumul du mois et seuil d'alerte » avec la fin de mois estimée, « Pourquoi les runs s'arrêtent » et « Où va le coût d'un run (moyenne) ». « Vue tableau » donne les mêmes chiffres en tableau. « Tout le détail dans Consommation IA » ouvre la page suivante.
 
-Consommation IA (menu Plateforme) compte chaque appel à l'IA, toutes tâches comprises, les outils que les modèles utilisent et les appels aux API externes (France Travail, enrichissement de contacts, Stripe, Brevo, connexion…). Choisissez la « Période » (« 7 derniers jours », « 30 derniers jours », « 90 derniers jours » ou « 12 derniers mois, par mois ») puis cliquez sur « Afficher ». La page détaille ensuite les « Totaux », « Par fournisseur, point d'accès et modèle », « Par tâche », « Par jour » ou « Par mois », les « Outils » et les « API externes ».
+Consommation IA (menu Plateforme) compte chaque appel à l'IA, toutes tâches comprises, les outils que les modèles utilisent et les appels aux API externes (France Travail, enrichissement de contacts, Stripe, Brevo, connexion…). Choisissez la « Période » (« 7 derniers jours », « 30 derniers jours », « 90 derniers jours » ou « 12 derniers mois, par mois ») et, au besoin, l'« Origine » des appels à l'IA (« Web », « Extension », « Application », « Tâches de fond » ou « Inconnue » pour ceux enregistrés sans origine, dont tous ceux d'avant), puis cliquez sur « Afficher ». L'origine restreint les appels à l'IA et leurs outils ; les API externes n'en enregistrent pas et restent toutes comptées. La page détaille ensuite les « Totaux », « Par fournisseur, point d'accès et modèle », « Par tâche », « Par jour » ou « Par mois », les « Outils » et les « API externes ».
 
 « Échecs et avertissements par raison » compte les appels échoués ou en avertissement par Failure Reason : le code et son libellé seulement, jamais la raison technique. Pour lire un appel précis, un super-admin passe par Activité › Appels IA.
 

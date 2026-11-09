@@ -1,0 +1,397 @@
+<!doctype html>
+<!--
+  PROTOTYPE — jetable, jamais mergé. HTML statique, données fictives, rien n'est enregistré ni envoyé.
+  Ticket : #914 (carte #910). Question : à quoi ressemble le pied du Sidebar quand « Mon compte » devient le Preferred Name
+  et le Plan du Candidate (décisions de #911) ?
+  Variante via ?variant=A|B|C (flèches ← → ou la barre en bas) ; ?plan=free|standard|premium|ending ; ?name=short|long|given|none ;
+  ?menu=open ; ?width=phone ; ?theme=dark ; ?density=compact.
+  Tokens : ceux de Mercury, copiés du prototype #856. Aucun script ni police externe. Ouvrir le fichier dans un navigateur.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pied du Sidebar (prototype)</title>
+<style>
+/* Tokens Mercury, rendus depuis packages/shared/src/design (renderDesignCss) le 2026-10-30. */
+@layer base, components;
+
+:root {
+  color-scheme: light;
+  --color-background: #ffffff;
+  --color-canvas: #ffffff;
+  --color-nav: #f6f6f8;
+  --color-surface: #f8f8fa;
+  --color-hover: #efeff3;
+  --color-border: #e6e6ec;
+  --color-border-strong: #d6d6de;
+  --color-text: #1b1b26;
+  --color-secondary: #575866;
+  --color-meta: #686978;
+  --color-accent: #4f5fe0;
+  --color-accent-hover: #4352cc;
+  --color-accent-soft: #eef0fd;
+  --color-accent-line: #c9cff7;
+  --color-on-accent: #ffffff;
+  --color-success: #1c7445;
+  --color-success-soft: #eaf6ef;
+  --color-warn: #855700;
+  --color-warn-soft: #fdf5e3;
+  --color-danger: #bb3030;
+  --color-danger-soft: #fdeeee;
+  --color-chart-1: #6a78ee;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(106 120 238 / 18%);
+  --color-inverse: #1b1b26;
+  --color-on-inverse: #ffffff;
+  --color-scrim: rgb(20 20 40 / 28%);
+  --color-text-secondary: #575866;
+  --color-text-meta: #686978;
+  --color-surface-hover: #efeff3;
+  --color-danger-surface: #fdeeee;
+  --color-focus-ring: #4f5fe0;
+  --shadow-card: 0 1px 2px rgb(20 20 40 / 4%);
+  --shadow-pop: 0 12px 32px rgb(20 20 40 / 14%);
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+  --line-height-heading: 1.25;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-card: 10px;
+  --radius-control: 999px;
+  --radius-lg: var(--radius-card);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --motion-fast: 150ms;
+  --motion-base: 180ms;
+  --motion-slow: 220ms;
+  --motion-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #121219;
+  --color-canvas: #121219;
+  --color-nav: #17171f;
+  --color-surface: #1b1b24;
+  --color-hover: #24242f;
+  --color-border: #2a2a36;
+  --color-border-strong: #383846;
+  --color-text: #ececf3;
+  --color-secondary: #a9aab8;
+  --color-meta: #9a9bab;
+  --color-accent: #8d9bff;
+  --color-accent-hover: #a3aeff;
+  --color-accent-soft: #242845;
+  --color-accent-line: #3b4277;
+  --color-on-accent: #10101a;
+  --color-success: #6fd29b;
+  --color-success-soft: #16301f;
+  --color-warn: #f2c25c;
+  --color-warn-soft: #33290f;
+  --color-danger: #ff8a8a;
+  --color-danger-soft: #3a1b1b;
+  --color-chart-1: #8d9bff;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(141 155 255 / 22%);
+  --color-inverse: #ececf3;
+  --color-on-inverse: #121219;
+  --color-scrim: rgb(0 0 0 / 50%);
+  --color-text-secondary: #a9aab8;
+  --color-text-meta: #9a9bab;
+  --color-surface-hover: #24242f;
+  --color-danger-surface: #3a1b1b;
+  --color-focus-ring: #8d9bff;
+  --shadow-card: none;
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 50%);
+}
+
+[data-density="confort"] {
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+}
+
+[data-density="compact"] {
+  --font-size-body: 0.875rem;
+  --font-size-lead: 0.9375rem;
+  --font-size-h3: 1rem;
+  --font-size-h2: 1.125rem;
+  --font-size-h1: 1.5rem;
+  --font-size-meta: 0.78125rem;
+  --line-height-body: 1.45;
+  --size-control: 2rem;
+  --space-row: 0.4375rem;
+}
+[data-density]:not(:root) { font-size: var(--font-size-body); line-height: var(--line-height-body); }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-canvas); color: var(--color-text); font-family: var(--font-sans); font-size: var(--font-size-body); line-height: var(--line-height-body); }
+:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+button { font: inherit; color: inherit; }
+.icon { width: 1.125em; height: 1.125em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Page: the app's Sidebar and a placeholder page beside it. */
+.app { display: grid; grid-template-columns: 16.5rem 1fr; min-height: 100dvh; }
+.page { padding: var(--space-8); color: var(--color-meta); }
+.page h1 { color: var(--color-text); font-size: var(--font-size-h2); margin: 0 0 var(--space-2); }
+.page .note { max-width: 44rem; padding: var(--space-4); margin-top: var(--space-6); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-card); color: var(--color-secondary); font-size: var(--font-size-meta); }
+.page .note b { color: var(--color-text); }
+.phone { display: flex; justify-content: flex-start; padding: var(--space-6) var(--space-8); background: var(--color-surface); min-height: 100dvh; }
+.phone-frame { position: relative; width: 390px; height: min(760px, calc(100dvh - 3rem)); overflow: hidden; background: var(--color-canvas); border: 1px solid var(--color-border-strong); border-radius: 28px; box-shadow: var(--shadow-pop); }
+.phone-frame .scrim { position: absolute; inset: 0; background: var(--color-scrim); }
+.phone-frame .sidebar { position: absolute; inset: 0 auto 0 0; width: 20rem; height: 100%; }
+
+.sidebar { display: flex; flex-direction: column; gap: var(--space-2); height: 100dvh; position: sticky; top: 0; padding: var(--space-3) var(--space-2); background: var(--color-nav); border-right: 1px solid var(--color-border); }
+.brand { padding: var(--space-1) var(--space-2); font-weight: 700; }
+.profile-switch { padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); font-weight: 600; }
+.sidebar-scroll { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-link { display: flex; gap: var(--space-2); align-items: center; min-height: var(--size-control); padding: var(--space-1) var(--space-2); color: var(--color-text); text-decoration: none; border-radius: var(--radius-md); background: none; border: 0; text-align: start; cursor: pointer; width: 100%; }
+.sidebar-link .icon { color: var(--color-secondary); }
+.sidebar-link:hover { background: var(--color-hover); }
+.sidebar-link[aria-current="page"] { font-weight: 600; background: var(--color-background); box-shadow: 0 0 0 1px var(--color-border), var(--shadow-card); }
+.sidebar-foot { position: relative; display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) 0 0; border-top: 1px solid var(--color-border); }
+.usage { padding: var(--space-2); border-radius: var(--radius-md); display: grid; gap: var(--space-2); }
+.usage-head { display: flex; justify-content: space-between; font-weight: 600; line-height: var(--line-height-heading); }
+.usage-bar { display: block; height: .375rem; background: var(--color-background); border: 1px solid var(--color-border-strong); border-radius: 999px; overflow: hidden; }
+.usage-bar > span { display: block; height: 100%; width: 0; background: var(--color-accent); }
+.usage-renews { margin-top: calc(-1 * var(--space-1)); color: var(--color-meta); font-size: var(--font-size-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-row { display: flex; gap: var(--space-1); align-items: center; }
+.account-row > .acct { flex: 1; min-width: 0; }
+.bug { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--size-control); height: var(--size-control); border: 0; background: none; border-radius: var(--radius-md); color: var(--color-secondary); cursor: pointer; }
+.bug:hover { background: var(--color-hover); }
+.chev { margin-left: auto; color: var(--color-secondary); }
+.acct[aria-expanded="true"] { background: var(--color-hover); }
+.ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Initials: a stand-in for the photo, deferred. */
+.initials { flex: none; display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); font-size: var(--font-size-meta); font-weight: 700; border: 1px solid var(--color-accent-line); }
+.two-lines { display: grid; min-width: 0; line-height: 1.25; }
+.two-lines .who { font-weight: 600; }
+.two-lines .plan { color: var(--color-meta); font-size: var(--font-size-meta); }
+.plan-chip { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 0 var(--space-2); min-height: 1.75rem; border-radius: 999px; font-size: var(--font-size-meta); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.plan-chip.paid { background: var(--color-accent-soft); color: var(--color-accent); border: 1px solid var(--color-accent-line); }
+.plan-chip.free { background: var(--color-background); color: var(--color-secondary); border: 1px solid var(--color-border-strong); }
+.plan-chip:hover { filter: brightness(.97); }
+.card { border: 1px solid var(--color-border); background: var(--color-background); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
+.card .acct { border-radius: 0; padding: var(--space-2); }
+.card .usage { border-top: 1px solid var(--color-border); border-radius: 0; }
+.ending { color: var(--color-warn); }
+
+.menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: 60; padding: var(--space-1); background: var(--color-background); border: 1px solid var(--color-border); border-radius: var(--radius-card); box-shadow: var(--shadow-pop); }
+.menu .label { padding: var(--space-1) var(--space-2); color: var(--color-meta); }
+.menu .head { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2); }
+.menu .head .meta { color: var(--color-meta); font-size: var(--font-size-meta); }
+.menu a { display: flex; gap: var(--space-2); align-items: center; min-height: var(--size-control); padding: var(--space-1) var(--space-2); color: var(--color-text); text-decoration: none; border-radius: var(--radius-md); }
+.menu a:hover { background: var(--color-hover); }
+.menu a .icon { color: var(--color-secondary); }
+.menu a .aside { margin-left: auto; color: var(--color-meta); font-size: var(--font-size-meta); }
+.menu hr { border: 0; height: 1px; margin: var(--space-1) calc(-1 * var(--space-1)); background: var(--color-border); }
+
+/* The prototype's own bar: not part of the design. */
+.proto-bar { position: fixed; right: 12px; bottom: 12px; max-width: min(34rem, calc(100vw - 24px)); z-index: 100; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 8px 12px; background: #111; color: #fff; border-radius: 16px; box-shadow: 0 8px 24px rgb(0 0 0 / 35%); font: 13px/1.3 ui-sans-serif, system-ui, sans-serif; }
+.proto-bar button, .proto-bar select { font: inherit; color: #fff; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 4px 8px; }
+.proto-bar .v { min-width: 14rem; text-align: center; font-weight: 700; }
+.proto-bar label { display: inline-flex; gap: 4px; align-items: center; color: #bbb; }
+@media (max-width: 760px) { .app { grid-template-columns: 1fr; } .app > .sidebar { display: none; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="proto-bar" role="toolbar" aria-label="Prototype (pas dans le design)">
+  <button id="prev" aria-label="Variante précédente">←</button>
+  <span class="v" id="vlabel"></span>
+  <button id="next" aria-label="Variante suivante">→</button>
+  <label>Plan <select data-k="plan"><option value="free">Gratuit</option><option value="standard">Standard</option><option value="premium">Premium</option><option value="ending">Premium, résilié</option></select></label>
+  <label>Nom <select data-k="name"><option value="short">Mimi (Marie Dupont)</option><option value="long">nom long</option><option value="given">sans Preferred Name</option><option value="none">aucun nom</option></select></label>
+  <label>Menu <select data-k="menu"><option value="closed">fermé</option><option value="open">ouvert</option></select></label>
+  <label>Écran <select data-k="width"><option value="desktop">ordinateur</option><option value="phone">téléphone</option></select></label>
+  <label>Thème <select data-k="theme"><option value="light">clair</option><option value="dark">sombre</option></select></label>
+  <label>Densité <select data-k="density"><option value="confort">confortable</option><option value="compact">compacte</option></select></label>
+</div>
+<script>
+const I = {
+  user: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>',
+  up: '<path d="m18 15-6-6-6 6"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  legal: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+  news: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"/>',
+  bug: '<path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3 3 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>',
+  card: '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  brief: '<rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  cal: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+};
+const ic = (k) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
+
+const PLANS = {
+  free: { name: "Gratuit", paid: false },
+  standard: { name: "Standard", paid: true },
+  premium: { name: "Premium", paid: true },
+  ending: { name: "Premium", paid: true, until: "jusqu'au 30 nov." },
+};
+const NAMES = {
+  short: { preferred: "Mimi", given: "Marie", family: "Dupont", email: "marie.dupont@example.fr" },
+  long: { preferred: "Marie-Christine", given: "Marie-Christine", family: "de La Rochefoucauld-Montbazon", email: "mc.delarochefoucauld@example.fr" },
+  given: { preferred: "", given: "Marie", family: "Dupont", email: "marie.dupont@example.fr" },
+  none: { preferred: "", given: "", family: "", email: "marie.dupont@example.fr" },
+};
+const VARIANTS = [
+  ["A", "Deux lignes : nom et Plan"],
+  ["B", "Nom, et le Plan en pastille"],
+  ["C", "Une carte : compte et quota"],
+];
+
+const params = new URLSearchParams(location.search);
+const state = {
+  variant: params.get("variant") || "A",
+  plan: params.get("plan") || "premium",
+  name: params.get("name") || "short",
+  menu: params.get("menu") || "closed",
+  width: params.get("width") || "desktop",
+  theme: params.get("theme") || "light",
+  density: params.get("density") || "confort",
+};
+
+/* The Sidebar shows the Preferred Name, else the Given Name, else « Mon compte » (#911). */
+function shown(n) { return n.preferred || n.given || "Mon compte"; }
+function full(n) { return [n.given, n.family].filter(Boolean).join(" "); }
+function initials(n) {
+  const src = n.preferred || n.given;
+  if (!src) return null;
+  const a = (n.given || src)[0], b = (n.family || "").replace(/^(de |du |de la |le |la )/i, "")[0] || "";
+  return (a + b).toUpperCase();
+}
+function planText(p) { return p.until ? `${p.name} <span class="ending">${p.until}</span>` : p.name; }
+function avatar(n) { const x = initials(n); return x ? `<span class="initials" aria-hidden="true">${x}</span>` : ic("user"); }
+
+function menu(n, p, { head, subscription }) {
+  return `<div class="menu" role="menu">
+    ${head ? `<div class="head">${avatar(n)}<div class="two-lines"><span class="who ellipsis">${full(n) || "Nom non renseigné"}</span><span class="meta ellipsis">${n.email}</span></div></div><hr>` : ""}
+    <div class="label">Aide et légal</div>
+    <a href="#" role="menuitem">${ic("help")}Aide</a>
+    <a href="#" role="menuitem">${ic("legal")}Légal</a>
+    <a href="#" role="menuitem">${ic("news")}Nouveautés</a>
+    <hr>
+    <a href="#" role="menuitem">${ic("user")}Mon compte</a>
+    ${subscription ? `<a href="#" role="menuitem">${ic("card")}Mon abonnement<span class="aside">${p.name}</span></a>` : ""}
+    <a href="#" role="menuitem">${ic("out")}Se déconnecter</a>
+  </div>`;
+}
+
+const usage = `<div class="usage"><div class="usage-head"><span>Hebdomadaire</span><span>0 %</span></div><span class="usage-bar"><span></span></span><div class="usage-renews">Votre quota se renouvelle lundi minuit</div></div>`;
+const bug = `<button class="bug" aria-label="Signaler un bug ou une idée">${ic("bug")}</button>`;
+
+function foot() {
+  const n = NAMES[state.name], p = PLANS[state.plan], open = state.menu === "open";
+  const label = `Mon compte, ${shown(n) === "Mon compte" ? "" : shown(n) + ", "}${p.name}${p.until ? " " + p.until : ""}`;
+  if (state.variant === "A") {
+    return `<div class="sidebar-foot">${usage}
+      ${open ? menu(n, p, { head: true, subscription: true }) : ""}
+      <div class="account-row">
+        <button class="sidebar-link acct" aria-haspopup="menu" aria-expanded="${open}" aria-label="${label}">
+          ${avatar(n)}<span class="two-lines"><span class="who ellipsis">${shown(n)}</span><span class="plan ellipsis">${planText(p)}</span></span>${ic("up").replace('class="icon"', 'class="icon chev"')}
+        </button>${bug}
+      </div></div>`;
+  }
+  if (state.variant === "B") {
+    const chip = p.paid
+      ? `<a href="#" class="plan-chip paid" title="Mon abonnement">${p.name}${p.until ? " · résilié" : ""}</a>`
+      : `<a href="#" class="plan-chip free" title="Voir les offres">Gratuit</a>`;
+    return `<div class="sidebar-foot">${usage}
+      ${open ? menu(n, p, { head: false, subscription: false }) : ""}
+      <div class="account-row">
+        <button class="sidebar-link acct" aria-haspopup="menu" aria-expanded="${open}" aria-label="Mon compte, ${shown(n)}">
+          ${ic("user")}<span class="ellipsis">${shown(n)}</span>${ic("up").replace('class="icon"', 'class="icon chev"')}
+        </button>${chip}${bug}
+      </div></div>`;
+  }
+  return `<div class="sidebar-foot" style="border-top:0">
+      ${open ? menu(n, p, { head: true, subscription: true }) : ""}
+      <div class="account-row" style="align-items:flex-end">
+        <div class="card acct">
+          <button class="sidebar-link" aria-haspopup="menu" aria-expanded="${open}" aria-label="${label}" style="border-radius:0;padding:var(--space-2)">
+            ${avatar(n)}<span class="two-lines"><span class="who ellipsis">${shown(n)}</span><span class="plan ellipsis">${planText(p)}</span></span>${ic("up").replace('class="icon"', 'class="icon chev"')}
+          </button>
+          ${usage}
+        </div>${bug}
+      </div></div>`;
+}
+
+function sidebar() {
+  return `<nav class="sidebar" aria-label="Navigation principale">
+    <div class="brand">Jobbbox</div>
+    <div class="profile-switch">Directrice financière</div>
+    <div class="sidebar-scroll">
+      <a class="sidebar-link" aria-current="page" href="#">${ic("chat")}Coach IA</a>
+      <a class="sidebar-link" href="#">${ic("brief")}Mes candidatures</a>
+      <a class="sidebar-link" href="#">${ic("search")}Recherches d'offres</a>
+      <a class="sidebar-link" href="#">${ic("cal")}Agenda</a>
+    </div>
+    ${foot()}
+  </nav>`;
+}
+
+const NOTES = {
+  A: "Le bouton « Mon compte » devient deux lignes : le Preferred Name, puis le Plan. Les initiales tiennent la place de la photo (reportée). Le menu gagne un en-tête (Prénom Nom, e-mail) et « Mon abonnement ». L'Usage Meter reste au-dessus, inchangé.",
+  B: "Le bouton garde sa forme d'aujourd'hui, avec le Preferred Name à la place de « Mon compte » ; le Plan devient une pastille à part, lien direct vers l'abonnement. Le menu ne change pas. Deux cibles sur une ligne étroite : à vérifier avec un nom long.",
+  C: "Le compte et l'Usage Meter fusionnent en une carte : nom et Plan en haut, le quota de la semaine dessous. Le pied du Sidebar gagne une ligne, et le Plan se lit à côté de ce qu'il donne. Le menu est celui de A.",
+};
+
+function render() {
+  document.documentElement.dataset.theme = state.theme;
+  document.documentElement.dataset.density = state.density;
+  const v = VARIANTS.find(([k]) => k === state.variant) || VARIANTS[0];
+  document.getElementById("vlabel").textContent = `${v[0]} (${v[1]})`;
+  const note = `<div class="note"><b>Variante ${v[0]} — ${v[1]}.</b> ${NOTES[v[0]]}<br><br>Sans Preferred Name, le Sidebar montre le Prénom ; sans nom du tout, « Mon compte ». Prototype jetable du ticket #914 (carte #910) : données fictives, rien n'est enregistré.</div>`;
+  const root = document.getElementById("root");
+  if (state.width === "phone") {
+    root.innerHTML = `<div class="phone"><div class="phone-frame"><div class="page"><h1>Coach IA</h1></div><div class="scrim"></div>${sidebar()}</div></div>`;
+  } else {
+    root.innerHTML = `<div class="app">${sidebar()}<main class="page"><h1>Coach IA</h1><p>La page, inchangée.</p>${note}</main></div>`;
+  }
+  document.querySelectorAll(".proto-bar select").forEach((s) => (s.value = state[s.dataset.k]));
+  root.querySelectorAll('[aria-haspopup="menu"]').forEach((b) => b.addEventListener("click", () => set("menu", state.menu === "open" ? "closed" : "open")));
+}
+function set(k, v) {
+  state[k] = v;
+  const q = new URLSearchParams(state);
+  history.replaceState(null, "", "?" + q);
+  render();
+}
+function cycle(d) {
+  const i = VARIANTS.findIndex(([k]) => k === state.variant);
+  set("variant", VARIANTS[(i + d + VARIANTS.length) % VARIANTS.length][0]);
+}
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+document.querySelectorAll(".proto-bar select").forEach((s) => s.addEventListener("change", () => set(s.dataset.k, s.value)));
+addEventListener("keydown", (e) => {
+  if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+render();
+</script>
+</body>
+</html>

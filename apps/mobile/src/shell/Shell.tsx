@@ -80,7 +80,7 @@ export function Shell({
   const window = useWindowDimensions();
   const [state, setState] = useState<State>({ pageKey: page.key, drawerOpen: false, sidebarWanted: true, paneOpen: null, workPane: null });
   // The screen's own main action (useTopBarPrimary), ahead of the others.
-  const { primary, offer } = useTopBarPrimaryOffers();
+  const { primary, offer, place } = useTopBarPrimaryOffers();
   // A new page: its own panes, closed, and the drawer that led there closes too.
   if (state.pageKey !== page.key) setState({ ...state, pageKey: page.key, drawerOpen: false, paneOpen: null, workPane: null });
 
@@ -144,6 +144,7 @@ export function Shell({
   // The wide bar's order: the screen's action, the page's (« Effacer »), « Fiche » or « Activité », the pencil.
   const topBarActions = [primary, ...actions, paneAction, newConversation].filter((action): action is TopBarAction => action !== null);
   const compact = layout.panes === "fullPage";
+  const topBarHost = useMemo(() => ({ offer, compact, focusPrimary: () => place.current?.() }), [offer, compact, place]);
 
   return (
     <WorkPaneContext.Provider value={workPane}>
@@ -168,7 +169,7 @@ export function Shell({
             }
             end={
               compact ? (
-                <CompactTopBarActions actions={topBarActions} />
+                <CompactTopBarActions actions={topBarActions} placeRef={place} />
               ) : (
                 topBarActions.map((action) => (
                   <Control
@@ -178,6 +179,7 @@ export function Shell({
                     iconOnly={action.iconOnly}
                     look={action.look}
                     expanded={action.expanded}
+                    badge={action.badge}
                     onPress={action.run}
                   />
                 ))
@@ -187,7 +189,7 @@ export function Shell({
           <OfflineBanner />
           <View style={{ flex: 1, flexDirection: "row", paddingBottom: insets.bottom }}>
             <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>
-              <TopBarPrimaryProvider value={offer}>{children}</TopBarPrimaryProvider>
+              <TopBarPrimaryProvider value={topBarHost}>{children}</TopBarPrimaryProvider>
             </View>
             {layout.panes === "columns"
               ? // The Work Pane beside the conversation, the Fiche after it (as on the web).

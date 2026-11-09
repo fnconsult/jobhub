@@ -3461,6 +3461,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Chaque tâche IA a son fournisseur et son modèle, un Paramètre de plateforme appliqué dès le prochain appel. Les super-admins et « Technique » le changent.\n\n1. Ouvrez Paramètres, onglet « IA ». Le tableau « Tâches » montre chaque tâche avec son « Fournisseur · modèle », sa « Source », la « Clé du fournisseur » et ses « Données ».\n2. Sur la ligne de la tâche, cliquez sur « Modifier… ». Le panneau « Tâche IA » s'ouvre sur le côté.\n3. Choisissez le « Fournisseur », puis le « Modèle » : laissé vide, c'est le modèle par défaut du fournisseur ; un modèle saisi est testé par un appel à l'enregistrement.\n4. Cliquez sur « Enregistrer ». Le message « Route enregistrée : elle s'applique dès le prochain appel, sans redémarrage. » le confirme ; un run déjà lancé garde son modèle.\n5. Pour revenir à la valeur de l'environnement, sinon au défaut du code, cliquez sur « Rétablir le défaut ».\n\nLa route est vérifiée avant d'être enregistrée. Refusée, elle reste comme avant, avec un message « … n'a pas été modifié : … » et son « Détail : » :\n\n- « Aucun fournisseur configuré pour cette tâche » (`route_missing`) : ce fournisseur ne sert pas cette tâche, ou un réglage dont il a besoin manque. Choisissez-en un autre.\n- « Règle de résidence des données » (`data_residency`) : la tâche ne s'exécute que dans l'UE et le fournisseur est hors UE. Choisissez un fournisseur dans l'UE.\n- « Test de connexion échoué » (`test_failed`) : l'appel de test au modèle saisi a échoué. Vérifiez le nom du modèle chez le fournisseur.\n\nUn fournisseur sans clé est signalé, jamais refusé : ses appels échouent jusqu'à ce que la clé soit saisie. Le modèle d'un Playbook Agent, lui, se change par « Modifier… » sous « Playbook Agents » : il crée une version brouillon à valider dans Playbooks."
     },
     {
+      "id": "tutorial-admin-extension-test-build",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "fournisseurs-et-tools",
+      "title": "Charger une version de test de l'extension",
+      "synonyms": [
+        "extension",
+        "version de test",
+        "dernière version",
+        "extension version",
+        "zip",
+        "bêta",
+        "chrome-beta",
+        "non empaquetée",
+        "charger l'extension non empaquetée",
+        "mode développeur",
+        "chrome://extensions",
+        "github",
+        "releases",
+        "extension-v",
+        "tester l'extension"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Avant sa publication sur le Chrome Web Store, un administrateur peut charger dans Chrome la dernière version de l'extension, celle que sert le serveur. Les candidats ne voient pas ce bloc.\n\n1. Dans Mon compte, ouvrez « Outils ». Sous le bouton du Chrome Web Store, le bloc « Dernière version de l'extension » indique la « Version de l'extension » et la « Version d'API servie ».\n2. Cliquez sur « Voir les versions sur GitHub ». La page s'ouvre dans un nouvel onglet ; le dépôt est privé : il faut y avoir accès.\n3. Dans la version `extension-v` de cette version de l'extension, téléchargez le zip que nomme le bloc : `-chrome-beta.zip` sur la Beta (branché sur staging.jobbbox.ai), `-chrome.zip` en Production. Décompressez-le.\n4. Ouvrez chrome://extensions et activez le « Mode développeur ».\n5. Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé.\n\nUne extension chargée ainsi ne se met pas à jour seule : recommencez à chaque nouvelle version. Si le serveur ne sert plus sa version d'API, l'extension demande de se mettre à jour."
+    },
+    {
       "id": "tutorial-getting-started",
       "locale": "fr",
       "kind": "tutorial",
@@ -7550,6 +7579,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "The Jobbbox app, on iPhone, iPad and Android, uses the same account as jobbbox.ai. No password: you sign in with a link received by email.\n\n1. Install the « Jobbbox » app from the App Store (iPhone, iPad) or Google Play (Android), then open it.\n2. On the « Sign in to Jobbbox » screen, enter « Your email address », then tap « Send me a sign-in link ».\n3. On this same phone, open the email you received and tap the link: the app opens and you are signed in. The link is valid for 15 minutes and works once; if it is no longer valid, the app tells you: ask for another one with « Send the link again », or with « Send me a sign-in link » if the app is back on the « Sign in to Jobbbox » screen. Reading the email on another device, your computer for instance? Type the 6-digit code it holds in the app, in « Enter the code from the email », then tap « Sign in with this code ». Your iPhone may also offer the code above the keyboard.\n4. If your account has two-step verification, the app shows « Two-step verification »: it is coming to the app soon. Meanwhile, tap « Sign out » or sign in on jobbbox.ai.\n\nIf you open the link on a device where the app is not installed, it signs you in on jobbbox.ai, in the browser.\n\nTo sign out of the app, open « My account » and tap « Sign out ». A session closed from « My account » on jobbbox.ai also signs the app out, as soon as it comes back to the foreground.\n\nWithout network, the app shows « Offline » and what you last looked at; nothing is sent until the network is back. What it keeps on the device, never your conversations with the coach, is erased when you sign out."
+    },
+    {
+      "id": "tutorial-admin-extension-test-build",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "fournisseurs-et-tools",
+      "title": "Load a test version of the extension",
+      "synonyms": [
+        "extension",
+        "test version",
+        "latest version",
+        "extension version",
+        "zip",
+        "beta",
+        "chrome-beta",
+        "unpacked",
+        "load unpacked",
+        "developer mode",
+        "chrome://extensions",
+        "github",
+        "releases",
+        "extension-v",
+        "test the extension"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Before it is published on the Chrome Web Store, an administrator can load in Chrome the latest version of the extension, the one the server serves. Candidates do not see this block.\n\n1. In My account, open « Tools ». Under the Chrome Web Store button, the « Latest version of the extension » block gives the « Extension version » and the « API version served ».\n2. Click « See the versions on GitHub ». The page opens in a new tab; the repository is private: you need access to it.\n3. In the `extension-v` release of this extension version, download the zip the block names: `-chrome-beta.zip` on the Beta (tied to staging.jobbbox.ai), `-chrome.zip` in Production. Unzip it.\n4. Open chrome://extensions and turn on « Developer mode ».\n5. Click « Load unpacked » and choose the unzipped folder.\n\nAn extension loaded this way does not update itself: do it again for each new version. If the server no longer serves its API version, the extension asks to be updated."
     },
     {
       "id": "tutorial-admin-two-step-verification",

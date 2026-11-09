@@ -228,7 +228,7 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
             const fixedTexts: Record<string, string> = "fixedTexts" in shot ? shot.fixedTexts : {};
             for (const [selector, text] of Object.entries(fixedTexts)) await page.locator(selector).evaluateAll((elements, value) => elements.forEach((element) => (element.textContent = value)), text);
             const masks = [...MASK, ...("mask" in shot ? shot.mask : [])];
-            await expect(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: masks.map((selector) => page.locator(selector)) });
+            await expect.soft(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: masks.map((selector) => page.locator(selector)) });
           }
         }
         await showInTheme(page, "light");

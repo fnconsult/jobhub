@@ -529,7 +529,7 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
               ),
             });
             await settled(page);
-            await expect(page.locator(shot.target)).toHaveScreenshot(
+            await expect.soft(page.locator(shot.target)).toHaveScreenshot(
               `${themedName(`${shot.name}-${name}`, theme)}.png`,
               { mask: shot.mask().map((selector) => page.locator(selector)) },
             );

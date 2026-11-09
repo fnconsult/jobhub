@@ -87,7 +87,7 @@ export default defineConfig({
     // The Coach context limits (#731) change Free's for real for a few seconds, and schedule and cancel a reduction of Standard's:
     // after the Quota Reductions' spec, which saves the same Plans' quotas.
     { name: "plan-coach-context", testMatch: /coach-context-limits\.spec\.ts/, dependencies: ["plan-quotas"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" } },
-    { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
+    { name: "extension", testMatch: /extension(-events)?\.spec\.ts/, use: { baseURL: webOrigin } },
     // The motions' captures (#567, ADR-0066): the test Motion Scripts filmed on the demo Candidate; with MOTIONS_WORK, the
     // `motions` workflow's capture stage (packages/motions, docs/ops/motions.md).
     { name: "motions", testMatch: /\/motions\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },

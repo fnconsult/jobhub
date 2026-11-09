@@ -126,6 +126,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "guardrail_setting", // issue #228: block or flag only, per Guardrail
         "guardrail_trigger", // issue #228: each block, flag or unavailable check, no Candidate, no text
         "human_coach", // issue #24: Human Coaches and their Cal.com booking links
+        "identity_names_backfill", // issue #918: when the Candidates' names were worked out, once (one row)
         "interview",
         "interview_reschedule", // issue #250: an Interview's Reschedule history
         "job_digest", // issue #15: the Job Digests sent for each Profile

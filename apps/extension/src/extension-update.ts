@@ -8,7 +8,7 @@
  * When to raise the API Version: docs/ops/extension-api-version.md.
  */
 import { API_VERSION, API_VERSION_HEADER, EXTENSION_OUTDATED, EXTENSION_VERSION_HEADER } from "@jobhub/shared";
-import extensionPackage from "../package.json";
+import extensionPackage from "../package.json" with { type: "json" };
 
 /** This build's Extension Version: package.json's, which WXT writes into the manifest (ADR-0063). */
 export const EXTENSION_VERSION: string = extensionPackage.version;

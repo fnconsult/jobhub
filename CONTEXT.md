@@ -832,6 +832,9 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 One thing the extension did, recorded for the Back Office: a Capture, a Match Score, a CV draft, a Profile or an Application made from it, or an error (a page that cannot be captured, a failed call, an unexpected failure). It holds when, which kind, the Candidate or « Invité », the extension's version and, for an error, its code, where it happened and the page's domain only, never its address or text. A Guest's Extension Events are not tied to any identifier.
 _Avoid_: Tracking, analytics event, log line
 
+**Extension error code**:
+What an error Extension Event says went wrong: `captureImpossible` (the page cannot be captured), `callFailed` (a call to Jobbbox failed: 4xx, 5xx or network, never the 426 update answer) or `unexpected` (any other failure in the extension). Reported once, never retried, never blocking.
+
 **Jobbbox app**:
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
 _Avoid_: Mobile site, PWA, native client
@@ -932,6 +935,7 @@ _Avoid_: Release, go-live, prod deploy
 
 **Extension Version**:
 The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token.
+The extension states it in `Jobbbox-Extension-Version` on every call. The API Version's guard also refuses an extension older than `MINIMUM_EXTENSION_VERSION` (0.2.0: nothing refused yet), with the same 426 update answer (ADR-0104).
 _Avoid_: Version (for the extension)
 
 **API Version**:

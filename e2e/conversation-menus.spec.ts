@@ -267,7 +267,9 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     };
 
     await page.goto("/agenda");
-    expect((await page.locator(".sidebar-docked").boundingBox())?.width).toBe(256);
+    // 16rem (Confort), at the default text size (Standard, a 17px root): 272 px.
+    const rootPx = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+    expect((await page.locator(".sidebar-docked").boundingBox())?.width).toBe(16 * rootPx);
     await expect(sidebar(page).getByRole("button", { name: tr(texts.unfold, { menu: fr.sidebar.jobSearches }) })).toBeVisible();
     await expect(label).toHaveText(fr.sidebar.jobSearches);
     // No offer à traiter: its name stays on its line beside the fold.

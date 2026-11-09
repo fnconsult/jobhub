@@ -26,6 +26,7 @@ import {
   FileQuestionMark,
   FileSearch,
   Flag,
+  Funnel,
   Globe,
   Info,
   KeyRound,
@@ -174,6 +175,8 @@ const LUCIDE = {
   nouveautes: Sparkles,
   // « Fiche » in the Top Bar of an object's page (#603).
   fiche: PanelRight,
+  // Recherches d'offres' filter in the compact Top Bar (#898): the Offer box's count and source chips behind it.
+  filter: Funnel,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

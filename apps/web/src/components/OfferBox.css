@@ -1,10 +1,13 @@
 /* The Offer box (« Offres à traiter », ADR-0090, variant B of the prototype): the page itself, before the menu's
    conversation. Its header and source chips stay at the top of the page's column while it scrolls, the current day's
-   heading under them and the current tier's under that. Beside its component, as the Design System's own CSS is
-   (ADR-0053). */
+   heading under them and the current tier's under that. On a phone (#898) the header is behind the Top Bar's filter
+   icon, and only the tier stays pinned. Beside its component, as the Design System's own CSS is (ADR-0053). */
 .offer-box {
   --offer-box-head: 8rem;
   --offer-box-day: 2.5rem;
+  /* The very top of the page's scrolling column: a sticky top of 0 stops under its top padding, where entries scrolled
+     by above the header (#898). */
+  --offer-box-top: calc(-1 * var(--page-padding-top, 0px));
 
   box-sizing: border-box;
   width: 100%;
@@ -15,7 +18,7 @@
 
 .offer-box-head {
   position: sticky;
-  top: 0;
+  top: var(--offer-box-top);
   z-index: 4;
   display: grid;
   gap: var(--space-2);
@@ -111,7 +114,7 @@
 
 .offer-box-day-heading {
   position: sticky;
-  top: var(--offer-box-head);
+  top: calc(var(--offer-box-top) + var(--offer-box-head));
   z-index: 3;
   box-sizing: border-box;
   min-height: var(--offer-box-day);
@@ -125,9 +128,17 @@
   margin-top: var(--space-3);
 }
 
+/* For a phone (#898): « 12 arrivées aujourd'hui · 184 à traiter » under « Aujourd'hui », the day in the pinned tier, and
+   the scrim under the open panel. */
+.offer-box-day-line,
+.offer-box-tier-day,
+.offer-box-scrim {
+  display: none;
+}
+
 .offer-box-tier-heading {
   position: sticky;
-  top: calc(var(--offer-box-head) + var(--offer-box-day));
+  top: calc(var(--offer-box-top) + var(--offer-box-head) + var(--offer-box-day));
   z-index: 2;
   display: flex;
   flex-wrap: wrap;
@@ -166,6 +177,7 @@
 }
 
 .offer-box-tier-heading::before {
+  flex: none;
   width: 8px;
   height: 8px;
   content: "";
@@ -395,6 +407,105 @@
 }
 
 @media (width < 40rem) {
+  /* The header behind the Top Bar's filter icon (#898): out of the page, its heading kept for screen readers. */
+  .offer-box-head:not([data-open]) {
+    position: static;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .offer-box-head:not([data-open]) > :not(.offer-box-count),
+  .offer-box-head:not([data-open]) .offer-box-count > :not(h2) {
+    display: none;
+  }
+
+  .offer-box-head:not([data-open]) h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  /* Opened by the icon: a panel under the Top Bar, over the entries, its chips on several lines. Pinned to the top of
+     the page's column (`--offer-box-panel-top`, the bar's bottom, OfferBox.tsx) and out of its flow: it opens in view
+     wherever the column is scrolled, even past the box, and neither opening nor closing it moves the column. */
+  .offer-box-head[data-open] {
+    position: fixed;
+    top: var(--offer-box-panel-top, 3.25rem);
+    inset-inline: 0;
+    z-index: 8;
+    max-height: calc(100dvh - var(--offer-box-panel-top, 3.25rem));
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  /* Under the open panel, the entries dimmed, and the conversation's box at the foot (z-index 5): they neither scroll
+     nor take a tap, which closes the panel. Under the Top Bar (z-index 10). */
+  .offer-box-scrim {
+    position: fixed;
+    inset: var(--offer-box-panel-top, 3.25rem) 0 0;
+    z-index: 7;
+    display: block;
+    touch-action: none;
+    background: var(--color-scrim);
+  }
+
+  .workspace > .page:has(.offer-box-head[data-open]) {
+    overflow-y: hidden;
+  }
+
+  /* The days scroll with their entries; only the tier stays pinned, at the top, on one line. */
+  .offer-box-day-heading {
+    position: static;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+
+  .offer-box-day-line {
+    display: block;
+    margin: 0;
+    font-size: var(--font-size-meta);
+    color: var(--color-text-secondary);
+  }
+
+  .offer-box-tier-heading {
+    top: var(--offer-box-top);
+    flex-wrap: nowrap;
+  }
+
+  .offer-box-tier-heading:has(.field-error) {
+    flex-wrap: wrap;
+  }
+
+  /* The day's and the tier's names cut short when need be; « Tout écarter (n) » always whole, at the right. */
+  .offer-box-tier-day,
+  .offer-box-tier-heading h4 {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .offer-box-tier-day {
+    flex: 0 1 auto;
+  }
+
+  .offer-box-tier-heading h4 {
+    flex: 1 1 0;
+  }
+
+  .offer-box-tier-heading button {
+    flex: none;
+    white-space: nowrap;
+  }
+
   .offer-box-entry {
     grid-template-columns: 2.75rem minmax(0, 1fr);
   }
@@ -403,4 +514,26 @@
     width: 2.625rem;
     height: 2.625rem;
   }
+}
+
+/* The Top Bar's filter icon (#898): drawn in the accent while its panel is open, the button pressed (app.css's
+   `.topbar-icon[aria-expanded="true"]`, as the prototype's « filtre ouvert »); a dot on it while a source is chosen. */
+.offer-box-filter-glyph {
+  position: relative;
+  display: inline-flex;
+}
+
+[aria-expanded="true"] > .offer-box-filter-glyph {
+  color: var(--color-accent);
+}
+
+.offer-box-filter-dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  background: var(--color-accent);
+  border: 1.5px solid var(--color-background);
+  border-radius: 50%;
 }

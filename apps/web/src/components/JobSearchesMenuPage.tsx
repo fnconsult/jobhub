@@ -22,7 +22,7 @@ import { jobSearchesMenu, type JobSearchesMenuGroup } from "@/job-searches/menu"
 import { getJobSearches } from "@/job-searches/server";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import type { OfferBoxContents } from "@/offer-box";
-import { getOfferBox } from "@/offer-box/server";
+import { readOfferBox } from "@/offer-box/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
 import { objectDay } from "@/sidebar-menus";
@@ -60,7 +60,7 @@ export async function JobSearchesMenuPage({ candidateId, pane }: { candidateId: 
     getProfiles().list(candidateId),
     getJobSearches().list(candidateId),
     getCoachConversations().ofSubject(candidateId, SUBJECT),
-    getOfferBox().read(candidateId),
+    readOfferBox(candidateId),
   ]);
   const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;

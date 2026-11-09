@@ -60,4 +60,20 @@ describe("the conversation's message box (#933)", () => {
     await waitFor(() => expect(box().value).toBe(""));
     expect(box().style.height).toBe("24px");
   });
+
+  it("shows the badge and Send in words while empty, their icons while the Candidate writes, their names kept", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<HomePage />);
+    const composer = () => box().closest(".coach-panel-composer") as HTMLElement;
+    expect(composer().dataset.writing).toBeUndefined();
+
+    await user.type(box(), "Bonjour");
+    expect(composer().dataset.writing).toBe("");
+    // An icon to the eye; to a screen reader, still its words.
+    expect(screen.getByRole("button", { name: "Envoyer au coach" }).querySelector("svg")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Envoyer au coach" }).querySelector(".composer-label")?.textContent).toBe("Envoyer au coach");
+
+    await user.clear(box());
+    expect(composer().dataset.writing).toBeUndefined();
+  });
 });

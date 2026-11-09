@@ -86,3 +86,14 @@ Two icons of the native app's conversation shell carry only an accessible label 
 - Both are at least 44 pt, with a 3:1 glyph.
 
 The exception covers these two icons only. « Menu », « Fiche », « Activité », « Envoyer », « Fermer » and « Arrêter » show their words.
+
+## Amendment: the message box's badge and Send while the Candidate writes (issue #933, 2026-11-09)
+
+Asked by the product owner after reviewing #933 (« when empty show the 2 buttons with the labels, when start writing, reduce them to the OS icon of enter for the envoyer and the AI dot for the coach AI »), so the text keeps the box's width on a narrow column:
+- **While the box is empty, « Coach IA » and « Envoyer au coach » show their words**, as every function does. Once the Candidate writes, they shrink to icons alone: the badge to its AI dot, Send to the Enter key (↵). Sent or emptied, the box shows their words again.
+- Their words never leave the page: they stay in each button's accessible name, show at once on the keyboard's focus, and show after the pointer rests 2 seconds on either, floating over the text without moving it, until the pointer leaves or Escape (1.4.13). A touch has no hover: the icons alone.
+- Send is never only an icon: Enter sends from the box, which says so in the Help Articles, and the label is back as soon as the box is empty. « Arrêter », while a reply is on its way, keeps its words.
+- The AI disclosure (AI Act art. 50(1)) does not rest on the badge alone: the conversation's opening message says the coach is an AI and the badge's dialog says it in full; the badge's words are back in the empty box. The product owner validates that reading at the Promotion.
+- Both stay at least 44 px, the glyphs at least 3:1.
+
+The exception covers these two icons, in the web conversation's box only. Every other function still needs a visible label.

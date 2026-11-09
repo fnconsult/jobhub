@@ -45,31 +45,4 @@ describe("the message box growing with its text (#933)", () => {
     const { getByRole } = render(<Box value={"un\ndeux"} />);
     expect((getByRole("textbox") as HTMLTextAreaElement).style.height).toBe("");
   });
-
-  it("says when the text runs past one line, and keeps saying so until the draft is emptied", () => {
-    vi.stubGlobal("CSS", { supports: () => false });
-    measuredByLines();
-    const { getByRole, rerender } = render(<Box value="Bonjour" />);
-    const box = getByRole("textbox") as HTMLTextAreaElement;
-    expect(box.dataset.multiline).toBeUndefined();
-
-    rerender(<Box value={"Bonjour,\nje prépare"} />);
-    expect(box.dataset.multiline).toBe("");
-    // Back to one line while writing: it stays as it is, so the layout never flips back and forth.
-    rerender(<Box value="Bonjour" />);
-    expect(box.dataset.multiline).toBe("");
-
-    rerender(<Box value="" />);
-    expect(box.dataset.multiline).toBeUndefined();
-  });
-
-  it("says so too when a single line wraps, the box taller than its one line", () => {
-    vi.stubGlobal("CSS", { supports: (property: string, value: string) => property === "field-sizing" && value === "content" });
-    const { getByRole, rerender } = render(<Box value="" />);
-    const box = getByRole("textbox") as HTMLTextAreaElement;
-    box.style.minHeight = "44px";
-    vi.spyOn(box, "offsetHeight", "get").mockReturnValue(71);
-    rerender(<Box value="une phrase assez longue pour passer à la ligne" />);
-    expect(box.dataset.multiline).toBe("");
-  });
 });

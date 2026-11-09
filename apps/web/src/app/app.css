@@ -916,9 +916,8 @@ textarea.input {
 /* The conversation's message box (#933): one line to start with, the height of « Envoyer au coach », its text centred in
    it; it grows with the text (`field-sizing: content`, useAutoGrow where a browser lacks it) up to 8 lines, then scrolls
    inside. Where its column has room, the « Coach IA » badge and Send stand on its row, at its right: the box is one line
-   on a computer. Once the text runs past that line (`data-multiline`, useAutoGrow), it takes the box's whole width and
-   wraps there, the badge and Send staying together at the right, under it. A narrower column (a phone) keeps them on the
-   row under the text from the start, so the text keeps a writable width. */
+   on a computer, and the text wraps beside them. A narrower column (a phone) keeps them on the row under the text, so the
+   text keeps a writable width. */
 .coach-panel-form-inline {
   container: message-box / inline-size;
 }
@@ -948,19 +947,65 @@ textarea.input {
   .coach-panel-composer-inline .coach-panel-composer-actions {
     flex: none;
   }
+}
 
-  .coach-panel-composer-inline:has(> textarea[data-multiline]) {
-    flex-direction: column;
-    align-items: stretch;
-  }
+/* Once the Candidate writes (`data-writing`), the badge and Send shrink to their icons, side by side at the right: the
+   badge to its AI dot, Send to the Enter key (an exception to ADR-0009, in its amendment of #933). Their words stay in
+   the page for screen readers, and show on the keyboard's focus at once, or once the pointer has rested on one for 2
+   seconds (useDwellReveal, `data-revealed`): the action then floats over the text, anchored at its right, without
+   moving it. Emptied (sent), the box shows them in words again. */
+.coach-panel-composer-inline .composer-send .icon {
+  display: none;
+}
 
-  .coach-panel-composer-inline:has(> textarea[data-multiline]) textarea {
-    flex: none;
-  }
+.coach-panel-composer-inline[data-writing] .coach-panel-composer-actions {
+  position: relative;
+  flex: none;
+  align-self: flex-end;
+  width: calc(2 * var(--control-height) + var(--space-2));
+  height: var(--control-height);
+}
 
-  .coach-panel-composer-inline:has(> textarea[data-multiline]) .coach-panel-composer-actions {
-    justify-content: flex-end;
-  }
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send) {
+  position: absolute;
+  bottom: 0;
+  justify-content: center;
+  width: var(--control-height);
+  min-width: 0;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+}
+
+.coach-panel-composer-inline[data-writing] .composer-send {
+  right: 0;
+}
+
+.coach-panel-composer-inline[data-writing] .coach-panel-badge {
+  right: calc(var(--control-height) + var(--space-2));
+}
+
+.coach-panel-composer-inline[data-writing] .composer-send .icon {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send):not([data-revealed], :focus-visible) .composer-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send):is([data-revealed], :focus-visible) {
+  z-index: 3;
+  gap: var(--space-2);
+  width: max-content;
+  padding: 0 var(--space-4);
+  box-shadow: var(--shadow-pop);
 }
 
 /* « En savoir plus » beside the AI badge (#338): « IA dans Jobbbox ». */

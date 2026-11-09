@@ -7,8 +7,9 @@ import { newAddress } from "./support/mailbox";
 
 // Issue #933: the conversation's message box starts on one line and grows with the text, up to about 8 lines, then
 // scrolls inside; sent, it is one line again. On a computer the « Coach IA » badge and « Envoyer au coach » stand on its
-// row, so the box is one line; past one line the text takes the whole width, the two at the right under it; on a phone
-// they keep the row under it. Enter sends, Shift+Enter starts a line, as before.
+// row, so the box is one line; on a phone they keep the row under it. In words while the box is empty, they shrink to
+// their icons (the AI dot, the Enter key) once the Candidate writes; the keyboard's focus, or the pointer resting 2
+// seconds on one, shows its words, floating over the text. Enter sends, Shift+Enter starts a line, as before.
 // The AI Coach is faked by e2e/support/fake-mistral.mjs.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const COMPUTER = { width: 1280, height: 800 };
@@ -71,41 +72,69 @@ for (const [name, size] of [
   });
 }
 
-test("on a computer the « Coach IA » badge and Send stand on the box's row; past one line, the text takes the whole width, both at the right under it (#933)", async ({ page }) => {
+test("on a computer the badge and Send stand on the box's row in words; writing, they shrink to their icons, the text wrapping beside them (#933)", async ({ page }) => {
   await openConversation(page, COMPUTER);
-  const box = (await boxOf(page).boundingBox())!;
-  const send = (await sendOf(page).boundingBox())!;
-  const badge = (await badgeOf(page).boundingBox())!;
-  // At the box's right, on its row.
-  expect(badge.x).toBeGreaterThan(box.x + box.width - 1);
-  expect(send.x).toBeGreaterThan(badge.x);
-  expect(Math.round(send.y)).toBe(Math.round(box.y));
+  const empty = (await boxOf(page).boundingBox())!;
+  const sendEmpty = (await sendOf(page).boundingBox())!;
+  const badgeEmpty = (await badgeOf(page).boundingBox())!;
+  // In words, at the box's right, on its row.
+  await expect(sendOf(page)).toHaveText(fr.coachPanel.send);
+  expect(badgeEmpty.x).toBeGreaterThan(empty.x + empty.width - 1);
+  expect(sendEmpty.x).toBeGreaterThan(badgeEmpty.x);
+  expect(Math.round(sendEmpty.y)).toBe(Math.round(empty.y));
 
-  // A line long enough to wrap beside them: the text takes the whole width, the badge and Send under it, at the right.
   await boxOf(page).click();
   await page.keyboard.type("Je prépare un entretien pour un poste de Head of Business Unit Professional Services chez Canal+ la semaine prochaine.");
-  await expect(boxOf(page)).toHaveAttribute("data-multiline", "");
-  const wide = (await boxOf(page).boundingBox())!;
-  const sendUnder = (await sendOf(page).boundingBox())!;
-  const badgeUnder = (await badgeOf(page).boundingBox())!;
-  expect(wide.width).toBeGreaterThan(box.width + badge.width + send.width);
-  expect(sendUnder.y).toBeGreaterThanOrEqual(wide.y + wide.height - 1);
-  expect(Math.round(sendUnder.x + sendUnder.width)).toBe(Math.round(wide.x + wide.width));
-  expect(badgeUnder.x).toBeGreaterThan(wide.x + wide.width / 2);
-  // On one row: their middles level.
-  expect(Math.abs(badgeUnder.y + badgeUnder.height / 2 - (sendUnder.y + sendUnder.height / 2))).toBeLessThan(2);
+  // Icons: as tall as wide, the box wider for the text, which wraps beside them.
+  const control = Math.round(sendEmpty.height);
+  await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.width)).toBe(control);
+  expect(Math.round((await badgeOf(page).boundingBox())!.width)).toBe(control);
+  await expect(sendOf(page).locator(".composer-label")).not.toBeInViewport();
+  const writing = (await boxOf(page).boundingBox())!;
+  expect(writing.width).toBeGreaterThan(empty.width + 100);
+  expect(writing.height).toBeGreaterThan(empty.height);
+  const send = (await sendOf(page).boundingBox())!;
+  expect(send.x).toBeGreaterThan(writing.x + writing.width - 1);
+  expect(Math.round(send.y + send.height)).toBe(Math.round(writing.y + writing.height));
 
-  // Shortened again while writing, it stays so; sent, it is one line again, the badge and Send back on its row.
-  await page.keyboard.press("Control+a");
-  await page.keyboard.type("Bonjour");
-  await expect(boxOf(page)).toHaveAttribute("data-multiline", "");
+  // The pointer resting on Send for 2 seconds: its words, floating over the text, the text unmoved.
+  await page.mouse.move(send.x + send.width / 2, send.y + send.height / 2);
+  await page.waitForTimeout(1000);
+  expect(Math.round((await sendOf(page).boundingBox())!.width)).toBe(control);
+  await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.width), { timeout: 3000 }).toBeGreaterThan(control * 2);
+  await expect(sendOf(page).locator(".composer-label")).toBeVisible();
+  const revealed = (await sendOf(page).boundingBox())!;
+  expect(revealed.x).toBeLessThan(writing.x + writing.width);
+  expect(await boxOf(page).boundingBox()).toEqual(writing);
+  // The pointer leaves: the icon again.
+  await page.mouse.move(writing.x + 20, writing.y + 10);
+  await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.width)).toBe(control);
+
+  // Escape dismisses it while the pointer is still there (WCAG 1.4.13).
+  const badge = (await badgeOf(page).boundingBox())!;
+  await page.mouse.move(badge.x + badge.width / 2, badge.y + badge.height / 2);
+  await expect.poll(async () => Math.round((await badgeOf(page).boundingBox())!.width), { timeout: 3000 }).toBeGreaterThan(control);
+  await page.keyboard.press("Escape");
+  await expect.poll(async () => Math.round((await badgeOf(page).boundingBox())!.width)).toBe(control);
+  await page.mouse.move(writing.x + 20, writing.y + 10);
+
+  // The keyboard's focus shows the words at once.
+  await boxOf(page).focus();
+  await page.keyboard.press("Tab");
+  await expect(badgeOf(page)).toBeFocused();
+  await expect.poll(async () => Math.round((await badgeOf(page).boundingBox())!.width)).toBeGreaterThan(control);
+
+  const axe = await new AxeBuilder({ page }).include(".page-conversation-foot").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map(({ id }) => id)).toEqual([]);
+
+  // Sent, in words again.
+  await boxOf(page).focus();
   await page.keyboard.press("Enter");
   await expect(boxOf(page)).toHaveValue("");
-  await expect(boxOf(page)).not.toHaveAttribute("data-multiline");
-  await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.y)).toBe(Math.round(box.y));
+  await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.width)).toBe(Math.round(sendEmpty.width));
 });
 
-test("on a phone the « Coach IA » badge and Send keep the row under the box (#933)", async ({ page }) => {
+test("on a phone the badge and Send keep the row under the box, their icons at its right while the Candidate writes (#933)", async ({ page }) => {
   await openConversation(page, PHONE);
   const box = (await boxOf(page).boundingBox())!;
   const send = (await sendOf(page).boundingBox())!;
@@ -113,4 +142,17 @@ test("on a phone the « Coach IA » badge and Send keep the row under the box (#
   // The badge still opens what says the coach is an AI (AI Act art. 50(1)).
   await badgeOf(page).click();
   await expect(page.getByRole("dialog")).toContainText(fr.coachPanel.aiDisclosure);
+  await page.keyboard.press("Escape");
+
+  await boxOf(page).click();
+  await page.keyboard.type("Bonjour");
+  const control = Math.round(send.height);
+  await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.width)).toBe(control);
+  const writing = (await boxOf(page).boundingBox())!;
+  const sendWriting = (await sendOf(page).boundingBox())!;
+  const badgeWriting = (await badgeOf(page).boundingBox())!;
+  expect(sendWriting.y).toBeGreaterThanOrEqual(writing.y + writing.height - 1);
+  expect(badgeWriting.x).toBeGreaterThan(writing.x + writing.width / 2);
+  const axe = await new AxeBuilder({ page }).include(".page-conversation-foot").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map(({ id }) => id)).toEqual([]);
 });

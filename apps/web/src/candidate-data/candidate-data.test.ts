@@ -43,6 +43,7 @@ import { createTargetCompanies } from "../target-companies";
 import { createTwoStepVerification } from "../two-step-verification";
 import { addTestPasskey } from "../two-step-verification/test-authenticator";
 import { totpAt } from "../two-step-verification/totp";
+import { createIdentityNames } from "../candidate-identity";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -128,12 +129,21 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect((await candidateData.export(candidateId)).account).toEqual({
       email: "marie.dupont@example.fr",
       name: expect.any(String),
+      givenName: null,
+      familyName: null,
+      preferredName: null,
       interfaceLanguage: "fr",
       createdAt: expect.any(Date),
       signInMethods: [],
       sessions: [expect.objectContaining({ createdAt: expect.any(Date) })],
       backOfficeRoles: [],
     });
+  });
+
+  it("the export holds the Candidate's Given Name, Family Name and Preferred Name (#918)", async () => {
+    await createIdentityNames(database).save(candidateId, { givenName: "Marie", familyName: "Dupont", preferredName: "Malou" });
+
+    expect((await candidateData.export(candidateId)).account).toMatchObject({ name: "Marie Dupont", givenName: "Marie", familyName: "Dupont", preferredName: "Malou" });
   });
 
   it("the export holds the Back Office Roles the Candidate holds, not who granted them", async () => {

@@ -30,6 +30,13 @@ describe("the app's Sidebar: « Recherches d'offres » carries « N », the offe
     expect(await screen.findByRole("link", { name: "Recherches d'offres, 1 offre à traiter" })).toBeOnTheScreen();
   });
 
+  it("shows « 99+ » over 99, the exact number said in words (#939)", async () => {
+    serve(128);
+    await renderInApp(<Sidebar onNavigate={() => {}} />);
+    expect(await screen.findByRole("link", { name: "Recherches d'offres, 128 offres à traiter" })).toBeOnTheScreen();
+    expect(screen.getByText("99+")).toBeOnTheScreen();
+  });
+
   it("shows nothing at zero", async () => {
     serve(0);
     await renderInApp(<Sidebar onNavigate={() => {}} />);

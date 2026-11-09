@@ -1,5 +1,5 @@
 import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
-import { createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets } from "@jobhub/web/ai-usage";
+import { createPostgresExternalApiLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications } from "@jobhub/web/applications";
 import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { createDeliveryStatusEmails } from "@jobhub/web/delivery-status";
@@ -39,6 +39,7 @@ import { startJobRunner, type JobRunner } from "./job-runner";
 import { createEmailReading } from "./email-intake";
 import { createJobs, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
+import { workerPostgresUsageLog } from "./ai-usage-log";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -89,7 +90,8 @@ const worker = workerClients({
   resolver: secrets,
   // The AI routing set on Paramètres (#301): the AI layer is rebuilt when it changes, within seconds.
   platformSettings: platformSettings.resolver,
-  usage: allUsageLogs([createConsoleUsageLog(), createPostgresUsageLog(database, { secrets: () => knownSecrets(secrets.current().env) })]),
+  // Each call asked from the `worker` Surface (#919).
+  usage: allUsageLogs([createConsoleUsageLog(), workerPostgresUsageLog(database, { secrets: () => knownSecrets(secrets.current().env) })]),
   externalApis,
   production: process.env.NODE_ENV === "production",
   jobOffers,

@@ -15,7 +15,7 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const admin = fr.admin;
 const origin = process.env.E2E_WEB_ORIGIN!;
 const databaseUrl = process.env.E2E_DATABASE_URL!;
-const SUPER_ADMIN = "origin-office@e2e.jobbbox.test";
+const SUPER_ADMIN = "origin-worker-office@e2e.jobbbox.test";
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const workDir = path.join(os.tmpdir(), `jobhub-e2e-origin-worker-${tag}`);
 

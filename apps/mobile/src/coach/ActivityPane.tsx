@@ -1,10 +1,12 @@
 import { contextBar, formatTokens } from "@jobhub/shared";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { useConfirmClear } from "./ClearConversation";
+import type { Live } from "./coach-reply";
 import { usePageConversation } from "./page-conversation";
 
 /**
@@ -64,6 +66,21 @@ function ContextBar() {
   );
 }
 
+/**
+ * The AI Coach's reply on its way on the page, for the Top Bar (#899): its step, as AI Activity says it, and its stop;
+ * null while none is.
+ */
+export function useLiveReply(): { words: string; stopLabel: string; stop: () => void } | null {
+  const { t } = useTranslation();
+  const page = usePageConversation();
+  const live = page?.live ?? null;
+  if (!page || !live) return null;
+  return { words: liveWords(t, live), stopLabel: t("aiActivity.live.stop.coach_reply"), stop: page.stop };
+}
+
+const liveWords = (t: TFunction, live: Live) =>
+  `${t("aiActivity.kinds.coach_reply")} · ${live.step ? t(`aiActivity.steps.${live.step.label}`) : t("aiActivity.live.starting")}`;
+
 /** AI Activity (#314, #333): the AI Coach's reply on its way, then each reply given on this page, its models and tokens. */
 function AiActivity() {
   const { t, i18n } = useTranslation();
@@ -77,7 +94,7 @@ function AiActivity() {
       <AppText weight="semiBold">{t("aiActivity.label")}</AppText>
       {live ? (
         <View style={{ gap: space[1] }}>
-          <AppText>{`${t("aiActivity.kinds.coach_reply")} · ${live.step ? t(`aiActivity.steps.${live.step.label}`) : t("aiActivity.live.starting")}`}</AppText>
+          <AppText>{liveWords(t, live)}</AppText>
           <Control label={t("aiActivity.live.stop.coach_reply")} look="secondary" onPress={() => page?.stop()} />
         </View>
       ) : null}

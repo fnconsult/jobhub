@@ -360,7 +360,22 @@
       "extensionTitle": "Extension Chrome Jobbbox",
       "extensionIntro": "Depuis la page d'une offre d'emploi, l'extension l'enregistre dans Jobbbox et calcule son score de correspondance, sans copier-coller.",
       "install": "Installer l'extension depuis le Chrome Web Store",
-      "soon": "L'extension arrive bientôt sur le Chrome Web Store."
+      "soon": "L'extension arrive bientôt sur le Chrome Web Store.",
+      "newTab": "(nouvel onglet)",
+      "testBuild": {
+        "title": "Dernière version de l'extension",
+        "intro": "Réservé aux administrateurs : chargez l'extension que sert ce serveur, avant sa publication sur le Chrome Web Store.",
+        "extensionVersion": "Version de l'extension",
+        "apiVersion": "Version d'API servie",
+        "releases": "Voir les versions sur GitHub",
+        "access": "Le dépôt est privé : il faut y avoir accès.",
+        "stepsLabel": "Charger l'extension dans Chrome",
+        "steps": {
+          "download": "Téléchargez {{zip}}, puis décompressez-le.",
+          "developerMode": "Ouvrez chrome://extensions et activez le « Mode développeur ».",
+          "loadUnpacked": "Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé."
+        }
+      }
     }
   },
   "accountData": {
@@ -6023,6 +6038,7 @@
   },
   "fiche": {
     "label": "Fiche",
+    "resize": "Redimensionner la fiche",
     "activity": "Activité",
     "groups": {
       "sections": "Sections",

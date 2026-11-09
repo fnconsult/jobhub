@@ -11,7 +11,7 @@ tags:
 - runFlow:
     file: ../subflows/menu.yaml
     env:
-      MENU: "Recherches d'offres"
+      MENU: "Recherches d'offres(, .+)?"
 - extendedWaitUntil:
     visible: "Toutes, 2 à traiter"
     timeout: 20000

@@ -49,7 +49,7 @@ tags:
 - runFlow:
     file: ../subflows/menu.yaml
     env:
-      MENU: "Recherches d'offres"
+      MENU: "Recherches d'offres(, .+)?"
 # Recherches d'offres opens on its Offer box (ADR-0090), its conversation below it: captured once the seeded Job Offers
 # are read, both à traiter (« Toutes », the first chip).
 - extendedWaitUntil:

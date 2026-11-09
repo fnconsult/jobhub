@@ -18,6 +18,7 @@ export function quotaReductionEmail(
     effectiveOn: string;
     resolvableUntil: string;
     resolveUrl: string;
+    preferredName?: string | null;
   },
   language: Locale,
 ): RenderedEmail {
@@ -29,6 +30,7 @@ export function quotaReductionEmail(
   }));
   return renderEmail({
     language,
+    greetingName: notice.preferredName,
     subject: t("quotaReduction.email.subject", { plan: notice.planName, date }),
     title: t("quotaReduction.email.title", { plan: notice.planName }),
     body: [

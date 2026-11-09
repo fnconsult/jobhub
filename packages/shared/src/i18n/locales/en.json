@@ -5560,6 +5560,7 @@
   },
   "emails": {
     "greeting": "Hello,",
+    "greetingNamed": "Hello {{name}},",
     "signature": "The Jobbbox team",
     "linkLead": "{{label}}:",
     "reasons": {

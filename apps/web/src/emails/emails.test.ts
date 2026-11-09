@@ -40,6 +40,19 @@ describe("renderEmail: the plain-text part", () => {
     expect(text).toBe("Hello,\n\nSign in to Jobbbox:\nhttps://x/y\n\nThe Jobbbox team\n\n--\nWhy.");
   });
 
+  it("greets the Candidate by their Preferred Name when the email gives it, in both parts (#921)", () => {
+    const named = renderEmail({ ...digest, greetingName: "Mimi" });
+    expect(named.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+    expect(named.html).toContain(">Bonjour Mimi,</p>");
+    expect(renderEmail({ ...digest, language: "en", greetingName: "Mimi" }).text.startsWith("Hello Mimi,\n\n")).toBe(true);
+  });
+
+  it("greets without a name when there is none, or only spaces, and escapes the name in the HTML", () => {
+    expect(renderEmail({ ...digest, greetingName: null }).text.startsWith("Bonjour,\n\n")).toBe(true);
+    expect(renderEmail({ ...digest, greetingName: "  " }).text.startsWith("Bonjour,\n\n")).toBe(true);
+    expect(renderEmail({ ...digest, greetingName: "<b>Jo</b>" }).html).toContain(">Bonjour &lt;b&gt;Jo&lt;/b&gt;,</p>");
+  });
+
   it("keeps the subject", () => {
     expect(renderEmail(digest).subject).toBe(digest.subject);
   });

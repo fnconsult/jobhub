@@ -281,6 +281,7 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
 
   it("tells the Candidate by email and in the app, without ever writing to the employer (drafts only)", async () => {
     await setStatus("applied", day("2026-11-02"));
+    await database.query(`UPDATE candidate SET given_name = 'Marie', preferred_name = 'Mimi' WHERE id = $1`, [candidateId]);
     const mailed = testAuth.mailbox.length;
 
     await followUps.proposeDue(day("2026-11-12"));
@@ -289,6 +290,8 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     const sent = testAuth.mailbox.slice(mailed);
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({ to: "marie.dupont@example.fr" });
+    // By their Preferred Name (#921).
+    expect(sent[0]!.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
     expect(sent[0]!.subject).toContain("DAF H/F");
     expect(sent[0]!.text).toContain(`https://app.jobbbox.test/candidatures/${applicationId}`);
     expect(await followUps.notices(candidateId)).toEqual([{ applicationId, jobTitle: "DAF H/F", kind: FOLLOW_UP_CARD }]);

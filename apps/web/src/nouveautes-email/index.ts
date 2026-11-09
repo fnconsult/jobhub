@@ -99,6 +99,7 @@ interface SubscriberRow {
   id: string;
   email: string;
   interfaceLanguage: string | null;
+  preferred_name: string | null;
   subscribed_at: Date;
   unsubscribe_token: string;
   sent: string[];
@@ -137,7 +138,7 @@ export function createNouveautesEmails(database: Pool, deps: NouveautesEmailsDep
     try {
       await client.query("BEGIN");
       const { rows } = await client.query<SubscriberRow>(
-        `SELECT c.id, c.email, c."interfaceLanguage", s.subscribed_at, s.unsubscribe_token,
+        `SELECT c.id, c.email, c."interfaceLanguage", c.preferred_name, s.subscribed_at, s.unsubscribe_token,
                 coalesce((SELECT array_agg(version) FROM nouveautes_email_sent n WHERE n.candidate_id = c.id), '{}') AS sent,
                 (SELECT max(sent_at) FROM nouveautes_email_sent n WHERE n.candidate_id = c.id) AS last_sent_at
            FROM nouveautes_email_subscription s JOIN candidate c ON c.id = s.candidate_id
@@ -166,6 +167,7 @@ export function createNouveautesEmails(database: Pool, deps: NouveautesEmailsDep
           note: translated ?? note,
           noteUrl: new URL(`${routes.nouveautesVersion(note.version)}?lang=${language}`, deps.baseURL).toString(),
           unsubscribeUrl: unsubscribePageURL(deps.baseURL, subscriber.unsubscribe_token, language),
+          preferredName: subscriber.preferred_name,
         },
         language,
       );

@@ -1317,6 +1317,7 @@
       "title": "Mon abonnement",
       "currentPlan": "Votre offre actuelle : {{plan}}",
       "currentPlanUntil": "Votre offre actuelle : {{plan}} jusqu'au {{date}}",
+      "planUntil": "jusqu'au {{date}}",
       "checkoutSuccess": "Merci ! Votre paiement est enregistré. Votre nouvelle offre s'affiche ici dès que Stripe nous l'a confirmée, en général en quelques secondes.",
       "usageTitle": "Votre utilisation cette semaine",
       "usage": "{{used}} sur {{limit}}",

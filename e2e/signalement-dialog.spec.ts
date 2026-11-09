@@ -5,6 +5,7 @@ import pg from "pg";
 import { SIGNALEMENT_GLYPHS } from "../apps/web/src/components/signalement-glyphs";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { accountButtonName } from "./support/account-menu";
 
 // Issue #375: the Signalement form, opened by the icon beside « Mon compte » in the Sidebar's foot. Bug / Idée, a
 // message of 10 to 2,000 characters, its context attached automatically and stored through POST /api/signalements
@@ -62,7 +63,7 @@ test.describe("the Signalement form (#375, #608)", () => {
     await page.goto("/candidatures");
 
     // An icon alone, on Mon compte's row, to its right, a 44 px target.
-    const account = page.locator(".sidebar-docked").getByRole("button", { name: fr.nav.account, exact: true });
+    const account = page.locator(".sidebar-docked").getByRole("button", { name: accountButtonName(fr.nav.account) });
     const icon = page.locator(".sidebar-docked").getByRole("button", { name: s.open, exact: true });
     await expect(icon).toBeVisible();
     // No words beside it: its name shows only as the tooltip.

@@ -6,6 +6,7 @@ import { totpAt } from "../apps/web/src/two-step-verification/totp";
 import { approveAtGoogle, fromNewAddress, requestSignInLink, signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId } from "./support/extension";
 import { emailsTo, linkIn, newAddress } from "./support/mailbox";
+import { accountButtonName } from "./support/account-menu";
 
 // #663, #664, ADR-0075: a Candidate turns on Two-step verification in Mon compte (« Sécurité ») with an authenticator app
 // or a passkey; every sign-in by magic link then asks for a second step before anything else, and the server refuses the
@@ -38,7 +39,7 @@ async function turnOn(page: Page) {
 
 async function signOut(page: Page) {
   await page.goto("/compte");
-  await page.getByRole("button", { name: fr.nav.account, exact: true }).click();
+  await page.getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
   await page.getByRole("menuitem", { name: fr.account.signOut }).click();
   await expect(page).toHaveURL(`${origin}/`);
 }

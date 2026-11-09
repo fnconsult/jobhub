@@ -8,6 +8,15 @@ tags:
 ---
 - runFlow: ../subflows/launch.yaml
 - runFlow: ../subflows/layout.yaml
+# Where the Sidebar is a column, « Recherches d'offres » carries the seeded offers à traiter (#818): each screen is
+# captured once that number is read, the same from one run to the next (it came some runs before the capture, some after).
+- runFlow:
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - extendedWaitUntil:
+          visible: "Recherches d'offres, .+ à traiter"
+          timeout: 20000
 - runFlow: ../subflows/conversation-end.yaml
 - runFlow:
     file: ../subflows/capture.yaml

@@ -56,8 +56,34 @@ for (const width of [1280, 390]) {
       await expect(preferredName(page)).toHaveValue("Malou");
       expect((await (await page.request.get("/api/auth/get-session")).json()).user.name).toBe("Marie Dupont");
 
-      await preferredName(page).fill("");
+      // The Data export holds the three, and the account's name.
+      const exportedFull = await (await page.request.get("/api/account/export")).json();
+      expect(exportedFull.account).toMatchObject({ name: "Marie Dupont", givenName: "Marie", familyName: "Dupont", preferredName: "Malou" });
+
+      // Each of the three is changed, then cleared, alone; the account's name follows.
+      const sessionName = async () => (await (await page.request.get("/api/auth/get-session")).json()).user.name;
+      await givenName(page).fill("Marie-Hélène");
+      await save(page);
+      expect(await sessionName()).toBe("Marie-Hélène Dupont");
+      await givenName(page).fill("");
+      await save(page);
+      expect(await sessionName()).toBe("Dupont");
+      await givenName(page).fill("Marie");
       await familyName(page).fill("");
+      await save(page);
+      expect(await sessionName()).toBe("Marie");
+      await page.reload();
+      await expect(familyName(page)).toHaveValue("");
+      await expect(preferredName(page)).toHaveValue("Malou");
+      await preferredName(page).fill("");
+      await save(page);
+      await expect(preferredName(page)).toHaveValue("");
+      expect(await sessionName()).toBe("Marie");
+      await familyName(page).fill("Dupont");
+      await preferredName(page).fill("Malou");
+      await save(page);
+      await familyName(page).fill("");
+      await preferredName(page).fill("");
       await save(page);
       await expectNoAxeViolations(page);
 

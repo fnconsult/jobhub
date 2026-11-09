@@ -33,7 +33,8 @@ const BROWSERS: [name: string, version: RegExp][] = [
   ["Opera", /\b(?:OPR|OPiOS)\/(\d+)/],
   ["Samsung Internet", /\bSamsungBrowser\/(\d+)/],
   ["Firefox", /\b(?:Firefox|FxiOS)\/(\d+)/],
-  ["Chrome", /\b(?:Chrome|CriOS)\/(\d+)/],
+  // A browser run without a window (an automated one) says « HeadlessChrome ».
+  ["Chrome", /\b(?:Headless)?(?:Chrome|CriOS)\/(\d+)/],
   ["Safari", /\bVersion\/(\d+)[^]*\bSafari\//],
 ];
 

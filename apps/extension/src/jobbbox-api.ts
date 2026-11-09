@@ -5,6 +5,7 @@
  * Guest is not. Problems come back as results, never exceptions.
  * Every request states the API Version this build speaks (#564); one the web app no longer serves (426) is told to
  * `update` (src/extension-update.ts) and comes back "unreachable": the Side Panel then asks for the update instead.
+ * Any other call that fails (4xx, 5xx, the network) is told to `failed`, which reports it to Jobbbox (#924).
  */
 import { distinctLocations, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { API_VERSION_HEADERS, updateRequiredBy, type ExtensionUpdate } from "./extension-update";
@@ -111,10 +112,17 @@ function draftLocations(criteria: Record<string, unknown>): string[] {
   return distinctLocations([String(criteria.location ?? "")]);
 }
 
+/** A call to the web app that failed: its route and HTTP status, 0 when it was never answered (#924's error reports). */
+export interface FailedCall {
+  route: string;
+  httpStatus: number;
+}
+
 export function createJobbboxApi(
   webOrigin: string,
   fetchImpl: Fetch = (url, init) => fetch(url, init),
   update?: Pick<ExtensionUpdate, "answered">,
+  failed: (call: FailedCall) => void = () => {},
 ): JobbboxApi {
   /** The JSON reply and its status, or null when the web app cannot be reached, or no longer serves this build. */
   async function request(path: string, init: RequestInit): Promise<{ status: number; body: Record<string, unknown> } | null> {
@@ -124,10 +132,13 @@ export function createJobbboxApi(
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       reply = { status: response.status, body };
     } catch {
+      failed({ route: path, httpStatus: 0 });
       return null;
     }
     const asked = updateRequiredBy(reply.status, reply.body);
     await update?.answered(asked);
+    // A 4xx or 5xx is reported; an update asked is not: the Side Panel says it, and every call would report it.
+    if (!asked && reply.status >= 400) failed({ route: path, httpStatus: reply.status });
     return asked ? null : reply;
   }
 

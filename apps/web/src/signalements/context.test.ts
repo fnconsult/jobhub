@@ -42,6 +42,7 @@ describe("A Signalement's context (#374, #283)", () => {
     it("tells the family and major version alone, without the system, for an Extension Event (#924)", () => {
       expect(browserFamilyOf("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.54 Safari/537.36")).toBe("Chrome 141");
       expect(browserFamilyOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.3537.57")).toBe("Edge 141");
+      expect(browserFamilyOf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36")).toBe("Chrome 141");
       expect(browserFamilyOf("curl/8.7.1")).toBeNull();
       expect(browserFamilyOf(null)).toBeNull();
     });

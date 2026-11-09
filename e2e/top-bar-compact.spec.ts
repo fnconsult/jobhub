@@ -6,8 +6,8 @@ import { chooseInTopBarMore, ficheOf, topBarMoreOf, workPaneOf } from "./support
 import { newAddress } from "./support/mailbox";
 
 // Issue #897: on a phone (below 40rem), the Candidate's Top Bar is one line: « Menu » as an icon, the page's title, its
-// one action as an icon (the Fiche on an object's page, otherwise Activité) and « … », whose menu lists the others in
-// words, each doing what its button does. Every icon is named, a 44 px target, and axe passes. At 1280 px nothing
+// one action as an icon (Recherches d'offres' filter, #898; the Fiche on an object's page; otherwise Activité) and « … »,
+// whose menu lists the others in words, each doing what its button does. Every icon is named, a 44 px target, and axe passes. At 1280 px nothing
 // changes: the buttons keep their words.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
@@ -91,7 +91,7 @@ test.describe("the compact Top Bar on a phone (#897)", () => {
       { path: "/", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
       { path: `/profils/${profile}`, shown: fr.fiche.label, more: [fr.fiche.activity, fr.contextBar.clear] },
       { path: "/candidatures", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
-      { path: "/recherches", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
+      { path: "/recherches", shown: fr.offerBox.filter, more: [fr.fiche.activity, fr.contextBar.clear] },
       { path: "/job-digests", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
       { path: "/agenda", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
       { path: "/compte", shown: fr.aiActivity.label, more: [fr.conversationFirst.help] },
@@ -224,6 +224,8 @@ test.describe("the Top Bar's first paint (#897)", () => {
         { path: "/", shown: fr.aiActivity.label },
         { path: `/profils/${profile}`, shown: fr.fiche.label },
         { path: "/compte", shown: fr.aiActivity.label },
+        // A page's own action, drawn in its title before hydration (#898).
+        { path: "/recherches", shown: fr.offerBox.filter },
       ]) {
         // The server's HTML alone: Menu, the title, one action and « … », icons alone; no button with its words.
         await bare.goto(path);

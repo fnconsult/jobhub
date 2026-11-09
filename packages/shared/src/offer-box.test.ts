@@ -167,6 +167,19 @@ describe("The Offer box's view", () => {
     ]);
   });
 
+  it("counts « n arrivées aujourd'hui » for the whole box, whatever each has become, whatever the chip (#898)", () => {
+    const entries = [
+      entry("a"),
+      entry("b", { sources: [{ source: "email", at: "2026-11-05T08:00:00.000Z" }], state: "dismissed", dismissedAt: "2026-11-05T09:00:00.000Z" }),
+      entry("c", { state: "followed", applicationId: "app", followedAt: "2026-11-05T10:00:00.000Z" }),
+      entry("old", { arrivalDay: "2026-11-02" }),
+    ];
+
+    expect(offerBoxView(box(entries)).arrivedToday).toBe(3);
+    expect(offerBoxView(box(entries), "email").arrivedToday).toBe(3);
+    expect(offerBoxView(box([entry("old", { arrivalDay: "2026-11-02" })])).arrivedToday).toBe(0);
+  });
+
   it("filtered by a source chip, shows only the entries that arrived by it, the counts staying the whole box's", () => {
     const view = offerBoxView(
       box([entry("a", { sources: [{ source: "job_digest", at: "2026-11-05T08:00:00.000Z" }] }), entry("b"), entry("c", { arrivalDay: "2026-11-02", sources: [{ source: "job_digest", at: "2026-11-02T08:00:00.000Z" }] })]),

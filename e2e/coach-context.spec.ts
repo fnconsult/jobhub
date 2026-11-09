@@ -338,7 +338,7 @@ test.describe("what the AI Coach is told", () => {
     expect(capped).toContain("(la suite est coupée)");
   });
 
-  test("tells the AI Coach the first name only: the Master CV's full name, email, phone and address never leave", async ({ page }) => {
+  test("tells the AI Coach the Preferred Name only: the Master CV's full name, first name, email, phone and address never leave (#921)", async ({ page }) => {
     const email = newAddress("ctx-identity");
     await signInWithMagicLink(page, email);
     await subscribe(page, email, "standard");
@@ -358,10 +358,10 @@ test.describe("what the AI Coach is told", () => {
     const inView = await createProfile(page, "Directrice financière", leaky);
     await createProfile(page, "Consultante transformation", leaky);
 
-    const identityValues = [IDENTITY.fullName, "Dupont", IDENTITY.email, IDENTITY.phone, "12 rue de la République", "69002"];
+    const identityValues = [IDENTITY.fullName, "Marie", "Dupont", IDENTITY.email, IDENTITY.phone, "12 rue de la République", "69002"];
     for (const focus of [{ kind: "profile", id: inView }, undefined]) {
       const context = await contextOf(page, focus);
-      expect(context).toContain("Marie");
+      expect(context).toContain("Le candidat n'a pas donné le nom à employer.");
       for (const value of identityValues) expect(context, `${value} (${focus?.kind ?? "no focus"})`).not.toContain(value);
     }
   });

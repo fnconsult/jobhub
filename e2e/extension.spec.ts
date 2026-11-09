@@ -1257,6 +1257,50 @@ test.describe("Guest Capture and Match Score", () => {
     await signIn.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 
+  // Issue #926 (docs/research/issue-912.md § 1): the AI reads a signed-in Candidate's CV (cv_parsing), and the Profile made
+  // from it in the extension counts one CV read in their Consumption, as one made on the web app does (#799).
+  test("a signed-in Candidate's CV the AI read in the extension, saved as a new Profile, counts one CV read in their Consumption (#926)", async () => {
+    test.slow(); // a sign-in, a subscription and a Profile before the Capture
+    const web = await context.newPage();
+    const email = newAddress("extension-cv-reading");
+    await signInWithMagicLink(web, email);
+    await subscribe(web, email, "standard"); // more than the Free Plan's one Profile
+    const masterCv = {
+      fullName: "Marie Dupont", headline: "Contrôleuse de gestion", email: "", phone: "", location: "Lyon", summary: "",
+      experience: [], education: [], skills: [], languages: [],
+    };
+    const existing = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Contrôleuse de gestion", locations: ["Lyon"] } } });
+    expect(existing.status(), await existing.text()).toBe(201);
+    const cvReadings = async () => {
+      const exported = await (await web.request.get(`${origin}/api/account/export`)).json();
+      return (exported.consumption as { tool: string; count: number }[]).filter((row) => row.tool === "cvReading").reduce((sum, row) => sum + row.count, 0);
+    };
+    // A Profile saved with no reading (typed in, not read from a file) counts none.
+    expect(await cvReadings()).toBe(0);
+
+    // Scored against their Profile at once, they score another CV instead: the AI reads it, as it reads any Candidate's.
+    const analysis = await captureFromBadge(postingUrl);
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    await analysis.getByRole("button", { name: fr.analysis.changeCv }).click();
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    const [read] = await Promise.all([analysis.waitForResponse(`${origin}/api/cv/draft`), analysis.getByRole("button", { name: fr.analysis.submit }).click()]);
+    expect((await read.json()).provenance?.steps).toEqual([expect.objectContaining({ kind: "ai", task: "cv_parsing" })]);
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+
+    // They save the Job Offer with a new Profile made from that CV.
+    const profile = analysis.getByLabel(fr.analysis.profileLabel);
+    await expect(profile.getByRole("option")).toHaveText(["Contrôleuse de gestion", fr.analysis.newProfileFromCv], { timeout: 15_000 });
+    await profile.selectOption({ label: fr.analysis.newProfileFromCv });
+    await analysis.getByRole("button", { name: fr.analysis.save }).click();
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible();
+    await expect(analysis.getByText(/^Votre CV est devenu votre profil « .+ »\.$/)).toBeVisible();
+
+    // One CV read in their Consumption, as from the web app.
+    expect(await cvReadings()).toBe(1);
+    await analysis.close();
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
   test("a signed-in Candidate chooses the Profile and the captured Job Offer becomes an Application directly", async () => {
     const web = await context.newPage();
     const email = newAddress("extension-profiles");

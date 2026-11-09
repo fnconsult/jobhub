@@ -110,9 +110,22 @@ describe.skipIf(!connectionString)("the Candidate's Given Name, Family Name and 
     expect(await identity.of(id)).toEqual({ givenName: "Marie", familyName: null, preferredName: "Malou" });
     expect(await accountNameOf(id)).toBe("Marie");
 
+    // With no Prénom and no Nom, the account's name is never emptied: it keeps the one it has.
     await identity.save(id, { givenName: "", familyName: "", preferredName: "" });
     expect(await identity.of(id)).toEqual({ givenName: null, familyName: null, preferredName: null });
-    expect(await accountNameOf(id)).toBe("");
+    expect(await accountNameOf(id)).toBe("Marie");
+  });
+
+  it("an account with a name but no Prénom or Nom (a Sign-in Provider's) keeps its name when only a Preferred Name is saved", async () => {
+    const { id } = await signIn("marie.dupont@example.fr");
+    await database.query(`UPDATE candidate SET name = 'Marie Dupont', given_name = NULL, family_name = NULL, preferred_name = NULL WHERE id = $1`, [id]);
+
+    await identity.save(id, { givenName: "", familyName: "", preferredName: "Malou" });
+    expect(await accountNameOf(id)).toBe("Marie Dupont");
+
+    await database.query(`UPDATE candidate SET name = '' WHERE id = $1`, [id]);
+    await identity.save(id, { givenName: "", familyName: "", preferredName: "Malou" });
+    expect(await accountNameOf(id)).toBe("Malou");
   });
 
   it("refuses a name longer than 80 characters, once trimmed, and changes nothing", async () => {

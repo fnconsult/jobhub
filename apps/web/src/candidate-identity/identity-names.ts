@@ -27,7 +27,7 @@ export type SaveNamesResult = { ok: true; names: Names } | { ok: false; field: N
 export interface IdentityNames {
   /** The Candidate's names; null for an id with no account. */
   of(candidateId: string): Promise<Names | null>;
-  /** Replaces the three (an empty one is cleared) and sets the account's name to « Prénom Nom ». Refuses a name too long, saving nothing. */
+  /** Replaces the three (an empty one is cleared) and sets the account's name to « Prénom Nom »; with neither, the name stays (else the Preferred Name), never emptied. Refuses a name too long, saving nothing. */
   save(candidateId: string, names: Record<NameField, string>): Promise<SaveNamesResult>;
 }
 
@@ -46,13 +46,13 @@ export function createIdentityNames(database: Queryable): IdentityNames {
         if (name.length > IDENTITY_NAME_MAX_LENGTH) return { ok: false, field };
         names[field] = name || null;
       }
-      await database.query(`UPDATE candidate SET given_name = $2, family_name = $3, preferred_name = $4, name = $5, "updatedAt" = now() WHERE id = $1`, [
-        candidateId,
-        names.givenName,
-        names.familyName,
-        names.preferredName,
-        fullNameOf(names),
-      ]);
+      // The account's name is never emptied (#929 review): with no Prénom and no Nom it keeps the name it has (a Sign-in
+      // Provider's, say), else takes the Preferred Name.
+      await database.query(
+        `UPDATE candidate SET given_name = $2, family_name = $3, preferred_name = $4,
+                name = coalesce(nullif($5, ''), nullif(name, ''), $4, ''), "updatedAt" = now() WHERE id = $1`,
+        [candidateId, names.givenName, names.familyName, names.preferredName, fullNameOf(names)],
+      );
       return { ok: true, names };
     },
   };

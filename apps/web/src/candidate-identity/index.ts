@@ -50,3 +50,15 @@ export function candidateIdentityOf(database: Queryable): (candidateId: string) 
     };
   };
 }
+
+export {
+  backfillIdentityNames,
+  createIdentityNames,
+  migrateIdentityNames,
+  NAME_FIELDS,
+  type IdentityNames,
+  type NameField,
+  type Names,
+  type SaveNamesResult,
+} from "./identity-names";
+export { cleanName, fullNameOf, IDENTITY_NAME_MAX_LENGTH, namesFromFullName } from "./names";

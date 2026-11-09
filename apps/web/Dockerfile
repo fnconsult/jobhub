@@ -17,6 +17,9 @@ COPY apps/worker/package.json apps/worker/
 RUN npm ci --workspace @jobhub/web --include-workspace-root --ignore-scripts
 COPY packages packages
 COPY apps/web apps/web
+# Only its Extension Version, which Outils shows Administrators (#920); after `npm ci`, so the extension's own
+# dependencies are not installed.
+COPY apps/extension/package.json apps/extension/
 
 # Creates or upgrades the database tables (apps/web/scripts/migrate.ts), then exits.
 FROM deps AS migrate

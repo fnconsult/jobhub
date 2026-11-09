@@ -60,7 +60,7 @@ const failed = (error: Exclude<SavingFailure["error"], "plan_quota_reached">): S
 
 export function createApplicationSaving({ api, session, lock = webLock }: { api: Api; session: GuestSession; lock?: Lock }): ApplicationSaving {
   async function save(choice: ProfileChoice, work: GuestSessionContent): Promise<SavingState | SavingFailure> {
-    const { jobOffer, cv, searchCriteria } = work;
+    const { jobOffer, cv, searchCriteria, cvProvenance } = work;
     if (!jobOffer) return { state: "nothing_to_save" };
 
     let profileId: string;
@@ -73,7 +73,8 @@ export function createApplicationSaving({ api, session, lock = webLock }: { api:
         locations: fromCv.length > 0 ? fromCv : distinctLocations([jobOffer.location ?? ""]),
       };
       if (!criteria.targetRole || criteria.locations.length === 0) return failed("search_criteria_missing");
-      const created = await api.createProfile(cv, criteria);
+      // A CV the AI read counts as a CV read in the Candidate's Consumption, as on the web app (#926).
+      const created = await api.createProfile(cv, criteria, cvProvenance);
       if (!created.ok) {
         if (created.error === "plan_quota_reached") return { state: "failed", error: created.error, prompt: created.prompt };
         return failed(created.error === "invalid" ? "search_criteria_missing" : created.error === "signed_out" ? "signed_out" : "unreachable");

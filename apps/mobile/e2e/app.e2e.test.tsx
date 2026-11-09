@@ -871,6 +871,37 @@ describe("Jobbbox app, the home page and the menus as their conversations (#690)
       mockWeb.app.has(EMAIL, {});
     }
   });
+
+  it("puts the Offer box's count and sources behind the Top Bar's filter icon on a phone, a source chosen there (#899)", async () => {
+    const entry = {
+      id: "e1",
+      jobOffer: { id: "o1", title: "Responsable qualité", employer: "Aéroline", location: "Toulouse", url: null, postedAt: null, expiredAt: null, contractType: "cdi" as const },
+      profile: { id: "p1", name: "Qualité" },
+      scoredWith: { id: "p1", name: "Qualité" },
+      matchScore: 82,
+      firstArrivalAt: "2026-11-05T08:00:00.000Z",
+      arrivalDay: "2026-11-05",
+      sources: [{ source: "job_search" as const, at: "2026-11-05T08:00:00.000Z" }],
+      state: "to_handle" as const,
+      applicationId: null,
+      followedAt: null,
+      dismissalReason: null,
+      dismissedAt: null,
+      laterUntil: null,
+    };
+    mockWeb.app.has(EMAIL, { offerBox: { today: "2026-11-05", toHandle: 1, entries: [entry] } });
+    try {
+      await launch("/recherches");
+      const user = userEvent.setup();
+      await user.press(await screen.findByRole("button", { name: "Filtrer les offres à traiter : 1 à traiter, toutes les sources" }));
+      expect(screen.getByText("1 à traiter · 0 traitée")).toBeOnTheScreen();
+      await user.press(button("Recherche, 1 à traiter"));
+      expect(button("Filtrer les offres à traiter : 1 à traiter, source Recherche")).toBeOnTheScreen();
+      expect(screen.queryByText("1 à traiter · 0 traitée")).toBeNull();
+    } finally {
+      mockWeb.app.has(EMAIL, {});
+    }
+  });
 });
 
 describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", () => {

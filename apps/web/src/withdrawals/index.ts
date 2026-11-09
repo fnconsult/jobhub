@@ -125,7 +125,7 @@ export interface Withdrawals {
    * receiptEmail (when "other") }; the acknowledgement goes to the account's email or that one, in `language`.
    * Safe under a double click: one Withdrawal per contract.
    */
-  withdraw(candidate: { id: string; email: string; preferredName?: string | null }, input: unknown, language: Locale): Promise<WithdrawResult>;
+  withdraw(candidate: { id: string; email: string }, input: unknown, language: Locale): Promise<WithdrawResult>;
   /** One of the Candidate's own Withdrawals, or null. */
   withdrawal(candidateId: string, id: string): Promise<Withdrawal | null>;
   /** Every Withdrawal, newest first, for Support. */
@@ -383,6 +383,8 @@ export function createWithdrawals(database: Pool, deps: WithdrawalsDeps): Withdr
       const recorded = await one(id);
       const refunded = recorded.refunds.reduce((sum, refund) => sum + refund.amount, 0);
       const kept = recorded.refunds.reduce((sum, refund) => sum + refund.kept, 0);
+      // Greeted by the Preferred Name the account has now (#921), not one the caller would have to think of passing.
+      const { rows: names } = await database.query<{ preferredName: string | null }>(`SELECT preferred_name AS "preferredName" FROM candidate WHERE id = $1`, [candidate.id]);
       const email = withdrawalReceiptEmail(
         {
           contract: recorded.contract,
@@ -393,7 +395,7 @@ export function createWithdrawals(database: Pool, deps: WithdrawalsDeps): Withdr
           name,
           refunded: refunded > 0 ? { amount: refunded, currency: recorded.refunds[0]!.currency } : null,
           kept: kept > 0 ? { amount: kept, currency: recorded.refunds[0]!.currency } : null,
-          preferredName: candidate.preferredName,
+          preferredName: names[0]?.preferredName,
         },
         language,
       );

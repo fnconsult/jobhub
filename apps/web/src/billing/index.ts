@@ -1203,7 +1203,7 @@ export function createBilling(config: BillingConfig) {
      * confirmed twice is scheduled and acknowledged once; one already scheduled in the customer portal, its webhook not
      * arrived yet, is left as Stripe has it. Throws when Stripe could not schedule it; a failed email does not undo it.
      */
-    async scheduleCancellation(candidate: { id: string; email: string; preferredName?: string | null }, locale: Locale = "fr"): Promise<CancellationResult> {
+    async scheduleCancellation(candidate: { id: string; email: string }, locale: Locale = "fr"): Promise<CancellationResult> {
       const requestedAt = now();
       const client = await database.connect();
       let scheduled: { plan: Plan; endsAt: Date };
@@ -1240,7 +1240,9 @@ export function createBilling(config: BillingConfig) {
       if (config.mailer) {
         try {
           const names = { plan: await nameOf(scheduled.plan), free: await nameOf(FREE_PLAN) };
-          const email = cancellationReceiptEmail({ planName: names.plan[locale], freePlanName: names.free[locale], requestedAt, endsAt: scheduled.endsAt, subscriptionUrl: pageURL(), preferredName: candidate.preferredName }, locale);
+          // Greeted by the Preferred Name the account has now (#921), not one the caller would have to think of passing.
+          const { rows } = await database.query<{ preferredName: string | null }>(`SELECT preferred_name AS "preferredName" FROM candidate WHERE id = $1`, [candidate.id]);
+          const email = cancellationReceiptEmail({ planName: names.plan[locale], freePlanName: names.free[locale], requestedAt, endsAt: scheduled.endsAt, subscriptionUrl: pageURL(), preferredName: rows[0]?.preferredName }, locale);
           await config.mailer.send({ to: candidate.email, ...email });
           acknowledged = true;
         } catch (error) {

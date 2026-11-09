@@ -345,7 +345,7 @@ Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer 
 _Avoid_: Inbox, feed, offer list
 
 **Offer box filter icon**:
-On a phone, the page's main action in the Top Bar on Recherches d'offres (the « … » menu keeps « Activité » and « Effacer »). It opens and closes the Offer box's header under the bar, where the Arrival source is chosen (a dot on the icon while one is); choosing one or Échap closes it. It is drawn with the first paint, so the bar does not shift (ADR-0101).
+On a phone, the page's main action in the Top Bar on Recherches d'offres (the « … » menu keeps « Activité » and « Effacer »). It opens and closes the Offer box's header under the bar, where the Arrival source is chosen (a dot on the icon while one is); choosing one or Échap closes it (in the app, Android's back too, #899). It is drawn with the first paint, so the bar does not shift (ADR-0101).
 _Avoid_: Filter button, funnel
 
 **Offer box entry**:

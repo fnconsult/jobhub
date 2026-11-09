@@ -51,10 +51,27 @@ tags:
     env:
       MENU: "Recherches d'offres"
 # Recherches d'offres opens on its Offer box (ADR-0090), its conversation below it: captured once the seeded Job Offers
-# are read, both à traiter (« Toutes », the first chip).
-- extendedWaitUntil:
-    visible: "Toutes, 2 à traiter"
-    timeout: 20000
+# are read, both à traiter (« Toutes », the first chip, with columns; on a phone, #899, the Top Bar's filter icon, the
+# chips behind it, its panel closed). The thread opens at its top, on the box, and stays there (Conversation's `lead`):
+# captured once the box's « Aujourd'hui » is drawn, read with its entries. Not its first tier row: at the largest text
+# size on an iPhone SE, « Aujourd'hui », its line and « Rien à traiter… » fill the screen (run 42559952768).
+- runFlow:
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - extendedWaitUntil:
+          visible: "Toutes, 2 à traiter"
+          timeout: 20000
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - extendedWaitUntil:
+          visible: "Filtrer les offres à traiter : 2 à traiter, toutes les sources"
+          timeout: 20000
+      - extendedWaitUntil:
+          visible: "Aujourd'hui"
+          timeout: 10000
 - runFlow:
     file: ../subflows/capture.yaml
     env:

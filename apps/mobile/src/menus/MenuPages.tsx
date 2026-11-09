@@ -26,6 +26,7 @@ import type { SubjectRef } from "../coach/coach-reply";
 import { shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
 import { OfferBox } from "../offer-box/OfferBox";
+import { OfferBoxFilterArea } from "../offer-box/filter";
 import { ReadState } from "../screens/ReadState";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
@@ -328,8 +329,8 @@ export function ApplicationsMenu() {
 
 /**
  * Recherches d'offres (ADR-0090, variant B): the Offer box (« Offres à traiter ») leads the page, the menu's conversation
- * following it with its box at the foot; in it, each active Profile's Job Searches, most recent first, each opening on its
- * Job Offers (#692), then
+ * following it with its box at the foot (on a phone, the box's header behind the Top Bar's filter icon, OfferBoxFilterArea,
+ * #899); in it, each active Profile's Job Searches, most recent first, each opening on its Job Offers (#692), then
  * « Lancer une recherche » (#699): the screen's only way to launch a Job Search, kept in the card so no screen drops it.
  */
 export function JobSearchesMenu() {
@@ -344,54 +345,56 @@ export function JobSearchesMenu() {
     timeZone: "Europe/Paris",
   });
   return (
-    <CoachConversation
-      conversationId={null}
-      subject={SUBJECTS.jobSearches}
-      route={paths.jobSearches}
-      lead={<OfferBox />}
-      introduction={<AppText>{t("jobSearchesMenu.introduction")}</AppText>}
-      card={
-        <MenuCard title={t("jobSearchesMenu.title")}>
-          <Loaded read={read}>
-            {(data) =>
-              data.profiles.length === 0 ? (
-                <AppText>{t("jobSearchesPage.noActiveProfile")}</AppText>
-              ) : (
-                data.profiles.map(({ profile, searches }) => (
-                  <View key={profile.id} style={{ gap: space[1] }}>
-                    <AppText weight="semiBold">{profile.name}</AppText>
-                    {searches.length === 0 ? (
-                      <AppText tone="secondary">
-                        {t("jobSearchesMenu.none")}
-                      </AppText>
-                    ) : null}
-                    {searches.map((search) => (
-                      <Line
-                        key={search.id}
-                        label={t("jobSearchesPage.latestOn", {
-                          date: date.format(new Date(search.startedAt)),
-                        })}
-                        to={paths.jobSearch(search.id)}
-                        meta={[
-                          `${t("jobSearchesMenu.found")} : ${search.found}`,
-                          search.status === "searching"
-                            ? t("jobSearchesMenu.stillSearching")
-                            : null,
-                          search.unseen ? t("jobSearchesMenu.unseen") : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      />
-                    ))}
-                  </View>
-                ))
-              )
-            }
-          </Loaded>
-          <StartJobSearch />
-        </MenuCard>
-      }
-    />
+    <OfferBoxFilterArea>
+      <CoachConversation
+        conversationId={null}
+        subject={SUBJECTS.jobSearches}
+        route={paths.jobSearches}
+        lead={<OfferBox />}
+        introduction={<AppText>{t("jobSearchesMenu.introduction")}</AppText>}
+        card={
+          <MenuCard title={t("jobSearchesMenu.title")}>
+            <Loaded read={read}>
+              {(data) =>
+                data.profiles.length === 0 ? (
+                  <AppText>{t("jobSearchesPage.noActiveProfile")}</AppText>
+                ) : (
+                  data.profiles.map(({ profile, searches }) => (
+                    <View key={profile.id} style={{ gap: space[1] }}>
+                      <AppText weight="semiBold">{profile.name}</AppText>
+                      {searches.length === 0 ? (
+                        <AppText tone="secondary">
+                          {t("jobSearchesMenu.none")}
+                        </AppText>
+                      ) : null}
+                      {searches.map((search) => (
+                        <Line
+                          key={search.id}
+                          label={t("jobSearchesPage.latestOn", {
+                            date: date.format(new Date(search.startedAt)),
+                          })}
+                          to={paths.jobSearch(search.id)}
+                          meta={[
+                            `${t("jobSearchesMenu.found")} : ${search.found}`,
+                            search.status === "searching"
+                              ? t("jobSearchesMenu.stillSearching")
+                              : null,
+                            search.unseen ? t("jobSearchesMenu.unseen") : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
+                      ))}
+                    </View>
+                  ))
+                )
+              }
+            </Loaded>
+            <StartJobSearch />
+          </MenuCard>
+        }
+      />
+    </OfferBoxFilterArea>
   );
 }
 

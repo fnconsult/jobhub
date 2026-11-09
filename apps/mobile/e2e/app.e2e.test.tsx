@@ -9,6 +9,7 @@ import type { AppSession } from "../src/session/app-session";
 import { withCoach, type FakeCoachWeb } from "../src/coach/testing";
 import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice, fakeWebView } from "../src/testing-device";
+import { chooseFromMoreActions } from "../src/shell/testing";
 import { AGENDA } from "./agenda-web";
 
 jest.setTimeout(60_000);
@@ -870,6 +871,37 @@ describe("Jobbbox app, the home page and the menus as their conversations (#690)
       mockWeb.app.has(EMAIL, {});
     }
   });
+
+  it("puts the Offer box's count and sources behind the Top Bar's filter icon on a phone, a source chosen there (#899)", async () => {
+    const entry = {
+      id: "e1",
+      jobOffer: { id: "o1", title: "Responsable qualité", employer: "Aéroline", location: "Toulouse", url: null, postedAt: null, expiredAt: null, contractType: "cdi" as const },
+      profile: { id: "p1", name: "Qualité" },
+      scoredWith: { id: "p1", name: "Qualité" },
+      matchScore: 82,
+      firstArrivalAt: "2026-11-05T08:00:00.000Z",
+      arrivalDay: "2026-11-05",
+      sources: [{ source: "job_search" as const, at: "2026-11-05T08:00:00.000Z" }],
+      state: "to_handle" as const,
+      applicationId: null,
+      followedAt: null,
+      dismissalReason: null,
+      dismissedAt: null,
+      laterUntil: null,
+    };
+    mockWeb.app.has(EMAIL, { offerBox: { today: "2026-11-05", toHandle: 1, entries: [entry] } });
+    try {
+      await launch("/recherches");
+      const user = userEvent.setup();
+      await user.press(await screen.findByRole("button", { name: "Filtrer les offres à traiter : 1 à traiter, toutes les sources" }));
+      expect(screen.getByText("1 à traiter · 0 traitée")).toBeOnTheScreen();
+      await user.press(button("Recherche, 1 à traiter"));
+      expect(button("Filtrer les offres à traiter : 1 à traiter, source Recherche")).toBeOnTheScreen();
+      expect(screen.queryByText("1 à traiter · 0 traitée")).toBeNull();
+    } finally {
+      mockWeb.app.has(EMAIL, {});
+    }
+  });
 });
 
 describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", () => {
@@ -958,7 +990,7 @@ describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", (
     ).toBeOnTheScreen();
   });
 
-  it("clears the page's conversation with « Effacer », once the Dialog confirms it", async () => {
+  it("clears the page's conversation with « Effacer la conversation », under the Top Bar's « … » on a phone, once the Dialog confirms it", async () => {
     mockWeb.coach.add({
       id: "f4",
       title: "À effacer",
@@ -967,7 +999,8 @@ describe("Jobbbox app, the Free conversations in the drawer (#690, ADR-0070)", (
     await launch("/conversations/f4");
     await screen.findByText("Un vieux message");
     confirmWith("Effacer");
-    await userEvent.setup().press(button("Effacer"));
+    expect(screen.queryByRole("button", { name: "Effacer" })).toBeNull();
+    await chooseFromMoreActions("Effacer la conversation");
     expect(Alert.alert).toHaveBeenCalledWith("Effacer cette conversation ?", "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.", expect.anything());
     await waitFor(() => expect(screen.queryByText("Un vieux message")).toBeNull());
     expect(mockWeb.coach.saved.has("f4")).toBe(false);

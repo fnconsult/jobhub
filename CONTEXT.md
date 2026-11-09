@@ -10,6 +10,18 @@ A coaching platform that helps senior job seekers (40+) in France land a job: it
 A person with an account who is looking for a job. Owns one or more Profiles.
 _Avoid_: User (in domain discussions), applicant, job seeker
 
+**Given Name**:
+The Candidate's first name as they enter it in Mon compte › Identité (« Prénom »). With the Family Name, it is the formal identity used on the Withdrawal form and invoices and shown to a Human Coach.
+_Avoid_: First word of the name, CV first name
+
+**Family Name**:
+The Candidate's last name as they enter it in Mon compte › Identité (« Nom »).
+_Avoid_: Surname, nom d'usage (a legal term for a name taken by marriage)
+
+**Preferred Name**:
+What the Candidate asks the coaches to call them (« Comment souhaitez-vous que les coachs vous appellent ? »). The AI Coach and the emails greet them by it; a Human Coach sees it beside the Given Name and Family Name. It is the only part of the Candidate's identity that Redaction leaves in an AI call: without it, the AI Coach calls them by no name.
+_Avoid_: Nom d'usage, nickname, display name
+
 **Account deletion**:
 The Candidate deletes their own account, confirmed by typing their email address. It takes effect at once and ends any paid subscription first. Everything tied to the Candidate goes, their Private Job Offers included; shared Job Offers stay.
 _Avoid_: Account closure, deactivation
@@ -27,7 +39,7 @@ The part of a CV that identifies the Candidate: name, postal address, phone and 
 _Avoid_: Contact details, header
 
 **Redaction**:
-What the AI layer takes out of every AI call, generation and web search, before it leaves for a provider: every email address and phone number found by its shape, and what Jobbbox knows of the Candidate's identity (their account's name and email, their latest Master CV's Identity block: full name, last name, postal address, phone, email), each replaced by a placeholder such as « [NOM] » or « [E-MAIL] ». The first name stays. A text task's reply gets the values back, so a Cover Letter still signs with the name; the AI Message Log keeps what was sent, redacted. It replaced the rule that personal data only goes to EU-resident endpoints: names Jobbbox does not know go through, and the rest of a CV (employers, dates, career) stays in the call.
+What the AI layer takes out of every AI call, generation and web search, before it leaves for a provider: every email address and phone number found by its shape, and what Jobbbox knows of the Candidate's identity (their account's Given Name, Family Name and email, their latest Master CV's Identity block: full name, last name, postal address, phone, email), each replaced by a placeholder such as « [NOM] » or « [E-MAIL] ». Only the Preferred Name stays. A text task's reply gets the values back, so a Cover Letter still signs with the name; the AI Message Log keeps what was sent, redacted. It replaced the rule that personal data only goes to EU-resident endpoints: names Jobbbox does not know go through, and the rest of a CV (employers, dates, career) stays in the call.
 _Avoid_: Anonymisation, masking, scrubbing (that is for keys and secrets)
 
 **Organisation**:
@@ -815,6 +827,10 @@ _Avoid_: Popup, sidebar (that is the web app's Sidebar)
 
 **Posting in view**:
 What the page in the active tab of the Side Panel's window reads as: a Job Site's posting, a page to capture by hand, or no posting. The Side Panel follows it from tab to tab and offers « Offre détectée sur cette page ».
+
+**Extension Event**:
+One thing the extension did, recorded for the Back Office: a Capture, a Match Score, a CV draft, a Profile or an Application made from it, or an error (a page that cannot be captured, a failed call, an unexpected failure). It holds when, which kind, the Candidate or « Invité », the extension's version and, for an error, its code, where it happened and the page's domain only, never its address or text. A Guest's Extension Events are not tied to any identifier.
+_Avoid_: Tracking, analytics event, log line
 
 **Jobbbox app**:
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.

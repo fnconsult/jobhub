@@ -373,6 +373,11 @@ function authOptions(config: AuthConfig) {
           input: true,
           validator: { input: z.enum(SUPPORTED_LOCALES) },
         },
+        // The Candidate's names (#918), from Mon compte › Identité alone (candidate-identity), which keeps `name` « Prénom Nom ».
+        givenName: { type: "string", required: false, input: false, fieldName: "given_name" },
+        familyName: { type: "string", required: false, input: false, fieldName: "family_name" },
+        // What the coaches call them; none: no name.
+        preferredName: { type: "string", required: false, input: false, fieldName: "preferred_name" },
       },
     },
     session: {

@@ -4,7 +4,7 @@
  *
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
- *    what the app worked out or obtained about them. Their account (sign-in methods and
+ *    what the app worked out or obtained about them. Their account (its Given Name, Family Name and Preferred Name, #918; sign-in methods and
   *    sessions), the CGU and CGV versions they accepted, Plan (with its Coach context limits) and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), the « Propositions du coach » setting (#717), their Consumption (#799: a count per day and Tool), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
   *    Appointment Reminders sent, the app's devices for Push notifications (never their token) and their switches; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
@@ -148,7 +148,12 @@ export interface ExportedJobSearch {
 /** The Candidate's account itself (its secrets, such as sign-in tokens, are left out). */
 export interface ExportedAccount {
   email: string;
+  /** « Prénom Nom », kept from the Given Name and Family Name (#918). */
   name: string;
+  /** The Given Name, Family Name and Preferred Name entered in Mon compte › Identité (#918); null each that is empty. */
+  givenName: string | null;
+  familyName: string | null;
+  preferredName: string | null;
   interfaceLanguage: string;
   createdAt: Date;
   /** The sign-in providers linked to the account (e.g. Google), besides the magic link; oldest first. */
@@ -414,7 +419,7 @@ export interface ExportedAiMessageLog {
  * must be added to the export, and here, or the test fails.
  */
 export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
-  candidate: "account",
+  candidate: "account (with the Given Name, Family Name and Preferred Name)",
   account: "account.signInMethods (no tokens or password)",
   session: "account.sessions (no tokens)",
   administrator_role: "account.backOfficeRoles (not who granted them)",
@@ -654,7 +659,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
     const [account, signInMethods, sessions, backOfficeRoles] = await Promise.all([
-      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
+      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, given_name AS "givenName", family_name AS "familyName", preferred_name AS "preferredName", "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
       rowsOf<ExportedAccount["signInMethods"][number]>(
         `SELECT "providerId" AS provider, "createdAt" AS "linkedAt" FROM account WHERE "userId" = $1 ORDER BY "createdAt", id`,
         candidateId,

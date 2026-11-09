@@ -1,6 +1,6 @@
 import { API_VERSION, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { createExtensionUpdate, type UpdateStorage } from "./extension-update";
+import { createExtensionUpdate, EXTENSION_VERSION, type UpdateStorage } from "./extension-update";
 import { createJobbboxApi } from "./jobbbox-api";
 
 const WEB_ORIGIN = "https://app.jobbbox.fr";
@@ -47,6 +47,8 @@ describe("the Jobbbox API, from the extension", () => {
 
     expect(app.calls).toHaveLength(6);
     for (const { init } of app.calls) expect(new Headers(init.headers).get("Jobbbox-Api-Version")).toBe(String(API_VERSION));
+    // And the Extension Version (#924), kept with each Extension Event the web app writes.
+    for (const { init } of app.calls) expect(new Headers(init.headers).get("Jobbbox-Extension-Version")).toBe(EXTENSION_VERSION);
     // The JSON calls still say what they send.
     expect(new Headers(app.calls[0]?.init.headers).get("content-type")).toBe("application/json");
   });

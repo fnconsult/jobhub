@@ -58,7 +58,7 @@ export default async function AiMessagePage({ params }: Params) {
           <Properties label={t("admin.aiMessages.details")}>
             <Property term={t("admin.aiMessages.task")}>{AI_TASKS.includes(log.task) ? t(`admin.aiUsage.tasks.${log.task as Task}`) : log.task}</Property>
             <Property term={t("admin.aiMessages.provider")}>{log.provider ? `${log.provider} ${log.model ?? ""}` : t("admin.aiMessages.noProvider")}</Property>
-            <Property term={t("admin.aiMessages.candidate")}>{log.candidate?.email ?? t("admin.aiMessages.noCandidate")}</Property>
+            <Property term={t("admin.aiMessages.candidate")}>{log.candidate?.email ?? t(log.test ? "admin.aiMessages.test" : "admin.aiMessages.guest")}</Property>
             <Property term={t("admin.aiMessages.result")}>
               {t(`admin.aiMessages.outcomes.${log.outcome}`)}
               {log.sent ? null : ` · ${t("admin.aiMessages.notSent")}`}

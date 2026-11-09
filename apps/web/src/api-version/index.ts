@@ -14,7 +14,18 @@
  * outdated extension who is signed in, in which language), and the webhooks other services call (Stripe, Email
  * intake's MTA), which never send it.
  */
-import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, isServedApiVersion, MOBILE_CLIENT } from "@jobhub/shared";
+import {
+  API_CLIENT_HEADER,
+  API_VERSION,
+  API_VERSION_HEADER,
+  APP_OUTDATED,
+  EXTENSION_OUTDATED,
+  EXTENSION_VERSION_HEADER,
+  isServedApiVersion,
+  isServedExtensionVersion,
+  MINIMUM_EXTENSION_VERSION,
+  MOBILE_CLIENT,
+} from "@jobhub/shared";
 
 const OUTSIDE_PREFIXES = ["/api/health", "/api/auth", "/api/billing/webhook", "/api/email-intake/inbound"];
 
@@ -54,11 +65,20 @@ export const UPGRADE_REQUIRED = 426;
 
 /**
  * The body of the 426 answer for a request under the contract whose API Version is not served (older than the one
- * before, or none); null when it may go on. `storeUrl` is read only then, and only for the extension: the Platform
- * Setting EXTENSION_STORE_URL.
+ * before, or none), or, from the extension, whose Extension Version (EXTENSION_VERSION_HEADER, #924) is older than
+ * `minimumExtensionVersion`; null when it may go on. An extension that states no Extension Version is judged on its
+ * API Version alone. `storeUrl` is read only then, and only for the extension: the Platform Setting EXTENSION_STORE_URL.
  */
-export function apiVersionRefusal(pathname: string, headers: Headers, storeUrl: () => string | null): ClientOutdatedBody | null {
-  if (!underApiContract(pathname, headers) || isServedApiVersion(headers.get(API_VERSION_HEADER))) return null;
-  if (fromJobbboxApp(headers)) return { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION };
+export function apiVersionRefusal(
+  pathname: string,
+  headers: Headers,
+  storeUrl: () => string | null,
+  minimumExtensionVersion: string = MINIMUM_EXTENSION_VERSION,
+): ClientOutdatedBody | null {
+  if (!underApiContract(pathname, headers)) return null;
+  const app = fromJobbboxApp(headers);
+  const extensionServed = app || !fromExtension(headers) || isServedExtensionVersion(headers.get(EXTENSION_VERSION_HEADER), minimumExtensionVersion);
+  if (isServedApiVersion(headers.get(API_VERSION_HEADER)) && extensionServed) return null;
+  if (app) return { error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION };
   return { error: EXTENSION_OUTDATED, storeUrl: storeUrl(), apiVersion: API_VERSION };
 }

@@ -6022,6 +6022,7 @@
   },
   "fiche": {
     "label": "Fiche",
+    "resize": "Resize the Fiche",
     "activity": "Activity",
     "groups": {
       "sections": "Sections",

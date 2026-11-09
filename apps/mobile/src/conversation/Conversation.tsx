@@ -1,7 +1,18 @@
 import { FileText, Link, Plus, Send, Square, type LucideIcon } from "lucide-react-native";
-import { useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useWindowDimensions,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import type { DroppedItem } from "../attach/attachment";
 import { DropTarget } from "../attach/DropTarget";
 import { useKeyCommand } from "../keyboard/key-commands";
@@ -18,6 +29,20 @@ const READING_REM = 44;
 const AT_END_PT = 48;
 
 const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEvent) => contentOffset.y + layoutMeasurement.height >= contentSize.height - AT_END_PT;
+
+/**
+ * The thread's scroll, for what in it stays pinned at its top while it scrolls (the Offer box's tier on a phone, #899):
+ * `y`, how far it is scrolled, driven on the native side as React Native's sticky headers are; `top`, where its content
+ * (`lead`, then the messages) starts in it, once laid out.
+ */
+export type ThreadScroll = { y: Animated.Value; top: number | null };
+const ThreadScrollContext = createContext<ThreadScroll | null>(null);
+
+/** The scroll of the conversation's thread this is in; null outside one. */
+export const useThreadScroll = () => useContext(ThreadScrollContext);
+
+/** The thread's scroll offset, on the native side, into `scrollY`: what is pinned moves with it at every frame. */
+const SCROLL_OFFSET = (scrollY: Animated.Value) => [{ nativeEvent: { contentOffset: { y: scrollY } } }];
 
 /**
  * A page's conversation with the AI Coach (ADR-0070), as it is drawn: its thread (`children`, at its reading width,
@@ -66,6 +91,14 @@ export function Conversation({
   // stays where they scrolled back to when the window changes and the messages wrap again (Split View, a foldable).
   // Under a page's own view (`lead`), the page opens on it: nothing follows until something is sent.
   const following = useRef(lead === undefined);
+  const [scrollY] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (!thread.current) return;
+    const attached = Animated.attachNativeEvent(thread.current, "onScroll", SCROLL_OFFSET(scrollY), undefined);
+    return () => attached.detach();
+  }, [scrollY]);
+  const [contentTop, setContentTop] = useState<number | null>(null);
+  const threadScroll = useMemo(() => ({ y: scrollY, top: contentTop }), [scrollY, contentTop]);
   const [attaching, setAttaching] = useState(false);
   // From the size where texts are shown whole, the box's own button (« Envoyer », « Arrêter ») is its icon, named by its
   // words: in words, at iOS's largest size on an iPhone SE, it took the whole box, cut in two and past the screen's edge,
@@ -90,18 +123,24 @@ export function Conversation({
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Its offset followed on the native side at every frame, for what stays pinned in it (useThreadScroll). */}
       <ScrollView
         ref={thread}
         testID="conversation-thread"
         aria-label={t("coachPanel.messagesLabel")}
         onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => (following.current = atEnd(event.nativeEvent))}
-        scrollEventThrottle={100}
+        scrollEventThrottle={16}
         onContentSizeChange={() => (following.current ? thread.current?.scrollToEnd({ animated: true }) : undefined)}
         contentContainerStyle={styles.thread}
       >
-        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>
-          {lead}
-          {children}
+        <View
+          onLayout={(event: LayoutChangeEvent) => setContentTop(event.nativeEvent.layout.y)}
+          style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}
+        >
+          <ThreadScrollContext.Provider value={threadScroll}>
+            {lead}
+            {children}
+          </ThreadScrollContext.Provider>
           {belowBoxInThread ? belowBox : null}
         </View>
       </ScrollView>

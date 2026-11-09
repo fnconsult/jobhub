@@ -915,9 +915,10 @@ textarea.input {
 
 /* The conversation's message box (#933): one line to start with, the height of « Envoyer au coach », its text centred in
    it; it grows with the text (`field-sizing: content`, useAutoGrow where a browser lacks it) up to 8 lines, then scrolls
-   inside. Where its column has room, the « Coach IA » badge and Send stand on its row, at its right, kept on its last
-   line as it grows: the box is one line on a computer. A narrower column (a phone) keeps them on the row under it, so the
-   text keeps a writable width. */
+   inside. Where its column has room, the « Coach IA » badge and Send stand on its row, at its right: the box is one line
+   on a computer. Once the text runs past that line (`data-multiline`, useAutoGrow), it takes the box's whole width and
+   wraps there, the badge and Send staying together at the right, under it. A narrower column (a phone) keeps them on the
+   row under the text from the start, so the text keeps a writable width. */
 .coach-panel-form-inline {
   container: message-box / inline-size;
 }
@@ -946,6 +947,19 @@ textarea.input {
 
   .coach-panel-composer-inline .coach-panel-composer-actions {
     flex: none;
+  }
+
+  .coach-panel-composer-inline:has(> textarea[data-multiline]) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .coach-panel-composer-inline:has(> textarea[data-multiline]) textarea {
+    flex: none;
+  }
+
+  .coach-panel-composer-inline:has(> textarea[data-multiline]) .coach-panel-composer-actions {
+    justify-content: flex-end;
   }
 }
 

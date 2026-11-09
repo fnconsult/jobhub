@@ -780,7 +780,8 @@ export function CoachConversationPage(page: PagePlacement) {
               {t("coachPanel.messageLabel")}
             </label>
             {/* The Send button sits inside the message box; a click anywhere in the box writes in it. One line to start
-                with, the badge and Send on its row where the column has room (#933); it grows with the text. */}
+                with, the badge and Send on its row where the column has room (#933); past one line, the text takes the
+                whole width, the badge and Send at the right under it; it grows with the text. */}
             <div className="coach-panel-composer coach-panel-composer-inline" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
               <textarea
                 id={`${id}-message`}

@@ -7,7 +7,8 @@ import { newAddress } from "./support/mailbox";
 
 // Issue #933: the conversation's message box starts on one line and grows with the text, up to about 8 lines, then
 // scrolls inside; sent, it is one line again. On a computer the « Coach IA » badge and « Envoyer au coach » stand on its
-// row, so the box is one line; on a phone they keep the row under it. Enter sends, Shift+Enter starts a line, as before.
+// row, so the box is one line; past one line the text takes the whole width, the two at the right under it; on a phone
+// they keep the row under it. Enter sends, Shift+Enter starts a line, as before.
 // The AI Coach is faked by e2e/support/fake-mistral.mjs.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const COMPUTER = { width: 1280, height: 800 };
@@ -70,7 +71,7 @@ for (const [name, size] of [
   });
 }
 
-test("on a computer the « Coach IA » badge and Send stand on the box's row, on its last line as it grows (#933)", async ({ page }) => {
+test("on a computer the « Coach IA » badge and Send stand on the box's row; past one line, the text takes the whole width, both at the right under it (#933)", async ({ page }) => {
   await openConversation(page, COMPUTER);
   const box = (await boxOf(page).boundingBox())!;
   const send = (await sendOf(page).boundingBox())!;
@@ -80,11 +81,28 @@ test("on a computer the « Coach IA » badge and Send stand on the box's row, on
   expect(send.x).toBeGreaterThan(badge.x);
   expect(Math.round(send.y)).toBe(Math.round(box.y));
 
-  await writeLines(page, 3);
-  await expect.poll(async () => Math.round((await boxOf(page).boundingBox())!.height)).toBeGreaterThan(Math.round(box.height));
-  const grown = (await boxOf(page).boundingBox())!;
-  const sendAfter = (await sendOf(page).boundingBox())!;
-  expect(Math.round(sendAfter.y + sendAfter.height)).toBe(Math.round(grown.y + grown.height));
+  // A line long enough to wrap beside them: the text takes the whole width, the badge and Send under it, at the right.
+  await boxOf(page).click();
+  await page.keyboard.type("Je prépare un entretien pour un poste de Head of Business Unit Professional Services chez Canal+ la semaine prochaine.");
+  await expect(boxOf(page)).toHaveAttribute("data-multiline", "");
+  const wide = (await boxOf(page).boundingBox())!;
+  const sendUnder = (await sendOf(page).boundingBox())!;
+  const badgeUnder = (await badgeOf(page).boundingBox())!;
+  expect(wide.width).toBeGreaterThan(box.width + badge.width + send.width);
+  expect(sendUnder.y).toBeGreaterThanOrEqual(wide.y + wide.height - 1);
+  expect(Math.round(sendUnder.x + sendUnder.width)).toBe(Math.round(wide.x + wide.width));
+  expect(badgeUnder.x).toBeGreaterThan(wide.x + wide.width / 2);
+  // On one row: their middles level.
+  expect(Math.abs(badgeUnder.y + badgeUnder.height / 2 - (sendUnder.y + sendUnder.height / 2))).toBeLessThan(2);
+
+  // Shortened again while writing, it stays so; sent, it is one line again, the badge and Send back on its row.
+  await page.keyboard.press("Control+a");
+  await page.keyboard.type("Bonjour");
+  await expect(boxOf(page)).toHaveAttribute("data-multiline", "");
+  await page.keyboard.press("Enter");
+  await expect(boxOf(page)).toHaveValue("");
+  await expect(boxOf(page)).not.toHaveAttribute("data-multiline");
+  await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.y)).toBe(Math.round(box.y));
 });
 
 test("on a phone the « Coach IA » badge and Send keep the row under the box (#933)", async ({ page }) => {

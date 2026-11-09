@@ -44,7 +44,7 @@ describe("the conversation's message box (#933)", () => {
     expect(box().style.height).toBe("24px");
     const composer = box().closest(".coach-panel-composer")!;
     expect(composer.classList.contains("coach-panel-composer-inline")).toBe(true);
-    expect(composer.querySelector(".coach-panel-badge")?.textContent).toBe("Coach IA");
+    expect(composer.querySelector(".coach-panel-badge .composer-label")?.textContent).toBe("Coach IA");
     expect(composer.querySelector("button[type=submit]")?.textContent).toBe("Envoyer au coach");
   });
 
@@ -72,6 +72,9 @@ describe("the conversation's message box (#933)", () => {
     // An icon to the eye; to a screen reader, still its words.
     expect(screen.getByRole("button", { name: "Envoyer au coach" }).querySelector("svg")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Envoyer au coach" }).querySelector(".composer-label")?.textContent).toBe("Envoyer au coach");
+
+    // The badge says « IA » (its name, still « Coach IA … », unchanged).
+    expect(composer().querySelector(".coach-panel-badge .composer-short")?.textContent).toBe("IA");
 
     await user.clear(box());
     expect(composer().dataset.writing).toBeUndefined();

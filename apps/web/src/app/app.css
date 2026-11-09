@@ -954,8 +954,18 @@ textarea.input {
    the page for screen readers, and show on the keyboard's focus at once, or once the pointer has rested on one for 2
    seconds (useDwellReveal, `data-revealed`): the action then floats over the text, anchored at its right, without
    moving it. Emptied (sent), the box shows them in words again. */
-.coach-panel-composer-inline .composer-send .icon {
+.coach-panel-composer-inline :is(.composer-send .icon, .composer-short) {
   display: none;
+}
+
+/* Writing, the badge says « IA » (« AI »), not its dot alone: the AI disclosure stays in words (AI Act art. 50(1)). */
+.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed], :focus-visible)::before {
+  display: none;
+}
+
+.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed], :focus-visible) .composer-short {
+  display: inline;
+  font-weight: 600;
 }
 
 .coach-panel-composer-inline[data-writing] .coach-panel-composer-actions {

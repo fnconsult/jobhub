@@ -822,6 +822,10 @@ export function CoachConversationPage(page: PagePlacement) {
                   trigger={
                     <button className="pill coach-panel-badge" data-tone="accent" type="button" aria-label={t("conversationFirst.welcomeOpen")} {...badgeDwell}>
                       <span className="composer-label">{t("coachPanel.badge")}</span>
+                      {/* While the Candidate writes, « IA » in place of « Coach IA » (#933): still says an AI answers. */}
+                      <span className="composer-short" aria-hidden="true">
+                        {t("coachPanel.badgeShort")}
+                      </span>
                     </button>
                   }
                 >

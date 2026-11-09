@@ -8,7 +8,7 @@ import { newAddress } from "./support/mailbox";
 // Issue #933: the conversation's message box starts on one line and grows with the text, up to about 8 lines, then
 // scrolls inside; sent, it is one line again. On a computer the « Coach IA » badge and « Envoyer au coach » stand on its
 // row, so the box is one line; on a phone they keep the row under it. In words while the box is empty, they shrink to
-// their icons (the AI dot, the Enter key) once the Candidate writes; the keyboard's focus, or the pointer resting 2
+// « IA » and the Enter key once the Candidate writes; the keyboard's focus, or the pointer resting 2
 // seconds on one, shows its words, floating over the text. Enter sends, Shift+Enter starts a line, as before.
 // The AI Coach is faked by e2e/support/fake-mistral.mjs.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -89,6 +89,9 @@ test("on a computer the badge and Send stand on the box's row in words; writing,
   const control = Math.round(sendEmpty.height);
   await expect.poll(async () => Math.round((await sendOf(page).boundingBox())!.width)).toBe(control);
   expect(Math.round((await badgeOf(page).boundingBox())!.width)).toBe(control);
+  // The badge says « IA », in words: the AI disclosure stays (AI Act art. 50(1)).
+  await expect(badgeOf(page).locator(".composer-short")).toBeVisible();
+  await expect(badgeOf(page).locator(".composer-short")).toHaveText(fr.coachPanel.badgeShort);
   await expect(sendOf(page).locator(".composer-label")).not.toBeInViewport();
   const writing = (await boxOf(page).boundingBox())!;
   expect(writing.width).toBeGreaterThan(empty.width + 100);

@@ -343,6 +343,7 @@
     "sections": {
       "sectionsLabel": "Sections of my account",
       "backToSections": "My account",
+      "identity": "Identity",
       "profiles": "Profiles",
       "followUps": "Follow-ups",
       "euAi": "European AI",
@@ -376,6 +377,15 @@
           "loadUnpacked": "Click « Load unpacked » and choose the unzipped folder."
         }
       }
+    },
+    "identity": {
+      "givenName": "First name",
+      "familyName": "Last name",
+      "preferredName": "What would you like the coaches to call you?",
+      "preferredNameHint": "The AI Coach and your coaches call you this. Leave it empty not to be called by a name.",
+      "save": "Save",
+      "tooLong": "80 characters at most.",
+      "error": "Your identity could not be saved. Please try again."
     }
   },
   "accountData": {

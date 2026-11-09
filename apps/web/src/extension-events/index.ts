@@ -11,6 +11,8 @@
  *    who made it and the Extension Version it states; null for any other Surface, so the web and the app record nothing;
  *  - `recordExtensionAction(within, call, kind, object?)`: the routes the extension calls write their action's row, on
  *    the action's own transaction where it has one (as Consumption is counted);
+ *  - `createExtensionEvents(database).record(call, kind, object?)`: the same for an action that saves nothing (a Match
+ *    Score, a CV draft), so has no transaction;
  *  - `createExtensionEvents(database).report(call, body, context)`: an error the extension sends (POST
  *    /api/extension/events), checked against its schema (fields outside it, a `url` among them, are dropped), at most
  *    REPORTING_LIMIT per requester within REPORTING_WINDOW_MINUTES, counted in this process only;
@@ -118,6 +120,8 @@ export interface ReportingContext {
 export type ReportResult = { ok: true } | { ok: false; errors: FieldError[] } | { ok: false; refused: "too_many" };
 
 export interface ExtensionEvents {
+  /** Writes the row of an action that has no transaction of its own (a Match Score, a CV draft: they save nothing). */
+  record(call: ExtensionCall, kind: ExtensionActionKind, object?: EventObject): Promise<void>;
   /** Records an error the extension reports (`body`: { errorCode, messageKey?, route?, httpStatus?, place, pageDomain? }). */
   report(call: ExtensionCall, body: unknown, context: ReportingContext): Promise<ReportResult>;
 }
@@ -137,6 +141,8 @@ export function createExtensionEvents(database: Queryable, { now = () => new Dat
   }
 
   return {
+    record: (call, kind, object) => recordExtensionAction(database, call, kind, object),
+
     async report(call, body, context) {
       const parsed = reportSchema.safeParse(body, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };

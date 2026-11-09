@@ -55,6 +55,8 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import { fieldErrors, type FieldError } from "../validation";
 import { GUEST_EXPIRY_SQL } from "./guest-retention";
+import { inTransaction, type Queryable } from "../database/pool";
+import { migrateExtensionEvents, recordExtensionAction, type ExtensionCall } from "../extension-events";
 
 export { forgetExpiredGuestCaptures } from "./guest-retention";
 export {
@@ -124,12 +126,17 @@ const postedAtSchema = z
   .min(new Date("2000-01-01T00:00:00Z"))
   .refine((date) => date.getTime() <= Date.now() + 24 * 60 * 60 * 1000);
 
+/** How a Capture was asked. `extension`: from the browser extension, which records its Extension Event with it (#924). */
+export interface CaptureOptions {
+  extension?: ExtensionCall;
+}
+
 export interface JobOffers {
   /**
    * Stores a captured posting. `input` is untrusted (it comes from the browser).
    * A posting only Guests captured is forgotten within 24 hours.
    */
-  capture(input: unknown, capturedBy?: Captor, trusted?: TrustedFacts): Promise<CaptureJobOfferResult>;
+  capture(input: unknown, capturedBy?: Captor, trusted?: TrustedFacts, options?: CaptureOptions): Promise<CaptureJobOfferResult>;
   /**
    * The Candidate now holds on to this Job Offer (they saved it as an Application,
    * perhaps from what they did as a Guest), so it is never forgotten as a Guest
@@ -351,108 +358,118 @@ export function createJobOffers(database: Pool): JobOffers {
     return updated.rows[0] ? jobOfferFrom(updated.rows[0]) : null;
   }
 
+  /** A Capture, its every statement on `db`: the pool, or the transaction an Extension Event is written on with it (#924). */
+  async function captureOn(db: Queryable, input: unknown, capturedBy: Captor, trusted: TrustedFacts): Promise<CaptureJobOfferResult> {
+    const parsed = inputSchema.safeParse(input, { reportInput: true });
+    if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+    const offer = parsed.data;
+    let postedAt: Date | undefined;
+    if (trusted.postedAt !== undefined) {
+      const stated = postedAtSchema.safeParse(trusted.postedAt);
+      if (!stated.success) return { ok: false, errors: [{ field: "postedAt", code: "invalid" }] };
+      postedAt = stated.data;
+    }
+    // Read by the same AI as the summary: kept when of the right shape, left out otherwise.
+    const sectorRead = sectorSchema.safeParse(trusted.sector);
+    const sector = (sectorRead.success && sectorRead.data) || undefined;
+    const subsectorRead = sectorSchema.safeParse(trusted.subsector);
+    const subsector = (subsectorRead.success && subsectorRead.data) || undefined;
+    let summary: string | undefined;
+    if (trusted.summary !== undefined) {
+      const stated = summarySchema.safeParse(trusted.summary);
+      // A summary of the wrong shape is left out: the posting is still worth keeping, and gets one later.
+      if (stated.success) summary = stated.data;
+    }
+    const url = offer.source.url;
+    const keys = [url ? urlKey(url) : null, contentFingerprint(offer.content)];
+    // Deduplicated within its visibility only: shared with shared, private with the same Candidate's private.
+    const privateTo = trusted.privateTo ?? null;
+
+    const { rows } = await db.query<JobOfferRow>(
+      `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
+                              contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
+                              posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at, provenance, spontaneous,
+                              private_to_candidate_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+               CASE WHEN $16 = 'guest' THEN ${GUEST_EXPIRY_SQL} END,
+               $17::text, CASE WHEN $17::text IS NOT NULL THEN now() END,
+               $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END, $20::jsonb, $21, $22)
+       ON CONFLICT DO NOTHING
+       RETURNING ${COLUMNS}`,
+      [
+        ...keys,
+        url ?? null,
+        offer.source.name ?? (url ? siteName(url) : null),
+        offer.title,
+        offer.content,
+        offer.employer ?? null,
+        offer.location ?? null,
+        offer.contractType ?? null,
+        offer.remoteWork ?? null,
+        offer.salary?.min ?? null,
+        offer.salary?.max ?? null,
+        offer.skills ?? null,
+        offer.requiredExperienceYears ?? null,
+        postedAt ?? null,
+        capturedBy,
+        summary ?? null,
+        sector ?? null,
+        (sector && subsector) ?? null,
+        storable(trusted.provenance),
+        trusted.spontaneous === true,
+        privateTo,
+      ],
+    );
+    if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]), created: true };
+
+    // Already captured: the same URL first, else the same text.
+    const existing = await db.query<JobOfferRow>(
+      `SELECT ${COLUMNS} FROM job_offer
+        WHERE (url_key = $1 OR content_fingerprint = $2) AND private_to_candidate_id IS NOT DISTINCT FROM $3::text
+        ORDER BY (url_key IS NOT DISTINCT FROM $1) DESC, created_at
+        LIMIT 1`,
+      [...keys, privateTo],
+    );
+    const row = existing.rows[0]!;
+    if (capturedBy === "candidate") {
+      await db.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [row.id]);
+    }
+    // Captured again from its own source page: that page publishes it, so it is not expired,
+    // and the gone checks so far no longer count (as after a live re-check).
+    if (keys[0] !== null) {
+      const revived = await db.query(
+        `UPDATE job_offer SET expired_at = NULL, gone_checks = 0
+          WHERE id = $1 AND url_key = $2 AND (expired_at IS NOT NULL OR gone_checks > 0)`,
+        [row.id, keys[0]],
+      );
+      if (revived.rowCount) row.expired_at = null;
+    }
+    // Stored without a summary: the one just read is kept, with how it was read when the offer has no Provenance yet.
+    if (summary !== undefined && row.summary === null) {
+      await db.query(
+        `UPDATE job_offer SET summary = $2, summary_read_at = now(),
+                sector = COALESCE(sector, $3), subsector = CASE WHEN sector IS NULL THEN $4 ELSE subsector END, sector_read_at = now(),
+                provenance = COALESCE(provenance, $5::jsonb)
+          WHERE id = $1 AND summary IS NULL`,
+        [row.id, summary, sector ?? null, (sector && subsector) ?? null, storable(trusted.provenance)],
+      );
+      row.summary = summary;
+      if (row.sector === null && sector) {
+        row.sector = sector;
+        row.subsector = subsector ?? null;
+      }
+    }
+    return { ok: true, jobOffer: jobOfferFrom(row), created: false };
+  }
+
   return {
-    async capture(input, capturedBy = "candidate", trusted = {}) {
-      const parsed = inputSchema.safeParse(input, { reportInput: true });
-      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
-      const offer = parsed.data;
-      let postedAt: Date | undefined;
-      if (trusted.postedAt !== undefined) {
-        const stated = postedAtSchema.safeParse(trusted.postedAt);
-        if (!stated.success) return { ok: false, errors: [{ field: "postedAt", code: "invalid" }] };
-        postedAt = stated.data;
-      }
-      // Read by the same AI as the summary: kept when of the right shape, left out otherwise.
-      const sectorRead = sectorSchema.safeParse(trusted.sector);
-      const sector = (sectorRead.success && sectorRead.data) || undefined;
-      const subsectorRead = sectorSchema.safeParse(trusted.subsector);
-      const subsector = (subsectorRead.success && subsectorRead.data) || undefined;
-      let summary: string | undefined;
-      if (trusted.summary !== undefined) {
-        const stated = summarySchema.safeParse(trusted.summary);
-        // A summary of the wrong shape is left out: the posting is still worth keeping, and gets one later.
-        if (stated.success) summary = stated.data;
-      }
-      const url = offer.source.url;
-      const keys = [url ? urlKey(url) : null, contentFingerprint(offer.content)];
-      // Deduplicated within its visibility only: shared with shared, private with the same Candidate's private.
-      const privateTo = trusted.privateTo ?? null;
-
-      const { rows } = await database.query<JobOfferRow>(
-        `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
-                                contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
-                                posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at, provenance, spontaneous,
-                                private_to_candidate_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                 CASE WHEN $16 = 'guest' THEN ${GUEST_EXPIRY_SQL} END,
-                 $17::text, CASE WHEN $17::text IS NOT NULL THEN now() END,
-                 $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END, $20::jsonb, $21, $22)
-         ON CONFLICT DO NOTHING
-         RETURNING ${COLUMNS}`,
-        [
-          ...keys,
-          url ?? null,
-          offer.source.name ?? (url ? siteName(url) : null),
-          offer.title,
-          offer.content,
-          offer.employer ?? null,
-          offer.location ?? null,
-          offer.contractType ?? null,
-          offer.remoteWork ?? null,
-          offer.salary?.min ?? null,
-          offer.salary?.max ?? null,
-          offer.skills ?? null,
-          offer.requiredExperienceYears ?? null,
-          postedAt ?? null,
-          capturedBy,
-          summary ?? null,
-          sector ?? null,
-          (sector && subsector) ?? null,
-          storable(trusted.provenance),
-          trusted.spontaneous === true,
-          privateTo,
-        ],
-      );
-      if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]), created: true };
-
-      // Already captured: the same URL first, else the same text.
-      const existing = await database.query<JobOfferRow>(
-        `SELECT ${COLUMNS} FROM job_offer
-          WHERE (url_key = $1 OR content_fingerprint = $2) AND private_to_candidate_id IS NOT DISTINCT FROM $3::text
-          ORDER BY (url_key IS NOT DISTINCT FROM $1) DESC, created_at
-          LIMIT 1`,
-        [...keys, privateTo],
-      );
-      const row = existing.rows[0]!;
-      if (capturedBy === "candidate") {
-        await database.query(`UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND guest_expires_at IS NOT NULL`, [row.id]);
-      }
-      // Captured again from its own source page: that page publishes it, so it is not expired,
-      // and the gone checks so far no longer count (as after a live re-check).
-      if (keys[0] !== null) {
-        const revived = await database.query(
-          `UPDATE job_offer SET expired_at = NULL, gone_checks = 0
-            WHERE id = $1 AND url_key = $2 AND (expired_at IS NOT NULL OR gone_checks > 0)`,
-          [row.id, keys[0]],
-        );
-        if (revived.rowCount) row.expired_at = null;
-      }
-      // Stored without a summary: the one just read is kept, with how it was read when the offer has no Provenance yet.
-      if (summary !== undefined && row.summary === null) {
-        await database.query(
-          `UPDATE job_offer SET summary = $2, summary_read_at = now(),
-                  sector = COALESCE(sector, $3), subsector = CASE WHEN sector IS NULL THEN $4 ELSE subsector END, sector_read_at = now(),
-                  provenance = COALESCE(provenance, $5::jsonb)
-            WHERE id = $1 AND summary IS NULL`,
-          [row.id, summary, sector ?? null, (sector && subsector) ?? null, storable(trusted.provenance)],
-        );
-        row.summary = summary;
-        if (row.sector === null && sector) {
-          row.sector = sector;
-          row.subsector = subsector ?? null;
-        }
-      }
-      return { ok: true, jobOffer: jobOfferFrom(row), created: false };
+    async capture(input, capturedBy = "candidate", trusted = {}, { extension } = {}) {
+      if (!extension) return captureOn(database, input, capturedBy, trusted);
+      return inTransaction(database, async (client) => {
+        const captured = await captureOn(client, input, capturedBy, trusted);
+        if (captured.ok) await recordExtensionAction(client, extension, "capture", { type: "job_offer", id: captured.jobOffer.id });
+        return captured;
+      });
     },
 
     async keepForCandidate(id, candidateId) {
@@ -535,6 +552,8 @@ export async function privateJobOffersOf(database: Pool, candidateId: string): P
 
 /** Creates or upgrades the Job Offer table. Safe to run repeatedly. */
 export async function migrateJobOffers(database: Pool): Promise<void> {
+  // A Capture from the extension writes its Extension Event (#924).
+  await migrateExtensionEvents(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS job_offer (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

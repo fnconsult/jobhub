@@ -93,7 +93,7 @@ describe.skipIf(!connectionString)("Extension Events (#924; needs Postgres: DATA
     });
 
     it("of a Guest names no one, and no identifier of any kind", async () => {
-      await recordExtensionAction(database, guest(), "cv_draft");
+      await events.record(guest(), "cv_draft");
 
       const [row] = await rows();
       expect(row).toMatchObject({ kind: "cv_draft", candidate_id: null, object_type: null, object_id: null });

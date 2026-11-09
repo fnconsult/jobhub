@@ -203,6 +203,31 @@ test.describe("« Offres à traiter » on a phone (#898)", () => {
     await expect(boxOf(page).locator(".offer-box-day .offer-box-entry")).toHaveCount(toHandle);
   });
 
+  test("deep in « Précédemment », « Annuler » in the toast leaves the column where it was, the focus on the filter icon", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await candidateWithOfferBox(page, "phone-undo");
+    await page.goto("/recherches");
+    await expect(dayOf(page, fr.offerBox.earlier)).toBeVisible();
+
+    await scrollPage(page, await offsetOf(page, `${LAST_EARLIER_TIER} .offer-box-entries`, 120));
+    const line = page.locator(`${LAST_EARLIER_TIER} .offer-box-entry`).last();
+    const title = (await line.getAttribute("aria-label"))!;
+    await line.getByRole("button", { name: fr.offerBox.dismiss, exact: true }).click();
+    await line.getByRole("button", { name: fr.offerBox.dismissWithoutReason }).click();
+    const undo = page.getByRole("status").getByRole("button", { name: fr.offerBox.undo });
+    await expect(undo).toBeFocused();
+    const before = await page.locator("main").evaluate((main) => main.scrollTop);
+    expect(before, "well into « Précédemment »").toBeGreaterThan(PHONE.height);
+
+    // The box's heading is hidden at the top of the box: the focus on it would scroll the column back up there.
+    await page.keyboard.press("Enter");
+    await expect(undo).toBeHidden();
+    await expect(dayOf(page, fr.offerBox.earlier).getByRole("listitem", { name: title })).toBeVisible();
+    const after = await page.locator("main").evaluate((main) => main.scrollTop);
+    expect(Math.abs(after - before), `scrolled from ${before} to ${after} px`).toBeLessThan(PHONE.height / 2);
+    await expect(filterIconOf(page)).toBeFocused();
+  });
+
   test("the coach's suggestions keep to one row, and nothing scrolls the page sideways at 375 px, the panel open or not", async ({ page }) => {
     await page.setViewportSize(SMALL_PHONE);
     await candidateWithOfferBox(page, "phone-width");

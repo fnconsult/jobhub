@@ -453,6 +453,41 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
       expect(icon.getAttribute("aria-expanded")).toBe("false");
     });
 
+    /** Écarte `title` without a reason, the keyboard focus then on the toast's « Annuler ». */
+    async function dismiss(title: string) {
+      await userEvent.click(within(within(offerBox()).getByRole("listitem", { name: title })).getByRole("button", { name: "Écarter" }));
+      await userEvent.click(within(offerBox()).getByRole("button", { name: "Écarter sans motif" }));
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Annuler" })));
+    }
+
+    it("the toast closed, by « Annuler » or Escape, gives the focus to the icon, not to the box's heading, hidden at the top of the box", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+
+      await dismiss("Offre old");
+      await userEvent.keyboard("{Enter}");
+      await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+      expect(document.activeElement).toBe(filterIcon());
+
+      await dismiss("Offre a");
+      await userEvent.keyboard("{Escape}");
+      expect(document.activeElement).toBe(filterIcon());
+    });
+
+    it("its panel open, the toast closed gives the focus to the box's heading, in view in the panel", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+
+      await dismiss("Offre old");
+      await userEvent.click(filterIcon());
+      screen.getByRole("button", { name: "Annuler" }).focus();
+      await userEvent.keyboard("{Escape}");
+
+      expect(document.activeElement).toBe(within(offerBox()).getByRole("heading", { name: "Offres à traiter" }));
+    });
+
     it("is drawn in the Top Bar from the server's HTML, before the page knows its width, so the bar does not change when it hydrates", () => {
       const container = document.createElement("div");
       container.innerHTML = renderToString(

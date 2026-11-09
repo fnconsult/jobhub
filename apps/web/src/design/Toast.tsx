@@ -11,7 +11,7 @@ export const TOAST_DURATION_MS = 6000;
  * A message, with a link to follow (« Voir la candidature ») or an action to take (« Annuler », #816). `action.focus`
  * moves the keyboard focus to the action when the Toast appears, for an action the person just took whose control is
  * going away; `returnFocus` gives the element the focus goes back to when the Toast closes, if the one that had it when
- * it appeared is no longer in the page.
+ * it appeared is no longer in the page, or if none had it (a button disabled while it worked loses it).
  */
 export type ToastMessage = {
   message: ReactNode;
@@ -36,8 +36,8 @@ export function useToast(): (toast: ToastMessage) => void {
 /**
  * Holds the page's one Toast (#462). Its message is said in a polite live region, always in the page so screen
  * readers hear it. It goes after TOAST_DURATION_MS, but never while it holds the focus or the pointer; Escape inside
- * it closes it and gives the focus back to what had it when it appeared (or, when that is gone, to `returnFocus`). An
- * action with `focus` takes the focus as the Toast appears. A new Toast replaces the one shown.
+ * it closes it and gives the focus back to what had it when it appeared (or, when that is gone or nothing had it, to
+ * `returnFocus`). An action with `focus` takes the focus as the Toast appears. A new Toast replaces the one shown.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [shown, setShown] = useState<(ToastMessage & { key: number }) | null>(null);
@@ -46,7 +46,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const actionButton = useRef<HTMLButtonElement>(null);
 
   const show = useCallback((toast: ToastMessage) => {
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Nothing has the focus (the page itself has it) when the control that acted lost it, disabled while its request
+    // ran: the focus goes to `returnFocus` on close, not to the page, which would leave it nowhere.
+    const active = document.activeElement;
+    opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
     setShown((previous) => ({ ...toast, key: (previous?.key ?? 0) + 1 }));
   }, []);
 

@@ -38,10 +38,13 @@ import "./OfferBox.css";
  */
 /**
  * What a line's « Écarter » or « Plus tard », or a tier's « Tout écarter », needs from the page once its own button is
- * gone: the box's heading, where the focus goes back when the toast closes, and how to say that « Annuler » failed
- * (null: it did not).
+ * gone: where the focus goes back when the toast closes (`returnFocus`, OfferBoxPage), and how to say that « Annuler »
+ * failed (null: it did not).
  */
-const OfferBoxPageHandle = createContext<{ heading: () => HTMLElement | null; undoFailed: (message: string | null) => void }>({ heading: () => null, undoFailed: () => {} });
+const OfferBoxPageHandle = createContext<{ returnFocus: () => HTMLElement | null; undoFailed: (message: string | null) => void }>({
+  returnFocus: () => null,
+  undoFailed: () => {},
+});
 
 /**
  * The source chip and, on a phone, whether the header is open as a panel under the Top Bar (#898): shared by the box and
@@ -143,7 +146,13 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   const head = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [undoFailed, setUndoFailed] = useState<string | null>(null);
-  const [handle] = useState(() => ({ heading: () => heading.current, undoFailed: setUndoFailed }));
+  // The toast closed, the focus goes back to the box's heading; on a phone, with the header behind the Top Bar's filter
+  // icon, its heading is hidden at the top of the box, and focusing it would scroll the entries back up there: the
+  // focus goes to the icon, always in view, as when the panel closes (#898).
+  const [handle] = useState(() => ({
+    returnFocus: () => (head.current?.hasAttribute("data-open") ? null : filterIconOf(panelId)) ?? heading.current,
+    undoFailed: setUndoFailed,
+  }));
   const total = view.toHandle + view.treated;
 
   // Opened as a panel under the Top Bar (a phone, #898): the focus on the source chosen.
@@ -465,7 +474,8 @@ async function decide(entryId: string, method: "POST" | "DELETE", reason?: Dismi
 /**
  * « Écarter »: opens « Pourquoi ? (facultatif) », the Dismissal reasons and « Écarter sans motif ». Once écartée, the
  * page refreshes (the entry leaves the count, into « Écartées ») and a toast says so, with « Annuler », which takes the
- * keyboard focus since this line's buttons go; the toast closed, the focus goes to the box's heading. An « Annuler »
+ * keyboard focus since this line's buttons go; the toast closed, the focus goes to the box's heading (on a phone, to the
+ * Top Bar's filter icon, the header behind it). An « Annuler »
  * that fails is said above the entries.
  */
 function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; describedBy: string }) {
@@ -502,7 +512,7 @@ function DismissButton({ entry, describedBy }: { entry: OfferBoxEntryRead; descr
             if (undone) router.refresh();
           }),
       },
-      returnFocus: page.heading,
+      returnFocus: page.returnFocus,
     });
     router.refresh();
   }
@@ -626,7 +636,7 @@ function LaterButton({ entry }: { entry: OfferBoxEntryRead }) {
             if (undone === 204) router.refresh();
           }),
       },
-      returnFocus: page.heading,
+      returnFocus: page.returnFocus,
     });
     router.refresh();
   }
@@ -686,7 +696,7 @@ function DismissAllButton({ entries, tierName }: { entries: OfferBoxEntryRead[];
             if (undone === 204) router.refresh();
           }),
       },
-      returnFocus: page.heading,
+      returnFocus: page.returnFocus,
     });
     router.refresh();
   }

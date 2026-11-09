@@ -426,7 +426,7 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
       const baseURL = typeof deps.baseURL === "string" ? deps.baseURL : deps.baseURL();
       const failedNow = new Set<string>();
       for (;;) {
-        const { rows: claimed } = await database.query<ReductionRow & { candidate_id: string; email: string; language: string | null }>(
+        const { rows: claimed } = await database.query<ReductionRow & { candidate_id: string; email: string; language: string | null; preferred_name: string | null }>(
           `WITH due AS (
              SELECT n.reduction_id, n.candidate_id FROM plan_quota_reduction_notice n JOIN plan_quota_reduction r ON r.id = n.reduction_id
              WHERE n.sent_at IS NULL AND r.cancelled_at IS NULL
@@ -437,7 +437,7 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
            UPDATE plan_quota_reduction_notice n SET claimed_at = $1
            FROM due, plan_quota_reduction r, candidate c
            WHERE n.reduction_id = due.reduction_id AND n.candidate_id = due.candidate_id AND r.id = n.reduction_id AND c.id = n.candidate_id
-           RETURNING ${REDUCTION_COLUMNS}, n.candidate_id, c.email, c."interfaceLanguage" AS language`,
+           RETURNING ${REDUCTION_COLUMNS}, n.candidate_id, c.email, c."interfaceLanguage" AS language, c.preferred_name`,
           [now(), CLAIM_LEASE_MINUTES, NOTICE_BATCH, [...failedNow]],
         );
         if (claimed.length === 0) break;
@@ -453,6 +453,7 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
                 effectiveOn: notice.effective_on,
                 resolvableUntil: addDays(notice.effective_on, RESOLUTION_DAYS_AFTER),
                 resolveUrl: new URL(routes.subscriptionQuotaReduction, baseURL).toString(),
+                preferredName: notice.preferred_name,
               },
               language,
             );

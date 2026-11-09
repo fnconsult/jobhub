@@ -35,11 +35,11 @@ export function mustHaveIt(candidateId: string): Promise<boolean> {
  * Emails the account that its Two-step verification was turned on or off, or reset by a super-admin, in its Interface
  * Language. Never fails the change: an email that could not go is logged.
  */
-export async function tellTwoStepChange(candidate: { email: string; interfaceLanguage?: unknown }, change: TwoStepChange): Promise<void> {
+export async function tellTwoStepChange(candidate: { email: string; interfaceLanguage?: unknown; preferredName?: string | null }, change: TwoStepChange): Promise<void> {
   try {
     const securityUrl = new URL(routes.accountSecurity, String(getAuth().options.baseURL)).toString();
     const language = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;
-    await getMailer().send({ to: candidate.email, ...twoStepChangeEmail({ change, at: new Date(), securityUrl }, language) });
+    await getMailer().send({ to: candidate.email, ...twoStepChangeEmail({ change, at: new Date(), securityUrl, preferredName: candidate.preferredName }, language) });
   } catch (error) {
     console.error("[two-step-verification] the change could not be emailed", error);
   }

@@ -125,7 +125,7 @@ export interface Withdrawals {
    * receiptEmail (when "other") }; the acknowledgement goes to the account's email or that one, in `language`.
    * Safe under a double click: one Withdrawal per contract.
    */
-  withdraw(candidate: { id: string; email: string }, input: unknown, language: Locale): Promise<WithdrawResult>;
+  withdraw(candidate: { id: string; email: string; preferredName?: string | null }, input: unknown, language: Locale): Promise<WithdrawResult>;
   /** One of the Candidate's own Withdrawals, or null. */
   withdrawal(candidateId: string, id: string): Promise<Withdrawal | null>;
   /** Every Withdrawal, newest first, for Support. */
@@ -393,6 +393,7 @@ export function createWithdrawals(database: Pool, deps: WithdrawalsDeps): Withdr
           name,
           refunded: refunded > 0 ? { amount: refunded, currency: recorded.refunds[0]!.currency } : null,
           kept: kept > 0 ? { amount: kept, currency: recorded.refunds[0]!.currency } : null,
+          preferredName: candidate.preferredName,
         },
         language,
       );

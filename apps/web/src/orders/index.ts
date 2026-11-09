@@ -190,11 +190,11 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
 
     async paid(checkout) {
       // Taken first, so two deliveries at once send one email; given back if the mailer fails.
-      const { rows } = await database.query<OrderRow & { email: string }>(
+      const { rows } = await database.query<OrderRow & { email: string; preferred_name: string | null }>(
         `UPDATE checkout_order o SET confirmation_sent_at = $3, subscription_id = COALESCE(o.subscription_id, $2)
            FROM candidate c
           WHERE o.checkout_session_id = $1 AND o.confirmation_sent_at IS NULL AND c.id = o.candidate_id
-          RETURNING o.*, c.email`,
+          RETURNING o.*, c.email, c.preferred_name`,
         [checkout.checkoutSessionId, checkout.subscriptionId, now()],
       );
       const order = rows[0];
@@ -215,6 +215,7 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
           cgv: order.cgv_version && order.cgv_url ? { version: order.cgv_version, url: absolute(order.cgv_url) } : null,
           immediateExecutionRequested: order.immediate_execution_requested,
           withdrawal: { url: absolute(order.kind === "plan" ? routes.withdrawal("plan") : routes.agenda()), until: withdrawalDeadline(concludedAt) },
+          preferredName: order.preferred_name,
         },
         order.language,
       );

@@ -2721,6 +2721,16 @@
       "estimate": "Estimations aux prix publics des fournisseurs, en dollars convertis à {{rate}} € pour 1 $ (une hypothèse, pas le cours du jour), figées au moment de chaque appel. Agrégats seulement : ni candidat, ni texte.",
       "coachCostLink": "Médiane et 90e centile du coût d'une réponse de l'AI Coach : Coût coach",
       "period": "Période",
+      "surface": "Origine",
+      "anySurface": "Toutes",
+      "surfaces": {
+        "web": "Web",
+        "extension": "Extension",
+        "app": "Application",
+        "worker": "Tâches de fond",
+        "unknown": "Inconnue"
+      },
+      "surfaceExternal": "Les API externes n'enregistrent pas d'origine : elles restent toutes comptées.",
       "show": "Afficher",
       "periods": {
         "7d": "7 derniers jours",

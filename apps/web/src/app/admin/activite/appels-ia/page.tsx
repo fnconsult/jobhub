@@ -3,7 +3,7 @@ import { AI_CALL_FAILURE_REASONS, OUTCOMES, type Outcome } from "@jobhub/shared"
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
-import { MESSAGE_LOG_RETENTION_DAYS } from "@/ai-usage";
+import { MESSAGE_LOG_RETENTION_DAYS, SURFACE_FILTERS } from "@/ai-usage";
 import { AI_TASKS, aiMessageLogFilter, LIST_LIMIT, type ContextMeasure } from "@/ai-usage/message-log";
 import { getAiMessageLogs } from "@/ai-usage/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
@@ -67,7 +67,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Activité › Appels IA (formerly Journaux IA, #404): super-admins find an AI Message Log (#218): newest first, filtered by task, model, Candidate
- * email, day, Outcome and Failure Reason (#259), a warning's code too (#260). The list shows no text, only how each
+ * email, day, Outcome and Failure Reason (#259), a warning's code too (#260), and the Surface each call was asked from
+ * (« Origine », #919: « Inconnue » for the calls recorded with none). The list shows no text, only how each
  * call ended and why; opening a log writes the view to the Back Office Audit. A call that wrote an AI Coach reply shows the
  * reply's estimate of its context against the provider's count of its first Turn, with the gap (ADR-0078, #731), to correct
  * the estimate by provider and model; and, on each of the reply's calls, the whole reply: its calls' input in all against the
@@ -134,6 +135,16 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
               ))}
             </Select>
           </Field>
+          <Field label={t("admin.aiUsage.surface")}>
+            <Select name="surface" defaultValue={filter.surface ?? ""}>
+              <option value="">{t("admin.aiUsage.anySurface")}</option>
+              {SURFACE_FILTERS.map((surface) => (
+                <option key={surface} value={surface}>
+                  {t(`admin.aiUsage.surfaces.${surface}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <div className="activity-filter-actions">
             <button type="submit" className={buttonClass()}>
               {t("admin.aiMessages.apply")}
@@ -154,6 +165,7 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
                 { header: t("admin.aiMessages.task"), cell: (log) => (AI_TASKS.includes(log.task) ? t(`admin.aiUsage.tasks.${log.task as Task}`) : log.task) },
                 { header: t("admin.aiMessages.provider"), cell: (log) => (log.provider ? `${log.provider} ${log.model ?? ""}` : t("admin.aiMessages.noProvider")) },
                 { header: t("admin.aiMessages.candidate"), cell: (log) => log.candidate?.email ?? t("admin.aiMessages.noCandidate") },
+                { header: t("admin.aiUsage.surface"), cell: (log) => t(`admin.aiUsage.surfaces.${log.surface ?? "unknown"}`) },
                 {
                   header: t("admin.aiMessages.context"),
                   cell: (log) => (log.context ? t("admin.aiMessages.contextValue", contextFigures(log.context, locale)) : t("admin.aiMessages.noContext")),

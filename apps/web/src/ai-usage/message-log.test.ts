@@ -12,6 +12,7 @@ import { migrateJobSearches } from "../job-searches";
 import { migrateProfiles } from "../profiles";
 import { createPostgresUsageLog, MESSAGE_LOG_MAX_LENGTH, migrateAiUsage, purgeExpiredAiUsage } from "./index";
 import { createAiMessageLogs, type AiMessageLogs } from "./message-log";
+import type { Surface } from "../request-surface";
 
 const PROVIDER_KEY = "mk-2f9c41d7a0b34e5f";
 
@@ -85,6 +86,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       sent: true,
       candidate: { id: marie, email: "marie.dupont@example.fr" },
       context: null,
+      surface: null,
     });
     expect(await logs.open(admin, summary!.id)).toMatchObject({
       ...summary,
@@ -243,6 +245,33 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     expect(await tasks({ day: "2026-10-16" })).toEqual(["coaching marie.dupont@example.fr"]);
     // A filter that cannot be read is no filter.
     expect(await tasks({ task: "nope", day: "yesterday", model: 3 })).toHaveLength(3);
+  });
+
+  it("shows the Surface each call was asked from, and lists by it, « inconnue » listing the calls recorded with none (#919)", async () => {
+    const from = (surface: Surface) => {
+      const postgres = createPostgresUsageLog(database, { surface: () => surface });
+      return createAiLayer({
+        providers: [createFakeProvider({ id: "mistral" })],
+        routes: { scoring: "mistral" },
+        usage: { record: (entry) => void pending.push(Promise.resolve(postgres.record(entry))) },
+        now: () => now,
+      });
+    };
+    now = new Date("2026-10-17T08:00:00Z");
+    await from("extension").generate({ task: "scoring", candidateId: null, prompt: "Extension" });
+    now = new Date("2026-10-17T08:01:00Z");
+    await from("web").generate({ task: "scoring", candidateId: marie, prompt: "Web" });
+    now = new Date("2026-10-17T08:02:00Z");
+    await ai.generate({ task: "scoring", candidateId: marie, prompt: "Avant la colonne" });
+    await settled();
+
+    const surfaces = async (filter: unknown) => (await logs.list(filter)).map((log) => log.surface);
+    expect(await surfaces({})).toEqual([null, "web", "extension"]);
+    expect(await surfaces({ surface: "extension" })).toEqual(["extension"]);
+    expect(await surfaces({ surface: "unknown" })).toEqual([null]);
+    expect(await surfaces({ surface: "app", task: "scoring" })).toEqual([]);
+    // A Surface that cannot be read is no filter.
+    expect(await surfaces({ surface: "mobile" })).toHaveLength(3);
   });
 
   it("lists the calls one Candidate's run made: by their id, between two instants (Activité › Recherches' link, #404)", async () => {

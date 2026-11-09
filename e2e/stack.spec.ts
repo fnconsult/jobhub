@@ -1,6 +1,7 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import net from "node:net";
 import { expect, test } from "@playwright/test";
+import { composeCommand } from "./support/compose";
 
 // Brings up the local docker compose stack (Postgres + background-job runner)
 // under its own project name and host port, so it never collides with a stack
@@ -8,12 +9,6 @@ import { expect, test } from "@playwright/test";
 // The host port defaults to a free one picked at run time.
 const project = process.env.E2E_COMPOSE_PROJECT ?? `jobhub-e2e-${process.pid}`;
 let postgresPort = Number(process.env.E2E_POSTGRES_PORT ?? 0);
-
-function composeCommand(): string[] {
-  if (spawnSync("docker", ["compose", "version"]).status === 0) return ["docker", "compose"];
-  if (spawnSync("docker-compose", ["version"]).status === 0) return ["docker-compose"];
-  return [];
-}
 
 const compose = composeCommand();
 function run(...args: string[]): string {
@@ -43,7 +38,7 @@ function canConnect(port: number): Promise<boolean> {
 }
 
 test.describe("local stack (docker compose)", () => {
-  test.skip(!!process.env.E2E_SKIP_DOCKER || compose.length === 0, "docker compose not available");
+  test.skip(!!process.env.E2E_SKIP_DOCKER || compose.length === 0, "docker compose not available, or no docker daemon answers");
   test.describe.configure({ timeout: 300_000 });
 
   test.beforeAll(async () => {

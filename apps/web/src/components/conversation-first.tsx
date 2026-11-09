@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { badgeCount } from "@jobhub/shared";
 import { helpLocale, onThisPage } from "@/coach-help";
 import type { ConversationContext } from "@/coach/conversation";
 import type { ReplyGiven } from "@/ai-activity/entries";
@@ -279,10 +280,10 @@ export function SidebarMenu({
       {icon}
       <span className="sidebar-link-text">{label}</span>
       {count > 0 ? (
-        // « N » on screen; its words for a screen reader (#818).
+        // « N » on screen, « 99+ » over 99 (#939); its exact words for a screen reader (#818).
         <>
           <span className="sidebar-count" aria-hidden="true">
-            {count}
+            {badgeCount(count)}
           </span>
           <span className="visually-hidden">, {t("conversationFirst.offersToHandle", { count })}</span>
         </>

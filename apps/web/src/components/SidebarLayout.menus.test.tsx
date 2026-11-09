@@ -85,6 +85,11 @@ describe("the Sidebar's Recherches d'offres and Job Digests unfold into their ob
     expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres, 1 offre à traiter" }).querySelector(".sidebar-count")?.textContent).toBe("1");
   });
 
+  it("shows « 99+ » over 99, the exact number said to a screen reader (#939)", () => {
+    renderInFrench(<Page jobSearches={{ ...JOB_SEARCHES, count: 128 }} />);
+    expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres, 128 offres à traiter" }).querySelector(".sidebar-count")?.textContent).toBe("99+");
+  });
+
   it("carries nothing at zero", () => {
     renderInFrench(<Page jobSearches={{ ...JOB_SEARCHES, count: 0 }} />);
     expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres" }).querySelector(".sidebar-count")).toBeNull();

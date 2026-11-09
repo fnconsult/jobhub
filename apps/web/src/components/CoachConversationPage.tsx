@@ -27,6 +27,7 @@ import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { useOpenSignalement } from "@/components/Signalement";
 import { showLatest } from "@/components/thread-scroll";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
+import { useAutoGrow } from "@/design/auto-grow";
 import { buttonClass } from "@/design/Button";
 import { InfoDialog } from "@/design/Dialog";
 import { readNdjson } from "@/ndjson";
@@ -246,6 +247,7 @@ export function CoachConversationPage(page: PagePlacement) {
   // Counts the page's fresh starts (#601): a reply to a conversation since cleared is dropped.
   const generation = useRef(0);
   const input = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(input, draft);
   const messagesEnd = useRef<HTMLDivElement>(null);
   // Its foot, the box, stays at the bottom of the screen over the thread.
   const foot = useRef<HTMLDivElement>(null);
@@ -768,7 +770,7 @@ export function CoachConversationPage(page: PagePlacement) {
             </div>
           ) : null}
           {/* The message box, Send (« Arrêter » while a reply is on its way) and the « Coach IA » badge in it, and what goes with the message. */}
-          <form className="coach-panel-form" onSubmit={send}>
+          <form className="coach-panel-form coach-panel-form-inline" onSubmit={send}>
             <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
             {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
             <p className="visually-hidden" aria-live="polite">
@@ -777,12 +779,13 @@ export function CoachConversationPage(page: PagePlacement) {
             <label className="visually-hidden" htmlFor={`${id}-message`}>
               {t("coachPanel.messageLabel")}
             </label>
-            {/* The Send button sits inside the message box; a click anywhere in the box writes in it. */}
-            <div className="coach-panel-composer" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
+            {/* The Send button sits inside the message box; a click anywhere in the box writes in it. One line to start
+                with, the badge and Send on its row where the column has room (#933); it grows with the text. */}
+            <div className="coach-panel-composer coach-panel-composer-inline" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
               <textarea
                 id={`${id}-message`}
                 ref={input}
-                rows={2}
+                rows={1}
                 placeholder={t("coachPanel.messageLabel")}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}

@@ -913,6 +913,42 @@ textarea.input {
   justify-content: space-between;
 }
 
+/* The conversation's message box (#933): one line to start with, the height of « Envoyer au coach », its text centred in
+   it; it grows with the text (`field-sizing: content`, useAutoGrow where a browser lacks it) up to 8 lines, then scrolls
+   inside. Where its column has room, the « Coach IA » badge and Send stand on its row, at its right, kept on its last
+   line as it grows: the box is one line on a computer. A narrower column (a phone) keeps them on the row under it, so the
+   text keeps a writable width. */
+.coach-panel-form-inline {
+  container: message-box / inline-size;
+}
+
+.coach-panel-composer-inline textarea {
+  --message-box-padding: max(var(--space-1), (var(--control-height) - 1lh) / 2);
+  box-sizing: border-box;
+  min-height: calc(1lh + 2 * var(--message-box-padding));
+  max-height: calc(8lh + 2 * var(--message-box-padding));
+  padding-block: var(--message-box-padding);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+@container message-box (width >= 32rem) {
+  .coach-panel-composer-inline {
+    flex-direction: row;
+    gap: var(--space-2);
+    align-items: flex-end;
+  }
+
+  .coach-panel-composer-inline textarea {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .coach-panel-composer-inline .coach-panel-composer-actions {
+    flex: none;
+  }
+}
+
 /* « En savoir plus » beside the AI badge (#338): « IA dans Jobbbox ». */
 .coach-panel-learn-more {
   margin-right: auto;

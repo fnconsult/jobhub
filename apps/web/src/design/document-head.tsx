@@ -1,5 +1,6 @@
 import { designTokens, renderDesignCss, TEXT_SIZE_SETTINGS, TEXT_SIZE_STORAGE_KEY, themeScript } from "@jobhub/shared/design";
 import { ErrorShellHead } from "./ErrorShellHead";
+import { applyFicheWidth } from "./fiche-width";
 import { applySidebarState } from "./sidebar-state";
 
 const designCss = renderDesignCss(designTokens);
@@ -22,7 +23,7 @@ export function errorShellHeadScript(css: string): string {
 
 /**
  * Design tokens, the theme (Clair, Sombre or Système, #473), the remembered
- * text size (ADR-0009) and whether the sidebar was hidden, all set before
+ * text size (ADR-0009), whether the sidebar was hidden and the Fiche's width (#932), all set before
  * first paint, so a dark page never flashes light. Every document the app
  * renders, including the root error boundary that replaces the root layout,
  * puts this in its <head>. A page not found gets Next's bare error shell
@@ -32,7 +33,7 @@ export function DocumentHead() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: designCss }} />
-      <script dangerouslySetInnerHTML={{ __html: themeScript() + applyTextSize + applySidebarState }} />
+      <script dangerouslySetInnerHTML={{ __html: themeScript() + applyTextSize + applySidebarState + applyFicheWidth }} />
       <ErrorShellHead script={errorShellHeadScript(designCss)} />
     </>
   );

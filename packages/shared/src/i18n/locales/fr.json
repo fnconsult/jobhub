@@ -6026,6 +6026,7 @@
   },
   "fiche": {
     "label": "Fiche",
+    "resize": "Redimensionner la fiche",
     "activity": "Activité",
     "groups": {
       "sections": "Sections",

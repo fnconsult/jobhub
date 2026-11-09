@@ -10,8 +10,8 @@ import { isSecondaryClick, usePointerHover } from "./pointer";
 /** One of a row's actions, in its context menu and its accessibility actions. */
 export type RowAction = { label: string; icon?: LucideIcon; onPress: () => void };
 
-/** Where the menu opens: under the pointer, or under the finger of a long press. */
-type Anchor = { x: number; y: number };
+/** Where the menu opens: under the pointer, or under the finger of a long press (or under the button that opens it). */
+export type Anchor = { x: number; y: number };
 
 /** The menu's width, in rem. */
 const MENU_REM = 16;
@@ -45,6 +45,7 @@ export function ObjectRow({
   actions: readonly RowAction[];
   count?: { value: number; label: string } | undefined;
 }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
   const [menuAt, setMenuAt] = useState<Anchor | null>(null);
@@ -88,12 +89,16 @@ export function ObjectRow({
           </View>
         ) : null}
       </Pressable>
-      {menuAt ? <ContextMenu title={label} anchor={menuAt} actions={actions} onClose={() => setMenuAt(null)} /> : null}
+      {menuAt ? <ContextMenu name={t("conversationFirst.actions", { title: label })} anchor={menuAt} actions={actions} onClose={() => setMenuAt(null)} /> : null}
     </>
   );
 }
 
-function ContextMenu({ title, anchor, actions, onClose }: { title: string; anchor: Anchor; actions: readonly RowAction[]; onClose: () => void }) {
+/**
+ * A menu of actions over the page, its top left at `anchor`, kept inside the window: a row's context menu, or the
+ * Top Bar's « … » on Android (#899). `name` is its accessible name.
+ */
+export function ContextMenu({ name, anchor, actions, onClose }: { name: string; anchor: Anchor; actions: readonly RowAction[]; onClose: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const window = useWindowDimensions();
@@ -114,7 +119,7 @@ function ContextMenu({ title, anchor, actions, onClose }: { title: string; ancho
       <Pressable accessible={false} onPress={onClose} style={{ flex: 1 }} />
       <View
         role="menu"
-        aria-label={t("conversationFirst.actions", { title })}
+        aria-label={name}
         onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
         style={{
           position: "absolute",

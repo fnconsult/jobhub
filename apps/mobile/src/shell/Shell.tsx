@@ -10,6 +10,7 @@ import { AppText, BAR_MAX_SCALE, CappedTextScale } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
+import { CompactTopBarActions, TOP_BAR_RANK, TopBarPrimaryProvider, useTopBarPrimaryOffers, type TopBarAction } from "./top-bar";
 
 /**
  * The page the shell shows: its address (a new one closes what the last page had open), its title, its column, and
@@ -46,6 +47,9 @@ type State = {
  * On a wide window an object's Fiche starts open, as on the web; the Top Bar's « Fiche » or « Activité » alone opens
  * and closes the column, and brings the Fiche back when the Work Pane has taken its place. Every full page closes by
  * its « Fermer » (ADR-0009), Android's back too, and leaves the page behind it out of reach while it covers it.
+ *
+ * Where the panes open full page (below 64rem), the Top Bar is compact (#899, ADR-0101): Menu, the title, one action as
+ * an icon and « … » with the others (CompactTopBarActions); with columns, each action is a button with its words.
  */
 export function Shell({
   page,
@@ -53,15 +57,18 @@ export function Shell({
   sidebar,
   onNewConversation,
   onUp,
-  actions,
+  actions = [],
+  aiRun = null,
   children,
 }: {
   page: ShellPage;
   /** Goes to the page `page.up` names, from its title in the Top Bar. */
   onUp?: (path: string) => void;
   paneContent: ReactNode;
-  /** The page's own buttons in the Top Bar, before « Fiche » or « Activité » (a conversation's « Effacer »). */
-  actions?: ReactNode;
+  /** The page's own actions in the Top Bar, buttons before « Fiche » or « Activité » on the wide bar (a conversation's « Effacer »). */
+  actions?: readonly TopBarAction[];
+  /** The AI action under way on the page, if any: its words (the step) and its stop. Activité takes the compact bar's icon meanwhile. */
+  aiRun?: { words: string; stopLabel: string; stop: () => void } | null;
   /** The Sidebar's menus; `closeDrawer` for a link that navigates. */
   sidebar: (closeDrawer: () => void) => ReactNode;
   onNewConversation: () => void;
@@ -72,6 +79,8 @@ export function Shell({
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const [state, setState] = useState<State>({ pageKey: page.key, drawerOpen: false, sidebarWanted: true, paneOpen: null, workPane: null });
+  // The screen's own main action (useTopBarPrimary), ahead of the others.
+  const { primary, offer, place } = useTopBarPrimaryOffers();
   // A new page: its own panes, closed, and the drawer that led there closes too.
   if (state.pageKey !== page.key) setState({ ...state, pageKey: page.key, drawerOpen: false, paneOpen: null, workPane: null });
 
@@ -111,6 +120,32 @@ export function Shell({
   const paneBody = (pane: ShownPane) => (pane === "workPane" ? state.workPane?.content : paneContent);
   const fills = (pane: ShownPane) => pane === "workPane" && state.workPane?.fill === true;
 
+  const paneAction: TopBarAction | null = page.pane
+    ? {
+        id: page.pane,
+        rank: page.pane === "fiche" ? TOP_BAR_RANK.fiche : TOP_BAR_RANK.activity,
+        label: t(page.pane === "fiche" ? "fiche.label" : "fiche.activity"),
+        icon: page.pane === "fiche" ? PanelRight : Activity,
+        look: "secondary",
+        expanded: paneOpen && !givenWay,
+        run: togglePane,
+        running:
+          page.pane === "activite" && aiRun ? { name: `${t("aiActivity.label")} · ${aiRun.words}`, stop: { label: aiRun.stopLabel, run: aiRun.stop } } : null,
+      }
+    : null;
+  const newConversation: TopBarAction = {
+    id: "newConversation",
+    rank: TOP_BAR_RANK.newConversation,
+    label: t("conversationFirst.newConversation"),
+    icon: SquarePen,
+    iconOnly: true,
+    run: onNewConversation,
+  };
+  // The wide bar's order: the screen's action, the page's (« Effacer »), « Fiche » or « Activité », the pencil.
+  const topBarActions = [primary, ...actions, paneAction, newConversation].filter((action): action is TopBarAction => action !== null);
+  const compact = layout.panes === "fullPage";
+  const topBarHost = useMemo(() => ({ offer, compact, focusPrimary: () => place.current?.() }), [offer, compact, place]);
+
   return (
     <WorkPaneContext.Provider value={workPane}>
       <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
@@ -123,26 +158,39 @@ export function Shell({
           <TopBar
             title={page.title}
             up={page.up && onUp ? { label: page.up.label, go: () => onUp(page.up!.path) } : null}
-            menu={<Control label={t(layout.sidebar === "column" ? "sidebar.collapse" : "sidebar.menu")} icon={layout.sidebar === "column" ? PanelLeftClose : Menu} onPress={onMenu} />}
+            compact={compact}
+            menu={
+              <Control
+                label={t(layout.sidebar === "column" ? "sidebar.collapse" : "sidebar.menu")}
+                icon={layout.sidebar === "column" ? PanelLeftClose : Menu}
+                iconOnly={compact}
+                onPress={onMenu}
+              />
+            }
             end={
-              <>
-                {actions}
-                {page.pane ? (
+              compact ? (
+                <CompactTopBarActions actions={topBarActions} placeRef={place} />
+              ) : (
+                topBarActions.map((action) => (
                   <Control
-                    label={t(page.pane === "fiche" ? "fiche.label" : "fiche.activity")}
-                    icon={page.pane === "fiche" ? PanelRight : Activity}
-                    look="secondary"
-                    expanded={paneOpen && !givenWay}
-                    onPress={togglePane}
+                    key={action.id}
+                    label={action.wideLabel ?? action.label}
+                    icon={action.icon}
+                    iconOnly={action.iconOnly}
+                    look={action.look}
+                    expanded={action.expanded}
+                    badge={action.badge}
+                    onPress={action.run}
                   />
-                ) : null}
-                <Control label={t("conversationFirst.newConversation")} icon={SquarePen} iconOnly onPress={onNewConversation} />
-              </>
+                ))
+              )
             }
           />
           <OfflineBanner />
           <View style={{ flex: 1, flexDirection: "row", paddingBottom: insets.bottom }}>
-            <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>{children}</View>
+            <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>
+              <TopBarPrimaryProvider value={topBarHost}>{children}</TopBarPrimaryProvider>
+            </View>
             {layout.panes === "columns"
               ? // The Work Pane beside the conversation, the Fiche after it (as on the web).
                 [...layout.shown].reverse().map((pane) => (
@@ -178,6 +226,7 @@ const TITLE_MIN_REM = 10;
  * inside its words (« Mes candida / tures ») or take one letter a line and most of the screen. Buttons that do not fit
  * on one line beside the menu (« Effacer », « Activité » and the pencil, at the largest text size) wrap to the next. Its
  * words grow with the system's text size up to twice their size (`BAR_MAX_SCALE`): the page keeps its room under it.
+ * `compact` (#899): the menu and the actions are icons, and the title holds one line, all of it at a large text size.
  */
 function TopBar(props: TopBarProps) {
   return (
@@ -187,9 +236,9 @@ function TopBar(props: TopBarProps) {
   );
 }
 
-type TopBarProps = { title: string; up: { label: string; go: () => void } | null; menu: ReactNode; end: ReactNode };
+type TopBarProps = { title: string; up: { label: string; go: () => void } | null; compact: boolean; menu: ReactNode; end: ReactNode };
 
-function TopBarContent({ title, up, menu, end }: TopBarProps) {
+function TopBarContent({ title, up, compact, menu, end }: TopBarProps) {
   const { colors } = useTheme();
   const { fontScale } = useWindowDimensions();
   const { hovered, hoverProps } = usePointerHover();
@@ -204,7 +253,7 @@ function TopBarContent({ title, up, menu, end }: TopBarProps) {
   const ownLine = widths.bar > 0 && room < TITLE_MIN_REM * 16 * Math.min(fontScale, BAR_MAX_SCALE);
   const beside = ownLine ? null : { flex: 1 };
   const text = (
-    <AppText variant="lead" weight="semiBold" lines={2}>
+    <AppText variant="lead" weight="semiBold" lines={compact ? 1 : 2}>
       {title}
     </AppText>
   );

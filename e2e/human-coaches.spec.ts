@@ -320,7 +320,8 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     const otherCoachEmail = newAddress("coach-other");
     await addCoach(admin, otherCoachEmail);
     await signInWithMagicLink(page, newAddress("coaching-by-coach"));
-    const named = await page.request.post("/api/auth/update-user", { data: { name: "Marie Dupont" }, headers: { origin } });
+    // Her Given Name and Family Name, and what the coaches call her (Mon compte › Identité, #918).
+    const named = await page.request.put("/api/account/identity", { data: { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" }, headers: { origin } });
     expect(named.ok(), await named.text()).toBe(true);
     await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
     const [started] = await checkoutsFor(coachId);
@@ -330,12 +331,13 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
     expect(delivered.status()).toBe(200);
 
-    // No Coach Access granted: the coach still sees the session, naming the Candidate « Marie D. ».
+    // No Coach Access granted: the coach still sees the session, naming the Candidate « Marie D. », with what she is called (#922).
     const coachPage = await personPage(browser, coachEmail);
     await coachPage.goto("/espace-coach");
     const sessions = coachPage.getByRole("region", { name: space.sessionsTitle });
     const session = sessions.getByRole("listitem").filter({ hasText: "Marie D." });
     await expect(session).toHaveCount(1);
+    await expect(session).toContainText(`Marie D. · ${tr(space.calledBy, { name: "Mimi" })}`);
     await expect(session).toContainText(space.sessionToSchedule);
     await expect(sessions).not.toContainText("Marie Dupont");
     await expect(coachPage.getByRole("region", { name: space.candidatesTitle })).toContainText(space.none);
@@ -418,10 +420,30 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await page.getByRole("button", { name: tr(hc.grant, { name: coach.name }) }).click();
     await expect(page.getByText(tr(hc.accessGranted, { name: coach.name }))).toBeVisible();
 
-    // The Human Coach reads the Candidate's file, read only.
+    // Without a name, the Human Coach knows the Candidate by their email.
     await coachPage.reload();
     await coachPage.getByRole("link", { name: email }).click();
     await expect(coachPage.getByRole("heading", { level: 1 })).toHaveText(email);
+    await expect(coachPage.getByText(tr(space.calledBy, { name: "Mimi" }))).toHaveCount(0);
+
+    // Named in Mon compte › Identité (#918), « Marie Dupont · se fait appeler Mimi »; with a Preferred Name that is her Given Name, « Marie Dupont » alone (#922).
+    const name = async (preferredName: string) => {
+      const saved = await page.request.put("/api/account/identity", { data: { givenName: "Marie", familyName: "Dupont", preferredName }, headers: { origin } });
+      expect(saved.ok(), await saved.text()).toBe(true);
+    };
+    await name("Mimi");
+    await coachPage.goto("/espace-coach");
+    const candidates = coachPage.getByRole("region", { name: space.candidatesTitle });
+    await expect(candidates.getByRole("listitem")).toContainText(`Marie Dupont · ${tr(space.calledBy, { name: "Mimi" })} (${email})`);
+    await name("Marie");
+    await coachPage.reload();
+    await expect(candidates.getByRole("listitem")).toHaveText(`Marie Dupont (${email})`);
+    await name("Mimi");
+
+    // The Human Coach reads the Candidate's file, read only.
+    await candidates.getByRole("link", { name: "Marie Dupont" }).click();
+    await expect(coachPage.getByRole("heading", { level: 1 })).toHaveText("Marie Dupont");
+    await expect(coachPage.getByText(tr(space.calledBy, { name: "Mimi" }))).toBeVisible();
     await expect(coachPage.getByText(space.readOnly)).toBeVisible();
     await expect(coachPage.getByText("Pilotage financier.")).toBeVisible();
     await coachPage.getByRole("link", { name: "DAF (H/F) · Acme Industrie" }).click();

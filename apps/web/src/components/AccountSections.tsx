@@ -9,10 +9,12 @@ import { routes } from "@/routes";
  * Mon compte's frame: the sidebar layout titled Mon compte, around its Sections
  * (ADR-0024). The Subscription is one of them, though it keeps its own address
  * (/abonnement), which Stripe and shared promotion links lead to. Under each Section, « Version de Jobbbox » (#559).
+ * Identité comes first (#918); /compte itself, where a Candidate lands once signed in, still shows the Profiles.
  */
 export async function AccountSections({ candidateId, children }: { candidateId: string; children: ReactNode }) {
   const t = await getServerT();
   const sections = [
+    { href: routes.accountIdentity, label: t("account.sections.identity") },
     { href: routes.accountProfiles, label: t("account.sections.profiles") },
     { href: routes.subscription, label: t("sidebar.subscription") },
     { href: routes.accountFollowUps, label: t("account.sections.followUps") },
@@ -28,7 +30,7 @@ export async function AccountSections({ candidateId, children }: { candidateId: 
   ];
   return (
     <CandidateLayout candidateId={candidateId} title={t("account.title")}>
-      <SectionsLayout base={routes.account} label={t("account.sections.sectionsLabel")} backLabel={t("account.sections.backToSections")} sections={sections}>
+      <SectionsLayout base={routes.account} baseShows={routes.accountProfiles} label={t("account.sections.sectionsLabel")} backLabel={t("account.sections.backToSections")} sections={sections}>
         {children}
         <p className="release-line">{t("release.line", { version: releaseLabel(currentRelease()) })}</p>
       </SectionsLayout>

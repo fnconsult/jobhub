@@ -2,9 +2,13 @@
 import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
-import { OfferBox } from "./OfferBox";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { OfferBox, OfferBoxFilterProvider, OfferBoxTopBarTitle } from "./OfferBox";
+import { Icons } from "./icons";
+import { CompactTopBarActions, TOP_BAR_RANK, TopBarActionsProvider, useTopBarAction, useTopBarState } from "./top-bar";
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push: vi.fn() }), usePathname: () => "/recherches" }));
@@ -31,9 +35,44 @@ function entry(id: string, overrides: Partial<OfferBoxEntryRead> = {}): OfferBox
   };
 }
 
+/** An entry of « Précédemment »: arrived two days ago. */
+const earlier = (id: string, matchScore: number, overrides: Partial<OfferBoxEntryRead> = {}) =>
+  entry(id, { matchScore, arrivalDay: "2026-11-03", firstArrivalAt: "2026-11-03T08:00:00.000Z", ...overrides });
+
 const box = (entries: OfferBoxEntryRead[]): OfferBoxResponse => ({ today: TODAY, toHandle: entries.filter((one) => one.state === "to_handle" || one.state === "later").length, entries });
 
 const offerBox = () => screen.getByRole("region", { name: /^Offres à traiter/ });
+
+/** AI Activity's « Activité » in the Top Bar, as AiActivity offers it; `running`: an AI action under way (ADR-0101). */
+function Activity({ running }: { running: boolean }) {
+  return <>{useTopBarAction({ id: "activity", rank: TOP_BAR_RANK.activity, label: "Activité", icon: Icons.activity, run: () => {}, running, controls: "activity-column", expanded: false })}</>;
+}
+
+/** Recherches d'offres as SidebarShell lays it out: its title and the compact Top Bar's actions, then the page (#898). */
+function JobSearchesPage({ box: read, running = false }: { box: OfferBoxResponse; running?: boolean }) {
+  const state = useTopBarState(true);
+  return (
+    <OfferBoxFilterProvider toHandle={read.toHandle}>
+      <TopBarActionsProvider state={state}>
+        <header>
+          <OfferBoxTopBarTitle title="Recherches d'offres" />
+          <Activity running={running} />
+          {state.mode !== "wide" ? <CompactTopBarActions /> : null}
+        </header>
+        <main>
+          <OfferBox box={read} />
+        </main>
+      </TopBarActionsProvider>
+    </OfferBoxFilterProvider>
+  );
+}
+
+/** A phone's width: below 40rem, the Top Bar is compact. */
+function onAPhone() {
+  vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(width < 40rem)", addEventListener: () => {}, removeEventListener: () => {} }));
+}
+
+const filterIcon = (name: string | RegExp = /^Filtrer les offres à traiter/) => within(screen.getByRole("banner")).getByRole("button", { name });
 const day = (name: string) => within(offerBox()).getByRole("region", { name });
 
 describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
@@ -81,8 +120,8 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
     expect(within(today).getByRole("listitem", { name: "Offre none" }).textContent).toContain("Non classée");
     expect(within(today).getByText("Suivies aujourd'hui (1)")).toBeTruthy();
     expect(within(today).getByRole("group").hasAttribute("open")).toBe(false);
-    const earlier = day("Précédemment");
-    expect(within(earlier).getByRole("listitem", { name: "Offre old" }).textContent).toContain("arrivée le 3 nov.");
+    const before = day("Précédemment");
+    expect(within(before).getByRole("listitem", { name: "Offre old" }).textContent).toContain("arrivée le 3 nov.");
     expect(within(today).getByRole("listitem", { name: "Offre top" }).textContent).not.toContain("arrivée le");
   });
 
@@ -244,8 +283,6 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
 
   describe("« Plus tard », « Expirées sans décision » and « Tout écarter » (#817)", () => {
     const later = { state: "later" as const, laterUntil: "2026-11-08T23:00:00.000Z" };
-    const earlier = (id: string, matchScore: number, overrides: Partial<OfferBoxEntryRead> = {}) =>
-      entry(id, { matchScore, arrivalDay: "2026-11-03", firstArrivalAt: "2026-11-03T08:00:00.000Z", ...overrides });
 
     it("« Plus tard » puts the entry away until Monday, with no date to pick; the toast says it stays counted and offers « Annuler »", async () => {
       const fetch = vi.fn(async (_url: string, init?: RequestInit) =>
@@ -345,6 +382,198 @@ describe("the Offer box (« Offres à traiter », ADR-0090)", () => {
 
       expect((await within(day("Précédemment")).findByRole("alert")).textContent).toBe("Les offres n'ont pas pu être écartées. Réessayez.");
       expect(refresh).not.toHaveBeenCalled();
+    });
+  });
+
+  it("says under « Aujourd'hui » how many arrived today and how many are à traiter, for a phone, where the header is behind the filter (#898)", () => {
+    renderInFrench(<OfferBox box={box([entry("a"), entry("b"), entry("c", { state: "followed", applicationId: "app-c", followedAt: "2026-11-05T10:00:00.000Z" }), earlier("old", 70)])} />);
+
+    expect(within(day("Aujourd'hui")).getByText("3 arrivées aujourd'hui · 3 à traiter")).toBeTruthy();
+    expect(within(day("Précédemment")).queryByText(/arrivées? aujourd'hui/)).toBeNull();
+  });
+
+  it("names the day in each tier's heading, for a phone, where only the tier stays pinned; its heading is the tier's alone (#898)", () => {
+    renderInFrench(<OfferBox box={box([earlier("m1", 70), earlier("m2", 65)])} />);
+
+    const tier = within(day("Précédemment")).getByRole("region", { name: /À regarder/ });
+    const heading = tier.querySelector(".offer-box-tier-heading")!;
+    expect(heading.querySelector(".offer-box-tier-day")!.textContent).toBe("Précédemment · ");
+    expect(heading.querySelector(".offer-box-tier-day")!.getAttribute("aria-hidden")).toBe("true");
+    expect(within(tier).getByRole("heading", { level: 4 }).textContent).toBe("À regarder · 60 à 79");
+    expect(within(tier).getByRole("button", { name: "Tout écarter dans « À regarder » (2)" })).toBeTruthy();
+  });
+
+  describe("on a phone, behind the filter icon of the compact Top Bar (#898)", () => {
+    const read = () => box([entry("a", { sources: [{ source: "email", at: "2026-11-05T08:00:00.000Z" }] }), entry("b"), earlier("old", 70)]);
+
+    it("the icon, named by the count and the source, opens the header as a panel, the focus on the source chosen", async () => {
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+
+      const icon = filterIcon("Filtrer les offres à traiter : 3 à traiter, toutes les sources");
+      expect(icon.getAttribute("title")).toBe("Filtrer les offres à traiter");
+      expect(icon.getAttribute("aria-expanded")).toBe("false");
+      const panel = document.getElementById(icon.getAttribute("aria-controls")!)!;
+      expect(panel.className).toContain("offer-box-head");
+      expect(panel.hasAttribute("data-open")).toBe(false);
+
+      await userEvent.click(icon);
+
+      expect(icon.getAttribute("aria-expanded")).toBe("true");
+      expect(panel.hasAttribute("data-open")).toBe(true);
+      expect(document.activeElement).toBe(within(panel).getByRole("button", { name: "Toutes, 3 à traiter" }));
+      expect(within(panel).getByRole("progressbar")).toBeTruthy();
+    });
+
+    it("a source chosen filters the box, closes the panel and gives the focus back to the icon, which shows a filter is on", async () => {
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+      await userEvent.click(filterIcon());
+
+      await userEvent.click(within(offerBox()).getByRole("button", { name: "Email, 1 à traiter" }));
+
+      const icon = filterIcon("Filtrer les offres à traiter : 3 à traiter, source Email");
+      expect(icon.getAttribute("aria-expanded")).toBe("false");
+      expect(document.getElementById(icon.getAttribute("aria-controls")!)!.hasAttribute("data-open")).toBe(false);
+      expect(document.activeElement).toBe(icon);
+      expect(icon.querySelector(".offer-box-filter-dot")).not.toBeNull();
+      expect(within(offerBox()).getAllByRole("listitem").map((line) => line.getAttribute("aria-label"))).toEqual(["Offre a"]);
+
+      // « Toutes » again: no filter, no dot.
+      await userEvent.click(icon);
+      await userEvent.click(within(offerBox()).getByRole("button", { name: "Toutes, 3 à traiter" }));
+      expect(filterIcon("Filtrer les offres à traiter : 3 à traiter, toutes les sources").querySelector(".offer-box-filter-dot")).toBeNull();
+    });
+
+    it("Escape closes the panel, the focus back on the icon; the icon closes it too", async () => {
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+      const icon = filterIcon();
+
+      await userEvent.click(icon);
+      await userEvent.keyboard("{Escape}");
+      expect(icon.getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(icon);
+
+      await userEvent.click(icon);
+      await userEvent.click(icon);
+      expect(icon.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    /** Écarte `title` without a reason, the keyboard focus then on the toast's « Annuler ». */
+    async function dismiss(title: string) {
+      await userEvent.click(within(within(offerBox()).getByRole("listitem", { name: title })).getByRole("button", { name: "Écarter" }));
+      await userEvent.click(within(offerBox()).getByRole("button", { name: "Écarter sans motif" }));
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Annuler" })));
+    }
+
+    it("the toast closed, by « Annuler » or Escape, gives the focus to the icon, not to the box's heading, hidden at the top of the box", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+
+      await dismiss("Offre old");
+      await userEvent.keyboard("{Enter}");
+      await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+      expect(document.activeElement).toBe(filterIcon());
+
+      await dismiss("Offre a");
+      await userEvent.keyboard("{Escape}");
+      expect(document.activeElement).toBe(filterIcon());
+    });
+
+    it("while an AI action runs, Activité in the icon's place, the toast closed gives the focus to « … », where the filter is, not to the hidden heading", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} running />);
+      const more = within(screen.getByRole("banner")).getByRole("button", { name: "Autres actions" });
+      expect(within(screen.getByRole("banner")).queryByRole("button", { name: /^Filtrer les offres à traiter/ })).toBeNull();
+      const title = within(offerBox()).getByRole("heading", { name: "Offres à traiter" });
+      const focus = vi.spyOn(title, "focus");
+
+      await dismiss("Offre old");
+      await userEvent.keyboard("{Enter}");
+      await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+      expect(document.activeElement).toBe(more);
+
+      await dismiss("Offre a");
+      await userEvent.keyboard("{Escape}");
+      expect(document.activeElement).toBe(more);
+      expect(focus).not.toHaveBeenCalled();
+    });
+
+    it("with no compact Top Bar to go back to, the toast closed gives the focus to the hidden heading without scrolling the column to it", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<OfferBox box={read()} />);
+      const title = within(offerBox()).getByRole("heading", { name: "Offres à traiter" });
+      const focus = vi.spyOn(title, "focus");
+
+      await dismiss("Offre old");
+      await userEvent.keyboard("{Enter}");
+
+      await waitFor(() => expect(document.activeElement).toBe(title));
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    });
+
+    it("its panel open, a scrim dims the entries; touched, it closes the panel, the focus back on the icon", async () => {
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+      const icon = filterIcon();
+      const box = offerBox();
+      expect(box.querySelector(".offer-box-scrim")).toBeNull();
+
+      await userEvent.click(icon);
+      const scrim = box.querySelector<HTMLElement>(".offer-box-scrim")!;
+      expect(scrim.getAttribute("aria-hidden")).toBe("true");
+      await userEvent.click(scrim);
+
+      expect(icon.getAttribute("aria-expanded")).toBe("false");
+      expect(document.getElementById(icon.getAttribute("aria-controls")!)!.hasAttribute("data-open")).toBe(false);
+      expect(box.querySelector(".offer-box-scrim")).toBeNull();
+      expect(document.activeElement).toBe(icon);
+    });
+
+    it("opened from « … » while an AI action runs, the panel gives the focus back to « … » when it closes", async () => {
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} running />);
+      const more = within(screen.getByRole("banner")).getByRole("button", { name: "Autres actions" });
+
+      await userEvent.click(more);
+      await userEvent.click(await screen.findByRole("menuitem", { name: "Filtrer les offres à traiter" }));
+      await waitFor(() => expect(document.activeElement).toBe(within(offerBox()).getByRole("button", { name: "Toutes, 3 à traiter" })));
+      await userEvent.keyboard("{Escape}");
+
+      expect(offerBox().querySelector(".offer-box-head[data-open]")).toBeNull();
+      expect(document.activeElement).toBe(more);
+    });
+
+    it("its panel open, the toast closed gives the focus to the box's heading, in view in the panel", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+      onAPhone();
+      renderInFrench(<JobSearchesPage box={read()} />);
+
+      await dismiss("Offre old");
+      await userEvent.click(filterIcon());
+      screen.getByRole("button", { name: "Annuler" }).focus();
+      await userEvent.keyboard("{Escape}");
+
+      expect(document.activeElement).toBe(within(offerBox()).getByRole("heading", { name: "Offres à traiter" }));
+    });
+
+    it("is drawn in the Top Bar from the server's HTML, before the page knows its width, so the bar does not change when it hydrates", () => {
+      const container = document.createElement("div");
+      container.innerHTML = renderToString(
+        <I18nProvider locale="fr">
+          <JobSearchesPage box={read()} />
+        </I18nProvider>,
+      );
+
+      const icon = container.querySelector<HTMLButtonElement>("header .topbar-first-paint")!;
+      expect(icon.getAttribute("aria-disabled")).toBe("true");
+      const byId = (id: string) => container.querySelector(`[id="${id}"]`)!;
+      expect(byId(icon.getAttribute("aria-labelledby")!).textContent).toBe("Filtrer les offres à traiter : 3 à traiter, toutes les sources");
+      expect(byId(icon.getAttribute("aria-controls")!).className).toContain("offer-box-head");
     });
   });
 

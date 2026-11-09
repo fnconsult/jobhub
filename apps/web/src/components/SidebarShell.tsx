@@ -69,8 +69,9 @@ function setHidden(hidden: boolean) {
  * signing out), the Top
  * Bar with the Menu button, the page's `title` and `topBarEnd` (the Candidate's « Fiche », AI Activity's button, « Effacer »
  * or « Aide », #809; the Back Office Assistant's button), and the page as `<main>`, `beside` it (the Work Pane, the Fiche or
- * the Activité column). `title` is the page's `<h1>`: a string, or an element that
- * is one itself (an editable title). Pages never render their own (ADR-0024).
+ * the Activité column). `title` is the page's `<h1>`: a string, an element that
+ * is one itself (an editable title), or a fragment that starts with it (Recherches d'offres': the `<h1>`, then the Offer
+ * box's filter icon, OfferBoxTopBarTitle, #898). Pages never render their own (ADR-0024).
  *
  * On a wide screen the sidebar sits beside the page and can be hidden
  * (remembered by this browser); the Menu button brings it back. Below 64rem

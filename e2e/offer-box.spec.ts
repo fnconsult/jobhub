@@ -162,8 +162,10 @@ test.describe("The Offer box (#815, ADR-0090)", () => {
     expect(await offerBox(ines.page)).toMatchObject({ toHandle: 0, entries: [{ id: entry!.id, state: "dismissed", dismissalReason: "salary" }] });
     expect((await offerBox(paul.page)).entries).toMatchObject([{ jobOffer: { id: entry!.jobOffer.id }, state: "to_handle" }]);
 
-    // « Annuler », in the toast: à traiter again.
+    // « Annuler », in the toast: à traiter again. The reason's button lost the focus while it worked: the focus goes to
+    // the box's heading, not nowhere.
     await ines.page.getByRole("button", { name: fr.offerBox.undo }).click();
+    await expect(box.getByRole("heading", { level: 2, name: fr.offerBox.title })).toBeFocused();
     await expect(box.getByText(fr.offerBox.dismissedBlock.replace("{{count}}", "1"))).toBeHidden();
     expect(await offerBox(ines.page)).toMatchObject({ toHandle: 1, entries: [{ state: "to_handle", dismissalReason: null }] });
 

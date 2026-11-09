@@ -5578,6 +5578,12 @@
       "share": "Partage"
     },
     "chipCount": "{{source}}, {{count}} à traiter",
+    "filter": "Filtrer les offres à traiter",
+    "filterName": "Filtrer les offres à traiter : {{count}} à traiter, {{source}}",
+    "filterAll": "toutes les sources",
+    "filterSource": "source {{source}}",
+    "todayLine_one": "{{count}} arrivée aujourd'hui · {{toHandle}} à traiter",
+    "todayLine_other": "{{count}} arrivées aujourd'hui · {{toHandle}} à traiter",
     "today": "Aujourd'hui",
     "earlier": "Précédemment",
     "tiers": {

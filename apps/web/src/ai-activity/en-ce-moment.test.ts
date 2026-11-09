@@ -1,6 +1,6 @@
 import type { ProvenanceEvent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { enCeMoment } from "./en-ce-moment";
+import { enCeMoment, glyphNow } from "./en-ce-moment";
 import { nextLive, type LiveAction, type LiveChange } from "./live";
 
 const at = "2026-11-06T10:00:00.000Z";
@@ -96,5 +96,30 @@ describe("« En ce moment » (ADR-0086, #806)", () => {
   it("never counts a time below zero (a clock a little behind the action's start)", () => {
     const [search] = enCeMoment(apply(searchStarted), searchPage, Date.parse(at) - 500).here;
     expect(search!.ms).toBe(0);
+  });
+});
+
+describe("the glyph of an action under way, the same in « En ce moment » and on « Activité » in the Top Bar (#333, ADR-0034)", () => {
+  const [before] = apply(searchStarted);
+  const [between] = apply(searchStarted, webSearch, webSearchEnded);
+  const [proposing] = apply(replyStarted, consults, consulted, proposes);
+
+  it("is the brain before the first step", () => {
+    expect(glyphNow(before!)).toEqual({ activity: "think", label: undefined, step: undefined });
+  });
+
+  it("between two steps, stays the last step's, not the brain of before the first", () => {
+    expect(glyphNow(between!)).toEqual({ activity: "web_search", label: "web_search", step: 1 });
+  });
+
+  it("is the step under way's, with its label and its id: a Coach Action that proposes draws its card, and the next step morphs in", () => {
+    expect(glyphNow(proposing!)).toEqual({ activity: "act", label: "propose", step: 3 });
+  });
+
+  it("is what « En ce moment » draws", () => {
+    for (const action of [before!, between!, proposing!]) {
+      const [item] = [...enCeMoment([action], searchPage, NOW).here];
+      expect(glyphNow(action)).toEqual({ activity: item!.activity, label: item!.label, step: item!.step });
+    }
   });
 });

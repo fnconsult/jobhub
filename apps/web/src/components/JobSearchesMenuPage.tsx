@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { cache } from "react";
 import { offerBoxResponse } from "@/candidate-reads";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { CoachConversationPage } from "@/components/CoachConversationPage";
@@ -23,7 +22,7 @@ import { jobSearchesMenu, type JobSearchesMenuGroup } from "@/job-searches/menu"
 import { getJobSearches } from "@/job-searches/server";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import type { OfferBoxContents } from "@/offer-box";
-import { getOfferBox } from "@/offer-box/server";
+import { readOfferBox } from "@/offer-box/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
 import { objectDay } from "@/sidebar-menus";
@@ -42,12 +41,6 @@ const RESULT: AddressedKind = "result";
 
 /** What the address opens in the Work Pane beside the Offer box: « Recherches par Profil », « Reçues par email » or a Job Offer. */
 export type JobSearchesPane = { kind: "byProfile" } | { kind: "received" } | { kind: "offer"; jobOfferId: string } | null;
-
-/**
- * The Candidate's Offer box, read once per request: the page's title reads its count for the filter icon in the Top Bar
- * (#898), and the page lays it out.
- */
-export const readOfferBox = cache((candidateId: string) => getOfferBox().read(candidateId));
 
 /** A Job Search's outcome, tinted; its words carry the meaning. */
 const STATUS_TONES: Record<JobSearchStatus, Tone> = { searching: "accent", done: "success", failed: "danger", stopped: "neutral" };

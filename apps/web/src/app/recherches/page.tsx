@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
-import { JobSearchesMenuPage, readOfferBox, type JobSearchesPane } from "@/components/JobSearchesMenuPage";
+import { JobSearchesMenuPage, type JobSearchesPane } from "@/components/JobSearchesMenuPage";
 import { OfferBoxFilterProvider, OfferBoxTopBarTitle } from "@/components/OfferBox";
 import { getServerT } from "@/i18n/server";
+import { readOfferBox } from "@/offer-box/server";
 import "./recherches.css";
 
 export async function generateMetadata(): Promise<Metadata> {

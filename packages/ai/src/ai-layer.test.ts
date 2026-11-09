@@ -115,6 +115,16 @@ describe("Eval Runs (#231, ADR-0023)", () => {
     expect(usage.entries).toEqual([expect.objectContaining({ task: "eval", candidateId: null, provider: "anthropic" })]);
   });
 
+  it("marks every call of an Eval Run as a test, made for no one, so Appels IA never takes it for a Guest's (#926)", async () => {
+    const { ai, usage } = setUp();
+
+    await ai.forEval().generate({ task: "coaching", candidateId: null, prompt: "Bonjour" });
+    await ai.forEval().generate({ task: "eval", candidateId: null, prompt: "Note cette réponse" });
+    await ai.generate({ task: "coaching", candidateId: null, prompt: "Bonjour" });
+
+    expect(usage.entries.map((entry) => entry.test)).toEqual([true, true, undefined]);
+  });
+
   it("plays a call on the route of its own task, outside the EU too once configured: every call is redacted (ADR-0007 amendment)", async () => {
     const outsideEu = createFakeProvider({ id: "mistral", residency: "outside_eu" });
     const usage = createMemoryUsageLog();
@@ -514,7 +524,7 @@ describe("the Failure Reason of every failed AI call (#259, ADR-0030)", () => {
 
     await expect(ai.forEval().searchCompany({ candidateId: null, employer: "Acme" })).rejects.toThrow(AiConfigError);
 
-    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", candidateId: null, outcome: "failed", reason: "route_missing", sent: false })]);
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", candidateId: null, outcome: "failed", reason: "route_missing", sent: false, test: true })]);
   });
 
   it("keeps a technical message holding an API key, an email or more than 500 characters scrubbed, redacted and cut", async () => {

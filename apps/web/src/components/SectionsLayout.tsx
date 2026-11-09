@@ -23,6 +23,8 @@ export type SectionLink = { href: string; label: string };
  * is shown alone, sliding in like a sheet, with the Top Bar's title turned into
  * a way back to the list behind an arrow (iOS style): a page styled as a
  * drawer, so the back button, links and screen readers work as on any page.
+ * `baseShows`: the Section `base` shows instead of the first (Mon compte's Profils, where a Candidate lands, listed
+ * under Identité, #918).
  * `look="tabs"` (an Application's page, #467; the Profile's, #468): from 64rem the Sections are tabs in one line
  * above the one shown, the Design System's tab look, scrolling sideways when they do not fit; they never move to the
  * sidebar. Below 64rem, the list and each Section alone, as with the list look.
@@ -33,6 +35,7 @@ export function SectionsLayout({
   label,
   backLabel,
   sections,
+  baseShows,
   look = "list",
   aside,
   children,
@@ -41,6 +44,8 @@ export function SectionsLayout({
   label: string;
   backLabel: string;
   sections: ReadonlyArray<SectionLink>;
+  /** The href of the Section `base` shows; the first one by default. */
+  baseShows?: string;
   /** From 64rem, the Sections listed beside the one shown (`list`), or as tabs above it (`tabs`). Below 64rem both are the phone's list. */
   look?: "list" | "tabs";
   /** What stays beside every Section from 64rem (the Profile's Search Criteria and ATS Score); under the list on a phone. */
@@ -49,9 +54,9 @@ export function SectionsLayout({
 }) {
   const pathname = usePathname();
   const atBase = pathname === base;
-  // The page's own address shows the first Section.
+  // The page's own address shows the first Section, or the one it is told to.
   const shown = atBase
-    ? sections[0]?.href
+    ? (baseShows ?? sections[0]?.href)
     : sections.find(
         (section) =>
           pathname === section.href || pathname.startsWith(`${section.href}/`),

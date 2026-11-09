@@ -3,10 +3,12 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon compte
-synonyms: [compte, app, application, iPhone, Android, supprimer mon compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, propositions du coach, formulaire, carte, abonnement, sécurité, vérification en deux étapes, codes de secours, application d'authentification, clé d'accès, clés d'accès, passkey, Face ID, Touch ID, Windows Hello, clé de sécurité, notifications, notifications de l'app, notification push]
+synonyms: [compte, identité, prénom, nom, nom employé par les coachs, comment m'appeler, app, application, iPhone, Android, supprimer mon compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, propositions du coach, formulaire, carte, abonnement, sécurité, vérification en deux étapes, codes de secours, application d'authentification, clé d'accès, clés d'accès, passkey, Face ID, Touch ID, Windows Hello, clé de sécurité, notifications, notifications de l'app, notification push]
 route: /compte
 ---
-Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Sécurité, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.
+Mon compte rassemble vos réglages, en rubriques : Identité, Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Sécurité, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.
+
+Identité, en tête de la liste, garde votre « Prénom », votre « Nom » et « Comment souhaitez-vous que les coachs vous appellent ? » : le nom employé par les coachs, celui par lequel le Coach IA et vos coachs vous appellent. Chacun est facultatif et compte 80 caractères au plus ; laissez le dernier vide pour ne pas être appelé par un nom. Cliquez sur « Enregistrer » : votre nom de compte devient votre prénom suivi de votre nom. Si votre compte existait avant cette rubrique, Jobbbox l'a remplie une fois, à partir du nom de votre compte ou, sinon, de celui de votre CV de référence (le mot écrit en capitales, comme sur beaucoup de CV, est pris pour le nom), et le nom employé par les coachs reprend votre prénom. Changez ou effacez chacun à tout moment. En arrivant dans Mon compte, vous voyez toujours vos Profils.
 
 Profils liste vos profils actifs, puis les archivés. Abonnement montre votre offre et ce que vous en avez utilisé cette semaine : il a son propre article, Mon abonnement.
 

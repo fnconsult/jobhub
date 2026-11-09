@@ -343,6 +343,7 @@
     "sections": {
       "sectionsLabel": "Sections of my account",
       "backToSections": "My account",
+      "identity": "Identity",
       "profiles": "Profiles",
       "followUps": "Follow-ups",
       "euAi": "European AI",
@@ -360,7 +361,31 @@
       "extensionTitle": "Jobbbox Chrome extension",
       "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
       "install": "Install the extension from the Chrome Web Store",
-      "soon": "The extension is coming soon to the Chrome Web Store."
+      "soon": "The extension is coming soon to the Chrome Web Store.",
+      "newTab": "(new tab)",
+      "testBuild": {
+        "title": "Latest version of the extension",
+        "intro": "For administrators only: load the extension this server serves, before it is published on the Chrome Web Store.",
+        "extensionVersion": "Extension version",
+        "apiVersion": "API version served",
+        "releases": "See the versions on GitHub",
+        "access": "The repository is private: you need access to it.",
+        "stepsLabel": "Load the extension in Chrome",
+        "steps": {
+          "download": "Download {{zip}}, then unzip it.",
+          "developerMode": "Open chrome://extensions and turn on « Developer mode ».",
+          "loadUnpacked": "Click « Load unpacked » and choose the unzipped folder."
+        }
+      }
+    },
+    "identity": {
+      "givenName": "First name",
+      "familyName": "Last name",
+      "preferredName": "What would you like the coaches to call you?",
+      "preferredNameHint": "The AI Coach and your coaches call you this. Leave it empty not to be called by a name.",
+      "save": "Save",
+      "tooLong": "80 characters at most.",
+      "error": "Your identity could not be saved. Please try again."
     }
   },
   "accountData": {
@@ -2804,7 +2829,8 @@
       "at": "Date",
       "provider": "Provider and model",
       "candidate": "Candidate",
-      "noCandidate": "None (Guest)",
+      "guest": "Guest",
+      "test": "Eval / test",
       "result": "Result",
       "open": "Open",
       "openLabel": "Open the call of {{at}}",

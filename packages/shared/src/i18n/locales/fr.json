@@ -343,6 +343,7 @@
     "sections": {
       "sectionsLabel": "Rubriques de mon compte",
       "backToSections": "Mon compte",
+      "identity": "Identité",
       "profiles": "Profils",
       "followUps": "Relances",
       "euAi": "IA européenne",
@@ -360,7 +361,31 @@
       "extensionTitle": "Extension Chrome Jobbbox",
       "extensionIntro": "Depuis la page d'une offre d'emploi, l'extension l'enregistre dans Jobbbox et calcule son score de correspondance, sans copier-coller.",
       "install": "Installer l'extension depuis le Chrome Web Store",
-      "soon": "L'extension arrive bientôt sur le Chrome Web Store."
+      "soon": "L'extension arrive bientôt sur le Chrome Web Store.",
+      "newTab": "(nouvel onglet)",
+      "testBuild": {
+        "title": "Dernière version de l'extension",
+        "intro": "Réservé aux administrateurs : chargez l'extension que sert ce serveur, avant sa publication sur le Chrome Web Store.",
+        "extensionVersion": "Version de l'extension",
+        "apiVersion": "Version d'API servie",
+        "releases": "Voir les versions sur GitHub",
+        "access": "Le dépôt est privé : il faut y avoir accès.",
+        "stepsLabel": "Charger l'extension dans Chrome",
+        "steps": {
+          "download": "Téléchargez {{zip}}, puis décompressez-le.",
+          "developerMode": "Ouvrez chrome://extensions et activez le « Mode développeur ».",
+          "loadUnpacked": "Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé."
+        }
+      }
+    },
+    "identity": {
+      "givenName": "Prénom",
+      "familyName": "Nom",
+      "preferredName": "Comment souhaitez-vous que les coachs vous appellent ?",
+      "preferredNameHint": "Le Coach IA et vos coachs vous appellent ainsi. Laissez vide pour ne pas être appelé par un nom.",
+      "save": "Enregistrer",
+      "tooLong": "80 caractères au plus.",
+      "error": "Votre identité n'a pas pu être enregistrée. Réessayez."
     }
   },
   "accountData": {
@@ -2804,7 +2829,8 @@
       "at": "Date",
       "provider": "Fournisseur et modèle",
       "candidate": "Candidat",
-      "noCandidate": "Aucun (invité)",
+      "guest": "Invité",
+      "test": "Eval / test",
       "result": "Résultat",
       "open": "Ouvrir",
       "openLabel": "Ouvrir l'appel du {{at}}",

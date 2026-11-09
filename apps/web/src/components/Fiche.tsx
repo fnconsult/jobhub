@@ -10,6 +10,8 @@ import { ContextBar } from "@/components/ContextBar";
 import { EnCeMoment } from "@/components/EnCeMoment";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
+import { useActivityTopBarAction } from "@/components/activity-run";
+import { TOP_BAR_RANK, useTopBarAction, useTopBarMode } from "@/components/top-bar";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { SIDEBAR_CLOSED } from "@/design/sidebar-state";
@@ -212,15 +214,25 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
 /**
  * « Fiche » and AI Activity's button, « Activité », in the Top Bar of an object's page (#603, #809): they alone open and
  * close the Fiche, AI Activity's button on its Activity group. On the home page and the menus (#607), AI Activity's button
- * alone, which opens and closes the Activité column. Nothing outside a FicheProvider.
+ * alone, which opens and closes the Activité column. Nothing outside a FicheProvider. On a phone, nothing: they offer
+ * their toggles to the compact Top Bar (#897), « Activité » shown there while an action runs (useActivityTopBarAction).
  */
 export function FicheButtons() {
   const { t } = useTranslation();
   const control = useContext(FicheControl);
-  if (!control) return null;
-  const { ficheId } = control;
+  // On a phone, the compact Top Bar shows them (#897): the same toggles.
+  const mode = useTopBarMode();
   // What is shown: a Fiche that has given way to the Work Pane is not.
-  const open = control.state.open && !control.givenWay;
+  const open = control ? control.state.open && !control.givenWay : false;
+  // While the width is not known, each draws its icon too, which app.css shows on a phone (useTopBarAction).
+  const ficheIcon = useTopBarAction(
+    control?.object
+      ? { id: "fiche", rank: TOP_BAR_RANK.fiche, label: t("fiche.label"), icon: Icons.fiche, run: control.toggleFiche, expanded: open, controls: open ? control.ficheId : undefined }
+      : null,
+  );
+  const activityIcon = useActivityTopBarAction();
+  if (!control || mode === "compact") return null;
+  const { ficheId } = control;
   return (
     <>
       {control.object ? (
@@ -229,7 +241,9 @@ export function FicheButtons() {
           {t("fiche.label")}
         </button>
       ) : null}
+      {ficheIcon}
       <AiActivityButton />
+      {activityIcon}
     </>
   );
 }

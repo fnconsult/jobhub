@@ -520,12 +520,12 @@ test("where field-sizing is unsupported, the name and the Master CV's texts stil
   await page.goto(`/profils/${id}/cv-de-reference`);
   const clipped = (field: ReturnType<Page["locator"]>) => field.evaluate((el) => el.scrollHeight - el.clientHeight);
 
-  // "Directrice administrative et financière" wraps at 375px: it shows on every line it takes.
+  // "Directrice administrative et financière" is longer than the phone's Top Bar: its line shows whole in height.
   await expect(title(page)).toHaveValue("Directrice administrative et financière");
   await expect(title(page)).toHaveCSS("field-sizing", "fixed");
   await expect.poll(() => clipped(title(page))).toBeLessThanOrEqual(0);
-  // Two lines at the Top Bar's title size (ADR-0024).
-  expect((await title(page).boundingBox())!.height).toBeGreaterThan(45);
+  // One line at the Top Bar's title size (ADR-0024), the compact Top Bar's one line (#897): it scrolls sideways, never wraps.
+  expect((await title(page).boundingBox())!.height).toBeLessThan(45);
 
   // It follows the text as the Candidate types.
   await title(page).fill("Directrice administrative et financière, groupe industriel international");

@@ -10,6 +10,7 @@ import type { ConversationContext } from "@/coach/conversation";
 import type { ReplyGiven } from "@/ai-activity/entries";
 import { Icons } from "@/components/icons";
 import { CURRENT, type CloseDrawerThen } from "@/components/SidebarShell";
+import { TOP_BAR_RANK, useTopBarAction, useTopBarMode } from "@/components/top-bar";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { ConfirmDialog } from "@/design/Dialog";
@@ -429,38 +430,60 @@ function FreeConversationItem({ conversation, current, onNavigate }: { conversat
  * « Annuler »), deletes every message of the page's conversation; Coach Memory stays. The page starts afresh, and the
  * Sidebar no longer lists it. Unavailable while a reply is on its way: the server saves the Candidate's message when the
  * reply ends or is stopped, which would leave it saved after clearing; « Arrêter » first, then « Effacer ».
- * `inContextBar`: the same, offered by the Context bar once it is nearly full (#607), « Effacer la conversation ».
+ * `inContextBar`: the same, offered by the Context bar once it is nearly full (#607), « Effacer la conversation ». On a
+ * phone, the Top Bar's is « Effacer la conversation » under the compact Top Bar's « … » (#897).
  */
 export function ClearConversationButton({ inContextBar = false }: { inContextBar?: boolean }) {
   const { t } = useTranslation();
   const conversationFirst = useConversationFirst();
   const page = conversationFirst?.page;
+  // On a phone, under the compact Top Bar's « … » (#897): the same Dialog, opened from there.
+  const compact = useTopBarMode() === "compact" && !inContextBar;
+  const [confirming, setConfirming] = useState(false);
+  // « … », which opened it: the Dialog, with no trigger of its own, gives the focus back to it.
+  const opener = useRef<HTMLElement | null>(null);
+  function confirm(open: boolean) {
+    setConfirming(open);
+    if (open) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    else requestAnimationFrame(() => opener.current?.focus());
+  }
+  // While the width is not known, its icon too, which app.css shows on a phone (useTopBarAction).
+  const icon = useTopBarAction(
+    page && !inContextBar
+      ? { id: "clear", rank: TOP_BAR_RANK.clear, label: t("contextBar.clear"), icon: Icons.clear, run: () => confirm(true), disabled: page.replying }
+      : null,
+  );
   if (!conversationFirst || !page) return null;
   async function clear() {
     const conversationId = page!.conversationId;
     if ((await page!.clear()) && conversationId) conversationFirst!.removed(conversationId);
   }
   return (
-    <ConfirmDialog
-      trigger={
-        inContextBar ? (
-          <button className={`${buttonClass({ variant: "quiet", size: "sm" })} context-bar-clear`} type="button" disabled={page.replying}>
-            {t("contextBar.clear")}
-          </button>
-        ) : (
-          <button className={`${buttonClass()} topbar-clear`} type="button" disabled={page.replying}>
-            <Icons.clear />
-            {t("conversationFirst.clear")}
-          </button>
-        )
-      }
-      title={t("conversationFirst.clearTitle")}
-      confirmLabel={t("conversationFirst.clear")}
-      tone="danger"
-      onConfirm={() => void clear()}
-    >
-      {t("conversationFirst.clearText")}
-    </ConfirmDialog>
+    <>
+      <ConfirmDialog
+        {...(compact
+          ? { open: confirming, onOpenChange: confirm }
+          : {
+              trigger: inContextBar ? (
+                <button className={`${buttonClass({ variant: "quiet", size: "sm" })} context-bar-clear`} type="button" disabled={page.replying}>
+                  {t("contextBar.clear")}
+                </button>
+              ) : (
+                <button className={`${buttonClass()} topbar-clear`} type="button" disabled={page.replying}>
+                  <Icons.clear />
+                  {t("conversationFirst.clear")}
+                </button>
+              ),
+            })}
+        title={t("conversationFirst.clearTitle")}
+        confirmLabel={t("conversationFirst.clear")}
+        tone="danger"
+        onConfirm={() => void clear()}
+      >
+        {t("conversationFirst.clearText")}
+      </ConfirmDialog>
+      {icon}
+    </>
   );
 }
 
@@ -477,11 +500,18 @@ export function PageHelpButton() {
   const article = onThisPage(pathname, helpLocale(i18n.language))?.article;
   // A conversation's page is known by its address too, before it registers itself: the button never flashes there.
   const isConversation = conversationFirst?.page || pathname === routes.home || pathname.startsWith(routes.conversation(""));
-  if (!conversationFirst || isConversation || !workPane || !article) return null;
+  const open = conversationFirst && !isConversation && workPane && article ? () => workPane.open({ kind: "help", article }) : null;
+  // On a phone, in the compact Top Bar (#897).
+  const mode = useTopBarMode();
+  const icon = useTopBarAction(open ? { id: "help", rank: TOP_BAR_RANK.help, label: t("conversationFirst.help"), icon: Icons.help, run: open } : null);
+  if (!open || mode === "compact") return null;
   return (
-    <button className={`${buttonClass()} topbar-help`} type="button" onClick={() => workPane.open({ kind: "help", article })}>
-      <Icons.help />
-      {t("conversationFirst.help")}
-    </button>
+    <>
+      <button className={`${buttonClass()} topbar-help`} type="button" onClick={open}>
+        <Icons.help />
+        {t("conversationFirst.help")}
+      </button>
+      {icon}
+    </>
   );
 }

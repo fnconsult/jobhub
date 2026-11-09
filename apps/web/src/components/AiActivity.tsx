@@ -45,7 +45,7 @@ const NO_ACTIONS: readonly LiveAction[] = [];
 const NO_ENTRIES: readonly ServedEntry[] = [];
 const NO_REPLIES: readonly ReplyGiven[] = [];
 
-const AiActivityControl = createContext<Control | null>(null);
+export const AiActivityControl = createContext<Control | null>(null);
 
 /**
  * AI Activity (CONTEXT.md, #314, #332, ADR-0086): the page's Activité entries, which the Fiche's « Activité » group and the
@@ -97,7 +97,7 @@ function useLanguage(): Language {
 }
 
 /** « 3 modèles · 10,9k tokens »: the button's words, from the page's entries; null on a page where no model served. */
-function useSummary(entries: readonly ActivityEntry[]): string | null {
+export function useSummary(entries: readonly ActivityEntry[]): string | null {
   const { t } = useTranslation();
   const language = useLanguage();
   const summary = pageSummary(entries);
@@ -170,10 +170,10 @@ export function AiActivityButton() {
 }
 
 /** The glyph before an action's first step. */
-const BEFORE_FIRST_STEP: Activity = "think";
+export const BEFORE_FIRST_STEP: Activity = "think";
 
 /** What an action under way is doing, in words: its step, « Arrêt en cours… », or « Démarrage » before its first step. */
-function StepWords({ action }: { action: LiveAction }) {
+export function StepWords({ action }: { action: LiveAction }) {
   const { t } = useTranslation();
   if (action.status === "stopping") return t("aiActivity.live.stopping");
   return action.current ? t(`aiActivity.steps.${action.current.label}`) : t("aiActivity.live.starting");

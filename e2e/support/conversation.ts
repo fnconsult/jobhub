@@ -60,6 +60,15 @@ export async function openActivity(page: Page) {
   return activityOf(page);
 }
 
+/** « … » in the compact Top Bar of a phone (#897): the page's other actions, in words, in its menu. */
+export const topBarMoreOf = (page: Page) => page.getByRole("banner").getByRole("button", { name: fr.sidebar.moreActions, exact: true });
+
+/** On a phone, picks `name` (« Activité », « Effacer la conversation », « Aide »…) under the compact Top Bar's « … » (#897). */
+export async function chooseInTopBarMore(page: Page, name: string): Promise<void> {
+  await topBarMoreOf(page).click();
+  await page.getByRole("menu").getByRole("menuitem", { name, exact: true }).click();
+}
+
 /** « Activité »'s glyph, live while an AI action of the page is under way (#603): what the closed button says of it. */
 export const activityUnderWayOf = (page: Page) => activityButtonOf(page).locator(".activity-glyph[data-live]");
 

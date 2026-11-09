@@ -7,7 +7,7 @@ synonyms: [ai activity, activity, right now, running elsewhere, nothing is runni
 ---
 AI activity shows what AI, the coach and you did on the open page. The « Activity » button, at the top of the page, opens it and closes it again: in the Fiche's « Activity » group on an object's page (a profile, a job search, an application…), in the Activity column on the home page and the menus. Escape, on the button, closes it too. From top to bottom: the conversation's context, « Right now », then the history.
 
-While the activity is closed, the button says on its left what AI did on the page, for example 3 models · 10.9k tokens, or the step under way, with the stop icon that interrupts it. A click on those words opens the activity, as the button does, which a screen reader announces as « AI activity », followed by those words. On a phone, the button does not show those words, and the activity opens full screen, over the conversation: « Close », or Escape, closes it and brings you back to the button.
+While the activity is closed, the button says on its left what AI did on the page, for example 3 models · 10.9k tokens, or the step under way, with the stop icon that interrupts it. A click on those words opens the activity, as the button does, which a screen reader announces as « AI activity », followed by those words. On a phone, the activity opens full screen, over the conversation: « Close », or Escape, closes it and brings you back to where you opened it, the « Activity » icon or « … » (see below).
 
 « Right now », at the top of the activity, just under the conversation's context, shows the AI actions under way: this page's first, then « Running elsewhere », with a link to their page. A job search running while the coach answers you shows there beside its reply. For each: its glyph, the step under way, the number of steps done and the time so far; for a coach reply, each tool it looks at, ticked once done. The stop icon interrupts it: what was finished is kept. A finished action leaves « Right now »; with nothing under way, it says « Nothing is running on this page. ».
 
@@ -31,3 +31,5 @@ The cost is never given in euros:
 - what Jobbbox's rules, or you, do without AI says « No AI ».
 
 At the very bottom, « This page's sources and tools », folded, lists each site read and each tool used once. AI activity never shows an internal setting. « Learn more » leads to the « AI in Jobbbox » section of the privacy policy.
+
+On a phone, the top bar keeps icons only. On the home page and the menus, « Activity » is the icon shown; on an object's page, « Fiche » is, and « Activity » is under « … », at the top right. While an AI action runs, « Activity » takes the shown icon's place, with its stop icon, then goes back under « … » once it ends.

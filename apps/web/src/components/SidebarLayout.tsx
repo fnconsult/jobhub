@@ -112,6 +112,7 @@ export function SidebarLayout({
           </>
         }
         signOut={false}
+        compactTopBar
         foot={(closeDrawer, closeDrawerThen) => (
           <>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}

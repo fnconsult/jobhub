@@ -326,3 +326,93 @@ test.describe("AI Activity (#332)", () => {
     await expect(page.locator(".ai-activity-control, .activity-column")).toHaveCount(0);
   });
 });
+
+// #936: « Activité »'s glyph in the Top Bar is the very glyph « En ce moment » draws for the action under way (glyphNow),
+// live, morphing from one step into the next, on a wider screen as in the compact Top Bar of a phone (#897). A Job Search
+// searching is stored for the Candidate, its Run progress written here moment by moment, which the page's poll reads
+// (ADR-0034): each moment of a run is shown for sure, between two steps above all, when the poll finds them all ended.
+test.describe("« Activité »'s live glyph follows the step under way (#936, #333, ADR-0034)", () => {
+  const at = "2026-11-09T09:00:00.000Z";
+  const started = (id: number, activity: string) => ({ type: "step_started", id, step: { kind: "tool", activity, tool: "job-site", at } });
+  const ended = (id: number, activity: string) => ({ type: "step_ended", id, step: { kind: "tool", activity, tool: "job-site", ms: 900, at, outcome: "ok", count: 2 } });
+  /** A Job Search's run, moment by moment: its Run progress, and the glyph it must draw. */
+  const RUN = [
+    { moment: "a web search under way", progress: [started(1, "web_search")], glyph: "web_search" },
+    { moment: "between two steps: the web search's globe, not the brain of before the first step", progress: [ended(1, "web_search")], glyph: "web_search" },
+    { moment: "a page read", progress: [ended(1, "web_search"), started(2, "read")], glyph: "read" },
+    { moment: "another page read, the same Activity", progress: [ended(1, "web_search"), ended(2, "read"), started(3, "read")], glyph: "read" },
+  ];
+
+  /** A Job Search searching for a new Profile of the Candidate signed in as `email`, with its Run progress; its id. */
+  async function searching(email: string, progress: unknown[]): Promise<string> {
+    const [candidate] = await query<{ id: string }>("SELECT id FROM candidate WHERE lower(email) = lower($1)", [email]);
+    const [profile] = await query<{ id: string }>("INSERT INTO profile (candidate_id, name, target_role, locations) VALUES ($1, 'HEAD OF BU', 'Head of BU', ARRAY['Lyon']) RETURNING id", [candidate!.id]);
+    const [search] = await query<{ id: string }>("INSERT INTO job_search (candidate_id, profile_id, status, started_at, progress) VALUES ($1, $2, 'searching', now(), $3) RETURNING id", [
+      candidate!.id,
+      profile!.id,
+      JSON.stringify(progress),
+    ]);
+    return search!.id;
+  }
+  const progressed = (jobSearchId: string, progress: unknown[]) => query("UPDATE job_search SET progress = $2 WHERE id = $1", [jobSearchId, JSON.stringify(progress)]);
+
+  /** « Activité »'s live glyph in the Top Bar: the button's, or on a phone the compact Top Bar's. */
+  const buttonGlyphOf = (page: Page, compact: boolean) =>
+    page.locator(compact ? "header .topbar-compact-actions:not(.topbar-first-paint) .activity-glyph" : "header .topbar-activity .activity-glyph");
+  /** The glyph of « En ce moment »'s action under way. */
+  const nowGlyphOf = (page: Page) => paneOf(page).locator('.en-ce-moment-action[data-status="running"] > .activity-glyph');
+
+  async function expectTheButtonFollowsTheRun(page: Page, email: string, compact: boolean) {
+    await signInWithMagicLink(page, email);
+    const jobSearchId = await searching(email, []);
+    await page.goto("/candidatures");
+
+    const glyph = buttonGlyphOf(page, compact);
+    // Before its first step: the brain.
+    await expect(glyph).toHaveAttribute("data-activity", "think", { timeout: 10_000 });
+    await expect(glyph).toHaveAttribute("data-live", "true");
+    await openActivity(page);
+    // One glyph from start to end: each step morphs out of the one before, it is not drawn anew.
+    await glyph.evaluate((svg) => ((window as unknown as { glyph936: Element }).glyph936 = svg));
+
+    for (const { moment, progress, glyph: activity } of RUN) {
+      await progressed(jobSearchId, progress);
+      // The poll brought this moment: « En ce moment » has its glyph and its steps finished.
+      const finished = progress.filter((event) => event.type === "step_ended").length;
+      await expect(nowGlyphOf(page), moment).toHaveAttribute("data-activity", activity, { timeout: 10_000 });
+      await expect(paneOf(page).locator(".en-ce-moment-action .ai-activity-meta"), moment).toHaveText(new RegExp(`^${finished} `), { timeout: 10_000 });
+      // The button, at that very moment: the same glyph, live.
+      expect(await glyph.getAttribute("data-activity"), moment).toBe(activity);
+      expect(await glyph.getAttribute("data-live"), moment).toBe("true");
+      // It moves: its strokes are drawn from JavaScript, each with its opacity (ActivityGlyph).
+      await expect(glyph.locator("path[opacity]").first(), moment).toBeAttached();
+      expect(await glyph.evaluate((svg) => svg === (window as unknown as { glyph936: Element }).glyph936), moment).toBe(true);
+    }
+
+    // Nothing runs any more: the tasks icon, still.
+    await query("DELETE FROM job_search WHERE id = $1", [jobSearchId]);
+    await expect(glyph).toHaveCount(0, { timeout: 10_000 });
+  }
+
+  test("at 1280px, the button's glyph is « En ce moment »'s, between two steps too, live and morphing", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expectTheButtonFollowsTheRun(page, newAddress("ai-activity-glyph-wide"), false);
+  });
+
+  test("at 390px, the compact Top Bar's « Activité » is « En ce moment »'s glyph, between two steps too, live and morphing (#897)", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expectTheButtonFollowsTheRun(page, newAddress("ai-activity-glyph-phone"), true);
+  });
+
+  test("under reduced motion, the button's glyph is the step's, still", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const email = newAddress("ai-activity-glyph-still");
+    await signInWithMagicLink(page, email);
+    await searching(email, [ended(1, "web_search")]);
+    await page.goto("/candidatures");
+    const glyph = buttonGlyphOf(page, false);
+    await expect(glyph).toHaveAttribute("data-activity", "web_search", { timeout: 10_000 });
+    await page.waitForTimeout(500);
+    expect(await glyph.evaluate((svg) => svg.querySelectorAll("path[opacity], path:not([d])").length)).toBe(0);
+  });
+});

@@ -152,65 +152,6 @@ async function dangerSurface(locator: Locator): Promise<string> {
 /** The glyph's strokes as drawn: while its step runs they move, drawn from JavaScript (ActivityGlyph); still, they stay. */
 const strokesOf = (glyph: Locator) => glyph.evaluate((svg) => [...svg.querySelectorAll("path")].map((path) => path.getAttribute("d") ?? "").join("|"));
 
-/** « Activité »'s live glyph in the Top Bar: the button's on a wider screen, the compact Top Bar's on a phone (#897). */
-const BUTTON_GLYPH = {
-  wide: "header .topbar-activity .activity-glyph[data-live]",
-  compact: "header .topbar-compact-actions:not(.topbar-first-paint) .activity-glyph[data-live]",
-} as const;
-
-/**
- * Samples, every 50 ms in the page, « Activité »'s glyph in the Top Bar and the glyph of « En ce moment »'s action under
- * way: their Activity, whether the button's moves (its strokes drawn from JavaScript) and whether it stays the same
- * element (it morphs into the next step rather than being drawn anew).
- */
-async function sampleGlyphs(page: Page, button: string) {
-  await page.evaluate((selector) => {
-    const state = { samples: [] as Array<{ button: string | null; now: string | null; moving: boolean; same: boolean }>, first: null as Element | null };
-    (window as unknown as { glyphs: typeof state }).glyphs = state;
-    setInterval(() => {
-      const glyph = document.querySelector(selector);
-      const now = document.querySelector('.en-ce-moment-action:is([data-status="running"], [data-status="stopping"]) > .activity-glyph');
-      if (!glyph && !now) return;
-      state.first ??= glyph;
-      state.samples.push({
-        button: glyph?.getAttribute("data-activity") ?? null,
-        now: now?.getAttribute("data-activity") ?? null,
-        moving: Boolean(glyph?.querySelector("path[opacity]")),
-        same: glyph === state.first,
-      });
-    }, 50);
-  }, button);
-}
-const glyphSamples = (page: Page) =>
-  page.evaluate(() => (window as unknown as { glyphs: { samples: Array<{ button: string | null; now: string | null; moving: boolean; same: boolean }> } }).glyphs.samples);
-
-/**
- * While a Job Search runs on its page, Activity shown: « Activité »'s glyph in the Top Bar is always « En ce moment »'s,
- * the step under way (the last one between two steps, never the brain of before the first), live, moving, and one
- * element that morphs from step to step; it follows at least two of the run's Activities. Then the search is stopped.
- */
-async function expectButtonGlyphFollowsTheRun(page: Page, button: string) {
-  await freshWorker();
-  const jobSearchId = await startSearch(page);
-  await openActivity(page);
-  await expect(page.locator(button)).toBeVisible({ timeout: 30_000 });
-  await sampleGlyphs(page, button);
-  await expect
-    .poll(async () => new Set((await glyphSamples(page)).map((sample) => sample.button).filter(Boolean)).size, { timeout: 90_000, message: workerOutput })
-    .toBeGreaterThanOrEqual(2);
-  const samples = await glyphSamples(page);
-  const both = samples.filter((sample) => sample.button && sample.now);
-  expect(both.length).toBeGreaterThan(20);
-  expect(both.filter((sample) => sample.button !== sample.now)).toEqual([]);
-  expect(samples.every((sample) => sample.same)).toBe(true);
-  expect(samples.filter((sample) => sample.button && !sample.moving).length).toBeLessThan(samples.length / 10);
-
-  await stopIconOf(paneOf(page).locator(".ai-activity-live")).click();
-  await expect.poll(() => statusOf(jobSearchId), { timeout: 90_000, message: workerOutput }).toBe("stopped");
-  // Nothing runs: the tasks icon, still.
-  await expect(page.locator(button)).toHaveCount(0, { timeout: 10_000 });
-}
-
 async function expectNoAxeViolations(page: Page, selector: string) {
   const results = await new AxeBuilder({ page }).include(selector).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
@@ -331,20 +272,6 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
       await expectNoAxeViolations(page, ".fiche-activity");
     } finally {
       rmSync(searchDownFlag, { force: true });
-    }
-  });
-
-  test("at 1280px, « Activité »'s glyph is the step « En ce moment » shows, live, morphing from one step to the next", async () => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await expectButtonGlyphFollowsTheRun(page, BUTTON_GLYPH.wide);
-  });
-
-  test("at 390px, the compact Top Bar's « Activité » is the step « En ce moment » shows, live, morphing from one step to the next (#897)", async () => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    try {
-      await expectButtonGlyphFollowsTheRun(page, BUTTON_GLYPH.compact);
-    } finally {
-      await page.setViewportSize({ width: 1280, height: 720 });
     }
   });
 

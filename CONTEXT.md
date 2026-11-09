@@ -341,8 +341,12 @@ A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par 
 _Avoid_: Job Offer card, result card
 
 **Offer box**:
-Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Plus tard », « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls. It is the page; the menu's Coach Conversation follows it, its box at the foot.
+Recherches d'offres' main view (« Offres à traiter », ADR-0090): every Offer box entry of the Candidate, « Aujourd'hui » then « Précédemment », each grouped by Importance tier, filtered by Arrival source, with the count of those still à traiter, then « Plus tard », « Expirées sans décision » and « Écartées », folded. Its header, the current day and the current tier stay in view while it scrolls (on a phone only the tier, the header being the panel of the **Offer box filter icon**, and « Aujourd'hui » reading « n arrivées aujourd'hui · N à traiter »: the **arrivées aujourd'hui** are the whole box's entries whose day is today, whatever the source chip). It is the page; the menu's Coach Conversation follows it, its box at the foot.
 _Avoid_: Inbox, feed, offer list
+
+**Offer box filter icon**:
+On a phone, the page's main action in the Top Bar on Recherches d'offres (the « … » menu keeps « Activité » and « Effacer »). It opens and closes the Offer box's header under the bar, where the Arrival source is chosen (a dot on the icon while one is); choosing one or Échap closes it. It is drawn with the first paint, so the bar does not shift (ADR-0101).
+_Avoid_: Filter button, funnel
 
 **Offer box entry**:
 One Job Offer in one Candidate's Offer box, made at its first Arrival and kept 12 months from it: its Profile, its Arrival sources with their dates, and where it stands: à traiter, « Plus tard », « Suivie » (its Application exists), « Écartée » (with its Dismissal reason, if given) or « Expirée sans décision » (still undecided when its Posting date, or its first Arrival when that is unknown, passed 30 days; out of the count). Only « Suivie » and « Écartée » make it treated (« traitée »); opening it treats nothing. A decision replaces the previous one; deleting its Application leaves the entry with no decision (à traiter, or Expirée sans décision). Part of the Candidate's Data export.

@@ -3162,10 +3162,13 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
    room is kept at the bottom for a floating Coach Panel button: here it sits
    in the Top Bar. */
 .workspace > .page {
+  /* Its top padding, under which a sticky top of 0 stops: a header pinned in its column climbs over it (#898). */
+  --page-padding-top: var(--space-6);
+
   width: 100%;
   max-width: 72rem;
   margin: 0;
-  padding: var(--space-6) var(--space-8) var(--space-12);
+  padding: var(--page-padding-top) var(--space-8) var(--space-12);
 }
 
 .workspace > .page-wide {
@@ -3265,6 +3268,16 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   .topbar.topbar-compactable .ai-activity-stop {
     min-width: max(44px, 2.75rem);
     min-height: max(44px, 2.75rem);
+  }
+
+  /* A page's own action, drawn after its title before the page knows its width (useTopBarPrimary, #898): its icon is the
+     one shown, at the end of the title where the compact bar draws it, and the page's buttons' icons go under « … ». */
+  .topbar-title > .topbar-first-paint {
+    margin-left: auto;
+  }
+
+  .topbar-compactable:has(.topbar-title > .topbar-first-paint) .topbar-actions {
+    display: none;
   }
 }
 

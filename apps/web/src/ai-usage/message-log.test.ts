@@ -84,6 +84,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       warnings: [],
       sent: true,
       candidate: { id: marie, email: "marie.dupont@example.fr" },
+      test: false,
       context: null,
     });
     expect(await logs.open(admin, summary!.id)).toMatchObject({
@@ -223,6 +224,37 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     const [summary] = await logs.list();
     expect(summary).toMatchObject({ outcome: "failed", reason: "other", sent: true, candidate: null });
     expect(await logs.open(admin, summary!.id)).toMatchObject({ messages: [{ role: "user", content: "Score" }], reply: null });
+  });
+
+  it("tells a Guest's call from a test's, both for no Candidate: an Eval Run's or a route's test call (#926)", async () => {
+    await ai.generate({ task: "scoring", candidateId: null, prompt: "Lis l'offre" });
+    now = new Date(now.getTime() + 1_000);
+    await ai.forEval().generate({ task: "coaching", candidateId: null, prompt: "Cas d'eval" });
+    now = new Date(now.getTime() + 1_000);
+    // A route's test call (checkAiRoutingChange) is recorded on the task whose route it tests, marked as a test.
+    const usage = createPostgresUsageLog(database);
+    const tested = createAiLayer({
+      providers: [createFakeProvider({ id: "mistral" })],
+      routes: { scoring: "mistral" },
+      usage: { record: (entry) => void pending.push(Promise.resolve(usage.record({ ...entry, test: true }))) },
+      now: () => now,
+    });
+    await tested.generate({ task: "scoring", candidateId: null, prompt: "Réponds OK." });
+    await settled();
+
+    expect((await logs.list()).map(({ task, candidate, test }) => ({ task, candidate, test }))).toEqual([
+      { task: "scoring", candidate: null, test: true },
+      { task: "eval", candidate: null, test: true },
+      { task: "scoring", candidate: null, test: false },
+    ]);
+  });
+
+  it("takes an eval call kept before calls were marked for a test, by its task (#926)", async () => {
+    await ai.generate({ task: "scoring", candidateId: null, prompt: "Note" });
+    await settled();
+    await database.query("UPDATE ai_usage SET task = 'eval'");
+
+    expect(await logs.list()).toEqual([expect.objectContaining({ task: "eval", test: true })]);
   });
 
   it("lists the newest first, filtered by task, model, Candidate email and day (Paris time)", async () => {

@@ -165,7 +165,7 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
       expect(calls).toEqual([{ host: "api.eu.mistral.ai", model: "mistral-nope", maxTokens: 1 }]);
     });
 
-    it("records each test call in AI Usage, for no Candidate, on the task whose route it tests", async () => {
+    it("records each test call in AI Usage, for no Candidate, on the task whose route it tests, marked as a test (#926)", async () => {
       const { fetch } = providerFetch({ unknownModels: ["mistral-nope"] });
       const usage = createMemoryUsageLog();
       const keys = { ...base, MISTRAL_API_KEY: "mk" };
@@ -174,8 +174,8 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
       await Promise.resolve();
 
       expect(usage.entries).toEqual([
-        expect.objectContaining({ candidateId: null, task: "scoring", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-sonnet-5", outcome: "ok", inputTokens: 3, outputTokens: 1, sent: true }),
-        expect.objectContaining({ candidateId: null, task: "writing", provider: "mistral", model: "mistral-nope", outcome: "failed", sent: true, costEur: 0 }),
+        expect.objectContaining({ candidateId: null, test: true, task: "scoring", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-sonnet-5", outcome: "ok", inputTokens: 3, outputTokens: 1, sent: true }),
+        expect.objectContaining({ candidateId: null, test: true, task: "writing", provider: "mistral", model: "mistral-nope", outcome: "failed", sent: true, costEur: 0 }),
       ]);
       expect(usage.entries[0]!.costEur).toBeGreaterThan(0);
       expect(usage.entries[1]!.reason).toBeDefined();
@@ -188,7 +188,7 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
       expect(await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "web" }, { fetch, usage })).toBeNull();
       await Promise.resolve();
 
-      expect(usage.entries).toEqual([expect.objectContaining({ candidateId: null, task: "web_search", provider: "perplexity", model: "web", outcome: "ok" })]);
+      expect(usage.entries).toEqual([expect.objectContaining({ candidateId: null, test: true, task: "web_search", provider: "perplexity", model: "web", outcome: "ok" })]);
       expect(usage.entries[0]!.tools).toEqual([expect.objectContaining({ name: "web_search", count: 1, ok: true })]);
     });
 

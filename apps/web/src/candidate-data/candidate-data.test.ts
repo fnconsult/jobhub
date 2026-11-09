@@ -542,9 +542,10 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
-  it("the export holds the AI Message Log of the Candidate's own AI calls, newest first, without what they cost; account deletion takes it", async () => {
+  it("the export holds the AI Message Log of the Candidate's own AI calls, newest first, with the Surface each was asked from (#919), without what they cost; account deletion takes it", async () => {
     const other = await signIn("jean.martin@example.fr");
-    const usage = createPostgresUsageLog(database);
+    // Asked from the extension (#919): the export says so.
+    const usage = createPostgresUsageLog(database, { surface: () => "extension" });
     const pending: Promise<unknown>[] = [];
     let at = new Date("2026-10-16T08:00:00Z");
     const ai = createAiLayer({
@@ -560,7 +561,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await Promise.all(pending);
 
     expect((await candidateData.export(candidateId)).aiMessageLog).toEqual([
-      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", outcome: "ok", reason: null, warnings: [], system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
+      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", outcome: "ok", reason: null, warnings: [], surface: "extension", system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
       expect.objectContaining({ at: new Date("2026-10-16T08:00:00Z"), system: "Tu es le coach.", messages: [{ role: "user", content: "Bonjour" }] }),
     ]);
 

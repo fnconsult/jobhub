@@ -4829,6 +4829,7 @@
     "sessionsTitle": "My coaching sessions",
     "sessionsIntro": "The sessions candidates paid for with you. Enter or correct the date booked and the video link: the candidate finds them in their agenda.",
     "sessionsNone": "No paid session yet.",
+    "calledBy": "goes by {{name}}",
     "unnamedCandidate": "Unnamed candidate",
     "sessionToSchedule": "To schedule",
     "sessionOn": "On {{date}} (Paris time)",
@@ -5979,6 +5980,7 @@
       "unscheduled": "It had no date yet: if a slot is booked on your Cal.com page, free it.",
       "held": "It took place on {{at}}: the Candidate had not asked for it to start before the end of their withdrawal period, so it is refunded to them.",
       "refunded": "Jobbbox refunds the session to the Candidate.",
+      "calledBy": "{{candidate}} (goes by {{name}})",
       "someone": "A Candidate",
       "reason": "You get this email because you are a Human Coach on Jobbbox."
     },

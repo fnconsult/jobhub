@@ -3,6 +3,7 @@ import { createApplications, migrateApplications } from "../applications";
 import type { MailMessage } from "../auth";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../billing/fake-stripe";
 import { connectionString, startTestBilling, type TestBilling } from "../billing/test-support";
+import { createIdentityNames } from "../candidate-identity";
 import { createHumanCoaches, migrateHumanCoaches, type HumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
@@ -313,6 +314,7 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
     it("refunds a paid session not held yet in full, cancels it from the Agenda and tells the Human Coach", async () => {
       const { marie, sessionId, paymentIntent } = await paidSession(paris("2026-10-13T09:00"));
       await coaches.scheduleSession(marie.id, sessionId, { scheduledAt: "2026-10-20T14:00" });
+      await createIdentityNames(t.database).save(marie.id, { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" });
 
       const result = await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr");
 
@@ -322,6 +324,9 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       expect(sent.map((message) => message.to).sort()).toEqual([marie.email, "sophie.martin@rh-conseil.fr"].sort());
       const toCoach = sent.find((message) => message.to === "sophie.martin@rh-conseil.fr")!;
       expect(toCoach.text).toContain("20 octobre 2026 à 14:00");
+      // Named as in the Espace coach (#922): « Marie D. », and the Preferred Name beside it.
+      expect(toCoach.subject).toContain("Marie D.");
+      expect(toCoach.text).toContain("Marie D. (se fait appeler Mimi)");
     });
   });
 

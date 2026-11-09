@@ -7,7 +7,8 @@ import { emailsTo, newAddress, waitForEmail } from "./support/mailbox";
 
 // Issue #511: « Renoncer au contrat ici », a Withdrawal from a Plan within 14 days of subscribing: the subscription
 // ends at once, the payment is refunded in full in Stripe (the fake one on E2E_STRIPE_URL), the Candidate is back on
-// Free, and the acknowledgement is emailed with the date and time.
+// Free, and the acknowledgement is emailed with the date and time. Issue #922: the form is prefilled with the
+// Candidate's Given Name and Family Name.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const stripeUrl = process.env.E2E_STRIPE_URL!;
 const DAY_MS = 24 * 3600_000;
@@ -48,6 +49,9 @@ test.describe("Withdrawal from a Plan (#511)", () => {
     const email = newAddress("retractation");
     await signInWithMagicLink(page, email);
     const { subscriptionId, paymentIntent } = await subscribedDaysAgo(page, email, 3);
+    // Her Given Name and Family Name, and what the coaches call her (Mon compte › Identité, #918).
+    const named = await page.request.put("/api/account/identity", { data: { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" }, headers: { origin: process.env.E2E_WEB_ORIGIN! } });
+    expect(named.ok(), await named.text()).toBe(true);
 
     await page.goto("/abonnement");
     await expect(page.getByText("Votre offre actuelle : Standard")).toBeVisible();
@@ -57,7 +61,8 @@ test.describe("Withdrawal from a Plan (#511)", () => {
     await expect(page.getByRole("heading", { level: 2, name: fr.withdrawals.page.title })).toBeVisible();
     await expect(page.getByText("Offre Standard")).toBeVisible();
     await expect(page.getByText(/19,00\s€/)).toBeVisible();
-    await page.getByLabel(fr.withdrawals.page.name).fill("Marie Dupont");
+    // Prefilled with her Given Name and Family Name, never the Preferred Name (#922).
+    await expect(page.getByLabel(fr.withdrawals.page.name)).toHaveValue("Marie Dupont");
     await expect(page.getByRole("radio", { name: `À l'adresse de mon compte (${email})` })).toBeChecked();
     const before = emailsTo(email).length;
     await page.getByRole("button", { name: fr.withdrawals.page.confirm }).click();

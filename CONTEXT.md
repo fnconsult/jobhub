@@ -11,7 +11,7 @@ A person with an account who is looking for a job. Owns one or more Profiles.
 _Avoid_: User (in domain discussions), applicant, job seeker
 
 **Given Name**:
-The Candidate's first name as they enter it in Mon compte › Identité (« Prénom »). With the Family Name, it is the formal identity used on the Withdrawal form and invoices and shown to a Human Coach.
+The Candidate's first name as they enter it in Mon compte › Identité (« Prénom »). With the Family Name, it is the formal identity shown to a Human Coach, on invoices, and prefilling the Withdrawal form (never the Preferred Name).
 _Avoid_: First word of the name, CV first name
 
 **Family Name**:
@@ -93,7 +93,7 @@ A Human Coach's feedback on one Tailored Document of an Application. The Candida
 _Avoid_: Comment, annotation
 
 **Coach space**:
-A Human Coach's pages, under their own Sidebar (Aujourd'hui, Mes Candidates, Mes séances, Disponibilités, Profil public, Revenus, Contrat, Aide), each a single column of cards (ADR-0099): today's sessions and what needs action; each Candidate's page (their sessions with this coach and the coach's Private Coach Notes; under Coach Access only, their Profiles, Applications and Tailored Documents, read-only, and the form for Coach Reviews); their own Coaching Sessions (the Candidate shown as first name and last initial, no Coach Access needed), before, during (Shared Reading) and after (Session Report); availability, their Coach Page, Coach Earnings and the B2B contract to accept by version. They see no Agenda and no Coach Conversation. An Association has a space of the same kind, without Candidates.
+A Human Coach's pages, under their own Sidebar (Aujourd'hui, Mes Candidates, Mes séances, Disponibilités, Profil public, Revenus, Contrat, Aide), each a single column of cards (ADR-0099): today's sessions and what needs action; each Candidate's page (their sessions with this coach and the coach's Private Coach Notes; under Coach Access only, their Profiles, Applications and Tailored Documents, read-only, and the form for Coach Reviews); their own Coaching Sessions (the Candidate shown as Prénom and Nom initial, « Marie D. », plus « se fait appeler Mimi » when the Preferred Name differs from the Prénom, no Coach Access needed; the Coach Access pages show « Marie Dupont · se fait appeler Mimi », falling back to the account's name, then to the email), before, during (Shared Reading) and after (Session Report); availability, their Coach Page, Coach Earnings and the B2B contract to accept by version. They see no Agenda and no Coach Conversation. An Association has a space of the same kind, without Candidates.
 _Avoid_: Coach dashboard
 
 **Retired Human Coach**:

@@ -365,7 +365,7 @@ export function createWithdrawals(database: Pool, deps: WithdrawalsDeps): Withdr
         }
         toRefund = session.amount > 0 ? [{ amount: session.amount, kept: 0, currency: session.currency, paymentId: null, checkoutSessionId: session.checkoutSessionId }] : [];
         coachNotice = async () => {
-          const email = withdrawnSessionEmail({ candidateName: session.candidateName, paidAt: session.paidAt, scheduledAt: session.scheduledAt, held: session.held });
+          const email = withdrawnSessionEmail({ candidateName: session.candidateName, candidateCalledBy: session.candidateCalledBy, paidAt: session.paidAt, scheduledAt: session.scheduledAt, held: session.held });
           await deps.mailer.send({ to: session.coach.email, ...email });
         };
       }

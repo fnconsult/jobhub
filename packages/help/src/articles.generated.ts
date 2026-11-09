@@ -74,12 +74,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "déclencheur",
         "jetons",
         "jetons d'entrée",
-        "estimation des jetons"
+        "estimation des jetons",
+        "invité",
+        "eval",
+        "test de route"
       ],
       "route": "/admin/activite",
       "motion": null,
       "microAnimations": [],
-      "body": "Activité (menu Plateforme) réunit, en onglets, ce que la plateforme a fait : « Recherches », « Emails reçus », « Appels IA » et « Actions des administrateurs ». Chaque onglet n'apparaît qu'aux rôles qui le lisent. « Emails reçus » et « Actions des administrateurs » ont chacun leur article.\n\n**Recherches** liste chaque run de la recherche d'offres, lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest. Filtrez avec « Déclencheur », « Période » et « Bascules sur le fournisseur de secours seulement », puis cliquez sur « Afficher ». Chaque ligne donne le profil (« Profil #… », jamais le nom du candidat), les recherches, le fournisseur, les pages lues, les « Offres nouvelles / extraites », l'arrêt, la durée et le coût. « Ouvrir » montre l'« Entonnoir (Discovery metrics) », les « Recherches du run », les « Sources », les « Pages écartées » avec leur raison et « Appels IA de ce run ». Les requêtes et les critères sont effacés après 30 jours ; les chiffres restent. Un super-admin peut « Ouvrir la recherche d'offres du candidat » : cette consultation est inscrite dans Actions des administrateurs.\n\n**Appels IA** est le journal de ce que chaque appel à l'IA a dit, tel qu'il a été envoyé : les instructions, les messages après Redaction et la réponse, clés et secrets masqués, avec le résultat (« OK », « Avertissement » ou « Échec ») et sa raison. Filtrez par « Tâche », « Modèle », « E-mail du candidat », « Jour », résultat et raison, puis cliquez sur « Filtrer » ; « Effacer les filtres » revient à la liste entière. Pour un appel qui a écrit une réponse du coach IA, la colonne « Contexte estimé / mesuré » donne, en jetons, le contexte estimé par Jobbbox (environ 4 caractères par jeton), celui compté par le fournisseur (ses jetons d'entrée, ceux lus dans son cache compris) et, entre parenthèses, l'écart entre les deux, signé et en pourcentage de l'estimation : elle sert à corriger l'estimation par fournisseur et par modèle. Les autres appels y montrent un tiret. Chaque appel ouvert montre « Détails de l'appel », « Pourquoi » et le « Détail technique » d'un échec. Ces textes contiennent des données personnelles : seuls les super-admins les lisent, chaque appel ouvert est inscrit dans Actions des administrateurs, et ils sont effacés après 30 jours. N'ouvrez un appel que pour comprendre un problème.\n\nLes super-admins, Technique et le Support lisent Recherches ; seuls les super-admins lisent Appels IA."
+      "body": "Activité (menu Plateforme) réunit, en onglets, ce que la plateforme a fait : « Recherches », « Emails reçus », « Appels IA » et « Actions des administrateurs ». Chaque onglet n'apparaît qu'aux rôles qui le lisent. « Emails reçus » et « Actions des administrateurs » ont chacun leur article.\n\n**Recherches** liste chaque run de la recherche d'offres, lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest. Filtrez avec « Déclencheur », « Période » et « Bascules sur le fournisseur de secours seulement », puis cliquez sur « Afficher ». Chaque ligne donne le profil (« Profil #… », jamais le nom du candidat), les recherches, le fournisseur, les pages lues, les « Offres nouvelles / extraites », l'arrêt, la durée et le coût. « Ouvrir » montre l'« Entonnoir (Discovery metrics) », les « Recherches du run », les « Sources », les « Pages écartées » avec leur raison et « Appels IA de ce run ». Les requêtes et les critères sont effacés après 30 jours ; les chiffres restent. Un super-admin peut « Ouvrir la recherche d'offres du candidat » : cette consultation est inscrite dans Actions des administrateurs.\n\n**Appels IA** est le journal de ce que chaque appel à l'IA a dit, tel qu'il a été envoyé : les instructions, les messages après Redaction et la réponse, clés et secrets masqués, avec le résultat (« OK », « Avertissement » ou « Échec ») et sa raison. Filtrez par « Tâche », « Modèle », « E-mail du candidat », « Jour », résultat et raison, puis cliquez sur « Filtrer » ; « Effacer les filtres » revient à la liste entière. La colonne « Candidat » donne l'e-mail du candidat pour qui l'appel a été fait. Un appel fait pour aucun candidat y montre « Invité » quand il vient d'un invité de l'extension (son Match Score, quand l'IA lit le texte de l'offre), ou « Eval / test » quand il sert à tester l'IA : un run d'évaluation, ou le test d'une route dans Paramètres. Pour un appel qui a écrit une réponse du coach IA, la colonne « Contexte estimé / mesuré » donne, en jetons, le contexte estimé par Jobbbox (environ 4 caractères par jeton), celui compté par le fournisseur (ses jetons d'entrée, ceux lus dans son cache compris) et, entre parenthèses, l'écart entre les deux, signé et en pourcentage de l'estimation : elle sert à corriger l'estimation par fournisseur et par modèle. Les autres appels y montrent un tiret. Chaque appel ouvert montre « Détails de l'appel », « Pourquoi » et le « Détail technique » d'un échec. Ces textes contiennent des données personnelles : seuls les super-admins les lisent, chaque appel ouvert est inscrit dans Actions des administrateurs, et ils sont effacés après 30 jours. N'ouvrez un appel que pour comprendre un problème.\n\nLes super-admins, Technique et le Support lisent Recherches ; seuls les super-admins lisent Appels IA."
     },
     {
       "id": "page-admin-help",
@@ -3461,6 +3464,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Chaque tâche IA a son fournisseur et son modèle, un Paramètre de plateforme appliqué dès le prochain appel. Les super-admins et « Technique » le changent.\n\n1. Ouvrez Paramètres, onglet « IA ». Le tableau « Tâches » montre chaque tâche avec son « Fournisseur · modèle », sa « Source », la « Clé du fournisseur » et ses « Données ».\n2. Sur la ligne de la tâche, cliquez sur « Modifier… ». Le panneau « Tâche IA » s'ouvre sur le côté.\n3. Choisissez le « Fournisseur », puis le « Modèle » : laissé vide, c'est le modèle par défaut du fournisseur ; un modèle saisi est testé par un appel à l'enregistrement.\n4. Cliquez sur « Enregistrer ». Le message « Route enregistrée : elle s'applique dès le prochain appel, sans redémarrage. » le confirme ; un run déjà lancé garde son modèle.\n5. Pour revenir à la valeur de l'environnement, sinon au défaut du code, cliquez sur « Rétablir le défaut ».\n\nLa route est vérifiée avant d'être enregistrée. Refusée, elle reste comme avant, avec un message « … n'a pas été modifié : … » et son « Détail : » :\n\n- « Aucun fournisseur configuré pour cette tâche » (`route_missing`) : ce fournisseur ne sert pas cette tâche, ou un réglage dont il a besoin manque. Choisissez-en un autre.\n- « Règle de résidence des données » (`data_residency`) : la tâche ne s'exécute que dans l'UE et le fournisseur est hors UE. Choisissez un fournisseur dans l'UE.\n- « Test de connexion échoué » (`test_failed`) : l'appel de test au modèle saisi a échoué. Vérifiez le nom du modèle chez le fournisseur.\n\nUn fournisseur sans clé est signalé, jamais refusé : ses appels échouent jusqu'à ce que la clé soit saisie. Le modèle d'un Playbook Agent, lui, se change par « Modifier… » sous « Playbook Agents » : il crée une version brouillon à valider dans Playbooks."
     },
     {
+      "id": "tutorial-admin-extension-test-build",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "fournisseurs-et-tools",
+      "title": "Charger une version de test de l'extension",
+      "synonyms": [
+        "extension",
+        "version de test",
+        "dernière version",
+        "extension version",
+        "zip",
+        "bêta",
+        "chrome-beta",
+        "non empaquetée",
+        "charger l'extension non empaquetée",
+        "mode développeur",
+        "chrome://extensions",
+        "github",
+        "releases",
+        "extension-v",
+        "tester l'extension"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Avant sa publication sur le Chrome Web Store, un administrateur peut charger dans Chrome la dernière version de l'extension, celle que sert le serveur. Les candidats ne voient pas ce bloc.\n\n1. Dans Mon compte, ouvrez « Outils ». Sous le bouton du Chrome Web Store, le bloc « Dernière version de l'extension » indique la « Version de l'extension » et la « Version d'API servie ».\n2. Cliquez sur « Voir les versions sur GitHub ». La page s'ouvre dans un nouvel onglet ; le dépôt est privé : il faut y avoir accès.\n3. Dans la version `extension-v` de cette version de l'extension, téléchargez le zip que nomme le bloc : `-chrome-beta.zip` sur la Beta (branché sur staging.jobbbox.ai), `-chrome.zip` en Production. Décompressez-le.\n4. Ouvrez chrome://extensions et activez le « Mode développeur ».\n5. Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé.\n\nUne extension chargée ainsi ne se met pas à jour seule : recommencez à chaque nouvelle version. Si le serveur ne sert plus sa version d'API, l'extension demande de se mettre à jour."
+    },
+    {
       "id": "tutorial-getting-started",
       "locale": "fr",
       "kind": "tutorial",
@@ -4123,12 +4155,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "trigger",
         "tokens",
         "input tokens",
-        "token estimate"
+        "token estimate",
+        "guest",
+        "eval",
+        "route test"
       ],
       "route": "/admin/activite",
       "motion": null,
       "microAnimations": [],
-      "body": "Activity (Platform menu) gathers, in tabs, what the platform did: « Searches », « Received emails », « AI calls » and « Administrator actions ». Each tab shows only to the roles that read it. « Received emails » and « Administrator actions » each have their own article.\n\n**Searches** lists every Job discovery run, started by a Candidate's Job Search or to top up a Job Digest. Filter with « Trigger », « Period » and « Only switches to the fallback provider », then click « Show ». Each row gives the Profile (« Profile #… », never the Candidate's name), the searches, the provider, the pages read, the « New / extracted Job Offers », the stop, the duration and the cost. « Open » shows the « Funnel (Discovery metrics) », « The run's searches », the « Sources », the « Pages skipped » with their reason and « This run's AI calls ». Queries and criteria are erased after 30 days; the figures stay. A super-admin can « Open the Candidate's Job Search (recorded in Administrator actions) ».\n\n**AI calls** is the log of what each AI call said, as sent: the instructions, the messages after Redaction and the reply, keys and secrets masked, with the result (« OK », « Warning » or « Failed ») and its reason. Filter by « Task », « Model », « Candidate's email », « Day », result and reason, then click « Filter »; « Clear filters » goes back to the whole list. For a call that wrote an AI Coach reply, the « Context estimated / measured » column gives, in tokens, the context Jobbbox estimated (about 4 characters a token), the one the provider counted (its input tokens, those read from its cache included) and, in brackets, the gap between them, signed and as a share of the estimate: it is there to correct the estimate by provider and model. Other calls show a dash there. Each call opened shows « Call details », « Why » and, for a failure, the « Technical detail ». These texts hold personal data: only super-admins read them, every call opened is recorded in Administrator actions, and they are erased after 30 days. Open a call only to understand a problem.\n\nSuper-admins, Technique and Support read Searches; only super-admins read AI calls."
+      "body": "Activity (Platform menu) gathers, in tabs, what the platform did: « Searches », « Received emails », « AI calls » and « Administrator actions ». Each tab shows only to the roles that read it. « Received emails » and « Administrator actions » each have their own article.\n\n**Searches** lists every Job discovery run, started by a Candidate's Job Search or to top up a Job Digest. Filter with « Trigger », « Period » and « Only switches to the fallback provider », then click « Show ». Each row gives the Profile (« Profile #… », never the Candidate's name), the searches, the provider, the pages read, the « New / extracted Job Offers », the stop, the duration and the cost. « Open » shows the « Funnel (Discovery metrics) », « The run's searches », the « Sources », the « Pages skipped » with their reason and « This run's AI calls ». Queries and criteria are erased after 30 days; the figures stay. A super-admin can « Open the Candidate's Job Search (recorded in Administrator actions) ».\n\n**AI calls** is the log of what each AI call said, as sent: the instructions, the messages after Redaction and the reply, keys and secrets masked, with the result (« OK », « Warning » or « Failed ») and its reason. Filter by « Task », « Model », « Candidate's email », « Day », result and reason, then click « Filter »; « Clear filters » goes back to the whole list. The « Candidate » column gives the email of the Candidate the call was made for. A call made for no Candidate shows « Guest » there when it comes from a Guest of the extension (their Match Score, when the AI reads the Job Offer's text), or « Eval / test » when it tests the AI: an Eval Run, or a route's test in Settings. For a call that wrote an AI Coach reply, the « Context estimated / measured » column gives, in tokens, the context Jobbbox estimated (about 4 characters a token), the one the provider counted (its input tokens, those read from its cache included) and, in brackets, the gap between them, signed and as a share of the estimate: it is there to correct the estimate by provider and model. Other calls show a dash there. Each call opened shows « Call details », « Why » and, for a failure, the « Technical detail ». These texts hold personal data: only super-admins read them, every call opened is recorded in Administrator actions, and they are erased after 30 days. Open a call only to understand a problem.\n\nSuper-admins, Technique and Support read Searches; only super-admins read AI calls."
     },
     {
       "id": "page-admin-audit",
@@ -7550,6 +7585,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "The Jobbbox app, on iPhone, iPad and Android, uses the same account as jobbbox.ai. No password: you sign in with a link received by email.\n\n1. Install the « Jobbbox » app from the App Store (iPhone, iPad) or Google Play (Android), then open it.\n2. On the « Sign in to Jobbbox » screen, enter « Your email address », then tap « Send me a sign-in link ».\n3. On this same phone, open the email you received and tap the link: the app opens and you are signed in. The link is valid for 15 minutes and works once; if it is no longer valid, the app tells you: ask for another one with « Send the link again », or with « Send me a sign-in link » if the app is back on the « Sign in to Jobbbox » screen. Reading the email on another device, your computer for instance? Type the 6-digit code it holds in the app, in « Enter the code from the email », then tap « Sign in with this code ». Your iPhone may also offer the code above the keyboard.\n4. If your account has two-step verification, the app shows « Two-step verification »: it is coming to the app soon. Meanwhile, tap « Sign out » or sign in on jobbbox.ai.\n\nIf you open the link on a device where the app is not installed, it signs you in on jobbbox.ai, in the browser.\n\nTo sign out of the app, open « My account » and tap « Sign out ». A session closed from « My account » on jobbbox.ai also signs the app out, as soon as it comes back to the foreground.\n\nWithout network, the app shows « Offline » and what you last looked at; nothing is sent until the network is back. What it keeps on the device, never your conversations with the coach, is erased when you sign out."
+    },
+    {
+      "id": "tutorial-admin-extension-test-build",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "fournisseurs-et-tools",
+      "title": "Load a test version of the extension",
+      "synonyms": [
+        "extension",
+        "test version",
+        "latest version",
+        "extension version",
+        "zip",
+        "beta",
+        "chrome-beta",
+        "unpacked",
+        "load unpacked",
+        "developer mode",
+        "chrome://extensions",
+        "github",
+        "releases",
+        "extension-v",
+        "test the extension"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Before it is published on the Chrome Web Store, an administrator can load in Chrome the latest version of the extension, the one the server serves. Candidates do not see this block.\n\n1. In My account, open « Tools ». Under the Chrome Web Store button, the « Latest version of the extension » block gives the « Extension version » and the « API version served ».\n2. Click « See the versions on GitHub ». The page opens in a new tab; the repository is private: you need access to it.\n3. In the `extension-v` release of this extension version, download the zip the block names: `-chrome-beta.zip` on the Beta (tied to staging.jobbbox.ai), `-chrome.zip` in Production. Unzip it.\n4. Open chrome://extensions and turn on « Developer mode ».\n5. Click « Load unpacked » and choose the unzipped folder.\n\nAn extension loaded this way does not update itself: do it again for each new version. If the server no longer serves its API version, the extension asks to be updated."
     },
     {
       "id": "tutorial-admin-two-step-verification",

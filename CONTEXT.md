@@ -915,7 +915,7 @@ The step, run by the product owner alone, that turns what the Beta serves into a
 _Avoid_: Release, go-live, prod deploy
 
 **Extension Version**:
-The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change.
+The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token.
 _Avoid_: Version (for the extension)
 
 **API Version**:
@@ -1194,7 +1194,7 @@ A Platform Setting giving a Tool's cost per Billed unit; its code default is the
 One email per month to super-admins, and a banner in Consommation IA, when the Paris-time month's web search spend (recorded cost at list price, no free allowance deducted) reaches `WEB_SEARCH_MONTHLY_ALERT_EUR`; 0 sends nothing. It never cuts a search.
 
 **AI Message Log**:
-What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came (none when the call failed, or was not sent), keys and secrets scrubbed, with the Candidate it was made for (none for a Guest), and the call's Outcome with its Failure Reason, technical detail included; for an AI Coach reply, the estimate of its context beside the provider's count of input tokens, with the gap. Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. The Candidate's Data export holds each failed call's Failure Reason code and French wording, never its technical detail. Only super-admins read it, on the Appels IA tab of the Back Office Activity page, filterable by Outcome and Failure Reason, and every log they open is written to the Back Office Audit.
+What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came (none when the call failed, or was not sent), keys and secrets scrubbed, with the Candidate it was made for (none when the call was for no Candidate: a Guest's, shown « Invité », or a test's, shown « Eval / test », an Eval Run's or a route's test call, marked `UsageEntry.test`), and the call's Outcome with its Failure Reason, technical detail included; for an AI Coach reply, the estimate of its context beside the provider's count of input tokens, with the gap. Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. The Candidate's Data export holds each failed call's Failure Reason code and French wording, never its technical detail. Only super-admins read it, on the Appels IA tab of the Back Office Activity page, filterable by Outcome and Failure Reason, and every log they open is written to the Back Office Audit.
 _Avoid_: Prompt log, transcript, chat history
 
 **Call facts**:

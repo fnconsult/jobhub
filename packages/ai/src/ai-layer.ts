@@ -663,7 +663,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    * aborted before it left is not sent.
    */
   async function recorded<T extends { model: string; usage: TokenUsage; tools?: ToolCall[] }>(
-    entry: Pick<UsageEntry, "candidateId" | "task">,
+    entry: Pick<UsageEntry, "candidateId" | "task" | "test">,
     provider: AiProvider,
     route: Route,
     said: Omit<Transcript, "reply">,
@@ -747,7 +747,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    */
   async function notSent(
     error: unknown,
-    entry: Pick<UsageEntry, "candidateId" | "task">,
+    entry: Pick<UsageEntry, "candidateId" | "task" | "test">,
     chosen: { route?: Route; provider?: AiProvider },
     said: Omit<Transcript, "reply">,
     notes: Omit<CallNotes<never>, "unusable"> = { warnings: () => [] },
@@ -960,10 +960,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    * the caller and their results sent back, until it answers in text or `maxToolRounds` is reached, when a last turn
    * asks for text only. A tool result that carries the Candidate's identity sends the next turns to the identity route.
    */
-  async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
+  async function generateAs(request: GenerateRequest, recordedAs: TextTask, marks: Pick<UsageEntry, "test"> = {}): Promise<GenerateResult> {
     const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
     const chosen: { route?: Route; provider?: AiProvider } = { route: request.route };
-    const entry = { candidateId: request.candidateId, task: recordedAs };
+    const entry = { candidateId: request.candidateId, task: recordedAs, ...marks };
     const withSystem = (said: { messages: Message[] }) => ({ ...(request.system === undefined ? {} : { system: request.system }), ...said });
     // The AI layer's own warnings (identity undeclared), after the feature's (#260).
     const warnings: AiWarning[] = [];
@@ -1057,7 +1057,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    */
   async function turnOf(
     request: GenerateRequest,
-    entry: Pick<UsageEntry, "candidateId" | "task">,
+    entry: Pick<UsageEntry, "candidateId" | "task" | "test">,
     provider: AiProvider,
     chosenRoute: Route,
     conversation: TurnMessage[],
@@ -1226,11 +1226,12 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   };
   const noSearch = async (): Promise<never> => {
     const error = new AiConfigError("An Eval Run makes no web search");
-    await notSent(error, { candidateId: null, task: SEARCH_TASK }, {}, { messages: [] });
+    await notSent(error, { candidateId: null, task: SEARCH_TASK, test: true }, {}, { messages: [] });
     throw error;
   };
   const evalLayer: AiLayer = {
-    generate: (request) => generateAs({ ...request, candidateId: null }, "eval"),
+    // Every call of an Eval Run is a test, for no one (#926).
+    generate: (request) => generateAs({ ...request, candidateId: null }, "eval", { test: true }),
     planJobSearch: noSearch,
     searchWeb: noSearch,
     searchCompany: noSearch,

@@ -7,7 +7,7 @@ describe("the « Espace coach » Help Articles' quoted labels (#554)", () => {
   it.each(HELP_LOCALES)("each exists in the %s catalogue", (locale: HelpLocale) => {
     const { count, missing } = unknownQuotes("espace-coach", locale);
     // The five of #554, why Two-step verification is asked (#665), the same in the app (#688), and its notifications (#699).
-    expect(count).toBe(8);
+    expect(count).toBe(12);
     expect(missing).toEqual([]);
   });
 });

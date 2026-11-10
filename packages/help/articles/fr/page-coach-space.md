@@ -35,3 +35,7 @@ Sur la page d’un Candidate et sur celle d’une séance, « Vos notes privées
 ## Mes séances
 
 Les onglets « À venir », « À planifier », « Passées » comptent vos séances ; une rétractation les retire. Ouvrez une séance pour sa préparation, son lien et ses notes privées. La page passe de « Avant la séance » à « Pendant la séance » dix minutes avant son début, puis à « Après la séance » à la fin prévue. « Préparer : ouvrir la page du Candidate » mène à son dossier. La saisie de date reste disponible et conserve l’historique des reports.
+
+## Lecture partagée
+
+Pendant la fenêtre de séance, le Candidate peut vous montrer un seul document. Votre lecture suit sa page et son défilement, même sans accès coach. Vous pouvez présenter votre PDF ; chacun peut « Arrêter ». Aucun téléchargement ni annotation n’est proposé et le document temporaire est supprimé à la fin de cette fenêtre.

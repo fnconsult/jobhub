@@ -6658,5 +6658,28 @@
       "published": "Compte rendu publié dans la conversation du Candidate.",
       "failed": "Vérifiez les champs : la séance doit être terminée et les ressources doivent être des liens HTTPS. Réessayez."
     }
+  },
+  "sharedReading": {
+    "title": "Lecture partagée",
+    "private": "Un seul document, en lecture seule, uniquement pendant cette séance. Aucun téléchargement ni annotation.",
+    "document": "Document partagé",
+    "choose": "Choisir un document",
+    "show": "Montrer à mon coach",
+    "stop": "Arrêter",
+    "none": "Aucun document partagé.",
+    "page": "Page {{page}}",
+    "pdf": "PDF à présenter",
+    "pdfPrompt": "Choisissez ou déposez votre PDF",
+    "pdfHint": "PDF uniquement, 10 Mo maximum, 200 pages maximum. Supprimé à la fin de la séance.",
+    "present": "Présenter le PDF",
+    "badPdf": "Choisissez un PDF valide.",
+    "tooLarge": "Le PDF dépasse 10 Mo.",
+    "failed": "La lecture partagée est indisponible ou la séance est terminée. Réessayez.",
+    "sources": {
+      "profile": "CV de référence",
+      "tailored_cv": "CV adapté",
+      "cover_letter": "Lettre de motivation",
+      "outreach_message": "Message d’approche"
+    }
   }
 }

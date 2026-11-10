@@ -1,3 +1,4 @@
+import { purgeExpiredSharedReading } from "@jobhub/web/shared-reading";
 import { createRunProgress, FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
@@ -646,6 +647,11 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           const forgotten = await forgetExpiredGuestCaptures(deps.database, now());
           if (forgotten) log(`[worker] forgot ${forgotten} Job Offer(s) captured by Guests`);
         }),
+    },
+
+    "shared-reading.purge": {
+      cron: "* * * * *",
+      handler: () => onceTablesExist(async () => { await purgeExpiredSharedReading(deps.database, now()); }),
     },
 
     // Coach Conversations are kept 12 months after their last message. Safe to run again.

@@ -35,3 +35,7 @@ On a Candidate’s or session’s page, “Your Private Coach Notes” save as y
 ## My sessions
 
 “Upcoming”, “To schedule” and “Past” count your sessions; a Withdrawal removes a session. Open a session for preparation, its link and private notes. The page changes from “Before the session” to “During the session” ten minutes before it starts, then to “After the session” at its scheduled end. “Prepare: open the Candidate’s page” leads to their file. Manual date entry remains available and keeps Reschedule history.
+
+## Shared Reading
+
+During the session window, the Candidate can show you one document. Your reading follows their page and scrolling, even without Coach Access. You can present your PDF; either participant can choose “Stop”. There is no download or annotation control, and the temporary document is deleted at the end of this window.

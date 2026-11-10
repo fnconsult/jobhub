@@ -777,3 +777,12 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 13._
 | Purpose and legal basis | Join the paid coaching service by the coach's HTTPS video link or telephone; GDPR art. 6(1)(b). |
 | Data | A coach's permanent contact or a session-specific override, including who calls. Unknown video hosts require the coach's explicit confirmation. |
 | Storage, access and retention | EU tables `coach_meeting_contact` and `coaching_session_contact`; active coach controls their own contact, the paying Candidate sees only their sessions' joining information. The session-specific contact is exported and deleted with the Candidate's session. No new provider integration or automatic recording. |
+
+### Shared Reading in a paid Coaching Session (#873, ADR-0097)
+
+| Field | Record |
+| --- | --- |
+| Purpose and legal basis | Let the two participants read one document together in the session; performance of the coaching service (GDPR art. 6(1)(b)). |
+| Data and access | A Candidate-selected snapshot of their own CV, tailored CV, cover letter or outreach message; or a PDF presented by the session’s active Human Coach. Only those two participants can read the snapshot, within the joining window, even without Coach Access. Neither participant receives access to any other document through this feature. |
+| Storage and retention | EU Postgres `shared_reading`; ephemeral content, source reference and page/scroll state. Either participant can stop, immediately deleting content and revoking the opaque document address. Replacing a document also invalidates its address. Reads recheck access and expiry; a minute-by-minute worker removes expired, withdrawn, rescheduled or retired-coach documents without waiting for a read. No recording, annotation, AI processing or new recipient. |
+| Rights | Active Candidate document snapshots and sharing metadata are included in their account export. Coach-presented PDF bytes are excluded; all records are deleted with the Candidate’s paid session. |

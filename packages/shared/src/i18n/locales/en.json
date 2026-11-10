@@ -6658,5 +6658,28 @@
       "published": "Report published in the Candidate’s conversation.",
       "failed": "Check the fields: the session must have ended and resources must be HTTPS links. Try again."
     }
+  },
+  "sharedReading": {
+    "title": "Shared Reading",
+    "private": "One read-only document, only during this session. No download or annotation.",
+    "document": "Shared document",
+    "choose": "Choose a document",
+    "show": "Show my coach",
+    "stop": "Stop",
+    "none": "No document shared.",
+    "page": "Page {{page}}",
+    "pdf": "PDF to present",
+    "pdfPrompt": "Choose or drop your PDF",
+    "pdfHint": "PDF only, up to 10 MB and 200 pages. Deleted at the end of the session.",
+    "present": "Present PDF",
+    "badPdf": "Choose a valid PDF.",
+    "tooLarge": "The PDF exceeds 10 MB.",
+    "failed": "Shared Reading is unavailable or the session has ended. Try again.",
+    "sources": {
+      "profile": "Master CV",
+      "tailored_cv": "Tailored CV",
+      "cover_letter": "Cover Letter",
+      "outreach_message": "Outreach Message"
+    }
   }
 }

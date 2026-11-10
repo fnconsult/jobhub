@@ -1196,7 +1196,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/coachs/seances/[sessionId]",
       "motion": null,
       "microAnimations": [],
-      "body": "Après une séance, votre coach humain peut publier un compte rendu. Dans « Mes coachs humains », « Lire le compte rendu et poursuivre la conversation » ouvre la conversation propre à cette séance. Le message porte le nom du coach et « Coach humain » ; ce n’est pas une réponse du coach IA. Le coach IA peut ensuite vous aider à organiser les prochaines étapes : seules les actions qui ne recopient aucun texte sont proposées. Une correction du compte rendu est un nouveau message. Votre export de données inclut les comptes rendus, y compris les brouillons privés qui ne s’affichent pas sur la page."
+      "body": "Après une séance, votre coach humain peut publier un compte rendu. Dans « Mes coachs humains », « Lire le compte rendu et poursuivre la conversation » ouvre la conversation propre à cette séance. Le message porte le nom du coach et « Coach humain » ; ce n’est pas une réponse du coach IA. Le coach IA peut ensuite vous aider à organiser les prochaines étapes : seules les actions qui ne recopient aucun texte sont proposées. Une correction du compte rendu est un nouveau message. Votre export de données inclut les comptes rendus, y compris les brouillons privés qui ne s’affichent pas sur la page.\n\nPendant la fenêtre de votre séance payée, « Lecture partagée » permet de choisir un document puis « Montrer à mon coach ». Votre coach suit la page et le défilement, sans accès à vos autres documents. « Arrêter » retire immédiatement le document temporaire. Votre coach peut aussi présenter un PDF."
     },
     {
       "id": "page-coach-space",
@@ -1222,7 +1222,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/espace-coach",
       "motion": null,
       "microAnimations": [],
-      "body": "« Mon espace coach » est votre page de coach humain sur Jobbbox. Connectez-vous à Jobbbox avec l'adresse e-mail que l'équipe Jobbbox a enregistrée pour vous, en recevant un lien de connexion : « Mon espace coach » apparaît alors dans le menu. Le nom Jobbbox, en haut de chaque page de votre espace coach, vous y ramène, et « Mon compte » ouvre votre compte.\n\nLa page a deux parties.\n\n« Mes séances de coaching » liste les séances que des candidats ont payées avec vous, même sans vous avoir donné l'accès coach. Chaque séance indique le prénom et l'initiale du nom du candidat, par exemple Claire D., suivis de « se fait appeler … » quand le candidat a indiqué, pour les coachs, un autre nom que son prénom, et la date de paiement : « Payée le … ». Tant que la date n'est pas saisie, la séance est « À planifier ». Une fois datée, elle affiche « Le … (heure de Paris) », sa durée et « Lien de la visio avec … ». Le tutoriel « Saisir la date et le lien d'une séance » explique comment les renseigner.\n\n« Candidats avec accès coach » liste les candidats qui vous ont donné l'accès coach, par leur prénom et leur nom, par exemple Claire Durand · se fait appeler Clo : « se fait appeler » donne le nom par lequel le candidat souhaite que les coachs l'appellent, quand ce n'est pas son prénom. Un candidat qui n'a indiqué ni prénom ni nom apparaît sous son adresse e-mail. Cliquez sur l'un d'eux pour ouvrir son dossier, qui reprend son nom et « se fait appeler … » : ses candidatures, avec leur statut, et ses profils. Tout y est en lecture seule, comme le rappelle la page : « Lecture seule : seul le candidat peut modifier ses profils et candidatures. » Ouvrez une candidature pour lire son CV adapté, sa lettre de motivation et son message d'approche, et pour donner votre avis : le tutoriel « Rédiger un avis sur un document de candidature » explique comment.\n\nVous ne voyez ni l'agenda du candidat, ni ses conversations avec son coach IA, ni la note qu'il a pu ajouter à une séance. Le lien « Centre d'aide », en bas de chaque page de votre espace coach, mène à cette rubrique de l'aide.\n\n## Nouvelle navigation\n\nQuand l’équipe active « Espace coach v2 », votre espace s’ouvre sur « Aujourd’hui ». La barre latérale propose « Mes Candidates », « Mes séances », « Disponibilités », « Profil public », « Revenus », « Contrat » et « Aide », puis « Mon compte » et « Se déconnecter ». Chaque page rassemble ses cartes dans une seule colonne. Sur téléphone, ouvrez « Menu » ; Échap ferme le tiroir et rend le focus au bouton. « Notifications » ouvre vos notifications. Tant que cette nouvelle navigation n’est pas activée, la page décrite ci-dessus reste disponible.\n\n## Votre fuseau horaire\n\nDans le nouvel espace, « Profil public » propose « Votre fuseau horaire », par défaut Europe/Paris. Confirmez un fuseau IANA avec « Enregistrer le fuseau ». Les séances suivent votre heure, avec l’heure de Paris à côté quand elle diffère.\n\n## Aujourd’hui et vos Candidates\n\n« Aujourd’hui » rassemble les séances du jour et du lendemain dans votre fuseau, les dates à confirmer et les séances à planifier. Chaque action ouvre la séance concernée. « Mes Candidates » donne accès aux personnes qui ont une séance avec vous ou vous ont accordé l’accès coach. Sans accès coach, vous ne voyez que leur prénom et initiale, leurs séances avec vous et vos notes privées. Avec accès coach, leur page ajoute leurs profils et candidatures, documents et avis, en lecture seule. Vous ne voyez jamais leur agenda, leurs conversations ni leurs notes personnelles.\n\n## Vos notes privées\n\nSur la page d’un Candidate et sur celle d’une séance, « Vos notes privées » s’enregistrent au fil de la frappe ; attendez « Notes enregistrées » avant de quitter la page. Elles ne sont pas montrées au Candidate à l’écran, mais « Le Candidate peut obtenir ces notes en exportant ses données. » Elles sont supprimées avec son compte et ne sont plus lisibles si vous quittez Jobbbox. Si les notes changent dans un autre onglet, conservez votre texte et rechargez la page.\n\n## Mes séances\n\nLes onglets « À venir », « À planifier », « Passées » comptent vos séances ; une rétractation les retire. Ouvrez une séance pour sa préparation, son lien et ses notes privées. La page passe de « Avant la séance » à « Pendant la séance » dix minutes avant son début, puis à « Après la séance » à la fin prévue. « Préparer : ouvrir la page du Candidate » mène à son dossier. La saisie de date reste disponible et conserve l’historique des reports."
+      "body": "« Mon espace coach » est votre page de coach humain sur Jobbbox. Connectez-vous à Jobbbox avec l'adresse e-mail que l'équipe Jobbbox a enregistrée pour vous, en recevant un lien de connexion : « Mon espace coach » apparaît alors dans le menu. Le nom Jobbbox, en haut de chaque page de votre espace coach, vous y ramène, et « Mon compte » ouvre votre compte.\n\nLa page a deux parties.\n\n« Mes séances de coaching » liste les séances que des candidats ont payées avec vous, même sans vous avoir donné l'accès coach. Chaque séance indique le prénom et l'initiale du nom du candidat, par exemple Claire D., suivis de « se fait appeler … » quand le candidat a indiqué, pour les coachs, un autre nom que son prénom, et la date de paiement : « Payée le … ». Tant que la date n'est pas saisie, la séance est « À planifier ». Une fois datée, elle affiche « Le … (heure de Paris) », sa durée et « Lien de la visio avec … ». Le tutoriel « Saisir la date et le lien d'une séance » explique comment les renseigner.\n\n« Candidats avec accès coach » liste les candidats qui vous ont donné l'accès coach, par leur prénom et leur nom, par exemple Claire Durand · se fait appeler Clo : « se fait appeler » donne le nom par lequel le candidat souhaite que les coachs l'appellent, quand ce n'est pas son prénom. Un candidat qui n'a indiqué ni prénom ni nom apparaît sous son adresse e-mail. Cliquez sur l'un d'eux pour ouvrir son dossier, qui reprend son nom et « se fait appeler … » : ses candidatures, avec leur statut, et ses profils. Tout y est en lecture seule, comme le rappelle la page : « Lecture seule : seul le candidat peut modifier ses profils et candidatures. » Ouvrez une candidature pour lire son CV adapté, sa lettre de motivation et son message d'approche, et pour donner votre avis : le tutoriel « Rédiger un avis sur un document de candidature » explique comment.\n\nVous ne voyez ni l'agenda du candidat, ni ses conversations avec son coach IA, ni la note qu'il a pu ajouter à une séance. Le lien « Centre d'aide », en bas de chaque page de votre espace coach, mène à cette rubrique de l'aide.\n\n## Nouvelle navigation\n\nQuand l’équipe active « Espace coach v2 », votre espace s’ouvre sur « Aujourd’hui ». La barre latérale propose « Mes Candidates », « Mes séances », « Disponibilités », « Profil public », « Revenus », « Contrat » et « Aide », puis « Mon compte » et « Se déconnecter ». Chaque page rassemble ses cartes dans une seule colonne. Sur téléphone, ouvrez « Menu » ; Échap ferme le tiroir et rend le focus au bouton. « Notifications » ouvre vos notifications. Tant que cette nouvelle navigation n’est pas activée, la page décrite ci-dessus reste disponible.\n\n## Votre fuseau horaire\n\nDans le nouvel espace, « Profil public » propose « Votre fuseau horaire », par défaut Europe/Paris. Confirmez un fuseau IANA avec « Enregistrer le fuseau ». Les séances suivent votre heure, avec l’heure de Paris à côté quand elle diffère.\n\n## Aujourd’hui et vos Candidates\n\n« Aujourd’hui » rassemble les séances du jour et du lendemain dans votre fuseau, les dates à confirmer et les séances à planifier. Chaque action ouvre la séance concernée. « Mes Candidates » donne accès aux personnes qui ont une séance avec vous ou vous ont accordé l’accès coach. Sans accès coach, vous ne voyez que leur prénom et initiale, leurs séances avec vous et vos notes privées. Avec accès coach, leur page ajoute leurs profils et candidatures, documents et avis, en lecture seule. Vous ne voyez jamais leur agenda, leurs conversations ni leurs notes personnelles.\n\n## Vos notes privées\n\nSur la page d’un Candidate et sur celle d’une séance, « Vos notes privées » s’enregistrent au fil de la frappe ; attendez « Notes enregistrées » avant de quitter la page. Elles ne sont pas montrées au Candidate à l’écran, mais « Le Candidate peut obtenir ces notes en exportant ses données. » Elles sont supprimées avec son compte et ne sont plus lisibles si vous quittez Jobbbox. Si les notes changent dans un autre onglet, conservez votre texte et rechargez la page.\n\n## Mes séances\n\nLes onglets « À venir », « À planifier », « Passées » comptent vos séances ; une rétractation les retire. Ouvrez une séance pour sa préparation, son lien et ses notes privées. La page passe de « Avant la séance » à « Pendant la séance » dix minutes avant son début, puis à « Après la séance » à la fin prévue. « Préparer : ouvrir la page du Candidate » mène à son dossier. La saisie de date reste disponible et conserve l’historique des reports.\n\n## Lecture partagée\n\nPendant la fenêtre de séance, le Candidate peut vous montrer un seul document. Votre lecture suit sa page et son défilement, même sans accès coach. Vous pouvez présenter votre PDF ; chacun peut « Arrêter ». Aucun téléchargement ni annotation n’est proposé et le document temporaire est supprimé à la fin de cette fenêtre."
     },
     {
       "id": "page-exit",
@@ -1636,6 +1636,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Un e-mail régulier, aussi visible dans Jobbbox, avec les nouvelles offres qui correspondent aux critères de recherche d'un profil.\n\nVous l'activez profil par profil, chaque semaine (le lundi à 7 h) ou chaque jour (à 7 h), selon votre offre. Il ne contient que des offres que vous n'avez pas encore vues, et ne compte dans aucun autre quota. Tant que des offres vous attendent dans « Offres à traiter », il finit par une ligne qui dit combien il vous en reste à traiter.\n\nVous pouvez vous désabonner depuis l'e-mail, sans vous connecter."
+    },
+    {
+      "id": "glossary-shared-reading",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Lecture partagée",
+      "synonyms": [
+        "shared reading",
+        "lecture partagée"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Une lecture en direct d’un document choisi pendant votre séance payée : CV, document de candidature ou PDF présenté par le coach humain. Seuls les deux participants voient ce document temporaire, sans accès aux autres documents. Vous pouvez arrêter à tout moment."
     },
     {
       "id": "glossary-coach-memory",
@@ -3797,6 +3813,39 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'app Jobbbox, sur iPhone, iPad et Android, utilise le même compte que jobbbox.ai. Pas de mot de passe : vous vous connectez par un lien reçu par e-mail.\n\n1. Installez l'app « Jobbbox » depuis l'App Store (iPhone, iPad) ou Google Play (Android), puis ouvrez-la.\n2. Sur l'écran « Se connecter à Jobbbox », saisissez « Votre adresse e-mail », puis touchez « Recevoir mon lien de connexion ».\n3. Sur ce même téléphone, ouvrez l'e-mail reçu et touchez le lien : l'app s'ouvre et vous êtes connecté. Le lien est valable 15 minutes et ne sert qu'une fois ; s'il n'est plus valable, l'app vous le dit : demandez-en un autre avec « Renvoyer le lien », ou avec « Recevoir mon lien de connexion » si l'app est revenue à l'écran « Se connecter à Jobbbox ». Vous lisez l'e-mail sur un autre appareil, votre ordinateur par exemple ? Saisissez dans l'app le code à 6 chiffres qu'il contient, dans « Saisir le code reçu par e-mail », puis touchez « Me connecter avec ce code ». Votre iPhone peut aussi vous proposer le code au-dessus du clavier.\n4. Si votre compte a la vérification en deux étapes, l'app affiche « Vérification en deux étapes » : elle arrive bientôt dans l'app. En attendant, touchez « Se déconnecter » ou connectez-vous sur jobbbox.ai.\n\nSi vous ouvrez le lien sur un appareil où l'app n'est pas installée, il vous connecte sur jobbbox.ai, dans le navigateur.\n\nPour vous déconnecter de l'app, ouvrez « Mon compte » et touchez « Se déconnecter ». Une session fermée depuis « Mon compte » sur jobbbox.ai déconnecte aussi l'app, dès qu'elle revient au premier plan.\n\nSans réseau, l'app affiche « Hors ligne » et vous montre ce que vous avez consulté en dernier ; rien ne s'envoie avant le retour du réseau. Ce qu'elle garde sur l'appareil, jamais vos conversations avec le coach, s'efface quand vous vous déconnectez."
     },
     {
+      "id": "tutorial-coach-shared-reading",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Lire un document avec le Candidate",
+      "synonyms": [
+        "lecture partagée",
+        "shared reading"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Dans « Mes séances », ouvrez la séance en cours. Quand le Candidate montre son document, la lecture partagée suit sa page et son défilement. Vous voyez seulement ce document, même sans accès coach.\n2. « Arrêter » retire le document immédiatement. Aucun document n’est conservé dans votre espace."
+    },
+    {
+      "id": "tutorial-shared-reading",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Lire un document avec votre coach humain",
+      "synonyms": [
+        "lecture partagée",
+        "montrer à mon coach",
+        "PDF"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Pendant la période de votre séance payée, ouvrez votre CV ou vos documents de candidature et cliquez sur « Montrer à mon coach ». Choisissez la séance. Vous pouvez aussi choisir un document dans la page de la séance.\n2. Faites défiler le document : votre coach suit la lecture en direct, même sans accès coach. Votre coach peut également présenter un PDF de dix mégaoctets et deux cents pages au maximum. La lecture partagée propose le document en lecture seule, sans annotation ni bouton de téléchargement.\n3. Cliquez sur « Arrêter » pour retirer immédiatement le document. La fin de la période de séance supprime aussi le document temporaire. Les autres CV et candidatures restent privés. L’appel et le partage d’écran se déroulent dans votre outil de visioconférence."
+    },
+    {
       "id": "tutorial-edit-restore-cv",
       "locale": "fr",
       "kind": "tutorial",
@@ -3847,6 +3896,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": "postuler-cv-adapte",
       "microAnimations": [],
       "body": "Votre coach adapte votre CV de référence à une offre, sans jamais rien inventer. Vous vérifiez chaque changement avant de l'enregistrer, puis vous postulez vous-même.\n\n1. Ouvrez la candidature, puis sa rubrique « Documents ».\n2. Cliquez sur « Proposer un CV adapté ». Quand « Proposition prête : vérifiez les changements avant d'enregistrer. » s'affiche, le score de correspondance avant et après est indiqué.\n3. Si l'offre demande ce que votre CV ne montre pas, répondez aux « Questions du coach » : « Oui, je l'ai » ou « Non ». Un point n'est ajouté que si vous confirmez l'avoir.\n4. Sous « Changements par rapport au CV de référence », cliquez sur « Accepter » ou « Refuser » pour chaque changement. Un changement refusé garde ce que dit votre CV de référence.\n5. Cliquez sur « Enregistrer le CV adapté ». Il remplace le CV adapté déjà enregistré pour cette candidature, s'il y en a un.\n6. Sous « Télécharger ce CV adapté », choisissez un modèle de CV, puis « Télécharger en PDF » ou « Télécharger en Word (.docx) ».\n7. Envoyez votre candidature vous-même, sur le site de l'offre ou par e-mail : Jobbbox n'envoie rien à votre place.\n8. Dans la fiche de la candidature, mettez le « Statut » à « Postulée ». Si elle reste sans réponse, votre coach vous proposera une relance.\n\nLa lettre de motivation se prépare dans la même rubrique, avec « Rédiger la lettre »."
+    },
+    {
+      "id": "tutorial-coach-present-slides",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Présenter vos slides",
+      "synonyms": [
+        "slides",
+        "PDF",
+        "présentation"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Ouvrez la séance en cours et choisissez un PDF de dix mégaoctets et deux cents pages au maximum. Cliquez sur « Présenter le PDF ».\n2. Faites défiler le PDF : le Candidate suit votre lecture. Vous pouvez tous deux arrêter. Le fichier temporaire disparaît à la fin de la fenêtre de séance."
     },
     {
       "id": "tutorial-coach-review",
@@ -5314,7 +5380,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/espace-coach",
       "motion": null,
       "microAnimations": [],
-      "body": "« My coach space » is your human coach's page on Jobbbox. Sign in to Jobbbox with the email address the Jobbbox team registered for you, by receiving a sign-in link: « My coach space » then shows in the menu. The Jobbbox name, at the top of each page of your coach space, brings you back to it, and « My account » opens your account.\n\nThe page has two parts.\n\n« My coaching sessions » lists the sessions candidates paid for with you, even when they have not given you coach access. Each session shows the candidate's first name and last initial, for example Claire D., followed by « goes by … » when the candidate gave the coaches another name than their first name, and the payment date: « Paid on … ». Until its date is entered, the session is « To schedule ». Once dated, it shows « On … (Paris time) », its duration and « Video link with … ». The tutorial « Enter a session's date and link » explains how to fill them in.\n\n« Candidates with coach access » lists the candidates who gave you coach access, by their first and last name, for example Claire Durand · goes by Clo: « goes by » gives the name the candidate would like the coaches to call them, when it is not their first name. A candidate who gave neither a first name nor a last name shows under their email address. Click one to open their file, which repeats their name and « goes by … »: their applications, with their status, and their profiles. Everything there is read only, as the page reminds you: « Read only: only the candidate can change their profiles and applications. » Open an application to read its tailored CV, cover letter and outreach message, and to give your review: the tutorial « Write a review of an application document » explains how.\n\nYou see neither the candidate's agenda, nor their conversations with their AI coach, nor the note they may have added to a session. The « Help Centre » link, at the bottom of each page of your coach space, leads to this topic of the help.\n\n## New navigation\n\nWhen the team switches on “Coach space v2”, your space opens on “Today”. The sidebar offers “My Candidates”, “My sessions”, “Availability”, “Public page”, “Earnings”, “Contract” and “Help”, followed by “My account” and “Sign out”. Each page gathers its cards in one column. On a phone, open “Menu”; Escape closes the drawer and returns focus to its button. “Notifications” opens your notifications. Until this navigation is switched on, the page described above remains available.\n\n## Your time zone\n\nIn the new space, “Public page” offers “Your time zone”, initially Europe/Paris. Confirm an IANA zone with “Save time zone”. Sessions follow your clock, with Paris time alongside when it differs.\n\n## Today and your Candidates\n\n“Today” gathers today’s and tomorrow’s sessions in your zone, dates to confirm and sessions to schedule. Each action opens its session. “My Candidates” lists people who have a session with you or granted Coach Access. Without Coach Access, you see only their short name, sessions with you and your Private Coach Notes. With Coach Access, the page adds their Profiles and Applications, documents and reviews, read only. You never see their Agenda, conversations or personal notes.\n\n## Your Private Coach Notes\n\nOn a Candidate’s or session’s page, “Your Private Coach Notes” save as you type; wait for “Notes saved” before leaving. They are not shown to the Candidate on screen, but “The Candidate can obtain these notes by exporting their data.” They are deleted with the account and become unreadable when you leave Jobbbox. If another tab changed the notes, keep a copy of your text and reload.\n\n## My sessions\n\n“Upcoming”, “To schedule” and “Past” count your sessions; a Withdrawal removes a session. Open a session for preparation, its link and private notes. The page changes from “Before the session” to “During the session” ten minutes before it starts, then to “After the session” at its scheduled end. “Prepare: open the Candidate’s page” leads to their file. Manual date entry remains available and keeps Reschedule history."
+      "body": "« My coach space » is your human coach's page on Jobbbox. Sign in to Jobbbox with the email address the Jobbbox team registered for you, by receiving a sign-in link: « My coach space » then shows in the menu. The Jobbbox name, at the top of each page of your coach space, brings you back to it, and « My account » opens your account.\n\nThe page has two parts.\n\n« My coaching sessions » lists the sessions candidates paid for with you, even when they have not given you coach access. Each session shows the candidate's first name and last initial, for example Claire D., followed by « goes by … » when the candidate gave the coaches another name than their first name, and the payment date: « Paid on … ». Until its date is entered, the session is « To schedule ». Once dated, it shows « On … (Paris time) », its duration and « Video link with … ». The tutorial « Enter a session's date and link » explains how to fill them in.\n\n« Candidates with coach access » lists the candidates who gave you coach access, by their first and last name, for example Claire Durand · goes by Clo: « goes by » gives the name the candidate would like the coaches to call them, when it is not their first name. A candidate who gave neither a first name nor a last name shows under their email address. Click one to open their file, which repeats their name and « goes by … »: their applications, with their status, and their profiles. Everything there is read only, as the page reminds you: « Read only: only the candidate can change their profiles and applications. » Open an application to read its tailored CV, cover letter and outreach message, and to give your review: the tutorial « Write a review of an application document » explains how.\n\nYou see neither the candidate's agenda, nor their conversations with their AI coach, nor the note they may have added to a session. The « Help Centre » link, at the bottom of each page of your coach space, leads to this topic of the help.\n\n## New navigation\n\nWhen the team switches on “Coach space v2”, your space opens on “Today”. The sidebar offers “My Candidates”, “My sessions”, “Availability”, “Public page”, “Earnings”, “Contract” and “Help”, followed by “My account” and “Sign out”. Each page gathers its cards in one column. On a phone, open “Menu”; Escape closes the drawer and returns focus to its button. “Notifications” opens your notifications. Until this navigation is switched on, the page described above remains available.\n\n## Your time zone\n\nIn the new space, “Public page” offers “Your time zone”, initially Europe/Paris. Confirm an IANA zone with “Save time zone”. Sessions follow your clock, with Paris time alongside when it differs.\n\n## Today and your Candidates\n\n“Today” gathers today’s and tomorrow’s sessions in your zone, dates to confirm and sessions to schedule. Each action opens its session. “My Candidates” lists people who have a session with you or granted Coach Access. Without Coach Access, you see only their short name, sessions with you and your Private Coach Notes. With Coach Access, the page adds their Profiles and Applications, documents and reviews, read only. You never see their Agenda, conversations or personal notes.\n\n## Your Private Coach Notes\n\nOn a Candidate’s or session’s page, “Your Private Coach Notes” save as you type; wait for “Notes saved” before leaving. They are not shown to the Candidate on screen, but “The Candidate can obtain these notes by exporting their data.” They are deleted with the account and become unreadable when you leave Jobbbox. If another tab changed the notes, keep a copy of your text and reload.\n\n## My sessions\n\n“Upcoming”, “To schedule” and “Past” count your sessions; a Withdrawal removes a session. Open a session for preparation, its link and private notes. The page changes from “Before the session” to “During the session” ten minutes before it starts, then to “After the session” at its scheduled end. “Prepare: open the Candidate’s page” leads to their file. Manual date entry remains available and keeps Reschedule history.\n\n## Shared Reading\n\nDuring the session window, the Candidate can show you one document. Your reading follows their page and scrolling, even without Coach Access. You can present your PDF; either participant can choose “Stop”. There is no download or annotation control, and the temporary document is deleted at the end of this window."
     },
     {
       "id": "page-order",
@@ -5378,7 +5444,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/coachs/seances/[sessionId]",
       "motion": null,
       "microAnimations": [],
-      "body": "After a session, your Human Coach may publish a report. In “My Human Coaches”, “Read the report and continue the conversation” opens that session’s own conversation. The message bears the coach’s name and “Human Coach”; it is not an AI Coach reply. The AI Coach can then help organise your next steps: only actions that copy no text are offered. A correction is a new message. Your data export includes reports, including private drafts that do not appear on screen."
+      "body": "After a session, your Human Coach may publish a report. In “My Human Coaches”, “Read the report and continue the conversation” opens that session’s own conversation. The message bears the coach’s name and “Human Coach”; it is not an AI Coach reply. The AI Coach can then help organise your next steps: only actions that copy no text are offered. A correction is a new message. Your data export includes reports, including private drafts that do not appear on screen.\n\nDuring your paid session’s joining window, “Shared Reading” lets you choose a document and “Show my coach”. Your coach follows your page and scrolling, without access to other documents. “Stop” removes the temporary document immediately. Your coach can also present a PDF."
     },
     {
       "id": "glossary-coach-access",
@@ -6084,6 +6150,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Share to Jobbbox (share capture) means sending a job offer to the Jobbbox app from another app's share sheet: your browser, LinkedIn, Indeed or Mail. You choose « Jobbbox » among the apps offered, and the app opens on the « Share to Jobbbox » screen.\n\nJobbbox reads the link itself, following the site's rules, as its job search does: your phone never reads the page. Where the site forbids it (LinkedIn, Indeed…), the screen asks you to share or paste the job offer's text.\n\nThe job offer becomes a private job offer, which only you can see, opened in its own conversation with your AI coach, which offers « Score against my profile ». If you share the same job offer twice, it is the same private job offer. Nothing you shared is kept beyond the job offer created.\n\nShared, the job offer does not enter « Offers to handle ». Once saved as an application, on the website or by asking your coach, it arrives there already « Followed », with the chip « Share »."
+    },
+    {
+      "id": "glossary-shared-reading",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Shared Reading",
+      "synonyms": [
+        "shared reading",
+        "lecture partagée"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Live reading of one selected document during your paid session: a CV, application document, or PDF presented by the Human Coach. Only the two participants see this temporary document, without access to other documents. You can stop at any time."
     },
     {
       "id": "glossary-tailored-cv",
@@ -7844,6 +7926,56 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Two-step verification is mandatory for administrators, permanent super-admins (ADMIN_EMAILS) included, and for human coaches. After a magic link, an account with no factor yet sets it up before any other page: it can do nothing but set it up or sign out, in the app as in the extension. This applies from the next page to someone given a role or made a coach while signed in. Signing in through a sign-in provider (Google, Microsoft…) asks for no second step. In My account, « Security » section, these accounts have no « Turn off » button, and no « Remove » on a passkey that is their last factor.\n\nIn Administrators (Team menu), the « Two-step verification » column says « On » or « No factor ». An administrator with no factor can only be one who signs in through a sign-in provider.\n\nFor someone who lost their authenticator app, their passkeys and their backup codes, a super-admin resets their two-step verification:\n\n1. Open Administrators (Team menu).\n2. In « Reset two-step verification », enter the « Email address of the account ».\n3. Tick « I confirm: this account's factors, backup codes and sessions will be deleted. »\n4. Click « Reset two-step verification ». The page says the account's two-step verification is reset.\n\nTheir app, their passkeys, their backup codes and their sessions are deleted, and an email tells them. The next time they sign in by magic link, an administrator or a coach sets it up again. Each reset is recorded in Administrator actions: who, when and which account, never a code or a secret. Only super-admins see this page."
+    },
+    {
+      "id": "tutorial-coach-present-slides",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Present your slides",
+      "synonyms": [
+        "slides",
+        "PDF",
+        "présentation"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Open the current session and choose a PDF of up to ten megabytes and two hundred pages. Choose “Present PDF”.\n2. Scroll through the PDF: the Candidate follows your reading. Either participant can stop sharing. The temporary file is deleted when the session window ends."
+    },
+    {
+      "id": "tutorial-coach-shared-reading",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Read a document with the Candidate",
+      "synonyms": [
+        "lecture partagée",
+        "shared reading"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Open the current session in “My sessions”. When the Candidate shows a document, Shared Reading follows their page and scrolling. You see only that document, even without Coach Access.\n2. “Stop” removes the document immediately. No document is kept in your coach workspace."
+    },
+    {
+      "id": "tutorial-shared-reading",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Read a document with your Human Coach",
+      "synonyms": [
+        "shared reading",
+        "show my coach",
+        "PDF"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. During your paid session’s joining window, open your CV or application documents and choose “Show my coach”. Choose the session. You can also select a document on the session page.\n2. Scroll through the document: your coach follows live, even without Coach Access. Your coach can also present a PDF of up to ten megabytes and two hundred pages. Shared Reading is read-only, with no annotation or download control.\n3. Choose “Stop” to remove the document immediately. The end of the session window also deletes the temporary document. Your other CVs and applications stay private. The call and screen sharing take place in your video tool."
     },
     {
       "id": "tutorial-admin-provider-secret",

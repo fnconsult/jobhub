@@ -1,3 +1,5 @@
+import { SharedReadingPanel } from "@/shared-reading/SharedReadingPanel";
+import { getSharedReading } from "@/shared-reading/server";
 import { ReportEditor } from "@/coach-space/ReportEditor";
 import { getSessionReports } from "@/coach-space/reports-server";
 import { MeetingForm } from "@/coach-space/MeetingForm";
@@ -15,6 +17,7 @@ import { sessionPhase } from "@/coach-space/workspace";
 import { getCoachWorkspace } from "@/coach-space/workspace-server";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+const COACH = "coach";
 const EDITOR = "coach";
 export default async function Page({ params }: { params: Promise<{ sessionId: string }> }) {
   const coach = await requireCoachSpaceV2();
@@ -28,6 +31,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
     space.note(coach.id, session.candidateId, session.id),
   ]);
   if (!note) notFound();
+  const canRead = await getSharedReading().canUse({ candidateId: "", coachId: coach.id }, session.id);
   const phase = sessionPhase(session, new Date());
   const reports = await getSessionReports().forCoach(coach.id, session.id);
   const draft = reports?.find((report) => !report.publishedAt) ?? null;
@@ -50,6 +54,11 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
           withName={session.candidateName}
         />
       </section>
+      {canRead ? (
+        <section className="coach-space-card">
+          <SharedReadingPanel sessionId={session.id} audience={COACH} />
+        </section>
+      ) : null}
       <SessionCard coachId={coach.id} session={session} t={t} locale={locale} timeZone={timeZone} />
       <section className="coach-space-card">
         <h2>{t("coachMeeting.sessionContact")}</h2>

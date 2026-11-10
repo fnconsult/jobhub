@@ -1,3 +1,5 @@
+import { ShareDocumentButton } from "@/shared-reading/ShareDocumentButton";
+import { coachSpaceV2On } from "@/coach-space/server";
 import type { Metadata } from "next";
 import { MasterCvEditor } from "@/components/MasterCvEditor";
 import { InWorkPane } from "@/components/WorkPane";
@@ -7,6 +9,7 @@ import { requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
 
 /** What it is in the Work Pane. */
+const PROFILE = "profile";
 const SECTION: AddressedKind = "section";
 
 type Params = { params: Promise<{ id: string }> };
@@ -28,6 +31,7 @@ export default async function EditMasterCvPage({ params }: Params) {
     <InWorkPane kind={SECTION} title={t("cvEditor.title")} href={routes.editMasterCv(profile.id)} back={routes.profile(profile.id)}>
       <p>{t("cvEditor.intro")}</p>
       <p>{t("cvEditor.editingVersion", { version: profile.masterCv.version })}</p>
+      {coachSpaceV2On() ? <ShareDocumentButton source={{ kind: PROFILE, id: profile.id }} /> : null}
       <MasterCvEditor profileId={profile.id} version={profile.masterCv.version} content={profile.masterCv.content} />
     </InWorkPane>
   );

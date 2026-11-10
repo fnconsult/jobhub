@@ -1,3 +1,5 @@
+import { ShareDocumentButton } from "@/shared-reading/ShareDocumentButton";
+import { coachSpaceV2On } from "@/coach-space/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -96,7 +98,23 @@ export const loadApplicationPage = cache(async (id: string) => {
   const now = new Date();
   const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
   const agendaHref = routes.agenda(allPast);
-  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
+  return {
+    candidateId,
+    application,
+    t,
+    locale,
+    inView,
+    cards,
+    shownCards,
+    profiles,
+    companyDossier,
+    enrichedContacts,
+    tailoredCv,
+    drafts,
+    coachReviews,
+    sections,
+    agendaHref,
+  };
 });
 
 export type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
@@ -142,6 +160,8 @@ function resultTitle(result: ApplicationResult, t: T): string {
   return t(result === "cover_letter" ? "tailoredDocuments.coverLetter.title" : "tailoredDocuments.outreachMessage.title");
 }
 
+const SHARED_KINDS = ["tailored_cv", "cover_letter", "outreach_message"] as const;
+
 function SectionView({ data, section, result }: { data: ApplicationPageData; section: ApplicationSection; result?: ApplicationResult }) {
   const { application, t, locale } = data;
   switch (section) {
@@ -157,17 +177,28 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
         ...(emails[0] && { email: emails[0] }),
       }));
       return (
-        <TailoredDocuments
-          key={`documents-${application.id}`}
-          applicationId={application.id}
-          documentLanguage={drafts?.documentLanguage ?? tailoredCv!.documentLanguage}
-          tailoredCv={tailoredCv}
-          drafts={drafts}
-          recipients={recipients}
-          locale={locale}
-          target={{ title: application.jobOffer.title, ...(application.jobOffer.employer && { employer: application.jobOffer.employer }) }}
-          {...(result ? { only: result } : {})}
-        />
+        <>
+          {coachSpaceV2On() ? (
+            <div className="actions">
+              {SHARED_KINDS
+                .filter((kind) => (kind === "tailored_cv" ? tailoredCv?.saved : kind === "cover_letter" ? drafts?.coverLetter : drafts?.outreachMessage))
+                .map((kind) => (
+                  <ShareDocumentButton key={kind} source={{ kind, id: application.id }} />
+                ))}
+            </div>
+          ) : null}
+          <TailoredDocuments
+            key={`documents-${application.id}`}
+            applicationId={application.id}
+            documentLanguage={drafts?.documentLanguage ?? tailoredCv!.documentLanguage}
+            tailoredCv={tailoredCv}
+            drafts={drafts}
+            recipients={recipients}
+            locale={locale}
+            target={{ title: application.jobOffer.title, ...(application.jobOffer.employer && { employer: application.jobOffer.employer }) }}
+            {...(result ? { only: result } : {})}
+          />
+        </>
       );
     }
     case "correspondance":
@@ -193,7 +224,11 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
       return (
         <>
           <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale} />
-          <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector} />
+          <JobOfferSummary
+            applicationId={application.id}
+            summary={application.jobOffer.summary}
+            needsReading={!application.jobOffer.summary || !application.jobOffer.sector}
+          />
           <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />
         </>
       );

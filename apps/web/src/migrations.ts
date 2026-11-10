@@ -1,3 +1,4 @@
+import { migrateSharedReading } from "./shared-reading";
 import { migrateSessionReports } from "./coach-space/reports";
 import { migrateCoachContacts } from "./coach-space/contacts";
 import { migrateCoachWorkspace } from "./coach-space/workspace";
@@ -96,6 +97,7 @@ export async function migrateDatabase(
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coaching time zones are up to date", () => migrateCoachingTimeZones(database)],
     ["Coaching Session contacts are up to date", () => migrateCoachContacts(database)],
+    ["Shared Reading is up to date", () => migrateSharedReading(database)],
     ["Private Coach Notes are up to date", () => migrateCoachWorkspace(database)],
     ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],

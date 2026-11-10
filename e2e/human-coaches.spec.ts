@@ -826,7 +826,7 @@ test.describe("isolated Human Coach workspace v2", () => {
     const coachPage = await personPage(browser, coachEmail);
     try {
       await signIn(page, newAddress("workspace-candidate"));
-      await applicationWithCoverLetter(page, origin);
+      const applicationId = await applicationWithCoverLetter(page, origin);
       const checkout = await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
       expect(checkout.status()).toBe(303);
       const [started] = await checkoutsFor(coachId);
@@ -875,7 +875,38 @@ test.describe("isolated Human Coach workspace v2", () => {
       await expect(coachPage.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
       await page.goto("/coachs");
       await expect(page.getByRole("link", { name: fr.coachMeeting.join.meet })).toBeVisible();
+      // #873: two separate browsers follow one explicitly selected document, without Coach Access.
+      await database.query("UPDATE tailored_document SET text=$2 WHERE application_id=$1 AND kind='cover_letter'", [
+        applicationId,
+        "Shared reading paragraph. \n".repeat(1000),
+      ]);
+      await page.goto(`/coachs/seances/${session.id}`);
+      await page.getByLabel(fr.sharedReading.document, { exact: true }).selectOption(JSON.stringify({ kind: "cover_letter", id: applicationId }));
+      await page.getByRole("button", { name: fr.sharedReading.show, exact: true }).click();
+      const candidateReading = page.locator(".shared-reading-document");
+      const coachReading = coachPage.locator(".shared-reading-document");
+      await expect(candidateReading).toContainText("Shared reading paragraph.");
+      await expect(coachReading).toContainText("Shared reading paragraph.");
+      await candidateReading.focus();
+      await page.keyboard.press("Control+End");
+      await expect.poll(() => coachReading.evaluate((el) => el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight)), { timeout: 2000 }).toBeGreaterThan(0.9);
+      const shareId = (await database.query("SELECT id FROM shared_reading WHERE session_id=$1", [session.id])).rows[0].id;
+      await expect(coachPage.getByRole("link", { name: fr.designSystem.viewer.download, exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: fr.sharedReading.stop, exact: true }).click();
+      await expect(coachReading).toHaveCount(0);
+      expect((await coachPage.request.get(`/api/coaching/shared-reading/${session.id}/document?share=${shareId}`)).status()).toBe(404);
+      const profileId = (await database.query("SELECT profile_id FROM application WHERE id=$1", [applicationId])).rows[0].profile_id;
+      const pdf = await page.request.get(`/api/profiles/${profileId}/master-cv/export?format=pdf&template=classic`);
+      expect(pdf.ok()).toBe(true);
+      await coachPage
+        .locator('.shared-reading input[type="file"]')
+        .setInputFiles({ name: "slides.pdf", mimeType: "application/pdf", buffer: await pdf.body() });
+      await coachPage.getByRole("button", { name: fr.sharedReading.present, exact: true }).click();
+      await expect(page.locator(".shared-reading .ds-viewer canvas").first()).toBeVisible();
+      await expect(page.locator(".shared-reading").getByRole("link", { name: fr.designSystem.viewer.download, exact: true })).toHaveCount(0);
+      const pdfShareId = (await database.query("SELECT id FROM shared_reading WHERE session_id=$1", [session.id])).rows[0].id;
       await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '2 hours' WHERE id=$1", [session.id]);
+      expect((await coachPage.request.get(`/api/coaching/shared-reading/${session.id}/document?share=${pdfShareId}`)).status()).toBe(404);
       await coachPage.goto(`/espace-coach/seances/${session.id}`);
       await coachPage.getByLabel(fr.coachReports.covered).fill("Nous avons préparé votre présentation ensemble.");
       await coachPage.getByLabel(fr.coachReports.nextSteps).fill("Préparer une candidature pour votre prochaine offre.");

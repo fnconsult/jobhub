@@ -73,7 +73,7 @@ export function planRuns(
  * `[taken, reference]` paths: the reference beside the flows, captures/<capture dir>/<screen>.png.
  */
 export function recordedCaptures(files: string[], root: string, captureDir: string): [string, string][] {
-  return KEY_SCREENS.flatMap((screen) => {
+  return [...KEY_SCREENS, "badge-1", "badge-9"].flatMap((screen) => {
     const taken = files.filter((file) => file.endsWith(`/record/${captureDir}/${screen}.png`)).sort().at(-1);
     return taken ? [[taken, join(root, "captures", captureDir, `${screen}.png`)] as [string, string]] : [];
   });
@@ -88,7 +88,17 @@ function main(argv: string[]) {
   if (!hardware || !(hardware in CI_HARDWARE)) throw new Error(`usage: run.ts <${Object.keys(CI_HARDWARE).join("|")}> --stack <ready.json>`);
   const stack = JSON.parse(readFileSync(option("stack")!, "utf8")) as Stack;
   const out = option("out", join(__dirname, "results"))!;
-  const runs = planRuns(hardware as HardwareId, { root: __dirname, stack, captures: option("captures", "compare") as CaptureMode, referenceExists: existsSync });
+  let runs = planRuns(hardware as HardwareId, { root: __dirname, stack, captures: option("captures", "compare") as CaptureMode, referenceExists: existsSync });
+  // Temporary recording evidence for #939: each count has an independent seeded Candidate.
+  const ordinary = runs;
+  runs = ordinary.flatMap((run) => {
+    if (!/^(android-tablet|ipad-(portrait|landscape))-light$/.test(run.name)) return [run];
+    return [run, ...[1, 9].map((count) => ({ ...run, name: `${run.name}-badge-${count}`, flows: (email: string, out: string) => {
+      const command = run.flows(email, out);
+      command[2] = join(__dirname, "badge-evidence.yaml");
+      return command.filter((arg) => !arg.startsWith("--include-tags=")).concat(["-e", `BADGE_COUNT=${count}`]);
+    } }))];
+  });
   // Maestro's own analytics stay off: nothing of a run leaves the CI machine but its artifacts, of invented data only.
   const env = { ...process.env, MAESTRO_CLI_NO_ANALYTICS: "1", MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true" };
   const exec = (command: string[], cwd?: string) => spawnSync(command[0]!, command.slice(1), { stdio: "inherit", env, cwd }).status === 0;
@@ -100,7 +110,7 @@ function main(argv: string[]) {
     const dir = join(out, run.name);
     mkdirSync(dir, { recursive: true });
     const setUp = run.setup.every((command) => exec(command));
-    const seeded = spawnSync("curl", ["--fail", "--silent", "--show-error", "-X", "POST", `${stack.helper}/candidates`], { encoding: "utf8" });
+    const seeded = spawnSync("curl", ["--fail", "--silent", "--show-error", "-X", "POST", `${stack.helper}/candidates${run.name.includes("-badge-") ? `?offers=${run.name.split("-badge-")[1]}` : ""}`], { encoding: "utf8" });
     const email = seeded.status === 0 ? (JSON.parse(seeded.stdout) as { email: string }).email : null;
     // Maestro writes a screenshot it takes under its working directory when it makes no bundle: the run's own.
     // The app's preparation (cleared, oriented) is set-up, not a check: tried a second time should

@@ -36,7 +36,7 @@ async function ok<T>(response: Awaited<ReturnType<Page["request"]["post"]>>, wha
  * every date the key screens show on its fixed day; then signed out of the browser that seeded them, so the app signs in
  * afresh, by its code.
  */
-export async function seedMaestroCandidate(browser: Browser, origin: string): Promise<SeededCandidate> {
+export async function seedMaestroCandidate(browser: Browser, origin: string, offerCount = 2): Promise<SeededCandidate> {
   const email = `maestro.${unique()}@e2e.jobbbox.test`;
   const context = await browser.newContext({ baseURL: origin });
   const page = await context.newPage();
@@ -80,7 +80,7 @@ export async function seedMaestroCandidate(browser: Browser, origin: string): Pr
     const { scheduledAt, durationMinutes, note } = MAESTRO_SEED.interview;
     await ok(await page.request.post(`/api/applications/${interviewId}/interviews`, { headers, data: { scheduledAt, durationMinutes, format: "video", note } }), "add the Interview");
     const found = [];
-    for (const title of MAESTRO_SEED.jobOffers) found.push(await offer(title, MAESTRO_SEED.jobOffersEmployer));
+    for (let index = 0; index < offerCount; index++) found.push(await offer(MAESTRO_SEED.jobOffers[index] ?? `Offre de démonstration ${index + 1}`, MAESTRO_SEED.jobOffersEmployer));
     await ok(await page.request.post("/api/coach", { headers, data: { message: MAESTRO_SEED.conversation.title } }), "start the Free conversation");
 
     const candidateId = ((await (await page.request.get("/api/auth/get-session")).json()) as { user: { id: string } }).user.id;
@@ -142,7 +142,7 @@ export async function startMobileStackHelper(browser: Browser, origin: string, p
     };
     void (async () => {
       if (request.method === "POST" && url.pathname === "/candidates") {
-        const { email } = await seedMaestroCandidate(browser, origin);
+        const { email } = await seedMaestroCandidate(browser, origin, [1, 9].includes(Number(url.searchParams.get("offers"))) ? Number(url.searchParams.get("offers")) : 2);
         served.set(email, emailsTo(email).length);
         return answer(201, { email });
       }

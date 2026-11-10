@@ -47,3 +47,7 @@ Quand une nouvelle version des conditions d'utilisation doit être acceptée, l'
 Sous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple 0.1.0. Sur la version bêta, elle est suivie de la modification exacte servie, par exemple 0.1.0 (main·3f9c2a1) : citez-la si vous signalez un problème.
 
 Mon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (sur téléphone, « Aide » est sous « … », en haut à droite, et l'article s'ouvre par-dessus, en plein écran). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte.
+
+## Votre fuseau horaire
+
+Dans « Mon compte », « Préférences », confirmez « Votre fuseau horaire » avec « Enregistrer le fuseau ». À la première visite, Jobbbox propose celui de votre appareil. Les séances de coaching s’affichent dans ce fuseau IANA, avec l’heure de Paris à côté quand elle diffère ; les entretiens restent en heure de Paris. Le fichier « Ajouter à mon calendrier » garde le fuseau de la séance et ses changements d’heure.

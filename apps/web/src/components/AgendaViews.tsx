@@ -1,3 +1,4 @@
+import { coachingTime } from "@jobhub/shared/coaching-time";
 import Link from "next/link";
 import { useId } from "react";
 import type { AgendaDay, AgendaItem, CoachingSessionAgendaItem, InterviewAgendaItem, UnscheduledCoachingSession } from "@/agenda";
@@ -50,6 +51,7 @@ const ids = (scope: string) => ({
 export interface Formats {
   /** The time formatter, for `InterviewTimes`: "14:30". */
   timeFormat: Intl.DateTimeFormat;
+  coachingTime: (value: Date) => string;
   /** "14:30". */
   time: (value: Date) => string;
   /** A calendar day ("2026-10-22") in full: "jeudi 22 octobre 2026". */
@@ -77,7 +79,7 @@ export interface Formats {
 /** A calendar day at noon UTC: always that same day in French time, so `Intl` writes it in Europe/Paris. */
 const noonOf = (day: string) => new Date(`${day}T12:00:00Z`);
 
-export function formatsFor(locale: string, now: Date): Formats {
+export function formatsFor(locale: string, now: Date, coachingZone = INTERVIEW_TIME_ZONE): Formats {
   const zone = { timeZone: INTERVIEW_TIME_ZONE };
   const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", ...zone });
   const dayIn = (options: Intl.DateTimeFormatOptions) => {
@@ -87,6 +89,7 @@ export function formatsFor(locale: string, now: Date): Formats {
   const range = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", ...zone });
   return {
     timeFormat: time,
+    coachingTime: (value) => coachingTime(value, locale, coachingZone),
     time: (value) => time.format(value),
     fullDay: dayIn({ dateStyle: "full" }),
     weekday: dayIn({ weekday: "long", day: "numeric", month: "long" }),
@@ -379,7 +382,7 @@ function CoachingSessionItem({ item, scope, past, withdrawable, formats, t }: { 
     <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"} data-kind={item.kind}>
       <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
         <time className="agenda-item-time" dateTime={item.scheduledAt.toISOString()}>
-          {formats.time(item.scheduledAt)}
+          {item.kind === "coachingSession" ? formats.coachingTime(item.scheduledAt) : formats.time(item.scheduledAt)}
         </time>
         <span className="agenda-item-what">
           <span className="agenda-item-kind">

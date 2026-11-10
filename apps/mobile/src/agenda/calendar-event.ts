@@ -75,6 +75,7 @@ export function agendaCalendarFile(item: AgendaItem, { t, now }: { t: TFunction;
   return calendarFileText(
     {
       uid: event.uid,
+      timeZone: item.kind === "coachingSession" ? item.timeZone : undefined,
       start: event.startDate,
       end: event.endDate,
       sequence: event.sequence,

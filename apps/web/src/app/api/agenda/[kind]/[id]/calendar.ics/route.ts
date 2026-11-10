@@ -1,3 +1,4 @@
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import { createI18n } from "@jobhub/shared/i18n";
 import { NextResponse } from "next/server";
 import { agendaItemRefFrom, calendarFile } from "@/agenda/calendar-file";
@@ -22,7 +23,8 @@ export async function GET(request: Request, { params }: RouteContext<"/api/agend
   const locale = localeOf(candidate);
   const now = new Date();
   const agendaUrl = new URL(routes.agenda(), process.env.APP_URL ?? request.url).href;
-  const file = item ? calendarFile(item, { now, agendaUrl, locale }) : null;
+  const timeZone = (await getCoachingTimeZones().candidate(candidate.id)) ?? undefined;
+  const file = item ? calendarFile(item, { now, agendaUrl, locale, timeZone }) : null;
   if (!item || !file) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const t = createI18n(locale).t;

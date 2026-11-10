@@ -328,6 +328,7 @@ export type InterviewAgendaItemRead = z.infer<typeof interviewAgendaItemSchema>;
 
 /** A dated Coaching Session as the Agenda shows it: it leads to its Human Coach. `changedBy` "coach": « modifié par le coach ». */
 export const coachingSessionAgendaItemSchema = z.object({
+  timeZone: z.string().optional(),
   kind: z.literal("coachingSession"),
   id: z.string(),
   coach: named,
@@ -373,6 +374,7 @@ export type AgendaResponse = z.infer<typeof agendaResponseSchema>;
  * `regularAmount` with their Plan's discount; null when it cannot be read). Never a Human Coach's email.
  */
 export const coachingResponseSchema = z.object({
+  timeZone: z.string().optional(),
   coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean() })),
   sessions: z.array(
     z.object({

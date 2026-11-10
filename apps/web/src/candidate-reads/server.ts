@@ -1,3 +1,4 @@
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import { getAgenda } from "@/agenda/server";
 import { getApplications } from "@/applications/server";
 import { getAtsScoring } from "@/ats-score/server";
@@ -20,6 +21,7 @@ let instance: CandidateReads | undefined;
 /** The app's reads over HTTP (#684), on the modules the pages read, on the database named by DATABASE_URL. */
 export function getCandidateReads(): CandidateReads {
   instance ??= createCandidateReads({
+    coachingTimeZone: (id) => getCoachingTimeZones().candidate(id),
     applications: getApplications(),
     followUps: getFollowUps(),
     profiles: getProfiles(),

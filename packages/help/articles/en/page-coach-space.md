@@ -19,3 +19,7 @@ You see neither the candidate's agenda, nor their conversations with their AI co
 ## New navigation
 
 When the team switches on “Coach space v2”, your space opens on “Today”. The sidebar offers “My Candidates”, “My sessions”, “Availability”, “Public page”, “Earnings”, “Contract” and “Help”, followed by “My account” and “Sign out”. Each page gathers its cards in one column. On a phone, open “Menu”; Escape closes the drawer and returns focus to its button. “Notifications” opens your notifications. Until this navigation is switched on, the page described above remains available.
+
+## Your time zone
+
+In the new space, “Public page” offers “Your time zone”, initially Europe/Paris. Confirm an IANA zone with “Save time zone”. Sessions follow your clock, with Paris time alongside when it differs.

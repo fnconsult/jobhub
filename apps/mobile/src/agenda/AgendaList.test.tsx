@@ -118,7 +118,7 @@ describe("the Agenda, as a list", () => {
     expect(within(interview).getByText("14:30")).toBeOnTheScreen();
     expect(within(interview).getByText("Aéroline")).toBeOnTheScreen();
     const session = screen.getByRole("link", { name: /Claire Martin/ });
-    expect(within(session).getByText("09:00")).toBeOnTheScreen();
+    expect(within(session).getByText(/09:00.*Europe\/Paris/)).toBeOnTheScreen();
     expect(within(session).getByText("60 min")).toBeOnTheScreen();
   });
 

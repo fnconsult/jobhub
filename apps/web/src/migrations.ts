@@ -1,3 +1,4 @@
+import { migrateCoachingTimeZones } from "./coaching-time";
 /**
  * Every table of the web app, created or upgraded in dependency order. Safe to
  * run repeatedly. `npm run db:migrate` runs it; tests use it to check rules that
@@ -90,6 +91,7 @@ export async function migrateDatabase(
     ["Job discovery runs are up to date", () => migrateDiscoveryRuns(database)],
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
+    ["Coaching time zones are up to date", () => migrateCoachingTimeZones(database)],
     ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Push notifications' devices and switches are up to date", () => migratePushNotifications(database)],

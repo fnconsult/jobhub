@@ -603,3 +603,44 @@ test("Coach space v2: rollout gate, eight pages in both themes and three widths,
     await admin.context().close();
   }
 });
+
+// #882: one physical instant, two viewers' clocks; Interviews still keep their existing Paris rules.
+test("a Montréal Candidate confirms the device zone and reads the same session as a Paris coach, including TZID", async ({ browser }) => {
+  const admin = await personPage(browser, ADMINISTRATOR);
+  const coachEmail = newAddress("coach-paris");
+  const coach = await addCoach(admin, coachEmail);
+  const coachId = await coachIdOf(admin, coach.name);
+  const context = await browser.newContext({ baseURL: origin, locale: "fr-FR", timezoneId: "America/Montreal" });
+  const candidate = await context.newPage();
+  const coachPage = await personPage(browser, coachEmail);
+  try {
+    await signInWithMagicLink(candidate, newAddress("candidate-montreal"));
+    await candidate.goto("/compte/preferences");
+    await expect(candidate.getByLabel(fr.coachingTime.label)).toHaveValue(/America\/(?:Montreal|Toronto)/);
+    await candidate.getByLabel(fr.coachingTime.label).fill("America/Montreal");
+    await candidate.getByRole("button", { name: fr.coachingTime.save }).click();
+    await expect(candidate.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
+    const checkout = await candidate.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+    expect(checkout.status()).toBe(303);
+    const [started] = await checkoutsFor(coachId);
+    const event = signedEvent(checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }));
+    expect((await candidate.request.post("/api/billing/webhook", { data: event.payload, headers: { "stripe-signature": event.signature, "content-type": "application/json" } })).ok()).toBe(true);
+    const read = await (await candidate.request.get("/api/coaching")).json();
+    const session = read.sessions[0];
+    expect(read.timeZone).toBe("America/Montreal");
+    expect((await candidate.request.patch(`/api/coaching/sessions/${session.id}`, { data: { scheduledAt: "2026-11-12T14:30", durationMinutes: 60 }, headers: { origin } })).ok()).toBe(true);
+    await candidate.goto("/coachs");
+    const card = candidate.locator(`#seance-${session.id}`);
+    await expect(card).toContainText("08:30");
+    await expect(card).toContainText("14:30");
+    const calendar = await candidate.request.get(`/api/agenda/coaching-sessions/${session.id}/calendar.ics`);
+    expect(calendar.ok()).toBe(true);
+    expect(await calendar.text()).toContain("DTSTART;TZID=America/Montreal:20261112T083000");
+    await coachPage.goto("/espace-coach");
+    await expect(coachPage.locator(`#seance-${session.id}`)).toContainText("14:30");
+  } finally {
+    await context.close();
+    await coachPage.context().close();
+    await admin.context().close();
+  }
+});

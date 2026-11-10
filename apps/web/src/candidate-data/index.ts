@@ -156,6 +156,7 @@ export interface ExportedAccount {
   familyName: string | null;
   preferredName: string | null;
   interfaceLanguage: string;
+  coachingTimeZone: string | null;
   createdAt: Date;
   /** The sign-in providers linked to the account (e.g. Google), besides the magic link; oldest first. */
   signInMethods: { provider: string; linkedAt: Date }[];
@@ -475,6 +476,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
+  candidate_coaching_time_zone: "account.coachingTimeZone",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
   coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
   action_card: "actionCards (a Coach proposal's in a thread with its conversation, what it proposed before and after, what was edited, its decision and « Annuler », #715)",
@@ -666,7 +668,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
     const [account, signInMethods, sessions, backOfficeRoles] = await Promise.all([
-      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, given_name AS "givenName", family_name AS "familyName", preferred_name AS "preferredName", "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
+      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, given_name AS "givenName", family_name AS "familyName", preferred_name AS "preferredName", "interfaceLanguage", "createdAt", (SELECT time_zone FROM candidate_coaching_time_zone WHERE candidate_id = candidate.id) AS "coachingTimeZone" FROM candidate WHERE id = $1`, candidateId),
       rowsOf<ExportedAccount["signInMethods"][number]>(
         `SELECT "providerId" AS provider, "createdAt" AS "linkedAt" FROM account WHERE "userId" = $1 ORDER BY "createdAt", id`,
         candidateId,

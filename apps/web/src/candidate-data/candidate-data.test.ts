@@ -134,6 +134,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       familyName: null,
       preferredName: null,
       interfaceLanguage: "fr",
+      coachingTimeZone: null,
       createdAt: expect.any(Date),
       signInMethods: [],
       sessions: [expect.objectContaining({ createdAt: expect.any(Date) })],

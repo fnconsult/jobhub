@@ -1,3 +1,4 @@
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import Link from "next/link";
 import { calendarPeriod, frenchDay, type AgendaView, type CalendarView } from "@/agenda/calendar";
 import { readAgendaMenuAddress, type AgendaPane } from "@/agenda/menu";
@@ -47,18 +48,19 @@ export async function AgendaMenuPage({ candidateId, params }: { candidateId: str
   const now = new Date();
   const { past, pane } = readAgendaMenuAddress(params, now);
   const agenda = getAgenda();
+  const timeZone = (await getCoachingTimeZones().candidate(candidateId)) ?? undefined;
   const [t, locale, unscheduled, days, applications, contracts, subject] = await Promise.all([
     getServerT(),
     getRequestLocale(),
     agenda.unscheduled(candidateId),
-    agenda.days(candidateId, { period: past ? "past" : "upcoming", now }),
+    agenda.days(candidateId, { period: past ? "past" : "upcoming", now, timeZone }),
     getApplications().list(candidateId),
     getWithdrawals().contracts(candidateId),
     getCoachConversations().ofSubject(candidateId, SUBJECT),
   ]);
   // The Coaching Sessions « Renoncer au contrat ici » is offered on (#511): paid less than 14 days ago, not held yet.
   const withdrawable: Withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
-  const formats = formatsFor(locale, now);
+  const formats = formatsFor(locale, now, timeZone);
   const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
   const back = routes.agenda(past);
   const addInterview = (
@@ -133,7 +135,8 @@ async function CalendarPane({
 }) {
   const view: CalendarView = pane.view;
   const period = calendarPeriod(view, pane.date);
-  const byDay = new Map((await getAgenda().daysBetween(candidateId, period)).map((day) => [day.day, day.items]));
+  const timeZone = (await getCoachingTimeZones().candidate(candidateId)) ?? undefined;
+  const byDay = new Map((await getAgenda().daysBetween(candidateId, { ...period, timeZone })).map((day) => [day.day, day.items]));
   const today = frenchDay(now);
   const title = view === "semaine" ? t("agenda.weekTitle", { range: formats.range(period.first, period.last) }) : formats.month(period.first);
   return (

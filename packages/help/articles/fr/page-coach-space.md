@@ -19,3 +19,7 @@ Vous ne voyez ni l'agenda du candidat, ni ses conversations avec son coach IA, n
 ## Nouvelle navigation
 
 Quand l’équipe active « Espace coach v2 », votre espace s’ouvre sur « Aujourd’hui ». La barre latérale propose « Mes Candidates », « Mes séances », « Disponibilités », « Profil public », « Revenus », « Contrat » et « Aide », puis « Mon compte » et « Se déconnecter ». Chaque page rassemble ses cartes dans une seule colonne. Sur téléphone, ouvrez « Menu » ; Échap ferme le tiroir et rend le focus au bouton. « Notifications » ouvre vos notifications. Tant que cette nouvelle navigation n’est pas activée, la page décrite ci-dessus reste disponible.
+
+## Votre fuseau horaire
+
+Dans le nouvel espace, « Profil public » propose « Votre fuseau horaire », par défaut Europe/Paris. Confirmez un fuseau IANA avec « Enregistrer le fuseau ». Les séances suivent votre heure, avec l’heure de Paris à côté quand elle diffère.

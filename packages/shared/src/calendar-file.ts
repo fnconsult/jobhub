@@ -1,3 +1,5 @@
+import { coachingCalendarZone, coachingTimeZone, zonedClock } from "./coaching-time";
+
 /**
  * The Calendar file's iCalendar text (ADR-0029, RFC 5545, written by hand, no ics package): one event in a
  * VCALENDAR, for the web's « Ajouter à mon calendrier » download and the app's share sheet alike (#693), so both
@@ -15,6 +17,8 @@ export const FRENCH_TIME_ZONE = "Europe/Paris";
 export interface CalendarFileEvent {
   /** Stable per Agenda Item, so a later file names the same event. */
   uid: string;
+  /** Coaching Sessions use the viewer’s zone; Interviews keep the Paris default. */
+  timeZone?: string;
   start: Date;
   end: Date;
   /** The revision: a later file with a higher one replaces the event. */
@@ -107,18 +111,20 @@ function fold(line: string): string {
 
 /** The Calendar file of `event`, made at `now` (its DTSTAMP), with CRLF line breaks. */
 export function calendarFileText(event: CalendarFileEvent, { now }: { now: Date }): string {
+  const zone = coachingTimeZone(event.timeZone) ?? FRENCH_TIME_ZONE;
+  const clock = (at: Date) => zonedClock(at, zone).replace(/[-:]/g, "");
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Jobbbox//Agenda//FR",
     "CALSCALE:GREGORIAN",
-    ...PARIS_TIMEZONE,
+    ...(zone === FRENCH_TIME_ZONE ? PARIS_TIMEZONE : coachingCalendarZone(zone, event.start)),
     "BEGIN:VEVENT",
     `UID:${event.uid}`,
     `DTSTAMP:${utcDateTime(now)}`,
     `SEQUENCE:${event.sequence}`,
-    `DTSTART;TZID=${FRENCH_TIME_ZONE}:${frenchDateTime(event.start)}`,
-    `DTEND;TZID=${FRENCH_TIME_ZONE}:${frenchDateTime(event.end)}`,
+    `DTSTART;TZID=${zone}:${zone === FRENCH_TIME_ZONE ? frenchDateTime(event.start) : clock(event.start)}`,
+    `DTEND;TZID=${zone}:${zone === FRENCH_TIME_ZONE ? frenchDateTime(event.end) : clock(event.end)}`,
     `SUMMARY:${text(event.summary)}`,
     ...(event.location ? [`LOCATION:${text(event.location)}`] : []),
     ...(event.url ? [`URL:${event.url}`] : []),

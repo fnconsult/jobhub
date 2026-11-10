@@ -1,3 +1,5 @@
+import { coachingTime } from "@jobhub/shared/coaching-time";
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { coachSpaceV2On } from "@/coach-space/server";
@@ -32,8 +34,9 @@ export default async function CoachSpacePage() {
   if (coachSpaceV2On()) redirect("/espace-coach/aujourdhui");
   const coaches = getHumanCoaches();
   const [t, locale, candidates, sessions] = await Promise.all([getServerT(), getRequestLocale(), coaches.candidates(coach.id), coaches.coachSessions(coach.id)]);
+  const timeZone = await getCoachingTimeZones().coach(coach.id);
   const formats = {
-    dateTime: new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE }),
+    dateTime: { format: (at: Date) => coachingTime(at, locale, timeZone) },
     date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE }),
   };
   return (
@@ -77,7 +80,7 @@ export default async function CoachSpacePage() {
  * One of the coach's Coaching Sessions: the Candidate's first name and last initial (and the Preferred Name beside it), its date in French
  * time or « À planifier », its duration and video link, and the button to enter or correct them.
  */
-function CoachedSessionItem({ session, formats, t }: { session: CoachedSession; formats: { dateTime: Intl.DateTimeFormat; date: Intl.DateTimeFormat }; t: T }) {
+function CoachedSessionItem({ session, formats, t }: { session: CoachedSession; formats: { dateTime: Pick<Intl.DateTimeFormat, "format">; date: Intl.DateTimeFormat }; t: T }) {
   const name = session.candidateName || t("coachSpace.unnamedCandidate");
   return (
     <li id={`seance-${session.id}`} className="coach-session">

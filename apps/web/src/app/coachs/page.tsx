@@ -1,3 +1,5 @@
+import { coachingTime } from "@jobhub/shared/coaching-time";
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -71,7 +73,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
   ]);
   const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
-  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const timeZone = (await getCoachingTimeZones().candidate(candidate.id)) ?? INTERVIEW_TIME_ZONE;
   const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const now = new Date();
 
@@ -96,7 +98,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
           paid.scheduledAt ? (
             <li key={paid.id} id={`seance-${paid.id}`} className="stack">
               <p>
-                <strong>{t("humanCoaches.sessionOn", { name: paid.coach.name, date: dateTime.format(paid.scheduledAt) })}</strong>
+                <strong>{t("humanCoaches.sessionOn", { name: paid.coach.name, date: coachingTime(paid.scheduledAt, locale, timeZone) })}</strong>
               </p>
               {paid.durationMinutes ? <p>{t("humanCoaches.sessionDuration", { count: paid.durationMinutes })}</p> : null}
               {paid.videoLink ? (

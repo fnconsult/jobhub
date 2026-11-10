@@ -6568,5 +6568,11 @@
       "contrat": "Aucun contrat à accepter pour le moment.",
       "aide": "Retrouvez les conseils pour utiliser votre espace coach."
     }
+  },
+  "coachingTime": {
+    "label": "Votre fuseau horaire",
+    "hint": "Les séances suivent votre fuseau IANA (par exemple Europe/Paris ou America/Montreal), avec l’heure de Paris à côté. Les entretiens restent en heure de Paris. À la première visite, le fuseau de votre appareil vous est proposé.",
+    "save": "Enregistrer le fuseau",
+    "invalid": "Saisissez un fuseau horaire IANA valide et réessayez."
   }
 }

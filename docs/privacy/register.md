@@ -749,3 +749,13 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 13._
 | Storage | The export is built on request and not kept. |
 | Retention | Nothing kept but what the operations records say (`OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`). |
 | Rights | This entry is how they are exercised. |
+
+## Coaching time zones (#882)
+
+| | |
+| --- | --- |
+| Purpose | Display Coaching Sessions and Calendar files in each participant's local time, with Paris alongside; Interviews keep Paris time. |
+| Legal basis | Performance of the coaching service (GDPR art. 6(1)(b)). |
+| People and data | Candidates and Human Coaches: an IANA time-zone preference. The device's zone is suggested locally and saved only on confirmation. |
+| Access and storage | The person concerned; EU Postgres tables `candidate_coaching_time_zone` and `coach_coaching_time_zone`. No new recipient. The chosen zone is used in the existing transactional reminder email. |
+| Retention and rights | Candidate preference exported with their account and deleted with it. A retired Human Coach cannot read or change their coach preference through the Coach space. |

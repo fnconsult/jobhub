@@ -21,6 +21,7 @@ export interface CalendarFileOptions {
   agendaUrl: string;
   /** The Candidate's Interface Language, for the SUMMARY and DESCRIPTION. */
   locale: Locale;
+  timeZone?: string;
 }
 
 /** The first http or https web address in `value`, as it is shown linked on the Agenda, if it is a valid URI. */
@@ -52,7 +53,7 @@ export function calendarFile(item: AgendaItem, options: CalendarFileOptions): st
   const url = webAddressIn(location);
   const description = [item.note, t("agenda.calendarFile.seeInAgenda", { url: options.agendaUrl })].filter(Boolean).join("\n\n");
   return calendarFileText(
-    { uid, start: item.scheduledAt, end: endsAt, sequence: item.reschedules.length, summary, location, url, description },
+    { uid, timeZone: item.kind === "coachingSession" ? options.timeZone : undefined, start: item.scheduledAt, end: endsAt, sequence: item.reschedules.length, summary, location, url, description },
     { now: options.now },
   );
 }

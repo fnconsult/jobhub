@@ -1,3 +1,4 @@
+import { coachingTimeZones } from "../coaching-time";
 /**
  * Appointment Reminders (CONTEXT.md): the email Jobbbox sends the Candidate at
  * 18:00 French time the day before their Agenda Items still planned, in their
@@ -155,6 +156,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
         agendaUrl: new URL(routes.agendaList(), deps.baseURL).toString(),
         settingsUrl: new URL(routes.accountReminders, deps.baseURL).toString(),
         preferredName: candidate.preferredName,
+        timeZone: (await coachingTimeZones(database).candidate(candidateId)) ?? undefined,
       },
       language,
     );

@@ -19,3 +19,7 @@ You can also ask your coach to add, move or cancel an interview, for example by 
 Past appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.
 
 For 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Withdraw from the contract here » cancels it and refunds it in full; the coach is told.
+
+## Your time zone
+
+In “My account”, “Preferences”, confirm “Your time zone” with “Save time zone”. On your first visit Jobbbox suggests your device’s zone. Coaching Sessions display in this IANA zone, with Paris time alongside when it differs; Interviews stay in Paris time. The “Add to my calendar” file keeps the session’s zone and daylight-saving changes.

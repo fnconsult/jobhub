@@ -125,6 +125,7 @@ export interface CandidateReadsDeps {
   offerBox: OfferBox;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
+  coachingTimeZone?: (candidateId: string) => Promise<string | null>;
 }
 
 const iso = (date: Date): string => date.toISOString();
@@ -387,7 +388,8 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async agenda(candidateId, { past = false } = {}) {
-      const [unscheduled, days] = await Promise.all([deps.agenda.unscheduled(candidateId), deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now() })]);
+      const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
+      const [unscheduled, days] = await Promise.all([deps.agenda.unscheduled(candidateId), deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now(), timeZone })]);
       return {
         toSchedule: unscheduled.map((session) => ({
           id: session.id,
@@ -395,11 +397,12 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           paidAt: iso(session.paidAt),
           reschedules: session.reschedules.map(reschedule),
         })),
-        days: days.map(({ day, items }) => ({ day, items: items.map(agendaItem) })),
+        days: days.map(({ day, items }) => ({ day, items: items.map((item) => ({ ...agendaItem(item), ...(item.kind === "coachingSession" && timeZone ? { timeZone } : {}) })) })),
       };
     },
 
     async coaching(candidateId) {
+      const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
       const [coaches, granted, sessions, contracts, price] = await Promise.all([
         deps.humanCoaches.list(),
         deps.humanCoaches.accessGranted(candidateId),
@@ -414,6 +417,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       // As the Agenda: the sessions still in their Withdrawal period, and not held under the Immediate Performance Request.
       const withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
       return {
+        ...(timeZone ? { timeZone } : {}),
         // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
         coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id) })),
         sessions: sessions.map((session) => ({

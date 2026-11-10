@@ -1,3 +1,4 @@
+import { coachingTime } from "@jobhub/shared/coaching-time";
 import { useRouter } from "expo-router";
 import { CalendarPlus } from "lucide-react-native";
 import { useMemo } from "react";
@@ -187,7 +188,7 @@ function AddToCalendar({
   formats: Formats;
   onAdd: (item: AgendaItem) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (!canAddToCalendar(item)) return null;
   return (
     <View style={{ alignSelf: "flex-start" }}>
@@ -195,7 +196,7 @@ function AddToCalendar({
         label={t("agenda.calendarFile.add")}
         accessibleName={t("agenda.calendarFile.addFor", {
           what,
-          date: formats.dateTime(item.scheduledAt),
+          date: item.kind === "coachingSession" ? coachingTime(new Date(item.scheduledAt), i18n.language, item.timeZone) : formats.dateTime(item.scheduledAt),
         })}
         icon={CalendarPlus}
         onPress={() => onAdd(item)}
@@ -265,12 +266,12 @@ function CoachingSessionRow({
   formats: Formats;
   onAdd: (item: AgendaItem) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <Card>
       <ItemLink href={paths.coachingSession(item.id)}>
-        <AppText weight="semiBold">{formats.time(item.scheduledAt)}</AppText>
         <View style={{ flex: 1 }}>
+          <AppText weight="semiBold">{coachingTime(new Date(item.scheduledAt), i18n.language, item.timeZone)}</AppText>
           <AppText variant="meta" tone="secondary">
             {t("agenda.coachingSession")}
           </AppText>

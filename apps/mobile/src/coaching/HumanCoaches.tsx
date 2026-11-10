@@ -1,3 +1,4 @@
+import { coachingTime } from "@jobhub/shared/coaching-time";
 import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/reads";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -16,13 +17,12 @@ type Session = CoachingResponse["sessions"][number];
 type Coach = CoachingResponse["coaches"][number];
 
 /** How the page writes its dates, in the Interface Language, in French time (ADR-0028), as the web's page does. */
-function coachingFormats(locale: string) {
+function coachingFormats(locale: string, timeZone = FRENCH_TIME_ZONE) {
   const zone = { timeZone: FRENCH_TIME_ZONE };
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", ...zone });
-  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", ...zone });
   return {
     date: (instant: string) => date.format(new Date(instant)),
-    dateTime: (instant: string) => dateTime.format(new Date(instant)),
+    dateTime: (instant: string) => coachingTime(new Date(instant), locale, timeZone),
     money: (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100),
   };
 }
@@ -90,7 +90,7 @@ export function HumanCoaches() {
 
 function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wait: PaymentWait; onRefresh: () => void }) {
   const { t, i18n } = useTranslation();
-  const formats = useMemo(() => coachingFormats(i18n.language), [i18n.language]);
+  const formats = useMemo(() => coachingFormats(i18n.language, coaching.timeZone), [i18n.language, coaching.timeZone]);
   return (
     <View style={{ gap: space[6] }}>
       <View style={{ gap: space[3] }}>

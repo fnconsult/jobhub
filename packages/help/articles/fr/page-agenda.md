@@ -19,3 +19,7 @@ Demandez aussi à votre coach d'ajouter, de déplacer ou d'annuler un entretien,
 Les rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.
 
 Pendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu.
+
+## Votre fuseau horaire
+
+Dans « Mon compte », « Préférences », confirmez « Votre fuseau horaire » avec « Enregistrer le fuseau ». À la première visite, Jobbbox propose celui de votre appareil. Les séances de coaching s’affichent dans ce fuseau IANA, avec l’heure de Paris à côté quand elle diffère ; les entretiens restent en heure de Paris. Le fichier « Ajouter à mon calendrier » garde le fuseau de la séance et ses changements d’heure.

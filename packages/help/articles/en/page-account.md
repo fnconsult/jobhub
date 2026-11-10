@@ -47,3 +47,7 @@ When a new version of the terms of use has to be accepted, the app shows it to y
 Under each section, « Jobbbox version » gives the version you are using, for example 0.1.0. On the beta, it is followed by the exact change served, for example 0.1.0 (main·3f9c2a1): quote it if you report a problem.
 
 My account is not a conversation: « Help », at the top of the page, opens this article beside the page (on a phone, « Help » is under « … », at the top right, and the article opens over it, full screen). « Ask the coach » there starts a new conversation with your AI coach about My account.
+
+## Your time zone
+
+In “My account”, “Preferences”, confirm “Your time zone” with “Save time zone”. On your first visit Jobbbox suggests your device’s zone. Coaching Sessions display in this IANA zone, with Paris time alongside when it differs; Interviews stay in Paris time. The “Add to my calendar” file keeps the session’s zone and daylight-saving changes.

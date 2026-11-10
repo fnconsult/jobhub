@@ -6568,5 +6568,11 @@
       "contrat": "No contract to accept yet.",
       "aide": "Find guidance for using your Coach space."
     }
+  },
+  "coachingTime": {
+    "label": "Your time zone",
+    "hint": "Sessions follow your IANA time zone (for example Europe/Paris or America/Montreal), with Paris time alongside. Interviews stay in Paris time. On your first visit we suggest your device’s zone.",
+    "save": "Save time zone",
+    "invalid": "Enter a valid IANA time zone and try again."
   }
 }

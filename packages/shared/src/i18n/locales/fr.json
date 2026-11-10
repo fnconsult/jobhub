@@ -1273,7 +1273,7 @@
   },
   "billing": {
     "plans": {
-      "free": "Gratuite",
+      "free": "Gratuit",
       "standard": "Standard",
       "premium": "Premium"
     },
@@ -1370,7 +1370,7 @@
       "receipt": "Vous recevrez aussitôt par e-mail un accusé de réception avec la date de votre demande et la date de fin du contrat.",
       "confirm": "Confirmer la résiliation",
       "back": "Garder mon abonnement",
-      "nothing": "Vous n'avez pas d'abonnement à résilier : vous êtes sur l'offre Gratuite, ou la résiliation de votre abonnement est déjà programmée.",
+      "nothing": "Vous n'avez pas d'abonnement à résilier : vous êtes sur l'offre Gratuit, ou la résiliation de votre abonnement est déjà programmée.",
       "backToSubscription": "Retour à Mon abonnement",
       "done": "Votre résiliation est enregistrée. Vous gardez l'offre {{plan}} jusqu'au {{date}} ; aucun prélèvement ne suivra.",
       "receiptSent": "Un accusé de réception vous a été envoyé par e-mail.",
@@ -1430,7 +1430,7 @@
     "consumption": {
       "title": "Votre consommation",
       "periodBilled": "Période de facturation du {{start}} au {{end}}",
-      "periodFree": "Mois {{month}} (l'offre Gratuite n'est pas facturée)",
+      "periodFree": "Mois {{month}} (l'offre Gratuit n'est pas facturée)",
       "periodMonth": "Mois {{month}}",
       "actions_one": "{{number}} action IA",
       "actions_other": "{{number}} actions IA",
@@ -1795,7 +1795,7 @@
       "featureHelp": {
         "coachingSessionDiscount": "Les abonnés paient une séance avec un coach humain au prix réduit (STRIPE_PRICE_COACHING_SESSION_PREMIUM)."
       },
-      "free": "L'offre Gratuite est intégrée : toujours la première et proposée, sans produit Stripe. Seuls son nom et ses quotas changent.",
+      "free": "L'offre Gratuit est intégrée : toujours la première et proposée, sans produit Stripe. Seuls son nom et ses quotas changent.",
       "moveUp": "Monter l'offre {{plan}}",
       "moveDown": "Descendre l'offre {{plan}}",
       "edit": "Modifier l'offre {{plan}}",
@@ -1828,7 +1828,7 @@
         "no_recurring_default_price": "Ce produit n'a pas de tarif par défaut récurrent (chaque jour, semaine, mois ou année) dans Stripe.",
         "stripe_unavailable": "Stripe n'a pas pu vérifier le produit. Réessayez dans un instant.",
         "product_required": "Une offre payante proposée doit être liée à un produit Stripe.",
-        "free_plan_built_in": "L'offre Gratuite ne peut être ni masquée, ni déplacée, ni liée à un produit Stripe.",
+        "free_plan_built_in": "L'offre Gratuit ne peut être ni masquée, ni déplacée, ni liée à un produit Stripe.",
         "cannot_move": "Cette offre ne peut pas aller plus loin.",
         "product_frozen": "Le produit Stripe d'une offre payante ne change plus une fois choisi : ses abonnés restent dessus. Pour les faire changer d'offre, passez par Stripe.",
         "conflict": "Une autre modification des offres a été enregistrée au même moment. Réessayez.",
@@ -1906,7 +1906,7 @@
         "amount": "Montant en euros"
       },
       "value": "Valeur",
-      "valueHelp": "Un pourcentage de 1 à 100, ou un montant en euros (les offres doivent être vendues en euros), par exemple 5 ou 4,50. À 100 %, le candidat s'abonne sans carte ; à la fin de la période offerte, faute de carte, il revient aussitôt à l'offre Gratuite.",
+      "valueHelp": "Un pourcentage de 1 à 100, ou un montant en euros (les offres doivent être vendues en euros), par exemple 5 ou 4,50. À 100 %, le candidat s'abonne sans carte ; à la fin de la période offerte, faute de carte, il revient aussitôt à l'offre Gratuit.",
       "duration": "Durée",
       "durations": {
         "once": "Premier paiement seulement",
@@ -5964,7 +5964,7 @@
       "concludedAt": "Conclu le {{date}}",
       "paid": "Montant payé : {{amount}}",
       "declaredBy": "Rétractation déclarée par : {{name}}.",
-      "planEnded": "Votre abonnement est annulé dès maintenant : vous êtes passé à l'offre Gratuite.",
+      "planEnded": "Votre abonnement est annulé dès maintenant : vous êtes passé à l'offre Gratuit.",
       "sessionCancelled": "La séance est annulée, et {{coach}} en est informé.",
       "refunded": "Montant remboursé : {{amount}}, sur le moyen de paiement utilisé pour payer. Selon votre banque, il apparaît sous 5 à 10 jours ouvrés.",
       "nothingToRefund": "Rien à rembourser : aucun montant n'a été payé pour ce contrat.",
@@ -6001,8 +6001,8 @@
       "receiptOther": "À une autre adresse",
       "receiptEmail": "Autre adresse e-mail",
       "receiptEmailHint": "Seulement si vous avez choisi une autre adresse.",
-      "whatHappensPlan": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuite, et le montant payé vous sera remboursé en entier.",
-      "whatHappensPlanProrata": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuite, et le montant payé vous sera remboursé, moins la part des jours écoulés depuis le début de la période.",
+      "whatHappensPlan": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuit, et le montant payé vous sera remboursé en entier.",
+      "whatHappensPlanProrata": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuit, et le montant payé vous sera remboursé, moins la part des jours écoulés depuis le début de la période.",
       "whatHappensSession": "La séance sera annulée et le coach prévenu ; le montant payé vous sera remboursé en entier.",
       "confirm": "Confirmer la rétractation",
       "cancel": "Retour",

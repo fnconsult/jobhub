@@ -87,7 +87,7 @@ test.describe("Withdrawal from a Plan (#511)", () => {
 
     // Back on Free, with nothing more to withdraw from.
     await page.goto("/abonnement");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     await expect(page.getByRole("link", { name: fr.withdrawals.page.title })).toHaveCount(0);
   });
 

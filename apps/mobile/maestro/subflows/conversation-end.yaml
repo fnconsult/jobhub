@@ -1,10 +1,28 @@
-# Brings the conversation to its end, whatever it was at: three quick swipes up in the thread, as far as it goes, then
+# Brings the conversation to its end, whatever it was at: wait for the end marker above the message box, then
+# settle at the scroll boundary. A fixed three swipes stopped inside a long candidate bubble on iPhone SE at the largest
+# text size (#925 verification): the marker makes a short scroll fail rather than accepting another screenshot. Then
 # still. A key screen's capture starts from there, the same each run: a page opens on its latest message only if it had
 # loaded when the thread was laid out (the home page did on one run of the foldable and not on the next, 93 % alike),
 # and a scroll from wherever it was stopped elsewhere. At 40 % of the width, from half the height to a fifth: within the
 # thread on every layout, a folded foldable's at the largest text size included.
 appId: ai.jobbbox.app
 ---
+- repeat:
+    while:
+      notVisible:
+        id: "conversation-end"
+        above:
+          id: "conversation-box"
+    times: 80
+    commands:
+      - swipe:
+          start: "40%, 50%"
+          end: "40%, 20%"
+          duration: 300
+- assertVisible:
+    id: "conversation-end"
+    above:
+      id: "conversation-box"
 - repeat:
     times: 3
     commands:

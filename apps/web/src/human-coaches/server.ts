@@ -1,3 +1,5 @@
+import {getCoachEnrolments} from "@/coach-enrolments/server";
+import {redirect} from "next/navigation";
 import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
@@ -36,6 +38,10 @@ export async function requireHumanCoach(): Promise<HumanCoach> {
   const person = await getCurrentCandidate();
   if (!person) return signInRedirect();
   const coach = await getHumanCoaches().coachSignedIn(person);
-  if (!coach) notFound();
+  if (!coach) {
+    const approved=(await getCoachEnrolments().approvedActive(person)).length>0;
+    if(approved)redirect("/espace-coach/contrat");
+    notFound();
+  }
   return coach;
 }

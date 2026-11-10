@@ -1,3 +1,4 @@
+import {EnrolmentsAdmin} from "@/coach-enrolments/EnrolmentsAdmin";
 import {CoachingOffersAdmin} from "@/coaching-offers/CoachingOffersAdmin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -53,7 +54,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
   const { access, canWrite } = await requireBackOffice("humanCoaches");
   const t = await getServerT();
   const { added, error, retired } = await searchParams;
-  const coaches = await getHumanCoaches().list();
+  const coaches = await getHumanCoaches().list({includePending:true});
 
   return (
     <BackOfficeLayout access={access} title={t("admin.humanCoaches.title")}>
@@ -73,10 +74,11 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
         ) : null}
         {error ? (
           <Note tone="danger" role="alert">
-            {t(error === "offer" ? "coachingOffers.invalid" : error === "email_taken" ? "admin.humanCoaches.emailTaken" : "admin.humanCoaches.invalid")}
+            {t(error === "enrolment" ? "coachEnrolment.invalidDecision" : error === "offer" ? "coachingOffers.invalid" : error === "email_taken" ? "admin.humanCoaches.emailTaken" : "admin.humanCoaches.invalid")}
           </Note>
         ) : null}
 
+        <EnrolmentsAdmin canWrite={canWrite}/>
         <CoachingOffersAdmin canWrite={canWrite}/>
         <section className="section-block" aria-labelledby="coaches-title">
           <h2 id="coaches-title">{t("admin.humanCoaches.listTitle")}</h2>
@@ -90,11 +92,11 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
                 { header: t("admin.humanCoaches.email"), cell: (coach) => coach.email },
                 {
                   header: t("admin.humanCoaches.bookingUrl"),
-                  cell: (coach) => (
+                  cell: (coach) => coach.bookingUrl ? (
                     <ExternalLink href={coach.bookingUrl}>
                       {coach.bookingUrl}
                     </ExternalLink>
-                  ),
+                  ) : t("coachEnrolment.bookingPending"),
                 },
                 { header: t("admin.humanCoaches.bio"), cell: (coach) => coach.bio || "—" },
                 {

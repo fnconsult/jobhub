@@ -15,3 +15,7 @@ Coach managers and super-admins add and retire coaches; Support reads the list. 
 ## Coaching Offers and Sellers
 
 This section links each offer to its Seller and duration. Third-party Sellers provide their legal name, status and SIRET and set their price. Jobbbox retains its central price and Plan discount. Commission is set per Seller in basis points (100 = 1%); edits are audited and do not change paid sessions. Third-party offers remain unavailable until payments and legal conditions are activated.
+
+## Coach applications
+
+This section lists confirmed coach and Association applications. Review their details and private proof, then approve or decline with a reason. The decision is audited and emailed. Approval creates an identity awaiting contract acceptance and publication; it grants no Candidate access.

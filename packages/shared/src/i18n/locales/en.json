@@ -6705,5 +6705,63 @@
     "saveCommission": "Save Commission",
     "locked": "Third-party offers cannot be ordered until payments and legal conditions are activated.",
     "invalid": "The offer or seller details are invalid."
+  },
+  "coachEnrolment": {
+    "title": "Become a coach on Jobbbox",
+    "intro": "Tell us about your activity and qualifications. The team reviews every application. You must then accept the current contract before supporting Candidates.",
+    "kind": "You represent",
+    "coach": "An independent coach",
+    "association": "An Association",
+    "fields": {
+      "contactName": "Your full name",
+      "legalName": "Legal name of your activity or Association",
+      "email": "Contact email address",
+      "status": "Legal status",
+      "siret": "SIRET",
+      "specialties": "Specialties, separated by commas",
+      "languages": "Languages, separated by commas",
+      "presentation": "Your introduction"
+    },
+    "proof": "Professional supporting document",
+    "proofPrompt": "Choose or drop your supporting PDF",
+    "proofHint": "PDF only, up to 10 MB and 200 pages. Include a diploma, certification or useful evidence of your activity, without Candidate information.",
+    "proofInvalid": "Choose a valid supporting PDF.",
+    "proofLarge": "The supporting document exceeds 10 MB.",
+    "submit": "Submit my application",
+    "sending": "Submitting…",
+    "sent": "If confirmation is needed, check your inbox and open the sign-in link. Your application will be reviewed after confirmation.",
+    "failed": "Check the fields and supporting document. If the problem persists, try again later.",
+    "tooMany": "Too many applications. Try again in an hour.",
+    "ownTitle": "My coach applications",
+    "confirmTitle": "Confirm your application",
+    "confirmIntro": "Check the information below before confirming your application.",
+    "confirm": "Confirm my application",
+    "withdraw": "Withdraw my application",
+    "withdrawn": "Your application has been withdrawn.",
+    "contract": "Read and accept the contract",
+    "awaitingContract": "Your application is approved. You can access the workspace after accepting the contract, which will appear here once available.",
+    "noRequests": "You have no application to display.",
+    "state": {
+      "awaiting_email": "Email to confirm",
+      "pending": "Under review",
+      "approved": "Approved",
+      "refused": "Declined"
+    },
+    "reason": "Reason for declining",
+    "adminTitle": "Coach applications",
+    "approve": "Approve application",
+    "refuse": "Decline with this reason",
+    "invalidDecision": "The decision was not saved. Declining requires a reason; an already active identity cannot be created twice.",
+    "adminProof": "Read supporting document",
+    "adminEmpty": "No confirmed application.",
+    "notConfirmed": "The applicant must confirm their application before review.",
+    "email": {
+      "approved": "Your coach application is approved",
+      "refused": "Your coach application was declined",
+      "next": "The team approved your application. Before supporting Candidates, you must accept the current contract in your workspace.",
+      "reason": "Here is the reason provided by the team:",
+      "footer": "You receive this email in response to your application to become a coach on Jobbbox."
+    },
+    "bookingPending": "Configure after accepting the contract"
   }
 }

@@ -134,7 +134,24 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/coachs",
       "motion": null,
       "microAnimations": [],
-      "body": "Coachs (menu Coaching) ouvre « Coachs humains » : les professionnels RH que Jobbbox a choisis et que les candidats peuvent réserver pour des séances payantes, en plus de l'AI Coach. Jobbbox les rémunère en dehors de la plateforme.\n\n« Coachs actifs » liste chaque coach : son « Nom », son « Adresse e-mail de connexion », son « Lien de réservation Cal.com » et sa « Présentation (facultatif) ». Un coach se connecte à Jobbbox avec l'adresse indiquée ici et retrouve son espace coach. La carte « Ajouter un coach » en ajoute un ; « Retirer … » le retire de la liste. Ses séances passées sont conservées.\n\nLes responsables coaching et les super-admins ajoutent et retirent des coachs ; le Support lit la liste. Chaque changement est inscrit dans Actions des administrateurs, section « Coachs humains ».\n\n## Offres de coaching et vendeurs\n\nCette rubrique relie chaque offre à son vendeur et à sa durée. Un vendeur tiers donne son nom légal, statut et SIRET, et fixe son prix. Jobbbox conserve son prix central et la remise de formule. La Commission se règle par vendeur en points de base (100 = 1 %) ; les modifications figurent dans le journal et ne changent pas les séances déjà payées. Les offres de tiers restent indisponibles avant l’activation des paiements et des conditions légales."
+      "body": "Coachs (menu Coaching) ouvre « Coachs humains » : les professionnels RH que Jobbbox a choisis et que les candidats peuvent réserver pour des séances payantes, en plus de l'AI Coach. Jobbbox les rémunère en dehors de la plateforme.\n\n« Coachs actifs » liste chaque coach : son « Nom », son « Adresse e-mail de connexion », son « Lien de réservation Cal.com » et sa « Présentation (facultatif) ». Un coach se connecte à Jobbbox avec l'adresse indiquée ici et retrouve son espace coach. La carte « Ajouter un coach » en ajoute un ; « Retirer … » le retire de la liste. Ses séances passées sont conservées.\n\nLes responsables coaching et les super-admins ajoutent et retirent des coachs ; le Support lit la liste. Chaque changement est inscrit dans Actions des administrateurs, section « Coachs humains ».\n\n## Offres de coaching et vendeurs\n\nCette rubrique relie chaque offre à son vendeur et à sa durée. Un vendeur tiers donne son nom légal, statut et SIRET, et fixe son prix. Jobbbox conserve son prix central et la remise de formule. La Commission se règle par vendeur en points de base (100 = 1 %) ; les modifications figurent dans le journal et ne changent pas les séances déjà payées. Les offres de tiers restent indisponibles avant l’activation des paiements et des conditions légales.\n\n## Demandes pour devenir coach\n\nCette rubrique rassemble les demandes confirmées des coachs et Associations. Relisez les informations et le justificatif privé, puis approuvez ou refusez avec un motif. La décision est auditée et communiquée par e-mail. L’approbation crée une identité en attente du contrat et de la publication : elle ne donne aucun accès aux Candidates."
+    },
+    {
+      "id": "page-confirm-coach-enrolment",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Confirmer votre demande pour devenir coach",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": "/devenir-coach/confirmer/[id]",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Le lien reçu par e-mail vous connecte ou crée votre compte. Relisez les informations puis choisissez « Confirmer ma demande ». Seul le compte qui possède l’adresse de la demande peut la confirmer. « Retirer ma demande » supprime une demande qui n’a pas encore été traitée."
     },
     {
       "id": "page-admin-sign-in",
@@ -278,6 +295,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "« Destinataires des données », sur la page Légal, nomme chaque service qui reçoit des données personnelles, ou des requêtes qui en sont tirées, pour faire fonctionner Jobbbox : l'hébergeur, celui des vidéos d'aide, les modèles d'IA, la recherche web, les paiements, les e-mails et la connexion. Elle s'ouvre depuis la politique de confidentialité, sans compte.\n\nPour chacun, elle dit « À quoi il sert », « Ce qu'il reçoit » (par exemple vos textes après Redaction, ou des requêtes seulement), l'« Entité contractante », le « Lieu de traitement » et la « Garantie du transfert » quand les données sortent de l'UE. Un service dont le lieu de traitement n'est pas établi est marqué « Compté hors UE ». Pour obtenir une copie des garanties d'un transfert, le lien « Nous contacter » de la page mène à l'équipe Jobbbox.\n\nLa liste est établie à chaque visite à partir des services activés : un service désactivé n'y figure pas. « Dernière modification le » donne le jour où elle a changé pour la dernière fois. Le lien « IA dans Jobbbox, dans la politique de confidentialité » mène à la section qui explique où passe chaque usage de l'IA."
+    },
+    {
+      "id": "page-coach-enrolment",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Devenir coach sur Jobbbox",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": "/devenir-coach",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Présentez votre activité de coach indépendant ou votre Association : nom de contact, nom légal, adresse e-mail, statut, SIRET, spécialités, langues et présentation. Ajoutez un justificatif professionnel au format PDF, dix mégaoctets et deux cents pages au maximum, sans données de Candidates. « Envoyer ma demande » ouvre la confirmation par e-mail si votre adresse n’est pas déjà confirmée dans la session. L’équipe examine ensuite la demande ; l’accès professionnel attend le contrat en vigueur."
     },
     {
       "id": "page-admin-email-intake",
@@ -643,6 +677,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "« Mes coachs humains » est une conversation avec votre coach IA, la même à chaque visite. Vos séances et les coachs humains y sont deux cartes. Demandez au coach IA comment préparer une séance.\n\nEn plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment.\n\nDans l'app Jobbbox, « Mes coachs humains » montre vos séances payées, avec leur date ou « Pas encore de date », puis les coachs à réserver, avec le prix d'une séance pour vous. « Réserver une séance avec … » ouvre votre commande, comme sur le site : cochez la case des CGV, puis « Passer au paiement ». Le paiement s'ouvre sur la page sécurisée de Stripe, sans quitter l'app. Une fois payé, vous revenez dans l'app : la séance apparaît dès que Stripe a confirmé le paiement, ce qui prend en général quelques secondes, avec « Choisir mon créneau avec … sur Cal.com ». Si la confirmation tarde, « Actualiser » vérifie à nouveau ; la confirmation de commande vous est aussi envoyée par e-mail.\n\nAprès avoir réservé votre créneau, « J'ai réservé : saisir la date » vous demande la date, l'heure à Paris, la durée, le lien de la visio et une note, comme sur le site ; « Modifier la date » les corrige. « Renoncer au contrat ici » ouvre la page de rétractation de jobbbox.ai dans l'app, tant que la séance peut encore être rétractée. L'app n'affiche ni le prix ni l'achat d'une offre : votre abonnement se gère sur jobbbox.ai.\n\n## Le compte rendu de votre coach\n\n« Lire le compte rendu et poursuivre la conversation » ouvre la conversation de la séance. Un compte rendu publié y porte le nom de votre coach et « Coach humain ». Votre coach IA peut le lire et proposer des prochaines étapes sans en recopier le texte dans vos documents. Les corrections sont de nouveaux messages.\n\n## Qui vous vend la séance\n\n« Vendu par » identifie le vendeur de l’offre, également nommé dans votre commande et sa confirmation. Jobbbox applique son prix de séance et la remise de votre formule. Un vendeur tiers fixe son propre prix ; son nom légal, son statut et son SIRET apparaissent, avec le rôle de place de marché de Jobbbox. Seules les offres dont le paiement et les conditions de vente sont activés peuvent être commandées."
+    },
+    {
+      "id": "page-own-coach-enrolments",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Mes demandes pour devenir coach",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": "/devenir-coach/mes-demandes",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Retrouvez l’état de vos demandes : « Adresse à confirmer », « En cours d’examen », « Approuvée » ou « Refusée ». Un refus indique le motif de l’équipe. Une demande approuvée mène à « Lire et accepter le contrat » ; l’accès aux Candidates n’est accordé qu’après les étapes requises. Les informations et le justificatif original figurent dans votre export de compte."
     },
     {
       "id": "page-subscription",
@@ -1311,6 +1362,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'activité IA montre ce que l'IA, le coach et vous avez fait sur la page ouverte. Le bouton « Activité », en haut de la page, l'ouvre et la referme : dans le groupe « Activité » de la Fiche sur la page d'un objet (un profil, une recherche d'offres, une candidature…), dans la colonne Activité sur l'accueil et les menus. Échap, sur le bouton, la referme aussi. On y trouve, de haut en bas, le contexte de la conversation, « En ce moment », puis l'historique.\n\nTant que l'activité est fermée, le bouton dit à sa gauche ce que l'IA a fait sur la page, par exemple 3 modèles · 10,9k tokens, ou l'étape en cours, avec l'icône d'arrêt qui l'interrompt. Un clic sur ces mots ouvre l'activité, comme le bouton, qu'un lecteur d'écran annonce « Activité IA », suivi de ces mots. Sur téléphone, l'activité s'ouvre en plein écran, par-dessus la conversation : « Fermer », ou Échap, la referme et vous ramène là où vous l'avez ouverte, l'icône « Activité » ou « … » (voir plus bas).\n\n« En ce moment », en tête de l'activité, juste sous le contexte de la conversation, montre les actions de l'IA en cours : d'abord celles de cette page, puis « En cours ailleurs », avec un lien vers leur page. Une recherche d'offres qui tourne pendant que le coach vous répond y figure à côté de sa réponse. Pour chacune : son glyphe, l'étape en cours, le nombre d'étapes finies et le temps écoulé ; pour une réponse du coach, chaque outil qu'il consulte, coché une fois fini. L'icône d'arrêt l'interrompt : ce qui était terminé est gardé. Une action finie quitte « En ce moment » ; sans action en cours, il indique « Rien ne tourne sur cette page. ».\n\nChaque étape a son glyphe, qui bouge tant qu'elle tourne :\n\n- « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;\n- « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;\n- « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;\n- « Consulte vos données » et « Prépare une proposition » : la boîte à outils qui s'ouvre, d'où sort une clé quand le coach lit vos candidatures, votre agenda ou votre profil, une petite carte quand il vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé dans le détail de la réponse.\n\nSi vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.\n\nUne action arrêtée ou en échec reste dans « En ce moment », en rouge clair, et le dit en toutes lettres, avec sa raison quand elle est connue.\n\nSous « En ce moment », l'« Historique » liste ce qui s'est passé sur la page, les plus récents d'abord, par jour (« Aujourd'hui », « Le … », comme le 27/10) : les réponses du coach, les recherches d'offres, les offres lues, les versions du CV de référence, les ATS Scores, les propositions du coach que vous avez appliquées… Chaque ligne donne son glyphe, son titre, son résultat, son coût en bref et son heure. Ouvrez-la pour voir le détail : votre question (« Vous : … »), les étapes, ce que le coach a lu (« Lu : »), les outils et les modèles, ses propositions et leur état, ce qu'une proposition appliquée a donné (« → a donné »), le coût complet, et « ↳ suite de » quand elle découle d'une autre ligne : une réponse du coach, puis la version du CV que sa proposition a créée, puis l'ATS Score calculé sur cette version. Un lien mène à l'objet (« Ouvrir la version », « Ouvrir la recherche »…), et « Voir dans la conversation » fait défiler la conversation jusqu'au message et le surligne un instant (sur téléphone, l'activité se ferme d'abord). Dans la conversation, « Dans l'activité », sous une réponse du coach ou une proposition, ouvre l'activité sur sa ligne.\n\nLe coût n'est jamais donné en euros :\n\n- ce qui compte dans votre offre le dit, « 1 recherche du forfait » par exemple, avec l'utilisation de la semaine (4 sur 7 cette semaine) ; ce qui n'a pas de quota est au plus « compté dans votre consommation ». Les deux mènent à « Votre consommation » sur Mon abonnement ;\n- pour une réponse du coach, ses appels et les jetons envoyés (par exemple 4 appels · 21,4k jetons envoyés), tous ses appels à l'IA additionnés. Les jetons sont une mesure technique, jamais décomptée de vos quotas. Une réponse plus ancienne n'a gardé que son dernier appel : elle le dit (« dernier appel seulement ») ;\n- ce que font les règles de Jobbbox, ou vous-même, sans IA, est dit « Sans IA ».\n\nTout en bas, « Sources et outils de cette page », replié, liste une fois chaque site lu et chaque outil utilisé. L'activité IA ne montre jamais de réglage interne. « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité.\n\nSur téléphone, la barre du haut ne garde que des icônes. Sur l'accueil et les menus, « Activité » est l'icône montrée ; sur la page d'un objet, c'est « Fiche », et « Activité » est sous « … », en haut à droite. Pendant qu'une action de l'IA tourne, « Activité » prend la place de l'icône montrée, avec son icône d'arrêt, puis retourne sous « … » quand elle se termine."
     },
     {
+      "id": "glossary-association",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Association",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Un partenaire associatif qui peut proposer des coachs humains sur Jobbbox après approbation. Son accès de gestion est distinct de celui des coachs : l’Association ne lit ni les Candidates de ses coachs, ni leurs dossiers, notes privées ou conversations."
+    },
+    {
       "id": "glossary-ats-score",
       "locale": "fr",
       "kind": "glossary",
@@ -1483,6 +1551,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Votre CV complet pour un profil : celui d'où partent tous vos CV adaptés. Jobbbox n'y ajoute jamais rien que vous n'ayez dit.\n\nChaque enregistrement crée une nouvelle version ; vous pouvez revoir les versions précédentes et revenir à l'une d'elles."
+    },
+    {
+      "id": "glossary-coach-enrolment",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Demande pour devenir coach",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "La candidature professionnelle d’un coach indépendant ou d’une Association. La confirmation de l’adresse précède l’examen humain. Une approbation ne remplace pas l’acceptation du contrat ni la publication du profil."
     },
     {
       "id": "glossary-set-aside",
@@ -3675,6 +3760,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Sans compte, votre CV et l'offre sont effacés au plus tard 24 heures après votre première analyse, ou dès que vous fermez votre navigateur. En créant votre compte, vous les gardez : votre CV devient votre premier profil, et l'offre votre première candidature.\n\n1. Dans le panneau de l'extension, une fois votre Match Score calculé, cliquez sur « Créer mon compte et garder cette offre ». Jobbbox s'ouvre dans un nouvel onglet.\n2. Saisissez « Votre adresse e-mail », puis cliquez sur « Recevoir mon lien de connexion ».\n3. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes : votre compte est créé, sans mot de passe.\n4. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n5. Revenez à l'onglet de l'offre : le panneau de l'extension se met à jour tout seul. Votre CV est devenu votre profil, et l'offre est enregistrée dans vos candidatures, au statut « À postuler ».\n6. Cliquez sur « Voir ma candidature » pour l'ouvrir dans Jobbbox.\n\nSi vous avez déjà un compte, le même bouton vous connecte à votre compte, avec le même lien reçu par e-mail ; avant le calcul du score, « J'ai déjà un compte · Se connecter » mène à la même page. Le tutoriel « Enregistrer une offre avec l'extension » explique la suite."
     },
     {
+      "id": "tutorial-become-human-coach",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Devenir coach sur Jobbbox",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Ouvrez la page « Devenir coach sur Jobbbox ». Choisissez « Un coach indépendant » ou « Une Association », renseignez votre identité professionnelle et joignez le justificatif PDF utile à votre demande.\n2. Cliquez sur « Envoyer ma demande ». Si vous n’êtes pas déjà connecté avec cette adresse confirmée, ouvrez le lien reçu par e-mail, relisez votre demande puis cliquez sur « Confirmer ma demande ».\n3. Consultez « Mes demandes pour devenir coach ». L’équipe vous informe de sa décision par e-mail ; un refus reprend son motif. Une approbation prépare votre accès, mais vous devez accepter le contrat en vigueur avant d’accompagner des Candidates."
+    },
+    {
       "id": "tutorial-coach-session-report",
       "locale": "fr",
       "kind": "tutorial",
@@ -4087,6 +4189,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Le candidat paie sa séance sur Jobbbox, puis réserve son créneau sur votre page Cal.com. Cal.com ne transmet pas ce créneau à Jobbbox : vous le saisissez, ou le candidat le fait, pour qu'il apparaisse dans l'agenda du candidat. Dans cet exemple, une séance payée par Claire D. est « À planifier ».\n\n1. Ouvrez « Mon espace coach ». Dans « Mes séances de coaching », repérez la séance de Claire D.\n2. Cliquez sur « Saisir la date ». Si la séance est déjà datée, le bouton s'appelle « Modifier la date ». Le panneau « Séance avec … » s'ouvre, au nom de Claire D.\n3. Dans « Date et heure de la séance (heure de Paris) », saisissez le créneau réservé sur Cal.com, par exemple le 12 novembre à 14 h 30. Saisissez-le à l'heure de Paris, même si vous ou le candidat êtes dans un autre fuseau.\n4. Si vous le souhaitez, indiquez la « Durée en minutes (facultatif) », entre 5 et 600 minutes, par exemple 60.\n5. Dans « Lien de la visio (facultatif) », collez le lien de la visio reçu à la réservation, qui commence par https://, par exemple https://meet.example.com/seance-demo.\n6. Cliquez sur « Enregistrer ». Le panneau se ferme et la séance affiche « Le … (heure de Paris) », la durée et le lien « Lien de la visio avec … », ici avec Claire D.\n\nLe candidat retrouve la date et le lien dans son agenda, avec la mention « modifié par le coach ». Pour reporter la séance, cliquez sur « Modifier la date » et saisissez le nouveau créneau. « Annuler » ferme le panneau sans rien changer. La note que le candidat a pu ajouter à la séance reste la sienne : vous ne la voyez pas.\n\nDans le nouvel espace coach, ouvrez d’abord « Mes séances », puis la séance. « Modifier la date » et « Saisir la date » gardent les mêmes champs et l’historique. « Contact de cette séance » vous permet aussi d’indiquer un lien HTTPS ou un téléphone ; il remplace votre contact permanent pour cette séance seulement.\n\nDans le nouvel Espace coach, le lien de connexion se règle dans la rubrique de contact de la séance. Le tiroir de date conserve les reports et propose la date et la durée, sans second champ de lien qui pourrait contredire ce contact. La page change automatiquement de phase et ouvre ou ferme la lecture partagée aux limites de la séance.\n\nModifier la date conserve les autres détails de la séance, sauf ceux que vous modifiez expressément. Un contact changé par votre coach pendant que le tiroir reste ouvert est conservé."
     },
     {
+      "id": "tutorial-admin-coach-enrolment",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Traiter une demande pour devenir coach",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Avec le rôle Responsable coaching ou Super-admin, ouvrez « Coachs humains », puis « Demandes pour devenir coach ». Seules les demandes dont l’adresse a été confirmée paraissent. Relisez l’identité, le statut, le SIRET, les spécialités, les langues et la présentation. « Lire le justificatif » ouvre le PDF réservé au Back Office.\n2. Après vérification, « Approuver la demande » crée le coach ou l’Association et son accès de gestion. Le contrat reste à accepter : le nouveau coach n’est pas encore proposé à la réservation et ne lit aucun Candidate. Un coach retiré qui revient reçoit une nouvelle identité.\n3. Pour refuser, saisissez le « Motif du refus », puis « Refuser avec ce motif ». L’e-mail reprend ce motif. La décision paraît dans le journal ; son texte et le justificatif ne sont pas recopiés dans ce journal. L’ajout direct d’un coach par le Back Office reste disponible."
+    },
+    {
       "id": "tutorial-email-intake-forward",
       "locale": "fr",
       "kind": "tutorial",
@@ -4452,6 +4571,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "The back office help gathers the pages, tutorials and frequent questions the Jobbbox team writes for Administrators. It is never public: the Help Centre (/aide), its search and the sitemap never show it, and only Administrators open it, whatever their roles.\n\nArticles are sorted by topic: « Providers and Tools » first, then one topic per group of the back office menu, then « AI and compliance ». « Search the back office help » finds an article by its words, without AI.\n\nEach back office section also shows its article in the assistant, under « On this page ». The assistant answers from the articles it finds and cites them. When it finds none, click « Request a tutorial » under its reply: the help editors will see the question in « Unanswered questions », without your name. Beside the « AI Assistant » badge, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy: where each use of AI goes."
     },
     {
+      "id": "page-coach-enrolment",
+      "locale": "en",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Become a coach on Jobbbox",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": "/devenir-coach",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Present your independent coaching activity or Association: contact and legal names, email, legal status, SIRET, specialties, languages and introduction. Add a useful professional PDF, up to ten megabytes and two hundred pages, without Candidate information. “Submit my application” starts email confirmation unless your signed-in address is already verified. The team then reviews the application; professional access awaits the current contract."
+    },
+    {
       "id": "page-subscription-reduction",
       "locale": "en",
       "kind": "page",
@@ -4493,6 +4629,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "This page cancels your subscription to a paid plan. It shows your plan and the date the contract ends, which is the end of the period already paid for: you keep your plan until that date, you are not charged again, and you then move to the Free plan.\n\n« Confirm the cancellation » records your request. You at once receive an acknowledgement by email, with the date of your request and the date the contract ends: keep it.\n\nChanged your mind? Until the end date, undo the cancellation from My subscription, with « Manage my subscription »."
+    },
+    {
+      "id": "page-confirm-coach-enrolment",
+      "locale": "en",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Confirm your coach application",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": "/devenir-coach/confirmer/[id]",
+      "motion": null,
+      "microAnimations": [],
+      "body": "The emailed link signs you in or creates your account. Review the information and choose “Confirm my application”. Only the account owning the contact address can confirm it. “Withdraw my application” deletes an application that has not been decided."
     },
     {
       "id": "page-conversation",
@@ -4762,7 +4915,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/coachs",
       "motion": null,
       "microAnimations": [],
-      "body": "Coaches (Coaching menu) opens « Human coaches »: the HR professionals Jobbbox selected, whom Candidates can book for paid sessions on top of the AI Coach. Jobbbox pays them outside the platform.\n\n« Active coaches » lists each coach: their « Name », their « Sign-in email address », their « Cal.com booking link » and their « Introduction (optional) ». A coach signs in to Jobbbox with the address given here and finds their coach space. The « Add a coach » card adds one; « Retire … » takes them off the list. Their past sessions are kept.\n\nCoach managers and super-admins add and retire coaches; Support reads the list. Each change is recorded in Administrator actions, section « Human Coaches ».\n\n## Coaching Offers and Sellers\n\nThis section links each offer to its Seller and duration. Third-party Sellers provide their legal name, status and SIRET and set their price. Jobbbox retains its central price and Plan discount. Commission is set per Seller in basis points (100 = 1%); edits are audited and do not change paid sessions. Third-party offers remain unavailable until payments and legal conditions are activated."
+      "body": "Coaches (Coaching menu) opens « Human coaches »: the HR professionals Jobbbox selected, whom Candidates can book for paid sessions on top of the AI Coach. Jobbbox pays them outside the platform.\n\n« Active coaches » lists each coach: their « Name », their « Sign-in email address », their « Cal.com booking link » and their « Introduction (optional) ». A coach signs in to Jobbbox with the address given here and finds their coach space. The « Add a coach » card adds one; « Retire … » takes them off the list. Their past sessions are kept.\n\nCoach managers and super-admins add and retire coaches; Support reads the list. Each change is recorded in Administrator actions, section « Human Coaches ».\n\n## Coaching Offers and Sellers\n\nThis section links each offer to its Seller and duration. Third-party Sellers provide their legal name, status and SIRET and set their price. Jobbbox retains its central price and Plan discount. Commission is set per Seller in basis points (100 = 1%); edits are audited and do not change paid sessions. Third-party offers remain unavailable until payments and legal conditions are activated.\n\n## Coach applications\n\nThis section lists confirmed coach and Association applications. Review their details and private proof, then approve or decline with a reason. The decision is audited and emailed. Approval creates an identity awaiting contract acceptance and publication; it grants no Candidate access."
     },
     {
       "id": "page-agenda",
@@ -4951,6 +5104,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "« My applications » is a conversation with your AI coach, the same one at each visit. Each job offer you save becomes an application, linked to one of your profiles.\n\nYour applications in progress are listed there in a card: their status, their Match Score and those « to handle », when a follow-up is ready or an application still has no answer. Click a line to open the application, where you prepare your documents and record your interviews; « Show them » also shows the archived applications. While you have no application yet, « Show me how » shows in a few seconds where to pin the Jobbbox extension and how to open its panel. Ask the coach which one to handle first, or start from a suggestion above the message box: « Add an application », « Search for job offers ».\n\nYour coach can propose to save a job offer as an application, to change an application's status, to link it to another profile or to mark a follow-up as sent. Each proposal shows under its reply and you confirm it: « Apply », « Edit before applying » or « Ignore ». « Undo » puts back what was there before; an application it had you save is removed, as long as you have added nothing to it. A job offer already saved is not saved twice: your coach gives you the link to its application.\n\nIn the menu, « My applications » unfolds into your most recent applications, and those to handle, marked with a dot; « See all » leads to this page. The arrow beside it folds or unfolds the list, and this browser remembers it.\n\nIn the Jobbbox app (iPhone, iPad, Android), « My applications » is the same conversation, with the same card: tap a row to open the application. « Show them » shows the archived applications too, « Hide archived applications » hides them again. On an application's page, its title at the top of the screen, an arrow before it, takes you back to « My applications »."
+    },
+    {
+      "id": "page-own-coach-enrolments",
+      "locale": "en",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "My coach applications",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": "/devenir-coach/mes-demandes",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Read your applications’ status: “Email to confirm”, “Under review”, “Approved” or “Declined”. A declined application includes the team’s reason. Approval leads to “Read and accept the contract”; Candidate access awaits the required steps. Your account export includes submitted information and the original supporting document."
     },
     {
       "id": "page-human-coaches",
@@ -5571,6 +5741,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "An app notification (a push notification) is a short message the Jobbbox app shows on the lock screen of your phone or tablet when an event concerns you: new results for a job search, a Job Digest, an appointment tomorrow, a review from your coach, a follow-up due.\n\nIts text never names a company, a job or a person, since the lock screen can be seen: « New results for a search ». Tapping it opens the app on what it announces, where the details show.\n\nThe app notifies you only once you have allowed it to. In My account, « Reminders » section, « App notifications » has one switch per event; you can also turn all notifications off in your device's settings. Reminder emails are still sent as you set them."
     },
     {
+      "id": "glossary-association",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Association",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "A non-profit partner that can offer Human Coaches on Jobbbox after approval. Its management access is separate from its coaches’ access: the Association cannot read its coaches’ Candidates, their files, private notes or conversations."
+    },
+    {
       "id": "glossary-ats-score",
       "locale": "en",
       "kind": "glossary",
@@ -5657,6 +5844,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "« Clear », at the top of a page that is a conversation with your AI coach, deletes all the messages of that conversation; on a phone, it is « Clear the conversation », under « … », at the top right. Jobbbox asks you to confirm first; « Cancel » deletes nothing. While the coach is replying, « Clear » waits: stop its reply first with « Stop ».\n\nThe coach's memory stays: what you asked it to remember is not cleared. The page becomes a new conversation again."
+    },
+    {
+      "id": "glossary-coach-enrolment",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Coach application",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "An independent coach’s or Association’s professional request to join Jobbbox. Email confirmation precedes human review. Approval does not replace contract acceptance or public profile publication."
     },
     {
       "id": "glossary-coach-memory",
@@ -7648,6 +7852,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Your coach tailors your Master CV to a job offer, never inventing anything. You check each change before saving it, then you apply yourself.\n\n1. Open the application, then its « Documents » section.\n2. Click « Propose a tailored CV ». When « Proposal ready: check the changes before saving. » shows, the match score before and after is given.\n3. If the job offer asks for what your CV does not show, answer « The coach's questions »: « Yes, I have it » or « No ». A point is added only if you confirm you have it.\n4. Under « Changes from the reference CV », click « Accept » or « Reject » for each change. A rejected change keeps what your Master CV says.\n5. Click « Save the tailored CV ». It replaces the tailored CV already saved for this application, if there is one.\n6. Under « Download this tailored CV », choose a CV template, then « Download as PDF » or « Download as Word (.docx) ».\n7. Send your application yourself, on the job offer's site or by email: Jobbbox sends nothing on your behalf.\n8. In the application's fiche, set the « Status » to « Applied ». If it gets no answer, your coach will suggest a follow-up.\n\nThe cover letter is prepared in the same section, with « Draft the letter »."
     },
     {
+      "id": "tutorial-become-human-coach",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Become a coach on Jobbbox",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. Open “Become a coach on Jobbbox”. Choose “An independent coach” or “An Association”, provide your professional identity and attach the useful supporting PDF.\n2. Choose “Submit my application”. Unless you are already signed in with that verified address, open the emailed link, review your application and choose “Confirm my application”.\n3. Read “My coach applications”. The team emails its decision; a declined application includes the reason. Approval prepares your access, but you must accept the current contract before supporting Candidates."
+    },
+    {
       "id": "tutorial-book-coaching-session",
       "locale": "en",
       "kind": "tutorial",
@@ -8038,6 +8259,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "A provider key (Provider Secret) entered in the back office is encrypted and replaces the environment's within a minute, without a redeployment. Only super-admins replace, clear or test it; « Technique » sees only its source and last 4 characters.\n\n1. Open Settings, the provider's tab, then its sheet by clicking its name in « Possible providers ».\n2. Under « Keys », find the key: its source (« Back office », « Environment (fallback) », « Missing » or « Unreadable: the environment stands in ») and its ending.\n3. To replace it, open « Replace … », paste the new value in « New value of … » and click « Test and save … ».\n4. If the provider refuses the key, nothing is saved: check it. To save it anyway, for example during a provider outage, tick « Save even if the connection test fails »; that choice is recorded in Activity.\n5. To go back to the environment's value, click « Clear … (back to the environment) ». With no value in the environment, the key becomes « Missing » and the features depending on it stop.\n6. « Test … » runs the connection test of the key in use again, without changing anything.\n\nNever paste a key anywhere but this field: not in the assistant, not in a report. The log only records the replacement, never the value."
+    },
+    {
+      "id": "tutorial-admin-coach-enrolment",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Review a coach application",
+      "synonyms": [
+        "coach enrolment",
+        "candidature coach",
+        "demande coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "1. With the Coaching manager or Super-admin role, open Human Coaches and “Coach applications”. Only email-confirmed applications appear. Review identity, legal status, SIRET, specialties, languages and presentation. “Read supporting document” opens the private Back Office PDF.\n2. After checking, “Approve application” creates the coach or Association and its management grant. Contract acceptance remains required: the new coach cannot yet be booked or read any Candidate. A returning retired coach receives a new identity.\n3. To decline, enter the “Reason for declining” and choose “Decline with this reason”. The email repeats the reason. The decision is audited without copying the reason or PDF into the audit. Direct Back Office coach creation remains available."
     },
     {
       "id": "tutorial-extension-save-job-offer",

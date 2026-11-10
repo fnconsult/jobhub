@@ -77,7 +77,7 @@ async function saveOffer(form: FormData) {
 /** All writes are behind the coaching role and in the same transaction as their audit. */
 export async function CoachingOffersAdmin({ canWrite }: { canWrite: boolean }) {
   const t = await getServerT();
-  const [coaches, offers, sellers] = await Promise.all([getHumanCoaches().list(), getCoachingOffers().all(), getCoachingOffers().sellers()]);
+  const [coaches, offers, sellers] = await Promise.all([getHumanCoaches().list({includePending:true}), getCoachingOffers().all(), getCoachingOffers().sellers()]);
   return (
     <section className="section-block stack">
       <h2>{t("coachingOffers.adminTitle")}</h2>

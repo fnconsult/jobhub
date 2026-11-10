@@ -1,3 +1,4 @@
+import {coachEnrolments,coachEnrolmentDecisionEmail} from "@jobhub/web/coach-enrolments";
 import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications } from "@jobhub/web/applications";
@@ -163,6 +164,7 @@ const pushNotifications = createPushNotifications(database, {
   badge: (personId) => offersToHandle(database, personId, new Date()),
 });
 const jobs = createJobs({
+  coachEnrolments:coachEnrolments(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachEnrolmentDecisionEmail(record,baseURL)});}}),
   database,
   discovery: worker.discovery,
   profiles,

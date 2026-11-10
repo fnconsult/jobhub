@@ -6705,5 +6705,63 @@
     "saveCommission": "Enregistrer la commission",
     "locked": "Les offres de tiers ne peuvent pas être commandées avant l’activation des paiements et des conditions légales.",
     "invalid": "Les données de l’offre ou du vendeur ne sont pas valides."
+  },
+  "coachEnrolment": {
+    "title": "Devenir coach sur Jobbbox",
+    "intro": "Présentez votre activité et vos qualifications. L’équipe examine chaque demande. Vous devrez ensuite accepter le contrat en vigueur avant d’accompagner des Candidates.",
+    "kind": "Vous représentez",
+    "coach": "Un coach indépendant",
+    "association": "Une Association",
+    "fields": {
+      "contactName": "Votre nom complet",
+      "legalName": "Nom légal de votre activité ou de l’Association",
+      "email": "Adresse e-mail de contact",
+      "status": "Statut juridique",
+      "siret": "SIRET",
+      "specialties": "Spécialités, séparées par des virgules",
+      "languages": "Langues, séparées par des virgules",
+      "presentation": "Votre présentation"
+    },
+    "proof": "Justificatif professionnel",
+    "proofPrompt": "Choisissez ou déposez votre justificatif PDF",
+    "proofHint": "PDF uniquement, 10 Mo et 200 pages maximum. Joignez un diplôme, une certification ou un justificatif d’activité utile à votre demande, sans données de Candidates.",
+    "proofInvalid": "Choisissez un justificatif PDF valide.",
+    "proofLarge": "Le justificatif dépasse 10 Mo.",
+    "submit": "Envoyer ma demande",
+    "sending": "Envoi en cours…",
+    "sent": "Si une confirmation est nécessaire, consultez votre messagerie et ouvrez le lien de connexion. Votre demande sera examinée après confirmation.",
+    "failed": "Vérifiez les champs et le justificatif. Si le problème persiste, réessayez plus tard.",
+    "tooMany": "Trop de demandes. Réessayez dans une heure.",
+    "ownTitle": "Mes demandes pour devenir coach",
+    "confirmTitle": "Confirmer votre demande",
+    "confirmIntro": "Vérifiez les informations ci-dessous avant de confirmer votre demande.",
+    "confirm": "Confirmer ma demande",
+    "withdraw": "Retirer ma demande",
+    "withdrawn": "Votre demande a été retirée.",
+    "contract": "Lire et accepter le contrat",
+    "awaitingContract": "Votre demande est approuvée. Vous pourrez accéder à l’espace après avoir accepté le contrat, qui sera proposé ici une fois disponible.",
+    "noRequests": "Vous n’avez pas de demande à afficher.",
+    "state": {
+      "awaiting_email": "Adresse à confirmer",
+      "pending": "En cours d’examen",
+      "approved": "Approuvée",
+      "refused": "Refusée"
+    },
+    "reason": "Motif du refus",
+    "adminTitle": "Demandes pour devenir coach",
+    "approve": "Approuver la demande",
+    "refuse": "Refuser avec ce motif",
+    "invalidDecision": "La décision n’a pas été enregistrée. Un refus exige un motif ; une identité déjà active ne peut pas être créée une seconde fois.",
+    "adminProof": "Lire le justificatif",
+    "adminEmpty": "Aucune demande confirmée.",
+    "notConfirmed": "La demande doit être confirmée par son auteur avant examen.",
+    "email": {
+      "approved": "Votre demande pour devenir coach est approuvée",
+      "refused": "Votre demande pour devenir coach n’a pas été retenue",
+      "next": "L’équipe a approuvé votre demande. Avant d’accompagner des Candidates, vous devrez accepter le contrat en vigueur dans votre espace.",
+      "reason": "Voici le motif communiqué par l’équipe :",
+      "footer": "Vous recevez cet e-mail en réponse à votre demande pour devenir coach sur Jobbbox."
+    },
+    "bookingPending": "À configurer après acceptation du contrat"
   }
 }

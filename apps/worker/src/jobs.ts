@@ -224,6 +224,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachEnrolments?: {deliverNotices():Promise<number>;purge():Promise<number>};
   database: Pick<Pool, "query">;
   now?: () => Date;
   /** Job discovery, or why it is unavailable; a getter is asked on each job (the worker's follows its Provider Secrets, #208). */
@@ -649,6 +650,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    "coach-enrolments.notices": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachEnrolments?.deliverNotices();})},
+    "coach-enrolments.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachEnrolments?.purge();})},
     "shared-reading.purge": {
       cron: "* * * * *",
       handler: () => onceTablesExist(async () => { await purgeExpiredSharedReading(deps.database, now()); }),

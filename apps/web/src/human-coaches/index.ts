@@ -197,7 +197,7 @@ export interface HumanCoaches {
    */
   add(input: unknown, within?: Queryable): Promise<AddHumanCoachResult>;
   /** The Human Coaches Candidates can choose from, by name. */
-  list(): Promise<HumanCoach[]>;
+  list(options?:{includePending?:boolean}): Promise<HumanCoach[]>;
   /**
    * Retires a Human Coach: no longer listed, and no longer reads anything. Their past Coaching
    * Sessions are kept. Returns who was retired, or null (unknown or already retired).
@@ -582,8 +582,8 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       return rows[0] ? { ok: true, coach: coachFrom(rows[0]) } : { ok: false, error: "email_taken" };
     },
 
-    async list() {
-      const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL ORDER BY name, created_at`);
+    async list(options={}) {
+      const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL AND ($1::boolean OR (NOT contract_pending AND public_ready)) ORDER BY name, created_at`,[options.includePending??false]);
       return rows.map(coachFrom);
     },
 
@@ -598,7 +598,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async coachSignedIn(person) {
       if (!person.emailVerified) return null;
-      const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE email = $1 AND retired_at IS NULL`, [
+      const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE email = $1 AND retired_at IS NULL AND NOT contract_pending`, [
         person.email.trim().toLowerCase(),
       ]);
       return rows[0] ? coachFrom(rows[0]) : null;
@@ -800,6 +800,8 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
       retired_at timestamptz
     );
     CREATE UNIQUE INDEX IF NOT EXISTS human_coach_email_idx ON human_coach (email) WHERE retired_at IS NULL;
+    ALTER TABLE human_coach ADD COLUMN IF NOT EXISTS contract_pending boolean NOT NULL DEFAULT false;
+    ALTER TABLE human_coach ADD COLUMN IF NOT EXISTS public_ready boolean NOT NULL DEFAULT true;
     CREATE TABLE IF NOT EXISTS coach_access (
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
       coach_id uuid NOT NULL REFERENCES human_coach (id),

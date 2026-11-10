@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isPublicPage, splitLocalePrefix, urlLocale } from "./locale-header";
 
-const PUBLIC = ["/", "/desabonnement", "/nouveautes", "/legal/cgv", "/legal/cgu/2026-01-01", "/aide", "/connexion", "/connexion/back-office", "/compte/supprime"];
+const PUBLIC = ["/devenir-coach", "/devenir-coach/confirmer/id", "/", "/desabonnement", "/nouveautes", "/legal/cgv", "/legal/cgu/2026-01-01", "/aide", "/connexion", "/connexion/back-office", "/compte/supprime"];
 
 describe("the public pages (#544, #545)", () => {
   it("are the home page, Nouveautés, Légal, Aide, sign-in, the unsubscribe page and the deleted account's", () => {

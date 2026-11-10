@@ -15,3 +15,7 @@ Les responsables coaching et les super-admins ajoutent et retirent des coachs ; 
 ## Offres de coaching et vendeurs
 
 Cette rubrique relie chaque offre à son vendeur et à sa durée. Un vendeur tiers donne son nom légal, statut et SIRET, et fixe son prix. Jobbbox conserve son prix central et la remise de formule. La Commission se règle par vendeur en points de base (100 = 1 %) ; les modifications figurent dans le journal et ne changent pas les séances déjà payées. Les offres de tiers restent indisponibles avant l’activation des paiements et des conditions légales.
+
+## Demandes pour devenir coach
+
+Cette rubrique rassemble les demandes confirmées des coachs et Associations. Relisez les informations et le justificatif privé, puis approuvez ou refusez avec un motif. La décision est auditée et communiquée par e-mail. L’approbation crée une identité en attente du contrat et de la publication : elle ne donne aucun accès aux Candidates.

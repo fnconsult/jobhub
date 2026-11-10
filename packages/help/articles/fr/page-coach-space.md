@@ -23,3 +23,15 @@ Quand l’équipe active « Espace coach v2 », votre espace s’ouvre sur « Au
 ## Votre fuseau horaire
 
 Dans le nouvel espace, « Profil public » propose « Votre fuseau horaire », par défaut Europe/Paris. Confirmez un fuseau IANA avec « Enregistrer le fuseau ». Les séances suivent votre heure, avec l’heure de Paris à côté quand elle diffère.
+
+## Aujourd’hui et vos Candidates
+
+« Aujourd’hui » rassemble les séances du jour et du lendemain dans votre fuseau, les dates à confirmer et les séances à planifier. Chaque action ouvre la séance concernée. « Mes Candidates » donne accès aux personnes qui ont une séance avec vous ou vous ont accordé l’accès coach. Sans accès coach, vous ne voyez que leur prénom et initiale, leurs séances avec vous et vos notes privées. Avec accès coach, leur page ajoute leurs profils et candidatures, documents et avis, en lecture seule. Vous ne voyez jamais leur agenda, leurs conversations ni leurs notes personnelles.
+
+## Vos notes privées
+
+Sur la page d’un Candidate et sur celle d’une séance, « Vos notes privées » s’enregistrent au fil de la frappe ; attendez « Notes enregistrées » avant de quitter la page. Elles ne sont pas montrées au Candidate à l’écran, mais « Le Candidate peut obtenir ces notes en exportant ses données. » Elles sont supprimées avec son compte et ne sont plus lisibles si vous quittez Jobbbox. Si les notes changent dans un autre onglet, conservez votre texte et rechargez la page.
+
+## Mes séances
+
+Les onglets « À venir », « À planifier », « Passées » comptent vos séances ; une rétractation les retire. Ouvrez une séance pour sa préparation, son lien et ses notes privées. La page passe de « Avant la séance » à « Pendant la séance » dix minutes avant son début, puis à « Après la séance » à la fin prévue. « Préparer : ouvrir la page du Candidate » mène à son dossier. La saisie de date reste disponible et conserve l’historique des reports.

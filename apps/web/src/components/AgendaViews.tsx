@@ -1,3 +1,5 @@
+import type { Meeting } from "@jobhub/shared/coaching-meeting";
+import { MeetingLink } from "@/coach-space/MeetingLink";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import Link from "next/link";
 import { useId } from "react";
@@ -51,6 +53,8 @@ const ids = (scope: string) => ({
 export interface Formats {
   /** The time formatter, for `InterviewTimes`: "14:30". */
   timeFormat: Intl.DateTimeFormat;
+  meetings?: Record<string, Meeting | null>;
+  coachingZone?: string;
   coachingTime: (value: Date) => string;
   /** "14:30". */
   time: (value: Date) => string;
@@ -89,6 +93,7 @@ export function formatsFor(locale: string, now: Date, coachingZone = INTERVIEW_T
   const range = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", ...zone });
   return {
     timeFormat: time,
+    coachingZone,
     coachingTime: (value) => coachingTime(value, locale, coachingZone),
     time: (value) => time.format(value),
     fullDay: dayIn({ dateStyle: "full" }),
@@ -394,6 +399,7 @@ function CoachingSessionItem({ item, scope, past, withdrawable, formats, t }: { 
           {item.changedBy === "coach" ? <span className="agenda-item-changed">{t("agenda.changedByCoach")}</span> : null}
         </span>
       </Link>
+      {formats.meetings ? <MeetingLink meeting={formats.meetings[item.id] ?? null} scheduledAt={item.scheduledAt.toISOString()} durationMinutes={item.durationMinutes ?? null} timeZone={formats.coachingZone} /> : null}
       <CoachingSessionDialog
         session={{ id: item.id, scheduledAt: interviewWallClock(item.scheduledAt), durationMinutes: item.durationMinutes ?? null, videoLink: item.videoLink ?? null, note: item.note ?? null }}
         withName={item.coach.name}

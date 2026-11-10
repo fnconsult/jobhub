@@ -307,6 +307,10 @@ export const jobDigestResponseSchema = z.object({
 });
 export type JobDigestResponse = z.infer<typeof jobDigestResponseSchema>;
 
+export const coachingMeetingSchema = z.union([
+  z.object({ kind:z.literal("video"),target:z.string(),confirmed:z.boolean() }),
+  z.object({ kind:z.literal("phone"),target:z.string(),direction:z.enum(["candidate_calls","coach_calls"]) }),
+]);
 // --- Agenda ------------------------------------------------------------------------------------------------------
 
 /** An Interview as the Agenda shows it: it leads to its Application's Interviews Section. */
@@ -328,6 +332,7 @@ export type InterviewAgendaItemRead = z.infer<typeof interviewAgendaItemSchema>;
 
 /** A dated Coaching Session as the Agenda shows it: it leads to its Human Coach. `changedBy` "coach": « modifié par le coach ». */
 export const coachingSessionAgendaItemSchema = z.object({
+  meeting: coachingMeetingSchema.nullable().optional(),
   timeZone: z.string().optional(),
   kind: z.literal("coachingSession"),
   id: z.string(),
@@ -380,6 +385,7 @@ export const coachingResponseSchema = z.object({
     z.object({
       id: z.string(),
       coach: named.extend({ bookingUrl: z.string() }),
+      meeting: coachingMeetingSchema.nullable().optional(),
       paidAt: instant,
       scheduledAt: instant.nullable(),
       durationMinutes: z.number().int().positive().nullable(),

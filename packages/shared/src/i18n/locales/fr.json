@@ -6574,5 +6574,62 @@
     "hint": "Les séances suivent votre fuseau IANA (par exemple Europe/Paris ou America/Montreal), avec l’heure de Paris à côté. Les entretiens restent en heure de Paris. À la première visite, le fuseau de votre appareil vous est proposé.",
     "save": "Enregistrer le fuseau",
     "invalid": "Saisissez un fuseau horaire IANA valide et réessayez."
+  },
+  "coachWorkspace": {
+    "today": "Aujourd’hui",
+    "tomorrow": "Demain",
+    "noTomorrow": "Aucune séance demain.",
+    "todo": "À faire",
+    "nothingTodo": "Rien à faire",
+    "schedule": "Planifier la séance avec {{name}}",
+    "confirm": "Confirmer la date avec {{name}}",
+    "recent": "Candidates récents",
+    "access": "Accès coach accordé",
+    "noAccess": "Sans accès coach : séances et notes privées uniquement.",
+    "notes": "Vos notes privées",
+    "notesExport": "Le Candidate peut obtenir ces notes en exportant ses données.",
+    "noteStatus": {
+      "idle": "Les modifications sont enregistrées au fil de la frappe.",
+      "saving": "Enregistrement…",
+      "saved": "Notes enregistrées.",
+      "failed": "Enregistrement impossible. Modifiez le texte pour réessayer.",
+      "conflict": "Ces notes ont changé dans un autre onglet. Rechargez la page avant de réessayer ; conservez votre texte."
+    },
+    "tabs": {
+      "upcoming": "À venir",
+      "unscheduled": "À planifier",
+      "past": "Passées"
+    },
+    "phase": {
+      "before": "Avant la séance",
+      "during": "Pendant la séance",
+      "after": "Après la séance"
+    },
+    "soldByJobbbox": "Vendue par Jobbbox",
+    "prepare": "Préparer : ouvrir la page du Candidate"
+  },
+  "coachMeeting": {
+    "join": {
+      "zoom": "Rejoindre sur Zoom",
+      "meet": "Rejoindre sur Google Meet",
+      "teams": "Rejoindre sur Microsoft Teams",
+      "video": "Rejoindre la visio"
+    },
+    "available": "Le lien apparaît à partir du {{date}}.",
+    "coachCalls": "Le coach vous appellera au {{phone}}.",
+    "call": "Appelez le {{phone}}.",
+    "kind": "Moyen de rejoindre la séance",
+    "video": "Visio",
+    "phone": "Téléphone",
+    "target": "Lien HTTPS ou numéro de téléphone",
+    "direction": "Qui appelle ?",
+    "candidateCallsOption": "Le Candidate appelle le coach",
+    "coachCallsOption": "Le coach appelle le Candidate",
+    "confirmHost": "Je confirme cet hôte de visioconférence.",
+    "save": "Enregistrer le contact",
+    "invalid": "Vérifiez le lien HTTPS ou le numéro. Confirmez un hôte non reconnu.",
+    "permanent": "Votre contact permanent",
+    "sessionContact": "Contact de cette séance",
+    "candidateCalls": "Le Candidate vous appellera au {{phone}}."
   }
 }

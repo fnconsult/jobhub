@@ -1,3 +1,5 @@
+import { coachSpaceV2On } from "@/coach-space/server";
+import { getCoachContacts } from "@/coach-space/contacts-server";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import Link from "next/link";
 import { calendarPeriod, frenchDay, type AgendaView, type CalendarView } from "@/agenda/calendar";
@@ -61,6 +63,7 @@ export async function AgendaMenuPage({ candidateId, params }: { candidateId: str
   // The Coaching Sessions « Renoncer au contrat ici » is offered on (#511): paid less than 14 days ago, not held yet.
   const withdrawable: Withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
   const formats = formatsFor(locale, now, timeZone);
+  if (coachSpaceV2On()) formats.meetings = await getCoachContacts().forCandidate(candidateId);
   const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
   const back = routes.agenda(past);
   const addInterview = (

@@ -23,3 +23,15 @@ When the team switches on “Coach space v2”, your space opens on “Today”.
 ## Your time zone
 
 In the new space, “Public page” offers “Your time zone”, initially Europe/Paris. Confirm an IANA zone with “Save time zone”. Sessions follow your clock, with Paris time alongside when it differs.
+
+## Today and your Candidates
+
+“Today” gathers today’s and tomorrow’s sessions in your zone, dates to confirm and sessions to schedule. Each action opens its session. “My Candidates” lists people who have a session with you or granted Coach Access. Without Coach Access, you see only their short name, sessions with you and your Private Coach Notes. With Coach Access, the page adds their Profiles and Applications, documents and reviews, read only. You never see their Agenda, conversations or personal notes.
+
+## Your Private Coach Notes
+
+On a Candidate’s or session’s page, “Your Private Coach Notes” save as you type; wait for “Notes saved” before leaving. They are not shown to the Candidate on screen, but “The Candidate can obtain these notes by exporting their data.” They are deleted with the account and become unreadable when you leave Jobbbox. If another tab changed the notes, keep a copy of your text and reload.
+
+## My sessions
+
+“Upcoming”, “To schedule” and “Past” count your sessions; a Withdrawal removes a session. Open a session for preparation, its link and private notes. The page changes from “Before the session” to “During the session” ten minutes before it starts, then to “After the session” at its scheduled end. “Prepare: open the Candidate’s page” leads to their file. Manual date entry remains available and keeps Reschedule history.

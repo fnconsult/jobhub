@@ -759,3 +759,21 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 13._
 | People and data | Candidates and Human Coaches: an IANA time-zone preference. The device's zone is suggested locally and saved only on confirmation. |
 | Access and storage | The person concerned; EU Postgres tables `candidate_coaching_time_zone` and `coach_coaching_time_zone`. No new recipient. The chosen zone is used in the existing transactional reminder email. |
 | Retention and rights | Candidate preference exported with their account and deleted with it. A retired Human Coach cannot read or change their coach preference through the Coach space. |
+
+## Notes et comptes rendus des Human Coaches (#870, ADR-0098)
+
+| | |
+| --- | --- |
+| Purpose and roles | Support coaching with Private Coach Notes per Candidate and per Coaching Session. Jobbbox is controller; the Human Coach acts as processor (GDPR art. 28, contract #518). Session Reports extend this processing when #872 is delivered. |
+| Legal basis | Performance of the requested coaching service (GDPR art. 6(1)(b)); no AI, recording, transcript or summary in v0. |
+| Data and access | Text, author, Candidate/session reference, revision and date. Notes are readable only by their author while an active coach with Coach Access or a paid-session relationship. No access for another coach or an Association. The Candidate sees none on screen, but can obtain the notes in their Data export. |
+| Storage and retention | EU Postgres `private_coach_note`; deleted with the Candidate's account or the session they concern. A retired coach cannot read or change notes. |
+| Information | Coach page warns that the Candidate can obtain these notes through Data export. Privacy policy change remains in human Legal Review #890; the B2B text remains #518. |
+
+## Coaching Session contacts (#884)
+
+| | |
+| --- | --- |
+| Purpose and legal basis | Join the paid coaching service by the coach's HTTPS video link or telephone; GDPR art. 6(1)(b). |
+| Data | A coach's permanent contact or a session-specific override, including who calls. Unknown video hosts require the coach's explicit confirmation. |
+| Storage, access and retention | EU tables `coach_meeting_contact` and `coaching_session_contact`; active coach controls their own contact, the paying Candidate sees only their sessions' joining information. The session-specific contact is exported and deleted with the Candidate's session. No new provider integration or automatic recording. |

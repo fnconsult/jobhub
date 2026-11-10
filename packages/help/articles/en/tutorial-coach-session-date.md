@@ -15,3 +15,5 @@ The candidate pays for their session on Jobbbox, then books their slot on your C
 6. Click « Save ». The panel closes and the session shows « On … (Paris time) », its duration and the « Video link with … » link, here with Claire D.
 
 The candidate finds the date and the link in their agenda, marked « changed by the coach ». To reschedule the session, click « Change the date » and enter the new slot. « Cancel » closes the panel without changing anything. The note the candidate may have added to the session stays theirs: you do not see it.
+
+In the new Coach space, open “My sessions”, then the session. “Edit date” and “Enter date” keep the same fields and history. “This session’s contact” also lets you enter an HTTPS link or phone number; it overrides your permanent contact for this session only.

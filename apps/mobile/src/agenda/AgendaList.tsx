@@ -1,3 +1,4 @@
+import { SessionJoin } from "../coaching/SessionJoin";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import { useRouter } from "expo-router";
 import { CalendarPlus } from "lucide-react-native";
@@ -290,6 +291,7 @@ function CoachingSessionRow({
           ) : null}
         </View>
       </ItemLink>
+      {item.meeting !== undefined ? <SessionJoin meeting={item.meeting} scheduledAt={item.scheduledAt} durationMinutes={item.durationMinutes} timeZone={item.timeZone} /> : null}
       <AddToCalendar
         item={item}
         what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })}

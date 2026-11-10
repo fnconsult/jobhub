@@ -1,3 +1,5 @@
+import { migrateCoachContacts } from "./coach-space/contacts";
+import { migrateCoachWorkspace } from "./coach-space/workspace";
 import { migrateCoachingTimeZones } from "./coaching-time";
 /**
  * Every table of the web app, created or upgraded in dependency order. Safe to
@@ -92,6 +94,8 @@ export async function migrateDatabase(
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coaching time zones are up to date", () => migrateCoachingTimeZones(database)],
+    ["Coaching Session contacts are up to date", () => migrateCoachContacts(database)],
+    ["Private Coach Notes are up to date", () => migrateCoachWorkspace(database)],
     ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Push notifications' devices and switches are up to date", () => migratePushNotifications(database)],

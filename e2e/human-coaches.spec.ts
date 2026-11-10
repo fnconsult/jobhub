@@ -644,3 +644,43 @@ test("a Montréal Candidate confirms the device zone and reads the same session 
     await admin.context().close();
   }
 });
+
+test("the daily workspace links a paid Candidate, privately autosaves notes, exports them, and joins a confirmed session", async ({ page, browser }) => {
+  test.setTimeout(120_000);
+  const database=new Pool({connectionString:process.env.E2E_DATABASE_URL});
+  const settings=platformSettingsStore(database,{});
+  const admin=await personPage(browser,ADMINISTRATOR);
+  const coachEmail=newAddress("workspace-coach");const coach=await addCoach(admin,coachEmail);const coachId=await coachIdOf(admin,coach.name);
+  const coachPage=await personPage(browser,coachEmail);
+  try {
+    await signInWithMagicLink(page,newAddress("workspace-candidate"));
+    await applicationWithCoverLetter(page);
+    const checkout=await page.request.post("/api/coaching/checkout",{form:{coachId},headers:{origin},maxRedirects:0});expect(checkout.status()).toBe(303);
+    const [started]=await checkoutsFor(coachId);const candidateId=started!["metadata[candidate_id]"]!;
+    const event=signedEvent(checkoutSessionEvent("checkout.session.completed",{id:`cs_e2e_${unique()}`,candidateId,coachId,amount:9000,currency:"eur",paymentStatus:"paid"}));
+    expect((await page.request.post("/api/billing/webhook",{data:event.payload,headers:{"stripe-signature":event.signature,"content-type":"application/json"}})).ok()).toBe(true);
+    const session=(await (await page.request.get("/api/coaching")).json()).sessions[0];
+    await database.query("UPDATE coaching_session SET scheduled_at=now()+interval '5 minutes',duration_minutes=60 WHERE id=$1",[session.id]);
+    await settings.set("COACH_SPACE_V2_ENABLED","true",ADMINISTRATOR);
+    await expect(async()=>{await coachPage.goto("/espace-coach");await expect(coachPage).toHaveURL(/aujourdhui$/);}).toPass();
+    await expect(coachPage.getByRole("link",{name:space.unnamedCandidate,exact:true}).first()).toBeVisible();
+    await coachPage.goto(`/espace-coach/candidates/${candidateId}`);
+    await expect(coachPage.getByText(fr.coachWorkspace.noAccess)).toBeVisible();
+    await expect(coachPage.getByRole("heading",{name:space.profilesTitle})).toHaveCount(0);
+    await coachPage.getByLabel(fr.coachWorkspace.notes).fill("Notes privées du coach, jamais à l’écran du Candidate.");
+    await expect(coachPage.getByRole("status")).toHaveText(fr.coachWorkspace.noteStatus.saved);
+    await coachPage.reload();await expect(coachPage.getByLabel(fr.coachWorkspace.notes)).toHaveValue("Notes privées du coach, jamais à l’écran du Candidate.");
+    const exported=await (await page.request.get("/api/account/export")).json();
+    expect(exported.privateCoachNotes).toEqual([expect.objectContaining({text:"Notes privées du coach, jamais à l’écran du Candidate."})]);
+    await page.goto("/coachs");await expect(page.getByText("Notes privées du coach, jamais à l’écran du Candidate.")).toHaveCount(0);
+    await coachPage.goto(`/espace-coach/seances/${session.id}`);
+    await expect(coachPage.getByRole("heading",{name:fr.coachWorkspace.phase.during})).toBeVisible();
+    await coachPage.getByLabel(fr.coachMeeting.target).fill("https://meet.google.com/abc-defg-hij");
+    await coachPage.getByRole("button",{name:fr.coachMeeting.save}).click();await expect(coachPage.getByRole("status").filter({hasText:fr.account.saved})).toBeVisible();
+    await page.goto("/coachs");await expect(page.getByRole("link",{name:fr.coachMeeting.join.meet})).toBeVisible();
+    // Native WebView uses the dedicated coach drawer too, despite the Candidate shell's global hiding rule.
+    await coachPage.setExtraHTTPHeaders({"user-agent":"Mozilla/5.0 JobbboxApp/1.0"});
+    await coachPage.setViewportSize({width:390,height:844});await coachPage.goto("/espace-coach/seances");
+    await coachPage.getByRole("button",{name:fr.sidebar.menu,exact:true}).click();await expect(coachPage.getByRole("dialog",{name:fr.sidebar.menu})).toBeVisible();
+  } finally {await settings.restore("COACH_SPACE_V2_ENABLED");await database.end();await coachPage.context().close();await admin.context().close();}
+});

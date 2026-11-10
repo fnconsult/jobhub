@@ -6574,5 +6574,62 @@
     "hint": "Sessions follow your IANA time zone (for example Europe/Paris or America/Montreal), with Paris time alongside. Interviews stay in Paris time. On your first visit we suggest your device’s zone.",
     "save": "Save time zone",
     "invalid": "Enter a valid IANA time zone and try again."
+  },
+  "coachWorkspace": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "noTomorrow": "No sessions tomorrow.",
+    "todo": "To do",
+    "nothingTodo": "Nothing to do",
+    "schedule": "Schedule the session with {{name}}",
+    "confirm": "Confirm the date with {{name}}",
+    "recent": "Recent Candidates",
+    "access": "Coach Access granted",
+    "noAccess": "Without Coach Access: sessions and private notes only.",
+    "notes": "Your Private Coach Notes",
+    "notesExport": "The Candidate can obtain these notes by exporting their data.",
+    "noteStatus": {
+      "idle": "Changes save as you type.",
+      "saving": "Saving…",
+      "saved": "Notes saved.",
+      "failed": "Unable to save. Edit the text to try again.",
+      "conflict": "These notes changed in another tab. Reload before retrying; keep a copy of your text."
+    },
+    "tabs": {
+      "upcoming": "Upcoming",
+      "unscheduled": "To schedule",
+      "past": "Past"
+    },
+    "phase": {
+      "before": "Before the session",
+      "during": "During the session",
+      "after": "After the session"
+    },
+    "soldByJobbbox": "Sold by Jobbbox",
+    "prepare": "Prepare: open the Candidate’s page"
+  },
+  "coachMeeting": {
+    "join": {
+      "zoom": "Join on Zoom",
+      "meet": "Join on Google Meet",
+      "teams": "Join on Microsoft Teams",
+      "video": "Join the video call"
+    },
+    "available": "The link becomes available on {{date}}.",
+    "coachCalls": "The coach will call you on {{phone}}.",
+    "call": "Call {{phone}}.",
+    "kind": "How to join the session",
+    "video": "Video call",
+    "phone": "Phone",
+    "target": "HTTPS link or phone number",
+    "direction": "Who calls?",
+    "candidateCallsOption": "The Candidate calls the coach",
+    "coachCallsOption": "The coach calls the Candidate",
+    "confirmHost": "I confirm this video-call host.",
+    "save": "Save contact",
+    "invalid": "Check the HTTPS link or phone number. Confirm an unrecognised host.",
+    "permanent": "Your permanent contact",
+    "sessionContact": "This session’s contact",
+    "candidateCalls": "The Candidate will call you on {{phone}}."
   }
 }

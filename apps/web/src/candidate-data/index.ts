@@ -1,3 +1,4 @@
+import type { Meeting } from "../coach-space/meeting";
 /**
  * A Candidate's own data, as a whole (ADR-0010): exported for them to keep, and
  * deleted with their account.
@@ -343,7 +344,8 @@ export interface CandidateDataExport {
    * The Coaching Sessions the Candidate paid for, newest first, with the date, duration, video link and note entered, who last changed the date,
    * and their Reschedule history (cancellations included); never the Human Coach's booking link.
    */
-  coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
+  coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed; meeting: Meeting | null })[];
+  privateCoachNotes: { coachName: string; sessionId: string | null; text: string; updatedAt: Date }[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
   /**
@@ -477,6 +479,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
   candidate_coaching_time_zone: "account.coachingTimeZone",
+  coaching_session_contact: "coachingSessions[].meeting (session contact)",
+  private_coach_note: "privateCoachNotes (author’s given name, date and text; per Candidate or session)",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
   coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
   action_card: "actionCards (a Coach proposal's in a thread with its conversation, what it proposed before and after, what was edited, its decision and « Annuler », #715)",
@@ -768,7 +772,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   async function exportCoachingSessions(candidateId: string): Promise<CandidateDataExport["coachingSessions"]> {
     const sessions = await rowsOf<Omit<CandidateDataExport["coachingSessions"][number], "reschedules">>(
       `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt",
-              s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note, s.changed_by AS "changedBy"
+              s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note, s.changed_by AS "changedBy", (SELECT contact FROM coaching_session_contact WHERE session_id=s.id) AS meeting
          FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
       candidateId,
     );
@@ -897,7 +901,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
+      return { privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(`SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`, candidateId), exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
     },
 
     async delete(candidateId) {

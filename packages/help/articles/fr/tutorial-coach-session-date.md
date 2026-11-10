@@ -15,3 +15,5 @@ Le candidat paie sa séance sur Jobbbox, puis réserve son créneau sur votre pa
 6. Cliquez sur « Enregistrer ». Le panneau se ferme et la séance affiche « Le … (heure de Paris) », la durée et le lien « Lien de la visio avec … », ici avec Claire D.
 
 Le candidat retrouve la date et le lien dans son agenda, avec la mention « modifié par le coach ». Pour reporter la séance, cliquez sur « Modifier la date » et saisissez le nouveau créneau. « Annuler » ferme le panneau sans rien changer. La note que le candidat a pu ajouter à la séance reste la sienne : vous ne la voyez pas.
+
+Dans le nouvel espace coach, ouvrez d’abord « Mes séances », puis la séance. « Modifier la date » et « Saisir la date » gardent les mêmes champs et l’historique. « Contact de cette séance » vous permet aussi d’indiquer un lien HTTPS ou un téléphone ; il remplace votre contact permanent pour cette séance seulement.

@@ -126,6 +126,16 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await testAuth.stop();
   }, 60_000);
 
+  it("exports Private Coach Notes including a retired author's given name, then deletes them with the account", async () => {
+    const { rows } = await database.query("INSERT INTO human_coach (name,email,booking_url) VALUES ('Sophie Martin','notes-export@example.test','https://cal.com/sophie') RETURNING id");
+    const coachId = rows[0].id;
+    await database.query("INSERT INTO private_coach_note (coach_id,candidate_id,text) VALUES ($1,$2,'Notes privées de Sophie')", [coachId,candidateId]);
+    await database.query("UPDATE human_coach SET retired_at=now() WHERE id=$1", [coachId]);
+    expect((await candidateData.export(candidateId)).privateCoachNotes).toEqual([{ coachName:"Sophie",sessionId:null,text:"Notes privées de Sophie",updatedAt:expect.any(Date) }]);
+    await candidateData.delete(candidateId);
+    expect((await database.query("SELECT * FROM private_coach_note WHERE candidate_id=$1",[candidateId])).rows).toEqual([]);
+  });
+
   it("the export holds the Candidate's account: email address and Interface Language", async () => {
     expect((await candidateData.export(candidateId)).account).toEqual({
       email: "marie.dupont@example.fr",
@@ -916,6 +926,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         durationMinutes: 60,
         videoLink: "https://meet.google.com/abc-defg-hij",
         note: "Préparer mon pitch.",
+        meeting: null,
         changedBy: "candidate",
         reschedules: [],
       },

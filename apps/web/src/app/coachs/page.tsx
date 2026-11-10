@@ -1,3 +1,6 @@
+import { coachSpaceV2On } from "@/coach-space/server";
+import { getCoachContacts } from "@/coach-space/contacts-server";
+import { MeetingLink } from "@/coach-space/MeetingLink";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import type { Metadata } from "next";
@@ -77,6 +80,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
   const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const now = new Date();
 
+  const meetings = coachSpaceV2On() ? await getCoachContacts().forCandidate(candidate.id) : null;
   const notices = (
     <>
       {session === "paid" ? (
@@ -101,7 +105,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                 <strong>{t("humanCoaches.sessionOn", { name: paid.coach.name, date: coachingTime(paid.scheduledAt, locale, timeZone) })}</strong>
               </p>
               {paid.durationMinutes ? <p>{t("humanCoaches.sessionDuration", { count: paid.durationMinutes })}</p> : null}
-              {paid.videoLink ? (
+              {meetings ? <MeetingLink meeting={meetings[paid.id] ?? null} scheduledAt={paid.scheduledAt.toISOString()} durationMinutes={paid.durationMinutes} timeZone={timeZone} /> : paid.videoLink ? (
                 <p>
                   <ExternalLink href={paid.videoLink}>
                     {t("humanCoaches.joinVideo", { name: paid.coach.name })}

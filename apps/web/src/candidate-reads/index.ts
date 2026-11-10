@@ -1,3 +1,4 @@
+import type { Meeting } from "@jobhub/shared/coaching-meeting";
 /**
  * The Candidate's reads over HTTP (ADR-0076, #684): what the GETs of the `/api/*` routes answer the Jobbbox app, the
  * menus' cards and the objects they lead to, each in its type from `@jobhub/shared/reads`.
@@ -125,6 +126,7 @@ export interface CandidateReadsDeps {
   offerBox: OfferBox;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
+  coachingMeetings?: (candidateId: string) => Promise<Record<string, Meeting | null> | null>;
   coachingTimeZone?: (candidateId: string) => Promise<string | null>;
 }
 
@@ -389,6 +391,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
 
     async agenda(candidateId, { past = false } = {}) {
       const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
+      const meetings = (await deps.coachingMeetings?.(candidateId)) ?? null;
       const [unscheduled, days] = await Promise.all([deps.agenda.unscheduled(candidateId), deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now(), timeZone })]);
       return {
         toSchedule: unscheduled.map((session) => ({
@@ -397,12 +400,13 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           paidAt: iso(session.paidAt),
           reschedules: session.reschedules.map(reschedule),
         })),
-        days: days.map(({ day, items }) => ({ day, items: items.map((item) => ({ ...agendaItem(item), ...(item.kind === "coachingSession" && timeZone ? { timeZone } : {}) })) })),
+        days: days.map(({ day, items }) => ({ day, items: items.map((item) => ({ ...agendaItem(item), ...(item.kind === "coachingSession" && timeZone ? { timeZone } : {}), ...(item.kind === "coachingSession" && meetings ? { meeting: meetings[item.id] ?? null } : {}) })) })),
       };
     },
 
     async coaching(candidateId) {
       const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
+      const meetings = (await deps.coachingMeetings?.(candidateId)) ?? null;
       const [coaches, granted, sessions, contracts, price] = await Promise.all([
         deps.humanCoaches.list(),
         deps.humanCoaches.accessGranted(candidateId),
@@ -431,6 +435,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           changedBy: session.changedBy,
           reschedules: session.reschedules.map(reschedule),
           withdrawable: withdrawable.has(session.id),
+          ...(meetings ? { meeting: meetings[session.id] ?? null } : {}),
         })),
         price: price && { amount: price.amount, regularAmount: price.regularAmount, currency: price.currency },
       };

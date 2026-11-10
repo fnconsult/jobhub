@@ -10,6 +10,7 @@
   html[data-sidebar="closed"] .coach-space-v2 .topbar .menu-toggle { display: inline-flex; }
 }
 /* The native app opens this dedicated coach navigation, rather than the Candidate sidebar. */
-html[data-in-app] .coach-space-v2 .sidebar-docked { display: flex; }
+html[data-in-app] .coach-space-v2 .sidebar-docked,
+html[data-in-app] .coach-space-v2 .sidebar.sidebar-drawer { display: flex; }
 html[data-in-app] .coach-space-v2 .topbar .menu-toggle { display: inline-flex; }
 @media (width < 48rem) { html[data-in-app] .coach-space-v2 .sidebar-docked { display: none; } }

@@ -1,3 +1,4 @@
+import {migrateCoachAssociations} from "./coach-associations";
 import {migrateCoachContracts} from "./coach-contracts";
 import {migrateCoachEnrolments} from "./coach-enrolments";
 import { migrateCoachingOffers } from "./coaching-offers";
@@ -117,6 +118,7 @@ export async function migrateDatabase(
     ["Acceptances of the CGU and CGV are up to date", () => migrateAcceptances(database)],
     ["Orders are up to date", () => migrateOrders(database)],
     ["Coaching Offers and Sellers are up to date", () => migrateCoachingOffers(database)],
+    ["Coach Associations are up to date",()=>migrateCoachAssociations(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],

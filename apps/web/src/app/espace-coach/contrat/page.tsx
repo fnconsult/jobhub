@@ -1,3 +1,4 @@
+import { AssociationLayout } from "@/coach-associations/AssociationLayout";
 import { headers } from "next/headers";
 import { fromJobbboxApp } from "@/api-version";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
@@ -10,6 +11,7 @@ import { getCoachContracts, getCoachContractWritten } from "@/coach-contracts/se
 import { ContractText } from "@/coach-contracts/ContractText";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+const ASSOCIATION_CONTRACT_PAGE = "contrat";
 const KIND = "kind",
   ID = "id",
   VERSION = "version",
@@ -34,7 +36,7 @@ async function accept(form: FormData) {
   if (!accepted) redirect("/espace-coach/contrat?error=stale");
   redirect(kind === "association" ? "/espace-association" : "/espace-coach/aujourdhui");
 }
-export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string; association?: string }> }) {
   if (!coachSpaceV2On()) notFound();
   const person = await getCurrentCandidate();
   if (!person) return signInRedirect();
@@ -46,11 +48,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
     on = parisDay();
   const records = await Promise.all(actors.map((actor) => contracts.state(person, actor.kind, actor.id)));
   const shown = legalText("contrat-coach", locale, { on }, getCoachContractWritten(locale));
-  const error = (await searchParams).error;
+  const { error, association: requestedAssociation } = await searchParams;
   const inCoachSpace = records.some((record) => record?.actor.kind === "coach" && record.accepted);
+  const associationActor = records.find(
+    (record) => record?.actor.kind === "association" && record.accepted && (!requestedAssociation || record.actor.id === requestedAssociation),
+  )?.actor;
+  const inBusinessSpace = inCoachSpace || !!associationActor;
   const content = (
     <>
-      {!inCoachSpace ? <h1>{t("coachSpaceV2.pages.contrat")}</h1> : null}
+      {!inBusinessSpace ? <h1>{t("coachSpaceV2.pages.contrat")}</h1> : null}
       {error ? <p role="alert">{t("coachContract.stale")}</p> : null}
       {shown ? <ContractText shown={shown} /> : <p>{t("coachEnrolment.awaitingContract")}</p>}
       {records.map((record) =>
@@ -98,6 +104,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
   );
   return inCoachSpace ? (
     <CoachSpaceShell>{content}</CoachSpaceShell>
+  ) : associationActor ? (
+    <AssociationLayout association={associationActor} page={ASSOCIATION_CONTRACT_PAGE}>
+      {content}
+    </AssociationLayout>
   ) : (
     <PublicSite>
       <main className="page stack">{content}</main>

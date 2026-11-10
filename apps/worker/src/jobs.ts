@@ -224,6 +224,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachAssociations?:{deliverInvitations():Promise<number>;purge():Promise<number>};
   coachContracts?: {sendNotices():Promise<{sent:number;failed:number}>;purge():Promise<number>};
   coachEnrolments?: {deliverNotices():Promise<number>;purge():Promise<number>};
   database: Pick<Pool, "query">;
@@ -651,6 +652,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    "coach-associations.invitations": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachAssociations?.deliverInvitations();})},
+    "coach-associations.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachAssociations?.purge();})},
     "coach-contracts.notices": {
       cron:"0 6 * * *", retry:LEGAL_TEXT_NOTICES_RETRY,
       handler:()=>onceTablesExist(async()=>{

@@ -6773,5 +6773,52 @@
     "upToDate": "Votre contrat est à jour.",
     "history": "Vos acceptations",
     "accepted": "Version du {{version}} · acceptée le {{date}}"
+  },
+  "association": {
+    "title": "Espace association",
+    "pages": {
+      "coachs": "Mes coachs",
+      "offres": "Offres",
+      "revenus": "Revenus",
+      "membres": "Membres"
+    },
+    "inviteCoach": "Inviter un coach",
+    "inviteMember": "Inviter un membre",
+    "name": "Nom complet",
+    "emailAddress": "Adresse e-mail",
+    "invite": "Envoyer l’invitation",
+    "pendingInvitations": "Invitations en attente",
+    "cancelInvitation": "Annuler l’invitation",
+    "invalid": "Les informations n’ont pas pu être enregistrées. Vérifiez les champs et vos droits puis réessayez.",
+    "invited": "L’invitation est enregistrée. Le destinataire la recevra par e-mail.",
+    "coachRetired": "Le coach a été retiré de Jobbbox.",
+    "noCandidateAccess": "Cet espace ne donne aucun accès aux Candidates, à leurs dossiers ni aux notes de vos coachs.",
+    "noCoaches": "Vous n’avez pas encore de coach.",
+    "retired": "Retiré de Jobbbox",
+    "active": "Coach actif",
+    "contractPending": "Contrat à accepter",
+    "retireWarning": "Retirer ce coach de votre Association le retire aussi de Jobbbox. Ses séances passées sont conservées.",
+    "retireCoach": "Retirer {{name}} de Jobbbox",
+    "memberRights": "Les membres gèrent les coachs et les offres de l’Association après avoir accepté son contrat. Ils ne lisent jamais les données des Candidates.",
+    "offerSaved": "L’offre a été enregistrée.",
+    "offersHint": "Le tarif Jobbbox suit ses conditions et sa réduction Premium. Votre Association peut aussi être le vendeur ; son tarif ne devient réservable qu’une fois ses paiements et ses obligations validés.",
+    "seller": "Vendeur",
+    "duration": "Durée en minutes",
+    "amount": "Tarif de l’Association en euros",
+    "earningsEmpty": "Vos séances, commissions et versements seront regroupés ici.",
+    "invitationTitle": "Invitation de {{name}}",
+    "joinCoachHint": "En acceptant, vous rejoignez les coachs de cette Association. Elle gérera votre offre et pourra vous retirer de Jobbbox. Elle ne lira aucun dossier de Candidate ni vos notes. Votre contrat personnel reste obligatoire.",
+    "joinMemberHint": "En acceptant, vous devenez membre de cette Association pour gérer ses coachs et ses offres. Vous devez accepter son contrat avant d’accéder à cet espace.",
+    "acceptInvitation": "Accepter l’invitation",
+    "proposedBy": "Proposé par {{name}}",
+    "email": {
+      "subject": "Invitation de {{name}} sur Jobbbox",
+      "coach": "{{name}} vous invite à rejoindre ses coachs. Vous pourrez relire les informations et accepter cette invitation depuis votre propre compte.",
+      "manager": "{{name}} vous invite à devenir membre de son espace Association. Vous pourrez gérer ses coachs et ses offres, sans accès aux Candidates.",
+      "expiry": "Cette invitation est valable sept jours. Connectez-vous avec l’adresse qui a reçu cet e-mail.",
+      "open": "Lire l’invitation",
+      "footer": "Vous recevez cet e-mail parce qu’une Association partenaire vous a invité sur Jobbbox."
+    },
+    "save": "Enregistrer l’offre"
   }
 }

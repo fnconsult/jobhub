@@ -1,3 +1,4 @@
+import {getCoachAssociations} from "@/coach-associations/server";
 import {getCoachingOffers} from "@/coaching-offers/server";
 import { coachSpaceV2On } from "@/coach-space/server";
 import { getCoachContacts } from "@/coach-space/contacts-server";
@@ -24,6 +25,7 @@ let instance: CandidateReads | undefined;
 /** The app's reads over HTTP (#684), on the modules the pages read, on the database named by DATABASE_URL. */
 export function getCandidateReads(): CandidateReads {
   instance ??= createCandidateReads({
+    coachAssociations:ids=>coachSpaceV2On()?getCoachAssociations().providers(ids):Promise.resolve([]),
     coachingMeetings: async (id) => coachSpaceV2On() ? getCoachContacts().forCandidate(id) : null,
     coachingTimeZone: (id) => getCoachingTimeZones().candidate(id),
     coachingOffer:(candidateId,coachId)=>getCoachingOffers().sale(candidateId,coachId),

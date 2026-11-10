@@ -124,7 +124,7 @@ export function coachingOffers(database: Pool, deps: OfferDeps) {
       // A coach may sell their own offer; an Association may be the Seller of member offers (#876 enforces membership).
       const result = await within.query(
         `INSERT INTO coaching_offer(coach_id,seller_id,duration_minutes,amount,currency)
-        SELECT h.id,s.id,$3,$4,$5 FROM human_coach h,coaching_seller s WHERE h.id=$1 AND h.retired_at IS NULL AND s.id=$2 AND (s.kind!='human_coach' OR s.coach_id=h.id) AND (s.kind='jobbbox' OR $4::integer IS NOT NULL)
+        SELECT h.id,s.id,$3,$4,$5 FROM human_coach h,coaching_seller s WHERE h.id=$1 AND h.retired_at IS NULL AND s.id=$2 AND (s.kind!='human_coach' OR s.coach_id=h.id) AND (s.kind='jobbbox' OR $4::integer IS NOT NULL) AND (s.kind!='association' OR EXISTS(SELECT 1 FROM coach_association a JOIN coach_association_coach m ON m.association_id=a.id WHERE a.id=s.association_id AND a.retired_at IS NULL AND m.coach_id=h.id AND m.removed_at IS NULL))
         ON CONFLICT(coach_id) DO UPDATE SET seller_id=EXCLUDED.seller_id,duration_minutes=EXCLUDED.duration_minutes,amount=EXCLUDED.amount,currency=EXCLUDED.currency`,
         [x.coachId, x.sellerId, x.durationMinutes, x.amount, x.currency],
       );

@@ -54,7 +54,8 @@
     "./company-register": "./src/company-dossiers/french-register.ts",
     "./shared-reading": "./src/shared-reading/index.ts",
     "./coach-enrolments": "./src/coach-enrolments/index.ts",
-    "./coach-contracts": "./src/coach-contracts/index.ts"
+    "./coach-contracts": "./src/coach-contracts/index.ts",
+    "./coach-associations": "./src/coach-associations/index.ts"
   },
   "scripts": {
     "dev": "next dev",

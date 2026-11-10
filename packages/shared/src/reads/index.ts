@@ -381,7 +381,7 @@ export type AgendaResponse = z.infer<typeof agendaResponseSchema>;
  */
 export const coachingResponseSchema = z.object({
   timeZone: z.string().optional(),
-  coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean(), seller:coachingSellerSchema.optional(), offer:z.object({durationMinutes:z.number(),amount:z.number(),currency:z.string()}).nullable().optional() })),
+  coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean(),association:named.optional(), seller:coachingSellerSchema.optional(), offer:z.object({durationMinutes:z.number(),amount:z.number(),currency:z.string()}).nullable().optional() })),
   sessions: z.array(
     z.object({
       id: z.string(),

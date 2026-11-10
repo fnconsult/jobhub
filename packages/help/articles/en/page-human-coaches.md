@@ -23,3 +23,7 @@ Once you have booked your time, « I've booked: enter the date » asks for the d
 ## Who sells your session
 
 “Sold by” identifies the offer’s Seller, also named in your order and confirmation. Jobbbox uses its session price and your Plan’s discount. A third-party Seller sets their own price; their legal name, status and SIRET appear, with Jobbbox’s marketplace role. Only offers with payment and selling conditions activated can be ordered.
+
+## Coaches offered by an Association
+
+“Offered by …” names the Association offering the coach, on the site and in the app. The session’s seller may differ: “Sold by” identifies it separately. The Association manages coaches and offers without reading your Profiles, Applications, conversations or session notes. A coach removed from an Association is also retired from Jobbbox; past sessions stay in your history.

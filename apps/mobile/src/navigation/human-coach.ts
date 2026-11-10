@@ -15,3 +15,10 @@ export function useIsHumanCoach(): boolean {
   const { data } = useQuery({ queryKey: ["coachSpace"], queryFn: () => read(api, "/api/coach-space", coachSpaceResponseSchema), staleTime: FRESH_FOR_MS, retry: false });
   return data?.humanCoach ?? false;
 }
+
+/** Association membership exposes its private WebView entry, never a Human Coach's Candidate permissions. */
+export function useIsAssociationMember():boolean {
+ const api=useApi();
+ const {data}=useQuery({queryKey:["coachSpace"],queryFn:()=>read(api,"/api/coach-space",coachSpaceResponseSchema),staleTime:FRESH_FOR_MS,retry:false});
+ return data?.associationSpace??false;
+}

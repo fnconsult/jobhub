@@ -1,3 +1,4 @@
+import {currentAssociationIdentity} from "@/coach-associations/server";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { requireAcceptedTerms } from "@/acceptances/server";
@@ -159,7 +160,7 @@ export async function CandidateLayout({
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, { usage, plan }, identity, privacy, free, menus, welcomeClosed] = await Promise.all([
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, { usage, plan }, identity, privacy, free, menus, welcomeClosed, associationMember] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     Promise.all([getRequestLocale(), headers()]).then(([locale, requestHeaders]) => getPaymentFailedNotice(candidateId, locale, inAppWebView(requestHeaders.get("user-agent")))),
@@ -173,6 +174,7 @@ export async function CandidateLayout({
     freeConversations(candidateId),
     sidebarMenus(candidateId),
     closedWelcome(candidateId),
+    currentAssociationIdentity(),
   ]);
   return (
     <SidebarLayout
@@ -180,6 +182,7 @@ export async function CandidateLayout({
       currentProfileId={currentProfileId}
       canAddProfile={canAddProfile}
       isHumanCoach={Boolean(humanCoach)}
+      isAssociationMember={associationMember}
       isAdministrator={isAdministrator}
       usage={usage}
       candidate={{ ...identity, plan }}

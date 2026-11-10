@@ -1,3 +1,4 @@
+import {hasAssociationIdentity} from "@/coach-associations/server";
 import type { CoachSpaceResponse } from "@jobhub/shared/reads";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate } from "@/auth/server";
@@ -11,6 +12,6 @@ import { hasHumanCoachIdentity } from "@/human-coaches/server";
 export async function GET() {
   const person = await getCurrentCandidate();
   if (!person) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body: CoachSpaceResponse = { humanCoach: await hasHumanCoachIdentity(person) };
+  const body: CoachSpaceResponse = { humanCoach: await hasHumanCoachIdentity(person),...await hasAssociationIdentity(person)?{associationSpace:true}:{} };
   return NextResponse.json(body, { headers: { "cache-control": "no-store" } });
 }

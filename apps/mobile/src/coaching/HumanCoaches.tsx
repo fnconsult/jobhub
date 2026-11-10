@@ -229,6 +229,7 @@ function CoachCard({ coach, bookable }: { coach: Coach; bookable: boolean }) {
   return (
     <Card label={coach.name}>
       <AppText variant="h3">{coach.name}</AppText>
+      {coach.association?<AppText>{t("association.proposedBy",{name:coach.association.name})}</AppText>:null}
       {coach.seller?<><AppText>{t("coachingOffers.soldBy",{name:coach.seller.name})}</AppText>{coach.seller.kind!=="jobbbox"?<><AppText>{coach.seller.status} · {t("coachingOffers.siret",{siret:coach.seller.siret})}</AppText><AppText>{t("coachingOffers.marketplace")}</AppText></>:null}</>:null}
       {coach.offer?<AppText>{price} · {t("humanCoaches.sessionDuration",{count:coach.offer.durationMinutes})}</AppText>:null}
       {coach.bio ? <AppText>{coach.bio}</AppText> : null}

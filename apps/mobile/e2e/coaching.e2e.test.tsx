@@ -92,6 +92,10 @@ afterEach(() => {
 });
 
 describe("Mes coachs humains, read from the web app", () => {
+  it("names the Association offering a Coach separately from the Seller",async()=>{
+    await launch("/coachs",route=>{route.coaching.coaches[0]!.association={id:"association-1",name:"Transitions"};});
+    expect(await screen.findByText("Proposé par Transitions")).toBeOnTheScreen();
+  });
   it("uses the Candidate’s Montréal clock beside Paris in the future join hint",async()=>{
     await launch("/coachs",route=>{route.coaching.timeZone="America/Montreal";route.coaching.sessions[0]={...route.coaching.sessions[0]!,scheduledAt:"2030-11-12T14:30:00Z",meeting:{kind:"video",target:"https://meet.google.com/test",confirmed:false}};});
     const hint=await screen.findByText(/Le lien apparaît/);

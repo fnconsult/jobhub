@@ -32,6 +32,7 @@ const LABELS = {
   jobDigests: "sidebar.jobDigests",
   humanCoaches: "account.humanCoaches",
   coachSpace: "account.coachSpace",
+  associationSpace:"association.title",
   admin: "account.admin",
 } as const satisfies Record<SidebarNavKey, string>;
 
@@ -55,6 +56,7 @@ export function SidebarLayout({
   currentProfileId,
   canAddProfile,
   isHumanCoach = false,
+  isAssociationMember=false,
   isAdministrator = false,
   usage = null,
   candidate,
@@ -72,6 +74,7 @@ export function SidebarLayout({
   currentProfileId?: string | undefined;
   canAddProfile: boolean;
   isHumanCoach?: boolean;
+  isAssociationMember?:boolean;
   isAdministrator?: boolean;
   usage?: Meter | null;
   /** Who « Mon compte » names, and their Plan (#923); without it, « Mon compte » alone. */
@@ -89,7 +92,7 @@ export function SidebarLayout({
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const items = sidebarNav({ pathname, profiles, currentProfileId, isHumanCoach, isAdministrator });
+  const items = sidebarNav({ pathname, profiles, currentProfileId, isHumanCoach, isAssociationMember, isAdministrator });
   const account = accountLink(pathname);
   const subscription = subscriptionLink(pathname);
   const switcherProfiles = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
@@ -143,7 +146,7 @@ export function SidebarLayout({
             <SidebarConversations onNavigate={closeDrawer} closeDrawerThen={closeDrawerThen} />
             <ul>
               {items.map((item) => {
-                const NavIcon = Icons[item.key];
+                const NavIcon = item.key === "associationSpace" ? Icons.humanCoaches : Icons[item.key];
                 if (hasObjects(item.key))
                   return (
                     <SidebarMenu

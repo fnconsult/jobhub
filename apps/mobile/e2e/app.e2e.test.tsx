@@ -528,6 +528,21 @@ describe("Jobbbox app, signing in (#685)", () => {
     mockWeb.app.humanCoach(EMAIL, false);
   });
 
+  it("opens only the Association workspace for its member and preserves an invitation token in the native WebView",async()=>{
+    mockWeb.app.associationMember(EMAIL);
+    try {
+      await launch();const user=userEvent.setup();await user.press(button("Menu"));
+      expect(screen.queryByRole("link",{name:"Mon espace coach",hidden:true})).toBeNull();
+      await user.press(await screen.findByRole("link",{name:"Espace association",hidden:true}));
+      expect((await webView()).source).toEqual({uri:`${mockWeb.app.baseURL}/espace-association`});
+    }finally{mockWeb.app.associationMember(EMAIL,false);}
+  });
+  it("keeps an email invitation's signature when a native universal link opens it",async()=>{
+    const path="/espace-association/invitations/00000000-0000-4000-8000-000000000100";
+    await launch(`${path}?token=signature-only-for-test`);
+    expect((await webView()).source).toEqual({uri:`${mockWeb.app.baseURL}${path}?token=signature-only-for-test`});
+  });
+
   it("asks a CGU version to accept after sign-in, natively, before the conversation, and records it from the app (#689)", async () => {
     const { shownLegalText } = jest.requireActual("../src/session/testing");
     await signedIn();

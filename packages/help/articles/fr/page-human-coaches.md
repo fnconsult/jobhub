@@ -23,3 +23,7 @@ Après avoir réservé votre créneau, « J'ai réservé : saisir la date » vou
 ## Qui vous vend la séance
 
 « Vendu par » identifie le vendeur de l’offre, également nommé dans votre commande et sa confirmation. Jobbbox applique son prix de séance et la remise de votre formule. Un vendeur tiers fixe son propre prix ; son nom légal, son statut et son SIRET apparaissent, avec le rôle de place de marché de Jobbbox. Seules les offres dont le paiement et les conditions de vente sont activés peuvent être commandées.
+
+## Les coachs proposés par une association
+
+« Proposé par … » nomme l’Association qui propose le coach, sur le site et dans l’app. Ce n’est pas forcément le vendeur de la séance : « Vendu par » l’identifie séparément. L’Association gère ses coachs et leurs offres, sans lire vos profils, candidatures, conversations ou notes de séance. Un coach retiré de l’Association est aussi retiré de Jobbbox ; vos séances passées restent dans votre historique.

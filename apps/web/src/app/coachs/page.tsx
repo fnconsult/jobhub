@@ -1,3 +1,4 @@
+import {getCoachAssociations} from "@/coach-associations/server";
 import {getCoachingOffers} from "@/coaching-offers/server";
 import {SellerInfo} from "@/coaching-offers/SellerInfo";
 import { coachSpaceV2On } from "@/coach-space/server";
@@ -76,6 +77,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
         return null;
       }),
   ]);
+  const providers=new Map((coachSpaceV2On()?await getCoachAssociations().providers(coaches.map(c=>c.id)):[]).map(a=>[a.coachId,a]));
   const offers=new Map((await Promise.all(coaches.map(async coach=>[coach.id,await getCoachingOffers().sale(candidate.id,coach.id)] as const))).map(entry=>entry));
   const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
@@ -171,6 +173,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
           return (
             <li key={coach.id} className="stack">
               <h3>{coach.name}</h3>
+              {providers.has(coach.id)?<p>{t("association.proposedBy",{name:providers.get(coach.id)!.name})}</p>:null}
               {offers.get(coach.id)?<SellerInfo seller={offers.get(coach.id)!.seller} t={t}/>:null}
               {offers.get(coach.id)?<p>{money(offers.get(coach.id)!.amount,offers.get(coach.id)!.currency)} · {t("humanCoaches.sessionDuration",{count:offers.get(coach.id)!.durationMinutes})}</p>:null}
               {coach.bio ? <p>{coach.bio}</p> : null}

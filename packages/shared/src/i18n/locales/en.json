@@ -6773,5 +6773,52 @@
     "upToDate": "Your agreement is up to date.",
     "history": "Your acceptances",
     "accepted": "Version {{version}} · accepted on {{date}}"
+  },
+  "association": {
+    "title": "Association workspace",
+    "pages": {
+      "coachs": "My coaches",
+      "offres": "Offers",
+      "revenus": "Earnings",
+      "membres": "Members"
+    },
+    "inviteCoach": "Invite a coach",
+    "inviteMember": "Invite a member",
+    "name": "Full name",
+    "emailAddress": "Email address",
+    "invite": "Send invitation",
+    "pendingInvitations": "Pending invitations",
+    "cancelInvitation": "Cancel invitation",
+    "invalid": "The information could not be saved. Check the fields and your permissions, then try again.",
+    "invited": "The invitation was recorded. The recipient will receive it by email.",
+    "coachRetired": "The coach has been retired from Jobbbox.",
+    "noCandidateAccess": "This workspace gives no access to Candidates, their documents or your coaches’ notes.",
+    "noCoaches": "You have no coaches yet.",
+    "retired": "Retired from Jobbbox",
+    "active": "Active coach",
+    "contractPending": "Agreement awaiting acceptance",
+    "retireWarning": "Removing this coach from your Association also retires them from Jobbbox. Past sessions are kept.",
+    "retireCoach": "Retire {{name}} from Jobbbox",
+    "memberRights": "Members manage the Association’s coaches and offers after accepting its agreement. They never read Candidate data.",
+    "offerSaved": "The offer was saved.",
+    "offersHint": "Jobbbox pricing follows its terms and Premium discount. Your Association can also be the seller; its price becomes bookable once its payments and obligations have been validated.",
+    "seller": "Seller",
+    "duration": "Duration in minutes",
+    "amount": "Association price in euros",
+    "earningsEmpty": "Your sessions, commissions and payouts will be grouped here.",
+    "invitationTitle": "Invitation from {{name}}",
+    "joinCoachHint": "Accepting joins this Association’s coaches. It will manage your offer and can retire you from Jobbbox. It cannot read Candidate documents or your notes. Your personal agreement remains required.",
+    "joinMemberHint": "Accepting makes you an Association member who manages its coaches and offers. You must accept its agreement before entering its workspace.",
+    "acceptInvitation": "Accept invitation",
+    "proposedBy": "Offered by {{name}}",
+    "email": {
+      "subject": "Invitation from {{name}} on Jobbbox",
+      "coach": "{{name}} invites you to join its coaches. You can review and accept this invitation from your own account.",
+      "manager": "{{name}} invites you to become a member of its Association workspace. You can manage coaches and offers, without access to Candidates.",
+      "expiry": "This invitation is valid for seven days. Sign in with the email address that received this message.",
+      "open": "Read invitation",
+      "footer": "You received this email because a partner Association invited you to Jobbbox."
+    },
+    "save": "Save offer"
   }
 }

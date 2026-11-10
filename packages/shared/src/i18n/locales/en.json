@@ -6863,5 +6863,23 @@
       "reason": "Reason provided by the team:",
       "footer": "You received this email following review of your coach profile."
     }
+  },
+  "coachConnect": {
+    "legalPending": "Payments and payouts await approved Legal Texts in effect.",
+    "identityPending": "The team must complete your Seller identity before you can connect Stripe.",
+    "accountTitle": "Payout account",
+    "hostedKyc": "Stripe collects your identity documents and bank details directly. Jobbbox does not store these documents.",
+    "start": "Set up my Stripe account",
+    "complete": "Complete my Stripe information",
+    "dashboard": "Open Stripe",
+    "compensation": "Coach share of a Jobbbox sale (basis points)",
+    "compensationHint": "10000 = 100%. Explicit compensation agreement; empty: no new Jobbbox sale through Connect. Paid sales keep their original agreement.",
+    "email": {
+      "subject": "Your Jobbbox payout",
+      "amount": "Payout amount: {{amount}}.",
+      "obligations": "Your activity income may entail tax and social obligations. Consult the official DGFiP and Urssaf information; your statement is available in Earnings.",
+      "footer": "You receive this service email for each payout."
+    },
+    "payee": "Coach compensation recipient (Jobbbox sales)"
   }
 }

@@ -1,3 +1,7 @@
+import {coachingConnect} from "@jobhub/web/coaching-connect";
+import {stripeConnect} from "@jobhub/web/coaching-connect/stripe";
+import {connectLegalReady} from "@jobhub/web/coaching-connect/legal";
+import {payoutRecipient,payoutInformationEmail} from "@jobhub/web/coaching-connect/email";
 import { coachPages } from "@jobhub/web/coach-pages";
 import { coachPageDecisionEmail } from "@jobhub/web/coach-pages/email";
 import {coachAssociations,associationInvitationEmail} from "@jobhub/web/coach-associations";
@@ -167,7 +171,13 @@ const pushNotifications = createPushNotifications(database, {
   // Each notification sets the app icon's badge to the person's offers à traiter (#818, ADR-0090): no push of its own.
   badge: (personId) => offersToHandle(database, personId, new Date()),
 });
+const connect=()=>{
+ const env=secrets.current().env;
+ const stripe=env.STRIPE_SECRET_KEY&&env.STRIPE_CONNECT_WEBHOOK_SECRET?stripeConnect({secretKey:env.STRIPE_SECRET_KEY,webhookSecret:env.STRIPE_CONNECT_WEBHOOK_SECRET,apiUrl:env.STRIPE_API_URL,externalApis}):undefined;
+ return coachingConnect(database,{stripe,baseURL,permitted:async()=>settingsEnv().COACH_SPACE_V2_ENABLED==='true'&&connectLegalReady(),sendPayoutNotice:async notice=>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});}});
+};
 const jobs = createJobs({
+  coachingConnect:{runMonthly:()=>connect().runMonthly(),purge:()=>connect().purge()},
   coachPages:coachPages(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});}}),
   coachAssociations:coachAssociations(database,{secret:process.env.AUTH_SECRET??"",mayManage:async(person,id)=>(await coachContracts(database,{}).state(person,"association",id))?.accepted===true,sendInvitation:async(record,token)=>{await mailer.send({to:record.email,...associationInvitationEmail(record,token,baseURL)});}}),
   coachContracts:coachContracts(database,{production:sendsLegalTextNotices(process.env),sendNotice:async(recipient,version)=>{await mailer.send({to:recipient.email,...coachContractNoticeEmail(version,recipient.locale,baseURL)});}}),

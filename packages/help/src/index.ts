@@ -30,6 +30,8 @@ export {
   LEGAL_TEXT_CHANGES,
   LEGAL_TEXT_DAY,
   LEGAL_TEXTS,
+  COACHING_LEGAL_CAPABILITIES,
+  type CoachingLegalCapability,
   legalTextVersionUrl,
   parisDay,
   type LegalTextChange,

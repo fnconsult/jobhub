@@ -224,6 +224,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachingConnect?:{runMonthly():Promise<unknown>;purge():Promise<number>};
   coachPages?:{deliverNotices():Promise<number>;purge():Promise<number>};
   coachAssociations?:{deliverInvitations():Promise<number>;purge():Promise<number>};
   coachContracts?: {sendNotices():Promise<{sent:number;failed:number}>;purge():Promise<number>};
@@ -653,6 +654,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    "coaching-connect.payouts":{cron:"*/10 * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingConnect?.runMonthly();})},
+    "coaching-connect.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingConnect?.purge();})},
     "coach-pages.notices": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachPages?.deliverNotices();})},
     "coach-pages.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachPages?.purge();})},
     "coach-associations.invitations": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachAssociations?.deliverInvitations();})},

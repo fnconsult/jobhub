@@ -12,10 +12,13 @@ export interface CoachingOffer {
   amount: number | null;
   currency: string;
   commissionBps: number;
+  coachShareBps?:number|null;
+  payoutSellerId?:string|null;
 }
 export interface OfferDeps {
   price(candidateId: string): Promise<{ amount: number; currency: string; priceId?: string } | null>;
   /** Third-party payment and legal eligibility; absent until Connect and rollout gates are implemented. */
+  eligiblePlatformOffer?(coachId:string):Promise<boolean>;
   eligibleSeller?(sellerId: string): Promise<boolean>;
 }
 const sellerInput = z.object({
@@ -43,8 +46,10 @@ interface Row {
   amount: number | null;
   currency: string;
   commissionBps: number;
+  coachShareBps?:number|null;
+  payoutSellerId?:string|null;
 }
-const COLUMNS = `o.id,o.coach_id AS "coachId",o.duration_minutes AS "durationMinutes",o.amount,o.currency,s.commission_bps AS "commissionBps",jsonb_build_object('id',s.id,'kind',s.kind,'name',s.name,'status',s.status,'siret',s.siret) AS seller`;
+const COLUMNS = `o.id,o.coach_id AS "coachId",o.duration_minutes AS "durationMinutes",o.amount,o.currency,o.coach_share_bps AS "coachShareBps",o.payout_seller_id AS "payoutSellerId",s.commission_bps AS "commissionBps",jsonb_build_object('id',s.id,'kind',s.kind,'name',s.name,'status',s.status,'siret',s.siret) AS seller`;
 export function coachingOffers(database: Pool, deps: OfferDeps) {
   async function platformPrice(candidateId: string) {
     try {
@@ -68,6 +73,7 @@ export function coachingOffers(database: Pool, deps: OfferDeps) {
   async function sale(candidateId: string, coachId: string): Promise<CoachingSale | null> {
     const found = await offer(coachId);
     if (!found) return null;
+    if(found.seller.kind==="jobbbox"&&deps.eligiblePlatformOffer&&!await deps.eligiblePlatformOffer(coachId))return null;
     if (found.seller.kind !== "jobbbox" && !(await deps.eligibleSeller?.(found.seller.id))) return null;
     const price =
       found.seller.kind === "jobbbox" ? await platformPrice(candidateId) : found.amount === null ? null : { amount: found.amount, currency: found.currency };
@@ -112,6 +118,10 @@ export function coachingOffers(database: Pool, deps: OfferDeps) {
         [x.id ?? null, x.kind, x.name, x.status, x.siret, x.coachId, x.commissionBps],
       );
       return rows[0] ?? null;
+    },
+    async compensation(coachId:string,basisPoints:number|null,payoutSellerId:string|null,within:Queryable=database){
+      if(!UUID.test(coachId)||(payoutSellerId!==null&&!UUID.test(payoutSellerId))||(basisPoints!==null&&(!Number.isInteger(basisPoints)||basisPoints<0||basisPoints>10000)))return false;
+      return (await within.query(`UPDATE coaching_offer o SET coach_share_bps=$2,payout_seller_id=$3 WHERE o.coach_id=$1 AND ($3::uuid IS NULL OR EXISTS(SELECT 1 FROM coaching_seller s WHERE s.id=$3 AND ((s.kind='human_coach' AND s.coach_id=o.coach_id) OR (s.kind='association' AND EXISTS(SELECT 1 FROM coach_association_coach m WHERE m.association_id=s.association_id AND m.coach_id=o.coach_id AND m.removed_at IS NULL)))))`,[coachId,basisPoints,payoutSellerId])).rowCount===1;
     },
     async commission(sellerId: string, basisPoints: number, within: Queryable = database) {
       if (!UUID.test(sellerId) || !Number.isInteger(basisPoints) || basisPoints < 0 || basisPoints > 10000) return false;
@@ -173,6 +183,8 @@ export async function migrateCoachingOffers(database: Pool) {
   CREATE UNIQUE INDEX IF NOT EXISTS coaching_seller_coach_idx ON coaching_seller(coach_id) WHERE kind='human_coach';
   INSERT INTO coaching_seller(id,kind,name) VALUES('${JOBBBOX_SELLER.id}','jobbbox','Jobbbox') ON CONFLICT DO NOTHING;
   CREATE TABLE IF NOT EXISTS coaching_offer(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),coach_id uuid NOT NULL UNIQUE REFERENCES human_coach(id),seller_id uuid NOT NULL REFERENCES coaching_seller(id),duration_minutes integer NOT NULL DEFAULT 60 CHECK(duration_minutes BETWEEN 15 AND 480),amount integer CHECK(amount>=50),currency text NOT NULL DEFAULT 'eur');
+  ALTER TABLE coaching_offer ADD COLUMN IF NOT EXISTS coach_share_bps integer CHECK(coach_share_bps BETWEEN 0 AND 10000);
+  ALTER TABLE coaching_offer ADD COLUMN IF NOT EXISTS payout_seller_id uuid REFERENCES coaching_seller(id);
   INSERT INTO coaching_offer(coach_id,seller_id) SELECT id,'${JOBBBOX_SELLER.id}' FROM human_coach ON CONFLICT(coach_id) DO NOTHING;
   CREATE TABLE IF NOT EXISTS coaching_offer_quote(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),candidate_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,coach_id uuid NOT NULL REFERENCES human_coach(id),snapshot jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp());
   CREATE INDEX IF NOT EXISTS coaching_offer_quote_candidate_idx ON coaching_offer_quote(candidate_id);

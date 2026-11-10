@@ -134,7 +134,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/coachs",
       "motion": null,
       "microAnimations": [],
-      "body": "Coachs (menu Coaching) ouvre « Coachs humains » : les professionnels RH que Jobbbox a choisis et que les candidats peuvent réserver pour des séances payantes, en plus de l'AI Coach. Jobbbox les rémunère en dehors de la plateforme.\n\n« Coachs actifs » liste chaque coach : son « Nom », son « Adresse e-mail de connexion », son « Lien de réservation Cal.com » et sa « Présentation (facultatif) ». Un coach se connecte à Jobbbox avec l'adresse indiquée ici et retrouve son espace coach. La carte « Ajouter un coach » en ajoute un ; « Retirer … » le retire de la liste. Ses séances passées sont conservées.\n\nLes responsables coaching et les super-admins ajoutent et retirent des coachs ; le Support lit la liste. Chaque changement est inscrit dans Actions des administrateurs, section « Coachs humains ».\n\n## Offres de coaching et vendeurs\n\nCette rubrique relie chaque offre à son vendeur et à sa durée. Un vendeur tiers donne son nom légal, statut et SIRET, et fixe son prix. Jobbbox conserve son prix central et la remise de formule. La Commission se règle par vendeur en points de base (100 = 1 %) ; les modifications figurent dans le journal et ne changent pas les séances déjà payées. Les offres de tiers restent indisponibles avant l’activation des paiements et des conditions légales.\n\n## Demandes pour devenir coach\n\nCette rubrique rassemble les demandes confirmées des coachs et Associations. Relisez les informations et le justificatif privé, puis approuvez ou refusez avec un motif. La décision est auditée et communiquée par e-mail. L’approbation crée une identité en attente du contrat et de la publication : elle ne donne aucun accès aux Candidates.\n\n« Profils de coachs à valider » présente les propositions de profils publics. « Approuver le profil » remplace la version visible ; « Refuser le profil » demande un motif transmis au coach. L’ancienne présentation saisie en Back Office est reprise comme version initiale. Dans le nouvel espace, c’est le coach qui propose ses prochaines modifications."
+      "body": "Coachs (menu Coaching) ouvre « Coachs humains » : les professionnels RH que Jobbbox a choisis et que les candidats peuvent réserver pour des séances payantes, en plus de l'AI Coach. Jobbbox les rémunère en dehors de la plateforme.\n\n« Coachs actifs » liste chaque coach : son « Nom », son « Adresse e-mail de connexion », son « Lien de réservation Cal.com » et sa « Présentation (facultatif) ». Un coach se connecte à Jobbbox avec l'adresse indiquée ici et retrouve son espace coach. La carte « Ajouter un coach » en ajoute un ; « Retirer … » le retire de la liste. Ses séances passées sont conservées.\n\nLes responsables coaching et les super-admins ajoutent et retirent des coachs ; le Support lit la liste. Chaque changement est inscrit dans Actions des administrateurs, section « Coachs humains ».\n\n## Offres de coaching et vendeurs\n\nCette rubrique relie chaque offre à son vendeur et à sa durée. Un vendeur tiers donne son nom légal, statut et SIRET, et fixe son prix. Jobbbox conserve son prix central et la remise de formule. La Commission se règle par vendeur en points de base (100 = 1 %) ; les modifications figurent dans le journal et ne changent pas les séances déjà payées. Les offres de tiers restent indisponibles avant l’activation des paiements et des conditions légales.\n\n## Demandes pour devenir coach\n\nCette rubrique rassemble les demandes confirmées des coachs et Associations. Relisez les informations et le justificatif privé, puis approuvez ou refusez avec un motif. La décision est auditée et communiquée par e-mail. L’approbation crée une identité en attente du contrat et de la publication : elle ne donne aucun accès aux Candidates.\n\n« Profils de coachs à valider » présente les propositions de profils publics. « Approuver le profil » remplace la version visible ; « Refuser le profil » demande un motif transmis au coach. L’ancienne présentation saisie en Back Office est reprise comme version initiale. Dans le nouvel espace, c’est le coach qui propose ses prochaines modifications.\n\nPour les ventes Jobbbox via Connect, renseignez le « Bénéficiaire de la part du coach (ventes Jobbbox) » et la « Part du coach sur une vente Jobbbox (points de base) » convenue : 10000 représente 100 %. Le bénéficiaire est le coach indépendant ou une Association dont il est membre. Une valeur vide bloque les nouvelles ventes concernées ; les paiements déjà effectués gardent leur accord. La modification est auditée. La Commission des ventes tierces reste distincte."
     },
     {
       "id": "page-confirm-coach-enrolment",
@@ -1209,6 +1209,24 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Cette page résilie votre abonnement à une offre payante. Elle indique votre offre et la date de fin du contrat, c'est-à-dire la fin de la période déjà payée : vous gardez votre offre jusqu'à cette date, aucun prélèvement ne suit, puis vous passez à l'offre Gratuit.\n\n« Confirmer la résiliation » enregistre votre demande. Vous recevez aussitôt par e-mail un accusé de réception avec la date de votre demande et la date de fin du contrat : conservez-le.\n\nVous changez d'avis ? Jusqu'à la date de fin, annulez la résiliation depuis Mon abonnement, avec « Gérer mon abonnement »."
     },
     {
+      "id": "page-coach-earnings",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Revenus",
+      "synonyms": [
+        "revenus coach",
+        "compte Stripe",
+        "reversements",
+        "rémunération"
+      ],
+      "route": "/espace-coach/revenus",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Cette page vous permet de configurer votre compte de reversement Stripe. L’identité professionnelle doit être complète, le contrat accepté et les textes nécessaires en vigueur. Stripe recueille directement les justificatifs et coordonnées bancaires.\n\nLe tutoriel « Être payé par Jobbbox » décrit les étapes. « Compléter mes informations Stripe » reprend l’onboarding ; « Ouvrir Stripe » ouvre votre tableau de bord sécurisé. Un compte inactif ne permet pas de nouvelles ventes."
+    },
+    {
       "id": "page-association-revenus",
       "locale": "fr",
       "kind": "page",
@@ -1222,7 +1240,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/espace-association/[id]/revenus",
       "motion": null,
       "microAnimations": [],
-      "body": "Cette page regroupe les revenus professionnels de votre Association. Elle ne donne accès à aucun dossier de Candidate. Les informations de séances, commissions et versements apparaissent lorsqu’elles sont disponibles."
+      "body": "Cette page regroupe les revenus professionnels de votre Association. Elle ne donne accès à aucun dossier de Candidate. Les informations de séances, commissions et versements apparaissent lorsqu’elles sont disponibles.\n\n« Configurer mon compte Stripe » ouvre l’onboarding de l’Association. Stripe recueille directement les justificatifs et coordonnées bancaires. Les textes nécessaires doivent être en vigueur et votre contrat accepté. « Compléter mes informations Stripe » permet de reprendre les informations demandées ; « Ouvrir Stripe » ouvre le tableau de bord sécurisé de l’Association. Seuls ses membres habilités peuvent utiliser ces actions."
     },
     {
       "id": "page-admin-signalements",
@@ -4098,6 +4116,25 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Dans l'app Jobbbox, sur votre téléphone ou votre tablette, vous pouvez envoyer une offre à Jobbbox depuis votre navigateur, LinkedIn, Indeed ou Mail, sans copier son lien. Jobbbox en fait une offre privée, que vous seul voyez.\n\n1. Dans l'autre app, ouvrez l'offre et touchez le bouton de partage, puis choisissez « Jobbbox » dans la liste. Sur iPhone et iPad, s'il n'y figure pas, ajoutez-le depuis le bout de la rangée des apps.\n2. L'app Jobbbox s'ouvre sur « Partager vers Jobbbox ». Si vous n'êtes pas connecté, connectez-vous : l'écran revient ensuite, avec ce que vous avez partagé.\n3. Vérifiez le « Lien de l'offre » et le « Texte de l'offre », corrigez-les au besoin, puis touchez « Envoyer à Jobbbox ».\n4. Si le site ne laisse pas Jobbbox lire l'offre (LinkedIn, Indeed…), l'écran vous le dit. Copiez le texte de l'offre dans l'autre app, collez-le dans « Texte de l'offre », puis touchez de nouveau « Envoyer à Jobbbox ».\n5. L'offre s'ouvre dans sa propre conversation avec votre coach IA. Touchez « Scorer contre mon profil » pour voir son score de correspondance.\n\nC'est Jobbbox qui lit le lien, jamais votre téléphone, et seulement là où le site l'autorise. Rien de ce que vous partagez n'est gardé, sauf l'offre créée. Le score de correspondance compte dans les limites de votre offre, comme sur le site ; si vous les avez atteintes, l'app vous le dit, et votre abonnement se gère sur jobbbox.ai."
     },
     {
+      "id": "tutorial-coach-get-paid",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Être payé par Jobbbox",
+      "synonyms": [
+        "Stripe Connect",
+        "reversement",
+        "compte bancaire",
+        "justificatifs",
+        "commission"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Les versements sont disponibles après l’approbation et l’entrée en vigueur des textes nécessaires. Votre identité professionnelle de vendeur doit être complète et votre contrat accepté.\n\n1. Ouvrez « Revenus », puis « Configurer mon compte Stripe ». Pour une Association, utilisez ses Revenus.\n2. Renseignez les informations demandées sur le site de Stripe. Stripe recueille vos justificatifs et coordonnées bancaires ; Jobbbox ne conserve pas ces documents.\n3. Revenez dans Jobbbox. Si des informations restent demandées, cliquez sur « Compléter mes informations Stripe ». Vous pouvez aussi « Ouvrir Stripe ».\n\nAucune nouvelle séance n’est mise en paiement sans compte actif. Les ventes Jobbbox demandent en plus que l’équipe ait configuré l’accord de rémunération et son bénéficiaire professionnel.\n\nLes reversements sont mensuels, après la clôture du délai de rétractation de chaque paiement, y compris sa prolongation pour un week-end ou jour férié. Un remboursement avant reversement réduit son montant ; après reversement, il est retenu sur les revenus suivants. Les fonds indisponibles ou en litige ne sont pas reversés. Un e-mail de service accompagne chaque reversement confirmé et rappelle les informations officielles fiscales et sociales.\n\nSi Stripe demande une correction ou si un versement est en échec, complétez votre compte et contactez le support. Jobbbox conserve la réconciliation ; il ne crée pas un second virement à l’aveugle."
+    },
+    {
       "id": "tutorial-install-app",
       "locale": "fr",
       "kind": "tutorial",
@@ -4828,7 +4865,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/espace-association/[id]/revenus",
       "motion": null,
       "microAnimations": [],
-      "body": "This page groups your Association’s business earnings. It gives access to no Candidate documents. Session, Commission and payout information appears when available."
+      "body": "This page groups your Association’s business earnings. It gives access to no Candidate documents. Session, Commission and payout information appears when available.\n\n“Set up my Stripe account” opens the Association’s onboarding. Stripe collects identity documents and bank details directly. The required Legal Texts must be in effect and your contract accepted. “Complete my Stripe information” resumes requested information; “Open Stripe” opens the Association’s secure dashboard. Only its authorized members can use these actions."
     },
     {
       "id": "page-association-membres",
@@ -5156,6 +5193,24 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Delivery (Platform menu) shows what is being built and where it runs, read live from GitHub. Super-admins, Technique and Support read it; nothing can be changed there. GitHub is read again at most every 5 minutes; « Refresh » reads it at once.\n\n**Environments** gives, for the Beta and Production, the « Deployed commit » of the latest successful deployment, « When », « From » which branch or version, and the « Live check »: the environment's /api/health says which commit it serves. « The site serves this commit » confirms the deployment; otherwise the page says what the site serves, or why it could not check.\n\n**In flight** lists the tickets « Claimed », « Implementing » or « In review », and the open pull requests that close no tracked ticket.\n\n**Epics and features** goes through each epic (a wayfinder map), its features (the « Suivi » issues) and their tickets, each at its « Stage » with its « Evidence »: a ticket is « On Beta » or « On Production » when its merged pull request's commit is part of the deployed commit; « Merged » while it is not yet.\n\n**What this page cannot vouch for** says what could not be checked: an environment not checked live, a branch deployed, a ticket still open whose PR is merged.\n\nDelivery reads GitHub with a read-only token, GITHUB_STATUS_TOKEN, entered by a super-admin in Settings, « Environment » tab, on the GitHub sheet. Without it, the page shows « GitHub token missing ».\n\n**The daily email** sums up each day at 6 pm (Paris time) the environments, what is in flight and each feature's state, with an « Open Delivery » button. It goes to the addresses of the « Recipients of Delivery's daily email » setting (Settings, « Email » tab), separated by commas; empty, no email is sent. Set it on one environment only, so as not to get it twice."
     },
     {
+      "id": "page-coach-earnings",
+      "locale": "en",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Earnings",
+      "synonyms": [
+        "coach earnings",
+        "Stripe account",
+        "payouts",
+        "compensation"
+      ],
+      "route": "/espace-coach/revenus",
+      "motion": null,
+      "microAnimations": [],
+      "body": "This page lets you set up your Stripe payout account. Your professional identity must be complete, your contract accepted and the required Legal Texts in effect. Stripe collects identity documents and bank details directly.\n\nThe “Get paid by Jobbbox” tutorial explains the steps. “Complete my Stripe information” resumes onboarding; “Open Stripe” opens your secure dashboard. An inactive account cannot accept new sales."
+    },
+    {
       "id": "page-admin-email-intake",
       "locale": "en",
       "kind": "page",
@@ -5280,7 +5335,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/coachs",
       "motion": null,
       "microAnimations": [],
-      "body": "Coaches (Coaching menu) opens « Human coaches »: the HR professionals Jobbbox selected, whom Candidates can book for paid sessions on top of the AI Coach. Jobbbox pays them outside the platform.\n\n« Active coaches » lists each coach: their « Name », their « Sign-in email address », their « Cal.com booking link » and their « Introduction (optional) ». A coach signs in to Jobbbox with the address given here and finds their coach space. The « Add a coach » card adds one; « Retire … » takes them off the list. Their past sessions are kept.\n\nCoach managers and super-admins add and retire coaches; Support reads the list. Each change is recorded in Administrator actions, section « Human Coaches ».\n\n## Coaching Offers and Sellers\n\nThis section links each offer to its Seller and duration. Third-party Sellers provide their legal name, status and SIRET and set their price. Jobbbox retains its central price and Plan discount. Commission is set per Seller in basis points (100 = 1%); edits are audited and do not change paid sessions. Third-party offers remain unavailable until payments and legal conditions are activated.\n\n## Coach applications\n\nThis section lists confirmed coach and Association applications. Review their details and private proof, then approve or decline with a reason. The decision is audited and emailed. Approval creates an identity awaiting contract acceptance and publication; it grants no Candidate access.\n\n“Coach profiles to approve” lists public-profile proposals. “Approve profile” replaces the visible version; “Refuse profile” requires a reason emailed to the coach. The former Back Office biography becomes the initial version. In the new workspace, the coach proposes subsequent changes."
+      "body": "Coaches (Coaching menu) opens « Human coaches »: the HR professionals Jobbbox selected, whom Candidates can book for paid sessions on top of the AI Coach. Jobbbox pays them outside the platform.\n\n« Active coaches » lists each coach: their « Name », their « Sign-in email address », their « Cal.com booking link » and their « Introduction (optional) ». A coach signs in to Jobbbox with the address given here and finds their coach space. The « Add a coach » card adds one; « Retire … » takes them off the list. Their past sessions are kept.\n\nCoach managers and super-admins add and retire coaches; Support reads the list. Each change is recorded in Administrator actions, section « Human Coaches ».\n\n## Coaching Offers and Sellers\n\nThis section links each offer to its Seller and duration. Third-party Sellers provide their legal name, status and SIRET and set their price. Jobbbox retains its central price and Plan discount. Commission is set per Seller in basis points (100 = 1%); edits are audited and do not change paid sessions. Third-party offers remain unavailable until payments and legal conditions are activated.\n\n## Coach applications\n\nThis section lists confirmed coach and Association applications. Review their details and private proof, then approve or decline with a reason. The decision is audited and emailed. Approval creates an identity awaiting contract acceptance and publication; it grants no Candidate access.\n\n“Coach profiles to approve” lists public-profile proposals. “Approve profile” replaces the visible version; “Refuse profile” requires a reason emailed to the coach. The former Back Office biography becomes the initial version. In the new workspace, the coach proposes subsequent changes.\n\nFor Jobbbox sales through Connect, enter the agreed “Coach compensation recipient (Jobbbox sales)” and “Coach share of a Jobbbox sale (basis points)”: 10000 means 100%. The recipient is the independent coach or an Association they belong to. An empty value blocks the affected new sales; paid purchases retain their agreement. Changes are audited. Third-party sales Commission remains separate."
     },
     {
       "id": "page-agenda",
@@ -8530,6 +8585,25 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": "transferer-offres-email",
       "microAnimations": [],
       "body": "Your job alerts (job boards, careers sites) and recruiters' messages can reach Jobbbox: forward them to your forwarding address, and Jobbbox draws job offers from them for your profiles. Nothing is done in your mailbox on your behalf.\n\n1. In My account, open the « Email intake » section, then click « Set up forwarding step by step ».\n2. At « Which mailbox gets your job alerts? », choose yours, then click « Continue ».\n3. Read what is read and what is kept, then click « Switch on and continue ». The date you switched it on is recorded.\n4. Click « Copy the address »: it is your forwarding address, yours alone.\n5. With Gmail, on a computer, add this forwarding address in Gmail's settings, as the guide shows. Jobbbox receives Gmail's confirmation code and shows it to you: enter it in Gmail, or click « Confirm with Gmail's link ». Then create the Gmail filter that forwards only your alerts to this address, never all your mail.\n6. With Outlook.com or iCloud Mail, on a computer, create the rule the guide describes, which forwards only your alerts to this address. With Orange and other mailboxes, forward your alerts by hand, from one of « Your sending addresses ».\n7. Wait for your next alert, or forward one by hand: « First email received on … » confirms forwarding works. It can take a few minutes, sometimes longer.\n8. Open the Job searches page: the job offers from your emails arrive in « Received by email », under the profile they match best, or in « Unclassified » when no profile reaches 60.\n\nIf one of your alerts is ignored as « Unrecognised sender », click « It's a job alert »: its sender is recognised for you from its next email. To stop, click « Switch off » in the « Email intake » section: the address stops working at once, and the job offers already received stay."
+    },
+    {
+      "id": "tutorial-coach-get-paid",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Get paid by Jobbbox",
+      "synonyms": [
+        "Stripe Connect",
+        "payout",
+        "bank account",
+        "verification",
+        "commission"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Payouts are available after the required Legal Texts are approved and in effect. Your professional Seller identity must be complete and your contract accepted.\n\n1. Open “Earnings”, then “Set up my Stripe account”. For an Association, use its Earnings page.\n2. Complete the information requested on Stripe’s website. Stripe collects your identity documents and bank details; Jobbbox does not store these documents.\n3. Return to Jobbbox. If information is still required, select “Complete my Stripe information”. You can also “Open Stripe”.\n\nNo new session enters Checkout without an active account. Jobbbox sales also require the team to configure the compensation agreement and its professional recipient.\n\nPayouts are monthly, after each payment’s withdrawal period closes, including extensions for a weekend or public holiday. A refund before payout reduces its amount; after payout it is deducted from later earnings. Unavailable or disputed funds are withheld. Each confirmed payout has a service email pointing to official tax and social information.\n\nIf Stripe requests a correction or a payout fails, complete your account and contact Support. Jobbbox keeps its reconciliation; it does not blindly send a second transfer."
     },
     {
       "id": "tutorial-getting-started",

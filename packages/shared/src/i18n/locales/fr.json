@@ -6863,5 +6863,23 @@
       "reason": "Motif communiqué par l’équipe :",
       "footer": "Vous recevez cet e-mail à la suite de la validation de votre profil de coach."
     }
+  },
+  "coachConnect": {
+    "legalPending": "Les paiements et reversements attendent les textes légaux approuvés et en vigueur.",
+    "identityPending": "Votre identité de vendeur doit être renseignée par l’équipe avant de connecter Stripe.",
+    "accountTitle": "Compte de reversement",
+    "hostedKyc": "Stripe recueille directement vos justificatifs et vos coordonnées bancaires. Jobbbox ne conserve pas ces documents.",
+    "start": "Configurer mon compte Stripe",
+    "complete": "Compléter mes informations Stripe",
+    "dashboard": "Ouvrir Stripe",
+    "compensation": "Part du coach sur une vente Jobbbox (points de base)",
+    "compensationHint": "10000 = 100 %. Accord de rémunération explicite ; vide : aucune nouvelle vente Jobbbox via Connect. Les ventes déjà payées gardent leur accord.",
+    "email": {
+      "subject": "Votre reversement Jobbbox",
+      "amount": "Montant reversé : {{amount}}.",
+      "obligations": "Les revenus de votre activité peuvent entraîner des obligations fiscales et sociales. Consultez les informations officielles de la DGFiP et de l’Urssaf ; votre relevé est disponible dans Revenus.",
+      "footer": "Vous recevez cet e-mail de service à chaque reversement."
+    },
+    "payee": "Bénéficiaire de la part du coach (ventes Jobbbox)"
   }
 }

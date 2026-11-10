@@ -1,3 +1,4 @@
+import { COACHING_LEGAL_CAPABILITIES, type CoachingLegalCapability } from "./legal-texts";
 /**
  * Reads and checks the Legal Text Versions' Markdown files (`legal/<text>/<YYYY-MM-DD>.<fr|en>.md`, ADR-0062), and
  * writes them, with the version registry of #510, as the `legal-texts.generated.ts` module the app bundles. Node only
@@ -91,11 +92,18 @@ export function readLegalTexts(dir: string = legalDir): LegalTexts {
     const original = french.find((entry) => entry.file === file.replace(/\.en\.md$/, ".fr.md"))?.version;
     if (original && LEGAL_TEXT_CHANGES.includes(version.change) && original.change !== version.change)
       problems.push(`${file}: its change ${version.change} differs from the French one (${original.change})`);
+    if(original && JSON.stringify(original.coachingCapabilities??[])!==JSON.stringify(version.coachingCapabilities??[]))
+      problems.push(`${file}: coaching_capabilities differ from the binding French version`);
     const named = (recipients: string[] | undefined) => (recipients ?? []).join(", ");
     if (original?.recipientsOutsideEu && version.recipientsOutsideEu && named(original.recipientsOutsideEu) !== named(version.recipientsOutsideEu))
       problems.push(`${file}: its recipients_outside_eu (${named(version.recipientsOutsideEu)}) differ from the French one's (${named(original.recipientsOutsideEu)})`);
   }
 
+  for(const {file,version} of french){
+    const previous=french.filter(other=>other.version.text===version.text&&other.version.effective<version.effective).sort((a,b)=>b.version.effective.localeCompare(a.version.effective))[0]?.version;
+    if(version.change!=="substantielle"&&(version.coachingCapabilities??[]).some(capability=>!previous?.coachingCapabilities?.includes(capability)))
+      problems.push(`${file}: new coaching_capabilities require a substantial version and its notice period`);
+  }
   if (problems.length > 0) throw new HelpContentError(problems.join("\n"));
   const registry = french
     .sort((a, b) => byText(a.version, b.version))
@@ -105,6 +113,7 @@ export function readLegalTexts(dir: string = legalDir): LegalTexts {
       url: legalTextVersionUrl(version.text, version.effective),
       sha256: createHash("sha256").update(markdown).digest("hex"),
       change: version.change,
+      ...(version.coachingCapabilities ? {coachingCapabilities:version.coachingCapabilities}:{}),
     }));
   return { fr: inLocale("fr"), en: inLocale("en"), registry };
 }
@@ -138,6 +147,12 @@ function parseLegalTextVersion(text: LegalTextId, locale: HelpLocale, named: str
   const summary = field("summary");
   if (!summary) problems.push("summary is missing: the version's line in the version history");
   const recipients = recipientsOutsideEu(text, frontmatter.recipients_outside_eu, problems);
+  let coachingCapabilities:CoachingLegalCapability[]|undefined;
+  if(frontmatter.coaching_capabilities!==undefined){
+    const declared=frontmatter.coaching_capabilities;
+    if(!Array.isArray(declared)||declared.some(value=>!(COACHING_LEGAL_CAPABILITIES as readonly string[]).includes(value)))problems.push("coaching_capabilities must be a list of supported coaching rollout capabilities");
+    else coachingCapabilities=[...new Set(declared)] as CoachingLegalCapability[];
+  }
 
   const parts: { title: string; lines: string[] }[] = [];
   const before: string[] = [];
@@ -160,7 +175,7 @@ function parseLegalTextVersion(text: LegalTextId, locale: HelpLocale, named: str
   for (const id of new Set(ids)) if (ids.filter((other) => other === id).length > 1) problems.push(`#${id} anchors two sections`);
   if (parts.length > 0) for (const anchor of LEGAL_TEXT_ANCHORS[text]) if (!ids.includes(anchor)) problems.push(`no section is anchored #${anchor}`);
 
-  return { version: { text, locale, effective: named, title, change, approvedBy, summary, ...(recipients ? { recipientsOutsideEu: recipients } : {}), inBrief, sections }, problems };
+  return { version: { text, locale, effective: named, title, change, approvedBy, summary, ...(recipients ? { recipientsOutsideEu: recipients } : {}), ...(coachingCapabilities?{coachingCapabilities}:{}), inBrief, sections }, problems };
 }
 
 const TOOL_IDS: readonly string[] = TOOLS.map((tool) => tool.id);

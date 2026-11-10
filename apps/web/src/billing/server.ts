@@ -1,3 +1,5 @@
+import {getCoachingConnect,getConnectStripe} from "@/coaching-connect/server";
+import {coachSpaceV2On} from "@/coach-space/server";
 import {getCoachingOffers} from "@/coaching-offers/server";
 import type { Locale } from "@jobhub/shared/i18n";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
@@ -25,6 +27,9 @@ export function getBilling(): Billing {
   instance ??= liveObject(getSecretResolver(), STRIPE_SECRET_NAMES, (env) =>
     createBilling({
       ...billingConfigFromEnv(env),
+      connectedCoachingCheckout: (candidate,quoteId,locale,urls)=>coachSpaceV2On()?getCoachingConnect().startCheckout(candidate,quoteId,locale,urls):Promise.resolve(undefined),
+      onConnectedCoachingPaid: async session=>{const stripe=getConnectStripe();if(!stripe)throw new Error("Connect unavailable");await getCoachingConnect().paid(stripe.decodeCheckout(session),null);},
+      connectedCoachingPayment:id=>getCoachingConnect().contextForCheckout(id),
       onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid, within => getCoachingOffers().attachPaid(paid,within)),
       onCheckoutPaid: (paid) => getOrders().paid(paid),
       onRefundChanged: (change) => getWithdrawals().refundChanged(change),

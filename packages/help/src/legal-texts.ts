@@ -41,6 +41,10 @@ export type LegalTextChange = (typeof LEGAL_TEXT_CHANGES)[number];
 /** A day, `YYYY-MM-DD`: a Legal Text Version's id, and the day it takes effect. */
 export const LEGAL_TEXT_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Rollout coverage is declared only in the human-authored, immutable Legal Text file. */
+export const COACHING_LEGAL_CAPABILITIES = ["stripe-connect", "marketplace", "cal-com", "dac7", "coach-space", "cancellations"] as const;
+export type CoachingLegalCapability = (typeof COACHING_LEGAL_CAPABILITIES)[number];
+
 /**
  * One Legal Text Version in one language: the file `legal/<text>/<effective>.<locale>.md`, never edited once in
  * effect (a correction is a new version). French is binding; English is its translation, with the same id.
@@ -61,6 +65,7 @@ export interface LegalTextVersion {
    * (`recipients_outside_eu`, #548). Switching on any other such recipient is a warning in Paramètres (ADR-0064).
    */
   recipientsOutsideEu?: string[];
+  coachingCapabilities?: CoachingLegalCapability[];
   /** « En bref »: the few lines that sum it up; none when the text has no such section. */
   inBrief: string[];
   /** Its numbered sections, in order: `id` is their anchor (« Sur cette page »), stable when the file names it. */
@@ -77,6 +82,7 @@ export interface LegalTextVersionRecord {
   url: string;
   sha256: string;
   change: LegalTextChange;
+  coachingCapabilities?: CoachingLegalCapability[];
 }
 
 /** One line of the version history: a version in effect so far. */

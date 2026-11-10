@@ -57,7 +57,11 @@
     "./coach-contracts": "./src/coach-contracts/index.ts",
     "./coach-associations": "./src/coach-associations/index.ts",
     "./coach-pages": "./src/coach-pages/index.ts",
-    "./coach-pages/email": "./src/coach-pages/email.ts"
+    "./coach-pages/email": "./src/coach-pages/email.ts",
+    "./coaching-connect":"./src/coaching-connect/index.ts",
+    "./coaching-connect/stripe":"./src/coaching-connect/stripe.ts",
+    "./coaching-connect/legal":"./src/coaching-connect/legal.ts",
+    "./coaching-connect/email":"./src/coaching-connect/email.ts"
   },
   "scripts": {
     "dev": "next dev",

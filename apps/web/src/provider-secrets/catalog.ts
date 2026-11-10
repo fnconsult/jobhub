@@ -30,6 +30,7 @@ export const PROVIDER_SECRETS = [
   { name: "APOLLO_API_KEY", provider: "apollo" },
   { name: "STRIPE_SECRET_KEY", provider: "stripe" },
   { name: "STRIPE_WEBHOOK_SECRET", provider: "stripe" },
+  { name: "STRIPE_CONNECT_WEBHOOK_SECRET", provider: "stripe" },
   // Brevo: its transactional email API key, used over its SMTP relay (whose URL carries its credentials).
   { name: "BREVO_API_KEY", provider: "brevo" },
   { name: "SMTP_URL", provider: "brevo" },

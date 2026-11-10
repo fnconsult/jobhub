@@ -13,10 +13,13 @@ const ID = "id",
   SIRET = "siret",
   COMMISSION = "commissionBps",
   DURATION = "durationMinutes",
-  AMOUNT = "amount";
+  AMOUNT = "amount",
+  SHARE = "coachShareBps",
+  PAYEE = "payoutSellerId";
 const HUMAN = "human_coach",
   ASSOCIATION = "association";
 const DESTINATION = "/admin/coachs";
+const INVALID_COMPENSATION = "Invalid compensation recipient";
 async function saveSeller(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("humanCoaches", "write");
@@ -57,27 +60,48 @@ async function saveOffer(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("humanCoaches", "write");
   const coachId = String(form.get(COACH));
+  const payee = form.get(PAYEE) ? String(form.get(PAYEE)) : null;
+  const share = form.get(SHARE) ? Number(form.get(SHARE)) : null;
+  if (share !== null && (!Number.isInteger(share) || share < 0 || share > 10000)) redirect(`${DESTINATION}?error=offer`);
   const input = {
+    coachShareBps: share,
+    payoutSellerId: payee,
     coachId,
     sellerId: String(form.get(SELLER) ?? ""),
     durationMinutes: Number(form.get(DURATION)),
     amount: form.get(AMOUNT) ? Number(form.get(AMOUNT)) : null,
   };
-  const changed = await getBackOffice().record(
-    administrator,
-    async (within) => {
-      const before =
-        (await within.query("SELECT seller_id,duration_minutes,amount,currency FROM coaching_offer WHERE coach_id=$1 FOR UPDATE", [coachId])).rows[0] ?? null;
-      return (await getCoachingOffers().saveOffer(input, within)) ? { before, after: input } : null;
-    },
-    (change) => (change ? { section: "human_coaches", target: coachId, action: "updated", ...change } : null),
-  );
+  const changed = await getBackOffice()
+    .record(
+      administrator,
+      async (within) => {
+        const before =
+          (
+            await within.query(
+              "SELECT seller_id,duration_minutes,amount,currency,coach_share_bps,payout_seller_id FROM coaching_offer WHERE coach_id=$1 FOR UPDATE",
+              [coachId],
+            )
+          ).rows[0] ?? null;
+        if (!(await getCoachingOffers().saveOffer(input, within))) return null;
+        if (!(await getCoachingOffers().compensation(coachId, share, payee, within))) throw new Error(INVALID_COMPENSATION);
+        return { before, after: input };
+      },
+      (change) => (change ? { section: "human_coaches", target: coachId, action: "updated", ...change } : null),
+    )
+    .catch((error) => {
+      if (error instanceof Error && error.message === INVALID_COMPENSATION) return null;
+      throw error;
+    });
   redirect(changed ? DESTINATION : `${DESTINATION}?error=offer`);
 }
 /** All writes are behind the coaching role and in the same transaction as their audit. */
 export async function CoachingOffersAdmin({ canWrite }: { canWrite: boolean }) {
   const t = await getServerT();
-  const [coaches, offers, sellers] = await Promise.all([getHumanCoaches().list({includePending:true}), getCoachingOffers().all(), getCoachingOffers().sellers()]);
+  const [coaches, offers, sellers] = await Promise.all([
+    getHumanCoaches().list({ includePending: true }),
+    getCoachingOffers().all(),
+    getCoachingOffers().sellers(),
+  ]);
   return (
     <section className="section-block stack">
       <h2>{t("coachingOffers.adminTitle")}</h2>
@@ -116,6 +140,21 @@ export async function CoachingOffersAdmin({ canWrite }: { canWrite: boolean }) {
           </Field>
           <Field label={t("coachingOffers.amount")}>
             <TextInput type="number" name={AMOUNT} min={50} max={1000000} defaultValue={offer.amount ?? ""} disabled={!canWrite} />
+          </Field>
+          <Field label={t("coachConnect.payee")}>
+            <Select name={PAYEE} defaultValue={offer.payoutSellerId ?? ""} disabled={!canWrite}>
+              <option value="">—</option>
+              {sellers
+                .filter((s) => s.kind !== "jobbbox" && (s.kind !== HUMAN || s.coachId === offer.coachId))
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+          <Field label={t("coachConnect.compensation")} hint={t("coachConnect.compensationHint")}>
+            <TextInput type="number" name={SHARE} min={0} max={10000} defaultValue={offer.coachShareBps ?? ""} disabled={!canWrite} />
           </Field>
           {canWrite ? (
             <button className="button" type="submit">

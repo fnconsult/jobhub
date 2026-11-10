@@ -89,6 +89,10 @@ export interface BillingConfig {
    * throws, the webhook fails and Stripe retries the delivery.
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+  /** Undefined selects the legacy path; null closes the v2 payment gate. */
+  connectedCoachingCheckout?: (candidate:{id:string;email:string},quoteId:string,locale:Locale,urls:{success:string;cancel:string})=>Promise<CheckoutStart|null|undefined>;
+  onConnectedCoachingPaid?: (session:Stripe.Checkout.Session)=>Promise<unknown>;
+  connectedCoachingPayment?: (checkoutId:string)=>Promise<{accountId:string|null;paymentIntent:string|null}|null>;
   /**
    * Told of each Checkout Stripe confirms as paid (or free, a 100 % code), a Plan's or a Coaching Session's, from its
    * signed webhook (#512: the Orders module emails its confirmation). Stripe may report one more than once, even
@@ -112,6 +116,8 @@ export interface Payment {
   id: string;
   amount: number;
   currency: string;
+  /** Private Stripe account routing for a Connect direct charge. Never part of a public Sale. */
+  stripeAccount?: string;
   /** The period a subscription's payment paid for, when Stripe tells it (its invoice's first line). */
   period?: { start: Date; end: Date };
 }
@@ -844,6 +850,9 @@ export function createBilling(config: BillingConfig) {
 
   /** Reports a paid Checkout from a checkout.session.* event, and a paid Coaching Session; ignores an unpaid one. */
   async function applyCheckout(session: Stripe.Checkout.Session) {
+    if(session.metadata?.purpose==='coaching_connect'){
+      await config.onConnectedCoachingPaid?.(session);return;
+    }
     if (session.payment_status === "unpaid") return; // async payment methods: wait for async_payment_succeeded
     const mode: PaidCheckout["mode"] | null = session.mode === "payment" ? "payment" : session.mode === "subscription" ? "subscription" : null;
     if (!mode) return;
@@ -1030,8 +1039,8 @@ export function createBilling(config: BillingConfig) {
     "customer.subscription.created": (event) => applySubscription(event, event.data.object),
     "customer.subscription.updated": (event) => applySubscription(event, event.data.object),
     "customer.subscription.deleted": (event) => applySubscription(event, event.data.object),
-    "checkout.session.completed": (event) => applyCheckout(event.data.object),
-    "checkout.session.async_payment_succeeded": (event) => applyCheckout(event.data.object),
+    "checkout.session.completed": (event) => event.account ? Promise.resolve() : applyCheckout(event.data.object),
+    "checkout.session.async_payment_succeeded": (event) => event.account ? Promise.resolve() : applyCheckout(event.data.object),
     "refund.updated": (event) => applyRefund(event.data.object),
     "refund.failed": (event) => applyRefund(event.data.object),
   };
@@ -1473,6 +1482,11 @@ export function createBilling(config: BillingConfig) {
       locale: Locale = "fr",
       options: CoachingSessionCheckoutOptions = {},
     ): Promise<CheckoutStart> {
+      if(options.quoteId && config.connectedCoachingCheckout){
+        const connected=await config.connectedCoachingCheckout(candidate,options.quoteId,locale,{success:options.inApp?appPaymentURL():coachingPageURL("?session=paid"),cancel:options.inApp?appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`):coachingPageURL()});
+        if(connected===null)throw new BillingError("coaching_sessions_not_configured");
+        if(connected!==undefined)return connected;
+      }
       const prices = coachingSessionPrices();
       const customer = await stripeCustomerFor(candidate);
       const discounted = await hasFeature(candidate.id, "coachingSessionDiscount");
@@ -1519,7 +1533,7 @@ export function createBilling(config: BillingConfig) {
       } catch (error) {
         throw new BillingError("invalid_webhook_signature", error instanceof Error ? error.message : undefined);
       }
-      if (!Object.hasOwn(webhookHandlers, event.type)) return;
+      if (event.account||!Object.hasOwn(webhookHandlers, event.type)) return;
       await (webhookHandlers[event.type as StripeWebhookEvent] as (event: Stripe.Event) => Promise<void>)(event);
     },
 
@@ -1600,9 +1614,10 @@ export function createBilling(config: BillingConfig) {
 
     /** What a Coaching Session was paid with, from its Checkout Session; null when it took no payment. Throws when Stripe could not be reached. */
     async coachingSessionPayment(checkoutSessionId: string): Promise<Payment | null> {
-      const session = await stripe().client.checkout.sessions.retrieve(checkoutSessionId, {}, STRIPE_WRITE);
+      const connected=await config.connectedCoachingPayment?.(checkoutSessionId);
+      const session = await stripe().client.checkout.sessions.retrieve(checkoutSessionId, {}, {...STRIPE_WRITE,...connected?.accountId?{stripeAccount:connected.accountId}:{}});
       const id = idOf(session.payment_intent);
-      return id && session.amount_total ? { id, amount: session.amount_total, currency: session.currency ?? "eur" } : null;
+      return id && session.amount_total ? { id, amount: session.amount_total, currency: session.currency ?? "eur",...connected?.accountId?{stripeAccount:connected.accountId}:{} } : null;
     },
 
     /**
@@ -1614,7 +1629,7 @@ export function createBilling(config: BillingConfig) {
       try {
         const target = payment.id.startsWith("ch_") ? { charge: payment.id } : { payment_intent: payment.id };
         const part = amount === undefined ? {} : { amount };
-        const refund = await stripe().client.refunds.create({ ...target, ...part, reason: "requested_by_customer", metadata }, { ...STRIPE_WRITE, idempotencyKey: key });
+        const refund = await stripe().client.refunds.create({ ...target, ...part, reason: "requested_by_customer", metadata,...payment.stripeAccount?{refund_application_fee:true}:{} }, { ...STRIPE_WRITE, idempotencyKey: key,...payment.stripeAccount?{stripeAccount:payment.stripeAccount}:{} });
         return { ok: true, id: refund.id, status: (refund.status ?? "pending") as RefundStatus };
       } catch (error) {
         console.error("[billing] Stripe refused or did not answer a refund", error);

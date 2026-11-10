@@ -25,7 +25,7 @@ describe.skipIf(!connectionString)("email-owned Coach Enrolment", () => {
   let humans: ReturnType<typeof createHumanCoaches>;
   let clock: Date;
   const confirmation = vi.fn(async () => {}),
-    decisionNotice = vi.fn(async () => {});
+    decisionNotice = vi.fn<(record: import("./index").Enrolment) => Promise<void>>(async () => {});
   beforeEach(async () => {
     auth = await startTestAuth();
     await migrateDatabase(auth.config);
@@ -90,11 +90,32 @@ describe.skipIf(!connectionString)("email-owned Coach Enrolment", () => {
     expect(decisionNotice).not.toHaveBeenCalled();
     decisionNotice.mockRejectedValueOnce(new Error("Mail unavailable"));
     expect(await enrolments.deliverNotices()).toBe(0);
+    expect(await enrolments.deliverNotices()).toBe(0);
+    clock = new Date(+clock + 5 * 60_000);
     expect(await enrolments.deliverNotices()).toBe(1);
     expect(decisionNotice).toHaveBeenLastCalledWith(expect.objectContaining({ reason: "Merci de compléter vos qualifications." }));
     expect(await enrolments.deliverNotices()).toBe(0);
     expect(await enrolments.decide(id, "approve", null)).toMatchObject({ ok: true, changed: false, enrolment: { state: "refused" } });
     expect(await humans.list({ includePending: true })).toEqual([]);
+  });
+  it("delivers later decisions when the oldest recipient keeps failing, and defers its retry", async () => {
+    const oldest = await confirmed();
+    await enrolments.decide(oldest, "refuse", "Première demande refusée.");
+    clock = new Date(+clock + 1000);
+    const next = await enrolments.submit(input, proof, person);
+    const later = next.ok ? next.id! : "";
+    await enrolments.decide(later, "refuse", "Deuxième demande refusée.");
+    decisionNotice.mockImplementation(async (record) => {
+      if (record.id === oldest) throw new Error("Recipient permanently unavailable");
+    });
+    expect(await enrolments.deliverNotices()).toBe(1);
+    expect(decisionNotice.mock.calls.map(([record]) => record.id)).toEqual([oldest, later]);
+    expect(await enrolments.deliverNotices()).toBe(0);
+    expect(decisionNotice).toHaveBeenCalledTimes(2);
+    clock = new Date(+clock + 5 * 60_000);
+    expect(await enrolments.deliverNotices()).toBe(0);
+    expect(decisionNotice).toHaveBeenCalledTimes(3);
+    expect((await auth.database.query("SELECT notice_sent_at FROM coach_enrolment WHERE id=$1", [later])).rows[0].notice_sent_at).not.toBeNull();
   });
   it("approves exactly once, but does not expose the new coach to Candidates or grant workspace access before contract acceptance", async () => {
     const id = await confirmed();

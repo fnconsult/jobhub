@@ -245,7 +245,7 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
       let sent = 0;
       for (let i = 0; i < limit; i++) {
         const { rows } = await database.query<Enrolment & { claim: string }>(
-          `UPDATE coach_enrolment SET notice_claim=gen_random_uuid(),notice_claimed_at=$1 WHERE id=(SELECT id FROM coach_enrolment WHERE state IN ('approved','refused') AND notice_sent_at IS NULL AND (notice_claimed_at IS NULL OR notice_claimed_at<$1::timestamptz-interval '5 minutes') ORDER BY decided_at,id FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING ${COLUMNS},notice_claim AS claim`,
+          `UPDATE coach_enrolment SET notice_claim=gen_random_uuid(),notice_claimed_at=$1 WHERE id=(SELECT id FROM coach_enrolment WHERE state IN ('approved','refused') AND notice_sent_at IS NULL AND (notice_retry_at IS NULL OR notice_retry_at<=$1) AND (notice_claimed_at IS NULL OR notice_claimed_at<$1::timestamptz-interval '5 minutes') ORDER BY decided_at,id FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING ${COLUMNS},notice_claim AS claim`,
           [now()],
         );
         const row = rows[0];
@@ -259,8 +259,8 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
           ]);
           sent++;
         } catch {
-          await database.query("UPDATE coach_enrolment SET notice_claim=NULL,notice_claimed_at=NULL WHERE id=$1 AND notice_claim=$2", [row.id, row.claim]);
-          break;
+          // Defer this recipient, then continue: one undeliverable address must not block later decisions.
+          await database.query("UPDATE coach_enrolment SET notice_claim=NULL,notice_claimed_at=NULL,notice_retry_at=$3::timestamptz+interval '5 minutes' WHERE id=$1 AND notice_claim=$2", [row.id, row.claim, now()]);
         }
       }
       return sent;
@@ -280,6 +280,7 @@ export async function migrateCoachEnrolments(database: Pool) {
  CREATE UNIQUE INDEX IF NOT EXISTS coach_association_siret ON coach_association(siret) WHERE retired_at IS NULL;
  CREATE TABLE IF NOT EXISTS coach_association_manager(association_id uuid NOT NULL REFERENCES coach_association(id) ON DELETE CASCADE,candidate_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,PRIMARY KEY(association_id,candidate_id));
  CREATE TABLE IF NOT EXISTS coach_enrolment(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),kind text NOT NULL CHECK(kind IN ('coach','association')),contact_name text NOT NULL,legal_name text NOT NULL,email text NOT NULL,legal_status text NOT NULL,siret text NOT NULL,specialties text[] NOT NULL,languages text[] NOT NULL,presentation text NOT NULL,locale text NOT NULL,state text NOT NULL DEFAULT 'awaiting_email' CHECK(state IN ('awaiting_email','pending','approved','refused')),candidate_id text REFERENCES candidate(id) ON DELETE CASCADE,created_at timestamptz NOT NULL DEFAULT clock_timestamp(),confirmed_at timestamptz,decided_at timestamptz,reason text,human_coach_id uuid REFERENCES human_coach(id),association_id uuid REFERENCES coach_association(id),proof_name text NOT NULL,proof bytea NOT NULL,notice_claim uuid,notice_claimed_at timestamptz,notice_sent_at timestamptz);
+ ALTER TABLE coach_enrolment ADD COLUMN IF NOT EXISTS notice_retry_at timestamptz;
  CREATE UNIQUE INDEX IF NOT EXISTS coach_enrolment_pending_email ON coach_enrolment(email) WHERE state IN ('awaiting_email','pending');
  CREATE INDEX IF NOT EXISTS coach_enrolment_candidate ON coach_enrolment(candidate_id);
  CREATE TABLE IF NOT EXISTS coach_enrolment_rate_limit(key text NOT NULL,hour timestamptz NOT NULL,attempts integer NOT NULL,PRIMARY KEY(key,hour));`);

@@ -1,3 +1,4 @@
+import {archiveEarningsService} from "../coaching-earnings";
 import {connectDataOf,deleteConnectDataOf} from "../coaching-connect";
 import {coachPagesOf,deleteCoachPagesOf} from "../coach-pages";
 import {associationDataOf} from "../coach-associations";
@@ -954,6 +955,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     async delete(candidateId) {
       await deps.billing?.closeAccount(candidateId);
       await inTransaction(database,async within=>{
+        await archiveEarningsService(within,candidateId);
         await deleteConnectDataOf(within,candidateId);
         await deleteCoachPagesOf(within,candidateId);
         await within.query("DELETE FROM coach_association_invitation i USING candidate c WHERE c.id=$1 AND (i.email=lower(c.email) OR i.recipient_id=c.id OR i.invited_by=c.id)",[candidateId]);

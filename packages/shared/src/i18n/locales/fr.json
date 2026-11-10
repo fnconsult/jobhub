@@ -6881,5 +6881,44 @@
       "footer": "Vous recevez cet e-mail de service à chaque reversement."
     },
     "payee": "Bénéficiaire de la part du coach (ventes Jobbbox)"
+  },
+  "coachEarnings": {
+    "title": "Votre relevé mensuel",
+    "monthBasis": "Le mois regroupe les paiements dans le calendrier français. Les séances tenues sont comptées à leur fin ; les reversements liés peuvent avoir lieu plus tard.",
+    "month": "Mois des paiements",
+    "show": "Afficher",
+    "pdf": "Télécharger le relevé PDF",
+    "heldSessions": "Séances tenues",
+    "heldCount_one": "{{count}} séance tenue ce mois-ci.",
+    "heldCount_other": "{{count}} séances tenues ce mois-ci.",
+    "empty": "Aucun paiement dans ce mois.",
+    "currency": "Montants en {{currency}}",
+    "collected": "Montant encaissé",
+    "commission": "Commission",
+    "refunds": "Remboursements",
+    "refundedCommission": "Commission remboursée",
+    "fees": "Frais Stripe",
+    "withheld": "Retenues en attente",
+    "net": "Net pour reversement",
+    "outstanding": "Solde échu à régler ou à reporter",
+    "expected": "Prochaine échéance prévue : {{date}}.",
+    "netBasis": "Le net reprend le calcul des reversements : encaissements moins Commission, remboursements, frais et retenues, avec les commissions remboursées. Le solde échu tient aussi compte des autres mois et des sommes déjà affectées à un reversement.",
+    "offers": "Détail par offre et vendeur",
+    "offer": "Offre et vendeur",
+    "payouts": "Reversements",
+    "payoutBasis": "Ces reversements sont liés aux paiements sélectionnés ou ont été réglés dans ce mois. Les tentatives annulées ne sont pas des sommes versées.",
+    "noPayout": "Aucun reversement enregistré.",
+    "support": "Consultez Stripe et contactez le support pour la réconciliation avant toute nouvelle tentative.",
+    "statementTitle": "Relevé de revenus · {{month}}",
+    "generated": "Édité le {{date}}.",
+    "states": {
+      "pending": "En traitement",
+      "paid": "Versé",
+      "failed": "Échoué · à réconcilier",
+      "needs_review": "Résultat à vérifier avec le support",
+      "cancelling": "Annulation et restitution en traitement",
+      "cancelled": "Tentative annulée"
+    },
+    "beneficiaries": "Bénéficiaire lors du paiement"
   }
 }

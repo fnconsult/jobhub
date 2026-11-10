@@ -32,6 +32,8 @@ export interface ConnectSeller {
   id: string;
   kind: "human_coach" | "association";
   name: string;
+  status:string;
+  siret:string;
   email: string;
   accountId: string | null;
 }
@@ -67,7 +69,7 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
     return (
       (
         await within.query<ConnectSeller>(
-          `SELECT s.id,s.kind,s.name,coalesce(h.email,(SELECT c.email FROM coach_association_manager m JOIN candidate c ON c.id=m.candidate_id AND c."emailVerified" WHERE m.association_id=a.id ORDER BY c.id LIMIT 1)) AS email,k.account_id AS "accountId" FROM coaching_seller s LEFT JOIN human_coach h ON h.id=s.coach_id AND (NOT $2::boolean OR h.retired_at IS NULL) LEFT JOIN coach_association a ON a.id=s.association_id AND (NOT $2::boolean OR a.retired_at IS NULL) LEFT JOIN coaching_connect_account k ON k.seller_id=s.id WHERE s.id=$1 AND s.siret ~ '^[0-9]{14}$' AND ((s.kind='human_coach' AND h.id IS NOT NULL AND (NOT $2::boolean OR NOT h.contract_pending)) OR (s.kind='association' AND a.id IS NOT NULL AND (NOT $2::boolean OR NOT a.contract_pending)))`,
+          `SELECT s.id,s.kind,s.name,s.status,s.siret,coalesce(h.email,(SELECT c.email FROM coach_association_manager m JOIN candidate c ON c.id=m.candidate_id AND c."emailVerified" WHERE m.association_id=a.id ORDER BY c.id LIMIT 1)) AS email,k.account_id AS "accountId" FROM coaching_seller s LEFT JOIN human_coach h ON h.id=s.coach_id AND (NOT $2::boolean OR h.retired_at IS NULL) LEFT JOIN coach_association a ON a.id=s.association_id AND (NOT $2::boolean OR a.retired_at IS NULL) LEFT JOIN coaching_connect_account k ON k.seller_id=s.id WHERE s.id=$1 AND s.siret ~ '^[0-9]{14}$' AND ((s.kind='human_coach' AND h.id IS NOT NULL AND (NOT $2::boolean OR NOT h.contract_pending)) OR (s.kind='association' AND a.id IS NOT NULL AND (NOT $2::boolean OR NOT a.contract_pending)))`,
           [id, activeOnly],
         )
       ).rows[0] ?? null
@@ -186,7 +188,7 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
         cancelUrl: urls.cancel,
       };
       await database.query(
-        `INSERT INTO coaching_connect_payment(id,quote_id,candidate_id,coach_id,recipient_id,account_id,amount,currency,commission,payee_amount,request,created_at,sale_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(quote_id) DO NOTHING`,
+        `INSERT INTO coaching_connect_payment(id,quote_id,candidate_id,coach_id,recipient_id,account_id,amount,currency,commission,payee_amount,request,created_at,sale_snapshot,payee_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(quote_id) DO NOTHING`,
         [
           id,
           quoteId,
@@ -201,6 +203,7 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
           request,
           now(),
           snapshot,
+          {id:payee.id,kind:payee.kind,name:payee.name,status:payee.status,siret:payee.siret},
         ],
       );
       const row = (await database.query<Context>(`SELECT ${CONTEXT} FROM coaching_connect_payment WHERE quote_id=$1`, [quoteId])).rows[0]!;
@@ -539,7 +542,10 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
 export async function migrateCoachingConnect(database: Pool) {
   await database.query(`ALTER TABLE coaching_offer ADD COLUMN IF NOT EXISTS coach_share_bps integer CHECK(coach_share_bps BETWEEN 0 AND 10000);
  CREATE TABLE IF NOT EXISTS coaching_connect_account(seller_id uuid PRIMARY KEY REFERENCES coaching_seller(id),account_id text UNIQUE NOT NULL,created_at timestamptz NOT NULL,owner_id text REFERENCES candidate(id) ON DELETE SET NULL);
- CREATE TABLE IF NOT EXISTS coaching_connect_payment(id uuid PRIMARY KEY,quote_id uuid UNIQUE REFERENCES coaching_offer_quote(id) ON DELETE SET NULL,candidate_id text REFERENCES candidate(id) ON DELETE SET NULL,coach_id uuid NOT NULL REFERENCES human_coach(id),recipient_id uuid NOT NULL REFERENCES coaching_seller(id),account_id text,amount integer NOT NULL,currency text NOT NULL,commission integer NOT NULL,payee_amount integer NOT NULL,request jsonb NOT NULL,sale_snapshot jsonb NOT NULL,created_at timestamptz NOT NULL,checkout_id text UNIQUE,payment_intent text,paid_at timestamptz);
+ CREATE TABLE IF NOT EXISTS coaching_connect_payment(id uuid PRIMARY KEY,quote_id uuid UNIQUE REFERENCES coaching_offer_quote(id) ON DELETE SET NULL,candidate_id text REFERENCES candidate(id) ON DELETE SET NULL,coach_id uuid NOT NULL REFERENCES human_coach(id),recipient_id uuid NOT NULL REFERENCES coaching_seller(id),account_id text,amount integer NOT NULL,currency text NOT NULL,commission integer NOT NULL,payee_amount integer NOT NULL,request jsonb NOT NULL,sale_snapshot jsonb NOT NULL,payee_snapshot jsonb,service_archived boolean NOT NULL DEFAULT false,service_held_month text,created_at timestamptz NOT NULL,checkout_id text UNIQUE,payment_intent text,paid_at timestamptz);
+ ALTER TABLE coaching_connect_payment ADD COLUMN IF NOT EXISTS payee_snapshot jsonb;
+ ALTER TABLE coaching_connect_payment ADD COLUMN IF NOT EXISTS service_archived boolean NOT NULL DEFAULT false;
+ ALTER TABLE coaching_connect_payment ADD COLUMN IF NOT EXISTS service_held_month text;
  CREATE TABLE IF NOT EXISTS coaching_connect_earning(payment_id uuid PRIMARY KEY REFERENCES coaching_connect_payment(id) ON DELETE CASCADE,amount integer NOT NULL,commission integer NOT NULL,refunded integer NOT NULL DEFAULT 0,refunded_commission integer NOT NULL DEFAULT 0,processing_fees integer NOT NULL DEFAULT 0,allocated integer NOT NULL DEFAULT 0,held integer NOT NULL DEFAULT 0,available boolean NOT NULL DEFAULT false,checked_at timestamptz);
  CREATE TABLE IF NOT EXISTS coaching_connect_batch(id uuid PRIMARY KEY,seller_id uuid NOT NULL REFERENCES coaching_seller(id),month text NOT NULL,currency text NOT NULL,amount integer NOT NULL,transfer_amount integer NOT NULL,account_id text NOT NULL,created_at timestamptz NOT NULL,transfer_id text UNIQUE,payout_id text UNIQUE,state text NOT NULL DEFAULT 'pending',retry_at timestamptz,paid_at timestamptz,notice_sent_at timestamptz,notice_claim uuid,notice_claimed_at timestamptz,notice_retry_at timestamptz,payout_outcome text NOT NULL DEFAULT 'none',transfer_outcome text NOT NULL DEFAULT 'none',cancel_transfer_id text,cancel_started_at timestamptz,payout_attempt integer NOT NULL DEFAULT 0,payout_attempted_at timestamptz);
  ALTER TABLE coaching_connect_batch ADD COLUMN IF NOT EXISTS payout_outcome text;
@@ -575,7 +581,7 @@ export async function connectDataOf(database: Queryable, candidateId: string) {
   ).rows.map((r) => r.id);
   const earnings = (
     await database.query(
-      `SELECT p.id,p.recipient_id AS "sellerId",p.paid_at AS "paidAt",p.currency,e.amount,e.commission,e.refunded,e.refunded_commission AS "refundedCommission",e.processing_fees AS "processingFees",e.held,e.allocated FROM coaching_connect_payment p JOIN coaching_connect_earning e ON e.payment_id=p.id WHERE p.recipient_id=ANY($1::uuid[]) ORDER BY p.paid_at,p.id`,
+      `SELECT p.id,p.recipient_id AS "sellerId",p.paid_at AS "paidAt",p.currency,p.payee_snapshot AS "payee",p.service_held_month AS "serviceMonth",e.amount,e.commission,e.refunded,e.refunded_commission AS "refundedCommission",e.processing_fees AS "processingFees",e.held,e.allocated FROM coaching_connect_payment p JOIN coaching_connect_earning e ON e.payment_id=p.id WHERE p.recipient_id=ANY($1::uuid[]) ORDER BY p.paid_at,p.id`,
       [sellerIds],
     )
   ).rows;

@@ -6881,5 +6881,44 @@
       "footer": "You receive this service email for each payout."
     },
     "payee": "Coach compensation recipient (Jobbbox sales)"
+  },
+  "coachEarnings": {
+    "title": "Your monthly statement",
+    "monthBasis": "The month groups payments in the French calendar. Held sessions are counted at their end; related payouts may take place later.",
+    "month": "Payment month",
+    "show": "Show",
+    "pdf": "Download the PDF statement",
+    "heldSessions": "Held sessions",
+    "heldCount_one": "{{count}} session held this month.",
+    "heldCount_other": "{{count}} sessions held this month.",
+    "empty": "No payments in this month.",
+    "currency": "Amounts in {{currency}}",
+    "collected": "Amount collected",
+    "commission": "Commission",
+    "refunds": "Refunds",
+    "refundedCommission": "Refunded Commission",
+    "fees": "Stripe fees",
+    "withheld": "Pending holds",
+    "net": "Net for payout",
+    "outstanding": "Matured balance to pay or carry forward",
+    "expected": "Next scheduled eligibility date: {{date}}.",
+    "netBasis": "Net uses the settlement calculation: collections less Commission, refunds, fees and holds, including returned application fees. The matured balance also includes other months and amounts already allocated to payouts.",
+    "offers": "By offer and Seller",
+    "offer": "Offer and Seller",
+    "payouts": "Payouts",
+    "payoutBasis": "These payouts relate to the selected payments or were paid during this month. Cancelled attempts are not money paid out.",
+    "noPayout": "No payout recorded.",
+    "support": "Check Stripe and contact Support for reconciliation before another attempt.",
+    "statementTitle": "Earnings statement · {{month}}",
+    "generated": "Generated on {{date}}.",
+    "states": {
+      "pending": "Processing",
+      "paid": "Paid",
+      "failed": "Failed · reconciliation required",
+      "needs_review": "Outcome to check with Support",
+      "cancelling": "Cancellation and funds return processing",
+      "cancelled": "Cancelled attempt"
+    },
+    "beneficiaries": "Recipient at payment"
   }
 }

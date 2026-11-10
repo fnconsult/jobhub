@@ -131,6 +131,7 @@ export interface CandidateReadsDeps {
   offerBox: OfferBox;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
+  coachingBookings?:(candidateId:string)=>Promise<Record<string,string>>;
   coachingMeetings?: (candidateId: string) => Promise<Record<string, Meeting | null> | null>;
   coachingTimeZone?: (candidateId: string) => Promise<string | null>;
 }
@@ -411,6 +412,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async coaching(candidateId) {
+      const bookingPaths=await deps.coachingBookings?.(candidateId);
       const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
       const meetings = (await deps.coachingMeetings?.(candidateId)) ?? null;
       const [coaches, granted, sessions, contracts, price] = await Promise.all([
@@ -445,6 +447,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           reschedules: session.reschedules.map(reschedule),
           withdrawable: withdrawable.has(session.id),
           ...(meetings ? { meeting: meetings[session.id] ?? null } : {}),
+          ...(bookingPaths?.[session.id]?{bookingPath:bookingPaths[session.id]}:{}),
         })),
         price: price && { amount: price.amount, regularAmount: price.regularAmount, currency: price.currency },
       };

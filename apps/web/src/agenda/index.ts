@@ -24,7 +24,7 @@ import { COACHING_DEFAULT_ZONE, coachingDay, coachingDayStart } from "@jobhub/sh
 import type { Pool } from "pg";
 import { frenchDayStart, interviewDayStart, type Interview } from "../applications";
 import { dayAfter, frenchDay } from "./calendar";
-import type { SessionEditor } from "../human-coaches";
+import type { RescheduledBy } from "../reschedules";
 import { rescheduleHistories, type Reschedule } from "../reschedules";
 
 /** One Interview, as the Agenda shows it; it leads to its Application's Interviews Section. */
@@ -56,7 +56,7 @@ export interface CoachingSessionAgendaItem {
   videoLink?: string;
   note?: string;
   /** Who last entered or changed its date: « modifié par le coach » for "coach". */
-  changedBy: SessionEditor;
+  changedBy: RescheduledBy;
   /** Its Reschedule history, oldest first: a cancellation before it was dated again included. */
   reschedules: Reschedule[];
 }
@@ -193,7 +193,7 @@ export function createAgenda(database: Pool): Agenda {
   async function coachingSessions(candidateId: string, window: Window): Promise<AgendaItem[]> {
     const condition = windowCondition("s", window);
     const order = window.newestFirst ? "DESC" : "ASC";
-    const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null; changed_by: SessionEditor | null }>(
+    const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null; changed_by: RescheduledBy | null }>(
       `SELECT s.id, s.scheduled_at, h.id AS coach_id, h.name AS coach_name, s.duration_minutes, s.video_link, s.note, s.changed_by
          FROM coaching_session s
          JOIN human_coach h ON h.id = s.coach_id

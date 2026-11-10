@@ -1,3 +1,4 @@
+import {bookingDataOf} from "../coaching-booking";
 import {archiveEarningsService} from "../coaching-earnings";
 import {connectDataOf,deleteConnectDataOf} from "../coaching-connect";
 import {coachPagesOf,deleteCoachPagesOf} from "../coach-pages";
@@ -353,6 +354,7 @@ export interface CandidateDataExport {
    * and their Reschedule history (cancellations included); never the Human Coach's booking link.
    */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed; meeting: Meeting | null })[];
+  calBookings:Awaited<ReturnType<typeof bookingDataOf>>;
   connectMoney:Awaited<ReturnType<typeof connectDataOf>>;
   coachPages:Awaited<ReturnType<typeof coachPagesOf>>;
   associationActivity:Awaited<ReturnType<typeof associationDataOf>>;
@@ -499,6 +501,10 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_access: "coachAccess",
   candidate_coaching_time_zone: "account.coachingTimeZone",
   coaching_session_contact: "coachingSessions[].meeting (session contact)",
+  coaching_cal_booking:"calBookings.bookings (owned session routing facts, no token)",
+  coaching_cal_delivery:"calBookings.deliveries (owned session receipt/rejection facts, no raw payload)",
+  coaching_cal_notice:"calBookings.notices (owned change notifications)",
+  coaching_cal_cancellation:"calBookings (pending provider cancellation; session detached on erasure)",
   coaching_connect_account:"connectMoney (owned Seller summaries, no Stripe credentials)",
   coaching_connect_payment:"connectMoney.purchases and earnings (pseudonymous accounting)",
   coaching_connect_earning:"connectMoney.earnings",
@@ -550,6 +556,7 @@ export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
 
 /** Business obligations survive one user's departure. Explicit erasure removes contact payloads and detaches account FKs. */
 export const RETAINED_BUSINESS_TABLES:Readonly<Record<string,string>>={
+  coaching_cal_cancellation:"#881: detach erased sessions, retain unresolved cancellation routing until reconciliation, purge resolved after 30 days",
  coach_association_invitation:"Association invitations (#876): owned contacts explicitly erased at account deletion; seven-day validity, purge thirty days after expiry",
  coaching_connect_account:"Seller Stripe routing (#878): owner detached on deletion; contains no KYC or bank details",
  coaching_connect_payment:"Pseudonymous money owed to the Seller (#878): purchaser/quote detached, Checkout email erased; ten-year proposed accounting retention, human #890",
@@ -949,7 +956,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { connectMoney:await connectDataOf(database,candidateId),coachPages:await coachPagesOf(database,candidateId),associationActivity:await associationDataOf(database,candidateId),coachContractAcceptances:await coachContractAcceptancesOf(database,candidateId),coachContractNotices:await coachContractNoticesOf(database,candidateId),coachEnrolments:await coachEnrolmentsOf(database,candidateId),managedAssociations:await associationsManagedBy(database,candidateId),coachingSales:await rowsOf<CandidateDataExport["coachingSales"][number]>(`SELECT x.session_id AS "sessionId",x.snapshot AS sale FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id WHERE s.candidate_id=$1 ORDER BY s.paid_at,s.id`,candidateId), coachingQuotes:await rowsOf<CandidateDataExport["coachingQuotes"][number]>(`SELECT snapshot AS sale,created_at AS "createdAt" FROM coaching_offer_quote WHERE candidate_id=$1 ORDER BY created_at,id`,candidateId), sharedReading: await rowsOf<CandidateDataExport["sharedReading"][number]>(`SELECT r.session_id AS "sessionId",r.presenter,r.payload AS document,r.source,r.page,r.scroll,r.started_at AS "startedAt" FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id WHERE s.candidate_id=$1 ORDER BY r.started_at`, candidateId), sessionReports: await rowsOf<CandidateDataExport["sessionReports"][number]>(`SELECT id,session_id AS "sessionId",covered,next_steps AS "nextSteps",resources,published_at AS "publishedAt" FROM session_report WHERE candidate_id=$1 ORDER BY created_at,id`, candidateId), privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(`SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`, candidateId), exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
+      return { calBookings:await bookingDataOf(database,candidateId),connectMoney:await connectDataOf(database,candidateId),coachPages:await coachPagesOf(database,candidateId),associationActivity:await associationDataOf(database,candidateId),coachContractAcceptances:await coachContractAcceptancesOf(database,candidateId),coachContractNotices:await coachContractNoticesOf(database,candidateId),coachEnrolments:await coachEnrolmentsOf(database,candidateId),managedAssociations:await associationsManagedBy(database,candidateId),coachingSales:await rowsOf<CandidateDataExport["coachingSales"][number]>(`SELECT x.session_id AS "sessionId",x.snapshot AS sale FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id WHERE s.candidate_id=$1 ORDER BY s.paid_at,s.id`,candidateId), coachingQuotes:await rowsOf<CandidateDataExport["coachingQuotes"][number]>(`SELECT snapshot AS sale,created_at AS "createdAt" FROM coaching_offer_quote WHERE candidate_id=$1 ORDER BY created_at,id`,candidateId), sharedReading: await rowsOf<CandidateDataExport["sharedReading"][number]>(`SELECT r.session_id AS "sessionId",r.presenter,r.payload AS document,r.source,r.page,r.scroll,r.started_at AS "startedAt" FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id WHERE s.candidate_id=$1 ORDER BY r.started_at`, candidateId), sessionReports: await rowsOf<CandidateDataExport["sessionReports"][number]>(`SELECT id,session_id AS "sessionId",covered,next_steps AS "nextSteps",resources,published_at AS "publishedAt" FROM session_report WHERE candidate_id=$1 ORDER BY created_at,id`, candidateId), privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(`SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`, candidateId), exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
     },
 
     async delete(candidateId) {

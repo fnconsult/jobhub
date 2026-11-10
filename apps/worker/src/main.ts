@@ -1,3 +1,8 @@
+import {recordingFetch} from "@jobhub/shared";
+import {coachingBooking} from "@jobhub/web/coaching-booking";
+import {calTeam} from "@jobhub/web/coaching-booking/cal";
+import {calLegalReady} from "@jobhub/web/coaching-booking/legal";
+import {bookingChanged} from "@jobhub/web/coaching-booking/notice";
 import {coachingConnect} from "@jobhub/web/coaching-connect";
 import {stripeConnect} from "@jobhub/web/coaching-connect/stripe";
 import {connectLegalReady} from "@jobhub/web/coaching-connect/legal";
@@ -176,7 +181,9 @@ const connect=()=>{
  const stripe=env.STRIPE_SECRET_KEY&&env.STRIPE_CONNECT_WEBHOOK_SECRET?stripeConnect({secretKey:env.STRIPE_SECRET_KEY,webhookSecret:env.STRIPE_CONNECT_WEBHOOK_SECRET,apiUrl:env.STRIPE_API_URL,externalApis}):undefined;
  return coachingConnect(database,{stripe,baseURL,permitted:async()=>settingsEnv().COACH_SPACE_V2_ENABLED==='true'&&connectLegalReady(),sendPayoutNotice:async notice=>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});}});
 };
+const booking=()=>{const env=secrets.current().env;return coachingBooking(database,{secret:env.AUTH_SECRET??"",webhookSecret:env.CAL_COM_WEBHOOK_SECRET??"",...(env.CAL_COM_API_KEY?{cal:calTeam({apiKey:env.CAL_COM_API_KEY,fetch:recordingFetch(fetch,externalApis,{provider:"cal_com",operation:()=>"booking.cancel"})})}:{}),changed:(id,key)=>bookingChanged(database,pushNotifications,id,key)});};
 const jobs = createJobs({
+  coachingBooking:{deliverCancellations:()=>booking().deliverCancellations(),deliverNotices:()=>booking().deliverNotices(),purge:()=>booking().purge(),observeLegal:()=>calLegalReady(database)},
   coachingConnect:{runMonthly:()=>connect().runMonthly(),purge:()=>connect().purge()},
   coachPages:coachPages(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});}}),
   coachAssociations:coachAssociations(database,{secret:process.env.AUTH_SECRET??"",mayManage:async(person,id)=>(await coachContracts(database,{}).state(person,"association",id))?.accepted===true,sendInvitation:async(record,token)=>{await mailer.send({to:record.email,...associationInvitationEmail(record,token,baseURL)});}}),

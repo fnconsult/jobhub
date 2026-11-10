@@ -23,7 +23,7 @@ const matchScore = z.number().int().min(0).max(100).nullable();
 const named = z.object({ id: z.string(), name: z.string() });
 
 /** One entry of an Agenda Item's Reschedule history; `newAt` null for a Coaching Session's cancellation. */
-export const rescheduleSchema = z.object({ previousAt: instant, newAt: instant.nullable(), by: z.enum(["candidate", "coach"]), at: instant });
+export const rescheduleSchema = z.object({ previousAt: instant, newAt: instant.nullable(), by: z.enum(["candidate", "coach", "cal_com"]), at: instant });
 export type RescheduleRead = z.infer<typeof rescheduleSchema>;
 
 // --- Mes candidatures --------------------------------------------------------------------------------------------
@@ -343,7 +343,7 @@ export const coachingSessionAgendaItemSchema = z.object({
   durationMinutes: z.number().int().positive().nullable(),
   videoLink: z.string().nullable(),
   note: z.string().nullable(),
-  changedBy: z.enum(["candidate", "coach"]),
+  changedBy: z.enum(["candidate", "coach", "cal_com"]),
   reschedules: z.array(rescheduleSchema),
 });
 export type CoachingSessionAgendaItemRead = z.infer<typeof coachingSessionAgendaItemSchema>;
@@ -388,12 +388,13 @@ export const coachingResponseSchema = z.object({
       id: z.string(),
       coach: named.extend({ bookingUrl: z.string() }),
       meeting: coachingMeetingSchema.nullable().optional(),
+      bookingPath:z.string().regex(/^\/coachs\/seances\/[0-9a-f-]+\/reserver$/i).optional(),
       paidAt: instant,
       scheduledAt: instant.nullable(),
       durationMinutes: z.number().int().positive().nullable(),
       videoLink: z.string().nullable(),
       note: z.string().nullable(),
-      changedBy: z.enum(["candidate", "coach"]).nullable(),
+      changedBy: z.enum(["candidate", "coach", "cal_com"]).nullable(),
       reschedules: z.array(rescheduleSchema),
       withdrawable: z.boolean(),
     }),
@@ -657,7 +658,7 @@ export const replyCostSchema = z.object({
 /** One message of a Coach Conversation, as the web shows it. */
 export const coachMessageSchema = z.object({
   humanCoach: z.object({ id:z.string(),name:z.string(),photoUrl:z.string().nullable() }).optional(),
-  from: z.enum(["candidate", "coach"]),
+  from: z.enum(["candidate", "coach", "cal_com"]),
   text: z.string(),
   provenance: provenanceSchema.nullable().optional(),
   at: instant.optional(),

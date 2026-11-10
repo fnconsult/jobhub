@@ -108,6 +108,7 @@ function CoachingSessionForm({
   const [working, setWorking] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [failed, setFailed] = useState(false);
+  const [useCal,setUseCal]=useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,7 +138,8 @@ function CoachingSessionForm({
       router.refresh();
       return;
     }
-    const result: { errors?: FieldError[] } = response ? await response.json().catch(() => ({})) : {};
+    const result: { errors?: FieldError[];error?:string } = response ? await response.json().catch(() => ({})) : {};
+    if(result.error==="use_cal"){setUseCal(true);return;}
     if (Array.isArray(result.errors)) setErrors(result.errors);
     else setFailed(true);
   }
@@ -155,6 +157,7 @@ function CoachingSessionForm({
   const noteError = errorOf("note");
   return (
     <form className="stack" onSubmit={submit} noValidate>
+      {useCal?<Note tone="warn" role="alert"><p>{t("coachingBooking.useCal")}</p><a href={editor==="coach"?"https://app.cal.com/bookings":`/coachs/seances/${session.id}/reserver`}>{t("coachingBooking.manage")}</a></Note>:null}
       <Field id={`${id}-date`} label={t("coachingSession.date")} error={dateError?.text}>
         <TextInput type="datetime-local" required value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
       </Field>

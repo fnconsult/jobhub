@@ -166,7 +166,7 @@ function SessionCard({ session, formats, timeZone, onSaved }: { session: Session
       <Card label={paidOn}>
         <AppText weight="semiBold">{paidOn}</AppText>
         <AppText tone="secondary">{t("humanCoaches.toSchedule")}</AppText>
-        <Control look="primary" label={t("humanCoaches.pickSlot", { name })} onPress={() => void Linking.openURL(session.coach.bookingUrl).catch(() => {})} />
+        <Control look="primary" label={t("humanCoaches.pickSlot", { name })} onPress={() => session.bookingPath?router.navigate(session.bookingPath):void Linking.openURL(session.coach.bookingUrl).catch(() => {})} />
         {actions}
       </Card>
     );
@@ -177,6 +177,8 @@ function SessionCard({ session, formats, timeZone, onSaved }: { session: Session
       <AppText weight="semiBold">{on}</AppText>
       {session.durationMinutes ? <AppText>{t("humanCoaches.sessionDuration", { count: session.durationMinutes })}</AppText> : null}
       {session.note ? <AppText>{session.note}</AppText> : null}
+      {session.bookingPath?<Control label={t("coachingBooking.manage")} onPress={()=>router.navigate(session.bookingPath!)}/>:null}
+      {session.changedBy === "cal_com"?<AppText variant="meta">{t("coachingBooking.viaCal")}</AppText>:null}
       {session.changedBy === "coach" ? (
         <AppText variant="meta" tone="accent">
           {t("humanCoaches.changedByCoach", { name })}

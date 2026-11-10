@@ -31,3 +31,5 @@ Après avoir réservé votre créneau, « J'ai réservé : saisir la date » vou
 ## Le profil de votre coach
 
 Chaque coach présente sa photo, ses spécialités, ses langues et sa présentation approuvées. Une modification en attente ou refusée ne vous est jamais montrée ; la dernière version approuvée reste visible. Il n’y a pas d’avis ni de notes de satisfaction sur ces profils.
+
+Après paiement, la réservation intégrée permet de choisir un créneau ou de le choisir plus tard. Une réservation reliée met automatiquement la séance et l’Agenda à jour. Son historique indique « via Cal.com ». Le formulaire manuel reste disponible pour les séances sans réservation reliée ; pour les autres, modifiez la réservation chez Cal.com.

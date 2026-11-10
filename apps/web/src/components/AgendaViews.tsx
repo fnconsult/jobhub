@@ -396,6 +396,7 @@ function CoachingSessionItem({ item, scope, past, withdrawable, formats, t }: { 
           </span>
           <span className="agenda-item-title">{t("agenda.withCoach", { name: item.coach.name })}</span>
           {item.durationMinutes ? <span className="agenda-item-employer">{t("agenda.duration", { count: item.durationMinutes })}</span> : null}
+          {item.changedBy === "cal_com" ? <span className="agenda-item-changed">{t("coachingBooking.viaCal")}</span>:null}
           {item.changedBy === "coach" ? <span className="agenda-item-changed">{t("agenda.changedByCoach")}</span> : null}
         </span>
       </Link>

@@ -31,3 +31,5 @@ Once you have booked your time, « I've booked: enter the date » asks for the d
 ## Your coach’s profile
 
 Each coach shows their approved photo, specialties, languages and presentation. Pending or refused changes are never shown to you; the latest approved version remains visible. These profiles have no reviews or satisfaction ratings.
+
+After payment, embedded booking lets you choose a time now or later. A linked booking automatically updates the session and Agenda. History attributes changes “via Cal.com”. Manual entry remains available for sessions without a linked booking; change other bookings in Cal.com.

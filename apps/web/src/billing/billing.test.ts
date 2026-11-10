@@ -784,7 +784,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         "metadata[coach_id]": "coach-1",
         "metadata[candidate_id]": marie.id,
         locale: "en",
-        success_url: "http://localhost:3000/coachs?session=paid",
+        success_url: "http://localhost:3000/coachs?session=paid&checkout_id={CHECKOUT_SESSION_ID}",
         cancel_url: "http://localhost:3000/coachs",
       });
       expect(premium?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);

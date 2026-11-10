@@ -284,6 +284,7 @@ function CoachingSessionRow({
               {t("agenda.duration", { count: item.durationMinutes })}
             </AppText>
           ) : null}
+          {item.changedBy === "cal_com"?<AppText variant="meta">{t("coachingBooking.viaCal")}</AppText>:null}
           {item.changedBy === "coach" ? (
             <AppText variant="meta" tone="accent">
               {t("agenda.changedByCoach")}

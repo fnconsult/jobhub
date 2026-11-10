@@ -12,8 +12,10 @@ En plus de votre coach IA, vous pouvez réserver une séance en visio avec un pr
 2. Sous « Choisir un coach », cliquez sur « Réserver une séance avec … » pour le coach de votre choix.
 3. Sur la page « Votre commande », vérifiez le récapitulatif, puis cochez « J'accepte les CGV (version du …) ». La case qui demande que le service commence immédiatement est facultative.
 4. Cliquez sur « Passer au paiement », puis payez sur la page sécurisée de Stripe, notre prestataire de paiement. La confirmation de votre commande vous est envoyée par e-mail.
-5. De retour dans Jobbbox, « Paiement reçu. Choisissez maintenant le créneau de votre séance. » s'affiche. Cliquez sur « Choisir mon créneau avec … sur Cal.com » et réservez votre créneau.
-6. Revenez dans Jobbbox et cliquez sur « J'ai réservé : saisir la date ». Saisissez la « Date et heure de la séance (heure de Paris) » et, si vous l'avez, le « Lien de la visio (facultatif) », puis cliquez sur « Enregistrer ».
-7. La séance rejoint votre agenda. Si vous avez saisi le lien de la visio, le jour venu, cliquez sur « Rejoindre la visio avec … », dans « Mes coachs humains », sous « Mes séances payées ».
+5. Après confirmation du paiement, choisissez un créneau dans l’agenda Cal.com intégré. « Choisir plus tard » conserve la séance « À planifier » ; retrouvez-la dans « Mes coachs humains ».
+6. La réservation confirmée date automatiquement la séance et votre Agenda. Les reports et annulations reçus de Cal.com s’y répercutent ; leur historique indique « via Cal.com ».
+7. Pour changer une réservation reliée, ouvrez « Modifier la réservation dans Cal.com ». Le formulaire manuel reste un secours pour les séances sans réservation reliée ; il ne peut pas désynchroniser une réservation existante.
 
-Tant qu'une séance n'a pas de date, elle attend dans « À planifier », dans votre agenda. Pendant les 14 jours qui suivent le paiement, et tant que la séance n'a pas eu lieu, vous pouvez vous rétracter depuis la séance, dans votre agenda.
+L’intégration n’est proposée que lorsque l’événement d’équipe et les conditions d’activation sont prêts. Sinon, le lien du coach et « J’ai réservé : saisir la date » restent disponibles comme secours. Le lien pour rejoindre une séance est configuré par le coach dans Jobbbox.
+
+Une rétractation déclenche aussi l’annulation de la réservation Cal.com. Une panne de Cal.com ne bloque jamais le remboursement : Jobbbox réessaie l’annulation séparément.

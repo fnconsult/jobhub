@@ -1,3 +1,4 @@
+import {BookingAdmin} from "@/coaching-booking/Admin";
 import {CoachPagesAdmin} from "@/coach-pages/CoachPagesAdmin";
 import {coachSpaceV2On} from "@/coach-space/server";
 import {EnrolmentsAdmin} from "@/coach-enrolments/EnrolmentsAdmin";
@@ -52,10 +53,10 @@ async function retireCoach(form: FormData) {
 }
 
 /** Administrators add Human Coaches, with their Cal.com booking link, and retire them. */
-export default async function HumanCoachesAdminPage({ searchParams }: { searchParams: Promise<{ added?: string; error?: string; retired?: string }> }) {
+export default async function HumanCoachesAdminPage({ searchParams }: { searchParams: Promise<{ added?: string; error?: string; retired?: string; booking?:string }> }) {
   const { access, canWrite } = await requireBackOffice("humanCoaches");
   const t = await getServerT();
-  const { added, error, retired } = await searchParams;
+  const { added, error, retired,booking } = await searchParams;
   const coaches = await getHumanCoaches().list({includePending:true});
 
   return (
@@ -81,6 +82,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
         ) : null}
 
         <EnrolmentsAdmin canWrite={canWrite}/>
+        <BookingAdmin canWrite={canWrite} status={booking}/>
         <CoachPagesAdmin canWrite={canWrite}/>
         <CoachingOffersAdmin canWrite={canWrite}/>
         <section className="section-block" aria-labelledby="coaches-title">

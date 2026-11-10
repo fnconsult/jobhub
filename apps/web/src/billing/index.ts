@@ -1483,7 +1483,7 @@ export function createBilling(config: BillingConfig) {
       options: CoachingSessionCheckoutOptions = {},
     ): Promise<CheckoutStart> {
       if(options.quoteId && config.connectedCoachingCheckout){
-        const connected=await config.connectedCoachingCheckout(candidate,options.quoteId,locale,{success:options.inApp?appPaymentURL():coachingPageURL("?session=paid"),cancel:options.inApp?appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`):coachingPageURL()});
+        const connected=await config.connectedCoachingCheckout(candidate,options.quoteId,locale,{success:options.inApp?appPaymentURL():coachingPageURL("?session=paid&checkout_id={CHECKOUT_SESSION_ID}"),cancel:options.inApp?appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`):coachingPageURL()});
         if(connected===null)throw new BillingError("coaching_sessions_not_configured");
         if(connected!==undefined)return connected;
       }
@@ -1497,7 +1497,7 @@ export function createBilling(config: BillingConfig) {
         line_items: [{ price: options.priceId ?? (discounted ? prices.discounted : prices.regular), quantity: 1 }],
         metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id, ...(options.quoteId?{coaching_quote_id:options.quoteId}:{}) },
         locale,
-        success_url: options.inApp ? appPaymentURL() : coachingPageURL("?session=paid"),
+        success_url: options.inApp ? appPaymentURL() : coachingPageURL("?session=paid&checkout_id={CHECKOUT_SESSION_ID}"),
         cancel_url: options.inApp ? appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`) : coachingPageURL(),
       });
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");

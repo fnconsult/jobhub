@@ -1,3 +1,4 @@
+import {linkedBookingConflict} from "@/coaching-booking/manual";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -18,7 +19,8 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/coa
   if (!coach) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const { sessionId } = await params;
   const body: unknown = await request.json().catch(() => undefined);
-  const result = await coaches.scheduleCoachedSession(coach.id, sessionId, body);
+  let result;
+  try{result=await coaches.scheduleCoachedSession(coach.id, sessionId, body);}catch(error){if(linkedBookingConflict(error))return NextResponse.json({error:"use_cal"},{status:409});throw error;}
   if (result.ok) return NextResponse.json({ id: result.session.id });
   if ("errors" in result) return NextResponse.json({ errors: result.errors }, { status: 400 });
   return NextResponse.json({ error: result.error }, { status: 404 });

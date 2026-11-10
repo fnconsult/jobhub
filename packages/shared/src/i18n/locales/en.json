@@ -2153,7 +2153,8 @@
         "stripe": "Stripe",
         "brevo": "Brevo",
         "email-intake": "Email intake (Jobbbox's MTA)",
-        "github": "GitHub"
+        "github": "GitHub",
+        "cal-com": "Cal.com"
       },
       "replaceLegend": "Replace {{name}}",
       "newValue": "New value of {{name}}",
@@ -2454,7 +2455,9 @@
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
         "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email",
-        "COACH_SPACE_V2_ENABLED": "Coach space v2"
+        "COACH_SPACE_V2_ENABLED": "Coach space v2",
+        "CAL_COM_TEAM_ID": "Jobbbox Cal.com team",
+        "CAL_COM_REMINDERS_DISABLED": "Cal.com reminders and workflows disabled (operator confirmation)"
       },
       "aiTasks": {
         "providerDefault": "default model",
@@ -3415,7 +3418,8 @@
         "sign_in": "Sign-in",
         "geolocation": "Geolocation",
         "reference_data": "Reference data",
-        "delivery": "Delivery"
+        "delivery": "Delivery",
+        "scheduling": "Scheduling"
       },
       "tool": "Tool",
       "purpose": "Purpose",
@@ -6920,5 +6924,32 @@
       "cancelled": "Cancelled attempt"
     },
     "beneficiaries": "Recipient at payment"
+  },
+  "coachingBooking": {
+    "book": "Choose my appointment",
+    "afterPayment": "Your session is paid. Choose a time in your coach’s calendar, now or later.",
+    "later": "Choose later",
+    "waiting": "We are waiting for payment confirmation. Your session will appear in your Agenda.",
+    "alreadyBooked": "This session is linked to Cal.com. Change it in Cal.com to keep both calendars synchronized.",
+    "manage": "Change the booking in Cal.com",
+    "viaCal": "via Cal.com",
+    "adminTitle": "Cal.com team booking",
+    "adminIntro": "Set the Jobbbox team in Settings. Attach a Collective or Round Robin event with one host and the same duration as the offer. Also disable the team’s reminder workflows in Cal.com, then confirm this in Settings. Personal events and Templates are refused.",
+    "eventId": "Team event ID",
+    "hostId": "Cal.com host ID",
+    "duration": "Duration in minutes",
+    "attach": "Verify and attach event",
+    "create": "Create a Collective event",
+    "configured": "Event {{id}} · host {{host}} · {{minutes}} minutes",
+    "saved": "Cal.com configuration saved.",
+    "failed": "Configuration not confirmed. Check IDs and duration. After failed creation, find the event in Cal.com and attach it; no second automatic creation is attempted.",
+    "reviewLegacy": "Old cal.eu link: check migration with the coach.",
+    "legalPending": "Embedded booking awaits the required human Legal Texts, Cal.com coverage, its 30-day notice and confirmed disabling of Cal.com reminders.",
+    "availability": "Your availability",
+    "availabilityIntro": "Set availability and connect your calendar directly at Cal.com. Jobbbox stores no calendar OAuth token. The preview does not create a Jobbbox session.",
+    "openAvailability": "Set my availability in Cal.com",
+    "notConfigured": "The preview becomes available once the team event and activation conditions are configured.",
+    "useCal": "This session is linked to Cal.com: change its date in Cal.com.",
+    "waitingBooking": "Booking received at Cal.com. We are waiting for confirmation to update your Agenda."
   }
 }

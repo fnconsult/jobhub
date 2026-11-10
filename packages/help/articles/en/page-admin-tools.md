@@ -19,3 +19,5 @@ APNs (Apple, for iPhone and iPad) and FCM (Google, for Android), under « App no
 GitHub, under « Delivery », serves the Delivery page: its read-only token is entered on Settings, « Environment » tab.
 
 Tools is read-only: a key, a setting or a provider is changed on Settings. « All tools » leads back to the list.
+
+Team Cal.com booking uses a verified single-host event attached from Human Coaches. Team configuration and confirmation of disabled reminders stay in Settings; API and webhook keys stay in Provider Secrets. Old cal.eu links are flagged for review. Creation with an unknown outcome is never repeated automatically: find the event in Cal.com and attach its ID. Embedded booking awaits the required Legal Texts and notice period.

@@ -1,3 +1,4 @@
+import {getCoachingBooking} from "@/coaching-booking/server";
 import {getCoachPages} from "@/coach-pages/server";
 import {getCoachAssociations} from "@/coach-associations/server";
 import {getCoachingOffers} from "@/coaching-offers/server";
@@ -28,6 +29,7 @@ export function getCandidateReads(): CandidateReads {
   instance ??= createCandidateReads({
     coachPages:ids=>coachSpaceV2On()?getCoachPages().approved(ids):Promise.resolve([]),
     coachAssociations:ids=>coachSpaceV2On()?getCoachAssociations().providers(ids):Promise.resolve([]),
+    coachingBookings:id=>getCoachingBooking().paths(id),
     coachingMeetings: async (id) => coachSpaceV2On() ? getCoachContacts().forCandidate(id) : null,
     coachingTimeZone: (id) => getCoachingTimeZones().candidate(id),
     coachingOffer:(candidateId,coachId)=>getCoachingOffers().sale(candidateId,coachId),

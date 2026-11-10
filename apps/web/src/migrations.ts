@@ -1,3 +1,4 @@
+import {migrateCoachingBooking} from "./coaching-booking";
 import {migrateCoachingEarnings} from "./coaching-earnings";
 import { migrateCoachingConnect } from "./coaching-connect";
 import {migrateCoachPages} from "./coach-pages";
@@ -125,6 +126,7 @@ export async function migrateDatabase(
     ["Coach Pages are up to date",()=>migrateCoachPages(database)],
     ["Coaching Connect is up to date",()=>migrateCoachingConnect(database)],
     ["Coaching Earnings are up to date",()=>migrateCoachingEarnings(database)],
+    ["Coaching Bookings are up to date",()=>migrateCoachingBooking(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],

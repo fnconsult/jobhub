@@ -28,6 +28,7 @@ export const TOOL_CATEGORIES = [
   "company_data",
   "contact_enrichment",
   "billing",
+  "scheduling",
   "mail",
   "push",
   "sign_in",
@@ -120,6 +121,7 @@ export const RECIPIENT_DATA = [
   "forwarded_emails",
   "account",
   "payment",
+  "coaching_booking",
   "emails_sent",
   "sign_in",
   "contact_search",
@@ -153,6 +155,7 @@ export interface RecipientFacts {
 
 /** The Recipient list's words for what a recipient is sent. */
 export const RECIPIENT_DATA_TEXT: Record<RecipientData, Translated> = {
+  coaching_booking:{fr:"Identité et coordonnées du participant, créneau et métadonnée de séance ; agenda du coach connecté directement chez Cal.com.",en:"Participant identity and contact details, appointment time and session metadata; coach calendar connected directly at Cal.com."},
   redacted: {
     fr: "Vos textes (CV, candidatures, messages au coach), sans votre nom, votre adresse, votre e-mail ni votre téléphone. Le reste, comme vos employeurs, vos postes et vos dates, part tel quel : ce sont encore des données personnelles, dites pseudonymisées.",
     en: "Your texts (CV, applications, messages to the coach), without your name, address, email or phone number. The rest, such as your employers, positions and dates, goes as it is: it is still personal data, called pseudonymised.",
@@ -797,6 +800,10 @@ export const TOOLS = [
       place: { fr: "Hors UE : États-Unis.", en: "Outside the EU: United States." },
       safeguards: ["dpf", "scc"],
     },
+  },
+  {
+    id:"cal-com",name:"Cal.com",purpose:{fr:"Disponibilités et réservation des séances payées dans l’équipe Jobbbox.",en:"Availability and booking of paid sessions within the Jobbbox team."},category:"scheduling",module:"apps/web/src/coaching-booking",runsIn:"web",keys:["CAL_COM_API_KEY","CAL_COM_WEBHOOK_SECRET"],settings:[{name:"COACH_SPACE_V2_ENABLED",enabledWhen:["true"]},{name:"CAL_COM_TEAM_ID",required:true},{name:"CAL_COM_REMINDERS_DISABLED",enabledWhen:["true"]}],usage:{table:"external_api_usage",provider:"cal_com"},residency:"outside_eu",receivesPersonalData:true,
+    recipient:{name:"Cal.com",purpose:{fr:"Réserve votre séance payée et synchronise l’agenda du coach connecté chez Cal.com.",en:"Books your paid session and synchronizes the coach’s calendar connected at Cal.com."},data:["coaching_booking"],entity:"Cal.com, Inc.",place:{fr:"Hors UE : États-Unis.",en:"Outside the EU: United States."},safeguards:["scc"]},
   },
   {
     id: "stripe",

@@ -2153,7 +2153,8 @@
         "stripe": "Stripe",
         "brevo": "Brevo",
         "email-intake": "Réception par email (MTA de Jobbbox)",
-        "github": "GitHub"
+        "github": "GitHub",
+        "cal-com": "Cal.com"
       },
       "replaceLegend": "Remplacer {{name}}",
       "newValue": "Nouvelle valeur de {{name}}",
@@ -2454,7 +2455,9 @@
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours",
         "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison",
-        "COACH_SPACE_V2_ENABLED": "Espace coach v2"
+        "COACH_SPACE_V2_ENABLED": "Espace coach v2",
+        "CAL_COM_TEAM_ID": "Équipe Cal.com Jobbbox",
+        "CAL_COM_REMINDERS_DISABLED": "Rappels et workflows Cal.com désactivés (confirmation opérateur)"
       },
       "aiTasks": {
         "providerDefault": "modèle par défaut",
@@ -3415,7 +3418,8 @@
         "sign_in": "Connexion",
         "geolocation": "Géolocalisation",
         "reference_data": "Référentiels",
-        "delivery": "Livraison"
+        "delivery": "Livraison",
+        "scheduling": "Réservation"
       },
       "tool": "Outil",
       "purpose": "Usage",
@@ -6920,5 +6924,32 @@
       "cancelled": "Tentative annulée"
     },
     "beneficiaries": "Bénéficiaire lors du paiement"
+  },
+  "coachingBooking": {
+    "book": "Choisir mon créneau",
+    "afterPayment": "Votre séance est payée. Choisissez un créneau dans l’agenda du coach, maintenant ou plus tard.",
+    "later": "Choisir plus tard",
+    "waiting": "Nous attendons la confirmation du paiement. Votre séance apparaîtra dans votre Agenda.",
+    "alreadyBooked": "Cette séance est reliée à Cal.com. Modifiez-la dans Cal.com pour garder les agendas synchronisés.",
+    "manage": "Modifier la réservation dans Cal.com",
+    "viaCal": "via Cal.com",
+    "adminTitle": "Réservation Cal.com d’équipe",
+    "adminIntro": "Renseignez l’équipe Jobbbox dans Paramètres. Rattachez un événement Collective ou Round Robin à un seul hôte, de la même durée que l’offre. Désactivez aussi les workflows de rappel de l’équipe chez Cal.com, puis confirmez-le dans Paramètres. Les événements personnels et Templates sont refusés.",
+    "eventId": "Identifiant de l’événement d’équipe",
+    "hostId": "Identifiant de l’hôte Cal.com",
+    "duration": "Durée en minutes",
+    "attach": "Vérifier et rattacher l’événement",
+    "create": "Créer un événement Collective",
+    "configured": "Événement {{id}} · hôte {{host}} · {{minutes}} minutes",
+    "saved": "Configuration Cal.com enregistrée.",
+    "failed": "Configuration non confirmée. Vérifiez les identifiants et la durée. Après un échec de création, retrouvez l’événement chez Cal.com puis rattachez-le ; aucune seconde création automatique n’est tentée.",
+    "reviewLegacy": "Ancien lien cal.eu : vérifiez sa migration avec le coach.",
+    "legalPending": "La réservation intégrée attend les textes humains requis, la couverture Cal.com, son préavis de 30 jours et la désactivation confirmée des rappels Cal.com.",
+    "availability": "Vos disponibilités",
+    "availabilityIntro": "Réglez vos disponibilités et connectez votre agenda directement chez Cal.com. Jobbbox ne conserve aucun jeton OAuth de calendrier. L’aperçu ne crée pas de séance Jobbbox.",
+    "openAvailability": "Régler mes disponibilités dans Cal.com",
+    "notConfigured": "L’aperçu sera disponible une fois l’événement d’équipe et les conditions d’activation configurés.",
+    "useCal": "Cette séance est reliée à Cal.com : modifiez sa date dans Cal.com.",
+    "waitingBooking": "Réservation reçue chez Cal.com. Nous attendons sa confirmation pour mettre votre Agenda à jour."
   }
 }

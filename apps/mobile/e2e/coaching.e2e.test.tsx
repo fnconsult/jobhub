@@ -92,6 +92,14 @@ afterEach(() => {
 });
 
 describe("Mes coachs humains, read from the web app", () => {
+  it("opens a paid Cal booking inside the authenticated web companion and labels its source",async()=>{
+    const path="/coachs/seances/11111111-1111-1111-1111-111111111111/reserver";
+    await launch("/coachs",route=>{route.coaching.sessions[0]!.changedBy="cal_com";route.coaching.sessions[1]!.bookingPath=path;});
+    expect(await screen.findByText("via Cal.com")).toBeOnTheScreen();
+    await userEvent.setup().press(button("Choisir mon créneau avec Paul Durand sur Cal.com"));
+    await screen.findByTestId("web-view");
+    expect(fakeWebView.shown?.source.uri).toContain(path);
+  });
   it("renders only the approved profile and requests its portrait with the signed-in session",async()=>{
     await launch("/coachs",route=>{route.coaching.coaches[0]!.profile={versionId:"public-version",presentation:"Un profil approuvé pour les transitions professionnelles.",specialties:["Reconversion"],languages:["français"],photoUrl:"/api/coaching/profiles/coach-1/public-version/photo"};});
     expect(await screen.findByText("Un profil approuvé pour les transitions professionnelles.")).toBeOnTheScreen();

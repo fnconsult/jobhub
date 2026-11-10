@@ -104,7 +104,7 @@ export interface CoachingSession {
   videoLink: string | null;
   note: string | null;
   /** Who last entered or changed its date: the Agenda says « modifié par le coach » for "coach". Null while never dated. */
-  changedBy: SessionEditor | null;
+  changedBy: RescheduledBy | null;
   /** Its Reschedule history, oldest first: Reschedules, and cancellations (`newAt` null), by the Candidate or the Human Coach. */
   reschedules: Reschedule[];
 }
@@ -447,7 +447,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
         duration_minutes: number | null;
         video_link: string | null;
         note: string | null;
-        changed_by: SessionEditor | null;
+        changed_by: RescheduledBy | null;
       }
     >(
       `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note, s.changed_by,

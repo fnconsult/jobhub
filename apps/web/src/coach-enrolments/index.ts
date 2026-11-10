@@ -51,11 +51,10 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
     if (!person.emailVerified || !UUID.test(id)) return null;
     return (
       (
-        await database.query<Enrolment>(`SELECT ${COLUMNS} FROM coach_enrolment WHERE id=$1 AND (candidate_id=$3 OR (state='awaiting_email' AND email=$2))`, [
-          id,
-          person.email.trim().toLowerCase(),
-          person.id,
-        ])
+        await database.query<Enrolment>(
+          `SELECT ${COLUMNS} FROM coach_enrolment WHERE id=$1 AND ((candidate_id=$3 AND state!='awaiting_email') OR (state='awaiting_email' AND email=$2))`,
+          [id, person.email.trim().toLowerCase(), person.id],
+        )
       ).rows[0] ?? null
     );
   }
@@ -184,7 +183,7 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
       return (
         (
           await database.query(
-            "DELETE FROM coach_enrolment WHERE id=$1 AND (candidate_id=$3 OR (state='awaiting_email' AND email=$2)) AND state IN ('awaiting_email','pending')",
+            "DELETE FROM coach_enrolment WHERE id=$1 AND ((candidate_id=$3 AND state!='awaiting_email') OR (state='awaiting_email' AND email=$2)) AND state IN ('awaiting_email','pending')",
             [id, person.email.trim().toLowerCase(), person.id],
           )
         ).rowCount === 1
@@ -194,7 +193,7 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
       if (!person.emailVerified) return [];
       return (
         await database.query<Enrolment>(
-          `SELECT ${COLUMNS} FROM coach_enrolment WHERE candidate_id=$1 OR (state='awaiting_email' AND email=$2) ORDER BY created_at DESC`,
+          `SELECT ${COLUMNS} FROM coach_enrolment WHERE (candidate_id=$1 AND state!='awaiting_email') OR (state='awaiting_email' AND email=$2) ORDER BY created_at DESC`,
           [person.id, person.email.trim().toLowerCase()],
         )
       ).rows;
@@ -260,7 +259,10 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
           sent++;
         } catch {
           // Defer this recipient, then continue: one undeliverable address must not block later decisions.
-          await database.query("UPDATE coach_enrolment SET notice_claim=NULL,notice_claimed_at=NULL,notice_retry_at=$3::timestamptz+interval '5 minutes' WHERE id=$1 AND notice_claim=$2", [row.id, row.claim, now()]);
+          await database.query(
+            "UPDATE coach_enrolment SET notice_claim=NULL,notice_claimed_at=NULL,notice_retry_at=$3::timestamptz+interval '5 minutes' WHERE id=$1 AND notice_claim=$2",
+            [row.id, row.claim, now()],
+          );
         }
       }
       return sent;
@@ -289,7 +291,7 @@ export async function migrateCoachEnrolments(database: Pool) {
 /** Partner applications are personal data too; include the original professional PDF, never a notice claim or IP hash. */
 export async function coachEnrolmentsOf(database: Queryable, candidateId: string) {
   const { rows } = await database.query<Enrolment & { proof: Buffer }>(
-    `SELECT ${COLUMNS},proof FROM coach_enrolment WHERE candidate_id=$1 OR (state='awaiting_email' AND email=(SELECT email FROM candidate WHERE id=$1)) ORDER BY created_at,id`,
+    `SELECT ${COLUMNS},proof FROM coach_enrolment WHERE (candidate_id=$1 AND state!='awaiting_email') OR (state='awaiting_email' AND email=(SELECT email FROM candidate WHERE id=$1 AND "emailVerified")) ORDER BY created_at,id`,
     [candidateId],
   );
   return rows.map(({ proof, ...record }) => ({

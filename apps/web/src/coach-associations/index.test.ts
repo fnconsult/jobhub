@@ -171,6 +171,18 @@ describe.skipIf(!connectionString)("Association business workspace without Candi
     expect(result.filter((r) => !r.ok && r.error === "conflict")).toHaveLength(1);
     expect((await auth.database.query("SELECT * FROM coach_association_coach WHERE removed_at IS NULL")).rows).toHaveLength(1);
   });
+  it("does not export invitations or Coach membership through an unverified email-only match", async () => {
+    const pending = await invite();
+    await auth.database.query('UPDATE candidate SET "emailVerified"=false WHERE id=$1', [coach.id]);
+    expect((await associationDataOf(auth.database, coach.id)).invitationsReceived).toEqual([]);
+    await auth.database.query('UPDATE candidate SET "emailVerified"=true WHERE id=$1', [coach.id]);
+    await associations.accept(coach, pending.id, pending.token);
+    expect((await associationDataOf(auth.database, coach.id)).coachMemberships).toHaveLength(1);
+    await auth.database.query('UPDATE candidate SET "emailVerified"=false WHERE id=$1', [coach.id]);
+    const exported = await associationDataOf(auth.database, coach.id);
+    expect(exported.coachMemberships).toEqual([]);
+    expect(exported.invitationsReceived).toEqual([expect.objectContaining({ id: pending.id })]);
+  });
   it("does not starve later invitations when the oldest recipient fails and exports no token or other recipient's contact", async () => {
     const first = await associations.invite(manager, id, { role: "coach", name: "First", email: coach.email });
     clock = new Date(+clock + 1000);

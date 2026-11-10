@@ -5,7 +5,7 @@ import { createHumanCoaches } from "../human-coaches";
 import { createProfiles } from "../profiles";
 import { createApplications } from "../applications";
 import { createJobOffers } from "../job-offers";
-import { coachEnrolments, type EnrolmentPerson } from "./index";
+import { coachEnrolments, coachEnrolmentsOf, type EnrolmentPerson } from "./index";
 const input = {
   kind: "coach",
   contactName: "Sophie Martin",
@@ -75,6 +75,18 @@ describe.skipIf(!connectionString)("email-owned Coach Enrolment", () => {
     expect((await enrolments.proof(id))?.bytes).toEqual(proof.bytes);
     expect(await enrolments.withdraw(person, id)).toBe(true);
     expect(await enrolments.owned(person, id)).toBeNull();
+  });
+  it("exports an awaiting proof only to its verified current email owner, while preserving confirmed account ownership", async () => {
+    const id = await submitted();
+    await auth.database.query('UPDATE candidate SET "emailVerified"=false WHERE id=$1', [person.id]);
+    expect(await coachEnrolmentsOf(auth.database, person.id)).toEqual([]);
+    expect(await enrolments.owned({ ...person, email: "new-address@example.test" }, id)).toBeNull();
+    expect(await enrolments.withdraw({ ...person, email: "new-address@example.test" }, id)).toBe(false);
+    await auth.database.query('UPDATE candidate SET "emailVerified"=true WHERE id=$1', [person.id]);
+    expect(await coachEnrolmentsOf(auth.database, person.id)).toHaveLength(1);
+    await enrolments.confirm(person, id);
+    await auth.database.query('UPDATE candidate SET "emailVerified"=false WHERE id=$1', [person.id]);
+    expect(await coachEnrolmentsOf(auth.database, person.id)).toEqual([expect.objectContaining({ id, state: "pending" })]);
   });
   it("deduplicates concurrent email submissions without another confirmation or identity", async () => {
     const results = await Promise.all([enrolments.submit(input, proof), enrolments.submit(input, proof)]);

@@ -377,11 +377,11 @@ export async function migrateCoachAssociations(database: Pool) {
 export async function associationDataOf(database: Queryable, candidateId: string) {
   const [coaches, received, sent, activity] = await Promise.all([
     database.query(
-      `SELECT a.id AS "associationId",a.name,m.joined_at AS "joinedAt",m.removed_at AS "removedAt" FROM coach_association_coach m JOIN coach_association a ON a.id=m.association_id JOIN human_coach h ON h.id=m.coach_id JOIN candidate c ON lower(c.email)=h.email WHERE c.id=$1 ORDER BY m.joined_at,a.id`,
+      `SELECT a.id AS "associationId",a.name,m.joined_at AS "joinedAt",m.removed_at AS "removedAt" FROM coach_association_coach m JOIN coach_association a ON a.id=m.association_id JOIN human_coach h ON h.id=m.coach_id JOIN candidate c ON lower(c.email)=h.email WHERE c.id=$1 AND c."emailVerified" ORDER BY m.joined_at,a.id`,
       [candidateId],
     ),
     database.query(
-      `SELECT i.id,i.association_id AS "associationId",a.name AS "associationName",i.role,i.name,i.email,i.created_at AS "createdAt",i.expires_at AS "expiresAt",i.accepted_at AS "acceptedAt",i.cancelled_at AS "cancelledAt" FROM coach_association_invitation i JOIN coach_association a ON a.id=i.association_id JOIN candidate c ON lower(c.email)=i.email OR c.id=i.recipient_id WHERE c.id=$1 ORDER BY i.created_at,i.id`,
+      `SELECT i.id,i.association_id AS "associationId",a.name AS "associationName",i.role,i.name,i.email,i.created_at AS "createdAt",i.expires_at AS "expiresAt",i.accepted_at AS "acceptedAt",i.cancelled_at AS "cancelledAt" FROM coach_association_invitation i JOIN coach_association a ON a.id=i.association_id JOIN candidate c ON (lower(c.email)=i.email AND c."emailVerified") OR c.id=i.recipient_id WHERE c.id=$1 ORDER BY i.created_at,i.id`,
       [candidateId],
     ),
     database.query(

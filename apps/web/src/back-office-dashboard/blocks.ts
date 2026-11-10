@@ -3,9 +3,10 @@ import type { BackOfficeAccess, BackOfficeResource } from "../admin/access";
 /**
  * The Back Office Dashboard's blocks, in order, each with the section whose readers see it (ADR-0042): an
  * Administrator who cannot read that section sees none of its figures. `jobDiscovery`: web search and Job
- * discovery consumption and budget, read with Consommation IA.
+ * discovery consumption and budget, read with Consommation IA; `extension`: the Extension card (#925), what the
+ * extension did and what failed over 30 days, read with Activité › Extension.
  */
-const BLOCKS = { jobDiscovery: "aiUsage" } as const satisfies Record<string, BackOfficeResource>;
+const BLOCKS = { jobDiscovery: "aiUsage", extension: "extensionEvents" } as const satisfies Record<string, BackOfficeResource>;
 
 export type DashboardBlock = keyof typeof BLOCKS;
 

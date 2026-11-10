@@ -1,7 +1,15 @@
 import { sharedPool } from "@/database/pool";
+import { createExtensionEventsBackOffice, type ExtensionEventsBackOffice } from "./back-office";
 import { createExtensionEvents, extensionCallFrom, type ExtensionCall, type ExtensionEvents } from "./index";
 
 let instance: ExtensionEvents | undefined;
+let backOffice: ExtensionEventsBackOffice | undefined;
+
+/** The Extension Events as the Back Office reads them (#925): Activité › Extension and the Dashboard's Extension card. */
+export function getExtensionEventsBackOffice(): ExtensionEventsBackOffice {
+  backOffice ??= createExtensionEventsBackOffice(sharedPool());
+  return backOffice;
+}
 
 /** The app's Extension Events (#924), on the database named by DATABASE_URL: what POST /api/extension/events records. */
 export function getExtensionEvents(): ExtensionEvents {

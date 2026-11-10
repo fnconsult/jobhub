@@ -93,91 +93,90 @@ export async function ExtensionBlock({ figures, locale }: { figures: ExtensionDa
         ))}
       </Stats>
 
-      <div className="dashboard-pair">
-        <FigureCard className="chart" caption={t("admin.dashboard.extension.capturesTitle")}>
-          {hasCaptures ? (
-            <>
-              <ul className="chart-legend">
-                <li>
-                  <span className="chart-swatch chart-series-1" aria-hidden="true" />
-                  {candidates}
-                </li>
-                <li>
-                  <span className="chart-swatch chart-series-2" aria-hidden="true" />
-                  {guests}
-                </li>
-              </ul>
-              <ChartTips label={t("admin.dashboard.extension.capturesTitle")}>
-                <div className="chart-plot">
-                  {axis(capturesTop)}
-                  <div className="chart-columns" style={columns}>
-                    {days.map((day, index) => (
-                      <div
-                        key={day.day}
-                        className="chart-column"
-                        tabIndex={index === days.length - 1 ? 0 : -1}
-                        {...tipOf([dayLabel(day.day), `${candidates} ${number.format(day.captures.candidate)}`, `${guests} ${number.format(day.captures.guest)}`])}
-                      >
-                        {day.captures.candidate > 0 ? <span className="chart-segment chart-series-1" style={{ height: `${(day.captures.candidate / capturesTop) * 100}%` }} /> : null}
-                        {day.captures.guest > 0 ? <span className="chart-segment chart-series-2" style={{ height: `${(day.captures.guest / capturesTop) * 100}%` }} /> : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {xTicks}
-              </ChartTips>
-            </>
-          ) : (
-            <p>{t("admin.dashboard.extension.noActivity")}</p>
-          )}
-          <TableView
-            t={t}
-            caption={t("admin.dashboard.extension.capturesTitle")}
-            columns={[
-              { header: t("admin.dashboard.extension.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{dayLabel(day.day)}</time> },
-              { header: candidates, numeric: true, cell: (day) => number.format(day.captures.candidate) },
-              { header: guests, numeric: true, cell: (day) => number.format(day.captures.guest) },
-              { header: t("admin.dashboard.extension.matchScores"), numeric: true, cell: (day) => number.format(day.matchScores) },
-              { header: t("admin.dashboard.extension.applications"), numeric: true, cell: (day) => number.format(day.applications) },
-              { header: t("admin.dashboard.extension.activeCandidates"), numeric: true, cell: (day) => number.format(day.activeCandidates) },
-              { header: t("admin.dashboard.extension.versions"), cell: (day) => day.versions.join(", ") },
-              { header: t("admin.dashboard.extension.errors"), numeric: true, cell: (day) => number.format(day.errors) },
-            ]}
-            rows={days}
-            rowKey={(day) => day.day}
-          />
-        </FigureCard>
-
-        <FigureCard className="chart" caption={t("admin.dashboard.extension.errorsTitle")}>
-          {hasErrors ? (
-            <ChartTips label={t("admin.dashboard.extension.errorsTitle")}>
+      {/* The daily charts take the whole width: the Captures' table view holds every daily figure. */}
+      <FigureCard className="chart" caption={t("admin.dashboard.extension.capturesTitle")}>
+        {hasCaptures ? (
+          <>
+            <ul className="chart-legend">
+              <li>
+                <span className="chart-swatch chart-series-1" aria-hidden="true" />
+                {candidates}
+              </li>
+              <li>
+                <span className="chart-swatch chart-series-2" aria-hidden="true" />
+                {guests}
+              </li>
+            </ul>
+            <ChartTips label={t("admin.dashboard.extension.capturesTitle")}>
               <div className="chart-plot">
-                {axis(errorsTop)}
+                {axis(capturesTop)}
                 <div className="chart-columns" style={columns}>
                   {days.map((day, index) => (
-                    <div key={day.day} className="chart-column" tabIndex={index === days.length - 1 ? 0 : -1} {...tipOf([dayLabel(day.day), `${t("admin.dashboard.extension.errors")} ${number.format(day.errors)}`])}>
-                      {day.errors > 0 ? <span className="chart-segment chart-series-1" style={{ height: `${(day.errors / errorsTop) * 100}%` }} /> : null}
+                    <div
+                      key={day.day}
+                      className="chart-column"
+                      tabIndex={index === days.length - 1 ? 0 : -1}
+                      {...tipOf([dayLabel(day.day), `${candidates} ${number.format(day.captures.candidate)}`, `${guests} ${number.format(day.captures.guest)}`])}
+                    >
+                      {day.captures.candidate > 0 ? <span className="chart-segment chart-series-1" style={{ height: `${(day.captures.candidate / capturesTop) * 100}%` }} /> : null}
+                      {day.captures.guest > 0 ? <span className="chart-segment chart-series-2" style={{ height: `${(day.captures.guest / capturesTop) * 100}%` }} /> : null}
                     </div>
                   ))}
                 </div>
               </div>
               {xTicks}
             </ChartTips>
-          ) : (
-            <p>{t("admin.dashboard.extension.noActivity")}</p>
-          )}
-          <TableView
-            t={t}
-            caption={t("admin.dashboard.extension.errorsTitle")}
-            columns={[
-              { header: t("admin.dashboard.extension.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{dayLabel(day.day)}</time> },
-              { header: t("admin.dashboard.extension.errors"), numeric: true, cell: (day) => number.format(day.errors) },
-            ]}
-            rows={days}
-            rowKey={(day) => day.day}
-          />
-        </FigureCard>
-      </div>
+          </>
+        ) : (
+          <p>{t("admin.dashboard.extension.noActivity")}</p>
+        )}
+        <TableView
+          t={t}
+          caption={t("admin.dashboard.extension.capturesTitle")}
+          columns={[
+            { header: t("admin.dashboard.extension.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{dayLabel(day.day)}</time> },
+            { header: candidates, numeric: true, cell: (day) => number.format(day.captures.candidate) },
+            { header: guests, numeric: true, cell: (day) => number.format(day.captures.guest) },
+            { header: t("admin.dashboard.extension.matchScores"), numeric: true, cell: (day) => number.format(day.matchScores) },
+            { header: t("admin.dashboard.extension.applications"), numeric: true, cell: (day) => number.format(day.applications) },
+            { header: t("admin.dashboard.extension.activeCandidates"), numeric: true, cell: (day) => number.format(day.activeCandidates) },
+            { header: t("admin.dashboard.extension.versions"), cell: (day) => day.versions.join(", ") },
+            { header: t("admin.dashboard.extension.errors"), numeric: true, cell: (day) => number.format(day.errors) },
+          ]}
+          rows={days}
+          rowKey={(day) => day.day}
+        />
+      </FigureCard>
+
+      <FigureCard className="chart" caption={t("admin.dashboard.extension.errorsTitle")}>
+        {hasErrors ? (
+          <ChartTips label={t("admin.dashboard.extension.errorsTitle")}>
+            <div className="chart-plot">
+              {axis(errorsTop)}
+              <div className="chart-columns" style={columns}>
+                {days.map((day, index) => (
+                  <div key={day.day} className="chart-column" tabIndex={index === days.length - 1 ? 0 : -1} {...tipOf([dayLabel(day.day), `${t("admin.dashboard.extension.errors")} ${number.format(day.errors)}`])}>
+                    {day.errors > 0 ? <span className="chart-segment chart-series-1" style={{ height: `${(day.errors / errorsTop) * 100}%` }} /> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {xTicks}
+          </ChartTips>
+        ) : (
+          <p>{t("admin.dashboard.extension.noActivity")}</p>
+        )}
+        <TableView
+          t={t}
+          caption={t("admin.dashboard.extension.errorsTitle")}
+          columns={[
+            { header: t("admin.dashboard.extension.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{dayLabel(day.day)}</time> },
+            { header: t("admin.dashboard.extension.errors"), numeric: true, cell: (day) => number.format(day.errors) },
+          ]}
+          rows={days}
+          rowKey={(day) => day.day}
+        />
+      </FigureCard>
 
       <div className="dashboard-pair">
         <FigureCard className="chart" caption={t("admin.dashboard.extension.versionsTitle")}>

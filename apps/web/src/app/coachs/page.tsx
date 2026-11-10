@@ -143,7 +143,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                 <ExternalLink className="button button-primary" href={paid.coach.bookingUrl}>
                   {t("humanCoaches.pickSlot", { name: paid.coach.name })}
                 </ExternalLink>
-                <CoachingSessionDialog withVideoLink={meetings===null} session={{ id: paid.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={paid.coach.name} />
+                <CoachingSessionDialog withVideoLink={meetings===null} session={{ id: paid.id, scheduledAt: "", durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }} withName={paid.coach.name} />
               </div>
             </li>
           ),
@@ -172,7 +172,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
             <li key={coach.id} className="stack">
               <h3>{coach.name}</h3>
               {offers.get(coach.id)?<SellerInfo seller={offers.get(coach.id)!.seller} t={t}/>:null}
-              {offers.get(coach.id)?<p>{t("humanCoaches.price",{price:money(offers.get(coach.id)!.amount,offers.get(coach.id)!.currency)})} · {t("humanCoaches.sessionDuration",{count:offers.get(coach.id)!.durationMinutes})}</p>:null}
+              {offers.get(coach.id)?<p>{money(offers.get(coach.id)!.amount,offers.get(coach.id)!.currency)} · {t("humanCoaches.sessionDuration",{count:offers.get(coach.id)!.durationMinutes})}</p>:null}
               {coach.bio ? <p>{coach.bio}</p> : null}
               {offers.get(coach.id) ? (
                 // To the Order page (#512): its summary and boxes come before Stripe Checkout.

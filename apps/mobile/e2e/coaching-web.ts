@@ -142,9 +142,9 @@ export function serveCoaching(web: ReturnType<typeof fakeWebApp>, email: string)
             ? {
                 ...session,
                 scheduledAt: fromParis(body.scheduledAt as string),
-                durationMinutes: (body.durationMinutes as number | null) ?? null,
-                videoLink: (body.videoLink as string) || null,
-                note: (body.note as string) || null,
+                ...(body.durationMinutes!==undefined?{durationMinutes:(body.durationMinutes as number|null)??null}:{}),
+                ...(body.videoLink!==undefined?{videoLink:(body.videoLink as string)||null}:{}),
+                ...(body.note!==undefined?{note:(body.note as string)||null}:{}),
                 changedBy: "candidate",
               }
             : session,

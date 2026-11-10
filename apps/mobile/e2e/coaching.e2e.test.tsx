@@ -327,7 +327,7 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
     await user.type(field(TIME), "15:00");
     await user.press(button("Enregistrer"));
 
-    expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00", durationMinutes: 60, videoLink: "https://meet.google.com/exemple", note: "Préparer l'entretien Aéroline" } }]);
+    expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00" } }]);
     expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00 (Europe/Paris)")).toBeOnTheScreen();
   });
 

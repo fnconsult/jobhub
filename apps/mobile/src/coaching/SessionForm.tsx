@@ -37,12 +37,23 @@ interface Typed {
 }
 
 /**
- * Saves the Coaching Session's date (`PATCH /api/coaching/sessions/:id`, ADR-0027): all four fields replaced, as the
+ * Saves the Coaching Session's date (`PATCH /api/coaching/sessions/:id`, ADR-0027): only edited optional fields sent, as the
  * web's form sends them. The web app's refusals by field, or `failed` when it could not be reached or failed.
  */
-async function saveSession(api: ApiFetch, id: string, typed: Typed): Promise<{ ok: true } | { ok: false; errors: FieldError[] } | { ok: false; failed: true }> {
+async function saveSession(
+  api: ApiFetch,
+  id: string,
+  typed: Typed,
+  initial: Typed,
+  withVideoLink: boolean,
+): Promise<{ ok: true } | { ok: false; errors: FieldError[] } | { ok: false; failed: true }> {
   const duration = typed.duration.trim();
-  const body = { scheduledAt: wallClockOf(typed.date, typed.time), durationMinutes: duration === "" ? null : Number(duration), videoLink: typed.videoLink.trim(), note: typed.note };
+  const body = {
+    scheduledAt: wallClockOf(typed.date, typed.time),
+    ...(typed.duration !== initial.duration ? { durationMinutes: duration === "" ? null : Number(duration) } : {}),
+    ...(withVideoLink && typed.videoLink !== initial.videoLink ? { videoLink: typed.videoLink.trim() } : {}),
+    ...(typed.note !== initial.note ? { note: typed.note } : {}),
+  };
   try {
     const response = await api(`/api/coaching/sessions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) });
     if (response.ok) return { ok: true };
@@ -64,7 +75,13 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
   const api = useApi();
   const online = useOnline();
   const at = session.scheduledAt ? inFrenchTime(session.scheduledAt) : { date: "", time: "" };
-  const [typed, setTyped] = useState<Typed>({ ...at, duration: session.durationMinutes === null ? "" : String(session.durationMinutes), videoLink: session.videoLink ?? "", note: session.note ?? "" });
+  const [initial] = useState<Typed>({
+    ...at,
+    duration: session.durationMinutes === null ? "" : String(session.durationMinutes),
+    videoLink: session.videoLink ?? "",
+    note: session.note ?? "",
+  });
+  const [typed, setTyped] = useState<Typed>(initial);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [failed, setFailed] = useState(false);
   const [working, setWorking] = useState(false);
@@ -82,7 +99,7 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
   const save = async () => {
     setWorking(true);
     setFailed(false);
-    const saved = await saveSession(api, session.id, typed);
+    const saved = await saveSession(api, session.id, typed, initial, session.meeting === undefined);
     setWorking(false);
     if (saved.ok) return onSaved();
     if ("errors" in saved) setErrors(saved.errors);
@@ -101,12 +118,26 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
       </View>
       <FieldError message={refused.scheduledAt} />
       <Field label={t("coachingSession.duration")} value={typed.duration} onChangeText={change.duration} {...NUMBER_KEYS} error={refused.durationMinutes} />
-      {session.meeting===undefined?<Field label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} value={typed.videoLink} onChangeText={change.videoLink} {...LINK_KEYS} error={refused.videoLink} />:null}
+      {session.meeting === undefined ? (
+        <Field
+          label={t("coachingSession.videoLink")}
+          hint={t("coachingSession.videoLinkHint")}
+          value={typed.videoLink}
+          onChangeText={change.videoLink}
+          {...LINK_KEYS}
+          error={refused.videoLink}
+        />
+      ) : null}
       <Field label={t("coachingSession.note")} value={typed.note} onChangeText={change.note} multiline maxLength={500} error={refused.note} />
       {failed ? <FieldError message={t("coachingSession.error")} /> : null}
       {online ? null : <AppText tone="secondary">{t("mobile.offline.writeDisabled")}</AppText>}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
-        <Control look="primary" label={working ? t("coachingSession.working") : t("coachingSession.save")} disabled={working || !online} onPress={() => void save()} />
+        <Control
+          look="primary"
+          label={working ? t("coachingSession.working") : t("coachingSession.save")}
+          disabled={working || !online}
+          onPress={() => void save()}
+        />
         <Control label={t("coachingSession.cancel")} onPress={onCancel} />
       </View>
     </View>

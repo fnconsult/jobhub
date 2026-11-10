@@ -238,7 +238,7 @@ export interface HumanCoaches {
   /**
    * The Candidate enters or edits the date of one of their own Coaching Sessions, booked on the
    * Human Coach's Cal.com page (ADR-0027). `input` is untrusted: { scheduledAt (French time without
-   * an offset), durationMinutes?, videoLink? (http or https), note? }; it replaces all four.
+   * an offset), durationMinutes?, videoLink? (http or https), note? }; only supplied optional fields change.
    * "not_found" for anyone else's session. A Candidate never deletes a Coaching Session.
    */
   scheduleSession(candidateId: string, sessionId: string, input: unknown): Promise<ScheduleSessionResult>;
@@ -252,7 +252,7 @@ export interface HumanCoaches {
   /**
    * The (not retired) Human Coach enters or corrects the date of one of their own Coaching Sessions
    * (ADR-0027). `input` is untrusted: { scheduledAt (French time without an offset), durationMinutes?,
-   * videoLink? (http or https) }; it replaces those three and keeps the Candidate's note. The change is
+   * videoLink? (http or https) }; only supplied optional fields change and it keeps the Candidate's note. The change is
    * recorded as the coach's. "not_found" for another coach's session, or for a Retired Human Coach.
    */
   scheduleCoachedSession(coachId: string, sessionId: string, input: unknown): Promise<ScheduleCoachedSessionResult>;
@@ -325,9 +325,9 @@ const scheduleSchema = z.object({
   durationMinutes: z
     .union([z.number().int().min(5).max(600), z.literal("")])
     .nullish()
-    .transform((value) => (typeof value === "number" ? value : null)),
-  videoLink: optionalText(500).refine((value) => value === null || isWebLink(value)),
-  note: optionalText(500),
+    .transform((value) => (typeof value === "number" ? value : null)).optional(),
+  videoLink: optionalText(500).refine((value) => value === null || isWebLink(value)).optional(),
+  note: optionalText(500).optional(),
 });
 
 /** What a Human Coach enters: the Candidate's note is not theirs to change. */
@@ -505,7 +505,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   async function setSessionDate(
     sessionId: string,
     owned: { where: string; params: unknown[] },
-    change: { to: Date | null; by: RescheduledBy; fields?: { durationMinutes: number | null; videoLink: string | null; note?: string | null } },
+    change: { to: Date | null; by: RescheduledBy; fields?: { durationMinutes?: number | null|undefined; videoLink?: string | null|undefined; note?: string | null|undefined } },
   ): Promise<boolean> {
     const set = await inTransaction(database, async (client) => {
       const { rows } = await client.query<{ scheduled_at: Date | null; candidate_id: string; coach_id: string }>(
@@ -515,12 +515,8 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       const session = rows[0];
       if (!session) return null;
       if (change.fields) {
-        const { durationMinutes, videoLink, note } = change.fields;
-        if (note === undefined) {
-          await client.query(`UPDATE coaching_session SET duration_minutes = $2, video_link = $3 WHERE id = $1`, [sessionId, durationMinutes, videoLink]);
-        } else {
-          await client.query(`UPDATE coaching_session SET duration_minutes = $2, video_link = $3, note = $4 WHERE id = $1`, [sessionId, durationMinutes, videoLink, note]);
-        }
+        const updates=([['duration_minutes',change.fields.durationMinutes],['video_link',change.fields.videoLink],['note',change.fields.note]] as const).filter(([,value])=>value!==undefined);
+        if(updates.length)await client.query(`UPDATE coaching_session SET ${updates.map(([column],index)=>`${column}=$${index+2}`).join(',')} WHERE id=$1`,[sessionId,...updates.map(([,value])=>value)]);
       }
       const changed = await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: change.to, by: change.by, now: now() });
       // Who last entered or changed the date (« modifié par le coach »), kept beside the Reschedule history.

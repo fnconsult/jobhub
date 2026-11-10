@@ -19,3 +19,5 @@ The candidate finds the date and the link in their agenda, marked « changed by 
 In the new Coach space, open “My sessions”, then the session. “Edit date” and “Enter date” keep the same fields and history. “This session’s contact” also lets you enter an HTTPS link or phone number; it overrides your permanent contact for this session only.
 
 In the new Coach space, manage joining details in the session’s contact section. The date drawer retains rescheduling and provides date and duration without a second link field that could contradict that contact. The page updates its phase and opens or closes Shared Reading at the session boundaries.
+
+Changing the date preserves the session’s other details unless you explicitly edit them. Joining details changed by your coach while the drawer stays open are preserved.

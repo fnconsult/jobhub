@@ -100,6 +100,19 @@ describe.skipIf(!connectionString)("the coach's private workspace", () => {
     await auth.database.query("DELETE FROM candidate WHERE id=$1", [candidateId]);
     expect((await auth.database.query("SELECT * FROM private_coach_note")).rows).toEqual([]);
   });
+  it("preserves a pre-date video contact and a newer contact when a stale form saves only the date",async()=>{
+    const profiles=createProfiles(auth.database);
+    const humans=createHumanCoaches(auth.database,{profiles,applications:createApplications(auth.database,{profiles,jobOffers:createJobOffers(auth.database)}),tailoredDocuments:{get:async()=>null},tailoredCvs:{get:async()=>null}});
+    const contacts=coachContacts(auth.database);const first="https://meet.google.com/aaa-bbbb-ccc",second="https://meet.google.com/ddd-eeee-fff";
+    await auth.database.query("UPDATE coaching_session SET scheduled_at=NULL,duration_minutes=90,note='Private reminder' WHERE id=$1",[sessionId]);
+    await contacts.save(coachId,sessionId,{kind:"video",target:first});
+    expect((await humans.scheduleSession(candidateId,sessionId,{scheduledAt:"2026-11-11T12:00"})).ok).toBe(true);
+    expect(await contacts.ofSession(coachId,sessionId)).toMatchObject({target:first});
+    await contacts.save(coachId,sessionId,{kind:"video",target:second});
+    expect((await humans.scheduleSession(candidateId,sessionId,{scheduledAt:"2026-11-12T12:00"})).ok).toBe(true);
+    expect(await contacts.ofSession(coachId,sessionId)).toMatchObject({target:second});
+    expect((await humans.sessions(candidateId))[0]).toMatchObject({durationMinutes:90,videoLink:second,note:"Private reminder"});
+  });
   it("retires a stale v2 contact atomically when a legacy client changes the session video link",async()=>{
     const contacts=coachContacts(auth.database);
     const first="https://meet.google.com/aaa-bbbb-ccc",second="https://meet.google.com/ddd-eeee-fff";

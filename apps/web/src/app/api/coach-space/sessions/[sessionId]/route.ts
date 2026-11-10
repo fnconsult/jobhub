@@ -5,7 +5,7 @@ import { getHumanCoaches } from "@/human-coaches/server";
 /**
  * The signed-in Human Coach enters or corrects the date of one of their own Coaching Sessions, from
  * the Coach space (ADR-0027). Body: { scheduledAt (French time without an offset), durationMinutes?,
- * videoLink? (http or https) }; it replaces those three and keeps the Candidate's note. No Coach Access
+ * videoLink? (http or https) }; only supplied optional fields change and it keeps the Candidate's note. No Coach Access
  * is needed: the session is the relationship.
  * 200 { id } · 400 { errors } · 401 · 403 · 404 (not a Human Coach, retired, or not their session).
  */

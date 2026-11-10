@@ -352,7 +352,7 @@ export function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: U
               <ExternalLink className={buttonClass({ variant: "primary" })} href={session.coach.bookingUrl}>
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
               </ExternalLink>
-              <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
+              <CoachingSessionDialog withVideoLink={!formats.meetings} session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
               {withdrawable.has(session.id) ? <WithdrawalLink sessionId={session.id} coachName={session.coach.name} t={t} /> : null}
             </div>
           </li>
@@ -400,7 +400,7 @@ function CoachingSessionItem({ item, scope, past, withdrawable, formats, t }: { 
         </span>
       </Link>
       {formats.meetings ? <MeetingLink meeting={formats.meetings[item.id] ?? null} scheduledAt={item.scheduledAt.toISOString()} durationMinutes={item.durationMinutes ?? null} timeZone={formats.coachingZone} /> : null}
-      <CoachingSessionDialog
+      <CoachingSessionDialog withVideoLink={!formats.meetings}
         session={{ id: item.id, scheduledAt: interviewWallClock(item.scheduledAt), durationMinutes: item.durationMinutes ?? null, videoLink: item.videoLink ?? null, note: item.note ?? null }}
         withName={item.coach.name}
         className={buttonClass({ variant: "quiet" })}

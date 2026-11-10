@@ -5,7 +5,7 @@ import { getHumanCoaches } from "@/human-coaches/server";
 /**
  * The Candidate enters or edits the date of one of their own Coaching Sessions, booked on the
  * Human Coach's Cal.com page (ADR-0027). Body: { scheduledAt (French time without an offset),
- * durationMinutes?, videoLink? (http or https), note? }; it replaces all four.
+ * durationMinutes?, videoLink? (http or https), note? }; only supplied optional fields change.
  * 200 { id } · 400 { errors } · 401 · 403 · 404 (no such session of this Candidate).
  * There is no DELETE: a Candidate never deletes a Coaching Session.
  */

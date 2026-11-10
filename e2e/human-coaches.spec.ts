@@ -835,7 +835,7 @@ test.describe("isolated Human Coach workspace v2", () => {
       await sellerForm.getByLabel(fr.coachingOffers.siretLabel, { exact: true }).fill("12345678901234");
       await sellerForm.getByLabel(fr.coachingOffers.commission).fill("1750");
       await sellerForm.getByRole("button", { name: fr.coachingOffers.addSeller, exact: true }).click();
-      await expect(admin.getByRole("heading",{name:"Sophie Conseil",exact:true})).toBeVisible();
+      await expect(admin.getByRole("heading", { name: "Sophie Conseil", exact: true })).toBeVisible();
       const sellerId = (await database.query("SELECT id FROM coaching_seller WHERE coach_id=$1", [coachId])).rows[0].id;
       expect((await database.query(`SELECT after FROM back_office_audit WHERE target=$1 AND action='added'`, [sellerId])).rows[0].after).toMatchObject({
         commissionBps: 1750,
@@ -906,6 +906,23 @@ test.describe("isolated Human Coach workspace v2", () => {
       await expect(coachPage.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
       await page.goto("/coachs");
       await expect(page.getByRole("link", { name: fr.coachMeeting.join.meet })).toBeVisible();
+      // A stale date-only drawer must not send its hidden link over the coach's newer contact.
+      await page.getByRole("button", { name: tr(fr.coachingSession.editFor, { name: coach.name }), exact: true }).click();
+      const dateDrawer = page.getByRole("dialog", { name: tr(fr.coachingSession.title, { name: coach.name }) });
+      await expect(dateDrawer.getByLabel(fr.coachingSession.videoLink)).toHaveCount(0);
+      await coachPage.getByLabel(fr.coachMeeting.target).fill("https://meet.google.com/new-link-now");
+      await coachPage.getByRole("button", { name: fr.coachMeeting.save }).click();
+      await expect
+        .poll(async () => (await database.query("SELECT video_link FROM coaching_session WHERE id=$1", [session.id])).rows[0].video_link)
+        .toBe("https://meet.google.com/new-link-now");
+      const dateWrite = page.waitForRequest(
+        (request) => request.method() === "PATCH" && new URL(request.url()).pathname === `/api/coaching/sessions/${session.id}`,
+      );
+      await dateDrawer.getByRole("button", { name: fr.coachingSession.save, exact: true }).click();
+      expect((await dateWrite).postDataJSON()).not.toHaveProperty("videoLink");
+      await expect(dateDrawer).not.toBeVisible();
+      await expect(page.getByRole("link", { name: fr.coachMeeting.join.meet })).toHaveAttribute("href", exitHref("https://meet.google.com/new-link-now"));
+
       // Keep both pages open across the window boundary: no navigation or manual reload to enter reading.
       await database.query("UPDATE coaching_session SET scheduled_at=now()+interval '10 minutes 3 seconds' WHERE id=$1", [session.id]);
       await coachPage.goto(`/espace-coach/seances/${session.id}`);
@@ -947,10 +964,10 @@ test.describe("isolated Human Coach workspace v2", () => {
       await expect(page.locator(".shared-reading .ds-viewer canvas").first()).toBeVisible();
       await expect(page.locator(".shared-reading").getByRole("link", { name: fr.designSystem.viewer.download, exact: true })).toHaveCount(0);
       const pdfShareId = (await database.query("SELECT id FROM shared_reading WHERE session_id=$1", [session.id])).rows[0].id;
-      await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '60 minutes'+interval '3 seconds' WHERE id=$1",[session.id]);
+      await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '60 minutes'+interval '3 seconds' WHERE id=$1", [session.id]);
       await coachPage.reload();
-      await expect(coachPage.getByRole("heading",{name:fr.coachWorkspace.phase.during,exact:true})).toBeVisible();
-      await expect(coachPage.getByRole("heading",{name:fr.coachWorkspace.phase.after,exact:true})).toBeVisible({timeout:10000});
+      await expect(coachPage.getByRole("heading", { name: fr.coachWorkspace.phase.during, exact: true })).toBeVisible();
+      await expect(coachPage.getByRole("heading", { name: fr.coachWorkspace.phase.after, exact: true })).toBeVisible({ timeout: 10000 });
       await expect(coachPage.getByLabel(fr.coachReports.covered)).toBeVisible();
       await expect(coachPage.locator(".shared-reading")).toBeVisible();
 

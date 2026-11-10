@@ -19,3 +19,5 @@ Le candidat retrouve la date et le lien dans son agenda, avec la mention « modi
 Dans le nouvel espace coach, ouvrez d’abord « Mes séances », puis la séance. « Modifier la date » et « Saisir la date » gardent les mêmes champs et l’historique. « Contact de cette séance » vous permet aussi d’indiquer un lien HTTPS ou un téléphone ; il remplace votre contact permanent pour cette séance seulement.
 
 Dans le nouvel Espace coach, le lien de connexion se règle dans la rubrique de contact de la séance. Le tiroir de date conserve les reports et propose la date et la durée, sans second champ de lien qui pourrait contredire ce contact. La page change automatiquement de phase et ouvre ou ferme la lecture partagée aux limites de la séance.
+
+Modifier la date conserve les autres détails de la séance, sauf ceux que vous modifiez expressément. Un contact changé par votre coach pendant que le tiroir reste ouvert est conservé.

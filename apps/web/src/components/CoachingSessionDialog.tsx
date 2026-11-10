@@ -52,7 +52,7 @@ export function CoachingSessionDialog({
   session: CoachingSessionFields;
   withName: string;
   editor?: SessionEditor;
-  withVideoLink?:boolean;
+  withVideoLink?: boolean;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -93,13 +93,14 @@ function CoachingSessionForm({
 }: {
   session: CoachingSessionFields;
   editor: SessionEditor;
-  withVideoLink:boolean;
+  withVideoLink: boolean;
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
+  const [initial] = useState(session);
   const [scheduledAt, setScheduledAt] = useState(session.scheduledAt);
   const [durationMinutes, setDurationMinutes] = useState(session.durationMinutes === null ? "" : String(session.durationMinutes));
   const [videoLink, setVideoLink] = useState(session.videoLink ?? "");
@@ -115,11 +116,17 @@ function CoachingSessionForm({
     let response: Response | null = null;
     try {
       // A datetime-local value ("2026-11-12T14:30") is French time: the app reads it so.
-      const fields = { scheduledAt, durationMinutes: durationMinutes.trim() === "" ? null : Number(durationMinutes), videoLink };
+      const fields = {
+        scheduledAt,
+        ...(durationMinutes !== (initial.durationMinutes === null ? "" : String(initial.durationMinutes))
+          ? { durationMinutes: durationMinutes.trim() === "" ? null : Number(durationMinutes) }
+          : {}),
+        ...(withVideoLink && videoLink !== (initial.videoLink ?? "") ? { videoLink } : {}),
+      };
       response = await fetch(ENDPOINT[editor](session.id), {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(editor === "candidate" ? { ...fields, note } : fields),
+        body: JSON.stringify(editor === "candidate" && note !== (initial.note ?? "") ? { ...fields, note } : fields),
       });
     } catch {
       response = null;
@@ -152,11 +159,21 @@ function CoachingSessionForm({
         <TextInput type="datetime-local" required value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
       </Field>
       <Field id={`${id}-duration`} label={t("coachingSession.duration")} error={durationError?.text}>
-        <TextInput type="number" inputMode="numeric" min={5} max={600} step={5} value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} />
+        <TextInput
+          type="number"
+          inputMode="numeric"
+          min={5}
+          max={600}
+          step={5}
+          value={durationMinutes}
+          onChange={(event) => setDurationMinutes(event.target.value)}
+        />
       </Field>
-      {withVideoLink?<Field id={`${id}-video`} label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} error={videoLinkError?.text}>
-        <TextInput type="url" inputMode="url" maxLength={500} value={videoLink} onChange={(event) => setVideoLink(event.target.value)} />
-      </Field>:null}
+      {withVideoLink ? (
+        <Field id={`${id}-video`} label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} error={videoLinkError?.text}>
+          <TextInput type="url" inputMode="url" maxLength={500} value={videoLink} onChange={(event) => setVideoLink(event.target.value)} />
+        </Field>
+      ) : null}
       {editor === "candidate" ? (
         <Field id={`${id}-note`} label={t("coachingSession.note")} error={noteError?.text}>
           <Textarea maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />

@@ -225,11 +225,12 @@ function PaymentNotice({ wait, onRefresh }: { wait: PaymentWait; onRefresh: () =
 function CoachCard({ coach, bookable }: { coach: Coach; bookable: boolean }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const price=coach.offer?new Intl.NumberFormat(i18n.language,{style:"currency",currency:coach.offer.currency}).format(coach.offer.amount/100):null;
   return (
     <Card label={coach.name}>
       <AppText variant="h3">{coach.name}</AppText>
       {coach.seller?<><AppText>{t("coachingOffers.soldBy",{name:coach.seller.name})}</AppText>{coach.seller.kind!=="jobbbox"?<><AppText>{coach.seller.status} · {t("coachingOffers.siret",{siret:coach.seller.siret})}</AppText><AppText>{t("coachingOffers.marketplace")}</AppText></>:null}</>:null}
-      {coach.offer?<AppText>{t("humanCoaches.price",{price:new Intl.NumberFormat(i18n.language,{style:"currency",currency:coach.offer.currency}).format(coach.offer.amount/100)})} · {t("humanCoaches.sessionDuration",{count:coach.offer.durationMinutes})}</AppText>:null}
+      {coach.offer?<AppText>{price} · {t("humanCoaches.sessionDuration",{count:coach.offer.durationMinutes})}</AppText>:null}
       {coach.bio ? <AppText>{coach.bio}</AppText> : null}
       <AppText tone="secondary">{t(coach.accessGranted ? "humanCoaches.accessGranted" : "humanCoaches.accessNotGranted", { name: coach.name })}</AppText>
       {bookable ? <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} /> : null}

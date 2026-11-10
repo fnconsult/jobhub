@@ -6,9 +6,12 @@
  *  - `createPostgresUsageLog(database)`, the AI layer's UsageLog in the web app and the worker:
  *    one `ai_usage` row per call (task, provider, endpoint, model, tokens, estimated €, Outcome and
  *    Failure Reason code, its warnings' codes, duration; `ok` is kept as "not failed") and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
+ *    Each call keeps the Surface it was asked from (#919: `web`, `extension`, `app`, `worker`; none, « inconnue », when
+ *    it could not be told, and for the calls recorded before), as `surface` reads it where the call is made.
  *  - `createPostgresExternalApiLog(database)`, where `recordingFetch` records the calls to
  *    France Travail, Fantastic.jobs and the contact enrichment providers: `external_api_usage`, no payload.
- *  - `aiUsageReport(database, aiUsagePeriod(key, now))`: totals and breakdowns of a period.
+ *  - `aiUsageReport(database, aiUsagePeriod(key, now), { surface })`: totals and breakdowns of a period, its AI calls
+ *    from one Surface only when asked (`aiUsageSurfaceFilter`).
  *  - `purgeExpiredAiUsage(database, now)`, run nightly by the worker: rows are kept RETENTION_MONTHS.
  * What each call said is kept apart, in the AI Message Log (`./message-log`), 30 days.
  * Recording never fails nor delays a call: an insert that fails is only warned about.
@@ -19,6 +22,16 @@ import type { Message, UsageLog } from "@jobhub/ai";
 import { cleanTechnicalMessage, FAILURE_REASONS, scrubStoredText, type ExternalApiCall, type ExternalApiLog, type FailureReason, type Outcome } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { utcBefore } from "../database/before";
+import { SURFACES, type Surface } from "../request-surface";
+
+/** What the « Origine » filters choose (#919): a Surface, or `unknown` for the calls recorded with none. */
+export const SURFACE_FILTERS = [...SURFACES, "unknown"] as const;
+export type SurfaceFilter = (typeof SURFACE_FILTERS)[number];
+
+/** The « Origine » filter an untrusted input (the page's query string) names; none when it names none. */
+export function aiUsageSurfaceFilter(input: unknown): SurfaceFilter | undefined {
+  return SURFACE_FILTERS.find((filter) => filter === input);
+}
 
 /** How long AI usage and external API calls are kept. */
 export const RETENTION_MONTHS = 24;
@@ -71,6 +84,20 @@ export function knownSecrets(env: Record<string, string | undefined>): string[] 
 export interface PostgresAiUsageLogOptions extends PostgresUsageLogOptions {
   /** The keys in use (Provider Secrets and the environment's), scrubbed from the AI Message Log on top of whatever looks like a key. */
   secrets?: () => readonly (string | undefined)[];
+  /**
+   * The Surface the call was asked from (#919), read when it is recorded, where it was made: the request's in the web
+   * app, `worker` in the worker. None by default, and when it cannot be read.
+   */
+  surface?: () => Surface | null | Promise<Surface | null>;
+}
+
+/** What `read` says, none when it fails: the Surface never stops a call from being recorded. */
+async function surfaceRead(read: PostgresAiUsageLogOptions["surface"]): Promise<Surface | null> {
+  try {
+    return (await read?.()) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -82,6 +109,8 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
   const warn = options.warn ?? defaultWarn;
   return {
     async record(entry) {
+      // Asked at once, where the call was made.
+      const asked = surfaceRead(options.surface);
       // Nothing on the AI call's own stack: scrubbing a long prompt waits for the next turn.
       await nextTurn();
       try {
@@ -93,16 +122,16 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
         await database.query(
           `WITH usage AS (
              -- Under the id the AI layer named the call by, when it did (#731): what it served links to it.
-             INSERT INTO ai_usage (id, at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason, warnings)
-             VALUES (coalesce($22::uuid, gen_random_uuid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17, $20::text[]) RETURNING id
+             INSERT INTO ai_usage (id, at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason, warnings, surface)
+             VALUES (coalesce($22::uuid, gen_random_uuid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17, $20::text[], $23) RETURNING id
            ), tools AS (
              INSERT INTO ai_tool_usage (usage_id, name, count, ok, duration_ms, cost_eur)
              SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
                FROM usage, jsonb_to_recordset($12::jsonb) AS tool (name text, count integer, ok boolean, "durationMs" integer, "costEur" double precision)
            )
-           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply, sent, technical_reason, warnings)
+           INSERT INTO ai_message_log (usage_id, candidate_id, at, system, messages, reply, sent, technical_reason, warnings, surface, test)
            -- A Guest's call is kept without a Candidate; a Candidate's only while they exist: never a log without its owner.
-           SELECT usage.id, $13, $1, $14, $15::jsonb, $16, $18, $19::jsonb, $21::jsonb FROM usage
+           SELECT usage.id, $13, $1, $14, $15::jsonb, $16, $18, $19::jsonb, $21::jsonb, $23, $24 FROM usage
             WHERE $13::text IS NULL OR EXISTS (SELECT 1 FROM candidate WHERE id = $13)`,
           [
             entry.at,
@@ -129,6 +158,8 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             warnings.map((warning) => warning.reason),
             JSON.stringify(warnings.map(({ reason, detail }) => (detail === undefined ? { reason } : { reason, detail: cleanTechnicalMessage(scrub(detail)) }))),
             entry.id ?? null,
+            await asked,
+            entry.test === true,
           ],
         );
       } catch (error) {
@@ -271,6 +302,14 @@ export interface AiUsageReport {
   };
 }
 
+/** What the report is restricted to (#919): the AI calls asked from one Surface (`unknown`: recorded with none). */
+export interface AiUsageFilter {
+  surface?: SurfaceFilter;
+}
+
+/** An AI call `u` the filter keeps: $5 is the Surface filter, null for any. */
+const FILTERED = `($5::text IS NULL OR coalesce(u.surface, 'unknown') = $5)`;
+
 /** `column` within the period: $1 and $2 are its Paris dates. */
 const within = (column: string) => `${column} >= $1::timestamp AT TIME ZONE '${TIME_ZONE}' AND ${column} < $2::timestamp AT TIME ZONE '${TIME_ZONE}'`;
 
@@ -288,14 +327,14 @@ const REPORT = `
   WITH tools AS MATERIALIZED (
     SELECT u.id AS usage_id, u.provider, t.name, t.count, t.ok, t.cost_eur
       FROM ai_usage u JOIN ai_tool_usage t ON t.usage_id = u.id
-     WHERE ${within("u.at")}
+     WHERE ${within("u.at")} AND ${FILTERED}
   ), calls AS MATERIALIZED (
     SELECT u.provider, u.endpoint, u.model, u.task, u.ok, u.outcome,
            CASE WHEN u.reason = ANY($4::text[]) THEN u.reason ELSE 'other' END AS reason, u.input_tokens, u.output_tokens, u.cached_input_tokens,
            u.cost_eur + coalesce(fees.cost, 0) AS cost, to_char(u.at AT TIME ZONE '${TIME_ZONE}', $3) AS bucket
       FROM ai_usage u
       LEFT JOIN (SELECT usage_id, sum(cost_eur) AS cost FROM tools GROUP BY usage_id) fees ON fees.usage_id = u.id
-     WHERE ${within("u.at")}
+     WHERE ${within("u.at")} AND ${FILTERED}
   )
   SELECT
     (SELECT json_build_object(${ROW}) FROM calls) AS total,
@@ -325,15 +364,18 @@ const REPORT = `
                                       'costEur', sum(cost_eur))::jsonb AS row
                FROM external_api_usage WHERE ${within("at")} GROUP BY provider, operation) g) AS "externalApis"`;
 
-/** The AI consumption of `period`, as the Back Office's report shows it. Estimates at list prices, in €. */
-export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsagePeriod): Promise<AiUsageReport> {
+/**
+ * The AI consumption of `period`, as the Back Office's report shows it. Estimates at list prices, in €. With a Surface
+ * filter, the AI calls and their tools are those asked from it; the external API calls, which keep no Surface, all.
+ */
+export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsagePeriod, filter: AiUsageFilter = {}): Promise<AiUsageReport> {
   type Rows = Omit<AiUsageReport, "period" | "totals" | "failureReasons"> & {
     total: AiUsageRow;
     failuresTotal: AiUsageReport["failureReasons"]["total"];
     failuresByModel: AiUsageReport["failureReasons"]["byModel"];
     failuresByTask: AiUsageReport["failureReasons"]["byTask"];
   };
-  const { rows } = await database.query<Rows>(REPORT, [period.from, period.to, period.per === "day" ? "YYYY-MM-DD" : "YYYY-MM", FAILURE_REASONS]);
+  const { rows } = await database.query<Rows>(REPORT, [period.from, period.to, period.per === "day" ? "YYYY-MM-DD" : "YYYY-MM", FAILURE_REASONS, filter.surface ?? null]);
   const { total: calls, byModel, byTask, byTime, tools, externalApis, failuresTotal, failuresByModel, failuresByTask } = rows[0]!;
   const toolCalls = tools.reduce((sum, tool) => sum + tool.calls, 0);
   const toolsCostEur = tools.reduce((sum, tool) => sum + (tool.costEur ?? 0), 0);
@@ -465,5 +507,12 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     -- own reason), what happened kept with the text.
     ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS warnings text[] NOT NULL DEFAULT '{}';
     ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS warnings jsonb NOT NULL DEFAULT '[]';
+    -- The Surface each call was asked from (#919): web, extension, app, worker; null when not told, and for the calls
+    -- recorded before (« inconnue »). On both: Appels IA reads the log's, Consommation IA the usage's.
+    ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS surface text;
+    ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS surface text;
+    -- A call made to test the AI, for no one (#926): an Eval Run's or a route's test call, told from a Guest's on Appels IA.
+    -- An Eval Run's kept before is known by its task (eval); a route's test call kept before, not at all (30 days at most).
+    ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS test boolean NOT NULL DEFAULT false;
   `);
 }

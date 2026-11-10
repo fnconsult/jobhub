@@ -78,4 +78,10 @@ describe("Recherches d'offres as its menu conversation's card and its Sidebar ob
     ]);
     expect(menu.sidebar.total).toBe(7);
   });
+
+  it("carries the Offer box's offers à traiter beside its name in the Sidebar (#818), none at 0", () => {
+    expect(jobSearchesMenu({ profiles: [DAF], searches: [], dateLabel, offersToHandle: 3 }).sidebar).toEqual({ shown: [], total: 0, count: 3 });
+    expect(jobSearchesMenu({ profiles: [DAF], searches: [], dateLabel, offersToHandle: 0 }).sidebar).toEqual({ shown: [], total: 0 });
+    expect(jobSearchesMenu({ profiles: [DAF], searches: [], dateLabel }).sidebar).toEqual({ shown: [], total: 0 });
+  });
 });

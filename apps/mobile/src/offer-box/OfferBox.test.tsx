@@ -1,10 +1,11 @@
 import type { OfferBoxEntryRead, OfferBoxOfferResponse, OfferBoxResponse } from "@jobhub/shared/reads";
-import { screen, userEvent, waitFor, within } from "@testing-library/react-native";
-import { AccessibilityInfo } from "react-native";
+import { act, screen, userEvent, waitFor, within } from "@testing-library/react-native";
+import { AccessibilityInfo, BackHandler } from "react-native";
 import { found } from "../job-searches/testing";
 import { Shell } from "../shell/Shell";
-import { renderInApp } from "../testing";
-import { OfferBox } from "./OfferBox";
+import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
+import { OfferBoxFilterArea } from "./filter";
+import { OfferBox, pinRange } from "./OfferBox";
 
 const TODAY = "2026-11-05";
 /** Monday 9 November 2026, 00:00 in Paris: when « Plus tard » brings an entry of Thursday 5 November back. */
@@ -323,5 +324,141 @@ describe("Recherches d'offres in the app: the Offer box (ADR-0090), on the web's
     await renderInApp(<OfferBox />);
 
     expect(await screen.findByText("Aucune offre pour l'instant")).toBeOnTheScreen();
+  });
+
+  describe("on a phone, its header behind the Top Bar's filter icon (#899, as the web's #898)", () => {
+    const PHONE = { width: 390, height: 844 };
+    const TABLET = { width: 1366, height: 1024 };
+    const earlier = (id: string, matchScore: number, overrides: Partial<OfferBoxEntryRead> = {}) =>
+      entry(id, { matchScore, arrivalDay: "2026-11-03", firstArrivalAt: "2026-11-03T08:00:00.000Z", ...overrides });
+    const email = [{ source: "email" as const, at: "2026-11-05T08:00:00.000Z" }];
+    const entries = () => [entry("a", { sources: email }), entry("b", { matchScore: 88 }), earlier("m1", 65), earlier("m2", 62)];
+    /** Recherches d'offres' page: its Top Bar, the box in its filter's area, as JobSearchesMenu has it. */
+    const page = () => (
+      <Shell page={{ key: "/recherches", title: "Recherches d'offres", pane: null }} paneContent={null} sidebar={() => null} onNewConversation={() => {}}>
+        <OfferBoxFilterArea>
+          <OfferBox />
+        </OfferBoxFilterArea>
+      </Shell>
+    );
+    const ALL = "Filtrer les offres à traiter : 4 à traiter, toutes les sources";
+    const icon = (name = ALL) => screen.getByRole("button", { name });
+    const focused = () => jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
+    const focusedOn = (spy: jest.SpyInstance, name: string | RegExp) =>
+      expect(spy).toHaveBeenLastCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ accessibilityLabel: typeof name === "string" ? name : expect.stringMatching(name) }) }),
+        "focus",
+      );
+    /** The filter icon, whatever its name says of the count and the source. */
+    const THE_ICON = /^Filtrer les offres à traiter : /;
+
+    beforeEach(() => setWindow(PHONE));
+
+    it("keeps only its heading, for screen readers: the count and the chips behind the icon, named by the count and the source", async () => {
+      serve(entries());
+      await renderInApp(page());
+
+      expect(await screen.findByRole("heading", { name: "Offres à traiter" })).toBeOnTheScreen();
+      expect(icon().props.accessibilityState).toMatchObject({ expanded: false });
+      expect(screen.queryByText("4 à traiter · 0 traitée")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Toutes, 4 à traiter" })).toBeNull();
+      // « Aujourd'hui » says what arrived today and what is à traiter.
+      expect(screen.getByText("2 arrivées aujourd'hui · 4 à traiter")).toBeOnTheScreen();
+    });
+
+    it("opens the header under the bar, the focus on the chip chosen; a source filters, closes it, dots the icon and brings the focus back", async () => {
+      serve(entries());
+      const focus = focused();
+      const user = userEvent.setup();
+      await renderInApp(page());
+      await screen.findByRole("heading", { name: "Offres à traiter" });
+
+      await user.press(icon());
+      expect(icon().props.accessibilityState).toMatchObject({ expanded: true });
+      expect(icon()).toHaveStyle({ borderWidth: 1 });
+      const panel = screen.getByTestId("offer-box-filter-panel");
+      expect(within(panel).getByText("4 à traiter · 0 traitée")).toBeOnTheScreen();
+      focusedOn(focus, "Toutes, 4 à traiter");
+
+      await user.press(within(panel).getByRole("button", { name: "Email, 1 à traiter" }));
+      expect(screen.queryByTestId("offer-box-filter-panel")).toBeNull();
+      const chosen = icon("Filtrer les offres à traiter : 4 à traiter, source Email");
+      expect(within(chosen).getByTestId("control-badge", { includeHiddenElements: true })).toBeTruthy();
+      focusedOn(focus, THE_ICON);
+      expect(screen.getByRole("link", { name: "Offre a · Acme Industrie" })).toBeOnTheScreen();
+      expect(screen.queryByRole("link", { name: "Offre b · Acme Industrie" })).toBeNull();
+    });
+
+    it("closes on a touch of the scrim, on Échap and on Android's back, the focus back on the icon", async () => {
+      serve(entries());
+      const focus = focused();
+      const back = jest.spyOn(BackHandler, "addEventListener");
+      const user = userEvent.setup();
+      await renderInApp(page());
+      await screen.findByRole("heading", { name: "Offres à traiter" });
+
+      await user.press(icon());
+      await user.press(screen.getByTestId("offer-box-scrim"));
+      expect(screen.queryByTestId("offer-box-filter-panel")).toBeNull();
+      focusedOn(focus, THE_ICON);
+
+      await user.press(icon());
+      await hardwareKeyboard.press("Échap");
+      expect(screen.queryByTestId("offer-box-filter-panel")).toBeNull();
+
+      await user.press(icon());
+      const onBack = back.mock.calls.filter(([event]) => event === "hardwareBackPress").at(-1)![1];
+      let handled: boolean | null | undefined;
+      await act(async () => {
+        handled = (onBack as () => boolean | null | undefined)();
+      });
+      expect(handled).toBe(true);
+      expect(screen.queryByTestId("offer-box-filter-panel")).toBeNull();
+      expect(icon().props.accessibilityState).toMatchObject({ expanded: false });
+    });
+
+    it("pins each tier on one row, its day before it and « Tout écarter (n) » after it", async () => {
+      serve(entries());
+      await renderInApp(page());
+      await screen.findByRole("heading", { name: "Offres à traiter" });
+
+      const rows = screen.getAllByTestId("offer-box-tier-row");
+      expect(rows.map((row) => within(row).queryAllByText(/.+/, { includeHiddenElements: true }).map((text) => text.props.children))).toEqual([
+        ["Aujourd'hui · ", "À ne pas manquer"],
+        ["Aujourd'hui · ", "À regarder"],
+        ["Précédemment · ", "À regarder", "Tout écarter (2)"],
+      ].map((texts) => expect.arrayContaining(texts)));
+      expect(within(rows[2]!).getByRole("button", { name: "Tout écarter dans « À regarder » (2)" })).toBeOnTheScreen();
+    });
+
+    it("puts the focus on the filter icon, in view, once « Annuler » is pressed, never on the hidden heading", async () => {
+      serve(entries());
+      const focus = focused();
+      const user = userEvent.setup();
+      await renderInApp(page());
+      const line = await screen.findByLabelText("Offre a");
+      await user.press(within(line).getByRole("button", { name: "Plus tard : Offre a" }));
+      await user.press(await screen.findByRole("button", { name: "Annuler" }));
+
+      focusedOn(focus, THE_ICON);
+    });
+
+    it("keeps its header in the box with columns, and offers no filter icon", async () => {
+      setWindow(TABLET);
+      serve(entries());
+      await renderInApp(page());
+
+      expect(await screen.findByText("4 à traiter · 0 traitée")).toBeOnTheScreen();
+      expect(screen.getByRole("button", { name: "Toutes, 4 à traiter" })).toBeOnTheScreen();
+      expect(screen.queryByRole("button", { name: /^Filtrer les offres à traiter/ })).toBeNull();
+      expect(screen.queryByText(/arrivées aujourd'hui/)).toBeNull();
+      expect(screen.queryByTestId("offer-box-tier-row")).toBeNull();
+    });
+
+    it("pins a tier's row while its entries scroll under it, from its top to its last entry", () => {
+      expect(pinRange(400, 300, 44)).toEqual([400, 656]);
+      expect(pinRange(400, 44, 44)).toBeNull();
+      expect(pinRange(400, 300, 0)).toBeNull();
+    });
   });
 });

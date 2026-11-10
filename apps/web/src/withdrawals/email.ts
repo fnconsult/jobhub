@@ -20,6 +20,8 @@ export interface WithdrawalReceipt {
   refunded: { amount: number; currency: string } | null;
   /** What is kept for the service already provided, at the Immediate Performance Request (#512); null when refunded in full. */
   kept?: { amount: number; currency: string } | null;
+  /** Their Preferred Name, which the email greets them by (#921); none: « Bonjour, ». */
+  preferredName?: string | null;
 }
 
 /**
@@ -38,6 +40,7 @@ export function withdrawalReceiptEmail(receipt: WithdrawalReceipt, language: Loc
   ];
   return renderEmail({
     language,
+    greetingName: receipt.preferredName,
     subject: t("withdrawals.email.subject"),
     title: t("withdrawals.email.title"),
     body: [
@@ -59,6 +62,8 @@ export function withdrawalReceiptEmail(receipt: WithdrawalReceipt, language: Loc
 export interface WithdrawnSessionNotice {
   /** "Marie D."; empty when the Candidate gave no name. */
   candidateName: string;
+  /** « Mimi »: the Preferred Name, when it differs from the Given Name (#922); the email says « Marie D. (se fait appeler Mimi) ». */
+  candidateCalledBy?: string | null;
   paidAt: Date;
   scheduledAt: Date | null;
   /** Whether it had already taken place (bought without the Immediate Performance Request, #512). */
@@ -72,12 +77,13 @@ export function withdrawnSessionEmail(notice: WithdrawnSessionNotice, language: 
   const at = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
   const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const candidate = notice.candidateName || t("withdrawals.coachEmail.someone");
+  const called = notice.candidateCalledBy ? t("withdrawals.coachEmail.calledBy", { candidate, name: notice.candidateCalledBy }) : candidate;
   return renderEmail({
     language,
     subject: t("withdrawals.coachEmail.subject", { candidate }),
     title: t("withdrawals.coachEmail.title"),
     body: [
-      t("withdrawals.coachEmail.intro", { candidate, paidAt: day.format(notice.paidAt) }),
+      t("withdrawals.coachEmail.intro", { candidate: called, paidAt: day.format(notice.paidAt) }),
       notice.scheduledAt
         ? t(notice.held ? "withdrawals.coachEmail.held" : "withdrawals.coachEmail.scheduled", { at: at.format(notice.scheduledAt) })
         : t("withdrawals.coachEmail.unscheduled"),

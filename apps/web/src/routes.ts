@@ -52,7 +52,8 @@ export const routes = {
   /** The second step after a magic link (ADR-0075): all a session pending it reaches, besides signing out. */
   secondStep: "/connexion/deuxieme-etape",
   account: "/compte",
-  /** Mon compte's Sections (ADR-0024); `account` itself shows the first, the Profiles. */
+  /** Mon compte's Sections (ADR-0024), Identité first (#918); `account` itself shows the Profiles, where a Candidate lands. */
+  accountIdentity: "/compte/identite",
   accountProfiles: "/compte/profils",
   accountFollowUps: "/compte/relances",
   accountReminders: "/compte/rappels",

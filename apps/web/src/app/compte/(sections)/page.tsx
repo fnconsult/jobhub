@@ -12,7 +12,7 @@ import { routes } from "@/routes";
 const PROFILES_TITLE_ID = "profiles-title";
 const ARCHIVED_TITLE_ID = "archived-profiles-title";
 
-/** Mon compte's Profiles Section, also shown at /compte itself (the first Section): the active Profiles, then the archived ones, each on a Card (#469). */
+/** Mon compte's Profiles Section, also shown at /compte itself (where a Candidate lands once signed in): the active Profiles, then the archived ones, each on a Card (#469). */
 export default async function AccountProfilesPage() {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();

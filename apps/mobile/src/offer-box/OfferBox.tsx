@@ -1,19 +1,22 @@
-import { importanceTier, offerBoxView, postingAge, type OfferBoxDay, type OfferBoxFilter } from "@jobhub/shared";
+import { importanceTier, offerBoxView, postingAge, type OfferBoxDay } from "@jobhub/shared";
 import type { OfferBoxEntryRead, OfferBoxResponse } from "@jobhub/shared/reads";
-import { useState } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Animated, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import { useOfferBox, useOfferBoxOffer } from "../api/reads";
 import { FoundJobOfferPane } from "../job-searches/FoundJobOffer";
 import { openPostingAction, shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
 import { ReadState } from "../screens/ReadState";
+import { useThreadScroll } from "../conversation/Conversation";
 import { useWorkPane } from "../shell/Shell";
-import { radius, space, useTheme } from "../theme/theme";
-import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
+import { useFocusTopBarPrimary } from "../shell/top-bar";
+import { radius, space, TARGET, useTheme } from "../theme/theme";
+import { AppText, BAR_MAX_SCALE, CappedTextScale, ROW_MAX_SCALE, WHOLE_FROM_FONT_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { ObjectRow } from "../ui/ObjectRow";
 import { OfferDecision, parisDate, useDismissalNotice, useOfferBoxDecisions, type OfferBoxDecisions } from "./decisions";
+import { OfferBoxHeader, useOfferBoxFilter } from "./filter";
 
 /**
  * Recherches d'offres in the app (ADR-0090, #815): the Offer box (« Offres à traiter ») as `GET /api/offer-box` answers
@@ -41,62 +44,88 @@ export function OfferBox() {
   );
 }
 
-/** The Offer box, filtered by a source chip (« Toutes » first). */
+/**
+ * The Offer box, filtered by a source chip (« Toutes » first). On a phone, in Recherches d'offres' page (#899, as the
+ * web's #898), its header (count, progress, chips) is behind the compact Top Bar's filter icon (OfferBoxFilterArea), its
+ * heading kept for screen readers; « Aujourd'hui » says « n arrivées aujourd'hui · N à traiter », and the tier whose
+ * entries are in view stays pinned at the top of the thread, on one line, with « Tout écarter (n) » whole. A notice's
+ * « Annuler » then puts the focus back on the filter icon (or « … »), in view, never on the hidden heading.
+ */
 export function OfferBoxList({ box, decisions }: { box: OfferBoxResponse; decisions: OfferBoxDecisions }) {
   const { t } = useTranslation();
-  const { colors } = useTheme();
-  const [filter, setFilter] = useState<OfferBoxFilter>("all");
+  const { filter, setFilter, inTopBar } = useOfferBoxFilter();
+  const focusPrimary = useFocusTopBarPrimary();
   const view = offerBoxView(box, filter);
-  const { decisions: lineDecisions, notice } = useDismissalNotice(decisions);
+  const { decisions: lineDecisions, notice } = useDismissalNotice(decisions, inTopBar ? focusPrimary : undefined);
+  const thread = useThreadScroll();
+  const [origin, onLayout] = useLaidOutAt(inTopBar ? (thread?.top ?? null) : null);
   return (
-    <View style={{ gap: space[4] }}>
-      <View style={{ gap: space[2] }}>
-        <AppText variant="h2" heading>
-          {t("offerBox.title")}
-        </AppText>
-        <AppText tone="secondary">{`${view.toHandle} ${t("offerBox.toHandle")} · ${t("offerBox.treated", { count: view.treated })}`}</AppText>
-        <View style={{ height: 6, borderRadius: radius.md, backgroundColor: colors.hover, overflow: "hidden" }}>
-          <View style={{ height: 6, width: `${view.toHandle + view.treated === 0 ? 100 : Math.round((100 * view.treated) / (view.toHandle + view.treated))}%`, backgroundColor: colors.success }} />
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[1] }} aria-label={t("offerBox.chips")}>
-          {view.chips.map(({ source, toHandle }) => (
-            <Control
-              key={source}
-              label={`${t(`offerBox.sources.${source}`)} ${toHandle}`}
-              accessibleName={t("offerBox.chipCount", { source: t(`offerBox.sources.${source}`), count: toHandle })}
-              look="secondary"
-              selected={filter === source}
-              onPress={() => setFilter(source)}
-            />
-          ))}
-        </View>
+    <PinOrigin.Provider value={origin}>
+      <View onLayout={onLayout} style={{ gap: space[4] }}>
+        {inTopBar ? (
+          // Behind the filter icon: its heading alone, for screen readers, drawn nowhere.
+          <View style={VISUALLY_HIDDEN}>
+            <AppText variant="h2" heading>
+              {t("offerBox.title")}
+            </AppText>
+          </View>
+        ) : (
+          <OfferBoxHeader view={view} filter={filter} onChoose={setFilter} />
+        )}
         {notice}
+        {box.entries.length === 0 ? (
+          <View style={{ gap: space[1] }}>
+            <AppText weight="semiBold">{t("offerBox.empty")}</AppText>
+            <AppText tone="secondary">{t("offerBox.emptyText")}</AppText>
+          </View>
+        ) : (
+          <>
+            <Day
+              name={t("offerBox.today")}
+              line={inTopBar ? t("offerBox.todayLine", { count: view.arrivedToday, toHandle: view.toHandle }) : undefined}
+              day={view.today}
+              today={box.today}
+              nothing={t("offerBox.nothingToday")}
+              followed={(count) => t("offerBox.followedToday", { count })}
+              decisions={lineDecisions}
+              pinned={inTopBar}
+            />
+            <Day
+              name={t("offerBox.earlier")}
+              day={view.earlier}
+              today={box.today}
+              nothing={t("offerBox.nothingEarlier")}
+              followed={(count) => t("offerBox.followedEarlier", { count })}
+              decisions={lineDecisions}
+              pinned={inTopBar}
+              showDay
+              dismissAll
+            />
+          </>
+        )}
+        <Folded summary={t("offerBox.laterBlock", { count: view.later.length })} hint={t("offerBox.laterHint")} entries={view.later} today={box.today} decisions={lineDecisions} />
+        <Folded summary={t("offerBox.expiredBlock", { count: view.expired.length })} hint={t("offerBox.expiredHint")} entries={view.expired} today={box.today} decisions={lineDecisions} />
+        <Folded summary={t("offerBox.dismissedBlock", { count: view.dismissed.length })} hint={t("offerBox.dismissedHint")} entries={view.dismissed} today={box.today} decisions={lineDecisions} />
       </View>
-      {box.entries.length === 0 ? (
-        <View style={{ gap: space[1] }}>
-          <AppText weight="semiBold">{t("offerBox.empty")}</AppText>
-          <AppText tone="secondary">{t("offerBox.emptyText")}</AppText>
-        </View>
-      ) : (
-        <>
-          <Day name={t("offerBox.today")} day={view.today} today={box.today} nothing={t("offerBox.nothingToday")} followed={(count) => t("offerBox.followedToday", { count })} decisions={lineDecisions} />
-          <Day
-            name={t("offerBox.earlier")}
-            day={view.earlier}
-            today={box.today}
-            nothing={t("offerBox.nothingEarlier")}
-            followed={(count) => t("offerBox.followedEarlier", { count })}
-            decisions={lineDecisions}
-            showDay
-            dismissAll
-          />
-        </>
-      )}
-      <Folded summary={t("offerBox.laterBlock", { count: view.later.length })} hint={t("offerBox.laterHint")} entries={view.later} today={box.today} decisions={lineDecisions} />
-      <Folded summary={t("offerBox.expiredBlock", { count: view.expired.length })} hint={t("offerBox.expiredHint")} entries={view.expired} today={box.today} decisions={lineDecisions} />
-      <Folded summary={t("offerBox.dismissedBlock", { count: view.dismissed.length })} hint={t("offerBox.dismissedHint")} entries={view.dismissed} today={box.today} decisions={lineDecisions} />
-    </View>
+    </PinOrigin.Provider>
   );
+}
+
+/** Drawn nowhere, read by VoiceOver and TalkBack. */
+const VISUALLY_HIDDEN = { position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 } as const;
+
+/**
+ * Where the view laid out by `onLayout` starts in the thread's content: its parent's (`parent`: PinOrigin, or the
+ * thread's content for the box itself) plus its own place in it. Null until both are laid out, or outside a pinning box.
+ */
+const PinOrigin = createContext<number | null>(null);
+function useLaidOutAt(parent: number | null): [number | null, (event: LayoutChangeEvent) => void] {
+  const [layout, setLayout] = useState<{ y: number; height: number } | null>(null);
+  const onLayout = (event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    setLayout((was) => (was?.y === y && was.height === height ? was : { y, height }));
+  };
+  return [parent === null || layout === null ? null : parent + layout.y, onLayout];
 }
 
 /** « Plus tard », « Expirées sans décision » or « Écartées »: folded at the foot of the box, absent when empty. */
@@ -134,7 +163,7 @@ function DismissAll({ entries, tierName, decisions }: { entries: OfferBoxEntryRe
     setFailed(done === null);
   };
   return (
-    <View style={{ alignSelf: "flex-start", gap: space[1] }}>
+    <View style={{ gap: space[1] }}>
       <Control
         label={t("offerBox.dismissAll", { count: entries.length })}
         accessibleName={t("offerBox.dismissAllLabel", { tier: tierName, count: entries.length })}
@@ -146,53 +175,158 @@ function DismissAll({ entries, tierName, decisions }: { entries: OfferBoxEntryRe
   );
 }
 
-/** « Aujourd'hui » or « Précédemment »: its tiers, then its entries already suivies, folded. */
+/**
+ * « Aujourd'hui » or « Précédemment »: its tiers, then its entries already suivies, folded. `line`, under its heading on
+ * a phone (« 2 arrivées aujourd'hui · 3 à traiter », #899). `pinned`, on a phone: each tier's row (TierRow) names the day
+ * too and stays at the top of the thread while its entries are in view.
+ */
 function Day({
   name,
+  line,
   day,
   today,
   nothing,
   followed,
   decisions,
+  pinned = false,
   showDay = false,
   dismissAll = false,
 }: {
   name: string;
+  line?: string;
   day: OfferBoxDay;
   today: string;
   nothing: string;
   followed: (count: number) => string;
   decisions: OfferBoxDecisions;
+  pinned?: boolean;
   showDay?: boolean;
   dismissAll?: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [origin, onLayout] = useLaidOutAt(useContext(PinOrigin));
   return (
-    <View style={{ gap: space[3] }}>
-      <AppText variant="h3" heading>
-        {name}
-      </AppText>
-      {day.tiers.length === 0 ? <AppText tone="secondary">{nothing}</AppText> : null}
-      {day.tiers.map(({ tier, entries }) => (
-        <View key={tier} style={{ gap: space[2] }}>
-          <AppText variant="meta" weight="semiBold" tone="secondary" heading>
-            {t(`offerBox.tiers.${tier}`)}
+    <PinOrigin.Provider value={origin}>
+      <View onLayout={onLayout} style={{ gap: space[3] }}>
+        <View>
+          <AppText variant="h3" heading>
+            {name}
           </AppText>
-          {dismissAll && entries.length >= DISMISS_ALL_FROM ? <DismissAll entries={entries} tierName={t(`offerBox.tiers.${tier}`)} decisions={decisions} /> : null}
-          {entries.map((entry) => (
-            <Line key={entry.id} entry={entry} today={today} showDay={showDay} decisions={decisions} />
-          ))}
+          {line ? (
+            <AppText variant="meta" tone="secondary">
+              {line}
+            </AppText>
+          ) : null}
         </View>
-      ))}
-      {day.followed.length > 0 ? (
-        <View style={{ gap: space[2] }}>
-          <Control label={followed(day.followed.length)} expanded={open} onPress={() => setOpen(!open)} />
-          {open ? day.followed.map((entry) => <Line key={entry.id} entry={entry} today={today} showDay={showDay} decisions={decisions} />) : null}
-        </View>
-      ) : null}
+        {day.tiers.length === 0 ? <AppText tone="secondary">{nothing}</AppText> : null}
+        {day.tiers.map(({ tier, entries }) => {
+          const tierName = t(`offerBox.tiers.${tier}`);
+          const all = dismissAll && entries.length >= DISMISS_ALL_FROM ? <DismissAll entries={entries} tierName={tierName} decisions={decisions} /> : null;
+          return (
+            <Tier key={tier} pinned={pinned} day={name} name={tierName} dismissAll={all}>
+              {entries.map((entry) => (
+                <Line key={entry.id} entry={entry} today={today} showDay={showDay} decisions={decisions} />
+              ))}
+            </Tier>
+          );
+        })}
+        {day.followed.length > 0 ? (
+          <View style={{ gap: space[2] }}>
+            <Control label={followed(day.followed.length)} expanded={open} onPress={() => setOpen(!open)} />
+            {open ? day.followed.map((entry) => <Line key={entry.id} entry={entry} today={today} showDay={showDay} decisions={decisions} />) : null}
+          </View>
+        ) : null}
+      </View>
+    </PinOrigin.Provider>
+  );
+}
+
+/**
+ * An Importance tier and its entries. With columns, its heading then « Tout écarter (n) ». `pinned` (a phone, #899):
+ * one row, « Précédemment · À regarder » cut short when need be and « Tout écarter (n) » whole at its right, which stays
+ * at the top of the thread while the tier's entries scroll under it (pinRange), as the web's sticky tier does; the day
+ * hidden from screen readers, its own heading says it.
+ */
+function Tier({ pinned, day, name, dismissAll, children }: { pinned: boolean; day: string; name: string; dismissAll: ReactNode; children: ReactNode }) {
+  const { colors } = useTheme();
+  const { fontScale } = useWindowDimensions();
+  const thread = useThreadScroll();
+  const [top, onLayout] = useLaidOutAt(useContext(PinOrigin));
+  const [tierHeight, setTierHeight] = useState(0);
+  const [rowHeight, setRowHeight] = useState(0);
+  const range = top === null ? null : pinRange(top, tierHeight, rowHeight);
+  const translateY = useMemo(
+    () => (thread && range ? thread.y.interpolate({ inputRange: range, outputRange: [0, range[1] - range[0]], extrapolate: "clamp" }) : 0),
+    [thread, range?.[0], range?.[1]], // eslint-disable-line react-hooks/exhaustive-deps -- the range by its values
+  );
+  if (!pinned) {
+    return (
+      <View style={{ gap: space[2] }}>
+        <AppText variant="meta" weight="semiBold" tone="secondary" heading>
+          {name}
+        </AppText>
+        {dismissAll ? <View style={{ alignSelf: "flex-start" }}>{dismissAll}</View> : null}
+        {children}
+      </View>
+    );
+  }
+  // At a large text size the day and the tier wrap whole, and « Tout écarter » goes under them when it must.
+  const whole = fontScale >= WHOLE_FROM_FONT_SCALE;
+  return (
+    <View
+      onLayout={(event) => {
+        onLayout(event);
+        setTierHeight(event.nativeEvent.layout.height);
+      }}
+      style={{ gap: space[2] }}
+    >
+      {/* A bar while pinned: its words grow up to twice their size, as the Top Bar's. */}
+      <CappedTextScale scale={BAR_MAX_SCALE}>
+        <Animated.View
+          testID="offer-box-tier-row"
+          onLayout={(event) => setRowHeight(event.nativeEvent.layout.height)}
+          style={{
+            zIndex: 1,
+            transform: [{ translateY }],
+            flexDirection: "row",
+            flexWrap: whole ? "wrap" : "nowrap",
+            alignItems: "center",
+            gap: space[2],
+            minHeight: TARGET,
+            backgroundColor: colors.background,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <View style={{ flex: 1, minWidth: 0, flexDirection: "row", flexWrap: whole ? "wrap" : "nowrap", alignItems: "baseline" }}>
+            <View aria-hidden style={{ flexShrink: 1 }}>
+              <AppText variant="meta" tone="secondary" lines={1}>
+                {`${day} · `}
+              </AppText>
+            </View>
+            <View style={{ flexShrink: 1 }}>
+              <AppText variant="meta" weight="semiBold" tone="secondary" heading lines={1}>
+                {name}
+              </AppText>
+            </View>
+          </View>
+          {dismissAll ? <View style={{ flexShrink: 0, maxWidth: "100%", alignItems: "flex-end" }}>{dismissAll}</View> : null}
+        </Animated.View>
+      </CappedTextScale>
+      {children}
     </View>
   );
+}
+
+/**
+ * The thread's scroll offsets over which a tier's row, `rowHeight` high at the top of the tier (`top` in the thread's
+ * content, `height` high), stays pinned: from the tier's top reaching the thread's top, to its last entry going under
+ * the row. Null when it has nothing to pin over (not laid out yet, or nothing under the row).
+ */
+export function pinRange(top: number, height: number, rowHeight: number): [number, number] | null {
+  const travel = height - rowHeight;
+  return rowHeight > 0 && travel > 0 ? [top, top + travel] : null;
 }
 
 /**

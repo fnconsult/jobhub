@@ -5,6 +5,7 @@
  * Guest is not. Problems come back as results, never exceptions.
  * Every request states the API Version this build speaks (#564); one the web app no longer serves (426) is told to
  * `update` (src/extension-update.ts) and comes back "unreachable": the Side Panel then asks for the update instead.
+ * Any other call that fails (4xx, 5xx, the network) is told to `failed`, which reports it to Jobbbox (#924).
  */
 import { distinctLocations, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { API_VERSION_HEADERS, updateRequiredBy, type ExtensionUpdate } from "./extension-update";
@@ -14,6 +15,13 @@ import type { CapturedJobOffer } from "./job-page";
 
 /** Why a CV file could not be read (the web app's CV file error codes), or the web app could not be reached. */
 export type ReadCvError = "unsupported_format" | "too_large" | "unreadable" | "empty" | "unreachable";
+
+/**
+ * What read a CV, as the web app tells it (its Provenance, #335), when the AI did: a signed-in Candidate's CV, never a Guest's
+ * (read by rules, ADR-0003). Opaque here: passed back as is with the Profile made from that CV, which keeps it and counts it as
+ * a CV read in the Candidate's Consumption (#926).
+ */
+export type CvReadingProvenance = Readonly<Record<string, unknown>>;
 
 export type Result<T, E extends string> = ({ ok: true } & T) | { ok: false; error: E };
 
@@ -28,8 +36,8 @@ export interface UpgradePrompt {
 export interface JobbboxApi {
   /** Stores the captured Job Offer, or returns the one already stored for this posting. */
   capture(jobOffer: CapturedJobOffer): Promise<Result<{ jobOffer: JobOffer }, "invalid" | "unreachable">>;
-  /** Reads a CV file (PDF or .docx), and the Search Criteria it suggests. The web app keeps nothing. */
-  readCv(file: File): Promise<Result<{ cv: CvContent; searchCriteria: SearchCriteriaDraft }, ReadCvError>>;
+  /** Reads a CV file (PDF or .docx), and the Search Criteria it suggests, with the reading's Provenance when the AI read it. The web app keeps nothing. */
+  readCv(file: File): Promise<Result<{ cv: CvContent; searchCriteria: SearchCriteriaDraft; provenance?: CvReadingProvenance }, ReadCvError>>;
   /**
    * The Match Score of a Job Offer against one of the signed-in Candidate's Profiles (its Master CV and
    * Search Criteria), or against a CV and the Search Criteria read from it.
@@ -47,13 +55,15 @@ export interface JobbboxApi {
   /** The signed-in Candidate's active Profiles, oldest first. "signed_out": nobody is signed in on the web app. */
   profiles(): Promise<Result<{ profiles: ProfileOption[] }, "signed_out" | "unreachable">>;
   /**
-   * Saves a CV and its Search Criteria as a new Profile of the signed-in Candidate.
+   * Saves a CV and its Search Criteria as a new Profile of the signed-in Candidate; with the Provenance of the CV's reading,
+   * when the AI read it, the web app counts a CV read in their Consumption (#926).
    * "invalid": the Search Criteria lack a target role or a location.
    * "plan_quota_reached": their Plan allows no more Profiles (with the Upgrade Prompt, if a Plan allows more).
    */
   createProfile(
     cv: CvContent,
     searchCriteria: SearchCriteriaDraft,
+    provenance?: CvReadingProvenance,
   ): Promise<
     | Result<{ profileId: string }, "invalid" | "signed_out" | "failed" | "unreachable">
     | { ok: false; error: "plan_quota_reached"; prompt: UpgradePrompt | null }
@@ -102,10 +112,17 @@ function draftLocations(criteria: Record<string, unknown>): string[] {
   return distinctLocations([String(criteria.location ?? "")]);
 }
 
+/** A call to the web app that failed: its route and HTTP status, 0 when it was never answered (#924's error reports). */
+export interface FailedCall {
+  route: string;
+  httpStatus: number;
+}
+
 export function createJobbboxApi(
   webOrigin: string,
   fetchImpl: Fetch = (url, init) => fetch(url, init),
   update?: Pick<ExtensionUpdate, "answered">,
+  failed: (call: FailedCall) => void = () => {},
 ): JobbboxApi {
   /** The JSON reply and its status, or null when the web app cannot be reached, or no longer serves this build. */
   async function request(path: string, init: RequestInit): Promise<{ status: number; body: Record<string, unknown> } | null> {
@@ -115,10 +132,13 @@ export function createJobbboxApi(
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       reply = { status: response.status, body };
     } catch {
+      failed({ route: path, httpStatus: 0 });
       return null;
     }
     const asked = updateRequiredBy(reply.status, reply.body);
     await update?.answered(asked);
+    // A 4xx or 5xx is reported; an update asked is not: the Side Panel says it, and every call would report it.
+    if (!asked && reply.status >= 400) failed({ route: path, httpStatus: reply.status });
     return asked ? null : reply;
   }
 
@@ -144,7 +164,13 @@ export function createJobbboxApi(
       }
       const criteria = (reply.body.searchCriteria ?? {}) as Record<string, unknown>;
       const searchCriteria: SearchCriteriaDraft = { targetRole: String(criteria.targetRole ?? ""), locations: draftLocations(criteria) };
-      return { ok: true, cv: reply.body.masterCv as CvContent, searchCriteria };
+      const { provenance } = reply.body;
+      return {
+        ok: true,
+        cv: reply.body.masterCv as CvContent,
+        searchCriteria,
+        ...(typeof provenance === "object" && provenance !== null ? { provenance: provenance as CvReadingProvenance } : {}),
+      };
     },
 
     async score(jobOfferId, against) {
@@ -168,8 +194,8 @@ export function createJobbboxApi(
       return { ok: true, profiles: (reply.body as ProfileOption[]).map(({ id, name }) => ({ id, name })) };
     },
 
-    async createProfile(cv, searchCriteria) {
-      const reply = await postJson("/api/profiles", { masterCv: cv, searchCriteria });
+    async createProfile(cv, searchCriteria, provenance) {
+      const reply = await postJson("/api/profiles", { masterCv: cv, searchCriteria, ...(provenance ? { provenance } : {}) });
       if (!reply) return { ok: false, error: "unreachable" };
       if (reply.status === 201) return { ok: true, profileId: String(reply.body.id) };
       if (reply.status === 400) return { ok: false, error: "invalid" };

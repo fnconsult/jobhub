@@ -10,7 +10,10 @@ import { writtenDay } from "../public-pages/days";
  * history. A service email: it says why it came even without a marketing opt-in, and it has nothing to switch off.
  * Like every email, no image and no tracked link (apps/web/src/emails).
  */
-export function legalTextNoticeEmail({ version, versionUrl, historyUrl }: { version: Pick<LegalTextVersion, "text" | "effective" | "summary">; versionUrl: string; historyUrl: string }, language: Locale): RenderedEmail {
+export function legalTextNoticeEmail(
+  { version, versionUrl, historyUrl, preferredName }: { version: Pick<LegalTextVersion, "text" | "effective" | "summary">; versionUrl: string; historyUrl: string; preferredName?: string | null },
+  language: Locale,
+): RenderedEmail {
   const { t } = createI18n(language);
   const text = t(`legal.texts.${version.text}`);
   const date = writtenDay(version.effective, language);
@@ -18,6 +21,7 @@ export function legalTextNoticeEmail({ version, versionUrl, historyUrl }: { vers
   const then = version.text === "mentions-legales" ? [] : [t(`legalTextNotice.email.then.${version.text}`, { date })];
   return renderEmail({
     language,
+    greetingName: preferredName,
     subject: t("legalTextNotice.email.subject", { text, date }),
     title: t("legalTextNotice.email.title", { text }),
     body: [

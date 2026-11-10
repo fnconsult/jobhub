@@ -2,6 +2,8 @@
 # Job Offers à traiter (MAESTRO_SEED.jobOfferRows, seed.ts). « Suivre » keeps the first: it goes to « Déjà suivies »,
 # the other stays à traiter. Below the box, the Job Searches by Profile (#690), the seeded one with its two Job Offers
 # found. Setting one aside (« Écarter », with its Dismissal reason) comes to the app with #816, which adds its steps here.
+# On a phone (LAYOUT fullPage, #899) the box's count and source chips are behind the Top Bar's filter icon, named by
+# the count and the source: opened to read them, then closed by choosing « Toutes »; with columns they are in the box.
 appId: ai.jobbbox.app
 name: Recherches d'offres, garder ou écarter une offre
 tags:
@@ -11,10 +13,25 @@ tags:
 - runFlow:
     file: ../subflows/menu.yaml
     env:
-      MENU: "Recherches d'offres"
-- extendedWaitUntil:
-    visible: "Toutes, 2 à traiter"
-    timeout: 20000
+      MENU: "Recherches d'offres(, .+)?"
+- runFlow:
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - extendedWaitUntil:
+          visible: "Toutes, 2 à traiter"
+          timeout: 20000
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - extendedWaitUntil:
+          visible: "Filtrer les offres à traiter : 2 à traiter, toutes les sources"
+          timeout: 20000
+      - runFlow:
+          file: ../subflows/offer-box-filter.yaml
+          env:
+            LABEL: "Toutes, 2 à traiter"
 - runFlow:
     file: ../subflows/conversation-scroll.yaml
     env:
@@ -56,6 +73,24 @@ tags:
           start: "40%, 30%"
           end: "40%, 45%"
           duration: 3000
+# On a phone, the tier's row stays pinned at the thread's top while its entries scroll under it (#899): the button
+# brought below it, where the tap reaches it. Its first row is the first entry's tier.
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - repeat:
+          while:
+            notVisible:
+              text: "Suivre( : Cheffe de projet qualité)?"
+              below:
+                id: "offer-box-tier-row"
+          times: 3
+          commands:
+            - swipe:
+                start: "40%, 30%"
+                end: "40%, 45%"
+                duration: 3000
 - tapOn:
     text: "Suivre( : Cheffe de projet qualité)?"
     index: 0
@@ -91,12 +126,26 @@ tags:
       TEXT: "Suivie"
       DIRECTION: DOWN
 - assertVisible: "Cheffe de projet qualité · Industries Démo"
-# One à traiter left, of the two.
+# One à traiter left, of the two: the chip at the box's top with columns; on a phone, the filter icon says it, and its
+# panel, opened wherever the thread is, shows the chip.
 - runFlow:
-    file: ../subflows/conversation-scroll.yaml
-    env:
-      TEXT: "Toutes, 1 à traiter"
-      DIRECTION: UP
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - runFlow:
+          file: ../subflows/conversation-scroll.yaml
+          env:
+            TEXT: "Toutes, 1 à traiter"
+            DIRECTION: UP
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - assertVisible: "Filtrer les offres à traiter : 1 à traiter, toutes les sources"
+      - runFlow:
+          file: ../subflows/offer-box-filter.yaml
+          env:
+            LABEL: "Toutes, 1 à traiter"
 # The menu's conversation follows the box: the Job Searches by Profile in it.
 - runFlow:
     file: ../subflows/conversation-scroll.yaml

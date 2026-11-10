@@ -79,3 +79,19 @@ export function onTokenRotated(onRotate: () => void): () => void {
 export function openDeviceSettings(): void {
   void Linking.openSettings().catch(() => undefined);
 }
+
+/** The badge last set on the app icon while the app runs: null until one is. */
+let badgeSet: number | null = null;
+
+/**
+ * Sets the app icon's badge to `count`, the Offer box's offers à traiter (#818), each time it is asked: a Push notification
+ * may have set the badge since (iOS's `aps.badge`). iOS shows it only once the person allowed notifications (the
+ * permission asks for the badge too). On Android, where a launcher may show none, taking it to 0 also takes the app's
+ * notifications out of the tray (expo-notifications' BadgeHelper, docs/research/issue-818.md): done only to take down a
+ * badge above 0 the app set while it runs. A push's own number there (`notification_count`) belongs to its notification
+ * in the tray and leaves with it. Never throws.
+ */
+export async function setIconBadge(count: number): Promise<void> {
+  if (count === 0 && Platform.OS === "android" && (badgeSet ?? 0) === 0) return;
+  if (await Notifications.setBadgeCountAsync(count).catch(() => false)) badgeSet = count;
+}

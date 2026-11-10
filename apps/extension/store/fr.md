@@ -31,6 +31,8 @@ Avec un compte Jobbbox : « Se connecter », dans l'extension, et l'offre rejoin
 
 Sur les sites d'offres, l'extension reconnaît une offre dans votre navigateur ; elle n'envoie une page à Jobbbox que lorsque vous cliquez. Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs, cochez « Détecter les offres sur tous les sites » dans le panneau : votre navigateur vous demande alors l'autorisation.
 
+En cas d'erreur, l'extension envoie à Jobbbox le domaine de la page (jamais son adresse ni son contenu) et sa version, pour corriger les sites non reconnus.
+
 Aide : https://jobbbox.ai/aide/extension
 Politique de confidentialité : https://jobbbox.ai/legal/confidentialite
 

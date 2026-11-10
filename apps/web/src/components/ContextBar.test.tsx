@@ -96,6 +96,20 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
     }
   });
 
+  it("keeps stopped first-request usage empty after the saved conversation is reloaded (#810)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      conversation: {
+        ...CONVERSATION, aiDisclosure: true,
+        messages: [{ from: "candidate", text: "Bonjour" }],
+        context: { messages: 1, tokens: 1200 },
+      },
+    })));
+    renderInFrench(<HomePage />);
+    await screen.findByText("Bonjour");
+    await waitFor(() => expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy());
+    expect(within(bar()).queryByText(/1,2k/)).toBeNull();
+  });
+
   it("from 80 %, says the coach reads only the latest messages and offers « Effacer la conversation », after a confirming Dialog", async () => {
     const fetch = server({ saved: { messages: 34, tokens: 9_400 }, replied: { messages: 36, tokens: 9_900 } });
     vi.stubGlobal("fetch", fetch);

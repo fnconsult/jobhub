@@ -10,10 +10,11 @@ import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 
 /**
- * The reads that show where the Candidate stands with a Job Offer (ADR-0090): the Offer box and an entry opened, a Job
- * Search's and a Job Digest's Job Offers, Mes candidatures. Each decision has them read again.
+ * The reads that show where the Candidate stands with a Job Offer (ADR-0090): the Offer box and an entry opened, its
+ * count of offers à traiter (#818), a Job Search's and a Job Digest's Job Offers, Mes candidatures. Each decision has them
+ * read again.
  */
-const SHOWING_DECISIONS: readonly ReadName[] = ["offerBox", "offerBoxOffer", "jobSearch", "jobDigest", "applications"];
+const SHOWING_DECISIONS: readonly ReadName[] = ["offerBox", "offerBoxOffer", "offersToHandle", "jobSearch", "jobDigest", "applications"];
 
 /** A decision's write, then every read that shows it read again: whether the web app answered one of `ok`. */
 function useDecisionWrite() {
@@ -117,9 +118,10 @@ interface Notice {
  * The notice a decision leaves, as the web's toast: « « Titre » écartée. » after « Écarter » (#816), « « Titre » revient
  * lundi … » after « Plus tard », « n offres écartées. » after « Tout écarter (n) » (#817), each with « Annuler » for a few
  * seconds, announced on iOS too; an « Annuler » that fails says so. `decisions` with those three showing it once done,
- * and the `notice` to place where it is seen.
+ * and the `notice` to place where it is seen. `returnFocus`: where the screen reader's focus goes once « Annuler », and
+ * the notice with it, is gone (on a phone, the Top Bar's filter icon, in view, #899).
  */
-export function useDismissalNotice(decisions: OfferBoxDecisions): { decisions: OfferBoxDecisions; notice: ReactNode } {
+export function useDismissalNotice(decisions: OfferBoxDecisions, returnFocus?: () => void): { decisions: OfferBoxDecisions; notice: ReactNode } {
   const { t, i18n } = useTranslation();
   const { colors } = useTheme();
   const [shown, setShown] = useState<Notice | null>(null);
@@ -173,6 +175,7 @@ export function useDismissalNotice(decisions: OfferBoxDecisions): { decisions: O
             onPress={() => {
               const { undo, undoError } = shown;
               setShown(null);
+              returnFocus?.();
               void undo().then((undone) => setUndoFailed(undone ? null : undoError));
             }}
           />

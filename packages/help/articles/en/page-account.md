@@ -3,10 +3,12 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My account
-synonyms: [account, app, iPhone, Android, delete my account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, coach proposals, form, card, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key, notifications, app notifications, push notifications]
+synonyms: [account, identity, first name, last name, name the coaches use, preferred name, app, iPhone, Android, delete my account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, coach proposals, form, card, subscription, security, two-step verification, backup codes, authenticator app, passkey, passkeys, Face ID, Touch ID, Windows Hello, security key, notifications, app notifications, push notifications]
 route: /compte
 ---
-My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Security, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.
+My account gathers your settings, in sections: Identity, Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Security, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.
+
+Identity, at the top of the list, keeps your « First name », your « Last name » and « What would you like the coaches to call you? »: the name the coaches use, the one the AI Coach and your coaches call you by. Each is optional and 80 characters at most; leave the last one empty not to be called by a name. Click « Save »: your account's name becomes your first name followed by your last name. At the foot of the menu, your account's button shows the name the coaches use (otherwise your first name) and your plan; its menu starts with your first name, last name and email address, and « My subscription » there leads to your subscription. If your account existed before this section, Jobbbox filled it in once, from your account's name or, failing that, the name on your Master CV (the word written in capitals, as on many CVs, is taken as the last name), and the name the coaches use takes your first name. Change or clear each one at any time. When you open My account, you still see your Profiles first.
 
 Profiles lists your active profiles, then the archived ones. Subscription shows your plan and how much of it you used this week: it has its own article, My subscription.
 

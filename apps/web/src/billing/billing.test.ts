@@ -5,7 +5,7 @@ import { createConsumption } from "../consumption";
 import { BillingError, createBilling, STARTING_PLAN_QUOTAS, type PaidCheckout } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
-const FREE = { fr: "Gratuite", en: "Free" };
+const FREE = { fr: "Gratuit", en: "Free" };
 const STANDARD = { fr: "Standard", en: "Standard" };
 const PREMIUM = { fr: "Premium", en: "Premium" };
 

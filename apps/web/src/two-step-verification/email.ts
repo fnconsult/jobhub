@@ -5,12 +5,16 @@ import { renderEmail, type RenderedEmail } from "../emails";
 export type TwoStepChange = "enabled" | "disabled" | "reset";
 
 /** The email telling the account its Two-step verification changed, dated in French time, in its Interface Language. */
-export function twoStepChangeEmail({ change, at, securityUrl }: { change: TwoStepChange; at: Date; securityUrl: string }, language: Locale): RenderedEmail {
+export function twoStepChangeEmail(
+  { change, at, securityUrl, preferredName }: { change: TwoStepChange; at: Date; securityUrl: string; preferredName?: string | null },
+  language: Locale,
+): RenderedEmail {
   const i18n = createI18n(language);
   const { t } = i18n;
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: "Europe/Paris" }).format(at);
   return renderEmail({
     language,
+    greetingName: preferredName,
     subject: t(`twoStep.email.${change}Subject`),
     title: t(`twoStep.email.${change}Title`),
     body: [t(`twoStep.email.${change}Body`, { date }), t("twoStep.email.notYou"), { action: { label: t("twoStep.email.action"), url: securityUrl } }],

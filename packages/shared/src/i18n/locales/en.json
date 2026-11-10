@@ -343,6 +343,7 @@
     "sections": {
       "sectionsLabel": "Sections of my account",
       "backToSections": "My account",
+      "identity": "Identity",
       "profiles": "Profiles",
       "followUps": "Follow-ups",
       "euAi": "European AI",
@@ -360,7 +361,31 @@
       "extensionTitle": "Jobbbox Chrome extension",
       "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
       "install": "Install the extension from the Chrome Web Store",
-      "soon": "The extension is coming soon to the Chrome Web Store."
+      "soon": "The extension is coming soon to the Chrome Web Store.",
+      "newTab": "(new tab)",
+      "testBuild": {
+        "title": "Latest version of the extension",
+        "intro": "For administrators only: load the extension this server serves, before it is published on the Chrome Web Store.",
+        "extensionVersion": "Extension version",
+        "apiVersion": "API version served",
+        "releases": "See the versions on GitHub",
+        "access": "The repository is private: you need access to it.",
+        "stepsLabel": "Load the extension in Chrome",
+        "steps": {
+          "download": "Download {{zip}}, then unzip it.",
+          "developerMode": "Open chrome://extensions and turn on « Developer mode ».",
+          "loadUnpacked": "Click « Load unpacked » and choose the unzipped folder."
+        }
+      }
+    },
+    "identity": {
+      "givenName": "First name",
+      "familyName": "Last name",
+      "preferredName": "What would you like the coaches to call you?",
+      "preferredNameHint": "The AI Coach and your coaches call you this. Leave it empty not to be called by a name.",
+      "save": "Save",
+      "tooLong": "80 characters at most.",
+      "error": "Your identity could not be saved. Please try again."
     }
   },
   "accountData": {
@@ -1292,6 +1317,7 @@
       "title": "My subscription",
       "currentPlan": "Your current Plan: {{plan}}",
       "currentPlanUntil": "Your current Plan: {{plan}} until {{date}}",
+      "planUntil": "until {{date}}",
       "checkoutSuccess": "Thank you! Your payment is recorded. Your new Plan shows here as soon as Stripe confirms it, usually within seconds.",
       "usageTitle": "Your usage this week",
       "usage": "{{used}} of {{limit}}",
@@ -2706,6 +2732,16 @@
       "estimate": "Estimates at the providers' list prices, in dollars converted at €{{rate}} per $1 (an assumption, not today's rate), fixed when each call was made. Aggregates only: no Candidate, no text.",
       "coachCostLink": "Median and 90th percentile of one AI Coach reply's cost: Coach cost",
       "period": "Period",
+      "surface": "Origin",
+      "anySurface": "All",
+      "surfaces": {
+        "web": "Web",
+        "extension": "Extension",
+        "app": "App",
+        "worker": "Background jobs",
+        "unknown": "Unknown"
+      },
+      "surfaceExternal": "External APIs record no origin: they are all still counted.",
       "show": "Show",
       "periods": {
         "7d": "Last 7 days",
@@ -2803,7 +2839,8 @@
       "at": "Date",
       "provider": "Provider and model",
       "candidate": "Candidate",
-      "noCandidate": "None (Guest)",
+      "guest": "Guest",
+      "test": "Eval / test",
       "result": "Result",
       "open": "Open",
       "openLabel": "Open the call of {{at}}",
@@ -4792,6 +4829,7 @@
     "sessionsTitle": "My coaching sessions",
     "sessionsIntro": "The sessions candidates paid for with you. Enter or correct the date booked and the video link: the candidate finds them in their agenda.",
     "sessionsNone": "No paid session yet.",
+    "calledBy": "goes by {{name}}",
     "unnamedCandidate": "Unnamed candidate",
     "sessionToSchedule": "To schedule",
     "sessionOn": "On {{date}} (Paris time)",
@@ -4838,6 +4876,8 @@
       "offersLabel": "Job offers",
       "archived": "This profile is archived: it no longer gets a Job Digest. Restore it to get it again."
     },
+    "offersToHandle_one": "You have {{count}} job offer left to handle",
+    "offersToHandle_other": "You have {{count}} job offers left to handle",
     "email": {
       "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
       "subject_other": "Job Digest “{{profile}}”: {{count}} new job offers",
@@ -5534,6 +5574,7 @@
   },
   "emails": {
     "greeting": "Hello,",
+    "greetingNamed": "Hello {{name}},",
     "signature": "The Jobbbox team",
     "linkLead": "{{label}}:",
     "reasons": {
@@ -5706,6 +5747,8 @@
     "suggestions": "Suggestions",
     "unfold": "Unfold “{{menu}}”",
     "toHandle": "to handle",
+    "offersToHandle_one": "{{count}} offer to handle",
+    "offersToHandle_other": "{{count}} offers to handle",
     "seeAll": "See all ({{count}})",
     "help": "Help",
     "howThisPageWorks": "How does this page work?",
@@ -5952,6 +5995,7 @@
       "unscheduled": "It had no date yet: if a slot is booked on your Cal.com page, free it.",
       "held": "It took place on {{at}}: the Candidate had not asked for it to start before the end of their withdrawal period, so it is refunded to them.",
       "refunded": "Jobbbox refunds the session to the Candidate.",
+      "calledBy": "{{candidate}} (goes by {{name}})",
       "someone": "A Candidate",
       "reason": "You get this email because you are a Human Coach on Jobbbox."
     },
@@ -6036,6 +6080,7 @@
   },
   "fiche": {
     "label": "Fiche",
+    "resize": "Resize the Fiche",
     "activity": "Activity",
     "groups": {
       "sections": "Sections",

@@ -1,6 +1,6 @@
 import { API_VERSION, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { createExtensionUpdate, type UpdateStorage } from "./extension-update";
+import { createExtensionUpdate, EXTENSION_VERSION, type UpdateStorage } from "./extension-update";
 import { createJobbboxApi } from "./jobbbox-api";
 
 const WEB_ORIGIN = "https://app.jobbbox.fr";
@@ -47,6 +47,8 @@ describe("the Jobbbox API, from the extension", () => {
 
     expect(app.calls).toHaveLength(6);
     for (const { init } of app.calls) expect(new Headers(init.headers).get("Jobbbox-Api-Version")).toBe(String(API_VERSION));
+    // And the Extension Version (#924), kept with each Extension Event the web app writes.
+    for (const { init } of app.calls) expect(new Headers(init.headers).get("Jobbbox-Extension-Version")).toBe(EXTENSION_VERSION);
     // The JSON calls still say what they send.
     expect(new Headers(app.calls[0]?.init.headers).get("content-type")).toBe("application/json");
   });
@@ -62,6 +64,23 @@ describe("the Jobbbox API, from the extension", () => {
     expect((app.calls[0]?.init.body as FormData).get("cv")).toBeInstanceOf(File);
     expect(await api.score("jo-1", { cv })).toEqual({ ok: true, matchScore });
     expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ jobOfferId: "jo-1", cv });
+  });
+
+  it("passes the Provenance of a CV the AI read back with the Profile made from it, so it counts as a CV read (#926)", async () => {
+    // A signed-in Candidate's CV is read by the AI (cv_parsing): the web app says so in the draft's Provenance.
+    const provenance = { v: 1, steps: [{ kind: "ai", activity: "read", task: "cv_parsing", at: "2026-11-09T10:00:00.000Z" }], startedAt: "2026-11-09T10:00:00.000Z" };
+    const app = webApp({
+      "/api/cv/draft": Response.json({ masterCv: cv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] }, provenance }),
+      "/api/profiles": () => Response.json({ id: "p-1" }, { status: 201 }),
+    });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
+    const searchCriteria = { targetRole: "DAF", locations: ["Lyon"] };
+
+    const read = await api.readCv(new File(["%PDF"], "cv.pdf"));
+    expect(read).toEqual({ ok: true, cv, searchCriteria, provenance });
+    if (!read.ok) throw new Error("not read");
+    expect(await api.createProfile(read.cv, searchCriteria, read.provenance)).toEqual({ ok: true, profileId: "p-1" });
+    expect(JSON.parse(String(app.calls[1]?.init.body))).toEqual({ masterCv: cv, searchCriteria, provenance });
   });
 
   it("says why a CV could not be read, or a Job Offer scored", async () => {
@@ -241,5 +260,25 @@ describe("the Jobbbox API, from the extension", () => {
     outdated = false;
     expect(await api.capture({ source: {}, title: "DAF", content: "Poste." })).toEqual({ ok: true, jobOffer });
     expect(await update.required()).toBeNull();
+  });
+
+  it("tells every call that failed, by its route and HTTP status (0: the network), for the extension's error reports (#924)", async () => {
+    const failures: { route: string; httpStatus: number }[] = [];
+    const app = webApp({
+      "/api/job-offers": () => Response.json({ errors: [] }, { status: 500 }),
+      "/api/match-score": () => Response.json({ error: "extension_outdated", storeUrl: null }, { status: 426 }),
+      "/api/profiles": () => Response.json([]),
+    });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch, undefined, (failure) => failures.push(failure));
+
+    await api.capture({ source: {}, title: "DAF", content: "Poste." });
+    await api.saveApplication("jo-1", "p-1"); // not answered: the network
+    await api.score("jo-1", { profileId: "p-1" }); // an update asked, said in the Side Panel instead
+    await api.profiles();
+
+    expect(failures).toEqual([
+      { route: "/api/job-offers", httpStatus: 500 },
+      { route: "/api/applications", httpStatus: 0 },
+    ]);
   });
 });

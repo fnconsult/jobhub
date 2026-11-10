@@ -8,7 +8,7 @@ route: /job-digests/[id]
 ---
 A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.
 
-On the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.
+On the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds, then, while job offers wait for you, a line saying how many you have left to handle, which leads to « Offers to handle », in Job searches. The Job Digest's email ends with the same line, under its button. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.
 
 The « Activity » group shows the page's history: the Job Digest, its Match Scores computed with « No AI », the offers it brought, each « ↳ follows » it, and the coach's replies in this conversation.
 

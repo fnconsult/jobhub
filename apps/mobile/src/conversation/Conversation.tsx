@@ -142,8 +142,6 @@ export function Conversation({
             {children}
           </ThreadScrollContext.Provider>
           {belowBoxInThread ? belowBox : null}
-          {/* Layout-neutral end marker: key-screen captures wait until the whole thread has reached its end. */}
-          <View testID="conversation-end" style={{ position: "absolute", bottom: 0, left: 0, width: 1, height: 1 }} />
         </View>
       </ScrollView>
       {/* What sits above the box (suggestions, the help found while typing) scrolls and shrinks when the thread leaves it

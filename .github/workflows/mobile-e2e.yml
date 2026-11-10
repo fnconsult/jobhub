@@ -180,7 +180,7 @@ jobs:
           ditto -x -k "$RUNNER_TEMP/app/Jobbbox-ios.zip" "$RUNNER_TEMP/app"
           xcrun simctl install booted "$RUNNER_TEMP/app/Jobbbox.app"
       - name: Run the flows
-        run: npx tsx apps/mobile/maestro/run.ts ${{ matrix.hardware }} --stack "$RUNNER_TEMP/stack.json" --captures ${{ inputs.captures || 'record' }} --out "$RUNNER_TEMP/maestro"
+        run: npx tsx apps/mobile/maestro/run.ts ${{ matrix.hardware }} --stack "$RUNNER_TEMP/stack.json" --captures ${{ inputs.captures || 'compare' }} --out "$RUNNER_TEMP/maestro"
       - if: always()
         run: touch "$RUNNER_TEMP/stack.json.done"
       - uses: actions/upload-artifact@v4
@@ -267,7 +267,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
             adb install "$RUNNER_TEMP/app/Jobbbox-android.apk"
-            npx tsx apps/mobile/maestro/run.ts ${{ matrix.hardware }} --stack "$RUNNER_TEMP/stack.json" --captures ${{ inputs.captures || 'record' }} --out "$RUNNER_TEMP/maestro"
+            npx tsx apps/mobile/maestro/run.ts ${{ matrix.hardware }} --stack "$RUNNER_TEMP/stack.json" --captures ${{ inputs.captures || 'compare' }} --out "$RUNNER_TEMP/maestro"
       - if: always()
         run: touch "$RUNNER_TEMP/stack.json.done"
       - uses: actions/upload-artifact@v4

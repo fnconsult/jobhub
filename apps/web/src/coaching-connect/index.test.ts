@@ -7,7 +7,7 @@ import { createProfiles } from "../profiles";
 import { createApplications } from "../applications";
 import { createJobOffers } from "../job-offers";
 import { coachingConnect, migrateCoachingConnect, connectDataOf, deleteConnectDataOf, type ConnectPort } from "./index";
-import type { CheckoutRequest, ConnectCheckout } from "./port";
+import { ConnectOperationNotCreated, type CheckoutRequest, type ConnectCheckout } from "./port";
 describe.skipIf(!connectionString)("Connect payment contexts and monthly allocation", () => {
   let auth: TestAuth, coachId: string, sellerId: string, coachPersonId: string, candidate: { id: string; email: string }, clock: Date;
   let offers: ReturnType<typeof coachingOffers>, connect: ReturnType<typeof coachingConnect>, port: ConnectPort;
@@ -70,6 +70,8 @@ describe.skipIf(!connectionString)("Connect payment contexts and monthly allocat
       }),
       readCheckout: vi.fn(async (id) => [...checkouts.values()].find((c) => c.id === id)!),
       payment: vi.fn(async () => ({ amount: 10000, refunded: 0, refundedCommission: 0, processingFees: 0, available: true })),
+      findPayout: vi.fn(async () => null),
+      findTransfer: vi.fn(async () => null),
       transfer: vi.fn(async (input) => `tr_${input.batchId}`),
       payout: vi.fn(async (input) => ({ id: `po_${input.batchId}`, state: "paid" as const })),
       payoutState: vi.fn(async () => "paid" as const),
@@ -260,4 +262,105 @@ describe.skipIf(!connectionString)("Connect payment contexts and monthly allocat
     expect(await start()).toBeNull();
     expect(port.checkout).not.toHaveBeenCalled();
   });
+  it("binds a signed paid Checkout after a lost response even beyond the create idempotency window", async () => {
+    await connect.onboarding(sellerId, "/espace-coach/revenus", coachPersonId);
+    interrupt = true;
+    await expect(start()).rejects.toThrow("connection lost");
+    const session = [...checkouts.values()][0]!;
+    clock = new Date(clock.getTime() + 48 * 3600000);
+    expect(await connect.paid(session, "acct_coach")).toBe(true);
+    expect(port.checkout).toHaveBeenCalledTimes(1);
+    expect((await auth.database.query("SELECT checkout_id FROM coaching_connect_payment")).rows[0].checkout_id).toBe(session.id);
+    expect((await auth.database.query("SELECT count(*)::int AS n FROM coaching_session")).rows[0].n).toBe(1);
+  });
+  it.each(["refund", "dispute"])("cancels a definitively uncreated payout after a later %s instead of sending its stale allocation", async (cause) => {
+    await paid();
+    vi.mocked(port.payout).mockRejectedValueOnce(new ConnectOperationNotCreated("insufficient balance"));
+    clock = new Date("2026-06-01T12:00Z");
+    await connect.runMonthly();
+    vi.mocked(port.payment).mockResolvedValue({
+      amount: 10000,
+      refunded: cause === "refund" ? 10000 : 0,
+      refundedCommission: cause === "refund" ? 2000 : 0,
+      processingFees: 0,
+      available: cause === "refund",
+    });
+    clock = new Date("2026-06-01T12:06Z");
+    await connect.runMonthly();
+    await connect.runMonthly();
+    expect(port.payout).toHaveBeenCalledTimes(1);
+    expect((await connect.earnings(sellerId))[0]?.allocated).toBe(0);
+    expect((await auth.database.query("SELECT state FROM coaching_connect_batch")).rows[0].state).toBe("cancelled");
+  });
+  it("rebatches a partially refunded, definitively uncreated payout with only its remaining liability", async () => {
+    await paid();
+    vi.mocked(port.payout).mockRejectedValueOnce(new ConnectOperationNotCreated("insufficient balance"));
+    clock = new Date("2026-06-01T12:00Z");
+    await connect.runMonthly();
+    vi.mocked(port.payment).mockResolvedValue({ amount: 10000, refunded: 5000, refundedCommission: 1000, processingFees: 0, available: true });
+    clock = new Date("2026-06-01T12:06Z");
+    await connect.runMonthly();
+    await connect.runMonthly();
+    expect(vi.mocked(port.payout).mock.calls.map(([input]) => input.amount)).toEqual([8000, 4000]);
+    expect((await connect.earnings(sellerId))[0]?.allocated).toBe(4000);
+  });
+  it("quarantines an ambiguous uncreated outcome when liability falls and blocks further Seller cash-outs", async () => {
+    await paid();
+    vi.mocked(port.payout).mockRejectedValueOnce(new Error("network outcome unknown"));
+    clock = new Date("2026-06-01T12:00Z");
+    await connect.runMonthly();
+    vi.mocked(port.payment).mockResolvedValue({ amount: 10000, refunded: 10000, refundedCommission: 2000, processingFees: 0, available: true });
+    clock = new Date("2026-06-01T12:06Z");
+    await connect.runMonthly();
+    expect((await auth.database.query("SELECT state FROM coaching_connect_batch")).rows[0].state).toBe("needs_review");
+    expect(port.payout).toHaveBeenCalledTimes(1);
+    expect((await connect.earnings(sellerId))[0]?.allocated).toBe(8000);
+    clock = new Date("2026-07-01T12:00Z");
+    await connect.runMonthly();
+    expect(port.payout).toHaveBeenCalledTimes(1);
+    vi.mocked(port.findPayout).mockResolvedValue({ id: "po_recovered", state: "paid" });
+    expect(await connect.runMonthly()).toMatchObject({ paid: 1 });
+    expect(port.payout).toHaveBeenCalledTimes(1);
+  });
+  it("unwinds a known Jobbbox transfer before releasing a cancelled payout allocation", async () => {
+    await connect.onboarding(sellerId, "/espace-coach/revenus", coachPersonId);
+    await offers.saveOffer({ coachId, sellerId: JOBBBOX_SELLER.id, durationMinutes: 60, amount: null });
+    await offers.compensation(coachId, 6000, sellerId);
+    const checkout = await start(),
+      session = [...checkouts.values()].find((c) => c.id === checkout!.checkoutSessionId)!;
+    await connect.paid(session, null);
+    vi.mocked(port.payout).mockRejectedValueOnce(new ConnectOperationNotCreated("bank payout not created"));
+    clock = new Date("2026-06-01T12:00Z");
+    await connect.runMonthly();
+    vi.mocked(port.findTransfer).mockResolvedValue({ id: "tr_existing", amount: 6000, complete: true });
+    vi.mocked(port.payment).mockResolvedValue({ amount: 10000, refunded: 10000, refundedCommission: 0, processingFees: 0, available: true });
+    clock = new Date("2026-06-01T12:06Z");
+    await connect.runMonthly();
+    expect(vi.mocked(port.transfer).mock.calls.map(([input]) => input.amount)).toEqual([6000, -6000]);
+    expect((await connect.earnings(sellerId))[0]?.allocated).toBe(0);
+    expect(port.payout).toHaveBeenCalledTimes(1);
+  });
+  it("uses a fresh create attempt only after an authoritative rejection, even after the old key expires", async () => {
+    await paid();
+    vi.mocked(port.payout).mockRejectedValueOnce(new ConnectOperationNotCreated("not created"));
+    clock = new Date("2026-06-01T12:00Z");
+    await connect.runMonthly();
+    clock = new Date("2026-06-03T12:00Z");
+    expect(await connect.runMonthly()).toMatchObject({ paid: 1 });
+    expect(vi.mocked(port.payout).mock.calls.map(([input]) => input.attempt)).toEqual([0, 1]);
+    expect(vi.mocked(port.payout).mock.calls[1]?.[0].attemptedAt).toEqual(clock);
+  });
+  it("does not backfill an old unbound pending batch as a proven uncreated operation",async()=>{
+    await paid();vi.mocked(port.payout).mockRejectedValueOnce(new Error('old unknown outcome'));
+    clock=new Date('2026-06-01T12:00Z');await connect.runMonthly();
+    await auth.database.query('ALTER TABLE coaching_connect_batch DROP COLUMN payout_outcome,DROP COLUMN transfer_outcome');
+    await auth.database.query('ALTER TABLE coaching_connect_batch ADD CONSTRAINT coaching_connect_batch_seller_id_month_currency_key UNIQUE(seller_id,month,currency)');
+    await migrateCoachingConnect(auth.database);
+    expect((await auth.database.query('SELECT payout_outcome FROM coaching_connect_batch')).rows[0].payout_outcome).toBe('unknown');
+    vi.mocked(port.payment).mockResolvedValue({amount:10000,refunded:10000,refundedCommission:2000,processingFees:0,available:true});
+    clock=new Date('2026-06-01T12:06Z');await connect.runMonthly();
+    expect(port.payout).toHaveBeenCalledTimes(1);
+    expect((await auth.database.query('SELECT state FROM coaching_connect_batch')).rows[0].state).toBe('needs_review');
+  });
+
 });

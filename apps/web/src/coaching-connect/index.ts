@@ -4,7 +4,7 @@ import type { Pool } from "pg";
 import { inTransaction, type Queryable } from "../database/pool";
 import type { CoachingSale } from "@jobhub/shared/coaching-offers";
 import type { PaidCoachingSession } from "../billing";
-import type { ConnectPort, CheckoutRequest, ConnectCheckout } from "./port";
+import { ConnectOperationNotCreated, type ConnectPort, type CheckoutRequest, type ConnectCheckout } from "./port";
 import { commissionAmount, proportionalAmount, monthlyEarnings, type Earning } from "./earnings";
 export type { ConnectPort } from "./port";
 export interface ConnectDeps {
@@ -115,7 +115,11 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
     return checkout;
   }
   async function recover(row: Context) {
-    if (row.checkoutId) return stripe().readCheckout(row.checkoutId, row.accountId);
+    if (row.checkoutId) {
+      const existing = await stripe().readCheckout(row.checkoutId, row.accountId);
+      if (!existing) throw new Error("Bound Checkout requires reconciliation");
+      return existing;
+    }
     // Stripe only guarantees idempotency keys for 24 hours. Later unknown outcomes require reconciliation, never another charge.
     if (now().getTime() - row.createdAt.getTime() > 23 * 3600000) throw new Error("Connect Checkout requires reconciliation");
     return bind(row, await stripe().checkout(row.request, `coaching-checkout:${row.id}`));
@@ -211,11 +215,21 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
       if (!session.contextId) return false;
       const row = await context(session.contextId);
       if (!row || !row.candidateId || !row.quoteId || row.accountId !== eventAccount) return false;
-      const original = await recover(row);
-      if (original.id !== session.id) return false;
-      // Re-read from Stripe: account holders cannot fabricate an amount or a paid state in metadata.
+      if (row.checkoutId && row.checkoutId !== session.id) return false;
+      // A signed paid event provides the resource id even after the create idempotency window.
+      // Recover only by reading/binding that resource in the frozen account; never create another Checkout here.
       const paid = await stripe().readCheckout(session.id, eventAccount);
-      if (!paid.paid || paid.contextId !== row.id || paid.amount !== row.amount || paid.currency !== row.currency || !paid.paymentIntent) return false;
+      if (
+        !paid ||
+        paid.id !== session.id ||
+        !paid.paid ||
+        paid.contextId !== row.id ||
+        paid.amount !== row.amount ||
+        paid.currency !== row.currency ||
+        !paid.paymentIntent
+      )
+        return false;
+      await bind(row, paid);
       const input = {
         checkoutSessionId: paid.id,
         candidateId: row.candidateId,
@@ -277,7 +291,13 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
               platform ? 0 : actual.processingFees,
               actual.available,
               now(),
-              actual.available ? 0 : Math.max(0, row.payeeAmount - refunded),
+              actual.available
+                ? 0
+                : actual.held !== undefined
+                  ? platform
+                    ? proportionalAmount(row.payeeAmount, Math.min(row.amount, actual.held), row.amount)
+                    : actual.held
+                  : Math.max(0, row.payeeAmount - refunded),
             ],
           );
         }
@@ -297,6 +317,8 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
           await this.reconcile(recipient.id);
           await inTransaction(database, async (within) => {
             await within.query("SELECT seller_id FROM coaching_connect_account WHERE seller_id=$1 FOR UPDATE", [recipient.id]);
+            if ((await within.query("SELECT 1 FROM coaching_connect_batch WHERE seller_id=$1 AND state='needs_review' LIMIT 1", [recipient.id])).rowCount)
+              return;
             const entries = (
               await within.query<Earning & { platform: boolean; currency: string }>(
                 `SELECT p.id,p.paid_at AS "paidAt",p.currency,(p.account_id IS NULL) AS platform,e.amount,e.commission,e.refunded,e.refunded_commission AS "refundedCommission",e.processing_fees AS "processingFees",e.allocated,e.held FROM coaching_connect_payment p JOIN coaching_connect_earning e ON e.payment_id=p.id WHERE p.recipient_id=$1 FOR UPDATE OF e`,
@@ -312,7 +334,7 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
               const transfer = result.eligible.reduce((sum, line) => sum + (group.find((e) => e.id === line.id)!.platform ? line.due : 0), 0);
               const id = randomUUID(),
                 created = await within.query(
-                  `INSERT INTO coaching_connect_batch(id,seller_id,month,currency,amount,transfer_amount,account_id,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(seller_id,month,currency) DO NOTHING RETURNING id`,
+                  `INSERT INTO coaching_connect_batch(id,seller_id,month,currency,amount,transfer_amount,account_id,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(seller_id,month,currency) WHERE state<>'cancelled' DO NOTHING RETURNING id`,
                   [id, recipient.id, month, currency, result.payout, transfer, payee.accountId, now()],
                 );
               if (!created.rowCount) continue;
@@ -330,13 +352,14 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
       // A per-batch advisory lock covers Stripe calls, including concurrent worker restarts.
       const batches = (
         await database.query<{ id: string }>(
-          "SELECT id FROM coaching_connect_batch WHERE state='pending' AND (retry_at IS NULL OR retry_at<=$1) ORDER BY created_at,id",
+          "SELECT id FROM coaching_connect_batch WHERE state IN ('pending','cancelling','needs_review') AND (retry_at IS NULL OR retry_at<=$1) ORDER BY created_at,id",
           [now()],
         )
       ).rows;
       for (const batch of batches) {
         const client = await database.connect();
-        let locked = false;
+        let locked = false,
+          phase: "transfer" | "payout" | null = null;
         try {
           locked = (await client.query<{ locked: boolean }>("SELECT pg_try_advisory_lock(hashtextextended($1,878)) AS locked", [batch.id])).rows[0]!.locked;
           if (!locked) continue;
@@ -352,33 +375,105 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
               transferId: string | null;
               payoutId: string | null;
               state: string;
+              payoutOutcome: string;
+              transferOutcome: string;
+              cancelTransferId: string | null;
+              cancelStartedAt: Date | null;
+              payoutAttempt: number;
+              payoutAttemptedAt: Date | null;
             }>(
-              `SELECT id,seller_id AS "sellerId",account_id AS "accountId",amount,transfer_amount AS "transferAmount",currency,created_at AS "createdAt",transfer_id AS "transferId",payout_id AS "payoutId",state FROM coaching_connect_batch WHERE id=$1`,
+              `SELECT id,seller_id AS "sellerId",account_id AS "accountId",amount,transfer_amount AS "transferAmount",currency,created_at AS "createdAt",transfer_id AS "transferId",payout_id AS "payoutId",state,payout_outcome AS "payoutOutcome",transfer_outcome AS "transferOutcome",cancel_transfer_id AS "cancelTransferId",cancel_started_at AS "cancelStartedAt",payout_attempt AS "payoutAttempt",payout_attempted_at AS "payoutAttemptedAt" FROM coaching_connect_batch WHERE id=$1`,
               [batch.id],
             )
           ).rows[0]!;
-          if (row.state !== "pending") continue;
-          if (row.transferAmount && !row.transferId) {
-            const transferId = await stripe().transfer({
-              batchId: row.id,
-              accountId: row.accountId,
-              amount: row.transferAmount,
-              currency: row.currency,
-              createdAt: row.createdAt,
-            });
-            await client.query("UPDATE coaching_connect_batch SET transfer_id=$2 WHERE id=$1", [row.id, transferId]);
+          if (!["pending", "cancelling", "needs_review"].includes(row.state)) continue;
+          const request = { batchId: row.id, accountId: row.accountId, amount: row.amount, currency: row.currency, createdAt: row.createdAt };
+          // Discovery MUST NOT create an old payout while refunds are being revalidated.
+          let payout = row.payoutId ? { id: row.payoutId, state: await stripe().payoutState(row.accountId, row.payoutId) } : await stripe().findPayout(request);
+          if (!payout) {
+            await this.reconcile(row.sellerId);
+            const allocations = (
+              await client.query<Earning & { ownAllocation: number }>(
+                `SELECT p.id,p.paid_at AS "paidAt",e.amount,e.commission,e.refunded,e.refunded_commission AS "refundedCommission",e.processing_fees AS "processingFees",e.held,e.allocated,a.amount AS "ownAllocation" FROM coaching_connect_allocation a JOIN coaching_connect_earning e ON e.payment_id=a.payment_id JOIN coaching_connect_payment p ON p.id=e.payment_id WHERE a.batch_id=$1`,
+                [row.id],
+              )
+            ).rows;
+            const liability = monthlyEarnings(
+              allocations.map((entry) => ({ ...entry, allocated: entry.allocated - entry.ownAllocation })),
+              now(),
+            ).due;
+            if (row.state === "cancelling" || liability < row.amount || row.transferOutcome === "not_created") {
+              const transfer = row.transferAmount ? await stripe().findTransfer({ ...request, amount: row.transferAmount }) : null;
+              const payoutUncertain = row.payoutOutcome === "unknown";
+              const transferUncertain = row.transferAmount && row.transferOutcome === "unknown" && (!transfer || !transfer.complete);
+              if (payoutUncertain || transferUncertain) {
+                await client.query("UPDATE coaching_connect_batch SET state='needs_review' WHERE id=$1", [row.id]);
+                continue;
+              }
+              await client.query("UPDATE coaching_connect_batch SET state='cancelling',cancel_started_at=coalesce(cancel_started_at,$2) WHERE id=$1", [
+                row.id,
+                now(),
+              ]);
+              if (transfer && !row.cancelTransferId) {
+                const reversed = await stripe().transfer({
+                  ...request,
+                  batchId: `cancel:${row.id}`,
+                  amount: -transfer.amount,
+                  createdAt: row.cancelStartedAt ?? now(),
+                });
+                await client.query("UPDATE coaching_connect_batch SET cancel_transfer_id=$2 WHERE id=$1", [row.id, reversed]);
+              }
+              await inTransaction(database, async (within) => {
+                await within.query("SELECT seller_id FROM coaching_connect_account WHERE seller_id=$1 FOR UPDATE", [row.sellerId]);
+                if ((await within.query("SELECT 1 FROM coaching_connect_batch WHERE id=$1 AND state='cancelled'", [row.id])).rowCount) return;
+                await within.query(
+                  "UPDATE coaching_connect_earning e SET allocated=e.allocated-a.amount FROM coaching_connect_allocation a WHERE a.payment_id=e.payment_id AND a.batch_id=$1",
+                  [row.id],
+                );
+                await within.query("UPDATE coaching_connect_batch SET state='cancelled' WHERE id=$1", [row.id]);
+              });
+              continue;
+            }
+            if (row.state === "needs_review") continue;
+            if (
+              (await client.query("SELECT 1 FROM coaching_connect_batch WHERE seller_id=$1 AND state='needs_review' AND id<>$2", [row.sellerId, row.id]))
+                .rowCount
+            )
+              continue;
+            if (!(await active(row.sellerId, true))) continue;
+            if (row.transferAmount && !row.transferId) {
+              phase = "transfer";
+              await client.query("UPDATE coaching_connect_batch SET transfer_outcome='unknown' WHERE id=$1", [row.id]);
+              const transferId = await stripe().transfer({ ...request, amount: row.transferAmount });
+              await client.query("UPDATE coaching_connect_batch SET transfer_id=$2,transfer_outcome='created' WHERE id=$1", [row.id, transferId]);
+              phase = null;
+            }
+            const attempt = row.payoutAttempt + (row.payoutOutcome === "not_created" ? 1 : 0),
+              attemptedAt = row.payoutOutcome === "unknown" ? (row.payoutAttemptedAt ?? row.createdAt) : now();
+            phase = "payout";
+            await client.query("UPDATE coaching_connect_batch SET payout_outcome='unknown',payout_attempt=$2,payout_attempted_at=$3 WHERE id=$1", [
+              row.id,
+              attempt,
+              attemptedAt,
+            ]);
+            payout = await stripe().payout({ ...request, attempt, attemptedAt });
+            phase = null;
           }
-          const payout = row.payoutId
-            ? { id: row.payoutId, state: await stripe().payoutState(row.accountId, row.payoutId) }
-            : await stripe().payout({ batchId: row.id, accountId: row.accountId, amount: row.amount, currency: row.currency, createdAt: row.createdAt });
-          await client.query("UPDATE coaching_connect_batch SET payout_id=$2 WHERE id=$1", [row.id, payout.id]);
+          await client.query("UPDATE coaching_connect_batch SET payout_id=$2,payout_outcome='created',state='pending' WHERE id=$1", [row.id, payout.id]);
           if (payout.state === "paid") {
             await client.query("UPDATE coaching_connect_batch SET state='paid',paid_at=$2 WHERE id=$1", [row.id, now()]);
             paid++;
           }
           // Failed bank payouts leave the allocated money visible for Support reconciliation. Never manufacture a second transfer/payout.
           if (payout.state === "failed") await client.query("UPDATE coaching_connect_batch SET state='failed' WHERE id=$1", [row.id]);
-        } catch {
+        } catch (error) {
+          if (error instanceof ConnectOperationNotCreated && phase)
+            await client.query(
+              phase === "payout"
+                ? "UPDATE coaching_connect_batch SET payout_outcome='not_created' WHERE id=$1"
+                : "UPDATE coaching_connect_batch SET transfer_outcome='not_created' WHERE id=$1",
+              [batch.id],
+            );
           await client.query("UPDATE coaching_connect_batch SET retry_at=$2::timestamptz+interval '5 minutes' WHERE id=$1", [batch.id, now()]);
         } finally {
           if (locked) await client.query("SELECT pg_advisory_unlock(hashtextextended($1,878))", [batch.id]);
@@ -417,14 +512,14 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
         ]);
         const expired = (
           await within.query<{ id: string }>(
-            `SELECT p.id FROM coaching_connect_payment p WHERE p.paid_at<$1::timestamptz-interval '10 years' AND NOT EXISTS(SELECT 1 FROM coaching_connect_allocation a JOIN coaching_connect_batch b ON b.id=a.batch_id WHERE a.payment_id=p.id AND b.state<>'paid') FOR UPDATE`,
+            `SELECT p.id FROM coaching_connect_payment p WHERE p.paid_at<$1::timestamptz-interval '10 years' AND NOT EXISTS(SELECT 1 FROM coaching_connect_allocation a JOIN coaching_connect_batch b ON b.id=a.batch_id WHERE a.payment_id=p.id AND b.state NOT IN ('paid','cancelled')) FOR UPDATE`,
             [now()],
           )
         ).rows.map((row) => row.id);
         await within.query("DELETE FROM coaching_connect_allocation WHERE payment_id=ANY($1::uuid[])", [expired]);
         const paid = await within.query("DELETE FROM coaching_connect_payment WHERE id=ANY($1::uuid[])", [expired]);
         await within.query(
-          "DELETE FROM coaching_connect_batch b WHERE b.created_at<$1::timestamptz-interval '10 years' AND b.state='paid' AND NOT EXISTS(SELECT 1 FROM coaching_connect_allocation a WHERE a.batch_id=b.id)",
+          "DELETE FROM coaching_connect_batch b WHERE b.created_at<$1::timestamptz-interval '10 years' AND b.state IN ('paid','cancelled') AND NOT EXISTS(SELECT 1 FROM coaching_connect_allocation a WHERE a.batch_id=b.id)",
           [now()],
         );
         return (unpaid.rowCount ?? 0) + (paid.rowCount ?? 0);
@@ -445,7 +540,21 @@ export async function migrateCoachingConnect(database: Pool) {
  CREATE TABLE IF NOT EXISTS coaching_connect_account(seller_id uuid PRIMARY KEY REFERENCES coaching_seller(id),account_id text UNIQUE NOT NULL,created_at timestamptz NOT NULL,owner_id text REFERENCES candidate(id) ON DELETE SET NULL);
  CREATE TABLE IF NOT EXISTS coaching_connect_payment(id uuid PRIMARY KEY,quote_id uuid UNIQUE REFERENCES coaching_offer_quote(id) ON DELETE SET NULL,candidate_id text REFERENCES candidate(id) ON DELETE SET NULL,coach_id uuid NOT NULL REFERENCES human_coach(id),recipient_id uuid NOT NULL REFERENCES coaching_seller(id),account_id text,amount integer NOT NULL,currency text NOT NULL,commission integer NOT NULL,payee_amount integer NOT NULL,request jsonb NOT NULL,sale_snapshot jsonb NOT NULL,created_at timestamptz NOT NULL,checkout_id text UNIQUE,payment_intent text,paid_at timestamptz);
  CREATE TABLE IF NOT EXISTS coaching_connect_earning(payment_id uuid PRIMARY KEY REFERENCES coaching_connect_payment(id) ON DELETE CASCADE,amount integer NOT NULL,commission integer NOT NULL,refunded integer NOT NULL DEFAULT 0,refunded_commission integer NOT NULL DEFAULT 0,processing_fees integer NOT NULL DEFAULT 0,allocated integer NOT NULL DEFAULT 0,held integer NOT NULL DEFAULT 0,available boolean NOT NULL DEFAULT false,checked_at timestamptz);
- CREATE TABLE IF NOT EXISTS coaching_connect_batch(id uuid PRIMARY KEY,seller_id uuid NOT NULL REFERENCES coaching_seller(id),month text NOT NULL,currency text NOT NULL,amount integer NOT NULL,transfer_amount integer NOT NULL,account_id text NOT NULL,created_at timestamptz NOT NULL,transfer_id text UNIQUE,payout_id text UNIQUE,state text NOT NULL DEFAULT 'pending',retry_at timestamptz,paid_at timestamptz,notice_sent_at timestamptz,notice_claim uuid,notice_claimed_at timestamptz,notice_retry_at timestamptz,UNIQUE(seller_id,month,currency));
+ CREATE TABLE IF NOT EXISTS coaching_connect_batch(id uuid PRIMARY KEY,seller_id uuid NOT NULL REFERENCES coaching_seller(id),month text NOT NULL,currency text NOT NULL,amount integer NOT NULL,transfer_amount integer NOT NULL,account_id text NOT NULL,created_at timestamptz NOT NULL,transfer_id text UNIQUE,payout_id text UNIQUE,state text NOT NULL DEFAULT 'pending',retry_at timestamptz,paid_at timestamptz,notice_sent_at timestamptz,notice_claim uuid,notice_claimed_at timestamptz,notice_retry_at timestamptz,payout_outcome text NOT NULL DEFAULT 'none',transfer_outcome text NOT NULL DEFAULT 'none',cancel_transfer_id text,cancel_started_at timestamptz,payout_attempt integer NOT NULL DEFAULT 0,payout_attempted_at timestamptz);
+ ALTER TABLE coaching_connect_batch ADD COLUMN IF NOT EXISTS payout_outcome text;
+ ALTER TABLE coaching_connect_batch ADD COLUMN IF NOT EXISTS transfer_outcome text;
+ ALTER TABLE coaching_connect_batch ADD COLUMN IF NOT EXISTS cancel_transfer_id text;
+ ALTER TABLE coaching_connect_batch ADD COLUMN IF NOT EXISTS cancel_started_at timestamptz;
+ ALTER TABLE coaching_connect_batch ADD COLUMN IF NOT EXISTS payout_attempt integer NOT NULL DEFAULT 0;
+ ALTER TABLE coaching_connect_batch ADD COLUMN IF NOT EXISTS payout_attempted_at timestamptz;
+ UPDATE coaching_connect_batch SET payout_outcome=CASE WHEN payout_id IS NOT NULL THEN 'created' ELSE 'unknown' END WHERE payout_outcome IS NULL;
+ UPDATE coaching_connect_batch SET transfer_outcome=CASE WHEN transfer_amount=0 THEN 'none' WHEN transfer_id IS NOT NULL THEN 'created' ELSE 'unknown' END WHERE transfer_outcome IS NULL;
+ ALTER TABLE coaching_connect_batch ALTER COLUMN payout_outcome SET DEFAULT 'none';
+ ALTER TABLE coaching_connect_batch ALTER COLUMN payout_outcome SET NOT NULL;
+ ALTER TABLE coaching_connect_batch ALTER COLUMN transfer_outcome SET DEFAULT 'none';
+ ALTER TABLE coaching_connect_batch ALTER COLUMN transfer_outcome SET NOT NULL;
+ ALTER TABLE coaching_connect_batch DROP CONSTRAINT IF EXISTS coaching_connect_batch_seller_id_month_currency_key;
+ CREATE UNIQUE INDEX IF NOT EXISTS coaching_connect_active_batch ON coaching_connect_batch(seller_id,month,currency) WHERE state<>'cancelled';
  CREATE TABLE IF NOT EXISTS coaching_connect_allocation(batch_id uuid NOT NULL REFERENCES coaching_connect_batch(id),payment_id uuid NOT NULL REFERENCES coaching_connect_earning(payment_id),amount integer NOT NULL,PRIMARY KEY(batch_id,payment_id));`);
 }
 

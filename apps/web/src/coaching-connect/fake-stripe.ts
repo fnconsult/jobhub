@@ -2,6 +2,7 @@
 import type { IncomingMessage } from "node:http";
 type Json = Record<string, unknown>;
 export function fakeConnectStripe() {
+  const disputes = new Map<string, { account: string | null; value: Json }>();
   const accounts = new Map<string, Json>(),
     sessions = new Map<string, { account: string | null; value: Json }>(),
     payments = new Map<string, { account: string | null; value: Json }>(),
@@ -59,6 +60,29 @@ export function fakeConnectStripe() {
       found.value.payment_status = "paid";
       return respond(found.value);
     }
+    if (method === "POST" && path === "/__connect/dispute") {
+      const payment = payments.get(params.get("payment_intent") ?? "");
+      if (!payment) return failure();
+      const charge = payment.value.latest_charge as Json;
+      charge.disputed = true;
+      const status = params.get("status") ?? "needs_response",
+        amount = Number(payment.value.amount),
+        id = `dp_${charge.id}`;
+      const movements =
+        status === "warning_closed"
+          ? []
+          : [
+              { id: `txn_withdraw_${id}`, amount: -amount, status: "available" },
+              ...(status === "won" ? [{ id: `txn_return_${id}`, amount, status: params.get("balance_status") ?? "available" }] : []),
+            ];
+      const value = { id, object: "dispute", charge: charge.id, amount, currency: "eur", status, balance_transactions: movements };
+      disputes.set(id, { account: payment.account, value });
+      return respond(value);
+    }
+    if (method === "GET" && path === "/v1/disputes")
+      return respond(
+        list([...disputes.values()].filter((d) => d.account === account && d.value.charge === url.searchParams.get("charge")).map((d) => d.value)),
+      );
     if (method === "GET" && path === "/v1/accounts") return respond(list([...accounts.values()]));
     if (method === "POST" && path === "/v1/accounts") {
       const id = `acct_connect_${++sequence}`,

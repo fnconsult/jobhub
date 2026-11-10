@@ -1,6 +1,6 @@
 import { recordingClient, type ExternalApiLog } from "@jobhub/shared";
 import Stripe from "stripe";
-import type { ConnectAccount, ConnectCheckout, ConnectPort } from "./port";
+import { ConnectOperationNotCreated, type SettlementRequest, type ConnectAccount, type ConnectCheckout, type ConnectPort } from "./port";
 export interface ConnectStripeConfig {
   secretKey: string;
   webhookSecret: string;
@@ -54,7 +54,34 @@ export function stripeConnect(
   function recent(createdAt: Date) {
     if (now().getTime() - createdAt.getTime() > 23 * 3600000) throw new Error("Unknown Stripe outcome requires reconciliation");
   }
+  async function findPayout(input: SettlementRequest) {
+    for await (const found of stripe.payouts.list(
+      { limit: 100, created: { gte: Math.floor(input.createdAt.getTime() / 1000) - 5 } },
+      options(input.accountId),
+    )) {
+      if (found.metadata?.jobhub_batch !== input.batchId) continue;
+      if (found.amount !== input.amount || found.currency !== input.currency) throw new Error("Payout recovery mismatch");
+      return { id: found.id, state: state(found) };
+    }
+    return null;
+  }
+  async function findTransfer(input: SettlementRequest) {
+    let recovered = 0;
+    for await (const found of stripe.transfers.list({ destination: input.accountId, limit: 100 })) {
+      if (found.currency !== input.currency) continue;
+      if (input.amount > 0 && found.metadata.jobhub_batch === input.batchId) {
+        if (found.amount !== input.amount) throw new Error("Transfer recovery mismatch");
+        return { id: found.id, amount: found.amount, complete: true };
+      }
+      if (input.amount < 0 && found.metadata.jobhub_account === input.accountId)
+        for await (const reversal of stripe.transfers.listReversals(found.id, { limit: 100 }))
+          if (reversal.metadata?.jobhub_adjustment === input.batchId) recovered += reversal.amount;
+    }
+    return recovered ? { id: `reversal:${input.batchId}`, amount: -recovered, complete: recovered === -input.amount } : null;
+  }
   return {
+    findPayout,
+    findTransfer,
     verify: (body, signature) => stripe.webhooks.constructEvent(body, signature, config.webhookSecret),
     decodeCheckout: checkout,
     async account(seller, key) {
@@ -113,7 +140,12 @@ export function stripeConnect(
       );
     },
     async readCheckout(id, accountId) {
-      return checkout(await stripe.checkout.sessions.retrieve(id, {}, options(accountId)));
+      try {
+        return checkout(await stripe.checkout.sessions.retrieve(id, {}, options(accountId)));
+      } catch (error) {
+        if (error instanceof Stripe.errors.StripeInvalidRequestError && error.statusCode === 404) return null;
+        throw error;
+      }
     },
     async payment(id, accountId) {
       const payment = await stripe.paymentIntents.retrieve(id, { expand: ["latest_charge.balance_transaction"] }, options(accountId));
@@ -127,16 +159,41 @@ export function stripeConnect(
       const fee = charge.application_fee;
       const applicationFee = typeof fee === "string" ? await stripe.applicationFees.retrieve(fee) : fee;
       const refundedCommission = applicationFee?.amount_refunded ?? 0;
-      const processingFees =
+      let processingFees =
         balance && typeof balance !== "string"
           ? balance.fee_details.filter((item) => item.type !== "application_fee").reduce((sum, item) => sum + item.amount, 0)
           : 0;
+      let disputeCleared = !charge.disputed,
+        disputeHeld = 0;
+      if (charge.disputed) {
+        const disputes = [] as Stripe.Dispute[];
+        for await (const dispute of stripe.disputes.list({ charge: charge.id, limit: 100 }, options(accountId))) disputes.push(dispute);
+        const availableMovements = disputes
+          .flatMap((dispute) => dispute.balance_transactions ?? [])
+          .filter((transaction) => transaction.status === "available");
+        disputeHeld = Math.max(0, -availableMovements.reduce((sum, transaction) => sum + (transaction.net ?? transaction.amount), 0));
+        // Charge.disputed is historical. Only a won or closed warning releases its held balance.
+        disputeCleared =
+          disputes.length > 0 &&
+          disputes.every((dispute) => {
+            if (dispute.status !== "won" && dispute.status !== "warning_closed") return false;
+            const movements = dispute.balance_transactions ?? [];
+            const credited = movements.filter((transaction) => transaction.amount > 0);
+            return (
+              (dispute.status === "warning_closed" || credited.length > 0) &&
+              credited.every((transaction) => transaction.status === "available") &&
+              movements.reduce((sum, transaction) => sum + transaction.amount, 0) >= 0
+            );
+          });
+      }
+      if (disputeCleared) processingFees += disputeHeld; // Any actually debited, unreturned dispute fee remains an expense.
       return {
         amount: payment.amount,
         refunded,
         refundedCommission,
         processingFees,
-        available: payment.status === "succeeded" && !charge.disputed && !!balance && typeof balance !== "string" && balance.status === "available",
+        held: disputeCleared ? 0 : disputeHeld || payment.amount,
+        available: payment.status === "succeeded" && disputeCleared && !!balance && typeof balance !== "string" && balance.status === "available",
       };
     },
     async transfer(input) {
@@ -151,17 +208,29 @@ export function stripeConnect(
           return found.id;
         }
         recent(input.createdAt);
-        return (
-          await stripe.transfers.create(
-            {
-              amount: input.amount,
-              currency: input.currency,
-              destination: input.accountId,
-              metadata: { jobhub_batch: input.batchId, jobhub_account: input.accountId },
-            },
-            { idempotencyKey: `coach-transfer:${input.batchId}` },
+        try {
+          return (
+            await stripe.transfers.create(
+              {
+                amount: input.amount,
+                currency: input.currency,
+                destination: input.accountId,
+                metadata: { jobhub_batch: input.batchId, jobhub_account: input.accountId },
+              },
+              { idempotencyKey: `coach-transfer:${input.batchId}` },
+            )
+          ).id;
+        } catch (error) {
+          if (
+            (error instanceof Stripe.errors.StripeInvalidRequestError ||
+              error instanceof Stripe.errors.StripePermissionError ||
+              error instanceof Stripe.errors.StripeAuthenticationError) &&
+            error.statusCode &&
+            error.statusCode < 500
           )
-        ).id;
+            throw new ConnectOperationNotCreated("Stripe rejected transfer creation");
+          throw error;
+        }
       }
       if (!input.amount) throw new Error("Empty transfer adjustment");
       // Return compensation paid by Jobbbox when a later refund exceeds new Jobbbox earnings.
@@ -196,20 +265,26 @@ export function stripeConnect(
       return `reversal:${input.batchId}`;
     },
     async payout(input) {
-      for await (const found of stripe.payouts.list(
-        { limit: 100, created: { gte: Math.floor(input.createdAt.getTime() / 1000) - 5 } },
-        options(input.accountId),
-      )) {
-        if (found.metadata?.jobhub_batch !== input.batchId) continue;
-        if (found.amount !== input.amount || found.currency !== input.currency) throw new Error("Payout recovery mismatch");
-        return { id: found.id, state: state(found) };
+      const recovered = await findPayout(input);
+      if (recovered) return recovered;
+      recent(input.attemptedAt ?? input.createdAt);
+      try {
+        const payout = await stripe.payouts.create(
+          { amount: input.amount, currency: input.currency, metadata: { jobhub_batch: input.batchId } },
+          { ...options(input.accountId), idempotencyKey: `coach-payout:${input.batchId}:${input.attempt ?? 0}` },
+        );
+        return { id: payout.id, state: state(payout) };
+      } catch (error) {
+        if (
+          (error instanceof Stripe.errors.StripeInvalidRequestError ||
+            error instanceof Stripe.errors.StripePermissionError ||
+            error instanceof Stripe.errors.StripeAuthenticationError) &&
+          error.statusCode &&
+          error.statusCode < 500
+        )
+          throw new ConnectOperationNotCreated("Stripe rejected payout creation");
+        throw error;
       }
-      recent(input.createdAt);
-      const payout = await stripe.payouts.create(
-        { amount: input.amount, currency: input.currency, metadata: { jobhub_batch: input.batchId } },
-        { ...options(input.accountId), idempotencyKey: `coach-payout:${input.batchId}` },
-      );
-      return { id: payout.id, state: state(payout) };
     },
     async payoutState(accountId, id) {
       return state(await stripe.payouts.retrieve(id, {}, options(accountId)));

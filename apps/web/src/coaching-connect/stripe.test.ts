@@ -58,10 +58,10 @@ describe("stable Stripe Connect SDK over HTTP", () => {
     expect(call.params.get("customer_email")).toBe(input.email);
     expect(call.params.get("payment_intent_data[application_fee_amount]")).toBe("1800");
     expect(call.params.get("metadata[candidate_id]")).toBeNull();
-    await expect(port.readCheckout(session.id, "acct_foreign")).rejects.toThrow();
+    expect(await port.readCheckout(session.id, "acct_foreign")).toBeNull();
     expect((await port.checkout(input, "checkout-fixture")).id).toBe(session.id);
     await fetch(`${fake.url}/__connect/pay`, { method: "POST", body: new URLSearchParams({ session: session.id }) });
-    expect((await port.readCheckout(session.id, id)).paid).toBe(true);
+    expect((await port.readCheckout(session.id, id))?.paid).toBe(true);
     expect(await port.payment(session.paymentIntent!, id)).toMatchObject({ amount: 9000, refunded: 0, processingFees: 0, available: true });
   });
   it("recovers transfers, bank payouts and compensation reversals from metadata after the idempotency window", async () => {
@@ -87,5 +87,35 @@ describe("stable Stripe Connect SDK over HTTP", () => {
       signed = signedEvent(event);
     expect(port.verify(signed.payload, signed.signature).id).toBe("evt_test");
     expect(() => port.verify(signed.payload + " ", signed.signature)).toThrow();
+  });
+  it("releases a historically disputed charge only after a won dispute reinstates available funds or a warning closes", async () => {
+    const id = await account(),
+      session = await port.checkout(
+        {
+          contextId: "dispute-context",
+          accountId: id,
+          amount: 10000,
+          currency: "eur",
+          commission: 2000,
+          title: "Coaching",
+          email: "buyer@example.test",
+          locale: "fr",
+          successUrl: "http://localhost/coachs",
+          cancelUrl: "http://localhost/coachs",
+        },
+        "disputed-checkout",
+      );
+    const set = async (status: string, balance_status = "available") =>
+      fetch(`${fake.url}/__connect/dispute`, { method: "POST", body: new URLSearchParams({ payment_intent: session.paymentIntent!, status, balance_status }) });
+    await set("needs_response");
+    expect(await port.payment(session.paymentIntent!, id)).toMatchObject({ available: false, held: 10000 });
+    await set("won", "pending");
+    expect((await port.payment(session.paymentIntent!, id)).available).toBe(false);
+    await set("won");
+    expect((await port.payment(session.paymentIntent!, id)).available).toBe(true);
+    await set("lost");
+    expect((await port.payment(session.paymentIntent!, id)).available).toBe(false);
+    await set("warning_closed");
+    expect((await port.payment(session.paymentIntent!, id)).available).toBe(true);
   });
 });

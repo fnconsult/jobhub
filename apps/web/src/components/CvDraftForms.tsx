@@ -134,7 +134,15 @@ interface ReviewState {
  * then saving it as a Profile. Opened in the Work Pane, which titles it (ADR-0070): it starts from `kept`, what was
  * changed before the pane last closed, and hands each change to `onKeep`.
  */
-export function CvReview(props: { draft: CvDraft; kept?: ReviewEdits; onKeep?: (edits: ReviewEdits) => void; startOverLabel: string; onStartOver: () => void }) {
+export function CvReview(props: {
+  draft: CvDraft;
+  kept?: ReviewEdits;
+  onKeep?: (edits: ReviewEdits) => void;
+  startOverLabel: string;
+  onStartOver: () => void;
+  /** The Profile saved, at its page, just before the Candidate is taken there. */
+  onSaved?: (href: string) => void;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const [review, setReview] = useState<ReviewState>(() => ({
@@ -167,6 +175,7 @@ export function CvReview(props: { draft: CvDraft; kept?: ReviewEdits; onKeep?: (
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 201) {
+        props.onSaved?.(routes.profile(body.id));
         router.push(routes.profile(body.id));
         return;
       }

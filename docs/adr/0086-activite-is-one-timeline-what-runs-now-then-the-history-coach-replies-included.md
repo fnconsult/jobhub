@@ -44,6 +44,12 @@ The product owner chose the variant. The prototype's three other questions were 
 
 - **« Keeps its frame » means the Top Bar's « Activité » Button.** The product owner chose, on #902, to merge the AI Activity button into the « Activité » button #603 added, rather than keep a separate icon-only square beside it: two buttons doing the same toggle would be redundant. Its visible label is « Activité », with the live Activity glyph while an action runs; its words and stop icon stay beside it, and its accessible name stays « Activité IA » followed by its words. One entry point, `toggleActivity` (`ActivityColumn.toggle`), opens and closes Activity, from this button and from any other entry such as the compact phone bar's « … » (#897).
 
+## Amendment (#810)
+
+- **A Profile's creation is one entry, « Création du profil »**, in place of Version 1 and its ATS Score as entries of their own: the CV's reading (the only AI step), the onboarding questionnaire, the review, « Profil créé » with Version 1, and its ATS Score.
+- **What only the browser knows is held in memory, never stored**: the questionnaire's answers and the review opened. Storing them would add a record of the Candidate's answers for a display; after a reload the entry shows only what is kept.
+- **The Context bar says « Le coach n'a pas encore répondu. » until the coach's first reply**, with no figures, including on /profils/nouveau, rather than showing a ceiling with nothing read.
+
 ## Considered Options
 
 - **A, one feed grouped by run, newest first, every entry a card**: complete, but what runs now scrolled away under older cards.

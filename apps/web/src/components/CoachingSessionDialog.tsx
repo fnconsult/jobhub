@@ -46,11 +46,13 @@ export function CoachingSessionDialog({
   session,
   withName,
   editor = "candidate",
+  withVideoLink = true,
   className = buttonClass(),
 }: {
   session: CoachingSessionFields;
   withName: string;
   editor?: SessionEditor;
+  withVideoLink?:boolean;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -68,7 +70,7 @@ export function CoachingSessionDialog({
       title={t("coachingSession.title", { name: withName })}
     >
       {/* Mounted on each opening, from the session as the page last read it. */}
-      <CoachingSessionForm session={session} editor={editor} onSaved={() => setOpen(false)} onCancel={() => setOpen(false)} />
+      <CoachingSessionForm session={session} editor={editor} withVideoLink={withVideoLink} onSaved={() => setOpen(false)} onCancel={() => setOpen(false)} />
     </Drawer>
   );
 }
@@ -85,11 +87,13 @@ type SessionField = keyof typeof ERROR_MESSAGES;
 function CoachingSessionForm({
   session,
   editor,
+  withVideoLink,
   onSaved,
   onCancel,
 }: {
   session: CoachingSessionFields;
   editor: SessionEditor;
+  withVideoLink:boolean;
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -150,9 +154,9 @@ function CoachingSessionForm({
       <Field id={`${id}-duration`} label={t("coachingSession.duration")} error={durationError?.text}>
         <TextInput type="number" inputMode="numeric" min={5} max={600} step={5} value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} />
       </Field>
-      <Field id={`${id}-video`} label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} error={videoLinkError?.text}>
+      {withVideoLink?<Field id={`${id}-video`} label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} error={videoLinkError?.text}>
         <TextInput type="url" inputMode="url" maxLength={500} value={videoLink} onChange={(event) => setVideoLink(event.target.value)} />
-      </Field>
+      </Field>:null}
       {editor === "candidate" ? (
         <Field id={`${id}-note`} label={t("coachingSession.note")} error={noteError?.text}>
           <Textarea maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />

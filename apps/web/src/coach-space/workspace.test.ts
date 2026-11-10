@@ -100,6 +100,19 @@ describe.skipIf(!connectionString)("the coach's private workspace", () => {
     await auth.database.query("DELETE FROM candidate WHERE id=$1", [candidateId]);
     expect((await auth.database.query("SELECT * FROM private_coach_note")).rows).toEqual([]);
   });
+  it("retires a stale v2 contact atomically when a legacy client changes the session video link",async()=>{
+    const contacts=coachContacts(auth.database);
+    const first="https://meet.google.com/aaa-bbbb-ccc",second="https://meet.google.com/ddd-eeee-fff";
+    await contacts.save(coachId,sessionId,{kind:"video",target:first});
+    await auth.database.query("UPDATE coaching_session SET video_link=$2 WHERE id=$1",[sessionId,second]);
+    expect(await contacts.ofSession(coachId,sessionId)).toMatchObject({target:second});
+    expect((await contacts.forCandidate(candidateId))[sessionId]).toMatchObject({target:second});
+    await contacts.save(coachId,sessionId,{kind:"video",target:first});
+    expect((await auth.database.query("SELECT video_link FROM coaching_session WHERE id=$1",[sessionId])).rows[0].video_link).toBe(first);
+    // A date-only edit sends the old link unchanged and must preserve the newer explicit contact.
+    await auth.database.query("UPDATE coaching_session SET scheduled_at=scheduled_at+interval '1 day',video_link=$2 WHERE id=$1",[sessionId,first]);
+    expect(await contacts.ofSession(coachId,sessionId)).toMatchObject({target:first});
+  });
   it("uses per-session contacts before permanent contacts, and rejects another coach and retirement", async () => {
     const contacts = coachContacts(auth.database);
     expect(await contacts.save(coachId, null, { kind: "phone", target: "+33 6 12 34 56 78", direction: "candidate_calls" })).toBe(true);

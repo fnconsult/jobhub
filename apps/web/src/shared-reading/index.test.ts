@@ -44,6 +44,7 @@ describe.skipIf(!connectionString)("ephemeral Shared Reading", () => {
     expect(await reading.startCandidate({ candidateId: "", coachId }, sessionId, source)).toBeNull();
     expect(document).not.toHaveBeenCalled();
     clock = new Date("2026-11-10T11:49:59Z");
+    expect((await reading.nextChange(candidateId))?.toISOString()).toBe("2026-11-10T11:50:00.000Z");
     expect(await reading.startCandidate({ candidateId }, sessionId, source)).toBeNull();
     clock = new Date("2026-11-10T11:50:00Z");
     const state = await reading.startCandidate({ candidateId }, sessionId, source);

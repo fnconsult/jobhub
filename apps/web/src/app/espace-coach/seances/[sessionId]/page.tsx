@@ -1,3 +1,4 @@
+import {SessionBoundaryRefresh} from "@/coach-space/SessionBoundaryRefresh";
 import { SharedReadingPanel } from "@/shared-reading/SharedReadingPanel";
 import { getSharedReading } from "@/shared-reading/server";
 import { ReportEditor } from "@/coach-space/ReportEditor";
@@ -37,6 +38,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   const draft = reports?.find((report) => !report.publishedAt) ?? null;
   return (
     <CoachSpaceShell>
+      <SessionBoundaryRefresh scheduledAt={session.scheduledAt?.toISOString()??null} durationMinutes={session.durationMinutes}/>
       <section className="coach-space-card">
         <h2>{t(`coachWorkspace.phase.${phase}`)}</h2>
         <p>{t("coachWorkspace.soldByJobbbox")}</p>
@@ -44,6 +46,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
         {session.scheduledAt ? <p>{coachingTime(session.scheduledAt, locale, timeZone)}</p> : null}
         <CoachingSessionDialog
           editor={EDITOR}
+          withVideoLink={false}
           session={{
             id: session.id,
             scheduledAt: session.scheduledAt ? interviewWallClock(session.scheduledAt) : "",

@@ -25,7 +25,7 @@ export function getBilling(): Billing {
   instance ??= liveObject(getSecretResolver(), STRIPE_SECRET_NAMES, (env) =>
     createBilling({
       ...billingConfigFromEnv(env),
-      onCoachingSessionPaid: async (paid) => { const recorded=await getHumanCoaches().recordPaidSession(paid);if(recorded)await getCoachingOffers().attachPaid(paid);return recorded; },
+      onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid, within => getCoachingOffers().attachPaid(paid,within)),
       onCheckoutPaid: (paid) => getOrders().paid(paid),
       onRefundChanged: (change) => getWithdrawals().refundChanged(change),
       externalApis: getExternalApiLog(),

@@ -232,7 +232,7 @@ export interface HumanCoaches {
    * Records a Coaching Session Stripe confirmed as paid. Idempotent per Checkout Session, safe
    * under concurrent deliveries. False (nothing recorded) for an unknown Human Coach or Candidate.
    */
-  recordPaidSession(paid: PaidCoachingSession): Promise<boolean>;
+  recordPaidSession(paid: PaidCoachingSession, financials?: (within: Queryable) => Promise<void>): Promise<boolean>;
   /** The Candidate's paid Coaching Sessions, newest first, retired Human Coaches included. */
   sessions(candidateId: string): Promise<CoachingSession[]>;
   /**
@@ -684,17 +684,21 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     reviews: reviewsOf,
 
-    async recordPaidSession({ checkoutSessionId, candidateId, coachId, amount, currency }) {
+    async recordPaidSession(paid, financials) {
+      const {checkoutSessionId,candidateId,coachId,amount,currency}=paid;
       if (!UUID.test(coachId)) return false;
-      const { rows } = await database.query<{ recorded: boolean }>(
-        `INSERT INTO coaching_session (stripe_checkout_session_id, candidate_id, coach_id, amount, currency)
-         SELECT $1, c.id, h.id, $4, $5 FROM candidate c, human_coach h WHERE c.id = $2 AND h.id = $3
-         ON CONFLICT (stripe_checkout_session_id) DO UPDATE SET stripe_checkout_session_id = EXCLUDED.stripe_checkout_session_id
-         RETURNING (xmax = 0) AS recorded`,
-        [checkoutSessionId, candidateId, coachId, amount, currency.toLowerCase()],
-      );
-      if (!rows[0]) return false;
-      if (rows[0].recorded) await notify(await coachAccount(coachId), { event: "coaching_session_paid" }, `coaching_session_paid:${checkoutSessionId}`);
+      const record=async(within:Queryable)=>{
+        const {rows}=await within.query<{recorded:boolean}>(`INSERT INTO coaching_session (stripe_checkout_session_id,candidate_id,coach_id,amount,currency,coaching_quote_id)
+          SELECT $1,c.id,h.id,$4,$5,$6 FROM candidate c,human_coach h WHERE c.id=$2 AND h.id=$3
+          ON CONFLICT(stripe_checkout_session_id) DO UPDATE SET stripe_checkout_session_id=EXCLUDED.stripe_checkout_session_id,coaching_quote_id=coalesce(coaching_session.coaching_quote_id,EXCLUDED.coaching_quote_id)
+          RETURNING (xmax=0) AS recorded`,[checkoutSessionId,candidateId,coachId,amount,currency.toLowerCase(),paid.quoteId??null]);
+        if(rows[0]&&financials)await financials(within);
+        return rows[0]??null;
+      };
+      const row=financials?await inTransaction(database,record):await record(database);
+      if(!row)return false;
+      // Financial callbacks have committed: a failed snapshot never exposes a session or a premature notification.
+      if(row.recorded)await notify(await coachAccount(coachId),{event:"coaching_session_paid"},`coaching_session_paid:${checkoutSessionId}`);
       return true;
     },
 
@@ -826,6 +830,7 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
       currency text NOT NULL,
       paid_at timestamptz NOT NULL DEFAULT clock_timestamp()
     );
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS coaching_quote_id text;
     CREATE INDEX IF NOT EXISTS coaching_session_candidate_id_idx ON coaching_session (candidate_id);
     -- Its date and where it takes place, entered by hand once booked on Cal.com (ADR-0027); null while unscheduled.
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS scheduled_at timestamptz;

@@ -828,6 +828,19 @@ test.describe("isolated Human Coach workspace v2", () => {
       await signIn(page, newAddress("workspace-candidate"));
       const applicationId = await applicationWithCoverLetter(page, origin);
       await admin.goto("/admin/coachs");
+      const sellerForm = admin.locator("form").filter({ has: admin.getByRole("heading", { name: fr.coachingOffers.addSeller, exact: true }) });
+      await sellerForm.getByLabel(fr.coachingOffers.coach, { exact: true }).selectOption(coachId);
+      await sellerForm.getByLabel(fr.coachingOffers.sellerName).fill("Sophie Conseil");
+      await sellerForm.getByLabel(fr.coachingOffers.status).fill("SAS");
+      await sellerForm.getByLabel(fr.coachingOffers.siretLabel, { exact: true }).fill("12345678901234");
+      await sellerForm.getByLabel(fr.coachingOffers.commission).fill("1750");
+      await sellerForm.getByRole("button", { name: fr.coachingOffers.addSeller, exact: true }).click();
+      await expect(admin.getByRole("heading",{name:"Sophie Conseil",exact:true})).toBeVisible();
+      const sellerId = (await database.query("SELECT id FROM coaching_seller WHERE coach_id=$1", [coachId])).rows[0].id;
+      expect((await database.query(`SELECT after FROM back_office_audit WHERE target=$1 AND action='added'`, [sellerId])).rows[0].after).toMatchObject({
+        commissionBps: 1750,
+        coachId,
+      });
       const commissionForm = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Jobbbox", exact: true }) });
       await commissionForm.getByLabel(fr.coachingOffers.commission).fill("1200");
       await commissionForm.getByRole("button", { name: fr.coachingOffers.saveCommission }).click();
@@ -893,6 +906,15 @@ test.describe("isolated Human Coach workspace v2", () => {
       await expect(coachPage.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
       await page.goto("/coachs");
       await expect(page.getByRole("link", { name: fr.coachMeeting.join.meet })).toBeVisible();
+      // Keep both pages open across the window boundary: no navigation or manual reload to enter reading.
+      await database.query("UPDATE coaching_session SET scheduled_at=now()+interval '10 minutes 3 seconds' WHERE id=$1", [session.id]);
+      await coachPage.goto(`/espace-coach/seances/${session.id}`);
+      await page.goto(`/coachs/seances/${session.id}`);
+      await expect(coachPage.getByRole("heading", { name: fr.coachWorkspace.phase.before, exact: true })).toBeVisible();
+      await expect(coachPage.locator(".shared-reading")).toHaveCount(0);
+      await expect(coachPage.getByRole("heading", { name: fr.coachWorkspace.phase.during, exact: true })).toBeVisible({ timeout: 10000 });
+      await expect(coachPage.locator(".shared-reading")).toBeVisible();
+      await expect(page.locator(".shared-reading")).toBeVisible();
       // #873: two separate browsers follow one explicitly selected document, without Coach Access.
       await database.query("UPDATE tailored_document SET text=$2 WHERE application_id=$1 AND kind='cover_letter'", [
         applicationId,
@@ -925,7 +947,20 @@ test.describe("isolated Human Coach workspace v2", () => {
       await expect(page.locator(".shared-reading .ds-viewer canvas").first()).toBeVisible();
       await expect(page.locator(".shared-reading").getByRole("link", { name: fr.designSystem.viewer.download, exact: true })).toHaveCount(0);
       const pdfShareId = (await database.query("SELECT id FROM shared_reading WHERE session_id=$1", [session.id])).rows[0].id;
-      await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '2 hours' WHERE id=$1", [session.id]);
+      await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '60 minutes'+interval '3 seconds' WHERE id=$1",[session.id]);
+      await coachPage.reload();
+      await expect(coachPage.getByRole("heading",{name:fr.coachWorkspace.phase.during,exact:true})).toBeVisible();
+      await expect(coachPage.getByRole("heading",{name:fr.coachWorkspace.phase.after,exact:true})).toBeVisible({timeout:10000});
+      await expect(coachPage.getByLabel(fr.coachReports.covered)).toBeVisible();
+      await expect(coachPage.locator(".shared-reading")).toBeVisible();
+
+      await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '90 minutes'+interval '3 seconds' WHERE id=$1", [session.id]);
+      await page.reload();
+      await coachPage.reload();
+      await expect(page.locator(".shared-reading")).toBeVisible();
+      await expect(page.locator(".shared-reading")).toHaveCount(0, { timeout: 10000 });
+      await expect(coachPage.locator(".shared-reading")).toHaveCount(0, { timeout: 10000 });
+
       expect((await coachPage.request.get(`/api/coaching/shared-reading/${session.id}/document?share=${pdfShareId}`)).status()).toBe(404);
       await coachPage.goto(`/espace-coach/seances/${session.id}`);
       await coachPage.getByLabel(fr.coachReports.covered).fill("Nous avons préparé votre présentation ensemble.");

@@ -1,3 +1,4 @@
+import {SessionBoundaryRefresh} from "@/coach-space/SessionBoundaryRefresh";
 import { SharedReadingPanel } from "@/shared-reading/SharedReadingPanel";
 import { getSharedReading } from "@/shared-reading/server";
 import { notFound } from "next/navigation";
@@ -24,6 +25,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   const t = await getServerT();
   return (
     <CandidateLayout candidateId={person.id} title={t("coachReports.title")}>
+      <SessionBoundaryRefresh scheduledAt={session.scheduledAt?.toISOString()??null} durationMinutes={session.durationMinutes}/>
       {canRead ? <SharedReadingPanel sessionId={session.id} audience={CANDIDATE} /> : null}
       <CoachConversationPage conversationId={found.conversation?.id ?? null} subject={subject} introduction={<p>{t("coachReports.immutable")}</p>} />
     </CandidateLayout>

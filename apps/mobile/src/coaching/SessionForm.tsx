@@ -101,7 +101,7 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
       </View>
       <FieldError message={refused.scheduledAt} />
       <Field label={t("coachingSession.duration")} value={typed.duration} onChangeText={change.duration} {...NUMBER_KEYS} error={refused.durationMinutes} />
-      <Field label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} value={typed.videoLink} onChangeText={change.videoLink} {...LINK_KEYS} error={refused.videoLink} />
+      {session.meeting===undefined?<Field label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} value={typed.videoLink} onChangeText={change.videoLink} {...LINK_KEYS} error={refused.videoLink} />:null}
       <Field label={t("coachingSession.note")} value={typed.note} onChangeText={change.note} multiline maxLength={500} error={refused.note} />
       {failed ? <FieldError message={t("coachingSession.error")} /> : null}
       {online ? null : <AppText tone="secondary">{t("mobile.offline.writeDisabled")}</AppText>}

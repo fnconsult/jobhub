@@ -92,6 +92,11 @@ afterEach(() => {
 });
 
 describe("Mes coachs humains, read from the web app", () => {
+  it("uses the Candidate’s Montréal clock beside Paris in the future join hint",async()=>{
+    await launch("/coachs",route=>{route.coaching.timeZone="America/Montreal";route.coaching.sessions[0]={...route.coaching.sessions[0]!,scheduledAt:"2030-11-12T14:30:00Z",meeting:{kind:"video",target:"https://meet.google.com/test",confirmed:false}};});
+    const hint=await screen.findByText(/Le lien apparaît/);
+    expect(hint.props.children).toContain("09:20");expect(hint.props.children).toContain("America/Montreal");expect(hint.props.children).toContain("15:20");expect(hint.props.children).toContain("Europe/Paris");
+  });
   it("lists the Coaching Sessions with their status, then the Human Coaches to book, as the menu's card on the web", async () => {
     await openCoaches();
 

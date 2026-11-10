@@ -12,13 +12,28 @@ export function ShareDocumentButton({ source }: { source: SharedSource }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     const abort = new AbortController();
-    fetch("/api/coaching/shared-reading", { signal: abort.signal, cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        if (body?.sessions) setSessions(body.sessions);
-      })
-      .catch(() => {});
-    return () => abort.abort();
+    let timer: ReturnType<typeof setTimeout>;
+    const read = async () => {
+      let nextChangeAt: number | null = null;
+      try {
+        const response = await fetch("/api/coaching/shared-reading", { signal: abort.signal, cache: "no-store" });
+        const body = response.ok ? await response.json() : null;
+        if (!abort.signal.aborted) setSessions(body?.sessions ?? []);
+        if (typeof body?.nextChangeAt === "string") nextChangeAt = Date.parse(body.nextChangeAt);
+      } catch {
+        if (!abort.signal.aborted) setSessions([]);
+      }
+      if (!abort.signal.aborted)
+        timer = setTimeout(
+          () => void read(),
+          Math.min(60_000, nextChangeAt === null || !Number.isFinite(nextChangeAt) ? 60_000 : Math.max(100, nextChangeAt - Date.now() + 25)),
+        );
+    };
+    void read();
+    return () => {
+      abort.abort();
+      clearTimeout(timer);
+    };
   }, []);
   async function show(sessionId: string) {
     const response = await fetch(`/api/coaching/shared-reading/${sessionId}`, {

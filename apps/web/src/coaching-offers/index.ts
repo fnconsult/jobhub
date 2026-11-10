@@ -106,9 +106,9 @@ export function coachingOffers(database: Pool, deps: OfferDeps) {
       if (!parsed.success) return null;
       const x = parsed.data;
       if ((x.kind === "human_coach" && !x.coachId) || (x.kind === "association" && x.coachId)) return null;
-      const { rows } = await within.query<CoachingSeller>(
+      const { rows } = await within.query<CoachingSeller & {commissionBps:number;coachId:string|null}>(
         `INSERT INTO coaching_seller(id,kind,name,status,siret,coach_id,commission_bps) VALUES(coalesce($1::uuid,gen_random_uuid()),$2,$3,$4,$5,$6,$7)
-        ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,status=EXCLUDED.status,siret=EXCLUDED.siret,commission_bps=EXCLUDED.commission_bps WHERE coaching_seller.kind=EXCLUDED.kind AND coaching_seller.coach_id IS NOT DISTINCT FROM EXCLUDED.coach_id RETURNING id,kind,name,status,siret`,
+        ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,status=EXCLUDED.status,siret=EXCLUDED.siret,commission_bps=EXCLUDED.commission_bps WHERE coaching_seller.kind=EXCLUDED.kind AND coaching_seller.coach_id IS NOT DISTINCT FROM EXCLUDED.coach_id RETURNING id,kind,name,status,siret,commission_bps AS "commissionBps",coach_id AS "coachId"`,
         [x.id ?? null, x.kind, x.name, x.status, x.siret, x.coachId, x.commissionBps],
       );
       return rows[0] ?? null;
@@ -142,26 +142,26 @@ export function coachingOffers(database: Pool, deps: OfferDeps) {
       );
       return { id: rows[0]!.id, sale: snapshot, ...(price?.priceId ? { priceId: price.priceId } : {}) };
     },
-    async attachPaid(paid: { candidateId: string; coachId: string; checkoutSessionId: string; quoteId?: string; amount: number; currency: string }) {
+    async attachPaid(paid: { candidateId: string; coachId: string; checkoutSessionId: string; quoteId?: string; amount: number; currency: string }, within:Queryable=database) {
       if (paid.quoteId) {
         if (!UUID.test(paid.quoteId)) throw new Error("Invalid paid Coaching Offer quote");
-        await database.query(
-          `INSERT INTO coaching_session_sale(session_id,snapshot) SELECT s.id,q.snapshot FROM coaching_session s JOIN coaching_offer_quote q ON q.id=$1 AND q.candidate_id=s.candidate_id AND q.coach_id=s.coach_id
+        await within.query(
+          `INSERT INTO coaching_session_sale(session_id,snapshot,source) SELECT s.id,q.snapshot,'quote' FROM coaching_session s JOIN coaching_offer_quote q ON q.id=$1 AND q.candidate_id=s.candidate_id AND q.coach_id=s.coach_id AND q.created_at<=s.paid_at
           WHERE s.stripe_checkout_session_id=$2 AND s.candidate_id=$3 AND s.coach_id=$4 AND (q.snapshot->>'amount')::integer=$5 AND q.snapshot->>'currency'=$6
-          ON CONFLICT(session_id) DO NOTHING`,
+          ON CONFLICT(session_id) DO UPDATE SET snapshot=EXCLUDED.snapshot,source='quote' WHERE coaching_session_sale.source='legacy_backfill'`,
           [paid.quoteId, paid.checkoutSessionId, paid.candidateId, paid.coachId, paid.amount, paid.currency.toLowerCase()],
         );
       } else {
         // Pre-Offer Checkout sessions remain Jobbbox sales with their actual paid price.
-        await defaults();
-        await database.query(
-          `INSERT INTO coaching_session_sale(session_id,snapshot) SELECT s.id,jsonb_build_object('offerId',o.id,'coachId',s.coach_id,'seller',$4::jsonb,'durationMinutes',coalesce(s.duration_minutes,60),'amount',s.amount,'currency',s.currency,'commissionBps',0) FROM coaching_session s JOIN coaching_offer o ON o.coach_id=s.coach_id WHERE s.stripe_checkout_session_id=$1 AND s.candidate_id=$2 AND s.coach_id=$3 ON CONFLICT DO NOTHING`,
+        await defaults(within);
+        await within.query(
+          `INSERT INTO coaching_session_sale(session_id,snapshot,source) SELECT s.id,jsonb_build_object('offerId',o.id,'coachId',s.coach_id,'seller',$4::jsonb,'durationMinutes',coalesce(s.duration_minutes,60),'amount',s.amount,'currency',s.currency,'commissionBps',0),'legacy_payment' FROM coaching_session s JOIN coaching_offer o ON o.coach_id=s.coach_id WHERE s.stripe_checkout_session_id=$1 AND s.candidate_id=$2 AND s.coach_id=$3 ON CONFLICT DO NOTHING`,
           [paid.checkoutSessionId, paid.candidateId, paid.coachId, JSON.stringify(JOBBBOX_SELLER)],
         );
       }
-      const result = await database.query(
-        `UPDATE coaching_session s SET duration_minutes=coalesce(s.duration_minutes,(x.snapshot->>'durationMinutes')::integer) FROM coaching_session_sale x WHERE x.session_id=s.id AND s.stripe_checkout_session_id=$1 AND s.candidate_id=$2 AND s.coach_id=$3`,
-        [paid.checkoutSessionId, paid.candidateId, paid.coachId],
+      const result = await within.query(
+        `UPDATE coaching_session s SET duration_minutes=CASE WHEN s.scheduled_at IS NULL THEN (x.snapshot->>'durationMinutes')::integer ELSE coalesce(s.duration_minutes,(x.snapshot->>'durationMinutes')::integer) END FROM coaching_session_sale x WHERE x.session_id=s.id AND s.stripe_checkout_session_id=$1 AND s.candidate_id=$2 AND s.coach_id=$3 AND ($4::uuid IS NULL OR x.snapshot=(SELECT snapshot FROM coaching_offer_quote WHERE id=$4))`,
+        [paid.checkoutSessionId, paid.candidateId, paid.coachId, paid.quoteId??null],
       );
       if (!result.rowCount) throw new Error("Paid Coaching Offer quote does not match its session");
     },
@@ -176,7 +176,8 @@ export async function migrateCoachingOffers(database: Pool) {
   INSERT INTO coaching_offer(coach_id,seller_id) SELECT id,'${JOBBBOX_SELLER.id}' FROM human_coach ON CONFLICT(coach_id) DO NOTHING;
   CREATE TABLE IF NOT EXISTS coaching_offer_quote(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),candidate_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,coach_id uuid NOT NULL REFERENCES human_coach(id),snapshot jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp());
   CREATE INDEX IF NOT EXISTS coaching_offer_quote_candidate_idx ON coaching_offer_quote(candidate_id);
-  CREATE TABLE IF NOT EXISTS coaching_session_sale(session_id uuid PRIMARY KEY REFERENCES coaching_session(id) ON DELETE CASCADE,snapshot jsonb NOT NULL);
+  CREATE TABLE IF NOT EXISTS coaching_session_sale(session_id uuid PRIMARY KEY REFERENCES coaching_session(id) ON DELETE CASCADE,snapshot jsonb NOT NULL,source text NOT NULL DEFAULT 'quote');
+  ALTER TABLE coaching_session_sale ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'quote';
   ALTER TABLE checkout_order ADD COLUMN IF NOT EXISTS coaching_sale jsonb;
-  INSERT INTO coaching_session_sale(session_id,snapshot) SELECT s.id,jsonb_build_object('offerId',o.id,'coachId',s.coach_id,'seller',jsonb_build_object('id','${JOBBBOX_SELLER.id}','kind','jobbbox','name','Jobbbox','status','','siret',''),'durationMinutes',coalesce(s.duration_minutes,60),'amount',s.amount,'currency',s.currency,'commissionBps',0) FROM coaching_session s JOIN coaching_offer o ON o.coach_id=s.coach_id ON CONFLICT DO NOTHING;`);
+  INSERT INTO coaching_session_sale(session_id,snapshot,source) SELECT s.id,jsonb_build_object('offerId',o.id,'coachId',s.coach_id,'seller',jsonb_build_object('id','${JOBBBOX_SELLER.id}','kind','jobbbox','name','Jobbbox','status','','siret',''),'durationMinutes',coalesce(s.duration_minutes,60),'amount',s.amount,'currency',s.currency,'commissionBps',0),'legacy_backfill' FROM coaching_session s JOIN coaching_offer o ON o.coach_id=s.coach_id WHERE s.coaching_quote_id IS NULL AND NOT EXISTS (SELECT 1 FROM checkout_order ordered WHERE ordered.checkout_session_id=s.stripe_checkout_session_id AND ordered.coaching_sale IS NOT NULL) ON CONFLICT DO NOTHING;`);
 }

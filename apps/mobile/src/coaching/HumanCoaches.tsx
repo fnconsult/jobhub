@@ -101,7 +101,7 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
         <PaymentNotice wait={wait} onRefresh={onRefresh} />
         {coaching.sessions.length === 0 ? <AppText tone="secondary">{t("humanCoachesMenu.sessionsNone")}</AppText> : null}
         {coaching.sessions.map((session) => (
-          <SessionCard key={session.id} session={session} formats={formats} onSaved={onRefresh} />
+          <SessionCard key={session.id} session={session} formats={formats} timeZone={coaching.timeZone} onSaved={onRefresh} />
         ))}
       </View>
       <View style={{ gap: space[3] }}>
@@ -132,7 +132,7 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
  * A Coaching Session: dated (its date, duration, video link, note, « modifié par » the coach), or to schedule on Cal.com;
  * its date to enter or correct (SessionForm), and « Renoncer au contrat ici » while it can still be withdrawn from.
  */
-function SessionCard({ session, formats, onSaved }: { session: Session; formats: Formats; onSaved: () => void }) {
+function SessionCard({ session, formats, timeZone, onSaved }: { session: Session; formats: Formats; timeZone?:string; onSaved: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -185,7 +185,7 @@ function SessionCard({ session, formats, onSaved }: { session: Session; formats:
         {paidOn}
       </AppText>
       {session.meeting !== undefined ? <Control label={t("coachReports.open")} onPress={() => router.navigate(`/coachs/seances/${session.id}`)} /> : null}
-      {session.meeting !== undefined ? <SessionJoin meeting={session.meeting} scheduledAt={session.scheduledAt} durationMinutes={session.durationMinutes} /> : session.videoLink ? <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} /> : null}
+      {session.meeting !== undefined ? <SessionJoin timeZone={timeZone} meeting={session.meeting} scheduledAt={session.scheduledAt} durationMinutes={session.durationMinutes} /> : session.videoLink ? <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} /> : null}
       {actions}
     </Card>
   );

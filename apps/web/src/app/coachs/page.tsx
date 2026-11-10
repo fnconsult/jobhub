@@ -122,7 +122,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
               <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t} />
               <div className="actions">
                 <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
-                <CoachingSessionDialog
+                <CoachingSessionDialog withVideoLink={meetings===null}
                   session={{ id: paid.id, scheduledAt: interviewWallClock(paid.scheduledAt), durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }}
                   withName={paid.coach.name}
                 />
@@ -143,7 +143,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                 <ExternalLink className="button button-primary" href={paid.coach.bookingUrl}>
                   {t("humanCoaches.pickSlot", { name: paid.coach.name })}
                 </ExternalLink>
-                <CoachingSessionDialog session={{ id: paid.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={paid.coach.name} />
+                <CoachingSessionDialog withVideoLink={meetings===null} session={{ id: paid.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={paid.coach.name} />
               </div>
             </li>
           ),

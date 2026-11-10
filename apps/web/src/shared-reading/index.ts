@@ -120,13 +120,22 @@ export function sharedReading(database: Pool, deps: SharedReadingDeps) {
   }
   return {
     canUse: async (actor: ReadingActor, sessionId: string) => Boolean(await session(actor, sessionId)),
-    async available(candidateId: string) {
+    async available(candidateId: string, at = now()) {
       const { rows } = await database.query<Session>(
         `SELECT ${SESSION_COLUMNS} FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
         WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND s.scheduled_at-interval '10 minutes'<=$2 AND s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'>=$2 ORDER BY s.scheduled_at`,
-        [candidateId, now()],
+        [candidateId, at],
       );
       return rows.map((row) => ({ id: row.id, coachName: row.coachName }));
+    },
+    async nextChange(candidateId: string, at = now()): Promise<Date | null> {
+      const { rows } = await database.query<{ at: Date | null }>(
+        `SELECT min(w.boundary) AS at FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
+        CROSS JOIN LATERAL (VALUES(s.scheduled_at-interval '10 minutes'),(s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'+interval '1 millisecond')) w(boundary)
+        WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND w.boundary>$2`,
+        [candidateId, at],
+      );
+      return rows[0]?.at ?? null;
     },
     async startCandidate(actor: ReadingActor, sessionId: string, input: unknown) {
       const source = sharedSourceSchema.safeParse(input);

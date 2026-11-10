@@ -14,6 +14,7 @@ export function useDwellReveal() {
   const [focused, setFocused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const timer = useRef<number | undefined>(undefined);
+  const pointerFocus = useRef(false);
   const stop = () => {
     window.clearTimeout(timer.current);
     timer.current = undefined;
@@ -35,8 +36,9 @@ export function useDwellReveal() {
 
   return {
     "data-revealed": !dismissed && (revealed || focused) ? "" : undefined,
-    onFocus: () => { setFocused(true); setDismissed(false); },
-    onBlur: () => { setFocused(false); setDismissed(false); },
+    onPointerDown: () => { pointerFocus.current = true; },
+    onFocus: () => { setFocused(!pointerFocus.current); setDismissed(false); },
+    onBlur: () => { pointerFocus.current = false; setFocused(false); setDismissed(false); },
     onPointerEnter: (event: PointerEvent<HTMLElement>) => {
       if (event.pointerType === "touch") return;
       stop();

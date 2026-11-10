@@ -68,6 +68,16 @@ describe("a compact action showing its label once the pointer rests on it (#933)
     expect(button().dataset.revealed).toBe("");
   });
 
+  it("does not expand just because a touch gives the button focus", () => {
+    render(<Action />);
+    fireEvent.pointerDown(button(), { pointerType: "touch" });
+    fireEvent.focus(button());
+    expect(button().dataset.revealed).toBeUndefined();
+    fireEvent.blur(button());
+    fireEvent.focus(button());
+    expect(button().dataset.revealed).toBe("");
+  });
+
   it("ignores a touch, which has no hover", () => {
     render(<Action />);
     fireEvent.pointerEnter(button(), { pointerType: "touch" });

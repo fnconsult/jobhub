@@ -932,6 +932,11 @@ textarea.input {
   scrollbar-width: thin;
 }
 
+/* The Back Office keeps its denser design-system controls. */
+.coach-panel .coach-panel-composer-inline textarea {
+  --message-box-padding: max(var(--space-1), (var(--size-control) - 1lh) / 2);
+}
+
 @container message-box (width >= 32rem) {
   .coach-panel-composer-inline {
     flex-direction: row;

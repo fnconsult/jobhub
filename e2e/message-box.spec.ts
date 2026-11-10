@@ -131,7 +131,6 @@ test("on a computer the badge and Send stand on the box's row in words; writing,
   await expect(badgeOf(page)).toBeFocused();
   await expect.poll(async () => Math.round((await badgeOf(page).boundingBox())!.width)).toBe(control);
 
-
   const axe = await new AxeBuilder({ page }).include(".page-conversation-foot").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   expect(axe.violations.map(({ id }) => id)).toEqual([]);
 
@@ -164,3 +163,55 @@ test("on a phone the badge and Send keep the row under the box, their icons at i
   const axe = await new AxeBuilder({ page }).include(".page-conversation-foot").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   expect(axe.violations.map(({ id }) => id)).toEqual([]);
 });
+
+/** The same real keyboard and overflow contract for the other two web composers. */
+async function checkOtherComposerGrowth(box: Locator, oneLine: number) {
+  const line = await lineHeightOf(box);
+  await box.fill("Première ligne");
+  await box.press("Shift+Enter");
+  await box.press("a");
+  await expect(box).toHaveValue("Première ligne\na");
+  await expect.poll(() => heightOf(box)).toBe(Math.round(oneLine + line));
+  await box.fill(Array.from({ length: 12 }, (_, index) => `Ligne ${index}`).join("\n"));
+  await expect.poll(() => heightOf(box)).toBe(Math.round(oneLine + 7 * line));
+  expect(await box.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+}
+
+for (const [name, size] of [["computer", COMPUTER], ["phone", PHONE]] as const) {
+  test(`the Profile questionnaire starts on one line, grows and resets on ${name} (#933)`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await signInWithMagicLink(page, newAddress("questionnaire-box"));
+    await page.goto("/profils/nouveau");
+    await page.getByRole("button", { name: "Répondre aux questions de mon coach" }).click();
+    const box = page.getByRole("textbox", { name: fr.questionnaire.answerLabel });
+    const oneLine = await heightOf(box);
+    const send = page.getByRole("button", { name: fr.questionnaire.send, exact: true });
+    expect(oneLine).toBe(await heightOf(send));
+    await checkOtherComposerGrowth(box, oneLine);
+    await box.fill("Marie Dupont");
+    await box.press("Enter");
+    await expect(box).toHaveValue("");
+    await expect.poll(() => heightOf(box)).toBe(oneLine);
+    await expect(box).toBeFocused();
+    const axe = await new AxeBuilder({ page }).include(".coach-panel-composer-inline").withTags(["wcag2a", "wcag2aa", "wcag22aa"]).analyze();
+    expect(axe.violations.map(({ id }) => id)).toEqual([]);
+  });
+
+  test(`the Back Office assistant starts on one line, grows and resets on ${name} (#933)`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await signInWithMagicLink(page, name === "computer" ? "assistant-office@e2e.jobbbox.test" : "coach-office@e2e.jobbbox.test");
+    await page.goto("/admin");
+    await page.getByRole("button", { name: fr.backOfficeAssistant.open, exact: true }).click();
+    const assistant = page.getByRole("complementary", { name: fr.backOfficeAssistant.title });
+    const box = assistant.getByRole("textbox", { name: fr.coachPanel.messageLabel });
+    const oneLine = await heightOf(box);
+    expect(oneLine).toBe(await heightOf(assistant.getByRole("button", { name: fr.backOfficeAssistant.send, exact: true })));
+    await checkOtherComposerGrowth(box, oneLine);
+    await box.fill("Comment fonctionne Jobbbox ?");
+    await box.press("Enter");
+    await expect(box).toHaveValue("");
+    await expect.poll(() => heightOf(box)).toBe(oneLine);
+    const axe = await new AxeBuilder({ page }).include(".coach-panel-composer-inline").withTags(["wcag2a", "wcag2aa", "wcag22aa"]).analyze();
+    expect(axe.violations.map(({ id }) => id)).toEqual([]);
+  });
+}

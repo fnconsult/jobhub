@@ -49,6 +49,7 @@ export function ObjectRow({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
+  const counted = !!count && count.value > 0;
   const [menuAt, setMenuAt] = useState<Anchor | null>(null);
   const openMenu = ({ pageX, pageY }: { pageX: number; pageY: number }) => (actions.length ? setMenuAt({ x: pageX, y: pageY }) : undefined);
 
@@ -68,8 +69,10 @@ export function ObjectRow({
           minHeight: TARGET,
           flexDirection: "row",
           alignItems: "center",
-          gap: space[3],
+          // Recover 8 pt for the current semi-bold label in the tablet column (#939).
+          gap: counted ? space[2] : space[3],
           paddingHorizontal: space[3],
+          paddingRight: counted ? space[2] : space[3],
           borderRadius: radius.md,
           backgroundColor: current || pressed || hovered || menuAt ? colors.hover : "transparent",
         })}

@@ -119,9 +119,16 @@ describe("ObjectRow's count, a compact badge (#939)", () => {
     expect(styleOf(digits.parent!)).toMatchObject({ minHeight: 18, minWidth: 18, paddingHorizontal: 5, backgroundColor: accent });
   });
 
-  it("stands 4 pt from the label: the row's gap of 12, pulled in by 8", async () => {
+  it("stands 4 pt from the label: the counted row's gap of 8, pulled in by 4", async () => {
     await renderCounted(9);
-    expect(styleOf(screen.getByText("9").parent!)).toMatchObject({ marginLeft: -8 });
+    expect(styleOf(screen.getByText("9").parent!)).toMatchObject({ marginLeft: -4 });
+  });
+
+  it.each([1, 9])("keeps the current label semi-bold and recovers 8 pt at N=%i", async (value) => {
+    await renderInApp(<ObjectRow current label="Recherches d'offres" onPress={open} actions={[]} count={{ value, label: `${value} offres à traiter` }} />);
+    const link = screen.getByRole("link", { name: `Recherches d'offres, ${value} offres à traiter` });
+    expect(link).toHaveStyle({ gap: 8, paddingRight: 8, paddingHorizontal: 12 });
+    expect(styleOf(screen.getByText("Recherches d'offres"))).toMatchObject({ fontFamily: "Inter_600SemiBold" });
   });
 
   it("shows « 99+ » over 99, the exact number said to VoiceOver and TalkBack", async () => {

@@ -7,8 +7,8 @@ import { ROW_MAX_SCALE } from "./AppText";
 const PILL = 18;
 /** Its digits' side padding. */
 const PADDING = 5;
-/** From the label before it: 4 pt, where a row's parts stand `space[3]` apart. */
-const FROM_LABEL = space[1] - space[3];
+/** From the label before it: 4 pt, where a counted row's parts stand `space[2]` apart. */
+const FROM_LABEL = space[1] - space[2];
 
 /**
  * A count at a row's end (#939, option B of the prototype): a compact pill in the accent, its digits at the meta size,

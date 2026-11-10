@@ -395,7 +395,7 @@ test.describe("Job Digest", () => {
     await section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true }).click();
 
     const prompt = section.getByRole("alert").filter({ hasText: fr.billing.quotaReached.title });
-    await expect(prompt).toContainText("La réception du Job Digest n'est pas comprise dans l'offre Gratuite. L'offre Standard la comprend.");
+    await expect(prompt).toContainText("La réception du Job Digest n'est pas comprise dans l'offre Gratuit. L'offre Standard la comprend.");
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", "/abonnement");
     await page.reload();
     await expect(section.getByRole("button", { name: fr.jobDigest.subscribe, exact: true })).toBeVisible();

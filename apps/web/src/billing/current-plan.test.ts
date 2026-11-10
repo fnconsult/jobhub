@@ -6,7 +6,7 @@ const PREMIUM = { fr: "Premium", en: "Premium" };
 describe("the current Plan on the subscription page", () => {
   it("names the Plan of a subscription that renews", () => {
     expect(currentPlanLabel({ planName: PREMIUM, endsAt: null }, "fr")).toBe("Votre offre actuelle : Premium");
-    expect(currentPlanLabel({ planName: { fr: "Gratuite", en: "Free" }, endsAt: null }, "fr")).toBe("Votre offre actuelle : Gratuite");
+    expect(currentPlanLabel({ planName: { fr: "Gratuit", en: "Free" }, endsAt: null }, "fr")).toBe("Votre offre actuelle : Gratuit");
   });
 
   it("names it as Administrators named it, in the Candidate's language", () => {

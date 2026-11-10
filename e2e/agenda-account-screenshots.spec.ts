@@ -172,7 +172,7 @@ const PAGES = [
     // « Votre consommation » (#801): the month and the day in it, set to one value before the shot (a mask hides a
     // text, not its width); its progress bar and its 12-month grid, which move with the day, masked.
     fixedTexts: {
-      ".consumption-period": "Mois de novembre (l'offre Gratuite n'est pas facturée)",
+      ".consumption-period": "Mois de novembre (l'offre Gratuit n'est pas facturée)",
       ".consumption-progress > p:first-child": "Jour 6 sur 30",
       ".consumption-progress-ends > span:first-child": "1 nov.",
     },
@@ -268,7 +268,7 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
     const matchScores = page.getByRole("progressbar", { name: "Match Scores" });
     await expect(matchScores).toHaveAttribute("aria-valuenow", "100");
     const plans = page.getByRole("region", { name: fr.billing.page.comparisonTitle });
-    await expect(plans.getByRole("article", { name: "Gratuite" })).toContainText(fr.billing.page.current);
+    await expect(plans.getByRole("article", { name: "Gratuit" })).toContainText(fr.billing.page.current);
     await expect(plans.getByRole("article", { name: "Standard" })).toContainText(fr.billing.page.recommended);
     // A promotion code, typed here, is checked as a shared link's is.
     await page.getByLabel(fr.billing.page.codeLabel).fill("INCONNU");

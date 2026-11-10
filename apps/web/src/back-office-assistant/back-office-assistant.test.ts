@@ -19,7 +19,7 @@ function backOfficeData() {
     async planQuotas() {
       reads.push("planQuotas");
       return [
-        { key: "free", name: { fr: "Gratuite", en: "Free" }, quotas: STARTING_PLAN_QUOTAS.free },
+        { key: "free", name: { fr: "Gratuit", en: "Free" }, quotas: STARTING_PLAN_QUOTAS.free },
         { key: "standard", name: { fr: "Standard", en: "Standard" }, quotas: STARTING_PLAN_QUOTAS.standard },
         { key: "premium", name: { fr: "Premium", en: "Premium" }, quotas: { ...STARTING_PLAN_QUOTAS.premium, matchScores: 4321 } },
       ];
@@ -27,7 +27,7 @@ function backOfficeData() {
     async plans() {
       reads.push("plans");
       return [
-        { key: "free", name: { fr: "Gratuite", en: "Free" }, rank: 1, status: "offered", stripeProductId: null, features: [] },
+        { key: "free", name: { fr: "Gratuit", en: "Free" }, rank: 1, status: "offered", stripeProductId: null, features: [] },
         { key: "standard", name: { fr: "Standard", en: "Standard" }, rank: 2, status: "offered", stripeProductId: "prod_standard", features: [] },
         { key: "essentiel", name: { fr: "Essentiel", en: "Essential" }, rank: 3, status: "hidden", stripeProductId: "prod_essential", features: [] },
         { key: "premium", name: { fr: "Premium", en: "Premium" }, rank: 4, status: "offered", stripeProductId: "prod_premium", features: ["coachingSessionDiscount"] },
@@ -253,7 +253,7 @@ describe("Back Office Assistant", () => {
     expect(data.reads.sort()).toEqual(["coupons", "planQuotas", "plans"]);
     const system = provider.calls[0]!.system!;
     // Plan names are typed in the Back Office: framed as untrusted data, like Human Coaches' text.
-    expect(system).toContain("1. <donnees>Gratuite</donnees> (clé free) : proposée");
+    expect(system).toContain("1. <donnees>Gratuit</donnees> (clé free) : proposée");
     expect(system).toContain("3. <donnees>Essentiel</donnees> (clé essentiel) : masquée, produit Stripe prod_essential");
     expect(system).toContain("4. <donnees>Premium</donnees> (clé premium) : proposée, produit Stripe prod_premium ; fonctionnalités : séances de coaching à prix réduit");
   });

@@ -1614,6 +1614,39 @@
         "aiUsageLink": "Every detail in AI consumption",
         "webSearchSettingsLink": "Web search alert threshold",
         "budgetSettingsLink": "Budget per run"
+      },
+      "extension": {
+        "title": "Extension",
+        "period": "last 30 days",
+        "captures": "Captures",
+        "capturesSub": "{{candidate}} by candidates · {{guest}} by guests",
+        "matchScores": "Match Scores",
+        "matchScoresSub": "Asked from the extension",
+        "applications": "Applications created",
+        "applicationsSub": "From the extension",
+        "activeCandidates": "Active candidates",
+        "activeCandidatesSub": "Distinct, over 30 days",
+        "errors": "Errors",
+        "errorsSub": "Reported by the extension",
+        "capturesTitle": "Captures per day, candidates and guests",
+        "candidates": "Candidates",
+        "guests": "Guests",
+        "errorsTitle": "Errors per day",
+        "noActivity": "No extension events in 30 days.",
+        "day": "Day",
+        "versions": "Versions",
+        "versionsTitle": "Versions in service",
+        "versionEvents_one": "{{count}} event",
+        "versionEvents_other": "{{count}} events",
+        "unknownVersion": "Not stated",
+        "noVersions": "No version in service in 30 days.",
+        "events": "Events",
+        "domainsTitle": "Pages that cannot be captured: the top 5 domains",
+        "domain": "Domain",
+        "domainErrors_one": "{{count}} error",
+        "domainErrors_other": "{{count}} errors",
+        "noDomains": "No page that cannot be captured in 30 days.",
+        "link": "See Activity › Extension"
       }
     },
     "roles": {
@@ -1664,6 +1697,7 @@
       "discoveryRuns": "Searches",
       "designSystem": "Design System",
       "receivedEmails": "Received emails",
+      "extensionEvents": "Extension",
       "withdrawals": "Withdrawals",
       "deliveryStatus": "Delivery"
     },
@@ -2629,6 +2663,7 @@
         "recipients_outside_eu": "Recipients outside the EU",
         "discovery_runs": "Activity › Searches",
         "received_emails": "Activity › Received emails",
+        "extension_events": "Activity › Extension",
         "withdrawals": "Withdrawals"
       },
       "actions": {
@@ -3644,7 +3679,8 @@
         "discoveryRuns": "Searches",
         "receivedEmails": "Received emails",
         "aiMessages": "AI calls",
-        "audit": "Administrator actions"
+        "audit": "Administrator actions",
+        "extensionEvents": "Extension"
       }
     },
     "receivedEmails": {
@@ -3696,6 +3732,57 @@
       "notRead": "Not read",
       "noCandidate": "No Candidate name, email or id here, and nothing of the emails' content.",
       "subtitle": "Each offer email a Candidate's Forwarding address received."
+    },
+    "extensionEvents": {
+      "subtitle": "What the extension did and what failed, newest first.",
+      "intro": "Each Extension Event: a capture, a Match Score, a CV draft, a profile or an application made from the extension, or an error. For each, the time, the type, the candidate or « Guest », the extension's version and the object; for an error, its code, where it happened, the route and status, the browser and the page's domain, never its address or text. They are kept {{months}} months, a guest's {{days}} days, and deleted with the candidate's account.",
+      "filter": "Filter the extension's events",
+      "kind": "Type",
+      "anyKind": "All types",
+      "kinds": {
+        "capture": "Capture",
+        "match_score": "Match Score",
+        "cv_draft": "CV draft",
+        "profile_created": "Profile created",
+        "application_created": "Application created",
+        "error": "Error"
+      },
+      "errorsFilter": "Errors",
+      "who": "Candidate / Guest",
+      "anyone": "Everyone",
+      "whos": {
+        "candidate": "Candidates",
+        "guest": "Guests"
+      },
+      "version": "Version",
+      "domain": "Domain",
+      "apply": "Show",
+      "reset": "Show all",
+      "ofCandidate": "Only one candidate's events are shown.",
+      "none": "No extension events for these filters.",
+      "count_one": "{{count}} event",
+      "count_other": "{{count}} events",
+      "limit": "Only the {{count}} most recent events are shown.",
+      "caption": "The extension's events, newest first",
+      "at": "Time",
+      "candidate": "Candidate",
+      "guest": "Guest",
+      "candidateLink": "{{email}}'s events",
+      "object": "Object",
+      "objects": {
+        "job_offer": "Job offer",
+        "profile": "Profile",
+        "application": "Application"
+      },
+      "error": "Error",
+      "places": {
+        "side_panel": "Side panel",
+        "content_script": "Reading the page",
+        "page_button": "Page button"
+      },
+      "routeStatus": "{{route}} → {{status}}",
+      "network": "network",
+      "noValue": "—"
     },
     "discoveryRuns": {
       "intro": "Every run of Job discovery, started by a Candidate's Job Search or to top up a Job Digest: its searches and what they gave. Queries, criteria and the link to the Candidate's Job Search are kept {{days}} days; the runs' figures, {{months}} months.",

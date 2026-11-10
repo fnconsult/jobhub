@@ -829,7 +829,7 @@ _Avoid_: Popup, sidebar (that is the web app's Sidebar)
 What the page in the active tab of the Side Panel's window reads as: a Job Site's posting, a page to capture by hand, or no posting. The Side Panel follows it from tab to tab and offers « Offre détectée sur cette page ».
 
 **Extension Event**:
-One thing the extension did, recorded for the Back Office: a Capture, a Match Score, a CV draft, a Profile or an Application made from it, or an error (a page that cannot be captured, a failed call, an unexpected failure). It holds when, which kind, the Candidate or « Invité », the extension's version and, for an error, its code, where it happened and the page's domain only, never its address or text. A Guest's Extension Events are not tied to any identifier.
+One thing the extension did, recorded for the Back Office: a Capture, a Match Score, a CV draft, a Profile or an Application made from it, or an error (a page that cannot be captured, a failed call, an unexpected failure). It holds when, which kind, the Candidate or « Invité », the extension's version and, for an error, its code, where it happened and the page's domain only, never its address or text. A Guest's Extension Events are not tied to any identifier. Read in the Back Office by the Roles that read Activité (#925): listed in Activité's « Extension » tab (newest 200, filtered by type, Candidate or Guest, version and domain, a Candidate named by their email), and counted per day over 30 Paris days in the Dashboard's « Extension » card, which names no Candidate.
 _Avoid_: Tracking, analytics event, log line
 
 **Extension error code**:

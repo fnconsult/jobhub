@@ -21,6 +21,11 @@ const statements = {
   discoveryRuns: ["read"],
   /** Every Received offer email of Email intake, its outcome and Guardrail verdict (Activité › Emails reçus, #449, ADR-0051): no Candidate named, never content. */
   receivedEmails: ["read"],
+  /**
+   * Every Extension Event (Activité › Extension, #925): what the extension did and what failed, the Candidate named or
+   * « Invité »; and the Dashboard's Extension card, its daily counts. Read by whoever reads Activité.
+   */
+  extensionEvents: ["read"],
   /** The Job Search behind a run, opened from Activité › Recherches: the Candidate's own data, every opening audited (#404). */
   jobSearches: ["read"],
   planQuotas: ["read", "write"],
@@ -81,7 +86,7 @@ const ROLES = {
   "help-editor": control.newRole({ unansweredQuestions: ["read", "write"], signalements: READ }),
   // « Technique » (#397, ADR-0042): changes every non-secret setting of Paramètres (the Tools' prices among them), the
   // Job discovery sources and sites and the Job Sites; sees Provider Secrets by their source and last 4 characters only,
-  // never replaces one; reads what the Dashboard sums up, the Back Office Audit, the Job discovery runs, the Emails reçus and Livraison. Never the AI Message Log.
+  // never replaces one; reads what the Dashboard sums up, the Back Office Audit, the Job discovery runs, the Emails reçus, the Extension Events and Livraison. Never the AI Message Log.
   "platform-manager": control.newRole({
     platformSettings: ["read", "write"],
     searchSites: ["read", "write"],
@@ -92,6 +97,7 @@ const ROLES = {
     audit: READ,
     discoveryRuns: READ,
     receivedEmails: READ,
+    extensionEvents: READ,
     deliveryStatus: READ,
   }),
   // Reads everything but Provider Secrets, the AI Message Log and the Job Search behind a run, triages Signalements and follows
@@ -116,6 +122,7 @@ const ROLES = {
     withdrawals: ["read", "write"],
     discoveryRuns: READ,
     receivedEmails: READ,
+    extensionEvents: READ,
     deliveryStatus: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;

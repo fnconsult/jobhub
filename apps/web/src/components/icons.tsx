@@ -48,6 +48,7 @@ import {
   PanelLeftClose,
   PanelRight,
   Plus,
+  Puzzle,
   RefreshCw,
   Scale,
   Sparkles,
@@ -141,6 +142,8 @@ const LUCIDE = {
   discoveryRuns: SearchCheck,
   // An envelope: Activité › Emails reçus, Email intake's Received offer emails (#449).
   receivedEmails: Mail,
+  // A puzzle piece, as browsers draw their extensions: Activité › Extension, the Extension Events (#925).
+  extensionEvents: Puzzle,
   tools: Wrench,
   // A parcel ticked: Livraison, what is built and where it runs.
   deliveryStatus: PackageCheck,

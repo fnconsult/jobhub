@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { formatTokens, type Activity } from "@jobhub/shared";
-import { creationOnPage } from "@/ai-activity/creation";
 import { activityEntries, type ActivityEntry, type ReplyGiven, type ServedEntry } from "@/ai-activity/entries";
 import { entryToOpen, pageSummary, type QuotaUse } from "@/ai-activity/history";
 import { liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
@@ -18,6 +17,7 @@ import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { buttonClass } from "@/design/button-class";
 import { routes } from "@/routes";
+import { creationOnPage } from "@/ai-activity/creation";
 
 type Language = "fr" | "en";
 

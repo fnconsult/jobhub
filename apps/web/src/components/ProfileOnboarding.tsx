@@ -5,6 +5,7 @@ import { useAutoGrow } from "@/design/auto-grow";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft } from "@/cv";
+import { useAiActivityLive } from "@/components/AiActivityLive";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
 import { InWorkPane } from "@/components/WorkPane";
 import { buttonClass } from "@/design/button-class";
@@ -47,12 +48,14 @@ const REVIEW_HREF = `${routes.newProfile}#relecture`;
  * thread, answered in the box, a yes-or-no question by its suggestions. Either path gives the same draft Master CV and
  * Search Criteria, reviewed in the Work Pane before anything is saved; what the Candidate changed there is kept while the
  * pane is closed, and « Relire et enregistrer » opens it again. No AI replies here, so nothing is stored as a Coach
- * Conversation.
+ * Conversation. Its Activity groups it in one entry, « Création du profil » (#810): the page tells AI Activity the CV read,
+ * the Questionnaire's answers and the review as the Candidate goes, and the Profile once saved.
  */
 export function ProfileOnboarding() {
   const { t } = useTranslation();
   const id = useId();
   const pane = useWorkPane();
+  const noteCreation = useAiActivityLive()?.noteCreation;
   const [step, setStep] = useState<Step>({ kind: "choose" });
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -67,6 +70,11 @@ export function ProfileOnboarding() {
   const question = step.kind === "questionnaire" ? currentQuestion(questionnaire) : null;
   const reviewShown = pane?.item?.kind === REVIEW && pane.item.href === REVIEW_HREF;
 
+  // A creation starts afresh with the page.
+  useEffect(() => {
+    noteCreation?.({ type: "started" });
+  }, [noteCreation]);
+
   // The next question takes the focus: the box, or a yes-or-no question's first answer.
   useEffect(() => {
     if (step.kind !== "questionnaire") return;
@@ -74,12 +82,24 @@ export function ProfileOnboarding() {
   }, [step.kind, turns.length]);
 
   function review(draft: CvDraft, from: From) {
+    if (from === FROM_CV) noteCreation?.({ type: "read", provenance: draft.provenance ?? null });
+    noteCreation?.({ type: "reviewed" });
     setEdits(null);
     setStep({ kind: "review", draft, from });
     setReviewOpening((opening) => opening + 1);
   }
 
+  function saved(href: string) {
+    noteCreation?.({ type: "saved", href });
+  }
+
+  function askQuestionnaire() {
+    setStep({ kind: "questionnaire" });
+    noteCreation?.({ type: "answered", answered: 0, skipped: 0 });
+  }
+
   function startOver() {
+    noteCreation?.({ type: "started" });
     setStep({ kind: "choose" });
     setQuestionnaire(startQuestionnaire());
     setTurns([]);
@@ -95,7 +115,9 @@ export function ProfileOnboarding() {
       setError(result.error);
       return;
     }
-    setTurns([...turns, { question, value: given.trim() }]);
+    const answered = [...turns, { question, value: given.trim() }];
+    setTurns(answered);
+    noteCreation?.({ type: "answered", answered: answered.filter((turn) => turn.value !== "").length, skipped: answered.filter((turn) => turn.value === "").length });
     setQuestionnaire(result.questionnaire);
     setValue("");
     setError(null);
@@ -167,7 +189,7 @@ export function ProfileOnboarding() {
         <div className="page-conversation-foot">
           {step.kind === "choose" ? (
             <Suggestions label={t("conversationFirst.suggestions")}>
-              <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={() => setStep({ kind: "questionnaire" })}>
+              <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={askQuestionnaire}>
                 {t("newProfile.startQuestionnaire")}
               </button>
             </Suggestions>
@@ -247,7 +269,14 @@ export function ProfileOnboarding() {
       </section>
       {step.kind === "review" ? (
         <InWorkPane key={reviewOpening} kind={REVIEW} title={t("cvReview.title")} href={REVIEW_HREF} back={routes.newProfile}>
-          <CvReview draft={step.draft} {...(edits ? { kept: edits } : {})} onKeep={setEdits} startOverLabel={startOverLabel} onStartOver={startOver} />
+          <CvReview
+            draft={step.draft}
+            {...(edits ? { kept: edits } : {})}
+            onKeep={setEdits}
+            startOverLabel={startOverLabel}
+            onStartOver={startOver}
+            onSaved={saved}
+          />
         </InWorkPane>
       ) : null}
     </>

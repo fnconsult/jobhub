@@ -15,6 +15,12 @@
  * Its links: `messageId`, the message of the conversation it came from (« Voir dans la conversation »), and `after`, the
  * `key` of the entry that caused it (« suite de »): a reply, then the Master CV Version its card created, then that
  * version's ATS Score; a reply, then the change its card applied; a Job Search, then a Job Offer it found.
+ *
+ * A Profile's creation (ADR-0070, #810) is one entry, « Création du profil », grouping its `parts` in their order: the
+ * uploaded CV read (its Provenance, the only AI), the Onboarding Questionnaire, the review, « Profil créé » with Master CV
+ * Version 1, and Version 1's ATS Score. On a Profile's page it is made from what is kept (Version 1, its Provenance, its
+ * ATS Score); the browser adds what it alone knows while it is being created (`creation`): the questionnaire and the
+ * review, never kept, so gone once the page is loaded again.
  */
 import type { Provenance, ProvenanceSite, ProvenanceStep, ReplyCost, StepLabel, WeeklyQuota } from "@jobhub/shared";
 import { describeModel, markOf, stepLabel } from "@jobhub/shared";
@@ -91,8 +97,27 @@ export interface VersionGiven {
   href?: string;
 }
 
-/** The kinds of entry: an AI Activity element's, a Master CV Version saved without AI, and an applied card's change. */
-export type EntryKind = ElementKind | "master_cv_version" | "change";
+/** The parts of a Profile's creation (#810), in their order: an ATS Score is Version 1's. */
+export const CREATION_PARTS = ["cv_reading", "questionnaire", "review", "profile_created", "ats_score"] as const;
+export type CreationPartKind = (typeof CREATION_PARTS)[number];
+
+/**
+ * The kinds of entry: an AI Activity element's, a Master CV Version saved without AI, an applied card's change, and a
+ * Profile's creation with the kinds of its parts.
+ */
+export type EntryKind = ElementKind | "master_cv_version" | "change" | "profile_creation" | CreationPartKind;
+
+/**
+ * A Profile's creation as the page knows it (#810): its page once created (`href`), and what only the browser knows while
+ * the Candidate creates it on `/profils/nouveau`, kept in memory until the page is loaded again: the uploaded CV read (its
+ * draft's Provenance), the Onboarding Questionnaire (when it started, the answers given and skipped) and the review.
+ */
+export interface CreationGiven {
+  href?: string;
+  reading?: { provenance: Provenance | null };
+  questionnaire?: { at: string; answered: number; skipped: number };
+  review?: { at: string };
+}
 
 /**
  * Where it came from: the Candidate (they launched, opened or saved it), their question (an AI Coach reply), the AI
@@ -138,6 +163,9 @@ export interface EntryResult {
   /** A Master CV Version's number, and the earlier one it restored (« Annuler »). */
   version?: number;
   restoredFrom?: number | null;
+  /** The Onboarding Questionnaire's answers given, and those skipped. */
+  answered?: number;
+  skipped?: number;
 }
 
 /** A proposal of a reply, with its state, and what an applied one led to (the key of its entry). */
@@ -177,6 +205,8 @@ export interface ActivityEntry {
   read?: ConsultedElement[];
   /** An AI Coach reply's: its proposals; a card not applied is no entry of its own. */
   proposals?: EntryProposal[];
+  /** A Profile's creation's: its parts, in their order, each as an entry. */
+  parts?: ActivityEntry[];
 }
 
 export interface ActivityInput {
@@ -190,6 +220,8 @@ export interface ActivityInput {
    * thread shows, with their cards. A served reply the thread shows gives way to the thread's.
    */
   built?: readonly ServedEntry[];
+  /** A Profile's creation as the page knows it: on a Profile's page, its page; in the browser, what it alone knows. */
+  creation?: CreationGiven;
 }
 
 /**
@@ -384,9 +416,12 @@ export function servedEntries(input: Omit<ActivityInput, "built">): ServedEntry[
 function build(input: ActivityInput): Built[] {
   const scoped = input.page === "any" ? null : SCOPED[input.page];
   const given = input.elements ?? [];
-  const elements = given.map((element) => (scoped && !scoped.has(element.kind) ? null : elementEntry(element)));
+  // On a Profile's page, Version 1 and its ATS Score are its creation's (#810).
+  const first = input.page === "profile" ? input.versions?.find((version) => version.version === FIRST) : undefined;
+  const firstScore = first ? given.findIndex((element) => element.kind === "ats_score" && element.scored === FIRST) : -1;
+  const elements = given.map((element, index) => (index === firstScore || (scoped && !scoped.has(element.kind)) ? null : elementEntry(element)));
   const replies = (input.replies ?? []).flatMap(replyEntries);
-  const versions = input.page === "profile" ? (input.versions ?? []).map((version) => [version.version, versionEntry(version)] as const) : [];
+  const versions = input.page === "profile" ? (input.versions ?? []).filter((version) => version !== first).map((version) => [version.version, versionEntry(version)] as const) : [];
   const version = new Map(versions);
   given.forEach((element, index) => {
     const cause = element.after !== undefined ? elements[element.after] : element.scored !== undefined ? version.get(element.scored) : undefined;
@@ -401,8 +436,10 @@ function build(input: ActivityInput): Built[] {
     Object.assign(entry, { cause: reply, messageId: reply.messageId, proposal: reply.cards!.get(entry.card!) });
     madeVersion.add(entry.card!);
   }
+  const creation = creationAmong(prior, first ? keptParts(first, given[firstScore]) : null, input.creation);
   const built = newestFirst([
     ...prior,
+    ...(creation ? [creation] : []),
     ...elements.flatMap((entry) => (entry ? [entry] : [])),
     ...replies.filter((entry) => !(entry.kind === "change" && madeVersion.has(entry.card!))),
     ...versions.map(([, entry]) => entry),
@@ -413,6 +450,93 @@ function build(input: ActivityInput): Built[] {
     if (entry.proposal) entry.proposal.led = entry.key;
   }
   return built;
+}
+
+const FIRST = 1;
+const CREATION = "profile_creation";
+
+/** An entry without AI of the Profile's creation, or one of the page's elements as a part of it: dated, done, linked to nothing. */
+function part(kind: CreationPartKind, at: string | null, origin: EntryOrigin, result: Partial<EntryResult> = {}, href: string | null = null): ActivityEntry {
+  return {
+    key: `${CREATION}:${kind}`,
+    kind,
+    at,
+    object: { href, label: null },
+    origin,
+    result: { end: { state: "done" }, ...result },
+    steps: [],
+    sites: [],
+    tools: [],
+    models: [],
+    cost: { quota: null, tokens: null, noAi: true },
+  };
+}
+
+/** An element of the page as a part of the creation: its kind and key the part's, linked to nothing. */
+const asPart = (kind: CreationPartKind, entry: Built): ActivityEntry => ({ ...shown(entry), key: `${CREATION}:${kind}`, kind });
+
+/** The CV read, from its Provenance: the creation's only AI. */
+const readingPart = (provenance: Provenance, at?: Date | string) => asPart("cv_reading", elementEntry({ kind: "master_cv", provenance, ...(at ? { at } : {}) }));
+
+/** What is kept of a Profile's creation: the CV read (Version 1's Provenance), Version 1, and Version 1's ATS Score. */
+function keptParts(first: VersionGiven, score: PageElement | undefined): ActivityEntry[] {
+  return [
+    ...(first.provenance ? [readingPart(first.provenance, first.savedAt)] : []),
+    part("profile_created", iso(first.savedAt), "candidate", { version: first.version }, first.href ?? null),
+    ...(score ? [asPart("ats_score", elementEntry(score))] : []),
+  ];
+}
+
+/** What the browser alone knows of a Profile's creation: the CV read from its draft, the questionnaire and the review. */
+function knownParts(creation: CreationGiven): ActivityEntry[] {
+  const { reading, questionnaire, review } = creation;
+  const read = reading ? (reading.provenance ? readingPart(reading.provenance) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null }))) : null;
+  return [
+    ...(read ? [read] : []),
+    ...(questionnaire ? [part("questionnaire", questionnaire.at, "jobbbox", { answered: questionnaire.answered, skipped: questionnaire.skipped })] : []),
+    ...(review ? [part("review", review.at, "candidate")] : []),
+  ];
+}
+
+/**
+ * « Création du profil »: its parts in their order, one of each kind (the first given); dated by the first; created with
+ * the version of « Profil créé »; its models, Tools and sites, and its cost, the CV read's tokens, else without AI.
+ */
+function creationEntry(given: readonly ActivityEntry[], href: string | null): Built {
+  const parts = CREATION_PARTS.flatMap((kind) => given.filter((each) => each.kind === kind).slice(0, 1));
+  const reading = parts.find((each) => each.kind === "cv_reading");
+  const created = parts.find((each) => each.kind === "profile_created");
+  const at = parts.flatMap((each) => (each.at ? [each.at] : [])).sort()[0] ?? null;
+  return {
+    key: CREATION,
+    kind: CREATION,
+    at,
+    object: { href, label: null },
+    origin: "candidate",
+    result: { end: { state: "done" }, ...(created ? { version: created.result.version } : {}) },
+    steps: [],
+    sites: once(parts.flatMap((each) => each.sites)),
+    tools: once(parts.flatMap((each) => each.tools)),
+    models: once(parts.flatMap((each) => each.models)),
+    cost: { quota: null, tokens: reading?.cost.tokens ?? null, noAi: !reading || reading.cost.noAi },
+    parts,
+  };
+}
+
+/**
+ * The page's « Création du profil », if any: the server's (`prior`), with what the browser knows when it is this Profile's;
+ * else the one made from what is kept (`kept`, a Profile's page); else, on `/profils/nouveau` (no page yet), what the
+ * browser knows. One served is finished in place, and none is returned.
+ */
+function creationAmong(prior: Built[], kept: ActivityEntry[] | null, creation: CreationGiven | undefined): Built | null {
+  const known = creation ? knownParts(creation) : [];
+  const served = prior.find((entry) => entry.kind === CREATION);
+  if (served) {
+    if (creation?.href && served.object.href === creation.href) Object.assign(served, creationEntry([...(served.parts ?? []), ...known], served.object.href));
+    return null;
+  }
+  if (kept) return creationEntry([...kept, ...known], creation?.href ?? null);
+  return !creation?.href && known.length > 0 ? creationEntry(known, null) : null;
 }
 
 /** The server's entries, linked again by their keys; a reply the thread shows (`shown`) gives way to the thread's. */

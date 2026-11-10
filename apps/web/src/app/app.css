@@ -5643,6 +5643,38 @@ textarea.title-edit {
   color: var(--color-success);
 }
 
+/* A Profile's creation (#810): its parts, each a line like an entry's row, the CV read's steps and a part's link under it. */
+.activity-entry-parts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-entry-part {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-2);
+  align-items: start;
+}
+
+.activity-entry-part > .activity-glyph {
+  margin-top: 0.15em;
+}
+
+.activity-entry-part > .activity-entry-steps,
+.activity-entry-part > .activity-entry-links {
+  grid-column: 2 / -1;
+}
+
+/* Its own class, so that an entry is never found by the title of one of its parts. */
+.activity-entry-part-title {
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+}
+
 .activity-entry-links {
   display: flex;
   flex-wrap: wrap;

@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProvenanceEvent } from "@jobhub/shared";
+import { nextCreation, type CreationNote } from "@/ai-activity/creation";
+import type { CreationGiven } from "@/ai-activity/entries";
 import { isRunning, nextLive, type LiveAction, type LiveEnded, type RequestKind } from "@/ai-activity/live";
 import type { RunningJobSearch } from "@/job-searches";
 
@@ -35,6 +37,13 @@ interface Live {
   stop(key: string): void;
   /** A page that is a conversation shown or left (#601): shown, it announces its replies itself. */
   conversationShown(shown: boolean): void;
+  /**
+   * What is known of the Profile being created on `/profils/nouveau` (#810), kept until the page is loaded again, so that
+   * « Création du profil » shows its questionnaire and review on the new Profile's page too; null before any creation.
+   */
+  creation: CreationGiven | null;
+  /** The creation page says how the Candidate goes (ai-activity/creation). */
+  noteCreation(note: CreationNote): void;
 }
 
 const LiveContext = createContext<Live | null>(null);
@@ -44,12 +53,13 @@ const JOB_SEARCH = "job_search:";
  * Holds AI Activity's live actions (#333) above every page of a signed-in Candidate, so an action keeps showing, with its
  * step, on the page the Candidate moves to. Fed by the streams of the actions run in a page's request (a Coach reply, a
  * Tailored CV, a Tailored Document, a Company Dossier, a CV reading) and by the Job Search poll; only the Candidate's
- * own pages mount it, never the Back Office. It holds AI Activity's one live region too, so a page change neither loses nor
+ * own pages mount it, never the Back Office. It holds what is known of a Profile being created too (#810), in memory only. It holds AI Activity's one live region too, so a page change neither loses nor
  * repeats what it says.
  */
 export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
   const [actions, dispatch] = useReducer(nextLive, []);
   const [conversationShown, setConversationShown] = useState(false);
+  const [creation, setCreation] = useState<CreationGiven | null>(null);
   // The actions whose page was left while they ran (RequestActionLive.leave).
   const [left, setLeft] = useState<ReadonlySet<string>>(() => new Set());
   const stops = useRef(new Map<string, () => void>());
@@ -88,11 +98,15 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
         stops.current.get(key)?.();
       },
       conversationShown: setConversationShown,
+      noteCreation(note: CreationNote) {
+        const at = new Date().toISOString();
+        setCreation((was) => nextCreation(was, note, at));
+      },
     }),
     [],
   );
 
-  const live = useMemo<Live>(() => ({ actions, ...api }), [actions, api]);
+  const live = useMemo<Live>(() => ({ actions, creation, ...api }), [actions, creation, api]);
   return (
     <LiveContext.Provider value={live}>
       {children}

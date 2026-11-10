@@ -335,12 +335,14 @@ export function CoachConversationPage(page: PagePlacement) {
   const registerPage = conversationFirst?.setPage;
   const conversationOnPage = conversation?.id ?? null;
   const replying = status === "sending";
+  const hasReplied = messages.some((message) => message.from === "coach");
   useEffect(() => {
     if (!registerPage) return;
     registerPage({
       conversationId: conversationOnPage,
       replying,
-      context,
+      // A stopped request can have usage context without an actual reply (#810).
+      context: hasReplied ? context : null,
       replies,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
       // An object's or a menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
@@ -348,7 +350,7 @@ export function CoachConversationPage(page: PagePlacement) {
       askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
-  }, [registerPage, conversationOnPage, replying, subject, context, replies]);
+  }, [registerPage, conversationOnPage, replying, subject, context, replies, hasReplied]);
 
   /** A Help Article, from the help's suggestions or the Introduction: in the Work Pane, beside the conversation (#602). */
   function showArticle(article: HelpArticle) {

@@ -176,6 +176,25 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       expect(t.stripe.callsTo("/v1/refunds")[0]!.params.has("amount")).toBe(false);
     });
 
+    it("greets the Candidate by the Preferred Name their account has, which the page posting the form does not send (#921)", async () => {
+      const marie = await subscribedMarie(paris("2026-10-12T10:00"));
+      await t.database.query("UPDATE candidate SET preferred_name = 'Mimi' WHERE id = $1", [marie.id]);
+
+      // What the « Confirmer la rétractation » route passes: who is signed in, nothing of their names.
+      await withdrawals.withdraw({ id: marie.id, email: marie.email }, confirm, "fr");
+
+      expect(sent[0]!.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+      expect(sent[0]!.html).toContain(">Bonjour Mimi,</p>");
+    });
+
+    it("greets by no name a Candidate without a Preferred Name (#921)", async () => {
+      const marie = await subscribedMarie(paris("2026-10-12T10:00"));
+
+      await withdrawals.withdraw({ id: marie.id, email: marie.email }, confirm, "fr");
+
+      expect(sent[0]!.text.startsWith("Bonjour,\n\n")).toBe(true);
+    });
+
     it("sends the acknowledgement to another address when the Candidate asks", async () => {
       const marie = await subscribedMarie(paris("2026-10-12T10:00"));
 

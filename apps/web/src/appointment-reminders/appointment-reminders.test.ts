@@ -217,8 +217,10 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     });
   });
 
-  it("writes the email in the Candidate's Interface Language: French by default, English when they chose it", async () => {
+  it("writes the email in the Candidate's Interface Language: French by default, English when they chose it; greeting them by their Preferred Name, or by no name (#921)", async () => {
     await database.query(`UPDATE candidate SET "interfaceLanguage" = 'en' WHERE id = $1`, [paul]);
+    await database.query(`UPDATE candidate SET given_name = 'Marie', preferred_name = 'Mimi' WHERE id = $1`, [marie]);
+    await database.query(`UPDATE candidate SET preferred_name = NULL WHERE id = $1`, [paul]);
     await interview(marie, "2026-10-21T09:00", { place: "Lyon" });
     await interview(paul, "2026-10-21T14:30", { place: "Paris" });
 
@@ -228,6 +230,8 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     const forMarie = outbox.find((message) => message.to === "marie.dupont@example.fr")!;
     const forPaul = outbox.find((message) => message.to === "paul.martin@example.fr")!;
     expect(forMarie.subject).toBe("Rappel : votre rendez-vous de demain, mercredi 21 octobre 2026");
+    expect(forMarie.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+    expect(forPaul.text.startsWith("Hello,\n\n")).toBe(true);
     expect(forMarie.text).toContain("09:00 · Entretien : DAF H/F chez Acme Industrie");
     expect(forMarie.text).toContain("Lieu ou lien : Lyon");
     expect(forPaul.subject).toBe("Reminder: your appointment tomorrow, Wednesday, October 21, 2026");

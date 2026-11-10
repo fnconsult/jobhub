@@ -3,28 +3,32 @@
  * Candidate is taken out of the text before it leaves for a provider, generation and web search alike.
  *
  *  - Always, by its shape: every email address and phone number (the shapes of identity-scan.ts).
- *  - When the AI layer knows the Candidate (`CandidateIdentity`): their full name, their last name, their
+ *  - When the AI layer knows the Candidate (`CandidateIdentity`): their full name, first name, last name,
  *    postal address, email, phone and links, each matched as written, whatever its case and spacing.
  *
  * Each value becomes a placeholder, the same one wherever it appears in the call: « [NOM] » for the full
- * name, « [NOM DE FAMILLE] » for the last name alone, « [ADRESSE] », « [E-MAIL] », « [TÉLÉPHONE] » and
- * « [LIEN] », numbered from the second distinct value of a kind (« [E-MAIL 2] »). `restore` puts back, in
- * a reply, the values this call took out and only those, so a Cover Letter still signs with the name.
+ * name, « [PRÉNOM] » for the first name alone, « [NOM DE FAMILLE] » for the last name alone, « [ADRESSE] »,
+ * « [E-MAIL] », « [TÉLÉPHONE] » and « [LIEN] », numbered from the second distinct value of a kind
+ * (« [E-MAIL 2] »). `restore` puts back, in a reply, the values this call took out and only those, so a
+ * Cover Letter still signs with the first and last name.
  *
- * The first name stays: alone it identifies no one, and the AI Coach addresses the Candidate by it on
- * purpose (ADR-0007, issue #126). Its limits: a name the account and the Master CV do not hold (a new CV's,
- * a referee's) cannot be told apart from other words and goes through; a last name shorter than 3 letters
- * is not matched (too many false hits); and the rest of a CV (employers, dates, career) stays in the text,
- * pseudonymised personal data under GDPR.
+ * Only the Preferred Name stays (#921): the name the Candidate asked the coaches to call them, which the AI
+ * Coach addresses them by. A first name equal to it stays too; one that differs is taken out like the rest.
+ * Its limits: a name the account and the Master CV do not hold (a new CV's, a referee's) cannot be told
+ * apart from other words and goes through; a name shorter than 3 letters is not matched (too many false
+ * hits); and the rest of a CV (employers, dates, career) stays in the text, pseudonymised personal data
+ * under GDPR.
  */
 import { findEmails, findPhones } from "./identity-scan";
 
 /** What the AI layer knows of the Candidate, to take out of every call made for them. Each may hold several values (the account's and the Master CV's). */
 export interface CandidateIdentity {
   fullName?: string | readonly string[];
-  /** Kept in the text (see above); it tells the last name apart within a full name. */
-  firstName?: string | readonly string[];
+  /** Taken out, unless it is the Preferred Name; it tells the last name apart within a full name. Each full name's own (`givenNameOf`) is taken out too. */
+  givenName?: string | readonly string[];
   lastName?: string | readonly string[];
+  /** What the Candidate asked the coaches to call them: the one part of their identity left in the text. */
+  preferredName?: string | null;
   email?: string | readonly string[];
   phone?: string | readonly string[];
   /** A postal address: a bare city, which the career also names, is better left out by the caller. */
@@ -36,10 +40,11 @@ export interface CandidateIdentity {
 /** What a redaction counts, by kind: never the values. */
 export type RedactedKind = "name" | "address" | "email" | "phone" | "link";
 
-type Slot = "fullName" | "lastName" | "address" | "email" | "phone" | "link";
+type Slot = "fullName" | "givenName" | "lastName" | "address" | "email" | "phone" | "link";
 
 const PLACEHOLDER: Record<Slot, string> = {
   fullName: "NOM",
+  givenName: "PRÉNOM",
   lastName: "NOM DE FAMILLE",
   address: "ADRESSE",
   email: "E-MAIL",
@@ -47,7 +52,7 @@ const PLACEHOLDER: Record<Slot, string> = {
   link: "LIEN",
 };
 
-const KIND: Record<Slot, RedactedKind> = { fullName: "name", lastName: "name", address: "address", email: "email", phone: "phone", link: "link" };
+const KIND: Record<Slot, RedactedKind> = { fullName: "name", givenName: "name", lastName: "name", address: "address", email: "email", phone: "phone", link: "link" };
 
 /** A name shorter than this is not matched: "Li" or "Ba" would hit ordinary words. */
 const MIN_NAME_LENGTH = 3;
@@ -102,7 +107,7 @@ export function givenNameOf(fullName: string): string {
  * "DUPONT"), else all but the first word.
  */
 function lastNamesOf(fullNames: string[], firstNames: string[]): string[] {
-  const first = new Set(firstNames.map(normal));
+  const first = new Set(firstNames.flatMap((name) => [name, ...name.split(" ")]).map(normal));
   return fullNames.flatMap((fullName) => {
     const words = fullName.split(" ");
     if (words.length < 2) return [];
@@ -115,14 +120,17 @@ function lastNamesOf(fullNames: string[], firstNames: string[]): string[] {
 function knownMatchers(identity: CandidateIdentity | null | undefined): Matcher[] {
   if (!identity) return [];
   const fullNames = valuesOf(identity.fullName);
-  // Without a first name given, the first full name's (`givenNameOf`).
-  const given = valuesOf(identity.firstName);
-  const firstNames = given.length > 0 ? given : fullNames.slice(0, 1).map(givenNameOf);
+  // The first names given, and each full name's (`givenNameOf`): a Master CV's may differ from the account's.
+  const firstNames = [...valuesOf(identity.givenName), ...fullNames.map(givenNameOf)].filter(Boolean);
+  // The Preferred Name stays: a first or last name that is it is not taken out alone.
+  const preferred = new Set(valuesOf(identity.preferredName ?? undefined).map(normal));
   const named = (slot: Slot, values: string[], min: number): Matcher[] =>
-    [...new Set(values.filter((value) => value.length >= min))].map((value) => ({ slot, pattern: literal(value) }));
+    [...new Map(values.filter((value) => value.length >= min).map((value) => [normal(value), value])).values()].map((value) => ({ slot, pattern: literal(value) }));
+  const notPreferred = (values: string[]) => values.filter((value) => !preferred.has(normal(value)));
   return [
     ...named("fullName", fullNames.filter((name) => name.includes(" ")), MIN_NAME_LENGTH),
-    ...named("lastName", [...valuesOf(identity.lastName), ...lastNamesOf(fullNames, firstNames)], MIN_NAME_LENGTH),
+    ...named("givenName", notPreferred(firstNames), MIN_NAME_LENGTH),
+    ...named("lastName", notPreferred([...valuesOf(identity.lastName), ...lastNamesOf(fullNames, firstNames)]), MIN_NAME_LENGTH),
     ...named("address", valuesOf(identity.address), MIN_VALUE_LENGTH),
     ...named("email", valuesOf(identity.email), MIN_VALUE_LENGTH),
     ...named("link", valuesOf(identity.links), MIN_VALUE_LENGTH),

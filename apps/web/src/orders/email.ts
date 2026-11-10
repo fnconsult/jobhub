@@ -25,6 +25,8 @@ export interface OrderConfirmation {
   immediateExecutionRequested: boolean;
   /** « Renoncer au contrat ici », and the first instant past the Withdrawal period. */
   withdrawal: { url: string; until: Date };
+  /** Their Preferred Name, which the email greets them by (#921); none: « Bonjour, ». */
+  preferredName?: string | null;
 }
 
 /**
@@ -43,6 +45,7 @@ export function orderConfirmationEmail(order: OrderConfirmation, language: Local
   const price = order.price ? orderPriceLabel(order.price, language) : null;
   return renderEmail({
     language,
+    greetingName: order.preferredName,
     subject: plan ? t("orders.email.subjectPlan", { plan: order.subject }) : t("orders.email.subjectSession", { coach: order.subject }),
     title: t("orders.email.title"),
     body: [

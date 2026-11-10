@@ -42,7 +42,7 @@ export interface AdministratorsDeps {
   /** The permanent super-admins (ADMIN_EMAILS). */
   isPermanentSuperAdmin: PermanentSuperAdmins;
   /** Emails the account its Two-step verification was reset, in its Interface Language; never fails. Default: nobody is told. */
-  tellTwoStepReset?: (account: { email: string; interfaceLanguage: unknown }) => Promise<void>;
+  tellTwoStepReset?: (account: { email: string; interfaceLanguage: unknown; preferredName: string | null }) => Promise<void>;
 }
 
 /** One Administrator, as the Administrateurs page lists them. */
@@ -240,19 +240,19 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
     },
 
     async resetTwoStepVerification(actor, email) {
-      type Done = { refused: "forbidden" } | { refused: "unknown_account"; email: string } | { email: string; interfaceLanguage: unknown; hadFactor: boolean };
+      type Done = { refused: "forbidden" } | { refused: "unknown_account"; email: string } | { email: string; interfaceLanguage: unknown; preferredName: string | null; hadFactor: boolean };
       const done = await deps.backOffice.record(
         actor,
         async (within): Promise<Done> => {
           if (!(await isSuperAdminWithin(within, actor.id))) return { refused: "forbidden" };
-          const { rows } = await within.query<{ id: string; email: string; interfaceLanguage: unknown }>(
-            `SELECT id, lower(email) AS email, "interfaceLanguage" FROM candidate WHERE lower(email) = lower($1) FOR UPDATE`,
+          const { rows } = await within.query<{ id: string; email: string; interfaceLanguage: unknown; preferredName: string | null }>(
+            `SELECT id, lower(email) AS email, "interfaceLanguage", preferred_name AS "preferredName" FROM candidate WHERE lower(email) = lower($1) FOR UPDATE`,
             [email.trim()],
           );
           const account = rows[0];
           if (!account) return { refused: "unknown_account", email: email.trim().toLowerCase() };
           const { hadFactor } = await resetTwoStepVerification(within, account.id);
-          return { email: account.email, interfaceLanguage: account.interfaceLanguage, hadFactor };
+          return { email: account.email, interfaceLanguage: account.interfaceLanguage, preferredName: account.preferredName, hadFactor };
         },
         (outcome): BackOfficeAttempt | null =>
           "refused" in outcome
@@ -262,7 +262,7 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
             : { section: "roles", target: outcome.email, action: "reset", before: { twoStepVerification: outcome.hadFactor }, after: { twoStepVerification: false } },
       );
       if ("refused" in done) return { ok: false, error: done.refused };
-      await deps.tellTwoStepReset?.({ email: done.email, interfaceLanguage: done.interfaceLanguage });
+      await deps.tellTwoStepReset?.({ email: done.email, interfaceLanguage: done.interfaceLanguage, preferredName: done.preferredName });
       return { ok: true, email: done.email };
     },
   };

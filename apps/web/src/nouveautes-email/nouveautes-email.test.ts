@@ -161,8 +161,9 @@ describe.skipIf(!connectionString)("Nouveautés email: the box in Mon compte, on
   });
 
   describe("sendDue — one email per Candidate and per announced note, at most one a week", () => {
-    it("emails each subscribed Candidate once, in their Interface Language, and no one who did not tick the box", async () => {
+    it("emails each subscribed Candidate once, in their Interface Language, greeting them by their Preferred Name (#921), and no one who did not tick the box", async () => {
       await candidate("paul", "paul@example.fr", "fr");
+      await database.query(`UPDATE candidate SET preferred_name = 'Mimi' WHERE id = 'marie'`);
       const module = emails(written(["0.3.0"]));
       await module.subscribe("marie");
       await module.subscribe("john");
@@ -175,6 +176,8 @@ describe.skipIf(!connectionString)("Nouveautés email: the box in Mon compte, on
       expect(outbox.map((message) => message.to).sort()).toEqual(["john@example.com", "marie@example.fr"]);
       const french = outbox.find((message) => message.to === "marie@example.fr")!;
       expect(french.subject).toBe("Nouveauté Jobbbox : Titre 0.3.0");
+      expect(french.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+      expect(outbox.find((message) => message.to === "john@example.com")!.text.startsWith("Hello,\n\n")).toBe(true);
       expect(french.text).toContain(`${APP}/nouveautes/0.3.0?lang=fr`);
       expect(french.headers?.["List-Unsubscribe"]).toMatch(/^<https:\/\/app\.jobbbox\.fr\/api\/nouveautes-email\/unsubscribe\?token=[A-Za-z0-9_-]{43}>$/);
       expect(french.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");

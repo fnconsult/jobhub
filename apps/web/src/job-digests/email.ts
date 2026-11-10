@@ -22,7 +22,7 @@ export interface JobDigestEmailOffer {
  * List-Unsubscribe header is the mailer call's).
  */
 export function jobDigestEmail(
-  digest: { profileName: string; count: number; offers: JobDigestEmailOffer[]; digestUrl: string; toHandle: number; offerBoxUrl: string; unsubscribeUrl: string },
+  digest: { profileName: string; count: number; offers: JobDigestEmailOffer[]; digestUrl: string; toHandle: number; offerBoxUrl: string; unsubscribeUrl: string; preferredName?: string | null },
   language: Locale,
 ): RenderedEmail {
   const i18n = createI18n(language);
@@ -31,6 +31,7 @@ export function jobDigestEmail(
   const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: DIGEST_TIME_ZONE });
   return renderEmail({
     language,
+    greetingName: digest.preferredName,
     subject: t("jobDigest.email.subject", { count, profile }),
     title: t("jobDigest.email.title", { count, profile }),
     body: [

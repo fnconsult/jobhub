@@ -742,6 +742,17 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(await jobDigests.settings(otherCandidateId, profileId)).toBeNull();
     });
 
+    it("greets the Candidate by their Preferred Name (#921)", async () => {
+      await database.query(`UPDATE candidate SET given_name = 'Marie', preferred_name = 'Mimi' WHERE id = $1`, [candidateId]);
+      await strong("DAF H/F");
+      await subscribed();
+
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
+
+      expect(outbox[0]!.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+      expect(outbox[0]!.text).not.toContain("Marie");
+    });
+
     it("is emailed in the Candidate's Interface Language, with an unsubscribe link and one-click unsubscribe headers", async () => {
       await database.query(`UPDATE candidate SET "interfaceLanguage" = 'en' WHERE id = $1`, [candidateId]);
       await strong("DAF H/F");

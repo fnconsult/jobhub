@@ -20,6 +20,8 @@ export interface WithdrawalReceipt {
   refunded: { amount: number; currency: string } | null;
   /** What is kept for the service already provided, at the Immediate Performance Request (#512); null when refunded in full. */
   kept?: { amount: number; currency: string } | null;
+  /** Their Preferred Name, which the email greets them by (#921); none: « Bonjour, ». */
+  preferredName?: string | null;
 }
 
 /**
@@ -38,6 +40,7 @@ export function withdrawalReceiptEmail(receipt: WithdrawalReceipt, language: Loc
   ];
   return renderEmail({
     language,
+    greetingName: receipt.preferredName,
     subject: t("withdrawals.email.subject"),
     title: t("withdrawals.email.title"),
     body: [

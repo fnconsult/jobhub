@@ -383,6 +383,8 @@ export function createWithdrawals(database: Pool, deps: WithdrawalsDeps): Withdr
       const recorded = await one(id);
       const refunded = recorded.refunds.reduce((sum, refund) => sum + refund.amount, 0);
       const kept = recorded.refunds.reduce((sum, refund) => sum + refund.kept, 0);
+      // Greeted by the Preferred Name the account has now (#921), not one the caller would have to think of passing.
+      const { rows: names } = await database.query<{ preferredName: string | null }>(`SELECT preferred_name AS "preferredName" FROM candidate WHERE id = $1`, [candidate.id]);
       const email = withdrawalReceiptEmail(
         {
           contract: recorded.contract,
@@ -393,6 +395,7 @@ export function createWithdrawals(database: Pool, deps: WithdrawalsDeps): Withdr
           name,
           refunded: refunded > 0 ? { amount: refunded, currency: recorded.refunds[0]!.currency } : null,
           kept: kept > 0 ? { amount: kept, currency: recorded.refunds[0]!.currency } : null,
+          preferredName: names[0]?.preferredName,
         },
         language,
       );

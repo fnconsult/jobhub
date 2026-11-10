@@ -1,3 +1,4 @@
+import {getCoachingOffers} from "@/coaching-offers/server";
 import { getAcceptances } from "@/acceptances/server";
 import { getAuth, getMailer } from "@/auth/server";
 import { getBilling } from "@/billing/server";
@@ -11,6 +12,7 @@ let instance: Orders | undefined;
 export function getOrders(): Orders {
   instance ??= createOrders(sharedPool(), {
     billing: getBilling(),
+    offers:getCoachingOffers(),
     coaches: getHumanCoaches(),
     acceptances: getAcceptances(),
     mailer: getMailer(),

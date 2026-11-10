@@ -1,3 +1,4 @@
+import {JOBBBOX_SELLER} from "@jobhub/shared/coaching-offers";
 // The web app's Mes coachs humains routes for the e2e tests (#694), as apps/web/src/app/api/coaching answers them, only
 // to a request carrying the signed-in Candidate's session cookie (401 otherwise): `GET /api/coaching`, the Order page
 // (`GET /api/coaching/order?coach=`) and « Passer au paiement » (`POST /api/coaching/order`, the CGV box checked as
@@ -21,8 +22,8 @@ const PAUL = { id: "coach-2", name: "Paul Durand", bookingUrl: "https://cal.com/
 export function coaching(): CoachingResponse {
   return {
     coaches: [
-      { id: CLAIRE.id, name: CLAIRE.name, bio: "Coach carrière, 15 ans de RH.", accessGranted: true },
-      { id: PAUL.id, name: PAUL.name, bio: "Ancien DRH, spécialiste des cadres.", accessGranted: false },
+      { id: CLAIRE.id, name: CLAIRE.name, bio: "Coach carrière, 15 ans de RH.", accessGranted: true,seller:JOBBBOX_SELLER },
+      { id: PAUL.id, name: PAUL.name, bio: "Ancien DRH, spécialiste des cadres.", accessGranted: false,seller:JOBBBOX_SELLER },
     ],
     sessions: [
       {
@@ -117,7 +118,7 @@ export function serveCoaching(web: ReturnType<typeof fakeWebApp>, email: string)
     if (url.pathname === "/api/coaching/order" && request.method === "GET") {
       const coach = route.coaching.coaches.find((each) => each.id === url.searchParams.get("coach"));
       if (!coach || !route.coaching.price) return json({ error: "not_orderable" }, 404);
-      const order: CoachingOrderResponse = { coach: { id: coach.id, name: coach.name }, price: { amount: route.coaching.price.amount, currency: route.coaching.price.currency }, cgv: route.cgv };
+      const order: CoachingOrderResponse = {seller:coach.seller, coach: { id: coach.id, name: coach.name }, price: { amount: route.coaching.price.amount, currency: route.coaching.price.currency }, cgv: route.cgv };
       return json(order);
     }
     if (url.pathname === "/api/coaching/order" && request.method === "POST") {

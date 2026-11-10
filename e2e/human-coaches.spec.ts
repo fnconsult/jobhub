@@ -58,7 +58,7 @@ async function addCoach(admin: Page, email: string) {
   await admin.goto("/admin");
   await admin.getByRole("link", { name: fr.admin.sections.humanCoaches }).click();
   await expect(admin.getByRole("heading", { level: 1 })).toHaveText(fr.admin.humanCoaches.title);
-  await admin.getByLabel(fr.admin.humanCoaches.name).fill(name);
+  await admin.getByLabel(fr.admin.humanCoaches.name, { exact: true }).fill(name);
   await admin.getByLabel(fr.admin.humanCoaches.email).fill(email);
   await admin.getByLabel(fr.admin.humanCoaches.bookingUrl).fill(bookingUrl);
   await admin.getByLabel(fr.admin.humanCoaches.bio).fill("Ancienne DRH dans l'industrie.");
@@ -107,7 +107,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
   test("the Back Office refuses a booking link that is not a Cal.com page", async ({ page }) => {
     await signInWithMagicLink(page, ADMINISTRATOR);
     await page.goto("/admin/coachs");
-    await page.getByLabel(fr.admin.humanCoaches.name).fill("Luc Bernard");
+    await page.getByLabel(fr.admin.humanCoaches.name, { exact: true }).fill("Luc Bernard");
     await page.getByLabel(fr.admin.humanCoaches.email).fill(newAddress("coach"));
     await page.getByLabel(fr.admin.humanCoaches.bookingUrl).fill("https://calendly.com/luc");
     await page.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
@@ -827,15 +827,29 @@ test.describe("isolated Human Coach workspace v2", () => {
     try {
       await signIn(page, newAddress("workspace-candidate"));
       const applicationId = await applicationWithCoverLetter(page, origin);
+      await admin.goto("/admin/coachs");
+      const commissionForm = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Jobbbox", exact: true }) });
+      await commissionForm.getByLabel(fr.coachingOffers.commission).fill("1200");
+      await commissionForm.getByRole("button", { name: fr.coachingOffers.saveCommission }).click();
+      await expect
+        .poll(async () => (await database.query("SELECT commission_bps FROM coaching_seller WHERE kind='jobbbox'")).rows[0].commission_bps)
+        .toBe(1200);
+      await page.goto(`/coachs/commande?coach=${coachId}`);
+      await expect(page.getByText(tr(fr.coachingOffers.soldBy, { name: "Jobbbox" }), { exact: true })).toBeVisible();
+
       const checkout = await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
       expect(checkout.status()).toBe(303);
       const [started] = await checkoutsFor(coachId);
       const candidateId = started!["metadata[candidate_id]"]!;
+      await commissionForm.getByLabel(fr.coachingOffers.commission).fill("3300");
+      await commissionForm.getByRole("button", { name: fr.coachingOffers.saveCommission }).click();
+
       const event = signedEvent(
         checkoutSessionEvent("checkout.session.completed", {
-          id: `cs_e2e_${unique()}`,
+          id: new URL(checkout.headers().location!).pathname.slice(1),
           candidateId,
           coachId,
+          quoteId: started!["metadata[coaching_quote_id]"],
           amount: 9000,
           currency: "eur",
           paymentStatus: "paid",
@@ -849,7 +863,10 @@ test.describe("isolated Human Coach workspace v2", () => {
           })
         ).ok(),
       ).toBe(true);
+      await expect.poll(() => own.output().includes(tr(fr.coachingOffers.soldBy, { name: "Jobbbox" }))).toBe(true);
       const session = (await (await page.request.get("/api/coaching")).json()).sessions[0];
+      expect((await database.query("SELECT snapshot FROM coaching_session_sale WHERE session_id=$1", [session.id])).rows[0].snapshot.commissionBps).toBe(1200);
+
       await database.query("UPDATE coaching_session SET scheduled_at=now()+interval '5 minutes',duration_minutes=60 WHERE id=$1", [session.id]);
       await settings.set("COACH_SPACE_V2_ENABLED", "true", ADMINISTRATOR);
       await expect(async () => {
@@ -867,6 +884,7 @@ test.describe("isolated Human Coach workspace v2", () => {
       const exported = await (await page.request.get("/api/account/export")).json();
       expect(exported.privateCoachNotes).toEqual([expect.objectContaining({ text: "Notes privées du coach, jamais à l’écran du Candidate." })]);
       await page.goto("/coachs");
+      await expect(page.getByText(tr(fr.coachingOffers.soldBy, { name: "Jobbbox" }), { exact: true }).first()).toBeVisible();
       await expect(page.getByText("Notes privées du coach, jamais à l’écran du Candidate.")).toHaveCount(0);
       await coachPage.goto(`/espace-coach/seances/${session.id}`);
       await expect(coachPage.getByRole("heading", { name: fr.coachWorkspace.phase.during })).toBeVisible();
@@ -889,7 +907,9 @@ test.describe("isolated Human Coach workspace v2", () => {
       await expect(coachReading).toContainText("Shared reading paragraph.");
       await candidateReading.focus();
       await page.keyboard.press("Control+End");
-      await expect.poll(() => coachReading.evaluate((el) => el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight)), { timeout: 2000 }).toBeGreaterThan(0.9);
+      await expect
+        .poll(() => coachReading.evaluate((el) => el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight)), { timeout: 2000 })
+        .toBeGreaterThan(0.9);
       const shareId = (await database.query("SELECT id FROM shared_reading WHERE session_id=$1", [session.id])).rows[0].id;
       await expect(coachPage.getByRole("link", { name: fr.designSystem.viewer.download, exact: true })).toHaveCount(0);
       await page.getByRole("button", { name: fr.sharedReading.stop, exact: true }).click();

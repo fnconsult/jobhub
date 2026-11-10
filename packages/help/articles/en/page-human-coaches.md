@@ -19,3 +19,7 @@ Once you have booked your time, « I've booked: enter the date » asks for the d
 ## Your coach’s report
 
 “Read the report and continue the conversation” opens that session’s conversation. A published report bears your coach’s name and “Human Coach”. Your AI Coach can read it and propose next steps without copying its text into your documents. Corrections appear as new messages.
+
+## Who sells your session
+
+“Sold by” identifies the offer’s Seller, also named in your order and confirmation. Jobbbox uses its session price and your Plan’s discount. A third-party Seller sets their own price; their legal name, status and SIRET appear, with Jobbbox’s marketplace role. Only offers with payment and selling conditions activated can be ordered.

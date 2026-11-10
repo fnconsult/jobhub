@@ -1,3 +1,4 @@
+import {CoachingOffersAdmin} from "@/coaching-offers/CoachingOffersAdmin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { IntroPage } from "@/admin/page-intro";
@@ -72,10 +73,11 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
         ) : null}
         {error ? (
           <Note tone="danger" role="alert">
-            {t(error === "email_taken" ? "admin.humanCoaches.emailTaken" : "admin.humanCoaches.invalid")}
+            {t(error === "offer" ? "coachingOffers.invalid" : error === "email_taken" ? "admin.humanCoaches.emailTaken" : "admin.humanCoaches.invalid")}
           </Note>
         ) : null}
 
+        <CoachingOffersAdmin canWrite={canWrite}/>
         <section className="section-block" aria-labelledby="coaches-title">
           <h2 id="coaches-title">{t("admin.humanCoaches.listTitle")}</h2>
           {coaches.length === 0 ? (

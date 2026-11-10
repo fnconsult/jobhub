@@ -185,6 +185,9 @@ export interface CheckoutOptions {
 
 /** How a Coaching Session's Checkout is asked for. */
 export interface CoachingSessionCheckoutOptions {
+  /** Server-created immutable Offer quote; never accepted from a Candidate request. */
+  quoteId?:string|undefined;
+  priceId?:string|undefined;
   /** Booked from the app (#694): Stripe sends the Candidate back to it by its universal link, paid or not, never to the web page. */
   inApp?: boolean | undefined;
 }
@@ -230,6 +233,8 @@ export interface PlanPrice {
 
 /** What a Coaching Session costs a Candidate, in the currency's smallest unit (cents). */
 export interface CoachingSessionPrice {
+  /** Immutable Stripe Price selected for a server-side Coaching Offer quote. */
+  priceId?:string;
   amount: number;
   currency: string;
   /** What it costs without the Coaching Session discount; equal to `amount` on a Plan without it. */
@@ -850,6 +855,7 @@ export function createBilling(config: BillingConfig) {
         checkoutSessionId: session.id,
         candidateId,
         coachId,
+        ...(session.metadata?.coaching_quote_id?{quoteId:session.metadata.coaching_quote_id}:{}),
         amount: session.amount_total ?? 0,
         currency: session.currency ?? "eur",
       });
@@ -1442,7 +1448,7 @@ export function createBilling(config: BillingConfig) {
     },
 
     /** What a Coaching Session costs the Candidate on their Plan, or null when Coaching Sessions cannot be paid yet. */
-    async coachingSessionPrice(candidateId: string): Promise<CoachingSessionPrice | null> {
+    async coachingSessionPrice(candidateId: string, forQuote = false): Promise<CoachingSessionPrice | null> {
       if (!config.stripe?.coachingSessionPrices) return null;
       const prices = coachingSessionPrices();
       const plan = await planOf(candidateId);
@@ -1450,7 +1456,7 @@ export function createBilling(config: BillingConfig) {
       const discounted = definition?.features.includes("coachingSessionDiscount") ?? false;
       const regular = await amountOf(prices.regular);
       const charged = discounted ? await amountOf(prices.discounted) : regular;
-      return { amount: charged.amount, currency: charged.currency, regularAmount: regular.amount, planName: definition?.name ?? { fr: plan, en: plan } };
+      return { ...(forQuote?{priceId:discounted?prices.discounted:prices.regular}:{}), amount: charged.amount, currency: charged.currency, regularAmount: regular.amount, planName: definition?.name ?? { fr: plan, en: plan } };
     },
 
     /**
@@ -1474,8 +1480,8 @@ export function createBilling(config: BillingConfig) {
         mode: "payment",
         customer,
         client_reference_id: candidate.id,
-        line_items: [{ price: discounted ? prices.discounted : prices.regular, quantity: 1 }],
-        metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id },
+        line_items: [{ price: options.priceId ?? (discounted ? prices.discounted : prices.regular), quantity: 1 }],
+        metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id, ...(options.quoteId?{coaching_quote_id:options.quoteId}:{}) },
         locale,
         success_url: options.inApp ? appPaymentURL() : coachingPageURL("?session=paid"),
         cancel_url: options.inApp ? appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`) : coachingPageURL(),

@@ -112,7 +112,7 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
         <AppText>{coaching.price ? t("humanCoaches.price", { price: formats.money(coaching.price.amount, coaching.price.currency) }) : t("humanCoaches.unavailable")}</AppText>
         {coaching.coaches.length === 0 ? <AppText tone="secondary">{t("humanCoaches.none")}</AppText> : null}
         {coaching.coaches.map((coach) => (
-          <CoachCard key={coach.id} coach={coach} bookable={coaching.price !== null} />
+          <CoachCard key={coach.id} coach={coach} bookable={coach.offer !== undefined ? coach.offer !== null : coaching.price !== null} />
         ))}
       </View>
     </View>
@@ -223,11 +223,13 @@ function PaymentNotice({ wait, onRefresh }: { wait: PaymentWait; onRefresh: () =
 
 /** A Human Coach: their bio, whether they have Coach Access, and « Réserver une séance avec … » while one can be paid. */
 function CoachCard({ coach, bookable }: { coach: Coach; bookable: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   return (
     <Card label={coach.name}>
       <AppText variant="h3">{coach.name}</AppText>
+      {coach.seller?<><AppText>{t("coachingOffers.soldBy",{name:coach.seller.name})}</AppText>{coach.seller.kind!=="jobbbox"?<><AppText>{coach.seller.status} · {t("coachingOffers.siret",{siret:coach.seller.siret})}</AppText><AppText>{t("coachingOffers.marketplace")}</AppText></>:null}</>:null}
+      {coach.offer?<AppText>{t("humanCoaches.price",{price:new Intl.NumberFormat(i18n.language,{style:"currency",currency:coach.offer.currency}).format(coach.offer.amount/100)})} · {t("humanCoaches.sessionDuration",{count:coach.offer.durationMinutes})}</AppText>:null}
       {coach.bio ? <AppText>{coach.bio}</AppText> : null}
       <AppText tone="secondary">{t(coach.accessGranted ? "humanCoaches.accessGranted" : "humanCoaches.accessNotGranted", { name: coach.name })}</AppText>
       {bookable ? <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} /> : null}

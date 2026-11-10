@@ -159,6 +159,8 @@ describe("« Réserver »: the Order, then Stripe Checkout in the in-app browser
 
     expect(screen).toHavePathname("/coachs/commande");
     expect(screen.getByText("72,00 € TTC")).toBeOnTheScreen();
+    expect(screen.getByText("Vendu par")).toBeOnTheScreen();
+    expect(screen.getByText("Jobbbox")).toBeOnTheScreen();
     expect(screen.getByText("Paiement unique, sans reconduction")).toBeOnTheScreen();
     expect(screen.getByRole("checkbox", { name: CGV_BOX })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: IMMEDIATE_BOX })).not.toBeChecked();
@@ -300,7 +302,7 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
     await user.press(button("Enregistrer"));
 
     expect(web.edits).toEqual([{ id: "s2", body: { scheduledAt: "2026-11-12T14:30", durationMinutes: 45, videoLink: "https://meet.google.com/abc", note: "Relire mon CV avant" } }]);
-    const dated = await screen.findByLabelText("Séance avec Paul Durand, le jeudi 12 novembre 2026 à 14:30");
+    const dated = await screen.findByLabelText("Séance avec Paul Durand, le jeudi 12 novembre 2026 à 14:30 (Europe/Paris)");
     expect(within(dated).getByText("Durée : 45 minutes")).toBeOnTheScreen();
     expect(within(dated).getByText("Relire mon CV avant")).toBeOnTheScreen();
     expect(screen.queryByLabelText(DATE)).toBeNull();
@@ -321,7 +323,7 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
     await user.press(button("Enregistrer"));
 
     expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00", durationMinutes: 60, videoLink: "https://meet.google.com/exemple", note: "Préparer l'entretien Aéroline" } }]);
-    expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00")).toBeOnTheScreen();
+    expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00 (Europe/Paris)")).toBeOnTheScreen();
   });
 
   it("says under each field what the web app refused, and changes nothing", async () => {

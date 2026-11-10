@@ -6681,5 +6681,29 @@
       "cover_letter": "Cover Letter",
       "outreach_message": "Outreach Message"
     }
+  },
+  "coachingOffers": {
+    "soldBy": "Sold by {{name}}",
+    "soldByLabel": "Sold by",
+    "identity": "Seller identity",
+    "siret": "SIRET {{siret}}",
+    "marketplaceLabel": "Jobbbox’s role",
+    "marketplace": "Jobbbox is the marketplace that connects you and collects payment on the seller’s behalf.",
+    "adminTitle": "Coaching Offers and Sellers",
+    "seller": "Seller",
+    "sellerName": "Seller legal identity",
+    "status": "Legal status",
+    "siretLabel": "SIRET",
+    "commission": "Jobbbox Commission (basis points, 100 = 1%)",
+    "duration": "Session duration (minutes)",
+    "amount": "Seller price (EUR cents)",
+    "kind": "Seller type",
+    "coach": "Human Coach",
+    "association": "Association",
+    "save": "Save offer",
+    "addSeller": "Add seller",
+    "saveCommission": "Save Commission",
+    "locked": "Third-party offers cannot be ordered until payments and legal conditions are activated.",
+    "invalid": "The offer or seller details are invalid."
   }
 }

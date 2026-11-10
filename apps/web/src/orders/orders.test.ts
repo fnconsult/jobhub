@@ -213,6 +213,7 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
 
       expect(sent).toHaveLength(1);
       expect(sent[0]!.subject).toBe(`Your order is confirmed: a coaching session with ${COACH.name}`);
+      expect(sent[0]!.text).toContain("Sold by Jobbbox");
       expect(sent[0]!.text).toContain("refunded in full");
       expect(sent[0]!.text).not.toContain("You asked for the service to start at once");
       expect(sent[0]!.text).toContain("https://app.jobbbox.fr/agenda");

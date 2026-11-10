@@ -786,3 +786,12 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 13._
 | Data and access | A Candidate-selected snapshot of their own CV, tailored CV, cover letter or outreach message; or a PDF presented by the session’s active Human Coach. Only those two participants can read the snapshot, within the joining window, even without Coach Access. Neither participant receives access to any other document through this feature. |
 | Storage and retention | EU Postgres `shared_reading`; ephemeral content, source reference and page/scroll state. Either participant can stop, immediately deleting content and revoking the opaque document address. Replacing a document also invalidates its address. Reads recheck access and expiry; a minute-by-minute worker removes expired, withdrawn, rescheduled or retired-coach documents without waiting for a read. No recording, annotation, AI processing or new recipient. |
 | Rights | Active Candidate document snapshots and sharing metadata are included in their account export. Coach-presented PDF bytes are excluded; all records are deleted with the Candidate’s paid session. |
+
+### Coaching Offers, Sellers and paid sale snapshots (#874, ADR-0095)
+
+| Field | Record |
+| --- | --- |
+| Purpose and legal basis | Identify the party selling a Coaching Session and preserve the price and Commission accepted at payment; performance of the requested service (GDPR art. 6(1)(b)). |
+| Data and access | Seller legal name, status, SIRET, linked coach and Commission. Public purchase surfaces show only Seller identity, duration and price. Administrators manage offers and Commission under the coaching role; every change is recorded in the existing Back Office Audit transaction. |
+| Storage and rights | EU Postgres `coaching_seller`, `coaching_offer`, `coaching_offer_quote`, `coaching_session_sale`, and the Order’s `coaching_sale`. The quote freezes Seller identity, price, duration and Commission before Checkout; a paid snapshot is never overwritten by a later edit or webhook retry. Candidate-related quotes and paid snapshots are included in their data export and deleted with their account/session. Seller records are maintained separately from Candidate accounts. |
+| Legal gate | Third-party offers remain unorderable until payment eligibility and the legal rollout gates are implemented. #889 remains the human review of third-party CGV; this entry does not approve or activate legal text. |

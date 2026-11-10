@@ -1,3 +1,5 @@
+import {getCoachingOffers} from "@/coaching-offers/server";
+import {SellerInfo} from "@/coaching-offers/SellerInfo";
 import { coachSpaceV2On } from "@/coach-space/server";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import { MeetingLink } from "@/coach-space/MeetingLink";
@@ -74,6 +76,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
         return null;
       }),
   ]);
+  const offers=new Map((await Promise.all(coaches.map(async coach=>[coach.id,await getCoachingOffers().sale(candidate.id,coach.id)] as const))).map(entry=>entry));
   const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const timeZone = (await getCoachingTimeZones().candidate(candidate.id)) ?? INTERVIEW_TIME_ZONE;
@@ -168,8 +171,10 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
           return (
             <li key={coach.id} className="stack">
               <h3>{coach.name}</h3>
+              {offers.get(coach.id)?<SellerInfo seller={offers.get(coach.id)!.seller} t={t}/>:null}
+              {offers.get(coach.id)?<p>{t("humanCoaches.price",{price:money(offers.get(coach.id)!.amount,offers.get(coach.id)!.currency)})} · {t("humanCoaches.sessionDuration",{count:offers.get(coach.id)!.durationMinutes})}</p>:null}
               {coach.bio ? <p>{coach.bio}</p> : null}
-              {price !== null ? (
+              {offers.get(coach.id) ? (
                 // To the Order page (#512): its summary and boxes come before Stripe Checkout.
                 <form method="get" action={COACHING_ORDER}>
                   <input type="hidden" name={ORDER_PARAMS.coach} value={coach.id} />

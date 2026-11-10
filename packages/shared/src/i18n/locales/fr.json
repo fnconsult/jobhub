@@ -6681,5 +6681,29 @@
       "cover_letter": "Lettre de motivation",
       "outreach_message": "Message d’approche"
     }
+  },
+  "coachingOffers": {
+    "soldBy": "Vendu par {{name}}",
+    "soldByLabel": "Vendu par",
+    "identity": "Identité du vendeur",
+    "siret": "SIRET {{siret}}",
+    "marketplaceLabel": "Rôle de Jobbbox",
+    "marketplace": "Jobbbox est la place de marché qui vous met en relation et encaisse le paiement pour son compte.",
+    "adminTitle": "Offres de coaching et vendeurs",
+    "seller": "Vendeur",
+    "sellerName": "Identité légale du vendeur",
+    "status": "Statut juridique",
+    "siretLabel": "SIRET",
+    "commission": "Commission Jobbbox (points de base, 100 = 1 %)",
+    "duration": "Durée de la séance (minutes)",
+    "amount": "Prix du vendeur (centimes EUR)",
+    "kind": "Type de vendeur",
+    "coach": "Coach humain",
+    "association": "Association",
+    "save": "Enregistrer l’offre",
+    "addSeller": "Ajouter le vendeur",
+    "saveCommission": "Enregistrer la commission",
+    "locked": "Les offres de tiers ne peuvent pas être commandées avant l’activation des paiements et des conditions légales.",
+    "invalid": "Les données de l’offre ou du vendeur ne sont pas valides."
   }
 }

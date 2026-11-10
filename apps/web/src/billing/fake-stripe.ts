@@ -645,6 +645,7 @@ export function checkoutSessionEvent(
     id: string;
     candidateId: string;
     coachId?: string;
+    quoteId?:string;
     amount: number;
     currency: string;
     paymentStatus: "paid" | "unpaid" | "no_payment_required";
@@ -671,7 +672,7 @@ export function checkoutSessionEvent(
         amount_total: session.amount,
         currency: session.currency,
         subscription: session.subscription ?? null,
-        metadata: mode === "payment" ? { purpose: "coaching_session", coach_id: session.coachId ?? "", candidate_id: session.candidateId } : {},
+        metadata: mode === "payment" ? { purpose: "coaching_session", coach_id: session.coachId ?? "", candidate_id: session.candidateId, ...(session.quoteId?{coaching_quote_id:session.quoteId}:{}) } : {},
       },
     },
   };

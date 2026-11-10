@@ -13,3 +13,7 @@ Quand nos conditions générales de vente sont publiées, cochez « J'accepte le
 La deuxième case est facultative : « Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni et que je perds mon droit de rétractation une fois la séance réalisée. » Sans elle, vous payez et réservez votre séance de la même façon, et une rétractation dans les 14 jours vous est remboursée en entier, même si la séance a eu lieu. Avec elle, vous pouvez vous rétracter tant que la séance n'a pas eu lieu, remboursé en entier ; plus après.
 
 « Passer au paiement » ouvre la page sécurisée de Stripe, notre prestataire de paiement. Une fois le paiement confirmé, vous recevez par e-mail la confirmation de votre commande : conservez-la.
+
+## Qui vous vend la séance
+
+« Vendu par » identifie le vendeur de l’offre, également nommé dans votre commande et sa confirmation. Jobbbox applique son prix de séance et la remise de votre formule. Un vendeur tiers fixe son propre prix ; son nom légal, son statut et son SIRET apparaissent, avec le rôle de place de marché de Jobbbox. Seules les offres dont le paiement et les conditions de vente sont activés peuvent être commandées.

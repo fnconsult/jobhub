@@ -1,3 +1,4 @@
+import {getCoachingOffers} from "@/coaching-offers/server";
 import { coachSpaceV2On } from "@/coach-space/server";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import { getCoachingTimeZones } from "@/coaching-time/server";
@@ -25,6 +26,7 @@ export function getCandidateReads(): CandidateReads {
   instance ??= createCandidateReads({
     coachingMeetings: async (id) => coachSpaceV2On() ? getCoachContacts().forCandidate(id) : null,
     coachingTimeZone: (id) => getCoachingTimeZones().candidate(id),
+    coachingOffer:(candidateId,coachId)=>getCoachingOffers().sale(candidateId,coachId),
     applications: getApplications(),
     followUps: getFollowUps(),
     profiles: getProfiles(),

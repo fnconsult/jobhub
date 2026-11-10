@@ -1,3 +1,4 @@
+import {getCoachingOffers} from "@/coaching-offers/server";
 import type { Locale } from "@jobhub/shared/i18n";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getMailer } from "@/auth/server";
@@ -24,7 +25,7 @@ export function getBilling(): Billing {
   instance ??= liveObject(getSecretResolver(), STRIPE_SECRET_NAMES, (env) =>
     createBilling({
       ...billingConfigFromEnv(env),
-      onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid),
+      onCoachingSessionPaid: async (paid) => { const recorded=await getHumanCoaches().recordPaidSession(paid);if(recorded)await getCoachingOffers().attachPaid(paid);return recorded; },
       onCheckoutPaid: (paid) => getOrders().paid(paid),
       onRefundChanged: (change) => getWithdrawals().refundChanged(change),
       externalApis: getExternalApiLog(),

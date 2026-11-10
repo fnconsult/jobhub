@@ -1,3 +1,4 @@
+import { JOBBBOX_SELLER,type CoachingSale } from "@jobhub/shared/coaching-offers";
 /**
  * Orders (#512, CONTEXT.md): what a Candidate confirms on Jobbbox's own page before Stripe Checkout, for a Plan or a
  * Coaching Session (C. civ. 1127-1, 1127-2; C. conso. L221-5 9°, L221-25, L221-28 1°). Stripe Checkout keeps one
@@ -42,6 +43,7 @@ export type OrderItem = { kind: "plan"; plan: string; promotionCode?: string | u
 /** What the Order page sums up. */
 export interface OrderSummary {
   kind: OrderItem["kind"];
+  sale?: CoachingSale;
   /** The Plan's name, or the Human Coach's (the same in each language). */
   subject: PlanName;
   /** All taxes included, in the currency's smallest unit (cents), each `interval` for a Plan (null for a Coaching Session); null when Stripe cannot tell it. */
@@ -73,6 +75,7 @@ export const IMMEDIATE_EXECUTION_REQUESTED = "yes";
 export const ORDER_FIELDS = { cgv: "cgv", immediateExecution: "immediateExecution" } as const;
 
 export interface OrdersDeps {
+  offers?: {sale(candidateId:string,coachId:string):Promise<CoachingSale|null>;quote(candidateId:string,coachId:string):Promise<{id:string;sale:CoachingSale;priceId?:string}|null>};
   billing: Pick<Billing, "plans" | "planPrices" | "coachingSessionPrice" | "startCheckout" | "startCoachingSessionCheckout">;
   /** The Human Coaches a Coaching Session can be booked with. */
   coaches: { list(): Promise<{ id: string; name: string }[]> };
@@ -104,6 +107,7 @@ export interface Orders {
 }
 
 interface OrderRow {
+  coaching_sale:CoachingSale|null;
   checkout_session_id: string;
   candidate_id: string;
   kind: "plan" | "coaching_session";
@@ -133,6 +137,10 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
     }
     const coach = (await deps.coaches.list()).find((each) => each.id === item.coachId);
     if (!coach) return null;
+    if(deps.offers) {
+      const sale=await deps.offers.sale(candidateId,item.coachId);if(!sale)return null;
+      return {kind:"coachingSession",subject:{fr:coach.name,en:coach.name},price:{amount:sale.amount,currency:sale.currency,interval:null},sale};
+    }
     const price = await deps.billing.coachingSessionPrice(candidateId);
     if (!price) return null;
     return { kind: "coachingSession", subject: { fr: coach.name, en: coach.name }, price: { amount: price.amount, currency: price.currency, interval: null } };
@@ -151,16 +159,19 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
       // Read before Checkout: what the Order Confirmation sums up is what the page showed.
       const summary = await summaryOf(candidate.id, item);
       if (!summary) return { ok: false, error: "not_orderable" };
+      const quote=item.kind==="coachingSession"&&deps.offers?await deps.offers.quote(candidate.id,item.coachId):null;
+      if(item.kind==="coachingSession"&&deps.offers&&!quote)return {ok:false,error:"not_orderable"};
+      if(quote){summary.sale=quote.sale;summary.price={amount:quote.sale.amount,currency:quote.sale.currency,interval:null};}
       const started =
         item.kind === "plan"
           ? await deps.billing.startCheckout(candidate, item.plan, language, { promotionCode: item.promotionCode })
-          : await deps.billing.startCoachingSessionCheckout(candidate, item.coachId, language, { inApp: item.inApp });
+          : await deps.billing.startCoachingSessionCheckout(candidate, item.coachId, language, { inApp: item.inApp, quoteId:quote?.id,priceId:quote?.priceId });
       // The customer portal, for a Candidate who already pays: no Checkout, no Order.
       if (!started.checkoutSessionId) return { ok: true, url: started.url };
       await database.query(
         `INSERT INTO checkout_order (checkout_session_id, candidate_id, kind, subject, price_amount, price_currency, price_interval, cgv_version, cgv_url,
-                                     immediate_execution_requested, language, ordered_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                                     immediate_execution_requested, language, ordered_at, coaching_sale)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           started.checkoutSessionId,
           candidate.id,
@@ -174,6 +185,7 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
           immediateExecutionRequested,
           language,
           now(),
+          summary.sale?JSON.stringify(summary.sale):null,
         ],
       );
       if (cgv) {
@@ -216,6 +228,7 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
           immediateExecutionRequested: order.immediate_execution_requested,
           withdrawal: { url: absolute(order.kind === "plan" ? routes.withdrawal("plan") : routes.agenda()), until: withdrawalDeadline(concludedAt) },
           preferredName: order.preferred_name,
+          seller:order.coaching_sale?.seller??(order.kind==="coaching_session"?JOBBBOX_SELLER:undefined),
         },
         order.language,
       );
@@ -299,6 +312,7 @@ export async function migrateOrders(database: Pool): Promise<void> {
       subscription_id text,
       confirmation_sent_at timestamptz
     );
+    ALTER TABLE checkout_order ADD COLUMN IF NOT EXISTS coaching_sale jsonb;
     CREATE INDEX IF NOT EXISTS checkout_order_candidate_id_idx ON checkout_order (candidate_id);
     CREATE INDEX IF NOT EXISTS checkout_order_subscription_id_idx ON checkout_order (subscription_id) WHERE subscription_id IS NOT NULL;
   `);

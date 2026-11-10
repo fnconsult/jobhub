@@ -11,3 +11,7 @@ Coachs (menu Coaching) ouvre « Coachs humains » : les professionnels RH que Jo
 « Coachs actifs » liste chaque coach : son « Nom », son « Adresse e-mail de connexion », son « Lien de réservation Cal.com » et sa « Présentation (facultatif) ». Un coach se connecte à Jobbbox avec l'adresse indiquée ici et retrouve son espace coach. La carte « Ajouter un coach » en ajoute un ; « Retirer … » le retire de la liste. Ses séances passées sont conservées.
 
 Les responsables coaching et les super-admins ajoutent et retirent des coachs ; le Support lit la liste. Chaque changement est inscrit dans Actions des administrateurs, section « Coachs humains ».
+
+## Offres de coaching et vendeurs
+
+Cette rubrique relie chaque offre à son vendeur et à sa durée. Un vendeur tiers donne son nom légal, statut et SIRET, et fixe son prix. Jobbbox conserve son prix central et la remise de formule. La Commission se règle par vendeur en points de base (100 = 1 %) ; les modifications figurent dans le journal et ne changent pas les séances déjà payées. Les offres de tiers restent indisponibles avant l’activation des paiements et des conditions légales.

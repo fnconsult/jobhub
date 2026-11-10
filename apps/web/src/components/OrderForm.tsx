@@ -1,3 +1,4 @@
+import {SellerInfo} from "@/coaching-offers/SellerInfo";
 import type { Locale } from "@jobhub/shared/i18n";
 import Link from "next/link";
 import { buttonClass } from "@/design/button-class";
@@ -60,6 +61,7 @@ export function OrderForm({
           <Property term={t("orders.page.renewal")}>{renewal}</Property>
           {code ? <Property term={t("orders.page.code")}>{t("orders.page.codeCarried", { code })}</Property> : null}
         </Properties>
+        {summary.sale?<SellerInfo seller={summary.sale.seller} t={t}/>:null}
       </Card>
       <form className="order-form" method="post" action={action}>
         {Object.entries(hidden).map(([name, value]) => (

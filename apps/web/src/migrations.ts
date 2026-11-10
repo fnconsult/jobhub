@@ -1,3 +1,4 @@
+import { migrateCoachingOffers } from "./coaching-offers";
 import { migrateSharedReading } from "./shared-reading";
 import { migrateSessionReports } from "./coach-space/reports";
 import { migrateCoachContacts } from "./coach-space/contacts";
@@ -111,6 +112,7 @@ export async function migrateDatabase(
     ["Quota Reductions are up to date", () => migrateQuotaReductions(database)],
     ["Acceptances of the CGU and CGV are up to date", () => migrateAcceptances(database)],
     ["Orders are up to date", () => migrateOrders(database)],
+    ["Coaching Offers and Sellers are up to date", () => migrateCoachingOffers(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],

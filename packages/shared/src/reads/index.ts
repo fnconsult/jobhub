@@ -1,3 +1,4 @@
+import {coachingSellerSchema} from "../coaching-offers";
 /**
  * The reads of the Jobbbox app (ADR-0076, #684): what each GET of the web app's `/api/*` routes answers a signed-in
  * Candidate, the menus' cards and the objects they lead to, as the pages read them in React Server Components. The
@@ -380,7 +381,7 @@ export type AgendaResponse = z.infer<typeof agendaResponseSchema>;
  */
 export const coachingResponseSchema = z.object({
   timeZone: z.string().optional(),
-  coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean() })),
+  coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean(), seller:coachingSellerSchema.optional(), offer:z.object({durationMinutes:z.number(),amount:z.number(),currency:z.string()}).nullable().optional() })),
   sessions: z.array(
     z.object({
       id: z.string(),
@@ -407,6 +408,8 @@ export type CoachingResponse = z.infer<typeof coachingResponseSchema>;
  * 404 when the Human Coach cannot be booked. `POST /api/coaching/order` places it.
  */
 export const coachingOrderResponseSchema = z.object({
+  seller:coachingSellerSchema.optional(),
+  durationMinutes:z.number().optional(),
   coach: named,
   price: z.object({ amount: z.number().int().min(0), currency: z.string() }).nullable(),
   cgv: z.object({ version: day, url: z.string() }).nullable(),

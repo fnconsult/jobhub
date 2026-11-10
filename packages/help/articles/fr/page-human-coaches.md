@@ -19,3 +19,7 @@ Après avoir réservé votre créneau, « J'ai réservé : saisir la date » vou
 ## Le compte rendu de votre coach
 
 « Lire le compte rendu et poursuivre la conversation » ouvre la conversation de la séance. Un compte rendu publié y porte le nom de votre coach et « Coach humain ». Votre coach IA peut le lire et proposer des prochaines étapes sans en recopier le texte dans vos documents. Les corrections sont de nouveaux messages.
+
+## Qui vous vend la séance
+
+« Vendu par » identifie le vendeur de l’offre, également nommé dans votre commande et sa confirmation. Jobbbox applique son prix de séance et la remise de votre formule. Un vendeur tiers fixe son propre prix ; son nom légal, son statut et son SIRET apparaissent, avec le rôle de place de marché de Jobbbox. Seules les offres dont le paiement et les conditions de vente sont activés peuvent être commandées.

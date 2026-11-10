@@ -146,6 +146,7 @@ export type ScheduleSessionResult =
 
 /** A Coaching Session payment Stripe confirmed. */
 export interface PaidCoachingSession {
+  quoteId?:string;
   /** The Stripe Checkout Session it was paid through: one Coaching Session per Checkout Session. */
   checkoutSessionId: string;
   candidateId: string;

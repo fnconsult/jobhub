@@ -1,3 +1,4 @@
+import type {CoachingSale} from "@jobhub/shared/coaching-offers";
 import type { Meeting } from "@jobhub/shared/coaching-meeting";
 /**
  * The Candidate's reads over HTTP (ADR-0076, #684): what the GETs of the `/api/*` routes answer the Jobbbox app, the
@@ -108,6 +109,7 @@ export interface CandidateReads {
 }
 
 export interface CandidateReadsDeps {
+  coachingOffer?(candidateId:string,coachId:string):Promise<CoachingSale|null>;
   applications: Pick<Applications, "list" | "get" | "matchScores">;
   followUps: Pick<FollowUps, "notices">;
   profiles: Pick<Profiles, "list" | "get">;
@@ -419,12 +421,13 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           return null;
         }),
       ]);
+      const offers=deps.coachingOffer?new Map(await Promise.all(coaches.map(async coach=>[coach.id,await deps.coachingOffer!(candidateId,coach.id)] as const))):null;
       // As the Agenda: the sessions still in their Withdrawal period, and not held under the Immediate Performance Request.
       const withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
       return {
         ...(timeZone ? { timeZone } : {}),
         // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
-        coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id) })),
+        coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id), ...(offers?{seller:offers.get(coach.id)?.seller,offer:offers.get(coach.id)?{durationMinutes:offers.get(coach.id)!.durationMinutes,amount:offers.get(coach.id)!.amount,currency:offers.get(coach.id)!.currency}:null}:{}) })),
         sessions: sessions.map((session) => ({
           id: session.id,
           coach: { id: session.coach.id, name: session.coach.name, bookingUrl: session.coach.bookingUrl },
@@ -448,6 +451,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       const { summary, cgv } = terms;
       return {
         coach: { id: coachId, name: summary.subject.fr },
+        ...(summary.sale?{seller:summary.sale.seller,durationMinutes:summary.sale.durationMinutes}:{}),
         price: summary.price && { amount: summary.price.amount, currency: summary.price.currency },
         cgv: cgv && { version: cgv.version, url: cgv.url },
       };

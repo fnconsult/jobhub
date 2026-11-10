@@ -155,6 +155,7 @@ function Summary({ order }: { order: CoachingOrderResponse }) {
   const price = order.price ? t("orders.priceOnce", { price: new Intl.NumberFormat(i18n.language, { style: "currency", currency: order.price.currency }).format(order.price.amount / 100) }) : t("orders.page.priceUnknown");
   const rows: [string, string][] = [
     [t("orders.page.item"), t("orders.email.coachingSession", { coach: order.coach.name })],
+    ...(order.seller?[[t("coachingOffers.soldByLabel"),order.seller.name] as [string,string],...(order.seller.kind!=="jobbbox"?[[t("coachingOffers.identity"),`${order.seller.status} · SIRET ${order.seller.siret}`] as [string,string],[t("coachingOffers.marketplaceLabel"),t("coachingOffers.marketplace")] as [string,string]]:[])]:[]),
     [t("orders.page.price"), price],
     [t("orders.page.renewal"), t("orders.renewal.session")],
   ];

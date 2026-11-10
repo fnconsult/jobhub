@@ -1,3 +1,6 @@
+import path from "node:path";
+import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-server";
+import { derivedPort } from "./support/ports";
 import { Pool } from "pg";
 import { platformSettingsStore } from "../apps/web/src/platform-settings";
 import { showInTheme } from "./support/theme";
@@ -65,18 +68,32 @@ async function addCoach(admin: Page, email: string) {
 }
 
 /** A Profile and an Application with a Cover Letter drafted by the AI Coach, for the Candidate signed in on `page`. */
-async function applicationWithCoverLetter(page: Page): Promise<string> {
-  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }, headers: { origin } });
+async function applicationWithCoverLetter(page: Page, requestOrigin = origin): Promise<string> {
+  const profile = await page.request.post("/api/profiles", {
+    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
+    headers: { origin: requestOrigin },
+  });
   expect(profile.status(), await profile.text()).toBe(201);
   const captured = await page.request.post("/api/job-offers", {
-    data: { source: { url: `https://www.apec.fr/offres/${unique()}` }, title: "DAF (H/F)", content: "Acme Industrie recrute son DAF. Vous pilotez la clôture des comptes.", employer: "Acme Industrie" },
-    headers: { origin },
+    data: {
+      source: { url: `https://www.apec.fr/offres/${unique()}` },
+      title: "DAF (H/F)",
+      content: "Acme Industrie recrute son DAF. Vous pilotez la clôture des comptes.",
+      employer: "Acme Industrie",
+    },
+    headers: { origin: requestOrigin },
   });
   expect(captured.status(), await captured.text()).toBe(200);
-  const saved = await page.request.post("/api/applications", { data: { jobOfferId: (await captured.json()).id, profileId: (await profile.json()).id }, headers: { origin } });
+  const saved = await page.request.post("/api/applications", {
+    data: { jobOfferId: (await captured.json()).id, profileId: (await profile.json()).id },
+    headers: { origin: requestOrigin },
+  });
   expect(saved.ok(), await saved.text()).toBe(true);
   const id = (await saved.json()).id as string;
-  const drafted = await page.request.post(`/api/applications/${id}/tailored-documents`, { data: { document: "cover_letter" }, headers: { origin } });
+  const drafted = await page.request.post(`/api/applications/${id}/tailored-documents`, {
+    data: { document: "cover_letter" },
+    headers: { origin: requestOrigin },
+  });
   expect(drafted.ok(), await drafted.text()).toBe(true);
   return id;
 }
@@ -113,7 +130,11 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     expect(response.status()).toBe(303);
     expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = await checkoutsFor(coachId);
-    expect(checkout).toMatchObject({ mode: "payment", "line_items[0][price]": FAKE_STRIPE_COACHING_SESSION_PRICES.regular, "metadata[purpose]": "coaching_session" });
+    expect(checkout).toMatchObject({
+      mode: "payment",
+      "line_items[0][price]": FAKE_STRIPE_COACHING_SESSION_PRICES.regular,
+      "metadata[purpose]": "coaching_session",
+    });
 
     // The redirect back from Checkout grants nothing: only Stripe's signed webhook does.
     await page.goto("/coachs?session=paid");
@@ -131,7 +152,10 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     const { payload, signature } = signedEvent(event);
     for (let delivery = 0; delivery < 2; delivery++) {
       // Stripe may deliver one event more than once: still one Coaching Session.
-      const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+      const delivered = await page.request.post("/api/billing/webhook", {
+        data: payload,
+        headers: { "stripe-signature": signature, "content-type": "application/json" },
+      });
       expect(delivered.status()).toBe(200);
     }
 
@@ -146,7 +170,10 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
   // Issue #248: a paid Coaching Session waits under « À planifier » on the Agenda, with the Human
   // Coach's booking link, until the Candidate enters the date booked; it then sits in the list on
   // its day in French time, linking to the Human Coach on /coachs, which links back to the Agenda.
-  test("right after payment, a Coaching Session is « À planifier » on the Agenda; once its date is entered it is in the list on its day", async ({ page, browser }) => {
+  test("right after payment, a Coaching Session is « À planifier » on the Agenda; once its date is entered it is in the list on its day", async ({
+    page,
+    browser,
+  }) => {
     const admin = await personPage(browser, ADMINISTRATOR);
     const coach = await addCoach(admin, newAddress("coach"));
     const coachId = await coachIdOf(admin, coach.name);
@@ -156,9 +183,19 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     expect(checkout.status()).toBe(303);
     const [started] = await checkoutsFor(coachId);
     const { payload, signature } = signedEvent(
-      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+      checkoutSessionEvent("checkout.session.completed", {
+        id: `cs_e2e_${unique()}`,
+        candidateId: started!["metadata[candidate_id]"]!,
+        coachId,
+        amount: 9000,
+        currency: "eur",
+        paymentStatus: "paid",
+      }),
     );
-    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    const delivered = await page.request.post("/api/billing/webhook", {
+      data: payload,
+      headers: { "stripe-signature": signature, "content-type": "application/json" },
+    });
     expect(delivered.status()).toBe(200);
 
     await page.goto("/agenda");
@@ -196,11 +233,16 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     const calendarFile = await page.request.get((await item.getByRole("link", { name: new RegExp(`^${fr.agenda.calendarFile.add}`) }).getAttribute("href"))!);
     expect(calendarFile.status()).toBe(200);
     const calendarLines = (await calendarFile.text()).replace(/\r\n[ \t]/g, "").split("\r\n");
-    expect(calendarLines).toEqual(expect.arrayContaining([`SUMMARY:${tr(fr.agenda.calendarFile.sessionTitle, { name: coach.name })}`, "URL:https://meet.google.com/abc-defg-hij"]));
+    expect(calendarLines).toEqual(
+      expect.arrayContaining([`SUMMARY:${tr(fr.agenda.calendarFile.sessionTitle, { name: coach.name })}`, "URL:https://meet.google.com/abc-defg-hij"]),
+    );
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/coachs#seance-${sessionId}$`));
     const session = page.locator(`#seance-${sessionId}`);
-    await expect(session.getByRole("link", { name: tr(hc.joinVideo, { name: coach.name }) })).toHaveAttribute("href", exitHref("https://meet.google.com/abc-defg-hij"));
+    await expect(session.getByRole("link", { name: tr(hc.joinVideo, { name: coach.name }) })).toHaveAttribute(
+      "href",
+      exitHref("https://meet.google.com/abc-defg-hij"),
+    );
     await session.getByRole("link", { name: hc.seeInAgenda }).click();
     await expect(page).toHaveURL(/\/agenda$/);
 
@@ -217,7 +259,10 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
 
   // Issue #250: a cancelled Coaching Session goes back under « À planifier », its cancellation in its
   // « Historique », whether the Candidate or its Human Coach cancelled it.
-  test("cancelled from the Agenda by the Candidate, or by its Human Coach, a Coaching Session is back under « À planifier » with its history", async ({ page, browser }) => {
+  test("cancelled from the Agenda by the Candidate, or by its Human Coach, a Coaching Session is back under « À planifier » with its history", async ({
+    page,
+    browser,
+  }) => {
     const admin = await personPage(browser, ADMINISTRATOR);
     const coachEmail = newAddress("coach-cancel");
     const coach = await addCoach(admin, coachEmail);
@@ -227,9 +272,20 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
     const [started] = await checkoutsFor(coachId);
     const { payload, signature } = signedEvent(
-      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+      checkoutSessionEvent("checkout.session.completed", {
+        id: `cs_e2e_${unique()}`,
+        candidateId: started!["metadata[candidate_id]"]!,
+        coachId,
+        amount: 9000,
+        currency: "eur",
+        paymentStatus: "paid",
+      }),
     );
-    expect((await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } })).status()).toBe(200);
+    expect(
+      (
+        await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } })
+      ).status(),
+    ).toBe(200);
     const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + 3 * 86_400_000));
     const [session] = (await (await page.request.get("/api/account/export")).json()).coachingSessions;
     const schedule = () => page.request.patch(`/api/coaching/sessions/${session.id}`, { data: { scheduledAt: `${day}T10:00` }, headers: { origin } });
@@ -262,7 +318,10 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(history).toHaveCount(2);
     await expect(history.last()).toContainText(`par ${coach.name}`);
     const exported = await (await page.request.get("/api/account/export")).json();
-    expect(exported.coachingSessions[0].reschedules).toEqual([expect.objectContaining({ newAt: null, by: "candidate" }), expect.objectContaining({ newAt: null, by: "coach" })]);
+    expect(exported.coachingSessions[0].reschedules).toEqual([
+      expect.objectContaining({ newAt: null, by: "candidate" }),
+      expect.objectContaining({ newAt: null, by: "coach" }),
+    ]);
   });
 
   // Issue #248: a Retired Human Coach's past sessions still show on the Agenda, and the Data export
@@ -275,9 +334,19 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
     const [started] = await checkoutsFor(coachId);
     const { payload, signature } = signedEvent(
-      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+      checkoutSessionEvent("checkout.session.completed", {
+        id: `cs_e2e_${unique()}`,
+        candidateId: started!["metadata[candidate_id]"]!,
+        coachId,
+        amount: 9000,
+        currency: "eur",
+        paymentStatus: "paid",
+      }),
     );
-    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    const delivered = await page.request.post("/api/billing/webhook", {
+      data: payload,
+      headers: { "stripe-signature": signature, "content-type": "application/json" },
+    });
     expect(delivered.status()).toBe(200);
 
     await page.goto("/agenda");
@@ -307,7 +376,13 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     expect(exportResponse.status()).toBe(200);
     const exported = await exportResponse.json();
     expect(exported.coachingSessions).toEqual([
-      expect.objectContaining({ coach: { id: coachId, name: coach.name }, scheduledAt: expect.any(String), durationMinutes: 45, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer mon pitch." }),
+      expect.objectContaining({
+        coach: { id: coachId, name: coach.name },
+        scheduledAt: expect.any(String),
+        durationMinutes: 45,
+        videoLink: "https://meet.google.com/abc-defg-hij",
+        note: "Préparer mon pitch.",
+      }),
     ]);
     expect(JSON.stringify(exported)).not.toContain(coach.bookingUrl);
   });
@@ -315,7 +390,10 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
   // Issue #249: the Human Coach enters or corrects the date and video link of their own Coaching
   // Sessions in the Coach space, without Coach Access; the Candidate's Agenda says the coach changed
   // it. Another Human Coach and a Retired Human Coach are refused.
-  test("a Human Coach enters the date of their own Coaching Session in the Coach space; the Candidate's Agenda shows it, changed by the coach", async ({ page, browser }) => {
+  test("a Human Coach enters the date of their own Coaching Session in the Coach space; the Candidate's Agenda shows it, changed by the coach", async ({
+    page,
+    browser,
+  }) => {
     const admin = await personPage(browser, ADMINISTRATOR);
     const coachEmail = newAddress("coach");
     const coach = await addCoach(admin, coachEmail);
@@ -324,14 +402,27 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await addCoach(admin, otherCoachEmail);
     await signInWithMagicLink(page, newAddress("coaching-by-coach"));
     // Her Given Name and Family Name, and what the coaches call her (Mon compte › Identité, #918).
-    const named = await page.request.put("/api/account/identity", { data: { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" }, headers: { origin } });
+    const named = await page.request.put("/api/account/identity", {
+      data: { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" },
+      headers: { origin },
+    });
     expect(named.ok(), await named.text()).toBe(true);
     await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
     const [started] = await checkoutsFor(coachId);
     const { payload, signature } = signedEvent(
-      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+      checkoutSessionEvent("checkout.session.completed", {
+        id: `cs_e2e_${unique()}`,
+        candidateId: started!["metadata[candidate_id]"]!,
+        coachId,
+        amount: 9000,
+        currency: "eur",
+        paymentStatus: "paid",
+      }),
     );
-    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    const delivered = await page.request.post("/api/billing/webhook", {
+      data: payload,
+      headers: { "stripe-signature": signature, "content-type": "application/json" },
+    });
     expect(delivered.status()).toBe(200);
 
     // No Coach Access granted: the coach still sees the session, naming the Candidate « Marie D. », with what she is called (#922).
@@ -356,7 +447,10 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(dialog).toHaveCount(0);
     await expect(session).toContainText("18:15");
     await expect(session).not.toContainText(space.sessionToSchedule);
-    await expect(session.getByRole("link", { name: tr(space.joinVideo, { name: "Marie D." }) })).toHaveAttribute("href", exitHref("https://meet.google.com/coa-chco-ach", "coachSpace"));
+    await expect(session.getByRole("link", { name: tr(space.joinVideo, { name: "Marie D." }) })).toHaveAttribute(
+      "href",
+      exitHref("https://meet.google.com/coa-chco-ach", "coachSpace"),
+    );
     const sessionId = (await session.getAttribute("id"))!.replace("seance-", "");
 
     await page.goto("/agenda");
@@ -396,14 +490,23 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
 
     await page.goto("/coachs");
     await expect(page.getByText(/Prix d'une séance avec votre offre Premium : 72,00.*au lieu de 90,00/)).toBeVisible();
-    const checkout = await page.request.post("/api/coaching/checkout", { form: { coachId: await coachIdOf(admin, coach.name) }, headers: { origin }, maxRedirects: 0 });
+    const checkout = await page.request.post("/api/coaching/checkout", {
+      form: { coachId: await coachIdOf(admin, coach.name) },
+      headers: { origin },
+      maxRedirects: 0,
+    });
     expect(checkout.status()).toBe(303);
     const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${stripeUrl}/__calls`)).json();
-    expect(calls.filter((call) => call.path === "/v1/checkout/sessions").at(-1)?.params["line_items[0][price]"]).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);
+    expect(calls.filter((call) => call.path === "/v1/checkout/sessions").at(-1)?.params["line_items[0][price]"]).toBe(
+      FAKE_STRIPE_COACHING_SESSION_PRICES.discounted,
+    );
     await admin.context().close();
   });
 
-  test("a Candidate grants Coach Access; the Human Coach reads their Profiles and Applications, reviews a Tailored Document, until it is revoked", async ({ page, browser }) => {
+  test("a Candidate grants Coach Access; the Human Coach reads their Profiles and Applications, reviews a Tailored Document, until it is revoked", async ({
+    page,
+    browser,
+  }) => {
     const admin = await personPage(browser, ADMINISTRATOR);
     const coachEmail = newAddress("coach");
     const coach = await addCoach(admin, coachEmail);
@@ -523,7 +626,10 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
       paymentStatus: "paid",
     });
     const forged = signedEvent(event, "whsec_someone_else");
-    const refused = await page.request.post("/api/billing/webhook", { data: forged.payload, headers: { "stripe-signature": forged.signature, "content-type": "application/json" } });
+    const refused = await page.request.post("/api/billing/webhook", {
+      data: forged.payload,
+      headers: { "stripe-signature": forged.signature, "content-type": "application/json" },
+    });
     expect(refused.status()).toBe(400);
 
     await page.goto("/coachs?session=paid");
@@ -551,136 +657,235 @@ async function coachIdOf(admin: Page, name: string): Promise<string> {
   return (await form.locator('input[name="coachId"]').inputValue()) as string;
 }
 
-
-// #868: isolated at the end of this spec; restore the shared setting even if a check fails.
-test("Coach space v2: rollout gate, eight pages in both themes and three widths, accessible drawer, retired gate", async ({ page, browser }) => {
-  test.setTimeout(180_000);
-  const database = new Pool({ connectionString: process.env.E2E_DATABASE_URL });
-  const settings = platformSettingsStore(database, {});
-  const admin = await personPage(browser, ADMINISTRATOR);
-  const email = newAddress("coach-v2");
-  const coach = await addCoach(admin, email);
-  const coachId = await coachIdOf(admin, coach.name);
-  await signInWithMagicLink(page, email);
-  try {
-    await page.goto("/espace-coach");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(space.title);
-    expect((await page.goto("/espace-coach/seances"))?.status()).toBe(404);
-    expect(await settings.set("COACH_SPACE_V2_ENABLED", "true", ADMINISTRATOR)).toMatchObject({ ok: true });
-    await expect(async () => {
+// Global rollout settings run on an isolated server/database, so other specs keep the default-off behavior.
+test.describe("isolated Human Coach workspace v2", () => {
+  const OFFSET = 868;
+  const origin = `http://localhost:${derivedPort(OFFSET)}`;
+  let own: OwnServer;
+  test.use({ baseURL: origin });
+  test.beforeAll(async () => {
+    test.setTimeout(180_000);
+    own = await startOwnServer(OFFSET, "coach_workspace_v2", {
+      JOBHUB_TARGET: "e2e",
+      JOBHUB_IGNORE_ROOT_ENV: "1",
+      AUTH_SECRET: "e2e-workspace-only-secret-e2e-workspace-only-secret",
+      MAIL_TRANSPORT: "console",
+      ADMIN_EMAILS: ADMINISTRATOR,
+      SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
+      AI_SCORING_PROVIDER: "mistral",
+      AI_WRITING_PROVIDER: "mistral",
+      AI_COACHING_PROVIDER: "mistral",
+      AI_CV_PARSING_PROVIDER: "mistral",
+      AI_OFFER_ANALYSIS_PROVIDER: "mistral",
+      AI_OFFER_EMAIL_READING_PROVIDER: "mistral",
+      MISTRAL_API_KEY: "e2e-mistral-key",
+      STRIPE_SECRET_KEY: "sk_test_fake",
+      STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
+      STRIPE_PRICE_STANDARD: "price_standard_monthly",
+      STRIPE_PRICE_PREMIUM: "price_premium_monthly",
+      STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
+      STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
+      STRIPE_API_URL: process.env.E2E_STRIPE_URL,
+      NODE_OPTIONS: ["fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
+    });
+  });
+  test.afterAll(async () => {
+    await own?.stop();
+  });
+  const signIn = (page: Page, email: string) => signInByEmail(page, own, email);
+  const personPage = async (browser: Browser, email: string) => {
+    const context = await browser.newContext({ baseURL: origin, locale: "fr-FR" });
+    const page = await context.newPage();
+    await signIn(page, email);
+    return page;
+  };
+  // #868: isolated at the end of this spec; restore the shared setting even if a check fails.
+  test("Coach space v2: rollout gate, eight pages in both themes and three widths, accessible drawer, retired gate", async ({ page, browser }) => {
+    test.setTimeout(180_000);
+    const database = new Pool({ connectionString: own.databaseUrl });
+    const settings = platformSettingsStore(database, {});
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const email = newAddress("coach-v2");
+    const coach = await addCoach(admin, email);
+    const coachId = await coachIdOf(admin, coach.name);
+    await signIn(page, email);
+    try {
       await page.goto("/espace-coach");
-      await expect(page).toHaveURL(/\/espace-coach\/aujourdhui$/);
-    }).toPass();
-    for (const width of [1280, 1024, 390]) {
-      await page.setViewportSize({ width, height: 900 });
-      for (const theme of ["light", "dark"] as const) {
-        await showInTheme(page, theme);
-        for (const [path, title] of Object.entries(fr.coachSpaceV2.pages) as [string, string][]) {
-          await page.goto(`/espace-coach/${path}`);
-          await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
-          expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(space.title);
+      expect((await page.goto("/espace-coach/seances"))?.status()).toBe(404);
+      expect(await settings.set("COACH_SPACE_V2_ENABLED", "true", ADMINISTRATOR)).toMatchObject({ ok: true });
+      await expect(async () => {
+        await page.goto("/espace-coach");
+        await expect(page).toHaveURL(/\/espace-coach\/aujourdhui$/);
+      }).toPass();
+      for (const width of [1280, 1024, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const theme of ["light", "dark"] as const) {
+          await showInTheme(page, theme);
+          for (const [path, title] of Object.entries(fr.coachSpaceV2.pages) as [string, string][]) {
+            await page.goto(`/espace-coach/${path}`);
+            await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+          }
         }
       }
+      await page.goto("/espace-coach/seances");
+      const menu = page.getByRole("button", { name: fr.sidebar.menu, exact: true });
+      await menu.click();
+      const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
+      await expect(drawer.getByRole("link", { name: fr.coachSpaceV2.pages.seances, exact: true })).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      expect(await drawer.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+      await page.keyboard.press("Escape");
+      await expect(drawer).not.toBeVisible();
+      await expect(menu).toBeFocused();
+      await database.query("UPDATE human_coach SET retired_at = now() WHERE id = $1", [coachId]);
+      expect((await page.goto("/espace-coach/seances"))?.status()).toBe(404);
+      const stranger = await personPage(browser, newAddress("not-coach-v2"));
+      expect((await stranger.goto("/espace-coach/aujourdhui"))?.status()).toBe(404);
+      await stranger.context().close();
+    } finally {
+      await settings.restore("COACH_SPACE_V2_ENABLED");
+      await database.end();
+      await admin.context().close();
     }
-    await page.goto("/espace-coach/seances");
-    const menu = page.getByRole("button", { name: fr.sidebar.menu, exact: true });
-    await menu.click();
-    const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
-    await expect(drawer.getByRole("link", { name: fr.coachSpaceV2.pages.seances, exact: true })).toBeFocused();
-    await page.keyboard.press("Shift+Tab");
-    expect(await drawer.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-    await page.keyboard.press("Escape");
-    await expect(drawer).not.toBeVisible();
-    await expect(menu).toBeFocused();
-    await database.query("UPDATE human_coach SET retired_at = now() WHERE id = $1", [coachId]);
-    expect((await page.goto("/espace-coach/seances"))?.status()).toBe(404);
-    const stranger = await personPage(browser, newAddress("not-coach-v2"));
-    expect((await stranger.goto("/espace-coach/aujourdhui"))?.status()).toBe(404);
-    await stranger.context().close();
-  } finally {
-    await settings.restore("COACH_SPACE_V2_ENABLED");
-    await database.end();
-    await admin.context().close();
-  }
-});
+  });
 
-// #882: one physical instant, two viewers' clocks; Interviews still keep their existing Paris rules.
-test("a Montréal Candidate confirms the device zone and reads the same session as a Paris coach, including TZID", async ({ browser }) => {
-  const admin = await personPage(browser, ADMINISTRATOR);
-  const coachEmail = newAddress("coach-paris");
-  const coach = await addCoach(admin, coachEmail);
-  const coachId = await coachIdOf(admin, coach.name);
-  const context = await browser.newContext({ baseURL: origin, locale: "fr-FR", timezoneId: "America/Montreal" });
-  const candidate = await context.newPage();
-  const coachPage = await personPage(browser, coachEmail);
-  try {
-    await signInWithMagicLink(candidate, newAddress("candidate-montreal"));
-    await candidate.goto("/compte/preferences");
-    await expect(candidate.getByLabel(fr.coachingTime.label)).toHaveValue(/America\/(?:Montreal|Toronto)/);
-    await candidate.getByLabel(fr.coachingTime.label).fill("America/Montreal");
-    await candidate.getByRole("button", { name: fr.coachingTime.save }).click();
-    await expect(candidate.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
-    const checkout = await candidate.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
-    expect(checkout.status()).toBe(303);
-    const [started] = await checkoutsFor(coachId);
-    const event = signedEvent(checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }));
-    expect((await candidate.request.post("/api/billing/webhook", { data: event.payload, headers: { "stripe-signature": event.signature, "content-type": "application/json" } })).ok()).toBe(true);
-    const read = await (await candidate.request.get("/api/coaching")).json();
-    const session = read.sessions[0];
-    expect(read.timeZone).toBe("America/Montreal");
-    expect((await candidate.request.patch(`/api/coaching/sessions/${session.id}`, { data: { scheduledAt: "2026-11-12T14:30", durationMinutes: 60 }, headers: { origin } })).ok()).toBe(true);
-    await candidate.goto("/coachs");
-    const card = candidate.locator(`#seance-${session.id}`);
-    await expect(card).toContainText("08:30");
-    await expect(card).toContainText("14:30");
-    const calendar = await candidate.request.get(`/api/agenda/coaching-sessions/${session.id}/calendar.ics`);
-    expect(calendar.ok()).toBe(true);
-    expect(await calendar.text()).toContain("DTSTART;TZID=America/Montreal:20261112T083000");
-    await coachPage.goto("/espace-coach");
-    await expect(coachPage.locator(`#seance-${session.id}`)).toContainText("14:30");
-  } finally {
-    await context.close();
-    await coachPage.context().close();
-    await admin.context().close();
-  }
-});
+  // #882: one physical instant, two viewers' clocks; Interviews still keep their existing Paris rules.
+  test("a Montréal Candidate confirms the device zone and reads the same session as a Paris coach, including TZID", async ({ browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coachEmail = newAddress("coach-paris");
+    const coach = await addCoach(admin, coachEmail);
+    const coachId = await coachIdOf(admin, coach.name);
+    const context = await browser.newContext({ baseURL: origin, locale: "fr-FR", timezoneId: "America/Montreal" });
+    const candidate = await context.newPage();
+    const coachPage = await personPage(browser, coachEmail);
+    try {
+      await signIn(candidate, newAddress("candidate-montreal"));
+      await candidate.goto("/compte/preferences");
+      await expect(candidate.getByLabel(fr.coachingTime.label)).toHaveValue(/America\/(?:Montreal|Toronto)/);
+      await candidate.getByLabel(fr.coachingTime.label).fill("America/Montreal");
+      await candidate.getByRole("button", { name: fr.coachingTime.save }).click();
+      await expect(candidate.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
+      const checkout = await candidate.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+      expect(checkout.status()).toBe(303);
+      const [started] = await checkoutsFor(coachId);
+      const event = signedEvent(
+        checkoutSessionEvent("checkout.session.completed", {
+          id: `cs_e2e_${unique()}`,
+          candidateId: started!["metadata[candidate_id]"]!,
+          coachId,
+          amount: 9000,
+          currency: "eur",
+          paymentStatus: "paid",
+        }),
+      );
+      expect(
+        (
+          await candidate.request.post("/api/billing/webhook", {
+            data: event.payload,
+            headers: { "stripe-signature": event.signature, "content-type": "application/json" },
+          })
+        ).ok(),
+      ).toBe(true);
+      const read = await (await candidate.request.get("/api/coaching")).json();
+      const session = read.sessions[0];
+      expect(read.timeZone).toBe("America/Montreal");
+      expect(
+        (
+          await candidate.request.patch(`/api/coaching/sessions/${session.id}`, {
+            data: { scheduledAt: "2026-11-12T14:30", durationMinutes: 60 },
+            headers: { origin },
+          })
+        ).ok(),
+      ).toBe(true);
+      await candidate.goto("/coachs");
+      const card = candidate.locator(`#seance-${session.id}`);
+      await expect(card).toContainText("08:30");
+      await expect(card).toContainText("14:30");
+      const calendar = await candidate.request.get(`/api/agenda/coaching-sessions/${session.id}/calendar.ics`);
+      expect(calendar.ok()).toBe(true);
+      expect(await calendar.text()).toContain("DTSTART;TZID=America/Montreal:20261112T083000");
+      await coachPage.goto("/espace-coach");
+      await expect(coachPage.locator(`#seance-${session.id}`)).toContainText("14:30");
+    } finally {
+      await context.close();
+      await coachPage.context().close();
+      await admin.context().close();
+    }
+  });
 
-test("the daily workspace links a paid Candidate, privately autosaves notes, exports them, and joins a confirmed session", async ({ page, browser }) => {
-  test.setTimeout(120_000);
-  const database=new Pool({connectionString:process.env.E2E_DATABASE_URL});
-  const settings=platformSettingsStore(database,{});
-  const admin=await personPage(browser,ADMINISTRATOR);
-  const coachEmail=newAddress("workspace-coach");const coach=await addCoach(admin,coachEmail);const coachId=await coachIdOf(admin,coach.name);
-  const coachPage=await personPage(browser,coachEmail);
-  try {
-    await signInWithMagicLink(page,newAddress("workspace-candidate"));
-    await applicationWithCoverLetter(page);
-    const checkout=await page.request.post("/api/coaching/checkout",{form:{coachId},headers:{origin},maxRedirects:0});expect(checkout.status()).toBe(303);
-    const [started]=await checkoutsFor(coachId);const candidateId=started!["metadata[candidate_id]"]!;
-    const event=signedEvent(checkoutSessionEvent("checkout.session.completed",{id:`cs_e2e_${unique()}`,candidateId,coachId,amount:9000,currency:"eur",paymentStatus:"paid"}));
-    expect((await page.request.post("/api/billing/webhook",{data:event.payload,headers:{"stripe-signature":event.signature,"content-type":"application/json"}})).ok()).toBe(true);
-    const session=(await (await page.request.get("/api/coaching")).json()).sessions[0];
-    await database.query("UPDATE coaching_session SET scheduled_at=now()+interval '5 minutes',duration_minutes=60 WHERE id=$1",[session.id]);
-    await settings.set("COACH_SPACE_V2_ENABLED","true",ADMINISTRATOR);
-    await expect(async()=>{await coachPage.goto("/espace-coach");await expect(coachPage).toHaveURL(/aujourdhui$/);}).toPass();
-    await expect(coachPage.getByRole("link",{name:space.unnamedCandidate,exact:true}).first()).toBeVisible();
-    await coachPage.goto(`/espace-coach/candidates/${candidateId}`);
-    await expect(coachPage.getByText(fr.coachWorkspace.noAccess)).toBeVisible();
-    await expect(coachPage.getByRole("heading",{name:space.profilesTitle})).toHaveCount(0);
-    await coachPage.getByLabel(fr.coachWorkspace.notes).fill("Notes privées du coach, jamais à l’écran du Candidate.");
-    await expect(coachPage.getByRole("status")).toHaveText(fr.coachWorkspace.noteStatus.saved);
-    await coachPage.reload();await expect(coachPage.getByLabel(fr.coachWorkspace.notes)).toHaveValue("Notes privées du coach, jamais à l’écran du Candidate.");
-    const exported=await (await page.request.get("/api/account/export")).json();
-    expect(exported.privateCoachNotes).toEqual([expect.objectContaining({text:"Notes privées du coach, jamais à l’écran du Candidate."})]);
-    await page.goto("/coachs");await expect(page.getByText("Notes privées du coach, jamais à l’écran du Candidate.")).toHaveCount(0);
-    await coachPage.goto(`/espace-coach/seances/${session.id}`);
-    await expect(coachPage.getByRole("heading",{name:fr.coachWorkspace.phase.during})).toBeVisible();
-    await coachPage.getByLabel(fr.coachMeeting.target).fill("https://meet.google.com/abc-defg-hij");
-    await coachPage.getByRole("button",{name:fr.coachMeeting.save}).click();await expect(coachPage.getByRole("status").filter({hasText:fr.account.saved})).toBeVisible();
-    await page.goto("/coachs");await expect(page.getByRole("link",{name:fr.coachMeeting.join.meet})).toBeVisible();
-    // Native WebView uses the dedicated coach drawer too, despite the Candidate shell's global hiding rule.
-    await coachPage.setExtraHTTPHeaders({"user-agent":"Mozilla/5.0 JobbboxApp/1.0"});
-    await coachPage.setViewportSize({width:390,height:844});await coachPage.goto("/espace-coach/seances");
-    await coachPage.getByRole("button",{name:fr.sidebar.menu,exact:true}).click();await expect(coachPage.getByRole("dialog",{name:fr.sidebar.menu})).toBeVisible();
-  } finally {await settings.restore("COACH_SPACE_V2_ENABLED");await database.end();await coachPage.context().close();await admin.context().close();}
+  test("the daily workspace links a paid Candidate, privately autosaves notes, exports them, and joins a confirmed session", async ({ page, browser }) => {
+    test.setTimeout(120_000);
+    const database = new Pool({ connectionString: own.databaseUrl });
+    const settings = platformSettingsStore(database, {});
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coachEmail = newAddress("workspace-coach");
+    const coach = await addCoach(admin, coachEmail);
+    const coachId = await coachIdOf(admin, coach.name);
+    const coachPage = await personPage(browser, coachEmail);
+    try {
+      await signIn(page, newAddress("workspace-candidate"));
+      await applicationWithCoverLetter(page, origin);
+      const checkout = await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+      expect(checkout.status()).toBe(303);
+      const [started] = await checkoutsFor(coachId);
+      const candidateId = started!["metadata[candidate_id]"]!;
+      const event = signedEvent(
+        checkoutSessionEvent("checkout.session.completed", {
+          id: `cs_e2e_${unique()}`,
+          candidateId,
+          coachId,
+          amount: 9000,
+          currency: "eur",
+          paymentStatus: "paid",
+        }),
+      );
+      expect(
+        (
+          await page.request.post("/api/billing/webhook", {
+            data: event.payload,
+            headers: { "stripe-signature": event.signature, "content-type": "application/json" },
+          })
+        ).ok(),
+      ).toBe(true);
+      const session = (await (await page.request.get("/api/coaching")).json()).sessions[0];
+      await database.query("UPDATE coaching_session SET scheduled_at=now()+interval '5 minutes',duration_minutes=60 WHERE id=$1", [session.id]);
+      await settings.set("COACH_SPACE_V2_ENABLED", "true", ADMINISTRATOR);
+      await expect(async () => {
+        await coachPage.goto("/espace-coach");
+        await expect(coachPage).toHaveURL(/aujourdhui$/);
+      }).toPass();
+      await expect(coachPage.getByRole("link", { name: space.unnamedCandidate, exact: true }).first()).toBeVisible();
+      await coachPage.goto(`/espace-coach/candidates/${candidateId}`);
+      await expect(coachPage.getByText(fr.coachWorkspace.noAccess)).toBeVisible();
+      await expect(coachPage.getByRole("heading", { name: space.profilesTitle })).toHaveCount(0);
+      await coachPage.getByLabel(fr.coachWorkspace.notes).fill("Notes privées du coach, jamais à l’écran du Candidate.");
+      await expect(coachPage.getByRole("status")).toHaveText(fr.coachWorkspace.noteStatus.saved);
+      await coachPage.reload();
+      await expect(coachPage.getByLabel(fr.coachWorkspace.notes)).toHaveValue("Notes privées du coach, jamais à l’écran du Candidate.");
+      const exported = await (await page.request.get("/api/account/export")).json();
+      expect(exported.privateCoachNotes).toEqual([expect.objectContaining({ text: "Notes privées du coach, jamais à l’écran du Candidate." })]);
+      await page.goto("/coachs");
+      await expect(page.getByText("Notes privées du coach, jamais à l’écran du Candidate.")).toHaveCount(0);
+      await coachPage.goto(`/espace-coach/seances/${session.id}`);
+      await expect(coachPage.getByRole("heading", { name: fr.coachWorkspace.phase.during })).toBeVisible();
+      await coachPage.getByLabel(fr.coachMeeting.target).fill("https://meet.google.com/abc-defg-hij");
+      await coachPage.getByRole("button", { name: fr.coachMeeting.save }).click();
+      await expect(coachPage.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
+      await page.goto("/coachs");
+      await expect(page.getByRole("link", { name: fr.coachMeeting.join.meet })).toBeVisible();
+      // Native WebView uses the dedicated coach drawer too, despite the Candidate shell's global hiding rule.
+      await coachPage.setExtraHTTPHeaders({ "user-agent": "Mozilla/5.0 JobbboxApp/1.0" });
+      await coachPage.setViewportSize({ width: 390, height: 844 });
+      await coachPage.goto("/espace-coach/seances");
+      await coachPage.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
+      await expect(coachPage.getByRole("dialog", { name: fr.sidebar.menu })).toBeVisible();
+    } finally {
+      await settings.restore("COACH_SPACE_V2_ENABLED");
+      await database.end();
+      await coachPage.context().close();
+      await admin.context().close();
+    }
+  });
 });

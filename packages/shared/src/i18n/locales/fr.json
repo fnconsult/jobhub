@@ -2453,7 +2453,8 @@
         "COACH_TOOL_ROUNDS_MAX": "Tours d'appels de Coach Actions par réponse, au plus",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours",
-        "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison"
+        "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison",
+        "COACH_SPACE_V2_ENABLED": "Espace coach v2"
       },
       "aiTasks": {
         "providerDefault": "modèle par défaut",
@@ -6542,5 +6543,30 @@
     "scored": "Score de correspondance : {{score}} / 100 contre « {{profile}} »",
     "noProfile": "Pour scorer cette offre, créez d'abord un profil sur jobbbox.ai.",
     "scoreFailed": "Le score n'a pas pu être calculé. Réessayez."
+  },
+  "coachSpaceV2": {
+    "pages": {
+      "aujourdhui": "Aujourd’hui",
+      "candidates": "Mes Candidates",
+      "seances": "Mes séances",
+      "disponibilites": "Disponibilités",
+      "profil": "Profil public",
+      "revenus": "Revenus",
+      "contrat": "Contrat",
+      "aide": "Aide"
+    },
+    "notifications": "Notifications",
+    "noNotifications": "Aucune notification.",
+    "helpCentre": "Centre d’aide",
+    "empty": {
+      "aujourdhui": "Aucune séance aujourd’hui.",
+      "candidates": "Aucun Candidate pour le moment.",
+      "seances": "Aucune séance pour le moment.",
+      "disponibilites": "Vos disponibilités seront affichées ici.",
+      "profil": "Votre profil public sera affiché ici.",
+      "revenus": "Aucun revenu pour le moment.",
+      "contrat": "Aucun contrat à accepter pour le moment.",
+      "aide": "Retrouvez les conseils pour utiliser votre espace coach."
+    }
   }
 }

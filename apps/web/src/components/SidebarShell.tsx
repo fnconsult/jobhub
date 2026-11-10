@@ -11,8 +11,6 @@ import { buttonClass } from "@/design/Button";
 import { Drawer, DrawerTitle } from "@/design/Drawer";
 import { SIDEBAR_CLOSED, SIDEBAR_OPEN, SIDEBAR_STORAGE_KEY } from "@/design/sidebar-state";
 
-/** At and above this width the sidebar sits beside the page; below it, it is a drawer. */
-const WIDE = "(width >= 64rem)";
 /** `aria-current` of the link to the page shown. */
 export const CURRENT = "page";
 const MAIN_ID = "main";
@@ -99,6 +97,7 @@ export function SidebarShell({
   pageInert = false,
   signOut = true,
   compactTopBar = false,
+  dockAt = "64rem",
   children,
 }: {
   brand: { href: string; label: string };
@@ -118,9 +117,12 @@ export function SidebarShell({
   signOut?: boolean;
   /** On a phone, the Top Bar on one line, icons alone, one action shown and the others under « … » (#897). */
   compactTopBar?: boolean;
+  /** The Human Coach sidebar docks from 48rem (ADR-0099); other spaces keep 64rem. */
+  dockAt?: "48rem" | "64rem";
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const wideQuery = `(width >= ${dockAt})`;
   const pathname = usePathname();
   const id = useId();
   // The drawer is open on the page it was opened on: going to another page closes it.
@@ -148,7 +150,7 @@ export function SidebarShell({
   useEffect(() => {
     const main = document.getElementById(MAIN_ID);
     if (!main) return;
-    const wide = window.matchMedia(WIDE);
+    const wide = window.matchMedia(wideQuery);
     const measure = () => {
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
       const style = getComputedStyle(main);
@@ -159,7 +161,7 @@ export function SidebarShell({
     observer.observe(main);
     measure();
     return () => observer.disconnect();
-  }, []);
+  }, [wideQuery]);
 
   // The Top Bar's height, for what sticks under it as the page scrolls (--topbar-height in app.css):
   // it grows with the Text Size, and takes two rows on a phone but for the compact Top Bar (#897).
@@ -182,18 +184,18 @@ export function SidebarShell({
   }
   const collapseButton = useRef<HTMLButtonElement>(null);
 
-  // Widening the window past 64rem turns the drawer back into the sidebar.
+  // Widening the window past the space's breakpoint turns the drawer back into the sidebar.
   useEffect(() => {
-    const query = window.matchMedia(WIDE);
+    const query = window.matchMedia(wideQuery);
     const onChange = () => {
       if (query.matches) setDrawerPath(null);
     };
     query.addEventListener("change", onChange);
     return () => query.removeEventListener("change", onChange);
-  }, []);
+  }, [wideQuery]);
 
   function showMenu() {
-    if (window.matchMedia(WIDE).matches) {
+    if (window.matchMedia(wideQuery).matches) {
       setHidden(false);
       // The button that hides it again takes the focus the Menu button had.
       requestAnimationFrame(() => collapseButton.current?.focus());
@@ -284,7 +286,7 @@ export function SidebarShell({
   const shell = (
     <TopBarBack.Provider value={setShownSection}>
       <SidebarSections.Provider value={setSectionsMenu}>
-        <div className="app-shell">
+        <div className="app-shell" data-dock-at={dockAt === "48rem" ? dockAt : undefined}>
           <a className="skip-link" href={`#${MAIN_ID}`}>
             {t("sidebar.skipToContent")}
           </a>

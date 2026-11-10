@@ -126,6 +126,7 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "MAINTENANCE_EXPECTED_MINUTES", group: "maintenance", type: whole(0, 1440), default: "30" },
   // The Coach Actions (ADR-0077, #713): off by default, the AI Coach then has no tool at all; on, the Coach Actions shipped are
   // offered, a reply making at most COACH_TOOL_ROUNDS_MAX rounds of calls (0: none, the reply as without them).
+  { name: "COACH_SPACE_V2_ENABLED", group: "coach", type: { kind: "boolean" }, default: "false" },
   { name: "COACH_ACTIONS_ENABLED", group: "coach", type: { kind: "boolean" }, default: "false" },
   { name: "COACH_TOOL_ROUNDS_MAX", group: "coach", type: whole(0, 4), default: "2" },
 ];

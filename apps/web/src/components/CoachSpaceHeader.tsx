@@ -1,3 +1,5 @@
+import { coachSpaceV2On } from "@/coach-space/server";
+import { CoachSpaceLayout } from "@/coach-space/CoachSpaceLayout";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PublicFooter } from "@/design/PublicSite";
@@ -26,6 +28,7 @@ export async function CoachSpaceHeader() {
 
 /** A Human Coach's page: its header, the page, then the public site's footer (#544), its « Centre d'aide » the « Espace coach » topic (#554). */
 export function CoachSpaceShell({ children }: { children: ReactNode }) {
+  if (coachSpaceV2On()) return <CoachSpaceLayout>{children}</CoachSpaceLayout>;
   return (
     <>
       <main className="page">

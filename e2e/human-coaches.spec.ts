@@ -1,3 +1,6 @@
+import { Pool } from "pg";
+import { platformSettingsStore } from "../apps/web/src/platform-settings";
+import { showInTheme } from "./support/theme";
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, signedEvent } from "../apps/web/src/billing/fake-stripe";
@@ -547,3 +550,56 @@ async function coachIdOf(admin: Page, name: string): Promise<string> {
   const form = admin.locator("form").filter({ has: admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name }) }) });
   return (await form.locator('input[name="coachId"]').inputValue()) as string;
 }
+
+
+// #868: isolated at the end of this spec; restore the shared setting even if a check fails.
+test("Coach space v2: rollout gate, eight pages in both themes and three widths, accessible drawer, retired gate", async ({ page, browser }) => {
+  test.setTimeout(180_000);
+  const database = new Pool({ connectionString: process.env.E2E_DATABASE_URL });
+  const settings = platformSettingsStore(database, {});
+  const admin = await personPage(browser, ADMINISTRATOR);
+  const email = newAddress("coach-v2");
+  const coach = await addCoach(admin, email);
+  const coachId = await coachIdOf(admin, coach.name);
+  await signInWithMagicLink(page, email);
+  try {
+    await page.goto("/espace-coach");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(space.title);
+    expect((await page.goto("/espace-coach/seances"))?.status()).toBe(404);
+    expect(await settings.set("COACH_SPACE_V2_ENABLED", "true", ADMINISTRATOR)).toMatchObject({ ok: true });
+    await expect(async () => {
+      await page.goto("/espace-coach");
+      await expect(page).toHaveURL(/\/espace-coach\/aujourdhui$/);
+    }).toPass();
+    for (const width of [1280, 1024, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const theme of ["light", "dark"] as const) {
+        await showInTheme(page, theme);
+        for (const [path, title] of Object.entries(fr.coachSpaceV2.pages) as [string, string][]) {
+          await page.goto(`/espace-coach/${path}`);
+          await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        }
+      }
+    }
+    await page.goto("/espace-coach/seances");
+    const menu = page.getByRole("button", { name: fr.sidebar.menu, exact: true });
+    await menu.click();
+    const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
+    await expect(drawer.getByRole("link", { name: fr.coachSpaceV2.pages.seances, exact: true })).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    expect(await drawer.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(drawer).not.toBeVisible();
+    await expect(menu).toBeFocused();
+    await database.query("UPDATE human_coach SET retired_at = now() WHERE id = $1", [coachId]);
+    expect((await page.goto("/espace-coach/seances"))?.status()).toBe(404);
+    const stranger = await personPage(browser, newAddress("not-coach-v2"));
+    expect((await stranger.goto("/espace-coach/aujourdhui"))?.status()).toBe(404);
+    await stranger.context().close();
+  } finally {
+    await settings.restore("COACH_SPACE_V2_ENABLED");
+    await database.end();
+    await admin.context().close();
+  }
+});

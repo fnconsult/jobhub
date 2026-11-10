@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { coachSpaceV2On } from "@/coach-space/server";
 import Link from "next/link";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { CalledBy } from "@/components/CalledBy";
@@ -27,6 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function CoachSpacePage() {
   const coach = await requireHumanCoach();
+  if (coachSpaceV2On()) redirect("/espace-coach/aujourdhui");
   const coaches = getHumanCoaches();
   const [t, locale, candidates, sessions] = await Promise.all([getServerT(), getRequestLocale(), coaches.candidates(coach.id), coaches.coachSessions(coach.id)]);
   const formats = {

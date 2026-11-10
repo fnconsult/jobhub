@@ -2453,7 +2453,8 @@
         "COACH_TOOL_ROUNDS_MAX": "Rounds of Coach Action calls per reply, at most",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
-        "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email"
+        "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email",
+        "COACH_SPACE_V2_ENABLED": "Coach space v2"
       },
       "aiTasks": {
         "providerDefault": "default model",
@@ -6542,5 +6543,30 @@
     "scored": "Match Score: {{score}} / 100 against “{{profile}}”",
     "noProfile": "To score this job offer, first create a profile on jobbbox.ai.",
     "scoreFailed": "The score could not be computed. Try again."
+  },
+  "coachSpaceV2": {
+    "pages": {
+      "aujourdhui": "Today",
+      "candidates": "My Candidates",
+      "seances": "My sessions",
+      "disponibilites": "Availability",
+      "profil": "Public page",
+      "revenus": "Earnings",
+      "contrat": "Contract",
+      "aide": "Help"
+    },
+    "notifications": "Notifications",
+    "noNotifications": "No notifications.",
+    "helpCentre": "Help Centre",
+    "empty": {
+      "aujourdhui": "No sessions today.",
+      "candidates": "No Candidates yet.",
+      "seances": "No sessions yet.",
+      "disponibilites": "Your availability will appear here.",
+      "profil": "Your public page will appear here.",
+      "revenus": "No earnings yet.",
+      "contrat": "No contract to accept yet.",
+      "aide": "Find guidance for using your Coach space."
+    }
   }
 }

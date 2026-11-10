@@ -58,7 +58,7 @@ const MAINTENANCE = ["MAINTENANCE_MODE", "MAINTENANCE_MESSAGE_FR", "MAINTENANCE_
 const HELP_CENTRE = ["HELP_MEDIA_ORIGIN"];
 
 /** The Coach Actions (ADR-0077, #713): switched on or off, and how many rounds of calls a reply may make. */
-const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX"];
+const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX", "COACH_SPACE_V2_ENABLED"];
 
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {

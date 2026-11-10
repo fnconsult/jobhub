@@ -15,3 +15,7 @@ The page has two parts.
 « Candidates with coach access » lists the candidates who gave you coach access, by their first and last name, for example Claire Durand · goes by Clo: « goes by » gives the name the candidate would like the coaches to call them, when it is not their first name. A candidate who gave neither a first name nor a last name shows under their email address. Click one to open their file, which repeats their name and « goes by … »: their applications, with their status, and their profiles. Everything there is read only, as the page reminds you: « Read only: only the candidate can change their profiles and applications. » Open an application to read its tailored CV, cover letter and outreach message, and to give your review: the tutorial « Write a review of an application document » explains how.
 
 You see neither the candidate's agenda, nor their conversations with their AI coach, nor the note they may have added to a session. The « Help Centre » link, at the bottom of each page of your coach space, leads to this topic of the help.
+
+## New navigation
+
+When the team switches on “Coach space v2”, your space opens on “Today”. The sidebar offers “My Candidates”, “My sessions”, “Availability”, “Public page”, “Earnings”, “Contract” and “Help”, followed by “My account” and “Sign out”. Each page gathers its cards in one column. On a phone, open “Menu”; Escape closes the drawer and returns focus to its button. “Notifications” opens your notifications. Until this navigation is switched on, the page described above remains available.

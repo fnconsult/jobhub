@@ -491,8 +491,8 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
   }
 
   async function email(candidateId: string, digest: JobDigest, token: string): Promise<void> {
-    const { rows } = await database.query<{ email: string; interfaceLanguage: string | null }>(
-      `SELECT email, "interfaceLanguage" FROM candidate WHERE id = $1`,
+    const { rows } = await database.query<{ email: string; interfaceLanguage: string | null; preferredName: string | null }>(
+      `SELECT email, "interfaceLanguage", preferred_name AS "preferredName" FROM candidate WHERE id = $1`,
       [candidateId],
     );
     const candidate = rows[0];
@@ -516,6 +516,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         toHandle: await offersToHandle(database, candidateId, digest.sentAt),
         offerBoxUrl: new URL(routes.jobSearches(), deps.baseURL).toString(),
         unsubscribeUrl: unsubscribePageURL(deps.baseURL, token, language),
+        preferredName: candidate.preferredName,
       },
       language,
     );

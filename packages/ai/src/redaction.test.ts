@@ -5,7 +5,8 @@ import { createFakeProvider, createMemoryUsageLog } from "./testing";
 
 const marie: CandidateIdentity = {
   fullName: ["Marie Dupont", "DUPONT Marie"],
-  firstName: "Marie",
+  givenName: "Marie",
+  lastName: "Dupont",
   email: "marie.dupont@example.fr",
   phone: "06 12 34 56 78",
   address: "12 rue des Lilas, 69003 Lyon",
@@ -32,14 +33,31 @@ describe("redacting the Candidate's identity", () => {
     expect(redaction.restore("Bonjour [NOM]")).toBe("Bonjour [NOM]");
   });
 
-  it("takes out the known full name, last name, address and links, whatever their case and spacing, and keeps the first name", () => {
+  it("takes out the known full name, first name, last name, address and links, whatever their case and spacing", () => {
     const { texts, counts } = redactIdentity(
       ["MARIE   DUPONT\n12 rue des Lilas,  69003 Lyon\nhttps://www.linkedin.com/in/marie-dupont", "Marie a travaillé avec M. Dupont ; signé DUPONT Marie"],
       marie,
     );
 
-    expect(texts).toEqual(["[NOM]\n[ADRESSE]\n[LIEN]", "Marie a travaillé avec M. [NOM DE FAMILLE] ; signé [NOM 2]"]);
-    expect(counts).toEqual({ name: 3, address: 1, link: 1 });
+    expect(texts).toEqual(["[NOM]\n[ADRESSE]\n[LIEN]", "[PRÉNOM] a travaillé avec M. [NOM DE FAMILLE] ; signé [NOM 2]"]);
+    expect(counts).toEqual({ name: 4, address: 1, link: 1 });
+  });
+
+  it("leaves the Preferred Name alone in the clear: « Mimi », never « Marie » nor « Dupont » (#921)", () => {
+    const { texts } = redactIdentity(["Mimi, alias Marie Dupont : Marie, ou Mme Dupont, signe « Mimi »."], { ...marie, preferredName: "Mimi" });
+
+    expect(texts).toEqual(["Mimi, alias [NOM] : [PRÉNOM], ou Mme [NOM DE FAMILLE], signe « Mimi »."]);
+    expect(texts[0]).not.toMatch(/Marie|Dupont/);
+  });
+
+  it("keeps the first name when it is the Preferred Name, the full name and last name still taken out", () => {
+    expect(redactIdentity(["Marie ; Marie Dupont ; Dupont"], { ...marie, preferredName: "marie" }).texts).toEqual(["Marie ; [NOM] ; [NOM DE FAMILLE]"]);
+  });
+
+  it("takes out the Master CV's first name too, the one the account's differs from", () => {
+    const { texts } = redactIdentity(["Marie-Claire ; Marie"], { fullName: ["Marie-Claire Dupont", "Marie Dupont"], givenName: "Marie", preferredName: "Mimi" });
+
+    expect(texts).toEqual(["[PRÉNOM] ; [PRÉNOM 2]"]);
   });
 
   it("matches a known phone number whatever separates its digits, and a name only as a whole word", () => {
@@ -64,6 +82,13 @@ describe("redacting the Candidate's identity", () => {
     );
   });
 
+  it("puts the first and last name back in a Cover Letter signed with their placeholders (#921)", () => {
+    const redaction = redactIdentity(["Lettre de Mimi : Marie Dupont, prénom Marie, nom Dupont"], { ...marie, preferredName: "Mimi" });
+
+    expect(redaction.texts).toEqual(["Lettre de Mimi : [NOM], prénom [PRÉNOM], nom [NOM DE FAMILLE]"]);
+    expect(redaction.restore("Bien à vous,\n[PRÉNOM] [NOM DE FAMILLE]\n[NOM]")).toBe("Bien à vous,\nMarie Dupont\nMarie Dupont");
+  });
+
   it("never reads « [NOM DE FAMILLE] » as « [NOM] »", () => {
     const redaction = redactIdentity(["Marie Dupont, dite Dupont"], marie);
 
@@ -72,12 +97,12 @@ describe("redacting the Candidate's identity", () => {
   });
 
   it("tells the last name apart without a first name given, the family name in capitals as French CVs write it", () => {
-    expect(redactIdentity(["DUPONT Marie ; Dupont ; Marie"], { fullName: "DUPONT Marie" }).texts).toEqual(["[NOM] ; [NOM DE FAMILLE] ; Marie"]);
-    expect(redactIdentity(["Jean-Pierre Martin ; Martin ; Jean-Pierre"], { fullName: "Jean-Pierre Martin" }).texts).toEqual(["[NOM] ; [NOM DE FAMILLE] ; Jean-Pierre"]);
+    expect(redactIdentity(["DUPONT Marie ; Dupont ; Marie"], { fullName: "DUPONT Marie" }).texts).toEqual(["[NOM] ; [NOM DE FAMILLE] ; [PRÉNOM]"]);
+    expect(redactIdentity(["Jean-Pierre Martin ; Martin ; Jean-Pierre"], { fullName: "Jean-Pierre Martin" }).texts).toEqual(["[NOM] ; [NOM DE FAMILLE] ; [PRÉNOM]"]);
   });
 
   it("does not match a last name shorter than 3 letters", () => {
-    expect(redactIdentity(["Li a écrit à Li Wei"], { fullName: "Wei Li", firstName: "Wei" }).texts).toEqual(["Li a écrit à Li Wei"]);
+    expect(redactIdentity(["Li a écrit à Li Wei"], { fullName: "Wei Li", givenName: "Wei", preferredName: "Wei" }).texts).toEqual(["Li a écrit à Li Wei"]);
   });
 });
 

@@ -7,6 +7,7 @@ import { createApplicationSaving, type ProfileChoice, type SavingFailure, type S
 import { openAnalysisPage } from "../../src/analysis-page";
 import { createDraft, keepChecked, keepFile, keepSelected } from "../../src/panel-drafts";
 import { readCandidateSession } from "../../src/candidate-session";
+import { createErrorReports, pageDomainOf } from "../../src/error-reports";
 import { createExtensionUpdate, UPDATE_STORAGE_KEY, updateHref, type UpdateRequired } from "../../src/extension-update";
 import { choosePage } from "../../src/frame-choice";
 import { createGuestSession } from "../../src/guest-session";
@@ -51,7 +52,15 @@ document.title = `${t("extension.analysis.title")} – Jobbbox`;
 const session = createGuestSession(browser.storage.session);
 // An extension the web app no longer serves (#564) is asked to update; the background's calls answer for it too.
 const update = createExtensionUpdate(browser.storage.local);
-const api = createJobbboxApi(WEB_ORIGIN, undefined, update);
+// The errors reported to Jobbbox (#924): a page that cannot be captured, a failed call, an unexpected failure here.
+const errorReports = createErrorReports(WEB_ORIGIN);
+const api = createJobbboxApi(WEB_ORIGIN, undefined, update, ({ route, httpStatus }) => errorReports.report({ errorCode: "callFailed", route, httpStatus, place: "side_panel" }));
+window.addEventListener("error", () => errorReports.report({ errorCode: "unexpected", place: "side_panel" }));
+window.addEventListener("unhandledrejection", () => errorReports.report({ errorCode: "unexpected", place: "side_panel" }));
+/** « Cette page ne peut pas être capturée… », reported with the page's domain alone (#924). */
+const captureImpossible = (address: string | undefined) =>
+  errorReports.report({ errorCode: "captureImpossible", messageKey: "extension.captureImpossible", place: "side_panel", ...withDomain(pageDomainOf(address)) });
+const withDomain = (pageDomain: string | undefined) => (pageDomain ? { pageDomain } : {});
 const saving = createApplicationSaving({ api, session });
 // Shown again on reopen rather than computed again: each Match Score uses the Candidate's Plan Quota (#51).
 const scoring = createMatchScoring({ api, session });
@@ -231,6 +240,7 @@ function inViewNote(shown?: JobOffer): HTMLElement[] {
       analyse.disabled = false;
       // Captured: the Guest session changed, and the panel shows the new Job Offer.
       progress.textContent = reply.ok ? "" : t(reply.error === "invalid" ? "extension.captureImpossible" : "extension.unreachable");
+      if (!reply.ok && reply.error === "invalid") captureImpossible(posting.source.url);
     },
     "primary",
     true,
@@ -272,6 +282,7 @@ function capturePage(): HTMLElement {
     const reply: AnalyseReply | { ok: false; error: "impossible" } = page ? await capture(page.jobOffer) : { ok: false, error: "impossible" };
     trigger.disabled = false;
     progress.textContent = reply.ok ? "" : t(reply.error === "unreachable" ? "extension.unreachable" : "extension.captureImpossible");
+    if (!reply.ok && reply.error !== "unreachable") captureImpossible(page?.jobOffer.source.url ?? tab?.url);
   });
   node.append(element("p", t("extension.description")), trigger, progress);
   return node;

@@ -1,4 +1,4 @@
-import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared";
+import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, EXTENSION_VERSION_HEADER, MOBILE_CLIENT } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { apiVersionRefusal, fromExtension, fromJobbboxApp, underApiContract } from ".";
 
@@ -112,5 +112,35 @@ describe("the API Version's guard (#564)", () => {
       expect(fromJobbboxApp(headers({ origin: "https://jobbbox.ai" }))).toBe(false);
       expect(fromJobbboxApp(headers({ [API_CLIENT_HEADER]: "desktop" }))).toBe(false);
     });
+  });
+});
+
+describe("the Extension Version a call states, beside its API Version (#924)", () => {
+  const at = (extensionVersion: string | null, apiVersion: string | null = String(API_VERSION), headersOf: Record<string, string> = { origin: EXTENSION }) =>
+    apiVersionRefusal(
+      "/api/job-offers",
+      headers({ ...headersOf, ...(apiVersion === null ? {} : { [API_VERSION_HEADER]: apiVersion }), ...(extensionVersion === null ? {} : { [EXTENSION_VERSION_HEADER]: extensionVersion }) }),
+      () => STORE,
+      "0.3.0",
+    );
+
+  it("asks an extension older than the minimum Extension Version to update, though its API Version is served", () => {
+    expect(at("0.2.9")).toEqual({ error: EXTENSION_OUTDATED, storeUrl: STORE, apiVersion: API_VERSION });
+    expect(at("0.3.0")).toBeNull();
+    expect(at("1.0.0")).toBeNull();
+  });
+
+  it("still asks an API Version no longer served to update, whatever Extension Version it states", () => {
+    expect(at("9.0.0", null)).toMatchObject({ error: EXTENSION_OUTDATED });
+  });
+
+  it("judges an extension stating none, or none it can read, on its API Version alone", () => {
+    expect(at(null)).toBeNull();
+    expect(at("latest")).toBeNull();
+  });
+
+  it("reads it only from the extension: the web app's pages and the Jobbbox app are not judged on it", () => {
+    expect(at("0.0.1", String(API_VERSION), { origin: "https://jobbbox.ai" })).toBeNull();
+    expect(at("0.0.1", String(API_VERSION), { [API_CLIENT_HEADER]: MOBILE_CLIENT })).toBeNull();
   });
 });

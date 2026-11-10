@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
+import { formalNameOf } from "@/candidate-identity/names";
+import { getIdentityNames } from "@/candidate-identity/server";
 import { AccountSections } from "@/components/AccountSections";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
@@ -38,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * « Renoncer au contrat ici » (#511, C. conso. L221-21 al. 3): the Withdrawal form of one contract (`contrat`: the
  * Plan's subscription or a Coaching Session), a page of Jobbbox's own: the contract named with its date and amount,
- * the Candidate's name, where the acknowledgement goes, and « Confirmer la rétractation ». A Plan bought with the
+ * the Candidate's name (prefilled with their Given Name and Family Name, #922), where the acknowledgement goes, and « Confirmer la rétractation ». A Plan bought with the
  * Immediate Performance Request (#512) says what is refunded of it: the amount paid less the days elapsed. With `faite`, the Withdrawal
  * just recorded: when, what is refunded, where the acknowledgement went.
  */
@@ -51,6 +53,7 @@ export default async function WithdrawalPage({ searchParams }: { searchParams: P
   const withdrawals = getWithdrawals();
   const done = typeof faite === "string" ? await withdrawals.withdrawal(candidate.id, faite) : null;
   const contract = !done && typeof contrat === "string" ? await withdrawals.contract(candidate.id, contrat) : null;
+  const names = contract ? await getIdentityNames().of(candidate.id) : null;
 
   return (
     <AccountSections candidateId={candidate.id}>
@@ -59,7 +62,7 @@ export default async function WithdrawalPage({ searchParams }: { searchParams: P
         {done ? (
           <Done withdrawal={done} locale={locale} t={t} />
         ) : contract ? (
-          <WithdrawalForm contract={contract} name={candidate.name ?? ""} email={candidate.email} error={isFormError(erreur) ? erreur : null} locale={locale} t={t} />
+          <WithdrawalForm contract={contract} name={formalNameOf({ givenName: names?.givenName ?? null, familyName: names?.familyName ?? null, name: candidate.name })} email={candidate.email} error={isFormError(erreur) ? erreur : null} locale={locale} t={t} />
         ) : (
           <Note tone="warn" role="status">
             <p>{t("withdrawals.page.nothing")}</p>

@@ -39,6 +39,47 @@ export function namesFromFullName(fullName: string): { givenName: string; family
   return { givenName: given.map(asName).join(" "), familyName: family.map(asName).join(" ") };
 }
 
+/**
+ * The Candidate's formal name (#922): « Prénom Nom », for the Withdrawal form and any formal document; with neither
+ * entered, the account's name (a Sign-in Provider's, for an account made since #918, say); else empty.
+ */
+export function formalNameOf(names: { givenName: string | null; familyName: string | null; name: string | null }): string {
+  return fullNameOf(names) || cleanName(names.name ?? "");
+}
+
+/** The Candidate as a Human Coach names them (#922): their name, and the Preferred Name to call them by when it is not their Given Name. */
+export interface NameForCoach {
+  /** « Marie Dupont » (« Marie D. » in the short form); empty when the Candidate gave no name. */
+  name: string;
+  /** « Mimi »: the Preferred Name when it differs from the Given Name; null otherwise. */
+  calledBy: string | null;
+}
+
+/** The first letter of a name, in capitals: « dupont » → « D ». */
+const initialOf = (name: string) => (Array.from(name)[0] ?? "").toLocaleUpperCase("fr");
+
+/**
+ * How a Human Coach sees the Candidate (#922): « Prénom Nom » in full (the Espace coach's Candidates, a Candidate's
+ * page), or the Given Name and the Family Name's initial in the short form (« Marie D. »: a Coaching Session, which
+ * needs no Coach Access); with neither name entered, the account's name (a Sign-in Provider's, say) gives them. Beside
+ * it, the Preferred Name when it differs from the Given Name (« se fait appeler Mimi »).
+ */
+export function nameForCoach(
+  names: { givenName: string | null; familyName: string | null; preferredName: string | null; name: string | null },
+  form: "full" | "short" = "full",
+): NameForCoach {
+  const given = cleanName(names.givenName ?? "");
+  const family = cleanName(names.familyName ?? "");
+  const preferred = cleanName(names.preferredName ?? "");
+  const calledBy = preferred && preferred.toLocaleLowerCase("fr") !== given.toLocaleLowerCase("fr") ? preferred : null;
+  if (form === "full") return { name: formalNameOf(names), calledBy };
+  if (!given && !family) {
+    const words = cleanName(names.name ?? "").split(" ").filter(Boolean);
+    return { name: words.length < 2 ? (words[0] ?? "") : `${words[0]} ${initialOf(words.at(-1)!)}.`, calledBy };
+  }
+  return { name: given ? (family ? `${given} ${initialOf(family)}.` : given) : `${initialOf(family)}.`, calledBy };
+}
+
 /** The name the Sidebar calls the Candidate by (#923): their Preferred Name, else their Given Name; null with neither. */
 export function calledName(names: { givenName: string | null; preferredName: string | null }): string | null {
   return cleanName(names.preferredName ?? "") || cleanName(names.givenName ?? "") || null;

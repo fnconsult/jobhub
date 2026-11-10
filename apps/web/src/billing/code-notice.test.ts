@@ -4,7 +4,7 @@ import type { Coupon, PlanDefinition } from "./index";
 
 const plain = (text: string | undefined) => text?.replace(/\s/g, " ");
 const plan = (key: string, fr: string, status: "offered" | "hidden" = "offered"): PlanDefinition => ({ key, name: { fr, en: fr }, rank: 1, status, stripeProductId: `prod_${key}`, features: [] });
-const OFFERED = [plan("free", "Gratuite"), plan("standard", "Standard"), plan("premium", "Premium"), plan("annuel", "Annuel", "hidden")];
+const OFFERED = [plan("free", "Gratuit"), plan("standard", "Standard"), plan("premium", "Premium"), plan("annuel", "Annuel", "hidden")];
 const coupon = (plans: string[] | null): Coupon => ({
   id: "promo_1",
   code: "PRINTEMPS50",

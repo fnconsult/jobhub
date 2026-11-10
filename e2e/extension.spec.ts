@@ -5,7 +5,8 @@ import path from "node:path";
 import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import type { OfferBoxResponse } from "@jobhub/shared/reads";
 import { chromium, expect, test, type BrowserContext, type Page, type Worker } from "@playwright/test";
-import { UPDATE_STORAGE_KEY } from "../apps/extension/src/extension-update";
+import pg from "pg";
+import { EXTENSION_VERSION, UPDATE_STORAGE_KEY } from "../apps/extension/src/extension-update";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
@@ -844,7 +845,8 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });
 
-  test("says so when the badge is clicked on a posting's address with nothing to capture", async () => {
+  test("says so when the badge is clicked on a posting's address with nothing to capture, and reports it to Jobbbox with the page's domain alone (#924)", async () => {
+    const since = new Date();
     const jobPage = await context.newPage();
     await jobPage.goto(emptyPostingUrl);
     await jobPage.getByRole("button", { name: fr.badgeLabel }).click();
@@ -852,6 +854,40 @@ test.describe("Guest Capture and Match Score", () => {
     // The Side Panel opened on the click, and nothing was captured into it.
     expect(await storedGuestSession()).toEqual({});
     await closeSidePanels();
+
+    // An Extension Event `error` / `captureImpossible`, a Guest's.
+    // Sent at best by the background, without waiting: it lands shortly after.
+    const database = new pg.Client({ connectionString: process.env.E2E_DATABASE_URL });
+    await database.connect();
+    try {
+      const reported = async () =>
+        (
+          await database.query(
+            `SELECT kind, candidate_id, extension_version, error_code, message_key, place, page_domain, route, http_status, browser, object_id
+               FROM extension_event WHERE at >= $1 AND error_code = 'captureImpossible'`,
+            [since],
+          )
+        ).rows;
+      await expect.poll(reported).toHaveLength(1);
+      const [row] = await reported();
+      expect(row).toEqual({
+        kind: "error",
+        candidate_id: null,
+        extension_version: EXTENSION_VERSION,
+        error_code: "captureImpossible",
+        message_key: "extension.captureImpossible",
+        place: "page_button",
+        page_domain: "www.welcometothejungle.com",
+        route: null,
+        http_status: null,
+        browser: expect.stringMatching(/^Chrom(e|ium) \d+$/),
+        object_id: null,
+      });
+      // Never the page's address.
+      expect(JSON.stringify(row)).not.toMatch(/jobs\/empty|https?:/);
+    } finally {
+      await database.end();
+    }
   });
 
   test("shows only the latest CV error, however many files were refused", async () => {

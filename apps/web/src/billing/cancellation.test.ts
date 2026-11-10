@@ -87,6 +87,25 @@ describe.skipIf(!connectionString)("Cancelling a paid Plan from Jobbbox (needs P
       }
     });
 
+    it("greets the Candidate by the Preferred Name their account has, which the page posting the form does not send (#921)", async () => {
+      const marie = await premiumSubscriber();
+      await t.database.query("UPDATE candidate SET preferred_name = 'Mimi' WHERE id = $1", [marie.id]);
+
+      // What the « Confirmer la résiliation » route passes: who is signed in, nothing of their names.
+      await t.billing.scheduleCancellation({ id: marie.id, email: marie.email }, "fr");
+
+      expect(mails[0]!.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+      expect(mails[0]!.html).toContain(">Bonjour Mimi,</p>");
+    });
+
+    it("greets by no name a Candidate without a Preferred Name (#921)", async () => {
+      const marie = await premiumSubscriber();
+
+      await t.billing.scheduleCancellation({ id: marie.id, email: marie.email }, "fr");
+
+      expect(mails[0]!.text.startsWith("Bonjour,\n\n")).toBe(true);
+    });
+
     it("writes the acknowledgement in English to a Candidate who chose English", async () => {
       const marie = await premiumSubscriber();
 

@@ -18,13 +18,19 @@ export function plainText(markdown: string): string {
  * call's). Like every email, no image and no tracked link: the Release Note's own image and links stay on its page.
  */
 export function nouveautesEmail(
-  { note, noteUrl, unsubscribeUrl }: { note: Pick<ReleaseNote, "version" | "title" | "intro" | "changes">; noteUrl: string; unsubscribeUrl: string },
+  {
+    note,
+    noteUrl,
+    unsubscribeUrl,
+    preferredName,
+  }: { note: Pick<ReleaseNote, "version" | "title" | "intro" | "changes">; noteUrl: string; unsubscribeUrl: string; preferredName?: string | null },
   language: Locale,
 ): RenderedEmail {
   const { t } = createI18n(language);
   const lines = note.changes.filter((change) => change.kind === "new").map((change) => `• ${plainText(change.text)}`);
   return renderEmail({
     language,
+    greetingName: preferredName,
     subject: t("nouveautesEmail.email.subject", { title: note.title }),
     title: note.title,
     body: [

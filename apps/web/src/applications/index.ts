@@ -9,7 +9,7 @@
  *      most one Application per Job Offer: saving it again returns the one they have.
  *      Creating it replaces the Job Offer's « Écartée » in the Offer box (ADR-0090): the
  *      latest decision wins, and deleting the Application leaves its entry à traiter.
- *      Saved from the extension's Side Panel (`from: "extension"`), or of a Job Offer the
+ *      Saved from the extension's Side Panel (`extension`), or of a Job Offer the
  *      Candidate sent by Share capture (`sentByShareCapture`), wherever it is saved, it is an
  *      Arrival too (#819): its entry is made, already « Suivie », or completed with the source
  *      « Extension » or « Partage », in the same transaction; anything else saved makes none.
@@ -51,6 +51,7 @@ import { APPLICATION_STATUSES, INTERVIEW_FORMATS, scoreMatch, type ApplicationSt
 import type { Pool } from "pg";
 import * as z from "zod";
 import { inTransaction, type Queryable } from "../database/pool";
+import { migrateExtensionEvents, recordExtensionAction, type ExtensionCall } from "../extension-events";
 import type { JobOffers } from "../job-offers";
 import { dismissalReplacedBy, migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
@@ -182,10 +183,11 @@ export type RemoveApplicationResult = { ok: true } | { ok: false; error: "not_fo
 export interface Applications {
   /**
    * Saves a Job Offer as an Application ("À postuler"). `input`: { jobOfferId, profileId }. `origin`: saved from a Coach
-   * proposal (#716), its status keeps it; an Application they had already is given back as it is. `from: "extension"`:
-   * saved from the extension's Side Panel, a Capture followed, which arrives in the Offer box « Extension » (#819).
+   * proposal (#716), its status keeps it; an Application they had already is given back as it is. `extension`:
+   * saved from the extension's Side Panel, a Capture followed, which arrives in the Offer box « Extension » (#819) and,
+   * when created, writes its Extension Event `application_created` in the same transaction (#924).
    */
-  save(candidateId: string, input: unknown, options?: { origin?: Origin; from?: "extension" }): Promise<SaveApplicationResult>;
+  save(candidateId: string, input: unknown, options?: { origin?: Origin; extension?: ExtensionCall }): Promise<SaveApplicationResult>;
   /** The Application, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<Application | null>;
   /** Every Application of the Candidate, newest first. */
@@ -593,7 +595,7 @@ export function createApplications(
 
       // A Capture followed from the Side Panel, or a Share capture followed anywhere, enters the Offer box only now (ADR-0090).
       const arrivals: ArrivalSource[] = [];
-      if (options.from === "extension") arrivals.push("extension");
+      if (options.extension) arrivals.push("extension");
       if (await sentByShareCapture(candidateId, jobOffer.id)) arrivals.push("share");
 
       const { created, row } = await inTransaction(database, async (client) => {
@@ -617,6 +619,7 @@ export function createApplications(
         for (const source of arrivals) {
           await recordArrivals(client, { candidateId, profileId: saved.row.profile_id, source, at, jobOfferIds: [jobOffer.id] });
         }
+        if (saved.created && options.extension) await recordExtensionAction(client, options.extension, "application_created", { type: "application", id: saved.row.id });
         return saved;
       });
       return { ok: true, created, application: await applicationFrom(candidateId, row) };
@@ -878,6 +881,8 @@ export function createApplications(
 
 /** Creates or upgrades the Application and Interview tables. Run after the Candidate, Profile and Job Offer tables. Safe to run repeatedly. */
 export async function migrateApplications(database: Pool): Promise<void> {
+  // One saved from the extension writes its Extension Event (#924).
+  await migrateExtensionEvents(database);
   const statuses = APPLICATION_STATUSES.map((status) => `'${status}'`).join(", ");
   await database.query(`
     CREATE TABLE IF NOT EXISTS application (

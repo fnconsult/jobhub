@@ -599,7 +599,7 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
 
     it("a Capture followed from the extension's Side Panel makes its entry, already « Suivie », with the source « Extension » and the Application's Profile", async () => {
       const captured = await stored("Capturée sur LinkedIn");
-      const saved = await following.save(marie, { jobOfferId: captured, profileId: daf }, { from: "extension" });
+      const saved = await following.save(marie, { jobOfferId: captured, profileId: daf }, { extension: { candidateId: marie, extensionVersion: null } });
       if (!saved.ok) throw new Error("not saved");
 
       const box = await offerBox.read(marie);
@@ -621,7 +621,7 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       const other = await createProfile(marie, "Contrôleuse de gestion");
       const twoDaysAgo = new Date(Date.now() - 2 * DAY);
       await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_search", at: twoDaysAgo, jobOfferIds: [offer] });
-      const saved = await following.save(marie, { jobOfferId: offer, profileId: other }, { from: "extension" });
+      const saved = await following.save(marie, { jobOfferId: offer, profileId: other }, { extension: { candidateId: marie, extensionVersion: null } });
       if (!saved.ok) throw new Error("not saved");
 
       expect(await entries()).toEqual([
@@ -647,7 +647,7 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       await recordArrivals(database, { candidateId: marie, profileId: daf, source: "job_search", at: twoDaysAgo, jobOfferIds: [offer] });
       const before = new Date();
 
-      const again = await following.save(marie, { jobOfferId: offer, profileId: other }, { from: "extension" });
+      const again = await following.save(marie, { jobOfferId: offer, profileId: other }, { extension: { candidateId: marie, extensionVersion: null } });
       if (!again.ok) throw new Error("not saved");
 
       const [entry] = await entries();
@@ -700,9 +700,9 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
 
     it("saved again, it moves nothing: its source keeps the date it first came by", async () => {
       const captured = await stored("Capturée deux fois");
-      const first = await following.save(marie, { jobOfferId: captured, profileId: daf }, { from: "extension" });
+      const first = await following.save(marie, { jobOfferId: captured, profileId: daf }, { extension: { candidateId: marie, extensionVersion: null } });
       if (!first.ok) throw new Error("not saved");
-      await following.save(marie, { jobOfferId: captured, profileId: daf }, { from: "extension" });
+      await following.save(marie, { jobOfferId: captured, profileId: daf }, { extension: { candidateId: marie, extensionVersion: null } });
 
       expect(await entries()).toEqual([expect.objectContaining({ sources: [{ source: "extension", at: first.application.createdAt }], state: "followed" })]);
     });

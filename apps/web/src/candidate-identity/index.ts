@@ -1,9 +1,10 @@
 /**
  * What the AI layer knows of a Candidate's identity, to take it out of each of their AI calls before it
- * leaves (redaction, ADR-0007 amendment of 2026-10-20): their account's name and email, and the identity
- * block of their latest Master CV, any Profile (full name, email, phone, and its location when it holds a
- * digit: a postal address, not a bare city that the career also names). A Master CV has no links field,
- * so no link is known: a link is only redacted when it holds an email address.
+ * leaves (Redaction, ADR-0007 amendment of 2026-10-20): their account's name, Given Name, Family Name and
+ * email, and the identity block of their latest Master CV, any Profile (full name, email, phone, and its
+ * location when it holds a digit: a postal address, not a bare city that the career also names). A Master
+ * CV has no links field, so no link is known: a link is only redacted when it holds an email address.
+ * Their Preferred Name comes with it: the one name Redaction leaves in the clear (#921).
  *
  *   createAiLayerFromEnv(env, { identityOf: candidateIdentityOf(database) });
  *
@@ -15,6 +16,9 @@ import type { Queryable } from "../database/pool";
 
 interface IdentityRow {
   name: string | null;
+  givenName: string | null;
+  familyName: string | null;
+  preferredName: string | null;
   email: string | null;
   /** The latest Master CV version's content, as stored (JSON); null without a Profile. */
   cv: Record<string, unknown> | null;
@@ -27,7 +31,7 @@ const distinct = (...values: string[]): string[] => [...new Set(values.filter(Bo
 export function candidateIdentityOf(database: Queryable): (candidateId: string) => Promise<CandidateIdentity | null> {
   return async (candidateId) => {
     const { rows } = await database.query<IdentityRow>(
-      `SELECT c.name, c.email,
+      `SELECT c.name, c.given_name AS "givenName", c.family_name AS "familyName", c.preferred_name AS "preferredName", c.email,
               (SELECT v.content FROM master_cv_version v JOIN profile p ON p.id = v.profile_id
                 WHERE p.candidate_id = c.id ORDER BY v.created_at DESC, v.version DESC LIMIT 1) AS cv
          FROM candidate c WHERE c.id = $1`,
@@ -39,11 +43,13 @@ export function candidateIdentityOf(database: Queryable): (candidateId: string) 
     const cvName = text(cv.fullName);
     const accountName = text(row.name);
     const location = text(cv.location);
-    // The first name stays in calls (the AI Coach uses it); it tells the last name apart within a full name.
-    const firstName = givenNameOf([accountName, cvName].find((name) => name.includes(" ")) ?? (cvName || accountName));
+    // Without a Given Name entered, the full name's first name: taken out too, and it tells the last name apart.
+    const derived = givenNameOf([accountName, cvName].find((name) => name.includes(" ")) ?? (cvName || accountName));
     return {
       fullName: distinct(cvName, accountName),
-      ...(firstName ? { firstName } : {}),
+      givenName: distinct(text(row.givenName), derived),
+      lastName: distinct(text(row.familyName)),
+      preferredName: text(row.preferredName) || null,
       email: distinct(text(row.email), text(cv.email)),
       phone: distinct(text(cv.phone)),
       address: /\d/.test(location) ? [location] : [],
@@ -61,4 +67,4 @@ export {
   type Names,
   type SaveNamesResult,
 } from "./identity-names";
-export { calledName, cleanName, fullNameOf, IDENTITY_NAME_MAX_LENGTH, initialsOf, namesFromFullName } from "./names";
+export { calledName, cleanName, formalNameOf, fullNameOf, IDENTITY_NAME_MAX_LENGTH, initialsOf, nameForCoach, namesFromFullName, type NameForCoach } from "./names";

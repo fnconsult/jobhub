@@ -35,12 +35,12 @@ test.describe("Plans in the Back Office", () => {
     await page.goto("/admin");
     await page.getByRole("link", { name: fr.admin.sections.plans }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(plans.title);
-    await expect(page.getByRole("table").getByRole("rowheader")).toHaveText(["Gratuite", "Standard", "Premium"]);
+    await expect(page.getByRole("table").getByRole("rowheader")).toHaveText(["Gratuit", "Standard", "Premium"]);
     // Free is built in: no product, no "offered" box, no buttons to move it.
-    const free = planForm(page, "Gratuite");
+    const free = planForm(page, "Gratuit");
     await expect(free.getByLabel(plans.product)).toHaveCount(0);
     await expect(free.getByLabel(plans.offeredLabel)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: tr(plans.moveUp, { plan: "Gratuite" }) })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: tr(plans.moveUp, { plan: "Gratuit" }) })).toHaveCount(0);
 
     // A price ID where the product belongs is refused, before anything is created.
     const create = page.locator("form").filter({ has: page.getByRole("heading", { name: plans.createTitle }) });
@@ -75,7 +75,7 @@ test.describe("Plans in the Back Office", () => {
       await planForm(page, "Essentiel").getByRole("button", { name: tr(plans.save, { plan: "Essentiel" }) }).click();
       await expect(page.getByRole("status")).toHaveText(tr(plans.saved, { plan: "Essentiel" }));
       await candidatePage.goto("/abonnement");
-      expect(await comparedPlans(candidatePage)).toEqual(["Gratuite", "Standard", "Premium", "Essentiel"]);
+      expect(await comparedPlans(candidatePage)).toEqual(["Gratuit", "Standard", "Premium", "Essentiel"]);
       const prices = (await candidatePage.locator(".plan-card-price").allInnerTexts()).map((price) => price.replace(/\s/g, " "));
       expect(prices[3]).toBe("29 € / mois");
       const checkout = await candidatePage.request.post("/api/billing/checkout", { form: { plan: "essentiel" }, headers: { origin: process.env.E2E_WEB_ORIGIN! }, maxRedirects: 0 });
@@ -99,13 +99,13 @@ test.describe("Plans in the Back Office", () => {
       await expect(page.getByRole("status")).toHaveText(tr(plans.saved, { plan: "Essentiel" }));
     }
     await candidatePage.goto("/abonnement");
-    expect(await comparedPlans(candidatePage)).toEqual(["Gratuite", "Standard", "Premium"]);
+    expect(await comparedPlans(candidatePage)).toEqual(["Gratuit", "Standard", "Premium"]);
     await expect(candidatePage.getByText("Votre offre actuelle : Essentiel")).toBeVisible();
 
     // Free cannot be hidden, even by a form sent by hand.
     await page.goto("/admin/offres");
     await free.locator('input[name="offered"]').evaluate((input: HTMLInputElement) => input.remove());
-    await free.getByRole("button", { name: tr(plans.save, { plan: "Gratuite" }) }).click();
+    await free.getByRole("button", { name: tr(plans.save, { plan: "Gratuit" }) }).click();
     await expect(page.getByRole("alert").filter({ hasText: plans.errors.free_plan_built_in })).toBeVisible();
 
     // Every change is in the Journal, under Offres.

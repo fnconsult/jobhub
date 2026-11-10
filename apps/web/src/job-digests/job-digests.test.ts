@@ -218,7 +218,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
         ok: false,
         error: "not_included",
         plan: "free",
-        planName: { fr: "Gratuite", en: "Free" },
+        planName: { fr: "Gratuit", en: "Free" },
         upgradeTo: "standard",
         upgradeToName: { fr: "Standard", en: "Standard" },
       });
@@ -740,6 +740,17 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(await jobDigests.get(candidateId, "not-a-digest")).toBeNull();
       expect(await jobDigests.deliver(otherCandidateId, profileId, noDiscovery)).toEqual({ digest: null, discovery: "not_run" });
       expect(await jobDigests.settings(otherCandidateId, profileId)).toBeNull();
+    });
+
+    it("greets the Candidate by their Preferred Name (#921)", async () => {
+      await database.query(`UPDATE candidate SET given_name = 'Marie', preferred_name = 'Mimi' WHERE id = $1`, [candidateId]);
+      await strong("DAF H/F");
+      await subscribed();
+
+      await jobDigests.deliver(candidateId, profileId, async () => discovered());
+
+      expect(outbox[0]!.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+      expect(outbox[0]!.text).not.toContain("Marie");
     });
 
     it("is emailed in the Candidate's Interface Language, with an unsubscribe link and one-click unsubscribe headers", async () => {

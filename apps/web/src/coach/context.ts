@@ -3,7 +3,7 @@
  *
  * Behind `coachContext(sources, candidateId, focus, maxTokens)`:
  *  - always the date and time of the day in French time (#718: the AI Coach resolves a relative date from it), a short
- *    Candidate summary (first name, and per active Profile its
+ *    Candidate summary (their Preferred Name, or that they gave none, and per active Profile its
  *    target role, Search Criteria and seniority) and the Coach Memory when it has items;
  *  - the item In view in full: a Profile, an Application, a Job Offer, a Job Search
  *    or a Job Digest (only its 30 best Match Scores); only the Candidate's own (a Job Offer belongs to no one); on the
@@ -21,10 +21,10 @@
  * What the Candidate did not write (the item In view: a Job Offer, a CV, an Application's posting; the
  * summaries) is framed as data, between <donnees> and </donnees>, which it cannot close: DATA_RULE says
  * it is never an instruction (ADR-0022, #228). The Candidate summary and the Coach Memory are not framed.
- * Identity: first name only. The Master CV's identity block (full name, email,
- * phone, postal address) never reaches the text, nor do those values written
- * elsewhere in the CV, so the context is not identity-bearing (ADR-0007, #121:
- * the AI layer's scan stays the safety net).
+ * Identity: the Preferred Name only (#921), the one name Redaction leaves in the clear; without it, no name. The
+ * Master CV's identity block (full name, email, phone, postal address) never reaches the text, nor do those values
+ * written elsewhere in the CV, so the context is not identity-bearing (ADR-0007, #121: the AI layer's scan and
+ * Redaction stay the safety net, a first or last name written alone included).
  */
 import {
   industryLabels,
@@ -42,6 +42,7 @@ import {
 } from "@jobhub/shared";
 import type { AgendaItem } from "../agenda";
 import { INTERVIEW_TIME_ZONE, type Application, type Applications } from "../applications";
+import type { IdentityNames } from "../candidate-identity";
 import type { JobDigest, JobDigests } from "../job-digests";
 import type { JobOffers } from "../job-offers";
 import type { JobSearch, JobSearches } from "../job-searches";
@@ -81,6 +82,8 @@ export interface CoachSources {
   jobDigests: Pick<JobDigests, "get"> & { latest(candidateId: string, profileId: string): Promise<JobDigest | null> };
   /** Absent until the Coach Memory exists. */
   coachMemory?: CoachMemorySource;
+  /** The Candidate's names (#918): the AI Coach is told their Preferred Name alone (#921). */
+  names: Pick<IdentityNames, "of">;
   /** The Sectors', Subsectors' and Domains' labels (#236); without them, or when they cannot be read, none is named. */
   industries?: () => Promise<IndustryReference>;
   agenda: CoachAgendaSource;
@@ -124,16 +127,17 @@ export async function coachContext(sources: CoachSources, candidateId: string, f
   const [profiles, industries] = await Promise.all([activeProfiles(sources, candidateId), sources.industries?.().catch(() => NO_INDUSTRY_REFERENCE) ?? NO_INDUSTRY_REFERENCE]);
   const criteriaText = criteriaTextOf(industries);
   const agenda = sources.agenda.upcoming(candidateId, now);
-  const [inView, memory, applications, jobOffers, upcoming, scoredAgainst] = await Promise.all([
+  const [inView, memory, applications, jobOffers, upcoming, scoredAgainst, names] = await Promise.all([
     inViewText(sources, candidateId, focus, criteriaText, { now, agenda }),
     sources.coachMemory?.items(candidateId) ?? [],
     sources.applications.list(candidateId),
     topJobOffers(sources, candidateId, profiles),
     agenda,
     scoredAgainstProfileId(sources, candidateId, focus, profiles),
+    sources.names.of(candidateId),
   ]);
   const nextAgendaItems = upcoming.filter((item) => item.scheduledAt >= now && !(item.kind === "interview" && item.cancelledAt)).slice(0, NEXT_AGENDA_ITEMS);
-  const name = firstName(profiles.map((profile) => profile.masterCv.content.fullName).find((fullName) => fullName.trim()) ?? "");
+  const name = names?.preferredName?.trim() ?? "";
 
   const always = [todayLine(now), candidateSummary(name, profiles, criteriaText), memorySection(memory)].filter(Boolean).join("\n\n");
   const inViewProfileId = focus?.kind === "profile" ? focus.id : null;
@@ -217,13 +221,9 @@ async function activeProfiles(sources: CoachSources, candidateId: string): Promi
   return profiles.filter((profile): profile is Profile => profile !== null);
 }
 
-/** The first name only: the first word of the CV's full name. */
-function firstName(fullName: string): string {
-  return fullName.trim().split(/\s+/)[0] ?? "";
-}
-
+/** What the AI Coach calls the Candidate: their Preferred Name and no other, or no name at all (#921). */
 function candidateSummary(name: string, profiles: Profile[], criteriaText: (criteria: SearchCriteria) => string): string {
-  const who = name ? `Le candidat s'appelle ${name} (prénom seulement).` : "Le candidat n'a pas donné son prénom.";
+  const who = name ? `Le candidat souhaite que le coach l'appelle « ${name} » ; n'emploie aucun autre nom pour lui.` : "Le candidat n'a pas donné le nom à employer. Ne l'appelle par aucun nom.";
   if (profiles.length === 0) return `${who}\nIl n'a encore aucun profil actif.`;
   return [
     who,
@@ -279,12 +279,12 @@ function seniorityText(cv: CvContent): string {
 export const day = (date: Date) => date.toISOString().slice(0, 10);
 
 /**
- * Replaces, in a text from the CV, the identity block's values the CV also writes elsewhere:
- * the full name by the first name, the email, phone and postal address by a placeholder.
+ * Replaces, in a text from the CV, the identity block's values the CV also writes elsewhere by a placeholder: the full
+ * name, email, phone and postal address.
  */
 function identityScrubber(cv: CvContent): (text: string) => string {
   const replacements = [
-    [cv.fullName.trim(), firstName(cv.fullName)],
+    [cv.fullName.trim(), "[nom retiré]"],
     [cv.email.trim(), "[e-mail retiré]"],
     [cv.phone.trim(), "[téléphone retiré]"],
     // A postal address (with a number), not a bare city that the career also names.

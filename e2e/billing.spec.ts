@@ -73,7 +73,7 @@ test.describe("Plans and Stripe billing", () => {
     await expect(page).toHaveURL(/\/abonnement$/);
     // A Section of Mon compte (ADR-0024), at its own address.
     await expect(page.getByRole("heading", { level: 2, name: fr.billing.page.title })).toBeVisible();
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     expect((await planRow(page, "Match Scores"))[0]).toBe("1 par semaine");
 
     expect(await orderRedirect(page, "Choisir l'offre Standard")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
@@ -99,7 +99,7 @@ test.describe("Plans and Stripe billing", () => {
     await signInWithMagicLink(page, email);
     await page.goto("/abonnement?checkout=success");
     await expect(page.getByRole("status")).toHaveText(fr.billing.page.checkoutSuccess);
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     await page.evaluate(() => ((window as unknown as { notReloaded: boolean }).notReloaded = true));
 
     await subscribe(page, email, "standard");
@@ -131,7 +131,7 @@ test.describe("Plans and Stripe billing", () => {
     // Cancelled again, and the period is over: Free, as an immediate cancellation does.
     await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { ...premium, status: "active", cancelAtPeriodEnd: true }, later(30)));
     await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { ...premium, status: "canceled", cancelAtPeriodEnd: true }, later(40)));
-    await currentPlanIs(page, "Gratuite");
+    await currentPlanIs(page, "Gratuit");
     await expect(page.getByText(/jusqu'au/)).toHaveCount(0);
   });
 
@@ -159,9 +159,9 @@ test.describe("Plans and Stripe billing", () => {
   test("the Plans start with the agreed quotas, and a new Candidate is on Free", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("quotas"));
     await page.goto("/abonnement");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     const header = await page.locator(".plan-card h3").allInnerTexts();
-    expect(header.slice(0, 3)).toEqual(["Gratuite", "Standard", "Premium"]);
+    expect(header.slice(0, 3)).toEqual(["Gratuit", "Standard", "Premium"]);
     expect(await planRow(page, "Profils")).toEqual(["1", "3", "Illimité"]);
     expect(await planRow(page, "Match Scores")).toEqual(["1 par semaine", "Illimité", "Illimité"]);
     expect(await planRow(page, "ATS Scores")).toEqual(["1 par semaine", "Illimité", "Illimité"]);
@@ -187,7 +187,7 @@ test.describe("Plans and Stripe billing", () => {
 
     // The checkout redirect alone grants nothing: only the signed webhook does.
     await page.goto("/abonnement?checkout=success");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
 
     const t0 = Date.now();
     const at = (seconds: number) => new Date(t0 + seconds * 1000);
@@ -213,13 +213,13 @@ test.describe("Plans and Stripe billing", () => {
     await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { customer, price: FAKE_STRIPE_PRICES.standard, status: "past_due" }, at(20)));
     await currentPlanIs(page, "Standard");
     await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { customer, price: FAKE_STRIPE_PRICES.standard, status: "unpaid" }, at(30)));
-    await currentPlanIs(page, "Gratuite");
+    await currentPlanIs(page, "Gratuit");
 
     // Back on Premium, then cancelled.
     await deliverWebhook(page, subscriptionEvent("customer.subscription.updated", { ...premium, status: "active" }, at(40)));
     await currentPlanIs(page, "Premium");
     await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { ...premium, status: "canceled" }, at(50)));
-    await currentPlanIs(page, "Gratuite");
+    await currentPlanIs(page, "Gratuit");
     await expect(page.getByRole("button", { name: "Choisir l'offre Premium" })).toBeVisible();
   });
 
@@ -228,7 +228,7 @@ test.describe("Plans and Stripe billing", () => {
     const email = newAddress("invoices");
     await signInWithMagicLink(page, email);
     await page.goto("/abonnement");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     // Never charged: nothing to find there.
     await expect(page.getByRole("button", { name: fr.billing.page.invoices })).toHaveCount(0);
     await expect(page.getByText(fr.billing.page.invoicesHelp)).toHaveCount(0);
@@ -243,7 +243,7 @@ test.describe("Plans and Stripe billing", () => {
     // Cancelled: back on Free, but the invoices already paid are still there.
     const later = new Date(Date.now() + 60_000);
     await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { customer: fakeCustomerId(email), price: FAKE_STRIPE_PRICES.standard, status: "canceled" }, later));
-    await currentPlanIs(page, "Gratuite");
+    await currentPlanIs(page, "Gratuit");
     await expect(page.getByRole("button", { name: fr.billing.page.invoices })).toBeVisible();
     await expect(page.getByRole("button", { name: fr.billing.page.manage })).toHaveCount(0);
 
@@ -407,7 +407,7 @@ test.describe("Plan Quotas on Match Scores", () => {
       upgradeTo: "standard",
       prompt: {
         title: fr.billing.quotaReached.title,
-        message: "Vous avez utilisé le Match Score compris cette semaine dans l'offre Gratuite. Avec l'offre Standard, vous pouvez en faire davantage.",
+        message: "Vous avez utilisé le Match Score compris cette semaine dans l'offre Gratuit. Avec l'offre Standard, vous pouvez en faire davantage.",
         upgradeTo: "standard",
         action: "Découvrir l'offre Standard",
         href: "/abonnement",
@@ -449,10 +449,10 @@ test.describe("back office", () => {
     await page.getByRole("link", { name: fr.admin.sections.planQuotas }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.admin.planQuotas.title);
 
-    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuite" }) });
+    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuit" }) });
     await free.getByLabel("Match Scores (par semaine)").fill("5");
-    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
-    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
+    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuit enregistrés.");
     await expect(free.getByLabel("Match Scores (par semaine)")).toHaveValue("5");
 
     await page.goto("/abonnement");
@@ -461,7 +461,7 @@ test.describe("back office", () => {
     // Put the starting quota back for the other tests.
     await page.goto("/admin/quotas");
     await free.getByLabel("Match Scores (par semaine)").fill("1");
-    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
     await expect(page.getByRole("status")).toBeVisible();
   });
 
@@ -522,27 +522,27 @@ test.describe("back office", () => {
       enrichedContacts: await plan(name).getByLabel("Contacts enrichis (par semaine)").inputValue(),
       jobDigest: await plan(name).getByLabel("Job Digest").inputValue(),
     });
-    expect(await values("Gratuite")).toEqual({ profiles: "1", matchScores: "1", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
+    expect(await values("Gratuit")).toEqual({ profiles: "1", matchScores: "1", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
     expect(await values("Standard")).toEqual({ profiles: "3", matchScores: "", atsScores: "", enrichedContacts: "0", jobDigest: "weekly" });
     expect(await values("Premium")).toEqual({ profiles: "", matchScores: "", atsScores: "", enrichedContacts: "5", jobDigest: "daily" });
 
     // On Free: a change there applies at once, a reduction too, so the test can put it back. Lowering Standard, which
     // Candidates of other tests pay for, would be a Quota Reduction, scheduled 30 days ahead (#514, quota-reduction.spec.ts).
-    await plan("Gratuite").getByLabel("Profils").fill("");
-    await plan("Gratuite").getByLabel("Job Digest").selectOption("daily");
-    await plan("Gratuite").getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
-    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
+    await plan("Gratuit").getByLabel("Profils").fill("");
+    await plan("Gratuit").getByLabel("Job Digest").selectOption("daily");
+    await plan("Gratuit").getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
+    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuit enregistrés.");
     await page.goto("/abonnement");
     expect(await planRow(page, "Profils")).toEqual(["Illimité", "3", "Illimité"]);
     expect(await planRow(page, "Job Digest")).toEqual(["Chaque jour", "Chaque semaine", "Chaque jour"]);
 
     // Put the starting quotas back for the other tests.
     await page.goto("/admin/quotas");
-    await plan("Gratuite").getByLabel("Profils").fill("1");
-    await plan("Gratuite").getByLabel("Job Digest").selectOption("none");
-    await plan("Gratuite").getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await plan("Gratuit").getByLabel("Profils").fill("1");
+    await plan("Gratuit").getByLabel("Job Digest").selectOption("none");
+    await plan("Gratuit").getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
     await expect(page.getByRole("status")).toBeVisible();
-    expect(await values("Gratuite")).toEqual({ profiles: "1", matchScores: "1", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
+    expect(await values("Gratuit")).toEqual({ profiles: "1", matchScores: "1", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
   });
 
   test("records a Plan Quota edit with its before and after, and who made it", async ({ page }) => {
@@ -551,14 +551,14 @@ test.describe("back office", () => {
     // lowering it back would be a Quota Reduction, scheduled 30 days ahead, #514).
     await signInWithMagicLink(page, ADMINISTRATOR);
     await page.goto("/admin/quotas");
-    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuite" }) });
+    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuit" }) });
     await free.getByLabel("Profils").fill("5");
-    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
-    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
+    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuit enregistrés.");
     // Put the starting quota back for the other tests.
     await page.goto("/admin/quotas");
     await free.getByLabel("Profils").fill("1");
-    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
     await expect(page.getByRole("status")).toBeVisible();
 
     await page.goto("/admin/journal?section=plan_quotas");
@@ -573,10 +573,10 @@ test.describe("back office", () => {
   test("refuses invalid quotas", async ({ page }) => {
     await signInWithMagicLink(page, ADMINISTRATOR);
     await page.goto("/admin/quotas");
-    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuite" }) });
+    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuit" }) });
     await free.getByLabel("Profils").evaluate((input: HTMLInputElement) => input.removeAttribute("pattern"));
     await free.getByLabel("Profils").fill("-2");
-    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
     await expect(page.getByRole("alert").filter({ hasText: fr.admin.planQuotas.invalid })).toBeVisible();
   });
 });

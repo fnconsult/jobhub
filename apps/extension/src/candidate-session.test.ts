@@ -1,6 +1,7 @@
 import { API_VERSION } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { readCandidateSession } from "./candidate-session";
+import { EXTENSION_VERSION } from "./extension-update";
 
 const WEB_ORIGIN = "https://app.jobbbox.fr";
 
@@ -26,7 +27,7 @@ describe("readCandidateSession", () => {
       candidate: { email: "marie.dupont@example.fr", name: "Marie Dupont", interfaceLanguage: "en" },
     });
     expect(app.calls[0]?.url).toBe(`${WEB_ORIGIN}/api/auth/get-session`);
-    expect(app.calls[0]?.init?.headers).toEqual({ "Jobbbox-Api-Version": String(API_VERSION) });
+    expect(app.calls[0]?.init?.headers).toEqual({ "Jobbbox-Api-Version": String(API_VERSION), "Jobbbox-Extension-Version": EXTENSION_VERSION });
   });
 
   it("is signed out when nobody is signed in on the web app", async () => {

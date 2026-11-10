@@ -536,7 +536,7 @@ describe("the Failure Reason of every failed AI call (#259, ADR-0030)", () => {
       providers: [openai],
       routes: { writing: "openai" },
       usage,
-      identityOf: async () => ({ fullName: "Marie Dupont", firstName: "Marie", lastName: "Dupont" }),
+      identityOf: async () => ({ fullName: "Marie Dupont", givenName: "Marie", lastName: "Dupont" }),
       warn: () => {},
     });
 

@@ -9,6 +9,13 @@ describe("the Back Office Dashboard's blocks", () => {
     expect(shown).toEqual(["super-admin", "platform-manager", "support"]);
   });
 
+  it("shows the Extension card to the roles that read Activité › Extension: super-admins, Technique and Support (#925)", () => {
+    const shown = BACK_OFFICE_ROLES.filter((role) => dashboardBlocks(backOfficeAccess([role])).includes("extension"));
+
+    expect(shown).toEqual(["super-admin", "platform-manager", "support"]);
+    expect(dashboardBlocks(backOfficeAccess(["super-admin"]))).toEqual(["jobDiscovery", "extension"]);
+  });
+
   it("shows a Plans manager none of them", () => {
     expect(dashboardBlocks(backOfficeAccess(["plans-manager"]))).toEqual([]);
   });

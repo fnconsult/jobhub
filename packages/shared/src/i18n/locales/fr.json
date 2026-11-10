@@ -1047,6 +1047,7 @@
     "openShort": "Aide",
     "title": "Coach IA",
     "badge": "Coach IA",
+    "badgeShort": "IA",
     "close": "Fermer",
     "inView": "Vous consultez : {{label}}",
     "inViewProfile": "le profil « {{name}} »",
@@ -1613,6 +1614,39 @@
         "aiUsageLink": "Tout le détail dans Consommation IA",
         "webSearchSettingsLink": "Seuil d'alerte de la recherche web",
         "budgetSettingsLink": "Budget par run"
+      },
+      "extension": {
+        "title": "Extension",
+        "period": "30 derniers jours",
+        "captures": "Captures",
+        "capturesSub": "{{candidate}} par des candidats · {{guest}} par des invités",
+        "matchScores": "Match Scores",
+        "matchScoresSub": "Demandés depuis l'extension",
+        "applications": "Candidatures créées",
+        "applicationsSub": "Depuis l'extension",
+        "activeCandidates": "Candidats actifs",
+        "activeCandidatesSub": "Distincts, sur 30 jours",
+        "errors": "Erreurs",
+        "errorsSub": "Remontées par l'extension",
+        "capturesTitle": "Captures par jour, candidats et invités",
+        "candidates": "Candidats",
+        "guests": "Invités",
+        "errorsTitle": "Erreurs par jour",
+        "noActivity": "Aucun événement de l'extension sur 30 jours.",
+        "day": "Jour",
+        "versions": "Versions",
+        "versionsTitle": "Versions en service",
+        "versionEvents_one": "{{count}} événement",
+        "versionEvents_other": "{{count}} événements",
+        "unknownVersion": "Non indiquée",
+        "noVersions": "Aucune version en service sur 30 jours.",
+        "events": "Événements",
+        "domainsTitle": "Pages impossibles à capturer : les 5 domaines",
+        "domain": "Domaine",
+        "domainErrors_one": "{{count}} erreur",
+        "domainErrors_other": "{{count}} erreurs",
+        "noDomains": "Aucune page impossible à capturer sur 30 jours.",
+        "link": "Voir Activité › Extension"
       }
     },
     "roles": {
@@ -1663,6 +1697,7 @@
       "discoveryRuns": "Recherches",
       "designSystem": "Design System",
       "receivedEmails": "Emails reçus",
+      "extensionEvents": "Extension",
       "withdrawals": "Rétractations",
       "deliveryStatus": "Livraison"
     },
@@ -2628,6 +2663,7 @@
         "recipients_outside_eu": "Destinataires hors UE",
         "discovery_runs": "Activité › Recherches",
         "received_emails": "Activité › Emails reçus",
+        "extension_events": "Activité › Extension",
         "withdrawals": "Rétractations"
       },
       "actions": {
@@ -3643,7 +3679,8 @@
         "discoveryRuns": "Recherches",
         "receivedEmails": "Emails reçus",
         "aiMessages": "Appels IA",
-        "audit": "Actions des administrateurs"
+        "audit": "Actions des administrateurs",
+        "extensionEvents": "Extension"
       }
     },
     "receivedEmails": {
@@ -3695,6 +3732,57 @@
       "notRead": "Non lu",
       "noCandidate": "Aucun nom, e-mail ni identifiant de candidat ici, et rien du contenu des emails.",
       "subtitle": "Chaque email d'offres reçu par l'adresse de transfert d'un candidat."
+    },
+    "extensionEvents": {
+      "subtitle": "Ce que l'extension a fait et ce qui a échoué, du plus récent au plus ancien.",
+      "intro": "Chaque Extension Event : une capture, un Match Score, un brouillon de CV, un profil ou une candidature faits depuis l'extension, ou une erreur. Pour chacun, l'heure, le type, le candidat ou « Invité », la version de l'extension et l'objet ; pour une erreur, son code, l'endroit, la route et le statut, le navigateur et le domaine de la page, jamais son adresse ni son texte. Ils sont gardés {{months}} mois, ceux d'un invité {{days}} jours, et supprimés avec le compte du candidat.",
+      "filter": "Filtrer les événements de l'extension",
+      "kind": "Type",
+      "anyKind": "Tous les types",
+      "kinds": {
+        "capture": "Capture",
+        "match_score": "Match Score",
+        "cv_draft": "Brouillon de CV",
+        "profile_created": "Profil créé",
+        "application_created": "Candidature créée",
+        "error": "Erreur"
+      },
+      "errorsFilter": "Erreurs",
+      "who": "Candidat / Invité",
+      "anyone": "Tous",
+      "whos": {
+        "candidate": "Candidats",
+        "guest": "Invités"
+      },
+      "version": "Version",
+      "domain": "Domaine",
+      "apply": "Afficher",
+      "reset": "Tout afficher",
+      "ofCandidate": "Seuls les événements d'un candidat sont affichés.",
+      "none": "Aucun événement de l'extension pour ces filtres.",
+      "count_one": "{{count}} événement",
+      "count_other": "{{count}} événements",
+      "limit": "Seuls les {{count}} événements les plus récents sont affichés.",
+      "caption": "Événements de l'extension, du plus récent au plus ancien",
+      "at": "Heure",
+      "candidate": "Candidat",
+      "guest": "Invité",
+      "candidateLink": "Les événements de {{email}}",
+      "object": "Objet",
+      "objects": {
+        "job_offer": "Offre",
+        "profile": "Profil",
+        "application": "Candidature"
+      },
+      "error": "Erreur",
+      "places": {
+        "side_panel": "Panneau latéral",
+        "content_script": "Lecture de la page",
+        "page_button": "Bouton de la page"
+      },
+      "routeStatus": "{{route}} → {{status}}",
+      "network": "réseau",
+      "noValue": "—"
     },
     "discoveryRuns": {
       "intro": "Chaque run de la recherche d'offres (Job discovery), lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest : ses recherches et ce qu'elles ont donné. Les requêtes, les critères et le lien vers la recherche du candidat sont gardés {{days}} jours ; les chiffres des runs, {{months}} mois.",
@@ -5133,7 +5221,11 @@
       "action_card": "Proposition du coach",
       "ats_score": "ATS Score",
       "master_cv": "CV de référence, lu dans votre fichier",
-      "cv_reading": "Lecture du CV"
+      "cv_reading": "Lecture du CV",
+      "profile_creation": "Création du profil",
+      "questionnaire": "Questionnaire d'accueil",
+      "review": "Relecture",
+      "profile_created": "Profil créé"
     },
     "live": {
       "starting": "Démarrage",
@@ -5244,7 +5336,13 @@
         "version": "Version {{version}}",
         "restored": "rétablit la version {{version}}",
         "proposals_one": "{{count}} proposition",
-        "proposals_other": "{{count}} propositions"
+        "proposals_other": "{{count}} propositions",
+        "creating": "En cours",
+        "created": "Profil créé · Version {{version}}",
+        "answered_one": "{{count}} réponse",
+        "answered_other": "{{count}} réponses",
+        "skipped_one": "{{count}} passée",
+        "skipped_other": "{{count}} passées"
       },
       "origin": {
         "candidate": "Par vous",
@@ -5254,6 +5352,8 @@
       },
       "you": "Vous : {{question}}",
       "steps": "Étapes",
+      "parts": "Étapes de la création",
+      "writtenByJobbbox": "Questions écrites par Jobbbox",
       "read": "Lu :",
       "tools": "Outils :",
       "models": "Modèles :",
@@ -5283,7 +5383,9 @@
         "ats_score": "Voir l'ATS Score",
         "master_cv": "Ouvrir la version",
         "master_cv_version": "Ouvrir la version",
-        "change": "Ouvrir {{label}}"
+        "change": "Ouvrir {{label}}",
+        "profile_creation": "Ouvrir le profil",
+        "profile_created": "Ouvrir la version"
       },
       "cost": {
         "quota": {
@@ -6110,7 +6212,8 @@
         "cached": "Dont {{tokens}} relus dans le cache du fournisseur, moins coûteux.",
         "why": "Ce total peut dépasser la taille du contexte ci-dessus : à chaque appel (le choix des conseils, les agents, les vérifications, puis chaque tour où le coach consulte vos données), tout le contexte est renvoyé, avec ce que le coach a déjà lu. C'est une mesure technique, qui ne compte pas dans votre offre."
       }
-    }
+    },
+    "noReply": "Le coach n'a pas encore répondu."
   },
   "microAnimation": {
     "show": "Voir comment",

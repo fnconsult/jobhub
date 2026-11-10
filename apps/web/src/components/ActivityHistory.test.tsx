@@ -3,7 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { rulesProvenance, type Provenance, type ReplyCost } from "@jobhub/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { activityEntries, type ReplyGiven } from "@/ai-activity/entries";
+import { activityEntries, servedEntries, type ReplyGiven } from "@/ai-activity/entries";
 import { renderInFrench } from "@/design/testing";
 import { ActivityHistory } from "./ActivityHistory";
 
@@ -118,6 +118,56 @@ describe("the history of Activity (#808)", () => {
     expect(row().getAttribute("aria-expanded")).toBe("false");
     rerender(<ActivityHistory entries={entries} inThread={new Set()} usage={null} asked={{ key: entries[1]!.key, n: 1 }} />);
     expect(row().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  describe("a Profile's creation (#810)", () => {
+    const read: Provenance = {
+      v: 1,
+      steps: [{ kind: "ai", activity: "think", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 8_000, output: 1_600 }, ms: 20_000, at: minutesAgo(30), outcome: "ok", count: 1 }],
+      sites: [{ kind: "candidate", links: [] }],
+      startedAt: minutesAgo(30),
+      wallMs: 27_000,
+    };
+    const known = { reading: { provenance: read }, questionnaire: { at: minutesAgo(29), answered: 2, skipped: 1 }, review: { at: minutesAgo(25) } };
+    const parts = (detail: HTMLElement) => within(within(detail).getByRole("list", { name: "Étapes de la création" })).getAllByRole("listitem").filter((item) => item.dataset.kind);
+
+    it("on `/profils/nouveau`, one entry « Création du profil », under way, its parts in order: the CV read with its model, the questionnaire written by Jobbbox without AI, the review", async () => {
+      const user = userEvent.setup();
+      const history = show(activityEntries({ page: "any", creation: known }), new Set());
+      const row = within(history).getByRole("button");
+      expect(row.textContent).toMatch(/^Création du profilEn cours · 9,6k jetons\d\d:\d\d$/);
+      await user.click(row);
+      const detail = document.getElementById(row.getAttribute("aria-controls")!)!;
+      expect(parts(detail).map((part) => part.textContent)).toEqual([
+        expect.stringMatching(/^Lecture du CV9,6k jetons\d\d:\d\d.*Mistral Medium 3\.5/),
+        expect.stringMatching(/^Questionnaire d'accueilQuestions écrites par Jobbbox · 2 réponses · 1 passée · Sans IA\d\d:\d\d$/),
+        expect.stringMatching(/^RelecturePar vous · Sans IA\d\d:\d\d$/),
+      ]);
+      expect(within(detail).getByRole("link", { name: "compté dans votre consommation" })).toBeTruthy();
+      expect(within(detail).queryByRole("link", { name: "Ouvrir le profil" })).toBeNull();
+    });
+
+    it("once created, « Profil créé » with Version 1 and its first ATS Score, each linked to its page, and the entry to the Profile", async () => {
+      const user = userEvent.setup();
+      const served = servedEntries({
+        page: "profile",
+        versions: [{ version: 1, savedAt: minutesAgo(24), restoredFrom: null, provenance: read, href: "/profils/p/versions/1" }],
+        elements: [{ kind: "ats_score", provenance: rulesProvenance("ats_score", { at: new Date(minutesAgo(23)) }), scored: 1, href: "/profils/p/ats-score", result: { score: 64 } }],
+        creation: { href: "/profils/p" },
+      });
+      const history = show(activityEntries({ page: "any", built: served, creation: { ...known, href: "/profils/p" } }), new Set());
+      const row = within(history).getByRole("button");
+      expect(row.textContent).toMatch(/^Création du profilProfil créé · Version 1 · 9,6k jetons/);
+      await user.click(row);
+      const detail = document.getElementById(row.getAttribute("aria-controls")!)!;
+      expect(parts(detail).map((part) => part.dataset.kind)).toEqual(["cv_reading", "questionnaire", "review", "profile_created", "ats_score"]);
+      const [, , , created, score] = parts(detail);
+      expect(created!.textContent).toMatch(/^Profil crééVersion 1 · Sans IA/);
+      expect(within(created!).getByRole("link", { name: "Ouvrir la version" }).getAttribute("href")).toBe("/profils/p/versions/1");
+      expect(score!.textContent).toMatch(/^ATS Score64\/100 · 1 ATS Score du forfait · 4 sur 7 cette semaine · Sans IA\d\d:\d\dCalcul · Règles Jobbbox/);
+      expect(within(score!).getByRole("link", { name: "Voir l'ATS Score" }).getAttribute("href")).toBe("/profils/p/ats-score");
+      expect(within(detail).getByRole("link", { name: "Ouvrir le profil" }).getAttribute("href")).toBe("/profils/p");
+    });
   });
 
   it("says when nothing happened on the page yet", () => {

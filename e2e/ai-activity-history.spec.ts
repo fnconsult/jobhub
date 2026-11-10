@@ -117,7 +117,7 @@ test.describe("Activity's history (#808)", () => {
 
     await page.reload();
     await expect(fiche(page)).toBeVisible();
-    // Newest first: the ATS Score, Version 2, the reply whose card made it, then Version 1, saved as the Profile was (the
+    // Newest first: the ATS Score, Version 2, the reply whose card made it, then « Création du profil » with Version 1 (#810) (the
     // ATS Fixes the score proposed are entries of their own, beside it).
     const version = tr(history.titles.master_cv_version, { version: "2" });
     const titles = await today(page).locator(".activity-entry-title").allTextContents();
@@ -125,7 +125,7 @@ test.describe("Activity's history (#808)", () => {
     expect(at(fr.aiActivity.kinds.ats_score), titles.join(" | ")).toBeGreaterThanOrEqual(0);
     expect(at(fr.aiActivity.kinds.ats_score)).toBeLessThan(at(version));
     expect(at(version)).toBeLessThan(at(fr.aiActivity.kinds.coach_reply));
-    expect(at(fr.aiActivity.kinds.coach_reply)).toBeLessThan(at(tr(history.titles.master_cv_version, { version: "1" })));
+    expect(at(fr.aiActivity.kinds.coach_reply)).toBeLessThan(at(fr.aiActivity.kinds.profile_creation));
     const row = (title: string) => today(page).locator(".activity-entry-row").filter({ has: page.locator(".activity-entry-title").getByText(title, { exact: true }) });
     await expect(row(fr.aiActivity.kinds.ats_score)).toContainText(history.cost.quota.atsScores);
     await expect(row(version)).toContainText(history.cost.noAi);

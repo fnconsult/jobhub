@@ -387,3 +387,89 @@ describe("the Context bar in an object's Fiche (#607)", () => {
     expect(inOrder(fiche)).toEqual(["context", "now", "history"]);
   });
 });
+
+describe("the live glyph of « Activité » in the Top Bar (#333, ADR-0034)", () => {
+  /** Under reduced motion, so the glyph holds still and draws its strokes: jsdom has none to animate. `narrow`: a phone's width. */
+  function stubScreen(narrow: boolean) {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches:
+        query === "(width < 40rem)"
+          ? narrow
+          : query !== "(prefers-reduced-motion: no-preference)" && !query.includes("<"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+  }
+
+  beforeEach(() => {
+    pathname.current = "/";
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** A glyph as it is drawn: its Activity, and its strokes. */
+  const drawn = (glyph: Element | null | undefined) => ({
+    activity: glyph?.getAttribute("data-activity"),
+    live: glyph?.getAttribute("data-live"),
+    strokes: [...(glyph?.querySelectorAll("path") ?? [])].map((path) => path.getAttribute("d")),
+  });
+  const nowGlyph = () =>
+    screen.getByRole("region", { name: "En ce moment" }).querySelector(".activity-glyph");
+
+  const at = "2026-11-09T09:00:00.000Z";
+  /** A Job Search between two steps: it searched the web, and its next step has not started yet. */
+  const betweenSteps = [
+    {
+      jobSearchId: "j1",
+      profile: { id: "p1", name: "HEAD OF BU" },
+      startedAt: at,
+      steps: [
+        {
+          type: "step_ended" as const,
+          id: 1,
+          step: { kind: "tool" as const, activity: "web_search" as const, tool: "job-site" as const, ms: 900, at, outcome: "ok" as const, count: 4 },
+        },
+      ],
+    },
+  ];
+
+  function renderLive() {
+    let live: ReturnType<typeof useAiActivityLive> = null;
+    renderInFrench(
+      <AiActivityLiveProvider>
+        <Grab onLive={(given) => (live = given)} />
+        <Page aiActivity={REPLIED} />
+      </AiActivityLiveProvider>,
+    );
+    return () => live!;
+  }
+
+  it("shows the step « En ce moment » shows, live, even between two steps of a Job Search", async () => {
+    stubScreen(false);
+    const user = userEvent.setup();
+    const live = renderLive();
+    act(() => live().jobSearches(betweenSteps, []));
+
+    const button = activityButton().querySelector(".activity-glyph");
+    expect(drawn(button)).toMatchObject({ activity: "web_search", live: "true" });
+
+    await user.click(activityButton());
+    expect(drawn(activityButton().querySelector(".activity-glyph"))).toEqual(drawn(nowGlyph()));
+  });
+
+  it("on a phone, shows that step in the compact Top Bar, where « Activité » takes the visible place", () => {
+    stubScreen(true);
+    const live = renderLive();
+    act(() => live().jobSearches(betweenSteps, []));
+
+    const compact = topBar().querySelector(".topbar-compact-actions:not(.topbar-first-paint)");
+    expect(drawn(compact?.querySelector(".activity-glyph"))).toMatchObject({ activity: "web_search", live: "true" });
+  });
+});

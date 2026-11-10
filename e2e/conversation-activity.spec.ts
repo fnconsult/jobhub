@@ -91,10 +91,11 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     await expect(activityButton(page)).toHaveAttribute("aria-expanded", "false");
     await expect(column(page)).toHaveCount(0);
 
-    // Opened: beside the conversation, never over it, with no heading nor ✕; the Context bar empty before the first message.
+    // Opened: beside the conversation, never over it, with no heading nor ✕; the Context bar empty before the coach's first
+    // reply (#810).
     await activityButton(page).click();
     await expect(activityButton(page)).toHaveAttribute("aria-expanded", "true");
-    await expect(contextBar(page)).toContainText("0 / 40 messages · 0 / 12k jetons");
+    await expect(contextBar(page)).toContainText(bar.noReply);
     await expect(column(page).getByRole("heading", { level: 2 })).toHaveCount(0);
     await expect(column(page).getByRole("button", { name: fr.conversationFirst.close })).toHaveCount(0);
     const thread = await conversation(page).locator(".page-conversation-thread").boundingBox();
@@ -146,7 +147,7 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     await dialog.getByRole("button", { name: texts.clear }).click();
 
     await expect(conversation(page).getByRole("status").filter({ hasText: texts.cleared })).toBeVisible();
-    await expect(contextBar(page)).toContainText("0 / 40 messages · 0 / 12k jetons");
+    await expect(contextBar(page)).toContainText(bar.noReply);
     expect(await query("SELECT 1 FROM coach_conversation WHERE id = $1", [id])).toEqual([]);
   });
 
@@ -154,6 +155,6 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     const page = await signedIn(browser, newAddress("conversation-activity-menu"));
     await page.goto("/candidatures");
     await activityButton(page).click();
-    await expect(contextBar(page)).toContainText("0 / 40 messages");
+    await expect(contextBar(page)).toContainText(bar.noReply);
   });
 });

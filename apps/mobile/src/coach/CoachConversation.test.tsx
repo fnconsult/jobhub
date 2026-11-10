@@ -41,7 +41,9 @@ describe("a Coach Conversation in the app", () => {
 
   it("sends the message to the coach and shows the reply as its events come, « Arrêter » meanwhile", async () => {
     await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
+    expect(screen.getByTestId("conversation-end")).toBeOnTheScreen();
     await write("Aide-moi à préparer un entretien");
+    expect(screen.queryByTestId("conversation-end")).toBeNull();
 
     expect(web.asked).toEqual([{ message: "Aide-moi à préparer un entretien", route: "/" }]);
     expect(screen.getByText("Aide-moi à préparer un entretien")).toBeOnTheScreen();
@@ -56,6 +58,7 @@ describe("a Coach Conversation in the app", () => {
       web.pending().end();
     });
     expect(await screen.findByText("Parlons de vos réussites.")).toBeOnTheScreen();
+    expect(screen.getByTestId("conversation-end")).toBeOnTheScreen();
     expect(screen.queryByText("Réflexion")).toBeNull();
     expect(button("Envoyer")).toBeOnTheScreen();
   });
@@ -117,9 +120,17 @@ describe("a Coach Conversation in the app", () => {
         },
       ],
     });
-    await renderInApp(<CoachConversation conversationId="c7" route="/conversations/c7" />, web.client);
+    let release!: () => void;
+    const loaded = new Promise<void>((resolve) => { release = resolve; });
+    await renderInApp(<CoachConversation conversationId="c7" route="/conversations/c7" />, {
+      ...web.client,
+      fetch: async (...args) => { await loaded; return web.client.fetch(...args); },
+    });
+    expect(screen.queryByTestId("conversation-end")).toBeNull();
+    await act(async () => release());
     expect(await screen.findByText("Visez haut.")).toBeOnTheScreen();
     expect(screen.getByText("Comment négocier ?")).toBeOnTheScreen();
+    expect(screen.getByTestId("conversation-end")).toBeOnTheScreen();
   });
 
   describe("with VoiceOver or TalkBack", () => {

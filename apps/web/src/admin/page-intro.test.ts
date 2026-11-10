@@ -12,6 +12,7 @@ const VALUES: Record<IntroPage, Record<string, string>> = {
   receivedEmails: { months: "13" },
   aiMessages: { days: "30" },
   audit: { years: "5" },
+  extensionEvents: { months: "12", days: "30" },
   signalements: {},
   plans: {},
   planQuotas: {},

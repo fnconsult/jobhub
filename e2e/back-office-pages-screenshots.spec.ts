@@ -198,7 +198,7 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
             await leaveOutRelease(page);
             if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
-            await expect(target).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });
+            await expect.soft(target).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });
           }
         }
         await showInTheme(page, "light");

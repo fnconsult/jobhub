@@ -959,11 +959,11 @@ textarea.input {
 }
 
 /* Writing, the badge says « IA » (« AI »), not its dot alone: the AI disclosure stays in words (AI Act art. 50(1)). */
-.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed], :focus-visible)::before {
+.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed])::before {
   display: none;
 }
 
-.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed], :focus-visible) .composer-short {
+.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed]) .composer-short {
   display: inline;
   font-weight: 600;
 }
@@ -1001,7 +1001,7 @@ textarea.input {
   height: 1.25rem;
 }
 
-.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send):not([data-revealed], :focus-visible) .composer-label {
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send):not([data-revealed]) .composer-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1010,7 +1010,7 @@ textarea.input {
   white-space: nowrap;
 }
 
-.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send):is([data-revealed], :focus-visible) {
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send)[data-revealed] {
   z-index: 3;
   gap: var(--space-2);
   width: max-content;
@@ -2104,6 +2104,20 @@ button.coach-panel-badge:hover {
   margin-left: auto;
   background: var(--color-warn);
   border-radius: 50%;
+}
+
+/* Recherches d'offres' « N » (#818): its offers à traiter, at the line's end; none at 0. */
+.sidebar-count {
+  flex: none;
+  min-width: 1.5rem;
+  padding: 0 var(--space-2);
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-on-accent);
+  text-align: center;
+  background: var(--color-accent);
+  border-radius: 999px;
 }
 
 .sidebar-link.sidebar-see-all {
@@ -3640,6 +3654,51 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   transform: rotate(180deg);
 }
 
+/* Its two lines (#923, variant A of #914): the name the Candidate is called by, then their Plan, each cut by an ellipsis. */
+.account-lines {
+  display: grid;
+  min-width: 0;
+  line-height: var(--line-height-heading);
+}
+
+.account-name,
+.account-plan,
+.account-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-button .account-name {
+  font-weight: 600;
+}
+
+.account-plan,
+.account-email {
+  font-size: var(--font-size-meta);
+  color: var(--color-text-meta);
+}
+
+/* A Plan whose cancellation is scheduled: until when it is kept. */
+.account-plan-ending {
+  color: var(--color-warn);
+}
+
+/* The Candidate's initials, in place of the photo to come; hidden from screen readers: a mark, not text. */
+.account-initials {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  font-size: var(--font-size-meta);
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-line);
+  border-radius: 999px;
+}
+
 /* Its menu, over the sidebar (and its drawer): « Aide et légal », Mon compte's page, « Se déconnecter » nearest the button. */
 .account-menu {
   z-index: 60;
@@ -3683,6 +3742,22 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   width: 1.125em;
   height: 1.125em;
   color: var(--color-secondary);
+}
+
+/* Its head (#923): « Prénom Nom » and the email, not an item. */
+.account-menu-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  color: var(--color-text);
+}
+
+/* Mon abonnement's Plan, at the end of its line. */
+.account-menu-aside {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  color: var(--color-text-meta);
 }
 
 .account-menu-separator {

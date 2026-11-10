@@ -55,6 +55,19 @@ describe("a compact action showing its label once the pointer rests on it (#933)
     expect(button().dataset.revealed).toBeUndefined();
   });
 
+  it("dismisses the keyboard label until the action is focused again", () => {
+    render(<Action />);
+    fireEvent.focus(button());
+    expect(button().dataset.revealed).toBe("");
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(button().dataset.revealed).toBeUndefined();
+    act(() => vi.advanceTimersByTime(DWELL_MS));
+    expect(button().dataset.revealed).toBeUndefined();
+    fireEvent.blur(button());
+    fireEvent.focus(button());
+    expect(button().dataset.revealed).toBe("");
+  });
+
   it("ignores a touch, which has no hover", () => {
     render(<Action />);
     fireEvent.pointerEnter(button(), { pointerType: "touch" });

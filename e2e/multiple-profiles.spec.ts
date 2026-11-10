@@ -216,7 +216,7 @@ test.describe("several Profiles per Candidate", () => {
     await signInWithMagicLink(page, newAddress("free-profiles"));
     const firstId = await createProfile(page, "Directrice financière");
     const upgrade = {
-      message: "L'offre Gratuite comprend 1 profil. Avec l'offre Standard, vous pouvez en créer davantage.",
+      message: "L'offre Gratuit comprend 1 profil. Avec l'offre Standard, vous pouvez en créer davantage.",
       action: "Découvrir l'offre Standard",
     };
 

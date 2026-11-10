@@ -11,6 +11,8 @@ export const DWELL_MS = 2000;
  */
 export function useDwellReveal() {
   const [revealed, setRevealed] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   const stop = () => {
     window.clearTimeout(timer.current);
@@ -19,19 +21,26 @@ export function useDwellReveal() {
 
   useEffect(() => stop, []);
   useEffect(() => {
-    if (!revealed) return;
+    if (!revealed && !focused) return;
     const dismiss = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setRevealed(false);
+      if (event.key === "Escape") {
+        stop();
+        setRevealed(false);
+        setDismissed(true);
+      }
     };
     document.addEventListener("keydown", dismiss);
     return () => document.removeEventListener("keydown", dismiss);
-  }, [revealed]);
+  }, [revealed, focused]);
 
   return {
-    "data-revealed": revealed ? "" : undefined,
+    "data-revealed": !dismissed && (revealed || focused) ? "" : undefined,
+    onFocus: () => { setFocused(true); setDismissed(false); },
+    onBlur: () => { setFocused(false); setDismissed(false); },
     onPointerEnter: (event: PointerEvent<HTMLElement>) => {
       if (event.pointerType === "touch") return;
       stop();
+      setDismissed(false);
       timer.current = window.setTimeout(() => setRevealed(true), DWELL_MS);
     },
     onPointerLeave: () => {

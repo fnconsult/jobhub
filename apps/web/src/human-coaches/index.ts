@@ -21,6 +21,7 @@ import type { Pool } from "pg";
 import { inTransaction, type Queryable } from "../database/pool";
 import * as z from "zod";
 import { frenchDateTime, type Application, type Applications, type ApplicationSummary } from "../applications";
+import { nameForCoach } from "../candidate-identity/names";
 import type { Profile, Profiles } from "../profiles";
 import type { PushNotification, PushNotifier } from "../push-notifications";
 import { migrateRescheduleHistory, rescheduleHistories, setAgendaItemDate, type Reschedule, type RescheduledBy } from "../reschedules";
@@ -48,11 +49,13 @@ export type AddHumanCoachResult =
   /** Another (not retired) Human Coach already has this email. */
   | { ok: false; error: "email_taken" };
 
-/** A Candidate who granted a Human Coach Coach Access, as that Human Coach sees them. */
+/** A Candidate who granted a Human Coach Coach Access, as that Human Coach sees them (#922). */
 export interface CoachedCandidate {
   id: string;
-  /** Empty when the Candidate gave none. */
+  /** « Marie Dupont »: their Given Name and Family Name (`nameForCoach`); empty when the Candidate gave none. */
   name: string;
+  /** « Mimi »: their Preferred Name when it differs from their Given Name (« se fait appeler Mimi »); else null. */
+  calledBy: string | null;
   email: string;
 }
 
@@ -116,8 +119,10 @@ export type SessionEditor = "candidate" | "coach";
  */
 export interface CoachedSession {
   id: string;
-  /** "Marie D.": the first name and last initial of the Candidate's account name; empty when they gave none. */
+  /** "Marie D.": the Candidate's Given Name and the initial of their Family Name (`nameForCoach`); empty when they gave none. */
   candidateName: string;
+  /** « Mimi »: their Preferred Name when it differs from their Given Name; else null. */
+  candidateCalledBy: string | null;
   paidAt: Date;
   /** Null while it is an Unscheduled Coaching Session (« À planifier »). */
   scheduledAt: Date | null;
@@ -163,6 +168,8 @@ export interface WithdrawnCoachingSession {
   coach: { name: string; email: string };
   /** "Marie D.": how the Candidate is named to the Human Coach; empty when they gave no name. */
   candidateName: string;
+  /** « Mimi »: their Preferred Name when it differs from their Given Name; else null. */
+  candidateCalledBy: string | null;
 }
 
 export type CoachReviewResult =
@@ -355,13 +362,23 @@ const reviewFrom = (row: ReviewRow): CoachReview => ({
   createdAt: row.created_at,
 });
 
-/** "Marie D.": the first word of `fullName` and the initial of its last word. */
-function firstNameAndLastInitial(fullName: string): string {
-  const words = fullName.trim().split(/\s+/).filter(Boolean);
-  const first = words[0] ?? "";
-  if (words.length < 2) return first;
-  const initial = Array.from(words.at(-1)!)[0]!.toLocaleUpperCase("fr");
-  return `${first} ${initial}.`;
+/** The Candidate's names as `nameForCoach` takes them, from `candidate c` (#922). */
+const CANDIDATE_NAMES = `c.given_name AS "givenName", c.family_name AS "familyName", c.preferred_name AS "preferredName", c.name`;
+
+interface CandidateNamesRow {
+  givenName: string | null;
+  familyName: string | null;
+  preferredName: string | null;
+  name: string | null;
+}
+
+/** A Coached Candidate from its row: named in full, « Marie Dupont », and the Preferred Name beside it. */
+const coachedCandidateFrom = (row: CandidateNamesRow & { id: string; email: string }): CoachedCandidate => ({ id: row.id, ...nameForCoach(row), email: row.email });
+
+/** The Candidate of a Coaching Session: « Marie D. », and the Preferred Name beside it. */
+function sessionCandidate(row: CandidateNamesRow): { candidateName: string; candidateCalledBy: string | null } {
+  const { name, calledBy } = nameForCoach(row, "short");
+  return { candidateName: name, candidateCalledBy: calledBy };
 }
 
 const COACH_COLUMNS = "id, name, email, booking_url, bio";
@@ -373,15 +390,15 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   /** The Candidate, if they granted this (not retired) Human Coach Coach Access. */
   async function coachedCandidate(coachId: string, candidateId: string): Promise<CoachedCandidate | null> {
     if (!UUID.test(coachId)) return null;
-    const { rows } = await database.query<CoachedCandidate>(
-      `SELECT c.id, coalesce(c.name, '') AS name, c.email
+    const { rows } = await database.query<CandidateNamesRow & { id: string; email: string }>(
+      `SELECT c.id, ${CANDIDATE_NAMES}, c.email
        FROM coach_access a
        JOIN human_coach h ON h.id = a.coach_id AND h.retired_at IS NULL
        JOIN candidate c ON c.id = a.candidate_id
        WHERE a.coach_id = $1 AND a.candidate_id = $2`,
       [coachId, candidateId],
     );
-    return rows[0] ?? null;
+    return rows[0] ? coachedCandidateFrom(rows[0]) : null;
   }
 
   async function reviewsOf(candidateId: string, applicationId: string): Promise<CoachReview[]> {
@@ -458,8 +475,8 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   /** The (not retired) Human Coach's Coaching Sessions (or the one `sessionId` names), « À planifier » first, then latest first. */
   async function coachSessionsOf(coachId: string, sessionId?: string): Promise<CoachedSession[]> {
     if (!UUID.test(coachId)) return [];
-    const { rows } = await database.query<{ id: string; candidate_name: string | null; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }>(
-      `SELECT s.id, c.name AS candidate_name, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link
+    const { rows } = await database.query<CandidateNamesRow & { id: string; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }>(
+      `SELECT s.id, ${CANDIDATE_NAMES}, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link
          FROM coaching_session s
          JOIN human_coach h ON h.id = s.coach_id AND h.retired_at IS NULL
          JOIN candidate c ON c.id = s.candidate_id
@@ -470,7 +487,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     const histories = await rescheduleHistories(database, "coaching_session", rows.map((row) => row.id));
     return rows.map((row) => ({
       id: row.id,
-      candidateName: firstNameAndLastInitial(row.candidate_name ?? ""),
+      ...sessionCandidate(row),
       paidAt: row.paid_at,
       scheduledAt: row.scheduled_at,
       durationMinutes: row.duration_minutes,
@@ -622,15 +639,15 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async candidates(coachId) {
       if (!UUID.test(coachId)) return [];
-      const { rows } = await database.query<CoachedCandidate>(
-        `SELECT c.id, coalesce(c.name, '') AS name, c.email
+      const { rows } = await database.query<CandidateNamesRow & { id: string; email: string }>(
+        `SELECT c.id, ${CANDIDATE_NAMES}, c.email
          FROM coach_access a
          JOIN human_coach h ON h.id = a.coach_id AND h.retired_at IS NULL
          JOIN candidate c ON c.id = a.candidate_id
          WHERE a.coach_id = $1 ORDER BY c.email`,
         [coachId],
       );
-      return rows;
+      return rows.map(coachedCandidateFrom);
     },
 
     async candidateFile(coachId, candidateId) {
@@ -728,7 +745,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       if (!UUID.test(sessionId)) return null;
       let withdrawn: { candidate_id: string; coach_id: string } | undefined;
       const result = await inTransaction(database, async (client) => {
-        const { rows } = await client.query<{
+        const { rows } = await client.query<CandidateNamesRow & {
           coach_id: string;
           stripe_checkout_session_id: string;
           amount: number;
@@ -737,9 +754,8 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
           scheduled_at: Date | null;
           coach_name: string;
           coach_email: string;
-          candidate_name: string | null;
         }>(
-          `SELECT s.coach_id, s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email, c.name AS candidate_name
+          `SELECT s.coach_id, s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email, ${CANDIDATE_NAMES}
              FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id JOIN candidate c ON c.id = s.candidate_id
             WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND ($4 OR s.scheduled_at IS NULL OR s.scheduled_at > $3)
             FOR UPDATE OF s`,
@@ -760,7 +776,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
           scheduledAt: session.scheduled_at,
           held,
           coach: { name: session.coach_name, email: session.coach_email },
-          candidateName: firstNameAndLastInitial(session.candidate_name ?? ""),
+          ...sessionCandidate(session),
         };
       });
       // Its Human Coach hears of it, as of a cancellation.

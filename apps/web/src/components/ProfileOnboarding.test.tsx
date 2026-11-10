@@ -44,6 +44,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
 
     const box = screen.getByLabelText("Votre réponse");
     expect(document.activeElement).toBe(box);
+    expect(box.getAttribute("rows")).toBe("1");
+    expect(box.closest(".coach-panel-composer-inline")).toBeTruthy();
     expect(within(thread()).getByText(/Bonjour, je suis votre coach Jobbbox/)).toBeTruthy();
     expect(within(thread()).getByText("Répondre aux questions de mon coach")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "J'ai un CV" })).toBeNull();

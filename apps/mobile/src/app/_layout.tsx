@@ -27,6 +27,7 @@ import { useClearAction } from "../coach/ClearConversation";
 import { PageConversationProvider } from "../coach/page-conversation";
 import { usePortraitOnPhones } from "../orientation";
 import { appFetch, appSession } from "../session/instance";
+import { AppIconBadge } from "../offer-box/AppIconBadge";
 import { AppPush, AppPushDevice } from "../push/app-push";
 import { showNotificationsInForeground } from "../push/device";
 import { SessionGate } from "../session/SessionGate";
@@ -46,7 +47,7 @@ showNotificationsInForeground();
  * theme, the session (signed out, the sign-in screen; #685), the read cache kept on the device, the optional app lock over
  * the signed-in app (#702), the legal steps after sign-in (the CGU to accept, the privacy policy's change, the EU AI
  * Consent; #689), the Push notifications (the device registered, forgotten at sign-out, a notification tapped opening
- * its page, asked for in context; #699), then the shell around every page.
+ * its page, asked for in context; #699), the app icon's badge of offers à traiter (#818), then the shell around every page.
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
@@ -66,6 +67,7 @@ export default function RootLayout() {
           <AppLock>
             <LegalSteps>
               <AppPush>
+                <AppIconBadge />
                 <AppShell />
               </AppPush>
             </LegalSteps>

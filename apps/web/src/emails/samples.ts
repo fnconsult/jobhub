@@ -31,6 +31,8 @@ export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail>
           { title: "Responsable financier", employer: "Cabinet Lumière", location: null, postedAt: null, score: 64, partial: true, url: `${APP_URL}/offres/offer-2?profil=profile-1` },
         ],
         digestUrl: `${APP_URL}/job-digests/digest-1`,
+        toHandle: 5,
+        offerBoxUrl: `${APP_URL}/recherches`,
         unsubscribeUrl: `${APP_URL}/desabonnement?token=t0k3n&lang=${language}`,
       },
       language,

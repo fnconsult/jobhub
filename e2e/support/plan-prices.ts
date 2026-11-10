@@ -58,7 +58,7 @@ export async function expectComparisonWithoutPrices(page: Page, server: PlanPric
   // The Plan comparison cards (#469). A Plan offered by plans.spec.ts while this runs is ranked after these three.
   const plans = page.getByRole("region", { name: fr.billing.page.comparisonTitle });
   await expect(plans.getByRole("article").first()).toBeVisible();
-  expect((await plans.getByRole("article").getByRole("heading").allInnerTexts()).slice(0, 3)).toEqual(["Gratuite", "Standard", "Premium"]);
+  expect((await plans.getByRole("article").getByRole("heading").allInnerTexts()).slice(0, 3)).toEqual(["Gratuit", "Standard", "Premium"]);
   await expect(plans.getByRole("article").first()).toContainText("Match Scores");
   await expect(page.locator(".plan-card-price")).toHaveCount(0);
   await expect(page.getByText("€")).toHaveCount(0);

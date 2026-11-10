@@ -7,7 +7,7 @@ import { createUnansweredQuestions, migrateUnansweredQuestions, purgeUnansweredQ
 const connectionString = process.env.DATABASE_URL;
 
 /** Marie's identity, as the AI layer knows it: what Redaction takes out. */
-const MARIE: CandidateIdentity = { fullName: "Marie Dupont", firstName: "Marie", lastName: "Dupont", email: "marie.dupont@example.fr", phone: "06 12 34 56 78" };
+const MARIE: CandidateIdentity = { fullName: "Marie Dupont", givenName: "Marie", lastName: "Dupont", email: "marie.dupont@example.fr", phone: "06 12 34 56 78" };
 
 /** A question the help has no article for, about using Jobbbox, that the AI Coach answered. */
 const QUOTA = "Pourquoi suis-je bloqué à cinq tentatives ?";

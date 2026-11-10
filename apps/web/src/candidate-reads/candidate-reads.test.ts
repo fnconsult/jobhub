@@ -5,7 +5,7 @@ import {
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
   coachingOrderResponseSchema,
-  coachingResponseSchema, jobDigestResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxOfferResponseSchema, offerBoxResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+  coachingResponseSchema, jobDigestResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxOfferResponseSchema, offerBoxResponseSchema, offersToHandleResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { rulesProvenance, type MasterCvContent } from "@jobhub/shared";
@@ -391,6 +391,19 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
         laterUntil: null,
       });
       expect(byOffer.get(followed)).toMatchObject({ state: "followed", applicationId: saved.application.id, followedAt: expect.any(String) });
+    });
+
+    it("gives the count of offers à traiter alone, as the app's menu and icon badge show it (#818)", async () => {
+      const daf = await createProfile(marie);
+      const found = await captureOffer();
+      const followed = await captureOffer("Directeur financier");
+      await searched(marie, daf, [found, followed]);
+      expect(overHttp(offersToHandleResponseSchema, await reads.offersToHandle(marie))).toEqual({ toHandle: 2 });
+
+      const saved = await applications.save(marie, { jobOfferId: followed, profileId: daf });
+      if (!saved.ok) throw new Error("fixture Application refused");
+      expect(overHttp(offersToHandleResponseSchema, await reads.offersToHandle(marie))).toEqual({ toHandle: 1 });
+      expect(overHttp(offersToHandleResponseSchema, await reads.offersToHandle(paul))).toEqual({ toHandle: 0 });
     });
 
     it("gives an entry « Écartée » with its Dismissal reason and when (#816)", async () => {

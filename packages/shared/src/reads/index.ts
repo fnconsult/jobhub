@@ -262,6 +262,14 @@ export const offerBoxResponseSchema = z.object({
 export type OfferBoxResponse = z.infer<typeof offerBoxResponseSchema>;
 
 /**
+ * `GET /api/offer-box/count`: how many of the Candidate's Offer box entries are à traiter now (#818), « Plus tard »
+ * included, « Expirées sans décision » not: the « N » of the app's « Recherches d'offres » and its icon's badge, read
+ * without the entries.
+ */
+export const offersToHandleResponseSchema = z.object({ toHandle: z.number().int().min(0) });
+export type OffersToHandleResponse = z.infer<typeof offersToHandleResponseSchema>;
+
+/**
  * `GET /api/offer-box/:id`: one Offer box entry's Job Offer as its Work Pane shows it in the app (#692), as a Job
  * Search's: its full text, its Job Offer Summary and why it has its Match Score, against the Profile « Suivre » saves it
  * with (the entry's `scoredWith`). Read when the entry opens, so the Offer box's own read stays light.

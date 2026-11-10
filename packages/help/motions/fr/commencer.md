@@ -19,7 +19,7 @@ Saisissez « Votre adresse e-mail », puis cliquez sur « Recevoir mon lien de c
 - open-email « Votre lien de connexion à Jobbbox »
 - click link « Me connecter à Jobbbox »
 
-Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuite. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».
+Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuit. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».
 
 ## Créer votre premier profil
 - click link « Créer mon premier profil »

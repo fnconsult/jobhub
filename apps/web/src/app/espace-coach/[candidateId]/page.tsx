@@ -23,7 +23,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return { title: `${candidate.name || candidate.email} · ${t("coachSpace.title")}`, robots: { index: false } };
 }
 
-/** What a Human Coach reads of a Candidate who granted them Coach Access: their Profiles and Applications, read only. */
+/**
+ * What a Human Coach reads of a Candidate who granted them Coach Access: their name, « Marie Dupont », with « se fait
+ * appeler Mimi » under it when their Preferred Name differs from their Given Name (#922); their Profiles and
+ * Applications, read only.
+ */
 export default async function CoachedCandidatePage({ params }: Params) {
   const { candidate, profiles, applications } = await candidateFile(params);
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
@@ -34,6 +38,9 @@ export default async function CoachedCandidatePage({ params }: Params) {
         <Link href={routes.coachSpace}>{t("coachSpace.back")}</Link>
       </p>
       <h1>{candidate.name || candidate.email}</h1>
+      {candidate.calledBy ? (
+        <p className="hint">{t("coachSpace.calledBy", { name: candidate.calledBy })}</p>
+      ) : null}
       <p className="notice">{t("coachSpace.readOnly")}</p>
 
       <section className="stack" aria-labelledby="applications-title">

@@ -12,7 +12,21 @@ export function useAutoGrow(box: RefObject<HTMLTextAreaElement | null>, value: s
   useLayoutEffect(() => {
     const element = box.current;
     if (!element || sizesToContent()) return;
-    element.style.height = "auto";
-    element.style.height = `${element.scrollHeight}px`;
-  }, [box, value]);
+    const measure = () => {
+      element.style.height = "auto";
+      element.style.height = `${element.scrollHeight}px`;
+    };
+    void value;
+    measure();
+    let width = element.getBoundingClientRect().width;
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      const nextWidth = element.getBoundingClientRect().width;
+      if (nextWidth === width) return;
+      width = nextWidth;
+      measure();
+    });
+    observer?.observe(element);
+    return () => observer?.disconnect();
+    // Also reconnect when a conditionally rendered composer mounts with the same draft.
+  });
 }

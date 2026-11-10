@@ -1,5 +1,6 @@
 import { API_VERSION } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
+import extensionPackage from "../package.json";
 import { API_VERSION_HEADERS, createExtensionUpdate, UPDATE_HELP_PATH, UPDATE_STORAGE_KEY, updateHref, updateRequiredBy, type UpdateStorage } from "./extension-update";
 
 const STORE = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
@@ -17,8 +18,9 @@ function localStorage() {
 }
 
 describe("« Mettez à jour l'extension » (#564)", () => {
-  it("states the API Version this build speaks", () => {
-    expect(API_VERSION_HEADERS).toEqual({ "Jobbbox-Api-Version": String(API_VERSION) });
+  it("states the API Version this build speaks, and its Extension Version (#924): package.json's, the manifest's", () => {
+    expect(API_VERSION_HEADERS).toEqual({ "Jobbbox-Api-Version": String(API_VERSION), "Jobbbox-Extension-Version": extensionPackage.version });
+    expect(extensionPackage.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it("reads the update asked from the web app's 426 and its stable code only", () => {

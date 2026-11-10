@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { IntroPage } from "@/admin/page-intro";
 import { requireBackOffice } from "@/admin/server";
-import { aiUsageMonths, aiUsagePeriod, type AiUsageRow, type FailureReasonCount } from "@/ai-usage";
+import { aiUsageMonths, aiUsagePeriod, aiUsageSurfaceFilter, SURFACE_FILTERS, type AiUsageRow, type FailureReasonCount } from "@/ai-usage";
 import { aiUsageReportOf } from "@/ai-usage/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
@@ -43,16 +43,18 @@ export async function generateMetadata(): Promise<Metadata> {
  * and the external API calls, over a period, in totals and per provider, endpoint and model, task and day
  * (or month), and its failed and warned calls per Failure Reason (#262): codes and their wording only,
  * never a technical reason. Read-only. A billed tool whose price is not known shows « prix inconnu » with its uses,
- * counted 0; a banner says when this month's web search spend reached its alert threshold (#403).
+ * counted 0; a banner says when this month's web search spend reached its alert threshold (#403). « Origine » keeps the AI
+ * calls asked from one Surface (#919), « Inconnue » those recorded with none; the external APIs, which record none, stay.
  */
-export default async function AiUsagePage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
+export default async function AiUsagePage({ searchParams }: { searchParams: Promise<{ periode?: string; origine?: string }> }) {
   const { access } = await requireBackOffice("aiUsage");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const requested = (await searchParams).periode;
+  const { periode: requested, origine } = await searchParams;
   const now = new Date();
   const period = aiUsagePeriod(requested, now);
-  const [report, alert] = await Promise.all([aiUsageReportOf(period.key), currentWebSearchAlert()]);
+  const surface = aiUsageSurfaceFilter(origine);
+  const [report, alert] = await Promise.all([aiUsageReportOf(period.key, { surface }), currentWebSearchAlert()]);
   const { totals } = report;
   // The EUR/USD rate in use (#403): the Back Office's, else env's, else the code's.
   const eurPerUsd = pricesFromEnv(getPlatformSettingsResolver().current().env).eurPerUsd;
@@ -141,6 +143,16 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
                   </option>
                 ))}
               </optgroup>
+            </Select>
+          </Field>
+          <Field label={t("admin.aiUsage.surface")}>
+            <Select name="origine" defaultValue={surface ?? ""}>
+              <option value="">{t("admin.aiUsage.anySurface")}</option>
+              {SURFACE_FILTERS.map((key) => (
+                <option key={key} value={key}>
+                  {t(`admin.aiUsage.surfaces.${key}`)}
+                </option>
+              ))}
             </Select>
           </Field>
           <button type="submit" className={buttonClass()}>
@@ -279,6 +291,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
 
         <section className="section-block" aria-labelledby="external-title">
           <h2 id="external-title">{t("admin.aiUsage.externalTitle")}</h2>
+          {surface ? <p className="section-meta">{t("admin.aiUsage.surfaceExternal")}</p> : null}
           {report.externalApis.length === 0 ? (
             <p>{t("admin.aiUsage.noExternal")}</p>
           ) : (

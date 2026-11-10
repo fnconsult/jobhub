@@ -120,8 +120,8 @@ test.describe("the Ground Coach reply prompt", () => {
     expect(prompt).toMatch(/aucun chiffre ni statistique qui ne figure pas dans le socle ou un avis/);
     expect(prompt).toMatch(/conseil général, sans chiffre/);
     expect(prompt).toMatch(/<socle version="1">\n# Socle de coaching/);
-    expect(prompt.indexOf("<socle")).toBeLessThan(prompt.indexOf("Le candidat s'appelle Marie"));
-    expect(prompt.indexOf("<avis-playbook")).toBeLessThan(prompt.indexOf("Le candidat s'appelle Marie"));
+    expect(prompt.indexOf("<socle")).toBeLessThan(prompt.indexOf("Le candidat n'a pas donné le nom à employer."));
+    expect(prompt.indexOf("<avis-playbook")).toBeLessThan(prompt.indexOf("Le candidat n'a pas donné le nom à employer."));
   });
 });
 
@@ -134,7 +134,7 @@ test.describe("the 12k-token cap", () => {
     expect(tokens(prompt)).toBeLessThanOrEqual(12_000);
     expect(prompt).toContain("(la suite est coupée)");
     expect(ids(prompt)).toEqual(["core-digest", "cv-offer-fit-scoring"]);
-    expect(prompt).toContain("Le candidat s'appelle Marie");
+    expect(prompt).toContain("Le candidat n'a pas donné le nom à employer.");
   });
 });
 

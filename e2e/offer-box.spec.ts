@@ -377,6 +377,59 @@ test.describe("The Offer box (#815, ADR-0090)", () => {
 
 // The deployment's backfill and the nightly purge, on a database of their own: `npm run db:migrate` fills the Offer box
 // from the last 30 days, and runs again without changing it (ADR-0090).
+test.describe("The counter of offers à traiter (#818, ADR-0090)", () => {
+  test("« Plus tard » counts; « Expirée sans décision », « Suivie » and « Écartée » do not; the Sidebar's « Recherches d'offres » and GET /api/offer-box/count carry the number, nothing at zero", async ({ browser }) => {
+    const ines = await candidate(browser, "offer-box-counter");
+    const sidebar = ines.page.getByRole("navigation", { name: fr.sidebar.label });
+    const count = async () => ((await (await ines.page.request.get("/api/offer-box/count")).json()) as { toHandle: number }).toHandle;
+    expect(await count()).toBe(0);
+    await ines.page.goto("/recherches");
+    await expect(sidebar.getByRole("link", { name: "Recherches d'offres", exact: true })).toBeVisible();
+
+    const seeded = await withDatabase(databaseUrl, async (db) => {
+      const made: Record<string, { entry: string; offer: string }> = {};
+      for (const [key, postedDaysAgo] of [["todo", 1], ["later", 1], ["expired", 40], ["followed", 1], ["dismissed", 1]] as const) {
+        const offer = await db.query(
+          `INSERT INTO job_offer (url_key, content_fingerprint, source_url, title, content, posted_at) VALUES ($1, $1, $2, $3, 'Un poste.', now() - make_interval(days => $4)) RETURNING id`,
+          [`ct-${tag}-${key}`, `https://emploi-e2e.example/${tag}/ct-${key}`, `Compteur ${key} ${tag}`, postedDaysAgo],
+        );
+        const entry = await db.query(
+          `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
+           VALUES ($1, $2, $3, now(), jsonb_build_object('job_search', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))) RETURNING id`,
+          [ines.candidateId, offer.rows[0].id, ines.profileId],
+        );
+        made[key] = { entry: entry.rows[0].id, offer: offer.rows[0].id };
+      }
+      return made;
+    });
+    // Neither the « Expirée sans décision » one nor the not yet decided others are « Suivie » or « Écartée » yet.
+    expect(await count()).toBe(4);
+    const post = (id: string, suffix: string) => ines.page.request.post(`/api/offer-box/${id}/${suffix}`, { headers: { origin }, data: {} });
+    expect((await post(seeded.later!.entry, "later")).ok()).toBe(true);
+    expect(await count()).toBe(4);
+    expect((await post(seeded.dismissed!.entry, "dismissal")).ok()).toBe(true);
+    expect(await count()).toBe(3);
+    const saved = await ines.page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId: seeded.followed!.offer, profileId: ines.profileId } });
+    expect(saved.ok(), await saved.text()).toBe(true);
+    expect(await count()).toBe(2);
+
+    await ines.page.goto("/recherches");
+    await expect(sidebar.getByRole("link", { name: /^Recherches d'offres\s*, 2 offres à traiter$/ })).toBeVisible();
+    expect(await ines.page.request.get("/api/offer-box/count").then((r) => r.status())).toBe(200);
+
+    // Everything decided: nothing beside the entry, not even « 0 ».
+    expect((await post(seeded.todo!.entry, "dismissal")).ok()).toBe(true);
+    expect((await post(seeded.later!.entry, "dismissal")).ok()).toBe(true);
+    expect(await count()).toBe(0);
+    await ines.page.reload();
+    await expect(sidebar.getByRole("link", { name: "Recherches d'offres", exact: true })).toBeVisible();
+  });
+
+  test("the count is the signed-in Candidate's only", async ({ request }) => {
+    expect((await request.get("/api/offer-box/count")).status()).toBe(401);
+  });
+});
+
 test.describe("The Offer box at deployment and every night (#815)", () => {
   const url = new URL(databaseUrl);
   url.pathname = `${url.pathname}_offer_box`;

@@ -11,7 +11,7 @@ A person with an account who is looking for a job. Owns one or more Profiles.
 _Avoid_: User (in domain discussions), applicant, job seeker
 
 **Given Name**:
-The Candidate's first name as they enter it in Mon compte › Identité (« Prénom »). With the Family Name, it is the formal identity used on the Withdrawal form and invoices and shown to a Human Coach.
+The Candidate's first name as they enter it in Mon compte › Identité (« Prénom »). With the Family Name, it is the formal identity shown to a Human Coach, on invoices, and prefilling the Withdrawal form (never the Preferred Name).
 _Avoid_: First word of the name, CV first name
 
 **Family Name**:
@@ -93,7 +93,7 @@ A Human Coach's feedback on one Tailored Document of an Application. The Candida
 _Avoid_: Comment, annotation
 
 **Coach space**:
-A Human Coach's pages, under their own Sidebar (Aujourd'hui, Mes Candidates, Mes séances, Disponibilités, Profil public, Revenus, Contrat, Aide), each a single column of cards (ADR-0099): today's sessions and what needs action; each Candidate's page (their sessions with this coach and the coach's Private Coach Notes; under Coach Access only, their Profiles, Applications and Tailored Documents, read-only, and the form for Coach Reviews); their own Coaching Sessions (the Candidate shown as first name and last initial, no Coach Access needed), before, during (Shared Reading) and after (Session Report); availability, their Coach Page, Coach Earnings and the B2B contract to accept by version. They see no Agenda and no Coach Conversation. An Association has a space of the same kind, without Candidates.
+A Human Coach's pages, under their own Sidebar (Aujourd'hui, Mes Candidates, Mes séances, Disponibilités, Profil public, Revenus, Contrat, Aide), each a single column of cards (ADR-0099): today's sessions and what needs action; each Candidate's page (their sessions with this coach and the coach's Private Coach Notes; under Coach Access only, their Profiles, Applications and Tailored Documents, read-only, and the form for Coach Reviews); their own Coaching Sessions (the Candidate shown as Prénom and Nom initial, « Marie D. », plus « se fait appeler Mimi » when the Preferred Name differs from the Prénom, no Coach Access needed; the Coach Access pages show « Marie Dupont · se fait appeler Mimi », falling back to the account's name, then to the email), before, during (Shared Reading) and after (Session Report); availability, their Coach Page, Coach Earnings and the B2B contract to accept by version. They see no Agenda and no Coach Conversation. An Association has a space of the same kind, without Candidates.
 _Avoid_: Coach dashboard
 
 **Retired Human Coach**:
@@ -724,7 +724,7 @@ The Candidate's choice of how large all interface text is shown, on a four-step 
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle conversation », « Coach » with the Free conversations and « Mémoire du coach », then links to their pages, each a Coach Conversation that unfolds into the objects **à traiter** (at most 10), filled up to 5 with the most recent others (latest saved), then « Tout voir (N) »; the open object is highlighted rather than its menu. Each menu's fold, « Coach » included, is remembered in that browser; at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle conversation », « Coach » with the Free conversations and « Mémoire du coach », then links to their pages, each a Coach Conversation that unfolds into the objects **à traiter** (at most 10), filled up to 5 with the most recent others (latest saved), then « Tout voir (N) »; the open object is highlighted rather than its menu. Each menu's fold, « Coach » included, is remembered in that browser; at its foot the Usage Meter, then the account button: a badge of the Candidate's initials (the stand-in for a future photo), the name the Sidebar calls them by (Preferred Name, else Given Name, else « Mon compte ») and their Plan, opening a menu with their name and email, Aide et légal, Mon compte, « Mon abonnement » and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
 
 **Fiche**:
@@ -832,6 +832,9 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 One thing the extension did, recorded for the Back Office: a Capture, a Match Score, a CV draft, a Profile or an Application made from it, or an error (a page that cannot be captured, a failed call, an unexpected failure). It holds when, which kind, the Candidate or « Invité », the extension's version and, for an error, its code, where it happened and the page's domain only, never its address or text. A Guest's Extension Events are not tied to any identifier.
 _Avoid_: Tracking, analytics event, log line
 
+**Extension error code**:
+What an error Extension Event says went wrong: `captureImpossible` (the page cannot be captured), `callFailed` (a call to Jobbbox failed: 4xx, 5xx or network, never the 426 update answer) or `unexpected` (any other failure in the extension). Reported once, never retried, never blocking.
+
 **Jobbbox app**:
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
 _Avoid_: Mobile site, PWA, native client
@@ -932,6 +935,7 @@ _Avoid_: Release, go-live, prod deploy
 
 **Extension Version**:
 The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token.
+The extension states it in `Jobbbox-Extension-Version` on every call. The API Version's guard also refuses an extension older than `MINIMUM_EXTENSION_VERSION` (0.2.0: nothing refused yet), with the same 426 update answer (ADR-0104).
 _Avoid_: Version (for the extension)
 
 **API Version**:
@@ -1188,7 +1192,7 @@ The Back Office page where Administrators read the Back Office Audit, newest fir
 _Avoid_: Audit page, changelog
 
 **AI Usage**:
-What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost; a Tool's billed units at its Price), duration, Outcome (ok, warning or failed) and the Failure Reason's code, also for a call stopped before it was sent (missing configuration, data residency); with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period, with failures and warnings counted per Failure Reason (also on Outils).
+What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost; a Tool's billed units at its Price), duration, Outcome (ok, warning or failed) and the Failure Reason's code, also for a call stopped before it was sent (missing configuration, data residency); with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). Each call keeps its Surface (#919). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period, with failures and warnings counted per Failure Reason (also on Outils).
 _Avoid_: AI bill, token log, metering
 
 **Turn**:
@@ -1210,8 +1214,12 @@ A Platform Setting giving a Tool's cost per Billed unit; its code default is the
 One email per month to super-admins, and a banner in Consommation IA, when the Paris-time month's web search spend (recorded cost at list price, no free allowance deducted) reaches `WEB_SEARCH_MONTHLY_ALERT_EUR`; 0 sends nothing. It never cuts a search.
 
 **AI Message Log**:
-What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came (none when the call failed, or was not sent), keys and secrets scrubbed, with the Candidate it was made for (none when the call was for no Candidate: a Guest's, shown « Invité », or a test's, shown « Eval / test », an Eval Run's or a route's test call, marked `UsageEntry.test`), and the call's Outcome with its Failure Reason, technical detail included; for an AI Coach reply, the estimate of its context beside the provider's count of input tokens, with the gap. Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. The Candidate's Data export holds each failed call's Failure Reason code and French wording, never its technical detail. Only super-admins read it, on the Appels IA tab of the Back Office Activity page, filterable by Outcome and Failure Reason, and every log they open is written to the Back Office Audit.
+What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came (none when the call failed, or was not sent), keys and secrets scrubbed, with the Candidate it was made for (none when the call was for no Candidate: a Guest's, shown « Invité », or a test's, shown « Eval / test », an Eval Run's or a route's test call, marked `UsageEntry.test`), and the call's Outcome with its Failure Reason, technical detail included; for an AI Coach reply, the estimate of its context beside the provider's count of input tokens, with the gap. Each log keeps its Surface (#919). Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. The Candidate's Data export holds each failed call's Failure Reason code and French wording, never its technical detail. Only super-admins read it, on the Appels IA tab of the Back Office Activity page, filterable by Outcome and Failure Reason, and every log they open is written to the Back Office Audit.
 _Avoid_: Prompt log, transcript, chat history
+
+**Surface**:
+Where an AI call was asked from: `web`, `extension` (the extension's Side Panel), `app` (the Jobbbox app) or `worker` (a background job), kept on its AI Usage line and its AI Message Log entry (#919, ADR-0103). Worked out from the same headers as the origin check (Origin, the app's client header, an extension GET by `Sec-Fetch-Site: none`), so it is a measure for the Back Office, not a guarantee: a client outside a browser can forge them. Labelled « Origine » in the Back Office (filters on Consommation IA and Appels IA), « Inconnue » when empty, as on every older call and on requests that send no Origin (Back Office server actions, page renders). External API calls record none. Never changes what a request does.
+_Avoid_: Origin (the Coach proposal applied, also labelled « Origine »), channel, source, client
 
 **Call facts**:
 What every AI call result carries about the call itself: the endpoint with its region, the duration and the Outcome (ok or warning), the same values written to AI Usage, so Provenance can keep them. A call the Candidate stops fails with Failure Reason `stopped`; a Company News search is the only search that otherwise never fails, and it now fails when stopped, so the Company Dossier is not built without news.

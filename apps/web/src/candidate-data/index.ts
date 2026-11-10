@@ -11,7 +11,7 @@
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
- *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent
+ *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent; their Extension Events (#924)
  *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049); their Offer box (ADR-0090). Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
@@ -65,11 +65,13 @@ import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
 import { signalementsOf, type Signalement } from "../signalements";
+import { extensionEventsOf, type ExportedExtensionEvent } from "../extension-events";
 import { ordersOf, type ExportedOrder } from "../orders";
 import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
 import { twoStepStatusOf, type TwoStepStatus } from "../two-step-verification";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { Origin } from "../origin";
+import type { Surface } from "../request-surface";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
 export interface ExportedProfile {
@@ -357,6 +359,11 @@ export interface CandidateDataExport {
    */
   signalements: Signalement[];
   /**
+   * What the Candidate did from the browser extension (#924), newest first, for the 12 months kept: each Extension Event's
+   * kind, date, Extension Version and object, and an error's code, route, HTTP status, place, browser and page's domain.
+   */
+  extensionEvents: ExportedExtensionEvent[];
+  /**
    * Every Order the Candidate placed on the page before Stripe Checkout (#512), oldest first: what it was for, the CGV
    * version accepted with it, the Immediate Performance Request, and when its confirmation went; no Stripe identifiers.
    */
@@ -405,6 +412,8 @@ export interface ExportedAiMessageLog {
   reason: { code: FailureReason; wording: string } | null;
   /** What its feature did instead (#260), each code with its wording; never what happened, which is technical. */
   warnings: { code: FailureReason; wording: string }[];
+  /** Where the call was asked from (#919): `web`, `extension`, `app`, `worker`; null when not known. */
+  surface: Surface | null;
   system: string | null;
   messages: { role: string; content: string }[];
   reply: string | null;
@@ -474,6 +483,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
   signalement: "signalements (with their context, status and the team's reply; never which Administrator handled them)",
+  extension_event: "extensionEvents (what they did from the extension and its errors, the 12 months kept: kind, date, Extension Version, object; an error's code, route, status, place, browser and page's domain, #924)",
   checkout_order: "orders (what was ordered, the CGV version accepted, the Immediate Performance Request, when it was ordered and confirmed; no Stripe identifiers)",
   withdrawal: "withdrawals (the contract, its dates, the name and address given, when the acknowledgement went; no Stripe identifiers)",
   withdrawal_refund: "withdrawals[].refunds (amount, currency and status; no Stripe identifiers)",
@@ -793,7 +803,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, offerBox, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -866,7 +876,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         rowsOf<Omit<ExportedAiMessageLog, "reason" | "warnings"> & { reason: string | null; warnings: string[] }>(
-          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.system, m.messages, m.reply
+          `SELECT m.id, m.at, u.task, u.provider, u.model, u.outcome, u.reason, u.warnings, m.surface, m.system, m.messages, m.reply
              FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id WHERE m.candidate_id = $1 ORDER BY m.at DESC, m.id`,
           candidateId,
         ).then((logs) =>
@@ -877,6 +887,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           })),
         ),
         signalementsOf(database, candidateId),
+        extensionEventsOf(database, candidateId),
         ordersOf(database, candidateId),
         withdrawalsOf(database, candidateId),
         privateJobOffersOf(database, candidateId),
@@ -884,7 +895,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, offerBox };
+      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
     },
 
     async delete(candidateId) {

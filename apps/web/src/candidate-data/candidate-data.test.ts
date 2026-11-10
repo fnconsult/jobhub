@@ -38,6 +38,7 @@ import { createTailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments } from "../tailored-documents";
 import { createAppointmentReminders } from "../appointment-reminders";
 import { createSignalements } from "../signalements";
+import { createExtensionEvents, recordExtensionAction } from "../extension-events";
 import { createDiscoveryRuns } from "../discovery-runs";
 import { createTargetCompanies } from "../target-companies";
 import { createTwoStepVerification } from "../two-step-verification";
@@ -552,9 +553,10 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
-  it("the export holds the AI Message Log of the Candidate's own AI calls, newest first, without what they cost; account deletion takes it", async () => {
+  it("the export holds the AI Message Log of the Candidate's own AI calls, newest first, with the Surface each was asked from (#919), without what they cost; account deletion takes it", async () => {
     const other = await signIn("jean.martin@example.fr");
-    const usage = createPostgresUsageLog(database);
+    // Asked from the extension (#919): the export says so.
+    const usage = createPostgresUsageLog(database, { surface: () => "extension" });
     const pending: Promise<unknown>[] = [];
     let at = new Date("2026-10-16T08:00:00Z");
     const ai = createAiLayer({
@@ -570,7 +572,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await Promise.all(pending);
 
     expect((await candidateData.export(candidateId)).aiMessageLog).toEqual([
-      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", outcome: "ok", reason: null, warnings: [], system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
+      { id: expect.any(String), at: new Date("2026-10-17T08:00:00Z"), task: "coaching", provider: "mistral", model: "fake-mistral", outcome: "ok", reason: null, warnings: [], surface: "extension", system: null, messages: [{ role: "user", content: "Merci" }], reply: "Bonjour Marie" },
       expect.objectContaining({ at: new Date("2026-10-16T08:00:00Z"), system: "Tu es le coach.", messages: [{ role: "user", content: "Bonjour" }] }),
     ]);
 
@@ -1208,6 +1210,27 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(await emailIntake.candidateAt(address)).toBeNull();
     expect((await database.query("SELECT 1 FROM forwarding_address WHERE candidate_id = $1 UNION ALL SELECT 1 FROM sending_address WHERE candidate_id = $1", [candidateId])).rows).toEqual([]);
     expect((await candidateData.export(other)).emailIntake.forwardingAddresses).toHaveLength(1);
+  });
+
+  it("the export holds the Candidate's Extension Events, and deleting the account deletes them, no one else's nor a Guest's (#924)", async () => {
+    const other = await signIn("paul.martin@example.fr");
+    const jobOfferId = "0b6c2f1e-1111-4111-8111-111111111111";
+    await recordExtensionAction(database, { candidateId, extensionVersion: "0.2.0" }, "capture", { type: "job_offer", id: jobOfferId });
+    await createExtensionEvents(database).report({ candidateId, extensionVersion: "0.2.0" }, { errorCode: "captureImpossible", place: "side_panel", pageDomain: "www.indeed.fr" }, { userAgent: null, requester: candidateId });
+    await recordExtensionAction(database, { candidateId: other, extensionVersion: "0.2.0" }, "capture");
+    await recordExtensionAction(database, { candidateId: null, extensionVersion: "0.2.0" }, "capture");
+
+    const exported = (await candidateData.export(candidateId)).extensionEvents;
+
+    expect(exported.map((event) => event.kind).sort()).toEqual(["capture", "error"]);
+    expect(exported).toContainEqual(expect.objectContaining({ kind: "capture", extensionVersion: "0.2.0", object: { type: "job_offer", id: jobOfferId } }));
+    expect(exported).toContainEqual(expect.objectContaining({ kind: "error", error: expect.objectContaining({ code: "captureImpossible", pageDomain: "www.indeed.fr" }) }));
+
+    await candidateData.delete(candidateId);
+
+    expect((await database.query("SELECT 1 FROM extension_event WHERE candidate_id = $1", [candidateId])).rows).toEqual([]);
+    expect((await candidateData.export(other)).extensionEvents).toHaveLength(1);
+    expect((await database.query("SELECT 1 FROM extension_event WHERE candidate_id IS NULL")).rows).toHaveLength(1);
   });
 
   it("deleting the account deletes the Candidate's Signalements, and no one else's (#374)", async () => {

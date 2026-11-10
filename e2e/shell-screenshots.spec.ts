@@ -7,7 +7,8 @@ import { comparesScreenshots } from "./support/screenshots";
 import { expectTextContrast, themedName, THEMES } from "./support/theme";
 
 // Issue #464: the shell in the Design System (ADR-0053), shared by both sides (SidebarShell): the Sidebar on the nav
-// surface with the Usage Meter at its foot and the Signalement icon on « Mon compte »'s row, the Top Bar with AI
+// surface with the Usage Meter at its foot and the Signalement icon on « Mon compte »'s row (the Candidate's name and
+// Plan since #923), the Top Bar with AI
 // Activity and « Aide et coach ». Screenshot baselines of the shell on a Candidate page (Confort) and a Back Office
 // page (Compact), light and dark (#473), at three widths, and on a phone its drawer too. Only the shell is compared: the page in
 // `<main>` is masked, each page's ticket brings its own baseline (#465 to #469).
@@ -96,6 +97,9 @@ for (const theme of THEMES) for (const viewport of WIDTHS) {
         data: { masterCv, searchCriteria: { targetRole: masterCv.headline, locations: ["Lyon"], contractTypes: ["cdi"] } },
       });
       expect(response.status()).toBe(201);
+      // Named (#923): « Mon compte » shows the Preferred Name and the Plan, beside the initials.
+      const named = await page.request.put("/api/account/identity", { headers: { origin }, data: { givenName: "Catherine", familyName: "Morel", preferredName: "Catherine" } });
+      expect(named.ok()).toBe(true);
       await page.goto("/candidatures");
       await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
       await expect(page.getByRole("progressbar", { name: fr.usageMeter.title })).toHaveCount(viewport.name === "phone" ? 0 : 1);

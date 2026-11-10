@@ -1,5 +1,7 @@
 "use client";
 
+import { useAutoGrow } from "@/design/auto-grow";
+
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft } from "@/cv";
@@ -60,6 +62,7 @@ export function ProfileOnboarding() {
   const [reviewOpening, setReviewOpening] = useState(0);
   const [edits, setEdits] = useState<ReviewEdits | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(box, value);
   const firstChoice = useRef<HTMLButtonElement>(null);
   const question = step.kind === "questionnaire" ? currentQuestion(questionnaire) : null;
   const reviewShown = pane?.item?.kind === REVIEW && pane.item.href === REVIEW_HREF;
@@ -197,7 +200,7 @@ export function ProfileOnboarding() {
                   </button>
                 </Suggestions>
               ) : null}
-              <form className="coach-panel-form" onSubmit={submit} noValidate>
+              <form className="coach-panel-form coach-panel-form-inline" onSubmit={submit} noValidate>
                 <label className="visually-hidden" htmlFor={id}>
                   {t("questionnaire.answerLabel")}
                 </label>
@@ -212,11 +215,11 @@ export function ProfileOnboarding() {
                   </p>
                 ) : null}
                 {/* The Send button sits inside the box; a click anywhere in the box writes in it. */}
-                <div className="coach-panel-composer" onClick={(event) => event.target === event.currentTarget && box.current?.focus()}>
+                <div className="coach-panel-composer coach-panel-composer-inline" onClick={(event) => event.target === event.currentTarget && box.current?.focus()}>
                   <textarea
                     id={id}
                     ref={box}
-                    rows={question.kind === "multiline" ? 4 : 2}
+                    rows={1}
                     placeholder={t("questionnaire.answerLabel")}
                     value={value}
                     required={!question.optional}

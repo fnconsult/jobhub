@@ -141,6 +141,22 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       expect(fcm.sent).toEqual([{ token: PIXEL, environment: "production", message: expect.objectContaining({ path: "/recherches/7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" }) }]);
     });
 
+    it("carries the person's offers à traiter at sending, the app icon's badge (#818); none when it cannot be counted", async () => {
+      const marie = await signIn("marie@example.fr");
+      await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
+      await push.register(marie, { platform: "android", token: PIXEL, language: "fr" });
+      const counted: string[] = [];
+      const badged = createPushNotifications(database, { senders: () => senders, now: () => clock.now, badge: async (personId) => (counted.push(personId), 4) });
+      await badged.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" });
+
+      expect([...apns.sent, ...fcm.sent].map(({ message }) => message.badge)).toEqual([4, 4]);
+      expect(counted).toEqual([marie.id]);
+
+      const failing = createPushNotifications(database, { senders: () => senders, now: () => clock.now, badge: async () => Promise.reject(new Error("down")) });
+      expect(await failing.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({ sent: 2, failed: 0, removed: 0 });
+      expect(apns.sent.at(-1)!.message).not.toHaveProperty("badge");
+    });
+
     it("sends nothing for an event the person switched off, and the test whatever the switches", async () => {
       const marie = await signIn("marie@example.fr");
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });

@@ -1,6 +1,6 @@
 import { API_VERSION, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { createExtensionUpdate, type UpdateStorage } from "./extension-update";
+import { createExtensionUpdate, EXTENSION_VERSION, type UpdateStorage } from "./extension-update";
 import { createJobbboxApi } from "./jobbbox-api";
 
 const WEB_ORIGIN = "https://app.jobbbox.fr";
@@ -47,6 +47,8 @@ describe("the Jobbbox API, from the extension", () => {
 
     expect(app.calls).toHaveLength(6);
     for (const { init } of app.calls) expect(new Headers(init.headers).get("Jobbbox-Api-Version")).toBe(String(API_VERSION));
+    // And the Extension Version (#924), kept with each Extension Event the web app writes.
+    for (const { init } of app.calls) expect(new Headers(init.headers).get("Jobbbox-Extension-Version")).toBe(EXTENSION_VERSION);
     // The JSON calls still say what they send.
     expect(new Headers(app.calls[0]?.init.headers).get("content-type")).toBe("application/json");
   });
@@ -258,5 +260,25 @@ describe("the Jobbbox API, from the extension", () => {
     outdated = false;
     expect(await api.capture({ source: {}, title: "DAF", content: "Poste." })).toEqual({ ok: true, jobOffer });
     expect(await update.required()).toBeNull();
+  });
+
+  it("tells every call that failed, by its route and HTTP status (0: the network), for the extension's error reports (#924)", async () => {
+    const failures: { route: string; httpStatus: number }[] = [];
+    const app = webApp({
+      "/api/job-offers": () => Response.json({ errors: [] }, { status: 500 }),
+      "/api/match-score": () => Response.json({ error: "extension_outdated", storeUrl: null }, { status: 426 }),
+      "/api/profiles": () => Response.json([]),
+    });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch, undefined, (failure) => failures.push(failure));
+
+    await api.capture({ source: {}, title: "DAF", content: "Poste." });
+    await api.saveApplication("jo-1", "p-1"); // not answered: the network
+    await api.score("jo-1", { profileId: "p-1" }); // an update asked, said in the Side Panel instead
+    await api.profiles();
+
+    expect(failures).toEqual([
+      { route: "/api/job-offers", httpStatus: 500 },
+      { route: "/api/applications", httpStatus: 0 },
+    ]);
   });
 });

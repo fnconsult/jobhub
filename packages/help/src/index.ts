@@ -24,6 +24,8 @@ import { BACK_OFFICE_HELP_TOPICS, PUBLIC_HELP_TOPICS, type BackOfficeHelpTopic, 
 
 export {
   isLegalTextId,
+  isPublicLegalTextId,
+  ALL_LEGAL_TEXTS,
   LEGAL_TEXT_ANCHORS,
   LEGAL_TEXT_CHANGES,
   LEGAL_TEXT_DAY,

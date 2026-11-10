@@ -1,4 +1,5 @@
-import {getCoachEnrolments} from "@/coach-enrolments/server";
+import {getCoachContracts} from "@/coach-contracts/server";
+import {coachSpaceV2On} from "@/coach-space/server";
 import {redirect} from "next/navigation";
 import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
@@ -20,6 +21,7 @@ export function getHumanCoaches(): HumanCoaches {
     tailoredDocuments: getTailoredDocuments(),
     tailoredCvs: getTailoredCvs(),
     push: getPushNotifications(),
+    mayEnter: (person,id) => coachSpaceV2On() ? getCoachContracts().mayEnter(person,id) : Promise.resolve(true),
   });
   return instance;
 }
@@ -39,9 +41,18 @@ export async function requireHumanCoach(): Promise<HumanCoach> {
   if (!person) return signInRedirect();
   const coach = await getHumanCoaches().coachSignedIn(person);
   if (!coach) {
-    const approved=(await getCoachEnrolments().approvedActive(person)).length>0;
+    const approved=(await getCoachContracts().actors(person)).length>0;
     if(approved)redirect("/espace-coach/contrat");
     notFound();
   }
   return coach;
+}
+
+/** Navigation identity only: the destination still enforces contract acceptance before any Candidate access. */
+export async function hasHumanCoachIdentity(person:{email:string;emailVerified:boolean}):Promise<boolean> {
+  return coachSpaceV2On() ? (await getCoachContracts().actors(person)).some(actor=>actor.kind==="coach") : (await getHumanCoaches().coachSignedIn(person))!==null;
+}
+export async function currentHasHumanCoachIdentity():Promise<boolean> {
+  const person=await getCurrentCandidate();
+  return person ? hasHumanCoachIdentity(person) : false;
 }

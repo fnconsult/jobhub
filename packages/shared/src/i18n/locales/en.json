@@ -5767,7 +5767,8 @@
       "cgu": "Terms of use",
       "cgv": "Terms of sale",
       "confidentialite": "Privacy policy",
-      "mentions-legales": "Legal notice"
+      "mentions-legales": "Legal notice",
+      "contrat-coach": "Coach agreement"
     },
     "effective": "In effect since {{date}}",
     "effectiveFrom": "In effect from {{date}}",
@@ -5821,7 +5822,8 @@
       "then": {
         "cgu": "The first time you sign in from {{date}}, Jobbbox will ask you to accept this new version. Until then, nothing changes for you.",
         "cgv": "It will apply to your purchases from {{date}}. A purchase already made keeps the terms accepted then.",
-        "confidentialite": "You have nothing to accept: it applies from {{date}}."
+        "confidentialite": "You have nothing to accept: it applies from {{date}}.",
+        "contrat-coach": "From {{date}}, you must accept this version to continue in your workspace."
       },
       "read": "Read the new version",
       "history": "Version history",
@@ -6763,5 +6765,13 @@
       "footer": "You receive this email in response to your application to become a coach on Jobbbox."
     },
     "bookingPending": "Configure after accepting the contract"
+  },
+  "coachContract": {
+    "stale": "The version to accept has changed. Read the agreement and try again.",
+    "agree": "I have read and accept the Coach agreement, version {{version}}.",
+    "accept": "Accept agreement",
+    "upToDate": "Your agreement is up to date.",
+    "history": "Your acceptances",
+    "accepted": "Version {{version}} · accepted on {{date}}"
   }
 }

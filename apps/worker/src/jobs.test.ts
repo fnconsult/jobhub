@@ -833,6 +833,17 @@ describe("the Legal Text notices job (#547)", () => {
   });
 });
 
+describe("private Coach agreement notices",()=>{
+  it("retries failed deliveries with backoff and completes after the remaining recipient succeeds",async()=>{
+    const sendNotices=vi.fn(async()=>({sent:1,failed:1}));
+    const job=createJobs({...otherDeps,database:noDatabase,coachContracts:{sendNotices,purge:async()=>0}})["coach-contracts.notices"]!;
+    expect(job.retry).toMatchObject({backoff:true});
+    await expect(job.handler({})).rejects.toThrow("Coach agreement notices require retry");
+    sendNotices.mockResolvedValueOnce({sent:1,failed:0});
+    await expect(job.handler({})).resolves.toBeUndefined();
+  });
+});
+
 describe("the Nouveautés email job (#566)", () => {
   it("sends the Nouveautés emails due every day, saying how many went and how many are left to the next run", async () => {
     const logs: string[] = [];

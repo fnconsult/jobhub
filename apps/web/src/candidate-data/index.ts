@@ -1,3 +1,4 @@
+import {coachContractAcceptancesOf,coachContractNoticesOf} from "../coach-contracts";
 import {inTransaction} from "../database/pool";
 import {coachEnrolmentsOf,associationsManagedBy} from "../coach-enrolments";
 import type {CoachingSale} from "@jobhub/shared/coaching-offers";
@@ -348,6 +349,8 @@ export interface CandidateDataExport {
    * and their Reschedule history (cancellations included); never the Human Coach's booking link.
    */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed; meeting: Meeting | null })[];
+  coachContractAcceptances:Awaited<ReturnType<typeof coachContractAcceptancesOf>>;
+  coachContractNotices:Awaited<ReturnType<typeof coachContractNoticesOf>>;
   coachEnrolments:Awaited<ReturnType<typeof coachEnrolmentsOf>>;
   managedAssociations:Awaited<ReturnType<typeof associationsManagedBy>>;
   coachingSales: {sessionId:string;sale:CoachingSale}[];
@@ -489,6 +492,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_access: "coachAccess",
   candidate_coaching_time_zone: "account.coachingTimeZone",
   coaching_session_contact: "coachingSessions[].meeting (session contact)",
+  coach_contract_acceptance:"coachContractAcceptances (pseudonymous proof retained after deletion)",
+  coach_contract_notice:"coachContractNotices",
   coach_enrolment:"coachEnrolments (including original professional proof and refusal reason)",
   coach_association_manager:"managedAssociations (business identity and manager role)",
   coaching_offer_quote:"coachingQuotes (immutable prepayment offer snapshot)",
@@ -917,7 +922,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { coachEnrolments:await coachEnrolmentsOf(database,candidateId),managedAssociations:await associationsManagedBy(database,candidateId),coachingSales:await rowsOf<CandidateDataExport["coachingSales"][number]>(`SELECT x.session_id AS "sessionId",x.snapshot AS sale FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id WHERE s.candidate_id=$1 ORDER BY s.paid_at,s.id`,candidateId), coachingQuotes:await rowsOf<CandidateDataExport["coachingQuotes"][number]>(`SELECT snapshot AS sale,created_at AS "createdAt" FROM coaching_offer_quote WHERE candidate_id=$1 ORDER BY created_at,id`,candidateId), sharedReading: await rowsOf<CandidateDataExport["sharedReading"][number]>(`SELECT r.session_id AS "sessionId",r.presenter,r.payload AS document,r.source,r.page,r.scroll,r.started_at AS "startedAt" FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id WHERE s.candidate_id=$1 ORDER BY r.started_at`, candidateId), sessionReports: await rowsOf<CandidateDataExport["sessionReports"][number]>(`SELECT id,session_id AS "sessionId",covered,next_steps AS "nextSteps",resources,published_at AS "publishedAt" FROM session_report WHERE candidate_id=$1 ORDER BY created_at,id`, candidateId), privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(`SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`, candidateId), exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
+      return { coachContractAcceptances:await coachContractAcceptancesOf(database,candidateId),coachContractNotices:await coachContractNoticesOf(database,candidateId),coachEnrolments:await coachEnrolmentsOf(database,candidateId),managedAssociations:await associationsManagedBy(database,candidateId),coachingSales:await rowsOf<CandidateDataExport["coachingSales"][number]>(`SELECT x.session_id AS "sessionId",x.snapshot AS sale FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id WHERE s.candidate_id=$1 ORDER BY s.paid_at,s.id`,candidateId), coachingQuotes:await rowsOf<CandidateDataExport["coachingQuotes"][number]>(`SELECT snapshot AS sale,created_at AS "createdAt" FROM coaching_offer_quote WHERE candidate_id=$1 ORDER BY created_at,id`,candidateId), sharedReading: await rowsOf<CandidateDataExport["sharedReading"][number]>(`SELECT r.session_id AS "sessionId",r.presenter,r.payload AS document,r.source,r.page,r.scroll,r.started_at AS "startedAt" FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id WHERE s.candidate_id=$1 ORDER BY r.started_at`, candidateId), sessionReports: await rowsOf<CandidateDataExport["sessionReports"][number]>(`SELECT id,session_id AS "sessionId",covered,next_steps AS "nextSteps",resources,published_at AS "publishedAt" FROM session_report WHERE candidate_id=$1 ORDER BY created_at,id`, candidateId), privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(`SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`, candidateId), exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
     },
 
     async delete(candidateId) {

@@ -686,13 +686,24 @@ test.describe("isolated Human Coach workspace v2", () => {
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      NODE_OPTIONS: ["fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
+      NODE_OPTIONS: ["fake-coach-contract.mjs", "fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
     });
   });
   test.afterAll(async () => {
     await own?.stop();
   });
-  const signIn = (page: Page, email: string) => signInByEmail(page, own, email);
+  const signIn = async (page: Page, email: string) => {
+    await signInByEmail(page, own, email);
+    // These legacy feature scenarios start after a synthetic contract acceptance. The dedicated contract spec
+    // exercises the real gate/checkbox; no fixture is part of the production legal registry.
+    const database=new Pool({connectionString:own.databaseUrl});
+    try {
+      await database.query(`INSERT INTO coach_contract_acceptance(candidate_id,holder,kind,subject_id,version,url,sha256,origin,accepted_at)
+        SELECT c.id,'e2e-fixture','coach',h.id,'2026-01-01','/espace-coach/contrat/versions/2026-01-01',$2,'web',clock_timestamp()
+        FROM candidate c JOIN human_coach h ON h.email=lower(c.email) WHERE c.email=$1 AND h.retired_at IS NULL AND NOT h.contract_pending
+        ON CONFLICT(candidate_id,kind,subject_id,version) DO NOTHING`,[email,"e".repeat(64)]);
+    } finally {await database.end();}
+  };
   const personPage = async (browser: Browser, email: string) => {
     const context = await browser.newContext({ baseURL: origin, locale: "fr-FR" });
     const page = await context.newPage();

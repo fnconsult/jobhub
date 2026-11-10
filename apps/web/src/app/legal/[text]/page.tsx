@@ -1,4 +1,4 @@
-import { isLegalTextId, legalText, parisDay } from "@jobhub/help";
+import { isPublicLegalTextId, legalText, parisDay } from "@jobhub/help";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LegalTextView } from "@/design/LegalTextView";
@@ -12,7 +12,7 @@ type Params = { params: Promise<{ text: string }> };
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
   const { text } = await params;
-  if (!isLegalTextId(text)) return { title: `${t("publicSite.legal")} · ${t("app.name")}` };
+  if (!isPublicLegalTextId(text)) return { title: `${t("publicSite.legal")} · ${t("app.name")}` };
   // Indexed in the languages it has a version in effect in; « pas encore publié » is not (#545).
   return { title: `${t(`legal.texts.${text}`)} · ${t("app.name")}`, ...(await legalTextMetadata(text)) };
 }
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function LegalTextPage({ params }: Params) {
   const { text } = await params;
-  if (!isLegalTextId(text)) notFound();
+  if (!isPublicLegalTextId(text)) notFound();
   const shown = legalText(text, await getRequestLocale(), { on: parisDay() });
   return (
     <PublicSite current="legal">

@@ -1,3 +1,4 @@
+import {migrateCoachContracts} from "./coach-contracts";
 import {migrateCoachEnrolments} from "./coach-enrolments";
 import { migrateCoachingOffers } from "./coaching-offers";
 import { migrateSharedReading } from "./shared-reading";
@@ -98,6 +99,7 @@ export async function migrateDatabase(
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coach Enrolments are up to date",()=>migrateCoachEnrolments(database)],
+    ["Coach Contracts are up to date",()=>migrateCoachContracts(database)],
     ["Coaching time zones are up to date", () => migrateCoachingTimeZones(database)],
     ["Coaching Session contacts are up to date", () => migrateCoachContacts(database)],
     ["Shared Reading is up to date", () => migrateSharedReading(database)],

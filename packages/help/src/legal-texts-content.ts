@@ -21,7 +21,7 @@ import {
   isLegalTextId,
   LEGAL_TEXT_ANCHORS,
   LEGAL_TEXT_CHANGES,
-  LEGAL_TEXTS,
+  ALL_LEGAL_TEXTS,
   legalTextVersionUrl,
   type LegalTextChange,
   type LegalTextId,
@@ -66,7 +66,7 @@ export function readLegalTexts(dir: string = legalDir): LegalTexts {
   for (const file of files) {
     const [text, name] = file.split("/") as [string, string];
     const match = VERSION_FILE.exec(name);
-    if (!isLegalTextId(text)) problems.push(`${file}: ${text} is not one of ${LEGAL_TEXTS.join(", ")}`);
+    if (!isLegalTextId(text)) problems.push(`${file}: ${text} is not one of ${ALL_LEGAL_TEXTS.join(", ")}`);
     if (!match) problems.push(`${file}: a version's file is named <effective date>.<fr|en>.md: 2026-12-01.fr.md`);
     if (isLegalTextId(text) && match) named.set(file, { text, effective: match[1]!, locale: match[2] as HelpLocale });
   }
@@ -83,7 +83,7 @@ export function readLegalTexts(dir: string = legalDir): LegalTexts {
     problems.push(...own.map((problem) => `${file}: ${problem}`));
     return { file, version, markdown };
   });
-  const byText = (a: LegalTextVersion, b: LegalTextVersion) => LEGAL_TEXTS.indexOf(a.text) - LEGAL_TEXTS.indexOf(b.text) || b.effective.localeCompare(a.effective);
+  const byText = (a: LegalTextVersion, b: LegalTextVersion) => ALL_LEGAL_TEXTS.indexOf(a.text) - ALL_LEGAL_TEXTS.indexOf(b.text) || b.effective.localeCompare(a.effective);
   const inLocale = (locale: HelpLocale) => versions.map((entry) => entry.version).filter((version) => version.locale === locale).sort(byText);
 
   const french = versions.filter((entry) => entry.version.locale === "fr");

@@ -185,6 +185,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'onglet « Connexion » de Paramètres règle les moyens de connexion, en plus du lien reçu par e-mail : Google, Apple, Microsoft et tout fournisseur OIDC. Une modification s'applique en quelques secondes, sans redéploiement ni déconnexion.\n\nLa carte « Connexion de l'équipe » porte la case « Exiger un fournisseur de connexion pour les administrateurs » : cochée, le back office demande à un administrateur connecté par un lien reçu par e-mail de se reconnecter avec un fournisseur autorisé pour les administrateurs. Les super-admins permanents ne sont jamais concernés.\n\nLa liste « Fournisseurs » montre chaque fournisseur avec son « Type », son « URL de redirection » à coller dans la console du fournisseur, son « Utilisation » (proposé aux candidats, autorisé pour les administrateurs), ses « Secrets » et son « Test de connexion ». Un fournisseur ne s'active qu'après un test de connexion réussi, et de nouveau après chaque changement de ses identifiants. Un secret saisi est chiffré et n'est jamais réaffiché.\n\nLes super-admins ajoutent, modifient, testent et suppriment les fournisseurs ; « Technique » et le Support les lisent.\n\nL'app Jobbbox propose aux candidats les mêmes fournisseurs que le site, par le même flux : la page du fournisseur s'ouvre dans le navigateur du téléphone et revient dans l'app ; aucune connexion par jeton d'identité n'est acceptée, et le « Bundle ID de l'application (facultatif) » n'y sert pas. L'App Store refuse une app qui propose une connexion Google ou Microsoft sans Apple (règle 4.8) : tant que c'est le cas, une note le signale en haut de l'onglet. Pour Apple, l'« Identifiant de service (Service ID) » est celui d'un Services ID d'Apple, dont la console déclare le domaine et l'« URL de redirection » de chaque environnement (la Beta a la sienne). Son secret client est signé de nouveau chaque mois par le worker à partir de la « Clé privée (.p8) » ; un échec est signalé par e-mail aux super-admins."
     },
     {
+      "id": "page-coach-contract",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Contrat",
+      "synonyms": [
+        "acceptation B2B",
+        "versions du contrat"
+      ],
+      "route": "/espace-coach/contrat",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Lisez le contrat disponible, acceptez sa version puis consultez « Vos acceptations ». Une version substantielle en vigueur sans acceptation ferme l’accès aux autres pages de votre espace. En l’absence de contrat publié, la page vous invite à attendre. Chaque version reste consultable depuis son lien privé."
+    },
+    {
       "id": "page-conversation",
       "locale": "fr",
       "kind": "page",
@@ -1184,6 +1200,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres, puis, tant que des offres vous attendent, une ligne qui dit combien il vous en reste à traiter et mène à « Offres à traiter », dans Recherches d'offres. L'e-mail du Job Digest finit par la même ligne, sous son bouton. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nLe groupe « Activité » montre l'historique de la page : le Job Digest, ses scores de correspondance calculés « Sans IA », les offres qu'il a apportées, chacune « ↳ suite de » lui, et les réponses du coach dans cette conversation.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation.\n\nDans l'application Jobbbox (iPhone, iPad, Android), la page d'un Job Digest montre son profil, sa date d'envoi et ses offres, de la plus proche à la moins proche de votre CV de référence, au-dessus de sa conversation. Touchez une offre pour l'ouvrir : son score de correspondance avec le profil, un bouton qui explique le score en détaillant chaque critère, son résumé et son texte. « Suivre » crée sa candidature avec ce profil ; une fois suivie, « Voir la candidature » l'ouvre. « Écarter » la retire de vos « Offres à traiter », avec un motif si vous le souhaitez, et « Annuler » revient dessus ; une offre écartée garde « Revenir sur ce choix »."
+    },
+    {
+      "id": "page-coach-contract-version",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Une version du contrat des coachs",
+      "synonyms": [
+        "archive du contrat",
+        "contrat à venir"
+      ],
+      "route": "/espace-coach/contrat/versions/[version]",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Cette page privée affiche une version précise du contrat, sa date d’effet et son approbation. Une version substantielle annoncée à venir peut être lue avant sa prise d’effet ; une version précédente reste consultable après son remplacement. Lire une version n’enregistre pas votre accord : l’acceptation se fait sur la page « Contrat »."
     },
     {
       "id": "page-order",
@@ -2557,6 +2589,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Comme coach, la vérification en deux étapes vous est demandée dans l'app Jobbbox comme sur le site, après chaque connexion par lien magique. Saisissez le code de votre application d'authentification dans « Code de l'application » et touchez « Vérifier », ou touchez « Utiliser un code de secours », ou « Utiliser une clé d'accès » si votre compte en a une.\n\nSi votre compte n'a encore aucun facteur, l'app vous propose « Configurer la vérification ». La configuration s'ouvre dans une page de jobbbox.ai, dans l'app : scannez le QR code avec votre application, saisissez le code qu'elle affiche dans « Code affiché par l'application », touchez « Confirmer », puis gardez vos 10 codes de secours et touchez « J'ai gardé mes codes ». L'app revient alors d'elle-même et ouvre votre compte. « Fermer » vous ramène à l'écran de la deuxième étape si vous voulez la faire plus tard.\n\nLes limites de tentatives et la réinitialisation par l'équipe Jobbbox sont celles du site. L'app ne garde ni vos codes ni votre clé d'accès."
+    },
+    {
+      "id": "faq-coach-contract",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Le contrat des coachs",
+      "synonyms": [
+        "contrat B2B",
+        "acceptation du contrat",
+        "contrat association"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Avant d’utiliser votre espace, lisez le « Contrat » puis cochez « J’ai lu et j’accepte le Contrat des coachs » avec la version indiquée, et choisissez « Accepter le contrat ». L’approbation d’une candidature ne remplace pas cette acceptation. Si aucun contrat n’est encore disponible, vous devez attendre sa publication.\n\nUne modification substantielle vous est annoncée par e-mail au moins 30 jours avant sa prise d’effet. À cette date, vous devez accepter la nouvelle version pour continuer. Une correction mineure ne demande pas une nouvelle acceptation. La version française fait foi ; l’anglais est sa traduction.\n\nLa page « Contrat » conserve vos acceptations avec leur date et un lien vers chaque version. Les versions à venir annoncées par e-mail sont consultables dans votre espace. Le contrat d’une Association est accepté par son membre habilité ; il ne remplace pas celui de ses coachs. Le contrat et ses versions ne sont pas des pages publiques."
     },
     {
       "id": "faq-tablet-keyboard-shortcuts",
@@ -4453,6 +4502,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "A profile's page is its conversation with your AI coach: it has the profile's Master CV and search criteria for one role in view. Until you have written anything, suggestions wait above the message box: « Improve my CV », « Understand my ATS Score », « Refine my criteria », « Which companies to target? ». The conversation is kept with the profile and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the profile and its CV stay.\n\nOn the right, the profile's fiche: whether it is active or archived, « Search for offers », its search criteria, which you change in place, and its ATS Score, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». A profile's results are the versions of its Master CV, newest first, and its download as PDF or Word. « Fiche », at the top of the page, opens or closes it.\n\nThe « Activity » group shows what is running right now, then the page's history, day by day: the coach's replies in the profile's conversation, the versions of the Master CV (saved by you or from a coach proposal, or read from your file) and the ATS Score, each linked to what caused it (« ↳ follows »), to its page (« Open the version », « See the ATS Score ») and to its message (« See in the conversation »). At the bottom, « This page's sources and tools » stays folded.\n\nIts sections: Suggestions, as long as your coach has fixes to propose, then Master CV, ATS Score, Target companies, Download and Manage. A section, a version of the Master CV, its history or the full CV editor opens beside the conversation, without hiding it. « Close » or the Escape key closes it. Each section keeps its address.\n\nStart with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one. Each time you save the Master CV, a new version is created, and you can go back to an earlier one. « Download » exports the Master CV as PDF or Word. « Manage » lets you rename, duplicate or archive the profile.\n\n« Target companies » lists the companies the job search aims at for this profile: those La Bonne Boite gives as likely to hire for your job and area, with their hiring potential, and those you add, marked « Added by you ». To add one, enter its name or SIREN in « Add a company »: it comes before La Bonne Boite's. Each company shows the job offers found there; « Company dossier », « Enriched contacts » and « Prepare a spontaneous application » open a spontaneous application, added to your applications as « To apply ». « Set aside » removes a company for good: it will not come back for this profile.\n\nIn the profile's conversation, ask your coach for a change, for example by writing to it to add Lyon to your locations: it proposes it on a card under its reply, « Proposed by your AI coach », with the before and after. Nothing changes without you: « Apply » makes the change, « Edit before applying » opens the pre-filled form beside the conversation, « Ignore » sets it aside. Once applied, « Undo » puts the criteria back as they were, as long as they have not changed since. Your coach can propose to change your search criteria, to archive or restore a profile (a restored profile counts in your plan again; if your plan has no room left when you apply it, the proposal shows you the plan that includes more, and nothing is restored), or to remember a fact in its memory, never one it already holds, even written with other capitals or without its accents. A change to the Master CV is never applied in one click: « Review the changes » opens them one by one, none accepted in advance, to accept or reject, and « Save the accepted changes » makes a new version of the ones you accepted; your coach only proposes what your CV already says, and never adds a skill to it. What comes from an applied proposal keeps its « Origin », which you reveal with a click on the criteria or on the version. Your coach neither creates nor deletes a profile: a profile is created from « Create a profile ».\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section: « Close » closes them and brings you back to the conversation.\n\nIn the Jobbbox app (iPhone, iPad, Android), your profiles are in My account, under « Profiles », to read but not to change. A profile's fiche sums up its positioning, its search criteria, the current version of its Master CV and its ATS Score. To change anything, « Edit the profile » opens the profile's page on jobbbox.ai inside the app: full screen on a phone, beside the conversation on a tablet; « Close » brings you back to the fiche."
     },
     {
+      "id": "page-coach-contract-version",
+      "locale": "en",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "A version of the Coach agreement",
+      "synonyms": [
+        "agreement archive",
+        "upcoming agreement"
+      ],
+      "route": "/espace-coach/contrat/versions/[version]",
+      "motion": null,
+      "microAnimations": [],
+      "body": "This private page shows one version of the agreement, its effective date and its approval. An announced upcoming substantial version can be read before it takes effect; an earlier version remains readable after replacement. Reading a version does not record agreement: accept on the “Contract” page."
+    },
+    {
       "id": "page-admin-activity",
       "locale": "en",
       "kind": "page",
@@ -4646,6 +4711,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "The emailed link signs you in or creates your account. Review the information and choose “Confirm my application”. Only the account owning the contact address can confirm it. “Withdraw my application” deletes an application that has not been decided."
+    },
+    {
+      "id": "page-coach-contract",
+      "locale": "en",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Contract",
+      "synonyms": [
+        "B2B acceptance",
+        "agreement versions"
+      ],
+      "route": "/espace-coach/contrat",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Read the available agreement, accept its version, then review “Your acceptances”. An effective substantial version that you have not accepted closes access to the other workspace pages. If no agreement has been published, the page asks you to wait. Each version remains readable at its private link."
     },
     {
       "id": "page-conversation",
@@ -6963,6 +7044,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "In the Jobbbox app, open the menu, then « App settings » below « My account », and turn on « Lock the app ». The app asks for Face ID, your fingerprint or the device's code at once, to check that you will be able to unlock it.\n\nOnce the lock is on, the app locks when it stays 5 minutes or more in the background, and each time it starts. To come back, pass Face ID or your fingerprint; after several failures, the device's code takes over. If you cancel, tap « Unlock » to try again. While the lock is on, the app's content is hidden in the app switcher; on Android, screenshots of the app are blocked too.\n\nThis setting applies to this device only: it is not on the website nor on another phone, and nothing is sent to Jobbbox. It is not Two-step verification: your sign-in does not change. Your face and fingerprint are checked by the device's system (iOS or Android); Jobbbox receives and keeps nothing of them.\n\nIf the device has no Face ID, fingerprint or code, the lock cannot be turned on: set one up first in the device's settings."
+    },
+    {
+      "id": "faq-coach-contract",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "The Coach agreement",
+      "synonyms": [
+        "B2B agreement",
+        "agreement acceptance",
+        "Association agreement"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Before using your workspace, read “Contract”, tick “I have read and accept the Coach agreement” with the displayed version, then choose “Accept agreement”. Application approval does not replace acceptance. If no agreement is available yet, wait for its publication.\n\nA substantial change is announced by email at least 30 days before it takes effect. From that date, you must accept the new version to continue. A minor correction does not require acceptance again. The French wording is binding; English is its translation.\n\n“Contract” keeps your acceptances with their dates and links to each version. Upcoming versions announced by email can be read in your workspace. An authorised Association member accepts for their Association; this does not replace each coach’s agreement. The agreement and its versions are private pages."
     },
     {
       "id": "faq-app-two-step-verification",

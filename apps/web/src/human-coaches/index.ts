@@ -180,6 +180,7 @@ export type CoachReviewResult =
   | { ok: false; error: "not_found" };
 
 export interface HumanCoachesDeps {
+  mayEnter?: (person: {email:string;emailVerified:boolean}, coachId:string) => Promise<boolean>;
   profiles: Pick<Profiles, "list" | "get">;
   applications: Pick<Applications, "list" | "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
@@ -601,7 +602,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE email = $1 AND retired_at IS NULL AND NOT contract_pending`, [
         person.email.trim().toLowerCase(),
       ]);
-      return rows[0] ? coachFrom(rows[0]) : null;
+      return rows[0] && (!deps.mayEnter || await deps.mayEnter(person,rows[0].id)) ? coachFrom(rows[0]) : null;
     },
 
     async grantAccess(candidateId, coachId) {

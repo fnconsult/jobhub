@@ -5767,7 +5767,8 @@
       "cgu": "Conditions générales d'utilisation",
       "cgv": "Conditions générales de vente",
       "confidentialite": "Politique de confidentialité",
-      "mentions-legales": "Mentions légales"
+      "mentions-legales": "Mentions légales",
+      "contrat-coach": "Contrat des coachs"
     },
     "effective": "En vigueur depuis le {{date}}",
     "effectiveFrom": "En vigueur à partir du {{date}}",
@@ -5821,7 +5822,8 @@
       "then": {
         "cgu": "À votre première connexion à partir du {{date}}, Jobbbox vous demandera d'accepter cette nouvelle version. D'ici là, rien ne change pour vous.",
         "cgv": "Elle s'appliquera à vos achats à partir du {{date}}. Un achat déjà fait garde les conditions acceptées alors.",
-        "confidentialite": "Vous n'avez rien à accepter : elle s'applique à partir du {{date}}."
+        "confidentialite": "Vous n'avez rien à accepter : elle s'applique à partir du {{date}}.",
+        "contrat-coach": "À partir du {{date}}, vous devrez accepter cette version pour continuer dans votre espace."
       },
       "read": "Lire la nouvelle version",
       "history": "Historique des versions",
@@ -6763,5 +6765,13 @@
       "footer": "Vous recevez cet e-mail en réponse à votre demande pour devenir coach sur Jobbbox."
     },
     "bookingPending": "À configurer après acceptation du contrat"
+  },
+  "coachContract": {
+    "stale": "La version à accepter a changé. Relisez le contrat puis réessayez.",
+    "agree": "J’ai lu et j’accepte le Contrat des coachs, version du {{version}}.",
+    "accept": "Accepter le contrat",
+    "upToDate": "Votre contrat est à jour.",
+    "history": "Vos acceptations",
+    "accepted": "Version du {{version}} · acceptée le {{date}}"
   }
 }

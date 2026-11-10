@@ -1,3 +1,4 @@
+import {coachContracts,coachContractNoticeEmail} from "@jobhub/web/coach-contracts";
 import {coachEnrolments,coachEnrolmentDecisionEmail} from "@jobhub/web/coach-enrolments";
 import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, knownSecrets } from "@jobhub/web/ai-usage";
@@ -164,6 +165,7 @@ const pushNotifications = createPushNotifications(database, {
   badge: (personId) => offersToHandle(database, personId, new Date()),
 });
 const jobs = createJobs({
+  coachContracts:coachContracts(database,{production:sendsLegalTextNotices(process.env),sendNotice:async(recipient,version)=>{await mailer.send({to:recipient.email,...coachContractNoticeEmail(version,recipient.locale,baseURL)});}}),
   coachEnrolments:coachEnrolments(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachEnrolmentDecisionEmail(record,baseURL)});}}),
   database,
   discovery: worker.discovery,
@@ -238,6 +240,7 @@ await runner.enqueue("system.heartbeat");
 await runner.enqueue(PROVIDER_SECRETS_REENCRYPT);
 // The Production deployment carrying a substantial Legal Text Version starts the worker: its notices go out now (#547).
 await runner.enqueue(LEGAL_TEXT_NOTICES);
+await runner.enqueue("coach-contracts.notices");
 // The Production deployment carrying an announced Release Note starts the worker: its Nouveautés emails go out now (#566).
 await runner.enqueue(NOUVEAUTES_EMAILS);
 console.info(`[worker] running ${Object.keys(jobs).length} job(s)`);

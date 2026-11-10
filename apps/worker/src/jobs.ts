@@ -224,6 +224,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachContracts?: {sendNotices():Promise<{sent:number;failed:number}>;purge():Promise<number>};
   coachEnrolments?: {deliverNotices():Promise<number>;purge():Promise<number>};
   database: Pick<Pool, "query">;
   now?: () => Date;
@@ -650,6 +651,14 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    "coach-contracts.notices": {
+      cron:"0 6 * * *", retry:LEGAL_TEXT_NOTICES_RETRY,
+      handler:()=>onceTablesExist(async()=>{
+        const result=await deps.coachContracts?.sendNotices();
+        if(result?.failed)throw new Error("Coach agreement notices require retry");
+      }),
+    },
+    "coach-contracts.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachContracts?.purge();})},
     "coach-enrolments.notices": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachEnrolments?.deliverNotices();})},
     "coach-enrolments.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachEnrolments?.purge();})},
     "shared-reading.purge": {

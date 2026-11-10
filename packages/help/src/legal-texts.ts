@@ -6,11 +6,16 @@ import type { HelpLocale } from "./types";
  * text is written, are in the catalogues (`legal.texts.<id>`); the texts are the team's, never an AI's.
  */
 export const LEGAL_TEXTS = ["cgu", "cgv", "confidentialite", "mentions-legales"] as const;
-export type LegalTextId = (typeof LEGAL_TEXTS)[number];
+export const ALL_LEGAL_TEXTS = [...LEGAL_TEXTS, "contrat-coach"] as const;
+export type LegalTextId = (typeof ALL_LEGAL_TEXTS)[number];
+/** Private B2B contracts never appear on public Legal pages or in the sitemap. */
+export function isPublicLegalTextId(value: unknown): value is (typeof LEGAL_TEXTS)[number] {
+  return (LEGAL_TEXTS as readonly unknown[]).includes(value);
+}
 
 /** Whether `value` names a Legal Text. */
 export function isLegalTextId(value: unknown): value is LegalTextId {
-  return (LEGAL_TEXTS as readonly unknown[]).includes(value);
+  return (ALL_LEGAL_TEXTS as readonly unknown[]).includes(value);
 }
 
 /**
@@ -23,6 +28,7 @@ export const LEGAL_TEXT_ANCHORS: Record<LegalTextId, readonly string[]> = {
   cgv: ["retractation"],
   confidentialite: ["cookies", "ia"],
   "mentions-legales": [],
+  "contrat-coach": [],
 };
 
 /**
@@ -83,7 +89,7 @@ export interface LegalTextHistoryEntry {
 
 /** The permanent URL of a Legal Text Version: `/legal/<text>/<YYYY-MM-DD>`. */
 export function legalTextVersionUrl(text: LegalTextId, version: string): string {
-  return `/legal/${text}/${version}`;
+  return text === "contrat-coach" ? `/espace-coach/contrat/versions/${version}` : `/legal/${text}/${version}`;
 }
 
 /** Today's day in France (Europe/Paris), `YYYY-MM-DD`: the day effective dates are compared with. */

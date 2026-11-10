@@ -18,7 +18,7 @@ import { getCoachConversations } from "@/coach-conversations/server";
 import type { SidebarMenus } from "@/components/conversation-first";
 import { getFollowUps } from "@/follow-ups/server";
 import { getRequestLocale } from "@/i18n/server";
-import { currentHumanCoach } from "@/human-coaches/server";
+import { currentHasHumanCoachIdentity } from "@/human-coaches/server";
 import { jobDigestsMenu } from "@/job-digests/menu";
 import { getJobDigests } from "@/job-digests/server";
 import { jobSearchesMenu } from "@/job-searches/menu";
@@ -165,7 +165,7 @@ export async function CandidateLayout({
     Promise.all([getRequestLocale(), headers()]).then(([locale, requestHeaders]) => getPaymentFailedNotice(candidateId, locale, inAppWebView(requestHeaders.get("user-agent")))),
     getJobSearches().notifications(candidateId),
     getSignalements().notifications(candidateId),
-    currentHumanCoach(),
+    currentHasHumanCoachIdentity(),
     currentIsAdministrator(),
     sidebarBilling(candidateId),
     sidebarIdentity(candidateId),

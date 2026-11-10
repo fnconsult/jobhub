@@ -66,11 +66,7 @@ for (const [name, size] of [
       await expect.poll(() => heightOf(box)).toBe(oneLine);
       await expect(box).toBeFocused();
 
-      await page.keyboard.press("Escape");
-  await expect(badgeOf(page)).toBeFocused();
-  await expect.poll(async () => Math.round((await badgeOf(page).boundingBox())!.width)).toBe(control);
-
-  const axe = await new AxeBuilder({ page }).include(".page-conversation-foot").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+      const axe = await new AxeBuilder({ page }).include(".page-conversation-foot").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
       expect(axe.violations.map(({ id }) => id)).toEqual([]);
     });
   });
@@ -130,6 +126,11 @@ test("on a computer the badge and Send stand on the box's row in words; writing,
   await page.keyboard.press("Tab");
   await expect(badgeOf(page)).toBeFocused();
   await expect.poll(async () => Math.round((await badgeOf(page).boundingBox())!.width)).toBeGreaterThan(control);
+
+  await page.keyboard.press("Escape");
+  await expect(badgeOf(page)).toBeFocused();
+  await expect.poll(async () => Math.round((await badgeOf(page).boundingBox())!.width)).toBe(control);
+
 
   const axe = await new AxeBuilder({ page }).include(".page-conversation-foot").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   expect(axe.violations.map(({ id }) => id)).toEqual([]);

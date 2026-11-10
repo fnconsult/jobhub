@@ -82,7 +82,7 @@ test.describe("Cancelling the contract from the subscription page", () => {
     await expect(page.getByText("Votre offre actuelle : Standard jusqu'au 15 novembre 2026")).toBeVisible();
     await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { ...standard, status: "canceled" }, later(20)));
     await page.goto("/abonnement");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     expect(acknowledgements(email, fr.billing.cancellation.email.subject)).toHaveLength(1);
   });
 
@@ -105,7 +105,7 @@ test.describe("Cancelling the contract from the subscription page", () => {
   test("a Free Candidate has no contract to cancel", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("resiliation-free"));
     await page.goto("/abonnement");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     await expect(page.getByRole("link", { name: fr.billing.cancellation.action })).toHaveCount(0);
 
     await page.goto("/abonnement/resiliation");

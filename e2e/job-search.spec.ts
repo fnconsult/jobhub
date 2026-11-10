@@ -483,7 +483,7 @@ test.describe("On-demand AI Coach job search", () => {
     await startButton(page).click();
 
     const prompt = page.getByRole("alert").filter({ hasText: "Vous avez atteint la limite de votre offre" });
-    await expect(prompt).toContainText("Vous avez utilisé la recherche d'offres comprise cette semaine dans l'offre Gratuite.");
+    await expect(prompt).toContainText("Vous avez utilisé la recherche d'offres comprise cette semaine dans l'offre Gratuit.");
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", "/abonnement");
     await expect(page).toHaveURL(new RegExp("/recherches$"));
   });

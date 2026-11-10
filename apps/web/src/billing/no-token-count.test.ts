@@ -57,7 +57,7 @@ describe("Plan Quotas never count tokens (#332, CONTEXT.md « AI Activity »)", 
   it("measure the week in uses of each quota, never in tokens", () => {
     const meter = usageMeter(STARTING_PLAN_QUOTAS.free, { matchScores: 2, atsScores: 0, enrichedContacts: 0, jobSearches: 1 });
     const prompt = upgradePrompt(
-      { allowed: false, quota: "matchScores", plan: "free", planName: { fr: "Gratuite", en: "Free" }, limit: 3, upgradeTo: "standard", upgradeToName: { fr: "Standard", en: "Standard" } },
+      { allowed: false, quota: "matchScores", plan: "free", planName: { fr: "Gratuit", en: "Free" }, limit: 3, upgradeTo: "standard", upgradeToName: { fr: "Standard", en: "Standard" } },
       "fr",
     );
 

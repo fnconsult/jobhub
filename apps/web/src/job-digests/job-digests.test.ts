@@ -218,7 +218,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
         ok: false,
         error: "not_included",
         plan: "free",
-        planName: { fr: "Gratuite", en: "Free" },
+        planName: { fr: "Gratuit", en: "Free" },
         upgradeTo: "standard",
         upgradeToName: { fr: "Standard", en: "Standard" },
       });

@@ -12,7 +12,7 @@ Jobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la p
 
 Votre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.
 
-Cette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer.
+Cette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuit : rien à payer pour commencer.
 
 L'e-mail reçu contient un lien et un code à 6 chiffres. Vous le lisez sur un autre appareil, votre téléphone par exemple ? Restez sur cette page : saisissez le code dans « Saisir le code reçu par e-mail », puis cliquez sur « Me connecter avec ce code ». Le lien et le code sont valables 15 minutes et une seule fois : utiliser l'un rend l'autre inutilisable. Au bout de 5 codes faux, le code ne fonctionne plus. Dès qu'un code est refusé, « Recevoir un nouvel e-mail » s'affiche sous le champ et y reste : cliquez dessus quand le code ne fonctionne plus, après 5 codes faux, après 15 minutes, si le lien a déjà servi ou si un e-mail plus récent l'a remplacé. Le nouvel e-mail contient un nouveau code : seul celui du dernier e-mail fonctionne.
 

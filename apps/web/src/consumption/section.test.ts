@@ -140,11 +140,11 @@ describe("consumptionSection — the headline and the list per Tool", () => {
 
   it("labels Free's month as not billed, ending at the end of the month", () => {
     const free = section(consumptionPeriod({ kind: "month", free: true, since: new Date("2026-01-15T10:00:00Z") }, NOW), [...days, day("2026-10-03", "coach", 10)]);
-    expect(free.periodLabel).toBe("Mois de novembre (l'offre Gratuite n'est pas facturée)");
+    expect(free.periodLabel).toBe("Mois de novembre (l'offre Gratuit n'est pas facturée)");
     expect(free.progress).toMatchObject({ text: "Jour 5 sur 30", start: "1 nov.", end: "fin du mois" });
     expect(plain(free.change)).toBe("+50 % par rapport au même jour du mois précédent");
     expect(section(consumptionPeriod({ kind: "month", free: true, since: new Date("2026-01-15T10:00:00Z") }, new Date("2026-10-05T10:00:00Z")), []).periodLabel).toBe(
-      "Mois d'octobre (l'offre Gratuite n'est pas facturée)",
+      "Mois d'octobre (l'offre Gratuit n'est pas facturée)",
     );
   });
 });

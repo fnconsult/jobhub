@@ -16,7 +16,7 @@ const at = new Date("2026-11-09T09:00:00Z");
 
 /** Every email sent to a Candidate, for `preferredName` (#921). */
 const candidateEmails = (preferredName: string | null): Record<string, RenderedEmail> => ({
-  jobDigest: jobDigestEmail({ profileName: "DAF", count: 0, offers: [], digestUrl: URL, unsubscribeUrl: URL, preferredName }, "fr"),
+  jobDigest: jobDigestEmail({ profileName: "DAF", count: 0, offers: [], digestUrl: URL, toHandle: 0, offerBoxUrl: URL, unsubscribeUrl: URL, preferredName }, "fr"),
   followUp: followUpEmail("followUp", { jobTitle: "DAF H/F", applicationUrl: URL, settingsUrl: URL, preferredName }, "fr"),
   abandonedFollowUp: followUpEmail("abandoned", { jobTitle: "DAF H/F", applicationUrl: URL, settingsUrl: URL, preferredName }, "fr"),
   appointmentReminder: appointmentReminderEmail(

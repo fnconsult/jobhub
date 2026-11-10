@@ -22,11 +22,7 @@ export interface JobDigestEmailOffer {
  * List-Unsubscribe header is the mailer call's).
  */
 export function jobDigestEmail(
-<<<<<<< HEAD
-  digest: { profileName: string; count: number; offers: JobDigestEmailOffer[]; digestUrl: string; toHandle: number; offerBoxUrl: string; unsubscribeUrl: string },
-=======
-  digest: { profileName: string; count: number; offers: JobDigestEmailOffer[]; digestUrl: string; unsubscribeUrl: string; preferredName?: string | null },
->>>>>>> 36838db39 (Les e-mails au Candidate le saluent par son Preferred Name, sinon « Bonjour, » (#921))
+  digest: { profileName: string; count: number; offers: JobDigestEmailOffer[]; digestUrl: string; toHandle: number; offerBoxUrl: string; unsubscribeUrl: string; preferredName?: string | null },
   language: Locale,
 ): RenderedEmail {
   const i18n = createI18n(language);

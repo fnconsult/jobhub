@@ -96,14 +96,29 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
     }
   });
 
-  it("keeps stopped first-request usage empty after the saved conversation is reloaded (#810)", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
-      conversation: {
-        ...CONVERSATION, aiDisclosure: true,
-        messages: [{ from: "candidate", text: "Bonjour" }],
-        context: { messages: 1, tokens: 1200 },
-      },
-    })));
+  it("keeps a stopped first request empty, including after reloading its saved context (#810)", async () => {
+    const context = { messages: 1, tokens: 1200 };
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/coach" && init?.method === "POST") {
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({ start(controller) {
+          controller.enqueue(encoder.encode(`${JSON.stringify({ type: "conversation", conversation: CONVERSATION })}\n`));
+          init.signal!.addEventListener("abort", () => {
+            controller.enqueue(encoder.encode(`${JSON.stringify({ type: "stopped", conversation: CONVERSATION, context })}\n`));
+            controller.close();
+          });
+        } });
+        return new Response(body, { headers: { "content-type": "application/x-ndjson" } });
+      }
+      return Response.json({ conversation: { ...CONVERSATION, aiDisclosure: true, messages: [{ from: "candidate", text: "Bonjour" }], context } });
+    }));
+    const user = userEvent.setup();
+    const live = renderInFrench(<HomePage conversationId={null} />);
+    await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Bonjour{Enter}");
+    await user.click(await screen.findByRole("button", { name: "Arrêter" }));
+    await screen.findByText("Réponse arrêtée");
+    expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy();
+    live.unmount();
     renderInFrench(<HomePage />);
     await screen.findByText("Bonjour");
     await waitFor(() => expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy());

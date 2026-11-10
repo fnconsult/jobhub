@@ -89,7 +89,7 @@ export function createLegalTextNotices(database: Pool, deps: LegalTextNoticesDep
    * Claims the Candidate's notice of `version` and emails it, in one transaction: a second worker waits on the claim,
    * then finds it taken; a failed email gives it back. Whether it was sent now.
    */
-  async function notify(candidate: { id: string; email: string; interfaceLanguage: string | null }, version: LegalTextVersion, sentAt: Date): Promise<boolean> {
+  async function notify(candidate: { id: string; email: string; interfaceLanguage: string | null; preferredName: string | null }, version: LegalTextVersion, sentAt: Date): Promise<boolean> {
     const client = await database.connect();
     try {
       await client.query("BEGIN");
@@ -100,7 +100,12 @@ export function createLegalTextNotices(database: Pool, deps: LegalTextNoticesDep
       if (rowCount) {
         const language = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;
         const email = legalTextNoticeEmail(
-          { version: inLanguage(version, language), versionUrl: link(legalTextVersionUrl(version.text, version.effective), language), historyUrl: link(routes.legalVersions(version.text), language) },
+          {
+            version: inLanguage(version, language),
+            versionUrl: link(legalTextVersionUrl(version.text, version.effective), language),
+            historyUrl: link(routes.legalVersions(version.text), language),
+            preferredName: candidate.preferredName,
+          },
           language,
         );
         await deps.mailer.send({ to: candidate.email, ...email });
@@ -122,8 +127,8 @@ export function createLegalTextNotices(database: Pool, deps: LegalTextNoticesDep
       let emails = 0;
       let failed = 0;
       for (const version of legalNoticesDue(parisDay(at), written("fr"))) {
-        const { rows } = await database.query<{ id: string; email: string; interfaceLanguage: string | null }>(
-          `SELECT c.id, c.email, c."interfaceLanguage" FROM candidate c
+        const { rows } = await database.query<{ id: string; email: string; interfaceLanguage: string | null; preferredName: string | null }>(
+          `SELECT c.id, c.email, c."interfaceLanguage", c.preferred_name AS "preferredName" FROM candidate c
             WHERE c."emailVerified"
               AND NOT EXISTS (SELECT 1 FROM legal_text_notice n WHERE n.candidate_id = c.id AND n.text = $1 AND n.version = $2)
             ORDER BY c."createdAt", c.id`,

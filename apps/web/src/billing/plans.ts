@@ -70,6 +70,8 @@ export async function migratePlans(database: Pool): Promise<void> {
       [plan.key, names.fr, names.en, plan.rank, plan.features],
     );
   }
+  // Free's French name became « Gratuit » (#945); a name an Administrator chose is kept.
+  await database.query(`UPDATE plan SET name_fr = 'Gratuit', updated_at = now() WHERE key = '${FREE_PLAN}' AND name_fr = 'Gratuite'`);
 }
 
 interface PlanRow {

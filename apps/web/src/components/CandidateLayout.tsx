@@ -6,6 +6,8 @@ import type { FicheContent } from "@/components/Fiche";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
 import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
+import { getCurrentCandidate } from "@/auth/server";
+import type { SidebarCandidate } from "@/components/AccountMenu";
 import { JobSearchNotifications } from "@/components/JobSearchNotifications";
 import { PaymentFailedBanner } from "@/components/PaymentFailedNotice";
 import { SignalementNotifications } from "@/components/SignalementNotifications";
@@ -24,6 +26,7 @@ import { inAppWebView } from "@/native-app/in-app";
 import { getJobSearches } from "@/job-searches/server";
 import { PrivacyChangeNotice } from "@/components/PrivacyChangeNotice";
 import { getLegalTextNotices } from "@/legal-text-notices/server";
+import { getOfferBox } from "@/offer-box/server";
 import { getProfiles } from "@/profiles/server";
 import { objectDay } from "@/sidebar-menus";
 import { getSignalements, jobbboxVersion } from "@/signalements/server";
@@ -38,15 +41,27 @@ async function privacyChange(candidateId: string) {
   }
 }
 
-/** The sidebar's Usage Meter; never fails the page: without billing, there is no meter. */
-async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
+/**
+ * The sidebar's Usage Meter and the Plan « Mon compte » shows (#923), from one read of the Candidate's entitlements;
+ * never fails the page: without billing, there is no meter and no Plan.
+ */
+async function sidebarBilling(candidateId: string): Promise<{ usage: UsageMeter | null; plan: SidebarCandidate["plan"] }> {
   try {
-    const { quotas, usedThisWeek } = await getBilling().entitlements(candidateId);
-    return usageMeter(quotas, usedThisWeek);
+    const billing = getBilling();
+    const [{ plan, endsAt, quotas, usedThisWeek }, plans] = await Promise.all([billing.entitlements(candidateId), billing.plans()]);
+    const name = plans.find((each) => each.key === plan)?.name ?? { fr: plan, en: plan };
+    return { usage: usageMeter(quotas, usedThisWeek), plan: { name, endsAt: endsAt?.toISOString() ?? null } };
   } catch (error) {
     console.error("[billing] could not read the week's usage", error);
-    return null;
+    return { usage: null, plan: null };
   }
+}
+
+/** Who « Mon compte » names (#923): the signed-in Candidate's names (#918) and email, the Plan apart. */
+async function sidebarIdentity(candidateId: string): Promise<Omit<SidebarCandidate, "plan">> {
+  const candidate = await getCurrentCandidate();
+  if (candidate?.id !== candidateId) return { givenName: null, familyName: null, preferredName: null, email: "" };
+  return { givenName: candidate.givenName ?? null, familyName: candidate.familyName ?? null, preferredName: candidate.preferredName ?? null, email: candidate.email };
 }
 
 /**
@@ -75,24 +90,32 @@ async function closedWelcome(candidateId: string): Promise<boolean> {
 
 /**
  * What the Sidebar's menus with objects unfold into: Mes candidatures' Applications (#604), Recherches d'offres' Job
- * Searches and the Job Digests (#606), the active Profiles' only. Never fails the page: without them, the menus are plain
+ * Searches and the Job Digests (#606), the active Profiles' only, and the Offer box's « N » beside Recherches d'offres
+ * (#818). Never fails the page: without them, the menus are plain
  * links.
  */
 async function sidebarMenus(candidateId: string): Promise<SidebarMenus> {
   try {
-    const [applications, notices, profiles, searches, digests, locale] = await Promise.all([
+    const [applications, notices, profiles, searches, digests, locale, offersToHandle] = await Promise.all([
       getApplications().list(candidateId),
       getFollowUps().notices(candidateId),
       getProfiles().list(candidateId),
       getJobSearches().list(candidateId),
       getJobDigests().list(candidateId),
       getRequestLocale(),
+      // Without its count, Recherches d'offres carries none: the menus still unfold.
+      getOfferBox()
+        .toHandle(candidateId)
+        .catch((error: unknown) => {
+          console.error("[sidebar] could not count the offers à traiter", error);
+          return 0;
+        }),
     ]);
     const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
     const dateLabel = objectDay(locale);
     return {
       applications: applicationsMenu({ applications, notices, matchScores: new Map() }).sidebar,
-      jobSearches: jobSearchesMenu({ profiles: active, searches, dateLabel }).sidebar,
+      jobSearches: jobSearchesMenu({ profiles: active, searches, dateLabel, offersToHandle }).sidebar,
       jobDigests: jobDigestsMenu({ profiles: active, digests, dateLabel }).sidebar,
     };
   } catch (error) {
@@ -136,7 +159,7 @@ export async function CandidateLayout({
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free, menus, welcomeClosed] = await Promise.all([
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, { usage, plan }, identity, privacy, free, menus, welcomeClosed] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     Promise.all([getRequestLocale(), headers()]).then(([locale, requestHeaders]) => getPaymentFailedNotice(candidateId, locale, inAppWebView(requestHeaders.get("user-agent")))),
@@ -144,7 +167,8 @@ export async function CandidateLayout({
     getSignalements().notifications(candidateId),
     currentHumanCoach(),
     currentIsAdministrator(),
-    weekUsage(candidateId),
+    sidebarBilling(candidateId),
+    sidebarIdentity(candidateId),
     privacyChange(candidateId),
     freeConversations(candidateId),
     sidebarMenus(candidateId),
@@ -158,6 +182,7 @@ export async function CandidateLayout({
       isHumanCoach={Boolean(humanCoach)}
       isAdministrator={isAdministrator}
       usage={usage}
+      candidate={{ ...identity, plan }}
       title={title}
       wide={wide}
       aiActivity={aiActivity}

@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, isServedApiVersion, MOBILE_CLIENT, servedApiVersions } from "./api-version";
+import {
+  API_CLIENT_HEADER,
+  API_VERSION,
+  API_VERSION_HEADER,
+  APP_OUTDATED,
+  EXTENSION_OUTDATED,
+  EXTENSION_VERSION_HEADER,
+  isServedApiVersion,
+  isServedExtensionVersion,
+  MINIMUM_EXTENSION_VERSION,
+  MOBILE_CLIENT,
+  readExtensionVersion,
+  servedApiVersions,
+} from "./api-version";
 
 describe("API Version (#564)", () => {
   it("starts at 1, stated in Jobbbox-Api-Version, refused with a stable code", () => {
@@ -34,5 +47,36 @@ describe("API Version (#564)", () => {
 
   it("lets a later one through: the web app ships first, a newer extension is never told to update", () => {
     expect(isServedApiVersion("4", 3)).toBe(true);
+  });
+});
+
+describe("the Extension Version a call states (#924)", () => {
+  it("is stated in Jobbbox-Extension-Version", () => {
+    expect(EXTENSION_VERSION_HEADER).toBe("Jobbbox-Extension-Version");
+  });
+
+  it("reads X.Y.Z, digits only, as the stores require; anything else is none", () => {
+    expect(readExtensionVersion("0.2.0")).toBe("0.2.0");
+    expect(readExtensionVersion(" 1.12.3 ")).toBe("1.12.3");
+    expect(readExtensionVersion("1.2")).toBeNull();
+    expect(readExtensionVersion("1.2.3-beta")).toBeNull();
+    expect(readExtensionVersion("v1.2.3")).toBeNull();
+    expect(readExtensionVersion("1.2.3.4")).toBeNull();
+    expect(readExtensionVersion("99999.0.0")).toBeNull();
+    expect(readExtensionVersion("")).toBeNull();
+    expect(readExtensionVersion(null)).toBeNull();
+  });
+
+  it("serves one at the minimum or later, compared part by part, never as text", () => {
+    expect(isServedExtensionVersion("0.2.0", "0.2.0")).toBe(true);
+    expect(isServedExtensionVersion("0.10.0", "0.2.0")).toBe(true);
+    expect(isServedExtensionVersion("1.0.0", "0.2.0")).toBe(true);
+    expect(isServedExtensionVersion("0.1.9", "0.2.0")).toBe(false);
+    expect(isServedExtensionVersion(MINIMUM_EXTENSION_VERSION)).toBe(true);
+  });
+
+  it("serves a call that states none, or none it can read: the API Version alone decides then", () => {
+    expect(isServedExtensionVersion(null, "0.2.0")).toBe(true);
+    expect(isServedExtensionVersion("abc", "0.2.0")).toBe(true);
   });
 });

@@ -206,7 +206,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     await candidate.context().close();
   });
 
-  test("« Fournisseurs et Tools » (#557): Paramètres, its Connexion, Sources and Extension tabs and Outils show their article « Sur cette page »; its 16 articles lead /admin/aide, never public", async ({ page, browser }) => {
+  test("« Fournisseurs et Tools » (#557): Paramètres, its Connexion, Sources and Extension tabs and Outils show their article « Sur cette page »; its 17 articles lead /admin/aide, never public", async ({ page, browser }) => {
     // Its own super-admin: a fresh conversation, so the assistant opens on its help.
     await signInWithMagicLink(page, "providers-help-office@e2e.jobbbox.test");
     const onThisPage = async (path: string, title: string) => {
@@ -232,7 +232,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     await ask(page, `Comment remplacer une clé de fournisseur ? ${show}`);
     expect(await systemPromptShown(show)).toContain("### « Remplacer ou effacer une clé de fournisseur » (/admin/aide/fournisseurs-et-tools/tutorial-admin-provider-secret)");
 
-    // /admin/aide: the topic comes first and lists its 16 articles.
+    // /admin/aide: the topic comes first and lists its 17 articles.
     await page.goto("/admin/aide/fournisseurs-et-tools");
     const main = page.getByRole("main");
     const titles = [
@@ -248,6 +248,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
       "Ajouter un site de l'extension ou une source de la recherche d'offres",
       "Activer l'enrichissement de contacts et son DPA",
       "Configurer Stripe et Brevo",
+      "Charger une version de test de l'extension",
       "Pourquoi un outil est-il « En attente d'accès » ?",
       "Comment lire une raison d'échec ?",
       "Quel rôle change quoi dans les fournisseurs et les outils ?",

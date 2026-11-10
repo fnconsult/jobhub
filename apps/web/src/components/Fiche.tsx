@@ -2,7 +2,22 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { AiActivityButton, AiActivityContent } from "@/components/AiActivity";
 import { ActivityColumnControl, type ActivityColumn } from "@/components/activity-column";
@@ -14,6 +29,7 @@ import { useActivityTopBarAction } from "@/components/activity-run";
 import { TOP_BAR_RANK, useTopBarAction, useTopBarMode } from "@/components/top-bar";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
+import { clampFicheWidth, FICHE_MIN_REM, ficheMaxWidth, ficheWidthFromKey, readFicheWidth, setFicheWidthProperty, writeFicheWidth } from "@/design/fiche-width";
 import { SIDEBAR_CLOSED } from "@/design/sidebar-state";
 
 /** A Section or a Result the Fiche lists: its own address, which opens it in the Work Pane. */
@@ -290,19 +306,22 @@ export function Fiche({ content }: { content: FicheContent }) {
   );
   return (
     <aside id={ficheId} className="fiche" aria-label={t("fiche.label")} hidden={control.givenWay} onKeyDown={closeOnEscape(control)}>
-      {control.wide ? null : <ColumnHead label={t("fiche.label")} close={control.close} />}
-      <div className="fiche-card">{content.card}</div>
-      <Group group={SECTIONS} label={t("fiche.groups.sections")} state={state} toggle={control.toggleGroup}>
-        {links(content.sections)}
-      </Group>
-      <Group group={ACTIVITY} label={t("fiche.groups.activity")} state={state} toggle={control.toggleGroup} anchor={activity}>
-        <ContextBar />
-        <EnCeMoment />
-        <AiActivityContent />
-      </Group>
-      <Group group={RESULTS} label={t("fiche.groups.results")} state={state} toggle={control.toggleGroup}>
-        {content.results.length > 0 ? links(content.results) : <p className="hint">{t("fiche.noResults")}</p>}
-      </Group>
+      {control.wide ? <FicheResizeHandle /> : null}
+      <div className="fiche-body">
+        {control.wide ? null : <ColumnHead label={t("fiche.label")} close={control.close} />}
+        <div className="fiche-card">{content.card}</div>
+        <Group group={SECTIONS} label={t("fiche.groups.sections")} state={state} toggle={control.toggleGroup}>
+          {links(content.sections)}
+        </Group>
+        <Group group={ACTIVITY} label={t("fiche.groups.activity")} state={state} toggle={control.toggleGroup} anchor={activity}>
+          <ContextBar />
+          <EnCeMoment />
+          <AiActivityContent />
+        </Group>
+        <Group group={RESULTS} label={t("fiche.groups.results")} state={state} toggle={control.toggleGroup}>
+          {content.results.length > 0 ? links(content.results) : <p className="hint">{t("fiche.noResults")}</p>}
+        </Group>
+      </div>
     </aside>
   );
 }
@@ -319,11 +338,148 @@ export function ActivityColumn() {
   if (!control || control.object || !control.state.open) return null;
   return (
     <aside id={control.ficheId} className="fiche activity-column" aria-label={t("fiche.activity")} hidden={control.givenWay} onKeyDown={closeOnEscape(control)}>
-      {control.wide ? null : <ColumnHead label={t("fiche.activity")} close={control.close} />}
-      <ContextBar />
-      <EnCeMoment />
-      <AiActivityContent />
+      {control.wide ? <FicheResizeHandle /> : null}
+      <div className="fiche-body">
+        {control.wide ? null : <ColumnHead label={t("fiche.activity")} close={control.close} />}
+        <ContextBar />
+        <EnCeMoment />
+        <AiActivityContent />
+      </div>
     </aside>
+  );
+}
+
+const noSubscription = () => () => {};
+const noStoredWidth = () => null;
+/** A press that moves less than this is a click, not a drag. */
+const CLICK_SLOP_PX = 4;
+/** How long a click waits for a second one, which would make it a double-click. */
+const DOUBLE_CLICK_MS = 300;
+
+/** The root font size in px, which the Text Size changes: the Fiche's limits are in rem. */
+const rootRem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+
+/**
+ * The handle on the left edge of the Fiche, and of the Activité column (#932), beside the conversation only: dragged, it
+ * widens the column from its default width (20rem, its narrowest) up to the widest it may be (fiche-width.ts), which it
+ * sets on the column as `--fiche-max` for app.css. A window splitter (WAI-ARIA): focusable, ← and → by steps, Home and
+ * End to its limits. A click without dragging takes it to its widest, or back to its narrowest from there, so a single
+ * pointer resizes it without dragging (WCAG 2.2, 2.5.7); a double-click goes back to the default width and forgets the one
+ * remembered. The width is remembered in this browser, and the head's script set it on <html> before first paint; read
+ * here once hydrated, so the server's HTML and the first render agree.
+ */
+function FicheResizeHandle() {
+  const { t } = useTranslation();
+  const handle = useRef<HTMLDivElement>(null);
+  const workPaneOpen = useWorkPane()?.item != null;
+  // What this browser remembers, once hydrated (null on the server), until the Candidate moves the handle.
+  const stored = useSyncExternalStore(noSubscription, readFicheWidth, noStoredWidth);
+  const [moved, setChosen] = useState<number | null | undefined>(undefined);
+  const chosen = moved === undefined ? stored : moved;
+  const [bounds, setBounds] = useState(() => ({ min: FICHE_MIN_REM * 16, max: FICHE_MIN_REM * 16 }));
+  const drag = useRef<{ x: number; width: number; moved: boolean } | null>(null);
+  const dragged = useRef(false);
+  const clickTimer = useRef<number | undefined>(undefined);
+  const now = clampFicheWidth(chosen ?? bounds.min, bounds);
+
+  // Measures the room there is: the window, the conversation and its columns, the Work Pane while it is open.
+  useLayoutEffect(() => {
+    const column = handle.current?.parentElement;
+    const workspace = column?.parentElement;
+    if (!column || !workspace) return;
+    const measure = () => {
+      const rem = rootRem();
+      const workPane = workspace.querySelector<HTMLElement>(":scope > .work-pane");
+      const max = ficheMaxWidth({ viewport: window.innerWidth, workspace: workspace.clientWidth, workPane: workPane?.offsetWidth ?? 0, rem });
+      column.style.setProperty("--fiche-max", `${max}px`);
+      setBounds((was) => (was.min === FICHE_MIN_REM * rem && was.max === max ? was : { min: FICHE_MIN_REM * rem, max }));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    // The Sidebar hidden or shown changes the room without resizing the window.
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    observer?.observe(workspace);
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
+  }, [workPaneOpen]);
+
+  const choose = useCallback((width: number, remember: boolean) => {
+    setChosen(width);
+    setFicheWidthProperty(width);
+    if (remember) writeFicheWidth(width);
+  }, []);
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const width = ficheWidthFromKey(event.key, now, bounds, rootRem());
+    if (width === null) return;
+    event.preventDefault();
+    choose(width, true);
+  };
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    drag.current = { x: event.clientX, width: now, moved: false };
+  };
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const by = drag.current.x - event.clientX;
+    if (!drag.current.moved && Math.abs(by) < CLICK_SLOP_PX) return;
+    drag.current.moved = true;
+    // The handle is on the Fiche's left edge: to the left, wider.
+    choose(clampFicheWidth(drag.current.width + by, bounds), false);
+  };
+  const onPointerEnd = () => {
+    if (!drag.current) return;
+    dragged.current = drag.current.moved;
+    drag.current = null;
+    if (dragged.current) writeFicheWidth(now);
+  };
+  const onClick = (event: MouseEvent<HTMLDivElement>) => {
+    // The click that ends a drag is the drag's.
+    if (dragged.current) {
+      dragged.current = false;
+      return;
+    }
+    if (clickTimer.current !== undefined) window.clearTimeout(clickTimer.current);
+    clickTimer.current = undefined;
+    if (event.detail === 2) {
+      // A double-click: the default width again, the one remembered forgotten.
+      setChosen(null);
+      setFicheWidthProperty(null);
+      writeFicheWidth(null);
+    } else if (event.detail <= 1) {
+      // A click, the single-pointer way to resize it (WCAG 2.2, 2.5.7): to its widest, or back to its narrowest. Once it
+      // is clear it is not a double-click's first: resized at once, the handle would move from under the second click.
+      const to = now < bounds.max ? bounds.max : bounds.min;
+      clickTimer.current = window.setTimeout(() => {
+        clickTimer.current = undefined;
+        choose(to, true);
+      }, DOUBLE_CLICK_MS);
+    }
+  };
+  useEffect(() => () => window.clearTimeout(clickTimer.current), []);
+
+  return (
+    <div
+      ref={handle}
+      className="fiche-resize"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t("fiche.resize")}
+      aria-valuemin={bounds.min}
+      aria-valuemax={bounds.max}
+      aria-valuenow={now}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      onClick={onClick}
+    />
   );
 }
 

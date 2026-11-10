@@ -117,6 +117,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
         "eval_case", // issue #231: a Coaching Playbook's Eval Cases, fictional, in each environment
         "eval_run", // issue #231: each Eval Run, with the text of the cases it played
+        "extension_event", // issue #924: each extension action and error, its Candidate kept 12 months (30 days without one)
         "extension_job_site", // issue #188: the extension's Job Sites, set in the Back Office
         "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
@@ -126,6 +127,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "guardrail_setting", // issue #228: block or flag only, per Guardrail
         "guardrail_trigger", // issue #228: each block, flag or unavailable check, no Candidate, no text
         "human_coach", // issue #24: Human Coaches and their Cal.com booking links
+        "identity_names_backfill", // issue #918: when the Candidates' names were worked out, once (one row)
         "interview",
         "interview_reschedule", // issue #250: an Interview's Reschedule history
         "job_digest", // issue #15: the Job Digests sent for each Profile
@@ -272,6 +274,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "eu_ai_consent", from_column: "candidate_id", to_table: "candidate" },
         // A Coaching Playbook's Eval Cases (issue #231) belong to it; no Candidate in them.
         { from_table: "eval_case", from_column: "playbook_id", to_table: "coaching_playbook" },
+        // The Extension Events (issue #924) follow their Candidate.
+        { from_table: "extension_event", from_column: "candidate_id", to_table: "candidate" },
         // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.
         { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },

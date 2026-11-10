@@ -36,6 +36,7 @@ import type { Pool, PoolClient } from "pg";
 import * as z from "zod";
 import { PROFILE_NAME_MAX_LENGTH } from "./limits";
 import { countUse, migrateConsumption } from "../consumption";
+import { migrateExtensionEvents, recordExtensionAction, type ExtensionCall } from "../extension-events";
 import { readOrigin, type Origin } from "../origin";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -139,9 +140,10 @@ export interface Profiles {
   /**
    * Saves a reviewed CV draft as a new Profile. `input` is untrusted (it comes from the browser): { masterCv, searchCriteria,
    * provenance? }, `provenance` the draft's when the AI Coach read it from a file, kept with version 1 only when it is a CV
-   * reading's (one `cv_parsing` step) this version can read.
+   * reading's (one `cv_parsing` step) this version can read. `extension`: saved from the browser extension, which writes
+   * its Extension Event `profile_created` in the same transaction (#924).
    */
-  create(candidateId: string, input: unknown): Promise<CreateProfileResult>;
+  create(candidateId: string, input: unknown, options?: { extension?: ExtensionCall }): Promise<CreateProfileResult>;
   /**
    * A new Profile under the name in `input` ({ name }, untrusted), with a copy of the
    * Profile's Search Criteria and of the current version of its Master CV (as version 1).
@@ -372,6 +374,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   function insert(
     candidateId: string,
     { name, searchCriteria, masterCv, provenance = null }: { name: string; searchCriteria: SearchCriteria; masterCv: MasterCvContent; provenance?: Provenance | null },
+    extension?: ExtensionCall,
   ): Promise<CreateProfileResult> {
     return transaction(async (client) => {
       if (!(await roomForOneMore(candidateId, client))) return QUOTA_REACHED;
@@ -399,6 +402,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       ]);
       // A CV read from a file, saved with its reading: one CV read in Consumption (#799).
       if (provenance) await countUse(client, candidateId, "cvReading", new Date());
+      if (extension) await recordExtensionAction(client, extension, "profile_created", { type: "profile", id });
       return { ok: true, profile: { id, name, archived: false, searchCriteria, masterCv: { version: 1, content: masterCv } } };
     });
   }
@@ -500,14 +504,14 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       }
     },
 
-    async create(candidateId, input) {
+    async create(candidateId, input, { extension } = {}) {
       // reportInput: Zod v4 leaves `issue.input` out otherwise, and fieldErrors()
       // needs it to tell a missing field from a filled but invalid one.
       const parsed = inputSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { masterCv, searchCriteria } = parsed.data;
 
-      return insert(candidateId, { name: searchCriteria.targetRole, searchCriteria, masterCv, provenance: cvReading((input as { provenance?: unknown }).provenance) });
+      return insert(candidateId, { name: searchCriteria.targetRole, searchCriteria, masterCv, provenance: cvReading((input as { provenance?: unknown }).provenance) }, extension);
     },
 
     async duplicate(candidateId, profileId, input) {
@@ -585,8 +589,9 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
  * Profiles while it is replaced; a later release drops them.
  */
 export async function migrateProfiles(database: Pool): Promise<void> {
-  // A CV read and saved counts in Consumption (#799).
+  // A CV read and saved counts in Consumption (#799); one saved from the extension writes its Extension Event (#924).
   await migrateConsumption(database);
+  await migrateExtensionEvents(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS profile (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

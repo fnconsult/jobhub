@@ -177,6 +177,7 @@ interface WaitingRow {
   content: string;
   email: string;
   interface_language: string | null;
+  preferred_name: string | null;
   after_applied: number | null;
   after_follow_up: number | null;
   sent: number;
@@ -252,6 +253,7 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
         jobTitle: row.title,
         applicationUrl: new URL(routes.application(row.id), deps.appUrl).toString(),
         settingsUrl: new URL(routes.accountFollowUps, deps.appUrl).toString(),
+        preferredName: row.preferred_name,
       },
       isSupportedLocale(row.interface_language) ? row.interface_language : DEFAULT_LOCALE,
     );
@@ -345,7 +347,7 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     async proposeDue(now) {
       const { rows } = await database.query<WaitingRow>(
         `SELECT a.id, a.candidate_id, a.status, a.status_changed_at, a.document_language,
-                o.title, o.employer, o.content, c.email, c."interfaceLanguage" AS interface_language,
+                o.title, o.employer, o.content, c.email, c."interfaceLanguage" AS interface_language, c.preferred_name,
                 d.after_applied, d.after_follow_up,
                 (SELECT count(*)::int FROM follow_up_sent s WHERE s.application_id = a.id) AS sent,
                 (SELECT max(sent_at) FROM follow_up_sent s WHERE s.application_id = a.id) AS last_sent_at

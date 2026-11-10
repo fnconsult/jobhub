@@ -93,7 +93,7 @@ export interface AiRoutingCheckDeps {
   fetch?: typeof globalThis.fetch;
   /** How long one test call may take. Default: 20 s. */
   timeoutMs?: number;
-  /** Where each test call is recorded in AI Usage, as any AI call: for no Candidate, on the task whose route it tests. Default: nowhere. */
+  /** Where each test call is recorded in AI Usage, as any AI call: for no Candidate, on the task whose route it tests, marked as a test (#926). Default: nowhere. */
   usage?: UsageLog;
 }
 
@@ -113,7 +113,9 @@ const recordedAs = (target: RoutedTarget["target"]): TextTask => (target === "id
 async function testCall(target: RoutedTarget, deps: AiRoutingCheckDeps): Promise<void> {
   const { endpoint, route } = target;
   const timeoutMs = deps.timeoutMs ?? 20_000;
-  const ai = createAiLayer({ providers: [endpoint!], routes: {}, usage: deps.usage ?? { record: () => {} } });
+  const usage = deps.usage;
+  // Marked as a test, so Appels IA never takes it for a Guest's call (#926).
+  const ai = createAiLayer({ providers: [endpoint!], routes: {}, usage: { record: (entry) => usage?.record({ ...entry, test: true }) } });
   const call =
     target.target === SEARCH_TASK
       ? ai.searchCompany({ candidateId: null, employer: TEST_QUERY, instructions: "{{entreprise}}", route })

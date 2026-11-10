@@ -7,8 +7,11 @@
 /** One object of a menu as the Sidebar lists it: its name, its page, and whether something waits for the Candidate there. */
 export type MenuObject = { id: string; label: string; href: string; toHandle: boolean };
 
-/** What a menu unfolds into: the objects shown, in their order, and how many it has in all (« Tout voir (N) »). */
-export type UnfoldedMenu = { shown: MenuObject[]; total: number };
+/**
+ * What a menu unfolds into: the objects shown, in their order, and how many it has in all (« Tout voir (N) »). `count`:
+ * the « N » beside the menu's name, Recherches d'offres' offers à traiter in the Offer box (#818); none at 0.
+ */
+export type UnfoldedMenu = { shown: MenuObject[]; total: number; count?: number };
 
 /** At least this many objects are shown when the menu has them… */
 export const MIN_SHOWN = 5;

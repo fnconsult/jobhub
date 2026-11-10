@@ -5,6 +5,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { registerDevice, sendPush } from "./support/push";
+import { accountButtonName } from "./support/account-menu";
 
 // Issue #698: the Jobbbox app's Push notifications. The app registers its device (a token, a platform, a language) while
 // signed in; Mon compte's Rappels has one switch per event beside the Appointment Reminder by email, which stays the
@@ -150,7 +151,7 @@ test.describe("Push notifications", () => {
     const other = await personPage(browser, email);
     await register(other, { platform: "ios", token: `tok-c-${unique()}`, language: "fr" });
     expect(send(email, "test").before).toBe(2);
-    await other.getByRole("button", { name: fr.nav.account, exact: true }).click();
+    await other.getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
     await other.getByRole("menuitem", { name: fr.account.signOut }).click();
     await expect(other.getByRole("link", { name: fr.nav.signIn })).toBeVisible();
     expect(send(email, "test").before).toBe(1);

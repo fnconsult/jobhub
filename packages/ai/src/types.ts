@@ -313,8 +313,13 @@ export interface UsageEntry extends TokenUsage {
    * and a usage log keeps it as the call's own. Absent on an entry made elsewhere.
    */
   id?: string;
-  /** null for a Guest (browser extension without an account). */
+  /** null for a Guest (browser extension without an account), and for a test (`test`). */
   candidateId: string | null;
+  /**
+   * True for a call made to test the AI, for no one: an Eval Run's (`AiLayer.forEval`) or a route's test call
+   * (`checkAiRoutingChange`). Absent for any other call. So a call for no Candidate is told from a Guest's (#926).
+   */
+  test?: true;
   task: AiTask;
   /** Null for a call stopped before any provider was chosen (no route for its task). */
   provider: ProviderId | null;

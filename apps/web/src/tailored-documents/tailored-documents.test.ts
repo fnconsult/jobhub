@@ -4,6 +4,7 @@ import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
+import { candidateIdentityOf } from "../candidate-identity";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { consumptionOf } from "../consumption";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
@@ -157,6 +158,28 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(claude.calls).toHaveLength(0);
     // Declared, so never an undeclared identity; redacted like every call.
     expect(warn.mock.calls.map(([message]) => message)).toEqual(["Identity redacted before the AI call"]);
+  });
+
+  it("a Cover Letter still signs with the first and last name, put back after Redaction left only the Preferred Name in the call (#921)", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    await database.query(`UPDATE candidate SET name = 'Marie Dupont', given_name = 'Marie', family_name = 'Dupont', preferred_name = 'Mimi' WHERE id = $1`, [candidateId]);
+    const signing = createFakeProvider({
+      id: "mistral",
+      reply: "Madame, Monsieur,\n\nDirectrice financière, [NOM] met quinze ans de consolidation à votre service.\n\nJe vous prie d'agréer mes salutations distinguées.\n\n[NOM]",
+    });
+    const ai = createAiLayer({ providers: [signing], routes: { writing: "mistral" }, usage: createMemoryUsageLog(), identityOf: candidateIdentityOf(database), warn: () => {} });
+    const redacted = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+
+    const result = await redacted.draft(candidateId, applicationId, { document: "cover_letter" });
+
+    const sent = JSON.stringify(signing.calls);
+    expect(sent).not.toMatch(/Marie|Dupont/);
+    expect(sent).toContain("[NOM]");
+    // The name put back; the signature line is the export's, from the Master CV (#162).
+    expect(result).toMatchObject({
+      ok: true,
+      drafts: { coverLetter: { text: "Madame, Monsieur,\n\nDirectrice financière, Marie Dupont met quinze ans de consolidation à votre service.\n\nJe vous prie d'agréer mes salutations distinguées." } },
+    });
   });
 
   it("are asked for with the cover-letter and outreach-message task Playbooks' sections, then who may be named and the format, on their Playbook Agent (ADR-0026)", async () => {

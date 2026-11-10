@@ -22,7 +22,7 @@ const NO_ROOM: QuotaRefusal = {
   allowed: false,
   quota: "jobSearches",
   plan: "free",
-  planName: { fr: "Gratuite", en: "Free" },
+  planName: { fr: "Gratuit", en: "Free" },
   limit: 1,
   upgradeTo: "standard",
   upgradeToName: { fr: "Standard", en: "Standard" },
@@ -183,7 +183,7 @@ describe("propose_job_search (#720)", () => {
     const change = await proposed(actionOf(sources, SEARCH_ACTIONS.start), {}, call("marie", { inView: { kind: "profile", id: "p-daf" } }));
 
     expect(change.quota).toMatchObject({ label: expect.any(String), prompt: { title: expect.any(String), upgradeTo: "standard", action: expect.stringContaining("Standard"), href: "/abonnement" } });
-    expect(change.quota!.prompt!.message).toMatch(/Gratuite/);
+    expect(change.quota!.prompt!.message).toMatch(/Gratuit/);
     expect(sources.jobSearches.start).not.toHaveBeenCalled();
     expect(queue).toEqual([]);
   });

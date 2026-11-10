@@ -4,6 +4,7 @@ import { fromCatalogue, renderedTexts } from "./support/accessibility";
 import { approveAtGoogle, fromNewAddress, refuseAtGoogle, requestSignInLink, signInWithMagicLink } from "./support/candidate";
 import { codeIn, emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
 import { startServer } from "./support/plan-prices";
+import { accountButtonName } from "./support/account-menu";
 
 // Issue #2: passwordless sign-up / sign-in and the Candidate account, through
 // the web app's pages and its /api/auth HTTP API.
@@ -46,7 +47,7 @@ test.describe("magic-link sign-up and sign-in", () => {
 
     // The home page now leads to the account instead of sign-in.
     await page.goto("/");
-    await page.getByRole("button", { name: fr.nav.account, exact: true }).click();
+    await page.getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
     await expect(page.getByRole("menuitem", { name: fr.nav.account })).toHaveAttribute("href", "/compte");
   });
 
@@ -137,7 +138,7 @@ test.describe("magic-link sign-up and sign-in", () => {
     await expect(page).toHaveURL(/\/connexion(\?|$)/);
 
     await signInWithMagicLink(page, newAddress("leaving"));
-    await page.getByRole("button", { name: fr.nav.account, exact: true }).click();
+    await page.getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
     await page.getByRole("menuitem", { name: fr.account.signOut }).click();
     await expect(page).toHaveURL(`${origin}/`);
     await expect(page.getByRole("link", { name: fr.nav.signIn })).toBeVisible();
@@ -317,7 +318,7 @@ test.describe("Interface Language", () => {
 
     // Signed out, visitors get French again; the next sign-in email is in English.
     await page.goto("/compte");
-    await page.getByRole("button", { name: en.nav.account, exact: true }).click();
+    await page.getByRole("button", { name: accountButtonName(en.nav.account) }).click();
     await page.getByRole("menuitem", { name: en.account.signOut }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.home.title);
     const message = await signInWithMagicLink(page, email);

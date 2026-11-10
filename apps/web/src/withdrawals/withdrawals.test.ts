@@ -3,6 +3,7 @@ import { createApplications, migrateApplications } from "../applications";
 import type { MailMessage } from "../auth";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../billing/fake-stripe";
 import { connectionString, startTestBilling, type TestBilling } from "../billing/test-support";
+import { createIdentityNames } from "../candidate-identity";
 import { createHumanCoaches, migrateHumanCoaches, type HumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
@@ -175,6 +176,25 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       expect(t.stripe.callsTo("/v1/refunds")[0]!.params.has("amount")).toBe(false);
     });
 
+    it("greets the Candidate by the Preferred Name their account has, which the page posting the form does not send (#921)", async () => {
+      const marie = await subscribedMarie(paris("2026-10-12T10:00"));
+      await t.database.query("UPDATE candidate SET preferred_name = 'Mimi' WHERE id = $1", [marie.id]);
+
+      // What the « Confirmer la rétractation » route passes: who is signed in, nothing of their names.
+      await withdrawals.withdraw({ id: marie.id, email: marie.email }, confirm, "fr");
+
+      expect(sent[0]!.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+      expect(sent[0]!.html).toContain(">Bonjour Mimi,</p>");
+    });
+
+    it("greets by no name a Candidate without a Preferred Name (#921)", async () => {
+      const marie = await subscribedMarie(paris("2026-10-12T10:00"));
+
+      await withdrawals.withdraw({ id: marie.id, email: marie.email }, confirm, "fr");
+
+      expect(sent[0]!.text.startsWith("Bonjour,\n\n")).toBe(true);
+    });
+
     it("sends the acknowledgement to another address when the Candidate asks", async () => {
       const marie = await subscribedMarie(paris("2026-10-12T10:00"));
 
@@ -313,6 +333,7 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
     it("refunds a paid session not held yet in full, cancels it from the Agenda and tells the Human Coach", async () => {
       const { marie, sessionId, paymentIntent } = await paidSession(paris("2026-10-13T09:00"));
       await coaches.scheduleSession(marie.id, sessionId, { scheduledAt: "2026-10-20T14:00" });
+      await createIdentityNames(t.database).save(marie.id, { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" });
 
       const result = await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr");
 
@@ -322,6 +343,9 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       expect(sent.map((message) => message.to).sort()).toEqual([marie.email, "sophie.martin@rh-conseil.fr"].sort());
       const toCoach = sent.find((message) => message.to === "sophie.martin@rh-conseil.fr")!;
       expect(toCoach.text).toContain("20 octobre 2026 à 14:00");
+      // Named as in the Espace coach (#922): « Marie D. », and the Preferred Name beside it.
+      expect(toCoach.subject).toContain("Marie D.");
+      expect(toCoach.text).toContain("Marie D. (se fait appeler Mimi)");
     });
   });
 

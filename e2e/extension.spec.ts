@@ -5,7 +5,8 @@ import path from "node:path";
 import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import type { OfferBoxResponse } from "@jobhub/shared/reads";
 import { chromium, expect, test, type BrowserContext, type Page, type Worker } from "@playwright/test";
-import { UPDATE_STORAGE_KEY } from "../apps/extension/src/extension-update";
+import pg from "pg";
+import { EXTENSION_VERSION, UPDATE_STORAGE_KEY } from "../apps/extension/src/extension-update";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
@@ -844,7 +845,8 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });
 
-  test("says so when the badge is clicked on a posting's address with nothing to capture", async () => {
+  test("says so when the badge is clicked on a posting's address with nothing to capture, and reports it to Jobbbox with the page's domain alone (#924)", async () => {
+    const since = new Date();
     const jobPage = await context.newPage();
     await jobPage.goto(emptyPostingUrl);
     await jobPage.getByRole("button", { name: fr.badgeLabel }).click();
@@ -852,6 +854,40 @@ test.describe("Guest Capture and Match Score", () => {
     // The Side Panel opened on the click, and nothing was captured into it.
     expect(await storedGuestSession()).toEqual({});
     await closeSidePanels();
+
+    // An Extension Event `error` / `captureImpossible`, a Guest's.
+    // Sent at best by the background, without waiting: it lands shortly after.
+    const database = new pg.Client({ connectionString: process.env.E2E_DATABASE_URL });
+    await database.connect();
+    try {
+      const reported = async () =>
+        (
+          await database.query(
+            `SELECT kind, candidate_id, extension_version, error_code, message_key, place, page_domain, route, http_status, browser, object_id
+               FROM extension_event WHERE at >= $1 AND error_code = 'captureImpossible'`,
+            [since],
+          )
+        ).rows;
+      await expect.poll(reported).toHaveLength(1);
+      const [row] = await reported();
+      expect(row).toEqual({
+        kind: "error",
+        candidate_id: null,
+        extension_version: EXTENSION_VERSION,
+        error_code: "captureImpossible",
+        message_key: "extension.captureImpossible",
+        place: "page_button",
+        page_domain: "www.welcometothejungle.com",
+        route: null,
+        http_status: null,
+        browser: expect.stringMatching(/^Chrom(e|ium) \d+$/),
+        object_id: null,
+      });
+      // Never the page's address.
+      expect(JSON.stringify(row)).not.toMatch(/jobs\/empty|https?:/);
+    } finally {
+      await database.end();
+    }
   });
 
   test("shows only the latest CV error, however many files were refused", async () => {
@@ -1255,6 +1291,50 @@ test.describe("Guest Capture and Match Score", () => {
 
     await expectSavedInWebApp(signIn, link, application.profile.id);
     await signIn.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  // Issue #926 (docs/research/issue-912.md § 1): the AI reads a signed-in Candidate's CV (cv_parsing), and the Profile made
+  // from it in the extension counts one CV read in their Consumption, as one made on the web app does (#799).
+  test("a signed-in Candidate's CV the AI read in the extension, saved as a new Profile, counts one CV read in their Consumption (#926)", async () => {
+    test.slow(); // a sign-in, a subscription and a Profile before the Capture
+    const web = await context.newPage();
+    const email = newAddress("extension-cv-reading");
+    await signInWithMagicLink(web, email);
+    await subscribe(web, email, "standard"); // more than the Free Plan's one Profile
+    const masterCv = {
+      fullName: "Marie Dupont", headline: "Contrôleuse de gestion", email: "", phone: "", location: "Lyon", summary: "",
+      experience: [], education: [], skills: [], languages: [],
+    };
+    const existing = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Contrôleuse de gestion", locations: ["Lyon"] } } });
+    expect(existing.status(), await existing.text()).toBe(201);
+    const cvReadings = async () => {
+      const exported = await (await web.request.get(`${origin}/api/account/export`)).json();
+      return (exported.consumption as { tool: string; count: number }[]).filter((row) => row.tool === "cvReading").reduce((sum, row) => sum + row.count, 0);
+    };
+    // A Profile saved with no reading (typed in, not read from a file) counts none.
+    expect(await cvReadings()).toBe(0);
+
+    // Scored against their Profile at once, they score another CV instead: the AI reads it, as it reads any Candidate's.
+    const analysis = await captureFromBadge(postingUrl);
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+    await analysis.getByRole("button", { name: fr.analysis.changeCv }).click();
+    await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+    const [read] = await Promise.all([analysis.waitForResponse(`${origin}/api/cv/draft`), analysis.getByRole("button", { name: fr.analysis.submit }).click()]);
+    expect((await read.json()).provenance?.steps).toEqual([expect.objectContaining({ kind: "ai", task: "cv_parsing" })]);
+    await expect(analysis.getByText(scoreLine)).toBeVisible();
+
+    // They save the Job Offer with a new Profile made from that CV.
+    const profile = analysis.getByLabel(fr.analysis.profileLabel);
+    await expect(profile.getByRole("option")).toHaveText(["Contrôleuse de gestion", fr.analysis.newProfileFromCv], { timeout: 15_000 });
+    await profile.selectOption({ label: fr.analysis.newProfileFromCv });
+    await analysis.getByRole("button", { name: fr.analysis.save }).click();
+    await expect(analysis.getByText(fr.analysis.saved)).toBeVisible();
+    await expect(analysis.getByText(/^Votre CV est devenu votre profil « .+ »\.$/)).toBeVisible();
+
+    // One CV read in their Consumption, as from the web app.
+    expect(await cvReadings()).toBe(1);
+    await analysis.close();
+    await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
   });
 
   test("a signed-in Candidate chooses the Profile and the captured Job Offer becomes an Application directly", async () => {

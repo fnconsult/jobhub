@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { quotaExceededResponse } from "@/billing/upgrade-prompt";
 import { localeOf } from "@/i18n/server";
+import { extensionCallOf, getExtensionEvents } from "@/extension-events/server";
 import { getMatchScoring } from "@/match-score/server";
 
 const STATUS = { invalid: 400, unauthorized: 401, not_found: 404 } as const;
@@ -12,6 +13,7 @@ const STATUS = { invalid: 400, unauthorized: 401, not_found: 404 } as const;
  *       { jobOfferId, cv, searchCriteria? } for a CV sent with the request
  *       (a Guest's CV, without an account, or a Tailored CV).
  * A signed-in Candidate's Match Scores count against their Plan Quota; a Guest's do not.
+ * From the extension, one worked out writes its Extension Event `match_score` (#924), whichever phase gave it.
  * 200 MatchScore · 400 { error: "invalid", errors } · 401 · 402 { error: "quota_exceeded", prompt, … } · 403 · 404
  */
 export async function POST(request: Request) {
@@ -24,5 +26,7 @@ export async function POST(request: Request) {
     const body = result.error === "invalid" ? { error: result.error, errors: result.errors } : { error: result.error };
     return NextResponse.json(body, { status: STATUS[result.error] });
   }
+  const extension = await extensionCallOf(request, candidate?.id ?? null);
+  if (extension) await getExtensionEvents().record(extension, "match_score", { type: "job_offer", id: String((body as { jobOfferId: unknown }).jobOfferId) });
   return NextResponse.json(result.matchScore);
 }

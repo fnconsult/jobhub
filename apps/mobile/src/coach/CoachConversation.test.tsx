@@ -355,7 +355,7 @@ describe("a Coach proposal under a reply", () => {
     await write("Calcule le Match Score");
     const prompt = {
       title: "Vous avez atteint la limite de votre offre",
-      message: "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuite. Passez à l'offre Pro pour en utiliser davantage.",
+      message: "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuit. Passez à l'offre Pro pour en utiliser davantage.",
       upgradeTo: "pro",
       action: "Passer à l'offre Pro",
       href: "/abonnement",

@@ -12,6 +12,7 @@ import { migrateJobSearches } from "../job-searches";
 import { migrateProfiles } from "../profiles";
 import { createPostgresUsageLog, MESSAGE_LOG_MAX_LENGTH, migrateAiUsage, purgeExpiredAiUsage } from "./index";
 import { createAiMessageLogs, type AiMessageLogs } from "./message-log";
+import type { Surface } from "../request-surface";
 
 const PROVIDER_KEY = "mk-2f9c41d7a0b34e5f";
 
@@ -84,7 +85,9 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       warnings: [],
       sent: true,
       candidate: { id: marie, email: "marie.dupont@example.fr" },
+      test: false,
       context: null,
+      surface: null,
     });
     expect(await logs.open(admin, summary!.id)).toMatchObject({
       ...summary,
@@ -225,6 +228,37 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     expect(await logs.open(admin, summary!.id)).toMatchObject({ messages: [{ role: "user", content: "Score" }], reply: null });
   });
 
+  it("tells a Guest's call from a test's, both for no Candidate: an Eval Run's or a route's test call (#926)", async () => {
+    await ai.generate({ task: "scoring", candidateId: null, prompt: "Lis l'offre" });
+    now = new Date(now.getTime() + 1_000);
+    await ai.forEval().generate({ task: "coaching", candidateId: null, prompt: "Cas d'eval" });
+    now = new Date(now.getTime() + 1_000);
+    // A route's test call (checkAiRoutingChange) is recorded on the task whose route it tests, marked as a test.
+    const usage = createPostgresUsageLog(database);
+    const tested = createAiLayer({
+      providers: [createFakeProvider({ id: "mistral" })],
+      routes: { scoring: "mistral" },
+      usage: { record: (entry) => void pending.push(Promise.resolve(usage.record({ ...entry, test: true }))) },
+      now: () => now,
+    });
+    await tested.generate({ task: "scoring", candidateId: null, prompt: "Réponds OK." });
+    await settled();
+
+    expect((await logs.list()).map(({ task, candidate, test }) => ({ task, candidate, test }))).toEqual([
+      { task: "scoring", candidate: null, test: true },
+      { task: "eval", candidate: null, test: true },
+      { task: "scoring", candidate: null, test: false },
+    ]);
+  });
+
+  it("takes an eval call kept before calls were marked for a test, by its task (#926)", async () => {
+    await ai.generate({ task: "scoring", candidateId: null, prompt: "Note" });
+    await settled();
+    await database.query("UPDATE ai_usage SET task = 'eval'");
+
+    expect(await logs.list()).toEqual([expect.objectContaining({ task: "eval", test: true })]);
+  });
+
   it("lists the newest first, filtered by task, model, Candidate email and day (Paris time)", async () => {
     const jean = await candidate("jean.martin@example.fr");
     now = new Date("2026-10-16T21:30:00Z"); // 23:30 in Paris
@@ -243,6 +277,33 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     expect(await tasks({ day: "2026-10-16" })).toEqual(["coaching marie.dupont@example.fr"]);
     // A filter that cannot be read is no filter.
     expect(await tasks({ task: "nope", day: "yesterday", model: 3 })).toHaveLength(3);
+  });
+
+  it("shows the Surface each call was asked from, and lists by it, « inconnue » listing the calls recorded with none (#919)", async () => {
+    const from = (surface: Surface) => {
+      const postgres = createPostgresUsageLog(database, { surface: () => surface });
+      return createAiLayer({
+        providers: [createFakeProvider({ id: "mistral" })],
+        routes: { scoring: "mistral" },
+        usage: { record: (entry) => void pending.push(Promise.resolve(postgres.record(entry))) },
+        now: () => now,
+      });
+    };
+    now = new Date("2026-10-17T08:00:00Z");
+    await from("extension").generate({ task: "scoring", candidateId: null, prompt: "Extension" });
+    now = new Date("2026-10-17T08:01:00Z");
+    await from("web").generate({ task: "scoring", candidateId: marie, prompt: "Web" });
+    now = new Date("2026-10-17T08:02:00Z");
+    await ai.generate({ task: "scoring", candidateId: marie, prompt: "Avant la colonne" });
+    await settled();
+
+    const surfaces = async (filter: unknown) => (await logs.list(filter)).map((log) => log.surface);
+    expect(await surfaces({})).toEqual([null, "web", "extension"]);
+    expect(await surfaces({ surface: "extension" })).toEqual(["extension"]);
+    expect(await surfaces({ surface: "unknown" })).toEqual([null]);
+    expect(await surfaces({ surface: "app", task: "scoring" })).toEqual([]);
+    // A Surface that cannot be read is no filter.
+    expect(await surfaces({ surface: "mobile" })).toHaveLength(3);
   });
 
   it("lists the calls one Candidate's run made: by their id, between two instants (Activité › Recherches' link, #404)", async () => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAi } from "@/ai/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { CvFileError, CvReadingStopped, draftFromCv, MAX_CV_FILE_BYTES } from "@/cv";
+import { extensionCallOf, getExtensionEvents } from "@/extension-events/server";
 import { actionResponse, STOPPED } from "@/ndjson";
 import { getTaskPlaybooks } from "@/task-playbooks/server";
 
@@ -14,6 +15,7 @@ import { getTaskPlaybooks } from "@/task-playbooks/server";
  * `searchCriteria.location` repeats the first of `searchCriteria.locations` for one release
  * (ADR-0025): earlier versions of the browser extension read that one place.
  * `provenance`: what read it, when the AI Coach did (#335); the Profile saved from the draft keeps it.
+ * From the extension, a draft read writes its Extension Event `cv_draft` (#924).
  *
  * Live (#335), with `Accept: application/x-ndjson`: the reading's step as it starts and ends, then { type: "done", ...draft }
  * · { type: "stopped", error } · { type: "failed", status, error, reason? } (see actionResponse). Aborting the request is the
@@ -34,10 +36,12 @@ export async function POST(request: Request) {
   }
   if (!(file instanceof File)) return NextResponse.json({ error: "unsupported_format" }, { status: 400 });
   const cv = { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
+  const extension = await extensionCallOf(request, candidate?.id ?? null);
 
   return actionResponse(request, async ({ signal, onEvent }) => {
     try {
       const draft = await draftFromCv(cv, { ai: getAi, candidateId: candidate?.id ?? null, taskPlaybooks: getTaskPlaybooks(), signal, ...(onEvent ? { onEvent } : {}) });
+      if (extension) await getExtensionEvents().record(extension, "cv_draft");
       return { status: 200, body: { ...draft, searchCriteria: { ...draft.searchCriteria, location: draft.searchCriteria.locations[0] ?? "" } } };
     } catch (error) {
       if (error instanceof CvFileError) return { status: 400, body: { error: error.code } };

@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { accountButtonName } from "./support/account-menu";
 
 // Issue #544: the public shell. Every public page has the header (Nouveautés, Aide, Légal, the FR/EN switch, the text
 // size, « Se connecter ») and the footer (Légal, Aide, Jobbbox), in French and in English, reached by the keyboard on a
@@ -241,11 +242,11 @@ test.describe("Aide et légal from the app, the coach space and the Back Office"
     const page = await personPage(browser, newAddress("public-shell.candidate"));
     try {
       await page.goto("/compte");
-      await page.locator(".sidebar-docked").getByRole("button", { name: fr.nav.account, exact: true }).click();
+      await page.locator(".sidebar-docked").getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
       const menu = page.getByRole("menu");
       await expect(menu).toContainText(fr.sidebar.helpAndLegal);
       // Aide et légal first, then Mon compte's page and « Se déconnecter », nearest the button.
-      await expect(menu.getByRole("menuitem")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes, fr.nav.account, fr.account.signOut]);
+      await expect(menu.getByRole("menuitem")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes, fr.nav.account, new RegExp(`^${fr.account.plan}`), fr.account.signOut]);
       await expect(menu.getByRole("menuitem", { name: fr.publicSite.legal })).toHaveAttribute("href", "/legal/cgu");
       for (const item of await menu.getByRole("menuitem").all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(24);
       await page.keyboard.press("Escape");
@@ -253,7 +254,7 @@ test.describe("Aide et légal from the app, the coach space and the Back Office"
       await page.setViewportSize(PHONE);
       await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
       const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
-      await drawer.getByRole("button", { name: fr.nav.account, exact: true }).click();
+      await drawer.getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
       await page.getByRole("menu").getByRole("menuitem", { name: fr.publicSite.nouveautes }).click();
       await expect(page).toHaveURL(`${origin}/nouveautes`);
       // Signed in, the public header and footer lead to « Mon compte ».

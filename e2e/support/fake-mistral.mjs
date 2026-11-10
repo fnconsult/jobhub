@@ -240,6 +240,9 @@ globalThis.fetch = async (input, init) => {
     if (system.includes('"subject"')) {
       const channel = system.includes("InMail") ? "inmail" : "email";
       content = JSON.stringify({ subject: `Candidature (${language}) : ${title}`, text: `Message d'approche (${language}, ${channel}) pour « ${title} ».` });
+    } else if (prompt.includes("E2E_SIGNED_LETTER")) {
+      // A reply that names the Candidate by the placeholder the Redaction put in the call (#921): the app puts the real name back.
+      content = "Madame, Monsieur,\n\nDirectrice financière, [NOM] met quinze ans de consolidation à votre service.\n\nJe vous prie d'agréer mes salutations distinguées.";
     } else if (prompt.includes("E2E_FRAMED_LETTER")) {
       // A reply the way a model often writes it: Markdown, a sender block, placeholders, a repeated signature (#162).
       content =

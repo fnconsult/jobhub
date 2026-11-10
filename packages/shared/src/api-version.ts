@@ -49,3 +49,36 @@ export function isServedApiVersion(value: string | null | undefined, current: nu
   if (!value || !/^\d+$/.test(value.trim())) return false;
   return Number(value.trim()) >= Math.min(...servedApiVersions(current));
 }
+
+/**
+ * The request header in which the extension states its Extension Version (#924), on every call beside its API Version:
+ * kept with each Extension Event, and read by the API Version's guard (MINIMUM_EXTENSION_VERSION). Adding it changed no
+ * contract: a server that does not read it ignores it.
+ */
+export const EXTENSION_VERSION_HEADER = "Jobbbox-Extension-Version";
+
+/**
+ * The oldest Extension Version the web app serves when a call states one (#924): raised to ask the extensions before it to
+ * update without raising the API Version. An extension that states no version (any before 0.2.0) is judged on its API
+ * Version alone. 0.2.0 is the first that states it, so nothing is refused by it yet.
+ */
+export const MINIMUM_EXTENSION_VERSION = "0.2.0";
+
+/** An Extension Version as the stores require it, X.Y.Z, digits only (each part at most 4 digits); null for anything else. */
+export function readExtensionVersion(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return /^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * Whether a call's stated Extension Version is served: `minimum` or later, compared part by part. One that states none,
+ * or none readable, is served: its API Version alone decides.
+ */
+export function isServedExtensionVersion(value: string | null | undefined, minimum: string = MINIMUM_EXTENSION_VERSION): boolean {
+  const stated = readExtensionVersion(value);
+  if (!stated) return true;
+  const parts = stated.split(".").map(Number);
+  const floor = minimum.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if (parts[i] !== floor[i]) return parts[i]! > floor[i]!;
+  return true;
+}

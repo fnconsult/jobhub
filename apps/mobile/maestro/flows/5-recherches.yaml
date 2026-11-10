@@ -13,7 +13,7 @@ tags:
 - runFlow:
     file: ../subflows/menu.yaml
     env:
-      MENU: "Recherches d'offres"
+      MENU: "Recherches d'offres(, .+)?"
 - runFlow:
     when:
       true: ${LAYOUT == 'columns'}

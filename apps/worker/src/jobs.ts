@@ -23,6 +23,7 @@ import {
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
+import { GUEST_RETENTION_DAYS as EXTENSION_EVENT_GUEST_RETENTION_DAYS, purgeExtensionEvents, RETENTION_MONTHS as EXTENSION_EVENT_RETENTION_MONTHS } from "@jobhub/web/extension-events";
 import { purgeExpiredConsumption, RETENTION_MONTHS as CONSUMPTION_RETENTION_MONTHS } from "@jobhub/web/consumption";
 import { FAILURE_RETENTION_DAYS as PUSH_FAILURE_RETENTION_DAYS, PUSH_NOTIFICATIONS_QUEUE, PUSH_PLATFORMS, purgeExpiredPushFailures, pushNotificationOf, type PushNotifications, type PushPlatform } from "@jobhub/web/push-notifications";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
@@ -133,6 +134,12 @@ export const PUSH_FAILURES_PURGE = "push-notifications.purge";
 
 /** Queue name: delete the Signalements marked `traite` SIGNALEMENT_RETENTION_MONTHS ago or more (#374, #283). Runs nightly. */
 export const SIGNALEMENTS_PURGE = "signalements.purge";
+
+/**
+ * Queue name: delete the Extension Events EXTENSION_EVENT_RETENTION_MONTHS old, and a Guest's (no Candidate)
+ * EXTENSION_EVENT_GUEST_RETENTION_DAYS old (#924). Runs nightly.
+ */
+export const EXTENSION_EVENTS_PURGE = "extension-events.purge";
 
 /** Queue name: delete the days of Consumption more than CONSUMPTION_RETENTION_MONTHS old, French time (#799). Runs nightly. */
 export const CONSUMPTION_PURGE = "consumption.purge";
@@ -782,6 +789,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeSignalements(deps.database, now());
           if (purged) log(`[signalements] ${purged} Signalement(s) purged, ${SIGNALEMENT_RETENTION_MONTHS} months after they were marked traité`);
+        }),
+    },
+
+    // An Extension Event is kept 12 months, a Guest's 30 days (#924); the account's deletion takes a Candidate's at once.
+    [EXTENSION_EVENTS_PURGE]: {
+      cron: "20 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExtensionEvents(deps.database, now());
+          if (purged) log(`[extension-events] ${purged} Extension Event(s) purged, ${EXTENSION_EVENT_RETENTION_MONTHS} months old, or ${EXTENSION_EVENT_GUEST_RETENTION_DAYS} days for a Guest's`);
         }),
     },
 

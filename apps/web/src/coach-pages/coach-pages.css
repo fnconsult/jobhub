@@ -1,0 +1,10 @@
+.coach-public-photo {
+  width: 6rem;
+  height: 6rem;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+.coach-public-presentation {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

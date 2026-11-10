@@ -180,6 +180,8 @@ export type CoachReviewResult =
   | { ok: false; error: "not_found" };
 
 export interface HumanCoachesDeps {
+  publicProfileApprovalRequired?:()=>boolean;
+  publishedCoachIds?:(ids:string[])=>Promise<string[]>;
   mayEnter?: (person: {email:string;emailVerified:boolean}, coachId:string) => Promise<boolean>;
   profiles: Pick<Profiles, "list" | "get">;
   applications: Pick<Applications, "list" | "get">;
@@ -575,17 +577,20 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const { name, email, bookingUrl, bio } = parsed.data;
       const { rows } = await within.query<CoachRow>(
-        `INSERT INTO human_coach (name, email, booking_url, bio) VALUES ($1, $2, $3, $4)
+        `INSERT INTO human_coach (name, email, booking_url, bio,public_ready) VALUES ($1, $2, $3, $4,$5)
          ON CONFLICT (email) WHERE retired_at IS NULL DO NOTHING
          RETURNING ${COACH_COLUMNS}`,
-        [name, email, bookingUrl, bio],
+        [name, email, bookingUrl, bio,!(deps.publicProfileApprovalRequired?.()??false)],
       );
       return rows[0] ? { ok: true, coach: coachFrom(rows[0]) } : { ok: false, error: "email_taken" };
     },
 
     async list(options={}) {
       const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL AND ($1::boolean OR (NOT contract_pending AND public_ready)) ORDER BY name, created_at`,[options.includePending??false]);
-      return rows.map(coachFrom);
+      const coaches=rows.map(coachFrom);
+      if(options.includePending||!deps.publishedCoachIds)return coaches;
+      const published=new Set(await deps.publishedCoachIds(coaches.map(c=>c.id)));
+      return coaches.filter(c=>published.has(c.id));
     },
 
     async retire(coachId, within = database) {

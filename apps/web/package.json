@@ -55,7 +55,9 @@
     "./shared-reading": "./src/shared-reading/index.ts",
     "./coach-enrolments": "./src/coach-enrolments/index.ts",
     "./coach-contracts": "./src/coach-contracts/index.ts",
-    "./coach-associations": "./src/coach-associations/index.ts"
+    "./coach-associations": "./src/coach-associations/index.ts",
+    "./coach-pages": "./src/coach-pages/index.ts",
+    "./coach-pages/email": "./src/coach-pages/email.ts"
   },
   "scripts": {
     "dev": "next dev",
@@ -102,6 +104,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-i18next": "^17.0.16",
+    "sharp": "^0.35.5",
     "stripe": "^23.0.0",
     "unpdf": "^1.8.1",
     "uqr": "^0.1.3",

@@ -1,3 +1,4 @@
+import {CoachProfile} from "./CoachProfile";
 import { SessionJoin } from "./SessionJoin";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/reads";
@@ -232,7 +233,7 @@ function CoachCard({ coach, bookable }: { coach: Coach; bookable: boolean }) {
       {coach.association?<AppText>{t("association.proposedBy",{name:coach.association.name})}</AppText>:null}
       {coach.seller?<><AppText>{t("coachingOffers.soldBy",{name:coach.seller.name})}</AppText>{coach.seller.kind!=="jobbbox"?<><AppText>{coach.seller.status} · {t("coachingOffers.siret",{siret:coach.seller.siret})}</AppText><AppText>{t("coachingOffers.marketplace")}</AppText></>:null}</>:null}
       {coach.offer?<AppText>{price} · {t("humanCoaches.sessionDuration",{count:coach.offer.durationMinutes})}</AppText>:null}
-      {coach.bio ? <AppText>{coach.bio}</AppText> : null}
+      {coach.profile?<CoachProfile name={coach.name} page={coach.profile}/>:coach.bio ? <AppText>{coach.bio}</AppText> : null}
       <AppText tone="secondary">{t(coach.accessGranted ? "humanCoaches.accessGranted" : "humanCoaches.accessNotGranted", { name: coach.name })}</AppText>
       {bookable ? <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} /> : null}
     </Card>

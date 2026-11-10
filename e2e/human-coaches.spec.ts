@@ -1,3 +1,4 @@
+import { migrateCoachPages } from "../apps/web/src/coach-pages";
 import path from "node:path";
 import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-server";
 import { derivedPort } from "./support/ports";
@@ -52,7 +53,7 @@ async function personPage(browser: Browser, email: string): Promise<Page> {
 }
 
 /** The Administrator adds a Human Coach in the Back Office; returns their name and booking link. */
-async function addCoach(admin: Page, email: string) {
+async function addCoachInBackOffice(admin: Page, email: string) {
   const name = `Sophie Martin ${unique()}`;
   const bookingUrl = `https://cal.com/sophie-${unique()}/seance`;
   await admin.goto("/admin");
@@ -61,11 +62,13 @@ async function addCoach(admin: Page, email: string) {
   await admin.getByLabel(fr.admin.humanCoaches.name, { exact: true }).fill(name);
   await admin.getByLabel(fr.admin.humanCoaches.email).fill(email);
   await admin.getByLabel(fr.admin.humanCoaches.bookingUrl).fill(bookingUrl);
-  await admin.getByLabel(fr.admin.humanCoaches.bio).fill("Ancienne DRH dans l'industrie.");
+  if(await admin.getByLabel(fr.admin.humanCoaches.bio).count())await admin.getByLabel(fr.admin.humanCoaches.bio).fill("Ancienne DRH dans l'industrie.");
   await admin.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
   await expect(admin.getByRole("status")).toHaveText(tr(fr.admin.humanCoaches.added, { name }));
   return { name, bookingUrl };
 }
+
+const addCoach=addCoachInBackOffice;
 
 /** A Profile and an Application with a Cover Letter drafted by the AI Coach, for the Candidate signed in on `page`. */
 async function applicationWithCoverLetter(page: Page, requestOrigin = origin): Promise<string> {
@@ -692,6 +695,15 @@ test.describe("isolated Human Coach workspace v2", () => {
   test.afterAll(async () => {
     await own?.stop();
   });
+  const addCoach=async(admin:Page,email:string)=>{
+    const coach=await addCoachInBackOffice(admin,email),database=new Pool({connectionString:own.databaseUrl});
+    try{
+      // Legacy-feature scenarios start with an already moderated profile. #877's dedicated spec tests the actual queue.
+      await database.query("UPDATE human_coach SET public_ready=true WHERE email=$1 AND retired_at IS NULL",[email]);
+      await migrateCoachPages(database);
+    }finally{await database.end();}
+    return coach;
+  };
   const signIn = async (page: Page, email: string) => {
     await signInByEmail(page, own, email);
     // These legacy feature scenarios start after a synthetic contract acceptance. The dedicated contract spec

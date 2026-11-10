@@ -111,6 +111,9 @@ export function serveCoaching(web: ReturnType<typeof fakeWebApp>, email: string)
     const url = new URL(request.url);
     if (!url.pathname.startsWith("/api/coaching")) return web.fetch(input, init);
     if (web.signedInAs(request.headers) !== email) return json({ error: "unauthorized" }, 401);
+    if(/^\/api\/coaching\/profiles\/[^/]+\/[^/]+\/photo$/.test(url.pathname)&&request.method==="GET") {
+      return new Response(new Uint8Array([1,2,3]),{headers:{"content-type":"image/webp"}});
+    }
     if (url.pathname === "/api/coaching" && request.method === "GET") {
       route.reads++;
       return json(route.coaching);

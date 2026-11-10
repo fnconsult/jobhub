@@ -1,3 +1,4 @@
+import {getCoachPages} from "@/coach-pages/server";
 import {getCoachContracts} from "@/coach-contracts/server";
 import {coachSpaceV2On} from "@/coach-space/server";
 import {redirect} from "next/navigation";
@@ -16,6 +17,8 @@ let instance: HumanCoaches | undefined;
 /** The app's Human Coaches module, on the database named by DATABASE_URL. */
 export function getHumanCoaches(): HumanCoaches {
   instance ??= createHumanCoaches(sharedPool(), {
+    publicProfileApprovalRequired:coachSpaceV2On,
+    publishedCoachIds:async ids=>coachSpaceV2On()?(await getCoachPages().approved(ids)).map(p=>p.coachId):ids,
     profiles: getProfiles(),
     applications: getApplications(),
     tailoredDocuments: getTailoredDocuments(),

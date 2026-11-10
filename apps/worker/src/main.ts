@@ -1,3 +1,5 @@
+import { coachPages } from "@jobhub/web/coach-pages";
+import { coachPageDecisionEmail } from "@jobhub/web/coach-pages/email";
 import {coachAssociations,associationInvitationEmail} from "@jobhub/web/coach-associations";
 import {coachContracts,coachContractNoticeEmail} from "@jobhub/web/coach-contracts";
 import {coachEnrolments,coachEnrolmentDecisionEmail} from "@jobhub/web/coach-enrolments";
@@ -166,6 +168,7 @@ const pushNotifications = createPushNotifications(database, {
   badge: (personId) => offersToHandle(database, personId, new Date()),
 });
 const jobs = createJobs({
+  coachPages:coachPages(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});}}),
   coachAssociations:coachAssociations(database,{secret:process.env.AUTH_SECRET??"",mayManage:async(person,id)=>(await coachContracts(database,{}).state(person,"association",id))?.accepted===true,sendInvitation:async(record,token)=>{await mailer.send({to:record.email,...associationInvitationEmail(record,token,baseURL)});}}),
   coachContracts:coachContracts(database,{production:sendsLegalTextNotices(process.env),sendNotice:async(recipient,version)=>{await mailer.send({to:recipient.email,...coachContractNoticeEmail(version,recipient.locale,baseURL)});}}),
   coachEnrolments:coachEnrolments(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachEnrolmentDecisionEmail(record,baseURL)});}}),

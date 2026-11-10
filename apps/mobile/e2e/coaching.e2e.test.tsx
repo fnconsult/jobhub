@@ -92,6 +92,14 @@ afterEach(() => {
 });
 
 describe("Mes coachs humains, read from the web app", () => {
+  it("renders only the approved profile and requests its portrait with the signed-in session",async()=>{
+    await launch("/coachs",route=>{route.coaching.coaches[0]!.profile={versionId:"public-version",presentation:"Un profil approuvé pour les transitions professionnelles.",specialties:["Reconversion"],languages:["français"],photoUrl:"/api/coaching/profiles/coach-1/public-version/photo"};});
+    expect(await screen.findByText("Un profil approuvé pour les transitions professionnelles.")).toBeOnTheScreen();
+    expect(screen.queryByText("Coach carrière, 15 ans de RH.")).toBeNull();
+    const portrait=await screen.findByLabelText("Portrait de Claire Martin");
+    expect(portrait.props.source.uri).toBe("data:image/webp;base64,AQID");
+    expect(portrait.props.source).not.toHaveProperty("headers");
+  });
   it("names the Association offering a Coach separately from the Seller",async()=>{
     await launch("/coachs",route=>{route.coaching.coaches[0]!.association={id:"association-1",name:"Transitions"};});
     expect(await screen.findByText("Proposé par Transitions")).toBeOnTheScreen();

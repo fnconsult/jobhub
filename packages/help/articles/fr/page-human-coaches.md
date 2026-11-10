@@ -27,3 +27,7 @@ Après avoir réservé votre créneau, « J'ai réservé : saisir la date » vou
 ## Les coachs proposés par une association
 
 « Proposé par … » nomme l’Association qui propose le coach, sur le site et dans l’app. Ce n’est pas forcément le vendeur de la séance : « Vendu par » l’identifie séparément. L’Association gère ses coachs et leurs offres, sans lire vos profils, candidatures, conversations ou notes de séance. Un coach retiré de l’Association est aussi retiré de Jobbbox ; vos séances passées restent dans votre historique.
+
+## Le profil de votre coach
+
+Chaque coach présente sa photo, ses spécialités, ses langues et sa présentation approuvées. Une modification en attente ou refusée ne vous est jamais montrée ; la dernière version approuvée reste visible. Il n’y a pas d’avis ni de notes de satisfaction sur ces profils.

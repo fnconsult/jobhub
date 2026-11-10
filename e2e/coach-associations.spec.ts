@@ -1,3 +1,4 @@
+import { migrateCoachPages } from "../apps/web/src/coach-pages";
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
@@ -109,6 +110,7 @@ test("invite, explicitly join, accept the contract, scope the offer, refuse ever
     const coachId = (await database.query("SELECT id FROM human_coach WHERE email=$1 AND retired_at IS NULL", [coachEmail])).rows[0].id;
     // Downstream public-profile approval (#877) is a fixture here, not an Association permission.
     await database.query("UPDATE human_coach SET public_ready=true WHERE id=$1", [coachId]);
+    await migrateCoachPages(database);
     candidate = await signedIn(browser, newAddress("association-private-candidate"));
     const candidateEmail = (await (await candidate.request.get("/api/account/export")).json()).account.email;
     const candidateRow = (await database.query("SELECT id,email FROM candidate WHERE email=$1", [candidateEmail])).rows[0];

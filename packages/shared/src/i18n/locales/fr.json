@@ -6820,5 +6820,48 @@
       "footer": "Vous recevez cet e-mail parce qu’une Association partenaire vous a invité sur Jobbbox."
     },
     "save": "Enregistrer l’offre"
+  },
+  "coachPage": {
+    "edit": "Modifier votre profil public",
+    "validationHint": "Chaque modification attend une validation. Votre dernière version approuvée reste visible entre-temps.",
+    "presentation": "Présentation",
+    "specialties": "Spécialités",
+    "languages": "Langues",
+    "commas": "Séparez les éléments par des virgules.",
+    "photo": "Photo professionnelle",
+    "photoPrompt": "Glissez votre portrait ici",
+    "photoHint": "JPEG, PNG ou WebP, 10 Mo et 20 mégapixels maximum. Le portrait sera recadré en carré.",
+    "photoTooLarge": "Choisissez une photo de 10 Mo maximum.",
+    "photoInvalid": "Choisissez une photo JPEG, PNG ou WebP valide, non animée, de 20 mégapixels maximum.",
+    "removePhoto": "Retirer la photo actuelle",
+    "photoAlt": "Portrait de {{name}}",
+    "conflict": "Votre profil a changé depuis l’ouverture de cette page. Rechargez-le avant de soumettre à nouveau.",
+    "reload": "Recharger le profil",
+    "invalid": "Votre profil n’a pas pu être enregistré. Vérifiez les champs puis réessayez.",
+    "submitting": "Envoi…",
+    "submit": "Envoyer pour validation",
+    "preview": "Aperçu pour les Candidates",
+    "visible": "Version actuellement visible",
+    "notPublished": "Votre profil n’a pas encore été approuvé. Il n’est pas visible des Candidates.",
+    "status": {
+      "pending": "En attente de validation",
+      "approved": "Approuvé",
+      "refused": "Refusé",
+      "superseded": "Remplacé par une nouvelle proposition"
+    },
+    "adminTitle": "Profils de coachs à valider",
+    "adminEmpty": "Aucun profil en attente de validation.",
+    "approve": "Approuver le profil",
+    "refuse": "Refuser le profil",
+    "reason": "Motif du refus",
+    "offers": "Votre offre et son vendeur",
+    "jobbboxPrice": "Le prix Jobbbox dépend de la formule du Candidate.",
+    "email": {
+      "approved": "Votre profil de coach a été approuvé",
+      "refused": "Votre profil de coach doit être modifié",
+      "visible": "Votre nouvelle version a été approuvée.",
+      "reason": "Motif communiqué par l’équipe :",
+      "footer": "Vous recevez cet e-mail à la suite de la validation de votre profil de coach."
+    }
   }
 }

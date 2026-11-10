@@ -1,3 +1,5 @@
+import {getCoachPages} from "@/coach-pages/server";
+import {PublicCoachProfile} from "@/coach-pages/PublicCoachProfile";
 import {getCoachAssociations} from "@/coach-associations/server";
 import {getCoachingOffers} from "@/coaching-offers/server";
 import {SellerInfo} from "@/coaching-offers/SellerInfo";
@@ -77,6 +79,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
         return null;
       }),
   ]);
+  const pages=new Map((coachSpaceV2On()?await getCoachPages().approved(coaches.map(c=>c.id)):[]).map(p=>[p.coachId,p.page]));
   const providers=new Map((coachSpaceV2On()?await getCoachAssociations().providers(coaches.map(c=>c.id)):[]).map(a=>[a.coachId,a]));
   const offers=new Map((await Promise.all(coaches.map(async coach=>[coach.id,await getCoachingOffers().sale(candidate.id,coach.id)] as const))).map(entry=>entry));
   const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
@@ -176,7 +179,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
               {providers.has(coach.id)?<p>{t("association.proposedBy",{name:providers.get(coach.id)!.name})}</p>:null}
               {offers.get(coach.id)?<SellerInfo seller={offers.get(coach.id)!.seller} t={t}/>:null}
               {offers.get(coach.id)?<p>{money(offers.get(coach.id)!.amount,offers.get(coach.id)!.currency)} · {t("humanCoaches.sessionDuration",{count:offers.get(coach.id)!.durationMinutes})}</p>:null}
-              {coach.bio ? <p>{coach.bio}</p> : null}
+              {pages.has(coach.id)?<PublicCoachProfile name={coach.name} page={pages.get(coach.id)!}/>:coach.bio ? <p>{coach.bio}</p> : null}
               {offers.get(coach.id) ? (
                 // To the Order page (#512): its summary and boxes come before Stripe Checkout.
                 <form method="get" action={COACHING_ORDER}>

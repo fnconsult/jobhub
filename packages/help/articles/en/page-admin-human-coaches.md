@@ -19,3 +19,5 @@ This section links each offer to its Seller and duration. Third-party Sellers pr
 ## Coach applications
 
 This section lists confirmed coach and Association applications. Review their details and private proof, then approve or decline with a reason. The decision is audited and emailed. Approval creates an identity awaiting contract acceptance and publication; it grants no Candidate access.
+
+“Coach profiles to approve” lists public-profile proposals. “Approve profile” replaces the visible version; “Refuse profile” requires a reason emailed to the coach. The former Back Office biography becomes the initial version. In the new workspace, the coach proposes subsequent changes.

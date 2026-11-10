@@ -15,7 +15,8 @@
     "./sign-in-providers": "./src/sign-in-providers.ts",
     "./coaching-time": "./src/coaching-time.ts",
     "./coaching-meeting": "./src/coaching-meeting.ts",
-    "./coaching-offers": "./src/coaching-offers.ts"
+    "./coaching-offers": "./src/coaching-offers.ts",
+    "./coaching-profiles": "./src/coaching-profiles.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

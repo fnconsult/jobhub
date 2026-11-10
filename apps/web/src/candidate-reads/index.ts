@@ -1,3 +1,4 @@
+import type {PublicCoachPage} from "@jobhub/shared/coaching-profiles";
 import type {CoachingSale} from "@jobhub/shared/coaching-offers";
 import type { Meeting } from "@jobhub/shared/coaching-meeting";
 /**
@@ -109,6 +110,7 @@ export interface CandidateReads {
 }
 
 export interface CandidateReadsDeps {
+  coachPages?(ids:string[]):Promise<{coachId:string;page:PublicCoachPage}[]>;
   coachAssociations?(ids:string[]):Promise<{coachId:string;id:string;name:string}[]>;
   coachingOffer?(candidateId:string,coachId:string):Promise<CoachingSale|null>;
   applications: Pick<Applications, "list" | "get" | "matchScores">;
@@ -422,6 +424,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           return null;
         }),
       ]);
+      const pages=new Map((await deps.coachPages?.(coaches.map(c=>c.id))??[]).map(p=>[p.coachId,p.page]));
       const associations=new Map((await deps.coachAssociations?.(coaches.map(c=>c.id))??[]).map(a=>[a.coachId,{id:a.id,name:a.name}]));
       const offers=deps.coachingOffer?new Map(await Promise.all(coaches.map(async coach=>[coach.id,await deps.coachingOffer!(candidateId,coach.id)] as const))):null;
       // As the Agenda: the sessions still in their Withdrawal period, and not held under the Immediate Performance Request.
@@ -429,7 +432,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       return {
         ...(timeZone ? { timeZone } : {}),
         // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
-        coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id),...associations.has(coach.id)?{association:associations.get(coach.id)}:{}, ...(offers?{seller:offers.get(coach.id)?.seller,offer:offers.get(coach.id)?{durationMinutes:offers.get(coach.id)!.durationMinutes,amount:offers.get(coach.id)!.amount,currency:offers.get(coach.id)!.currency}:null}:{}) })),
+        coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id),...pages.has(coach.id)?{profile:pages.get(coach.id)}:{},...associations.has(coach.id)?{association:associations.get(coach.id)}:{}, ...(offers?{seller:offers.get(coach.id)?.seller,offer:offers.get(coach.id)?{durationMinutes:offers.get(coach.id)!.durationMinutes,amount:offers.get(coach.id)!.amount,currency:offers.get(coach.id)!.currency}:null}:{}) })),
         sessions: sessions.map((session) => ({
           id: session.id,
           coach: { id: session.coach.id, name: session.coach.name, bookingUrl: session.coach.bookingUrl },

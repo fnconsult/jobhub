@@ -224,6 +224,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachPages?:{deliverNotices():Promise<number>;purge():Promise<number>};
   coachAssociations?:{deliverInvitations():Promise<number>;purge():Promise<number>};
   coachContracts?: {sendNotices():Promise<{sent:number;failed:number}>;purge():Promise<number>};
   coachEnrolments?: {deliverNotices():Promise<number>;purge():Promise<number>};
@@ -652,6 +653,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    "coach-pages.notices": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachPages?.deliverNotices();})},
+    "coach-pages.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachPages?.purge();})},
     "coach-associations.invitations": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachAssociations?.deliverInvitations();})},
     "coach-associations.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachAssociations?.purge();})},
     "coach-contracts.notices": {

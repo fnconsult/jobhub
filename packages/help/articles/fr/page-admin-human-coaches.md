@@ -19,3 +19,5 @@ Cette rubrique relie chaque offre à son vendeur et à sa durée. Un vendeur tie
 ## Demandes pour devenir coach
 
 Cette rubrique rassemble les demandes confirmées des coachs et Associations. Relisez les informations et le justificatif privé, puis approuvez ou refusez avec un motif. La décision est auditée et communiquée par e-mail. L’approbation crée une identité en attente du contrat et de la publication : elle ne donne aucun accès aux Candidates.
+
+« Profils de coachs à valider » présente les propositions de profils publics. « Approuver le profil » remplace la version visible ; « Refuser le profil » demande un motif transmis au coach. L’ancienne présentation saisie en Back Office est reprise comme version initiale. Dans le nouvel espace, c’est le coach qui propose ses prochaines modifications.

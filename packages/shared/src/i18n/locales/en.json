@@ -6820,5 +6820,48 @@
       "footer": "You received this email because a partner Association invited you to Jobbbox."
     },
     "save": "Save offer"
+  },
+  "coachPage": {
+    "edit": "Edit your public profile",
+    "validationHint": "Every change requires approval. Your last approved version stays visible meanwhile.",
+    "presentation": "About you",
+    "specialties": "Specialties",
+    "languages": "Languages",
+    "commas": "Separate items with commas.",
+    "photo": "Professional photo",
+    "photoPrompt": "Drop your portrait here",
+    "photoHint": "JPEG, PNG or WebP, up to 10 MB and 20 megapixels. The portrait will be cropped square.",
+    "photoTooLarge": "Choose a photo no larger than 10 MB.",
+    "photoInvalid": "Choose a valid, non-animated JPEG, PNG or WebP photo up to 20 megapixels.",
+    "removePhoto": "Remove current photo",
+    "photoAlt": "Portrait of {{name}}",
+    "conflict": "Your profile has changed since this page opened. Reload it before submitting again.",
+    "reload": "Reload profile",
+    "invalid": "Your profile could not be saved. Check the fields and try again.",
+    "submitting": "Sending…",
+    "submit": "Send for approval",
+    "preview": "Candidate preview",
+    "visible": "Currently visible version",
+    "notPublished": "Your profile has not been approved yet. Candidates cannot see it.",
+    "status": {
+      "pending": "Awaiting approval",
+      "approved": "Approved",
+      "refused": "Refused",
+      "superseded": "Replaced by a newer proposal"
+    },
+    "adminTitle": "Coach profiles to approve",
+    "adminEmpty": "No profiles are awaiting approval.",
+    "approve": "Approve profile",
+    "refuse": "Refuse profile",
+    "reason": "Reason for refusal",
+    "offers": "Your offer and its seller",
+    "jobbboxPrice": "Jobbbox pricing depends on the Candidate’s Plan.",
+    "email": {
+      "approved": "Your coach profile was approved",
+      "refused": "Your coach profile needs changes",
+      "visible": "Your new version was approved.",
+      "reason": "Reason provided by the team:",
+      "footer": "You received this email following review of your coach profile."
+    }
   }
 }

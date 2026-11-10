@@ -1,3 +1,5 @@
+import {CoachPagesAdmin} from "@/coach-pages/CoachPagesAdmin";
+import {coachSpaceV2On} from "@/coach-space/server";
 import {EnrolmentsAdmin} from "@/coach-enrolments/EnrolmentsAdmin";
 import {CoachingOffersAdmin} from "@/coaching-offers/CoachingOffersAdmin";
 import type { Metadata } from "next";
@@ -74,11 +76,12 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
         ) : null}
         {error ? (
           <Note tone="danger" role="alert">
-            {t(error === "enrolment" ? "coachEnrolment.invalidDecision" : error === "offer" ? "coachingOffers.invalid" : error === "email_taken" ? "admin.humanCoaches.emailTaken" : "admin.humanCoaches.invalid")}
+            {t(error === "profile"?"coachPage.invalid":error === "enrolment" ? "coachEnrolment.invalidDecision" : error === "offer" ? "coachingOffers.invalid" : error === "email_taken" ? "admin.humanCoaches.emailTaken" : "admin.humanCoaches.invalid")}
           </Note>
         ) : null}
 
         <EnrolmentsAdmin canWrite={canWrite}/>
+        <CoachPagesAdmin canWrite={canWrite}/>
         <CoachingOffersAdmin canWrite={canWrite}/>
         <section className="section-block" aria-labelledby="coaches-title">
           <h2 id="coaches-title">{t("admin.humanCoaches.listTitle")}</h2>
@@ -130,9 +133,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
               <Field label={t("admin.humanCoaches.bookingUrl")} hint={t("admin.humanCoaches.bookingUrlHelp")}>
                 <TextInput name="bookingUrl" type="url" required />
               </Field>
-              <Field label={t("admin.humanCoaches.bio")}>
-                <Textarea name="bio" />
-              </Field>
+              {!coachSpaceV2On()?<Field label={t("admin.humanCoaches.bio")}><Textarea name="bio"/></Field>:null}
               <button className={buttonClass({ variant: "primary" })} type="submit">
                 {t("admin.humanCoaches.add")}
               </button>

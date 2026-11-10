@@ -282,6 +282,13 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
           if (actual.amount !== row.amount) throw new Error("Connect balance amount mismatch");
           const platform = row.accountId === null;
           const refunded = platform ? proportionalAmount(row.payeeAmount, actual.refunded, row.amount) : actual.refunded;
+          const refundedCommission = platform ? 0 : actual.refundedCommission,
+            processingFees = platform ? 0 : actual.processingFees;
+          const remainingNet = Math.max(0, row.payeeAmount - refunded + refundedCommission - processingFees);
+          // Zero dispute debit is not proof that the original payment/balance has settled.
+          const settlementHold = (actual.settled ?? actual.available) ? 0 : remainingNet;
+          const disputeHold =
+            actual.held !== undefined ? (platform ? proportionalAmount(row.payeeAmount, Math.min(row.amount, actual.held), row.amount) : actual.held) : 0;
           await within.query(
             `UPDATE coaching_connect_earning SET refunded=$2,refunded_commission=$3,processing_fees=$4,available=$5,checked_at=$6,held=$7 WHERE payment_id=$1`,
             [
@@ -291,13 +298,7 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
               platform ? 0 : actual.processingFees,
               actual.available,
               now(),
-              actual.available
-                ? 0
-                : actual.held !== undefined
-                  ? platform
-                    ? proportionalAmount(row.payeeAmount, Math.min(row.amount, actual.held), row.amount)
-                    : actual.held
-                  : Math.max(0, row.payeeAmount - refunded),
+              settlementHold + disputeHold,
             ],
           );
         }

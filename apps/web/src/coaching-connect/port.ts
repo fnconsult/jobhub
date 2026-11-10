@@ -32,6 +32,8 @@ export interface PaymentBalance {
   processingFees: number;
   /** An unresolved dispute or uncaptured/unsettled payment must not enter a payout. */
   available: boolean;
+  /** Availability of the original payment/balance, independently of any dispute. */
+  settled?: boolean;
   /** Actual dispute balance withdrawn and not yet reinstated as available funds. */
   held?: number;
 }

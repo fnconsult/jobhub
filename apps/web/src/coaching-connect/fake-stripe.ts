@@ -60,6 +60,15 @@ export function fakeConnectStripe() {
       found.value.payment_status = "paid";
       return respond(found.value);
     }
+    if (method === "POST" && path === "/__connect/balance") {
+      const payment = payments.get(params.get("payment_intent") ?? "");
+      if (!payment) return failure();
+      const charge = payment.value.latest_charge as Json,
+        balance = charge.balance_transaction as Json;
+      balance.status = params.get("status") ?? "pending";
+      if (params.has("intent_status")) payment.value.status = params.get("intent_status");
+      return respond(payment.value);
+    }
     if (method === "POST" && path === "/__connect/dispute") {
       const payment = payments.get(params.get("payment_intent") ?? "");
       if (!payment) return failure();

@@ -192,6 +192,7 @@ export function stripeConnect(
         refunded,
         refundedCommission,
         processingFees,
+        settled: payment.status === "succeeded" && !!balance && typeof balance !== "string" && balance.status === "available",
         held: disputeCleared ? 0 : disputeHeld || payment.amount,
         available: payment.status === "succeeded" && disputeCleared && !!balance && typeof balance !== "string" && balance.status === "available",
       };

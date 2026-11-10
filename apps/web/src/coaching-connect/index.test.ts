@@ -1,3 +1,5 @@
+import { startFakeStripe, FAKE_STRIPE_SECRET_KEY, FAKE_STRIPE_WEBHOOK_SECRET } from "../billing/fake-stripe";
+import { stripeConnect } from "./stripe";
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { connectionString, startTestAuth, signInWithMagicLink, type TestAuth } from "../auth/test-support";
 import { migrateDatabase } from "../migrations";
@@ -10,6 +12,7 @@ import { coachingConnect, migrateCoachingConnect, connectDataOf, deleteConnectDa
 import { ConnectOperationNotCreated, type CheckoutRequest, type ConnectCheckout } from "./port";
 describe.skipIf(!connectionString)("Connect payment contexts and monthly allocation", () => {
   let auth: TestAuth, coachId: string, sellerId: string, coachPersonId: string, candidate: { id: string; email: string }, clock: Date;
+  let build: (stripe: ConnectPort) => ReturnType<typeof coachingConnect>;
   let offers: ReturnType<typeof coachingOffers>, connect: ReturnType<typeof coachingConnect>, port: ConnectPort;
   let checkouts: Map<string, ConnectCheckout>,
     requests: Map<string, CheckoutRequest>,
@@ -83,17 +86,19 @@ describe.skipIf(!connectionString)("Connect payment contexts and monthly allocat
         tailoredDocuments: { get: async () => null },
         tailoredCvs: { get: async () => null },
       });
-    connect = coachingConnect(auth.database, {
-      stripe: port,
-      baseURL: "http://localhost:3000",
-      now: () => clock,
-      permitted: async () => permitted,
-      maySell: async () => currentContract,
-      recordPaid: (paid, financials) => humans.recordPaidSession(paid, financials),
-      attachSale: (paid, within) => offers.attachPaid(paid, within),
-      confirmOrder: confirm,
-      sendPayoutNotice: notice,
-    });
+    build = (stripe) =>
+      coachingConnect(auth.database, {
+        stripe,
+        baseURL: "http://localhost:3000",
+        now: () => clock,
+        permitted: async () => permitted,
+        maySell: async () => currentContract,
+        recordPaid: (paid, financials) => humans.recordPaidSession(paid, financials),
+        attachSale: (paid, within) => offers.attachPaid(paid, within),
+        confirmOrder: confirm,
+        sendPayoutNotice: notice,
+      });
+    connect = build(port);
   }, 60000);
   afterEach(async () => {
     await auth.stop();
@@ -350,17 +355,66 @@ describe.skipIf(!connectionString)("Connect payment contexts and monthly allocat
     expect(vi.mocked(port.payout).mock.calls.map(([input]) => input.attempt)).toEqual([0, 1]);
     expect(vi.mocked(port.payout).mock.calls[1]?.[0].attemptedAt).toEqual(clock);
   });
-  it("does not backfill an old unbound pending batch as a proven uncreated operation",async()=>{
-    await paid();vi.mocked(port.payout).mockRejectedValueOnce(new Error('old unknown outcome'));
-    clock=new Date('2026-06-01T12:00Z');await connect.runMonthly();
-    await auth.database.query('ALTER TABLE coaching_connect_batch DROP COLUMN payout_outcome,DROP COLUMN transfer_outcome');
-    await auth.database.query('ALTER TABLE coaching_connect_batch ADD CONSTRAINT coaching_connect_batch_seller_id_month_currency_key UNIQUE(seller_id,month,currency)');
+  it("does not backfill an old unbound pending batch as a proven uncreated operation", async () => {
+    await paid();
+    vi.mocked(port.payout).mockRejectedValueOnce(new Error("old unknown outcome"));
+    clock = new Date("2026-06-01T12:00Z");
+    await connect.runMonthly();
+    await auth.database.query("ALTER TABLE coaching_connect_batch DROP COLUMN payout_outcome,DROP COLUMN transfer_outcome");
+    await auth.database.query(
+      "ALTER TABLE coaching_connect_batch ADD CONSTRAINT coaching_connect_batch_seller_id_month_currency_key UNIQUE(seller_id,month,currency)",
+    );
     await migrateCoachingConnect(auth.database);
-    expect((await auth.database.query('SELECT payout_outcome FROM coaching_connect_batch')).rows[0].payout_outcome).toBe('unknown');
-    vi.mocked(port.payment).mockResolvedValue({amount:10000,refunded:10000,refundedCommission:2000,processingFees:0,available:true});
-    clock=new Date('2026-06-01T12:06Z');await connect.runMonthly();
+    expect((await auth.database.query("SELECT payout_outcome FROM coaching_connect_batch")).rows[0].payout_outcome).toBe("unknown");
+    vi.mocked(port.payment).mockResolvedValue({ amount: 10000, refunded: 10000, refundedCommission: 2000, processingFees: 0, available: true });
+    clock = new Date("2026-06-01T12:06Z");
+    await connect.runMonthly();
     expect(port.payout).toHaveBeenCalledTimes(1);
-    expect((await auth.database.query('SELECT state FROM coaching_connect_batch')).rows[0].state).toBe('needs_review');
+    expect((await auth.database.query("SELECT state FROM coaching_connect_batch")).rows[0].state).toBe("needs_review");
   });
 
+  it("keeps a nondisputed pending Stripe balance out of payout, including fee-refunded net, until settlement", async () => {
+    const fake = await startFakeStripe();
+    try {
+      const actual = stripeConnect({ secretKey: FAKE_STRIPE_SECRET_KEY, webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET, apiUrl: fake.url, now: () => clock });
+      connect = build(actual);
+      await connect.onboarding(sellerId, "/espace-coach/revenus", coachPersonId);
+      const accountId = (await auth.database.query("SELECT account_id FROM coaching_connect_account WHERE seller_id=$1", [sellerId])).rows[0].account_id;
+      await fetch(`${fake.url}/__connect/activate`, { method: "POST", body: new URLSearchParams({ account: accountId }) });
+      const quote = (await offers.quote(candidate.id, coachId))!,
+        started = (await connect.startCheckout(candidate, quote.id, "fr", { success: "http://localhost/coachs", cancel: "http://localhost/coachs" }))!;
+      await fetch(`${fake.url}/__connect/pay`, { method: "POST", body: new URLSearchParams({ session: started.checkoutSessionId }) });
+      const session = (await actual.readCheckout(started.checkoutSessionId, accountId))!;
+      expect(await connect.paid(session, accountId)).toBe(true);
+      const balance = async (status: string, intent_status = "succeeded") =>
+        fetch(`${fake.url}/__connect/balance`, {
+          method: "POST",
+          body: new URLSearchParams({ payment_intent: session.paymentIntent!, status, intent_status }),
+        });
+      await balance("pending");
+      expect(await actual.payment(session.paymentIntent!, accountId)).toMatchObject({ available: false, settled: false, held: 0 });
+      clock = new Date("2026-06-01T12:00Z");
+      await connect.runMonthly();
+      expect((await connect.earnings(sellerId))[0]?.held).toBe(8000);
+      expect((await (await fetch(`${fake.url}/__connect/state`)).json()).payouts).toHaveLength(0);
+      await fetch(`${fake.url}/v1/refunds`, {
+        method: "POST",
+        headers: { "stripe-account": accountId },
+        body: new URLSearchParams({ payment_intent: session.paymentIntent!, amount: "5000", refund_application_fee: "true" }),
+      });
+      await connect.runMonthly();
+      expect((await connect.earnings(sellerId))[0]).toMatchObject({ refunded: 5000, refundedCommission: 1000, held: 4000 });
+      expect((await (await fetch(`${fake.url}/__connect/state`)).json()).payouts).toHaveLength(0);
+      await balance("available", "processing");
+      await connect.runMonthly();
+      expect((await connect.earnings(sellerId))[0]?.held).toBe(4000);
+      await balance("available");
+      await connect.runMonthly();
+      const payouts = (await (await fetch(`${fake.url}/__connect/state`)).json()).payouts;
+      expect(payouts).toHaveLength(1);
+      expect(payouts[0].value.amount).toBe(4000);
+    } finally {
+      await fake.stop();
+    }
+  });
 });

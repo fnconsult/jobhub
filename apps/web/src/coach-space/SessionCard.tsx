@@ -1,3 +1,4 @@
+import { meetingTool } from "./meeting";
 import { getCoachContacts } from "./contacts-server";
 import Link from "next/link";
 import { coachingTime } from "@jobhub/shared/coaching-time";
@@ -29,6 +30,7 @@ export async function SessionCard({
       </h3>
       <p>{session.scheduledAt ? coachingTime(session.scheduledAt, locale, timeZone) : t("coachSpace.sessionToSchedule")}</p>
       {session.durationMinutes ? <p>{t("coachSpace.sessionDuration", { count: session.durationMinutes })}</p> : null}
+      {meeting ? <p>{meeting.kind === "phone" ? t("coachMeeting.phone") : t(`coachMeeting.tools.${meetingTool(meeting.target)}`)}</p> : null}
       <MeetingLink
         coach
         meeting={meeting}

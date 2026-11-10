@@ -1,3 +1,5 @@
+import { ReportEditor } from "@/coach-space/ReportEditor";
+import { getSessionReports } from "@/coach-space/reports-server";
 import { MeetingForm } from "@/coach-space/MeetingForm";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import Link from "next/link";
@@ -27,6 +29,8 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   ]);
   if (!note) notFound();
   const phase = sessionPhase(session, new Date());
+  const reports = await getSessionReports().forCoach(coach.id, session.id);
+  const draft = reports?.find((report) => !report.publishedAt) ?? null;
   return (
     <CoachSpaceShell>
       <section className="coach-space-card">
@@ -54,6 +58,23 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
       <section className="coach-space-card">
         <PrivateNotes candidateId={session.candidateId} sessionId={session.id} initial={note} />
       </section>
+      {phase === "after" ? (
+        <section className="coach-space-card">
+          <h2>{t("coachReports.title")}</h2>
+          <p>{t("coachReports.immutable")}</p>
+          <ReportEditor key={draft?.id ?? reports?.length ?? 0} sessionId={session.id} initial={draft} />
+          {reports
+            ?.filter((report) => report.publishedAt)
+            .map((report) => (
+              <article key={report.id}>
+                <h3>{t("coachReports.published")}</h3>
+                <p>{report.covered}</p>
+                <p>{report.nextSteps}</p>
+                <p>{report.resources}</p>
+              </article>
+            ))}
+        </section>
+      ) : null}
     </CoachSpaceShell>
   );
 }

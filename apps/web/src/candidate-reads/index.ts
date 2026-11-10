@@ -197,6 +197,7 @@ const conversationRead = (conversation: CoachConversation): CoachConversationRea
   messages: conversation.messages.map((message) => ({
     from: message.from,
     text: message.text,
+    ...(message.humanCoach ? { humanCoach: message.humanCoach } : {}),
     ...(message.provenance !== undefined && { provenance: message.provenance }),
     ...(message.at !== undefined && { at: message.at }),
     ...(message.sent !== undefined && { sent: message.sent }),

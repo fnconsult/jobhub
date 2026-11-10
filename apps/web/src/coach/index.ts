@@ -164,6 +164,8 @@ export type CoachReply =
   | { ok: false; error: "unavailable"; reason: FailureReason };
 
 export interface CoachReplyOptions {
+  /** Trusted Session Report context: only actions that copy no text may be offered (ADR-0098). */
+  untrustedSessionReport?: boolean;
   /** The Candidate's, for a Guardrail message. Default French. */
   language?: GuardrailLanguage;
   /** The Candidate's Stop (#328): every AI call of the reply is aborted, and there is no reply. */
@@ -430,7 +432,7 @@ export function createCoach(deps: CoachDeps): Coach {
           const offered = deps.coachActions
             ? await deps.coachActions.forReply(candidateId, {
                 recorder,
-                untrustedInView: untrustedInView(focus?.kind),
+                untrustedInView: options.untrustedSessionReport === true || untrustedInView(focus?.kind),
                 language: options.language ?? "fr",
                 ...(focus ? { focus } : {}),
                 ...(guard ? { guard } : {}),

@@ -578,7 +578,7 @@ export type EnrichedContactsResponse = z.infer<typeof enrichedContactsResponseSc
 // --- Coach Conversations -----------------------------------------------------------------------------------------
 
 /** What a Coach Conversation is about (ADR-0070): one of the Candidate's objects, or a Sidebar menu; null for a Free conversation. */
-const subjectSchema = z.object({ kind: z.enum(["application", "profile", "job_search", "job_digest", "menu"]), id: z.string(), name: z.string() });
+const subjectSchema = z.object({ kind: z.enum(["application", "profile", "job_search", "job_digest", "coaching_session", "menu"]), id: z.string(), name: z.string() });
 
 export const coachConversationSummarySchema = z.object({
   id: z.string(),
@@ -652,6 +652,7 @@ export const replyCostSchema = z.object({
 
 /** One message of a Coach Conversation, as the web shows it. */
 export const coachMessageSchema = z.object({
+  humanCoach: z.object({ id:z.string(),name:z.string(),photoUrl:z.string().nullable() }).optional(),
   from: z.enum(["candidate", "coach"]),
   text: z.string(),
   provenance: provenanceSchema.nullable().optional(),

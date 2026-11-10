@@ -693,21 +693,22 @@ export function CoachConversationPage(page: PagePlacement) {
                 <li
                   key={index}
                   // Where « Voir dans la conversation » brings it (#808): a saved reply, by when it was saved.
-                  data-message-id={message.from === "coach" && message.at ? message.at : undefined}
+                  data-message-id={message.from === "coach" && !message.humanCoach && message.at ? message.at : undefined}
                   className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}${message.from === "coach" && message.revealing !== undefined ? " chat-revealing" : ""}`}
                   aria-busy={(message.from === "coach" && message.revealing !== undefined) || undefined}
                   style={message.from === "coach" && message.revealing !== undefined ? ({ "--reply-words": message.revealing } as CSSProperties) : undefined}
                 >
-                  <span className="visually-hidden">{message.from === "coach" ? t("questionnaire.coach") : t("questionnaire.you")}</span>
+                  <span className="visually-hidden">{message.from === "coach" ? (message.humanCoach ? t("coachReports.author", { name: message.humanCoach.name }) : t("questionnaire.coach")) : t("questionnaire.you")}</span>
                   {/* A reply is unframed text, the thread's full width, no glyph once it is there (#788); the Candidate's words, a bubble. */}
+                  {message.from === "coach" && message.humanCoach ? <p className="coach-report-author">{message.humanCoach.photoUrl ? <img src={message.humanCoach.photoUrl} alt={message.humanCoach.name} width={40} height={40} /> : null}{t("coachReports.author", { name: message.humanCoach.name })}</p> : null}
                   {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                   {message.from === "coach" ? <CoachReplyText text={message.text} reveal={message.revealing !== undefined} /> : <p>{message.text}</p>}
                   {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
                   {/* What the AI Coach consulted in Jobbbox (#788), folded, before the Provenance line. */}
-                  {message.from === "coach" ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
-                  {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
+                  {message.from === "coach" && !message.humanCoach ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
+                  {message.from === "coach" && !message.humanCoach && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
                   {/* « Dans l'activité » (#808): its entry in the page's Activity. */}
-                  {message.from === "coach" && message.at && showInActivity ? <InActivity onShow={() => showInActivity({ messageId: message.at! })} /> : null}
+                  {message.from === "coach" && !message.humanCoach && message.at && showInActivity ? <InActivity onShow={() => showInActivity({ messageId: message.at! })} /> : null}
                   {/* Its Coach proposals (#715), each an Action Card, after its Provenance line, with « Dans l'activité » once decided. */}
                   {message.from === "coach" && message.cards?.length
                     ? message.cards.map((card, at) => (
@@ -717,7 +718,7 @@ export function CoachConversationPage(page: PagePlacement) {
                         </div>
                       ))
                     : null}
-                  {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
+                  {openSignalement && message.from === "coach" && !message.humanCoach && !message.blocked && !message.jobOffer ? (
                     <ReplyFeedback
                       couldNotAnswer={message.couldNotAnswer === true}
                       satisfied={message.satisfied}

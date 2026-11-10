@@ -6630,6 +6630,33 @@
     "invalid": "Check the HTTPS link or phone number. Confirm an unrecognised host.",
     "permanent": "Your permanent contact",
     "sessionContact": "This session’s contact",
-    "candidateCalls": "The Candidate will call you on {{phone}}."
+    "candidateCalls": "The Candidate will call you on {{phone}}.",
+    "tools": {
+      "zoom": "Zoom",
+      "meet": "Google Meet",
+      "teams": "Microsoft Teams",
+      "video": "Video call"
+    }
+  },
+  "coachReports": {
+    "title": "Session Report",
+    "author": "{{name}} · Human Coach",
+    "forCandidate": "Report of the session with {{name}}",
+    "covered": "What we covered",
+    "nextSteps": "Next steps",
+    "resources": "Resources",
+    "resourcesHint": "One HTTPS link per line.",
+    "save": "Save draft",
+    "publish": "Publish",
+    "published": "Published report",
+    "write": "Write the Session Report",
+    "immutable": "A published report cannot be edited. To correct it, publish a new message.",
+    "open": "Read the report and continue the conversation",
+    "status": {
+      "saving": "Saving…",
+      "saved": "Draft saved.",
+      "published": "Report published in the Candidate’s conversation.",
+      "failed": "Check the fields: the session must have ended and resources must be HTTPS links. Try again."
+    }
   }
 }

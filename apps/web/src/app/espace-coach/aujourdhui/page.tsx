@@ -1,3 +1,4 @@
+import { getSessionReports } from "@/coach-space/reports-server";
 import Link from "next/link";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { CalledBy } from "@/components/CalledBy";
@@ -10,6 +11,7 @@ export default async function Page() {
   const coach = await requireCoachSpaceV2();
   const [t, locale, timeZone] = await Promise.all([getServerT(), getRequestLocale(), getCoachingTimeZones().coach(coach.id)]);
   const day = await getCoachWorkspace().today(coach.id, new Date(), timeZone);
+  const reportsDue = await getSessionReports().due(coach.id);
   const props = { t, locale, timeZone };
   return (
     <CoachSpaceShell>
@@ -31,7 +33,7 @@ export default async function Page() {
       </section>
       <section className="coach-space-card">
         <h2>{t("coachWorkspace.todo")}</h2>
-        {day.toSchedule.length + day.toConfirm.length === 0 ? (
+        {day.toSchedule.length + day.toConfirm.length + reportsDue.length === 0 ? (
           <p>{t("coachWorkspace.nothingTodo")}</p>
         ) : (
           <ul>
@@ -43,6 +45,11 @@ export default async function Page() {
             {day.toConfirm.map((session) => (
               <li key={session.id}>
                 <Link href={coachSessionUrl(session.id)}>{t("coachWorkspace.confirm", { name: session.candidateName })}</Link>
+              </li>
+            ))}
+            {reportsDue.map((id) => (
+              <li key={id}>
+                <Link href={coachSessionUrl(id)}>{t("coachReports.write")}</Link>
               </li>
             ))}
           </ul>

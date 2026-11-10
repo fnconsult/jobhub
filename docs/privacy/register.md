@@ -764,10 +764,10 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 13._
 
 | | |
 | --- | --- |
-| Purpose and roles | Support coaching with Private Coach Notes per Candidate and per Coaching Session. Jobbbox is controller; the Human Coach acts as processor (GDPR art. 28, contract #518). Session Reports extend this processing when #872 is delivered. |
+| Purpose and roles | Support coaching with Private Coach Notes per Candidate and per Coaching Session. Jobbbox is controller; the Human Coach acts as processor (GDPR art. 28, contract #518). Session Reports (#872) use the same processing: private drafts, then immutable messages signed by the Human Coach in the session’s own conversation; the AI Coach may read them under the no-copy Coach Actions rule. |
 | Legal basis | Performance of the requested coaching service (GDPR art. 6(1)(b)); no AI, recording, transcript or summary in v0. |
 | Data and access | Text, author, Candidate/session reference, revision and date. Notes are readable only by their author while an active coach with Coach Access or a paid-session relationship. No access for another coach or an Association. The Candidate sees none on screen, but can obtain the notes in their Data export. |
-| Storage and retention | EU Postgres `private_coach_note`; deleted with the Candidate's account or the session they concern. A retired coach cannot read or change notes. |
+| Storage and retention | EU Postgres `private_coach_note`, `session_report` and published `coach_message` records; drafts and publications are included in Data export; deleted with the Candidate's account or the session they concern. A retired coach cannot read or change notes. |
 | Information | Coach page warns that the Candidate can obtain these notes through Data export. Privacy policy change remains in human Legal Review #890; the B2B text remains #518. |
 
 ## Coaching Session contacts (#884)

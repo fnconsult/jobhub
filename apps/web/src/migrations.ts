@@ -1,3 +1,4 @@
+import { migrateSessionReports } from "./coach-space/reports";
 import { migrateCoachContacts } from "./coach-space/contacts";
 import { migrateCoachWorkspace } from "./coach-space/workspace";
 import { migrateCoachingTimeZones } from "./coaching-time";
@@ -100,6 +101,7 @@ export async function migrateDatabase(
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Push notifications' devices and switches are up to date", () => migratePushNotifications(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
+    ["Session Reports are up to date", () => migrateSessionReports(database)],
     ["Action Cards in Coach Conversations are up to date", () => migrateActionCardsInThread(database)],
     ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],

@@ -104,6 +104,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
               <p>
                 <strong>{t("humanCoaches.sessionOn", { name: paid.coach.name, date: coachingTime(paid.scheduledAt, locale, timeZone) })}</strong>
               </p>
+              {meetings ? <Link href={`/coachs/seances/${paid.id}`}>{t("coachReports.open")}</Link> : null}
               {paid.durationMinutes ? <p>{t("humanCoaches.sessionDuration", { count: paid.durationMinutes })}</p> : null}
               {meetings ? <MeetingLink meeting={meetings[paid.id] ?? null} scheduledAt={paid.scheduledAt.toISOString()} durationMinutes={paid.durationMinutes} timeZone={timeZone} /> : paid.videoLink ? (
                 <p>

@@ -875,6 +875,26 @@ test.describe("isolated Human Coach workspace v2", () => {
       await expect(coachPage.getByRole("status").filter({ hasText: fr.account.saved })).toBeVisible();
       await page.goto("/coachs");
       await expect(page.getByRole("link", { name: fr.coachMeeting.join.meet })).toBeVisible();
+      await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '2 hours' WHERE id=$1", [session.id]);
+      await coachPage.goto(`/espace-coach/seances/${session.id}`);
+      await coachPage.getByLabel(fr.coachReports.covered).fill("Nous avons préparé votre présentation ensemble.");
+      await coachPage.getByLabel(fr.coachReports.nextSteps).fill("Préparer une candidature pour votre prochaine offre.");
+      await coachPage.getByLabel(fr.coachReports.resources).fill("https://www.apec.fr/");
+      await coachPage.getByRole("button", { name: fr.coachReports.save }).click();
+      await expect(coachPage.getByRole("status").filter({ hasText: fr.coachReports.status.saved })).toBeVisible();
+      await page.goto(`/coachs/seances/${session.id}`);
+      await expect(page.getByText("Nous avons préparé votre présentation ensemble.")).toHaveCount(0);
+      await coachPage.getByRole("button", { name: fr.coachReports.publish, exact: true }).click();
+      await expect(coachPage.getByRole("heading", { name: fr.coachReports.published })).toBeVisible();
+      await page.reload();
+      await expect(page.getByText("Nous avons préparé votre présentation ensemble.", { exact: false })).toBeVisible();
+      await expect(page.locator(".coach-report-author")).toContainText(coach.name);
+      await expect(
+        page
+          .locator(".chat-message")
+          .filter({ has: page.locator(".coach-report-author") })
+          .locator(".provenance-line"),
+      ).toHaveCount(0);
       // Native WebView uses the dedicated coach drawer too, despite the Candidate shell's global hiding rule.
       await coachPage.setExtraHTTPHeaders({ "user-agent": "Mozilla/5.0 JobbboxApp/1.0" });
       await coachPage.setViewportSize({ width: 390, height: 844 });

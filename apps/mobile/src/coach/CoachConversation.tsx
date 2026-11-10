@@ -172,7 +172,7 @@ export function CoachConversation(page: PagePlacement) {
             {message.from === "coach" && message.cards?.length
               ? message.cards.map((card) => <ProposalCard key={card.id} card={card} onChange={(changed) => coach.cardChanged(index, changed)} />)
               : null}
-            {message.from === "coach" && !message.blocked && !message.jobOffer ? (
+            {message.from === "coach" && !message.humanCoach && !message.blocked && !message.jobOffer ? (
               <ReplyFeedback
                 couldNotAnswer={message.couldNotAnswer === true}
                 satisfied={message.satisfied}
@@ -265,6 +265,7 @@ function Message({ message, language }: { message: ShownMessage; language: "fr" 
           {t("coachPanel.blocked")}
         </AppText>
       ) : null}
+      {message.humanCoach ? <AppText weight="semiBold">{t("coachReports.author", { name: message.humanCoach.name })}</AppText> : null}
       <AppText>{message.text}</AppText>
       {message.jobOffer ? (
         <AppText weight="semiBold">{`${t("coachPanel.jobOfferLink.card")} · ${[message.jobOffer.title, message.jobOffer.employer].filter(Boolean).join(" · ")} · ${t(message.jobOffer.followed ? "coachPanel.jobOfferLink.followed" : "coachPanel.jobOfferLink.toProcess")}`}</AppText>

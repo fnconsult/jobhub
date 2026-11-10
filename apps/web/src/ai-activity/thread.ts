@@ -12,7 +12,7 @@ import type { CoachMessage } from "../coach/conversation";
 import type { CardGiven, ReplyGiven } from "./entries";
 
 /** A message of the thread: a saved one, or a reply the Candidate stopped (no message of its own). */
-type ThreadMessage = Pick<CoachMessage, "from" | "text" | "provenance" | "at" | "sent" | "seenNames" | "cards"> | { from: "stopped" };
+type ThreadMessage = Pick<CoachMessage, "humanCoach" | "from" | "text" | "provenance" | "at" | "sent" | "seenNames" | "cards"> | { from: "stopped" };
 
 /** The thread's saved AI Coach replies, oldest first, each with the Candidate's message just before it as its question. */
 export function threadReplies(messages: readonly ThreadMessage[]): ReplyGiven[] {
@@ -23,7 +23,7 @@ export function threadReplies(messages: readonly ThreadMessage[]): ReplyGiven[] 
       question = message.text;
       continue;
     }
-    if (message.from !== "coach") continue;
+    if (message.from !== "coach" || message.humanCoach) continue;
     if (message.at) {
       replies.push({
         messageId: message.at,

@@ -184,6 +184,7 @@ function SessionCard({ session, formats, onSaved }: { session: Session; formats:
       <AppText variant="meta" tone="secondary">
         {paidOn}
       </AppText>
+      {session.meeting !== undefined ? <Control label={t("coachReports.open")} onPress={() => router.navigate(`/coachs/seances/${session.id}`)} /> : null}
       {session.meeting !== undefined ? <SessionJoin meeting={session.meeting} scheduledAt={session.scheduledAt} durationMinutes={session.durationMinutes} /> : session.videoLink ? <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} /> : null}
       {actions}
     </Card>

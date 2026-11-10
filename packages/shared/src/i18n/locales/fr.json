@@ -6630,6 +6630,33 @@
     "invalid": "Vérifiez le lien HTTPS ou le numéro. Confirmez un hôte non reconnu.",
     "permanent": "Votre contact permanent",
     "sessionContact": "Contact de cette séance",
-    "candidateCalls": "Le Candidate vous appellera au {{phone}}."
+    "candidateCalls": "Le Candidate vous appellera au {{phone}}.",
+    "tools": {
+      "zoom": "Zoom",
+      "meet": "Google Meet",
+      "teams": "Microsoft Teams",
+      "video": "Visio"
+    }
+  },
+  "coachReports": {
+    "title": "Compte rendu de séance",
+    "author": "{{name}} · Coach humain",
+    "forCandidate": "Compte rendu de la séance avec {{name}}",
+    "covered": "Ce que nous avons vu",
+    "nextSteps": "Prochaines étapes",
+    "resources": "Ressources",
+    "resourcesHint": "Un lien HTTPS par ligne.",
+    "save": "Enregistrer le brouillon",
+    "publish": "Publier",
+    "published": "Compte rendu publié",
+    "write": "Écrire le compte rendu",
+    "immutable": "Un compte rendu publié ne se modifie plus. Pour corriger, publiez un nouveau message.",
+    "open": "Lire le compte rendu et poursuivre la conversation",
+    "status": {
+      "saving": "Enregistrement…",
+      "saved": "Brouillon enregistré.",
+      "published": "Compte rendu publié dans la conversation du Candidate.",
+      "failed": "Vérifiez les champs : la séance doit être terminée et les ressources doivent être des liens HTTPS. Réessayez."
+    }
   }
 }

@@ -2391,6 +2391,7 @@
           "job_discovery": "Recherche d'offres",
           "enriched_contacts": "Contacts enrichis",
           "email": "E-mails",
+          "coaching_booking": "Réservation des séances de coaching",
           "billing": "Paiements",
           "sign_in": "Connexion"
         }

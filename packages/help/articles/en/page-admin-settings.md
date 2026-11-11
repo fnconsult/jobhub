@@ -12,6 +12,9 @@ A providers tab first shows the « Active provider » card, with the tab's setti
 
 The « AI » tab also holds the « AI Coach » group: « Coach Actions switched on (the AI Coach reads and proposes) », false by default, and « Rounds of Coach Action calls per reply, at most » (2 by default, from 0 to 4). Their tools are under « Local routes » in Tools.
 
+
+In « Payment », open the **Cal.com** sheet for `CAL_COM_API_KEY` and `CAL_COM_WEBHOOK_SECRET`, « Jobbbox Cal.com team » (a positive identifier) and « Cal.com reminders and workflows disabled (operator confirmation) ». Confirm the latter only after disabling those messages at Cal.com. Then check each offer's host and event type in `/admin/coachs`. Keys and settings being present establishes neither full remote-service verification nor legal approval: activation requirements still apply.
+
 Each setting shows its « Value in use » and its « Source »: a value entered in the back office wins over the server's environment, which wins over the « Code default ». « Save » applies a new value within seconds, without a restart; « Restore » clears the back office's value. A setting marked « Set in the environment » is not changed here.
 
 « + Add » adds what the tab holds: a provider, a key, a model, a source, a site or a sign-in provider. Every change and every refused attempt is recorded in Activity. Super-admins change everything; « Technique » changes the settings and the sites without ever seeing or replacing a key; Support reads everything and changes nothing.

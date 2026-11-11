@@ -37,6 +37,7 @@ export interface ParametresTab {
   settings: readonly string[];
 }
 
+const BOOKING_SETTINGS = ["CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"] as readonly string[];
 const namesOf = (groups: readonly string[]) => PLATFORM_SETTINGS.filter((setting) => groups.includes(setting.group)).map((setting) => setting.name);
 /**
  * Recherche web's settings: the active Search provider and its fallback, each provider's typed settings (ADR-0043), the
@@ -56,14 +57,14 @@ const WEB_SEARCH_SETTINGS = [
 
 export const PARAMETRES_TABS: readonly ParametresTab[] = [
   { id: "web_search", slug: "recherche-web", toolCategories: ["web_search"], activeSetting: "AI_WEB_SEARCH_PROVIDER", settings: WEB_SEARCH_SETTINGS },
-  { id: "ai", slug: "ia", toolCategories: ["ai_model"], settings: [...namesOf(["ai_routing"]).filter((name) => !WEB_SEARCH_SETTINGS.includes(name)), ...namesOf(["coach"])] },
+  { id: "ai", slug: "ia", toolCategories: ["ai_model"], settings: [...namesOf(["ai_routing"]).filter((name) => !WEB_SEARCH_SETTINGS.includes(name)), ...namesOf(["coach"]).filter((name) => !BOOKING_SETTINGS.includes(name))] },
   { id: "sources", slug: "sources", toolCategories: ["job_discovery"], settings: namesOf(["job_discovery", "job_digest"]) },
   { id: "contact_enrichment", slug: "enrichissement", toolCategories: ["contact_enrichment"], activeSetting: "CONTACT_ENRICHMENT_PROVIDER", settings: namesOf(["enriched_contacts"]) },
   { id: "email", slug: "e-mail", toolCategories: ["mail"], settings: [...namesOf(["email"]), "MAIL_TRANSPORT"] },
   {
     id: "billing",
     slug: "paiement",
-    toolCategories: ["billing"],
+    toolCategories: ["billing", "scheduling"],
     settings: ["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"],
   },
   { id: "sign_in", slug: "connexion", toolCategories: ["sign_in"], settings: [] },
@@ -120,9 +121,9 @@ export const pricesOfTool = (tool: Tool): readonly string[] => PRICE_SETTINGS.fi
 
 /**
  * The settings changed on `tool`'s sheet rather than on its tab: Email intake's (#448), on the sheet of its Tool (the
- * MTA), beside its key and its Recognised senders. None for another Tool.
+ * MTA), beside its key and its Recognised senders; Cal.com booking controls beside its own secrets.
  */
-export const sheetSettingsOf = (tool: Tool): readonly string[] => (tool.id === EMAIL_INTAKE_TOOL ? namesOf(["email_intake"]) : []);
+export const sheetSettingsOf = (tool: Tool): readonly string[] => (tool.id === EMAIL_INTAKE_TOOL ? namesOf(["email_intake"]) : tool.id === "cal-com" ? BOOKING_SETTINGS : []);
 
 /** Email intake's Tool (#442, #448, #580): its own MTA, whose sheet is the Email intake sheet. */
 export const EMAIL_INTAKE_TOOL = "email-intake";
@@ -200,6 +201,7 @@ const FEATURES: Partial<Record<ToolCategory, UsedBy>> = {
   contact_enrichment: "enriched_contacts",
   mail: "email",
   billing: "billing",
+  scheduling: "coaching_booking",
   sign_in: "sign_in",
 };
 

@@ -68,7 +68,7 @@ export interface ToolState {
   status: ToolStatus;
   /** The keys it needs that have no value. */
   missingKeys: string[];
-  /** The settings it cannot be called without that are empty. */
+  /** The settings it cannot be called without that are empty or invalid. */
   missingSettings: string[];
   /** Its settings, in the catalog's order. */
   settings: ToolSettingValue[];
@@ -105,7 +105,7 @@ export function toolStatus(tool: Tool, state: ToolsState): ToolState {
   const declared = tool.settings ?? [];
   const values = declared.map((setting) => settingValue(setting.name, state));
   const missingKeys = tool.keys.filter((key) => !state.env[key]?.trim());
-  const missingSettings = declared.filter((setting, index) => setting.required && !values[index]!.value).map((setting) => setting.name);
+  const missingSettings = declared.filter((setting, index) => setting.required && (!values[index]!.value || state.settings.setting(setting.name)?.valid === false)).map((setting) => setting.name);
   const read = {
     missingKeys,
     missingSettings,

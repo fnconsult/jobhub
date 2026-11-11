@@ -138,6 +138,23 @@ test.describe("Paramètres in tabs (#396)", () => {
     await expect(page.locator('tr[data-setting="DATABASE_URL"]')).toContainText(texts.environment.kinds.bootstrap);
   });
 
+  test("Cal.com booking controls and secrets have an accessible Payment provider sheet", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto(`${PATH}?tab=paiement`);
+    await page.locator('tr[data-provider="cal-com"]').getByRole("link", { name: tr(texts.providers.open, { name: "Cal.com" }) }).click();
+    await expect(page).toHaveURL(`${origin}${PATH}?tab=paiement&fournisseur=cal-com`);
+    const drawer = page.getByRole("dialog", { name: "Cal.com", exact: true });
+    for (const name of ["CAL_COM_API_KEY", "CAL_COM_WEBHOOK_SECRET"]) {
+      await expect(drawer.locator(`[data-key="${name}"]`)).toBeVisible();
+    }
+    for (const name of ["CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"]) {
+      await expect(drawer.locator(`#value-${name}`)).toBeEnabled();
+    }
+    await expectAccessible(page, "Cal.com sheet", "[data-sheet]");
+    await page.goto(`${PATH}?tab=ia`);
+    await expect(page.locator('[data-setting^="CAL_COM_"]')).toHaveCount(0);
+  });
+
   test("the old addresses go to the right tab, and a provider's sheet for a key", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     for (const [old, now] of [

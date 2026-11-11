@@ -4,6 +4,7 @@ import type { ReceivedOffer, ReceivedOffersOverview } from "@/email-intake/recei
 import { JobOfferResults } from "@/components/JobOfferResults";
 import { RecogniseSenderButton } from "@/components/RecogniseSenderButton";
 import { MicroAnimation } from "@/design/MicroAnimation";
+import { ExternalLink } from "@/components/ExternalLink";
 import { routes } from "@/routes";
 
 /** The ids of a « Reçues par email » list's titles: apart from the Job Search results of the same Profile. */
@@ -90,8 +91,8 @@ export function EmailIntakeStanding({
   const Heading = headingLevel === 2 ? "h2" : "h3";
   const RowHeading = headingLevel === 2 ? "h3" : "h4";
   const day = dayFormat(locale);
-  const { unclassified, ignored, tooBroad } = overview;
-  const anything = unclassified.offers.length > 0 || ignored.length > 0 || tooBroad !== null || Object.keys(overview.byProfile).length > 0;
+  const { unclassified, ignored, tooBroad, toCapture } = overview;
+  const anything = toCapture.length > 0 || unclassified.offers.length > 0 || ignored.length > 0 || tooBroad !== null || Object.keys(overview.byProfile).length > 0;
   if (!switchedOn && !anything) {
     return (
       <p className="hint">
@@ -115,6 +116,24 @@ export function EmailIntakeStanding({
             </Link>
           </p>
         </div>
+      ) : null}
+      {toCapture.length > 0 ? (
+        <section className="section received-by-email" aria-labelledby="received-by-email-to-capture">
+          <div className="section-head">
+            <Heading id="received-by-email-to-capture">{t("receivedByEmail.toCapture.title")}</Heading>
+          </div>
+          <p className="hint">{t("receivedByEmail.toCapture.intro")}</p>
+          <ol className="rows" aria-label={t("receivedByEmail.toCapture.listLabel")}>
+            {toCapture.map((offer) => (
+              <li key={offer.link}>
+                <div className="row-content">
+                  <RowHeading><ExternalLink href={offer.link}>{offer.title}</ExternalLink></RowHeading>
+                  <p className="hint">{t("receivedByEmail.receivedFrom", { date: day.format(offer.receivedAt), domain: offer.senderDomain })}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
       ) : null}
       <section className="section received-by-email" aria-labelledby="received-by-email-unclassified">
         <div className="section-head">

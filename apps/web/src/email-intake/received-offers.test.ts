@@ -140,7 +140,7 @@ describe.skipIf(!connectionString)("Email intake: what it gave the Candidate, fo
     expect(overview.byProfile).toEqual({});
   });
 
-  it("shows no Job Offer private to another Candidate, nor another Candidate's emails, and leaves out offers « déjà vue », too old or « À capturer »", async () => {
+  it("shows no Job Offer private to another Candidate, nor another Candidate's emails, and leaves out offers « déjà vue » or too old and lists « À capturer » separately", async () => {
     const theirs = await offer("Offre d'un recruteur à Paul", paul);
     const mine = await offer("Offre d'un recruteur à Marie", marie);
     const seen = await offer("Déjà vue");
@@ -157,7 +157,22 @@ describe.skipIf(!connectionString)("Email intake: what it gave the Candidate, fo
 
     expect(overview.byProfile[daf]?.offers.map((received) => received.jobOffer.id)).toEqual([mine]);
     expect(overview.unclassified.offers).toEqual([]);
+    expect(overview.toCapture).toMatchObject([{ title: "DAF", link: "https://www.linkedin.com/jobs/view/1" }]);
     expect((await overviewOf(paul)).unclassified.offers.map((received) => received.jobOffer.id)).toEqual([theirs]);
+  });
+
+  it("bounds distinct unread source links, keeps the latest title, hides other Candidates and refuses unsafe links", async () => {
+    const offers = Array.from({ length: 52 }, (_, index) => ({ disposition: "to_capture" as const, title: `Unread ${index}`, link: `https://careers.example.org/jobs/${index}` }));
+    await seedReceivedOfferEmail(database, { candidateId: marie, receivedAt: hoursAgo(3), offers });
+    await seedReceivedOfferEmail(database, { candidateId: marie, receivedAt: hoursAgo(1), offers: [{ disposition: "to_capture", title: "Latest unread title", link: offers[0]!.link }] });
+    await seedReceivedOfferEmail(database, { candidateId: paul, receivedAt: hoursAgo(0), offers: [{ disposition: "to_capture", title: "Other Candidate correspondence", link: "https://private.example.org/other" }] });
+    const listed = (await overviewOf(marie)).toCapture;
+    expect(listed).toHaveLength(50);
+    expect(listed[0]).toMatchObject({ title: "Latest unread title", link: offers[0]!.link, receivedAt: hoursAgo(1) });
+    expect(new Set(listed.map((offer) => offer.link)).size).toBe(50);
+    expect(JSON.stringify(listed)).not.toContain("Other Candidate");
+    await seedReceivedOfferEmail(database, { candidateId: paul, receivedAt: hoursAgo(0), offers: [{ disposition: "to_capture", title: "Unsafe", link: "javascript:alert(1)" }, { disposition: "to_capture", title: "Credentials", link: "https://hidden@careers.example.org/" }] });
+    expect((await overviewOf(paul)).toCapture.map((offer) => offer.title)).toEqual(["Other Candidate correspondence"]);
   });
 
   it("names the Candidate's Application for a Job Offer they saved", async () => {

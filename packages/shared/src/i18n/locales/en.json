@@ -5040,6 +5040,11 @@
     "noActiveProfileTitle": "No active Profile"
   },
   "receivedByEmail": {
+    "toCapture": {
+      "title": "To capture",
+      "intro": "These postings’ sources could not be read, so no Match Score was calculated. Open a link, then use the extension to capture the posting. Up to 50 distinct links are shown, newest first.",
+      "listLabel": "Postings to capture"
+    },
     "title": "Received by email",
     "fresh_one": "{{count}} new this week",
     "fresh_other": "{{count}} new this week",

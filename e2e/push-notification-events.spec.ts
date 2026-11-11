@@ -20,6 +20,7 @@ const space = fr.coachSpace;
 const hc = fr.humanCoaches;
 let origin = process.env.E2E_WEB_ORIGIN!;
 let own: OwnServer;
+const previousEnvironment = { origin: process.env.E2E_WEB_ORIGIN, database: process.env.E2E_DATABASE_URL };
 const test = base.extend({ page: async ({ browser }, use) => {
   const context = await browser.newContext({ baseURL: origin });
   await use(await context.newPage());
@@ -35,7 +36,15 @@ test.beforeAll(async () => {
   process.env.E2E_WEB_ORIGIN = origin;
   process.env.E2E_DATABASE_URL = own.databaseUrl;
 });
-test.afterAll(async () => { await own?.stop(); });
+test.afterAll(async () => {
+  try { await own?.stop(); }
+  finally {
+    if (previousEnvironment.origin === undefined) delete process.env.E2E_WEB_ORIGIN;
+    else process.env.E2E_WEB_ORIGIN = previousEnvironment.origin;
+    if (previousEnvironment.database === undefined) delete process.env.E2E_DATABASE_URL;
+    else process.env.E2E_DATABASE_URL = previousEnvironment.database;
+  }
+});
 async function signInWithMagicLink(page: Page, email: string) {
   await signInByEmail(page, own, email);
   const database = new Pool({ connectionString: own.databaseUrl });

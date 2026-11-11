@@ -1,3 +1,4 @@
+import { cancellationsOf, preserveCancellationRefunds } from "../coaching-cancellations";
 import {coachingRefundsOf} from "../coaching-refunds";
 import {bookingDataOf} from "../coaching-booking";
 import {archiveEarningsService} from "../coaching-earnings";
@@ -57,7 +58,8 @@ import type { KeptAtsScore } from "../ats-score";
 import type { AssistantMessage, ExplainedItem } from "../back-office-assistant";
 import { SAVED_ASSISTANT_REPLY_COLUMNS, savedAssistantReplyProvenance, type SavedAssistantReply } from "../back-office-assistant/conversations";
 import type { CoachMessage } from "../coach";
-import { attachedProfileFrom, SAVED_REPLY_COLUMNS, savedReplyProvenance, SUBJECT_COLUMNS, SUBJECT_JOINS, subjectFrom, type FocusKind, type SavedReply, type Subject, type SubjectRow } from "../coach-conversations";
+import { attachedProfileFrom, SAVED_REPLY_COLUMNS, savedReplyProvenance, SUBJECT_COLUMNS, SUBJECT_JOINS, subjectFrom, type FocusKind, type SavedReply, type Subject, type SubjectRow,
+} from "../coach-conversations";
 import type { CompanyDossier } from "../company-dossiers";
 import { discoveryRunsOf, type ExportedDiscoveryRun } from "../discovery-runs";
 import { emailIntakeOf, type ExportedEmailIntake } from "../email-intake";
@@ -355,6 +357,7 @@ export interface CandidateDataExport {
    * and their Reschedule history (cancellations included); never the Human Coach's booking link.
    */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed; meeting: Meeting | null })[];
+  coachingCancellations: Awaited<ReturnType<typeof cancellationsOf>>;
   coachingRefunds:Awaited<ReturnType<typeof coachingRefundsOf>>;
   calBookings:Awaited<ReturnType<typeof bookingDataOf>>;
   connectMoney:Awaited<ReturnType<typeof connectDataOf>>;
@@ -504,6 +507,9 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   candidate_coaching_time_zone: "account.coachingTimeZone",
   coaching_session_contact: "coachingSessions[].meeting (session contact)",
   coaching_service_refund:"coachingRefunds.refunds (owned refund entitlement, no processor routing)",
+  coaching_cancellation: "coachingCancellations.cancellations",
+  coaching_cancellation_event: "coachingCancellations.events",
+  coaching_cancellation_notice: "coachingCancellations.notices",
   coaching_service_refund_attempt:"coachingRefunds.attempts",
   coaching_service_refund_resource:"coachingRefunds.resources",
   coaching_cal_pending:"calBookings.pending (authenticated minimal routing/date facts awaiting a predecessor)",
@@ -586,6 +592,7 @@ export interface CandidateData {
 }
 
 export interface CandidateDataDeps {
+  coachingCancellationOn?: () => Promise<boolean>;
   profiles: Pick<Profiles, "list" | "get" | "masterCvVersions">;
   applications: Pick<Applications, "list" | "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
@@ -735,7 +742,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
     const [account, signInMethods, sessions, backOfficeRoles] = await Promise.all([
-      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, given_name AS "givenName", family_name AS "familyName", preferred_name AS "preferredName", "interfaceLanguage", "createdAt", (SELECT time_zone FROM candidate_coaching_time_zone WHERE candidate_id = candidate.id) AS "coachingTimeZone" FROM candidate WHERE id = $1`, candidateId),
+      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, given_name AS "givenName", family_name AS "familyName", preferred_name AS "preferredName", "interfaceLanguage", "createdAt", (SELECT time_zone FROM candidate_coaching_time_zone WHERE candidate_id = candidate.id) AS "coachingTimeZone" FROM candidate WHERE id = $1`, candidateId,
+      ),
       rowsOf<ExportedAccount["signInMethods"][number]>(
         `SELECT "providerId" AS provider, "createdAt" AS "linkedAt" FROM account WHERE "userId" = $1 ORDER BY "createdAt", id`,
         candidateId,
@@ -778,7 +786,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportAppointmentReminders(candidateId: string): Promise<ExportedAppointmentReminders> {
     const [setting, sent] = await Promise.all([
-      rowOf<{ enabled: boolean; changedAt: Date }>(`SELECT enabled, changed_at AS "changedAt" FROM appointment_reminder_setting WHERE candidate_id = $1`, candidateId),
+      rowOf<{ enabled: boolean; changedAt: Date }>(`SELECT enabled, changed_at AS "changedAt" FROM appointment_reminder_setting WHERE candidate_id = $1`, candidateId,
+      ),
       rowsOf<ExportedAppointmentReminders["sent"][number]>(
         `SELECT json_build_object('kind', CASE WHEN interview_id IS NOT NULL THEN 'interview' ELSE 'coachingSession' END, 'id', coalesce(interview_id, coaching_session_id)) AS "agendaItem",
                 scheduled_at AS "scheduledAt", sent_at AS "sentAt"
@@ -799,7 +808,13 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       ),
       grouped<
         Pick<ExportedCoachConversation["messages"][number], "from" | "text" | "sentAt"> &
-          SavedReply & { humanCoach: CoachMessage["humanCoach"]; blocked: true | null; jobOfferId: string | null; focusKind: FocusKind | null; focusId: string | null }
+          SavedReply & {
+            humanCoach: CoachMessage["humanCoach"];
+            blocked: true | null;
+            jobOfferId: string | null;
+            focusKind: FocusKind | null;
+            focusId: string | null;
+          }
       >(
         `SELECT m.human_coach AS "humanCoach", m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt",
                 m.focus_kind AS "focusKind", m.focus_id AS "focusId", ${SAVED_REPLY_COLUMNS}
@@ -855,7 +870,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
            FROM back_office_assistant_conversation WHERE candidate_id = $1 ORDER BY last_message_at DESC, id`,
         candidateId,
       ),
-      grouped<Pick<ExportedAssistantConversation["messages"][number], "from" | "text" | "sentAt"> & SavedAssistantReply & { blocked: true | null; explained: ExplainedItem | null }>(
+      grouped<
+        Pick<ExportedAssistantConversation["messages"][number], "from" | "text" | "sentAt"> &
+          SavedAssistantReply & { blocked: true | null; explained: ExplainedItem | null }
+      >(
         `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.explained, m.created_at AS "sentAt", ${SAVED_ASSISTANT_REPLY_COLUMNS}
            FROM back_office_assistant_message m JOIN back_office_assistant_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
@@ -866,14 +884,54 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       ...conversation,
       messages: messagesOf(conversation.id).map((message) => {
         const provenance = message.from === "assistant" ? savedAssistantReplyProvenance(message) : null;
-        return { from: message.from, text: message.text, sentAt: message.sentAt, ...(message.blocked ? { blocked: message.blocked } : {}), ...(message.explained ? { explained: message.explained } : {}), ...(provenance ? { provenance } : {}) };
+        return {
+          from: message.from,
+          text: message.text,
+          sentAt: message.sentAt,
+          ...(message.blocked ? { blocked: message.blocked } : {}),
+          ...(message.explained ? { explained: message.explained } : {}),
+          ...(provenance ? { provenance } : {}),
+        };
       }),
     }));
   }
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox, profiles, applications] = await Promise.all([
+      const [
+        account,
+        acceptances,
+        plan,
+        coachContextLimits,
+        quotaUsage,
+        quotaReductionNotices,
+        euAiConsent,
+        twoStepVerification,
+        legalTextNotices,
+        nouveautesEmail,
+        coachProposalsDisplay,
+        consumption,
+        emailIntake,
+        followUpDelays,
+        appointmentReminders,
+        pushNotifications,
+        welcomeClosed,
+        coachConversations,
+        backOfficeAssistantConversations,
+        coachAccess,
+        coachingSessions,
+        actionCards,
+        coachMemory,
+        aiMessageLog,
+        signalements,
+        extensionEvents,
+        orders,
+        withdrawals,
+        privateJobOffers,
+        offerBox,
+        profiles,
+        applications,
+      ] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -881,7 +939,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         coachContextLimitsOf(candidateId),
-        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
+        rowsOf<CandidateDataExport["quotaUsage"][number]>(
+          `SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`,
+          candidateId,
+        ),
         rowsOf<CandidateDataExport["quotaReductionNotices"][number]>(
           `SELECT r.plan, r.quotas, r.removed_features AS "removedFeatures", r.reason, to_char(r.effective_on, 'YYYY-MM-DD') AS "effectiveOn",
                   n.sent_at AS "sentAt", n.resolved_at AS "resolvedAt",
@@ -902,7 +963,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         coachProposalsDisplayOf(database, candidateId),
         consumptionOf(database, candidateId),
         emailIntakeOf(database, candidateId),
-        rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
+        rowOf<FollowUpDelays>(
+          `SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`,
+          candidateId,
+        ),
         exportAppointmentReminders(candidateId),
         pushNotificationsOf(database, candidateId),
         rowOf<{ closedAt: Date }>(`SELECT closed_at AS "closedAt" FROM coach_welcome_closed WHERE candidate_id = $1`, candidateId),
@@ -950,11 +1014,13 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
              FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id WHERE m.candidate_id = $1 ORDER BY m.at DESC, m.id`,
           candidateId,
         ).then((logs) =>
-          logs.map(({ reason, warnings, ...log }): ExportedAiMessageLog => ({
-            ...log,
-            reason: isFailureReason(reason) ? worded(reason) : null,
-            warnings: warnings.filter(isFailureReason).map(worded),
-          })),
+          logs.map(
+            ({ reason, warnings, ...log }): ExportedAiMessageLog => ({
+              ...log,
+              reason: isFailureReason(reason) ? worded(reason) : null,
+              warnings: warnings.filter(isFailureReason).map(worded),
+            }),
+          ),
         ),
         signalementsOf(database, candidateId),
         extensionEventsOf(database, candidateId),
@@ -965,19 +1031,93 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { coachingRefunds:await coachingRefundsOf(database,candidateId),calBookings:await bookingDataOf(database,candidateId),connectMoney:await connectDataOf(database,candidateId),coachPages:await coachPagesOf(database,candidateId),associationActivity:await associationDataOf(database,candidateId),coachContractAcceptances:await coachContractAcceptancesOf(database,candidateId),coachContractNotices:await coachContractNoticesOf(database,candidateId),coachEnrolments:await coachEnrolmentsOf(database,candidateId),managedAssociations:await associationsManagedBy(database,candidateId),coachingSales:await rowsOf<CandidateDataExport["coachingSales"][number]>(`SELECT x.session_id AS "sessionId",x.snapshot AS sale FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id WHERE s.candidate_id=$1 ORDER BY s.paid_at,s.id`,candidateId), coachingQuotes:await rowsOf<CandidateDataExport["coachingQuotes"][number]>(`SELECT snapshot AS sale,created_at AS "createdAt" FROM coaching_offer_quote WHERE candidate_id=$1 ORDER BY created_at,id`,candidateId), sharedReading: await rowsOf<CandidateDataExport["sharedReading"][number]>(`SELECT r.session_id AS "sessionId",r.presenter,r.payload AS document,r.source,r.page,r.scroll,r.started_at AS "startedAt" FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id WHERE s.candidate_id=$1 ORDER BY r.started_at`, candidateId), sessionReports: await rowsOf<CandidateDataExport["sessionReports"][number]>(`SELECT id,session_id AS "sessionId",covered,next_steps AS "nextSteps",resources,published_at AS "publishedAt" FROM session_report WHERE candidate_id=$1 ORDER BY created_at,id`, candidateId), privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(`SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`, candidateId), exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
+      return {
+        coachingCancellations: await cancellationsOf(database, candidateId),
+        coachingRefunds: await coachingRefundsOf(database, candidateId),
+        calBookings: await bookingDataOf(database, candidateId),
+        connectMoney: await connectDataOf(database, candidateId),
+        coachPages: await coachPagesOf(database, candidateId),
+        associationActivity: await associationDataOf(database, candidateId),
+        coachContractAcceptances: await coachContractAcceptancesOf(database, candidateId),
+        coachContractNotices: await coachContractNoticesOf(database, candidateId),
+        coachEnrolments: await coachEnrolmentsOf(database, candidateId),
+        managedAssociations: await associationsManagedBy(database, candidateId),
+        coachingSales: await rowsOf<CandidateDataExport["coachingSales"][number]>(
+          `SELECT x.session_id AS "sessionId",x.snapshot AS sale FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id WHERE s.candidate_id=$1 ORDER BY s.paid_at,s.id`,
+          candidateId,
+        ),
+        coachingQuotes: await rowsOf<CandidateDataExport["coachingQuotes"][number]>(
+          `SELECT snapshot AS sale,created_at AS "createdAt" FROM coaching_offer_quote WHERE candidate_id=$1 ORDER BY created_at,id`,
+          candidateId,
+        ),
+        sharedReading: await rowsOf<CandidateDataExport["sharedReading"][number]>(
+          `SELECT r.session_id AS "sessionId",r.presenter,r.payload AS document,r.source,r.page,r.scroll,r.started_at AS "startedAt" FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id WHERE s.candidate_id=$1 ORDER BY r.started_at`,
+          candidateId,
+        ),
+        sessionReports: await rowsOf<CandidateDataExport["sessionReports"][number]>(
+          `SELECT id,session_id AS "sessionId",covered,next_steps AS "nextSteps",resources,published_at AS "publishedAt" FROM session_report WHERE candidate_id=$1 ORDER BY created_at,id`,
+          candidateId,
+        ),
+        privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(
+          `SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`,
+          candidateId,
+        ),
+        exportedAt: new Date(),
+        account,
+        acceptances,
+        plan,
+        coachContextLimits,
+        quotaUsage,
+        quotaReductionNotices,
+        euAiConsent,
+        twoStepVerification,
+        legalTextNotices,
+        nouveautesEmail,
+        coachProposalsDisplay,
+        consumption,
+        emailIntake,
+        followUpDelays,
+        appointmentReminders,
+        pushNotifications,
+        profiles,
+        applications,
+        coachConversations,
+        coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null },
+        backOfficeAssistantConversations,
+        coachAccess,
+        coachingSessions,
+        actionCards,
+        coachMemory,
+        aiMessageLog,
+        signalements,
+        extensionEvents,
+        orders,
+        withdrawals,
+        privateJobOffers,
+        offerBox,
+      };
     },
 
     async delete(candidateId) {
       await deps.billing?.closeAccount(candidateId);
-      await inTransaction(database,async within=>{
-        await archiveEarningsService(within,candidateId);
-        await deleteConnectDataOf(within,candidateId);
-        await deleteCoachPagesOf(within,candidateId);
-        await within.query("DELETE FROM coach_association_invitation i USING candidate c WHERE c.id=$1 AND (i.email=lower(c.email) OR i.recipient_id=c.id OR i.invited_by=c.id)",[candidateId]);
-        await within.query("UPDATE human_coach h SET retired_at=clock_timestamp() FROM candidate c WHERE c.id=$1 AND h.email=lower(c.email) AND h.contract_pending AND h.retired_at IS NULL",[candidateId]);
-        await within.query("UPDATE coach_association a SET retired_at=clock_timestamp() WHERE a.contract_pending AND a.retired_at IS NULL AND EXISTS(SELECT 1 FROM coach_association_manager m WHERE m.association_id=a.id AND m.candidate_id=$1) AND NOT EXISTS(SELECT 1 FROM coach_association_manager m WHERE m.association_id=a.id AND m.candidate_id<>$1)",[candidateId]);
-        await within.query("DELETE FROM coach_enrolment e USING candidate c WHERE c.id=$1 AND e.state='awaiting_email' AND e.email=c.email",[candidateId]);
+      await inTransaction(database, async (within) => {
+        await preserveCancellationRefunds(database, within, candidateId, (await deps.coachingCancellationOn?.()) ?? false);
+        await archiveEarningsService(within, candidateId);
+        await deleteConnectDataOf(within, candidateId);
+        await deleteCoachPagesOf(within, candidateId);
+        await within.query(
+          "DELETE FROM coach_association_invitation i USING candidate c WHERE c.id=$1 AND (i.email=lower(c.email) OR i.recipient_id=c.id OR i.invited_by=c.id)",
+          [candidateId],
+        );
+        await within.query(
+          "UPDATE human_coach h SET retired_at=clock_timestamp() FROM candidate c WHERE c.id=$1 AND h.email=lower(c.email) AND h.contract_pending AND h.retired_at IS NULL",
+          [candidateId],
+        );
+        await within.query(
+          "UPDATE coach_association a SET retired_at=clock_timestamp() WHERE a.contract_pending AND a.retired_at IS NULL AND EXISTS(SELECT 1 FROM coach_association_manager m WHERE m.association_id=a.id AND m.candidate_id=$1) AND NOT EXISTS(SELECT 1 FROM coach_association_manager m WHERE m.association_id=a.id AND m.candidate_id<>$1)",
+          [candidateId],
+        );
+        await within.query("DELETE FROM coach_enrolment e USING candidate c WHERE c.id=$1 AND e.state='awaiting_email' AND e.email=c.email", [candidateId]);
         await within.query(`DELETE FROM candidate WHERE id = $1`, [candidateId]);
       });
     },

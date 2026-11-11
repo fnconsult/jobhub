@@ -37,6 +37,7 @@ describe("official Cal.com Teams boundary", () => {
       hosts: [{ userId: 8 }],
       lengthInMinutes: 90,
       hidden: true,
+      disableRescheduling: { disabled: false, minutesBefore: 1440 },
       emailSettings: { disableEmailsToAttendees: true, disableEmailsToHosts: true },
     });
     await api.eventType(7, 42);

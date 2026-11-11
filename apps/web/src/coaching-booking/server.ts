@@ -1,3 +1,5 @@
+import { recordProviderCancellation } from "@/coaching-cancellations";
+import { cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { bookingChanged } from "./notice";
 import { recordingFetch } from "@jobhub/shared";
 import { getAuth } from "@/auth/server";
@@ -38,6 +40,10 @@ export function getCoachingBooking() {
     webhookSecret: env.CAL_COM_WEBHOOK_SECRET ?? "",
     ...(env.CAL_COM_API_KEY ? { cal: calTeam({ apiKey: env.CAL_COM_API_KEY, fetch: transport }) } : {}),
     permitted: calBookingOn,
+    requiredRescheduleNotice: async () => ((await cancellationPolicyOn()) ? 1440 : null),
+    cancelled: async (within, id, key, at, reason) => {
+      if (await cancellationPolicyOn()) await recordProviderCancellation(within, id, key, at, reason);
+    },
     mayBookCoach: async (coachId) => {
       const owner = (
         await sharedPool().query<{ email: string; emailVerified: boolean }>(

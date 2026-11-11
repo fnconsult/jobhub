@@ -18,7 +18,7 @@ export function coachContacts(database: Pool) {
       const { rows } = await database.query<{ id: string; sessionContact: Meeting | null; coachContact: Meeting | null; videoLink: string | null }>(
         `SELECT s.id, sc.contact AS "sessionContact",hc.contact AS "coachContact",s.video_link AS "videoLink"
         FROM coaching_session s LEFT JOIN coaching_session_contact sc ON sc.session_id=s.id LEFT JOIN coach_meeting_contact hc ON hc.coach_id=s.coach_id
-        WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL`,
+        WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL`,
         [candidateId],
       );
       return Object.fromEntries(
@@ -34,7 +34,7 @@ export function coachContacts(database: Pool) {
         `SELECT sc.contact AS "sessionContact",hc.contact AS "coachContact",s.video_link AS "videoLink" FROM coaching_session s
         JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
         LEFT JOIN coaching_session_contact sc ON sc.session_id=s.id LEFT JOIN coach_meeting_contact hc ON hc.coach_id=h.id
-        WHERE s.id=$2 AND s.coach_id=$1 AND s.withdrawn_at IS NULL`,
+        WHERE s.id=$2 AND s.coach_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL`,
         [coachId, sessionId],
       );
       return rows[0]
@@ -49,7 +49,7 @@ export function coachContacts(database: Pool) {
         return inTransaction(database, async (within) => {
           // Both models move together: old clients see the same video link, while phone contacts clear it.
           const changed = await within.query(
-            `UPDATE coaching_session s SET video_link=$3 FROM human_coach h WHERE s.coach_id=$1 AND s.id=$2 AND s.withdrawn_at IS NULL AND h.id=s.coach_id AND h.retired_at IS NULL RETURNING s.id`,
+            `UPDATE coaching_session s SET video_link=$3 FROM human_coach h WHERE s.coach_id=$1 AND s.id=$2 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND h.id=s.coach_id AND h.retired_at IS NULL RETURNING s.id`,
             [coachId, sessionId, meeting.kind === "video" ? meeting.target : null],
           );
           if (!changed.rowCount) return false;

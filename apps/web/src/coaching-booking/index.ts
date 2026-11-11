@@ -36,6 +36,8 @@ export interface BookingDeps {
   cal?: CalPort;
   now?: () => Date;
   permitted?: () => Promise<boolean>;
+  requiredRescheduleNotice?: () => Promise<number | null>;
+  cancelled?: (within: Queryable, sessionId: string, eventKey: string, at: Date, reason: string | null) => Promise<void>;
   mayBookCoach?: (coachId: string) => Promise<boolean>;
   /** Called after a durable change. Notifications must be keyed by event hash. */
   changed?: (sessionId: string, eventKey: string) => Promise<void>;
@@ -54,8 +56,8 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
       // Discover by bound UID first: later cancellations need not repeat the original metadata.
       const identity = (
         await within.query<{ sessionId: string }>(
-          `SELECT session_id AS "sessionId" FROM coaching_cal_booking WHERE uid=$1 OR ($2::text IS NOT NULL AND uid=$2) OR ($3::uuid IS NOT NULL AND session_id=$3) ORDER BY CASE WHEN uid=$1 THEN 0 ELSE 1 END LIMIT 1`,
-          [payload.uid, payload.rescheduleUid ?? null, token?.sessionId ?? null],
+          `SELECT session_id AS "sessionId" FROM coaching_cal_booking WHERE uid=$1 OR ($2::text IS NOT NULL AND uid=$2) OR ($3::uuid IS NOT NULL AND session_id=$3 AND NOT EXISTS(SELECT 1 FROM coaching_cal_erased_claim x WHERE x.nonce=$4 AND x.event_type_id=$5 AND x.forget_at>$6)) ORDER BY CASE WHEN uid=$1 THEN 0 ELSE 1 END LIMIT 1`,
+          [payload.uid, payload.rescheduleUid ?? null, token?.sessionId ?? null, token?.nonce ?? null, payload.eventTypeId, now()],
         )
       ).rows[0];
       let applied = false,
@@ -80,8 +82,8 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
       }
       if (identity) {
         const session = (
-          await within.query<{ scheduledAt: Date | null; withdrawnAt: Date | null; retiredAt: Date | null }>(
-            `SELECT s.scheduled_at AS "scheduledAt",s.withdrawn_at AS "withdrawnAt",h.retired_at AS "retiredAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id WHERE s.id=$1 FOR UPDATE OF s`,
+          await within.query<{ scheduledAt: Date | null; withdrawnAt: Date | null; cancelledAt: Date | null; remedyPending: boolean; retiredAt: Date | null }>(
+            `SELECT s.scheduled_at AS "scheduledAt",s.withdrawn_at AS "withdrawnAt",s.cancelled_at AS "cancelledAt",EXISTS(SELECT 1 FROM coaching_cancellation c WHERE c.session_id=s.id AND c.choice='awaiting') AS "remedyPending",h.retired_at AS "retiredAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id WHERE s.id=$1 FOR UPDATE OF s`,
             [identity.sessionId],
           )
         ).rows[0];
@@ -101,14 +103,14 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
               (!booking.lastEventAt ||
                 at > booking.lastEventAt ||
                 (at.getTime() === booking.lastEventAt.getTime() && (chain || event.triggerEvent === "BOOKING_CANCELLED"))) &&
-              (!bound || booking.state === "booked" || !!session.withdrawnAt || !!session.retiredAt)
+              (!bound || booking.state === "booked" || !!session.withdrawnAt || !!session.cancelledAt || session.remedyPending || !!session.retiredAt)
             ) {
               const start = new Date(payload.startTime),
                 end = new Date(payload.endTime),
                 cancelled = event.triggerEvent === "BOOKING_CANCELLED";
               reason = "invalid_duration";
               if (cancelled || ((!first || start > now()) && end.getTime() - start.getTime() === booking.event.durationMinutes * 60000)) {
-                if (session.withdrawnAt || session.retiredAt) {
+                if (session.withdrawnAt || session.cancelledAt || session.remedyPending || session.retiredAt) {
                   await within.query("INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", [
                     payload.uid,
                     identity.sessionId,
@@ -121,6 +123,7 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
                   );
                   reason = "session_unavailable";
                 } else {
+                  if (cancelled && deps.cancelled) await deps.cancelled(within, identity.sessionId, key, at, payload.cancellationReason ?? null);
                   // Cal.com's actor is not authenticated by an attendee email: label the source explicitly.
                   if (session.scheduledAt && (cancelled || session.scheduledAt.getTime() !== start.getTime()))
                     await within.query(
@@ -205,7 +208,7 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
       if (!(await permitted())) return {} as Record<string, string>;
       const rows = (
         await database.query<{ id: string; coachId: string }>(
-          `SELECT s.id,s.coach_id AS "coachId" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL JOIN coaching_cal_event_type e ON e.coach_id=h.id LEFT JOIN coaching_cal_booking b ON b.session_id=s.id WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND (b.uid IS NOT NULL OR (s.scheduled_at IS NULL AND coalesce(s.duration_minutes,60)=(e.event->>'durationMinutes')::integer))`,
+          `SELECT s.id,s.coach_id AS "coachId" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL JOIN coaching_cal_event_type e ON e.coach_id=h.id LEFT JOIN coaching_cal_booking b ON b.session_id=s.id WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND NOT EXISTS(SELECT 1 FROM coaching_cancellation c WHERE c.session_id=s.id AND c.choice='awaiting') AND (b.uid IS NOT NULL OR (s.scheduled_at IS NULL AND coalesce(s.duration_minutes,60)=(e.event->>'durationMinutes')::integer))`,
           [candidateId],
         )
       ).rows;
@@ -218,6 +221,8 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
       if (!deps.cal || !UUID.test(coachId) || ![teamId, eventTypeId, hostId].every((v) => Number.isSafeInteger(v) && v > 0)) return false;
       const event = await deps.cal.eventType(teamId, eventTypeId);
       if (event.hostId !== hostId) return false;
+      const notice = await deps.requiredRescheduleNotice?.();
+      if (notice && event.minimumRescheduleNotice !== notice) return false;
       const save = async (within: Queryable) => {
         if (!(await within.query("SELECT id FROM human_coach WHERE id=$1 AND retired_at IS NULL FOR UPDATE", [coachId])).rowCount) return false;
         const offer = (await within.query<{ duration: number }>("SELECT duration_minutes AS duration FROM coaching_offer WHERE coach_id=$1", [coachId]))
@@ -253,16 +258,38 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
       await database.query("UPDATE coaching_cal_creation SET event_type_id=$2 WHERE coach_id=$1", [coachId, event.id]);
       return event;
     },
+    /** Authorized Same-Coach remedy only: invalidate the previous claim and retain cancellation-only routing for late descendants. */
+    async reopen(sessionId: string, within: Queryable = database) {
+      await within.query(
+        "INSERT INTO coaching_cal_erased_booking(uid,event_type_id,forget_at) SELECT uid,(event->>'id')::integer,$2 FROM coaching_cal_booking WHERE session_id=$1 AND uid IS NOT NULL ON CONFLICT DO NOTHING",
+        [sessionId, new Date(now().getTime() + 7 * 86400000)],
+      );
+      await within.query(
+        "INSERT INTO coaching_cal_erased_claim(nonce,event_type_id,forget_at) SELECT nonce,(event->>'id')::integer,$2 FROM coaching_cal_booking WHERE session_id=$1 ON CONFLICT DO NOTHING",
+        [sessionId, new Date(now().getTime() + 7 * 86400000)],
+      );
+      await within.query("UPDATE coaching_cal_booking SET uid=NULL,state='unclaimed',nonce=$2,expires_at=$3,last_event_at=NULL WHERE session_id=$1", [
+        sessionId,
+        randomUUID(),
+        now(),
+      ]);
+    },
     async forCandidate(candidateId: string, sessionId: string) {
       if (!UUID.test(sessionId) || !(await permitted())) return null;
       return inTransaction(database, async (within) => {
         const session = (
           await within.query<{ duration: number; scheduledAt: Date | null }>(
-            `SELECT coalesce(s.duration_minutes,(sale.snapshot->>'durationMinutes')::integer,60) AS duration,s.scheduled_at AS "scheduledAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL LEFT JOIN coaching_session_sale sale ON sale.session_id=s.id WHERE s.id=$1 AND s.candidate_id=$2 AND s.withdrawn_at IS NULL FOR UPDATE OF s`,
+            `SELECT coalesce(s.duration_minutes,(sale.snapshot->>'durationMinutes')::integer,60) AS duration,s.scheduled_at AS "scheduledAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL LEFT JOIN coaching_session_sale sale ON sale.session_id=s.id WHERE s.id=$1 AND s.candidate_id=$2 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND NOT EXISTS(SELECT 1 FROM coaching_cancellation c WHERE c.session_id=s.id AND c.choice='awaiting') FOR UPDATE OF s`,
             [sessionId, candidateId],
           )
         ).rows[0];
         if (!session) return null;
+        const notice = await deps.requiredRescheduleNotice?.();
+        if (notice) {
+          const owner = (await within.query<{ coachId: string }>('SELECT coach_id AS "coachId" FROM coaching_session WHERE id=$1', [sessionId])).rows[0]!;
+          const event = await configured(owner.coachId, within);
+          if (!event || !deps.cal || (await deps.cal.eventType(event.teamId, event.id)).minimumRescheduleNotice !== notice) return null;
+        }
         let booking = (await within.query<Booking>(`SELECT ${BOOKING} FROM coaching_cal_booking WHERE session_id=$1`, [sessionId])).rows[0];
         if (booking?.uid) return { sessionId, event: booking.event, booked: true, token: null, uid: booking.uid };
         if (session.scheduledAt) return null;
@@ -374,12 +401,12 @@ export async function migrateCoachingBooking(database: Pool) {
    INSERT INTO coaching_cal_erased_booking(uid,event_type_id,forget_at) SELECT uid,(event->>'id')::integer,clock_timestamp()+interval '7 days' FROM coaching_cal_booking WHERE session_id=OLD.id AND uid IS NOT NULL ON CONFLICT DO NOTHING;
    INSERT INTO coaching_cal_erased_claim(nonce,event_type_id,forget_at) SELECT nonce,(event->>'id')::integer,clock_timestamp()+interval '7 days' FROM coaching_cal_booking WHERE session_id=OLD.id ON CONFLICT DO NOTHING;
   END IF;
-  IF TG_OP='DELETE' OR (NEW.withdrawn_at IS NOT NULL AND OLD.withdrawn_at IS NULL) THEN
+  IF TG_OP='DELETE' OR (NEW.withdrawn_at IS NOT NULL AND OLD.withdrawn_at IS NULL) OR (NEW.cancelled_at IS NOT NULL AND OLD.cancelled_at IS NULL) THEN
    INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) SELECT uid,OLD.id,clock_timestamp() FROM coaching_cal_booking WHERE session_id=OLD.id AND uid IS NOT NULL AND state='booked' ON CONFLICT DO NOTHING;
   ELSIF NEW.scheduled_at IS NULL AND OLD.scheduled_at IS NOT NULL AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' THEN
    INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) SELECT uid,OLD.id,clock_timestamp() FROM coaching_cal_booking WHERE session_id=OLD.id AND uid IS NOT NULL AND state='booked' ON CONFLICT DO NOTHING;
    UPDATE coaching_cal_booking SET state='cancelled' WHERE session_id=OLD.id;
-  ELSIF NEW.withdrawn_at IS NULL AND (NEW.scheduled_at IS DISTINCT FROM OLD.scheduled_at OR NEW.duration_minutes IS DISTINCT FROM OLD.duration_minutes) AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' AND EXISTS(SELECT 1 FROM coaching_cal_booking WHERE session_id=OLD.id AND state IN ('booked','closing')) THEN
+  ELSIF NEW.withdrawn_at IS NULL AND NEW.cancelled_at IS NULL AND (NEW.scheduled_at IS DISTINCT FROM OLD.scheduled_at OR NEW.duration_minutes IS DISTINCT FROM OLD.duration_minutes) AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' AND EXISTS(SELECT 1 FROM coaching_cal_booking WHERE session_id=OLD.id AND state IN ('booked','closing')) THEN
    RAISE EXCEPTION 'Use Cal.com for a linked booking' USING ERRCODE='23514';
   END IF;
   IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;

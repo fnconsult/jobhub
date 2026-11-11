@@ -73,6 +73,20 @@ describe.skipIf(!connectionString)("paid Cal.com bookings", () => {
   async function date() {
     return (await auth.database.query("SELECT scheduled_at FROM coaching_session WHERE id=$1", [session])).rows[0].scheduled_at;
   }
+  it("keeps old metadata and UID descendants cancellation-only after authorized Same-Coach reopening", async () => {
+    const first = (await booking.forCandidate(buyer, session))!;
+    await send(body(first.token));
+    await auth.database.query("UPDATE coaching_session SET scheduled_at=NULL WHERE id=$1", [session]);
+    await booking.reopen(session);
+    const fresh = (await booking.forCandidate(buyer, session))!;
+    expect(fresh.token).not.toBe(first.token);
+    await send(body(first.token, "BOOKING_RESCHEDULED", "cal_old_successor", { rescheduleUid: "cal_one" }, "2026-11-10T12:01:00Z"));
+    expect(await date()).toBeNull();
+    await booking.deliverCancellations();
+    expect(cancelled).toContain("cal_old_successor");
+    await send(body(fresh.token, "BOOKING_CREATED", "cal_fresh", {}, "2026-11-10T12:02:00Z"));
+    expect(await date()).toEqual(new Date("2026-11-20T10:00Z"));
+  });
   it("claims exactly one paid session under concurrent signed deliveries and refuses token reuse for a second UID", async () => {
     const claim = await booking.forCandidate(buyer, session);
     expect(claim?.token).toBeTruthy();

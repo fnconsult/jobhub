@@ -2486,6 +2486,44 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "En haut de chaque page publique, la liste « Taille du texte » propose Petit, Standard, Moyen et Grand. Le texte de toute la page change aussitôt.\n\nVotre choix est gardé sur cet appareil, connecté ou non : une fois connecté, vous le retrouvez dans Mon compte, rubrique Préférences. Sur un autre ordinateur ou un autre téléphone, réglez-le à nouveau.\n\nLe zoom de votre navigateur agrandit aussi la page : Ctrl et + sur ordinateur (Cmd et + sur Mac)."
     },
     {
+      "id": "faq-coaching-cancellation",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Comment annuler ou déplacer une séance de coaching ?",
+      "synonyms": [
+        "annuler séance",
+        "déplacement",
+        "remboursement séance",
+        "coach absent",
+        "délai 24 heures",
+        "autre coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Lorsque les nouvelles conditions de coaching sont activées, vous pouvez annuler ou déplacer votre séance jusqu’à 24 heures avant son début. Le délai utilise l’instant réel de la séance, même si votre fuseau horaire change ou lors du passage à l’heure d’été ou d’hiver. Une annulation dans Jobbbox demande le remboursement intégral sur le moyen de paiement initial. Après le délai, contactez le coach ou le support ; le formulaire ne peut pas le prolonger.\n\nSi le coach annule, il doit donner un motif. Dans **Mes coachs humains → Annulations et remboursements**, choisissez un remboursement intégral, une nouvelle réservation avec le même coach sans payer à nouveau, ou un autre coach agréé au même tarif ou à un tarif inférieur. Sans choix au bout de sept jours, le remboursement intégral est demandé automatiquement.\n\nChoisir un autre coach rembourse d’abord la commande initiale. Vous consultez et acceptez ensuite une nouvelle commande ; ce choix ne déclenche aucun paiement supplémentaire. Le tarif est revérifié avant le paiement. Aucun portefeuille ni transfert automatique de votre ancienne commande n’est créé.\n\nUne annulation signalée seulement par Cal.com ne prouve pas qui l’a demandée. Le coach doit confirmer son motif dans Jobbbox pour ouvrir ces choix ; votre délai de candidat reste calculé sur la date initiale. Contactez le support en cas de désaccord.\n\nL’état du remboursement apparaît dans le suivi. Une confirmation Stripe précède sa réception bancaire, dont le délai dépend de votre banque. Un remboursement en échec ou à vérifier reste suivi par le support : ne payez pas une nouvelle fois pour le corriger. La [rétractation légale](/abonnement/retractation) est une démarche distincte."
+    },
+    {
+      "id": "faq-coach-cancel-session",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Comment annuler une séance avec un candidat ?",
+      "synonyms": [
+        "coach annuler",
+        "motif annulation",
+        "absence",
+        "rembourser candidat"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Lorsque les nouvelles conditions sont activées, ouvrez la séance dans votre espace coach, puis **Annuler la séance avec un motif**. Vous pouvez l’annuler à tout moment ; un motif est obligatoire et sera visible du candidat. Ne saisissez aucune information sensible inutile dans ce motif.\n\nLe candidat est informé par e-mail et par notification si elle est autorisée. Il peut demander le remboursement intégral, reprendre avec vous sans nouveau paiement, ou choisir un autre coach agréé au tarif inférieur ou égal. Sans choix après sept jours, le remboursement intégral est demandé automatiquement.\n\nUne annulation faite à Cal.com doit être confirmée dans Jobbbox avec votre motif : un webhook ne permet pas d’identifier la personne qui a annulé. Une simple modification de date ne doit pas servir à contourner l’annulation.\n\nSi le remboursement intervient après votre virement, la correction est portée sur vos prochains montants à verser ; le relevé des gains conserve le paiement et la correction. L’équipe suit les remboursements en échec. Le retrait de votre accès coach ne supprime pas un remboursement déjà dû."
+    },
+    {
       "id": "faq-admin-failure-reason",
       "locale": "fr",
       "kind": "faq",
@@ -7146,6 +7184,44 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Some of the Help Centre's tutorials have a short video, placed under their text, in the « The video » section. The text is enough on its own: the video shows the same steps on Jobbbox's screen, with demo data, never yours. In the coach, the card of a tutorial that has a video offers « Watch the video », with its length: the link opens the tutorial in the Help Centre, where it plays.\n\nThe video never starts on its own and loads only when you play it: only its preview image shows before. The narration is read by a synthetic voice, which the video says. The captions, in the page's language, show from the start of playback; the player's captions button hides them. « Read the transcript », under the video, unfolds everything it says and shows, step by step.\n\nThe videos are hosted in the EU by Scaleway, which sees your browser's IP address when it shows the preview or plays the video, like any host. No cookie or tracker is attached to them. Scaleway is listed in « Data recipients », on the Legal page."
+    },
+    {
+      "id": "faq-coach-cancel-session",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "How can I cancel a session with a Candidate?",
+      "synonyms": [
+        "coach cancel",
+        "cancellation reason",
+        "absence",
+        "refund Candidate"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "When the new conditions are activated, open the session in your coach space and choose **Cancel the session with a reason**. You can cancel at any time; a reason is mandatory and visible to the Candidate. Avoid unnecessary sensitive information in it.\n\nThe Candidate receives an email and, if allowed, a notification. They can request a full refund, continue with you without another payment, or choose another approved coach at the same or a lower price. Without a choice after seven days, a full refund is requested automatically.\n\nA cancellation made at Cal.com needs confirmation in Jobbbox with your reason: a webhook does not identify who cancelled. Changing the date must not be used to bypass cancellation.\n\nIf a refund occurs after your payout, the correction carries into later amounts payable; your earnings statement preserves both the payment and correction. The team follows up failed refunds. Losing coach access does not remove a refund already owed."
+    },
+    {
+      "id": "faq-coaching-cancellation",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "How can I cancel or reschedule a coaching session?",
+      "synonyms": [
+        "cancel session",
+        "reschedule",
+        "session refund",
+        "absent coach",
+        "24 hours",
+        "another coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "When the new coaching conditions are activated, you can cancel or reschedule until 24 hours before the session starts. The limit uses the actual instant, including time-zone changes and daylight-saving transitions. Cancelling in Jobbbox requests a full refund to the original payment method. After the limit, contact the coach or support; the form cannot extend it.\n\nA coach cancelling must provide a reason. In **My human coaches → Cancellations and refunds**, choose a full refund, another booking with the same coach without paying again, or another approved coach at the same or a lower price. Without a choice within seven days, a full refund is requested automatically.\n\nChoosing another coach first refunds the original order. You then review and accept a new order; choosing does not trigger another payment. The price is checked again before payment. No wallet or automatic reassignment of the original order is created.\n\nA cancellation reported only by Cal.com does not prove who requested it. The coach must confirm their reason in Jobbbox to open these choices; the Candidate’s limit still uses the original date. Contact support if you disagree.\n\nRefund status appears in the follow-up. Stripe confirmation precedes receipt by your bank; bank processing time varies. A failed or uncertain refund remains with support: do not pay again to fix it. [Legal withdrawal](/abonnement/retractation) is a separate process."
     },
     {
       "id": "faq-contact-us",

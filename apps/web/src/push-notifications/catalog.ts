@@ -16,6 +16,7 @@ export const PUSH_EVENTS = [
   { id: "appointment_reminder", audience: "candidate" },
   { id: "coach_review", audience: "candidate" },
   { id: "coaching_session_changed", audience: "candidate" },
+  { id: "coaching_cancellation", audience: "candidate" },
   { id: "follow_up_due", audience: "candidate" },
   { id: "coach_access_granted", audience: "human_coach" },
   { id: "coaching_session_paid", audience: "human_coach" },
@@ -45,6 +46,7 @@ export type PushNotification =
   | { event: "appointment_reminder" }
   | { event: "coach_review"; applicationId: string }
   | { event: "coaching_session_changed" }
+  | { event: "coaching_cancellation" }
   | { event: "follow_up_due"; applicationId: string }
   | { event: "coach_access_granted"; candidateId: string }
   | { event: "coaching_session_paid" }
@@ -64,6 +66,7 @@ const ID_FIELD: Record<PushNotificationEvent, "jobSearchId" | "jobDigestId" | "a
   appointment_reminder: null,
   coach_review: "applicationId",
   coaching_session_changed: null,
+  coaching_cancellation: null,
   follow_up_due: "applicationId",
   coach_access_granted: "candidateId",
   coaching_session_paid: null,

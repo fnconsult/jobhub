@@ -7,7 +7,7 @@ import { coachingDay, COACHING_DEFAULT_ZONE } from "@jobhub/shared/coaching-time
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACTIVE = "EXISTS (SELECT 1 FROM human_coach h WHERE h.id = $1 AND h.retired_at IS NULL)";
 const RELATIONSHIP = `(${ACTIVE} AND (EXISTS (SELECT 1 FROM coach_access a WHERE a.coach_id = $1 AND a.candidate_id = $2)
-  OR EXISTS (SELECT 1 FROM coaching_session s WHERE s.coach_id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL)))`;
+  OR EXISTS (SELECT 1 FROM coaching_session s WHERE s.coach_id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL)))`;
 interface CandidateRow {
   id: string;
   name: string | null;
@@ -37,11 +37,11 @@ export function coachWorkspace(database: Pool, coaches: Pick<HumanCoaches, "coac
       `
       SELECT c.id, c.name, c.given_name AS "givenName", c.family_name AS "familyName", c.preferred_name AS "preferredName",
         EXISTS (SELECT 1 FROM coach_access a WHERE a.coach_id=$1 AND a.candidate_id=c.id) AS access,
-        greatest((SELECT max(s.scheduled_at) FROM coaching_session s WHERE s.coach_id=$1 AND s.candidate_id=c.id AND s.withdrawn_at IS NULL AND s.scheduled_at <= now()),
+        greatest((SELECT max(s.scheduled_at) FROM coaching_session s WHERE s.coach_id=$1 AND s.candidate_id=c.id AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND s.scheduled_at <= now()),
                  (SELECT a.granted_at FROM coach_access a WHERE a.coach_id=$1 AND a.candidate_id=c.id)) AS "recentAt"
       FROM candidate c WHERE ${ACTIVE} AND (
         EXISTS (SELECT 1 FROM coach_access a WHERE a.coach_id=$1 AND a.candidate_id=c.id) OR
-        EXISTS (SELECT 1 FROM coaching_session s WHERE s.coach_id=$1 AND s.candidate_id=c.id AND s.withdrawn_at IS NULL))
+        EXISTS (SELECT 1 FROM coaching_session s WHERE s.coach_id=$1 AND s.candidate_id=c.id AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL))
       ORDER BY "recentAt" DESC NULLS LAST, c.id`,
       [coachId],
     );
@@ -52,7 +52,7 @@ export function coachWorkspace(database: Pool, coaches: Pick<HumanCoaches, "coac
     const [items, { rows }] = await Promise.all([
       coaches.coachSessions(coachId),
       database.query<{ id: string; candidateId: string; changedBy: string | null }>(
-        `SELECT s.id, s.candidate_id AS "candidateId", s.changed_by AS "changedBy" FROM coaching_session s WHERE s.coach_id=$1 AND s.withdrawn_at IS NULL AND ${ACTIVE}`,
+        `SELECT s.id, s.candidate_id AS "candidateId", s.changed_by AS "changedBy" FROM coaching_session s WHERE s.coach_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ${ACTIVE}`,
         [coachId],
       ),
     ]);
@@ -68,7 +68,7 @@ export function coachWorkspace(database: Pool, coaches: Pick<HumanCoaches, "coac
       `
       SELECT ${RELATIONSHIP} AS allowed, n.text, n.revision, n.updated_at AS "updatedAt"
       FROM (SELECT 1) seed LEFT JOIN private_coach_note n ON n.coach_id=$1 AND n.candidate_id=$2 AND n.session_id IS NOT DISTINCT FROM $3::uuid
-      WHERE $3::uuid IS NULL OR EXISTS (SELECT 1 FROM coaching_session s WHERE s.id=$3 AND s.coach_id=$1 AND s.candidate_id=$2 AND s.withdrawn_at IS NULL)`,
+      WHERE $3::uuid IS NULL OR EXISTS (SELECT 1 FROM coaching_session s WHERE s.id=$3 AND s.coach_id=$1 AND s.candidate_id=$2 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL)`,
       [coachId, candidateId, sessionId],
     );
     const row = rows[0];

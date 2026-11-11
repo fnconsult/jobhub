@@ -54,7 +54,7 @@ export function sharedReading(database: Pool, deps: SharedReadingDeps) {
     if (!UUID.test(sessionId)) return null;
     const { rows } = await database.query<Session>(
       `SELECT ${SESSION_COLUMNS} FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
-      WHERE s.id=$1 AND s.withdrawn_at IS NULL AND (s.candidate_id=$2 OR s.coach_id=$3::uuid)`,
+      WHERE s.id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND (s.candidate_id=$2 OR s.coach_id=$3::uuid)`,
       [sessionId, actor.candidateId, actor.coachId ?? null],
     );
     const found = rows[0];
@@ -71,7 +71,7 @@ export function sharedReading(database: Pool, deps: SharedReadingDeps) {
     const { rows } = await database.query<ReadingRow & Omit<Session, "id">>(
       `SELECT r.id,r.session_id AS "sessionId",r.presenter,r.page,r.scroll,r.sequence,${includeDocument ? "r.payload,r.pdf" : "jsonb_build_object('kind',r.payload->'kind','title',r.payload->'title') AS payload,NULL AS pdf"},s.candidate_id AS "candidateId",s.coach_id AS "coachId",s.scheduled_at AS "scheduledAt",s.duration_minutes AS "durationMinutes",h.name AS "coachName"
       FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
-      WHERE s.id=$1 AND ($2::uuid IS NULL OR r.id=$2) AND s.withdrawn_at IS NULL AND (s.candidate_id=$3 OR s.coach_id=$4::uuid)
+      WHERE s.id=$1 AND ($2::uuid IS NULL OR r.id=$2) AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND (s.candidate_id=$3 OR s.coach_id=$4::uuid)
       AND s.scheduled_at-interval '10 minutes'<=$5 AND s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'>=$5`,
       [sessionId, shareId ?? null, actor.candidateId, actor.coachId ?? null, now()],
     );
@@ -101,7 +101,7 @@ export function sharedReading(database: Pool, deps: SharedReadingDeps) {
     const { rows } = await database.query<ReadingRow>(
       `INSERT INTO shared_reading AS r (session_id,presenter,payload,source,pdf)
       SELECT s.id,$2,$3::jsonb,$4::jsonb,$5 FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
-      WHERE s.id=$1 AND s.candidate_id=$7 AND s.coach_id=$8 AND s.withdrawn_at IS NULL AND s.scheduled_at-interval '10 minutes'<=$6 AND s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'>=$6
+      WHERE s.id=$1 AND s.candidate_id=$7 AND s.coach_id=$8 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND s.scheduled_at-interval '10 minutes'<=$6 AND s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'>=$6
       ON CONFLICT (session_id) DO UPDATE SET id=gen_random_uuid(),presenter=EXCLUDED.presenter,payload=EXCLUDED.payload,source=EXCLUDED.source,pdf=EXCLUDED.pdf,page=1,scroll=0,sequence=0,started_at=clock_timestamp()
       RETURNING ${READING_COLUMNS}`,
       [
@@ -123,7 +123,7 @@ export function sharedReading(database: Pool, deps: SharedReadingDeps) {
     async available(candidateId: string, at = now()) {
       const { rows } = await database.query<Session>(
         `SELECT ${SESSION_COLUMNS} FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
-        WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND s.scheduled_at-interval '10 minutes'<=$2 AND s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'>=$2 ORDER BY s.scheduled_at`,
+        WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND s.scheduled_at-interval '10 minutes'<=$2 AND s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'>=$2 ORDER BY s.scheduled_at`,
         [candidateId, at],
       );
       return rows.map((row) => ({ id: row.id, coachName: row.coachName }));
@@ -132,7 +132,7 @@ export function sharedReading(database: Pool, deps: SharedReadingDeps) {
       const { rows } = await database.query<{ at: Date | null }>(
         `SELECT min(w.boundary) AS at FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL
         CROSS JOIN LATERAL (VALUES(s.scheduled_at-interval '10 minutes'),(s.scheduled_at+(coalesce(s.duration_minutes,60)+30)*interval '1 minute'+interval '1 millisecond')) w(boundary)
-        WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND w.boundary>$2`,
+        WHERE s.candidate_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND w.boundary>$2`,
         [candidateId, at],
       );
       return rows[0]?.at ?? null;

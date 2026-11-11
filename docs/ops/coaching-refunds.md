@@ -11,3 +11,34 @@ The minute Worker reconciles pending entitlements; failed ones await Support. Pl
 Proposed retention, pending human #890: ten years after full resolution; unresolved accounting stays until reconciliation. Account export includes only owned entitlement and attempt facts, without processor routing or credentials. No legal wording or approval is supplied, and this foundation does not activate the future cancellation policy (#889/#518).
 
 Tests use Stripe’s real SDK against a local HTTP fake, not a real account or money. They cover concurrent workers, partial/pending refunds, lost response and late recovery after account erasure, bank failure, explicit retry, interrupted attempt persistence and wrong-account events.
+
+## Contractual cancellation orchestration (#883)
+
+Jobbbox authenticates Candidate/Coach actions itself. Candidate cancellation and
+rescheduling use the original instant with a 24-hour notice, including at DST
+transitions. A Coach must provide a reason. Their cancellation offers a full
+refund, reopening the same paid service, or an approved Peer at no higher price;
+no choice after seven days requests the owed full refund even if new-sale gates
+have subsequently closed. A Peer is a different contract: refund first, then an
+explicit new Order, rechecking the frozen original price cap before Checkout.
+There is no wallet, silent new charge, or reassignment of the original Sale.
+
+Cal event creation sets `disableRescheduling.minutesBefore=1440`. With the
+cancellations capability active, event attachment and each private embed read
+require that setting from the provider. Cal v6.0.13 validates the original
+booking's `minimumRescheduleNotice` in `RegularBookingService` and exempts only an
+authenticated organizer; the UI also closes controls at the boundary. A signed
+Cal cancellation does not authenticate who requested it. It opens a confirmation
+record, preserving the original instant: a late Candidate cannot obtain a refund
+by cancelling at Cal. The Coach must confirm a reason in Jobbbox before the
+seven-day remedy window starts. Support resolves disagreements; no actor is
+inferred from an attendee or `cancelledBy` email. Jobbbox never disables provider
+cancellation globally, which would also break its own cancellation outbox.
+
+Private Case reasons/history/notices go with account erasure. Already-owed
+refunds are frozen before that cascade and complete from detached financial
+routing. Retirement opens remedies for unheld services. Legacy date/cancellation
+writers cannot reopen refunded services or bypass pending choices. Same-Coach
+reopening invalidates old claims and retains anonymous cancellation-only routing
+for late provider descendants. No activation is granted here: current human
+CGV, Coach contract and privacy versions must declare `cancellations` coverage.

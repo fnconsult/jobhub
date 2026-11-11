@@ -1,3 +1,4 @@
+import { getCoachingCancellations, cancellationPolicyOn } from "@/coaching-cancellations/server";
 import {getCoachPages} from "@/coach-pages/server";
 import {getCoachContracts} from "@/coach-contracts/server";
 import {coachSpaceV2On} from "@/coach-space/server";
@@ -17,14 +18,16 @@ let instance: HumanCoaches | undefined;
 /** The app's Human Coaches module, on the database named by DATABASE_URL. */
 export function getHumanCoaches(): HumanCoaches {
   instance ??= createHumanCoaches(sharedPool(), {
-    publicProfileApprovalRequired:coachSpaceV2On,
-    publishedCoachIds:async ids=>coachSpaceV2On()?(await getCoachPages().approved(ids)).map(p=>p.coachId):ids,
+    contractualCancellationOn: cancellationPolicyOn,
+    mayChangeSession: (within, id, by, to) => (by === "cal_com" ? Promise.resolve(true) : getCoachingCancellations().maySchedule(within, id, by, to)),
+    publicProfileApprovalRequired: coachSpaceV2On,
+    publishedCoachIds: async (ids) => (coachSpaceV2On()?(await getCoachPages().approved(ids)).map((p) => p.coachId) : ids),
     profiles: getProfiles(),
     applications: getApplications(),
     tailoredDocuments: getTailoredDocuments(),
     tailoredCvs: getTailoredCvs(),
     push: getPushNotifications(),
-    mayEnter: (person,id) => coachSpaceV2On() ? getCoachContracts().mayEnter(person,id) : Promise.resolve(true),
+    mayEnter: (person,id) => (coachSpaceV2On() ? getCoachContracts().mayEnter(person,id) : Promise.resolve(true)),
   });
   return instance;
 }
@@ -53,7 +56,7 @@ export async function requireHumanCoach(): Promise<HumanCoach> {
 
 /** Navigation identity only: the destination still enforces contract acceptance before any Candidate access. */
 export async function hasHumanCoachIdentity(person:{email:string;emailVerified:boolean}):Promise<boolean> {
-  return coachSpaceV2On() ? (await getCoachContracts().actors(person)).some(actor=>actor.kind==="coach") : (await getHumanCoaches().coachSignedIn(person))!==null;
+  return coachSpaceV2On() ? (await getCoachContracts().actors(person)).some((actor) =>actor.kind==="coach") : (await getHumanCoaches().coachSignedIn(person))!==null;
 }
 export async function currentHasHumanCoachIdentity():Promise<boolean> {
   const person=await getCurrentCandidate();

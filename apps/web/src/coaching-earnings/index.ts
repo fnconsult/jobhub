@@ -187,7 +187,7 @@ export function coachEarnings(database: Pool, deps: { now?: () => Date } = {}) {
 /** Preserve only the business fact of service completion before the purchaser's personal session is erased. */
 export async function archiveEarningsService(database: Queryable, candidateId: string, at = new Date()) {
   await database.query(
-    `UPDATE coaching_connect_payment p SET service_archived=true,service_held_month=CASE WHEN s.scheduled_at IS NOT NULL AND s.scheduled_at+coalesce(s.duration_minutes,(p.sale_snapshot->>'durationMinutes')::integer)*interval '1 minute'<=$2 AND (s.withdrawn_at IS NULL OR s.withdrawn_at>=s.scheduled_at+coalesce(s.duration_minutes,(p.sale_snapshot->>'durationMinutes')::integer)*interval '1 minute') THEN to_char((s.scheduled_at+coalesce(s.duration_minutes,(p.sale_snapshot->>'durationMinutes')::integer)*interval '1 minute') AT TIME ZONE 'Europe/Paris','YYYY-MM') ELSE NULL END FROM coaching_session s WHERE p.candidate_id=$1 AND s.stripe_checkout_session_id=p.checkout_id`,
+    `UPDATE coaching_connect_payment p SET service_archived=true,service_held_month=CASE WHEN s.scheduled_at IS NOT NULL AND s.scheduled_at+coalesce(s.duration_minutes,(p.sale_snapshot->>'durationMinutes')::integer)*interval '1 minute'<=$2 AND (s.withdrawn_at IS NULL OR s.withdrawn_at>=s.scheduled_at+coalesce(s.duration_minutes,(p.sale_snapshot->>'durationMinutes')::integer)*interval '1 minute') THEN to_char((s.scheduled_at+coalesce(s.duration_minutes,(p.sale_snapshot->>'durationMinutes')::integer)*interval '1 minute') AT TIME ZONE 'Europe/Paris','YYYY-MM') ELSE NULL END FROM coaching_session s WHERE p.candidate_id=$1 AND NOT p.service_archived AND s.stripe_checkout_session_id=p.checkout_id`,
     [candidateId, at],
   );
 }

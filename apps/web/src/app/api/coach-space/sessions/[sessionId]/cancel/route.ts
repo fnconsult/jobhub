@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { getCoachingCancellations, cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -15,6 +17,14 @@ export async function POST(request: Request, { params }: RouteContext<"/api/coac
   const coach = await coaches.coachSignedIn(person);
   if (!coach) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const { sessionId } = await params;
+  if (await cancellationPolicyOn()) {
+    const body = await request.json().catch(() => ({}));
+    const key = typeof body.requestKey === "string" ? body.requestKey : randomUUID();
+    const result = await getCoachingCancellations().coachCancel(coach.id, sessionId, typeof body.reason === "string" ? body.reason : "", key);
+    return NextResponse.json(result.ok ? { id: sessionId, cancellationId: result.cancellation.id } : result, {
+      status: result.ok ? 200 : result.error === "not_found" ? 404 : 409,
+    });
+  }
   const result = await coaches.cancelCoachedSession(coach.id, sessionId);
   if (result.ok) return NextResponse.json({ id: sessionId });
   return NextResponse.json({ error: "not_found" }, { status: 404 });

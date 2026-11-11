@@ -1,3 +1,4 @@
+import { migrateCoachingCancellations } from "./coaching-cancellations";
 import {migrateCoachingRefunds} from "./coaching-refunds";
 import {migrateCoachingBooking} from "./coaching-booking";
 import {migrateCoachingEarnings} from "./coaching-earnings";
@@ -129,6 +130,7 @@ export async function migrateDatabase(
     ["Coaching Earnings are up to date",()=>migrateCoachingEarnings(database)],
     ["Coaching Bookings are up to date",()=>migrateCoachingBooking(database)],
     ["Coaching Refunds are up to date",()=>migrateCoachingRefunds(database)],
+    ["Coaching Cancellations are up to date", () => migrateCoachingCancellations(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],
@@ -136,7 +138,8 @@ export async function migrateDatabase(
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
     ["Web search alerts are up to date", () => migrateWebSearchAlerts(database)],
-    ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
+    ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env)),
+    ],
     ["Guardrails are up to date", () => migrateGuardrails(database)],
     ["Eval Cases and Eval Runs are up to date", () => migrateEvals(database)],
     ["Reference data is up to date", () => migrateReferenceData(database)],
@@ -155,7 +158,8 @@ export async function migrateDatabase(
     ["The Offer box is up to date", async () => {
       await migrateOfferBox(database);
       await backfillOfferBox(database, new Date());
-    }],
+    },
+    ],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

@@ -1,4 +1,4 @@
-import {CoachProfile} from "./CoachProfile";
+import { CoachProfile } from "./CoachProfile";
 import { SessionJoin } from "./SessionJoin";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/reads";
@@ -92,6 +92,7 @@ export function HumanCoaches() {
 
 function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wait: PaymentWait; onRefresh: () => void }) {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const formats = useMemo(() => coachingFormats(i18n.language, coaching.timeZone), [i18n.language, coaching.timeZone]);
   return (
     <View style={{ gap: space[6] }}>
@@ -99,6 +100,7 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
         <AppText variant="h3" heading>
           {t("humanCoaches.sessionsTitle")}
         </AppText>
+        {coaching.cancellationPath ? <><AppText>{t("coachingCancellation.notice")}</AppText><Control label={t("coachingCancellation.title")} onPress={() => router.navigate(coaching.cancellationPath!)} /></> : null}
         <PaymentNotice wait={wait} onRefresh={onRefresh} />
         {coaching.sessions.length === 0 ? <AppText tone="secondary">{t("humanCoachesMenu.sessionsNone")}</AppText> : null}
         {coaching.sessions.map((session) => (
@@ -110,7 +112,9 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
           {t("humanCoaches.listTitle")}
         </AppText>
         <AppText tone="secondary">{t("humanCoaches.accessIntro")}</AppText>
-        <AppText>{coaching.price ? t("humanCoaches.price", { price: formats.money(coaching.price.amount, coaching.price.currency) }) : t("humanCoaches.unavailable")}</AppText>
+        <AppText>
+          {coaching.price ? t("humanCoaches.price", { price: formats.money(coaching.price.amount, coaching.price.currency) }) : t("humanCoaches.unavailable")}
+        </AppText>
         {coaching.coaches.length === 0 ? <AppText tone="secondary">{t("humanCoaches.none")}</AppText> : null}
         {coaching.coaches.map((coach) => (
           <CoachCard key={coach.id} coach={coach} bookable={coach.offer !== undefined ? coach.offer !== null : coaching.price !== null} />
@@ -123,7 +127,10 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
 function Card({ label, children }: { label: string; children: ReactNode }) {
   const { colors } = useTheme();
   return (
-    <View aria-label={label} style={{ gap: space[2], padding: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }}>
+    <View
+      aria-label={label}
+      style={{ gap: space[2], padding: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }}
+    >
       {children}
     </View>
   );
@@ -133,7 +140,7 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
  * A Coaching Session: dated (its date, duration, video link, note, « modifié par » the coach), or to schedule on Cal.com;
  * its date to enter or correct (SessionForm), and « Renoncer au contrat ici » while it can still be withdrawn from.
  */
-function SessionCard({ session, formats, timeZone, onSaved }: { session: Session; formats: Formats; timeZone?:string; onSaved: () => void }) {
+function SessionCard({ session, formats, timeZone, onSaved }: { session: Session; formats: Formats; timeZone?: string; onSaved: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -157,7 +164,11 @@ function SessionCard({ session, formats, timeZone, onSaved }: { session: Session
         onPress={() => setEditing(true)}
       />
       {session.withdrawable ? (
-        <Control label={t("withdrawals.page.title")} accessibleName={t("withdrawals.agenda.label", { name })} onPress={() => router.navigate(paths.withdrawal(`coaching-session:${session.id}`))} />
+        <Control
+          label={t("withdrawals.page.title")}
+          accessibleName={t("withdrawals.agenda.label", { name })}
+          onPress={() => router.navigate(paths.withdrawal(`coaching-session:${session.id}`))}
+        />
       ) : null}
     </View>
   );
@@ -166,7 +177,11 @@ function SessionCard({ session, formats, timeZone, onSaved }: { session: Session
       <Card label={paidOn}>
         <AppText weight="semiBold">{paidOn}</AppText>
         <AppText tone="secondary">{t("humanCoaches.toSchedule")}</AppText>
-        <Control look="primary" label={t("humanCoaches.pickSlot", { name })} onPress={() => session.bookingPath?router.navigate(session.bookingPath):void Linking.openURL(session.coach.bookingUrl).catch(() => {})} />
+        <Control
+          look="primary"
+          label={t("humanCoaches.pickSlot", { name })}
+          onPress={() => (session.bookingPath ? router.navigate(session.bookingPath) : void Linking.openURL(session.coach.bookingUrl).catch(() => {}))}
+        />
         {actions}
       </Card>
     );
@@ -177,8 +192,8 @@ function SessionCard({ session, formats, timeZone, onSaved }: { session: Session
       <AppText weight="semiBold">{on}</AppText>
       {session.durationMinutes ? <AppText>{t("humanCoaches.sessionDuration", { count: session.durationMinutes })}</AppText> : null}
       {session.note ? <AppText>{session.note}</AppText> : null}
-      {session.bookingPath?<Control label={t("coachingBooking.manage")} onPress={()=>router.navigate(session.bookingPath!)}/>:null}
-      {session.changedBy === "cal_com"?<AppText variant="meta">{t("coachingBooking.viaCal")}</AppText>:null}
+      {session.bookingPath ? <Control label={t("coachingBooking.manage")} onPress={() => router.navigate(session.bookingPath!)} /> : null}
+      {session.changedBy === "cal_com" ? <AppText variant="meta">{t("coachingBooking.viaCal")}</AppText> : null}
       {session.changedBy === "coach" ? (
         <AppText variant="meta" tone="accent">
           {t("humanCoaches.changedByCoach", { name })}
@@ -188,7 +203,11 @@ function SessionCard({ session, formats, timeZone, onSaved }: { session: Session
         {paidOn}
       </AppText>
       {session.meeting !== undefined ? <Control label={t("coachReports.open")} onPress={() => router.navigate(`/coachs/seances/${session.id}`)} /> : null}
-      {session.meeting !== undefined ? <SessionJoin timeZone={timeZone} meeting={session.meeting} scheduledAt={session.scheduledAt} durationMinutes={session.durationMinutes} /> : session.videoLink ? <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} /> : null}
+      {session.meeting !== undefined ? (
+        <SessionJoin timeZone={timeZone} meeting={session.meeting} scheduledAt={session.scheduledAt} durationMinutes={session.durationMinutes} />
+      ) : session.videoLink ? (
+        <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} />
+      ) : null}
       {actions}
     </Card>
   );
@@ -228,16 +247,36 @@ function PaymentNotice({ wait, onRefresh }: { wait: PaymentWait; onRefresh: () =
 function CoachCard({ coach, bookable }: { coach: Coach; bookable: boolean }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const price=coach.offer?new Intl.NumberFormat(i18n.language,{style:"currency",currency:coach.offer.currency}).format(coach.offer.amount/100):null;
+  const price = coach.offer
+    ? new Intl.NumberFormat(i18n.language, { style: "currency", currency: coach.offer.currency }).format(coach.offer.amount / 100)
+    : null;
   return (
     <Card label={coach.name}>
       <AppText variant="h3">{coach.name}</AppText>
-      {coach.association?<AppText>{t("association.proposedBy",{name:coach.association.name})}</AppText>:null}
-      {coach.seller?<><AppText>{t("coachingOffers.soldBy",{name:coach.seller.name})}</AppText>{coach.seller.kind!=="jobbbox"?<><AppText>{coach.seller.status} · {t("coachingOffers.siret",{siret:coach.seller.siret})}</AppText><AppText>{t("coachingOffers.marketplace")}</AppText></>:null}</>:null}
-      {coach.offer?<AppText>{price} · {t("humanCoaches.sessionDuration",{count:coach.offer.durationMinutes})}</AppText>:null}
-      {coach.profile?<CoachProfile name={coach.name} page={coach.profile}/>:coach.bio ? <AppText>{coach.bio}</AppText> : null}
+      {coach.association ? <AppText>{t("association.proposedBy", { name: coach.association.name })}</AppText> : null}
+      {coach.seller ? (
+        <>
+          <AppText>{t("coachingOffers.soldBy", { name: coach.seller.name })}</AppText>
+          {coach.seller.kind !== "jobbbox" ? (
+            <>
+              <AppText>
+                {coach.seller.status} · {t("coachingOffers.siret", { siret: coach.seller.siret })}
+              </AppText>
+              <AppText>{t("coachingOffers.marketplace")}</AppText>
+            </>
+          ) : null}
+        </>
+      ) : null}
+      {coach.offer ? (
+        <AppText>
+          {price} · {t("humanCoaches.sessionDuration", { count: coach.offer.durationMinutes })}
+        </AppText>
+      ) : null}
+      {coach.profile ? <CoachProfile name={coach.name} page={coach.profile} /> : coach.bio ? <AppText>{coach.bio}</AppText> : null}
       <AppText tone="secondary">{t(coach.accessGranted ? "humanCoaches.accessGranted" : "humanCoaches.accessNotGranted", { name: coach.name })}</AppText>
-      {bookable ? <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} /> : null}
+      {bookable ? (
+        <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} />
+      ) : null}
     </Card>
   );
 }

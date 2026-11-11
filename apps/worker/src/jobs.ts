@@ -1,5 +1,6 @@
 import { purgeExpiredSharedReading } from "@jobhub/web/shared-reading";
-import { createRunProgress, FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria } from "@jobhub/shared";
+import { createRunProgress, FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria,
+} from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
@@ -24,9 +25,11 @@ import {
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
-import { GUEST_RETENTION_DAYS as EXTENSION_EVENT_GUEST_RETENTION_DAYS, purgeExtensionEvents, RETENTION_MONTHS as EXTENSION_EVENT_RETENTION_MONTHS } from "@jobhub/web/extension-events";
+import { GUEST_RETENTION_DAYS as EXTENSION_EVENT_GUEST_RETENTION_DAYS, purgeExtensionEvents, RETENTION_MONTHS as EXTENSION_EVENT_RETENTION_MONTHS,
+} from "@jobhub/web/extension-events";
 import { purgeExpiredConsumption, RETENTION_MONTHS as CONSUMPTION_RETENTION_MONTHS } from "@jobhub/web/consumption";
-import { FAILURE_RETENTION_DAYS as PUSH_FAILURE_RETENTION_DAYS, PUSH_NOTIFICATIONS_QUEUE, PUSH_PLATFORMS, purgeExpiredPushFailures, pushNotificationOf, type PushNotifications, type PushPlatform } from "@jobhub/web/push-notifications";
+import { FAILURE_RETENTION_DAYS as PUSH_FAILURE_RETENTION_DAYS, PUSH_NOTIFICATIONS_QUEUE, PUSH_PLATFORMS, purgeExpiredPushFailures, pushNotificationOf, type PushNotifications, type PushPlatform,
+} from "@jobhub/web/push-notifications";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
@@ -224,8 +227,10 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachingCancellations?: { expireChoices(): Promise<void>; retiredCoaches(): Promise<void>; deliverNotices(): Promise<void> };
   coachingRefunds?:{runPending():Promise<void>;purge():Promise<number>};
-  coachingBooking?:{replayPending():Promise<void>;deliverCancellations():Promise<void>;deliverNotices():Promise<void>;purge():Promise<void>;observeLegal():Promise<boolean>};
+  coachingBooking?:{replayPending():Promise<void>;deliverCancellations():Promise<void>;deliverNotices():Promise<void>;purge():Promise<void>;observeLegal():Promise<boolean>;
+  };
   coachingConnect?:{runMonthly():Promise<unknown>;purge():Promise<number>};
   coachPages?:{deliverNotices():Promise<number>;purge():Promise<number>};
   coachAssociations?:{deliverInvitations():Promise<number>;purge():Promise<number>};
@@ -400,9 +405,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const discovery = discoveryNow();
         if ("unavailable" in discovery) {
           await fail("unavailable");
-          return log(
-            `[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${discovery.unavailable})`,
-          );
+          return log(`[job-discovery] profile ${target.profileId}: skipped, Job discovery is unavailable (${discovery.unavailable})`);
         }
         // Stopped before the worker began it: nothing to run.
         if (jobSearchId && (await deps.jobSearches.stopRequested(jobSearchId))) {
@@ -437,7 +440,13 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const stop = jobSearchId ? watchStop(() => deps.jobSearches.stopRequested(jobSearchId), deps.stopCheckMs ?? STOP_CHECK_MS) : null;
         let report;
         try {
-          report = await discovery.discover({ candidateId: target.candidateId, profileId: target.profileId, criteria: profile.searchCriteria, onEvent: progress?.onEvent, signal: stop?.signal });
+          report = await discovery.discover({
+            candidateId: target.candidateId,
+            profileId: target.profileId,
+            criteria: profile.searchCriteria,
+            onEvent: progress?.onEvent,
+            signal: stop?.signal,
+          });
         } catch (error) {
           stop?.end();
           // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
@@ -628,7 +637,17 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const delivery = await deps.jobDigests.deliver(target.candidateId, target.profileId, discover);
         const durationMs = now().getTime() - startedAt.getTime();
         if (ran) {
-          await recordRun({ trigger: "job_digest", candidateId: target.candidateId, profileId: target.profileId, jobSearchId: null, criteria: profile.searchCriteria, metrics, startedAt, durationMs, report: ran });
+          await recordRun({
+            trigger: "job_digest",
+            candidateId: target.candidateId,
+            profileId: target.profileId,
+            jobSearchId: null,
+            criteria: profile.searchCriteria,
+            metrics,
+            startedAt,
+            durationMs,
+            report: ran,
+          });
         }
         const outcome = delivery.digest ? `Job Digest sent (${delivery.digest.results.length} Job Offer(s))` : "nothing to send";
         const discovered = { not_run: "Job discovery not needed", ran: "Job discovery ran", failed: "Job discovery failed" }[delivery.discovery];
@@ -656,29 +675,124 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
-    "coaching-refunds.reconcile":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingRefunds?.runPending();})},
-    "coaching-refunds.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingRefunds?.purge();})},
-    "coaching-booking.sync":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingBooking?.replayPending();await deps.coachingBooking?.deliverCancellations();await deps.coachingBooking?.deliverNotices();await deps.coachingBooking?.observeLegal();})},
-    "coaching-booking.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingBooking?.purge();})},
-    "coaching-connect.payouts":{cron:"*/10 * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingConnect?.runMonthly();})},
-    "coaching-connect.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingConnect?.purge();})},
-    "coach-pages.notices": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachPages?.deliverNotices();})},
-    "coach-pages.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachPages?.purge();})},
-    "coach-associations.invitations": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachAssociations?.deliverInvitations();})},
-    "coach-associations.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachAssociations?.purge();})},
-    "coach-contracts.notices": {
-      cron:"0 6 * * *", retry:LEGAL_TEXT_NOTICES_RETRY,
-      handler:()=>onceTablesExist(async()=>{
-        const result=await deps.coachContracts?.sendNotices();
-        if(result?.failed)throw new Error("Coach agreement notices require retry");
-      }),
+    "coaching-cancellations.reconcile": {
+      cron: "* * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachingCancellations?.retiredCoaches();
+          await deps.coachingCancellations?.expireChoices();
+          await deps.coachingCancellations?.deliverNotices();
+        }),
     },
-    "coach-contracts.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachContracts?.purge();})},
-    "coach-enrolments.notices": {cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachEnrolments?.deliverNotices();})},
-    "coach-enrolments.purge": {cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachEnrolments?.purge();})},
+    "coaching-refunds.reconcile": {
+      cron: "* * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachingRefunds?.runPending();
+        }),
+    },
+    "coaching-refunds.purge": {
+      cron: "0 2 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachingRefunds?.purge();
+        }),
+    },
+    "coaching-booking.sync": {
+      cron: "* * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachingBooking?.replayPending();
+          await deps.coachingBooking?.deliverCancellations();
+          await deps.coachingBooking?.deliverNotices();
+          await deps.coachingBooking?.observeLegal();
+        }),
+    },
+    "coaching-booking.purge": {
+      cron: "0 2 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachingBooking?.purge();
+        }),
+    },
+    "coaching-connect.payouts": {
+      cron: "*/10 * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachingConnect?.runMonthly();
+        }),
+    },
+    "coaching-connect.purge": {
+      cron: "0 2 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachingConnect?.purge();
+        }),
+    },
+    "coach-pages.notices": {
+      cron: "* * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachPages?.deliverNotices();
+        }),
+    },
+    "coach-pages.purge": {
+      cron: "0 2 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachPages?.purge();
+        }),
+    },
+    "coach-associations.invitations": {
+      cron: "* * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachAssociations?.deliverInvitations();
+        }),
+    },
+    "coach-associations.purge": {
+      cron: "0 2 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachAssociations?.purge();
+        }),
+    },
+    "coach-contracts.notices": {
+      cron: "0 6 * * *",
+      retry: LEGAL_TEXT_NOTICES_RETRY,
+      handler: () =>
+        onceTablesExist(async () => {
+          const result = await deps.coachContracts?.sendNotices();
+          if (result?.failed) throw new Error("Coach agreement notices require retry");
+        }),
+    },
+    "coach-contracts.purge": {
+      cron: "0 2 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachContracts?.purge();
+        }),
+    },
+    "coach-enrolments.notices": {
+      cron: "* * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachEnrolments?.deliverNotices();
+        }),
+    },
+    "coach-enrolments.purge": {
+      cron: "0 2 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          await deps.coachEnrolments?.purge();
+        }),
+    },
     "shared-reading.purge": {
       cron: "* * * * *",
-      handler: () => onceTablesExist(async () => { await purgeExpiredSharedReading(deps.database, now()); }),
+      handler: () =>
+        onceTablesExist(async () => {
+          await purgeExpiredSharedReading(deps.database, now());
+        }),
     },
 
     // Coach Conversations are kept 12 months after their last message. Safe to run again.
@@ -727,7 +841,9 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           const checked = await deps.webSearchAlert?.check();
           if (checked?.outcome !== "sent") return;
           const eur = (value: number) => `€${value.toFixed(2)}`;
-          log(`[web-search-alert] ${checked.month}: web search spend ${eur(checked.spendEur)} reached its alert threshold of ${eur(checked.thresholdEur)}, super-admins emailed; nothing is cut`);
+          log(
+            `[web-search-alert] ${checked.month}: web search spend ${eur(checked.spendEur)} reached its alert threshold of ${eur(checked.thresholdEur)}, super-admins emailed; nothing is cut`,
+          );
         }),
     },
 
@@ -752,7 +868,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       handler: () =>
         onceTablesExist(async () => {
           const purged = await purgeStaleAssistantConversations(deps.database, now());
-          if (purged) log(`[back-office-assistant] ${purged} Back Office Assistant conversation(s) purged, ${ASSISTANT_RETENTION_MONTHS} months after their last message`);
+          if (purged) log(`[back-office-assistant] ${purged} Back Office Assistant conversation(s) purged, ${ASSISTANT_RETENTION_MONTHS} months after their last message`,
+            );
         }),
     },
 
@@ -803,7 +920,9 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           }
           if (!deps.pushNotifications) return;
           const sent = await deps.pushNotifications.send(personId, notification, platform === undefined ? {} : { platform: platform as PushPlatform });
-          log(`[push-notifications] ${notification.event}: ${sent.sent} sent, ${sent.failed} failed` + (sent.removed ? ` (${sent.removed} device removed)` : ""));
+          log(
+            `[push-notifications] ${notification.event}: ${sent.sent} sent, ${sent.failed} failed` + (sent.removed ? ` (${sent.removed} device removed)` : ""),
+          );
         }),
     },
 
@@ -831,7 +950,10 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       handler: () =>
         onceTablesExist(async () => {
           const purged = await purgeExtensionEvents(deps.database, now());
-          if (purged) log(`[extension-events] ${purged} Extension Event(s) purged, ${EXTENSION_EVENT_RETENTION_MONTHS} months old, or ${EXTENSION_EVENT_GUEST_RETENTION_DAYS} days for a Guest's`);
+          if (purged)
+            log(
+              `[extension-events] ${purged} Extension Event(s) purged, ${EXTENSION_EVENT_RETENTION_MONTHS} months old, or ${EXTENSION_EVENT_GUEST_RETENTION_DAYS} days for a Guest's`,
+            );
         }),
     },
 
@@ -917,7 +1039,10 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       handler: () =>
         onceTablesExist(async () => {
           const purged = await purgeExpiredAcceptances(deps.database, now());
-          if (purged) log(`[acceptances] ${purged} Acceptance(s) of deleted accounts purged (CGU ${CGU_RETENTION_YEARS} years, CGV ${CGV_RETENTION_YEARS} years after the deletion)`);
+          if (purged)
+            log(
+              `[acceptances] ${purged} Acceptance(s) of deleted accounts purged (CGU ${CGU_RETENTION_YEARS} years, CGV ${CGV_RETENTION_YEARS} years after the deletion)`,
+            );
         }),
     },
 

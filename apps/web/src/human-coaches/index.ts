@@ -180,6 +180,9 @@ export type CoachReviewResult =
   | { ok: false; error: "not_found" };
 
 export interface HumanCoachesDeps {
+  mayChangeSession?: (within: Queryable, sessionId: string, by: RescheduledBy, to: Date | null) => Promise<boolean>;
+  contractualCancellationOn?: () => Promise<boolean>;
+
   publicProfileApprovalRequired?:()=>boolean;
   publishedCoachIds?:(ids:string[])=>Promise<string[]>;
   mayEnter?: (person: {email:string;emailVerified:boolean}, coachId:string) => Promise<boolean>;
@@ -377,7 +380,8 @@ interface CandidateNamesRow {
 }
 
 /** A Coached Candidate from its row: named in full, « Marie Dupont », and the Preferred Name beside it. */
-const coachedCandidateFrom = (row: CandidateNamesRow & { id: string; email: string }): CoachedCandidate => ({ id: row.id, ...nameForCoach(row), email: row.email });
+const coachedCandidateFrom = (row: CandidateNamesRow & { id: string; email: string }): CoachedCandidate => ({ id: row.id, ...nameForCoach(row), email: row.email,
+});
 
 /** The Candidate of a Coaching Session: « Marie D. », and the Preferred Name beside it. */
 function sessionCandidate(row: CandidateNamesRow): { candidateName: string; candidateCalledBy: string | null } {
@@ -453,7 +457,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note, s.changed_by,
               h.id, h.name, h.email, h.booking_url, h.bio
        FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
-       WHERE s.candidate_id = $1 AND s.withdrawn_at IS NULL AND ($2::uuid IS NULL OR s.id = $2) ORDER BY s.paid_at DESC, s.id`,
+       WHERE s.candidate_id = $1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ($2::uuid IS NULL OR s.id = $2) ORDER BY s.paid_at DESC, s.id`,
       [candidateId, sessionId ?? null],
     );
     const histories = await rescheduleHistories(
@@ -479,16 +483,22 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   /** The (not retired) Human Coach's Coaching Sessions (or the one `sessionId` names), « À planifier » first, then latest first. */
   async function coachSessionsOf(coachId: string, sessionId?: string): Promise<CoachedSession[]> {
     if (!UUID.test(coachId)) return [];
-    const { rows } = await database.query<CandidateNamesRow & { id: string; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }>(
+    const { rows } = await database.query<
+      CandidateNamesRow & { id: string; paid_at: Date; scheduled_at: Date | null; duration_minutes: number | null; video_link: string | null }
+    >(
       `SELECT s.id, ${CANDIDATE_NAMES}, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link
          FROM coaching_session s
          JOIN human_coach h ON h.id = s.coach_id AND h.retired_at IS NULL
          JOIN candidate c ON c.id = s.candidate_id
-        WHERE s.coach_id = $1 AND s.withdrawn_at IS NULL AND ($2::uuid IS NULL OR s.id = $2)
+        WHERE s.coach_id = $1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ($2::uuid IS NULL OR s.id = $2)
         ORDER BY s.scheduled_at DESC NULLS FIRST, s.paid_at, s.id`,
       [coachId, sessionId ?? null],
     );
-    const histories = await rescheduleHistories(database, "coaching_session", rows.map((row) => row.id));
+    const histories = await rescheduleHistories(
+      database,
+      "coaching_session",
+      rows.map((row) => row.id),
+    );
     return rows.map((row) => ({
       id: row.id,
       ...sessionCandidate(row),
@@ -508,18 +518,30 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   async function setSessionDate(
     sessionId: string,
     owned: { where: string; params: unknown[] },
-    change: { to: Date | null; by: RescheduledBy; fields?: { durationMinutes?: number | null|undefined; videoLink?: string | null|undefined; note?: string | null|undefined } },
+    change: {
+      to: Date | null;
+      by: RescheduledBy;
+      fields?: { durationMinutes?: number | null | undefined; videoLink?: string | null | undefined; note?: string | null | undefined };
+    },
   ): Promise<boolean> {
     const set = await inTransaction(database, async (client) => {
       const { rows } = await client.query<{ scheduled_at: Date | null; candidate_id: string; coach_id: string }>(
-        `SELECT s.scheduled_at, s.candidate_id, s.coach_id FROM coaching_session s WHERE s.id = $1 AND s.withdrawn_at IS NULL AND ${owned.where} FOR UPDATE OF s`,
+        `SELECT s.scheduled_at, s.candidate_id, s.coach_id FROM coaching_session s WHERE s.id = $1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ${owned.where} FOR UPDATE OF s`,
         [sessionId, ...owned.params],
       );
       const session = rows[0];
-      if (!session) return null;
+      if (!session || (deps.mayChangeSession && !(await deps.mayChangeSession(client, sessionId, change.by, change.to)))) return null;
       if (change.fields) {
-        const updates=([['duration_minutes',change.fields.durationMinutes],['video_link',change.fields.videoLink],['note',change.fields.note]] as const).filter(([,value])=>value!==undefined);
-        if(updates.length)await client.query(`UPDATE coaching_session SET ${updates.map(([column],index)=>`${column}=$${index+2}`).join(',')} WHERE id=$1`,[sessionId,...updates.map(([,value])=>value)]);
+        const updates = (
+          [
+            ["duration_minutes", change.fields.durationMinutes],
+            ["video_link", change.fields.videoLink],
+            ["note", change.fields.note],
+          ] as const
+        ).filter(([, value]) => value !== undefined);
+        if (updates.length)
+          await client.query(`UPDATE coaching_session SET ${updates.map(([column],index)=>`${column}=$${index+2}`).join(",")} WHERE id=$1`,[sessionId,...updates.map(([,value])=>value),
+          ]);
       }
       const changed = await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: change.to, by: change.by, now: now() });
       // Who last entered or changed the date (« modifié par le coach »), kept beside the Reschedule history.
@@ -550,11 +572,17 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   }
 
   /** Tells the other person of a session's date entered, changed (`to`), cancelled (null) or withdrawn by `by`. */
-  async function sessionDateChanged(sessionId: string, session: { candidate_id: string; coach_id: string }, by: RescheduledBy, to: Date | null | "withdrawn"): Promise<void> {
+  async function sessionDateChanged(
+    sessionId: string,
+    session: { candidate_id: string; coach_id: string },
+    by: RescheduledBy,
+    to: Date | null | "withdrawn",
+  ): Promise<void> {
     // The change itself: its new date, or none, and when it was made.
     const once = `${sessionId}:${to instanceof Date ? to.toISOString() : (to ?? "cancelled")}:${now().toISOString()}`;
     if (by === "coach") await notify(session.candidate_id, { event: "coaching_session_changed" }, `coaching_session_changed:${once}`);
-    else await notify(await coachAccount(session.coach_id), { event: "coaching_session_changed_by_candidate" }, `coaching_session_changed_by_candidate:${once}`);
+    else
+      await notify(await coachAccount(session.coach_id), { event: "coaching_session_changed_by_candidate" }, `coaching_session_changed_by_candidate:${once}`);
   }
 
   /** The Candidate's own session, after a change: the result to give back. */
@@ -580,17 +608,20 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
         `INSERT INTO human_coach (name, email, booking_url, bio,public_ready) VALUES ($1, $2, $3, $4,$5)
          ON CONFLICT (email) WHERE retired_at IS NULL DO NOTHING
          RETURNING ${COACH_COLUMNS}`,
-        [name, email, bookingUrl, bio,!(deps.publicProfileApprovalRequired?.()??false)],
+        [name, email, bookingUrl, bio, !(deps.publicProfileApprovalRequired?.() ?? false)],
       );
       return rows[0] ? { ok: true, coach: coachFrom(rows[0]) } : { ok: false, error: "email_taken" };
     },
 
-    async list(options={}) {
-      const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL AND ($1::boolean OR (NOT contract_pending AND public_ready)) ORDER BY name, created_at`,[options.includePending??false]);
-      const coaches=rows.map(coachFrom);
-      if(options.includePending||!deps.publishedCoachIds)return coaches;
-      const published=new Set(await deps.publishedCoachIds(coaches.map(c=>c.id)));
-      return coaches.filter(c=>published.has(c.id));
+    async list(options = {}) {
+      const { rows } = await database.query<CoachRow>(
+        `SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL AND ($1::boolean OR (NOT contract_pending AND public_ready)) ORDER BY name, created_at`,
+        [options.includePending ?? false],
+      );
+      const coaches = rows.map(coachFrom);
+      if (options.includePending || !deps.publishedCoachIds) return coaches;
+      const published = new Set(await deps.publishedCoachIds(coaches.map((c) => c.id)));
+      return coaches.filter((c) => published.has(c.id));
     },
 
     async retire(coachId, within = database) {
@@ -604,10 +635,11 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async coachSignedIn(person) {
       if (!person.emailVerified) return null;
-      const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE email = $1 AND retired_at IS NULL AND NOT contract_pending`, [
-        person.email.trim().toLowerCase(),
-      ]);
-      return rows[0] && (!deps.mayEnter || await deps.mayEnter(person,rows[0].id)) ? coachFrom(rows[0]) : null;
+      const { rows } = await database.query<CoachRow>(
+        `SELECT ${COACH_COLUMNS} FROM human_coach WHERE email = $1 AND retired_at IS NULL AND NOT contract_pending`,
+        [person.email.trim().toLowerCase()],
+      );
+      return rows[0] && (!deps.mayEnter || (await deps.mayEnter(person, rows[0].id))) ? coachFrom(rows[0]) : null;
     },
 
     async grantAccess(candidateId, coachId) {
@@ -622,7 +654,12 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       const access = rows[0];
       if (!access) return false;
       // Granted now, not again: the Human Coach hears of it.
-      if (access.granted) await notify(await coachAccount(coachId), { event: "coach_access_granted", candidateId }, `coach_access_granted:${candidateId}:${access.granted_at.toISOString()}`);
+      if (access.granted)
+        await notify(
+          await coachAccount(coachId),
+          { event: "coach_access_granted", candidateId },
+          `coach_access_granted:${candidateId}:${access.granted_at.toISOString()}`,
+        );
       return true;
     },
 
@@ -687,20 +724,23 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     reviews: reviewsOf,
 
     async recordPaidSession(paid, financials) {
-      const {checkoutSessionId,candidateId,coachId,amount,currency}=paid;
+      const { checkoutSessionId, candidateId, coachId, amount, currency } = paid;
       if (!UUID.test(coachId)) return false;
-      const record=async(within:Queryable)=>{
-        const {rows}=await within.query<{recorded:boolean}>(`INSERT INTO coaching_session (stripe_checkout_session_id,candidate_id,coach_id,amount,currency,coaching_quote_id)
+      const record = async (within: Queryable) => {
+        const { rows } = await within.query<{ recorded: boolean }>(
+          `INSERT INTO coaching_session (stripe_checkout_session_id,candidate_id,coach_id,amount,currency,coaching_quote_id)
           SELECT $1,c.id,h.id,$4,$5,$6 FROM candidate c,human_coach h WHERE c.id=$2 AND h.id=$3
           ON CONFLICT(stripe_checkout_session_id) DO UPDATE SET stripe_checkout_session_id=EXCLUDED.stripe_checkout_session_id,coaching_quote_id=coalesce(coaching_session.coaching_quote_id,EXCLUDED.coaching_quote_id)
-          RETURNING (xmax=0) AS recorded`,[checkoutSessionId,candidateId,coachId,amount,currency.toLowerCase(),paid.quoteId??null]);
-        if(rows[0]&&financials)await financials(within);
-        return rows[0]??null;
+          RETURNING (xmax=0) AS recorded`,
+          [checkoutSessionId, candidateId, coachId, amount, currency.toLowerCase(), paid.quoteId ?? null],
+        );
+        if (rows[0] && financials) await financials(within);
+        return rows[0] ?? null;
       };
-      const row=financials?await inTransaction(database,record):await record(database);
-      if(!row)return false;
+      const row = financials ? await inTransaction(database, record) : await record(database);
+      if (!row) return false;
       // Financial callbacks have committed: a failed snapshot never exposes a session or a premature notification.
-      if(row.recorded)await notify(await coachAccount(coachId),{event:"coaching_session_paid"},`coaching_session_paid:${checkoutSessionId}`);
+      if (row.recorded) await notify(await coachAccount(coachId), { event: "coaching_session_paid" }, `coaching_session_paid:${checkoutSessionId}`);
       return true;
     },
 
@@ -728,17 +768,23 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!UUID.test(sessionId)) return { ok: false, error: "not_found" };
       const { scheduledAt, durationMinutes, videoLink, note } = parsed.data;
-      const changed = await setSessionDate(sessionId, { where: "s.candidate_id = $2", params: [candidateId] }, { to: scheduledAt, by: "candidate", fields: { durationMinutes, videoLink, note } });
+      const changed = await setSessionDate(
+        sessionId,
+        { where: "s.candidate_id = $2", params: [candidateId] },
+        { to: scheduledAt, by: "candidate", fields: { durationMinutes, videoLink, note } },
+      );
       return sessionResult(candidateId, sessionId, changed);
     },
 
     async cancelSession(candidateId, sessionId) {
+      if (await deps.contractualCancellationOn?.()) return { ok: false, error: "not_found" };
       if (!UUID.test(sessionId)) return { ok: false, error: "not_found" };
       const changed = await setSessionDate(sessionId, { where: "s.candidate_id = $2", params: [candidateId] }, { to: null, by: "candidate" });
       return sessionResult(candidateId, sessionId, changed);
     },
 
     async cancelCoachedSession(coachId, sessionId) {
+      if (await deps.contractualCancellationOn?.()) return { ok: false, error: "not_found" };
       if (!UUID.test(coachId) || !UUID.test(sessionId)) return { ok: false, error: "not_found" };
       const changed = await setSessionDate(
         sessionId,
@@ -752,19 +798,21 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       if (!UUID.test(sessionId)) return null;
       let withdrawn: { candidate_id: string; coach_id: string } | undefined;
       const result = await inTransaction(database, async (client) => {
-        const { rows } = await client.query<CandidateNamesRow & {
-          coach_id: string;
-          stripe_checkout_session_id: string;
-          amount: number;
-          currency: string;
-          paid_at: Date;
-          scheduled_at: Date | null;
-          coach_name: string;
-          coach_email: string;
-        }>(
+        const { rows } = await client.query<
+          CandidateNamesRow & {
+            coach_id: string;
+            stripe_checkout_session_id: string;
+            amount: number;
+            currency: string;
+            paid_at: Date;
+            scheduled_at: Date | null;
+            coach_name: string;
+            coach_email: string;
+          }
+        >(
           `SELECT s.coach_id, s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email, ${CANDIDATE_NAMES}
              FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id JOIN candidate c ON c.id = s.candidate_id
-            WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND ($4 OR s.scheduled_at IS NULL OR s.scheduled_at > $3)
+            WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ($4 OR s.scheduled_at IS NULL OR s.scheduled_at > $3)
             FOR UPDATE OF s`,
           [sessionId, candidateId, now(), options.evenIfHeld === true],
         );
@@ -846,6 +894,7 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
     UPDATE coaching_session SET changed_by = 'candidate' WHERE changed_by IS NULL AND scheduled_at IS NOT NULL;
     -- When the Candidate withdrew from it (#511): refunded, it leaves the Agenda and the Coach space.
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS withdrawn_at timestamptz;
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
   `);
   // Dates entered before Reschedules were kept are taken as entered when the session was paid.
   await migrateRescheduleHistory(database, "coaching_session", { enteredAt: "paid_at" });

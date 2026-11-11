@@ -9,7 +9,7 @@ export async function BookingReturn({ candidateId, checkoutId }: { candidateId: 
   if (!/^cs_[\w-]{1,200}$/.test(checkoutId) || !(await calBookingOn())) return null;
   const session = (
     await sharedPool().query<{ id: string }>(
-      "SELECT id FROM coaching_session WHERE candidate_id=$1 AND stripe_checkout_session_id=$2 AND withdrawn_at IS NULL",
+      "SELECT id FROM coaching_session WHERE candidate_id=$1 AND stripe_checkout_session_id=$2 AND withdrawn_at IS NULL AND cancelled_at IS NULL",
       [candidateId, checkoutId],
     )
   ).rows[0];

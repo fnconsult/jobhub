@@ -6490,6 +6490,10 @@
       "test": {
         "title": "Notification de test",
         "body": "Les notifications de Jobbbox arrivent bien sur cet appareil."
+      },
+      "coaching_cancellation": {
+        "title": "Annulations et remboursements",
+        "body": "Ouvrir le suivi de la séance"
       }
     },
     "settings": {
@@ -6512,7 +6516,8 @@
       "follow_up_due": "Relance à faire",
       "coach_access_granted": "Accès donné par un candidat",
       "coaching_session_paid": "Séance de coaching payée",
-      "coaching_session_changed_by_candidate": "Séance déplacée ou annulée par un candidat"
+      "coaching_session_changed_by_candidate": "Séance déplacée ou annulée par un candidat",
+      "coaching_cancellation": "Annulations et remboursements"
     }
   },
   "coachingPayment": {
@@ -6951,5 +6956,35 @@
     "notConfigured": "L’aperçu sera disponible une fois l’événement d’équipe et les conditions d’activation configurés.",
     "useCal": "Cette séance est reliée à Cal.com : modifiez sa date dans Cal.com.",
     "waitingBooking": "Réservation reçue chez Cal.com. Nous attendons sa confirmation pour mettre votre Agenda à jour."
+  },
+  "coachingCancellation": {
+    "title": "Annulations et remboursements",
+    "choices": "Le coach a annulé. Choisissez un remboursement intégral, une réservation avec le même coach sans nouveau paiement, ou un autre coach agréé au tarif inférieur ou égal. Sans choix, le remboursement est demandé après sept jours.",
+    "reason": "Motif du coach",
+    "refund": "Demander le remboursement intégral",
+    "same": "Reprendre avec le même coach",
+    "peer": "Choisir un autre coach",
+    "peerExplanation": "Le paiement initial sera remboursé. Vous pourrez ensuite accepter une nouvelle commande auprès du coach choisi. Ce choix ne déclenche aucun paiement supplémentaire.",
+    "choosePeer": "Choisir {{name}}",
+    "noPeer": "Aucun autre coach agréé au tarif admissible n’est disponible actuellement.",
+    "error": "L’action n’a pas abouti. Actualisez la page et vérifiez les conditions affichées.",
+    "cancelCoach": "Annuler la séance avec un motif",
+    "confirmCoach": "Confirmer l’annulation",
+    "keep": "Conserver la séance",
+    "confirmation": "Cal.com a signalé une annulation. Le coach doit confirmer son motif dans Jobbbox pour ouvrir les trois choix. Le délai de 24 heures du candidat reste calculé sur la date initiale. Contactez le support en cas de désaccord.",
+    "sameConfirmed": "Le candidat a choisi de reprendre avec le même coach, sans nouveau paiement.",
+    "candidateCancelled": "Le candidat a annulé la séance.",
+    "refundPending": "Le remboursement intégral est demandé. Le traitement bancaire reste en cours.",
+    "refunded": "Stripe a confirmé le remboursement intégral. Le délai de réception dépend de votre banque.",
+    "refundProblem": "Le remboursement nécessite une intervention du support. Aucun nouveau paiement n’est demandé.",
+    "open": "Ouvrir le suivi de la séance",
+    "emailReason": "Suivi contractuel de votre séance de coaching.",
+    "original": "Date initiale",
+    "deadline": "Choisissez jusqu’au {{date}}. Ensuite, le remboursement intégral est demandé automatiquement.",
+    "bookSame": "Réserver sans nouveau paiement",
+    "newOrder": "Voir et accepter la nouvelle commande",
+    "notice": "Annulation et déplacement possibles jusqu’à 24 heures avant la séance. Une annulation dans Jobbbox demande le remboursement intégral. Après ce délai, contactez votre coach ou le support.",
+    "tooLate": "Le délai de 24 heures est dépassé. Contactez votre coach ou le support.",
+    "confirmationRefund": "Annuler cette séance et demander son remboursement intégral ?"
   }
 }

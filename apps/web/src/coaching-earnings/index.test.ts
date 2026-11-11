@@ -1,3 +1,5 @@
+import {coachingCancellations} from "../coaching-cancellations";
+import {coachingRefunds} from "../coaching-refunds";
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 import { connectionString, startTestAuth, signInWithMagicLink, type TestAuth } from "../auth/test-support";
@@ -106,6 +108,20 @@ describe.skipIf(!connectionString)("owned monthly Coach Earnings", () => {
     expect(june.sessionsHeld).toBe(1);
     expect(june.currencies[0]?.collected).toBe(0);
     expect(june.offers[0]).toMatchObject({ sessionsHeld: 1, collected: 0 });
+  });
+  it('preserves the first completed service month through a remedy and later erasure',async()=>{
+    await payment({paidAt:'2026-06-01T12:00Z',scheduledAt:'2026-06-04T10:00Z'});
+    const session=(await auth.database.query('SELECT id FROM coaching_session WHERE candidate_id=$1',[buyerId])).rows[0].id;
+    const cancellations=coachingCancellations(auth.database,{refunds:coachingRefunds(auth.database,{}),now:()=>clock,permitted:async()=>true,reopen:async()=>{}});
+    const first=await cancellations.coachCancel(coachId,session,'Service remedy',randomUUID());if(!first.ok)throw Error('setup');
+    expect((await earnings.statement(ownerId,sellerId,'2026-06'))?.sessionsHeld).toBe(1);
+    await cancellations.choose(buyerId,first.cancellation.id,'same');
+    await auth.database.query("UPDATE coaching_session SET scheduled_at='2026-07-01T10:00Z' WHERE id=$1",[session]);
+    await cancellations.coachCancel(coachId,session,'Second remedy',randomUUID());
+    await archiveEarningsService(auth.database,buyerId,clock);
+    await deleteConnectDataOf(auth.database,buyerId);await auth.database.query('DELETE FROM candidate WHERE id=$1',[buyerId]);
+    expect((await earnings.statement(ownerId,sellerId,'2026-06'))?.sessionsHeld).toBe(1);
+    expect((await earnings.statement(ownerId,sellerId,'2026-07'))?.sessionsHeld).toBe(0);
   });
   it("keeps only the business fact of completion after purchaser erasure", async () => {
     await payment({ paidAt: "2026-06-01T12:00Z", scheduledAt: "2026-06-04T10:00Z" });

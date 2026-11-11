@@ -92,6 +92,12 @@ afterEach(() => {
 });
 
 describe("Mes coachs humains, read from the web app", () => {
+  it('opens cancellation tracking inside the authenticated web companion',async()=>{
+    await launch('/coachs',route=>{route.coaching.cancellationPath='/coachs/annulations';});
+    await screen.findByText('Annulation et déplacement possibles jusqu’à 24 heures avant la séance. Une annulation dans Jobbbox demande le remboursement intégral. Après ce délai, contactez votre coach ou le support.');
+    await userEvent.setup().press(button('Annulations et remboursements'));
+    await screen.findByTestId('web-view');expect(fakeWebView.shown?.source.uri).toContain('/coachs/annulations');
+  });
   it("opens a paid Cal booking inside the authenticated web companion and labels its source",async()=>{
     const path="/coachs/seances/11111111-1111-1111-1111-111111111111/reserver";
     await launch("/coachs",route=>{route.coaching.sessions[0]!.changedBy="cal_com";route.coaching.sessions[1]!.bookingPath=path;});

@@ -131,6 +131,7 @@ export interface CandidateReadsDeps {
   offerBox: OfferBox;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
+  coachingCancellations?: () => Promise<boolean>;
   coachingBookings?:(candidateId:string)=>Promise<Record<string,string>>;
   coachingMeetings?: (candidateId: string) => Promise<Record<string, Meeting | null> | null>;
   coachingTimeZone?: (candidateId: string) => Promise<string | null>;
@@ -244,7 +245,12 @@ const jobOfferLine = (offer: JobOfferFacts): JobOfferLine => ({
 
 /** A Job Offer a Job Search found or a Job Digest brought, with what its Work Pane shows in the app (#692). */
 const foundJobOffer = (result: { jobOffer: JobOffer; matchScore: MatchScore; applicationId: string | null; dismissed?: boolean }): FoundJobOffer => ({
-  jobOffer: { ...jobOfferLine(result.jobOffer), contractType: result.jobOffer.contractType ?? null, summary: result.jobOffer.summary ?? null, content: result.jobOffer.content },
+  jobOffer: {
+    ...jobOfferLine(result.jobOffer),
+    contractType: result.jobOffer.contractType ?? null,
+    summary: result.jobOffer.summary ?? null,
+    content: result.jobOffer.content,
+  },
   matchScore: figure(result.matchScore),
   matchScoreDetail: matchScoreDetail(result.matchScore),
   // « Suivie »: saved as an Application; « Écartée »: from the Offer box (#816).
@@ -340,7 +346,13 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       return {
         profiles: menu.groups.map(({ profile, searches: ofProfile }) => ({
           profile,
-          searches: ofProfile.map((search) => ({ id: search.id, status: search.status, startedAt: iso(search.startedAt), found: search.found, unseen: search.unseen })),
+          searches: ofProfile.map((search) => ({
+            id: search.id,
+            status: search.status,
+            startedAt: iso(search.startedAt),
+            found: search.found,
+            unseen: search.unseen,
+          })),
         })),
         unseen: menu.unseen,
       };
@@ -374,7 +386,9 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
 
     async jobDigests(candidateId) {
       const [profiles, digests] = await Promise.all([activeProfiles(candidateId), deps.jobDigests.list(candidateId)]);
-      const settings = new Map(await Promise.all(profiles.map(async (profile) => [profile.id, await deps.jobDigests.settings(candidateId, profile.id)] as const)));
+      const settings = new Map(
+        await Promise.all(profiles.map(async (profile) => [profile.id, await deps.jobDigests.settings(candidateId, profile.id)] as const)),
+      );
       const menu = jobDigestsMenu({ profiles, digests, dateLabel: NO_DAY_LABEL });
       return {
         profiles: menu.groups.map(({ profile, digests: sent }) => {
@@ -393,13 +407,21 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     async jobDigest(candidateId, jobDigestId) {
       const digest = await deps.jobDigests.get(candidateId, jobDigestId);
       if (!digest) return null;
-      return { id: digest.id, profile: { id: digest.profile.id, name: digest.profile.name }, sentAt: iso(digest.sentAt), jobOffers: digest.results.map(foundJobOffer) };
+      return {
+        id: digest.id,
+        profile: { id: digest.profile.id, name: digest.profile.name },
+        sentAt: iso(digest.sentAt),
+        jobOffers: digest.results.map(foundJobOffer),
+      };
     },
 
     async agenda(candidateId, { past = false } = {}) {
       const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
       const meetings = (await deps.coachingMeetings?.(candidateId)) ?? null;
-      const [unscheduled, days] = await Promise.all([deps.agenda.unscheduled(candidateId), deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now(), timeZone })]);
+      const [unscheduled, days] = await Promise.all([
+        deps.agenda.unscheduled(candidateId),
+        deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now(), timeZone }),
+      ]);
       return {
         toSchedule: unscheduled.map((session) => ({
           id: session.id,
@@ -407,12 +429,19 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           paidAt: iso(session.paidAt),
           reschedules: session.reschedules.map(reschedule),
         })),
-        days: days.map(({ day, items }) => ({ day, items: items.map((item) => ({ ...agendaItem(item), ...(item.kind === "coachingSession" && timeZone ? { timeZone } : {}), ...(item.kind === "coachingSession" && meetings ? { meeting: meetings[item.id] ?? null } : {}) })) })),
+        days: days.map(({ day, items }) => ({
+          day,
+          items: items.map((item) => ({
+            ...agendaItem(item),
+            ...(item.kind === "coachingSession" && timeZone ? { timeZone } : {}),
+            ...(item.kind === "coachingSession" && meetings ? { meeting: meetings[item.id] ?? null } : {}),
+          })),
+        })),
       };
     },
 
     async coaching(candidateId) {
-      const bookingPaths=await deps.coachingBookings?.(candidateId);
+      const bookingPaths = await deps.coachingBookings?.(candidateId);
       const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
       const meetings = (await deps.coachingMeetings?.(candidateId)) ?? null;
       const [coaches, granted, sessions, contracts, price] = await Promise.all([
@@ -426,15 +455,33 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           return null;
         }),
       ]);
-      const pages=new Map((await deps.coachPages?.(coaches.map(c=>c.id))??[]).map(p=>[p.coachId,p.page]));
-      const associations=new Map((await deps.coachAssociations?.(coaches.map(c=>c.id))??[]).map(a=>[a.coachId,{id:a.id,name:a.name}]));
-      const offers=deps.coachingOffer?new Map(await Promise.all(coaches.map(async coach=>[coach.id,await deps.coachingOffer!(candidateId,coach.id)] as const))):null;
+      const pages = new Map(((await deps.coachPages?.(coaches.map((c) => c.id))) ?? []).map((p) => [p.coachId, p.page]));
+      const associations = new Map(((await deps.coachAssociations?.(coaches.map((c) => c.id))) ?? []).map((a) => [a.coachId, { id: a.id, name: a.name }]));
+      const offers = deps.coachingOffer
+        ? new Map(await Promise.all(coaches.map(async (coach) => [coach.id, await deps.coachingOffer!(candidateId, coach.id)] as const)))
+        : null;
       // As the Agenda: the sessions still in their Withdrawal period, and not held under the Immediate Performance Request.
       const withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
       return {
         ...(timeZone ? { timeZone } : {}),
+        ...((await deps.coachingCancellations?.()) ? { cancellationPath: "/coachs/annulations" } : {}),
         // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
-        coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id),...pages.has(coach.id)?{profile:pages.get(coach.id)}:{},...associations.has(coach.id)?{association:associations.get(coach.id)}:{}, ...(offers?{seller:offers.get(coach.id)?.seller,offer:offers.get(coach.id)?{durationMinutes:offers.get(coach.id)!.durationMinutes,amount:offers.get(coach.id)!.amount,currency:offers.get(coach.id)!.currency}:null}:{}) })),
+        coaches: coaches.map((coach) => ({
+          id: coach.id,
+          name: coach.name,
+          bio: coach.bio,
+          accessGranted: granted.includes(coach.id),
+          ...(pages.has(coach.id) ? { profile: pages.get(coach.id) } : {}),
+          ...(associations.has(coach.id) ? { association: associations.get(coach.id) } : {}),
+          ...(offers
+            ? {
+                seller: offers.get(coach.id)?.seller,
+                offer: offers.get(coach.id)
+                  ? { durationMinutes: offers.get(coach.id)!.durationMinutes, amount: offers.get(coach.id)!.amount, currency: offers.get(coach.id)!.currency }
+                  : null,
+              }
+            : {}),
+        })),
         sessions: sessions.map((session) => ({
           id: session.id,
           coach: { id: session.coach.id, name: session.coach.name, bookingUrl: session.coach.bookingUrl },
@@ -447,7 +494,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           reschedules: session.reschedules.map(reschedule),
           withdrawable: withdrawable.has(session.id),
           ...(meetings ? { meeting: meetings[session.id] ?? null } : {}),
-          ...(bookingPaths?.[session.id]?{bookingPath:bookingPaths[session.id]}:{}),
+          ...(bookingPaths?.[session.id] ? { bookingPath: bookingPaths[session.id] } : {}),
         })),
         price: price && { amount: price.amount, regularAmount: price.regularAmount, currency: price.currency },
       };
@@ -459,7 +506,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       const { summary, cgv } = terms;
       return {
         coach: { id: coachId, name: summary.subject.fr },
-        ...(summary.sale?{seller:summary.sale.seller,durationMinutes:summary.sale.durationMinutes}:{}),
+        ...(summary.sale ? { seller: summary.sale.seller, durationMinutes: summary.sale.durationMinutes } : {}),
         price: summary.price && { amount: summary.price.amount, currency: summary.price.currency },
         cgv: cgv && { version: cgv.version, url: cgv.url },
       };
@@ -484,7 +531,10 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async tailoredDocuments(candidateId, applicationId) {
-      const [tailoredCv, drafts] = await Promise.all([deps.tailoredCvs.get(candidateId, applicationId), deps.tailoredDocuments.get(candidateId, applicationId)]);
+      const [tailoredCv, drafts] = await Promise.all([
+        deps.tailoredCvs.get(candidateId, applicationId),
+        deps.tailoredDocuments.get(candidateId, applicationId),
+      ]);
       if (!tailoredCv || !drafts) return null;
       const { saved } = tailoredCv;
       const { coverLetter, outreachMessage } = drafts;
@@ -492,9 +542,27 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
         documentLanguage: drafts.documentLanguage,
         // Only what the Candidate has: the saved Tailored CV (never a proposal under review), the drafts written.
         documents: [
-          ...(saved ? [{ kind: "tailored_cv" as const, language: saved.language, updatedAt: iso(saved.savedAt), downloads: downloads(applicationId, "tailored_cv"), message: null }] : []),
+          ...(saved
+            ? [
+                {
+                  kind: "tailored_cv" as const,
+                  language: saved.language,
+                  updatedAt: iso(saved.savedAt),
+                  downloads: downloads(applicationId, "tailored_cv"),
+                  message: null,
+                },
+              ]
+            : []),
           ...(coverLetter
-            ? [{ kind: "cover_letter" as const, language: coverLetter.language, updatedAt: iso(coverLetter.updatedAt), downloads: downloads(applicationId, "cover_letter"), message: null }]
+            ? [
+                {
+                  kind: "cover_letter" as const,
+                  language: coverLetter.language,
+                  updatedAt: iso(coverLetter.updatedAt),
+                  downloads: downloads(applicationId, "cover_letter"),
+                  message: null,
+                },
+              ]
             : []),
           ...(outreachMessage
             ? [

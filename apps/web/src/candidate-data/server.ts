@@ -1,3 +1,4 @@
+import { cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
@@ -16,6 +17,7 @@ export function getCandidateData(): CandidateData {
     tailoredCvs: getTailoredCvs(),
     tailoredDocuments: getTailoredDocuments(),
     billing: getBilling(),
+    coachingCancellationOn: cancellationPolicyOn,
   });
   return instance;
 }

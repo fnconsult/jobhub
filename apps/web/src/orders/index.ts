@@ -38,7 +38,8 @@ import { orderConfirmationEmail } from "./email";
  * What is ordered: a paid Plan (with a shared link's code, carried to Checkout), or a Coaching Session with a Human Coach,
  * `inApp` when ordered from the app, whose Checkout returns to it (#694).
  */
-export type OrderItem = { kind: "plan"; plan: string; promotionCode?: string | undefined } | { kind: "coachingSession"; coachId: string; inApp?: boolean | undefined };
+export type OrderItem =
+  | { kind: "plan"; plan: string; promotionCode?: string | undefined } | { kind: "coachingSession"; coachId: string; remedyId?: string | undefined; inApp?: boolean | undefined };
 
 /** What the Order page sums up. */
 export interface OrderSummary {
@@ -75,7 +76,9 @@ export const IMMEDIATE_EXECUTION_REQUESTED = "yes";
 export const ORDER_FIELDS = { cgv: "cgv", immediateExecution: "immediateExecution" } as const;
 
 export interface OrdersDeps {
-  offers?: {sale(candidateId:string,coachId:string):Promise<CoachingSale|null>;quote(candidateId:string,coachId:string):Promise<{id:string;sale:CoachingSale;priceId?:string}|null>};
+  peerOrderCap?: (candidateId: string, id: string, coachId: string) => Promise<{ amount: number; currency: string } | null>;
+  offers?: {sale(candidateId:string,coachId:string):Promise<CoachingSale|null>;quote(candidateId:string,coachId:string):Promise<{id:string;sale:CoachingSale;priceId?:string}|null>;
+  };
   billing: Pick<Billing, "plans" | "planPrices" | "coachingSessionPrice" | "startCheckout" | "startCoachingSessionCheckout">;
   /** The Human Coaches a Coaching Session can be booked with. */
   coaches: { list(): Promise<{ id: string; name: string }[]> };
@@ -137,9 +140,15 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
     }
     const coach = (await deps.coaches.list()).find((each) => each.id === item.coachId);
     if (!coach) return null;
-    if(deps.offers) {
+    if(item.remedyId) {
+      const cap = await deps.peerOrderCap?.(candidateId, item.remedyId, item.coachId);
+      const sale = await deps.offers?.sale(candidateId, item.coachId);
+      if (!cap || !sale || sale.currency !== cap.currency || sale.amount > cap.amount) return null;
+    }
+    if (deps.offers) {
       const sale=await deps.offers.sale(candidateId,item.coachId);if(!sale)return null;
-      return {kind:"coachingSession",subject:{fr:coach.name,en:coach.name},price:{amount:sale.amount,currency:sale.currency,interval:null},sale};
+      return {kind:"coachingSession",subject:{fr:coach.name,en:coach.name},price:{amount:sale.amount,currency:sale.currency,interval:null},sale,
+      };
     }
     const price = await deps.billing.coachingSessionPrice(candidateId);
     if (!price) return null;
@@ -161,11 +170,16 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
       if (!summary) return { ok: false, error: "not_orderable" };
       const quote=item.kind==="coachingSession"&&deps.offers?await deps.offers.quote(candidate.id,item.coachId):null;
       if(item.kind==="coachingSession"&&deps.offers&&!quote)return {ok:false,error:"not_orderable"};
-      if(quote){summary.sale=quote.sale;summary.price={amount:quote.sale.amount,currency:quote.sale.currency,interval:null};}
+      if(item.kind === "coachingSession" && item.remedyId) {
+        const cap = await deps.peerOrderCap?.(candidate.id, item.remedyId, item.coachId);
+        if (!cap || !quote || quote.sale.currency !== cap.currency || quote.sale.amount > cap.amount) return { ok: false, error: "not_orderable" };
+      }
+      if (quote){summary.sale=quote.sale;summary.price={amount:quote.sale.amount,currency:quote.sale.currency,interval:null};}
       const started =
         item.kind === "plan"
           ? await deps.billing.startCheckout(candidate, item.plan, language, { promotionCode: item.promotionCode })
-          : await deps.billing.startCoachingSessionCheckout(candidate, item.coachId, language, { inApp: item.inApp, quoteId:quote?.id,priceId:quote?.priceId });
+          : await deps.billing.startCoachingSessionCheckout(candidate, item.coachId, language, { inApp: item.inApp, quoteId:quote?.id,priceId:quote?.priceId,
+            });
       // The customer portal, for a Candidate who already pays: no Checkout, no Order.
       if (!started.checkoutSessionId) return { ok: true, url: started.url };
       await database.query(
@@ -212,7 +226,8 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
       const order = rows[0];
       if (!order) {
         if (checkout.subscriptionId) {
-          await database.query("UPDATE checkout_order SET subscription_id = COALESCE(subscription_id, $2) WHERE checkout_session_id = $1", [checkout.checkoutSessionId, checkout.subscriptionId]);
+          await database.query("UPDATE checkout_order SET subscription_id = COALESCE(subscription_id, $2) WHERE checkout_session_id = $1", [checkout.checkoutSessionId, checkout.subscriptionId,
+          ]);
         }
         return;
       }

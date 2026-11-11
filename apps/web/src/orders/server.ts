@@ -1,3 +1,4 @@
+import { getCoachingCancellations } from "@/coaching-cancellations/server";
 import {getCoachingOffers} from "@/coaching-offers/server";
 import { getAcceptances } from "@/acceptances/server";
 import { getAuth, getMailer } from "@/auth/server";
@@ -13,6 +14,7 @@ export function getOrders(): Orders {
   instance ??= createOrders(sharedPool(), {
     billing: getBilling(),
     offers:getCoachingOffers(),
+    peerOrderCap: (candidate, id, coach) => getCoachingCancellations().peerOrderCap(candidate, id, coach),
     coaches: getHumanCoaches(),
     acceptances: getAcceptances(),
     mailer: getMailer(),

@@ -1,7 +1,17 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createPushNotifications, migratePushNotifications, purgeExpiredPushFailures, pushNotificationsOf, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, type PushNotification, type PushNotifications } from "./index";
+import {
+  createPushNotifications,
+  migratePushNotifications,
+  purgeExpiredPushFailures,
+  pushNotificationsOf,
+  PUSH_EVENT_IDS,
+  PUSH_NOTIFICATIONS_QUEUE,
+  type PushEvent,
+  type PushNotification,
+  type PushNotifications,
+} from "./index";
 import type { PushDevice, PushOutcome, PushPlatform, PushSender } from "./senders";
 import type { PushMessage } from "./messages";
 
@@ -61,7 +71,12 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
 
     it("refuses what is not a device: an unknown platform, an empty token, a language the app does not speak", async () => {
       const marie = await signIn("marie@example.fr");
-      for (const device of [{ platform: "windows", token: IPHONE, language: "fr" }, { platform: "ios", token: " ", language: "fr" }, { platform: "ios", token: IPHONE, language: "de" }, null]) {
+      for (const device of [
+        { platform: "windows", token: IPHONE, language: "fr" },
+        { platform: "ios", token: " ", language: "fr" },
+        { platform: "ios", token: IPHONE, language: "de" },
+        null,
+      ]) {
         expect(await push.register(marie, device)).toEqual({ ok: false, error: "invalid" });
       }
       expect(await push.devices(marie.id)).toEqual([]);
@@ -131,14 +146,20 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
       await push.register(marie, { platform: "ios", token: IPAD, language: "en", environment: "development" });
       await push.register(marie, { platform: "android", token: PIXEL, language: "fr" });
-      expect(await push.send(marie.id, { event: "job_search_results", jobSearchId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({ sent: 3, failed: 0, removed: 0 });
+      expect(await push.send(marie.id, { event: "job_search_results", jobSearchId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({
+        sent: 3,
+        failed: 0,
+        removed: 0,
+      });
       expect(apns.sent.map(({ token, environment, message }) => [token, environment, message.title])).toEqual(
         expect.arrayContaining([
           [IPHONE, "production", "Nouveaux résultats pour une recherche"],
           [IPAD, "development", "New results for a search"],
         ]),
       );
-      expect(fcm.sent).toEqual([{ token: PIXEL, environment: "production", message: expect.objectContaining({ path: "/recherches/7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" }) }]);
+      expect(fcm.sent).toEqual([
+        { token: PIXEL, environment: "production", message: expect.objectContaining({ path: "/recherches/7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" }) },
+      ]);
     });
 
     it("carries the person's offers à traiter at sending, the app icon's badge (#818); none when it cannot be counted", async () => {
@@ -146,14 +167,22 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
       await push.register(marie, { platform: "android", token: PIXEL, language: "fr" });
       const counted: string[] = [];
-      const badged = createPushNotifications(database, { senders: () => senders, now: () => clock.now, badge: async (personId) => (counted.push(personId), 4) });
+      const badged = createPushNotifications(database, {
+        senders: () => senders,
+        now: () => clock.now,
+        badge: async (personId) => (counted.push(personId), 4),
+      });
       await badged.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" });
 
       expect([...apns.sent, ...fcm.sent].map(({ message }) => message.badge)).toEqual([4, 4]);
       expect(counted).toEqual([marie.id]);
 
       const failing = createPushNotifications(database, { senders: () => senders, now: () => clock.now, badge: async () => Promise.reject(new Error("down")) });
-      expect(await failing.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({ sent: 2, failed: 0, removed: 0 });
+      expect(await failing.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({
+        sent: 2,
+        failed: 0,
+        removed: 0,
+      });
       expect(apns.sent.at(-1)!.message).not.toHaveProperty("badge");
     });
 
@@ -185,7 +214,11 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
       await push.register(marie, { platform: "android", token: PIXEL, language: "fr" });
       apns.answer(IPHONE, { ok: false, reason: "device_token_invalid", tokenInvalid: true, status: 410, message: "Unregistered" });
-      expect(await push.send(marie.id, { event: "coach_review", applicationId: "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b" })).toEqual({ sent: 1, failed: 1, removed: 1 });
+      expect(await push.send(marie.id, { event: "coach_review", applicationId: "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b" })).toEqual({
+        sent: 1,
+        failed: 1,
+        removed: 1,
+      });
       expect((await push.devices(marie.id)).map((device) => device.platform)).toEqual(["android"]);
       expect(await push.failures()).toEqual([{ at: clock.now, platform: "ios", event: "coach_review", reason: "device_token_invalid", httpStatus: 410 }]);
     });
@@ -236,7 +269,11 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
     let notifying: PushNotifications;
     beforeEach(() => {
       queued = [];
-      notifying = createPushNotifications(database, { senders: () => senders, now: () => clock.now, queue: { send: async (name, data) => void queued.push({ name, data }) } });
+      notifying = createPushNotifications(database, {
+        senders: () => senders,
+        now: () => clock.now,
+        queue: { send: async (name, data) => void queued.push({ name, data }) },
+      });
     });
 
     it("queues an event once: notified again under the same key (a run started again, a webhook delivered twice), nothing more is queued", async () => {
@@ -256,6 +293,7 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
         appointment_reminder: { event: "appointment_reminder" },
         coach_review: { event: "coach_review", applicationId: OBJECT },
         coaching_session_changed: { event: "coaching_session_changed" },
+        coaching_cancellation: { event: "coaching_cancellation" },
         follow_up_due: { event: "follow_up_due", applicationId: OBJECT },
         coach_access_granted: { event: "coach_access_granted", candidateId: OBJECT },
         coaching_session_paid: { event: "coaching_session_paid" },
@@ -340,7 +378,10 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
 describe("queueing a Push notification for the worker", () => {
   it("queues the person, the notification and the platform, sending nothing itself", async () => {
     const queued: { name: string; data: object }[] = [];
-    const push = createPushNotifications({ query: async () => ({ rows: [] }) } as unknown as Pool, { senders: () => ({}), queue: { send: async (name, data) => void queued.push({ name, data }) } });
+    const push = createPushNotifications({ query: async () => ({ rows: [] }) } as unknown as Pool, {
+      senders: () => ({}),
+      queue: { send: async (name, data) => void queued.push({ name, data }) },
+    });
     await push.notify("cand_marie", { event: "job_digest", jobDigestId: "digest-1" });
     await push.notify("cand_admin", { event: "test" }, { platform: "android" });
     expect(queued).toEqual([

@@ -18,6 +18,7 @@ const ONE_OF_EACH: Record<PushNotification["event"], PushNotification> = {
   appointment_reminder: { event: "appointment_reminder" },
   coach_review: { event: "coach_review", applicationId: APPLICATION },
   coaching_session_changed: { event: "coaching_session_changed" },
+  coaching_cancellation: { event: "coaching_cancellation" },
   follow_up_due: { event: "follow_up_due", applicationId: APPLICATION },
   coach_access_granted: { event: "coach_access_granted", candidateId: CANDIDATE },
   coaching_session_paid: { event: "coaching_session_paid" },
@@ -89,7 +90,9 @@ describe("a notification as a queued job carries it", () => {
   it("is read back as its event and its object's id, nothing more", async () => {
     const { pushNotificationOf } = await import("./catalog");
     for (const notification of Object.values(ONE_OF_EACH)) expect(pushNotificationOf(JSON.parse(JSON.stringify(notification)))).toEqual(notification);
-    expect(pushNotificationOf({ event: "job_search_results", jobSearchId: JOB_SEARCH, title: "DAF chez Acme Industrie" })).toEqual(ONE_OF_EACH.job_search_results);
+    expect(pushNotificationOf({ event: "job_search_results", jobSearchId: JOB_SEARCH, title: "DAF chez Acme Industrie" })).toEqual(
+      ONE_OF_EACH.job_search_results,
+    );
   });
 
   it("is refused for an unknown event, a missing or odd id", async () => {
@@ -105,7 +108,15 @@ describe("a notification as a queued job carries it", () => {
 describe("the events a person sees in Rappels", () => {
   it("are a Candidate's for every account, and a Human Coach's own too, in the catalogue's order", async () => {
     const { pushAudiencesOf, pushEventsFor } = await import("./catalog");
-    expect(pushEventsFor(pushAudiencesOf(false))).toEqual(["job_search_results", "job_digest", "appointment_reminder", "coach_review", "coaching_session_changed", "follow_up_due"]);
-    expect(pushEventsFor(pushAudiencesOf(true)).slice(6)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate"]);
+    expect(pushEventsFor(pushAudiencesOf(false))).toEqual([
+      "job_search_results",
+      "job_digest",
+      "appointment_reminder",
+      "coach_review",
+      "coaching_session_changed",
+      "coaching_cancellation",
+      "follow_up_due",
+    ]);
+    expect(pushEventsFor(pushAudiencesOf(true)).slice(7)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate"]);
   });
 });

@@ -11,7 +11,8 @@ import {coachingSellerSchema} from "../coaching-offers";
  * null when it is not computable (never 0 / 100). Nothing here names another Candidate.
  */
 import * as z from "zod";
-import { APPLICATION_STATUSES, CONTRACT_TYPES, INTERVIEW_FORMATS, JOB_DIGEST_FREQUENCIES, REMOTE_WORK_OPTIONS, type MasterCvContent, type SearchCriteria } from "../domain";
+import { APPLICATION_STATUSES, CONTRACT_TYPES, INTERVIEW_FORMATS, JOB_DIGEST_FREQUENCIES, REMOTE_WORK_OPTIONS, type MasterCvContent, type SearchCriteria,
+} from "../domain";
 import type { MatchScore } from "../match-score";
 import { DOCUMENT_LANGUAGES } from "../document-language";
 import { provenanceSchema } from "../provenance";
@@ -381,8 +382,11 @@ export type AgendaResponse = z.infer<typeof agendaResponseSchema>;
  * `regularAmount` with their Plan's discount; null when it cannot be read). Never a Human Coach's email.
  */
 export const coachingResponseSchema = z.object({
+  cancellationPath: z.literal("/coachs/annulations").optional(),
   timeZone: z.string().optional(),
-  coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean(),association:named.optional(),profile:publicCoachPageSchema.optional(), seller:coachingSellerSchema.optional(), offer:z.object({durationMinutes:z.number(),amount:z.number(),currency:z.string()}).nullable().optional() })),
+  coaches: z.array(named.extend({ bio: z.string(), accessGranted: z.boolean(),association:named.optional(),profile:publicCoachPageSchema.optional(), seller:coachingSellerSchema.optional(), offer:z.object({durationMinutes:z.number(),amount:z.number(),currency:z.string()}).nullable().optional(),
+    }),
+  ),
   sessions: z.array(
     z.object({
       id: z.string(),
@@ -553,7 +557,8 @@ export type CompanyDossierRead = z.infer<typeof companyDossierSchema>;
 export const companyDossierResponseSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("not_built") }),
   z.object({ status: z.literal("employer_unknown") }),
-  z.object({ status: z.literal("awaiting_confirmation"), presumedEmployer: z.string().nullable(), presumedEmployerDescription: z.string().nullable(), agency: z.string().nullable() }),
+  z.object({ status: z.literal("awaiting_confirmation"), presumedEmployer: z.string().nullable(), presumedEmployerDescription: z.string().nullable(), agency: z.string().nullable(),
+  }),
   z.object({ status: z.literal("built"), dossier: companyDossierSchema }),
 ]);
 export type CompanyDossierResponse = z.infer<typeof companyDossierResponseSchema>;
@@ -583,7 +588,8 @@ export type EnrichedContactsResponse = z.infer<typeof enrichedContactsResponseSc
 // --- Coach Conversations -----------------------------------------------------------------------------------------
 
 /** What a Coach Conversation is about (ADR-0070): one of the Candidate's objects, or a Sidebar menu; null for a Free conversation. */
-const subjectSchema = z.object({ kind: z.enum(["application", "profile", "job_search", "job_digest", "coaching_session", "menu"]), id: z.string(), name: z.string() });
+const subjectSchema = z.object({ kind: z.enum(["application", "profile", "job_search", "job_digest", "coaching_session", "menu"]), id: z.string(), name: z.string(),
+});
 
 export const coachConversationSummarySchema = z.object({
   id: z.string(),
@@ -603,7 +609,8 @@ export const coachProposalCardSchema = z.object({
   status: z.enum(["pending", "accepted", "dismissed", "undone"]),
   change: z.object({
     // The Coach Memory (#719) has no page: its `href` is empty.
-    target: z.object({ kind: z.enum(["profile", "application", "job_offer", "job_search", "job_digest", "agenda", "coach_memory"]), id: z.string(), name: z.string(), href: z.string() }),
+    target: z.object({ kind: z.enum(["profile", "application", "job_offer", "job_search", "job_digest", "agenda", "coach_memory"]), id: z.string(), name: z.string(), href: z.string(),
+    }),
     what: z.string(),
     before: z.string(),
     after: z.string(),
@@ -681,7 +688,8 @@ export const coachConversationSchema = coachConversationSummarySchema.extend({
     /** The Coach context limits of the Candidate's Plan (ADR-0078); null is unlimited. */
     limits: z.object({ coachContextMessages: z.number().int().min(0).nullable(), coachContextTokens: z.number().int().min(0).nullable() }).optional(),
     /** The latest reply's estimate by category, null when none was kept. */
-    split: z.object({ messages: z.number().int().min(0), instructions: z.number().int().min(0), profile: z.number().int().min(0), advice: z.number().int().min(0), sources: z.number().int().min(0) }).nullable().optional(),
+    split: z.object({ messages: z.number().int().min(0), instructions: z.number().int().min(0), profile: z.number().int().min(0), advice: z.number().int().min(0), sources: z.number().int().min(0),
+      }).nullable().optional(),
     /** Once nearly full, the next offered Plan whose Coach context limits allow more (#732); null when none does or below 80 %. */
     upgrade: z.object({ plan: z.string(), name: z.object({ fr: z.string(), en: z.string() }) }).nullable().optional(),
     /** What the latest reply sent in all its AI calls (#790), never the bar's figure; null for a reply saved before. */

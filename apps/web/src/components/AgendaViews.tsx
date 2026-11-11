@@ -1,3 +1,4 @@
+import { CancellationWindow } from "@/coaching-cancellations/Window";
 import type { Meeting } from "@jobhub/shared/coaching-meeting";
 import { MeetingLink } from "@/coach-space/MeetingLink";
 import { coachingTime } from "@jobhub/shared/coaching-time";
@@ -51,6 +52,7 @@ const ids = (scope: string) => ({
 
 /** How the page writes days and times: in French time, in the Interface Language. */
 export interface Formats {
+  cancellationPolicy?: boolean;
   /** The time formatter, for `InterviewTimes`: "14:30". */
   timeFormat: Intl.DateTimeFormat;
   meetings?: Record<string, Meeting | null>;
@@ -108,7 +110,6 @@ export function formatsFor(locale: string, now: Date, coachingZone = INTERVIEW_T
     day: new Intl.DateTimeFormat(locale, { dateStyle: "long", ...zone }),
   };
 }
-
 
 /** « Liste », « Semaine », « Mois »: the Design System's segmented control, each view a link, the one shown `aria-current`. Week and month keep the day shown. */
 export function ViewSwitch({ view, date, t }: { view: AgendaView; date: string; t: T }) {
@@ -169,7 +170,8 @@ export function AgendaList({ days, past, withdrawable, formats, t }: { days: Age
               <section key={day.day} className="agenda-day" aria-labelledby={titleId}>
                 <h3 id={titleId}>
                   <time dateTime={day.day}>
-                    <span className="agenda-day-weekday">{formats.weekdayName(day.day)}</span> <span className="agenda-day-date">{formats.day.format(noonOf(day.day))}</span>
+                    <span className="agenda-day-weekday">{formats.weekdayName(day.day)}</span>{" "}
+                    <span className="agenda-day-date">{formats.day.format(noonOf(day.day))}</span>
                   </time>
                 </h3>
                 <Items items={day.items} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />
@@ -200,7 +202,21 @@ function PeriodNav({ view, period, today, t }: { view: CalendarView; period: Cal
 }
 
 /** The week: Monday to Sunday, one column per day with its items and their time, no hourly grid; the days stacked on phones. */
-export function AgendaWeek({ period, byDay, today, withdrawable, formats, t }: { period: CalendarPeriod; byDay: Map<string, AgendaItem[]>; today: string; withdrawable: Withdrawable; formats: Formats; t: T }) {
+export function AgendaWeek({
+  period,
+  byDay,
+  today,
+  withdrawable,
+  formats,
+  t,
+}: {
+  period: CalendarPeriod;
+  byDay: Map<string, AgendaItem[]>;
+  today: string;
+  withdrawable: Withdrawable;
+  formats: Formats;
+  t: T;
+}) {
   const scope = useId();
   const id = ids(scope);
   return (
@@ -223,7 +239,11 @@ export function AgendaWeek({ period, byDay, today, withdrawable, formats, t }: {
                     {formats.weekday(day)}
                   </time>
                 </h3>
-                {items.length === 0 ? <p className="agenda-nothing">{t("agenda.nothing")}</p> : <Items items={items} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />}
+                {items.length === 0 ? (
+                  <p className="agenda-nothing">{t("agenda.nothing")}</p>
+                ) : (
+                  <Items items={items} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />
+                )}
               </section>
             </li>
           );
@@ -318,7 +338,11 @@ export function AgendaMonth({
         <h3 id={id.chosenDay}>
           <time dateTime={selected}>{formats.fullDay(selected)}</time>
         </h3>
-        {chosen.length === 0 ? <p className="agenda-nothing">{t("agenda.nothingThatDay")}</p> : <Items items={chosen} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />}
+        {chosen.length === 0 ? (
+          <p className="agenda-nothing">{t("agenda.nothingThatDay")}</p>
+        ) : (
+          <Items items={chosen} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />
+        )}
       </section>
     </section>
   );
@@ -334,7 +358,17 @@ function monthDayClass(day: string, today: string): string {
  * Human Coach, leads to their Cal.com booking page and lets the Candidate enter the date booked; a cancelled
  * one keeps its history.
  */
-export function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: UnscheduledCoachingSession[]; withdrawable: Withdrawable; formats: Formats; t: T }) {
+export function ToSchedule({
+  sessions,
+  withdrawable,
+  formats,
+  t,
+}: {
+  sessions: UnscheduledCoachingSession[];
+  withdrawable: Withdrawable;
+  formats: Formats;
+  t: T;
+}) {
   const titleId = ids(useId()).title;
   return (
     <section className="agenda-to-schedule" aria-labelledby={titleId}>
@@ -352,7 +386,11 @@ export function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: U
               <ExternalLink className={buttonClass({ variant: "primary" })} href={session.coach.bookingUrl}>
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
               </ExternalLink>
-              <CoachingSessionDialog withVideoLink={!formats.meetings} session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
+              <CoachingSessionDialog
+                withVideoLink={!formats.meetings}
+                session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }}
+                withName={session.coach.name}
+              />
               {withdrawable.has(session.id) ? <WithdrawalLink sessionId={session.id} coachName={session.coach.name} t={t} /> : null}
             </div>
           </li>
@@ -370,7 +408,15 @@ function Items({ items, scope, withdrawable, formats, t }: { items: AgendaItem[]
         item.kind === "interview" ? (
           <InterviewItem key={`${item.kind}-${item.id}`} item={item} scope={scope} past={formats.isPast(item)} formats={formats} t={t} />
         ) : (
-          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} scope={scope} past={formats.isPast(item)} withdrawable={withdrawable.has(item.id)} formats={formats} t={t} />
+          <CoachingSessionItem
+            key={`${item.kind}-${item.id}`}
+            item={item}
+            scope={scope}
+            past={formats.isPast(item)}
+            withdrawable={withdrawable.has(item.id)}
+            formats={formats}
+            t={t}
+          />
         ),
       )}
     </ul>
@@ -382,7 +428,21 @@ function Items({ items, scope, withdrawable, formats, t }: { items: AgendaItem[]
  * the Human Coach was the last to change its date, leading to them on the Human Coaches page;
  * its Reschedule history, and its date can be edited, or the session cancelled, here.
  */
-function CoachingSessionItem({ item, scope, past, withdrawable, formats, t }: { item: CoachingSessionAgendaItem; scope: string; past: boolean; withdrawable: boolean; formats: Formats; t: T }) {
+function CoachingSessionItem({
+  item,
+  scope,
+  past,
+  withdrawable,
+  formats,
+  t,
+}: {
+  item: CoachingSessionAgendaItem;
+  scope: string;
+  past: boolean;
+  withdrawable: boolean;
+  formats: Formats;
+  t: T;
+}) {
   return (
     <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"} data-kind={item.kind}>
       <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
@@ -396,24 +456,44 @@ function CoachingSessionItem({ item, scope, past, withdrawable, formats, t }: { 
           </span>
           <span className="agenda-item-title">{t("agenda.withCoach", { name: item.coach.name })}</span>
           {item.durationMinutes ? <span className="agenda-item-employer">{t("agenda.duration", { count: item.durationMinutes })}</span> : null}
-          {item.changedBy === "cal_com" ? <span className="agenda-item-changed">{t("coachingBooking.viaCal")}</span>:null}
+          {item.changedBy === "cal_com" ? <span className="agenda-item-changed">{t("coachingBooking.viaCal")}</span> : null}
           {item.changedBy === "coach" ? <span className="agenda-item-changed">{t("agenda.changedByCoach")}</span> : null}
         </span>
       </Link>
-      {formats.meetings ? <MeetingLink meeting={formats.meetings[item.id] ?? null} scheduledAt={item.scheduledAt.toISOString()} durationMinutes={item.durationMinutes ?? null} timeZone={formats.coachingZone} /> : null}
-      <CoachingSessionDialog withVideoLink={!formats.meetings}
-        session={{ id: item.id, scheduledAt: interviewWallClock(item.scheduledAt), durationMinutes: item.durationMinutes ?? null, videoLink: item.videoLink ?? null, note: item.note ?? null }}
-        withName={item.coach.name}
-        className={buttonClass({ variant: "quiet" })}
-      />
-      {past ? null : <CalendarFileLink item={item} scope={scope} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />}
+      {formats.meetings ? (
+        <MeetingLink
+          meeting={formats.meetings[item.id] ?? null}
+          scheduledAt={item.scheduledAt.toISOString()}
+          durationMinutes={item.durationMinutes ?? null}
+          timeZone={formats.coachingZone}
+        />
+      ) : null}
+      <CancellationWindow at={formats.cancellationPolicy ? item.scheduledAt.toISOString() : null}>
+        <CoachingSessionDialog
+          withVideoLink={!formats.meetings}
+          session={{
+            id: item.id,
+            scheduledAt: interviewWallClock(item.scheduledAt),
+            durationMinutes: item.durationMinutes ?? null,
+            videoLink: item.videoLink ?? null,
+            note: item.note ?? null,
+          }}
+          withName={item.coach.name}
+          className={buttonClass({ variant: "quiet" })}
+        />
+      </CancellationWindow>
+      {past ? null : (
+        <CalendarFileLink item={item} scope={scope} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />
+      )}
       <RescheduleHistory reschedules={item.reschedules} coachName={item.coach.name} dateTime={formats.changedAt} t={t} />
-      <CancelAgendaItemButton
-        url={`/api/coaching/sessions/${item.id}/cancel`}
-        label={t("agendaChanges.cancelSession")}
-        name={t("agendaChanges.cancelSessionFor", { name: item.coach.name })}
-        question={t("agendaChanges.cancelSessionConfirm")}
-      />
+      <CancellationWindow at={formats.cancellationPolicy ? item.scheduledAt.toISOString() : null}>
+        <CancelAgendaItemButton
+          url={`/api/coaching/sessions/${item.id}/cancel`}
+          label={t("agendaChanges.cancelSession")}
+          name={t("agendaChanges.cancelSessionFor", { name: item.coach.name })}
+          question={t(formats.cancellationPolicy ? "coachingCancellation.confirmationRefund" : "agendaChanges.cancelSessionConfirm")}
+        />
+      </CancellationWindow>
       {withdrawable ? <WithdrawalLink sessionId={item.id} coachName={item.coach.name} t={t} /> : null}
     </li>
   );
@@ -425,7 +505,11 @@ export type Withdrawable = ReadonlySet<string>;
 /** « Renoncer au contrat ici » for a Coaching Session (#511): to its Withdrawal form, named with its Human Coach. */
 function WithdrawalLink({ sessionId, coachName, t }: { sessionId: string; coachName: string; t: T }) {
   return (
-    <Link className={buttonClass({ variant: "quiet" })} href={routes.withdrawal(`coaching-session:${sessionId}`)} aria-label={t("withdrawals.agenda.label", { name: coachName })}>
+    <Link
+      className={buttonClass({ variant: "quiet" })}
+      href={routes.withdrawal(`coaching-session:${sessionId}`)}
+      aria-label={t("withdrawals.agenda.label", { name: coachName })}
+    >
       {t("withdrawals.page.title")}
     </Link>
   );

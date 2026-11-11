@@ -6490,6 +6490,10 @@
       "test": {
         "title": "Test notification",
         "body": "Jobbbox notifications reach this device."
+      },
+      "coaching_cancellation": {
+        "title": "Cancellations and refunds",
+        "body": "Open the session follow-up"
       }
     },
     "settings": {
@@ -6512,7 +6516,8 @@
       "follow_up_due": "Follow-up due",
       "coach_access_granted": "Access given by a candidate",
       "coaching_session_paid": "Coaching session paid",
-      "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate"
+      "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate",
+      "coaching_cancellation": "Cancellations and refunds"
     }
   },
   "coachingPayment": {
@@ -6951,5 +6956,35 @@
     "notConfigured": "The preview becomes available once the team event and activation conditions are configured.",
     "useCal": "This session is linked to Cal.com: change its date in Cal.com.",
     "waitingBooking": "Booking received at Cal.com. We are waiting for confirmation to update your Agenda."
+  },
+  "coachingCancellation": {
+    "title": "Cancellations and refunds",
+    "choices": "The coach cancelled. Choose a full refund, a booking with the same coach without another payment, or another approved coach at the same or a lower price. Without a choice, a refund is requested after seven days.",
+    "reason": "Coach’s reason",
+    "refund": "Request a full refund",
+    "same": "Continue with the same coach",
+    "peer": "Choose another coach",
+    "peerExplanation": "The original payment will be refunded. You can then accept a new order with the selected coach. This choice does not trigger another payment.",
+    "choosePeer": "Choose {{name}}",
+    "noPeer": "No other approved coach at an eligible price is currently available.",
+    "error": "The action could not be completed. Refresh the page and check the conditions shown.",
+    "cancelCoach": "Cancel the session with a reason",
+    "confirmCoach": "Confirm cancellation",
+    "keep": "Keep the session",
+    "confirmation": "Cal.com reported a cancellation. The coach must confirm their reason in Jobbbox to open the three choices. The Candidate’s 24-hour limit still uses the original date. Contact support if you disagree.",
+    "sameConfirmed": "The Candidate chose to continue with the same coach, without another payment.",
+    "candidateCancelled": "The Candidate cancelled the session.",
+    "refundPending": "A full refund has been requested. Bank processing is still in progress.",
+    "refunded": "Stripe confirmed the full refund. Receipt time depends on your bank.",
+    "refundProblem": "The refund needs support intervention. No further payment is requested.",
+    "open": "Open the session follow-up",
+    "emailReason": "Contractual follow-up for your coaching session.",
+    "original": "Original date",
+    "deadline": "Choose until {{date}}. A full refund is requested automatically afterwards.",
+    "bookSame": "Book without another payment",
+    "newOrder": "Review and accept the new order",
+    "notice": "Cancellation and rescheduling are available until 24 hours before the session. Cancelling in Jobbbox requests a full refund. After the deadline, contact your coach or support.",
+    "tooLate": "The 24-hour deadline has passed. Contact your coach or support.",
+    "confirmationRefund": "Cancel this session and request a full refund?"
   }
 }

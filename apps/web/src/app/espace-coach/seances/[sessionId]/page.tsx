@@ -1,4 +1,6 @@
-import {SessionBoundaryRefresh} from "@/coach-space/SessionBoundaryRefresh";
+import { CoachCancel } from "@/coaching-cancellations/Actions";
+import { cancellationPolicyOn } from "@/coaching-cancellations/server";
+import { SessionBoundaryRefresh } from "@/coach-space/SessionBoundaryRefresh";
 import { SharedReadingPanel } from "@/shared-reading/SharedReadingPanel";
 import { getSharedReading } from "@/shared-reading/server";
 import { ReportEditor } from "@/coach-space/ReportEditor";
@@ -38,12 +40,13 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   const draft = reports?.find((report) => !report.publishedAt) ?? null;
   return (
     <CoachSpaceShell>
-      <SessionBoundaryRefresh scheduledAt={session.scheduledAt?.toISOString()??null} durationMinutes={session.durationMinutes}/>
+      <SessionBoundaryRefresh scheduledAt={session.scheduledAt?.toISOString() ?? null} durationMinutes={session.durationMinutes} />
       <section className="coach-space-card">
         <h2>{t(`coachWorkspace.phase.${phase}`)}</h2>
         <p>{t("coachWorkspace.soldByJobbbox")}</p>
         <Link href={coachCandidateUrl(session.candidateId)}>{t("coachWorkspace.prepare")}</Link>
         {session.scheduledAt ? <p>{coachingTime(session.scheduledAt, locale, timeZone)}</p> : null}
+        {(await cancellationPolicyOn()) ? <CoachCancel sessionId={session.id} /> : null}
         <CoachingSessionDialog
           editor={EDITOR}
           withVideoLink={false}

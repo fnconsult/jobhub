@@ -26,6 +26,8 @@ function pathOf(notification: PushNotification): string {
     case "appointment_reminder":
     case "coaching_session_changed":
       return routes.agendaList();
+    case "coaching_cancellation":
+      return "/coachs/annulations";
     case "coach_access_granted":
       return routes.coachSpaceCandidate(notification.candidateId);
     case "coaching_session_paid":

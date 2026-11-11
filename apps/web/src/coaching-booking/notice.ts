@@ -8,7 +8,7 @@ export async function bookingChanged(
 ) {
   const session = (
     await database.query<{ candidateId: string; coachAccount: string | null }>(
-      `SELECT s.candidate_id AS "candidateId",c.id AS "coachAccount" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL LEFT JOIN candidate c ON lower(c.email)=h.email AND c."emailVerified" WHERE s.id=$1 AND s.withdrawn_at IS NULL`,
+      `SELECT s.candidate_id AS "candidateId",c.id AS "coachAccount" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id AND h.retired_at IS NULL LEFT JOIN candidate c ON lower(c.email)=h.email AND c."emailVerified" WHERE s.id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL`,
       [sessionId],
     )
   ).rows[0];

@@ -5,6 +5,7 @@ export interface CalEventType {
   hostId: number;
   durationMinutes: number;
   bookingUrl: string;
+  minimumRescheduleNotice?: number;
 }
 export interface CalPort {
   eventType(teamId: number, id: number): Promise<CalEventType>;

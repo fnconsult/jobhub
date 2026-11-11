@@ -1,3 +1,6 @@
+import { coachingCancellations, recordProviderCancellation } from "@jobhub/web/coaching-cancellations";
+import { cancellationLegalReady } from "@jobhub/web/coaching-cancellations/legal";
+import { cancellationNotice } from "@jobhub/web/coaching-cancellations/notice";
 import {coachingRefunds} from "@jobhub/web/coaching-refunds";
 import {coachingRefundStripe} from "@jobhub/web/coaching-refunds/stripe";
 import {recordingFetch} from "@jobhub/shared";
@@ -181,18 +184,44 @@ const pushNotifications = createPushNotifications(database, {
 const connect=()=>{
  const env=secrets.current().env;
  const stripe=env.STRIPE_SECRET_KEY&&env.STRIPE_CONNECT_WEBHOOK_SECRET?stripeConnect({secretKey:env.STRIPE_SECRET_KEY,webhookSecret:env.STRIPE_CONNECT_WEBHOOK_SECRET,apiUrl:env.STRIPE_API_URL,externalApis}):undefined;
- return coachingConnect(database,{stripe,baseURL,permitted:async()=>settingsEnv().COACH_SPACE_V2_ENABLED==='true'&&connectLegalReady(),sendPayoutNotice:async notice=>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});}});
+ return coachingConnect(database,{stripe,baseURL,permitted:async()=>settingsEnv().COACH_SPACE_V2_ENABLED=== "true" &&connectLegalReady(),sendPayoutNotice:async (notice) =>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});},
+  });
 };
-const booking=()=>{const env=secrets.current().env;return coachingBooking(database,{secret:env.AUTH_SECRET??"",webhookSecret:env.CAL_COM_WEBHOOK_SECRET??"",...(env.CAL_COM_API_KEY?{cal:calTeam({apiKey:env.CAL_COM_API_KEY,fetch:recordingFetch(fetch,externalApis,{provider:"cal_com",operation:()=>"booking.cancel"})})}:{}),changed:(id,key)=>bookingChanged(database,pushNotifications,id,key)});};
-const contractualRefunds=()=>{const env=secrets.current().env;return coachingRefunds(database,{...env.STRIPE_SECRET_KEY?{stripe:coachingRefundStripe({secretKey:env.STRIPE_SECRET_KEY,apiUrl:env.STRIPE_API_URL,externalApis})}:{}});};
+const booking=()=>{const env=secrets.current().env;return coachingBooking(database,{secret:env.AUTH_SECRET??"",webhookSecret:env.CAL_COM_WEBHOOK_SECRET??"",...(env.CAL_COM_API_KEY?{cal:calTeam({apiKey:env.CAL_COM_API_KEY,fetch:recordingFetch(fetch,externalApis,{provider:"cal_com",operation:()=>"booking.cancel"})}),
+        }
+      : {}),
+    cancelled: async (within, id, key, at, reason) => {
+      if (settingsEnv().COACH_SPACE_V2_ENABLED === "true" && cancellationLegalReady()) await recordProviderCancellation(within, id, key, at, reason);
+    },changed:(id,key)=>bookingChanged(database,pushNotifications,id,key),
+  });};
+const contractualRefunds=()=>{const env=secrets.current().env;return coachingRefunds(database,{...(env.STRIPE_SECRET_KEY?{stripe:coachingRefundStripe({secretKey:env.STRIPE_SECRET_KEY,apiUrl:env.STRIPE_API_URL,externalApis})}:{}),
+  });
+};
+const cancellations = () =>
+  coachingCancellations(database, {
+    refunds: contractualRefunds(),
+    permitted: async () => settingsEnv().COACH_SPACE_V2_ENABLED === "true" && cancellationLegalReady(),
+    sendNotice: (record, kind) =>
+      cancellationNotice(database, record, kind, baseURL, (email, message) => mailer.send({ to: email, ...message }), pushNotifications),
+  });
 const jobs = createJobs({
+  coachingCancellations: {
+    expireChoices: () => cancellations().expireChoices(),
+    retiredCoaches: () => cancellations().retiredCoaches(),
+    deliverNotices: () => cancellations().deliverNotices(),
+  },
   coachingRefunds:{runPending:()=>contractualRefunds().runPending(),purge:()=>contractualRefunds().purge()},
-  coachingBooking:{replayPending:()=>booking().replayPending(),deliverCancellations:()=>booking().deliverCancellations(),deliverNotices:()=>booking().deliverNotices(),purge:()=>booking().purge(),observeLegal:()=>calLegalReady(database)},
+  coachingBooking:{replayPending:()=>booking().replayPending(),deliverCancellations:()=>booking().deliverCancellations(),deliverNotices:()=>booking().deliverNotices(),purge:()=>booking().purge(),observeLegal:()=>calLegalReady(database),
+  },
   coachingConnect:{runMonthly:()=>connect().runMonthly(),purge:()=>connect().purge()},
-  coachPages:coachPages(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});}}),
-  coachAssociations:coachAssociations(database,{secret:process.env.AUTH_SECRET??"",mayManage:async(person,id)=>(await coachContracts(database,{}).state(person,"association",id))?.accepted===true,sendInvitation:async(record,token)=>{await mailer.send({to:record.email,...associationInvitationEmail(record,token,baseURL)});}}),
-  coachContracts:coachContracts(database,{production:sendsLegalTextNotices(process.env),sendNotice:async(recipient,version)=>{await mailer.send({to:recipient.email,...coachContractNoticeEmail(version,recipient.locale,baseURL)});}}),
-  coachEnrolments:coachEnrolments(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachEnrolmentDecisionEmail(record,baseURL)});}}),
+  coachPages:coachPages(database,{sendDecision:async (record) =>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});},
+  }),
+  coachAssociations:coachAssociations(database,{secret:process.env.AUTH_SECRET??"",mayManage:async(person,id)=>(await coachContracts(database,{}).state(person,"association",id))?.accepted===true,sendInvitation:async(record,token)=>{await mailer.send({to:record.email,...associationInvitationEmail(record,token,baseURL)});},
+  }),
+  coachContracts:coachContracts(database,{production:sendsLegalTextNotices(process.env),sendNotice:async(recipient,version)=>{await mailer.send({to:recipient.email,...coachContractNoticeEmail(version,recipient.locale,baseURL)});},
+  }),
+  coachEnrolments:coachEnrolments(database,{sendDecision:async (record) =>{await mailer.send({to:record.email,...coachEnrolmentDecisionEmail(record,baseURL)});},
+  }),
   database,
   discovery: worker.discovery,
   profiles,
@@ -218,7 +247,8 @@ const jobs = createJobs({
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL, push: pushNotifications }),
   pushNotifications,
   // Livraison's daily email (18:00 Paris) to DELIVERY_STATUS_EMAIL_TO, read with GITHUB_STATUS_TOKEN (Provider Secrets over env).
-  deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }) }),
+  deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }),
+  }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
   legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
   // The Nouveautés email of each announced Release Note up to the Version this build serves, from Production only (#566).

@@ -1,3 +1,4 @@
+import { cancellationPolicyOn } from "@/coaching-cancellations/server";
 import {getCoachingBooking} from "@/coaching-booking/server";
 import {getCoachPages} from "@/coach-pages/server";
 import {getCoachAssociations} from "@/coach-associations/server";
@@ -27,10 +28,11 @@ let instance: CandidateReads | undefined;
 /** The app's reads over HTTP (#684), on the modules the pages read, on the database named by DATABASE_URL. */
 export function getCandidateReads(): CandidateReads {
   instance ??= createCandidateReads({
-    coachPages:ids=>coachSpaceV2On()?getCoachPages().approved(ids):Promise.resolve([]),
-    coachAssociations:ids=>coachSpaceV2On()?getCoachAssociations().providers(ids):Promise.resolve([]),
-    coachingBookings:id=>getCoachingBooking().paths(id),
-    coachingMeetings: async (id) => coachSpaceV2On() ? getCoachContacts().forCandidate(id) : null,
+    coachPages: (ids) => (coachSpaceV2On()?getCoachPages().approved(ids):Promise.resolve([])),
+    coachAssociations: (ids) => (coachSpaceV2On()?getCoachAssociations().providers(ids):Promise.resolve([])),
+    coachingCancellations: cancellationPolicyOn,
+    coachingBookings: (id) =>getCoachingBooking().paths(id),
+    coachingMeetings: async (id) => (coachSpaceV2On() ? getCoachContacts().forCandidate(id) : null),
     coachingTimeZone: (id) => getCoachingTimeZones().candidate(id),
     coachingOffer:(candidateId,coachId)=>getCoachingOffers().sale(candidateId,coachId),
     applications: getApplications(),

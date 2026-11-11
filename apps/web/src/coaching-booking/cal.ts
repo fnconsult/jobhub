@@ -7,6 +7,7 @@ const eventSchema = z.object({
   bookingUrl: z.string().url(),
   schedulingType: z.enum(["collective", "roundRobin"]),
   hosts: z.array(z.object({ userId: z.number().int().positive() })).length(1),
+  disableRescheduling: z.object({ disabled: z.boolean().optional(), minutesBefore: z.number().int().positive().optional() }).optional(),
   assignAllTeamMembers: z.boolean().optional(),
 });
 export function teamEvent(value: unknown, teamId: number): CalEventType {
@@ -21,7 +22,11 @@ export function teamEvent(value: unknown, teamId: number): CalEventType {
     !url.pathname.startsWith("/team/")
   )
     throw new Error("Not a single-host Jobbbox team event");
-  return { id: event.id, teamId: event.teamId, hostId: event.hosts[0]!.userId, durationMinutes: event.lengthInMinutes, bookingUrl: url.href };
+  return { id: event.id, teamId: event.teamId, hostId: event.hosts[0]!.userId, durationMinutes: event.lengthInMinutes, bookingUrl: url.href,
+    ...(!event.disableRescheduling?.disabled && event.disableRescheduling?.minutesBefore
+      ? { minimumRescheduleNotice: event.disableRescheduling.minutesBefore }
+      : {}),
+  };
 }
 /** Only test harnesses inject a transport. Runtime URLs and API versions are fixed. */
 export function calTeam(config: { apiKey: string; fetch?: typeof fetch }): CalPort {
@@ -52,6 +57,7 @@ export function calTeam(config: { apiKey: string; fetch?: typeof fetch }): CalPo
           schedulingType: "collective",
           hosts: [{ userId: input.hostId }],
           hidden: true,
+          disableRescheduling: { disabled: false, minutesBefore: 1440 },
           emailSettings: { disableEmailsToAttendees: true, disableEmailsToHosts: true },
         }),
         input.teamId,

@@ -24,8 +24,9 @@ export default async function CoachingOrderPage({ searchParams }: { searchParams
   const t = await getServerT(locale);
   const query = await searchParams;
   const coachId = typeof query[ORDER_PARAMS.coach] === "string" ? (query[ORDER_PARAMS.coach] as string) : "";
+  const remedyId = typeof query.remedy === "string" ? query.remedy : undefined;
   const terms = await getOrders()
-    .terms(candidate.id, { kind: "coachingSession", coachId })
+    .terms(candidate.id, { kind: "coachingSession", coachId, remedyId })
     .catch((cause: unknown) => {
       console.error("[orders] Coaching Session order unavailable", cause);
       return null;
@@ -38,7 +39,7 @@ export default async function CoachingOrderPage({ searchParams }: { searchParams
           <OrderForm
             terms={terms}
             action={ORDER_ACTIONS.coachingSession}
-            hidden={{ coachId }}
+            hidden={{ coachId, ...(remedyId ? { remedyId } : {}) }}
             back={routes.coaching}
             error={query[ORDER_PARAMS.error] === ORDER_CGV_ERROR}
             locale={locale}

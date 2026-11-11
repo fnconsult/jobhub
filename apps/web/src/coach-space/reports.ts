@@ -19,7 +19,7 @@ export interface SessionReport extends ReportFields {
 const COLUMNS =
   'r.id,r.session_id AS "sessionId",r.covered,r.next_steps AS "nextSteps",r.resources,r.revision,r.published_at AS "publishedAt",r.conversation_id AS "conversationId"';
 const ACTIVE = "EXISTS (SELECT 1 FROM human_coach h WHERE h.id=$1 AND h.retired_at IS NULL)";
-const OWNER = `EXISTS (SELECT 1 FROM coaching_session s WHERE s.id=$2 AND s.coach_id=$1 AND s.withdrawn_at IS NULL) AND ${ACTIVE}`;
+const OWNER = `EXISTS (SELECT 1 FROM coaching_session s WHERE s.id=$2 AND s.coach_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL) AND ${ACTIVE}`;
 export function sessionReports(database: Pool, conversations: Pick<CoachConversations, "publishHumanReport">, clock: () => Date = () => new Date()) {
   return {
     async forCoach(coachId: string, sessionId: string): Promise<SessionReport[] | null> {
@@ -35,7 +35,7 @@ export function sessionReports(database: Pool, conversations: Pick<CoachConversa
     async due(coachId: string): Promise<string[]> {
       if (!UUID.test(coachId)) return [];
       const { rows } = await database.query<{ id: string }>(
-        `SELECT s.id FROM coaching_session s WHERE s.coach_id=$1 AND s.withdrawn_at IS NULL AND ${ACTIVE}
+        `SELECT s.id FROM coaching_session s WHERE s.coach_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ${ACTIVE}
         AND s.scheduled_at + coalesce(s.duration_minutes,60)*interval '1 minute' < $2
         AND NOT EXISTS (SELECT 1 FROM session_report r WHERE r.session_id=s.id AND r.published_at IS NOT NULL) ORDER BY s.scheduled_at`,
         [coachId, clock()],
@@ -48,7 +48,7 @@ export function sessionReports(database: Pool, conversations: Pick<CoachConversa
       const value = parsed.data;
       const { rows } = await database.query<SessionReport>(
         `INSERT INTO session_report AS r (coach_id,session_id,candidate_id,covered,next_steps,resources)
-        SELECT $1,s.id,s.candidate_id,$3,$4,$5 FROM coaching_session s WHERE s.id=$2 AND s.coach_id=$1 AND s.withdrawn_at IS NULL AND ${ACTIVE}
+        SELECT $1,s.id,s.candidate_id,$3,$4,$5 FROM coaching_session s WHERE s.id=$2 AND s.coach_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ${ACTIVE}
         ON CONFLICT (session_id) WHERE published_at IS NULL DO UPDATE SET covered=EXCLUDED.covered,next_steps=EXCLUDED.next_steps,resources=EXCLUDED.resources,revision=r.revision+1
         WHERE r.coach_id=$1 AND ${ACTIVE} RETURNING ${COLUMNS}`,
         [coachId, sessionId, value.covered, value.nextSteps, value.resources],
@@ -77,7 +77,7 @@ export function sessionReports(database: Pool, conversations: Pick<CoachConversa
           `
           SELECT ${COLUMNS},s.candidate_id AS "candidateId",s.scheduled_at AS "scheduledAt",s.duration_minutes AS "durationMinutes",c."interfaceLanguage",c.name,c.given_name AS "givenName",c.family_name AS "familyName",c.preferred_name AS "preferredName"
           FROM session_report r JOIN coaching_session s ON s.id=r.session_id JOIN candidate c ON c.id=s.candidate_id
-          WHERE r.id=$2 AND r.coach_id=$1 AND s.coach_id=$1 AND s.withdrawn_at IS NULL AND ${ACTIVE} FOR UPDATE OF r`,
+          WHERE r.id=$2 AND r.coach_id=$1 AND s.coach_id=$1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ${ACTIVE} FOR UPDATE OF r`,
           [coachId, reportId],
         );
         const report = rows[0];

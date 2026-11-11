@@ -306,6 +306,27 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       ]);
     });
 
+    it("a public alert does not deduplicate against a private recruiter posting at the same URL (#973)", async () => {
+      const link = cadremploiAlert.reply.offers[0]!.link!;
+      const recruiter = recruiterMessage.email(address);
+      recruiter.text = `${recruiter.text}\n${link}`;
+      useAi(JSON.stringify({ kind: "recruteur", offers: [{ ...recruiterMessage.reply.offers[0], link }] }));
+      const [privateEmail] = await deliver(recruiter);
+      await reading.read(privateEmail!);
+      const privateId = (await emailOf(privateEmail!)).offers[0]!.jobOfferId!;
+      expect(await jobOffers.get(privateId)).toBeNull();
+
+      useAi();
+      const [publicEmail] = await deliver(cadremploiAlert.email(address));
+      await reading.read(publicEmail!);
+      const publicOffer = (await emailOf(publicEmail!)).offers[0]!;
+      expect(publicOffer.disposition).toBe("new");
+      expect(publicOffer.jobOfferId).not.toBe(privateId);
+      expect(await jobOffers.get(publicOffer.jobOfferId!)).not.toBeNull();
+      expect(await jobOffers.get(privateId)).toBeNull();
+      expect((await privateJobOffersOf(database, marie)).map((offer) => offer.id)).toContain(privateId);
+    });
+
     it("a recruiter's offer stays private: another Candidate's same message makes their own, and never shows them Marie's", async () => {
       const [id] = await deliver(recruiterMessage.email(address));
       await reading.read(id!);

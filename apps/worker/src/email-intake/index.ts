@@ -233,7 +233,7 @@ export function createEmailReading(options: EmailReadingOptions): EmailReading {
           const privateTo = kind === "recruiter" ? email.candidateId : undefined;
           // Deduplication, before the Candidate sees anything: the Job Offer stored for this link, and whether it is already there for them.
           const known = await part.step({ rule: "offer_dedup" }, async () => {
-            const stored = plan.link && kind !== "recruiter" ? await jobOffers.findBySourceUrl(plan.link, email.candidateId) : null;
+            const stored = plan.link && kind !== "recruiter" ? await jobOffers.findBySourceUrl(plan.link) : null;
             return stored && (inThisEmail.has(stored.id) || (await readings.alreadyThere(email.candidateId, stored.id))) ? stored.id : null;
           });
           if (known) {

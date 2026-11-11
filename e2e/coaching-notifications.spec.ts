@@ -77,7 +77,7 @@ test("Candidate and Coach own their reminder settings; private reminder links ex
     await toggle(owner, fr.coachingNotices.settings.daily);
     await buyer.goto("/compte/rappels");
     await toggle(buyer, fr.coachingNotices.settings.hourEmail);
-    await expect(buyer.getByRole("checkbox", { name: fr.pushNotifications.events.coaching_session_hour, exact: true })).toBeChecked();
+    await expect(buyer.getByRole("switch", { name: fr.pushNotifications.events.coaching_session_hour, exact: true })).toBeChecked();
     expect((await buyer.request.get("/espace-coach/rappels")).status()).toBe(404);
     expect(
       (
@@ -106,7 +106,7 @@ test("Candidate and Coach own their reminder settings; private reminder links ex
     ] as const) {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(url);
-      await expect(page.locator(`a[href="${target}"]`).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: "Rejoindre sur Google Meet", exact: true }).first()).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
     await owner.goto("/espace-coach/rappels");

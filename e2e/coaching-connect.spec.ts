@@ -96,6 +96,38 @@ test("hosted Connect onboarding gates a third-party purchase, paid webhooks are 
     await owner.getByRole("button", { name: fr.coachContract.accept, exact: true }).click();
     await expect(owner).toHaveURL(/espace-coach\/aujourdhui$/);
     await owner.goto("/espace-coach/revenus");
+    const fiscalForm = owner.locator("form").filter({ has: owner.getByRole("button", { name: fr.coachTax.saveIdentity, exact: true }) });
+    const values = {
+      legalName: "Connect Coach EI",
+      firstName: "Synthetic",
+      lastName: "Coach",
+      birthDate: "1980-01-01",
+      residence: "FR",
+      tin: "12345678901234",
+      tinCountry: "FR",
+      siret: "12345678901234",
+      street: "1 rue Test",
+      postalCode: "75001",
+      city: "Paris",
+      addressCountry: "FR",
+      iban: "FR7630006000011234567890189",
+      accountHolder: "Synthetic Coach",
+    };
+    for (const [field, value] of Object.entries(values)) await fiscalForm.getByLabel(fr.coachTax.fields[field], { exact: true }).fill(value);
+    const savedTax = owner.waitForResponse(
+      (response) => response.url().endsWith("/api/account/coaching/tax-identity") && response.request().method() === "PUT",
+    );
+    await fiscalForm.getByRole("button", { name: fr.coachTax.saveIdentity, exact: true }).click();
+    expect((await savedTax).ok()).toBe(true);
+    await expect(fiscalForm.getByRole("status")).toHaveText(fr.coachTax.saved);
+    expect(
+      (
+        await buyer.request.put("/api/account/coaching/tax-identity", {
+          headers: { origin: own.origin },
+          data: { sellerId, year: 2026, identity: { ...values, kind: "individual" } },
+        })
+      ).status(),
+    ).toBe(400);
     let destination = "";
     await owner.route(
       (url) => url.pathname === "/espace-coach/revenus",
@@ -158,7 +190,7 @@ test("hosted Connect onboarding gates a third-party purchase, paid webhooks are 
     expect((await database.query("SELECT count(*)::int AS n FROM coaching_session")).rows[0].n).toBe(1);
     const sale = (await database.query("SELECT snapshot FROM coaching_session_sale")).rows[0].snapshot;
     expect(sale).toMatchObject({ amount: 9000, commissionBps: 2000, durationMinutes: 90, seller: { id: sellerId } });
-    await expect.poll(()=>emailsIn(own.output(),buyerEmail).filter(mail=>mail.text.includes("Connect Coach EI")).length).toBe(1);
+    await expect.poll(() => emailsIn(own.output(), buyerEmail).filter((mail) => mail.text.includes("Connect Coach EI")).length).toBe(1);
     await buyer.goto("/agenda");
     await buyer.getByRole("link", { name: fr.withdrawals.agenda.label.replace("{{name}}", NAME) }).click();
     await buyer.getByLabel(fr.withdrawals.page.name).fill("Marie Connect");

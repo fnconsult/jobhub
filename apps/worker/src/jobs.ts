@@ -227,6 +227,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachingTaxes?:{deliverCopies():Promise<void>;purge():Promise<void>;reencrypt():Promise<number>};
   coachingContentReports?:{deliverNotices():Promise<void>;purge():Promise<void>};
   coachingNotifications?:{sendDue():Promise<void>;purge():Promise<number>};
   coachingCancellations?: { expireChoices(): Promise<void>; retiredCoaches(): Promise<void>; deliverNotices(): Promise<void> };
@@ -677,6 +678,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    "coaching-tax.copies":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingTaxes?.deliverCopies();})},
+    "coaching-tax.retention":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingTaxes?.reencrypt();await deps.coachingTaxes?.purge();})},
     "coaching-content-reports.send":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingContentReports?.deliverNotices();})},
     "coaching-content-reports.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingContentReports?.purge();})},
     "coaching-notifications.send":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingNotifications?.sendDue();})},

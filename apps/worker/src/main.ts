@@ -1,3 +1,6 @@
+import {coachingTaxes} from "@jobhub/web/coaching-tax";
+import {taxLegalReady} from "@jobhub/web/coaching-tax/legal";
+import {fiscalCopyEmail} from "@jobhub/web/coaching-tax/email";
 import {coachingContentReports} from "@jobhub/web/coaching-content-reports";
 import {contentReportEmail} from "@jobhub/web/coaching-content-reports/email";
 import {coachingNotifications} from "@jobhub/web/coaching-notifications";
@@ -213,6 +216,7 @@ const cancellations = () =>
       cancellationNotice(database, record, kind, baseURL, (email, message) => mailer.send({ to: email, ...message }), pushNotifications),
   });
 const jobs = createJobs({
+  coachingTaxes:coachingTaxes(database,{cipher:secretCipherFromEnv(secrets.current().env),permitted:async()=>taxLegalReady(),sendCopy:async notice=>{await mailer.send({to:notice.to,...fiscalCopyEmail(notice,baseURL)})}}),
   coachingContentReports:coachingContentReports(database,{platformEmail:()=>{const from=settingsEnv().MAIL_FROM??'';return /<([^<>]+)>$/.exec(from)?.[1]??(from.includes('@')?from:undefined)},send:async notice=>{await mailer.send({to:notice.to,...contentReportEmail(notice,baseURL)})}}),
   coachingNotifications:{sendDue:()=>notices().sendDue(),purge:()=>notices().purge()},
   coachingCancellations: {

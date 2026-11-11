@@ -15,3 +15,5 @@ Choose a month and select “Show”. Collections belong to their payment month 
 Amounts distinguish Commission, refunds, refunded Commission, Stripe fees and held funds. Net uses the same calculation as payouts. The outstanding balance spans all months: a refund after a payout can reduce later earnings. The eligibility date does not guarantee bank arrival. Payouts show their status; a failure or required reconciliation needs Support.
 
 “Download the PDF statement” saves your private monthly statement, including amounts and original professional identities. It is a statement, not an invoice issued under a self-billing mandate. It contains no Candidate names, email addresses or private notes. On phones, offers appear as cards.
+
+“Tax information” collects the professional data needed for DAC7 preparation when the corresponding texts are effective. Choose the relevant year and “Show this year”. Private annual copies can be downloaded here; they are separate from monthly statements and do not prove tax filing.

@@ -25,3 +25,5 @@ This section lists confirmed coach and Association applications. Review their de
 For Jobbbox sales through Connect, enter the agreed “Coach compensation recipient (Jobbbox sales)” and “Coach share of a Jobbbox sale (basis points)”: 10000 means 100%. The recipient is the independent coach or an Association they belong to. An empty value blocks the affected new sales; paid purchases retain their agreement. Changes are audited. Third-party sales Commission remains separate.
 
 Team Cal.com booking uses a verified single-host event attached from Human Coaches. Team configuration and confirmation of disabled reminders stay in Settings; API and webhook keys stay in Provider Secrets. Old cal.eu links are flagged for review. Creation with an unknown outcome is never repeated automatically: find the event in Cal.com and attach its ID. Embedded booking awaits the required Legal Texts and notice period.
+
+“DAC7: annual preparation” opens Seller tax preparation for people authorized to edit this section. A prepared file proves neither filing nor legal approval; checks and tax-portal steps remain human responsibilities.

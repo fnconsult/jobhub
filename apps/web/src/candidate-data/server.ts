@@ -1,3 +1,5 @@
+import {secretCipherFromEnv} from "@/provider-secrets/cipher";
+import {getSecretResolver} from "@/provider-secrets/server";
 import { cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
@@ -12,6 +14,7 @@ let instance: CandidateData | undefined;
 /** The app's Candidate data module (export and account deletion), on the database named by DATABASE_URL. */
 export function getCandidateData(): CandidateData {
   instance ??= createCandidateData(sharedPool(), {
+    fiscalCipher:()=>secretCipherFromEnv(getSecretResolver().current().env),
     profiles: getProfiles(),
     applications: getApplications(),
     tailoredCvs: getTailoredCvs(),

@@ -1,3 +1,4 @@
+import {saveFiscalFixture} from "./support/coaching-tax";
 import { stripeConnect } from "../apps/web/src/coaching-connect/stripe";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
@@ -151,6 +152,7 @@ test("Coach cancellation offers refund, same paid service and explicit affordabl
         [peer],
       )
     ).rows[0].id;
+    await saveFiscalFixture(database,peerOwnerId,seller);
     const connected = await stripeConnect({ secretKey: "sk_test_fake", webhookSecret: "whsec_connect_fake", apiUrl: process.env.E2E_STRIPE_URL }).account(
       { id: seller, kind: "human_coach", name: "Affordable Peer EI", email: peerEmail },
       `fixture-peer-${seller}`,

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {BookingAdmin} from "@/coaching-booking/Admin";
 import {CoachPagesAdmin} from "@/coach-pages/CoachPagesAdmin";
 import {coachSpaceV2On} from "@/coach-space/server";
@@ -81,6 +82,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
           </Note>
         ) : null}
 
+        {canWrite?<Link href="/admin/coachs/dac7">{t("coachTax.adminTitle")}</Link>:null}
         <EnrolmentsAdmin canWrite={canWrite}/>
         <BookingAdmin canWrite={canWrite} status={booking}/>
         <CoachPagesAdmin canWrite={canWrite}/>

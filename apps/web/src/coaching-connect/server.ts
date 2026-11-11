@@ -1,3 +1,4 @@
+import {getCoachingTaxes} from "@/coaching-tax/server";
 import { getCoachContracts } from "@/coach-contracts/server";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { payoutRecipient, payoutInformationEmail } from "./email";
@@ -28,6 +29,7 @@ export function getCoachingConnect(): ReturnType<typeof coachingConnect> {
     baseURL: String(getAuth().options.baseURL),
     permitted: async () => coachSpaceV2On() && connectLegalReady(),
     maySell: async (seller) => {
+      if(!await getCoachingTaxes().ready(seller.id))return false;
       const candidates = (
         await sharedPool().query<{ email: string; emailVerified: boolean; subjectId: string; kind: "coach" | "association" }>(
           `SELECT c.email,c."emailVerified",CASE WHEN s.kind='human_coach' THEN s.coach_id ELSE s.association_id END AS "subjectId",CASE WHEN s.kind='human_coach' THEN 'coach' ELSE 'association' END AS kind FROM coaching_seller s LEFT JOIN coaching_connect_account k ON k.seller_id=s.id LEFT JOIN human_coach h ON h.id=s.coach_id JOIN candidate c ON c."emailVerified" AND ((s.kind='human_coach' AND ((k.owner_id=c.id) OR (k.seller_id IS NULL AND h.email=lower(c.email)))) OR (s.kind='association' AND EXISTS(SELECT 1 FROM coach_association_manager m WHERE m.association_id=s.association_id AND m.candidate_id=c.id))) WHERE s.id=$1`,

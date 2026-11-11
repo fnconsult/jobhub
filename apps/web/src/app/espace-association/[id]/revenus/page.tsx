@@ -1,3 +1,4 @@
+import {TaxPanel} from "@/coaching-tax/Panel";
 import { notFound } from "next/navigation";
 import { getCoachEarnings } from "@/coaching-earnings/server";
 import { Earnings } from "@/coaching-earnings/Earnings";
@@ -10,7 +11,7 @@ import { AssociationLayout } from "@/coach-associations/AssociationLayout";
 import { requireAssociation } from "@/coach-associations/server";
 import { getServerT } from "@/i18n/server";
 const PAGE = "revenus";
-export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ mois?: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ mois?: string;fiscalYear?:string }> }) {
   const { association, person } = await requireAssociation((await params).id),
     t = await getServerT();
   const seller = (await sharedPool().query<{ id: string }>("SELECT id FROM coaching_seller WHERE association_id=$1", [association.id])).rows[0];
@@ -19,6 +20,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   if (seller && !statement) notFound();
   return (
     <AssociationLayout association={association} page={PAGE}>
+      <TaxPanel sellerId={seller?.id??null} year={Number(query.fiscalYear)}/>
       <ConnectOnboarding sellerId={seller?.id ?? null} />
       {statement ? (
         <Earnings

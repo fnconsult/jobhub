@@ -84,6 +84,12 @@ export function coachingRefunds(database: Pool, deps: { stripe?: CoachingRefundP
         const refunds = inspected.refunds;
         if (refunds.some((r) => !Number.isSafeInteger(r.amount) || r.amount < 0 || r.currency !== intent.currency))
           throw new CoachingRefundContextMismatch("Invalid refund balance");
+        // External/Withdrawal refunds can satisfy this debt too. Keep their identity so a later bank failure reopens it.
+        for (const resource of refunds)
+          await within.query("INSERT INTO coaching_service_refund_resource(refund_id,stripe_refund_id) VALUES($1,$2) ON CONFLICT DO NOTHING", [
+            id,
+            resource.id,
+          ]);
         const active = refunds.filter((r) => r.status !== "failed");
         const total = active.reduce((sum, r) => sum + BigInt(r.amount), 0n);
         if (total > BigInt(intent.amount)) throw new CoachingRefundContextMismatch("Refund balance exceeds payment");
@@ -255,7 +261,7 @@ export function coachingRefunds(database: Pool, deps: { stripe?: CoachingRefundP
     async changed(refundId: string, accountId: string | null) {
       const intent = (
         await database.query<{ id: string; accountId: string | null }>(
-          `SELECT r.id,r.account_id AS "accountId" FROM coaching_service_refund r JOIN coaching_service_refund_attempt a ON a.refund_id=r.id WHERE a.stripe_refund_id=$1`,
+          `SELECT r.id,r.account_id AS "accountId" FROM coaching_service_refund r WHERE EXISTS(SELECT 1 FROM coaching_service_refund_attempt a WHERE a.refund_id=r.id AND a.stripe_refund_id=$1) OR EXISTS(SELECT 1 FROM coaching_service_refund_resource x WHERE x.refund_id=r.id AND x.stripe_refund_id=$1)`,
           [refundId],
         )
       ).rows[0];
@@ -266,7 +272,8 @@ export function coachingRefunds(database: Pool, deps: { stripe?: CoachingRefundP
 export async function migrateCoachingRefunds(database: Pool) {
   await database.query(`CREATE TABLE IF NOT EXISTS coaching_service_refund(id uuid PRIMARY KEY,session_id uuid UNIQUE REFERENCES coaching_session(id) ON DELETE SET NULL,candidate_id text REFERENCES candidate(id) ON DELETE SET NULL,checkout_id text UNIQUE NOT NULL,account_id text,payment_intent text,amount integer NOT NULL CHECK(amount>=0),currency text NOT NULL,routing_verified boolean NOT NULL,state text NOT NULL,attempt integer NOT NULL DEFAULT 0,created_at timestamptz NOT NULL,resolved_at timestamptz,retry_at timestamptz,failure_reason text);
  ALTER TABLE coaching_service_refund ADD COLUMN IF NOT EXISTS resolved_at timestamptz;
- CREATE TABLE IF NOT EXISTS coaching_service_refund_attempt(refund_id uuid NOT NULL REFERENCES coaching_service_refund(id) ON DELETE CASCADE,number integer NOT NULL,amount integer NOT NULL CHECK(amount>0),started_at timestamptz NOT NULL,outcome text NOT NULL,stripe_refund_id text UNIQUE,status text,PRIMARY KEY(refund_id,number));`);
+ CREATE TABLE IF NOT EXISTS coaching_service_refund_attempt(refund_id uuid NOT NULL REFERENCES coaching_service_refund(id) ON DELETE CASCADE,number integer NOT NULL,amount integer NOT NULL CHECK(amount>0),started_at timestamptz NOT NULL,outcome text NOT NULL,stripe_refund_id text UNIQUE,status text,PRIMARY KEY(refund_id,number));
+ CREATE TABLE IF NOT EXISTS coaching_service_refund_resource(refund_id uuid NOT NULL REFERENCES coaching_service_refund(id) ON DELETE CASCADE,stripe_refund_id text NOT NULL,PRIMARY KEY(refund_id,stripe_refund_id));`);
 }
 
 /** The Candidate owns entitlement and attempt facts; processor routing is private operational data. */
@@ -283,5 +290,6 @@ export async function coachingRefundsOf(database: Queryable, candidateId: string
       [candidateId],
     )
   ).rows;
-  return { refunds, attempts };
+  const resources=(await database.query(`SELECT x.refund_id AS "refundId",x.stripe_refund_id AS "stripeRefundId" FROM coaching_service_refund_resource x JOIN coaching_service_refund r ON r.id=x.refund_id WHERE r.candidate_id=$1 ORDER BY x.refund_id,x.stripe_refund_id`,[candidateId])).rows;
+  return { refunds, attempts, resources };
 }

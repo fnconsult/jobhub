@@ -505,6 +505,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coaching_session_contact: "coachingSessions[].meeting (session contact)",
   coaching_service_refund:"coachingRefunds.refunds (owned refund entitlement, no processor routing)",
   coaching_service_refund_attempt:"coachingRefunds.attempts",
+  coaching_service_refund_resource:"coachingRefunds.resources",
   coaching_cal_pending:"calBookings.pending (authenticated minimal routing/date facts awaiting a predecessor)",
   coaching_cal_booking:"calBookings.bookings (owned session routing facts, no token)",
   coaching_cal_delivery:"calBookings.deliveries (owned session receipt/rejection facts, no raw payload)",
@@ -563,6 +564,7 @@ export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
 export const RETAINED_BUSINESS_TABLES:Readonly<Record<string,string>>={
   coaching_service_refund:"#883: financial refund entitlement, Candidate/session detached on erasure, resolved records purged after ten years",
   coaching_service_refund_attempt:"#883: financial refund attempts, retained through their entitlement until reconciled",
+  coaching_service_refund_resource:"#883: observed processor refund identities, retained through their entitlement for bank-failure reconciliation",
   coaching_cal_cancellation:"#881: detach erased sessions, retain unresolved cancellation routing until reconciliation, purge resolved after 30 days",
  coach_association_invitation:"Association invitations (#876): owned contacts explicitly erased at account deletion; seven-day validity, purge thirty days after expiry",
  coaching_connect_account:"Seller Stripe routing (#878): owner detached on deletion; contains no KYC or bank details",

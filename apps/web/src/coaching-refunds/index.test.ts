@@ -76,6 +76,32 @@ describe.skipIf(!connectionString)("durable contractual Coaching Session refunds
     expect(writes).toHaveLength(1);
     expect((await service.one(first.id))?.state).toBe("succeeded");
   });
+  it("reconciles a failed external refund after it alone completed the entitlement", async () => {
+    resources.push({ id: "re_external_full", intentId: null, attempt: null, amount: 9000, currency: "eur", status: "succeeded" });
+    const intent = (await service.request(session))!;
+    await service.run(intent.id);
+    expect(writes).toHaveLength(0);
+    expect((await service.one(intent.id))?.state).toBe("succeeded");
+    resources[0]!.status = "failed";
+    await service.changed("re_external_full", "acct_wrong");
+    expect(writes).toHaveLength(0);
+    await service.changed("re_external_full", null);
+    expect(writes.map((w) => w.amount)).toEqual([9000]);
+    expect((await service.one(intent.id))?.state).toBe("succeeded");
+  });
+  it("reopens a completed entitlement when its external partial coverage fails", async () => {
+    resources.push({ id: "re_external_part", intentId: null, attempt: null, amount: 3000, currency: "eur", status: "succeeded" });
+    const intent = (await service.request(session))!;
+    await service.run(intent.id);
+    expect(writes.map((w) => w.amount)).toEqual([6000]);
+    resources[0]!.status = "failed";
+    await service.changed("re_external_part", null);
+    expect((await service.one(intent.id))?.state).toBe("failed");
+    expect((await service.one(intent.id))?.resolvedAt).toBeNull();
+    expect(await service.retry(intent.id)).toBe(true);
+    expect(writes.map((w) => w.amount)).toEqual([6000, 3000]);
+    expect((await service.one(intent.id))?.state).toBe("succeeded");
+  });
   it("recovers a lost remote outcome after the idempotency window without creating again", async () => {
     const intent = (await service.request(session))!;
     mode = "lost";

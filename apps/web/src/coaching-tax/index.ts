@@ -96,15 +96,18 @@ export function coachingTaxes(database: Pool, deps: TaxDeps) {
       if (replacement && (!replacement.confirmedUnfiled || !uuid(replacement.replaceId) || existing?.id !== replacement.replaceId))
         throw Error("Unfiled replacement confirmation or current revision required");
       const id = randomUUID(),
-        sellers: AnnualSeller[] = [];
+        sellers: AnnualSeller[] = [],
+        cutoff = new Date(Date.UTC(year, 11, 31, 23));
       const sources = (
         await database.query<TaxPayment & { profileId: string }>(
-          `SELECT p.id,p.account_id AS "accountId",p.payment_intent AS "paymentIntent",p.amount,p.commission,p.currency,(p.sale_snapshot->'seller'->>'id') AS "sellerId",p.sale_snapshot->'seller'->>'siret' AS "sellerSiret" FROM coaching_connect_payment p WHERE p.paid_at IS NOT NULL AND p.payment_intent IS NOT NULL AND p.account_id IS NOT NULL AND p.sale_snapshot->'seller'->>'kind'<>'jobbbox' ORDER BY p.recipient_id,p.id`,
+          `SELECT p.id,p.account_id AS "accountId",p.payment_intent AS "paymentIntent",p.amount,p.commission,p.currency,(p.sale_snapshot->'seller'->>'id') AS "sellerId",p.sale_snapshot->'seller'->>'siret' AS "sellerSiret" FROM coaching_connect_payment p WHERE p.paid_at IS NOT NULL AND p.payment_intent IS NOT NULL AND p.account_id IS NOT NULL AND p.sale_snapshot->'seller'->>'kind'<>'jobbbox' AND p.created_at<$1 ORDER BY p.recipient_id,p.id`,
+          [cutoff],
         )
       ).rows;
       const transfers = (
         await database.query<TaxTransfer>(
-          `SELECT b.id,b.id AS "batchId",b.seller_id AS "sellerId",b.transfer_id AS "transferId",b.transfer_amount AS amount,b.currency,b.account_id AS "accountId",b.transfer_outcome AS "transferOutcome",b.created_at AS "createdAt" FROM coaching_connect_batch b WHERE b.transfer_amount<>0 ORDER BY b.created_at,b.id`,
+          `SELECT b.id,b.id AS "batchId",b.seller_id AS "sellerId",b.transfer_id AS "transferId",b.transfer_amount AS amount,b.currency,b.account_id AS "accountId",b.transfer_outcome AS "transferOutcome",b.created_at AS "createdAt" FROM coaching_connect_batch b WHERE b.transfer_amount<>0 AND b.created_at<$1 ORDER BY b.created_at,b.id`,
+          [cutoff],
         )
       ).rows as (TaxTransfer & { transferId: string | null; transferOutcome: string; createdAt: Date })[];
       if (transfers.some((row) => row.createdAt < new Date(Date.UTC(year, 11, 31, 23)) && row.transferOutcome === "unknown"))

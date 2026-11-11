@@ -98,6 +98,15 @@ describe.skipIf(!connectionString)("Seller fiscal identity and annual preparatio
       postalCode: "75001",
       city: "Paris",
     };
+    // A future original resource is outside this return, even if its refund or identity cannot yet be reconciled.
+    await auth.database.query(
+      `INSERT INTO coaching_connect_payment(id,candidate_id,coach_id,recipient_id,account_id,amount,currency,commission,payee_amount,request,sale_snapshot,created_at,payment_intent,paid_at) VALUES($1,$2,$3,$4,'acct_future',10000,'eur',2000,8000,'{}',$5,'2027-01-02T12:00Z','pi_unresolved_future','2027-01-02T12:00Z')`,
+      [crypto.randomUUID(), owner, coach, seller, JSON.stringify({ seller: { id: seller, kind: "human_coach", siret: "99999999900011" } })],
+    );
+    await auth.database.query(
+      `INSERT INTO coaching_connect_batch(id,seller_id,month,currency,amount,transfer_amount,account_id,created_at,transfer_id) VALUES($1,$2,'2027-01','eur',8000,8000,'acct_future','2027-01-02T12:00Z','tr_unresolved_future')`,
+      [crypto.randomUUID(), seller],
+    );
     const first = await annual.prepare(2026, operator, owner),
       again = await annual.prepare(2026, operator, owner);
     expect(first.created).toBe(true);

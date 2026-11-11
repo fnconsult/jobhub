@@ -97,19 +97,47 @@ const EXTENSION_ARTICLES = {
   "tutorial-extension-create-account": ["tutorial", "guest"],
   "tutorial-extension-save-job-offer": ["tutorial", "candidate"],
 } as const;
+/** Public intake and anonymous-report Help remains available before Coach or Candidate membership. */
+const COACH_PUBLIC_ARTICLES = ["page-content-report", "glossary-coach-enrolment", "page-confirm-coach-enrolment", "page-own-coach-enrolments", "page-coach-enrolment", "glossary-association"];
 /** #554's articles of « Espace coach », all a Human Coach's: no help in context for them (ADR-0065), the topic is theirs. */
 const COACH_SPACE_ARTICLES = {
   "page-coach-space": "page",
+  "page-association-coachs": "page",
+  "page-association-invitation": "page",
+  "page-association-membres": "page",
+  "page-association-offres": "page",
+  "page-association-revenus": "page",
+  "page-association-space": "page",
+  "page-coach-availability": "page",
+  "page-coach-contract-version": "page",
+  "page-coach-contract": "page",
+  "page-coach-earnings": "page",
+  "page-coach-public-profile": "page",
+  "page-coach-reminders": "page",
+  "page-coach-session": "page",
   "faq-coach-access": "faq",
   "faq-retired-human-coach": "faq",
-  // #665: why a Human Coach is asked for Two-step verification.
   "faq-coach-two-step-verification": "faq",
-  // #688: the same, in the app.
   "faq-coach-app-two-step-verification": "faq",
-  // #699: the app's notifications for a coach.
   "faq-coach-app-notifications": "faq",
-  "tutorial-coach-session-date": "tutorial",
+  "faq-coach-cancel-session": "faq",
+  "faq-coach-contract": "faq",
+  "faq-coach-reminders": "faq",
+  "faq-coach-tax": "faq",
+  "tutorial-association-add-coach": "tutorial",
+  "tutorial-coach-availability": "tutorial",
+  "tutorial-coach-get-paid": "tutorial",
+  "tutorial-coach-meeting-contact": "tutorial",
+  "tutorial-coach-present-slides": "tutorial",
   "tutorial-coach-review": "tutorial",
+  "tutorial-coach-session-date": "tutorial",
+  "tutorial-coach-session-report": "tutorial",
+  "tutorial-coach-shared-reading": "tutorial",
+  "tutorial-coach-tax": "tutorial",
+  "tutorial-coaching-reminders": "tutorial",
+  "tutorial-edit-coach-page": "tutorial",
+  "glossary-association-member": "glossary",
+  "glossary-coach-page": "glossary",
 } as const;
 
 describe("this build's Help Articles (#549)", () => {
@@ -117,8 +145,9 @@ describe("this build's Help Articles (#549)", () => {
     const english = new Map(articles("en").map((found) => [found.id, found]));
     for (const found of articles("fr")) {
       expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
+      if (COACH_PUBLIC_ARTICLES.includes(found.id)) expect(found.audience).toBe("visitor");
       const backOffice = found.route?.startsWith("/admin") === true || found.id.startsWith("glossary-admin-");
-      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id) && !(found.id in EXTENSION_ARTICLES) && !(found.id in COACH_SPACE_ARTICLES))
+      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id) && !COACH_PUBLIC_ARTICLES.includes(found.id) && !(found.id in EXTENSION_ARTICLES) && !(found.id in COACH_SPACE_ARTICLES))
         expect([found.id, found.audience]).toEqual([found.id, backOffice ? "administrator" : "candidate"]);
     }
   });
@@ -153,7 +182,7 @@ describe("this build's Help Articles (#549)", () => {
     expect(search(query, locale, { scope: "coachPanel" }).map((article) => article.id)).toContain(id);
   });
 
-  it("has the « Espace coach » articles (#554, #665): 1 page, 3 questions and 2 tutorials, a Human Coach's, in French and English, under the topic", () => {
+  it("has the current Coach and Association workspace Help, in French and English, under the Human Coach topic", () => {
     for (const locale of ["fr", "en"] as const) {
       const topic = helpCentreTopics(locale).find((entry) => entry.topic === "espace-coach");
       expect(topic?.articles.map((found) => found.id).sort()).toEqual(Object.keys(COACH_SPACE_ARTICLES).sort());

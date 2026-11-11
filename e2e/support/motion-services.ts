@@ -142,7 +142,7 @@ export async function addDemoCoach(browser: Browser, own?: OwnServer): Promise<v
         const identity = {kind: "individual",legalName: DEMO_COACH.name,firstName:"Synthetic",lastName:"Coach",birthDate:"1980-01-01",residence:"FR",tin:"12345678901234",tinCountry:"FR",siret:"12345678901234",street:"1 rue Test",postalCode:"75001",city:"Paris",addressCountry:"FR",iban:"FR7630006000011234567890189",accountHolder:"Synthetic Coach"};
         const saved = await coach.request.put("/api/account/coaching/tax-identity", { headers: {origin: baseURL}, data: {sellerId:seller.id,year:2026,identity} });
         expect(saved.status(),await saved.text()).toBe(200);
-        const remote = await (await fetch(`${stripeUrl}/v1/accounts`, {method:"POST",body:new URLSearchParams({type:"express",country:"FR","metadata[jobhub_seller]":seller.id})})).json();
+        const remote = await (await fetch(`${stripeUrl}/v1/accounts`, {method:"POST",body:new URLSearchParams({country:"FR","metadata[jobhub_seller]":seller.id,"controller[fees][payer]":"application","controller[losses][payments]":"application","controller[requirement_collection]":"stripe","controller[stripe_dashboard][type]":"express","settings[payouts][schedule][interval]":"manual","capabilities[card_payments][requested]":"true","capabilities[transfers][requested]":"true"})})).json();
         const person = (await (await coach.request.get("/api/auth/get-session")).json()).user;
         await database.query("INSERT INTO coaching_connect_account(seller_id,account_id,created_at,owner_id) VALUES($1,$2,now(),$3)",[seller.id,remote.id,person.id]);
         await fetch(`${stripeUrl}/__connect/activate`,{method:"POST",body:new URLSearchParams({account:remote.id})});

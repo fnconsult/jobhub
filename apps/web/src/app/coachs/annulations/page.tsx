@@ -13,7 +13,7 @@ export default async function Page() {
   return (
     <CandidateLayout candidateId={candidate.id} title={t("coachingCancellation.title")}>
       <CandidateCancellationList candidateId={candidate.id} locale={locale} timeZone={timeZone}/>
-      <CancellationPanel candidateId={candidate.id} locale={locale} timeZone={(await getCoachingTimeZones().candidate(candidate.id)) ?? "Europe/Paris"} />
+      <CancellationPanel candidateId={candidate.id} locale={locale} timeZone={timeZone} />
     </CandidateLayout>
   );
 }

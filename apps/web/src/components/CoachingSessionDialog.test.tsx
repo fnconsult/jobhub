@@ -17,7 +17,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 it.each([false, true])("only sends fields actually edited, including a stale date drawer (video editor %s)", async (withVideoLink) => {
-  const request = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response("{}", { status: 200 }));
+  const request = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
   vi.stubGlobal("fetch", request);
   renderInFrench(
     <CoachingSessionDialog

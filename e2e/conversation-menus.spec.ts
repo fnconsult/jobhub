@@ -1,4 +1,5 @@
 import path from "node:path";
+import { approvedLegacyCoach } from "./support/legacy-coach";
 import { readFileSync } from "node:fs";
 import AxeBuilder from "./support/axe";
 import { expect, test, type Browser, type Page } from "@playwright/test";
@@ -325,16 +326,17 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await expect.poll(() => menuConversationsOf(email)).toEqual([{ subject: "menu:humanCoaches", messages: 2 }]);
   });
 
-  test("Mes coachs humains: booking stays as it is, from the Human Coach's card to the Order page", async ({ browser }) => {
+  test("Mes coachs humains: a published coach stays visible while new payment activation is pending", async ({ browser }) => {
     const email = newAddress("conversation-human-coaches-booking");
     const page = await signedIn(browser, email);
     const name = `Sophie Martin ${Date.now()}`;
-    await query("INSERT INTO human_coach (name, email, booking_url, bio) VALUES ($1, $2, $3, $4)", [name, newAddress("coach"), `https://cal.com/sophie-${Date.now()}/seance`, "Ancienne DRH."]);
+    const [coach] = await query<{id: string}>("INSERT INTO human_coach (name, email, booking_url, bio) VALUES ($1, $2, $3, $4) RETURNING id", [name, newAddress("coach"), `https://cal.com/sophie-${Date.now()}/seance`, "Ancienne DRH."]);
+    await approvedLegacyCoach(coach!.id, server.databaseUrl);
 
     await page.goto("/coachs");
     const card = conversation(page).getByRole("region", { name: fr.humanCoaches.listTitle });
     await expect(card).toContainText(name);
-    await Promise.all([page.waitForURL(/\/commande\?/), card.getByRole("button", { name: tr(fr.humanCoaches.book, { name }) }).click()]);
+    await expect(card.getByRole("button", { name: tr(fr.humanCoaches.book, { name }) })).toHaveCount(0);
   });
 
   test("the Help Articles of /recherches, /job-digests, /agenda and /coachs exist in French and English, and the Release Note fragment announces them", async () => {

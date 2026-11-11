@@ -279,7 +279,6 @@ test.describe("Aide et légal from the app, the coach space and the Back Office"
       await admin.getByLabel(fr.admin.humanCoaches.name).fill(name);
       await admin.getByLabel(fr.admin.humanCoaches.email).fill(coachEmail);
       await admin.getByLabel(fr.admin.humanCoaches.bookingUrl).fill(`https://cal.com/sophie-${Date.now()}/seance`);
-      await admin.getByLabel(fr.admin.humanCoaches.bio).fill("Ancienne DRH dans l'industrie.");
       await admin.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
       await expect(admin.getByRole("status")).toHaveText(fr.admin.humanCoaches.added.replace("{{name}}", name));
     } finally {
@@ -289,13 +288,14 @@ test.describe("Aide et légal from the app, the coach space and the Back Office"
     const coach = await personPage(browser, coachEmail);
     try {
       await coach.goto("/espace-coach");
-      await expect(coach.getByRole("heading", { level: 1 })).toHaveText(fr.coachSpace.title);
+      await expect(coach).toHaveURL(`${origin}/espace-coach/contrat`);
+      await expect(coach.getByRole("heading", { level: 1 })).toHaveText(fr.coachSpaceV2.pages.contrat);
       for (const column of [fr.publicFooter.legal.title, fr.publicFooter.help.title, fr.app.name]) {
         await expect(footer(coach).getByRole("navigation", { name: column })).toBeVisible();
       }
       await expect(footer(coach).getByRole("link", { name: fr.publicFooter.legal.ia })).toHaveAttribute("href", "/legal/confidentialite#ia");
-      // #554: no help in context for a Human Coach; « Centre d'aide » opens the « Espace coach » topic.
-      await expect(footer(coach).getByRole("link", { name: fr.publicFooter.help.helpCentre })).toHaveAttribute("href", "/aide/espace-coach");
+      // Pending contract uses the public shell; the accepted workspace has its own contextual Help.
+      await expect(footer(coach).getByRole("link", { name: fr.publicFooter.help.helpCentre })).toHaveAttribute("href", "/aide");
       await targetsAtLeast24px(footer(coach));
     } finally {
       await coach.context().close();

@@ -114,8 +114,9 @@ test.describe("Mandatory Two-step verification (#665)", () => {
     await coach.goto("/espace-coach");
     await expectOnlyTheSetup(coach, "/espace-coach");
     await setUpTwoStepVerification(coach);
-    await expect(coach).toHaveURL(`${origin}/espace-coach`);
-    await expect(coach.getByRole("heading", { level: 1 })).toHaveText(fr.coachSpace.title);
+    await expect(coach).toHaveURL(`${origin}/espace-coach/contrat`);
+    await expect(coach.getByRole("heading", { level: 1 })).toHaveText(fr.coachSpaceV2.pages.contrat);
+    await expect(coach.getByText(fr.coachEnrolment.awaitingContract)).toBeVisible();
 
     await coach.context().close();
   });

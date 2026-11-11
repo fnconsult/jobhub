@@ -182,7 +182,62 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "withdrawal", // issue #511: each Withdrawal from a Plan or a Coaching Session
         "withdrawal_refund", // issue #511: its Stripe refunds, a failed one tried again
         "workflow_agent_run",
-      ]);
+
+        "candidate_coaching_time_zone", // Human Coach epic #867
+        "coach_association", // Human Coach epic #867
+        "coach_association_activity", // Human Coach epic #867
+        "coach_association_coach", // Human Coach epic #867
+        "coach_association_invitation", // Human Coach epic #867
+        "coach_association_manager", // Human Coach epic #867
+        "coach_coaching_time_zone", // Human Coach epic #867
+        "coach_contract_acceptance", // Human Coach epic #867
+        "coach_contract_notice", // Human Coach epic #867
+        "coach_enrolment", // Human Coach epic #867
+        "coach_enrolment_rate_limit", // Human Coach epic #867
+        "coach_meeting_contact", // Human Coach epic #867
+        "coach_page_version", // Human Coach epic #867
+        "coaching_cal_booking", // Human Coach epic #867
+        "coaching_cal_cancellation", // Human Coach epic #867
+        "coaching_cal_creation", // Human Coach epic #867
+        "coaching_cal_delivery", // Human Coach epic #867
+        "coaching_cal_erased_booking", // Human Coach epic #867
+        "coaching_cal_erased_claim", // Human Coach epic #867
+        "coaching_cal_event_type", // Human Coach epic #867
+        "coaching_cal_legal_observation", // Human Coach epic #867
+        "coaching_cal_notice", // Human Coach epic #867
+        "coaching_cal_pending", // Human Coach epic #867
+        "coaching_cancellation", // Human Coach epic #867
+        "coaching_cancellation_delivery", // Human Coach epic #867
+        "coaching_cancellation_event", // Human Coach epic #867
+        "coaching_cancellation_notice", // Human Coach epic #867
+        "coaching_connect_account", // Human Coach epic #867
+        "coaching_connect_allocation", // Human Coach epic #867
+        "coaching_connect_batch", // Human Coach epic #867
+        "coaching_connect_earning", // Human Coach epic #867
+        "coaching_connect_payment", // Human Coach epic #867
+        "coaching_content_case", // Human Coach epic #867
+        "coaching_content_report", // Human Coach epic #867
+        "coaching_content_report_notice", // Human Coach epic #867
+        "coaching_content_report_rate", // Human Coach epic #867
+        "coaching_notice", // Human Coach epic #867
+        "coaching_notice_channel", // Human Coach epic #867
+        "coaching_notice_event", // Human Coach epic #867
+        "coaching_notice_setting", // Human Coach epic #867
+        "coaching_offer", // Human Coach epic #867
+        "coaching_offer_quote", // Human Coach epic #867
+        "coaching_seller", // Human Coach epic #867
+        "coaching_service_refund", // Human Coach epic #867
+        "coaching_service_refund_attempt", // Human Coach epic #867
+        "coaching_service_refund_resource", // Human Coach epic #867
+        "coaching_session_contact", // Human Coach epic #867
+        "coaching_session_sale", // Human Coach epic #867
+        "coaching_tax_copy", // Human Coach epic #867
+        "coaching_tax_identity", // Human Coach epic #867
+        "coaching_tax_report", // Human Coach epic #867
+        "private_coach_note", // Human Coach epic #867
+        "session_report", // Human Coach epic #867
+        "shared_reading", // Human Coach epic #867
+      ].sort());
 
       const candidateColumns = await db.query(
         "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'candidate'",
@@ -352,7 +407,95 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "withdrawal", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "withdrawal", from_column: "coaching_session_id", to_table: "coaching_session" },
         { from_table: "withdrawal_refund", from_column: "withdrawal_id", to_table: "withdrawal" },
-      ]);
+
+        { from_table: "candidate_coaching_time_zone", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_association_activity", from_column: "actor_id", to_table: "candidate" },
+        { from_table: "coach_association_activity", from_column: "association_id", to_table: "coach_association" },
+        { from_table: "coach_association_coach", from_column: "association_id", to_table: "coach_association" },
+        { from_table: "coach_association_coach", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coach_association_invitation", from_column: "association_id", to_table: "coach_association" },
+        { from_table: "coach_association_invitation", from_column: "invited_by", to_table: "candidate" },
+        { from_table: "coach_association_invitation", from_column: "recipient_id", to_table: "candidate" },
+        { from_table: "coach_association_manager", from_column: "association_id", to_table: "coach_association" },
+        { from_table: "coach_association_manager", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_coaching_time_zone", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coach_contract_acceptance", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_contract_notice", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_conversation", from_column: "coaching_session_id", to_table: "coaching_session" },
+        { from_table: "coach_enrolment", from_column: "association_id", to_table: "coach_association" },
+        { from_table: "coach_enrolment", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_enrolment", from_column: "human_coach_id", to_table: "human_coach" },
+        { from_table: "coach_meeting_contact", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coach_page_version", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coach_page_version", from_column: "owner_id", to_table: "candidate" },
+        { from_table: "coaching_cal_booking", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_cal_cancellation", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_cal_creation", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_cal_delivery", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_cal_event_type", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_cal_notice", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_cal_pending", from_column: "hash", to_table: "coaching_cal_delivery" },
+        { from_table: "coaching_cancellation", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coaching_cancellation", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_cancellation", from_column: "peer_coach_id", to_table: "human_coach" },
+        { from_table: "coaching_cancellation", from_column: "refund_id", to_table: "coaching_service_refund" },
+        { from_table: "coaching_cancellation", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_cancellation_delivery", from_column: "cancellation_id", to_table: "coaching_cancellation" },
+        { from_table: "coaching_cancellation_delivery", from_column: "recipient_id", to_table: "candidate" },
+        { from_table: "coaching_cancellation_event", from_column: "cancellation_id", to_table: "coaching_cancellation" },
+        { from_table: "coaching_cancellation_notice", from_column: "cancellation_id", to_table: "coaching_cancellation" },
+        { from_table: "coaching_connect_account", from_column: "owner_id", to_table: "candidate" },
+        { from_table: "coaching_connect_account", from_column: "seller_id", to_table: "coaching_seller" },
+        { from_table: "coaching_connect_allocation", from_column: "batch_id", to_table: "coaching_connect_batch" },
+        { from_table: "coaching_connect_allocation", from_column: "payment_id", to_table: "coaching_connect_earning" },
+        { from_table: "coaching_connect_batch", from_column: "seller_id", to_table: "coaching_seller" },
+        { from_table: "coaching_connect_earning", from_column: "payment_id", to_table: "coaching_connect_payment" },
+        { from_table: "coaching_connect_payment", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coaching_connect_payment", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_connect_payment", from_column: "quote_id", to_table: "coaching_offer_quote" },
+        { from_table: "coaching_connect_payment", from_column: "recipient_id", to_table: "coaching_seller" },
+        { from_table: "coaching_content_case", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_content_report", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coaching_content_report", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_content_report", from_column: "id", to_table: "coaching_content_case" },
+        { from_table: "coaching_content_report_notice", from_column: "case_id", to_table: "coaching_content_case" },
+        { from_table: "coaching_notice", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_notice", from_column: "recipient_id", to_table: "candidate" },
+        { from_table: "coaching_notice", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_notice_channel", from_column: "notice_key", to_table: "coaching_notice" },
+        { from_table: "coaching_notice_event", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_notice_setting", from_column: "recipient_id", to_table: "candidate" },
+        { from_table: "coaching_offer", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_offer", from_column: "payout_seller_id", to_table: "coaching_seller" },
+        { from_table: "coaching_offer", from_column: "seller_id", to_table: "coaching_seller" },
+        { from_table: "coaching_offer_quote", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coaching_offer_quote", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_seller", from_column: "association_id", to_table: "coach_association" },
+        { from_table: "coaching_seller", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coaching_service_refund", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coaching_service_refund", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_service_refund_attempt", from_column: "refund_id", to_table: "coaching_service_refund" },
+        { from_table: "coaching_service_refund_resource", from_column: "refund_id", to_table: "coaching_service_refund" },
+        { from_table: "coaching_session_contact", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_session_sale", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "coaching_tax_copy", from_column: "recipient_id", to_table: "candidate" },
+        { from_table: "coaching_tax_copy", from_column: "report_id", to_table: "coaching_tax_report" },
+        { from_table: "coaching_tax_copy", from_column: "seller_id", to_table: "coaching_seller" },
+        { from_table: "coaching_tax_identity", from_column: "owner_id", to_table: "candidate" },
+        { from_table: "coaching_tax_identity", from_column: "seller_id", to_table: "coaching_seller" },
+        { from_table: "coaching_tax_report", from_column: "created_by", to_table: "candidate" },
+        { from_table: "private_coach_note", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "private_coach_note", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "private_coach_note", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "session_report", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "session_report", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "session_report", from_column: "session_id", to_table: "coaching_session" },
+        { from_table: "shared_reading", from_column: "session_id", to_table: "coaching_session" },
+      ].sort((a, b) => {
+        const left = [a.from_table, a.from_column, a.to_table].join("\0");
+        const right = [b.from_table, b.from_column, b.to_table].join("\0");
+        return left < right ? -1 : left > right ? 1 : 0;
+      }));
       // The Plans start with the quotas of issue #22, plus Job Searches (issue #14), counted per week (ADR-0032); re-running keeps them.
       const startingQuotas = [
         { plan: "free", profiles: 1, match_scores: 1, ats_scores: 1, enriched_contacts: 0, job_searches: 1, job_digest: "none" },

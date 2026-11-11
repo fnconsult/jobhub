@@ -136,7 +136,7 @@ test.describe("Explainer Videos in the Help Centre (#568)", () => {
     const asked = bucketRequests(page, media.origin);
     const response = await page.goto(`${server.origin}/aide/utiliser/tutorial-e2e-video`, { timeout: 120_000 });
     // Media only from the bucket's origin, nothing else.
-    expect(response!.headers()["content-security-policy"]).toBe(`media-src ${media.origin}`);
+    expect(response!.headers()["content-security-policy"]).toBe(`media-src ${media.origin}; frame-src 'self' https://cal.com https://app.cal.com`);
 
     const main = page.getByRole("main");
     await expect(main.getByRole("heading", { level: 1 })).toHaveText("Essai de vidéo");

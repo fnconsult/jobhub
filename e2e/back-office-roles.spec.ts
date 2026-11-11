@@ -167,6 +167,8 @@ test.describe("Back Office Roles", () => {
   });
 
   test("each role reaches exactly its sections; Support reads without any way to save", async ({ page, browser }) => {
+    // Three complete route inventories, plus account/MFA setup, outgrow a single-page timeout.
+    test.setTimeout(180_000);
     await signInWithMagicLink(page, SUPER_ADMIN);
     const plans = newAddress("plans-manager");
     const coaches = newAddress("coach-manager");
@@ -203,7 +205,7 @@ test.describe("Back Office Roles", () => {
     await expect(supportPage.getByRole("button", { name: admin.humanCoaches.add })).toBeDisabled();
     await expect(supportPage.getByLabel(admin.humanCoaches.name)).toBeDisabled();
     for (const retire of await supportPage.getByRole("button", { name: tr(admin.humanCoaches.retire, { name: "" }) }).all()) await expect(retire).toBeDisabled();
-    await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
+    for (const control of await supportPage.getByRole("main").locator('form :is(input:not([type="hidden"]),select,textarea,button)').all()) await expect(control).toBeDisabled();
     // The search sites, on Paramètres' tabs (#396): Sources, Recherche web (Job discovery sites) and Extension (Job Sites).
     await supportPage.goto(SOURCES);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();

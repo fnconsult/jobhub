@@ -20,3 +20,11 @@ Email intake reads the text of each Received offer email with an AI step, the `o
 
 - Each Job Offer from an email then follows the usual path: deduplication before the Candidate sees it, Job Offer Summary and sector (a private one's from its excerpt only), Match Score by rules, expiry re-checks when an Application follows it.
 - Changing the email Guardrail's settings plays its Eval Cases, like every Guardrail (ADR-0023).
+
+## Public linked postings before classification (#973)
+
+An alert's public posting is read before its Match Score and Profile assignment, using the existing polite page reader (ADR-0002), JobPosting extraction and public `offer_analysis` fallback. Only the normalized link and public posting are sent to that path; recruiter correspondence never is. Reading a recruiter message still produces a private Job Offer from the guarded email alone (ADR-0049).
+
+An omitted link is recovered only when an exact anchor title identifies one distinct destination in the guarded text. Otherwise the existing three tries within 72 hours apply. An inaccessible alert source becomes « À capturer », without a heading-only Job Offer or Match Score. Missing source fields stay unknown; publication is never inferred from email reception. Each stored posting's Provenance includes its own source reading and scoring, not the other postings in its email.
+
+Historical imports are not automatically rewritten: the bounded read-only repair planner proposes details and recalculated assignments against existing identities. A separate authorized maintenance operation must review and apply those proposals, with concurrency checks; missing links and private correspondence are skipped.

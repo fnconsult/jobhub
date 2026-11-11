@@ -96,31 +96,35 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
     }
   });
 
-  it("keeps a stopped first request empty, including after reloading its saved context (#810)", async () => {
+  it.each([false, true])("keeps a stopped first AI request empty, including with a Human Coach report (%s) and after reload (#810)", async (humanReport) => {
     const context = { messages: 1, tokens: 1200 };
+    const report = { from: "coach", text: "Compte rendu du coach humain", humanCoach: { id: "55555555-5555-4555-8555-555555555555", name: "Sophie", photoUrl: null } };
+    let stopped = false;
     vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "/api/coach" && init?.method === "POST") {
         const encoder = new TextEncoder();
         const body = new ReadableStream<Uint8Array>({ start(controller) {
           controller.enqueue(encoder.encode(`${JSON.stringify({ type: "conversation", conversation: CONVERSATION })}\n`));
           init.signal!.addEventListener("abort", () => {
+            stopped = true;
             controller.enqueue(encoder.encode(`${JSON.stringify({ type: "stopped", conversation: CONVERSATION, context })}\n`));
             controller.close();
           });
         } });
         return new Response(body, { headers: { "content-type": "application/x-ndjson" } });
       }
-      return Response.json({ conversation: { ...CONVERSATION, aiDisclosure: true, messages: [{ from: "candidate", text: "Bonjour" }], context } });
+      return Response.json({ conversation: { ...CONVERSATION, aiDisclosure: true, messages: [...(humanReport ? [report] : []), ...(!humanReport || stopped ? [{ from: "candidate", text: "Bonjour" }] : [])], context: humanReport && !stopped ? null : context } });
     }));
     const user = userEvent.setup();
-    const live = renderInFrench(<HomePage conversationId={null} />);
+    const live = renderInFrench(<HomePage conversationId={humanReport ? CONVERSATION.id : null} />);
+    if (humanReport) await screen.findByText(report.text);
     await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Bonjour{Enter}");
     await user.click(await screen.findByRole("button", { name: "Arrêter" }));
     await screen.findByText("Réponse arrêtée");
     expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy();
     live.unmount();
     renderInFrench(<HomePage />);
-    await screen.findByText("Bonjour");
+    await screen.findByText(humanReport ? report.text : "Bonjour");
     await waitFor(() => expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy());
     expect(within(bar()).queryByText(/1,2k/)).toBeNull();
   });

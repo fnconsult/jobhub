@@ -335,7 +335,7 @@ export function CoachConversationPage(page: PagePlacement) {
   const registerPage = conversationFirst?.setPage;
   const conversationOnPage = conversation?.id ?? null;
   const replying = status === "sending";
-  const hasReplied = messages.some((message) => message.from === "coach");
+  const hasReplied = messages.some((message) => message.from === "coach" && !message.humanCoach);
   useEffect(() => {
     if (!registerPage) return;
     registerPage({

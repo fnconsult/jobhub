@@ -46,8 +46,156 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
   async function configured(coachId: string, within: Queryable = database) {
     return (await within.query<{ event: CalEventType }>("SELECT event FROM coaching_cal_event_type WHERE coach_id=$1", [coachId])).rows[0]?.event ?? null;
   }
+  async function apply(event: z.infer<typeof eventSchema>, key: string) {
+    const payload = event.payload,
+      at = new Date(event.createdAt),
+      token = readBookingToken(payload.metadata?.jobbbox_session, deps.secret);
+    return inTransaction(database, async (within) => {
+      // Discover by bound UID first: later cancellations need not repeat the original metadata.
+      const identity = (
+        await within.query<{ sessionId: string }>(
+          `SELECT session_id AS "sessionId" FROM coaching_cal_booking WHERE uid=$1 OR ($2::text IS NOT NULL AND uid=$2) OR ($3::uuid IS NOT NULL AND session_id=$3) ORDER BY CASE WHEN uid=$1 THEN 0 ELSE 1 END LIMIT 1`,
+          [payload.uid, payload.rescheduleUid ?? null, token?.sessionId ?? null],
+        )
+      ).rows[0];
+      let applied = false,
+        associated: string | null = null,
+        reason = "unknown_booking";
+      if (!identity) {
+        const erased = (
+          await within.query<{ forgetAt: Date }>(
+            `SELECT forget_at AS "forgetAt" FROM coaching_cal_erased_booking WHERE event_type_id=$1 AND (uid=$2 OR uid=$3) AND forget_at>$5 UNION ALL SELECT forget_at FROM coaching_cal_erased_claim WHERE event_type_id=$1 AND nonce=$4 AND forget_at>$5 LIMIT 1`,
+            [payload.eventTypeId, payload.uid, payload.rescheduleUid ?? null, token?.nonce ?? null, now()],
+          )
+        ).rows[0];
+        if (erased) {
+          await within.query("INSERT INTO coaching_cal_cancellation(uid,queued_at) VALUES($1,$2) ON CONFLICT DO NOTHING", [payload.uid, now()]);
+          await within.query("INSERT INTO coaching_cal_erased_booking(uid,event_type_id,forget_at) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", [
+            payload.uid,
+            payload.eventTypeId,
+            erased.forgetAt,
+          ]);
+          reason = "erased_session";
+        }
+      }
+      if (identity) {
+        const session = (
+          await within.query<{ scheduledAt: Date | null; withdrawnAt: Date | null; retiredAt: Date | null }>(
+            `SELECT s.scheduled_at AS "scheduledAt",s.withdrawn_at AS "withdrawnAt",h.retired_at AS "retiredAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id WHERE s.id=$1 FOR UPDATE OF s`,
+            [identity.sessionId],
+          )
+        ).rows[0];
+        const booking = (await within.query<Booking>(`SELECT ${BOOKING} FROM coaching_cal_booking WHERE session_id=$1 FOR UPDATE`, [identity.sessionId]))
+          .rows[0];
+        if (session && booking) {
+          const bound = booking.uid !== null,
+            first = event.triggerEvent === "BOOKING_CREATED" && !bound;
+          const validToken = token?.sessionId === booking.sessionId && token.nonce === booking.nonce && token.expires === booking.expiresAt.getTime();
+          const same = booking.uid === payload.uid,
+            chain = event.triggerEvent === "BOOKING_RESCHEDULED" && payload.uid !== payload.rescheduleUid && booking.uid === payload.rescheduleUid;
+          if (booking.event.id === payload.eventTypeId && (validToken || same || chain)) associated = identity.sessionId;
+          reason = "invalid_claim";
+          if (booking.event.id === payload.eventTypeId && (first ? validToken && token.expires > now().getTime() && !session.scheduledAt : same || chain)) {
+            reason = "stale_event";
+            if (
+              (!booking.lastEventAt ||
+                at > booking.lastEventAt ||
+                (at.getTime() === booking.lastEventAt.getTime() && (chain || event.triggerEvent === "BOOKING_CANCELLED"))) &&
+              (!bound || booking.state === "booked")
+            ) {
+              const start = new Date(payload.startTime),
+                end = new Date(payload.endTime),
+                cancelled = event.triggerEvent === "BOOKING_CANCELLED";
+              reason = "invalid_duration";
+              if (cancelled || ((!first || start > now()) && end.getTime() - start.getTime() === booking.event.durationMinutes * 60000)) {
+                if (session.withdrawnAt || session.retiredAt) {
+                  await within.query("INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", [
+                    payload.uid,
+                    identity.sessionId,
+                    now(),
+                  ]);
+                  reason = "session_unavailable";
+                } else {
+                  // Cal.com's actor is not authenticated by an attendee email: label the source explicitly.
+                  if (session.scheduledAt && (cancelled || session.scheduledAt.getTime() !== start.getTime()))
+                    await within.query(
+                      "INSERT INTO coaching_session_reschedule(coaching_session_id,previous_at,new_at,changed_by,changed_at) VALUES($1,$2,$3,'cal_com',$4)",
+                      [identity.sessionId, session.scheduledAt, cancelled ? null : start, at],
+                    );
+                  await within.query("SELECT set_config('jobbbox.cal_webhook','1',true)");
+                  await within.query("UPDATE coaching_session SET scheduled_at=$2,date_set_at=$3,changed_by='cal_com' WHERE id=$1", [
+                    identity.sessionId,
+                    cancelled ? null : start,
+                    cancelled ? null : at,
+                  ]);
+                  await within.query("UPDATE coaching_cal_booking SET uid=$2,state=$3,last_event_at=$4 WHERE session_id=$1", [
+                    identity.sessionId,
+                    payload.uid,
+                    cancelled ? "cancelled" : "booked",
+                    at,
+                  ]);
+                  applied = true;
+                  reason = "applied";
+                }
+              }
+            }
+          }
+        }
+      }
+      let deferred = false;
+      if (event.triggerEvent !== "BOOKING_CREATED" && (reason === "unknown_booking" || reason === "invalid_claim")) {
+        const known = (
+          await within.query(
+            "SELECT 1 FROM coaching_cal_booking WHERE (event->>'id')::integer=$1 UNION ALL SELECT 1 FROM coaching_cal_erased_booking WHERE event_type_id=$1 LIMIT 1",
+            [payload.eventTypeId],
+          )
+        ).rowCount;
+        if (known) {
+          deferred = true;
+          reason = "awaiting_predecessor";
+        }
+      }
+      const written = await within.query(
+        "INSERT INTO coaching_cal_delivery(hash,session_id,received_at,reason) VALUES($1,$2,$3,$4) ON CONFLICT(hash) DO UPDATE SET reason=excluded.reason,session_id=coalesce(coaching_cal_delivery.session_id,excluded.session_id) WHERE coaching_cal_delivery.reason<>'applied' RETURNING hash",
+        [key, associated, now(), reason],
+      );
+      if (deferred && written.rowCount) {
+        // Only authenticated routing/date facts survive: no participant, raw metadata, token or free-form reason.
+        const minimal = {
+          triggerEvent: event.triggerEvent,
+          createdAt: event.createdAt,
+          payload: {
+            uid: payload.uid,
+            eventTypeId: payload.eventTypeId,
+            rescheduleUid: payload.rescheduleUid ?? null,
+            startTime: payload.startTime,
+            endTime: payload.endTime,
+          },
+        };
+        await within.query("INSERT INTO coaching_cal_pending(hash,event) VALUES($1,$2) ON CONFLICT DO NOTHING", [key, minimal]);
+      } else if (!deferred || !written.rowCount) await within.query("DELETE FROM coaching_cal_pending WHERE hash=$1", [key]);
+      // The date equality/order checks already make duplicate effects impossible; the durable key scopes notices too.
+      if (applied && written.rowCount)
+        await within.query("INSERT INTO coaching_cal_notice(event_key,session_id) VALUES($1,$2) ON CONFLICT DO NOTHING", [key, identity!.sessionId]);
+      return applied && !!written.rowCount;
+    });
+  }
+  /** A predecessor may commit after its successor was received; both HTTP and Worker paths drain durable causal chains. */
+  async function replayPending(limit = 50) {
+    for (let count = 0; count < limit; count++) {
+      const pending = (
+        await database.query<{ hash: string; event: z.infer<typeof eventSchema> }>(
+          `SELECT p.hash,p.event FROM coaching_cal_pending p WHERE EXISTS(SELECT 1 FROM coaching_cal_booking b WHERE (b.event->>'id')::integer=(p.event#>>'{payload,eventTypeId}')::integer AND (b.uid=p.event#>>'{payload,uid}' OR b.uid=p.event#>>'{payload,rescheduleUid}')) OR EXISTS(SELECT 1 FROM coaching_cal_erased_booking b WHERE b.event_type_id=(p.event#>>'{payload,eventTypeId}')::integer AND b.forget_at>$1 AND (b.uid=p.event#>>'{payload,uid}' OR b.uid=p.event#>>'{payload,rescheduleUid}')) ORDER BY (p.event->>'createdAt')::timestamptz,p.hash LIMIT 1`,
+          [now()],
+        )
+      ).rows[0];
+      if (!pending) return;
+      await apply(pending.event, pending.hash);
+    }
+  }
   return {
     configured,
+    replayPending,
     async paths(candidateId: string) {
       if (!(await permitted())) return {} as Record<string, string>;
       const rows = (
@@ -147,106 +295,17 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
       const parsed = eventSchema.safeParse(json);
       if (!parsed.success) return { verified: true, applied: false };
       const event = parsed.data,
-        payload = event.payload,
         key = createHash("sha256").update(body).digest("hex"),
         at = new Date(event.createdAt);
       if (at.getTime() > now().getTime() + 300000) return { verified: true, applied: false };
-      const token = readBookingToken(payload.metadata?.jobbbox_session, deps.secret);
-      const result = await inTransaction(database, async (within) => {
-        // Discover by bound UID first: later cancellations need not repeat the original metadata.
-        const identity = (
-          await within.query<{ sessionId: string }>(
-            `SELECT session_id AS "sessionId" FROM coaching_cal_booking WHERE uid=$1 OR ($2::text IS NOT NULL AND uid=$2) OR ($3::uuid IS NOT NULL AND session_id=$3) ORDER BY CASE WHEN uid=$1 THEN 0 ELSE 1 END LIMIT 1`,
-            [payload.uid, payload.rescheduleUid ?? null, token?.sessionId ?? null],
-          )
-        ).rows[0];
-        let applied = false,
-          reason = "unknown_booking";
-        if (!identity && token) {
-          const erased = (
-            await within.query("SELECT 1 FROM coaching_cal_erased_claim WHERE nonce=$1 AND event_type_id=$2 AND forget_at>$3", [
-              token.nonce,
-              payload.eventTypeId,
-              now(),
-            ])
-          ).rowCount;
-          if (erased) {
-            await within.query("INSERT INTO coaching_cal_cancellation(uid,queued_at) VALUES($1,$2) ON CONFLICT DO NOTHING", [payload.uid, now()]);
-            reason = "erased_session";
-          }
-        }
-        if (identity) {
-          const session = (
-            await within.query<{ scheduledAt: Date | null; withdrawnAt: Date | null; retiredAt: Date | null }>(
-              `SELECT s.scheduled_at AS "scheduledAt",s.withdrawn_at AS "withdrawnAt",h.retired_at AS "retiredAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id WHERE s.id=$1 FOR UPDATE OF s`,
-              [identity.sessionId],
-            )
-          ).rows[0];
-          const booking = (await within.query<Booking>(`SELECT ${BOOKING} FROM coaching_cal_booking WHERE session_id=$1 FOR UPDATE`, [identity.sessionId]))
-            .rows[0];
-          if (session && booking) {
-            const bound = booking.uid !== null,
-              first = event.triggerEvent === "BOOKING_CREATED" && !bound;
-            const validToken = token?.sessionId === booking.sessionId && token.nonce === booking.nonce && token.expires === booking.expiresAt.getTime();
-            const same = booking.uid === payload.uid,
-              chain = event.triggerEvent === "BOOKING_RESCHEDULED" && booking.uid === payload.rescheduleUid;
-            reason = "invalid_claim";
-            if (booking.event.id === payload.eventTypeId && (first ? validToken && token.expires > now().getTime() && !session.scheduledAt : same || chain)) {
-              reason = "stale_event";
-              if ((!booking.lastEventAt || at > booking.lastEventAt) && (!bound || booking.state === "booked")) {
-                const start = new Date(payload.startTime),
-                  end = new Date(payload.endTime),
-                  cancelled = event.triggerEvent === "BOOKING_CANCELLED";
-                reason = "invalid_duration";
-                if (cancelled || ((!first || start > now()) && end.getTime() - start.getTime() === booking.event.durationMinutes * 60000)) {
-                  if (session.withdrawnAt || session.retiredAt) {
-                    await within.query("INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", [
-                      payload.uid,
-                      identity.sessionId,
-                      now(),
-                    ]);
-                    reason = "session_unavailable";
-                  } else {
-                    // Cal.com's actor is not authenticated by an attendee email: label the source explicitly.
-                    if (session.scheduledAt && (cancelled || session.scheduledAt.getTime() !== start.getTime()))
-                      await within.query(
-                        "INSERT INTO coaching_session_reschedule(coaching_session_id,previous_at,new_at,changed_by,changed_at) VALUES($1,$2,$3,'cal_com',$4)",
-                        [identity.sessionId, session.scheduledAt, cancelled ? null : start, at],
-                      );
-                    await within.query("SELECT set_config('jobbbox.cal_webhook','1',true)");
-                    await within.query("UPDATE coaching_session SET scheduled_at=$2,date_set_at=$3,changed_by='cal_com' WHERE id=$1", [
-                      identity.sessionId,
-                      cancelled ? null : start,
-                      cancelled ? null : at,
-                    ]);
-                    await within.query("UPDATE coaching_cal_booking SET uid=$2,state=$3,last_event_at=$4 WHERE session_id=$1", [
-                      identity.sessionId,
-                      payload.uid,
-                      cancelled ? "cancelled" : "booked",
-                      at,
-                    ]);
-                    applied = true;
-                    reason = "applied";
-                  }
-                }
-              }
-            }
-          }
-        }
-        const written = await within.query(
-          "INSERT INTO coaching_cal_delivery(hash,session_id,received_at,reason) VALUES($1,$2,$3,$4) ON CONFLICT(hash) DO UPDATE SET reason=excluded.reason WHERE coaching_cal_delivery.reason<>'applied' RETURNING hash",
-          [key, identity?.sessionId ?? null, now(), reason],
-        );
-        // The date equality/order checks already make duplicate effects impossible; the durable key scopes notices too.
-        if (applied && written.rowCount)
-          await within.query("INSERT INTO coaching_cal_notice(event_key,session_id) VALUES($1,$2) ON CONFLICT DO NOTHING", [key, identity!.sessionId]);
-        return applied && !!written.rowCount;
-      });
+      const result = await apply(event, key);
+      await replayPending();
       return { verified: true, applied: result };
     },
     /** Non-blocking for the refund caller: work is already durably queued by the session trigger. */
     async purge() {
       const before = new Date(now().getTime() - 30 * 86400000);
+      await database.query("DELETE FROM coaching_cal_erased_booking WHERE forget_at<$1", [now()]);
       await database.query("DELETE FROM coaching_cal_erased_claim WHERE forget_at<$1", [now()]);
       await database.query("DELETE FROM coaching_cal_delivery WHERE received_at<$1", [before]);
       await database.query("DELETE FROM coaching_cal_notice WHERE sent_at<$1", [before]);
@@ -297,11 +356,16 @@ export async function migrateCoachingBooking(database: Pool) {
  CREATE TABLE IF NOT EXISTS coaching_cal_creation(coach_id uuid PRIMARY KEY REFERENCES human_coach(id),started_at timestamptz NOT NULL,event_type_id integer);
  CREATE TABLE IF NOT EXISTS coaching_cal_booking(session_id uuid PRIMARY KEY REFERENCES coaching_session(id) ON DELETE CASCADE,event jsonb NOT NULL,nonce uuid NOT NULL,expires_at timestamptz NOT NULL,uid text UNIQUE,state text NOT NULL,last_event_at timestamptz);
  CREATE TABLE IF NOT EXISTS coaching_cal_delivery(hash text PRIMARY KEY,session_id uuid REFERENCES coaching_session(id) ON DELETE CASCADE,received_at timestamptz NOT NULL,reason text NOT NULL);
+ CREATE TABLE IF NOT EXISTS coaching_cal_pending(hash text PRIMARY KEY REFERENCES coaching_cal_delivery(hash) ON DELETE CASCADE,event jsonb NOT NULL);
+ CREATE TABLE IF NOT EXISTS coaching_cal_erased_booking(uid text PRIMARY KEY,event_type_id integer NOT NULL,forget_at timestamptz NOT NULL);
  CREATE TABLE IF NOT EXISTS coaching_cal_cancellation(uid text PRIMARY KEY,session_id uuid REFERENCES coaching_session(id) ON DELETE SET NULL,queued_at timestamptz NOT NULL,retry_at timestamptz,done_at timestamptz);
  CREATE TABLE IF NOT EXISTS coaching_cal_erased_claim(nonce uuid PRIMARY KEY,event_type_id integer NOT NULL,forget_at timestamptz NOT NULL);
  CREATE TABLE IF NOT EXISTS coaching_cal_notice(event_key text PRIMARY KEY,session_id uuid NOT NULL REFERENCES coaching_session(id) ON DELETE CASCADE,retry_at timestamptz,sent_at timestamptz);
  CREATE OR REPLACE FUNCTION coaching_cal_session_lifecycle() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
   IF TG_OP='DELETE' THEN
+   INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) SELECT p.event#>>'{payload,uid}',OLD.id,clock_timestamp() FROM coaching_cal_pending p JOIN coaching_cal_delivery d ON d.hash=p.hash WHERE d.session_id=OLD.id ON CONFLICT DO NOTHING;
+   INSERT INTO coaching_cal_erased_booking(uid,event_type_id,forget_at) SELECT p.event#>>'{payload,uid}',(p.event#>>'{payload,eventTypeId}')::integer,clock_timestamp()+interval '7 days' FROM coaching_cal_pending p JOIN coaching_cal_delivery d ON d.hash=p.hash WHERE d.session_id=OLD.id ON CONFLICT DO NOTHING;
+   INSERT INTO coaching_cal_erased_booking(uid,event_type_id,forget_at) SELECT uid,(event->>'id')::integer,clock_timestamp()+interval '7 days' FROM coaching_cal_booking WHERE session_id=OLD.id AND uid IS NOT NULL ON CONFLICT DO NOTHING;
    INSERT INTO coaching_cal_erased_claim(nonce,event_type_id,forget_at) SELECT nonce,(event->>'id')::integer,clock_timestamp()+interval '7 days' FROM coaching_cal_booking WHERE session_id=OLD.id ON CONFLICT DO NOTHING;
   END IF;
   IF TG_OP='DELETE' OR (NEW.withdrawn_at IS NOT NULL AND OLD.withdrawn_at IS NULL) THEN
@@ -309,7 +373,7 @@ export async function migrateCoachingBooking(database: Pool) {
   ELSIF NEW.scheduled_at IS NULL AND OLD.scheduled_at IS NOT NULL AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' THEN
    INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) SELECT uid,OLD.id,clock_timestamp() FROM coaching_cal_booking WHERE session_id=OLD.id AND uid IS NOT NULL AND state='booked' ON CONFLICT DO NOTHING;
    UPDATE coaching_cal_booking SET state='cancelled' WHERE session_id=OLD.id;
-  ELSIF NEW.withdrawn_at IS NULL AND NEW.scheduled_at IS DISTINCT FROM OLD.scheduled_at AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' AND EXISTS(SELECT 1 FROM coaching_cal_booking WHERE session_id=OLD.id AND state='booked') THEN
+  ELSIF NEW.withdrawn_at IS NULL AND (NEW.scheduled_at IS DISTINCT FROM OLD.scheduled_at OR NEW.duration_minutes IS DISTINCT FROM OLD.duration_minutes) AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' AND EXISTS(SELECT 1 FROM coaching_cal_booking WHERE session_id=OLD.id AND state='booked') THEN
    RAISE EXCEPTION 'Use Cal.com for a linked booking' USING ERRCODE='23514';
   END IF;
   IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
@@ -348,5 +412,11 @@ export async function bookingDataOf(database: Queryable, candidateId: string) {
       [candidateId],
     )
   ).rows;
-  return { bookings, deliveries, notices, cancellations };
+  const pending = (
+    await database.query(
+      `SELECT d.session_id AS "sessionId",p.event FROM coaching_cal_pending p JOIN coaching_cal_delivery d ON d.hash=p.hash JOIN coaching_session s ON s.id=d.session_id WHERE s.candidate_id=$1 ORDER BY d.received_at,p.hash`,
+      [candidateId],
+    )
+  ).rows;
+  return { bookings, deliveries, notices, cancellations, pending };
 }

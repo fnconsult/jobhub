@@ -201,6 +201,120 @@ describe.skipIf(!connectionString)("paid Cal.com bookings", () => {
     expect(await uncertain.create(coach, input)).toBeNull();
     expect(calls).toBe(1);
   });
+  it.each([false, true])("replays C-before-B and cancellation-before-B without retaining raw metadata (metadata %s)", async (withMetadata) => {
+    const claim = (await booking.forCandidate(buyer, session))!;
+    await send(body(claim.token));
+    const token = withMetadata ? claim.token : null;
+    const successor = body(
+      token,
+      "BOOKING_RESCHEDULED",
+      "cal_C",
+      {
+        rescheduleUid: "cal_B",
+        startTime: "2026-11-24T10:00:00Z",
+        endTime: "2026-11-24T11:30:00Z",
+        attendees: [{ email: "PRIVATE_CAL_EMAIL" }],
+        cancellationReason: "PRIVATE_CAL_REASON",
+      },
+      "2026-11-10T12:02:00Z",
+    );
+    await Promise.all([send(successor), send(successor)]);
+    expect((await auth.database.query("SELECT event FROM coaching_cal_pending")).rows).toHaveLength(1);
+    expect(JSON.stringify((await auth.database.query("SELECT event FROM coaching_cal_pending")).rows)).not.toMatch(/metadata|PRIVATE_CAL|expires/);
+    const predecessor = body(
+      token,
+      "BOOKING_RESCHEDULED",
+      "cal_B",
+      { rescheduleUid: "cal_one", startTime: "2026-11-22T10:00:00Z", endTime: "2026-11-22T11:30:00Z" },
+      "2026-11-10T12:01:00Z",
+    );
+    await Promise.all([send(predecessor), send(predecessor)]);
+    expect(await date()).toEqual(new Date("2026-11-24T10:00Z"));
+    expect((await auth.database.query("SELECT count(*)::int AS n FROM coaching_cal_pending")).rows[0].n).toBe(0);
+  });
+  it("holds a future UID cancellation until its entire causal chain is known", async () => {
+    const claim = (await booking.forCandidate(buyer, session))!;
+    await send(body(claim.token));
+    await send(body(null, "BOOKING_CANCELLED", "cal_C", {}, "2026-11-10T12:03:00Z"));
+    await send(
+      body(
+        null,
+        "BOOKING_RESCHEDULED",
+        "cal_C",
+        { rescheduleUid: "cal_B", startTime: "2026-11-24T10:00:00Z", endTime: "2026-11-24T11:30:00Z" },
+        "2026-11-10T12:02:00Z",
+      ),
+    );
+    await send(
+      body(
+        null,
+        "BOOKING_RESCHEDULED",
+        "cal_B",
+        { rescheduleUid: "cal_one", startTime: "2026-11-22T10:00:00Z", endTime: "2026-11-22T11:30:00Z" },
+        "2026-11-10T12:01:00Z",
+      ),
+    );
+    expect(await date()).toBeNull();
+    expect((await auth.database.query("SELECT state,uid FROM coaching_cal_booking")).rows[0]).toEqual({ state: "cancelled", uid: "cal_C" });
+    expect((await auth.database.query("SELECT count(*)::int AS n FROM coaching_cal_notice")).rows[0].n).toBe(4);
+  });
+  it("recovers an already committed predecessor through the Worker after a process failure", async () => {
+    const claim = (await booking.forCandidate(buyer, session))!;
+    await send(body(claim.token));
+    await send(
+      body(
+        null,
+        "BOOKING_RESCHEDULED",
+        "cal_C",
+        { rescheduleUid: "cal_B", startTime: "2026-11-24T10:00:00Z", endTime: "2026-11-24T11:30:00Z" },
+        "2026-11-10T12:02:00Z",
+      ),
+    );
+    const crashing = new Proxy(auth.database, {
+      get(target, key) {
+        const value = Reflect.get(target, key);
+        if (key === "query")
+          return (...args: unknown[]) => {
+            if (String(args[0]).includes("SELECT p.hash")) throw new Error("process stopped before replay");
+            return Reflect.apply(target.query, target, args);
+          };
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const process = coachingBooking(crashing, { secret: SECRET, webhookSecret: WEBHOOK, now: () => clock });
+    const predecessor = body(
+      null,
+      "BOOKING_RESCHEDULED",
+      "cal_B",
+      { rescheduleUid: "cal_one", startTime: "2026-11-22T10:00:00Z", endTime: "2026-11-22T11:30:00Z" },
+      "2026-11-10T12:01:00Z",
+    );
+    await expect(process.webhook(predecessor, createHmac("sha256", WEBHOOK).update(predecessor).digest("hex"))).rejects.toThrow("process stopped");
+    expect(await date()).toEqual(new Date("2026-11-22T10:00Z"));
+    await booking.replayPending();
+    expect(await date()).toEqual(new Date("2026-11-24T10:00Z"));
+  });
+  it.each([false, true])(
+    "cancels an out-of-order successor after purchaser erasure without keeping a Candidate/session identifier (metadata %s)",
+    async (withMetadata) => {
+      const claim = (await booking.forCandidate(buyer, session))!;
+      await send(body(claim.token));
+      await send(body(withMetadata ? claim.token : null, "BOOKING_RESCHEDULED", "cal_C", { rescheduleUid: "cal_B" }, "2026-11-10T12:02:00Z"));
+      await auth.database.query("DELETE FROM candidate WHERE id=$1", [buyer]);
+      await send(body(null, "BOOKING_RESCHEDULED", "cal_B", { rescheduleUid: "cal_one" }, "2026-11-10T12:01:00Z"));
+      await booking.deliverCancellations();
+      expect(cancelled.sort()).toEqual(["cal_B", "cal_C", "cal_one"].sort());
+      expect(
+        (await auth.database.query("SELECT * FROM coaching_cal_erased_booking")).rows.every((row) => !("session_id" in row) && !("candidate_id" in row)),
+      ).toBe(true);
+    },
+  );
+  it("rejects duration-only edits of a linked booking while preserving its original end boundary", async () => {
+    const claim = (await booking.forCandidate(buyer, session))!;
+    await send(body(claim.token));
+    await expect(auth.database.query("UPDATE coaching_session SET duration_minutes=30 WHERE id=$1", [session])).rejects.toThrow("Use Cal.com");
+    expect((await auth.database.query("SELECT duration_minutes FROM coaching_session WHERE id=$1", [session])).rows[0].duration_minutes).toBe(90);
+  });
   it("does not mint for another purchaser, withdrawn/retired sessions or a closed legal gate", async () => {
     const other = await person("other-booking@example.test");
     expect(await booking.forCandidate(other, session)).toBeNull();

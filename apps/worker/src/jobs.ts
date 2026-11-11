@@ -224,7 +224,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
-  coachingBooking?:{deliverCancellations():Promise<void>;deliverNotices():Promise<void>;purge():Promise<void>;observeLegal():Promise<boolean>};
+  coachingBooking?:{replayPending():Promise<void>;deliverCancellations():Promise<void>;deliverNotices():Promise<void>;purge():Promise<void>;observeLegal():Promise<boolean>};
   coachingConnect?:{runMonthly():Promise<unknown>;purge():Promise<number>};
   coachPages?:{deliverNotices():Promise<number>;purge():Promise<number>};
   coachAssociations?:{deliverInvitations():Promise<number>;purge():Promise<number>};
@@ -655,7 +655,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
-    "coaching-booking.sync":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingBooking?.deliverCancellations();await deps.coachingBooking?.deliverNotices();await deps.coachingBooking?.observeLegal();})},
+    "coaching-booking.sync":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingBooking?.replayPending();await deps.coachingBooking?.deliverCancellations();await deps.coachingBooking?.deliverNotices();await deps.coachingBooking?.observeLegal();})},
     "coaching-booking.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingBooking?.purge();})},
     "coaching-connect.payouts":{cron:"*/10 * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingConnect?.runMonthly();})},
     "coaching-connect.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingConnect?.purge();})},

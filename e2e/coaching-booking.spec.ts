@@ -145,21 +145,21 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
       ).toBe(200);
       return { checkout, id: (await database.query("SELECT id FROM coaching_session WHERE stripe_checkout_session_id=$1", [checkout])).rows[0].id };
     }
-    await buyer.setViewportSize({width:390,height:844});
+    await buyer.setViewportSize({ width: 390, height: 844 });
     const first = await paid("first");
     await buyer.goto(`/coachs?session=paid&checkout_id=${first.checkout}`);
     await expect(buyer.getByTestId("fake-cal-slot")).toBeVisible();
-    expect(await buyer.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await buyer.screenshot({path:"/tmp/coaching-booking-390.png",fullPage:true});
+    expect(await buyer.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await buyer.screenshot({ path: "/tmp/coaching-booking-390.png", fullPage: true });
     const token = await buyer.getByTestId("fake-cal-slot").getAttribute("data-token");
     expect(token).toBeTruthy();
-    const start = new Date(Date.now() + 14 * 86400000),
+    const start = new Date(Math.floor((Date.now() + 14 * 86400000) / 60000) * 60000),
       later = new Date(start.getTime() + 2 * 86400000);
     let sequence = 0;
-    async function delivery(kind: string, uid: string, claim: string | null, at: Date, extra: Record<string, unknown> = {}) {
+    async function delivery(kind: string, uid: string, claim: string | null, at: Date, extra: Record<string, unknown> = {},providerAt?:Date) {
       const raw = JSON.stringify({
         triggerEvent: kind,
-        createdAt: new Date(Date.now() + sequence++ * 10).toISOString(),
+        createdAt: (providerAt??new Date(Date.now() + sequence++ * 10)).toISOString(),
         payload: {
           uid,
           eventTypeId: 42,
@@ -183,7 +183,11 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
 
     await buyer.goto("/agenda");
     await expect(buyer.locator("body")).toContainText(NAME);
-    const moved = await delivery("BOOKING_RESCHEDULED", "cal_moved", null, later, { rescheduleUid: "cal_first" });
+    const causal=Date.now()+1000;
+    const successor=await delivery("BOOKING_RESCHEDULED","cal_final",null,later,{rescheduleUid:"cal_moved"},new Date(causal+200));
+    expect((await successor()).status()).toBe(200);
+    expect((await database.query("SELECT count(*)::int AS n FROM coaching_cal_pending")).rows[0].n).toBe(1);
+    const moved = await delivery("BOOKING_RESCHEDULED", "cal_moved", null, new Date(start.getTime()+86400000), { rescheduleUid: "cal_first" },new Date(causal+100));
     expect((await moved()).status()).toBe(200);
     expect((await database.query("SELECT scheduled_at FROM coaching_session WHERE id=$1", [first.id])).rows[0].scheduled_at).toEqual(later);
     await buyer.goto("/coachs");
@@ -194,10 +198,33 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
       data: { scheduledAt: "2030-05-01T12:00" },
     });
     expect(manual.status()).toBe(409);
+    const sameDate = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Europe/Paris",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+      .format(later)
+      .replace(" ", "T");
+    for (const person of [buyer, owner]) {
+      const route = person === buyer ? "/api/coaching/sessions" : "/api/coach-space/sessions";
+      const durationOnly = await person.request.patch(`${route}/${first.id}`, {
+        headers: { origin: own.origin },
+        data: { scheduledAt: sameDate, durationMinutes: 30 },
+      });
+      expect(durationOnly.status()).toBe(409);
+    }
+    expect((await database.query("SELECT duration_minutes FROM coaching_session WHERE id=$1", [first.id])).rows[0].duration_minutes ?? 60).toBe(60);
     const second = await paid("second");
     await buyer.goto(`/coachs/seances/${second.id}/reserver`);
     const token2 = await buyer.getByTestId("fake-cal-slot").getAttribute("data-token");
-    bookNow=async()=>{await(await delivery("BOOKING_CREATED","cal_second",token2,start))();};
+    bookNow = async () => {
+      await (
+        await delivery("BOOKING_CREATED", "cal_second", token2, start)
+      )();
+    };
     await buyer.getByTestId("fake-cal-slot").click();
     await expect(buyer.getByTestId("fake-cal-slot")).toHaveCount(0);
     await (
@@ -216,11 +243,11 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
       cal: calTeam({ apiKey: "test", fetch: (url, init) => fetch(`${remoteUrl}${new URL(String(url)).pathname}`, init) }),
     });
     await worker.deliverCancellations();
-    expect(cancelled.has("cal_moved")).toBe(false);
+    expect(cancelled.has("cal_final")).toBe(false);
     remoteFails = false;
     await database.query("UPDATE coaching_cal_cancellation SET retry_at=NULL");
     await worker.deliverCancellations();
-    expect(cancelled.has("cal_moved")).toBe(true);
+    expect(cancelled.has("cal_final")).toBe(true);
   } finally {
     remoteFails = false;
     await Promise.all([owner, admin, buyer, outsider].map((page) => page.context().close()));

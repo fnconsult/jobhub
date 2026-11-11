@@ -501,6 +501,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_access: "coachAccess",
   candidate_coaching_time_zone: "account.coachingTimeZone",
   coaching_session_contact: "coachingSessions[].meeting (session contact)",
+  coaching_cal_pending:"calBookings.pending (authenticated minimal routing/date facts awaiting a predecessor)",
   coaching_cal_booking:"calBookings.bookings (owned session routing facts, no token)",
   coaching_cal_delivery:"calBookings.deliveries (owned session receipt/rejection facts, no raw payload)",
   coaching_cal_notice:"calBookings.notices (owned change notifications)",

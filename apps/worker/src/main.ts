@@ -183,7 +183,7 @@ const connect=()=>{
 };
 const booking=()=>{const env=secrets.current().env;return coachingBooking(database,{secret:env.AUTH_SECRET??"",webhookSecret:env.CAL_COM_WEBHOOK_SECRET??"",...(env.CAL_COM_API_KEY?{cal:calTeam({apiKey:env.CAL_COM_API_KEY,fetch:recordingFetch(fetch,externalApis,{provider:"cal_com",operation:()=>"booking.cancel"})})}:{}),changed:(id,key)=>bookingChanged(database,pushNotifications,id,key)});};
 const jobs = createJobs({
-  coachingBooking:{deliverCancellations:()=>booking().deliverCancellations(),deliverNotices:()=>booking().deliverNotices(),purge:()=>booking().purge(),observeLegal:()=>calLegalReady(database)},
+  coachingBooking:{replayPending:()=>booking().replayPending(),deliverCancellations:()=>booking().deliverCancellations(),deliverNotices:()=>booking().deliverNotices(),purge:()=>booking().purge(),observeLegal:()=>calLegalReady(database)},
   coachingConnect:{runMonthly:()=>connect().runMonthly(),purge:()=>connect().purge()},
   coachPages:coachPages(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});}}),
   coachAssociations:coachAssociations(database,{secret:process.env.AUTH_SECRET??"",mayManage:async(person,id)=>(await coachContracts(database,{}).state(person,"association",id))?.accepted===true,sendInvitation:async(record,token)=>{await mailer.send({to:record.email,...associationInvitationEmail(record,token,baseURL)});}}),

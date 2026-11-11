@@ -134,8 +134,8 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
         .replace(/\p{Cc}/gu, " ")
         .slice(0, 160);
       const { rows } = await database.query<{ id: string }>(
-        `INSERT INTO coach_enrolment(kind,contact_name,legal_name,email,legal_status,siret,specialties,languages,presentation,locale,proof_name,proof,candidate_id,state,confirmed_at)
-     SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,(SELECT id FROM candidate WHERE email=$4),$13,$14
+        `INSERT INTO coach_enrolment(kind,contact_name,legal_name,email,legal_status,siret,specialties,languages,presentation,locale,proof_name,proof,candidate_id,state,confirmed_at,created_at)
+     SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,(SELECT id FROM candidate WHERE email=$4),$13,$14,$15
      WHERE NOT EXISTS(SELECT 1 FROM human_coach WHERE email=$4 AND retired_at IS NULL)
        AND NOT EXISTS(SELECT 1 FROM coach_association a JOIN coach_association_manager m ON m.association_id=a.id JOIN candidate c ON c.id=m.candidate_id WHERE c.email=$4 AND a.retired_at IS NULL)
      ON CONFLICT(email) WHERE state IN ('awaiting_email','pending') DO NOTHING RETURNING id`,
@@ -154,6 +154,7 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
           Buffer.from(proof.bytes),
           verified ? "pending" : "awaiting_email",
           verified ? now() : null,
+          now(),
         ],
       );
       const id = rows[0]?.id ?? null;

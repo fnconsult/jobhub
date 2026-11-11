@@ -78,6 +78,7 @@ test("anonymous report receives a receipt; audited human decision reaches both p
     expect((await database.query("SELECT count(*)::int AS n FROM back_office_audit WHERE target=$1", [report])).rows[0].n).toBeGreaterThan(0);
     await candidate.goto("/coachs");
     await expect(candidate.getByRole("heading", { name: "Public Coach", exact: true })).toHaveCount(0);
+    await visitor.evaluate(()=>window.scrollTo(0,0));
     await visitor.screenshot({ path: "/tmp/coaching-content-report-390.png", fullPage: true });
   } finally {
     await Promise.all([candidate.context().close(), visitor.context().close(), admin.context().close()]);

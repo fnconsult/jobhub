@@ -156,10 +156,10 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
     const start = new Date(Math.floor((Date.now() + 14 * 86400000) / 60000) * 60000),
       later = new Date(start.getTime() + 2 * 86400000);
     let sequence = 0;
-    async function delivery(kind: string, uid: string, claim: string | null, at: Date, extra: Record<string, unknown> = {},providerAt?:Date) {
+    async function delivery(kind: string, uid: string, claim: string | null, at: Date, extra: Record<string, unknown> = {}, providerAt?: Date) {
       const raw = JSON.stringify({
         triggerEvent: kind,
-        createdAt: (providerAt??new Date(Date.now() + sequence++ * 10)).toISOString(),
+        createdAt: (providerAt ?? new Date(Date.now() + sequence++ * 10)).toISOString(),
         payload: {
           uid,
           eventTypeId: 42,
@@ -183,11 +183,18 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
 
     await buyer.goto("/agenda");
     await expect(buyer.locator("body")).toContainText(NAME);
-    const causal=Date.now()+1000;
-    const successor=await delivery("BOOKING_RESCHEDULED","cal_final",null,later,{rescheduleUid:"cal_moved"},new Date(causal+200));
+    const causal = Date.now() + 1000;
+    const successor = await delivery("BOOKING_RESCHEDULED", "cal_final", null, later, { rescheduleUid: "cal_moved" }, new Date(causal + 200));
     expect((await successor()).status()).toBe(200);
     expect((await database.query("SELECT count(*)::int AS n FROM coaching_cal_pending")).rows[0].n).toBe(1);
-    const moved = await delivery("BOOKING_RESCHEDULED", "cal_moved", null, new Date(start.getTime()+86400000), { rescheduleUid: "cal_first" },new Date(causal+100));
+    const moved = await delivery(
+      "BOOKING_RESCHEDULED",
+      "cal_moved",
+      null,
+      new Date(start.getTime() + 86400000),
+      { rescheduleUid: "cal_first" },
+      new Date(causal + 100),
+    );
     expect((await moved()).status()).toBe(200);
     expect((await database.query("SELECT scheduled_at FROM coaching_session WHERE id=$1", [first.id])).rows[0].scheduled_at).toEqual(later);
     await buyer.goto("/coachs");
@@ -237,6 +244,18 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
     await buyer.getByRole("button", { name: fr.withdrawals.page.confirm }).click();
     await expect(buyer.getByRole("status")).toContainText(/90,00\s€/);
     expect((await database.query("SELECT status FROM withdrawal_refund")).rows[0].status).toBe("succeeded");
+    const closedCausal = Date.now() + 1000;
+    await (
+      await delivery("BOOKING_RESCHEDULED", "cal_closed_C", token, later, { rescheduleUid: "cal_closed_B" }, new Date(closedCausal + 200))
+    )();
+    await (
+      await delivery("BOOKING_RESCHEDULED", "cal_closed_B", token, later, { rescheduleUid: "cal_final" }, new Date(closedCausal + 100))
+    )();
+    expect((await database.query("SELECT scheduled_at FROM coaching_session WHERE id=$1", [first.id])).rows[0].scheduled_at).toBeNull();
+    expect((await database.query("SELECT uid,state FROM coaching_cal_booking WHERE session_id=$1", [first.id])).rows[0]).toEqual({
+      uid: "cal_closed_C",
+      state: "closing",
+    });
     const worker = coachingBooking(database, {
       secret: "test",
       webhookSecret: SECRET,
@@ -248,6 +267,7 @@ test("paid return embeds a signed claim; Cal moves/cancels the Agenda and Withdr
     await database.query("UPDATE coaching_cal_cancellation SET retry_at=NULL");
     await worker.deliverCancellations();
     expect(cancelled.has("cal_final")).toBe(true);
+    expect(cancelled.has("cal_closed_C")).toBe(true);
   } finally {
     remoteFails = false;
     await Promise.all([owner, admin, buyer, outsider].map((page) => page.context().close()));

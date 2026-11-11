@@ -309,6 +309,50 @@ describe.skipIf(!connectionString)("paid Cal.com bookings", () => {
       ).toBe(true);
     },
   );
+  it.each([
+    ["withdrawal", false],
+    ["withdrawal", true],
+    ["retirement", false],
+    ["retirement", true],
+  ] as const)("cancels out-of-order successors after %s without re-dating (metadata %s)", async (kind, withMetadata) => {
+    const claim = (await booking.forCandidate(buyer, session))!;
+    await send(body(claim.token));
+    const token = withMetadata ? claim.token : null;
+    await send(
+      body(
+        token,
+        "BOOKING_RESCHEDULED",
+        "unavailable_C",
+        { rescheduleUid: "unavailable_B", startTime: "2026-11-24T10:00:00Z", endTime: "2026-11-24T11:30:00Z" },
+        "2026-11-10T12:02:00Z",
+      ),
+    );
+    if (kind === "withdrawal") {
+      // The real Withdrawal clears the date (which marks its Cal binding cancelled) before marking withdrawn_at.
+      await auth.database.query("UPDATE coaching_session SET scheduled_at=NULL WHERE id=$1", [session]);
+      await auth.database.query("UPDATE coaching_session SET withdrawn_at=clock_timestamp() WHERE id=$1", [session]);
+    } else await auth.database.query("UPDATE human_coach SET retired_at=clock_timestamp() WHERE id=$1", [coach]);
+    const before = await date();
+    await send(
+      body(
+        token,
+        "BOOKING_RESCHEDULED",
+        "unavailable_B",
+        { rescheduleUid: "cal_one", startTime: "2026-11-22T10:00:00Z", endTime: "2026-11-22T11:30:00Z" },
+        "2026-11-10T12:01:00Z",
+      ),
+    );
+    expect(await date()).toEqual(before);
+    expect((await auth.database.query("SELECT uid,state FROM coaching_cal_booking")).rows[0]).toEqual({ uid: "unavailable_C", state: "closing" });
+    expect((await auth.database.query("SELECT count(*)::int AS n FROM coaching_cal_pending")).rows[0].n).toBe(0);
+    await booking.deliverCancellations();
+    expect(cancelled).toContain("unavailable_C");
+    // A still later descendant follows the closed routing; it cannot restore the personal session.
+    await send(body(token, "BOOKING_RESCHEDULED", "unavailable_D", { rescheduleUid: "unavailable_C" }, "2026-11-10T12:03:00Z"));
+    await booking.deliverCancellations();
+    expect(cancelled).toContain("unavailable_D");
+    expect(await date()).toEqual(before);
+  });
   it("rejects duration-only edits of a linked booking while preserving its original end boundary", async () => {
     const claim = (await booking.forCandidate(buyer, session))!;
     await send(body(claim.token));

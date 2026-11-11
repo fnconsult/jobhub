@@ -101,7 +101,7 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
               (!booking.lastEventAt ||
                 at > booking.lastEventAt ||
                 (at.getTime() === booking.lastEventAt.getTime() && (chain || event.triggerEvent === "BOOKING_CANCELLED"))) &&
-              (!bound || booking.state === "booked")
+              (!bound || booking.state === "booked" || !!session.withdrawnAt || !!session.retiredAt)
             ) {
               const start = new Date(payload.startTime),
                 end = new Date(payload.endTime),
@@ -114,6 +114,11 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
                     identity.sessionId,
                     now(),
                   ]);
+                  // Keep cancellation-only causal routing; never restore or move an unavailable personal session.
+                  await within.query(
+                    "UPDATE coaching_cal_booking SET uid=$2,last_event_at=$3,state=CASE WHEN EXISTS(SELECT 1 FROM coaching_cal_cancellation WHERE uid=$2 AND done_at IS NOT NULL) THEN 'cancelled' ELSE 'closing' END WHERE session_id=$1",
+                    [identity.sessionId, payload.uid, at],
+                  );
                   reason = "session_unavailable";
                 } else {
                   // Cal.com's actor is not authenticated by an attendee email: label the source explicitly.
@@ -325,6 +330,7 @@ export function coachingBooking(database: Pool, deps: BookingDeps) {
         try {
           await deps.cal.cancel(row.uid);
           await database.query("UPDATE coaching_cal_cancellation SET done_at=$2 WHERE uid=$1", [row.uid, now()]);
+          await database.query("UPDATE coaching_cal_booking SET state='cancelled' WHERE uid=$1 AND state='closing'", [row.uid]);
         } catch {
           console.warn("[coaching-booking] remote cancellation pending");
         }
@@ -373,7 +379,7 @@ export async function migrateCoachingBooking(database: Pool) {
   ELSIF NEW.scheduled_at IS NULL AND OLD.scheduled_at IS NOT NULL AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' THEN
    INSERT INTO coaching_cal_cancellation(uid,session_id,queued_at) SELECT uid,OLD.id,clock_timestamp() FROM coaching_cal_booking WHERE session_id=OLD.id AND uid IS NOT NULL AND state='booked' ON CONFLICT DO NOTHING;
    UPDATE coaching_cal_booking SET state='cancelled' WHERE session_id=OLD.id;
-  ELSIF NEW.withdrawn_at IS NULL AND (NEW.scheduled_at IS DISTINCT FROM OLD.scheduled_at OR NEW.duration_minutes IS DISTINCT FROM OLD.duration_minutes) AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' AND EXISTS(SELECT 1 FROM coaching_cal_booking WHERE session_id=OLD.id AND state='booked') THEN
+  ELSIF NEW.withdrawn_at IS NULL AND (NEW.scheduled_at IS DISTINCT FROM OLD.scheduled_at OR NEW.duration_minutes IS DISTINCT FROM OLD.duration_minutes) AND current_setting('jobbbox.cal_webhook',true) IS DISTINCT FROM '1' AND EXISTS(SELECT 1 FROM coaching_cal_booking WHERE session_id=OLD.id AND state IN ('booked','closing')) THEN
    RAISE EXCEPTION 'Use Cal.com for a linked booking' USING ERRCODE='23514';
   END IF;
   IF TG_OP='DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;

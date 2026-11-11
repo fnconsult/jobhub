@@ -2455,7 +2455,6 @@
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
         "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email",
-        "COACH_SPACE_V2_ENABLED": "Coach space v2",
         "CAL_COM_TEAM_ID": "Jobbbox Cal.com team",
         "CAL_COM_REMINDERS_DISABLED": "Cal.com reminders and workflows disabled (operator confirmation)"
       },

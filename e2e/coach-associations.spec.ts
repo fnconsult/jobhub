@@ -6,7 +6,6 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-server";
 import { requestSignInLink, setUpTwoStepVerificationIfAsked, fromNewAddress } from "./support/candidate";
 import { emailsIn, linkIn, newAddress } from "./support/mailbox";
-import { platformSettingsStore } from "../apps/web/src/platform-settings";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8")),
   copy = fr.association;
 let own: OwnServer, database: Pool;
@@ -57,7 +56,6 @@ test.beforeAll(async () => {
       .join(" "),
   });
   database = new Pool({ connectionString: own.databaseUrl });
-  await platformSettingsStore(database, {}).set("COACH_SPACE_V2_ENABLED", "true", "fixture-admin");
 });
 test.afterAll(async () => {
   await database?.end();

@@ -7,7 +7,7 @@ synonyms: [Stripe Connect, payout, bank account, verification, commission]
 ---
 Payouts are available after the required Legal Texts are approved and in effect. Your professional Seller identity must be complete and your contract accepted.
 
-1. Open “Earnings”, then “Set up my Stripe account”. For an Association, use its Earnings page.
+1. Open “Earnings”, complete your supported tax information, then select “Set up my Stripe account”. For an Association, use its Earnings page.
 2. Complete the information requested on Stripe’s website. Stripe collects your identity documents and bank details; Jobbbox does not store these documents.
 3. Return to Jobbbox. If information is still required, select “Complete my Stripe information”. You can also “Open Stripe”.
 

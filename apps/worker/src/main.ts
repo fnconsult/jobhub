@@ -193,17 +193,17 @@ const pushNotifications = createPushNotifications(database, {
 const connect=()=>{
  const env=secrets.current().env;
  const stripe=env.STRIPE_SECRET_KEY&&env.STRIPE_CONNECT_WEBHOOK_SECRET?stripeConnect({secretKey:env.STRIPE_SECRET_KEY,webhookSecret:env.STRIPE_CONNECT_WEBHOOK_SECRET,apiUrl:env.STRIPE_API_URL,externalApis}):undefined;
- return coachingConnect(database,{stripe,baseURL,permitted:async()=>settingsEnv().COACH_SPACE_V2_ENABLED=== "true" &&connectLegalReady(),sendPayoutNotice:async (notice) =>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});},
+ return coachingConnect(database,{stripe,baseURL,permitted:async()=>connectLegalReady(),sendPayoutNotice:async (notice) =>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});},
   });
 };
 const booking=()=>{const env=secrets.current().env;return coachingBooking(database,{secret:env.AUTH_SECRET??"",webhookSecret:env.CAL_COM_WEBHOOK_SECRET??"",...(env.CAL_COM_API_KEY?{cal:calTeam({apiKey:env.CAL_COM_API_KEY,fetch:recordingFetch(fetch,externalApis,{provider:"cal_com",operation:()=>"booking.cancel"})}),
         }
       : {}),
     cancelled: async (within, id, key, at, reason) => {
-      if (settingsEnv().COACH_SPACE_V2_ENABLED === "true" && cancellationLegalReady()) await recordProviderCancellation(within, id, key, at, reason);
+      if (cancellationLegalReady()) await recordProviderCancellation(within, id, key, at, reason);
     },changed:(id,key)=>bookingChanged(database,pushNotifications,id,key,{coach:!coachingDeliveryOn()}),
   });};
-const coachingDeliveryOn=()=>coachingNoticesEnabled(settingsEnv().COACH_SPACE_V2_ENABLED==='true',settingsEnv().CAL_COM_REMINDERS_DISABLED==='true');
+const coachingDeliveryOn=()=>coachingNoticesEnabled(settingsEnv().CAL_COM_REMINDERS_DISABLED==='true');
 const notices=()=>coachingNotifications(database,{permitted:async()=>coachingDeliveryOn(),eligibleCoach:(person,id)=>coachContracts(database,{registry:connectLegalRegistry}).mayEnter(person,id),email:async(person,notice)=>{await mailer.send({to:person.email,...coachingNoticeEmail(person,notice,baseURL)});},push:async(person,notice)=>{await pushNotifications.notify(person.id,coachingNoticePush(person,notice),{once:notice.key});}});
 const contractualRefunds=()=>{const env=secrets.current().env;return coachingRefunds(database,{...(env.STRIPE_SECRET_KEY?{stripe:coachingRefundStripe({secretKey:env.STRIPE_SECRET_KEY,apiUrl:env.STRIPE_API_URL,externalApis})}:{}),
   });
@@ -211,7 +211,7 @@ const contractualRefunds=()=>{const env=secrets.current().env;return coachingRef
 const cancellations = () =>
   coachingCancellations(database, {
     refunds: contractualRefunds(),
-    permitted: async () => settingsEnv().COACH_SPACE_V2_ENABLED === "true" && cancellationLegalReady(),
+    permitted: async () => cancellationLegalReady(),
     sendNotice: (record, kind) =>
       cancellationNotice(database, record, kind, baseURL, (email, message) => mailer.send({ to: email, ...message }), pushNotifications),
   });

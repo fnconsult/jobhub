@@ -4,14 +4,14 @@ import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { CalledBy } from "@/components/CalledBy";
 import { MasterCvView } from "@/components/MasterCvView";
 import { PrivateNotes } from "@/coach-space/PrivateNotes";
-import { requireCoachSpaceV2 } from "@/coach-space/server";
+import { requireCoachSpace } from "@/coach-space/server";
 import { getCoachWorkspace } from "@/coach-space/workspace-server";
 import { SessionCard } from "@/coach-space/SessionCard";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 export default async function Page({ params }: { params: Promise<{ candidateId: string }> }) {
-  const coach = await requireCoachSpaceV2();
+  const coach = await requireCoachSpace();
   const file = await getCoachWorkspace().candidate(coach.id, (await params).candidateId);
   if (!file) notFound();
   const [t, locale, timeZone] = await Promise.all([getServerT(), getRequestLocale(), getCoachingTimeZones().coach(coach.id)]);

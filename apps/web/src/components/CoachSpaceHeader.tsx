@@ -1,42 +1,6 @@
-import {coachingNoticesOn} from "@/coaching-notifications/activation-server";
-import { coachSpaceV2On } from "@/coach-space/server";
-import { CoachSpaceLayout } from "@/coach-space/CoachSpaceLayout";
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { PublicFooter } from "@/design/PublicSite";
-import { getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
-
-/** The Help Centre's topic of a Human Coach's articles (#554), where the coach space's « Centre d'aide » leads. */
-const COACH_SPACE_HELP = routes.helpTopic("espace-coach");
-
-/** Header of a Human Coach's pages. */
-export async function CoachSpaceHeader() {
-  const t = await getServerT();
-  return (
-    <header className="page-header">
-      <Link className="brand" href={routes.coachSpace}>
-        {`${t("app.name")} · ${t("coachSpace.title")}`}
-      </Link>
-      <div className="page-nav">
-        <Link className="button" href={routes.account}>
-          {t("nav.account")}
-        </Link>
-      </div>
-    </header>
-  );
-}
-
-/** A Human Coach's page: its header, the page, then the public site's footer (#544), its « Centre d'aide » the « Espace coach » topic (#554). */
+import { coachingNoticesOn } from "@/coaching-notifications/activation-server";
+import { CoachSpaceLayout } from "@/coach-space/CoachSpaceLayout";
 export function CoachSpaceShell({ children }: { children: ReactNode }) {
-  if (coachSpaceV2On()) return <CoachSpaceLayout remindersEnabled={coachingNoticesOn()}>{children}</CoachSpaceLayout>;
-  return (
-    <>
-      <main className="page">
-        <CoachSpaceHeader />
-        {children}
-      </main>
-      <PublicFooter helpCentre={COACH_SPACE_HELP} />
-    </>
-  );
+  return <CoachSpaceLayout remindersEnabled={coachingNoticesOn()}>{children}</CoachSpaceLayout>;
 }

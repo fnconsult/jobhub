@@ -145,7 +145,7 @@ export const routes = {
   coachingSession: (id: string) => `/coachs#seance-${id}`,
   /** A Human Coach's own pages: the Candidates who granted them Coach Access. */
   coachSpace: "/espace-coach",
-  coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,
+  coachSpaceCandidate: (candidateId: string) => `/espace-coach/candidates/${encodeURIComponent(candidateId)}`,
   coachSpaceApplication: (candidateId: string, applicationId: string) => `/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`,
   accountDeleted: "/compte/supprime",
   /** The Acceptance screen (ADR-0062, #510): the CGU version to accept after sign-in, before anything else. */

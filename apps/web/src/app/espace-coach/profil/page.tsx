@@ -3,7 +3,7 @@ import { getCoachContacts } from "@/coach-space/contacts-server";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { TimeZoneForm } from "@/coaching-time/TimeZoneForm";
 import { getCoachingTimeZones } from "@/coaching-time/server";
-import { requireCoachSpaceV2 } from "@/coach-space/server";
+import { requireCoachSpace } from "@/coach-space/server";
 import { getServerT, getRequestLocale } from "@/i18n/server";
 import { getCoachPages } from "@/coach-pages/server";
 import { CoachPageEditor } from "@/coach-pages/CoachPageEditor";
@@ -14,7 +14,7 @@ import { getCoachingOffers } from "@/coaching-offers/server";
 import { SellerInfo } from "@/coaching-offers/SellerInfo";
 import { notFound } from "next/navigation";
 export default async function Page() {
-  const coach = await requireCoachSpaceV2(),
+  const coach = await requireCoachSpace(),
     person = await getCurrentCandidate();
   if (!person) notFound();
   const [t, locale, profile, offer, enrolments] = await Promise.all([

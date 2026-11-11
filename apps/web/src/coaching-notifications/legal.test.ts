@@ -18,11 +18,10 @@ it("requires current human coverage rather than enabling new deliveries by defau
   ).toBe(false);
 });
 
-it("requires rollout AND operator confirmation that Cal reminders are disabled", () => {
+it("requires current human coverage AND operator confirmation that Cal reminders are disabled", () => {
   const records = [record("cgv"), record("contrat-coach"), record("confidentialite")],
     now = new Date("2026-11-11T12:00Z");
-  expect(coachingNoticesEnabled(false, true, records, now)).toBe(false);
-  expect(coachingNoticesEnabled(true, false, records, now)).toBe(false);
-  expect(coachingNoticesEnabled(true, true, [], now)).toBe(false);
-  expect(coachingNoticesEnabled(true, true, records, now)).toBe(true);
+  expect(coachingNoticesEnabled(false, records, now)).toBe(false);
+  expect(coachingNoticesEnabled(true, [], now)).toBe(false);
+  expect(coachingNoticesEnabled(true, records, now)).toBe(true);
 });

@@ -1,9 +1,8 @@
 import { cancellationPolicyOn } from "@/coaching-cancellations/server";
-import {getCoachingBooking} from "@/coaching-booking/server";
-import {getCoachPages} from "@/coach-pages/server";
-import {getCoachAssociations} from "@/coach-associations/server";
-import {getCoachingOffers} from "@/coaching-offers/server";
-import { coachSpaceV2On } from "@/coach-space/server";
+import { getCoachingBooking } from "@/coaching-booking/server";
+import { getCoachPages } from "@/coach-pages/server";
+import { getCoachAssociations } from "@/coach-associations/server";
+import { getCoachingOffers } from "@/coaching-offers/server";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import { getAgenda } from "@/agenda/server";
@@ -22,34 +21,32 @@ import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 import { getWithdrawals } from "@/withdrawals/server";
 import { createCandidateReads, type CandidateReads } from "./index";
-
 let instance: CandidateReads | undefined;
-
 /** The app's reads over HTTP (#684), on the modules the pages read, on the database named by DATABASE_URL. */
 export function getCandidateReads(): CandidateReads {
-  instance ??= createCandidateReads({
-    coachPages: (ids) => (coachSpaceV2On()?getCoachPages().approved(ids):Promise.resolve([])),
-    coachAssociations: (ids) => (coachSpaceV2On()?getCoachAssociations().providers(ids):Promise.resolve([])),
-    coachingCancellations: cancellationPolicyOn,
-    coachingBookings: (id) =>getCoachingBooking().paths(id),
-    coachingMeetings: async (id) => (coachSpaceV2On() ? getCoachContacts().forCandidate(id) : null),
-    coachingTimeZone: (id) => getCoachingTimeZones().candidate(id),
-    coachingOffer:(candidateId,coachId)=>getCoachingOffers().sale(candidateId,coachId),
-    applications: getApplications(),
-    followUps: getFollowUps(),
-    profiles: getProfiles(),
-    jobSearches: getJobSearches(),
-    jobDigests: getJobDigests(),
-    agenda: getAgenda(),
-    humanCoaches: getHumanCoaches(),
-    billing: getBilling(),
-    withdrawals: getWithdrawals(),
-    orders: getOrders(),
-    atsScoring: getAtsScoring(),
-    tailoredCvs: getTailoredCvs(),
-    tailoredDocuments: getTailoredDocuments(),
-    coachConversations: getCoachConversations(),
-    offerBox: getOfferBox(),
-  });
-  return instance;
+    instance ??= createCandidateReads({
+        coachPages: (ids) => (getCoachPages().approved(ids)),
+        coachAssociations: (ids) => (getCoachAssociations().providers(ids)),
+        coachingCancellations: cancellationPolicyOn,
+        coachingBookings: (id) => getCoachingBooking().paths(id),
+        coachingMeetings: async (id) => (getCoachContacts().forCandidate(id)),
+        coachingTimeZone: (id) => getCoachingTimeZones().candidate(id),
+        coachingOffer: (candidateId, coachId) => getCoachingOffers().sale(candidateId, coachId),
+        applications: getApplications(),
+        followUps: getFollowUps(),
+        profiles: getProfiles(),
+        jobSearches: getJobSearches(),
+        jobDigests: getJobDigests(),
+        agenda: getAgenda(),
+        humanCoaches: getHumanCoaches(),
+        billing: getBilling(),
+        withdrawals: getWithdrawals(),
+        orders: getOrders(),
+        atsScoring: getAtsScoring(),
+        tailoredCvs: getTailoredCvs(),
+        tailoredDocuments: getTailoredDocuments(),
+        coachConversations: getCoachConversations(),
+        offerBox: getOfferBox(),
+    });
+    return instance;
 }

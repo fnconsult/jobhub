@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
-import { requireCoachSpaceV2 } from "@/coach-space/server";
+import { requireCoachSpace } from "@/coach-space/server";
 import { requireAssociation } from "@/coach-associations/server";
 import { getServerT } from "@/i18n/server";
 import { sharedPool } from "@/database/pool";
@@ -24,7 +24,7 @@ async function openConnect(form: FormData) {
   if (!seller) notFound();
   let returnPath: string;
   if (seller.kind === "human_coach") {
-    const coach = await requireCoachSpaceV2();
+    const coach = await requireCoachSpace();
     if (coach.id !== seller.coachId) notFound();
     returnPath = "/espace-coach/revenus";
   } else if (seller.kind === "association" && seller.associationId) {

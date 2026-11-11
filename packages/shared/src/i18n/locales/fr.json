@@ -2455,7 +2455,6 @@
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours",
         "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison",
-        "COACH_SPACE_V2_ENABLED": "Espace coach v2",
         "CAL_COM_TEAM_ID": "Équipe Cal.com Jobbbox",
         "CAL_COM_REMINDERS_DISABLED": "Rappels et workflows Cal.com désactivés (confirmation opérateur)"
       },

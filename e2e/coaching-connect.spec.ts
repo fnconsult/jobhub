@@ -6,7 +6,6 @@ import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-ser
 import { setUpTwoStepVerificationIfAsked } from "./support/candidate";
 import { newAddress, emailsIn } from "./support/mailbox";
 import { orderToStripe } from "./support/stripe-checkout";
-import { platformSettingsStore } from "../apps/web/src/platform-settings";
 import { migrateCoachPages } from "../apps/web/src/coach-pages";
 import { signedEvent } from "../apps/web/src/billing/fake-stripe";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8")),
@@ -44,7 +43,6 @@ test.beforeAll(async () => {
       .join(" "),
   });
   database = new Pool({ connectionString: own.databaseUrl });
-  await platformSettingsStore(database, {}).set("COACH_SPACE_V2_ENABLED", "true", ADMIN);
 });
 test.afterAll(async () => {
   await database?.end();

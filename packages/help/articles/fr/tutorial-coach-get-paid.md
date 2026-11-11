@@ -7,7 +7,7 @@ synonyms: [Stripe Connect, reversement, compte bancaire, justificatifs, commissi
 ---
 Les versements sont disponibles après l’approbation et l’entrée en vigueur des textes nécessaires. Votre identité professionnelle de vendeur doit être complète et votre contrat accepté.
 
-1. Ouvrez « Revenus », puis « Configurer mon compte Stripe ». Pour une Association, utilisez ses Revenus.
+1. Ouvrez « Revenus », renseignez vos informations fiscales prises en charge, puis choisissez « Configurer mon compte Stripe ». Pour une Association, utilisez ses Revenus.
 2. Renseignez les informations demandées sur le site de Stripe. Stripe recueille vos justificatifs et coordonnées bancaires ; Jobbbox ne conserve pas ces documents.
 3. Revenez dans Jobbbox. Si des informations restent demandées, cliquez sur « Compléter mes informations Stripe ». Vous pouvez aussi « Ouvrir Stripe ».
 

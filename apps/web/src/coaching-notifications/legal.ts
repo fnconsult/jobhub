@@ -11,10 +11,9 @@ export function coachingNoticesLegalReady(registry: readonly LegalTextVersionRec
   );
 }
 export function coachingNoticesEnabled(
-  spaceEnabled: boolean,
   calRemindersDisabled: boolean,
   registry: readonly LegalTextVersionRecord[] = connectLegalRegistry(),
   now = new Date(),
 ) {
-  return spaceEnabled && calRemindersDisabled && coachingNoticesLegalReady(registry, now);
+  return calRemindersDisabled && coachingNoticesLegalReady(registry, now);
 }

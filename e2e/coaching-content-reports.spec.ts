@@ -1,4 +1,5 @@
 import path from "node:path";
+import { migrateCoachPages } from "../apps/web/src/coach-pages";
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
 import { test, expect } from "@playwright/test";
@@ -45,6 +46,7 @@ test("anonymous report receives a receipt; audited human decision reaches both p
       [seller],
     )
   ).rows[0].id;
+  await migrateCoachPages(database);
   const candidate = await (await browser.newContext({ baseURL: own.origin, locale: "fr-FR" })).newPage();
   const visitor = await (await browser.newContext({ baseURL: own.origin, locale: "fr-FR", viewport: { width: 390, height: 844 } })).newPage();
   const admin = await (await browser.newContext({ baseURL: own.origin, locale: "fr-FR" })).newPage();
@@ -53,7 +55,8 @@ test("anonymous report receives a receipt; audited human decision reaches both p
     await candidate.goto("/coachs");
     const href = await candidate.getByRole("link", { name: fr.contentReport.reportPage, exact: true }).getAttribute("href");
     expect(href).toContain(coach);
-    await expect(candidate.getByRole("link", { name: fr.contentReport.reportOffer, exact: true })).toBeVisible();
+    // No active payment recipient is configured in this intake scenario, so there is no orderable offer to report.
+    await expect(candidate.getByRole("link", { name: fr.contentReport.reportOffer, exact: true })).toHaveCount(0);
     await visitor.goto(href!);
     await expect(visitor.getByRole("heading", { name: fr.contentReport.title, exact: true })).toBeVisible();
     await visitor.getByLabel(fr.contentReport.explanation, { exact: true }).fill("The professional qualification shown needs verification.");

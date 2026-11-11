@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
-import { requireCoachSpaceV2 } from "@/coach-space/server";
+import { requireCoachSpace } from "@/coach-space/server";
 import { getCoachWorkspace } from "@/coach-space/workspace-server";
 import { SessionCard } from "@/coach-space/SessionCard";
 import { getCoachingTimeZones } from "@/coaching-time/server";
@@ -8,7 +8,7 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 const CURRENT = "page";
 const TABS = ["upcoming", "unscheduled", "past"] as const;
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const coach = await requireCoachSpaceV2();
+  const coach = await requireCoachSpace();
   const [t, locale, timeZone, all, params] = await Promise.all([
     getServerT(),
     getRequestLocale(),

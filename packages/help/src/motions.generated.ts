@@ -649,73 +649,39 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Cliquez sur « Passer au paiement », puis payez sur la page sécurisée de Stripe, notre prestataire de paiement, que cette vidéo ne montre pas. De retour dans Jobbbox, « Paiement reçu. Choisissez maintenant le créneau de votre séance. » s'affiche."
         },
         {
-          "title": "Choisir votre créneau",
+          "title": "Retrouver votre séance",
           "actions": [
             {
-              "action": "hover",
+              "action": "scroll",
               "target": {
                 "by": "role",
-                "role": "link",
-                "name": "Choisir mon créneau avec Sophie Démo sur Cal.com"
+                "role": "region",
+                "name": "Mes séances payées"
+              }
+            },
+            {
+              "action": "zoom",
+              "target": {
+                "by": "role",
+                "role": "region",
+                "name": "Mes séances payées"
               }
             }
           ],
-          "narration": "Cliquez sur « Choisir mon créneau avec … sur Cal.com » et réservez votre créneau."
+          "narration": "Après confirmation du paiement, votre séance apparaît dans « Mes séances payées ». Choisissez son créneau dans la réservation Cal.com intégrée lorsqu’elle est disponible. Le créneau confirmé et les reports se répercutent automatiquement dans votre Agenda. « Choisir plus tard » conserve la séance à planifier. Pour une séance sans réservation reliée, le formulaire manuel reste un secours ; il ne peut jamais modifier une réservation reliée."
         },
         {
-          "title": "Saisir la date",
+          "title": "Préparer l’appel",
           "actions": [
             {
-              "action": "click",
-              "target": {
-                "by": "role",
-                "role": "button",
-                "name": "J'ai réservé : saisir la date de la séance avec Sophie Démo"
-              }
-            },
-            {
-              "action": "fill",
-              "target": {
-                "by": "label",
-                "text": "Date et heure de la séance (heure de Paris)"
-              },
-              "text": "2027-03-16T10:00"
-            },
-            {
-              "action": "fill",
-              "target": {
-                "by": "label",
-                "text": "Lien de la visio (facultatif)"
-              },
-              "text": "https://visio.exemple.invalid/seance-demo"
-            },
-            {
-              "action": "click",
-              "target": {
-                "by": "role",
-                "role": "button",
-                "name": "Enregistrer"
-              }
+              "action": "zoom",
+              "target": null
             }
           ],
-          "narration": "Revenez dans Jobbbox et cliquez sur « J'ai réservé : saisir la date ». Saisissez la « Date et heure de la séance (heure de Paris) » et, si vous l'avez, le « Lien de la visio (facultatif) », puis cliquez sur « Enregistrer »."
-        },
-        {
-          "title": "Rejoindre la visio",
-          "actions": [
-            {
-              "action": "hover",
-              "target": {
-                "by": "role",
-                "role": "link",
-                "name": "Rejoindre la visio avec Sophie Démo"
-              }
-            }
-          ],
-          "narration": "La séance rejoint votre agenda. Le jour venu, cliquez sur « Rejoindre la visio avec … », dans « Mes coachs humains », sous « Mes séances payées »."
+          "narration": "Le coach configure le lien de visio ou le téléphone de cette séance dans Jobbbox. Le lien « Rejoindre » devient accessible dix minutes avant le début, jusqu’à trente minutes après la fin prévue. Votre page privée rassemble les informations de séance et la lecture partagée. Le contact, vos notes et les documents ne paraissent jamais sur le profil public du coach."
         }
       ],
-      "hash": "01f582ffed44"
+      "hash": "a9579e886354"
     },
     {
       "id": "transferer-offres-email",
@@ -1520,73 +1486,39 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Click « Go to payment », then pay on the secure page of Stripe, our payment provider, which this video does not show. Back in Jobbbox, « Payment received. Now pick the time of your session. » shows."
         },
         {
-          "title": "Pick your time",
+          "title": "Find your session",
           "actions": [
             {
-              "action": "hover",
+              "action": "scroll",
               "target": {
                 "by": "role",
-                "role": "link",
-                "name": "Pick my time with Sophie Démo on Cal.com"
+                "role": "region",
+                "name": "My paid sessions"
+              }
+            },
+            {
+              "action": "zoom",
+              "target": {
+                "by": "role",
+                "role": "region",
+                "name": "My paid sessions"
               }
             }
           ],
-          "narration": "Click « Pick my time with … on Cal.com » and book your time."
+          "narration": "Once payment is confirmed, your session appears under “My paid sessions”. Choose its time in the embedded Cal.com booking when available. Confirmed times and rescheduling automatically update your Agenda. “Choose later” keeps the session to schedule. For a session without a linked booking, the manual form remains a fallback; it can never change a linked booking."
         },
         {
-          "title": "Enter the date",
+          "title": "Prepare the call",
           "actions": [
             {
-              "action": "click",
-              "target": {
-                "by": "role",
-                "role": "button",
-                "name": "I've booked: enter the date of the session with Sophie Démo"
-              }
-            },
-            {
-              "action": "fill",
-              "target": {
-                "by": "label",
-                "text": "Session date and time (Paris time)"
-              },
-              "text": "2027-03-16T10:00"
-            },
-            {
-              "action": "fill",
-              "target": {
-                "by": "label",
-                "text": "Video call link (optional)"
-              },
-              "text": "https://visio.exemple.invalid/seance-demo"
-            },
-            {
-              "action": "click",
-              "target": {
-                "by": "role",
-                "role": "button",
-                "name": "Save"
-              }
+              "action": "zoom",
+              "target": null
             }
           ],
-          "narration": "Come back to Jobbbox and click « I've booked: enter the date ». Enter the « Session date and time (Paris time) » and, if you have it, the « Video call link (optional) », then click « Save »."
-        },
-        {
-          "title": "Join the video call",
-          "actions": [
-            {
-              "action": "hover",
-              "target": {
-                "by": "role",
-                "role": "link",
-                "name": "Join the video call with Sophie Démo"
-              }
-            }
-          ],
-          "narration": "The session joins your agenda. On the day, click « Join the video call with … », in « My human coaches », under « My paid sessions »."
+          "narration": "The coach sets the session’s video link or phone contact in Jobbbox. “Join” becomes available ten minutes before the start until thirty minutes after the scheduled end. Your private page gathers session details and Shared Reading. The contact, your notes and documents never appear on the coach’s public profile."
         }
       ],
-      "hash": "35b0692f7ab7"
+      "hash": "d3c1311b3bec"
     },
     {
       "id": "transferer-offres-email",

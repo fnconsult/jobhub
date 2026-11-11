@@ -802,7 +802,7 @@ export const TOOLS = [
     },
   },
   {
-    id:"cal-com",name:"Cal.com",purpose:{fr:"Disponibilités et réservation des séances payées dans l’équipe Jobbbox.",en:"Availability and booking of paid sessions within the Jobbbox team."},category:"scheduling",module:"apps/web/src/coaching-booking",runsIn:"web",keys:["CAL_COM_API_KEY","CAL_COM_WEBHOOK_SECRET"],settings:[{name:"COACH_SPACE_V2_ENABLED",enabledWhen:["true"]},{name:"CAL_COM_TEAM_ID",required:true},{name:"CAL_COM_REMINDERS_DISABLED",enabledWhen:["true"]}],usage:{table:"external_api_usage",provider:"cal_com"},residency:"outside_eu",receivesPersonalData:true,
+    id:"cal-com",name:"Cal.com",purpose:{fr:"Disponibilités et réservation des séances payées dans l’équipe Jobbbox.",en:"Availability and booking of paid sessions within the Jobbbox team."},category:"scheduling",module:"apps/web/src/coaching-booking",runsIn:"web",keys:["CAL_COM_API_KEY","CAL_COM_WEBHOOK_SECRET"],settings:[{name:"CAL_COM_TEAM_ID",required:true},{name:"CAL_COM_REMINDERS_DISABLED",enabledWhen:["true"]}],usage:{table:"external_api_usage",provider:"cal_com"},residency:"outside_eu",receivesPersonalData:true,
     recipient:{name:"Cal.com",purpose:{fr:"Réserve votre séance payée et synchronise l’agenda du coach connecté chez Cal.com.",en:"Books your paid session and synchronizes the coach’s calendar connected at Cal.com."},data:["coaching_booking"],entity:"Cal.com, Inc.",place:{fr:"Hors UE : États-Unis.",en:"Outside the EU: United States."},safeguards:["scc"]},
   },
   {

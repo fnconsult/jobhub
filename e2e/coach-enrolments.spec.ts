@@ -5,7 +5,6 @@ import { expect, test, type Page, type Browser } from "@playwright/test";
 import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-server";
 import { emailsIn, linkIn, newAddress } from "./support/mailbox";
 import { setUpTwoStepVerificationIfAsked } from "./support/candidate";
-import { platformSettingsStore } from "../apps/web/src/platform-settings";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const copy = fr.coachEnrolment,
   ADMIN = "coach-enrolment-office@e2e.jobbbox.test";
@@ -62,7 +61,6 @@ test.beforeAll(async ({ browser }) => {
   });
   database = new Pool({ connectionString: own.databaseUrl });
   admin = await personPage(browser, ADMIN);
-  await platformSettingsStore(database, {}).set("COACH_SPACE_V2_ENABLED", "true", ADMIN);
   const profile = await admin.request.post("/api/profiles", {
     headers: { origin: own.origin },
     data: {

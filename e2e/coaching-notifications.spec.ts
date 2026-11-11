@@ -42,7 +42,6 @@ test.beforeAll(async () => {
       .join(" "),
   });
   database = new Pool({ connectionString: own.databaseUrl });
-  await platformSettingsStore(database, {}).set("COACH_SPACE_V2_ENABLED", "true", "e2e-settings");
   await platformSettingsStore(database, {}).set("CAL_COM_REMINDERS_DISABLED", "true", "e2e-settings");
 });
 test.afterAll(async () => {

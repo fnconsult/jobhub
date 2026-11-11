@@ -9,13 +9,13 @@ import { PublicCoachProfile } from "@/coach-pages/PublicCoachProfile";
 import { getCoachAssociations } from "@/coach-associations/server";
 import { getCoachingOffers } from "@/coaching-offers/server";
 import { SellerInfo } from "@/coaching-offers/SellerInfo";
-import { coachSpaceV2On } from "@/coach-space/server";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import { MeetingLink } from "@/coach-space/MeetingLink";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import type { Metadata } from "next";
 import Link from "next/link";
+const CANCELLATIONS = "/coachs/annulations";
 import { redirect } from "next/navigation";
 import { agendaPeriod } from "@/agenda";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
@@ -34,32 +34,29 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import { COACHING_ORDER, ORDER_PARAMS, routes } from "@/routes";
 import "@/components/MenuCards.css";
 import { HelpText } from "@/components/HelpTerm";
-
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getServerT();
-  return { title: `${t("humanCoaches.title")} · ${t("app.name")}` };
+    const t = await getServerT();
+    return { title: `${t("humanCoaches.title")} · ${t("app.name")}` };
 }
-
 /** Mes coachs humains' Subject: the menu's one conversation per Candidate (ADR-0070). */
 const SUBJECT = { kind: "menu", id: "humanCoaches" } as const;
-
 /** The cards' titles, which name them. */
 const SESSIONS_TITLE_ID = "sessions-title";
 const COACHES_TITLE_ID = "coaches-title";
-
 /** What the Coach Access form asks for. */
 const ACCESS = { grant: "grant", revoke: "revoke" } as const;
-
 async function changeCoachAccess(form: FormData) {
-  "use server";
-  const candidate = await getCurrentCandidate();
-  if (!candidate) return signInRedirect();
-  const coachId = String(form.get("coachId"));
-  if (form.get("access") === ACCESS.grant) await getHumanCoaches().grantAccess(candidate.id, coachId);
-  else await getHumanCoaches().revokeAccess(candidate.id, coachId);
-  redirect(routes.coaching);
+    "use server";
+    const candidate = await getCurrentCandidate();
+    if (!candidate)
+        return signInRedirect();
+    const coachId = String(form.get("coachId"));
+    if (form.get("access") === ACCESS.grant)
+        await getHumanCoaches().grantAccess(candidate.id, coachId);
+    else
+        await getHumanCoaches().revokeAccess(candidate.id, coachId);
+    redirect(routes.coaching);
 }
-
 /**
  * The Candidate's Human Coaches: book (and pay for) a Coaching Session, pick its time on
  * the Human Coach's Cal.com page once paid, then enter that date here (ADR-0027), and grant
@@ -68,217 +65,151 @@ async function changeCoachAccess(form: FormData) {
  * Under « Conversation au centre » (#606, ADR-0070), the menu's conversation is the page instead: the Coaching Sessions and
  * the Human Coaches are cards in its thread, booking and Coach Access unchanged.
  */
-export default async function HumanCoachesPage({ searchParams }: { searchParams: Promise<{ session?: string; error?: string; checkout_id?: string }> }) {
-  const candidate = await getCurrentCandidate();
-  if (!candidate) return signInRedirect();
-  const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
-  const { session, error, checkout_id } = await searchParams;
-  const calPaths = await getCoachingBooking().paths(candidate.id);
-  const coaching = getHumanCoaches();
-  const [coaches, granted, sessions, price] = await Promise.all([
-    coaching.list(),
-    coaching.accessGranted(candidate.id),
-    coaching.sessions(candidate.id),
-    getBilling()
-      .coachingSessionPrice(candidate.id)
-      .catch((cause: unknown) => {
-        console.error("[coaching] Coaching Session Price unavailable", cause);
-        return null;
-      }),
-  ]);
-  const pages = new Map((coachSpaceV2On() ? await getCoachPages().approved(coaches.map((c) => c.id)) : []).map((p) => [p.coachId, p.page]));
-  const providers = new Map((coachSpaceV2On() ? await getCoachAssociations().providers(coaches.map((c) => c.id)) : []).map((a) => [a.coachId, a]));
-  const offers = new Map(
-    (await Promise.all(coaches.map(async (coach) => [coach.id, await getCoachingOffers().sale(candidate.id, coach.id)] as const))).map((entry) => entry),
-  );
-  const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
-  const timeZone = (await getCoachingTimeZones().candidate(candidate.id)) ?? INTERVIEW_TIME_ZONE;
-  const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
-  const now = new Date();
-
-  const meetings = coachSpaceV2On() ? await getCoachContacts().forCandidate(candidate.id) : null;
-  const cancellationOn = await cancellationPolicyOn();
-  const pendingCancellations = new Set(
-    (await getCoachingCancellations().forCandidate(candidate.id)).filter((c) => c.choice === "awaiting").map((c) => c.sessionId),
-  );
-  const notices = (
-    <>
-      {cancellationOn ? <><p>{t("coachingCancellation.notice")}</p><Link href="/coachs/annulations">{t("coachingCancellation.title")}</Link></> : null}
-      <CancellationPanel candidateId={candidate.id} locale={locale} timeZone={timeZone} />
-      {session === "paid" && checkout_id ? <BookingReturn candidateId={candidate.id} checkoutId={checkout_id} /> : null}
-      {session === "paid" ? (
-        <p className="notice" role="status">
+export default async function HumanCoachesPage({ searchParams }: {
+    searchParams: Promise<{
+        session?: string;
+        error?: string;
+        checkout_id?: string;
+    }>;
+}) {
+    const candidate = await getCurrentCandidate();
+    if (!candidate)
+        return signInRedirect();
+    const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
+    const { session, error, checkout_id } = await searchParams;
+    const calPaths = await getCoachingBooking().paths(candidate.id);
+    const coaching = getHumanCoaches();
+    const [coaches, granted, sessions, price] = await Promise.all([
+        coaching.list(),
+        coaching.accessGranted(candidate.id),
+        coaching.sessions(candidate.id),
+        getBilling()
+            .coachingSessionPrice(candidate.id)
+            .catch((cause: unknown) => {
+            console.error("[coaching] Coaching Session Price unavailable", cause);
+            return null;
+        }),
+    ]);
+    const pages = new Map((await getCoachPages().approved(coaches.map((c) => c.id))).map((p) => [p.coachId, p.page]));
+    const providers = new Map((await getCoachAssociations().providers(coaches.map((c) => c.id))).map((a) => [a.coachId, a]));
+    const offers = new Map((await Promise.all(coaches.map(async (coach) => [coach.id, await getCoachingOffers().sale(candidate.id, coach.id)] as const))).map((entry) => entry));
+    const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100);
+    const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
+    const timeZone = (await getCoachingTimeZones().candidate(candidate.id)) ?? INTERVIEW_TIME_ZONE;
+    const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+    const now = new Date();
+    const meetings = await getCoachContacts().forCandidate(candidate.id);
+    const cancellationOn = await cancellationPolicyOn();
+    const pendingCancellations = new Set((await getCoachingCancellations().forCandidate(candidate.id)).filter((c) => c.choice === "awaiting").map((c) => c.sessionId));
+    const notices = (<>
+      {cancellationOn ? <><p>{t("coachingCancellation.notice")}</p><Link href={CANCELLATIONS}>{t("coachingCancellation.title")}</Link></> : null}
+      <CancellationPanel candidateId={candidate.id} locale={locale} timeZone={timeZone}/>
+      {session === "paid" && checkout_id ? <BookingReturn candidateId={candidate.id} checkoutId={checkout_id}/> : null}
+      {session === "paid" ? (<p className="notice" role="status">
           {t(sessions.length > 0 ? "humanCoaches.paid" : "humanCoaches.paidPending")}
-        </p>
-      ) : null}
-      {error ? (
-        <p className="notice" role="alert">
+        </p>) : null}
+      {error ? (<p className="notice" role="alert">
           {t(error === "unavailable" ? "humanCoaches.unavailable" : "humanCoaches.error")}
-        </p>
-      ) : null}
-    </>
-  );
-  const sessionsList =
-    sessions.length > 0 ? (
-      <ul className="stack">
-        {sessions.map((paid) =>
-          paid.scheduledAt ? (
-            <li key={paid.id} id={`seance-${paid.id}`} className="stack">
+        </p>) : null}
+    </>);
+    const sessionsList = sessions.length > 0 ? (<ul className="stack">
+        {sessions.map((paid) => paid.scheduledAt ? (<li key={paid.id} id={`seance-${paid.id}`} className="stack">
               <p>
                 <strong>{t("humanCoaches.sessionOn", { name: paid.coach.name, date: coachingTime(paid.scheduledAt, locale, timeZone) })}</strong>
               </p>
               {meetings ? <Link href={`/coachs/seances/${paid.id}`}>{t("coachReports.open")}</Link> : null}
               {paid.durationMinutes ? <p>{t("humanCoaches.sessionDuration", { count: paid.durationMinutes })}</p> : null}
-              {meetings ? (
-                <MeetingLink
-                  meeting={meetings[paid.id] ?? null}
-                  scheduledAt={paid.scheduledAt.toISOString()}
-                  durationMinutes={paid.durationMinutes}
-                  timeZone={timeZone}
-                />
-              ) : paid.videoLink ? (
-                <p>
+              {meetings ? (<MeetingLink meeting={meetings[paid.id] ?? null} scheduledAt={paid.scheduledAt.toISOString()} durationMinutes={paid.durationMinutes} timeZone={timeZone}/>) : paid.videoLink ? (<p>
                   <ExternalLink href={paid.videoLink}>{t("humanCoaches.joinVideo", { name: paid.coach.name })}</ExternalLink>
-                </p>
-              ) : null}
+                </p>) : null}
               {paid.note ? <p>{paid.note}</p> : null}
               {paid.changedBy === "coach" ? <p className="hint">{t("humanCoaches.changedByCoach", { name: paid.coach.name })}</p> : null}
               <p className="hint">{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
-              <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t} />
+              <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t}/>
               <div className="actions">
                 <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
                 <CancellationWindow at={cancellationOn ? paid.scheduledAt.toISOString() : null}>
-                  {calPaths[paid.id] ? (
-                    <Link className="button" href={calPaths[paid.id]!}>
+                  {calPaths[paid.id] ? (<Link className="button" href={calPaths[paid.id]!}>
                       {t("coachingBooking.manage")}
-                    </Link>
-                  ) : null}
-                  <CoachingSessionDialog
-                    withVideoLink={meetings === null}
-                    session={{
-                      id: paid.id,
-                      scheduledAt: interviewWallClock(paid.scheduledAt),
-                      durationMinutes: paid.durationMinutes,
-                      videoLink: paid.videoLink,
-                      note: paid.note,
-                    }}
-                    withName={paid.coach.name}
-                  />
-                  <CancelAgendaItemButton
-                    url={`/api/coaching/sessions/${paid.id}/cancel`}
-                    label={t("agendaChanges.cancelSession")}
-                    name={t("agendaChanges.cancelSessionFor", { name: paid.coach.name })}
-                    question={t(cancellationOn ? "coachingCancellation.confirmationRefund" : "agendaChanges.cancelSessionConfirm")}
-                  />
+                    </Link>) : null}
+                  <CoachingSessionDialog withVideoLink={meetings === null} session={{
+                id: paid.id,
+                scheduledAt: interviewWallClock(paid.scheduledAt),
+                durationMinutes: paid.durationMinutes,
+                videoLink: paid.videoLink,
+                note: paid.note,
+            }} withName={paid.coach.name}/>
+                  <CancelAgendaItemButton url={`/api/coaching/sessions/${paid.id}/cancel`} label={t("agendaChanges.cancelSession")} name={t("agendaChanges.cancelSessionFor", { name: paid.coach.name })} question={t(cancellationOn ? "coachingCancellation.confirmationRefund" : "agendaChanges.cancelSessionConfirm")}/>
                 </CancellationWindow>
               </div>
-            </li>
-          ) : (
-            <li key={paid.id} id={`seance-${paid.id}`} className="stack">
+            </li>) : (<li key={paid.id} id={`seance-${paid.id}`} className="stack">
               <p>{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>
               <p>{t("humanCoaches.toSchedule")}</p>
-              <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t} />
+              <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t}/>
               <div className="actions">
-                {pendingCancellations.has(paid.id) ? (
-                  <p>{t("coachingCancellation.open")}</p>
-                ) : (
-                  <>
-                    {calPaths[paid.id] ? (
-                      <Link className="button button-primary" href={calPaths[paid.id]!}>
+                {pendingCancellations.has(paid.id) ? (<p>{t("coachingCancellation.open")}</p>) : (<>
+                    {calPaths[paid.id] ? (<Link className="button button-primary" href={calPaths[paid.id]!}>
                         {t("humanCoaches.pickSlot", { name: paid.coach.name })}
-                      </Link>
-                    ) : (
-                      <ExternalLink className="button button-primary" href={paid.coach.bookingUrl}>
+                      </Link>) : (<ExternalLink className="button button-primary" href={paid.coach.bookingUrl}>
                         {t("humanCoaches.pickSlot", { name: paid.coach.name })}
-                      </ExternalLink>
-                    )}
-                    <CoachingSessionDialog
-                      withVideoLink={meetings === null}
-                      session={{ id: paid.id, scheduledAt: "", durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }}
-                      withName={paid.coach.name}
-                    />
-                  </>
-                )}
+                      </ExternalLink>)}
+                    <CoachingSessionDialog withVideoLink={meetings === null} session={{ id: paid.id, scheduledAt: "", durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }} withName={paid.coach.name}/>
+                  </>)}
               </div>
-            </li>
-          ),
-        )}
-      </ul>
-    ) : null;
-  const coachesList = (
-    <>
+            </li>))}
+      </ul>) : null;
+    const coachesList = (<>
       <p>
         <HelpText terms={{ coachAccess: t("helpTerms.words.coachAccess") }}>{t("humanCoaches.accessIntro")}</HelpText>
       </p>
-      {price === null ? (
-        <p>{t("humanCoaches.unavailable")}</p>
-      ) : price.amount < price.regularAmount ? (
-        <p>
+      {price === null ? (<p>{t("humanCoaches.unavailable")}</p>) : price.amount < price.regularAmount ? (<p>
           {t("humanCoaches.discountedPrice", {
-            plan: price.planName[locale],
-            price: money(price.amount, price.currency),
-            regular: money(price.regularAmount, price.currency),
-          })}
-        </p>
-      ) : (
-        <p>
+                plan: price.planName[locale],
+                price: money(price.amount, price.currency),
+                regular: money(price.regularAmount, price.currency),
+            })}
+        </p>) : (<p>
           {t("humanCoaches.price", { price: money(price.amount, price.currency) })} {t("humanCoaches.discountHint")}
-        </p>
-      )}
+        </p>)}
       {coaches.length === 0 ? <p>{t("humanCoaches.none")}</p> : null}
       <ul className="stack">
         {coaches.map((coach) => {
-          const hasAccess = granted.includes(coach.id);
-          return (
-            <li key={coach.id} className="stack">
+            const hasAccess = granted.includes(coach.id);
+            return (<li key={coach.id} className="stack">
               <h3>{coach.name}</h3>
               {providers.has(coach.id) ? <p>{t("association.proposedBy", { name: providers.get(coach.id)!.name })}</p> : null}
-              {offers.get(coach.id) ? <SellerInfo seller={offers.get(coach.id)!.seller} t={t} /> : null}
-              {offers.get(coach.id) ? (
-                <p>
+              {offers.get(coach.id) ? <SellerInfo seller={offers.get(coach.id)!.seller} t={t}/> : null}
+              {offers.get(coach.id) ? (<p>
                   {money(offers.get(coach.id)!.amount, offers.get(coach.id)!.currency)} ·{" "}
                   {t("humanCoaches.sessionDuration", { count: offers.get(coach.id)!.durationMinutes })}
-                </p>
-              ) : null}
-              {pages.has(coach.id) ? <PublicCoachProfile name={coach.name} page={pages.get(coach.id)!} /> : coach.bio ? <p>{coach.bio}</p> : null}
+                </p>) : null}
+              {pages.has(coach.id) ? <PublicCoachProfile name={coach.name} page={pages.get(coach.id)!}/> : coach.bio ? <p>{coach.bio}</p> : null}
               <Link href={`/signaler-coaching?coach=${coach.id}&target=page`}>{t("contentReport.reportPage")}</Link>
-              {offers.get(coach.id)?<Link href={`/signaler-coaching?coach=${coach.id}&target=offer`}>{t("contentReport.reportOffer")}</Link>:null}
+              {offers.get(coach.id) ? <Link href={`/signaler-coaching?coach=${coach.id}&target=offer`}>{t("contentReport.reportOffer")}</Link> : null}
               {offers.get(coach.id) ? (
                 // To the Order page (#512): its summary and boxes come before Stripe Checkout.
                 <form method="get" action={COACHING_ORDER}>
-                  <input type="hidden" name={ORDER_PARAMS.coach} value={coach.id} />
+                  <input type="hidden" name={ORDER_PARAMS.coach} value={coach.id}/>
                   <button className="button button-primary" type="submit">
                     {t("humanCoaches.book", { name: coach.name })}
                   </button>
-                </form>
-              ) : null}
+                </form>) : null}
               <p>{t(hasAccess ? "humanCoaches.accessGranted" : "humanCoaches.accessNotGranted", { name: coach.name })}</p>
               <form action={changeCoachAccess}>
-                <input type="hidden" name="coachId" value={coach.id} />
-                <input type="hidden" name="access" value={hasAccess ? ACCESS.revoke : ACCESS.grant} />
+                <input type="hidden" name="coachId" value={coach.id}/>
+                <input type="hidden" name="access" value={hasAccess ? ACCESS.revoke : ACCESS.grant}/>
                 <button className="button" type="submit">
                   {t(hasAccess ? "humanCoaches.revoke" : "humanCoaches.grant", { name: coach.name })}
                 </button>
               </form>
-            </li>
-          );
+            </li>);
         })}
       </ul>
-    </>
-  );
-
-  const subject = await getCoachConversations().ofSubject(candidate.id, SUBJECT);
-  const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
-  return (
-    <CandidateLayout candidateId={candidate.id} title={t("humanCoaches.title")}>
-      <CoachConversationPage
-        key={conversationId ?? "new"}
-        conversationId={conversationId}
-        subject={SUBJECT}
-        introduction={<p>{t("humanCoachesMenu.introduction")}</p>}
-        card={
-          <>
+    </>);
+    const subject = await getCoachConversations().ofSubject(candidate.id, SUBJECT);
+    const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
+    return (<CandidateLayout candidateId={candidate.id} title={t("humanCoaches.title")}>
+      <CoachConversationPage key={conversationId ?? "new"} conversationId={conversationId} subject={SUBJECT} introduction={<p>{t("humanCoachesMenu.introduction")}</p>} card={<>
             <Card title={t("humanCoaches.sessionsTitle")} headingId={SESSIONS_TITLE_ID}>
               {notices}
               {sessionsList ?? <p>{t("humanCoachesMenu.sessionsNone")}</p>}
@@ -286,9 +217,6 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
             <Card title={t("humanCoaches.listTitle")} headingId={COACHES_TITLE_ID}>
               {coachesList}
             </Card>
-          </>
-        }
-      />
-    </CandidateLayout>
-  );
+          </>}/>
+    </CandidateLayout>);
 }

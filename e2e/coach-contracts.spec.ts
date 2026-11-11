@@ -4,7 +4,6 @@ import { Pool } from "pg";
 import { expect, test, type Browser } from "@playwright/test";
 import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-server";
 import { setUpTwoStepVerificationIfAsked } from "./support/candidate";
-import { platformSettingsStore } from "../apps/web/src/platform-settings";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 let own: OwnServer, database: Pool;
 async function signedIn(browser: Browser, email: string) {
@@ -33,7 +32,6 @@ test.beforeAll(async () => {
       .join(" "),
   });
   database = new Pool({ connectionString: own.databaseUrl });
-  await platformSettingsStore(database, {}).set("COACH_SPACE_V2_ENABLED", "true", "fixture-admin");
 });
 test.afterAll(async () => {
   await database?.end();

@@ -1,6 +1,6 @@
 # Coaching delivery (#885)
 
-New reminders require `COACH_SPACE_V2_ENABLED=true`, `CAL_COM_REMINDERS_DISABLED=true`, and current human-approved CGV, Coach contract and privacy versions covering `coach-space`. These checks run in the web settings routes and Worker. Setting a flag supplies neither legal approval nor confirmation that Cal workflows have actually been disabled; the operator must check the team configuration first. Existing contractual cancellation/refund messages remain independent.
+New reminders require `CAL_COM_REMINDERS_DISABLED=true`, and current human-approved CGV, Coach contract and privacy versions covering `coach-space`. These checks run in the web settings routes and Worker. A runtime setting supplies neither legal approval nor confirmation that Cal workflows have actually been disabled; the operator must check the team configuration first. Existing contractual cancellation/refund messages remain independent.
 
 The minute Worker discovers canonical paid/date/cancellation facts and delivers due H-1 reminders to both participants. Coach day-before notices run from 18:00 until local midnight for sessions known by 18:00. The daily summary runs from 07:30 until noon local time, once per Coach/local day, and includes only upcoming services. H-1 uses absolute instants; local windows use each Coach’s stored IANA zone. Restarts may catch up within these windows. Activity facts older than 24 hours are not delivered late.
 

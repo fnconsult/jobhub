@@ -93,7 +93,6 @@ test.beforeAll(async () => {
   database = new Pool({ connectionString: own.databaseUrl });
   const settings = platformSettingsStore(database, {});
   for (const [name, value] of [
-    ["COACH_SPACE_V2_ENABLED", "true"],
     ["CAL_COM_TEAM_ID", "7"],
     ["CAL_COM_REMINDERS_DISABLED", "true"],
   ])

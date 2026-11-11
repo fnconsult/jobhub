@@ -1,3 +1,4 @@
+import {getCoachingRefunds} from "@/coaching-refunds/server";
 import { getCoachingConnect, getConnectStripe } from "@/coaching-connect/server";
 import { getWithdrawals } from "@/withdrawals/server";
 import { sharedPool } from "@/database/pool";
@@ -37,5 +38,6 @@ export async function POST(request: Request) {
         failureReason: refund.failure_reason ?? null,
       });
   }
+  if(event.type==='refund.updated'||event.type==='refund.failed')await getCoachingRefunds().changed(event.data.object.id,event.account);
   return Response.json({ received: true });
 }

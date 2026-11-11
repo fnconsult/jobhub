@@ -217,6 +217,7 @@ export function fakeConnectStripe() {
         );
       return respond(value);
     }
+    if(method==='GET'&&path==='/v1/refunds'&&url.searchParams.get('payment_intent')?.startsWith('pi_connect_'))return respond(list([...refunds.values()].filter(r=>r.account===account&&r.value.payment_intent===url.searchParams.get('payment_intent')).map(r=>r.value)));
     if (method === "GET" && path === "/v1/refunds" && url.searchParams.get("charge")?.startsWith("ch_connect_"))
       return respond(list([...refunds.values()].filter((r) => r.account === account && r.value.charge === url.searchParams.get("charge")).map((r) => r.value)));
     if (method === "GET" && path === "/v1/transfers")

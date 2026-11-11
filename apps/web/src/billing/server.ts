@@ -1,3 +1,4 @@
+import {getCoachingRefunds} from "@/coaching-refunds/server";
 import {getCoachingConnect,getConnectStripe} from "@/coaching-connect/server";
 import {coachSpaceV2On} from "@/coach-space/server";
 import {getCoachingOffers} from "@/coaching-offers/server";
@@ -32,7 +33,7 @@ export function getBilling(): Billing {
       connectedCoachingPayment:id=>getCoachingConnect().contextForCheckout(id),
       onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid, within => getCoachingOffers().attachPaid(paid,within)),
       onCheckoutPaid: (paid) => getOrders().paid(paid),
-      onRefundChanged: (change) => getWithdrawals().refundChanged(change),
+      onRefundChanged: async(change) => {await getWithdrawals().refundChanged(change);await getCoachingRefunds().changed(change.id,null);},
       externalApis: getExternalApiLog(),
       mailer: getMailer(),
     }),

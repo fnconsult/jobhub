@@ -51,3 +51,5 @@ My account is not a conversation: « Help », at the top of the page, opens this
 ## Your time zone
 
 In “My account”, “Preferences”, confirm “Your time zone” with “Save time zone”. On your first visit Jobbbox suggests your device’s zone. Coaching Sessions display in this IANA zone, with Paris time alongside when it differs; Interviews stay in Paris time. The “Add to my calendar” file keeps the session’s zone and daylight-saving changes.
+
+Your data export also includes your session refund facts: amount, status and attempts. Technical payment-account routing identifiers are excluded from this export.

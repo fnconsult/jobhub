@@ -1,3 +1,5 @@
+import {coachingRefunds} from "@jobhub/web/coaching-refunds";
+import {coachingRefundStripe} from "@jobhub/web/coaching-refunds/stripe";
 import {recordingFetch} from "@jobhub/shared";
 import {coachingBooking} from "@jobhub/web/coaching-booking";
 import {calTeam} from "@jobhub/web/coaching-booking/cal";
@@ -182,7 +184,9 @@ const connect=()=>{
  return coachingConnect(database,{stripe,baseURL,permitted:async()=>settingsEnv().COACH_SPACE_V2_ENABLED==='true'&&connectLegalReady(),sendPayoutNotice:async notice=>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});}});
 };
 const booking=()=>{const env=secrets.current().env;return coachingBooking(database,{secret:env.AUTH_SECRET??"",webhookSecret:env.CAL_COM_WEBHOOK_SECRET??"",...(env.CAL_COM_API_KEY?{cal:calTeam({apiKey:env.CAL_COM_API_KEY,fetch:recordingFetch(fetch,externalApis,{provider:"cal_com",operation:()=>"booking.cancel"})})}:{}),changed:(id,key)=>bookingChanged(database,pushNotifications,id,key)});};
+const contractualRefunds=()=>{const env=secrets.current().env;return coachingRefunds(database,{...env.STRIPE_SECRET_KEY?{stripe:coachingRefundStripe({secretKey:env.STRIPE_SECRET_KEY,apiUrl:env.STRIPE_API_URL,externalApis})}:{}});};
 const jobs = createJobs({
+  coachingRefunds:{runPending:()=>contractualRefunds().runPending(),purge:()=>contractualRefunds().purge()},
   coachingBooking:{replayPending:()=>booking().replayPending(),deliverCancellations:()=>booking().deliverCancellations(),deliverNotices:()=>booking().deliverNotices(),purge:()=>booking().purge(),observeLegal:()=>calLegalReady(database)},
   coachingConnect:{runMonthly:()=>connect().runMonthly(),purge:()=>connect().purge()},
   coachPages:coachPages(database,{sendDecision:async record=>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});}}),

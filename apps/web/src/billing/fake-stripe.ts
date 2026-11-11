@@ -423,6 +423,7 @@ export async function startFakeStripe(port = 0) {
         if (!paid) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such checkout.session: '${checkoutSession}'` } });
         return reply(200, { id: checkoutSession, object: "checkout.session", mode: "payment", payment_status: "paid", payment_intent: paid.paymentIntent, amount_total: paid.amount, currency: "eur" });
       }
+      if(request.method==='GET'&&path==='/v1/refunds'){const query=new URL(request.url??'/', 'http://stripe.test').searchParams;return reply(200,{object:'list',has_more:false,url:'/v1/refunds',data:refunds.filter(r=>!query.get('payment_intent')||r.payment_intent===query.get('payment_intent'))});}
       if (request.method === "POST" && path === "/v1/refunds") {
         const key = request.headers["idempotency-key"];
         const answer = (typeof key === "string" && refundAnswers.get(key)) || createRefund(params);

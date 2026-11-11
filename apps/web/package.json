@@ -65,7 +65,9 @@
     "./coaching-booking": "./src/coaching-booking/index.ts",
     "./coaching-booking/cal": "./src/coaching-booking/cal.ts",
     "./coaching-booking/legal": "./src/coaching-booking/legal.ts",
-    "./coaching-booking/notice": "./src/coaching-booking/notice.ts"
+    "./coaching-booking/notice": "./src/coaching-booking/notice.ts",
+    "./coaching-refunds": "./src/coaching-refunds/index.ts",
+    "./coaching-refunds/stripe": "./src/coaching-refunds/stripe.ts"
   },
   "scripts": {
     "dev": "next dev",

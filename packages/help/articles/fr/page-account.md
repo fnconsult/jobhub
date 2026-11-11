@@ -51,3 +51,5 @@ Mon compte n'est pas une conversation : « Aide », en haut de la page, ouvre ce
 ## Votre fuseau horaire
 
 Dans « Mon compte », « Préférences », confirmez « Votre fuseau horaire » avec « Enregistrer le fuseau ». À la première visite, Jobbbox propose celui de votre appareil. Les séances de coaching s’affichent dans ce fuseau IANA, avec l’heure de Paris à côté quand elle diffère ; les entretiens restent en heure de Paris. Le fichier « Ajouter à mon calendrier » garde le fuseau de la séance et ses changements d’heure.
+
+L’export de vos données comprend aussi les faits de remboursement de vos séances : montant, état et essais. Les identifiants techniques de routage des comptes de paiement ne figurent pas dans cet export.

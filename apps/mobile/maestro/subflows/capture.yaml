@@ -10,9 +10,16 @@ appId: ai.jobbbox.app
     when:
       true: ${CAPTURES == 'compare'}
     commands:
-      - assertScreenshot:
-          path: ../captures/${CAPTURE_DIR}/${SCREEN}.png
-          thresholdPercentage: 99
+      # UIKit's scroll indicator can remain briefly after the content stops moving (iPhone light accueil,
+      # #939 verification): retry the same visual assertion while it fades, without another swipe or a looser match.
+      - retry:
+          maxRetries: 3
+          commands:
+            - waitForAnimationToEnd:
+                timeout: 5000
+            - assertScreenshot:
+                path: ../captures/${CAPTURE_DIR}/${SCREEN}.png
+                thresholdPercentage: 99
 - runFlow:
     when:
       true: ${CAPTURES == 'record'}

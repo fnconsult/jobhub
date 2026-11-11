@@ -13,6 +13,8 @@ import { createProfiles } from "@jobhub/web/profiles";
 import { secretCipherFromEnv } from "@jobhub/web/provider-secrets";
 import { taskPlaybooksReader } from "@jobhub/web/task-playbooks";
 import { createEmailReading } from "../../apps/worker/src/email-intake";
+import { createEmailSourceReader } from "../../apps/worker/src/email-intake/source-reading";
+import { emailSourceFetch } from "./email-source-pages";
 import { createJobs } from "../../apps/worker/src/jobs";
 
 const database = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -25,6 +27,7 @@ const jobs = createJobs({
   jobSearches: { record: async () => {} },
   emailReading: createEmailReading({
     readings: createEmailReadings(database, { cipher: () => cipher }),
+    readSource: createEmailSourceReader({ fetch: emailSourceFetch, clock: { now: () => Date.now(), sleep: async () => {} } }),
     jobOffers: createJobOffers(database),
     profiles: createProfiles(database),
     ai,

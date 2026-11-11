@@ -61,7 +61,7 @@ function dedicatedSimulator(tools: RecoveryTools): { udid: string; state: string
 
 /** Never stop another Xcode build or another simulator's driver. Re-read commands before escalating a still-owned PID. */
 function stopDriver(udid: string, tools: RecoveryTools) {
-  const owned = () => maestroDriverPids(tools.read(["ps", "-axo", "pid=,command="]), udid);
+  const owned = () => maestroDriverPids(tools.read(["ps", "-ww", "-axo", "pid=,command="]), udid);
   const pids = owned();
   for (const pid of pids) tools.signal(pid, "SIGTERM");
   if (pids.length) {

@@ -19,6 +19,11 @@ const ONE_OF_EACH: Record<PushNotification["event"], PushNotification> = {
   coach_review: { event: "coach_review", applicationId: APPLICATION },
   coaching_session_changed: { event: "coaching_session_changed" },
   coaching_cancellation: { event: "coaching_cancellation" },
+  coaching_session_hour:{event:'coaching_session_hour',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_hour_for_coach:{event:'coaching_session_hour_for_coach',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_eve:{event:'coaching_session_eve',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_updated:{event:'coaching_session_updated'},
+  coaching_day:{event:'coaching_day',noticeKey:'e'.repeat(64)},
   follow_up_due: { event: "follow_up_due", applicationId: APPLICATION },
   coach_access_granted: { event: "coach_access_granted", candidateId: CANDIDATE },
   coaching_session_paid: { event: "coaching_session_paid" },
@@ -115,8 +120,9 @@ describe("the events a person sees in Rappels", () => {
       "coach_review",
       "coaching_session_changed",
       "coaching_cancellation",
+      "coaching_session_hour",
       "follow_up_due",
     ]);
-    expect(pushEventsFor(pushAudiencesOf(true)).slice(7)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate"]);
+    expect(pushEventsFor(pushAudiencesOf(true)).slice(8)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate","coaching_session_updated","coaching_session_hour_for_coach","coaching_session_eve","coaching_day"]);
   });
 });

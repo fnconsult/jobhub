@@ -1,3 +1,4 @@
+import {MeetingLink} from "@/coach-space/MeetingLink";
 import { CoachCancel } from "@/coaching-cancellations/Actions";
 import { cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { SessionBoundaryRefresh } from "@/coach-space/SessionBoundaryRefresh";
@@ -47,6 +48,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
         <Link href={coachCandidateUrl(session.candidateId)}>{t("coachWorkspace.prepare")}</Link>
         {session.scheduledAt ? <p>{coachingTime(session.scheduledAt, locale, timeZone)}</p> : null}
         {(await cancellationPolicyOn()) ? <CoachCancel sessionId={session.id} /> : null}
+        <MeetingLink coach meeting={await getCoachContacts().ofSession(coach.id,session.id)} scheduledAt={session.scheduledAt?.toISOString()??null} durationMinutes={session.durationMinutes} timeZone={timeZone}/>
         <CoachingSessionDialog
           editor={EDITOR}
           withVideoLink={false}

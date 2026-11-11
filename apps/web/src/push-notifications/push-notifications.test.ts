@@ -129,6 +129,16 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
   });
 
   describe("the switches in Rappels", () => {
+    it("preserves the old Coach activity opt-out when upgrading, without replacing a later choice", async () => {
+      const marie = await signIn("marie@example.fr");
+      await push.setEnabled(marie.id, "coaching_session_changed_by_candidate", false);
+      await migratePushNotifications(database);
+      expect((await push.settings(marie.id)).coaching_session_updated).toBe(false);
+      await push.setEnabled(marie.id, "coaching_session_updated", true);
+      await migratePushNotifications(database);
+      expect((await push.settings(marie.id)).coaching_session_updated).toBe(true);
+    });
+
     it("has every event on until switched off", async () => {
       const marie = await signIn("marie@example.fr");
       const settings = await push.settings(marie.id);
@@ -294,6 +304,11 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
         coach_review: { event: "coach_review", applicationId: OBJECT },
         coaching_session_changed: { event: "coaching_session_changed" },
         coaching_cancellation: { event: "coaching_cancellation" },
+  coaching_session_hour:{event:'coaching_session_hour',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_hour_for_coach:{event:'coaching_session_hour_for_coach',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_eve:{event:'coaching_session_eve',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_updated:{event:'coaching_session_updated'},
+  coaching_day:{event:'coaching_day',noticeKey:'e'.repeat(64)},
         follow_up_due: { event: "follow_up_due", applicationId: OBJECT },
         coach_access_granted: { event: "coach_access_granted", candidateId: OBJECT },
         coaching_session_paid: { event: "coaching_session_paid" },

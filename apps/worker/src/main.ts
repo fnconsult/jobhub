@@ -1,3 +1,6 @@
+import {coachingNotifications} from "@jobhub/web/coaching-notifications";
+import {coachingNoticeEmail,coachingNoticePush} from "@jobhub/web/coaching-notifications/messages";
+import {coachingNoticesEnabled} from "@jobhub/web/coaching-notifications/legal";
 import { coachingCancellations, recordProviderCancellation } from "@jobhub/web/coaching-cancellations";
 import { cancellationLegalReady } from "@jobhub/web/coaching-cancellations/legal";
 import { cancellationNotice } from "@jobhub/web/coaching-cancellations/notice";
@@ -10,7 +13,7 @@ import {calLegalReady} from "@jobhub/web/coaching-booking/legal";
 import {bookingChanged} from "@jobhub/web/coaching-booking/notice";
 import {coachingConnect} from "@jobhub/web/coaching-connect";
 import {stripeConnect} from "@jobhub/web/coaching-connect/stripe";
-import {connectLegalReady} from "@jobhub/web/coaching-connect/legal";
+import {connectLegalReady,connectLegalRegistry} from "@jobhub/web/coaching-connect/legal";
 import {payoutRecipient,payoutInformationEmail} from "@jobhub/web/coaching-connect/email";
 import { coachPages } from "@jobhub/web/coach-pages";
 import { coachPageDecisionEmail } from "@jobhub/web/coach-pages/email";
@@ -175,6 +178,7 @@ const workerQueue = {
 // events (results, Job Digests, Appointment Reminders, Follow-ups due) queue theirs on its runner (#699). Each one
 // carries the app icon's badge, the person's offers à traiter at sending (#818).
 const pushNotifications = createPushNotifications(database, {
+  eligibleNotification:(id,notice)=>notices().pushStillCurrent(id,notice),
   senders: pushSendersFromEnv({ env: () => secrets.current().env, externalApis }),
   log: (line) => console.warn(line),
   queue: workerQueue,
@@ -192,8 +196,10 @@ const booking=()=>{const env=secrets.current().env;return coachingBooking(databa
       : {}),
     cancelled: async (within, id, key, at, reason) => {
       if (settingsEnv().COACH_SPACE_V2_ENABLED === "true" && cancellationLegalReady()) await recordProviderCancellation(within, id, key, at, reason);
-    },changed:(id,key)=>bookingChanged(database,pushNotifications,id,key),
+    },changed:(id,key)=>bookingChanged(database,pushNotifications,id,key,{coach:!coachingDeliveryOn()}),
   });};
+const coachingDeliveryOn=()=>coachingNoticesEnabled(settingsEnv().COACH_SPACE_V2_ENABLED==='true',settingsEnv().CAL_COM_REMINDERS_DISABLED==='true');
+const notices=()=>coachingNotifications(database,{permitted:async()=>coachingDeliveryOn(),eligibleCoach:(person,id)=>coachContracts(database,{registry:connectLegalRegistry}).mayEnter(person,id),email:async(person,notice)=>{await mailer.send({to:person.email,...coachingNoticeEmail(person,notice,baseURL)});},push:async(person,notice)=>{await pushNotifications.notify(person.id,coachingNoticePush(person,notice),{once:notice.key});}});
 const contractualRefunds=()=>{const env=secrets.current().env;return coachingRefunds(database,{...(env.STRIPE_SECRET_KEY?{stripe:coachingRefundStripe({secretKey:env.STRIPE_SECRET_KEY,apiUrl:env.STRIPE_API_URL,externalApis})}:{}),
   });
 };
@@ -205,6 +211,7 @@ const cancellations = () =>
       cancellationNotice(database, record, kind, baseURL, (email, message) => mailer.send({ to: email, ...message }), pushNotifications),
   });
 const jobs = createJobs({
+  coachingNotifications:{sendDue:()=>notices().sendDue(),purge:()=>notices().purge()},
   coachingCancellations: {
     expireChoices: () => cancellations().expireChoices(),
     retiredCoaches: () => cancellations().retiredCoaches(),

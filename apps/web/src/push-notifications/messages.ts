@@ -33,6 +33,14 @@ function pathOf(notification: PushNotification): string {
     case "coaching_session_paid":
     case "coaching_session_changed_by_candidate":
       return routes.coachSpace;
+    case "coaching_session_hour":
+      return `/coachs/seances/${notification.sessionId}`;
+    case "coaching_session_hour_for_coach":
+    case "coaching_session_eve":
+      return `/espace-coach/seances/${notification.sessionId}`;
+    case "coaching_session_updated":
+    case "coaching_day":
+      return "/espace-coach/aujourdhui";
     case "test":
       return "/";
   }

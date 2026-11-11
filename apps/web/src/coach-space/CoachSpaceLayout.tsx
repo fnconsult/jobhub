@@ -16,7 +16,7 @@ const DOCK_AT = "48rem";
 const HOME = coachSpacePage("aujourdhui");
 
 /** The coach's own Mercury navigation, including the app's WebView (ADR-0084). */
-export function CoachSpaceLayout({ children }: { children: ReactNode }) {
+export function CoachSpaceLayout({ children,remindersEnabled=false }: { children: ReactNode;remindersEnabled?:boolean }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const current = COACH_SPACE_PAGES.find((page) => pathname === coachSpacePage(page) || pathname.startsWith(`${coachSpacePage(page)}/`));
@@ -30,7 +30,7 @@ export function CoachSpaceLayout({ children }: { children: ReactNode }) {
         nav={(close) => (
           <nav className="sidebar-nav" aria-label={t("coachSpace.title")}>
             <ul className="sidebar-group">
-              {COACH_SPACE_PAGES.map((page) => <li key={page}><Link className="sidebar-link" href={coachSpacePage(page)} aria-current={current === page ? CURRENT : undefined} onClick={close}>{t(`coachSpaceV2.pages.${page}`)}</Link></li>)}
+              {COACH_SPACE_PAGES.filter(page=>page!=="rappels"||remindersEnabled).map((page) => <li key={page}><Link className="sidebar-link" href={coachSpacePage(page)} aria-current={current === page ? CURRENT : undefined} onClick={close}>{t(`coachSpaceV2.pages.${page}`)}</Link></li>)}
             </ul>
           </nav>
         )}

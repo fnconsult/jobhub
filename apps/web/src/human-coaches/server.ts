@@ -1,3 +1,4 @@
+import {coachingNoticesOn} from "@/coaching-notifications/activation-server";
 import { getCoachingCancellations, cancellationPolicyOn } from "@/coaching-cancellations/server";
 import {getCoachPages} from "@/coach-pages/server";
 import {getCoachContracts} from "@/coach-contracts/server";
@@ -20,6 +21,7 @@ export function getHumanCoaches(): HumanCoaches {
   instance ??= createHumanCoaches(sharedPool(), {
     contractualCancellationOn: cancellationPolicyOn,
     mayChangeSession: (within, id, by, to) => (by === "cal_com" ? Promise.resolve(true) : getCoachingCancellations().maySchedule(within, id, by, to)),
+    coachingNotificationsOwned:coachingNoticesOn,
     publicProfileApprovalRequired: coachSpaceV2On,
     publishedCoachIds: async (ids) => (coachSpaceV2On()?(await getCoachPages().approved(ids)).map((p) => p.coachId) : ids),
     profiles: getProfiles(),

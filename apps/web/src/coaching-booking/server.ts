@@ -1,3 +1,4 @@
+import {coachingNoticesOn} from "@/coaching-notifications/activation-server";
 import { recordProviderCancellation } from "@/coaching-cancellations";
 import { cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { bookingChanged } from "./notice";
@@ -53,6 +54,6 @@ export function getCoachingBooking() {
       ).rows[0];
       return !!owner && (await getCoachContracts().mayEnter(owner, coachId));
     },
-    changed: (sessionId, eventKey) => bookingChanged(sharedPool(), getPushNotifications(), sessionId, eventKey),
+    changed: (sessionId, eventKey) => bookingChanged(sharedPool(), getPushNotifications(), sessionId, eventKey,{coach:!coachingNoticesOn()}),
   });
 }

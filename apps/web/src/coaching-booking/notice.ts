@@ -5,6 +5,7 @@ export async function bookingChanged(
   push: { notify(id: string, event: PushNotification, options: { once: string }): Promise<unknown> },
   sessionId: string,
   eventKey: string,
+  options:{coach?:boolean}={},
 ) {
   const session = (
     await database.query<{ candidateId: string; coachAccount: string | null }>(
@@ -14,5 +15,5 @@ export async function bookingChanged(
   ).rows[0];
   if (!session) return;
   await push.notify(session.candidateId, { event: "coaching_session_changed" }, { once: `cal:${eventKey}:candidate` });
-  if (session.coachAccount) await push.notify(session.coachAccount, { event: "coaching_session_changed_by_candidate" }, { once: `cal:${eventKey}:coach` });
+  if (session.coachAccount&&options.coach!==false) await push.notify(session.coachAccount, { event: "coaching_session_changed_by_candidate" }, { once: `cal:${eventKey}:coach` });
 }

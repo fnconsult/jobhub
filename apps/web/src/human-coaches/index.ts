@@ -180,6 +180,7 @@ export type CoachReviewResult =
   | { ok: false; error: "not_found" };
 
 export interface HumanCoachesDeps {
+  coachingNotificationsOwned?:()=>boolean|Promise<boolean>;
   mayChangeSession?: (within: Queryable, sessionId: string, by: RescheduledBy, to: Date | null) => Promise<boolean>;
   contractualCancellationOn?: () => Promise<boolean>;
 
@@ -581,7 +582,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     // The change itself: its new date, or none, and when it was made.
     const once = `${sessionId}:${to instanceof Date ? to.toISOString() : (to ?? "cancelled")}:${now().toISOString()}`;
     if (by === "coach") await notify(session.candidate_id, { event: "coaching_session_changed" }, `coaching_session_changed:${once}`);
-    else
+    else if(!(await deps.coachingNotificationsOwned?.()))
       await notify(await coachAccount(session.coach_id), { event: "coaching_session_changed_by_candidate" }, `coaching_session_changed_by_candidate:${once}`);
   }
 
@@ -740,7 +741,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       const row = financials ? await inTransaction(database, record) : await record(database);
       if (!row) return false;
       // Financial callbacks have committed: a failed snapshot never exposes a session or a premature notification.
-      if (row.recorded) await notify(await coachAccount(coachId), { event: "coaching_session_paid" }, `coaching_session_paid:${checkoutSessionId}`);
+      if (row.recorded && !(await deps.coachingNotificationsOwned?.())) await notify(await coachAccount(coachId), { event: "coaching_session_paid" }, `coaching_session_paid:${checkoutSessionId}`);
       return true;
     },
 

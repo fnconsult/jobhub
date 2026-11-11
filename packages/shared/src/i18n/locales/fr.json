@@ -6494,6 +6494,26 @@
       "coaching_cancellation": {
         "title": "Annulations et remboursements",
         "body": "Ouvrir le suivi de la séance"
+      },
+      "coaching_session_hour": {
+        "title": "Votre séance commence bientôt",
+        "body": "Ouvrez Jobbbox pour retrouver vos séances."
+      },
+      "coaching_session_hour_for_coach": {
+        "title": "Votre séance commence bientôt",
+        "body": "Ouvrez Jobbbox pour retrouver vos séances."
+      },
+      "coaching_session_eve": {
+        "title": "Une séance de coaching à venir",
+        "body": "Ouvrez Jobbbox pour retrouver vos séances."
+      },
+      "coaching_session_updated": {
+        "title": "Une séance de coaching mise à jour",
+        "body": "Ouvrez Jobbbox pour retrouver vos séances."
+      },
+      "coaching_day": {
+        "title": "Votre journée de coaching",
+        "body": "Ouvrez Jobbbox pour retrouver vos séances."
       }
     },
     "settings": {
@@ -6517,7 +6537,12 @@
       "coach_access_granted": "Accès donné par un candidat",
       "coaching_session_paid": "Séance de coaching payée",
       "coaching_session_changed_by_candidate": "Séance déplacée ou annulée par un candidat",
-      "coaching_cancellation": "Annulations et remboursements"
+      "coaching_cancellation": "Annulations et remboursements",
+      "coaching_session_hour": "Votre séance commence bientôt",
+      "coaching_session_hour_for_coach": "Votre séance commence bientôt",
+      "coaching_session_eve": "Une séance de coaching à venir",
+      "coaching_session_updated": "Une séance de coaching mise à jour",
+      "coaching_day": "Votre journée de coaching"
     }
   },
   "coachingPayment": {
@@ -6564,7 +6589,8 @@
       "profil": "Profil public",
       "revenus": "Revenus",
       "contrat": "Contrat",
-      "aide": "Aide"
+      "aide": "Aide",
+      "rappels": "Rappels"
     },
     "notifications": "Notifications",
     "noNotifications": "Aucune notification.",
@@ -6577,7 +6603,8 @@
       "profil": "Votre profil public sera affiché ici.",
       "revenus": "Aucun revenu pour le moment.",
       "contrat": "Aucun contrat à accepter pour le moment.",
-      "aide": "Retrouvez les conseils pour utiliser votre espace coach."
+      "aide": "Retrouvez les conseils pour utiliser votre espace coach.",
+      "rappels": "Vos réglages de rappel de coaching."
     }
   },
   "coachingTime": {
@@ -6986,5 +7013,50 @@
     "notice": "Annulation et déplacement possibles jusqu’à 24 heures avant la séance. Une annulation dans Jobbbox demande le remboursement intégral. Après ce délai, contactez votre coach ou le support.",
     "tooLate": "Le délai de 24 heures est dépassé. Contactez votre coach ou le support.",
     "confirmationRefund": "Annuler cette séance et demander son remboursement intégral ?"
+  },
+  "coachingNotices": {
+    "join": "Rejoindre",
+    "open": "Ouvrir mon espace",
+    "settings": {
+      "title": "Rappels de coaching",
+      "hourEmail": "Recevoir un e-mail une heure avant ma séance",
+      "coachEmail": "Recevoir les e-mails de mes séances : paiement, réservation, changements et rappels",
+      "daily": "Recevoir mon récapitulatif à 7 h 30 dans mon fuseau horaire",
+      "independent": "Les notifications de l’app ont leurs propres interrupteurs ci-dessous.",
+      "saved": "Enregistré.",
+      "error": "Le réglage n’a pas été enregistré.",
+      "contract": "Les messages du suivi « Annulations et remboursements » ne sont pas désactivés ici. Le récapitulatif matinal a aussi son propre réglage."
+    },
+    "email": {
+      "reason": "Suivi de vos séances de coaching.",
+      "paid": {
+        "title": "Une séance de coaching a été payée",
+        "body": "Retrouvez les séances et leur état actuel dans votre espace privé."
+      },
+      "booked": {
+        "title": "Une séance a été réservée",
+        "body": "Retrouvez les séances et leur état actuel dans votre espace privé."
+      },
+      "rescheduled": {
+        "title": "Une séance a été déplacée",
+        "body": "Retrouvez les séances et leur état actuel dans votre espace privé."
+      },
+      "cancelled": {
+        "title": "Une séance a été annulée",
+        "body": "Retrouvez les séances et leur état actuel dans votre espace privé."
+      },
+      "hour_before": {
+        "title": "Votre séance commence dans l’heure",
+        "body": "Retrouvez les détails dans votre espace privé. Le lien d’appel devient disponible dix minutes avant le début de la séance."
+      },
+      "day_before": {
+        "title": "Votre séance de coaching à venir",
+        "body": "Retrouvez les détails dans votre espace privé. Le lien d’appel devient disponible dix minutes avant le début de la séance."
+      },
+      "daily": {
+        "title": "Votre journée de coaching",
+        "body": "Retrouvez les séances et leur état actuel dans votre espace privé."
+      }
+    }
   }
 }

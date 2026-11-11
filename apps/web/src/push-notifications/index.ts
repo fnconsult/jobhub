@@ -36,6 +36,7 @@ export const FAILURE_RETENTION_DAYS = 90;
 const MAX_TOKEN_LENGTH = 4096;
 
 export interface PushNotificationsDeps {
+  eligibleNotification?:(personId:string,notification:PushNotification)=>Promise<boolean>;
   /**
    * Each platform's provider, asked at each send (the worker's follow its Provider Secrets): null, or none, while its key
    * is not entered, and the devices of that platform fail with key_missing.
@@ -201,6 +202,7 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
       const at = now();
       const result = { sent: 0, failed: 0, removed: 0 };
       if (notification.event !== "test" && !(await this.settings(personId))[notification.event]) return result;
+      if(deps.eligibleNotification&&!(await deps.eligibleNotification(personId,notification)))return result;
       const { rows } = await database.query<{ id: string; platform: PushPlatform; environment: PushEnvironment; token: string; language: string }>(
         `SELECT d.id, d.platform, d.environment, d.token, d.language
            FROM push_device d JOIN session s ON s.id = d.session_id
@@ -317,6 +319,12 @@ export async function migratePushNotifications(database: Pick<Pool, "query">): P
       changed_at timestamptz NOT NULL,
       PRIMARY KEY (candidate_id, event)
     );
+    -- The consolidated Coach activity event succeeds the old Candidate-change event.
+    -- Preserve its explicit choice once; never overwrite a later choice for the new event.
+    INSERT INTO push_notification_setting(candidate_id,event,enabled,changed_at)
+    SELECT candidate_id,'coaching_session_updated',enabled,changed_at
+    FROM push_notification_setting WHERE event='coaching_session_changed_by_candidate'
+    ON CONFLICT(candidate_id,event) DO NOTHING;
     -- The notifications that did not reach a device, with their Failure Reason (ADR-0030): no token, no account, no text.
     CREATE TABLE IF NOT EXISTS push_notification_failure (
       id bigserial PRIMARY KEY,

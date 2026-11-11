@@ -66,7 +66,7 @@ export async function cancellationNotice(
     await once("push", () =>
       push.notify(
         person.id,
-        { event: person.coach ? "coaching_session_changed_by_candidate" : "coaching_cancellation" },
+        { event: person.coach ? "coaching_session_updated" : "coaching_cancellation" },
         { once: `cancellation:${cancellation.id}:${kind}:${person.coach ? "coach" : "candidate"}` },
       ),
     );

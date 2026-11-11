@@ -17,10 +17,15 @@ export const PUSH_EVENTS = [
   { id: "coach_review", audience: "candidate" },
   { id: "coaching_session_changed", audience: "candidate" },
   { id: "coaching_cancellation", audience: "candidate" },
+  {id:"coaching_session_hour",audience:"candidate"},
   { id: "follow_up_due", audience: "candidate" },
   { id: "coach_access_granted", audience: "human_coach" },
   { id: "coaching_session_paid", audience: "human_coach" },
   { id: "coaching_session_changed_by_candidate", audience: "human_coach" },
+  {id:"coaching_session_updated",audience:"human_coach"},
+  {id:"coaching_session_hour_for_coach",audience:"human_coach"},
+  {id:"coaching_session_eve",audience:"human_coach"},
+  {id:"coaching_day",audience:"human_coach"},
 ] as const satisfies readonly { id: string; audience: PushAudience }[];
 
 /** An event a person can switch off. */
@@ -51,6 +56,9 @@ export type PushNotification =
   | { event: "coach_access_granted"; candidateId: string }
   | { event: "coaching_session_paid" }
   | { event: "coaching_session_changed_by_candidate" }
+  | {event:'coaching_session_hour'|'coaching_session_hour_for_coach'|'coaching_session_eve';sessionId:string;noticeKey:string}
+  | {event:'coaching_session_updated'}
+  | {event:'coaching_day';noticeKey:string}
   | { event: "test" };
 
 /** What a notification's event is: one of the catalogue's, or the test. */
@@ -60,7 +68,7 @@ export type PushNotificationEvent = PushNotification["event"];
 export const PUSH_NOTIFICATIONS_QUEUE = "push-notifications.send";
 
 /** Which id each event's notification carries, by its field's name; none for an event about no one object. */
-const ID_FIELD: Record<PushNotificationEvent, "jobSearchId" | "jobDigestId" | "applicationId" | "candidateId" | null> = {
+const ID_FIELD: Record<PushNotificationEvent, "jobSearchId" | "jobDigestId" | "applicationId" | "candidateId" | "sessionId" | "noticeKey" | null> = {
   job_search_results: "jobSearchId",
   job_digest: "jobDigestId",
   appointment_reminder: null,
@@ -71,6 +79,11 @@ const ID_FIELD: Record<PushNotificationEvent, "jobSearchId" | "jobDigestId" | "a
   coach_access_granted: "candidateId",
   coaching_session_paid: null,
   coaching_session_changed_by_candidate: null,
+  coaching_session_hour:"sessionId",
+  coaching_session_hour_for_coach:"sessionId",
+  coaching_session_eve:"sessionId",
+  coaching_session_updated:null,
+  coaching_day:"noticeKey",
   test: null,
 };
 
@@ -79,8 +92,11 @@ export function pushNotificationOf(value: unknown): PushNotification | null {
   if (typeof value !== "object" || value === null) return null;
   const { event } = value as { event?: unknown };
   if (typeof event !== "string" || !Object.hasOwn(ID_FIELD, event)) return null;
+  const reminder=['coaching_session_hour','coaching_session_hour_for_coach','coaching_session_eve','coaching_day'].includes(event);
+  const noticeKey=(value as {noticeKey?:unknown}).noticeKey;
+  if(reminder&&(typeof noticeKey!=='string'||!/^[0-9a-f]{64}$/.test(noticeKey)))return null;
   const field = ID_FIELD[event as PushNotificationEvent];
   if (!field) return { event } as PushNotification;
   const id = (value as Record<string, unknown>)[field];
-  return typeof id === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(id) ? ({ event, [field]: id } as PushNotification) : null;
+  return typeof id === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(id) ? ({ event, [field]: id,...reminder?{noticeKey}:{} } as PushNotification) : null;
 }

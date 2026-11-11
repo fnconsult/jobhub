@@ -70,7 +70,10 @@
     "./coaching-refunds/stripe": "./src/coaching-refunds/stripe.ts",
     "./coaching-cancellations": "./src/coaching-cancellations/index.ts",
     "./coaching-cancellations/legal": "./src/coaching-cancellations/legal.ts",
-    "./coaching-cancellations/notice": "./src/coaching-cancellations/notice.ts"
+    "./coaching-cancellations/notice": "./src/coaching-cancellations/notice.ts",
+    "./coaching-notifications": "./src/coaching-notifications/index.ts",
+    "./coaching-notifications/messages": "./src/coaching-notifications/messages.ts",
+    "./coaching-notifications/legal": "./src/coaching-notifications/legal.ts"
   },
   "scripts": {
     "dev": "next dev",

@@ -6494,6 +6494,26 @@
       "coaching_cancellation": {
         "title": "Cancellations and refunds",
         "body": "Open the session follow-up"
+      },
+      "coaching_session_hour": {
+        "title": "Your session starts soon",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_session_hour_for_coach": {
+        "title": "Your session starts soon",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_session_eve": {
+        "title": "An upcoming coaching session",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_session_updated": {
+        "title": "A coaching session was updated",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_day": {
+        "title": "Your coaching day",
+        "body": "Open Jobbbox to see your sessions."
       }
     },
     "settings": {
@@ -6517,7 +6537,12 @@
       "coach_access_granted": "Access given by a candidate",
       "coaching_session_paid": "Coaching session paid",
       "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate",
-      "coaching_cancellation": "Cancellations and refunds"
+      "coaching_cancellation": "Cancellations and refunds",
+      "coaching_session_hour": "Your session starts soon",
+      "coaching_session_hour_for_coach": "Your session starts soon",
+      "coaching_session_eve": "An upcoming coaching session",
+      "coaching_session_updated": "A coaching session was updated",
+      "coaching_day": "Your coaching day"
     }
   },
   "coachingPayment": {
@@ -6564,7 +6589,8 @@
       "profil": "Public page",
       "revenus": "Earnings",
       "contrat": "Contract",
-      "aide": "Help"
+      "aide": "Help",
+      "rappels": "Reminders"
     },
     "notifications": "Notifications",
     "noNotifications": "No notifications.",
@@ -6577,7 +6603,8 @@
       "profil": "Your public page will appear here.",
       "revenus": "No earnings yet.",
       "contrat": "No contract to accept yet.",
-      "aide": "Find guidance for using your Coach space."
+      "aide": "Find guidance for using your Coach space.",
+      "rappels": "Your coaching reminder settings."
     }
   },
   "coachingTime": {
@@ -6986,5 +7013,50 @@
     "notice": "Cancellation and rescheduling are available until 24 hours before the session. Cancelling in Jobbbox requests a full refund. After the deadline, contact your coach or support.",
     "tooLate": "The 24-hour deadline has passed. Contact your coach or support.",
     "confirmationRefund": "Cancel this session and request a full refund?"
+  },
+  "coachingNotices": {
+    "join": "Join",
+    "open": "Open my workspace",
+    "settings": {
+      "title": "Coaching reminders",
+      "hourEmail": "Email me one hour before my session",
+      "coachEmail": "Email me about session payments, bookings, changes and reminders",
+      "daily": "Receive my summary at 07:30 in my time zone",
+      "independent": "App notifications have their own switches below.",
+      "saved": "Saved.",
+      "error": "The setting could not be saved.",
+      "contract": "Messages from “Cancellations and refunds” are not switched off here. The morning summary also has its own setting."
+    },
+    "email": {
+      "reason": "Follow-up for your coaching sessions.",
+      "paid": {
+        "title": "A coaching session was paid",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "booked": {
+        "title": "A session was booked",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "rescheduled": {
+        "title": "A session was rescheduled",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "cancelled": {
+        "title": "A session was cancelled",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "hour_before": {
+        "title": "Your session starts within an hour",
+        "body": "Find details in your private workspace. The call link becomes available ten minutes before the session starts."
+      },
+      "day_before": {
+        "title": "Your upcoming coaching session",
+        "body": "Find details in your private workspace. The call link becomes available ten minutes before the session starts."
+      },
+      "daily": {
+        "title": "Your coaching day",
+        "body": "Find sessions and their current status in your private workspace."
+      }
+    }
   }
 }

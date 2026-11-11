@@ -1,3 +1,4 @@
+import {coachingNotificationsOf} from "../coaching-notifications";
 import { cancellationsOf, preserveCancellationRefunds } from "../coaching-cancellations";
 import {coachingRefundsOf} from "../coaching-refunds";
 import {bookingDataOf} from "../coaching-booking";
@@ -357,6 +358,7 @@ export interface CandidateDataExport {
    * and their Reschedule history (cancellations included); never the Human Coach's booking link.
    */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed; meeting: Meeting | null })[];
+  coachingNotifications:Awaited<ReturnType<typeof coachingNotificationsOf>>;
   coachingCancellations: Awaited<ReturnType<typeof cancellationsOf>>;
   coachingRefunds:Awaited<ReturnType<typeof coachingRefundsOf>>;
   calBookings:Awaited<ReturnType<typeof bookingDataOf>>;
@@ -509,6 +511,10 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coaching_service_refund:"coachingRefunds.refunds (owned refund entitlement, no processor routing)",
   coaching_cancellation: "coachingCancellations.cancellations",
   coaching_cancellation_event: "coachingCancellations.events",
+  coaching_notice_setting:"coachingNotifications.settings",
+  coaching_notice:"coachingNotifications.notices",
+  coaching_notice_channel:"coachingNotifications.channels",
+  coaching_notice_event:"coachingNotifications.events (owned session facts)",
   coaching_cancellation_delivery:"coachingCancellations.deliveries (own recipient/channel delivery facts only)",
   coaching_cancellation_notice: "coachingCancellations.notices",
   coaching_service_refund_attempt:"coachingRefunds.attempts",
@@ -1033,6 +1039,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportApplications(candidateId),
       ]);
       return {
+        coachingNotifications:await coachingNotificationsOf(database,candidateId),
         coachingCancellations: await cancellationsOf(database, candidateId),
         coachingRefunds: await coachingRefundsOf(database, candidateId),
         calBookings: await bookingDataOf(database, candidateId),

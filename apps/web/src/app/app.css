@@ -1670,6 +1670,7 @@ button.coach-panel-badge:hover {
 
 /* A Section in the Work Pane: the pane's title names it, so its own heading would say it twice. It still names the
    Section (aria-labelledby reads a hidden heading). */
+.work-pane-addressed > .shared-reading-actions + section > .section-head > h2:first-child,
 .work-pane-addressed > section:first-child > h2:first-child,
 .work-pane-addressed > section:first-child > :is(.section-head, .application-section-head) > h2:first-child {
   display: none;

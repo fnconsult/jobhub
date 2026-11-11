@@ -178,7 +178,7 @@ function SectionView({ data, section, result }: {
                 ...(emails[0] && { email: emails[0] }),
             }));
             return (<>
-          {(<div className="actions">
+          {(<div className="actions shared-reading-actions">
               {SHARED_KINDS
                         .filter((kind) => (kind === "tailored_cv" ? tailoredCv?.saved : kind === "cover_letter" ? drafts?.coverLetter : drafts?.outreachMessage))
                         .map((kind) => (<ShareDocumentButton key={kind} source={{ kind, id: application.id }}/>))}

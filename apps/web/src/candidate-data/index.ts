@@ -1,3 +1,4 @@
+import {contentReportsOf} from "../coaching-content-reports";
 import {coachingNotificationsOf} from "../coaching-notifications";
 import { cancellationsOf, preserveCancellationRefunds } from "../coaching-cancellations";
 import {coachingRefundsOf} from "../coaching-refunds";
@@ -358,6 +359,7 @@ export interface CandidateDataExport {
    * and their Reschedule history (cancellations included); never the Human Coach's booking link.
    */
   coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed; meeting: Meeting | null })[];
+  contentReports:Awaited<ReturnType<typeof contentReportsOf>>;
   coachingNotifications:Awaited<ReturnType<typeof coachingNotificationsOf>>;
   coachingCancellations: Awaited<ReturnType<typeof cancellationsOf>>;
   coachingRefunds:Awaited<ReturnType<typeof coachingRefundsOf>>;
@@ -511,6 +513,9 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coaching_service_refund:"coachingRefunds.refunds (owned refund entitlement, no processor routing)",
   coaching_cancellation: "coachingCancellations.cancellations",
   coaching_cancellation_event: "coachingCancellations.events",
+  coaching_content_case:"contentReports.reports (own public target and decision while reporter data remains)",
+  coaching_content_report:"contentReports (own authenticated submissions only)",
+  coaching_content_report_notice:"contentReports (recipient delivery facts erased with the personal submission)",
   coaching_notice_setting:"coachingNotifications.settings",
   coaching_notice:"coachingNotifications.notices",
   coaching_notice_channel:"coachingNotifications.channels",
@@ -575,6 +580,7 @@ export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
 
 /** Business obligations survive one user's departure. Explicit erasure removes contact payloads and detaches account FKs. */
 export const RETAINED_BUSINESS_TABLES:Readonly<Record<string,string>>={
+ coaching_content_case:"#886: anonymous public-content restriction, independent of reporter; restored/empty cases removed after personal case erasure",
   coaching_service_refund:"#883: financial refund entitlement, Candidate/session detached on erasure, resolved records purged after ten years",
   coaching_service_refund_attempt:"#883: financial refund attempts, retained through their entitlement until reconciled",
   coaching_service_refund_resource:"#883: observed processor refund identities, retained through their entitlement for bank-failure reconciliation",
@@ -1039,6 +1045,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportApplications(candidateId),
       ]);
       return {
+        contentReports:await contentReportsOf(database,candidateId),
         coachingNotifications:await coachingNotificationsOf(database,candidateId),
         coachingCancellations: await cancellationsOf(database, candidateId),
         coachingRefunds: await coachingRefundsOf(database, candidateId),

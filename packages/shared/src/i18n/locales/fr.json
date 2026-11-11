@@ -7058,5 +7058,54 @@
         "body": "Retrouvez les séances et leur état actuel dans votre espace privé."
       }
     }
+  },
+  "contentReport": {
+    "title": "Signaler un contenu de coaching",
+    "reportPage": "Signaler cette page de coach",
+    "reportOffer": "Signaler cette offre",
+    "pageTarget": "Page de coach : {{name}}",
+    "offerTarget": "Offre de coaching : {{name}}",
+    "intro": "Ce formulaire est ouvert à tous, sans compte. Décrivez précisément le contenu concerné et pourquoi vous le signalez. L’équipe examine votre demande ; aucun retrait n’est automatique. Ne joignez pas de données sensibles inutiles.",
+    "reason": "Motif du signalement",
+    "explanation": "Explication et emplacement du contenu",
+    "contactRule": "Votre nom et votre e-mail sont nécessaires, sauf pour le motif « Abus sur mineur ». Sans e-mail, conservez la référence affichée ; aucun accusé ni décision ne pourra vous être envoyé.",
+    "name": "Votre nom",
+    "emailAddress": "Votre adresse e-mail",
+    "goodFaith": "Je déclare de bonne foi que les informations fournies sont exactes et complètes.",
+    "send": "Envoyer le signalement",
+    "received": "Votre signalement a été enregistré. Un accusé de réception est envoyé si vous avez indiqué un e-mail.",
+    "reference": "Référence : {{id}}",
+    "invalid": "Vérifiez les champs ou réessayez plus tard.",
+    "help": "Aide",
+    "reasons": {
+      "illegal": "Contenu illicite",
+      "misleading": "Informations trompeuses",
+      "discrimination": "Discrimination ou haine",
+      "child_abuse": "Abus sur mineur",
+      "other": "Autre motif"
+    },
+    "outcomes": {
+      "remove": "Retirer le contenu",
+      "suspend": "Suspendre le contenu",
+      "keep": "Maintenir le contenu"
+    },
+    "email": {
+      "receipt": "Votre signalement de contenu a été reçu",
+      "decision": "Décision concernant un contenu de coaching",
+      "reference": "Signalement {{id}} — {{coach}}",
+      "received": "Notre équipe examinera votre signalement. Cette réception ne préjuge pas de sa décision.",
+      "human": "Cette décision motivée a été prise par une personne. Vous pouvez demander des précisions ou contester la décision en répondant à ce message.",
+      "footer": "Vous recevez ce message comme signaleur ou responsable du contenu concerné."
+    },
+    "admin": {
+      "title": "Signalements de contenus de coaching",
+      "intro": "Examinez le contenu et les éléments fournis. Chaque décision exige un motif envoyé au signaleur et au responsable du contenu. Les restrictions bloquent la visibilité ou les nouvelles commandes ; les séances déjà payées restent accessibles.",
+      "none": "Aucun signalement de contenu.",
+      "pending": "À examiner",
+      "outcome": "Décision",
+      "reason": "Motif de la décision (envoyé aux deux parties)",
+      "decide": "Enregistrer et notifier la décision",
+      "erased": "Les données du signalement ont été effacées. La restriction reste applicable jusqu’à une nouvelle décision motivée."
+    }
   }
 }

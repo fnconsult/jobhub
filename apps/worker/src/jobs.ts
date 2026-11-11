@@ -227,6 +227,7 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  coachingContentReports?:{deliverNotices():Promise<void>;purge():Promise<void>};
   coachingNotifications?:{sendDue():Promise<void>;purge():Promise<number>};
   coachingCancellations?: { expireChoices(): Promise<void>; retiredCoaches(): Promise<void>; deliverNotices(): Promise<void> };
   coachingRefunds?:{runPending():Promise<void>;purge():Promise<number>};
@@ -676,6 +677,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
+    "coaching-content-reports.send":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingContentReports?.deliverNotices();})},
+    "coaching-content-reports.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingContentReports?.purge();})},
     "coaching-notifications.send":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingNotifications?.sendDue();})},
     "coaching-notifications.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingNotifications?.purge();})},
     "coaching-cancellations.reconcile": {

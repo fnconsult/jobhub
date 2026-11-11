@@ -73,7 +73,9 @@
     "./coaching-cancellations/notice": "./src/coaching-cancellations/notice.ts",
     "./coaching-notifications": "./src/coaching-notifications/index.ts",
     "./coaching-notifications/messages": "./src/coaching-notifications/messages.ts",
-    "./coaching-notifications/legal": "./src/coaching-notifications/legal.ts"
+    "./coaching-notifications/legal": "./src/coaching-notifications/legal.ts",
+    "./coaching-content-reports": "./src/coaching-content-reports/index.ts",
+    "./coaching-content-reports/email": "./src/coaching-content-reports/email.ts"
   },
   "scripts": {
     "dev": "next dev",

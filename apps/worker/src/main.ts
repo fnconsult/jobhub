@@ -1,3 +1,5 @@
+import {coachingContentReports} from "@jobhub/web/coaching-content-reports";
+import {contentReportEmail} from "@jobhub/web/coaching-content-reports/email";
 import {coachingNotifications} from "@jobhub/web/coaching-notifications";
 import {coachingNoticeEmail,coachingNoticePush} from "@jobhub/web/coaching-notifications/messages";
 import {coachingNoticesEnabled} from "@jobhub/web/coaching-notifications/legal";
@@ -211,6 +213,7 @@ const cancellations = () =>
       cancellationNotice(database, record, kind, baseURL, (email, message) => mailer.send({ to: email, ...message }), pushNotifications),
   });
 const jobs = createJobs({
+  coachingContentReports:coachingContentReports(database,{platformEmail:()=>{const from=settingsEnv().MAIL_FROM??'';return /<([^<>]+)>$/.exec(from)?.[1]??(from.includes('@')?from:undefined)},send:async notice=>{await mailer.send({to:notice.to,...contentReportEmail(notice,baseURL)})}}),
   coachingNotifications:{sendDue:()=>notices().sendDue(),purge:()=>notices().purge()},
   coachingCancellations: {
     expireChoices: () => cancellations().expireChoices(),

@@ -37,3 +37,5 @@ Après paiement, la réservation intégrée permet de choisir un créneau ou de 
 ## Annulations et remboursements
 
 Lorsque les nouvelles conditions sont activées, le lien « Annulations et remboursements » ouvre le suivi privé : vous pouvez aussi y annuler une séance sans date. Le délai de 24 heures, les choix après annulation du coach et l’état bancaire y sont expliqués. Dans l’app, le même suivi s’ouvre dans le navigateur authentifié.
+
+« Signaler cette page de coach » et « Signaler cette offre » ouvrent un formulaire accessible sans compte. Une personne examine les éléments ; aucun retrait n’est automatique. Un accusé de réception et la décision motivée sont envoyés à l’adresse indiquée.

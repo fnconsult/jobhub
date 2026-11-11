@@ -7058,5 +7058,54 @@
         "body": "Find sessions and their current status in your private workspace."
       }
     }
+  },
+  "contentReport": {
+    "title": "Report coaching content",
+    "reportPage": "Report this Coach page",
+    "reportOffer": "Report this offer",
+    "pageTarget": "Coach page: {{name}}",
+    "offerTarget": "Coaching offer: {{name}}",
+    "intro": "Anyone can use this form without an account. Describe the content precisely and explain your report. The team reviews your request; removal is never automatic. Do not include unnecessary sensitive data.",
+    "reason": "Reason for reporting",
+    "explanation": "Explanation and location of the content",
+    "contactRule": "Your name and email are required except for “Child abuse”. Without email, keep the displayed reference; no receipt or decision can be sent to you.",
+    "name": "Your name",
+    "emailAddress": "Your email address",
+    "goodFaith": "I declare in good faith that the information provided is accurate and complete.",
+    "send": "Send report",
+    "received": "Your report was recorded. A receipt is sent if you provided an email.",
+    "reference": "Reference: {{id}}",
+    "invalid": "Check the fields or try again later.",
+    "help": "Help",
+    "reasons": {
+      "illegal": "Illegal content",
+      "misleading": "Misleading information",
+      "discrimination": "Discrimination or hatred",
+      "child_abuse": "Child abuse",
+      "other": "Other reason"
+    },
+    "outcomes": {
+      "remove": "Remove content",
+      "suspend": "Suspend content",
+      "keep": "Keep content available"
+    },
+    "email": {
+      "receipt": "Your content report was received",
+      "decision": "Decision about coaching content",
+      "reference": "Report {{id}} — {{coach}}",
+      "received": "Our team will review your report. This receipt does not anticipate its decision.",
+      "human": "A person made this reasoned decision. You may ask for clarification or contest it by replying to this message.",
+      "footer": "You receive this message as the reporter or the person responsible for the content."
+    },
+    "admin": {
+      "title": "Coaching content reports",
+      "intro": "Examine the content and evidence. Every decision requires a reason sent to the reporter and the content owner. Restrictions block visibility or new orders; paid sessions remain accessible.",
+      "none": "No content reports.",
+      "pending": "Awaiting review",
+      "outcome": "Decision",
+      "reason": "Decision reason (sent to both parties)",
+      "decide": "Record and notify decision",
+      "erased": "Report data was erased. Its restriction remains effective until a new reasoned decision."
+    }
   }
 }

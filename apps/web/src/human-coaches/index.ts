@@ -1,3 +1,4 @@
+import {migrateCoachingContentReports} from "../coaching-content-reports";
 /**
  * Human Coaches (CONTEXT.md): the HR professionals Jobbbox selects, whom a
  * Candidate books for paid Coaching Sessions and may grant Coach Access to.
@@ -616,7 +617,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async list(options = {}) {
       const { rows } = await database.query<CoachRow>(
-        `SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL AND ($1::boolean OR (NOT contract_pending AND public_ready)) ORDER BY name, created_at`,
+        `SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL AND ($1::boolean OR (NOT contract_pending AND public_ready AND NOT EXISTS(SELECT 1 FROM coaching_content_case m WHERE m.coach_id=human_coach.id AND m.target='page' AND m.outcome IN ('remove','suspend')))) ORDER BY name, created_at`,
         [options.includePending ?? false],
       );
       const coaches = rows.map(coachFrom);
@@ -899,4 +900,5 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
   `);
   // Dates entered before Reschedules were kept are taken as entered when the session was paid.
   await migrateRescheduleHistory(database, "coaching_session", { enteredAt: "paid_at" });
+  await migrateCoachingContentReports(database);
 }

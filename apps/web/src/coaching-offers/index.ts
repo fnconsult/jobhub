@@ -65,7 +65,7 @@ export function coachingOffers(database: Pool, deps: OfferDeps) {
     if (!UUID.test(coachId)) return null;
     await defaults();
     const { rows } = await database.query<Row>(
-      `SELECT ${COLUMNS} FROM coaching_offer o JOIN coaching_seller s ON s.id=o.seller_id JOIN human_coach h ON h.id=o.coach_id AND h.retired_at IS NULL WHERE o.coach_id=$1`,
+      `SELECT ${COLUMNS} FROM coaching_offer o JOIN coaching_seller s ON s.id=o.seller_id JOIN human_coach h ON h.id=o.coach_id AND h.retired_at IS NULL WHERE o.coach_id=$1 AND NOT EXISTS(SELECT 1 FROM coaching_content_case m WHERE m.coach_id=h.id AND m.outcome IN ('remove','suspend'))`,
       [coachId],
     );
     return rows[0] ?? null;

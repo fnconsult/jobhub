@@ -162,7 +162,7 @@ export function coachingConnect(database: Pool, deps: ConnectDeps) {
     async startCheckout(candidate: { id: string; email: string }, quoteId: string, locale: "fr" | "en", urls: { success: string; cancel: string }) {
       if (!(await allowed()) || !UUID.test(quoteId)) return null;
       const quote = (
-        await database.query<{ snapshot: CoachingSale }>("SELECT snapshot FROM coaching_offer_quote WHERE id=$1 AND candidate_id=$2", [quoteId, candidate.id])
+        await database.query<{ snapshot: CoachingSale }>("SELECT q.snapshot FROM coaching_offer_quote q WHERE q.id=$1 AND q.candidate_id=$2 AND NOT EXISTS(SELECT 1 FROM coaching_content_case m WHERE m.coach_id=q.coach_id AND m.outcome IN ('remove','suspend'))", [quoteId, candidate.id])
       ).rows[0];
       if (!quote) return null;
       const snapshot = quote.snapshot;

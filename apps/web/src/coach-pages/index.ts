@@ -82,7 +82,7 @@ export function coachPages(database: Pool, deps: CoachPageDeps = {}) {
       if (!ids.length) return [];
       const rows = (
         await database.query<{ coachId: string; id: string; content: CoachPageContent; hasPhoto: boolean }>(
-          `SELECT DISTINCT ON(p.coach_id) p.coach_id AS "coachId",p.id,p.content,(p.photo IS NOT NULL) AS "hasPhoto" FROM coach_page_version p JOIN human_coach h ON h.id=p.coach_id AND h.retired_at IS NULL AND h.public_ready AND NOT h.contract_pending WHERE p.coach_id=ANY($1::uuid[]) AND p.state='approved' ORDER BY p.coach_id,p.revision DESC`,
+          `SELECT DISTINCT ON(p.coach_id) p.coach_id AS "coachId",p.id,p.content,(p.photo IS NOT NULL) AS "hasPhoto" FROM coach_page_version p JOIN human_coach h ON h.id=p.coach_id AND h.retired_at IS NULL AND h.public_ready AND NOT h.contract_pending WHERE p.coach_id=ANY($1::uuid[]) AND p.state='approved' AND NOT EXISTS(SELECT 1 FROM coaching_content_case m WHERE m.coach_id=h.id AND m.target='page' AND m.outcome IN ('remove','suspend')) ORDER BY p.coach_id,p.revision DESC`,
           [ids],
         )
       ).rows;
@@ -93,7 +93,7 @@ export function coachPages(database: Pool, deps: CoachPageDeps = {}) {
       return (
         (
           await database.query<{ photo: Buffer | null }>(
-            `SELECT p.photo FROM coach_page_version p JOIN human_coach h ON h.id=p.coach_id AND h.retired_at IS NULL AND h.public_ready AND NOT h.contract_pending WHERE p.coach_id=$1 AND p.id=$2 AND p.state='approved' AND p.revision=(SELECT max(q.revision) FROM coach_page_version q WHERE q.coach_id=p.coach_id AND q.state='approved')`,
+            `SELECT p.photo FROM coach_page_version p JOIN human_coach h ON h.id=p.coach_id AND h.retired_at IS NULL AND h.public_ready AND NOT h.contract_pending WHERE p.coach_id=$1 AND p.id=$2 AND p.state='approved' AND NOT EXISTS(SELECT 1 FROM coaching_content_case m WHERE m.coach_id=h.id AND m.target='page' AND m.outcome IN ('remove','suspend')) AND p.revision=(SELECT max(q.revision) FROM coach_page_version q WHERE q.coach_id=p.coach_id AND q.state='approved')`,
             [coachId, versionId],
           )
         ).rows[0]?.photo ?? null

@@ -242,6 +242,8 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                 </p>
               ) : null}
               {pages.has(coach.id) ? <PublicCoachProfile name={coach.name} page={pages.get(coach.id)!} /> : coach.bio ? <p>{coach.bio}</p> : null}
+              <Link href={`/signaler-coaching?coach=${coach.id}&target=page`}>{t("contentReport.reportPage")}</Link>
+              {offers.get(coach.id)?<Link href={`/signaler-coaching?coach=${coach.id}&target=offer`}>{t("contentReport.reportOffer")}</Link>:null}
               {offers.get(coach.id) ? (
                 // To the Order page (#512): its summary and boxes come before Stripe Checkout.
                 <form method="get" action={COACHING_ORDER}>

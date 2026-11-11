@@ -1,3 +1,4 @@
+import { utcBefore } from "../database/before";
 /** Private, versioned B2B acceptance. No contract version is invented here: an empty registry closes the gate. */
 import { createHmac } from "node:crypto";
 import { legalTextRegistry, legalTextVersions, parisDay, legalNoticesDue, type LegalTextVersionRecord, type LegalTextVersion } from "@jobhub/help";
@@ -124,7 +125,7 @@ export function coachContracts(database: Pool, deps: ContractDeps) {
       return (
         (
           await database.query(
-            `DELETE FROM coach_contract_acceptance WHERE candidate_id IS NULL AND account_deleted_at<$1::timestamptz-make_interval(years=>$2)`,
+            `DELETE FROM coach_contract_acceptance WHERE candidate_id IS NULL AND account_deleted_at<${utcBefore("$1", "make_interval(years=>$2)")}`,
             [now(), CONTRACT_PROOF_YEARS],
           )
         ).rowCount ?? 0

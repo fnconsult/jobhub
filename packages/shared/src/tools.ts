@@ -815,7 +815,7 @@ export const TOOLS = [
     category: "billing",
     module: "apps/web/src/billing/index.ts",
     runsIn: "web",
-    keys: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+    keys: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CONNECT_WEBHOOK_SECRET"],
     settings: [{ name: "STRIPE_PRICE_STANDARD" }, { name: "STRIPE_PRICE_PREMIUM" }, { name: "STRIPE_PRICE_COACHING_SESSION" }, { name: "STRIPE_PRICE_COACHING_SESSION_PREMIUM" }],
     usage: { table: "external_api_usage", provider: "stripe" },
     residency: "outside_eu",

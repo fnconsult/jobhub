@@ -12,4 +12,4 @@ Vérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choi
 
 Vous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le.
 
-Le suivi d’une annulation contractuelle de séance se trouve dans « Mes coachs humains → Annulations et remboursements », lorsque les nouvelles conditions sont activées. Il indique sa propre date limite et ses choix ; il ne remplace pas cette démarche de rétractation.
+Le suivi d’une annulation contractuelle de séance se trouve dans « Mes coachs humains », puis « Annulations et remboursements », lorsque les nouvelles conditions sont activées. Il indique sa propre date limite et ses choix ; il ne remplace pas cette démarche de rétractation.

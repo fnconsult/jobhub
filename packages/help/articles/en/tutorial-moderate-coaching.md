@@ -2,7 +2,7 @@
 kind: tutorial
 audience: administrator
 topic: candidats
-title: Handle a coaching content report
+title: Review a report about a Coach profile or offer
 synonyms: [DSA moderation, remove offer, suspend coach]
 ---
 1. In **Feedback**, open “Coaching content reports”. Check the identified content and evidence. Do not copy the reporter’s contact details or explanation into the reason sent to the parties.

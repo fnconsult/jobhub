@@ -2,7 +2,7 @@
 kind: tutorial
 audience: administrator
 topic: candidats
-title: Traiter un signalement de contenu de coaching
+title: Traiter un signalement de profil ou d’offre de coach
 synonyms: [modération DSA, retirer offre, suspendre coach]
 ---
 1. Dans **Signalements**, ouvrez la rubrique « Signalements de contenus de coaching ». Vérifiez le contenu désigné et les éléments fournis. Ne copiez pas les coordonnées ou l’explication du signaleur dans votre motif destiné aux parties.

@@ -1,3 +1,4 @@
+import { utcBefore } from "../database/before";
 /** An Association manages business identities and offers, never the Candidates coached by its members (ADR-0099). */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
@@ -354,8 +355,8 @@ export function coachAssociations(database: Pool, deps: AssociationDeps) {
       return sent;
     },
     async purge() {
-      const invitations = await database.query("DELETE FROM coach_association_invitation WHERE expires_at<$1::timestamptz-interval '30 days'", [now()]);
-      const activity = await database.query("DELETE FROM coach_association_activity WHERE created_at<$1::timestamptz-make_interval(years=>$2)", [
+      const invitations = await database.query(`DELETE FROM coach_association_invitation WHERE expires_at<${utcBefore("$1", "interval '30 days'")}`, [now()]);
+      const activity = await database.query(`DELETE FROM coach_association_activity WHERE created_at<${utcBefore("$1", "make_interval(years=>$2)")}`, [
         now(),
         ASSOCIATION_ACTIVITY_YEARS,
       ]);

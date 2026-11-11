@@ -16,6 +16,6 @@ En plus de votre coach IA, vous pouvez réserver une séance en visio avec un pr
 6. La réservation confirmée date automatiquement la séance et votre Agenda. Les reports et annulations reçus de Cal.com s’y répercutent ; leur historique indique « via Cal.com ».
 7. Pour changer une réservation reliée, ouvrez « Modifier la réservation dans Cal.com ». Le formulaire manuel reste un secours pour les séances sans réservation reliée ; il ne peut pas désynchroniser une réservation existante.
 
-L’intégration n’est proposée que lorsque l’événement d’équipe et les conditions d’activation sont prêts. Sinon, le lien du coach et « J’ai réservé : saisir la date » restent disponibles comme secours. Le lien pour rejoindre une séance est configuré par le coach dans Jobbbox.
+L’intégration n’est proposée que lorsque l’événement d’équipe et les conditions d’activation sont prêts. Sinon, le lien du coach et « J'ai réservé : saisir la date » restent disponibles comme secours. Le lien pour rejoindre une séance est configuré par le coach dans Jobbbox.
 
 Une rétractation déclenche aussi l’annulation de la réservation Cal.com. Une panne de Cal.com ne bloque jamais le remboursement : Jobbbox réessaie l’annulation séparément.

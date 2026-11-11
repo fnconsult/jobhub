@@ -25,6 +25,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | `lusha` | Enriched Contacts |
 | `kaspr` | Enriched Contacts |
 | `apollo` | Enriched Contacts |
+| `cal-com` | Réservation Cal.com d’équipe |
 | `stripe` | Subscriptions, Plan Quotas and payments; Human Coaches and Coaching Sessions; Orders (#512); Withdrawals (#511) |
 | `brevo-api` | Transactional emails |
 | `brevo-smtp` | Transactional emails |

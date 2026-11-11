@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
+import { Button } from "@/design/Button";
 import { Field, TextInput, Checkbox } from "@/design/Field";
 import { getCoachingTaxes } from "@/coaching-tax/server";
 import { taxLegalReady } from "@/coaching-tax/legal";
@@ -87,9 +88,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                 <TextInput name={field} required={field !== "vat"} maxLength={200} />
               </Field>
             ))}
-            <button className="button" type="submit">
+            <Button type="submit">
               {t("coachTax.prepare")}
-            </button>
+            </Button>
           </form>
         ) : (
           <p>{t("coachTax.legalPending")}</p>
@@ -116,9 +117,9 @@ async function ReportCard({ report }: { report: { id: string; year: number; sche
         <>
           <form action={validate}>
             <input type="hidden" name={ID} value={report.id} />
-            <button className="button" type="submit">
+            <Button type="submit">
               {t("coachTax.validateSchema")}
-            </button>
+            </Button>
           </form>
           <details>
             <summary>{t("coachTax.rebuild")}</summary>
@@ -132,9 +133,9 @@ async function ReportCard({ report }: { report: { id: string; year: number; sche
                 </Field>
               ))}
               <Checkbox name={UNFILED} required label={t("coachTax.confirmUnfiled")} />
-              <button className="button" type="submit">
+              <Button type="submit">
                 {t("coachTax.rebuild")}
-              </button>
+              </Button>
             </form>
           </details>
         </>

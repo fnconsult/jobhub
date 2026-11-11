@@ -12,4 +12,4 @@ Check the contract, its date and the amount paid, enter your name, then choose w
 
 You get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it.
 
-Contractual session-cancellation tracking is in “My human coaches → Cancellations and refunds” when the new conditions are activated. It shows its own deadline and choices; it does not replace this withdrawal process.
+Contractual session-cancellation tracking is under “My human coaches”, then “Cancellations and refunds” when the new conditions are activated. It shows its own deadline and choices; it does not replace this withdrawal process.

@@ -1,3 +1,4 @@
+import { utcBefore } from "../database/before";
 /** Coach Enrolment: email ownership first, an audited human decision second, then a versioned contract gate (#875). */
 import { z } from "zod";
 import type { Pool } from "pg";
@@ -269,10 +270,10 @@ export function coachEnrolments(database: Pool, deps: EnrolmentDeps = {}) {
     },
     async purge(): Promise<number> {
       const removed = await database.query(
-        `DELETE FROM coach_enrolment WHERE (state='awaiting_email' AND created_at<$1::timestamptz-make_interval(days=>$2)) OR (state='refused' AND decided_at<$1::timestamptz-make_interval(months=>$3))`,
+        `DELETE FROM coach_enrolment WHERE (state='awaiting_email' AND created_at<${utcBefore("$1", "make_interval(days=>$2)")}) OR (state='refused' AND decided_at<${utcBefore("$1", "make_interval(months=>$3)")})`,
         [now(), UNCONFIRMED_DAYS, REFUSED_MONTHS],
       );
-      await database.query("DELETE FROM coach_enrolment_rate_limit WHERE hour<$1::timestamptz-interval '2 days'", [now()]);
+      await database.query(`DELETE FROM coach_enrolment_rate_limit WHERE hour<${utcBefore("$1", "interval '2 days'")}`, [now()]);
       return removed.rowCount ?? 0;
     },
   };

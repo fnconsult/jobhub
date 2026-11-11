@@ -202,6 +202,8 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
 
   for (const shot of PAGES) {
     test(`${shot.name}: in the Confort Density, matches its baseline at every width, and axe passes`, async () => {
+      // Collect every failing theme/width while retaining every visual assertion and its threshold.
+      test.setTimeout(240_000);
       const page = await session.newPage();
       for (const { name, width, height } of SCREENSHOT_WIDTHS) {
         await page.setViewportSize({ width, height });
@@ -230,7 +232,7 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
             const fixedTexts: Record<string, string> = "fixedTexts" in shot ? shot.fixedTexts : {};
             for (const [selector, text] of Object.entries(fixedTexts)) await page.locator(selector).evaluateAll((elements, value) => elements.forEach((element) => (element.textContent = value)), text);
             const masks = [...MASK, ...("mask" in shot ? shot.mask : [])];
-            await expect(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: masks.map((selector) => page.locator(selector)) });
+            await expect.soft(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: masks.map((selector) => page.locator(selector)) });
           }
         }
         await showInTheme(page, "light");

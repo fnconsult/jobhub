@@ -1,3 +1,5 @@
+import { cancellationNotice } from "./notice";
+import { cancellationSupportRows, retryCancellationRefund } from "./support";
 import { randomUUID } from "node:crypto";
 import { beforeEach, afterEach, describe, it, expect } from "vitest";
 import { connectionString, startTestAuth, signInWithMagicLink, type TestAuth } from "../auth/test-support";
@@ -102,29 +104,164 @@ describe.skipIf(!connectionString)("contractual cancellation remedies", () => {
     // A new Order is unavailable until the original refund is actually confirmed.
     expect(await peerService.peerOrderCap(candidate, c.id, peer)).toBeNull();
   });
-  it('does not grant a late anonymous cancellation refund through account erasure',async()=>{
-    clock=new Date('2026-11-13T11:30Z');await recordProviderCancellation(auth.database,session,'unconfirmed-erasure',clock,null);
-    await preserveCancellationRefunds(auth.database,auth.database,candidate);
-    expect((await auth.database.query('SELECT count(*)::int AS n FROM coaching_service_refund')).rows[0].n).toBe(0);
+  it("does not grant a late anonymous cancellation refund through account erasure", async () => {
+    clock = new Date("2026-11-13T11:30Z");
+    await recordProviderCancellation(auth.database, session, "unconfirmed-erasure", clock, null);
+    await preserveCancellationRefunds(auth.database, auth.database, candidate);
+    expect((await auth.database.query("SELECT count(*)::int AS n FROM coaching_service_refund")).rows[0].n).toBe(0);
   });
-  it('does not start legacy retirement remedies while rollout gates are closed',async()=>{
-    enabled=false;await auth.database.query('UPDATE human_coach SET retired_at=$2 WHERE id=$1',[coach,clock]);await service.retiredCoaches();
+  it("does not start legacy retirement remedies while rollout gates are closed", async () => {
+    enabled = false;
+    await auth.database.query("UPDATE human_coach SET retired_at=$2 WHERE id=$1", [coach, clock]);
+    await service.retiredCoaches();
     expect(await service.forCandidate(candidate)).toHaveLength(0);
   });
-  it('withdrawal closes its pending choice so old due cases cannot starve later remedies',async()=>{
-    const result=await service.coachCancel(coach,session,'absence',randomUUID());if(!result.ok)throw Error('setup');
-    await auth.database.query('UPDATE coaching_session SET withdrawn_at=$2 WHERE id=$1',[session,clock]);
-    expect(await service.one(result.cancellation.id)).toMatchObject({choice:'withdrawn'});
-    clock=new Date(clock.getTime()+COACH_CHOICE_MS);await service.expireChoices();
-    expect((await auth.database.query('SELECT count(*)::int AS n FROM coaching_service_refund')).rows[0].n).toBe(0);
+  it("withdrawal closes its pending choice so old due cases cannot starve later remedies", async () => {
+    const result = await service.coachCancel(coach, session, "absence", randomUUID());
+    if (!result.ok) throw Error("setup");
+    await auth.database.query("UPDATE coaching_session SET withdrawn_at=$2 WHERE id=$1", [session, clock]);
+    expect(await service.one(result.cancellation.id)).toMatchObject({ choice: "withdrawn" });
+    clock = new Date(clock.getTime() + COACH_CHOICE_MS);
+    await service.expireChoices();
+    expect((await auth.database.query("SELECT count(*)::int AS n FROM coaching_service_refund")).rows[0].n).toBe(0);
   });
-  it('isolates an oldest failing notice and does not send a successful later notice twice',async()=>{
-    const first=await service.coachCancel(coach,session,'first',randomUUID());if(!first.ok)throw Error('setup');
-    clock=new Date(clock.getTime()+1000);
-    const second=(await auth.database.query("INSERT INTO coaching_session(candidate_id,coach_id,stripe_checkout_session_id,amount,currency) VALUES($1,$2,'cs_second_cancel',9000,'eur') RETURNING id",[candidate,coach])).rows[0].id;
-    const next=await service.coachCancel(coach,second,'next',randomUUID());if(!next.ok)throw Error('setup');
-    const sent:string[]=[];const notices=coachingCancellations(auth.database,{refunds,now:()=>clock,sendNotice:async c=>{if(c.id===first.cancellation.id)throw Error('permanent recipient failure');sent.push(c.id);}});
-    await notices.deliverNotices();await notices.deliverNotices();expect(sent).toEqual([next.cancellation.id]);
+  it("isolates an oldest failing notice and does not send a successful later notice twice", async () => {
+    const first = await service.coachCancel(coach, session, "first", randomUUID());
+    if (!first.ok) throw Error("setup");
+    clock = new Date(clock.getTime() + 1000);
+    const second = (
+      await auth.database.query(
+        "INSERT INTO coaching_session(candidate_id,coach_id,stripe_checkout_session_id,amount,currency) VALUES($1,$2,'cs_second_cancel',9000,'eur') RETURNING id",
+        [candidate, coach],
+      )
+    ).rows[0].id;
+    const next = await service.coachCancel(coach, second, "next", randomUUID());
+    if (!next.ok) throw Error("setup");
+    const sent: string[] = [];
+    const notices = coachingCancellations(auth.database, {
+      refunds,
+      now: () => clock,
+      sendNotice: async (c) => {
+        if (c.id === first.cancellation.id) throw Error("permanent recipient failure");
+        sent.push(c.id);
+      },
+    });
+    await notices.deliverNotices();
+    await notices.deliverNotices();
+    expect(sent).toEqual([next.cancellation.id]);
+  });
+  it("checkpoints successful recipient channels when a later Coach email keeps failing", async () => {
+    await signInWithMagicLink(auth, "cancel-coach@example.test");
+    const result = await service.coachCancel(coach, session, "absence", randomUUID());
+    if (!result.ok) throw Error("setup");
+    const emails: string[] = [],
+      pushes: string[] = [];
+    const delivery = coachingCancellations(auth.database, {
+      refunds,
+      now: () => clock,
+      sendNotice: (record, kind) =>
+        cancellationNotice(
+          auth.database,
+          record,
+          kind,
+          "https://example.test",
+          async (email) => {
+            emails.push(email);
+            if (email === "cancel-coach@example.test") throw Error("permanent Coach mailbox failure");
+          },
+          {
+            notify: async (id) => {
+              pushes.push(id);
+            },
+          },
+        ),
+    });
+    await delivery.deliverNotices();
+    clock = new Date(clock.getTime() + 300001);
+    await delivery.deliverNotices();
+    clock = new Date(clock.getTime() + 300001);
+    await delivery.deliverNotices();
+    expect(emails.filter((email) => email === "cancel-owner@example.test")).toHaveLength(1);
+    expect(emails.filter((email) => email === "cancel-coach@example.test")).toHaveLength(3);
+    expect(pushes).toEqual([candidate]);
+  });
+  it("does not repeat a successful email when its push channel fails afterwards", async () => {
+    await service.coachCancel(coach, session, "absence", randomUUID());
+    let emails = 0,
+      pushes = 0;
+    const delivery = coachingCancellations(auth.database, {
+      refunds,
+      now: () => clock,
+      sendNotice: (record, kind) =>
+        cancellationNotice(
+          auth.database,
+          record,
+          kind,
+          "https://example.test",
+          async () => {
+            emails++;
+          },
+          {
+            notify: async () => {
+              pushes++;
+              if (pushes === 1) throw Error("push queue unavailable");
+            },
+          },
+        ),
+    });
+    await delivery.deliverNotices();
+    clock = new Date(clock.getTime() + 300001);
+    await delivery.deliverNotices();
+    await delivery.deliverNotices();
+    expect(emails).toBe(1);
+    expect(pushes).toBe(2);
+  });
+  it("lists a failed erased-account debt independently and audits Support intent before retry", async () => {
+    await service.coachCancel(coach, session, "owed remedy", randomUUID());
+    await preserveCancellationRefunds(auth.database, auth.database, candidate);
+    const id = (await auth.database.query("SELECT id FROM coaching_service_refund")).rows[0].id;
+    await auth.database.query("DELETE FROM candidate WHERE id=$1", [candidate]);
+    let fail = true,
+      writes = 0;
+    const resources: import("../coaching-refunds/port").RemoteCoachingRefund[] = [];
+    const money = coachingRefunds(auth.database, {
+      now: () => clock,
+      stripe: {
+        inspect: async () => ({ paymentIntent: "pi_original", refunds: resources }),
+        create: async (input) => {
+          writes++;
+          const resource = {
+            id: `re_support_${writes}`,
+            intentId: id,
+            attempt: input.attempt,
+            amount: input.refundAmount,
+            currency: "eur",
+            status: fail ? ("pending" as const) : ("succeeded" as const),
+          };
+          resources.push(resource);
+          return resource;
+        },
+      },
+    });
+    await money.run(id);
+    expect((await money.one(id))?.state).toBe("pending");
+    resources[0]!.status = "failed";
+    await money.changed(resources[0]!.id, null);
+    expect(await cancellationSupportRows(auth.database)).toEqual([
+      expect.objectContaining({ id, source: "retained_refund", reason: null, refundId: id, state: "failed" }),
+    ]);
+    const audit: unknown[] = [];
+    fail = false;
+    expect(
+      await retryCancellationRefund(money, id, async (before) => {
+        expect(writes).toBe(1);
+        audit.push({ id: before.id, state: before.state, attempt: before.attempt });
+      }),
+    ).toBe(true);
+    expect(audit).toEqual([{ id, state: "failed", attempt: 1 }]);
+    expect(writes).toBe(2);
+    expect((await money.one(id))?.state).toBe("succeeded");
+    expect(await cancellationSupportRows(auth.database)).toEqual([expect.objectContaining({ id, reason: null, state: "succeeded" })]);
   });
   it("requires ownership and a Coach reason; freezes reason, previous slot and seven-day choice", async () => {
     expect((await service.coachCancel(randomUUID(), session, "reason", randomUUID())).ok).toBe(false);

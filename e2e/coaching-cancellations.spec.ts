@@ -1,3 +1,4 @@
+import { stripeConnect } from "../apps/web/src/coaching-connect/stripe";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import path from "node:path";
@@ -14,10 +15,7 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
   ADMIN = "booking-office@e2e.jobbbox.test",
   SECRET = "cal-webhook-e2e-secret",
   NAME = "Cancel Coach";
-let own: OwnServer,
-  database: Pool,
-  remote: Server,
-  remoteUrl: string;
+let own: OwnServer, database: Pool, remote: Server, remoteUrl: string;
 const remoteFails = false;
 const cancelled = new Set<string>();
 const SDK = `(()=>{const old=window.Cal;const callbacks={};const dispatch=args=>{if(args[0]==="on"){callbacks[args[1].action]=args[1].callback;return;}if(args[0]==="off"){delete callbacks[args[1].action];return;}if(args[0]!=="inline")return;const v=args[1],root=typeof v.elementOrSelector==="string"?document.querySelector(v.elementOrSelector):v.elementOrSelector;if(!root)return;const button=document.createElement("button");button.textContent="Fake Cal slot";button.dataset.testid="fake-cal-slot";button.dataset.token=v.config?.["metadata[jobbbox_session]"]||"";button.onclick=async()=>{await window.__jobhubFakeCalBook?.(button.dataset.token);callbacks.bookingSuccessfulV2?.();};root.appendChild(button);};const api=(...args)=>{if(args[0]==="init"&&typeof args[1]==="string")api.ns[args[1]]||=(...values)=>dispatch(values);else dispatch(args);};api.ns={};for(const [name,value] of Object.entries(old.ns||{})){api.ns[name]=(...args)=>dispatch(args);for(const args of value.q||[])dispatch(args);}for(const args of old.q||[])dispatch(args);api.loaded=true;window.Cal=api;})();`;
@@ -70,7 +68,7 @@ test.beforeAll(async () => {
     MISTRAL_API_KEY: "e2e-mistral-key",
     STRIPE_SECRET_KEY: "sk_test_fake",
     STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
-    STRIPE_CONNECT_WEBHOOK_SECRET:"whsec_connect_fake",
+    STRIPE_CONNECT_WEBHOOK_SECRET: "whsec_connect_fake",
     STRIPE_PRICE_STANDARD: "price_standard_monthly",
     STRIPE_PRICE_PREMIUM: "price_premium_monthly",
     STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
@@ -146,13 +144,24 @@ test("Coach cancellation offers refund, same paid service and explicit affordabl
     await create.getByRole("button").click();
     await expect(admin).toHaveURL(/booking=created/);
     const candidate = (await database.query("SELECT id FROM candidate WHERE email=$1", [buyerEmail])).rows[0].id;
-    const peerOwnerId=(await database.query('SELECT id FROM candidate WHERE email=$1',[peerEmail])).rows[0].id;
-    const seller=(await database.query("INSERT INTO coaching_seller(kind,coach_id,name,status,siret,commission_bps) VALUES('human_coach',$1,'Affordable Peer EI','EI','12345678901234',2000) RETURNING id",[peer])).rows[0].id;
-    const accountResponse=await fetch(`${process.env.E2E_STRIPE_URL}/v1/accounts`,{method:'POST',body:new URLSearchParams({type:'express','metadata[seller]':seller})});
-    const connected=await accountResponse.json();
-    await database.query('INSERT INTO coaching_connect_account(seller_id,account_id,owner_id,created_at) VALUES($1,$2,$3,clock_timestamp())',[seller,connected.id,peerOwnerId]);
-    await fetch(`${process.env.E2E_STRIPE_URL}/__connect/activate`,{method:'POST',body:new URLSearchParams({account:connected.id})});
-    await database.query('UPDATE coaching_offer SET seller_id=$2,amount=8000 WHERE coach_id=$1',[peer,seller]);
+    const peerOwnerId = (await database.query("SELECT id FROM candidate WHERE email=$1", [peerEmail])).rows[0].id;
+    const seller = (
+      await database.query(
+        "INSERT INTO coaching_seller(kind,coach_id,name,status,siret,commission_bps) VALUES('human_coach',$1,'Affordable Peer EI','EI','12345678901234',2000) RETURNING id",
+        [peer],
+      )
+    ).rows[0].id;
+    const connected = await stripeConnect({ secretKey: "sk_test_fake", webhookSecret: "whsec_connect_fake", apiUrl: process.env.E2E_STRIPE_URL }).account(
+      { id: seller, kind: "human_coach", name: "Affordable Peer EI", email: peerEmail },
+      `fixture-peer-${seller}`,
+    );
+    await database.query("INSERT INTO coaching_connect_account(seller_id,account_id,owner_id,created_at) VALUES($1,$2,$3,clock_timestamp())", [
+      seller,
+      connected.id,
+      peerOwnerId,
+    ]);
+    await fetch(`${process.env.E2E_STRIPE_URL}/__connect/activate`, { method: "POST", body: new URLSearchParams({ account: connected.id }) });
+    await database.query("UPDATE coaching_offer SET seller_id=$2,amount=8000 WHERE coach_id=$1", [peer, seller]);
     async function paid(name: string) {
       const checkout = `cs_e2e_remedy_${name}_${Date.now()}`;
       await fetch(`${process.env.E2E_STRIPE_URL}/__checkout_sessions/${checkout}/payment`, { method: "POST", body: new URLSearchParams({ amount: "9000" }) });

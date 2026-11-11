@@ -1,3 +1,4 @@
+import { cancellationSupportRows, retryCancellationRefund } from "./support";
 import { redirect } from "next/navigation";
 import { sharedPool } from "@/database/pool";
 import { requireBackOffice, getBackOffice } from "@/admin/server";
@@ -7,11 +8,8 @@ async function retry(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("withdrawals", "write"),
     id = String(form.get("refund") ?? "");
-  const before = await getCoachingRefunds().one(id);
-  if (!before) redirect("/admin/retractations");
-  const accepted = await getCoachingRefunds().retry(id);
-  if (accepted)
-    await getBackOffice().record(
+  await retryCancellationRefund(getCoachingRefunds(), id, (before) =>
+    getBackOffice().record(
       administrator,
       async () => true,
       () => ({
@@ -19,27 +17,15 @@ async function retry(form: FormData) {
         target: id,
         action: "updated",
         before: { state: before.state, attempt: before.attempt },
-        after: { contractualRefundRetry: true },
+        after: { contractualRefundRetryRequested: true },
       }),
-    );
+    ),
+  );
   redirect("/admin/retractations");
 }
 export async function CancellationAdmin({ canWrite }: { canWrite: boolean }) {
   const t = await getServerT();
-  const rows = (
-    await sharedPool().query<{
-      id: string;
-      source: string;
-      reason: string | null;
-      choice: string;
-      createdAt: Date;
-      refundId: string | null;
-      state: string | null;
-      failure: string | null;
-    }>(
-      `SELECT c.id,c.source,c.reason,c.choice,c.created_at AS "createdAt",c.refund_id AS "refundId",r.state,r.failure_reason AS failure FROM coaching_cancellation c LEFT JOIN coaching_service_refund r ON r.id=c.refund_id ORDER BY c.created_at DESC,c.id`,
-    )
-  ).rows;
+  const rows = await cancellationSupportRows(sharedPool());
   if (!rows.length) return null;
   return (
     <section className="stack">

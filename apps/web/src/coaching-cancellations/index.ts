@@ -13,6 +13,7 @@ export interface Cancellation {
   sessionId: string;
   candidateId: string;
   coachId: string;
+  coachName:string;
   source: "candidate" | "coach" | "retirement" | "cal";
   reason: string | null;
   createdAt: Date;
@@ -45,7 +46,7 @@ interface Session {
   durationMinutes: number;
 }
 const COLUMNS =
-  'id,session_id AS "sessionId",candidate_id AS "candidateId",coach_id AS "coachId",source,reason,created_at AS "createdAt",original_at AS "originalAt",choice_due_at AS "choiceDueAt",choice,peer_coach_id AS "peerCoachId",refund_id AS "refundId",decided_at AS "decidedAt"';
+  'id,session_id AS "sessionId",candidate_id AS "candidateId",coach_id AS "coachId",(SELECT h.name FROM human_coach h WHERE h.id=coaching_cancellation.coach_id) AS "coachName",source,reason,created_at AS "createdAt",original_at AS "originalAt",choice_due_at AS "choiceDueAt",choice,peer_coach_id AS "peerCoachId",refund_id AS "refundId",decided_at AS "decidedAt"';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function coachingCancellations(
   database: Pool,
@@ -358,6 +359,7 @@ export async function migrateCoachingCancellations(database: Pool) {
  IF NEW.withdrawn_at IS NOT NULL AND OLD.withdrawn_at IS NULL THEN UPDATE coaching_cancellation SET choice='withdrawn',decided_at=NEW.withdrawn_at WHERE session_id=NEW.id AND choice='awaiting'; END IF;RETURN NEW;END $$;
  DROP TRIGGER IF EXISTS coaching_cancellation_withdrawal ON coaching_session;
  CREATE TRIGGER coaching_cancellation_withdrawal AFTER UPDATE OF withdrawn_at ON coaching_session FOR EACH ROW EXECUTE FUNCTION coaching_cancellation_withdrawal();
+ CREATE TABLE IF NOT EXISTS coaching_cancellation_delivery(cancellation_id uuid NOT NULL REFERENCES coaching_cancellation(id) ON DELETE CASCADE,kind text NOT NULL,recipient_id text NOT NULL REFERENCES candidate(id) ON DELETE CASCADE,channel text NOT NULL CHECK(channel IN ('email','push')),completed_at timestamptz NOT NULL,PRIMARY KEY(cancellation_id,kind,recipient_id,channel));
  CREATE TABLE IF NOT EXISTS coaching_cancellation_notice(cancellation_id uuid NOT NULL REFERENCES coaching_cancellation(id) ON DELETE CASCADE,kind text NOT NULL,created_at timestamptz NOT NULL,claimed_until timestamptz,sent_at timestamptz,retry_at timestamptz,PRIMARY KEY(cancellation_id,kind));`);
 }
 
@@ -387,7 +389,8 @@ export async function cancellationsOf(database: Queryable, candidateId: string) 
       [candidateId],
     )
   ).rows;
-  return { cancellations, events, notices };
+  const deliveries=(await database.query(`SELECT cancellation_id AS "cancellationId",kind,channel,completed_at AS "completedAt" FROM coaching_cancellation_delivery WHERE recipient_id=$1 ORDER BY completed_at,cancellation_id`,[candidateId])).rows;
+  return { cancellations, events, notices,deliveries };
 }
 
 /** Signed provider facts do not authenticate the cancelling person. A late external cancellation needs a Coach's authenticated confirmation. */

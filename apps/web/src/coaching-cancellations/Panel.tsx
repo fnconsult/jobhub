@@ -21,6 +21,7 @@ export async function CancellationPanel({ candidateId, locale, timeZone }: { can
           const refund = c.refundId ? await getCoachingRefunds().one(c.refundId) : null;
           return (
             <article key={c.id} className="coach-space-card stack">
+              <h4>{c.coachName}</h4>
               <p>{c.reason || t("coachingCancellation.candidateCancelled")}</p>
               {c.originalAt ? (
                 <p>

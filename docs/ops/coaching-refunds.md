@@ -42,3 +42,15 @@ writers cannot reopen refunded services or bypass pending choices. Same-Coach
 reopening invalidates old claims and retains anonymous cancellation-only routing
 for late provider descendants. No activation is granted here: current human
 CGV, Coach contract and privacy versions must declare `cancellations` coverage.
+
+Cancellation notice recovery checkpoints each recipient and channel independently.
+A later recipient/queue failure does not resend a completed email; keyed push
+queueing retains its existing deduplication. As with other transactional emails,
+a process loss between the provider accepting an email and the local checkpoint
+cannot be inferred as a failure or a guaranteed delivery.
+
+Support's contractual-refund list starts from retained financial entitlements,
+including debts whose personal Case and account have been erased. It does not
+reconstruct deleted contacts or reasons. A privileged retry request is audited
+before the numbered financial retry; audit failure performs no retry. Financial
+attempts then record the authoritative outcome separately.

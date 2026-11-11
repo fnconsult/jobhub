@@ -509,6 +509,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coaching_service_refund:"coachingRefunds.refunds (owned refund entitlement, no processor routing)",
   coaching_cancellation: "coachingCancellations.cancellations",
   coaching_cancellation_event: "coachingCancellations.events",
+  coaching_cancellation_delivery:"coachingCancellations.deliveries (own recipient/channel delivery facts only)",
   coaching_cancellation_notice: "coachingCancellations.notices",
   coaching_service_refund_attempt:"coachingRefunds.attempts",
   coaching_service_refund_resource:"coachingRefunds.resources",

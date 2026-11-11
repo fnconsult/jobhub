@@ -12,7 +12,7 @@ The sidebar offers “Today”, “My Candidates”, “My sessions”, “Avail
 
 ## Your time zone
 
-In “Public page” offers “Your time zone”, initially Europe/Paris. Confirm an IANA zone with “Save time zone”. Sessions follow your clock, with Paris time alongside when it differs.
+“Public page” offers “Your time zone”, initially Europe/Paris. Confirm an IANA zone with “Save time zone”. Sessions follow your clock, with Paris time alongside when it differs.
 
 ## Today and your Candidates
 

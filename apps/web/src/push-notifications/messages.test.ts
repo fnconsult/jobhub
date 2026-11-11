@@ -75,7 +75,7 @@ describe("a Push notification's deep link (the app fetches the rest once opened)
     expect(pushMessage(ONE_OF_EACH.job_digest, "fr").path).toBe(`/job-digests/${JOB_DIGEST}`);
     expect(pushMessage(ONE_OF_EACH.coach_review, "fr").path).toBe(`/candidatures/${APPLICATION}`);
     expect(pushMessage(ONE_OF_EACH.follow_up_due, "fr").path).toBe(`/candidatures/${APPLICATION}`);
-    expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr").path).toBe(`/espace-coach/${CANDIDATE}`);
+    expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr").path).toBe(`/espace-coach/candidates/${CANDIDATE}`);
   });
 
   it("opens the Agenda, the coach space or the home page for an event about no one object", () => {

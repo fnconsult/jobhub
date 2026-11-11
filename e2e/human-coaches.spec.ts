@@ -136,6 +136,7 @@ test.describe("isolated Human Coach workspace", () => {
       JOBHUB_IGNORE_ROOT_ENV: "1",
       AUTH_SECRET: "e2e-workspace-only-secret-e2e-workspace-only-secret",
       MAIL_TRANSPORT: "console",
+      CAL_COM_REMINDERS_DISABLED: "true",
       ADMIN_EMAILS: ADMINISTRATOR,
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       AI_SCORING_PROVIDER: "mistral",
@@ -152,7 +153,7 @@ test.describe("isolated Human Coach workspace", () => {
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      NODE_OPTIONS: ["fake-coach-contract.mjs", "fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
+      NODE_OPTIONS: ["fake-coach-contract.mjs", "fake-coaching-legal.mjs", "fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
     });
   });
   test.afterAll(async () => {
@@ -208,10 +209,10 @@ test("a Candidate grants Coach Access; the Human Coach reads their Profiles and 
     await page.getByRole("button", { name: tr(hc.grant, { name: coach.name }) }).click();
     await expect(page.getByText(tr(hc.accessGranted, { name: coach.name }))).toBeVisible();
 
-    // Without a name, the Human Coach knows the Candidate by their email.
+    // An unnamed Candidate uses the workspace placeholder rather than exposing their email.
     await coachPage.goto("/espace-coach/candidates");
-    await coachPage.getByRole("link", { name: email, exact: true }).click();
-    await expect(coachPage.getByRole("heading", { level: 2 }).filter({hasText:email})).toHaveText(email);
+    await coachPage.getByRole("link", { name: space.unnamedCandidate, exact: true }).click();
+    await expect(coachPage.getByRole("heading", { level: 2 }).filter({hasText:space.unnamedCandidate})).toHaveText(space.unnamedCandidate);
     await expect(coachPage.getByText(tr(space.calledBy, { name: "Mimi" }))).toHaveCount(0);
 
     // Named in Mon compte › Identité (#918), « Marie Dupont · se fait appeler Mimi »; with a Preferred Name that is her Given Name, « Marie Dupont » alone (#922).
@@ -352,8 +353,8 @@ test("a Candidate grants Coach Access; the Human Coach reads their Profiles and 
       const calendar = await candidate.request.get(`/api/agenda/coaching-sessions/${session.id}/calendar.ics`);
       expect(calendar.ok()).toBe(true);
       expect(await calendar.text()).toContain("DTSTART;TZID=America/Montreal:20261112T083000");
-      await coachPage.goto("/espace-coach");
-      await expect(coachPage.locator(`#seance-${session.id}`)).toContainText("14:30");
+      await coachPage.goto(`/espace-coach/seances/${session.id}`);
+      await expect(coachPage.getByRole("main")).toContainText("14:30");
     } finally {
       await context.close();
       await coachPage.context().close();
@@ -414,7 +415,7 @@ test("a Candidate grants Coach Access; the Human Coach reads their Profiles and 
       const exported = await (await page.request.get("/api/account/export")).json();
       expect(exported.privateCoachNotes).toEqual([expect.objectContaining({ text: "Notes privées du coach, jamais à l’écran du Candidate." })]);
       await page.goto("/coachs");
-      await expect(page.getByText(tr(fr.coachingOffers.soldBy, { name: "Jobbbox" }), { exact: true }).first()).toBeVisible();
+      await expect(page.locator(`#seance-${session.id}`)).toBeVisible();
       await expect(page.getByText("Notes privées du coach, jamais à l’écran du Candidate.")).toHaveCount(0);
       await coachPage.goto(`/espace-coach/seances/${session.id}`);
       await expect(coachPage.getByRole("heading", { name: fr.coachWorkspace.phase.during })).toBeVisible();

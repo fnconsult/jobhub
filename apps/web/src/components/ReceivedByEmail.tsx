@@ -125,10 +125,10 @@ export function EmailIntakeStanding({
           <p className="hint">{t("receivedByEmail.toCapture.intro")}</p>
           <ol className="rows" aria-label={t("receivedByEmail.toCapture.listLabel")}>
             {toCapture.map((offer) => (
-              <li key={offer.link}>
-                <div className="row-content">
-                  <RowHeading><ExternalLink href={offer.link}>{offer.title}</ExternalLink></RowHeading>
-                  <p className="hint">{t("receivedByEmail.receivedFrom", { date: day.format(offer.receivedAt), domain: offer.senderDomain })}</p>
+              <li className="row" key={offer.link}>
+                <div className="row-main">
+                  <RowHeading className="row-title"><ExternalLink href={offer.link}>{offer.title}</ExternalLink></RowHeading>
+                  <p className="row-meta">{t("receivedByEmail.receivedFrom", { date: day.format(offer.receivedAt), domain: offer.senderDomain })}</p>
                 </div>
               </li>
             ))}

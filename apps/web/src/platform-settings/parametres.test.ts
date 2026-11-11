@@ -93,6 +93,7 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
       expect(legacyRedirect("cles", { key: "MISTRAL_API_KEY" })).toBe("/admin/parametres?tab=ia&fournisseur=mistral");
       expect(legacyRedirect("cles", { key: "FANTASTIC_JOBS_API_KEY" })).toBe("/admin/parametres?tab=sources&fournisseur=fantastic-jobs");
       expect(legacyRedirect("cles", { key: "STRIPE_WEBHOOK_SECRET" })).toBe("/admin/parametres?tab=paiement&fournisseur=stripe");
+      expect(legacyRedirect("cles", { key: "STRIPE_CONNECT_WEBHOOK_SECRET" })).toBe("/admin/parametres?tab=paiement&fournisseur=stripe");
       expect(legacyRedirect("cles", { key: "NOT_A_KEY" })).toBe("/admin/parametres?tab=recherche-web");
       expect(legacyRedirect("cles", {})).toBe("/admin/parametres?tab=recherche-web");
     });

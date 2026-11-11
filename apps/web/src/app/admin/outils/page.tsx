@@ -1,3 +1,4 @@
+import { toolKeys } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { IntroPage } from "@/admin/page-intro";
@@ -90,9 +91,9 @@ export default async function ToolsPage() {
                 {
                   header: t("admin.tools.keys"),
                   cell: ({ tool }) =>
-                    tool.keys.length === 0
+                    toolKeys(tool).length === 0
                       ? t("admin.tools.noKeys")
-                      : tool.keys.map((name, index) => (
+                      : toolKeys(tool).map((name, index) => (
                           <span key={name}>
                             {index > 0 ? <br /> : null}
                             {key(name)}

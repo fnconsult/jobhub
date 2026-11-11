@@ -14,7 +14,7 @@
  * them out.
  */
 import { PRICE_SETTINGS, SEARCH_TASK, taskRouteFromEnv, TEXT_TASKS } from "@jobhub/ai";
-import { TOOLS, type Tool, type ToolCategory } from "@jobhub/shared";
+import { TOOLS, type Tool, type ToolCategory, toolKeys } from "@jobhub/shared";
 import { isProviderSecretName } from "../provider-secrets/catalog";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
 import { routes } from "../routes";
@@ -137,7 +137,7 @@ export function settingHref(name: string): string {
 }
 
 /** The Tool a key is for: the first that needs it (Brevo's API key: Brevo's API, its SMTP URL: Brevo's SMTP relay). */
-export const toolOfKey = (name: string): Tool | undefined => (TOOLS as readonly Tool[]).find((tool) => tool.keys.includes(name) && tabOfTool(tool));
+export const toolOfKey = (name: string): Tool | undefined => (TOOLS as readonly Tool[]).find((tool) => toolKeys(tool).includes(name) && tabOfTool(tool));
 
 /** A key's place: the sheet of the Tool it is for. */
 export function keyHref(name: string): string | undefined {
@@ -256,7 +256,7 @@ export function possibleProviders(tab: ParametresTab, state: ProvidersState): Po
       ...status,
       active: isActive,
       selectable: !isActive && choices?.kind === "choice" && choices.values.includes(tool.id),
-      keys: tool.keys.map((name): KeyState => {
+      keys: toolKeys(tool).map((name): KeyState => {
         const secret = isProviderSecretName(name);
         const shown = secret ? secrets.get(name) : undefined;
         const base = { name, secret, set: Boolean(state.env[name]?.trim()) };

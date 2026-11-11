@@ -7,7 +7,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { PROVIDER_IDS, TEXT_TASKS } from "@jobhub/ai";
-import { externalApiProvidersOf, TOOLS, type Tool } from "@jobhub/shared";
+import { externalApiProvidersOf, TOOLS, toolKeys, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import * as z from "zod";
 import { NO_OBJECTS, shippedCoachActions } from "../coach-actions/catalog";
@@ -102,7 +102,7 @@ describe("the guard on the Tools", () => {
   });
 
   it("finds every Provider Secret among the keys of a Tool", () => {
-    const keys = TOOLS.flatMap((tool) => tool.keys as readonly string[]);
+    const keys = (TOOLS as readonly Tool[]).flatMap(toolKeys);
     expect(PROVIDER_SECRETS.map((secret) => secret.name).filter((name) => !keys.includes(name))).toEqual([]);
   });
 

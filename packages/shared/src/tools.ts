@@ -82,6 +82,8 @@ export interface Tool {
   runsIn: "web" | "worker" | "both";
   /** The environment variables it cannot be called without (Provider Secrets among them); none for a public API. */
   keys: readonly string[];
+  /** Secrets for additional capabilities; their module enforces readiness without disabling this Tool’s base capability. */
+  additionalKeys?: readonly string[];
   /** The settings it depends on, in the order its page lists them; none when absent. */
   settings?: readonly ToolSetting[];
   /** For a sign-in Tool, the type of Sign-in Provider it is: it is configured when one of that type is enabled. */
@@ -815,7 +817,8 @@ export const TOOLS = [
     category: "billing",
     module: "apps/web/src/billing/index.ts",
     runsIn: "web",
-    keys: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CONNECT_WEBHOOK_SECRET"],
+    keys: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+    additionalKeys: ["STRIPE_CONNECT_WEBHOOK_SECRET"],
     settings: [{ name: "STRIPE_PRICE_STANDARD" }, { name: "STRIPE_PRICE_PREMIUM" }, { name: "STRIPE_PRICE_COACHING_SESSION" }, { name: "STRIPE_PRICE_COACHING_SESSION_PREMIUM" }],
     usage: { table: "external_api_usage", provider: "stripe" },
     residency: "outside_eu",
@@ -1172,4 +1175,9 @@ export function toolOfUsage(call: RecordedCall): Tool | undefined {
     if (!usage || usage.table !== "ai_usage" || usage.provider !== call.provider) return false;
     return usage.endpoint === undefined || call.endpoint.startsWith(usage.endpoint);
   });
+}
+
+/** All keys exposed by the Tool’s setup and inventory, including capability-specific secrets. */
+export function toolKeys(tool: Tool): readonly string[] {
+  return [...tool.keys, ...(tool.additionalKeys ?? [])];
 }

@@ -23,3 +23,5 @@ Tools is read-only: a key, a setting or a provider is changed on Settings. « Al
 Team Cal.com booking uses a verified single-host event attached from Human Coaches. Team configuration and confirmation of disabled reminders stay in Settings; API and webhook keys stay in Provider Secrets. Old cal.eu links are flagged for review. Creation with an unknown outcome is never repeated automatically: find the event in Cal.com and attach its ID. Embedded booking awaits the required Legal Texts and notice period.
 
 The Stripe entry lists the API key, billing webhook signature and separate connected-account event signature (`STRIPE_CONNECT_WEBHOOK_SECRET`). Configure these signatures in Provider Secrets for their respective endpoints; their presence does not replace coaching’s legal activation requirements.
+
+The Connect signature is an additional capability key: its absence disables neither existing subscriptions nor Stripe’s Recipient-list entry. Connect operations retain their own configuration checks.

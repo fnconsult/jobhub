@@ -26,3 +26,13 @@ it("leaves inaccessible and stale offers untouched", async () => {
   const stale = async () => ({ url: input.sourceUrl!, details: { ...details, postedAt: new Date("2026-01-01") } });
   expect((await planEmailOfferRepairs([input], { ai: {} as never, now, readSource: stale }))[0]).toMatchObject({ outcome: "skipped", reason: "too_old" });
 });
+
+it("recalculates each Candidate's best Profile from the enriched source before proposing assignments", async () => {
+  const cv = { fullName: "Fixture", headline: "Finance director", email: "", phone: "", location: "Lyon", summary: "", experience: [{ title: "Finance director", employer: "Example", location: "Lyon", period: "2010 – present", description: "Finance" }], education: [], skills: ["IFRS"], languages: [] };
+  const criteria = { targetRole: "Finance director", locations: ["Lyon"], contractTypes: ["cdi" as const], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+  const poor = { candidateId: "candidate-one", profileId: "poor-profile", cv: { ...cv, experience: [], skills: [] }, searchCriteria: { ...criteria, locations: ["Paris"], contractTypes: ["cdd" as const] } };
+  const readSource = vi.fn(async () => ({ url: input.sourceUrl!, details: { ...details, location: "Lyon", contractType: "cdi" as const, requiredExperienceYears: 10 } }));
+  const plans = await planEmailOfferRepairs([{ ...input, profiles: [poor, { candidateId: "candidate-one", profileId: "matching-profile", cv, searchCriteria: criteria }, { ...poor, candidateId: "candidate-two" }] }], { ai: {} as never, now, readSource });
+  expect(plans[0]).toMatchObject({ jobOfferId: input.jobOfferId, outcome: "proposed", assignments: [{ candidateId: "candidate-one", profileId: "matching-profile", matchScore: 100 }, { candidateId: "candidate-two", profileId: null, matchScore: 0 }] });
+  expect(readSource).toHaveBeenCalledWith(input.sourceUrl, {});
+});

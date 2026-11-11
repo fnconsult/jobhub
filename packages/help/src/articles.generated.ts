@@ -112,6 +112,25 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'aide du back office réunit les pages, tutoriels et questions fréquentes écrits par l'équipe Jobbbox pour les administrateurs. Elle n'est jamais publique : le centre d'aide (/aide), sa recherche et le plan du site ne la montrent pas, et seuls les administrateurs l'ouvrent, quels que soient leurs rôles.\n\nLes articles sont rangés par rubrique : « Fournisseurs et Tools » d'abord, puis une rubrique par groupe du menu du back office, puis « IA et conformité ». « Chercher dans l'aide du back office » trouve un article par ses mots, sans IA.\n\nChaque section du back office montre aussi son article dans l'assistant, sous « Sur cette page ». L'assistant répond à partir des articles qu'il trouve et les cite. S'il n'en trouve aucun, cliquez sur « Demander un tutoriel » sous sa réponse : les rédacteurs de l'aide verront la question dans « Questions sans réponse », sans votre nom. À côté du badge « Assistant IA », « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité : où passe chaque usage de l'IA."
     },
     {
+      "id": "page-coaching-cancellations",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Annulations et remboursements",
+      "synonyms": [
+        "annulations",
+        "remboursements",
+        "séance annulée",
+        "autre coach",
+        "nouvelle réservation"
+      ],
+      "route": "/coachs/annulations",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Lorsque les nouvelles conditions de coaching sont activées, cette page privée permet d’annuler vos séances dans le délai de 24 heures et de suivre les annulations déjà demandées. Le nom du coach distingue chaque suivi. Les horaires utilisent votre fuseau, avec l’heure de Paris à côté quand elle diffère.\n\nUne annulation du coach ouvre trois choix : remboursement intégral, reprise avec le même coach sans nouveau paiement, ou autre coach agréé au tarif inférieur ou égal. La date limite est affichée ; sans choix au bout de sept jours, le remboursement est demandé automatiquement. Choisir un autre coach rembourse d’abord la commande initiale, puis présente une nouvelle commande à accepter : ce choix ne déclenche aucun paiement.\n\nL’état du remboursement distingue la demande, la confirmation Stripe et une intervention nécessaire du support. Le délai de réception bancaire dépend de votre banque. Une annulation reçue uniquement de Cal.com attend la confirmation du motif par le coach ; le délai du candidat reste calculé sur la date initiale. Dans l’app, la même page s’ouvre dans le navigateur authentifié de Jobbbox."
+    },
+    {
       "id": "page-coaching-booking",
       "locale": "fr",
       "kind": "page",
@@ -777,7 +796,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/coachs",
       "motion": null,
       "microAnimations": [],
-      "body": "« Mes coachs humains » est une conversation avec votre coach IA, la même à chaque visite. Vos séances et les coachs humains y sont deux cartes. Demandez au coach IA comment préparer une séance.\n\nEn plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment.\n\nDans l'app Jobbbox, « Mes coachs humains » montre vos séances payées, avec leur date ou « Pas encore de date », puis les coachs à réserver, avec le prix d'une séance pour vous. « Réserver une séance avec … » ouvre votre commande, comme sur le site : cochez la case des CGV, puis « Passer au paiement ». Le paiement s'ouvre sur la page sécurisée de Stripe, sans quitter l'app. Une fois payé, vous revenez dans l'app : la séance apparaît dès que Stripe a confirmé le paiement, ce qui prend en général quelques secondes, avec « Choisir mon créneau avec … sur Cal.com ». Si la confirmation tarde, « Actualiser » vérifie à nouveau ; la confirmation de commande vous est aussi envoyée par e-mail.\n\nAprès avoir réservé votre créneau, « J'ai réservé : saisir la date » vous demande la date, l'heure à Paris, la durée, le lien de la visio et une note, comme sur le site ; « Modifier la date » les corrige. « Renoncer au contrat ici » ouvre la page de rétractation de jobbbox.ai dans l'app, tant que la séance peut encore être rétractée. L'app n'affiche ni le prix ni l'achat d'une offre : votre abonnement se gère sur jobbbox.ai.\n\n## Le compte rendu de votre coach\n\n« Lire le compte rendu et poursuivre la conversation » ouvre la conversation de la séance. Un compte rendu publié y porte le nom de votre coach et « Coach humain ». Votre coach IA peut le lire et proposer des prochaines étapes sans en recopier le texte dans vos documents. Les corrections sont de nouveaux messages.\n\n## Qui vous vend la séance\n\n« Vendu par » identifie le vendeur de l’offre, également nommé dans votre commande et sa confirmation. Jobbbox applique son prix de séance et la remise de votre formule. Un vendeur tiers fixe son propre prix ; son nom légal, son statut et son SIRET apparaissent, avec le rôle de place de marché de Jobbbox. Seules les offres dont le paiement et les conditions de vente sont activés peuvent être commandées.\n\n## Les coachs proposés par une association\n\n« Proposé par … » nomme l’Association qui propose le coach, sur le site et dans l’app. Ce n’est pas forcément le vendeur de la séance : « Vendu par » l’identifie séparément. L’Association gère ses coachs et leurs offres, sans lire vos profils, candidatures, conversations ou notes de séance. Un coach retiré de l’Association est aussi retiré de Jobbbox ; vos séances passées restent dans votre historique.\n\n## Le profil de votre coach\n\nChaque coach présente sa photo, ses spécialités, ses langues et sa présentation approuvées. Une modification en attente ou refusée ne vous est jamais montrée ; la dernière version approuvée reste visible. Il n’y a pas d’avis ni de notes de satisfaction sur ces profils.\n\nAprès paiement, la réservation intégrée permet de choisir un créneau ou de le choisir plus tard. Une réservation reliée met automatiquement la séance et l’Agenda à jour. Son historique indique « via Cal.com ». Le formulaire manuel reste disponible pour les séances sans réservation reliée ; pour les autres, modifiez la réservation chez Cal.com."
+      "body": "« Mes coachs humains » est une conversation avec votre coach IA, la même à chaque visite. Vos séances et les coachs humains y sont deux cartes. Demandez au coach IA comment préparer une séance.\n\nEn plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment.\n\nDans l'app Jobbbox, « Mes coachs humains » montre vos séances payées, avec leur date ou « Pas encore de date », puis les coachs à réserver, avec le prix d'une séance pour vous. « Réserver une séance avec … » ouvre votre commande, comme sur le site : cochez la case des CGV, puis « Passer au paiement ». Le paiement s'ouvre sur la page sécurisée de Stripe, sans quitter l'app. Une fois payé, vous revenez dans l'app : la séance apparaît dès que Stripe a confirmé le paiement, ce qui prend en général quelques secondes, avec « Choisir mon créneau avec … sur Cal.com ». Si la confirmation tarde, « Actualiser » vérifie à nouveau ; la confirmation de commande vous est aussi envoyée par e-mail.\n\nAprès avoir réservé votre créneau, « J'ai réservé : saisir la date » vous demande la date, l'heure à Paris, la durée, le lien de la visio et une note, comme sur le site ; « Modifier la date » les corrige. « Renoncer au contrat ici » ouvre la page de rétractation de jobbbox.ai dans l'app, tant que la séance peut encore être rétractée. L'app n'affiche ni le prix ni l'achat d'une offre : votre abonnement se gère sur jobbbox.ai.\n\n## Le compte rendu de votre coach\n\n« Lire le compte rendu et poursuivre la conversation » ouvre la conversation de la séance. Un compte rendu publié y porte le nom de votre coach et « Coach humain ». Votre coach IA peut le lire et proposer des prochaines étapes sans en recopier le texte dans vos documents. Les corrections sont de nouveaux messages.\n\n## Qui vous vend la séance\n\n« Vendu par » identifie le vendeur de l’offre, également nommé dans votre commande et sa confirmation. Jobbbox applique son prix de séance et la remise de votre formule. Un vendeur tiers fixe son propre prix ; son nom légal, son statut et son SIRET apparaissent, avec le rôle de place de marché de Jobbbox. Seules les offres dont le paiement et les conditions de vente sont activés peuvent être commandées.\n\n## Les coachs proposés par une association\n\n« Proposé par … » nomme l’Association qui propose le coach, sur le site et dans l’app. Ce n’est pas forcément le vendeur de la séance : « Vendu par » l’identifie séparément. L’Association gère ses coachs et leurs offres, sans lire vos profils, candidatures, conversations ou notes de séance. Un coach retiré de l’Association est aussi retiré de Jobbbox ; vos séances passées restent dans votre historique.\n\n## Le profil de votre coach\n\nChaque coach présente sa photo, ses spécialités, ses langues et sa présentation approuvées. Une modification en attente ou refusée ne vous est jamais montrée ; la dernière version approuvée reste visible. Il n’y a pas d’avis ni de notes de satisfaction sur ces profils.\n\nAprès paiement, la réservation intégrée permet de choisir un créneau ou de le choisir plus tard. Une réservation reliée met automatiquement la séance et l’Agenda à jour. Son historique indique « via Cal.com ». Le formulaire manuel reste disponible pour les séances sans réservation reliée ; pour les autres, modifiez la réservation chez Cal.com.\n\n## Annulations et remboursements\n\nLorsque les nouvelles conditions sont activées, le lien « Annulations et remboursements » ouvre le suivi privé : vous pouvez aussi y annuler une séance sans date. Le délai de 24 heures, les choix après annulation du coach et l’état bancaire y sont expliqués. Dans l’app, le même suivi s’ouvre dans le navigateur authentifié."
     },
     {
       "id": "page-own-coach-enrolments",
@@ -1046,6 +1065,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Playbooks (menu Coaching) ouvre « Playbooks de coaching » : les règles que l'AI Coach applique. Le tableau « Socle, liste des sources et playbooks » montre le « Socle de coaching », la « Liste des sources » et chaque playbook, avec sa « Dernière version », sa « Version servie », son Playbook Agent (le spécialiste que l'AI Coach consulte : fournisseur, modèle et effort) et son état, « Actif » ou « Archivé ». Plus bas, « Playbooks des tâches IA » donne les consignes de chaque tâche IA (lire une offre ou un CV, rédiger un document…) et l'IA qui l'exécute ; l'AI Coach ne les consulte jamais. « Modèles autorisés » liste les modèles proposés, leur hébergement (« UE » ou « hors UE ») et leur effort.\n\nEn production, seule la dernière version validée par une personne (Human-validated) de chacun est servie. Ailleurs, la dernière version est servie, validée ou non : la page le rappelle en tête.\n\nCliquez sur le nom d'un playbook pour l'ouvrir. Sa page liste ses « Versions », puis, pour la version choisie, qui l'a écrite, sa « Validation », ses « Règles » et la carte « Modifier ». Enregistrer une version non validée la modifie ; enregistrer une version validée crée la version suivante, à valider à son tour. Toutes les versions sont gardées.\n\nViennent ensuite les « Cas d'évaluation » du playbook (des scénarios fictifs, notés par un juge IA) et ses « Évaluations ». Une version n'est validée qu'après une évaluation sur elle, quel que soit son score, et par une personne qui ne l'a pas écrite. « Archiver ce playbook » arrête de le servir sans rien effacer ; « Rétablir ce playbook » le sert de nouveau. Le socle et la liste des sources ne s'archivent pas.\n\nUn modèle « hors UE » reçoit des appels expurgés par la Redaction. Les rédacteurs de playbooks et les super-admins modifient, évaluent et valident ; le Support lit. Chaque changement est inscrit dans Actions des administrateurs."
     },
     {
+      "id": "page-coach-session",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Préparer et suivre votre séance",
+      "synonyms": [
+        "préparer séance",
+        "note privée",
+        "compte rendu",
+        "annuler séance",
+        "motif",
+        "lecture partagée"
+      ],
+      "route": "/espace-coach/seances/[sessionId]",
+      "motion": null,
+      "microAnimations": [],
+      "body": "La page d’une séance de votre espace coach réunit sa date, le candidat concerné, votre préparation et le compte rendu. Vous accédez uniquement à vos séances actives. La lecture partagée et le lien pour rejoindre l’appel suivent leurs fenêtres horaires ; ils se mettent à jour lorsque la page reste ouverte.\n\nLorsque les nouvelles conditions sont activées, « Annuler la séance avec un motif » demande un motif obligatoire avant confirmation. Le candidat reçoit le suivi et peut choisir le remboursement intégral, une reprise avec vous sans nouveau paiement ou un autre coach agréé au tarif inférieur ou égal. Sans choix au bout de sept jours, le remboursement intégral est demandé. Confirmez également dans Jobbbox le motif d’une annulation faite seulement à Cal.com.\n\nVotre préparation et le brouillon du compte rendu ne sont pas publiés dans la conversation du candidat. La publication du compte rendu est une action explicite ; une correction publiée reste un nouveau message. Évitez de recopier votre préparation ou vos notes dans le motif communiqué au candidat."
+    },
+    {
       "id": "page-coach-public-profile",
       "locale": "fr",
       "kind": "page",
@@ -1199,7 +1238,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/abonnement/retractation",
       "motion": null,
       "microAnimations": [],
-      "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement. Une séance réservée avec la demande que le service commence immédiatement ne peut plus faire l'objet d'une rétractation une fois qu'elle a eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés. Le remboursement est entier, sauf pour un abonnement souscrit avec la demande que le service commence immédiatement : vous payez alors le service déjà fourni, et la page indique le montant « Remboursé si vous confirmez maintenant » (le montant payé, moins la part des jours écoulés depuis le début de la période).\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
+      "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement. Une séance réservée avec la demande que le service commence immédiatement ne peut plus faire l'objet d'une rétractation une fois qu'elle a eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés. Le remboursement est entier, sauf pour un abonnement souscrit avec la demande que le service commence immédiatement : vous payez alors le service déjà fourni, et la page indique le montant « Remboursé si vous confirmez maintenant » (le montant payé, moins la part des jours écoulés depuis le début de la période).\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le.\n\nLe suivi d’une annulation contractuelle de séance se trouve dans « Mes coachs humains → Annulations et remboursements », lorsque les nouvelles conditions sont activées. Il indique sa propre date limite et ses choix ; il ne remplace pas cette démarche de rétractation."
     },
     {
       "id": "page-subscription-reduction",
@@ -1243,6 +1282,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Cette page résilie votre abonnement à une offre payante. Elle indique votre offre et la date de fin du contrat, c'est-à-dire la fin de la période déjà payée : vous gardez votre offre jusqu'à cette date, aucun prélèvement ne suit, puis vous passez à l'offre Gratuit.\n\n« Confirmer la résiliation » enregistre votre demande. Vous recevez aussitôt par e-mail un accusé de réception avec la date de votre demande et la date de fin du contrat : conservez-le.\n\nVous changez d'avis ? Jusqu'à la date de fin, annulez la résiliation depuis Mon abonnement, avec « Gérer mon abonnement »."
+    },
+    {
+      "id": "page-admin-refunds",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "offre",
+      "title": "Rétractations, annulations et remboursements",
+      "synonyms": [
+        "rétractations",
+        "annulations",
+        "remboursements échoués",
+        "support",
+        "compte effacé",
+        "reprise remboursement"
+      ],
+      "route": "/admin/retractations",
+      "motion": null,
+      "microAnimations": [],
+      "body": "La section Rétractations distingue les rétractations légales et le suivi des annulations contractuelles de séances. Le rôle de support disposant de l’écriture peut relancer un remboursement en échec ; les autres accès autorisés restent en lecture seule. Le motif du coach est une donnée privée, jamais une note publique.\n\nLes remboursements déjà dus restent dans la liste financière après l’effacement du compte et du suivi personnel. Aucun nom, adresse ou motif effacé n’est reconstitué. Une demande privilégiée de reprise est auditée avant la tentative financière ; son résultat est conservé dans les faits de remboursement.\n\nUn état incertain demande une réconciliation dans le compte Stripe d’origine. Ne créez pas de nouveau remboursement en devinant le résultat d’une ancienne écriture. Les conditions d’activation sont validées séparément par les responsables humains ; cette page n’approuve aucun texte juridique."
     },
     {
       "id": "page-coach-earnings",
@@ -3907,6 +3966,25 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Sans compte, l'extension Jobbbox compare votre CV à une offre d'emploi et calcule son Match Score.\n\n1. Ouvrez la page d'une offre d'emploi, puis cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ».\n2. Le panneau de l'extension s'ouvre à droite et montre l'offre capturée.\n3. Glissez votre CV dans « Glissez votre CV ici », ou cliquez sur « Choisir un fichier » pour le choisir.\n4. Cliquez sur « Calculer mon Match Score », en bas du panneau.\n5. Le score s'affiche sur 100, avec le « Détail du Match Score » : pour chaque critère, ce qui correspond et ce qui ne correspond pas.\n6. Pour comparer un autre CV, cliquez sur « Utiliser un autre CV ». Pour tout effacer, cliquez sur « Effacer mes données maintenant »."
     },
     {
+      "id": "tutorial-cancel-coaching-session",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Annuler une séance ou choisir après l’annulation du coach",
+      "synonyms": [
+        "annuler séance",
+        "choisir remboursement",
+        "reprise même coach",
+        "autre coach",
+        "suivi annulation"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Lorsque les nouvelles conditions sont activées, utilisez le suivi privé de votre séance. Une annulation contractuelle et une rétractation légale restent deux démarches distinctes.\n\n1. Ouvrez **Mes coachs humains**, puis **Annulations et remboursements**. Dans l’app, ce suivi s’ouvre sans perdre votre connexion.\n2. Pour annuler vous-même, repérez la séance et choisissez **Demander le remboursement intégral**, puis confirmez. Le contrôle ferme cette action après le délai de 24 heures ; contactez alors votre coach ou le support.\n3. Si le coach a annulé, lisez son motif et la date limite, puis choisissez le remboursement, **Reprendre avec le même coach**, ou **Choisir un autre coach**. Une annulation reçue seulement de Cal.com doit d’abord être confirmée par le coach.\n4. Pour reprendre avec le même coach, ouvrez **Réserver sans nouveau paiement** et choisissez votre créneau. Pour un autre coach, attendez la confirmation du remboursement initial, puis ouvrez **Voir et accepter la nouvelle commande** : vérifiez le vendeur et le prix avant tout paiement.\n5. Retrouvez l’état du remboursement dans le même suivi. Un échec demande une intervention du support ; aucun nouveau paiement n’est nécessaire pour le corriger. Sans choix après sept jours suivant l’annulation confirmée du coach, le remboursement intégral est demandé automatiquement."
+    },
+    {
       "id": "tutorial-admin-ai-task-route",
       "locale": "fr",
       "kind": "tutorial",
@@ -5108,6 +5186,25 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "This page cancels your subscription to a paid plan. It shows your plan and the date the contract ends, which is the end of the period already paid for: you keep your plan until that date, you are not charged again, and you then move to the Free plan.\n\n« Confirm the cancellation » records your request. You at once receive an acknowledgement by email, with the date of your request and the date the contract ends: keep it.\n\nChanged your mind? Until the end date, undo the cancellation from My subscription, with « Manage my subscription »."
     },
     {
+      "id": "page-coaching-cancellations",
+      "locale": "en",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Cancellations and refunds",
+      "synonyms": [
+        "cancellations",
+        "refunds",
+        "cancelled session",
+        "another coach",
+        "new booking"
+      ],
+      "route": "/coachs/annulations",
+      "motion": null,
+      "microAnimations": [],
+      "body": "When the new coaching conditions are activated, this private page lets you cancel sessions within the 24-hour limit and follow existing cancellation requests. Each follow-up names the original coach. Times use your time zone, with Paris time beside them when different.\n\nA coach cancellation opens three choices: full refund, continuing with the same coach without another payment, or another approved coach at the same or a lower price. The deadline is shown; without a choice within seven days, a refund is requested automatically. Choosing another coach first refunds the original order, then presents a new order to accept: choosing does not trigger another payment.\n\nRefund status distinguishes the request, Stripe confirmation and required support intervention. Receipt time depends on your bank. A cancellation reported only by Cal.com awaits confirmation of the coach’s reason; the Candidate’s limit still uses the original date. In the app, this same page opens in Jobbbox’s authenticated web companion."
+    },
+    {
       "id": "page-coaching-booking",
       "locale": "en",
       "kind": "page",
@@ -5710,7 +5807,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/coachs",
       "motion": null,
       "microAnimations": [],
-      "body": "« My human coaches » is a conversation with your AI coach, the same one every visit. Your sessions and the human coaches are two cards there. Ask the AI coach how to prepare a session.\n\nOn top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time.\n\nIn the Jobbbox app, « My human coaches » shows your paid sessions, with their date or « No date yet », then the coaches to book, with what a session costs you. « Book a session with … » opens your order, as on the website: tick the terms of sale box, then « Go to payment ». The payment opens on Stripe's secure page, without leaving the app. Once you have paid, you are back in the app: the session shows as soon as Stripe has confirmed the payment, which usually takes a few seconds, with « Pick my time with … on Cal.com ». If the confirmation is slow, « Refresh » checks again; your order confirmation is also sent to you by email.\n\nOnce you have booked your time, « I've booked: enter the date » asks for the date, the time in Paris, the duration, the video call link and a note, as on the website; « Change the date » corrects them. « Withdraw from the contract here » opens jobbbox.ai's withdrawal page in the app, as long as the session can still be withdrawn from. The app shows no plan price and no plan purchase: your subscription is managed on jobbbox.ai.\n\n## Your coach’s report\n\n“Read the report and continue the conversation” opens that session’s conversation. A published report bears your coach’s name and “Human Coach”. Your AI Coach can read it and propose next steps without copying its text into your documents. Corrections appear as new messages.\n\n## Who sells your session\n\n“Sold by” identifies the offer’s Seller, also named in your order and confirmation. Jobbbox uses its session price and your Plan’s discount. A third-party Seller sets their own price; their legal name, status and SIRET appear, with Jobbbox’s marketplace role. Only offers with payment and selling conditions activated can be ordered.\n\n## Coaches offered by an Association\n\n“Offered by …” names the Association offering the coach, on the site and in the app. The session’s seller may differ: “Sold by” identifies it separately. The Association manages coaches and offers without reading your Profiles, Applications, conversations or session notes. A coach removed from an Association is also retired from Jobbbox; past sessions stay in your history.\n\n## Your coach’s profile\n\nEach coach shows their approved photo, specialties, languages and presentation. Pending or refused changes are never shown to you; the latest approved version remains visible. These profiles have no reviews or satisfaction ratings.\n\nAfter payment, embedded booking lets you choose a time now or later. A linked booking automatically updates the session and Agenda. History attributes changes “via Cal.com”. Manual entry remains available for sessions without a linked booking; change other bookings in Cal.com."
+      "body": "« My human coaches » is a conversation with your AI coach, the same one every visit. Your sessions and the human coaches are two cards there. Ask the AI coach how to prepare a session.\n\nOn top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time.\n\nIn the Jobbbox app, « My human coaches » shows your paid sessions, with their date or « No date yet », then the coaches to book, with what a session costs you. « Book a session with … » opens your order, as on the website: tick the terms of sale box, then « Go to payment ». The payment opens on Stripe's secure page, without leaving the app. Once you have paid, you are back in the app: the session shows as soon as Stripe has confirmed the payment, which usually takes a few seconds, with « Pick my time with … on Cal.com ». If the confirmation is slow, « Refresh » checks again; your order confirmation is also sent to you by email.\n\nOnce you have booked your time, « I've booked: enter the date » asks for the date, the time in Paris, the duration, the video call link and a note, as on the website; « Change the date » corrects them. « Withdraw from the contract here » opens jobbbox.ai's withdrawal page in the app, as long as the session can still be withdrawn from. The app shows no plan price and no plan purchase: your subscription is managed on jobbbox.ai.\n\n## Your coach’s report\n\n“Read the report and continue the conversation” opens that session’s conversation. A published report bears your coach’s name and “Human Coach”. Your AI Coach can read it and propose next steps without copying its text into your documents. Corrections appear as new messages.\n\n## Who sells your session\n\n“Sold by” identifies the offer’s Seller, also named in your order and confirmation. Jobbbox uses its session price and your Plan’s discount. A third-party Seller sets their own price; their legal name, status and SIRET appear, with Jobbbox’s marketplace role. Only offers with payment and selling conditions activated can be ordered.\n\n## Coaches offered by an Association\n\n“Offered by …” names the Association offering the coach, on the site and in the app. The session’s seller may differ: “Sold by” identifies it separately. The Association manages coaches and offers without reading your Profiles, Applications, conversations or session notes. A coach removed from an Association is also retired from Jobbbox; past sessions stay in your history.\n\n## Your coach’s profile\n\nEach coach shows their approved photo, specialties, languages and presentation. Pending or refused changes are never shown to you; the latest approved version remains visible. These profiles have no reviews or satisfaction ratings.\n\nAfter payment, embedded booking lets you choose a time now or later. A linked booking automatically updates the session and Agenda. History attributes changes “via Cal.com”. Manual entry remains available for sessions without a linked booking; change other bookings in Cal.com.\n\n## Cancellations and refunds\n\nWhen the new conditions are activated, the “Cancellations and refunds” link opens private tracking: you can also cancel an undated session there. It explains the 24-hour limit, choices after coach cancellation and bank status. In the app, the same tracking opens in the authenticated web companion."
     },
     {
       "id": "page-subscription",
@@ -5820,6 +5917,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Playbooks (Coaching menu) opens « Coaching Playbooks »: the rules the AI Coach applies. The « Core Digest, Sources list and playbooks » table shows the « Core Digest », the « Sources list » and each playbook, with its « Latest version », its « Served version », its Playbook Agent (the specialist the AI Coach consults: provider, model and effort) and its status, « Active » or « Archived ». Further down, « AI task playbooks » gives the instructions of each AI task (reading a Job Offer or a CV, writing a document…) and the AI that runs it; the AI Coach never consults them. « Allowed models » lists the models offered, their hosting (« EU » or « outside EU ») and their effort.\n\nIn production, only the latest Human-validated version of each is served. Elsewhere, the latest version is served, validated or not: the page says so at the top.\n\nClick a playbook's name to open it. Its page lists its « Versions », then, for the version chosen, who wrote it, its « Validation », its « Rules » and the « Edit » card. Saving a version not yet validated changes it; saving a validated version makes the next version, to be validated in turn. Every version is kept.\n\nThen come the playbook's « Eval Cases » (fictional scenarios, scored by an AI judge) and its « Eval Runs ». A version is validated only after an Eval Run on it, whatever its score, and by someone who did not write it. « Archive this playbook » stops serving it without erasing anything; « Restore this playbook » serves it again. The Core Digest and the Sources list cannot be archived.\n\nA model « outside EU » receives calls redacted by Redaction. Playbook editors and super-admins edit, evaluate and validate; Support reads. Each change is recorded in Administrator actions."
+    },
+    {
+      "id": "page-coach-session",
+      "locale": "en",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Prepare and follow your session",
+      "synonyms": [
+        "prepare session",
+        "private note",
+        "report",
+        "cancel session",
+        "reason",
+        "shared reading"
+      ],
+      "route": "/espace-coach/seances/[sessionId]",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Your coach-space session page brings together the date, relevant Candidate, preparation and report. You can access only your active sessions. Shared reading and the join link follow their time windows and update while the page stays open.\n\nWhen the new conditions are activated, “Cancel the session with a reason” requires a reason before confirmation. The Candidate receives the follow-up and can choose a full refund, continuing with you without another payment, or another approved coach at the same or a lower price. Without a choice within seven days, a full refund is requested. Also confirm the reason in Jobbbox for a cancellation made only at Cal.com.\n\nYour preparation and draft report are not published in the Candidate’s conversation. Publishing a report is an explicit action; a published correction remains a new message. Avoid copying preparation or private notes into the reason shared with the Candidate."
     },
     {
       "id": "page-admin-settings",
@@ -6084,7 +6201,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/abonnement/retractation",
       "motion": null,
       "microAnimations": [],
-      "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it. A session booked with the request for the service to start at once can no longer be withdrawn from once it has taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirm the withdrawal » ends the contract at once and refunds you to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days. The refund is in full, but for a subscription taken with the request for the service to start at once: you then pay for the service already provided, and the page shows the amount « Refunded if you confirm now » (the amount paid, less the share of the days elapsed since the start of the period).\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
+      "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it. A session booked with the request for the service to start at once can no longer be withdrawn from once it has taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirm the withdrawal » ends the contract at once and refunds you to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days. The refund is in full, but for a subscription taken with the request for the service to start at once: you then pay for the service already provided, and the page shows the amount « Refunded if you confirm now » (the amount paid, less the share of the days elapsed since the start of the period).\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it.\n\nContractual session-cancellation tracking is in “My human coaches → Cancellations and refunds” when the new conditions are activated. It shows its own deadline and choices; it does not replace this withdrawal process."
+    },
+    {
+      "id": "page-admin-refunds",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "offre",
+      "title": "Withdrawals, cancellations and refunds",
+      "synonyms": [
+        "withdrawals",
+        "cancellations",
+        "failed refunds",
+        "support",
+        "erased account",
+        "retry refund"
+      ],
+      "route": "/admin/retractations",
+      "motion": null,
+      "microAnimations": [],
+      "body": "The Withdrawals section distinguishes legal withdrawals from contractual session-cancellation follow-up. Support with write access can retry a failed refund; other authorised access remains read-only. The coach’s reason is private information, never a public note.\n\nRefunds already owed remain in the financial list after the account and personal follow-up are erased. Deleted names, addresses and reasons are not reconstructed. A privileged retry request is audited before the financial attempt; its outcome remains in the refund facts.\n\nAn uncertain state requires reconciliation in the original Stripe account. Do not create another refund by guessing an earlier write’s outcome. Activation conditions are separately validated by human owners; this page approves no legal wording."
     },
     {
       "id": "page-exit",
@@ -8596,6 +8733,25 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": "reserver-seance-coach",
       "microAnimations": [],
       "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. You pay first, then you pick your time.\n\n1. In the menu, open « My human coaches ».\n2. Under « Choose a coach », click « Book a session with … » for the coach of your choice.\n3. On the « Your order » page, check the summary, then tick « I accept the terms of sale (version of …) ». The box asking for the service to start at once is optional.\n4. Click « Go to payment », then pay on the secure page of Stripe, our payment provider. Your order confirmation is sent to you by email.\n5. Once payment is confirmed, choose a time in the embedded Cal.com calendar. “Choose later” keeps the session unscheduled; find it in “My human coaches”.\n6. The confirmed booking automatically dates the session and your Agenda. Rescheduling and cancellation received from Cal.com update them; history attributes the change “via Cal.com”.\n7. To change a linked booking, open “Change the booking in Cal.com”. Manual entry remains a fallback for sessions without a linked booking; it cannot desynchronize an existing booking.\n\nThe integration appears only when the team event and activation conditions are ready. Otherwise, the coach’s link and manual date entry remain available as a fallback. The coach configures the joining link in Jobbbox.\n\nWithdrawal also queues cancellation of the Cal.com booking. A Cal.com outage never blocks the refund: Jobbbox retries cancellation separately."
+    },
+    {
+      "id": "tutorial-cancel-coaching-session",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Cancel a session or choose after a coach cancellation",
+      "synonyms": [
+        "cancel session",
+        "choose refund",
+        "same coach booking",
+        "another coach",
+        "cancellation follow-up"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "When the new conditions are activated, use your private session follow-up. Contractual cancellation and legal withdrawal remain separate processes.\n\n1. Open **My human coaches**, then **Cancellations and refunds**. In the app, this follow-up opens without losing your signed-in session.\n2. To cancel yourself, find the session, choose **Request a full refund** and confirm. The control closes this action after the 24-hour limit; contact your coach or support then.\n3. If the coach cancelled, read their reason and the deadline, then choose the refund, **Continue with the same coach**, or **Choose another coach**. A cancellation reported only by Cal.com first needs the coach’s confirmation.\n4. To continue with the same coach, open **Book without another payment** and choose your slot. For another coach, wait for confirmation of the original refund, then open **Review and accept the new order**: check the seller and price before any payment.\n5. Find refund status in the same follow-up. A failure needs support intervention; no new payment is needed to correct it. Without a choice within seven days of the coach’s confirmed cancellation, a full refund is requested automatically."
     },
     {
       "id": "tutorial-admin-ai-task-route",

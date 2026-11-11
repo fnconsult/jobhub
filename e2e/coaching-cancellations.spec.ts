@@ -199,7 +199,8 @@ test("Coach cancellation offers refund, same paid service and explicit affordabl
       await expect(async () => {
         expect((await database.query("SELECT count(*)::int AS n FROM coaching_cancellation WHERE session_id=$1", [id])).rows[0].n).toBe(1);
       }).toPass();
-      await buyer.goto("/coachs/annulations");
+      await buyer.goto("/coachs");
+      await buyer.getByRole("link",{name:fr.coachingCancellation.title,exact:true}).click();
       const card = buyer.locator("article").filter({ has: buyer.getByText(suffix, { exact: true }) });
       await expect(card).toContainText(fr.coachingCancellation.choices);
       if (choice === "refund") {

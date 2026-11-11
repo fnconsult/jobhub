@@ -104,7 +104,7 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
   );
   const notices = (
     <>
-      {cancellationOn ? <p>{t("coachingCancellation.notice")}</p> : null}
+      {cancellationOn ? <><p>{t("coachingCancellation.notice")}</p><Link href="/coachs/annulations">{t("coachingCancellation.title")}</Link></> : null}
       <CancellationPanel candidateId={candidate.id} locale={locale} timeZone={timeZone} />
       {session === "paid" && checkout_id ? <BookingReturn candidateId={candidate.id} checkoutId={checkout_id} /> : null}
       {session === "paid" ? (

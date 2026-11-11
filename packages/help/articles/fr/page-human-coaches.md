@@ -33,3 +33,7 @@ Après avoir réservé votre créneau, « J'ai réservé : saisir la date » vou
 Chaque coach présente sa photo, ses spécialités, ses langues et sa présentation approuvées. Une modification en attente ou refusée ne vous est jamais montrée ; la dernière version approuvée reste visible. Il n’y a pas d’avis ni de notes de satisfaction sur ces profils.
 
 Après paiement, la réservation intégrée permet de choisir un créneau ou de le choisir plus tard. Une réservation reliée met automatiquement la séance et l’Agenda à jour. Son historique indique « via Cal.com ». Le formulaire manuel reste disponible pour les séances sans réservation reliée ; pour les autres, modifiez la réservation chez Cal.com.
+
+## Annulations et remboursements
+
+Lorsque les nouvelles conditions sont activées, le lien « Annulations et remboursements » ouvre le suivi privé : vous pouvez aussi y annuler une séance sans date. Le délai de 24 heures, les choix après annulation du coach et l’état bancaire y sont expliqués. Dans l’app, le même suivi s’ouvre dans le navigateur authentifié.

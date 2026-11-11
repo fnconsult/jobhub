@@ -22,7 +22,7 @@ import type { CoachConversations } from "../coach-conversations";
 import type { JobOffers } from "../job-offers";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import { routes } from "../routes";
-import type { PageElement, PageScope, ReplyGiven, VersionGiven } from "./entries";
+import type { CreationGiven, PageElement, PageScope, ReplyGiven, VersionGiven } from "./entries";
 import { activityElement, type ActionEnded, type ActivityElement, type ElementKind } from "./pane";
 
 const withEnded = (ended: ActionEnded | undefined) => (ended ? { ended } : {});
@@ -40,6 +40,8 @@ export interface PageActivity {
   elements: PageElement[];
   replies: ReplyGiven[];
   versions?: VersionGiven[];
+  /** On a Profile's page, its creation (#810): the Profile's page, which « Création du profil » opens. */
+  creation?: CreationGiven;
 }
 
 /**
@@ -189,9 +191,16 @@ export async function applicationPage(sources: PageSources, candidateId: string,
 /**
  * `/profils/[id]/*`, every Section: what was made for the Profile (its ATS Score « suite de » the version it scored, its
  * Action Cards), its Master CV Versions (by hand, from a Coach proposal, read from a file), and the Coach replies about it.
+ * Version 1, with the CV read and Version 1's ATS Score, is its creation, « Création du profil » (#810).
  */
 export async function profilePage(sources: PageSources, candidateId: string, profile: { id: string }, content: readonly Made[], versions: readonly VersionGiven[] = []): Promise<PageActivity> {
-  return { page: "profile", elements: made(content), replies: await repliesAbout(sources, candidateId, { kind: "profile", id: profile.id }), versions: [...versions] };
+  return {
+    page: "profile",
+    elements: made(content),
+    replies: await repliesAbout(sources, candidateId, { kind: "profile", id: profile.id }),
+    versions: [...versions],
+    creation: { href: routes.profile(profile.id) },
+  };
 }
 
 /** A Tailored Document as AI Activity reads it: its Provenance, once kept. */

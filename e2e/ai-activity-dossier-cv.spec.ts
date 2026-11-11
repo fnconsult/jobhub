@@ -251,7 +251,8 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}/);
 
     await openActivity(page);
-    const read = await elementOf(page, "master_cv");
+    // The reading is a part of « Création du profil » (#810).
+    const read = await elementOf(page, "profile_creation");
     await expect(read).not.toContainText(fr.aiActivity.modelNotRecorded);
     await expect(read).toContainText("Mistral");
     await expect(await pageSourcesOf(page)).toContainText(fr.aiActivity.yourData);

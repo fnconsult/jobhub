@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { formatTokens } from "@jobhub/shared";
@@ -13,26 +14,32 @@ import { routes } from "@/routes";
  * The Context bar (#607, ADR-0070), in Activité: how much of the page's Coach Conversation the AI Coach reads, its
  * messages out of those it reads and the jetons of its context out of the ceiling, the Coach context limits of the
  * Candidate's Plan (ADR-0078; « illimité » when unlimited), as the server last said them (the
- * estimate the context was sent with); empty before the conversation's first message. From 80 %, it says the AI Coach
+ * estimate the context was sent with); empty before the AI Coach's first reply, « Le coach n'a pas encore répondu »
+ * (#810), so on `/profils/nouveau` too, while a Profile is created without a conversation. From 80 %, it says the AI Coach
  * reads only the latest messages and offers « Effacer la conversation », after the same confirming Dialog as « Effacer »,
  * and, when a higher offered Plan allows more (#732), names it as an Upgrade Prompt does, linking to its card on Mon
- * abonnement. « Voir le détail » opens the breakdown card. Nothing on a page without a conversation.
+ * abonnement. « Voir le détail » opens the breakdown card. Nothing on another page without a conversation.
  */
 export function ContextBar() {
   const { t, i18n } = useTranslation();
   const page = useConversationFirst()?.page;
+  const pathname = usePathname();
   const titleId = useId();
-  if (!page) return null;
+  if (!page && pathname !== routes.newProfile) return null;
+  const context = page?.context ?? null;
   const language = i18n.language === "en" ? "en" : "fr";
-  const bar = contextBar(page.context);
+  const bar = contextBar(context);
   const percent = Math.round(bar.share * 100);
-  const figures = t("contextBar.figures", {
-    messages: bar.messages,
-    maxMessages: bar.maxMessages ?? t("contextBar.unlimited"),
-    tokens: formatTokens(bar.tokens, language),
-    maxTokens: bar.maxTokens === null ? t("contextBar.unlimited") : formatTokens(bar.maxTokens, language),
-  });
-  const upgrade = bar.nearlyFull ? page.context?.upgrade : null;
+  const figures =
+    context === null
+      ? t("contextBar.noReply")
+      : t("contextBar.figures", {
+          messages: bar.messages,
+          maxMessages: bar.maxMessages ?? t("contextBar.unlimited"),
+          tokens: formatTokens(bar.tokens, language),
+          maxTokens: bar.maxTokens === null ? t("contextBar.unlimited") : formatTokens(bar.maxTokens, language),
+        });
+  const upgrade = bar.nearlyFull ? context?.upgrade : null;
   return (
     <div className="context-bar" role="group" aria-labelledby={titleId} data-nearly-full={bar.nearlyFull || undefined}>
       <p id={titleId} className="context-bar-title">
@@ -55,7 +62,7 @@ export function ContextBar() {
           </a>
         </p>
       ) : null}
-      <ContextBreakdown context={page.context} language={language} />
+      <ContextBreakdown context={context} language={language} />
     </div>
   );
 }

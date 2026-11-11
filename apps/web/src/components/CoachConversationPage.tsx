@@ -27,6 +27,8 @@ import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { useOpenSignalement } from "@/components/Signalement";
 import { showLatest } from "@/components/thread-scroll";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
+import { useAutoGrow } from "@/design/auto-grow";
+import { useDwellReveal } from "@/design/dwell-reveal";
 import { buttonClass } from "@/design/Button";
 import { InfoDialog } from "@/design/Dialog";
 import { readNdjson } from "@/ndjson";
@@ -246,6 +248,10 @@ export function CoachConversationPage(page: PagePlacement) {
   // Counts the page's fresh starts (#601): a reply to a conversation since cleared is dropped.
   const generation = useRef(0);
   const input = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(input, draft);
+  // While the Candidate writes, the badge and Send are icons; resting the pointer on one shows its words (#933).
+  const badgeDwell = useDwellReveal();
+  const sendDwell = useDwellReveal();
   const messagesEnd = useRef<HTMLDivElement>(null);
   // Its foot, the box, stays at the bottom of the screen over the thread.
   const foot = useRef<HTMLDivElement>(null);
@@ -329,12 +335,14 @@ export function CoachConversationPage(page: PagePlacement) {
   const registerPage = conversationFirst?.setPage;
   const conversationOnPage = conversation?.id ?? null;
   const replying = status === "sending";
+  const hasReplied = messages.some((message) => message.from === "coach");
   useEffect(() => {
     if (!registerPage) return;
     registerPage({
       conversationId: conversationOnPage,
       replying,
-      context,
+      // A stopped request can have usage context without an actual reply (#810).
+      context: hasReplied ? context : null,
       replies,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
       // An object's or a menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
@@ -342,7 +350,7 @@ export function CoachConversationPage(page: PagePlacement) {
       askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
-  }, [registerPage, conversationOnPage, replying, subject, context, replies]);
+  }, [registerPage, conversationOnPage, replying, subject, context, replies, hasReplied]);
 
   /** A Help Article, from the help's suggestions or the Introduction: in the Work Pane, beside the conversation (#602). */
   function showArticle(article: HelpArticle) {
@@ -769,7 +777,7 @@ export function CoachConversationPage(page: PagePlacement) {
             </div>
           ) : null}
           {/* The message box, Send (« Arrêter » while a reply is on its way) and the « Coach IA » badge in it, and what goes with the message. */}
-          <form className="coach-panel-form" onSubmit={send}>
+          <form className="coach-panel-form coach-panel-form-inline" onSubmit={send}>
             <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
             {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
             <p className="visually-hidden" aria-live="polite">
@@ -778,12 +786,19 @@ export function CoachConversationPage(page: PagePlacement) {
             <label className="visually-hidden" htmlFor={`${id}-message`}>
               {t("coachPanel.messageLabel")}
             </label>
-            {/* The Send button sits inside the message box; a click anywhere in the box writes in it. */}
-            <div className="coach-panel-composer" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
+            {/* The Send button sits inside the message box; a click anywhere in the box writes in it. One line to start
+                with, the badge and Send on its row where the column has room (#933), in words while it is empty, their
+                icons while the Candidate writes; it grows with the text. */}
+            <div
+              className="coach-panel-composer coach-panel-composer-inline"
+              // While the Candidate writes, the badge and Send shrink to their icons (#933); not while « Arrêter » shows.
+              data-writing={draft !== "" && status !== "sending" ? "" : undefined}
+              onClick={(event) => event.target === event.currentTarget && input.current?.focus()}
+            >
               <textarea
                 id={`${id}-message`}
                 ref={input}
-                rows={2}
+                rows={1}
                 placeholder={t("coachPanel.messageLabel")}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
@@ -808,8 +823,12 @@ export function CoachConversationPage(page: PagePlacement) {
                   onOpenChange={setWelcomeAsked}
                   title={t("conversationFirst.welcomeTitle")}
                   trigger={
-                    <button className="pill coach-panel-badge" data-tone="accent" type="button" aria-label={t("conversationFirst.welcomeOpen")}>
-                      {t("coachPanel.badge")}
+                    <button className="pill coach-panel-badge" data-tone="accent" type="button" aria-label={t("conversationFirst.welcomeOpen")} {...badgeDwell}>
+                      <span className="composer-label">{t("coachPanel.badge")}</span>
+                      {/* While the Candidate writes, « IA » in place of « Coach IA » (#933): still says an AI answers. */}
+                      <span className="composer-short" aria-hidden="true">
+                        {t("coachPanel.badgeShort")}
+                      </span>
                     </button>
                   }
                 >
@@ -826,8 +845,9 @@ export function CoachConversationPage(page: PagePlacement) {
                     {t("coachPanel.stop")}
                   </button>
                 ) : (
-                  <button key="send" className={buttonClass({ variant: "primary" })} type="submit" disabled={restoring}>
-                    {t("coachPanel.send")}
+                  <button key="send" className={`${buttonClass({ variant: "primary" })} composer-send`} type="submit" disabled={restoring} {...sendDwell}>
+                    <Icons.enter />
+                    <span className="composer-label">{t("coachPanel.send")}</span>
                   </button>
                 )}
               </div>

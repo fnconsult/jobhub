@@ -5,6 +5,7 @@ import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { derivedPort } from "./support/ports";
+import { serverLog } from "./support/server-log";
 
 // The web app shares one bounded Postgres connection pool per process, whatever
 // the number of modules reading the database. Postgres refuses clients past
@@ -44,6 +45,7 @@ test.describe("Database connections", () => {
     const port = derivedPort(780);
     const serverOrigin = `http://localhost:${port}`;
     let output = "";
+    const log = serverLog("database-connections", port);
     const child: ChildProcess = spawn("npx", ["next", "start", "apps/web", "-p", String(port)], {
       env: {
         ...process.env,
@@ -64,9 +66,17 @@ test.describe("Database connections", () => {
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    child.stdout!.on("data", (chunk) => (output += chunk));
-    child.stderr!.on("data", (chunk) => (output += chunk));
+    const capture = (chunk: Buffer) => {
+      output += chunk;
+      log.write(chunk);
+    };
+    child.stdout!.on("data", capture);
+    child.stderr!.on("data", capture);
+    child.on("exit", (code, signal) => log.write(`\n[server-exit] code=${code}, signal=${signal}\n`));
     const counter = new pg.Client({ connectionString: process.env.E2E_DATABASE_URL });
+    let loading = false;
+    let sampling: Promise<void> | undefined;
+    let samplingFailure: unknown;
     try {
       await counter.connect();
       await expect
@@ -84,28 +94,37 @@ test.describe("Database connections", () => {
       const connections = async () =>
         Number((await counter.query("SELECT count(*) AS n FROM pg_stat_activity WHERE application_name = $1", [applicationName])).rows[0].n);
       let peak = 0;
-      let loading = true;
-      const sampling = (async () => {
+      loading = true;
+      sampling = (async () => {
         while (loading) {
           peak = Math.max(peak, await connections());
           await new Promise((resolve) => setTimeout(resolve, 25));
         }
-      })();
+      })().catch((error: unknown) => {
+        samplingFailure = error;
+      });
 
       const urls = [`/candidatures/${applicationId}`, "/candidatures", "/profils", "/compte", `/api/applications/${applicationId}/enriched-contacts`];
       for (let round = 0; round < 3; round++) {
         const responses = await Promise.all(
           Array.from({ length: 40 }, (_, i) => page.request.get(`${serverOrigin}${urls[i % urls.length]}`, { maxRedirects: 0 })),
-        );
+        ).catch((cause: unknown) => {
+          throw new Error(`busy web app request failed (exit=${child.exitCode}, signal=${child.signalCode}); server log: ${log.file}`, { cause });
+        });
         for (const response of responses) expect(response.status(), `${response.url()}\n${output.slice(-2000)}`).toBeLessThan(500);
       }
       loading = false;
       await sampling;
+      if (samplingFailure !== undefined) throw samplingFailure;
       peak = Math.max(peak, await connections());
 
       expect(peak, `Postgres connections held by one web app (application_name=${applicationName})`).toBeGreaterThan(0);
       expect(peak, `Postgres connections held by one web app (application_name=${applicationName})`).toBeLessThanOrEqual(POOL_MAX);
     } finally {
+      // A rejected request still leaves a query in flight: finish sampling before closing its client, so cleanup
+      // cannot replace the original failure with « Client was closed and is not queryable ».
+      loading = false;
+      await sampling;
       await counter.end().catch(() => {});
       try {
         process.kill(-child.pid!, "SIGTERM");

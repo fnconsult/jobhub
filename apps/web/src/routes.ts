@@ -250,7 +250,7 @@ export const routes = {
   adminAiUsage: (period?: string) => (period ? `/admin/consommation-ia?periode=${encodeURIComponent(period)}` : "/admin/consommation-ia"),
   /**
    * Back Office Activity (« Activité », #404, ADR-0042): one page, a tab each for Recherches (the Job discovery runs),
-   * Emails reçus (#449), Appels IA (the AI Message Log) and Actions des administrateurs (the Back Office Audit). Its own address opens the
+   * Emails reçus (#449), Appels IA (the AI Message Log), Actions des administrateurs (the Back Office Audit) and Extension (#925). Its own address opens the
    * first tab the Administrator may read.
    */
   adminActivity: "/admin/activite",
@@ -272,6 +272,20 @@ export const routes = {
       ...(filter.period ? { periode: filter.period } : {}),
     }).toString();
     return `/admin/activite/emails-recus${query ? `?${query}` : ""}`;
+  },
+  /**
+   * Extension (#925): every Extension Event, newest first, filtered (`type`, `qui`: `candidate` or `guest`, `candidat`: one
+   * Candidate's id, `version`, `domaine`); super-admins, Technique and Support.
+   */
+  adminExtensionEvents: (filter: { kind?: string; who?: string; candidate?: string; version?: string; domain?: string } = {}) => {
+    const query = new URLSearchParams({
+      ...(filter.kind ? { type: filter.kind } : {}),
+      ...(filter.who ? { qui: filter.who } : {}),
+      ...(filter.candidate ? { candidat: filter.candidate } : {}),
+      ...(filter.version ? { version: filter.version } : {}),
+      ...(filter.domain ? { domaine: filter.domain } : {}),
+    }).toString();
+    return `/admin/activite/extension${query ? `?${query}` : ""}`;
   },
   /** The Job Search behind a run: super-admins only, each opening written to the Back Office Audit. */
   adminDiscoveryRunJobSearch: (runId: string) => `/admin/activite/recherches/${encodeURIComponent(runId)}/recherche`,

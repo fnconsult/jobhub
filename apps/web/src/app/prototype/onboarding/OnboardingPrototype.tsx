@@ -73,6 +73,7 @@ export function OnboardingPrototype({ state }: { state: State }) {
                 <p>J&apos;ai importé mon CV : CV-2026.pdf</p>
               </li>
               {state === "construction" ? <Construction /> : null}
+              {state === "collecte" ? <Collecte /> : null}
               {state === "resume" || state === "modification" ? (
                 <>
                   <BuiltLine />
@@ -170,6 +171,91 @@ function Construction() {
         </Card>
       </li>
     </>
+  );
+}
+
+/**
+ * État « collecte » (décision #994) : la recherche d'offres part dès que le poste visé et un lieu sont confirmés et
+ * s'affine à chaque critère. Une carte compacte, collée en haut du fil, pendant que les questions continuent.
+ */
+function Collecte() {
+  const { t } = useTranslation();
+  const you = (text: string) => (
+    <li className="chat-message chat-candidate">
+      <span className="visually-hidden">{t("questionnaire.you")}</span>
+      <p>{text}</p>
+    </li>
+  );
+  return (
+    <>
+      <CoachLine>
+        <p>J&apos;ai lu votre CV. Vous visez un poste de Directeur financier : c&apos;est bien ça ?</p>
+      </CoachLine>
+      {you("Oui, Directeur financier ou DAF.")}
+      <CoachLine>
+        <p>Votre CV indique Lyon. Est-ce là que vous cherchez ?</p>
+      </CoachLine>
+      {you("Oui, Lyon et sa région.")}
+      <CoachLine>
+        <p>C&apos;est noté. Je lance déjà la recherche de vos offres : elle s&apos;affinera à chacune de vos réponses.</p>
+      </CoachLine>
+      <LiveSearch />
+      <CoachLine>
+        <p>Vous avez 18 ans d&apos;expérience, dont 8 à la tête d&apos;une direction financière : je le garde comme niveau visé.</p>
+      </CoachLine>
+      <CoachLine>
+        <p>Votre CV met en avant le contrôle de gestion, la consolidation et le pilotage de trésorerie. Voulez-vous ajouter une compétence ?</p>
+      </CoachLine>
+      {you("Ajoutez le management d'équipe : j'encadre 12 personnes.")}
+      <CoachLine>
+        <p>C&apos;est ajouté.</p>
+      </CoachLine>
+      <CoachLine>
+        <p>D&apos;après votre parcours, je suppose que vous cherchez un CDI : c&apos;est bien ça ?</p>
+      </CoachLine>
+    </>
+  );
+}
+
+/** The search, compact, beside the questions: its current step, its four counters and what it is narrowed with. */
+function LiveSearch() {
+  const counters: Array<[string, string, string?]> = [
+    ["3 / 5", "sources consultées"],
+    ["127", "pages lues"],
+    ["46", "offres analysées"],
+    ["17", "offres qui vous correspondent", "recalculé avec CDI (supposé)"],
+  ];
+  return (
+    <li className="chat-message chat-card onb-live-wrap">
+      <section className="onb-live" aria-label="Recherche de vos offres">
+        <div className="onb-live-head">
+          <ActivityGlyph activity="search" live />
+          <p className="onb-live-title">
+            Recherche de vos offres
+            <span className="onb-live-step">
+              <span className="onb-step-pulse" aria-hidden />
+              Étape 2 sur 4<span className="onb-live-step-detail"> · Recherche sur France Travail, les sites carrières et le web</span>
+            </span>
+          </p>
+          <Pill tone="accent">En cours</Pill>
+        </div>
+        <dl className="onb-live-counters">
+          {counters.map(([value, label, note]) => (
+            <div key={label} data-key={note ? "" : undefined}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+              {note ? <dd className="onb-live-note">{note}</dd> : null}
+            </div>
+          ))}
+        </dl>
+        <p className="onb-live-criteria">
+          <Icons.filter />
+          <span>
+            Affinée avec : Directeur financier · Lyon · <span className="onb-live-assumed" title="Supposé, en attente de votre réponse">CDI</span>
+          </span>
+        </p>
+      </section>
+    </li>
   );
 }
 
@@ -370,6 +456,7 @@ function Foot({ state }: { state: State }) {
   const { t } = useTranslation();
   const suggestions: Record<State, string[]> = {
     construction: ["Arrêter et répondre aux questions"],
+    collecte: ["Oui, un CDI", "Non, plutôt…"],
     resume: ["Ajouter un critère", "Changer le salaire"],
     modification: [],
     recherche: ["Ajouter une entreprise cible"],
@@ -380,8 +467,8 @@ function Foot({ state }: { state: State }) {
       {suggestions[state].length > 0 ? (
         <div className="page-conversation-suggestions" role="group" aria-label={t("conversationFirst.suggestions")}>
           <div className="quick-actions">
-            {suggestions[state].map((label) => (
-              <button key={label} className={buttonClass({ variant: "secondary", size: "sm" })} type="button">
+            {suggestions[state].map((label, index) => (
+              <button key={label} className={buttonClass({ variant: state === "collecte" && index === 0 ? "primary" : "secondary", size: "sm" })} type="button">
                 {label}
               </button>
             ))}

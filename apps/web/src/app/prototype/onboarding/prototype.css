@@ -480,3 +480,168 @@ html:has(.proto-shell) {
     display: none;
   }
 }
+
+/* ---------- « collecte » (#994): the search, compact, stuck at the top of the thread while the questions go on ---------- */
+.onb-live-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding-top: var(--space-2);
+  background: var(--color-background);
+}
+
+.onb-live {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-accent-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.onb-live-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.onb-live-head > .activity-glyph {
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.1rem;
+  color: var(--color-accent);
+}
+
+.onb-live-head > .ds-pill {
+  flex: none;
+  margin-left: auto;
+}
+
+.onb-live-title {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-weight: 600;
+}
+
+.onb-live-step {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--font-size-meta);
+  font-weight: 400;
+  color: var(--color-secondary);
+}
+
+.onb-live-step .onb-step-pulse {
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+}
+
+.onb-live-counters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.onb-live-counters > div {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.onb-live-counters > div[data-key] {
+  background: var(--color-accent-soft);
+}
+
+.onb-live-counters dt {
+  font-size: var(--font-size-meta);
+  line-height: 1.3;
+  color: var(--color-meta);
+}
+
+.onb-live-counters dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  align-items: baseline;
+  order: -1;
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.onb-live-counters > div[data-key] dd {
+  color: var(--color-accent);
+}
+
+.onb-live-counters dd.onb-live-note {
+  order: 1;
+  font-size: var(--font-size-meta);
+  font-weight: 400;
+  color: var(--color-secondary);
+}
+
+.onb-live-criteria {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  font-size: var(--font-size-meta);
+  color: var(--color-secondary);
+}
+
+.onb-live-criteria .icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* CDI is supposed, not yet confirmed: a dashed underline. */
+.onb-live-assumed {
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+}
+
+/* On a phone it stays compact, so the questions keep the screen: one row of four small figures, the step in short. */
+@media (width < 40rem) {
+  .onb-live {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .onb-live-step-detail,
+  .onb-live-counters dd.onb-live-note {
+    display: none;
+  }
+
+  .onb-live-counters {
+    gap: var(--space-1);
+  }
+
+  .onb-live-counters > div {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .onb-live-counters dd {
+    font-size: var(--font-size-body);
+  }
+
+  .onb-live-counters > div {
+    min-width: 0;
+  }
+
+  .onb-live-counters dt {
+    font-size: var(--font-size-meta);
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
+}

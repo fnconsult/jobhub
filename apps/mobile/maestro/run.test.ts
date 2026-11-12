@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { planRuns, recordedCaptures } from "./run";
+import { planRuns, recordedCaptures, settled } from "./run";
 
 const ROOT = "/repo/apps/mobile/maestro";
 const STACK = { helper: "http://127.0.0.1:4705", origin: "http://localhost:3705" };
@@ -79,5 +79,22 @@ describe("the Maestro runs of one CI job (#705)", () => {
       [`${out}/2026-11-06_101112/takeScreenshot/record/ipad-landscape/dark/accueil.png`, `${ROOT}/captures/ipad-landscape/dark/accueil.png`],
       [`${out}/record/ipad-landscape/dark/agenda.png`, `${ROOT}/captures/ipad-landscape/dark/agenda.png`],
     ]);
+  });
+});
+
+describe("a device's set-up, tried again while the device does not take it", () => {
+  it("is tried again after a wait, a bounded number of times", () => {
+    const waits: number[] = [];
+    const answers = [false, false, true];
+    expect(settled(() => answers.shift()!, { pause: (seconds) => waits.push(seconds) })).toBe(true);
+    expect(waits).toEqual([10, 10]);
+  });
+
+  it("fails once its tries are spent, without a last wait", () => {
+    const waits: number[] = [];
+    let tried = 0;
+    expect(settled(() => (tried++, false), { tries: 3, pause: (seconds) => waits.push(seconds) })).toBe(false);
+    expect(tried).toBe(3);
+    expect(waits).toHaveLength(2);
   });
 });

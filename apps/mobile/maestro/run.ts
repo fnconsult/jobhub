@@ -80,6 +80,18 @@ export function recordedCaptures(files: string[], root: string, captureDir: stri
   });
 }
 
+/** `attempt`, tried again after `waitSeconds` while it fails, `tries` times at most. For a device's set-up, never for a flow. */
+export function settled(
+  attempt: () => boolean,
+  { tries = 3, waitSeconds = 10, pause = (seconds) => void spawnSync("sleep", [String(seconds)]) }: { tries?: number; waitSeconds?: number; pause?: (seconds: number) => unknown } = {},
+): boolean {
+  for (let n = 1; n <= tries; n++) {
+    if (attempt()) return true;
+    if (n < tries) pause(waitSeconds);
+  }
+  return false;
+}
+
 function main(argv: string[]) {
   const [hardware, ...rest] = argv;
   const option = (name: string, fallback?: string) => {
@@ -100,7 +112,9 @@ function main(argv: string[]) {
     console.log(`\n=== ${run.name} (captures: ${run.captures.mode})`);
     const dir = join(out, run.name);
     mkdirSync(dir, { recursive: true });
-    const setUp = run.setup.every((command) => exec(command));
+    // Set-up, not a check: tried again should the device not take it yet (an emulator's services, seconds after its
+    // framework restarted: « Can't find service: uimode », run 42666513659).
+    const setUp = settled(() => run.setup.every((command) => exec(command)));
     const seeded = spawnSync("curl", ["--fail", "--silent", "--show-error", "-X", "POST", `${stack.helper}/candidates`], { encoding: "utf8" });
     const email = seeded.status === 0 ? (JSON.parse(seeded.stdout) as { email: string }).email : null;
     // Maestro writes a screenshot it takes under its working directory when it makes no bundle: the run's own.

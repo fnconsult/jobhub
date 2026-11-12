@@ -52,8 +52,9 @@ env:
   MAESTRO_SHA256: "5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a"
   MAESTRO_CLI_NO_ANALYTICS: "1"
   MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true"
-  # The simulator just rebooted in French (devices.ts, bootSetup): its XCTest driver takes longer to start.
-  MAESTRO_DRIVER_STARTUP_TIMEOUT: "240000"
+  # A simulator just booted starts Maestro's XCTest driver slowly: 3 min 26 s on a green iPhone SE (run 42731223167),
+  # and past the 4 minutes it had on run 42737227348. Six minutes; a driver that never starts is run.ts's to recover.
+  MAESTRO_DRIVER_STARTUP_TIMEOUT: "360000"
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
@@ -131,8 +132,8 @@ jobs:
           # 42468880781 and 42472089315): two minutes.
           sed -i 's/^networkTimeout=.*/networkTimeout=120000/' android/gradle/wrapper/gradle-wrapper.properties
           grep -q '^networkTimeout=120000$' android/gradle/wrapper/gradle-wrapper.properties
-          # A registry's 504 (the Kotlin compiler's, run 42737227348) fails the build: run again, Gradle keeps what it has
-          # downloaded and built, and goes on from there.
+          # A registry's 504 (the Kotlin compiler's) fails the build: run again, Gradle keeps what it has downloaded and
+          # built, and goes on from there.
           (cd android && bash "$GITHUB_WORKSPACE/apps/mobile/maestro/ci/retry.sh" 3 30 ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon)
           cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Jobbbox-android.apk"
       - uses: actions/upload-artifact@v4
@@ -231,14 +232,39 @@ jobs:
             pick() { xcrun simctl list runtimes -j | jq -r --arg v "${{ matrix.ios }}" '[.runtimes[] | select(.isAvailable and (.version | startswith($v)))] | sort_by(.version) | last | .identifier // empty'; }
             runtime=$(pick)
             if [ -z "$runtime" ]; then
-              xcodebuild -downloadPlatform iOS -buildVersion "${{ matrix.ios }}"
+              bash apps/mobile/maestro/ci/retry.sh 3 60 xcodebuild -downloadPlatform iOS -buildVersion "${{ matrix.ios }}"
               runtime=$(pick)
             fi
             test -n "$runtime"
           fi
-          xcrun simctl create maestro "${{ matrix.model }}" $runtime
-          xcrun simctl boot maestro
-          xcrun simctl bootstatus maestro -b
+          # A simulator whose first boot fails, or ends on « Data Migration Failed » (the iPad's, runs 42700565743 and
+          # 42888727550, `bootstatus` exiting 0 all the same), is deleted and made anew, once.
+          for try in 1 2; do
+            udid=$(xcrun simctl create maestro "${{ matrix.model }}" $runtime)
+            if [ "$try" = 1 ]; then
+              # French from its first boot, so that run.ts need not boot it a second time to take the language (bootSetup,
+              # devices.ts, which checks it and reboots otherwise): 6 to 14 minutes of the iPad's job.
+              prefs="$HOME/Library/Developer/CoreSimulator/Devices/$udid/data/Library/Preferences/.GlobalPreferences.plist"
+              mkdir -p "$(dirname "$prefs")"
+              plutil -create binary1 "$prefs"
+              plutil -insert AppleLanguages -json '["fr-FR"]' "$prefs"
+              plutil -insert AppleLocale -string fr_FR "$prefs"
+            fi
+            booted=0
+            xcrun simctl boot maestro && xcrun simctl bootstatus maestro -b 2>&1 | tee "$RUNNER_TEMP/boot-$try.log"
+            if [ "${PIPESTATUS[0]}" = 0 ] && [ -f "$RUNNER_TEMP/boot-$try.log" ]; then booted=1; fi
+            if [ "$booted" = 1 ] && ! grep -q "Data Migration Failed" "$RUNNER_TEMP/boot-$try.log"; then break; fi
+            if [ "$try" = 2 ]; then
+              test "$booted" = 1
+              echo "::warning::The simulator's data migration failed twice: going on with it, as before"
+              break
+            fi
+            echo "::warning::The simulator's first boot failed (booted: $booted): deleted and made anew"
+            xcrun simctl shutdown maestro || true
+            xcrun simctl delete maestro
+            sleep 20
+          done
+          echo "The simulator's language: $(xcrun simctl spawn maestro defaults read -g AppleLocale 2>&1)"
           ditto -x -k "$RUNNER_TEMP/app/Jobbbox-ios.zip" "$RUNNER_TEMP/app"
           xcrun simctl install booted "$RUNNER_TEMP/app/Jobbbox.app"
       - name: Run the flows

@@ -237,6 +237,59 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await expect(page).toHaveURL(`${server.origin}/recherches/${unseen!.id}`);
   });
 
+  // The prototype of #939 modelled the Sidebar's CSS: beside its fold, « Recherches d'offres » ended in « … » from N = 1
+  // (and its fold alone already cut it at 16rem). Measured here in the real page, at the Sidebar's real width.
+  test("the Sidebar never cuts « Recherches d'offres » with « … » beside its fold and its « N », at its real width (#939)", async ({ browser }) => {
+    const email = newAddress("conversation-job-searches-width");
+    const page = await signedIn(browser, email);
+    const profileId = await createProfile(page);
+    const candidateId = await candidateOf(email);
+    // A Job Search: the menu unfolds into it, so its fold stands beside its name.
+    await query("INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, now(), now())", [candidateId, profileId, []]);
+    const label = sidebar(page).locator(".sidebar-menu-row .sidebar-link-text", { hasText: fr.sidebar.jobSearches });
+    /** Whether its name is cut, and on how many lines it stands. */
+    const shown = () =>
+      label.evaluate((name) => ({
+        cut: name.scrollWidth > name.clientWidth || name.scrollHeight > name.clientHeight,
+        lines: Math.round(name.getBoundingClientRect().height / parseFloat(getComputedStyle(name).lineHeight)),
+      }));
+    /** One more offer à traiter, arrived today by a Job Search. */
+    const arrives = async (n: number) => {
+      const offer = await page.request.post("/api/job-offers", {
+        data: { title: `DAF ${n} H/F`, content: `DAF ${n} (réf. ${Math.random().toString(36).slice(2)}) : 15 ans d'expérience.`, employer: "Acme Industrie", location: "Lyon", contractType: "cdi" },
+        headers: { origin: server.origin },
+      });
+      expect(offer.status(), await offer.text()).toBe(200);
+      await query(
+        `INSERT INTO offer_box_entry (candidate_id, job_offer_id, profile_id, first_arrival_at, arrival_sources)
+         VALUES ($1, $2, $3, now(), jsonb_build_object('job_search', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))`,
+        [candidateId, (await offer.json()).id, profileId],
+      );
+    };
+
+    await page.goto("/agenda");
+    // 16rem (Confort), at the default text size (Standard, a 17px root): 272 px.
+    const rootPx = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+    expect((await page.locator(".sidebar-docked").boundingBox())?.width).toBe(16 * rootPx);
+    await expect(sidebar(page).getByRole("button", { name: tr(texts.unfold, { menu: fr.sidebar.jobSearches }) })).toBeVisible();
+    await expect(label).toHaveText(fr.sidebar.jobSearches);
+    // No offer à traiter: its name stays on its line beside the fold.
+    expect(await shown()).toEqual({ cut: false, lines: 1 });
+
+    // One, then nine: « N » beside it, its name whole, on two lines at most (the app's fallback too).
+    let arrived = 0;
+    for (const count of [1, 9]) {
+      for (; arrived < count; arrived += 1) await arrives(arrived + 1);
+      await page.reload();
+      const words = tr(count === 1 ? texts.offersToHandle_one : texts.offersToHandle_other, { count });
+      await expect(sidebar(page).getByRole("link", { name: new RegExp(`^${fr.sidebar.jobSearches}\\s*, ${words}$`) })).toBeVisible();
+      await expect(sidebar(page).locator(".sidebar-count")).toHaveText(String(count));
+      const { cut, lines } = await shown();
+      expect(cut, `« ${fr.sidebar.jobSearches} » cut at N = ${count}`).toBe(false);
+      expect(lines).toBeLessThanOrEqual(2);
+    }
+  });
+
   test("Job Digests is its conversation: the Job Digests by Profile a card, each line to its page; the Sidebar unfolds into them", async ({ browser }) => {
     const email = newAddress("conversation-job-digests");
     const page = await signedIn(browser, email);

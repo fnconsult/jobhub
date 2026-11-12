@@ -80,15 +80,23 @@ const conversation = (page: Page) => page.getByRole("region", { name: texts.labe
 const messages = (page: Page) => conversation(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 const topBar = (page: Page) => page.getByRole("banner");
 const ficheOf = (page: Page) => page.getByRole("complementary", { name: fiche.label });
-const group = (page: Page, name: string) => ficheOf(page).getByRole("button", { name, exact: true });
+/** A side panel view's icon in the Top Bar, and the panel on that view (#980). */
+const viewIcon = (page: Page, name: string) => topBar(page).getByRole("button", { name, exact: true });
+const panelOf = (page: Page, name: string) => page.getByRole("complementary", { name, exact: true });
+/** Shows the panel on a view with its icon, and returns it. */
+async function showView(page: Page, name: string) {
+  if ((await viewIcon(page, name).getAttribute("aria-expanded")) !== "true") await viewIcon(page, name).click();
+  await expect(panelOf(page, name)).toBeVisible();
+  return panelOf(page, name);
+}
 const workPane = (page: Page, name: string) => page.getByRole("complementary", { name });
 const suggestion = (page: Page, label: string) => conversation(page).getByRole("group", { name: texts.suggestions }).getByRole("button", { name: label });
 
-/** The page is its conversation, the Fiche beside it with its three groups, and nothing over the conversation. */
+/** The page is its conversation, the side panel beside it on the Fiche (#980), and nothing over the conversation. */
 async function expectConversationPage(page: Page) {
-  await expect(topBar(page).getByRole("button", { name: fiche.label, exact: true })).toHaveAttribute("aria-expanded", "true");
-  await expect(topBar(page).getByRole("button", { name: texts.clear })).toBeVisible();
-  for (const name of [fiche.groups.sections, fiche.groups.activity, fiche.groups.results]) await expect(group(page, name)).toHaveAttribute("aria-expanded", "true");
+  await expect(viewIcon(page, fiche.label)).toHaveAttribute("aria-expanded", "true");
+  await expect(ficheOf(page).getByRole("heading", { level: 2, name: fiche.label })).toBeVisible();
+  await expect(topBar(page).getByRole("button", { name: texts.clear })).toHaveCount(0);
   const axe = await new AxeBuilder({ page }).include(".page-conversation").include(".fiche").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(axe.violations.map(({ id }) => id)).toEqual([]);
 }
@@ -134,14 +142,11 @@ test.describe("« Conversation au centre »: a Profile's, a Job Search's and a J
     await expect(suggestion(page, fr.profilePage.conversation.suggestions.improveCv.label)).toBeVisible();
     await expectConversationPage(page);
 
-    // The Fiche: the Profile's card, its Sections, its Results (the Master CV's version 1 and its export).
+    // The Fiche: the Profile's card and its Sections; « Documents », its Results (the Master CV's version 1 and its export).
     await expect(ficheOf(page)).toContainText(fr.profilePage.status.active);
     await expect(ficheOf(page).getByRole("link", { name: fr.profilePage.actions.searchOffers })).toBeVisible();
     for (const section of ["cv-de-reference", "ats-score", "entreprises-cibles", "telecharger", "gerer"])
       await expect(ficheOf(page).getByRole("link", { name: fr.profilePage.sections[section], exact: true })).toBeVisible();
-    const version = ficheOf(page).getByRole("link", { name: new RegExp(`^${tr(fr.versions.version, { version: "1" })}`) });
-    await expect(version).toContainText(fr.versions.current);
-    await expect(ficheOf(page).getByRole("link", { name: new RegExp(`^${escaped(fr.cvExport.title)}`) })).toBeVisible();
 
     // A Section, in the Work Pane at its own address; ✕ back to the Profile.
     await ficheOf(page).getByRole("link", { name: fr.profilePage.sections.gerer, exact: true }).click();
@@ -153,7 +158,11 @@ test.describe("« Conversation au centre »: a Profile's, a Job Search's and a J
     await expect(page).toHaveURL(`${server.origin}/profils/${profileId}`);
     await expect(manage).toHaveCount(0);
 
-    // A Result: a version of the Master CV, read-only, in the Work Pane.
+    // A Result: a version of the Master CV, read-only, in the Work Pane, from « Documents ».
+    const documents = await showView(page, fiche.views.documents);
+    const version = documents.getByRole("link", { name: new RegExp(`^${tr(fr.versions.version, { version: "1" })}`) });
+    await expect(version).toContainText(fr.versions.current);
+    await expect(documents.getByRole("link", { name: new RegExp(`^${escaped(fr.cvExport.title)}`) })).toBeVisible();
     await version.click();
     await expect(page).toHaveURL(`${server.origin}/profils/${profileId}/versions/1`);
     const shown = workPane(page, tr(fr.versions.viewTitle, { version: "1" }));
@@ -203,8 +212,9 @@ test.describe("« Conversation au centre »: a Profile's, a Job Search's and a J
     await expect(ficheOf(page)).toContainText("Lyon");
     await expect(ficheOf(page).getByRole("button", { name: fr.jobSearch.searchAgain })).toBeVisible();
 
-    // A Job Offer found, with its Match Score, opens in the Work Pane at its address; saved as an Application there.
-    const found = ficheOf(page).getByRole("link", { name: new RegExp(`^${escaped(TITLE)}`) });
+    // A Job Offer found, with its Match Score, in « Offres trouvées », opens in the Work Pane at its address; saved as an
+    // Application there.
+    const found = (await showView(page, fiche.views.offers)).getByRole("link", { name: new RegExp(`^${escaped(TITLE)}`) });
     await expect(found).toContainText("Match Score");
     await found.click();
     await expect(page).toHaveURL(`${server.origin}/recherches/${searchId}/offres/${jobOfferId}`);
@@ -214,8 +224,8 @@ test.describe("« Conversation au centre »: a Profile's, a Job Search's and a J
     await expect(offer.getByRole("link", { name: fr.jobSearch.seeApplication })).toBeVisible();
     await expect(conversation(page)).toBeVisible();
 
-    // The list of Job Offers found, its Section: each leads to the Work Pane, not away from the conversation.
-    await ficheOf(page).getByRole("link", { name: fr.jobSearch.resultsLabel, exact: true }).click();
+    // The list of Job Offers found, its Section in the Fiche: each leads to the Work Pane, not away from the conversation.
+    await (await showView(page, fiche.label)).getByRole("link", { name: fr.jobSearch.resultsLabel, exact: true }).click();
     await expect(page).toHaveURL(`${server.origin}/recherches/${searchId}/offres`);
     const list = workPane(page, fr.jobSearch.resultsLabel);
     await list.getByRole("link", { name: TITLE, exact: true }).click();
@@ -237,8 +247,8 @@ test.describe("« Conversation au centre »: a Profile's, a Job Search's and a J
     await expect(page).toHaveURL(`${server.origin}/job-digests/${digestId}/reglages`);
     await expect(workPane(page, fr.jobDigest.page.settings)).toContainText(PROFILE);
 
-    // A Job Offer it brought, a Result with its Match Score, in the Work Pane in the settings' place.
-    const brought = ficheOf(page).getByRole("link", { name: new RegExp(`^${escaped(TITLE)}`) });
+    // A Job Offer it brought, a Result with its Match Score in « Offres trouvées », in the Work Pane in the settings' place.
+    const brought = (await showView(page, fiche.views.offers)).getByRole("link", { name: new RegExp(`^${escaped(TITLE)}`) });
     await expect(brought).toContainText("Match Score");
     await brought.click();
     await expect(page).toHaveURL(`${server.origin}/job-digests/${digestId}/offres/${jobOfferId}`);

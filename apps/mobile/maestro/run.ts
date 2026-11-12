@@ -14,6 +14,7 @@ import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readF
 import { dirname, join } from "node:path";
 import { bootSetup, CI_HARDWARE, runsOn, type HardwareId } from "./devices";
 import { KEY_SCREENS } from "./seed";
+import { prepareIOSRun } from "./ios-driver-recovery";
 
 /** The flow of the key screens (tag `key-screens`), run alone in the dark theme and at the largest text size. */
 export const KEY_SCREENS_FLOW = "flows/2-ecrans-cles.yaml";
@@ -79,6 +80,34 @@ export function recordedCaptures(files: string[], root: string, captureDir: stri
   });
 }
 
+/** `attempt`, tried again after `waitSeconds` while it fails, `tries` times at most. For a device's set-up, never for a flow. */
+export function settled(
+  attempt: () => boolean,
+  { tries = 3, waitSeconds = 10, pause = (seconds) => void spawnSync("sleep", [String(seconds)]) }: { tries?: number; waitSeconds?: number; pause?: (seconds: number) => unknown } = {},
+): boolean {
+  for (let n = 1; n <= tries; n++) {
+    if (attempt()) return true;
+    if (n < tries) pause(waitSeconds);
+  }
+  return false;
+}
+
+/**
+ * How long Maestro may take to prepare the app (its driver started, the app launched, oriented), and to run a run's
+ * flows. On the iPad, Maestro threw as the preparation began (its driver answered 500) and never quit: the job waited
+ * for it until its own limit, 2 h 06 min later, no flow run (run 43182114920). A green preparation takes 1 to 4 minutes,
+ * a run's flows 13 at most.
+ */
+export const PREPARE_TIMEOUT_MS = 15 * 60_000;
+export const FLOWS_TIMEOUT_MS = 60 * 60_000;
+
+/** Runs `command`, its output the job's: whether it ended well. Past `timeoutMs`, it is killed, and has not. */
+export function ran(command: string[], { cwd, env, timeoutMs }: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number } = {}): boolean {
+  const result = spawnSync(command[0]!, command.slice(1), { stdio: "inherit", env, cwd, timeout: timeoutMs, killSignal: "SIGKILL" });
+  if ((result.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT") console.log(`\n« ${command.slice(0, 3).join(" ")} … » had not ended after ${Math.round(timeoutMs! / 60_000)} min: stopped`);
+  return result.status === 0;
+}
+
 function main(argv: string[]) {
   const [hardware, ...rest] = argv;
   const option = (name: string, fallback?: string) => {
@@ -91,7 +120,7 @@ function main(argv: string[]) {
   const runs = planRuns(hardware as HardwareId, { root: __dirname, stack, captures: option("captures", "compare") as CaptureMode, referenceExists: existsSync });
   // Maestro's own analytics stay off: nothing of a run leaves the CI machine but its artifacts, of invented data only.
   const env = { ...process.env, MAESTRO_CLI_NO_ANALYTICS: "1", MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: "true" };
-  const exec = (command: string[], cwd?: string) => spawnSync(command[0]!, command.slice(1), { stdio: "inherit", env, cwd }).status === 0;
+  const exec = (command: string[], cwd?: string, timeoutMs?: number) => ran(command, { cwd, env, timeoutMs });
 
   if (!bootSetup(hardware as HardwareId).every((command) => exec(command))) throw new Error(`${hardware} could not be set to French`);
   const results: { name: string; ok: boolean; missing: string[] }[] = [];
@@ -99,14 +128,21 @@ function main(argv: string[]) {
     console.log(`\n=== ${run.name} (captures: ${run.captures.mode})`);
     const dir = join(out, run.name);
     mkdirSync(dir, { recursive: true });
-    const setUp = run.setup.every((command) => exec(command));
+    // Set-up, not a check: tried again should the device not take it yet (an emulator's services, seconds after its
+    // framework restarted: « Can't find service: uimode », run 42666513659).
+    const setUp = settled(() => run.setup.every((command) => exec(command)));
     const seeded = spawnSync("curl", ["--fail", "--silent", "--show-error", "-X", "POST", `${stack.helper}/candidates`], { encoding: "utf8" });
     const email = seeded.status === 0 ? (JSON.parse(seeded.stdout) as { email: string }).email : null;
     // Maestro writes a screenshot it takes under its working directory when it makes no bundle: the run's own.
     // The app's preparation (cleared, oriented) is set-up, not a check: tried a second time should
     // Maestro's driver give up on it (an iPhone SE's « Set orientation » hung until Maestro quit, run 42323647801).
-    const prepared = () => exec(run.prepare(email!, dir), dir);
-    const ok = setUp && email !== null && (prepared() || prepared()) && exec(run.flows(email, dir), dir);
+    // iOS first stops that simulator's orphaned XCTest process and restores its settings after rebooting it.
+    // A preparation that does not end is stopped, and counts as one that failed: the second try, or iOS's recovery, follows.
+    const prepared = () => exec(run.prepare(email!, dir), dir, PREPARE_TIMEOUT_MS);
+    const prepare = () => CI_HARDWARE[hardware as HardwareId].platform === "ios"
+      ? prepareIOSRun(prepared, () => run.setup.every((command) => exec(command)))
+      : prepared() || prepared();
+    const ok = setUp && email !== null && prepare() && exec(run.flows(email, dir), dir, FLOWS_TIMEOUT_MS);
     writeFileSync(join(dir, "device.log"), spawnSync(run.logs[0]!, run.logs.slice(1), { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).stdout ?? "");
     if (run.captures.mode === "record") {
       const files = (readdirSync(dir, { recursive: true }) as string[]).map((file) => join(dir, file));

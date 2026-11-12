@@ -59,17 +59,54 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     expect(document.activeElement).toBe(box);
     expect(box.getAttribute("rows")).toBe("1");
     expect(box.closest(".coach-panel-composer-inline")).toBeTruthy();
-    expect(within(thread()).getByText(/Bonjour, je suis votre coach Jobbbox/)).toBeTruthy();
+    expect(within(thread()).getByText(/Je vous pose mes questions une à une/)).toBeTruthy();
     expect(within(thread()).getByText("Répondre aux questions de mon coach")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "J'ai un CV" })).toBeNull();
 
     // A required question can't be left empty.
-    await user.click(screen.getByRole("button", { name: "Répondre" }));
+    await user.click(screen.getByRole("button", { name: "Envoyer au coach" }));
     expect(screen.getByRole("alert").textContent).not.toBe("");
 
     await user.type(box, "Marie Dupont{Enter}");
     expect(within(thread()).getByText("Marie Dupont")).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByLabelText("Votre réponse"));
+  });
+
+  it("has the coach's look of every conversation (#997): the welcome panel, the « Coach IA » badge, « Envoyer au coach »", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage />);
+    const welcome = thread().querySelector(".welcome-panel")!;
+    expect(welcome.textContent).toMatch(/Je suis un coach IA, pas une personne/);
+    expect(welcome.textContent).toMatch(/Je vous aide à construire votre CV de référence/);
+    const box = screen.getByLabelText("Votre message");
+    expect(box.closest(".coach-panel-composer-inline")).toBeTruthy();
+    expect(within(conversation()).getByRole("button", { name: "Envoyer au coach" })).toBeTruthy();
+
+    await user.click(within(conversation()).getByRole("button", { name: "Le Coach IA : qui il est, ce qu'il voit" }));
+    expect(await screen.findByRole("dialog", { name: "Votre coach IA" })).toBeTruthy();
+  });
+
+  it("starts the questions from what is typed in the box, and takes « oui » typed for a yes-or-no question", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage />);
+    await user.type(screen.getByLabelText("Votre message"), "Je n'ai pas de CV à jour{Enter}");
+    expect(within(thread()).getByText("Je n'ai pas de CV à jour")).toBeTruthy();
+    for (const said of ["Marie Dupont", "Directrice financière", "Lyon", "", "", "Directrice financière", "Acme", "Lyon", "2019 - 2024", "Pilotage"]) {
+      if (said) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      else await user.click(screen.getByRole("button", { name: "Passer cette question" }));
+    }
+    await user.type(screen.getByRole("textbox", { name: "Votre réponse" }), "Non{Enter}");
+    expect(within(thread()).getAllByText("Non").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("answers what is sent at the review by sending the Candidate back to it, without AI", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage />);
+    await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+    await user.type(screen.getByLabelText("Votre message"), "Et ensuite ?{Enter}");
+    expect(within(thread()).getByText("Et ensuite ?")).toBeTruthy();
+    expect(within(thread()).getByText(/Ici, je vous aide seulement à créer ce profil/)).toBeTruthy();
   });
 
   it("reviews an empty draft in the Work Pane when starting from scratch, and keeps what was changed when the pane closes", async () => {

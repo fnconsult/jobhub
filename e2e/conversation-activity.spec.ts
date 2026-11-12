@@ -43,7 +43,7 @@ const messages = (page: Page) => conversation(page).getByRole("list", { name: fr
 const topBar = (page: Page) => page.getByRole("banner");
 const activityButton = (page: Page) => topBar(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 const column = (page: Page) => page.getByRole("complementary", { name: fr.fiche.activity, exact: true });
-const contextBar = (page: Page) => column(page).getByRole("group", { name: bar.title });
+const contextBar = (page: Page) => column(page).getByRole("region", { name: bar.title });
 
 async function send(page: Page, text: string) {
   await conversation(page).getByRole("textbox", { name: fr.coachPanel.messageLabel }).fill(text);
@@ -91,13 +91,13 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     await expect(activityButton(page)).toHaveAttribute("aria-expanded", "false");
     await expect(column(page)).toHaveCount(0);
 
-    // Opened: beside the conversation, never over it, with no heading nor ✕; the Context bar empty before the coach's first
-    // reply (#810).
+    // Opened: beside the conversation, never over it, its head naming it with ✕ « Fermer le volet » (#980); the Context bar
+    // empty before the coach's first reply (#810).
     await activityButton(page).click();
     await expect(activityButton(page)).toHaveAttribute("aria-expanded", "true");
     await expect(contextBar(page)).toContainText(bar.noReply);
-    await expect(column(page).getByRole("heading", { level: 2 })).toHaveCount(0);
-    await expect(column(page).getByRole("button", { name: fr.conversationFirst.close })).toHaveCount(0);
+    await expect(column(page).getByRole("heading", { level: 2, name: fr.fiche.views.activity })).toBeVisible();
+    await expect(column(page).getByRole("button", { name: fr.fiche.close })).toBeVisible();
     const thread = await conversation(page).locator(".page-conversation-thread").boundingBox();
     const beside = await column(page).boundingBox();
     expect(beside!.x).toBeGreaterThanOrEqual(thread!.x + thread!.width);
@@ -107,7 +107,8 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
     await expect(messages(page)).toHaveCount(3);
     await expect(contextBar(page)).toContainText(/(^|\D)2 \/ 40 messages · [\d,]+k? \/ 12k jetons/);
     await expect(contextBar(page)).not.toContainText("tokens");
-    await expect(contextBar(page).getByRole("button", { name: bar.clear })).toHaveCount(0);
+    // « Effacer la conversation » at its foot, below 80 % too (#980).
+    await expect(contextBar(page).getByRole("button", { name: bar.clear })).toBeVisible();
     // The reply is the first entry of the column's history (#808), the same as in an object's Fiche: « Voir dans la
     // conversation » marks it in the thread.
     const reply = column(page).locator(".activity-entry-row").filter({ hasText: fr.aiActivity.kinds.coach_reply });

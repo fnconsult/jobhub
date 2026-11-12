@@ -16,6 +16,7 @@ import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivi
 import { fetchConversation } from "@/components/chat-conversation";
 import type { ConversationSummary } from "@/components/CoachConversationList";
 import { focusFirstSuggestion, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
+import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
 import { CoachMemoryProposals } from "@/components/CoachMemory";
 import { CoachProposalCard } from "@/components/CoachProposalCard";
 import { CoachReplyText, replyWordCount } from "@/components/CoachReplyText";
@@ -28,9 +29,7 @@ import { useOpenSignalement } from "@/components/Signalement";
 import { showLatest } from "@/components/thread-scroll";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
 import { useAutoGrow } from "@/design/auto-grow";
-import { useDwellReveal } from "@/design/dwell-reveal";
 import { buttonClass } from "@/design/Button";
-import { InfoDialog } from "@/design/Dialog";
 import { readNdjson } from "@/ndjson";
 import { routes } from "@/routes";
 import { formatDuration, formatTokens, isFailureReason, type FailureReason, type Provenance, type ProvenanceStep, type StartedStep, type StepLabel } from "@jobhub/shared";
@@ -250,8 +249,6 @@ export function CoachConversationPage(page: PagePlacement) {
   const input = useRef<HTMLTextAreaElement>(null);
   useAutoGrow(input, draft);
   // While the Candidate writes, the badge and Send are icons; resting the pointer on one shows its words (#933).
-  const badgeDwell = useDwellReveal();
-  const sendDwell = useDwellReveal();
   const messagesEnd = useRef<HTMLDivElement>(null);
   // Its foot, the box, stays at the bottom of the screen over the thread.
   const foot = useRef<HTMLDivElement>(null);
@@ -669,19 +666,10 @@ export function CoachConversationPage(page: PagePlacement) {
           <ol className="chat coach-panel-messages" aria-label={t("coachPanel.messagesLabel")} aria-live="polite">
             {/* Until a reopened conversation is back, which opening it had is not known yet. */}
             {restoring || !welcomeShown ? null : (
-              <li className="chat-message chat-coach welcome-panel">
-                {/* No visible author (#317, #327): screen readers still hear who speaks. */}
-                <span className="visually-hidden">{t("questionnaire.coach")}</span>
-                {welcome ? (
-                  <button className="welcome-panel-close" type="button" onClick={closeWelcome}>
-                    <Icons.close />
-                    {t("conversationFirst.closeWelcome")}
-                  </button>
-                ) : null}
-                <p>{t(opening)}</p>
+              <WelcomePanel opening={opening} {...(welcome ? { onClose: closeWelcome } : {})}>
                 {page.introduction}
                 {page.card ? null : intro}
-              </li>
+              </WelcomePanel>
             )}
             {/* A menu's content (#604), a card after the Introduction: it stays whatever is sent; the help comes after it. */}
             {page.card ? <li className="chat-message chat-card">{page.card}</li> : null}
@@ -789,69 +777,53 @@ export function CoachConversationPage(page: PagePlacement) {
             {/* The Send button sits inside the message box; a click anywhere in the box writes in it. One line to start
                 with, the badge and Send on its row where the column has room (#933), in words while it is empty, their
                 icons while the Candidate writes; it grows with the text. */}
-            <div
-              className="coach-panel-composer coach-panel-composer-inline"
+            <CoachComposer
+              inputRef={input}
               // While the Candidate writes, the badge and Send shrink to their icons (#933); not while « Arrêter » shows.
-              data-writing={draft !== "" && status !== "sending" ? "" : undefined}
-              onClick={(event) => event.target === event.currentTarget && input.current?.focus()}
-            >
-              <textarea
-                id={`${id}-message`}
-                ref={input}
-                rows={1}
-                placeholder={t("coachPanel.messageLabel")}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  // ↓ at the end of the draft goes to the help's suggestions (#342).
-                  const box = event.currentTarget;
-                  if (event.key === "ArrowDown" && suggestions.length > 0 && box.selectionStart === box.value.length && focusFirstSuggestion(box)) {
-                    event.preventDefault();
-                    return;
-                  }
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-              <div className="coach-panel-composer-actions">
-                {/* Says, by the message box, that the one answering is an AI (#324). */}
-                {/* Opens the welcome panel again, in a dialog: who answers, what it sees, how the page works. */}
-                <InfoDialog
-                  open={welcomeAsked}
-                  onOpenChange={setWelcomeAsked}
-                  title={t("conversationFirst.welcomeTitle")}
-                  trigger={
-                    <button className="pill coach-panel-badge" data-tone="accent" type="button" aria-label={t("conversationFirst.welcomeOpen")} {...badgeDwell}>
-                      <span className="composer-label">{t("coachPanel.badge")}</span>
-                      {/* While the Candidate writes, « IA » in place of « Coach IA » (#933): still says an AI answers. */}
-                      <span className="composer-short" aria-hidden="true">
-                        {t("coachPanel.badgeShort")}
-                      </span>
-                    </button>
-                  }
-                >
-                  <p>{t("coachPanel.aiDisclosure")}</p>
+              writing={draft !== "" && status !== "sending"}
+              textarea={
+                <textarea
+                  id={`${id}-message`}
+                  ref={input}
+                  rows={1}
+                  placeholder={t("coachPanel.messageLabel")}
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    // ↓ at the end of the draft goes to the help's suggestions (#342).
+                    const box = event.currentTarget;
+                    if (event.key === "ArrowDown" && suggestions.length > 0 && box.selectionStart === box.value.length && focusFirstSuggestion(box)) {
+                      event.preventDefault();
+                      return;
+                    }
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+              }
+              badge={
+                // Opens the welcome panel again, in a dialog: who answers, what it sees, how the page works.
+                <CoachBadge open={welcomeAsked} onOpenChange={setWelcomeAsked}>
                   {page.introduction}
                   {helpIntro((article) => {
                     setWelcomeAsked(false);
                     showArticle(article);
                   })}
-                </InfoDialog>
-                {/* While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it. */}
-                {status === "sending" ? (
+                </CoachBadge>
+              }
+              action={
+                // While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it.
+                status === "sending" ? (
                   <button key="send" className={buttonClass()} type="button" onClick={() => stopper.current?.abort()}>
                     {t("coachPanel.stop")}
                   </button>
                 ) : (
-                  <button key="send" className={`${buttonClass({ variant: "primary" })} composer-send`} type="submit" disabled={restoring} {...sendDwell}>
-                    <Icons.enter />
-                    <span className="composer-label">{t("coachPanel.send")}</span>
-                  </button>
-                )}
-              </div>
-            </div>
+                  <SendButton disabled={restoring} />
+                )
+              }
+            />
           </form>
         </div>
       </section>

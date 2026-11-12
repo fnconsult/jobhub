@@ -41,7 +41,7 @@ function HomePage({ conversationId = CONVERSATION.id }: { conversationId?: strin
 }
 
 const activity = () => screen.getByRole("complementary", { name: "Activité" });
-const bar = () => within(activity()).getByRole("group", { name: "Contexte de la conversation" });
+const bar = () => within(activity()).getByRole("region", { name: "Contexte de la conversation" });
 
 describe("the Context bar in Activité (#607, ADR-0070)", () => {
   beforeEach(() => vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} })));
@@ -53,8 +53,10 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
 
     expect(await within(activity()).findByText("12 / 40 messages · 3,1k / 12k jetons")).toBeTruthy();
     expect(within(bar()).getByRole("meter", { name: "Contexte de la conversation" }).getAttribute("aria-valuenow")).toBe("30");
+    expect(within(bar()).getByText("30 % utilisé")).toBeTruthy();
     expect(bar().textContent).not.toMatch(/tokens/);
-    expect(within(bar()).queryByRole("button", { name: "Effacer la conversation" })).toBeNull();
+    // « Effacer la conversation » is there, a link at its foot, below 80 % too (#980).
+    expect(within(bar()).getByRole("button", { name: "Effacer la conversation" })).toBeTruthy();
   });
 
   it("follows the conversation: each reply brings its new figures", async () => {
@@ -74,9 +76,8 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
 
     expect(within(bar()).getByText("Le coach n'a pas encore répondu.")).toBeTruthy();
     expect(within(bar()).queryByText(/messages ·/)).toBeNull();
-    const meter = within(bar()).getByRole("meter", { name: "Contexte de la conversation" });
-    expect(meter.getAttribute("aria-valuenow")).toBe("0");
-    expect(meter.getAttribute("aria-valuetext")).toBe("Le coach n'a pas encore répondu.");
+    // No bar: there is nothing read yet.
+    expect(within(bar()).queryByRole("meter")).toBeNull();
   });
 
   it("is there, empty, while a Profile is being created on `/profils/nouveau`, which has no conversation yet (#810)", () => {
@@ -144,7 +145,7 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(`/api/coach/conversations/${CONVERSATION.id}`, { method: "DELETE" }));
     expect(await within(bar()).findByText("Le coach n'a pas encore répondu.")).toBeTruthy();
-    expect(within(bar()).queryByRole("button", { name: "Effacer la conversation" })).toBeNull();
+    expect(within(bar()).queryByText("Le coach ne lit que les messages les plus récents.")).toBeNull();
   });
 
   it("is not there on a page without a conversation", () => {
@@ -156,7 +157,7 @@ describe("the Context bar in Activité (#607, ADR-0070)", () => {
       </ConversationFirstProvider>,
     );
 
-    expect(within(activity()).queryByRole("group", { name: "Contexte de la conversation" })).toBeNull();
+    expect(within(activity()).queryByRole("region", { name: "Contexte de la conversation" })).toBeNull();
   });
 });
 
@@ -195,6 +196,25 @@ describe("the Context bar's Plan, upsell and breakdown (ADR-0078, #732)", () => 
     await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Et ensuite ?{Enter}");
     await within(activity()).findByText("4 / 20 messages · 3,2k / 6k jetons");
     expect(within(bar()).queryByRole("link", { name: /Découvrir/ })).toBeNull();
+  });
+
+  it("draws its categories as a stacked bar with their legend, each in jetons and %, the room left last (#980)", async () => {
+    const context = { messages: 6, tokens: 4_000, limits: { coachContextMessages: 40, coachContextTokens: 10_000 }, split: SPLIT };
+    vi.stubGlobal("fetch", server({ saved: context, replied: context }));
+    renderInFrench(<HomePage />);
+    await within(activity()).findByText("6 / 40 messages · 4k / 10k jetons");
+
+    expect(within(bar()).getByText("40 % utilisé")).toBeTruthy();
+    const meter = within(bar()).getByRole("meter", { name: "Contexte de la conversation" });
+    expect([...meter.querySelectorAll("span")].map((part) => part.getAttribute("data-category"))).toEqual(["messages", "instructions", "profile", "advice", "sources"]);
+    expect(within(bar()).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Messages1,2k12 %",
+      "Instructions du coach1,5k15 %",
+      "Profil et CV8008 %",
+      "Conseils des agents3003 %",
+      "Sources2002 %",
+      "Espace libre6k60 %",
+    ]);
   });
 
   it("opens onto the breakdown: each category and the room left, in jetons and %, out of the Plan's ceiling", async () => {

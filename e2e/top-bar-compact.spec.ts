@@ -89,7 +89,7 @@ test.describe("the compact Top Bar on a phone (#897)", () => {
     const profile = await candidateWithProfile(page, "top-bar-pages");
     const pages: Array<{ path: string; shown: string; more: string[] }> = [
       { path: "/", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
-      { path: `/profils/${profile}`, shown: fr.fiche.label, more: [fr.fiche.activity, fr.contextBar.clear] },
+      { path: `/profils/${profile}`, shown: fr.fiche.label, more: [fr.fiche.activity, fr.fiche.views.documents, fr.contextBar.clear] },
       { path: "/candidatures", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
       { path: "/recherches", shown: fr.offerBox.filter, more: [fr.fiche.activity, fr.contextBar.clear] },
       { path: "/job-digests", shown: fr.aiActivity.label, more: [fr.contextBar.clear] },
@@ -145,7 +145,7 @@ test.describe("the compact Top Bar on a phone (#897)", () => {
     await expectOneLine(page);
   });
 
-  test("« … » does what each button did: « Activité » opens the Fiche on its Activity, the focus back on « … » when it closes", async ({ page }) => {
+  test("« … » does what each button did: « Activité » opens the side panel on it, the focus back on « … » when it closes (#980)", async ({ page }) => {
     await page.setViewportSize(PHONE);
     const profile = await candidateWithProfile(page, "top-bar-activity");
     await page.goto(`/profils/${profile}`);
@@ -155,17 +155,17 @@ test.describe("the compact Top Bar on a phone (#897)", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("menuitem", { name: fr.fiche.activity })).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("menuitem", { name: fr.contextBar.clear })).toBeFocused();
+    await expect(page.getByRole("menuitem", { name: fr.fiche.views.documents })).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(page.getByRole("menuitem", { name: fr.fiche.activity })).toBeFocused();
     await page.keyboard.press("Enter");
 
-    const fiche = ficheOf(page);
-    await expect(fiche.getByRole("heading", { level: 2, name: fr.fiche.label })).toBeFocused();
-    await expect(fiche.getByRole("button", { name: fr.fiche.groups.activity })).toHaveAttribute("aria-expanded", "true");
-    await fiche.getByRole("button", { name: fr.conversationFirst.close }).click();
-    await expect(fiche).toHaveCount(0);
+    const activity = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
+    await expect(activity.getByRole("heading", { level: 2, name: fr.fiche.views.activity })).toBeFocused();
+    await activity.getByRole("button", { name: fr.fiche.close }).click();
+    await expect(activity).toHaveCount(0);
     await expect(topBarMoreOf(page)).toBeFocused();
+    const fiche = ficheOf(page);
 
     // « Fiche », the icon shown, opens it too, and gets the focus back.
     const ficheButton = topBarOf(page).getByRole("button", { name: fr.fiche.label, exact: true });
@@ -246,14 +246,15 @@ test.describe("the Top Bar's first paint (#897)", () => {
     }
   });
 
-  test("is the wide bar on a laptop without JavaScript: its buttons with their words, no icon alone, no « … »", async ({ page, browser }) => {
+  test("is the wide bar on a laptop without JavaScript: the side panel's icons, no compact « … » (#980)", async ({ page, browser }) => {
     await page.setViewportSize(LAPTOP);
     const profile = await candidateWithProfile(page, "top-bar-first-paint-laptop");
     const bare = await withoutJavaScript(browser, page, LAPTOP);
     try {
       await bare.goto(`/profils/${profile}`);
       await expect(topBarOf(bare).getByRole("heading", { level: 1 })).toBeVisible();
-      expect(await topBarNames(bare)).toEqual([fr.fiche.label, fr.fiche.activity]);
+      // The side panel's icons (#980), named by their views, the Fiche open with its « … ».
+      expect(await topBarNames(bare)).toEqual([fr.aiActivity.label, fr.fiche.label, fr.fiche.views.documents, fr.fiche.more]);
       await expect(topBarMoreOf(bare)).toBeHidden();
     } finally {
       await bare.context().close();
@@ -262,16 +263,16 @@ test.describe("the Top Bar's first paint (#897)", () => {
 });
 
 test.describe("the Top Bar on a laptop (#897)", () => {
-  test("is as before at 1280 px: its buttons with their words, no « … »", async ({ page }) => {
+  test("has the side panel's icons at 1280 px, no compact « … » (#980)", async ({ page }) => {
     await page.setViewportSize(LAPTOP);
     const profile = await candidateWithProfile(page, "top-bar-laptop");
 
     await page.goto("/");
     await expect(topBarOf(page).getByRole("heading", { level: 1 })).toBeVisible();
-    expect(await topBarNames(page)).toEqual([fr.fiche.activity, fr.conversationFirst.clear]);
+    expect(await topBarNames(page)).toEqual([fr.aiActivity.label]);
     await page.goto(`/profils/${profile}`);
     await expect(topBarOf(page).getByRole("heading", { level: 1 })).toBeVisible();
-    expect(await topBarNames(page)).toEqual([fr.fiche.label, fr.fiche.activity, fr.conversationFirst.clear]);
+    expect(await topBarNames(page)).toEqual([fr.aiActivity.label, fr.fiche.label, fr.fiche.views.documents, fr.fiche.more]);
     await expect(topBarMoreOf(page)).toHaveCount(0);
     await expectNoAxeViolations(page);
   });

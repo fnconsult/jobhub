@@ -114,6 +114,11 @@ export type OfferBoxDecision = { ok: true } | { ok: false; error: "not_found" | 
 export interface OfferBox {
   /** The Candidate's Offer box, the most recent first Arrival first. */
   read(candidateId: string): Promise<OfferBoxContents>;
+  /**
+   * The Candidate's entry of one Job Offer, as `read` gives it, however long ago it was écartée (#895): what the Work
+   * Pane of a Job Offer a Job Search or a Job Digest found says was decided. Null when they have none.
+   */
+  entryOf(candidateId: string, jobOfferId: string): Promise<OfferBoxEntry | null>;
   /** « Écarter » one of the Candidate's entries, with a Dismissal reason or none (`reason` absent or null). */
   dismiss(candidateId: string, entryId: string, input: { reason?: unknown }): Promise<OfferBoxDecision>;
   /** « Revenir sur ce choix »: one of the Candidate's entries écartée back to à traiter (one not écartée is left as it is). */
@@ -362,60 +367,75 @@ export interface OfferBoxDeps {
 
 export function createOfferBox(database: Pool, deps: OfferBoxDeps): OfferBox {
   const now = deps.now ?? (() => new Date());
+
+  /** The Candidate's entries `filter` (SQL on `e` and its Application `a`, after `$1`) keeps, the most recent first Arrival first. */
+  async function entriesWhere(candidateId: string, filter: string, params: readonly unknown[]): Promise<{ today: string; entries: OfferBoxEntry[] }> {
+    const [{ rows }, listed] = await Promise.all([
+      database.query<EntryRow>(
+        `SELECT e.id, e.job_offer_id, e.profile_id, e.first_arrival_at, e.arrival_sources, e.state, e.decided_at, e.dismissal_reason,
+                e.later_until, a.id AS application_id, a.created_at AS followed_at
+           FROM offer_box_entry e LEFT JOIN application a ON a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id
+          WHERE e.candidate_id = $1 AND ${filter}
+          ORDER BY e.first_arrival_at DESC, e.id`,
+        [candidateId, ...params],
+      ),
+      deps.profiles.list(candidateId),
+    ]);
+    // Each Profile and Job Offer read once, however many entries share it.
+    const profileReads = new Map<string, ReturnType<Profiles["get"]>>();
+    const profileOf = (id: string) => profileReads.get(id) ?? profileReads.set(id, deps.profiles.get(candidateId, id)).get(id)!;
+    const active = listed.filter((profile) => !profile.archived);
+    const at = now();
+    const today = PARIS_DAY.format(at);
+
+    const entries = await Promise.all(
+      rows.map(async (row): Promise<OfferBoxEntry | null> => {
+        const jobOffer = await deps.jobOffers.get(row.job_offer_id, candidateId);
+        if (!jobOffer) return null;
+        const own = row.profile_id ? await profileOf(row.profile_id) : null;
+        const candidates = own ? [own] : (await Promise.all(active.map((profile) => profileOf(profile.id)))).filter((profile) => profile !== null);
+        let best: { profile: { id: string; name: string }; score: MatchScore } | null = null;
+        for (const profile of candidates) {
+          const score = scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer });
+          if (!best || figure(score) > figure(best.score)) best = { profile: { id: profile.id, name: profile.name }, score };
+        }
+        const dismissed = !row.application_id && row.state === "dismissed";
+        const state = row.application_id ? "followed" : dismissed ? "dismissed" : undecidedState(row, jobOffer, at, today);
+        return {
+          id: row.id,
+          jobOffer,
+          profile: own ? { id: own.id, name: own.name } : null,
+          scoredWith: best?.profile ?? null,
+          matchScore: best?.score ?? null,
+          firstArrivalAt: row.first_arrival_at,
+          arrivalDay: PARIS_DAY.format(row.first_arrival_at),
+          sources: sourcesOf(row.arrival_sources),
+          state,
+          applicationId: row.application_id,
+          followedAt: row.followed_at,
+          dismissalReason: dismissed ? row.dismissal_reason : null,
+          dismissedAt: dismissed ? row.decided_at : null,
+          laterUntil: (state === "later" || state === "to_handle") && row.state === "later" ? row.later_until : null,
+        };
+      }),
+    );
+    return { today, entries: entries.filter((entry) => entry !== null) };
+  }
+
   return {
     async read(candidateId) {
-      const [{ rows }, listed] = await Promise.all([
-        database.query<EntryRow>(
-          `SELECT e.id, e.job_offer_id, e.profile_id, e.first_arrival_at, e.arrival_sources, e.state, e.decided_at, e.dismissal_reason,
-                  e.later_until, a.id AS application_id, a.created_at AS followed_at
-             FROM offer_box_entry e LEFT JOIN application a ON a.candidate_id = e.candidate_id AND a.job_offer_id = e.job_offer_id
-            WHERE e.candidate_id = $1
-              AND (e.state <> 'dismissed' OR a.id IS NOT NULL OR e.decided_at >= ${utcBefore("$2", "make_interval(days => $3)")})
-            ORDER BY e.first_arrival_at DESC, e.id`,
-          [candidateId, now(), OFFER_BOX_DISMISSED_DAYS],
-        ),
-        deps.profiles.list(candidateId),
-      ]);
-      // Each Profile and Job Offer read once, however many entries share it.
-      const profileReads = new Map<string, ReturnType<Profiles["get"]>>();
-      const profileOf = (id: string) => profileReads.get(id) ?? profileReads.set(id, deps.profiles.get(candidateId, id)).get(id)!;
-      const active = listed.filter((profile) => !profile.archived);
-      const at = now();
-      const today = PARIS_DAY.format(at);
-
-      const entries = await Promise.all(
-        rows.map(async (row): Promise<OfferBoxEntry | null> => {
-          const jobOffer = await deps.jobOffers.get(row.job_offer_id, candidateId);
-          if (!jobOffer) return null;
-          const own = row.profile_id ? await profileOf(row.profile_id) : null;
-          const candidates = own ? [own] : (await Promise.all(active.map((profile) => profileOf(profile.id)))).filter((profile) => profile !== null);
-          let best: { profile: { id: string; name: string }; score: MatchScore } | null = null;
-          for (const profile of candidates) {
-            const score = scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer });
-            if (!best || figure(score) > figure(best.score)) best = { profile: { id: profile.id, name: profile.name }, score };
-          }
-          const dismissed = !row.application_id && row.state === "dismissed";
-          const state = row.application_id ? "followed" : dismissed ? "dismissed" : undecidedState(row, jobOffer, at, today);
-          return {
-            id: row.id,
-            jobOffer,
-            profile: own ? { id: own.id, name: own.name } : null,
-            scoredWith: best?.profile ?? null,
-            matchScore: best?.score ?? null,
-            firstArrivalAt: row.first_arrival_at,
-            arrivalDay: PARIS_DAY.format(row.first_arrival_at),
-            sources: sourcesOf(row.arrival_sources),
-            state,
-            applicationId: row.application_id,
-            followedAt: row.followed_at,
-            dismissalReason: dismissed ? row.dismissal_reason : null,
-            dismissedAt: dismissed ? row.decided_at : null,
-            laterUntil: (state === "later" || state === "to_handle") && row.state === "later" ? row.later_until : null,
-          };
-        }),
+      // An entry écartée more than OFFER_BOX_DISMISSED_DAYS days ago is left out, unless followed since.
+      const { today, entries: kept } = await entriesWhere(
+        candidateId,
+        `(e.state <> 'dismissed' OR a.id IS NOT NULL OR e.decided_at >= ${utcBefore("$2", "make_interval(days => $3)")})`,
+        [now(), OFFER_BOX_DISMISSED_DAYS],
       );
-      const kept = entries.filter((entry) => entry !== null);
       return { today, toHandle: kept.filter((entry) => entry.state === "to_handle" || entry.state === "later").length, entries: kept };
+    },
+
+    async entryOf(candidateId, jobOfferId) {
+      if (!UUID.test(jobOfferId)) return null;
+      return (await entriesWhere(candidateId, "e.job_offer_id = $2", [jobOfferId])).entries[0] ?? null;
     },
 
     async dismiss(candidateId, entryId, { reason = null }) {

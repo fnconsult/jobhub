@@ -265,6 +265,14 @@ export const offerBoxResponseSchema = z.object({
 export type OfferBoxResponse = z.infer<typeof offerBoxResponseSchema>;
 
 /**
+ * `GET /api/offer-box/job-offers/:jobOfferId`: the Candidate's Offer box entry of one Job Offer, as the Offer box gives
+ * its entries, however long ago it was écartée (#895): what the Work Pane of a Job Offer a Job Search or a Job Digest
+ * found says was decided, with « Revenir sur ce choix ». 404 when the Candidate has no entry of it.
+ */
+export const offerBoxEntryOfResponseSchema = offerBoxEntrySchema;
+export type OfferBoxEntryOfResponse = OfferBoxEntryRead;
+
+/**
  * `GET /api/offer-box/count`: how many of the Candidate's Offer box entries are à traiter now (#818), « Plus tard »
  * included, « Expirées sans décision » not: the « N » of the app's « Recherches d'offres » and its icon's badge, read
  * without the entries.

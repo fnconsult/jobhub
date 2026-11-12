@@ -70,9 +70,8 @@ async function expectNothingInternal(region: Locator) {
   expect(shown).not.toMatch(/€|\beur\b|co[uû]t|prompt|playbook|coaching|offer_analysis|web_search|guardrail|[0-9a-f]{8}-[0-9a-f]{4}-|error|erreur/i);
 }
 
-// Since #603, #607 and #608 the page's AI Activity is in an object's Fiche, in its Activity group, and the other pages'
-// Activité column beside the page; since #809 AI Activity's button, « Activité » in the Top Bar, opens it, and its own
-// « Cette page » pane is gone.
+// Since #980 the page's AI Activity is the side panel's « Activité » view, beside the page; AI Activity's icon, the first
+// of the panel's in the Top Bar (#809), opens it, and « Sources et outils de cette page » is gone: each entry names its own.
 test.describe("AI Activity (#332)", () => {
   test("`/offres/[id]` and a Coach reply about it show in « Activité »'s history, each with its models, Tools and cost, never in euros (#808)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-offer"));
@@ -136,7 +135,7 @@ test.describe("AI Activity (#332)", () => {
     await expect(await detailOf(page, reply)).toContainText(new RegExp(`[\\d,]+k? jetons · ${history.cost.partial}`));
   });
 
-  test("works from the keyboard: a row unfolds its detail, « Sources et outils de cette page » and a site's pages", async ({ page }) => {
+  test("works from the keyboard: a row unfolds its detail, its Provenance sites and a site's pages (#980)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-keyboard"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
     const button = activityButtonOf(page);
@@ -152,29 +151,31 @@ test.describe("AI Activity (#332)", () => {
     await row.focus();
     await page.keyboard.press("Enter");
     await expect(row).toHaveAttribute("aria-expanded", "true");
-    await expect(await detailOf(page, row)).toBeVisible();
-    await page.keyboard.press("Enter");
-    await expect(row).toHaveAttribute("aria-expanded", "false");
-    await expect(await detailOf(page, row)).toBeHidden();
+    const detail = await detailOf(page, row);
+    await expect(detail).toBeVisible();
 
-    // « Sources et outils de cette page », folded at the foot: each site once, its pages in a new tab without a referrer.
-    const sources = pane.getByRole("button", { name: history.sources });
-    await expect(sources).toHaveAttribute("aria-expanded", "false");
-    await sources.focus();
-    await page.keyboard.press("Enter");
-    await expect(sources).toHaveAttribute("aria-expanded", "true");
-    const site = pane.getByRole("button", { name: /welcometothejungle\.com/ });
+    // « Sources et outils de cette page » is gone (#980): the entry names its own sites, each once, its pages in a new tab
+    // without a referrer.
+    await expect(pane.getByRole("button", { name: /Sources et outils/ })).toHaveCount(0);
+    await expect(detail).toContainText(history.sources);
+    const site = detail.getByRole("button", { name: /welcometothejungle\.com/ });
     await expect(site).toHaveCount(1);
     await expect(site).toHaveAttribute("aria-expanded", "false");
     await site.focus();
     await page.keyboard.press("Enter");
     await expect(site).toHaveAttribute("aria-expanded", "true");
-    const link = pane.getByRole("link", { name: /welcometothejungle\.com\/fr\/companies\/seb\/jobs\/daf-lyon/ });
+    const link = detail.getByRole("link", { name: /welcometothejungle\.com\/fr\/companies\/seb\/jobs\/daf-lyon/ });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
     await expect(link).toHaveAttribute("rel", EXIT_LINK_REL);
     await expect(pane).toContainText("Sites d'emploi");
     await expectNoAxeViolations(page, ".activity-column");
+
+    // The row folds its detail again.
+    await row.focus();
+    await page.keyboard.press("Enter");
+    await expect(row).toHaveAttribute("aria-expanded", "false");
+    await expect(detail).toBeHidden();
 
     // « Activité » closes the column, from the keyboard too.
     await button.focus();
@@ -188,14 +189,14 @@ test.describe("AI Activity (#332)", () => {
     await signInWithMagicLink(page, newAddress("ai-activity-button"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
     const button = activityButtonOf(page);
-    // The page's summary, left of its frame: Perplexity and Claude Haiku 4.5, 7,8k tokens.
+    // The page's summary: Perplexity and Claude Haiku 4.5, 7,8k tokens.
     const words = tr(fr.aiActivity.models_other, { count: "2" }) + " · " + tr(fr.aiActivity.tokens, { tokens: "7,8k" });
 
-    // Closed: « Activité » on its frame, its words beside it, and in its name.
+    // Closed: an icon alone, its tooltip « Activité IA », the page's summary in its name, not beside it (#980).
     await expect(button).toHaveAttribute("aria-expanded", "false");
-    await expect(button).toHaveText(fr.fiche.activity);
+    await expect(button).toHaveText("");
     await expect(button).toHaveAttribute("title", fr.aiActivity.label);
-    await expect(page.getByRole("banner").getByText(words, { exact: true })).toBeVisible();
+    await expect(page.getByRole("banner").getByText(words, { exact: true })).toBeHidden();
     await expect(button).toHaveAccessibleName(`${fr.aiActivity.label} ${words}`);
     await expect(page.getByRole("banner").getByRole("button", { name: fr.fiche.activity, exact: true })).toHaveCount(0);
 
@@ -219,15 +220,10 @@ test.describe("AI Activity (#332)", () => {
     await expect(paneOf(page)).toHaveCount(0);
     await expect(button).toHaveAttribute("aria-expanded", "false");
     await expect(button).toBeFocused();
-
-    // Its words are no control of their own: clicking them opens Activity, the focus on the button.
-    await page.getByRole("banner").getByText(words, { exact: true }).click();
-    await expect(paneOf(page)).toBeVisible();
-    await expect(button).toBeFocused();
     await expectNoAxeViolations(page, "header.topbar");
   });
 
-  test("on a phone, AI Activity's button opens Activity full screen with « Fermer », and Escape gives the focus back to the button (#809, ADR-0070)", async ({ page }) => {
+  test("on a phone, AI Activity's button opens Activity full screen with « Fermer le volet », and Escape gives the focus back to the button (#809, ADR-0070)", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 740 });
     await signInWithMagicLink(page, newAddress("ai-activity-button-phone"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
@@ -238,7 +234,7 @@ test.describe("AI Activity (#332)", () => {
     await expect(pane.getByRole("heading", { level: 2, name: fr.fiche.activity })).toBeFocused();
     const sheet = (await pane.boundingBox())!;
     expect([sheet.x, sheet.width]).toEqual([0, 375]);
-    await expect(pane.getByRole("button", { name: fr.conversationFirst.close })).toBeVisible();
+    await expect(pane.getByRole("button", { name: fr.fiche.close })).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(pane).toHaveCount(0);
@@ -266,8 +262,9 @@ test.describe("AI Activity (#332)", () => {
     expect(column.x).toBeGreaterThanOrEqual(main.x + main.width - 1);
     expect(column.y).toBeGreaterThanOrEqual(topbar.y + topbar.height - 1);
     expect(column.x + column.width).toBeLessThanOrEqual(1200);
-    // Beside it, no heading nor ✕ of its own: « Activité » closes it.
-    await expect(pane.getByRole("button", { name: fr.conversationFirst.close })).toHaveCount(0);
+    // Its head names the view and has ✕ « Fermer le volet », beside the page too (#980).
+    await expect(pane.getByRole("heading", { level: 2, name: fr.fiche.views.activity })).toBeVisible();
+    await expect(pane.getByRole("button", { name: fr.fiche.close })).toBeVisible();
   });
 
   test("on a phone: the column over the whole screen, with its visible title and a labelled Close", async ({ page }) => {
@@ -285,7 +282,7 @@ test.describe("AI Activity (#332)", () => {
     expect(sheet.y + sheet.height).toBeCloseTo(740, 0);
     await expect(pane).toContainText("DAF Lyon");
     await expectNoAxeViolations(page, ".activity-column");
-    await pane.getByRole("button", { name: fr.conversationFirst.close }).click();
+    await pane.getByRole("button", { name: fr.fiche.close }).click();
     await expect(pane).toHaveCount(0);
     await expect(button).toBeFocused();
   });
@@ -304,7 +301,7 @@ test.describe("AI Activity (#332)", () => {
     const last = pane.locator(".activity-entry").last();
     await last.scrollIntoViewIfNeeded();
     await expect(last).toBeInViewport();
-    await expect(pane.getByRole("button", { name: fr.conversationFirst.close })).toBeInViewport();
+    await expect(pane.getByRole("button", { name: fr.fiche.close })).toBeInViewport();
   });
 
   test("no token count appears in the Usage Meter or on /abonnement", async ({ page }) => {

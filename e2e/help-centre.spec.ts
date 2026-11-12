@@ -154,7 +154,7 @@ test.describe("« Découvrir Jobbbox », for a Visitor (#552)", () => {
     await expect(steps).toHaveCount(6);
     await expect(steps.nth(0)).toContainText(`« ${fr.signIn.submit} »`);
     await expect(steps.nth(3)).toContainText(`« ${fr.profiles.create} »`);
-    await expect(steps.nth(5)).toContainText(`« ${fr.cvReview.save} »`);
+    await expect(steps.nth(5)).toContainText(`« ${fr.onboardingSummary.confirm} »`);
     expect(await axeViolations(page)).toEqual([]);
   });
 

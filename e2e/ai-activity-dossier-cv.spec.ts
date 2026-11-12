@@ -7,6 +7,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { activityOf, activityUnderWayOf, closeActivity, openActivity, pageSourcesOf, unfoldedEntryOf } from "./support/conversation";
 import { exitHref } from "./support/exit-page";
+import { confirmSummary, onboardingSummary } from "./support/onboarding-summary";
 
 // Issue #335: a Company Dossier and the reading of an uploaded CV keep their Provenance, show their steps live (on their
 // page beside « Arrêter », and in AI Activity) and can be stopped. A new dossier lists its Provenance sites in AI Activity,
@@ -231,7 +232,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await paneOf(page).getByRole("button", { name: fr.aiActivity.live.stop.cv_reading, exact: true }).click();
 
     await expect(page.getByText(/^Lecture arrêtée à \d{2}:\d{2} : rien n'a été lu ni enregistré\.$/)).toBeVisible();
-    await expect(page.getByRole("heading", { name: fr.cvReview.title })).toHaveCount(0);
+    await expect(onboardingSummary(page)).toHaveCount(0);
     await expect(page.getByRole("button", { name: fr.cvUpload.submit })).toBeEnabled();
     const profiles = await page.request.get("/api/profiles");
     expect(await profiles.json()).toEqual([]);
@@ -246,8 +247,9 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await page.waitForLoadState("networkidle");
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) });
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
-    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
-    await page.getByRole("button", { name: fr.cvReview.save }).click();
+    // The summary (#1004), confirmed.
+    await expect(onboardingSummary(page)).toBeVisible();
+    await confirmSummary(page);
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}/);
 
     await openActivity(page);

@@ -9,6 +9,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { placeNames } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { toConversation } from "./support/conversation";
+import { onboardingSummary, openReviewDetail } from "./support/onboarding-summary";
 
 // Issue #5: a Candidate without a CV builds their Master CV with the AI Coach's
 // Onboarding Questionnaire; the Coach Panel is on every page and knows the
@@ -140,9 +141,18 @@ test.describe("onboarding with the AI Coach", () => {
     await reply(page, q.languages, "Anglais : courant, Allemand : notions");
     await reply(page, q.summary, "Directrice financière, 25 ans d'expérience dans l'industrie.");
 
-    // The same review form as for an uploaded CV, filled from the answers.
+    // First the summary of the answers, composed by Jobbbox (#1004): « Ai-je bien compris ? ».
+    await expect(transcript(page)).toContainText(fr.onboardingSummary.question);
+    const summary = onboardingSummary(page);
+    await expect(summary.locator(".onb-summary")).toHaveText(
+      "Vous recherchez un poste de Directrice financière à Lyon. Avec 19 ans d'expérience, vous mettez en avant vos compétences Consolidation, IFRS et SAP. " +
+        "Vos derniers postes : Directrice financière chez Groupe Seb et Responsable du contrôle de gestion chez Renault.",
+    );
+    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toHaveCount(0);
+
+    // « Voir le détail »: the same review form as for an uploaded CV, filled from the answers.
+    await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
-    await expect(page.getByText(fr.questionnaire.reviewIntro)).toBeVisible();
     const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
     await expect(placeNames(criteria)).toHaveText(["Lyon"]);
@@ -155,7 +165,13 @@ test.describe("onboarding with the AI Coach", () => {
     expect(await skills.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value))).toEqual(["Consolidation", "IFRS", "SAP"]);
     await expect(page.getByRole("group", { name: "Langue 2" }).getByLabel(fr.cvReview.level)).toHaveValue("notions");
     await page.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi }).check();
-    await page.getByRole("button", { name: fr.cvReview.save }).click();
+    // What is changed in the form shows in the summary; « Cela semble correct » saves it and the coach says so.
+    await expect(summary.locator(".onb-summary")).toContainText("Vous recherchez un poste de Directrice financière en CDI à Lyon.");
+    await expect(summary.getByText("CDI", { exact: true })).toHaveJSProperty("tagName", "STRONG");
+    await summary.getByRole("button", { name: fr.onboardingSummary.confirm }).click();
+    await expect(transcript(page)).toContainText(fr.onboardingSummary.saved);
+    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toHaveCount(0);
+    await page.getByRole("link", { name: fr.onboardingSummary.toProfile }).click();
 
     // Born at its target role and location (#999), the Profile is finished by one Master CV Version: version 2, after the
     // partial version 1 it was born with.
@@ -200,8 +216,11 @@ test.describe("onboarding with the AI Coach", () => {
 
     // Resumed at its review, on what is saved: the e-mail answered after it was born is not.
     await expect(page).toHaveURL(`${origin}/profils/nouveau?profil=${id}`);
-    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     await expect(transcript(page)).toContainText(fr.newProfile.resumeIntro);
+    await expect(onboardingSummary(page).locator(".onb-summary")).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+    // The review form, by « Voir le détail »; its own « Enregistrer mon profil » saves as « Cela semble correct » does.
+    await openReviewDetail(page);
+    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
     await expect(page.getByLabel(fr.cvReview.email)).toHaveValue("");
     const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
@@ -226,6 +245,7 @@ test.describe("onboarding with the AI Coach", () => {
   test("the questionnaire and an uploaded CV produce the same Master CV structure", async ({ page }) => {
     /** Every field of the review form, by its accessible name, in order. */
     const reviewFields = async () => {
+      await openReviewDetail(page);
       await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
       return page.locator("form").filter({ has: page.getByRole("button", { name: fr.cvReview.save }) })
         .locator("input:not([type=hidden]), textarea, select")

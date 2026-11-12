@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ExternalLink } from "@/components/ExternalLink";
-import { TextSizeControl } from "@/components/TextSizeControl";
 import { buttonClass } from "@/design/button-class";
 import { Logo } from "@/design/Logo";
 import { getServerT, getUrlLocale } from "@/i18n/server";
@@ -60,9 +59,9 @@ export async function Landing({ plans, stores, coachPath = false }: { plans: rea
           <p className="landing-lead">{t("landing.method.lead")}</p>
         </div>
         <LandingStory
-          steps={STEPS.map((step, index) => ({
+          steps={STEPS.map((step) => ({
             id: step,
-            label: t("landing.method.step", { step: index + 1, count: STEPS.length }),
+            label: t(`landing.method.steps.${step}.label`),
             title: t(`landing.method.steps.${step}.title`),
             text: t(`landing.method.steps.${step}.text`),
             screen: screens[step],
@@ -142,7 +141,6 @@ export async function Landing({ plans, stores, coachPath = false }: { plans: rea
             {t("landing.reading.title")}
           </h2>
           <p className="landing-body">{t("landing.reading.text")}</p>
-          <TextSizeControl />
         </div>
       </section>
 

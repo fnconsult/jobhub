@@ -69,8 +69,9 @@
     color: var(--color-secondary);
   }
 
+  /* At the body's size: only metadata, in the metadata colour, may be smaller (ADR-0009). */
   .landing-eyebrow {
-    font-size: var(--font-size-meta);
+    font-size: var(--font-size-body);
     font-weight: 600;
     color: var(--color-accent);
     text-transform: uppercase;
@@ -413,7 +414,7 @@
     margin-top: var(--space-2);
     font-size: var(--font-size-meta);
     font-weight: 600;
-    color: var(--color-secondary);
+    color: var(--color-meta);
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
@@ -567,7 +568,7 @@
   }
 
   .landing-story__label {
-    font-size: var(--font-size-meta);
+    font-size: var(--font-size-body);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--color-accent);

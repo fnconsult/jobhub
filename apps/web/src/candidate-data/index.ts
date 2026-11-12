@@ -61,7 +61,7 @@ import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text
 import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-email";
 import { coachProposalsDisplayOf, type ExportedCoachProposalsDisplay } from "../coach-proposals-display";
 import { consumptionOf, type ConsumptionDay } from "../consumption";
-import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
+import type { JobSearchFailure, JobSearchStatus, OfferedJobSearch } from "../job-searches";
 import type { MasterCvVersion, ProfileOnboarding, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
 import { signalementsOf, type Signalement } from "../signalements";
@@ -142,6 +142,8 @@ export interface ExportedJobSearch {
   finishedAt: Date | null;
   /** When the Candidate asked to stop it (#331); absent unless they did. */
   stopRequestedAt?: Date;
+  /** Offered by the onboarding, outside the Plan Quota (ADR-0105, #1000): its first, or its one restart; absent otherwise. */
+  offered?: OfferedJobSearch;
   /** The Job Offers it found, in the order Job discovery found them. */
   jobOfferIds: string[];
   /** What served it (ADR-0034), when it was kept. */
@@ -459,7 +461,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   profile: "profiles (the Search Criteria's Origin, #719; where its onboarding stands, #999)",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it; its Origin, #719)",
   ats_score: "profiles[].atsScore",
-  job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
+  job_search: "profiles[].jobSearches (each one's Provenance, not its live steps; offered by the onboarding or not, #1000)",
   discovery_run_detail: "profiles[].jobDiscoveryRuns (the last 30 days' runs: criteria and each search's query texts; their figures are of no one)",
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
@@ -546,7 +548,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       ),
       grouped<ExportedJobSearch>(
       `SELECT profile_id AS key, id, status, failure, started_at AS "startedAt", finished_at AS "finishedAt", job_offer_ids::text[] AS "jobOfferIds", provenance,
-              stop_requested_at AS "stopRequestedAt"
+              stop_requested_at AS "stopRequestedAt", offered
          FROM job_search WHERE candidate_id = $1 ORDER BY started_at DESC, id`,
         candidateId,
       ),
@@ -585,9 +587,9 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           ...(profile.onboarding ? { onboarding: profile.onboarding } : {}),
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
-          jobSearches: jobSearchesOf(id).map(({ provenance, stopRequestedAt, ...jobSearch }) => {
+          jobSearches: jobSearchesOf(id).map(({ provenance, stopRequestedAt, offered, ...jobSearch }) => {
             const kept = readProvenance(provenance);
-            return { ...jobSearch, ...(stopRequestedAt && { stopRequestedAt }), ...(kept && { provenance: kept }) };
+            return { ...jobSearch, ...(stopRequestedAt && { stopRequestedAt }), ...(offered && { offered }), ...(kept && { provenance: kept }) };
           }),
           jobDiscoveryRuns: discoveryRuns.flatMap(({ profileId, ...run }) => (profileId === id ? [run] : [])),
           jobDigest: jobDigestSettingsOf(id)[0] ?? null,

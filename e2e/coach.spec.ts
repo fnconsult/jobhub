@@ -223,6 +223,67 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(page).toHaveURL(`${origin}/profils/${id}`);
   });
 
+  test("the Profile born gets its first Job Search, offered outside the Plan Quota, started again once when its target role changes (#1000)", async ({ page }) => {
+    const email = newAddress("questionnaire-offered-search");
+    await signInWithMagicLink(page, email);
+    await page.goto("/profils/nouveau");
+    /** Answers up to the review: a name, `targetRole` and Lyon, every other question skipped. */
+    const answerUpToReview = async (targetRole: string) => {
+      await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+      await reply(page, q.fullName, "Marie Dupont");
+      await reply(page, q.targetRole, targetRole);
+      await reply(page, q.location, "Lyon");
+      for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
+      await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    };
+    /** The Candidate's offered Job Searches, oldest first: which one, and whether a Stop request was made. */
+    const offered = () =>
+      withDatabase(async (db) => {
+        const { rows } = await db.query(
+          `SELECT s.id, s.offered, s.stop_requested_at IS NOT NULL AS stopped FROM job_search s JOIN candidate c ON c.id = s.candidate_id
+            WHERE c.email = $1 AND s.offered IS NOT NULL ORDER BY s.started_at`,
+          [email],
+        );
+        return rows as { id: string; offered: string; stopped: boolean }[];
+      });
+
+    await answerUpToReview("Directrice financière");
+    // Born, its search starts at once, offered; the coach says so in the thread, with a link to its page.
+    await expect(transcript(page)).toContainText(fr.newProfile.offeredSearchStarted);
+    await expect.poll(async () => (await offered()).map((search) => search.offered)).toEqual(["first"]);
+    const [first] = await offered();
+    await expect(transcript(page).getByRole("link", { name: fr.newProfile.offeredSearchLink })).toHaveAttribute("href", `/recherches/${first!.id}`);
+
+    // Outside the Plan Quota: no use of it this week, and none in « Votre consommation ».
+    const [{ id: profileId }] = await (await page.request.get("/api/profiles")).json();
+    const uses = await withDatabase(async (db) => {
+      const { rows } = await db.query(
+        `SELECT (SELECT coalesce(sum(used), 0)::int FROM quota_usage WHERE candidate_id = c.id AND quota = 'jobSearches') AS quota,
+                (SELECT coalesce(sum(count), 0)::int FROM consumption_day WHERE candidate_id = c.id AND tool = 'jobSearch') AS consumption
+           FROM candidate c WHERE c.email = $1`,
+        [email],
+      );
+      return rows[0];
+    });
+    expect(uses).toEqual({ quota: 0, consumption: 0 });
+
+    // Started over with another target role: started again, offered too, the first one stopped.
+    await page.getByRole("complementary", { name: fr.cvReview.title }).getByRole("button", { name: fr.questionnaire.startOver }).click();
+    await answerUpToReview("Contrôleuse de gestion");
+    await expect(transcript(page)).toContainText(fr.newProfile.offeredSearchRestarted);
+    await expect.poll(async () => (await offered()).map(({ offered, stopped }) => [offered, stopped])).toEqual([
+      ["first", true],
+      ["restart", false],
+    ]);
+
+    // Beyond, it is refused, and the page asks no more.
+    expect((await page.request.post(`/api/profiles/${profileId}/onboarding-search`)).status()).toBe(409);
+    await page.getByRole("complementary", { name: fr.cvReview.title }).getByRole("button", { name: fr.questionnaire.startOver }).click();
+    await answerUpToReview("Comptable");
+    await expect(transcript(page)).not.toContainText(fr.newProfile.offeredSearchRestarted);
+    expect(await offered()).toHaveLength(2);
+  });
+
   test("the questionnaire and an uploaded CV produce the same Master CV structure", async ({ page }) => {
     /** Every field of the review form, by its accessible name, in order. */
     const reviewFields = async () => {

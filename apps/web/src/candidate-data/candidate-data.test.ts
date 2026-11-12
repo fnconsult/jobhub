@@ -667,6 +667,22 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(done).not.toHaveProperty("stopRequestedAt");
   });
 
+  it("the export says which Job Searches the onboarding offered (#1000)", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, started_at, finished_at, offered) VALUES
+         ($1, $2, 'done', '2026-10-02T08:00:00Z', '2026-10-02T08:04:00Z', 'restart'),
+         ($1, $2, 'stopped', '2026-10-01T08:00:00Z', '2026-10-01T08:01:00Z', 'first'),
+         ($1, $2, 'done', '2026-09-01T08:00:00Z', '2026-09-01T08:04:00Z', NULL)`,
+      [candidateId, profileId],
+    );
+
+    const [restart, first, ordinary] = (await candidateData.export(candidateId)).profiles[0]!.jobSearches;
+
+    expect([restart?.offered, first?.offered]).toEqual(["restart", "first"]);
+    expect(ordinary).not.toHaveProperty("offered");
+  });
+
   it("the export holds a Job Search's Provenance, when it was kept, and never its live steps (#330)", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const provenance: Provenance = {

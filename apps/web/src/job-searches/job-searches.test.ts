@@ -532,6 +532,116 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect(await used()).toBe(1);
     });
   });
+  describe("the Job Search the onboarding offers (ADR-0105, #1000)", () => {
+    const used = async () => (await billing.entitlements(candidateId)).usedThisWeek.jobSearches;
+    const counted = async () => (await createConsumption(database).forCandidate(candidateId, { from: clock.now, to: clock.now })).totals.jobSearch;
+    let bornId: string;
+    let ordinaryId: string;
+
+    async function offered(profile = bornId) {
+      const result = await jobSearches.startOffered(candidateId, profile);
+      if (!result.ok) throw new Error(`fixture offered Job Search refused: ${JSON.stringify(result)}`);
+      return result;
+    }
+
+    beforeEach(async () => {
+      const born = await profiles.create(candidateId, {
+        masterCv,
+        searchCriteria: { targetRole: "Contrôleuse de gestion", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [] },
+        onboarding: "in_progress",
+      });
+      if (!born.ok) throw new Error("fixture Profile refused");
+      bornId = born.profile.id;
+      // The Free Plan's one Job Search a week, spent before the onboarding (done: it keeps its use).
+      await billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, jobSearches: 1 });
+      ordinaryId = (await started()).id;
+      await jobSearches.record(ordinaryId, { jobOfferIds: [] });
+    });
+
+    it("starts for a Profile born during its onboarding even with the Plan Quota spent, using none, and Votre consommation does not count it", async () => {
+      expect(await jobSearches.start(candidateId, { profileId: bornId })).toMatchObject({ ok: false, error: "quota_exceeded" });
+
+      const { jobSearch, offered: which } = await offered();
+
+      expect(which).toBe("first");
+      expect(jobSearch).toMatchObject({ status: "searching", offered: "first", profile: { id: bornId } });
+      expect(sent.at(-1)).toEqual({ name: JOB_DISCOVERY_QUEUE, data: { candidateId, profileId: bornId, jobSearchId: jobSearch.id } });
+      expect(await jobSearches.get(candidateId, jobSearch.id)).toMatchObject({ offered: "first" });
+      expect(await used()).toBe(1);
+      expect(await counted()).toBe(1);
+      // An ordinary one is not marked.
+      expect(await jobSearches.get(candidateId, ordinaryId)).not.toHaveProperty("offered");
+    });
+
+    it("is an ordinary Job Search: listed, and its outcome notified", async () => {
+      const { jobSearch } = await offered();
+      await jobSearches.record(jobSearch.id, { jobOfferIds: [await capture("Contrôleuse de gestion H/F", { location: "Lyon" })] });
+
+      expect((await jobSearches.list(candidateId)).map((summary) => [summary.id, summary.status, summary.found])).toContainEqual([jobSearch.id, "done", 1]);
+      expect((await jobSearches.notifications(candidateId)).notifications.map((one) => one.jobSearchId)).toContain(jobSearch.id);
+      expect(await used()).toBe(1);
+    });
+
+    it("gives no Plan Quota use back, nor takes one off Votre consommation, when it fails, is stopped empty or never answered", async () => {
+      const reports = createJobSearchReports(database, { quotas: billing, now: () => clock.now });
+      const first = await offered();
+      await reports.record(first.jobSearch.id, { failed: "discovery_failed" });
+      const restart = await offered();
+      clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+      expect(await reports.expireTimedOut()).toBe(1);
+      expect((await jobSearches.get(candidateId, restart.jobSearch.id))?.status).toBe("failed");
+
+      expect(await used()).toBe(1);
+      expect(await counted()).toBe(1);
+    });
+
+    it("starts again once, when the target role or locations changed, stopping the first still searching; refused beyond", async () => {
+      const first = await offered();
+
+      const restart = await offered();
+
+      expect(restart).toMatchObject({ offered: "restart", jobSearch: { status: "searching", offered: "restart" } });
+      expect(await createJobSearchReports(database, { quotas: billing }).stopRequested(first.jobSearch.id)).toBe(true);
+      expect(await createJobSearchReports(database, { quotas: billing }).stopRequested(restart.jobSearch.id)).toBe(false);
+      expect(await jobSearches.startOffered(candidateId, bornId)).toEqual({ ok: false, error: "used_up" });
+      expect(await used()).toBe(1);
+    });
+
+    it("does not stop a first one already over when it starts again", async () => {
+      const first = await offered();
+      await jobSearches.record(first.jobSearch.id, { jobOfferIds: [] });
+
+      await offered();
+
+      expect(await createJobSearchReports(database, { quotas: billing }).stopRequested(first.jobSearch.id)).toBe(false);
+      expect((await jobSearches.get(candidateId, first.jobSearch.id))?.status).toBe("done");
+    });
+
+    it("never gives a Profile more than its first and its restart, even asked at once", async () => {
+      const results = await Promise.all([1, 2, 3, 4].map(() => jobSearches.startOffered(candidateId, bornId)));
+
+      expect(results.filter((result) => result.ok).length).toBeLessThanOrEqual(2);
+      const { rows } = await database.query<{ offered: string }>("SELECT offered FROM job_search WHERE profile_id = $1 AND offered IS NOT NULL ORDER BY offered", [bornId]);
+      expect(rows.length).toBeLessThanOrEqual(2);
+      expect(new Set(rows.map((row) => row.offered)).size).toBe(rows.length);
+      await expect(
+        database.query("INSERT INTO job_search (candidate_id, profile_id, started_at, offered) VALUES ($1, $2, now(), 'first'), ($1, $2, now(), 'first')", [candidateId, bornId]),
+      ).rejects.toThrow();
+    });
+
+    it("is refused for a Profile not created by the onboarding, one whose onboarding is finished, an archived one, or anyone else's", async () => {
+      expect(await jobSearches.startOffered(candidateId, profileId)).toEqual({ ok: false, error: "not_onboarding" });
+      expect(await jobSearches.startOffered(otherCandidateId, bornId)).toEqual({ ok: false, error: "not_found" });
+      expect(await jobSearches.startOffered(candidateId, "not-a-uuid")).toEqual({ ok: false, error: "not_found" });
+      await database.query("UPDATE profile SET onboarding = 'done' WHERE id = $1", [bornId]);
+      expect(await jobSearches.startOffered(candidateId, bornId)).toEqual({ ok: false, error: "not_onboarding" });
+      await database.query("UPDATE profile SET onboarding = 'in_progress' WHERE id = $1", [bornId]);
+      await profiles.archive(candidateId, bornId);
+      expect(await jobSearches.startOffered(candidateId, bornId)).toEqual({ ok: false, error: "archived" });
+      expect(sent.filter((one) => (one.data as { profileId: string }).profileId === bornId)).toEqual([]);
+    });
+  });
+
   describe("Job Search notifications", () => {
     it("counts only the Job Offers the Job Search page shows: not Expired ones", async () => {
       const expired = await capture("DAF H/F", { location: "Lyon" });

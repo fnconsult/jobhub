@@ -27,5 +27,6 @@ The product owner wants the Job Search to start « before even finishing the CV 
 ## Consequences
 
 - `profile.onboarding` (`in_progress` | `done` | null) is added by `migrateProfiles`, read with the Profile and in the Personal Data Export. `POST /api/profiles` takes `onboarding`; `POST /api/profiles/:id/onboarding` saves the one Master CV Version and finishes it.
+- `job_search.offered` (`first` | `restart` | null), added by `migrateJobSearches`, with a unique index on (`profile_id`, `offered`), marks the offered Job Searches (#1000): `JobSearches.startOffered`, behind `POST /api/profiles/:id/onboarding-search`, starts them only while the Profile's onboarding is in progress, uses no Plan Quota (so « Votre consommation » does not count them), gives none back when they fail or stop empty, and stops the first, still searching, when it starts the restart. The Personal Data Export says which Job Searches were offered.
 - The answers are kept on the Profile as they are validated, no longer only in the browser until the save (privacy register, « Création du profil »).
 - `CONTEXT.md`: **Onboarding interview** replaces **Onboarding Questionnaire**; **Profile** and **Job Search** say how the onboarding creates and searches.

@@ -397,7 +397,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
         </div>
       </section>
       {step.kind === "review" ? (
-        <InWorkPane key={reviewOpening} kind={REVIEW} title={t("cvReview.title")} href={REVIEW_HREF} back={routes.newProfile}>
+        <InWorkPane key={reviewOpening} kind={REVIEW} title={t("cvReview.title")} href={REVIEW_HREF} back={routes.newProfile} stay>
           <CvReview
             draft={step.draft}
             {...(edits ? { kept: edits } : {})}

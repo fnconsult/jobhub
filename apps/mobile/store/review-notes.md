@@ -5,10 +5,9 @@ _#708, ADR-0076. **Brouillon, à confirmer par #707** (les positions sur les pai
 ## Ce qui manque avant de pouvoir les envoyer
 
 1. **Le contact de la revue** (prénom, nom, e-mail, téléphone d'une personne joignable) : [ENTITÉ À CONFIRMER]. Pour cette raison `../store.config.json` n'a pas de rubrique `review` : la saisir dans App Store Connect.
-2. **Les deux comptes de démonstration**, sur la Production : un Candidate et un Human Coach, aux données inventées (les noms de `maestro/seed.ts` conviennent), sans vérification en deux étapes.
-3. **Comment le relecteur se connecte : à trancher, le produit ne le permet pas encore.** #708 demande une « connexion par code fourni dans les notes de revue ». Or le code de connexion n'existe que dans l'e-mail, vaut 15 minutes et une seule fois (`apps/web/src/auth/sign-in-code.ts`) : un code écrit dans les notes ne marche pas, et les stores refusent une app qu'ils ne peuvent pas ouvrir (règle 2.1). Deux voies, au choix du product owner :
-   - **un code de revue fixe**, accepté pour les deux seuls comptes de démonstration, réglé et coupé dans le Back Office : un changement de code, donc une issue à part avec sa revue de sécurité (recommandé : c'est ce que #708 décrit) ;
-   - **une boîte e-mail de démonstration** dont l'accès est donné au relecteur dans les notes : rien à coder, mais un secret partagé à changer après chaque revue.
+2. **Les deux comptes de démonstration**, sur la Production : un Candidate et un Human Coach, aux données inventées (les noms de `maestro/seed.ts` conviennent), sans Back Office Role, leurs adresses des boîtes de `jobbbox.ai` que l'équipe lit. Le Candidate, sans vérification en deux étapes.
+   **TODO (product owner) : le Human Coach de démonstration.** Un Human Coach doit avoir la vérification en deux étapes (#665), et le code de revue ne la contourne pas (#981). Le relecteur se verra donc demander une deuxième étape sur ce compte. À trancher : donner la deuxième étape dans les notes (par exemple un code de secours du compte de démonstration), ou retirer le Human Coach de la démonstration. La phrase « Neither demo account has two-step verification » des notes ne vaut que pour le Candidate tant que ce n'est pas tranché.
+3. **Comment le relecteur se connecte : le code de revue des stores (#981).** Le product owner a choisi un code fixe plutôt qu'une boîte e-mail de démonstration partagée. Coupé par défaut, il s'allume dans le `.env` de la Production juste avant la soumission, pour les deux seuls comptes de démonstration, et se coupe après la revue : procédure dans `docs/ops/mobile.md`, « Code de revue des stores ». Le relecteur suit le parcours habituel (adresse, e-mail demandé, code saisi) ; chaque connexion est inscrite au Journal. Au moment de saisir les notes dans App Store Connect et la Play Console, y remplacer `[REVIEW CODE]` et les adresses par les valeurs de ce `.env`, **jamais dans ce fichier** : le code est un secret, tiré à nouveau pour chaque revue.
 4. La confirmation de #707 sur les paragraphes « Payments » ci-dessous.
 
 ## Notes (anglais, à coller)
@@ -18,8 +17,9 @@ Jobbbox is a job-search coaching service for candidates in France and French-spe
 
 SIGNING IN
 There is no password. On « Sign in to Jobbbox », enter the demo email address, tap « Send me a sign-in link », then enter the 6-digit code under « Enter the code from the email » and tap « Sign in with this code ».
-Demo Candidate: [TO BE COMPLETED: email and how to get the code]
-Demo Human Coach: [TO BE COMPLETED: email and how to get the code]
+Demo Candidate: [TO BE COMPLETED: email], code [REVIEW CODE]
+Demo Human Coach: [TO BE COMPLETED: email], code [REVIEW CODE]
+The review code works only for these two demo accounts, during the review. You may type it as soon as you have asked for the sign-in email: there is no need to open the email. If a code is refused 5 times, ask for a new email and type the same code again.
 Neither demo account has two-step verification. « Continue with Apple » (Sign in with Apple) is offered beside the other sign-in providers.
 
 THE AI COACH

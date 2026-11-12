@@ -6,7 +6,8 @@ import { useTranslation } from "react-i18next";
 import type { ProvenanceEvent } from "@jobhub/shared";
 import { nextCreation, type CreationNote } from "@/ai-activity/creation";
 import type { CreationGiven } from "@/ai-activity/entries";
-import { isRunning, nextLive, type LiveAction, type LiveEnded, type RequestKind } from "@/ai-activity/live";
+import type { FollowedSearch } from "@/ai-activity/followed-search";
+import { isRunning, jobSearchKey, nextLive, type LiveAction, type LiveEnded, type RequestKind } from "@/ai-activity/live";
 import type { RunningJobSearch } from "@/job-searches";
 
 /**
@@ -44,6 +45,18 @@ interface Live {
   creation: CreationGiven | null;
   /** The creation page says how the Candidate goes (ai-activity/creation). */
   noteCreation(note: CreationNote): void;
+  /**
+   * The Job Search a page follows as its own (#1001: the onboarding's offered one on `/profils/nouveau`), with what that
+   * page counts; kept until another page follows one or it is let go, so its history entry stays once it ended. Null: none.
+   */
+  followed: FollowedSearch | null;
+  /**
+   * The followed Job Search's action as last seen: kept once the poll no longer brings it (its notification dismissed),
+   * for its history entry. Null before the poll first brings it.
+   */
+  followedAction: LiveAction | null;
+  /** A page follows a Job Search (or lets it go, null), with what it counts of it: called again as that changes. */
+  follow(followed: FollowedSearch | null): void;
 }
 
 const LiveContext = createContext<Live | null>(null);
@@ -60,6 +73,12 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
   const [actions, dispatch] = useReducer(nextLive, []);
   const [conversationShown, setConversationShown] = useState(false);
   const [creation, setCreation] = useState<CreationGiven | null>(null);
+  const [followed, setFollowed] = useState<FollowedSearch | null>(null);
+  // The followed Job Search's action as last seen, derived while rendering: kept when the poll lets it go.
+  const [followedAction, setFollowedAction] = useState<LiveAction | null>(null);
+  const seen = followed ? (actions.find((action) => action.key === jobSearchKey(followed.jobSearchId)) ?? null) : null;
+  if (followed && seen && seen !== followedAction) setFollowedAction(seen);
+  if (followedAction && followedAction.key !== (followed ? jobSearchKey(followed.jobSearchId) : null)) setFollowedAction(null);
   // The actions whose page was left while they ran (RequestActionLive.leave).
   const [left, setLeft] = useState<ReadonlySet<string>>(() => new Set());
   const stops = useRef(new Map<string, () => void>());
@@ -102,11 +121,12 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
         const at = new Date().toISOString();
         setCreation((was) => nextCreation(was, note, at));
       },
+      follow: setFollowed,
     }),
     [],
   );
 
-  const live = useMemo<Live>(() => ({ actions, creation, ...api }), [actions, creation, api]);
+  const live = useMemo<Live>(() => ({ actions, creation, followed, followedAction, ...api }), [actions, creation, followed, followedAction, api]);
   return (
     <LiveContext.Provider value={live}>
       {children}

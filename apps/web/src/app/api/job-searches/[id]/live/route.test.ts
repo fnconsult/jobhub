@@ -26,7 +26,7 @@ function call(query = "") {
   return GET(new Request(`${WEB}/api/job-searches/${SEARCH_ID}/live${query}`), { params: Promise.resolve({ id: SEARCH_ID }) });
 }
 
-describe("GET /api/job-searches/:id/live, the onboarding's search card's poll (#1001)", () => {
+describe("GET /api/job-searches/:id/live, what the onboarding's page reads (#1001)", () => {
   beforeEach(() => {
     state.candidate = { id: "marie" };
     state.calls = [];

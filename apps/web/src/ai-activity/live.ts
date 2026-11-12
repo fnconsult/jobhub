@@ -6,14 +6,14 @@
  *
  *   nextLive(actions, change)     the actions after a change: an action started, a step's event, a Stop asked, an end,
  *                                 or the Job Searches the page's poll brought
- *   liveView(actions, pathname)   what AI Activity shows: the action under way for the closed button, those of this page,
- *                                 and those « En cours ailleurs »
+ *   liveView(actions, pathname, followed)   what AI Activity shows: the action under way for the closed button, those of
+ *                                 this page (its own, and the Job Search the page follows, #1001), and those « En cours ailleurs »
  *   failedReason(body)            a failed action's Failure Reason, from its route's `failed` event or error body
  *
  * Pure: the provider (components/AiActivity) keeps the state and the Stops.
  */
 import { describeModel, isFailureReason, stepLabel, toolById, type Activity, type ProvenanceEvent, type ProvenanceStep, type StepLabel, type StepOutcome } from "@jobhub/shared";
-import type { JobSearchNotification, RunningJobSearch } from "../job-searches";
+import type { JobSearchNotification, LiveMeasures, RunningJobSearch } from "../job-searches";
 import { routes } from "../routes";
 
 /**
@@ -75,6 +75,11 @@ export interface LiveAction {
   seenFromStart: boolean;
   /** Why it failed, as an i18n key of its Failure Reason (null: not known), and during which step (null: none known). */
   failure: { reason: string | null; step: StepLabel | null } | null;
+  /**
+   * A Job Search's run measures as the poll last brought them (#1001: its sources' states, pages read, Job Offers
+   * analysed, its step), kept once it ended; null before the worker's first measure, and for any other action.
+   */
+  measured: LiveMeasures | null;
 }
 
 /** A Job Search that stopped searching, as the poll's notifications tell it. */
@@ -147,16 +152,31 @@ function ended(action: LiveAction, change: Extract<LiveChange, { type: "ended" }
   };
 }
 
-const jobSearchKey = (jobSearchId: string) => `job_search:${jobSearchId}`;
+/** A Job Search's key among the live actions. */
+export const jobSearchKey = (jobSearchId: string) => `job_search:${jobSearchId}`;
 
 function started(change: { key: string; kind: LiveKind; href: string; at: string; name?: string; seenFromStart?: boolean }): LiveAction {
   const { key, kind, href, at } = change;
-  return { key, kind, href, name: change.name ?? null, startedAt: at, status: "running", steps: [], current: null, tokens: null, endedAt: null, seenFromStart: change.seenFromStart ?? true, failure: null };
+  return {
+    key,
+    kind,
+    href,
+    name: change.name ?? null,
+    startedAt: at,
+    status: "running",
+    steps: [],
+    current: null,
+    tokens: null,
+    endedAt: null,
+    seenFromStart: change.seenFromStart ?? true,
+    failure: null,
+    measured: null,
+  };
 }
 
 /**
- * The Job Searches as the poll tells them: each searching one with the steps written so far, the one asked to stop still
- * saying so; one seen searching that ended, done, stopped or failed; one dismissed or never seen searching, nowhere.
+ * The Job Searches as the poll tells them: each searching one with the steps written so far and its run's measures (the
+ * last ones kept when the poll brings none), the one asked to stop still saying so; one seen searching that ended, done, stopped or failed; one dismissed or never seen searching, nowhere.
  */
 function jobSearches(actions: readonly LiveAction[], poll: Extract<LiveChange, { type: "job_searches" }>): LiveAction[] {
   const searching = new Map(poll.running.map((search) => [jobSearchKey(search.jobSearchId), search]));
@@ -183,7 +203,7 @@ function jobSearches(actions: readonly LiveAction[], poll: Extract<LiveChange, {
   return kept.map((action) => {
     const search = searching.get(action.key);
     if (!search) return action;
-    return withSums({ ...action, steps: search.steps.map(stepOf) });
+    return withSums({ ...action, steps: search.steps.map(stepOf), measured: search.live ?? action.measured });
   });
 }
 
@@ -215,16 +235,22 @@ export function nextLive(actions: readonly LiveAction[], change: LiveChange): Li
 export interface LiveView {
   /** What the closed button shows: the latest action still running (or being stopped); null when none is. */
   underWay: LiveAction | null;
-  /** The actions run for the page in view, in the order they started. */
+  /** The actions run for the page in view, and the one it follows (#1001), in the order they started. */
   here: LiveAction[];
   /** The others: « En cours ailleurs », each with a link to its page. */
   elsewhere: LiveAction[];
 }
 
-export function liveView(actions: readonly LiveAction[], pathname: string): LiveView {
+/**
+ * What AI Activity shows on the page at `pathname`: here, the actions run for it and, when `followed` is the key of one,
+ * the action the page follows as its own though it has a page of its own (the onboarding's offered Job Search on
+ * `/profils/nouveau`, #1001); elsewhere, the others. With no `followed`, as every page has it.
+ */
+export function liveView(actions: readonly LiveAction[], pathname: string, followed: string | null = null): LiveView {
+  const isHere = (action: LiveAction) => action.href === pathname || action.key === followed;
   return {
     underWay: lastOf(actions, running) ?? null,
-    here: actions.filter((action) => action.href === pathname),
-    elsewhere: actions.filter((action) => action.href !== pathname),
+    here: actions.filter(isHere),
+    elsewhere: actions.filter((action) => !isHere(action)),
   };
 }

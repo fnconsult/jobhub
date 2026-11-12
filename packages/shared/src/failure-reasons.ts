@@ -102,6 +102,8 @@ export const FAILURE_REASONS = [
   "reply_required",
   /** A Signalement's reply written once it was marked « traité » (#376). */
   "already_handled",
+  /** A wrong store review sign-in code typed for a demo account (#981). */
+  "wrong_code",
   // A Guardrail that could not check (#261): its Guardrail Trigger records why.
   /** The Guardrail's AI check gave no verdict in time. */
   "guardrail_timeout",

@@ -213,7 +213,7 @@ test.describe("A Job Search shows its steps while it runs and keeps its Provenan
     expect(activities).toContain("read");
   });
 
-  test("its run's measures land while it searches, over the onboarding card's poll, then its analysis (#1001)", async () => {
+  test("its run's measures land while it searches, over the onboarding page's reads, then its analysis (#1001)", async () => {
     type Live = { step: string; sources: { source: string; state: string }[]; pagesRead: number; offersAnalysed: number; matched: number | null; jobOfferIds: string[] };
     type Polled = { status: string; live: Live | null; jobOffers: { id: string; title: string; content: string }[] };
     const jobSearchId = await startSearch(page);
@@ -222,12 +222,12 @@ test.describe("A Job Search shows its steps while it runs and keeps its Provenan
     let polled: Polled | null = null;
     const begun = Date.now();
     while (Date.now() - begun < 120_000) {
-      // As the card asks: each Job Offer once, those it has named in `known`.
+      // As the onboarding's page asks: each Job Offer once, those it has named in `known`.
       const response = await page.request.get(`/api/job-searches/${jobSearchId}/live${offers.size ? `?known=${[...offers].join(",")}` : ""}`);
       expect(response.status()).toBe(200);
       polled = (await response.json()) as Polled;
       for (const offer of polled.jobOffers) {
-        expect(offers.has(offer.id), "a Job Offer the card has is not sent again").toBe(false);
+        expect(offers.has(offer.id), "a Job Offer the page has is not sent again").toBe(false);
         offers.add(offer.id);
       }
       if (polled.status !== "searching") break;
@@ -247,7 +247,7 @@ test.describe("A Job Search shows its steps while it runs and keeps its Provenan
       expect(live.offersAnalysed).toBeGreaterThanOrEqual(searching[index - 1]!.offersAnalysed);
     }
 
-    // Over: its analysis, the Job Offers it kept, which the card has, and the worker's own count of those matching.
+    // Over: its analysis, the Job Offers it kept, which the page has, and the worker's own count of those matching.
     const row = await rowOf(jobSearchId);
     const final = polled!.live!;
     expect(final.step).toBe("analysis");

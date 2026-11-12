@@ -100,7 +100,7 @@
  * it stores the run's Provenance. A failed run's partial report has it too.
  *
  * What the run has measured so far is told to the request's `onMetrics` each time it changes (#1001): where each active
- * source stands, the pages read and the Job Offers found until then, for the onboarding's search card.
+ * source stands, the pages read and the Job Offers found until then, for AI Activity's « En ce moment » on the onboarding's page.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
 import { createProvenanceRecorder, createWebSearchRun, readJobPage, WebSearchUnavailable, type AiLayer, type SearchFallback, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";

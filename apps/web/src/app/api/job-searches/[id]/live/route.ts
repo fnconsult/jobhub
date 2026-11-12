@@ -6,10 +6,10 @@ import { getJobSearches } from "@/job-searches/server";
 const MAX_KNOWN = 500;
 
 /**
- * One of the signed-in Candidate's Job Searches as the onboarding's search card polls it (#1001), every 1.5 s while it
- * searches: where it stands, what its run has measured so far (sources, pages read, Job Offers found, its step), and the
+ * One of the signed-in Candidate's Job Searches as the onboarding's page reads it (#1001), each time AI Activity's poll
+ * says its run analysed more Job Offers, and once it is over: where it stands, what its run has measured so far, and the
  * Job Offers found until then (kept, once over) as the Match Score reads them, but the Expired ones and those whose ids
- * `known` lists (comma-separated), which the card already has. Reading it changes nothing.
+ * `known` lists (comma-separated), which the page already has. Reading it changes nothing.
  * 200 JobSearchLive · 401 · 404 (also anyone else's)
  */
 export async function GET(request: Request, { params }: RouteContext<"/api/job-searches/[id]/live">) {

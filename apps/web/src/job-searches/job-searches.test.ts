@@ -709,7 +709,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect(await jobSearches.notifications(candidateId)).toEqual({
         notifications: [],
         searching: true,
-        running: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [] }],
+        running: [{ jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [], live: null }],
       });
 
       clock.now = new Date("2026-10-15T10:00:16+02:00");
@@ -887,7 +887,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await reports.progress(jobSearch.id, [titlesEnded, franceTravail]);
 
       expect((await jobSearches.notifications(candidateId)).running).toEqual([
-        { jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [titlesEnded, franceTravail] },
+        { jobSearchId: jobSearch.id, profile: { id: profileId, name: "DAF" }, startedAt: jobSearch.startedAt.toISOString(), steps: [titlesEnded, franceTravail], live: null },
       ]);
       expect((await jobSearches.notifications(otherCandidateId)).running).toEqual([]);
     });
@@ -934,7 +934,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     });
   });
 
-  describe("a Job Search's live metrics, for the onboarding's search card (#1001)", () => {
+  describe("a Job Search's live metrics, for the onboarding's page (#1001)", () => {
     let reports: ReturnType<typeof createJobSearchReports>;
     beforeEach(() => {
       reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
@@ -951,7 +951,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       jobOfferIds,
     });
 
-    it("gives what the run measured so far with the Job Offers found until then, as the Match Score reads them, but those the card has", async () => {
+    it("gives what the run measured so far with the Job Offers found until then, as the Match Score reads them, but those the page has", async () => {
       const strong = await capture("DAF H/F", { employer: "Acme Industrie", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] });
       const weak = await capture("Contrôleur de gestion", { location: "Marseille", contractType: "cdd" });
       const jobSearch = await started();
@@ -966,6 +966,16 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
         { id: weak, title: "Contrôleur de gestion", content: "Contrôleur de gestion. Poste à pourvoir.", location: "Marseille", contractType: "cdd" },
       ]);
       expect((await jobSearches.live(candidateId, jobSearch.id, [strong]))?.jobOffers.map((offer) => offer.id)).toEqual([weak]);
+    });
+
+    it("brings its measures, without the Job Offers' ids, with its steps on every page's poll, for AI Activity", async () => {
+      const strong = await capture("DAF H/F", { location: "Lyon", contractType: "cdi" });
+      const jobSearch = await started();
+      await reports.live(jobSearch.id, measuring([strong]));
+      const { step, sources, pagesRead, offersAnalysed, matched } = measuring([strong]);
+      const measures = { step, sources, pagesRead, offersAnalysed, matched };
+      expect((await jobSearches.notifications(candidateId)).running).toMatchObject([{ jobSearchId: jobSearch.id, live: measures }]);
+      expect((await jobSearches.notifications(candidateId)).running[0]!.live).not.toHaveProperty("jobOfferIds");
     });
 
     it("keeps the last measure once over, with the Job Offers kept, and writes none after", async () => {

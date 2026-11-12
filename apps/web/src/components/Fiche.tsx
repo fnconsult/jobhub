@@ -241,6 +241,7 @@ export function FicheProvider({ object = true, views: offered, children }: { obj
         if (wide || shownView === null) return;
         setChanged({ view: null });
       },
+      wide,
     }),
     [shownView, toggle, open, ficheId, wide],
   );

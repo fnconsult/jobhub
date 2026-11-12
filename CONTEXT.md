@@ -58,6 +58,14 @@ _Avoid_: Anonymous user, visitor, lead
 The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request. When the Guest creates an account or signs in, the CV becomes a Profile and the Job Offer an Application, then both leave the session.
 _Avoid_: Temporary account, trial
 
+**Landing page**:
+What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead.
+_Avoid_: Home page (for the Visitor's), marketing site, splash page
+
+**Logo**:
+« La boîte qui répond » (ADR-0105): a letterbox in the shape of a speech bubble, the offer in its slot and three dots for the coach answering, beside the name « Jobbbox » in text. On the public pages and the favicons; elsewhere the name in text still stands in for it.
+_Avoid_: Icon (that is a Lucide icon), the « J » (AI Activity's provenance mark)
+
 **Visitor**:
 A person reading Jobbbox's public site without being signed in: the Help Centre, the legal texts, Nouveautés. Leaves no CV and no Job Offer. The role follows the surface and the sign-in, not the person: the same person is a Guest in the extension and a Visitor on the site, and a signed-out Candidate is a Visitor.
 _Avoid_: Anonymous user, prospect, lead, Guest (for someone on the site)

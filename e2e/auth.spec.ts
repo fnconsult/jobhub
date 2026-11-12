@@ -320,7 +320,7 @@ test.describe("Interface Language", () => {
     await page.goto("/compte");
     await page.getByRole("button", { name: accountButtonName(en.nav.account) }).click();
     await page.getByRole("menuitem", { name: en.account.signOut }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.home.title);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.landing.hero.title);
     const message = await signInWithMagicLink(page, email);
     expect(message.subject).toBe(en.signInEmail.subject);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");

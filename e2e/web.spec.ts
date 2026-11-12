@@ -28,8 +28,10 @@ test.describe("web app", () => {
     expect(texts.length).toBeGreaterThan(3);
     // The Plans are the Back Office's data (their prices from Stripe, their quotas from the Plans catalogue), not copy:
     // what the landing page shows of them is left out here (ADR-0105).
-    const plans = new Set(await page.locator(".landing-plans *").allInnerTexts());
-    const stray = texts.map((t) => t.text).filter((text) => !allowed.has(text) && !plans.has(text));
+    // A price's spaces are no-break ones (Intl), read here as plain spaces: both sides are compared with spaces alike.
+    const plain = (text: string) => text.replace(/\s+/g, " ").trim();
+    const plans = new Set((await page.locator(".landing-plans *").allInnerTexts()).map(plain));
+    const stray = texts.map((t) => t.text).filter((text) => !allowed.has(text) && !plans.has(plain(text)));
     expect(stray).toEqual([]);
   });
 

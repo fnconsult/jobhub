@@ -1,3 +1,4 @@
+import { COACHING_DEFAULT_ZONE, coachingDay, coachingDayStart } from "@jobhub/shared/coaching-time";
 /**
  * The Agenda: the Candidate's Agenda Items, read from where they live. An
  * Agenda Item is not a thing of its own (CONTEXT.md): the Interviews of every
@@ -23,7 +24,7 @@
 import type { Pool } from "pg";
 import { frenchDayStart, interviewDayStart, type Interview } from "../applications";
 import { dayAfter, frenchDay } from "./calendar";
-import type { SessionEditor } from "../human-coaches";
+import type { RescheduledBy } from "../reschedules";
 import { rescheduleHistories, type Reschedule } from "../reschedules";
 
 /** One Interview, as the Agenda shows it; it leads to its Application's Interviews Section. */
@@ -55,7 +56,7 @@ export interface CoachingSessionAgendaItem {
   videoLink?: string;
   note?: string;
   /** Who last entered or changed its date: « modifié par le coach » for "coach". */
-  changedBy: SessionEditor;
+  changedBy: RescheduledBy;
   /** Its Reschedule history, oldest first: a cancellation before it was dated again included. */
   reschedules: Reschedule[];
 }
@@ -88,9 +89,9 @@ export interface AgendaItemRef {
 
 export interface Agenda {
   /** The Candidate's Agenda Items for `period`, split at the start of `now`'s day, grouped by day in French time. */
-  days(candidateId: string, options: { period: AgendaPeriod; now: Date }): Promise<AgendaDay[]>;
+  days(candidateId: string, options: { period: AgendaPeriod; now: Date; timeZone?: string }): Promise<AgendaDay[]>;
   /** The Candidate's Agenda Items from the start of `first` to the end of `last` (days in French time), grouped by day, oldest first. */
-  daysBetween(candidateId: string, days: { first: string; last: string }): Promise<AgendaDay[]>;
+  daysBetween(candidateId: string, days: { first: string; last: string; timeZone?: string }): Promise<AgendaDay[]>;
   /** The Candidate's Unscheduled Coaching Sessions, oldest paid first. Never in `days` nor `daysBetween`. */
   unscheduled(candidateId: string): Promise<UnscheduledCoachingSession[]>;
   /**
@@ -125,18 +126,16 @@ function windowCondition(alias: string, window: Window): { sql: string; values: 
 }
 
 /** Agenda Items in their window's order, grouped by day in French time. */
-function byDay(items: AgendaItem[], window: Window): AgendaDay[] {
+function byDay(items: AgendaItem[], window: Window, timeZone = COACHING_DEFAULT_ZONE): AgendaDay[] {
   const direction = window.newestFirst ? -1 : 1;
-  // Each source comes in the window's order; sorting is stable, so that order holds for items at the same time.
-  const sorted = [...items].sort((a, b) => direction * (a.scheduledAt.getTime() - b.scheduledAt.getTime()));
-  const days: AgendaDay[] = [];
-  for (const item of sorted) {
-    const day = frenchDay(item.scheduledAt);
-    const last = days.at(-1);
-    if (last?.day === day) last.items.push(item);
-    else days.push({ day, items: [item] });
+  const grouped = new Map<string, AgendaItem[]>();
+  for (const item of items) {
+    const day = item.kind === "coachingSession" ? coachingDay(item.scheduledAt, timeZone) : frenchDay(item.scheduledAt);
+    const group = grouped.get(day) ?? [];
+    group.push(item);
+    grouped.set(day, group);
   }
-  return days;
+  return [...grouped].sort(([a], [b]) => direction * a.localeCompare(b)).map(([day, items]) => ({ day, items: items.sort((a, b) => direction * (+a.scheduledAt - +b.scheduledAt)) }));
 }
 
 /** The period an Agenda Item at `instant` is in: "upcoming" from the start of today (`now`'s day in French time) on, "past" before. */
@@ -194,7 +193,7 @@ export function createAgenda(database: Pool): Agenda {
   async function coachingSessions(candidateId: string, window: Window): Promise<AgendaItem[]> {
     const condition = windowCondition("s", window);
     const order = window.newestFirst ? "DESC" : "ASC";
-    const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null; changed_by: SessionEditor | null }>(
+    const { rows } = await database.query<{ id: string; scheduled_at: Date; coach_id: string; coach_name: string; duration_minutes: number | null; video_link: string | null; note: string | null; changed_by: RescheduledBy | null }>(
       `SELECT s.id, s.scheduled_at, h.id AS coach_id, h.name AS coach_name, s.duration_minutes, s.video_link, s.note, s.changed_by
          FROM coaching_session s
          JOIN human_coach h ON h.id = s.coach_id
@@ -221,18 +220,20 @@ export function createAgenda(database: Pool): Agenda {
   }
 
   /** The Candidate's Interviews and dated Coaching Sessions in `window`, grouped by day. */
-  async function itemsByDay(candidateId: string, window: Window): Promise<AgendaDay[]> {
-    const [byInterview, bySession] = await Promise.all([interviews(candidateId, window), coachingSessions(candidateId, window)]);
-    return byDay([...byInterview, ...bySession], window);
+  async function itemsByDay(candidateId: string, window: Window, sessionWindow = window, timeZone = COACHING_DEFAULT_ZONE): Promise<AgendaDay[]> {
+    const [byInterview, bySession] = await Promise.all([interviews(candidateId, window), coachingSessions(candidateId, sessionWindow)]);
+    return byDay([...byInterview, ...bySession], window, timeZone);
   }
 
   return {
-    async days(candidateId, { period, now }) {
-      return itemsByDay(candidateId, periodWindow(period, now));
+    async days(candidateId, { period, now, timeZone = COACHING_DEFAULT_ZONE }) {
+      const midnight = coachingDayStart(coachingDay(now, timeZone), timeZone);
+      const sessions = period === "upcoming" ? { from: midnight, newestFirst: false } : { before: midnight, newestFirst: true };
+      return itemsByDay(candidateId, periodWindow(period, now), sessions, timeZone);
     },
 
-    async daysBetween(candidateId, { first, last }) {
-      return itemsByDay(candidateId, { from: frenchDayStart(first), before: frenchDayStart(dayAfter(last)), newestFirst: false });
+    async daysBetween(candidateId, { first, last, timeZone = COACHING_DEFAULT_ZONE }) {
+      return itemsByDay(candidateId, { from: frenchDayStart(first), before: frenchDayStart(dayAfter(last)), newestFirst: false }, { from: coachingDayStart(first, timeZone), before: coachingDayStart(dayAfter(last), timeZone), newestFirst: false }, timeZone);
     },
 
     async unscheduled(candidateId) {
@@ -240,7 +241,7 @@ export function createAgenda(database: Pool): Agenda {
         `SELECT s.id, s.paid_at, h.id AS coach_id, h.name AS coach_name, h.booking_url
            FROM coaching_session s
            JOIN human_coach h ON h.id = s.coach_id
-          WHERE s.candidate_id = $1 AND s.scheduled_at IS NULL AND s.withdrawn_at IS NULL
+          WHERE s.candidate_id = $1 AND s.scheduled_at IS NULL AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL
           ORDER BY s.paid_at, s.id`,
         [candidateId],
       );

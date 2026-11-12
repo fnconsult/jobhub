@@ -1,4 +1,5 @@
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
+import { coachSpaceV2In } from "@/coach-space-v2";
 import { helpMediaOrigin } from ".";
 
 /**
@@ -10,5 +11,14 @@ export function currentHelpMediaOrigin(): string {
     return helpMediaOrigin(getPlatformSettingsResolver().current());
   } catch {
     return helpMediaOrigin({ setting: () => undefined });
+  }
+}
+
+/** Whether « Espace coach v2 » is on, from the same per-process cache; off when the settings cannot be read. */
+export function currentCoachSpaceV2(): boolean {
+  try {
+    return coachSpaceV2In(getPlatformSettingsResolver().current());
+  } catch {
+    return false;
   }
 }

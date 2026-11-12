@@ -51,7 +51,9 @@ test.describe("@jobhub/help package", () => {
     expect(names("fr")).toEqual(names("en"));
     const { counts } = load([]);
     expect(counts.fr).toBe(counts.en);
-    expect(counts.fr).toBe(names("fr").length);
+    // The suite runs with « Espace coach v2 » off (ADR-0107): the package serves the articles that require nothing.
+    const served = names("fr").filter((name) => !/^requires:/m.test(readFileSync(path.join(helpDir, "articles", "fr", name), "utf8")));
+    expect(counts.fr).toBe(served.length);
   });
 
   // #567: a Tutorial's `motion` names its Motion Script (packages/help/motions), written in French and in English.

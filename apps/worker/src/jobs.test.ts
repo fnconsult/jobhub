@@ -833,6 +833,104 @@ describe("the Legal Text notices job (#547)", () => {
   });
 });
 
+describe("private Coach agreement notices",()=>{
+  it("retries failed deliveries with backoff and completes after the remaining recipient succeeds",async()=>{
+    const sendNotices=vi.fn(async()=>({sent:1,failed:1}));
+    const job=createJobs({...otherDeps,database:noDatabase,coachSpaceV2:()=>true,coachContracts:{sendNotices,purge:async()=>0}})["coach-contracts.notices"]!;
+    expect(job.retry).toMatchObject({backoff:true});
+    await expect(job.handler({})).rejects.toThrow("Coach agreement notices require retry");
+    sendNotices.mockResolvedValueOnce({sent:1,failed:0});
+    await expect(job.handler({})).resolves.toBeUndefined();
+  });
+});
+
+describe("« Espace coach v2 » off (ADR-0107): the Human Coach epic's jobs", () => {
+  const epic = () => {
+    const calls: string[] = [];
+    const called = (name: string) => async () => {
+      calls.push(name);
+      return name.endsWith("sendNotices") ? { sent: 0, failed: 0 } : 0;
+    };
+    const deps = {
+      coachingTaxes: { deliverCopies: called("tax.deliverCopies"), purge: called("tax.purge"), reencrypt: called("tax.reencrypt") },
+      coachingContentReports: { deliverNotices: called("reports.deliverNotices"), purge: called("reports.purge") },
+      coachingNotifications: { sendDue: called("notifications.sendDue"), purge: called("notifications.purge") },
+      coachingCancellations: { expireChoices: called("cancellations.expireChoices"), retiredCoaches: called("cancellations.retiredCoaches"), deliverNotices: called("cancellations.deliverNotices") },
+      coachingRefunds: { runPending: called("refunds.runPending"), purge: called("refunds.purge") },
+      coachingBooking: {
+        replayPending: called("booking.replayPending"),
+        deliverCancellations: called("booking.deliverCancellations"),
+        deliverNotices: called("booking.deliverNotices"),
+        purge: called("booking.purge"),
+        observeLegal: async () => (calls.push("booking.observeLegal"), true),
+      },
+      coachingConnect: { runMonthly: called("connect.runMonthly"), purge: called("connect.purge") },
+      coachPages: { deliverNotices: called("pages.deliverNotices"), purge: called("pages.purge") },
+      coachAssociations: { deliverInvitations: called("associations.deliverInvitations"), purge: called("associations.purge") },
+      coachContracts: { sendNotices: called("contracts.sendNotices"), purge: called("contracts.purge") },
+      coachEnrolments: { deliverNotices: called("enrolments.deliverNotices"), purge: called("enrolments.purge") },
+    } as unknown as Partial<JobsDeps>;
+    return { calls, deps };
+  };
+  const SENDING = [
+    "coaching-tax.copies",
+    "coaching-content-reports.send",
+    "coaching-notifications.send",
+    "coaching-cancellations.reconcile",
+    "coaching-refunds.reconcile",
+    "coaching-booking.sync",
+    "coaching-connect.payouts",
+    "coach-pages.notices",
+    "coach-associations.invitations",
+    "coach-contracts.notices",
+    "coach-enrolments.notices",
+  ];
+
+  it("send, sync and pay nothing while it is off, or not given", async () => {
+    for (const coachSpaceV2 of [() => false, undefined]) {
+      const { calls, deps } = epic();
+      const jobs = createJobs({ ...otherDeps, database: noDatabase, ...deps, ...(coachSpaceV2 ? { coachSpaceV2 } : {}) });
+      for (const name of SENDING) await jobs[name]!.handler({});
+      expect(calls).toEqual([]);
+    }
+  });
+
+  it("run as before once it is on, asked at each run (no restart)", async () => {
+    let on = false;
+    const { calls, deps } = epic();
+    const jobs = createJobs({ ...otherDeps, database: noDatabase, ...deps, coachSpaceV2: () => on });
+    await jobs["coaching-notifications.send"]!.handler({});
+    expect(calls).toEqual([]);
+    on = true;
+    for (const name of SENDING) await jobs[name]!.handler({});
+    expect(calls).toEqual([
+      "tax.deliverCopies",
+      "reports.deliverNotices",
+      "notifications.sendDue",
+      "cancellations.retiredCoaches",
+      "cancellations.expireChoices",
+      "cancellations.deliverNotices",
+      "refunds.runPending",
+      "booking.replayPending",
+      "booking.deliverCancellations",
+      "booking.deliverNotices",
+      "booking.observeLegal",
+      "connect.runMonthly",
+      "pages.deliverNotices",
+      "associations.deliverInvitations",
+      "contracts.sendNotices",
+      "enrolments.deliverNotices",
+    ]);
+  });
+
+  it("still purge their own tables while it is off: they send nothing to anybody", async () => {
+    const { calls, deps } = epic();
+    const jobs = createJobs({ ...otherDeps, database: noDatabase, ...deps, coachSpaceV2: () => false });
+    for (const name of ["coaching-tax.retention", "coaching-notifications.purge", "coach-contracts.purge"]) await jobs[name]!.handler({});
+    expect(calls).toEqual(["tax.reencrypt", "tax.purge", "notifications.purge", "contracts.purge"]);
+  });
+});
+
 describe("the Nouveautés email job (#566)", () => {
   it("sends the Nouveautés emails due every day, saying how many went and how many are left to the next run", async () => {
     const logs: string[] = [];

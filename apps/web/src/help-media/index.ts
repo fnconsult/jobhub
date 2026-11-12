@@ -28,8 +28,9 @@ export function helpMediaOrigin(settings: Pick<PlatformSettingsSnapshot, "settin
  * The Content-Security-Policy every answer carries: media (the `<video>` and its `<track>`) only from the bucket's
  * origin, nothing else (#568). The poster is an image: `img-src` is not restricted, nor is anything else yet.
  */
-export function contentSecurityPolicy(origin: string): string {
-  return `media-src ${origin}`;
+export function contentSecurityPolicy(origin: string, coachSpaceV2 = false): string {
+  // Cal.com's booking frame (#881) only with « Espace coach v2 » on (ADR-0107); off, main's policy.
+  return coachSpaceV2 ? `media-src ${origin}; frame-src 'self' https://cal.com https://app.cal.com` : `media-src ${origin}`;
 }
 
 /** One render of one script in one language, as the manifest names it (`PublishedMotion` in packages/motions). */

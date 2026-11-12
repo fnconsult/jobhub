@@ -114,3 +114,13 @@ describe("parisDay — the day in France, which the effective dates are", () => 
     expect(parisDay(new Date("2026-07-31T22:00:00Z"))).toBe("2026-08-01");
   });
 });
+
+
+describe("private Coach agreement registry",()=>{
+  it("uses only private archive URLs and supports a future substantial version",()=>{
+    const versions:LegalTextVersion[]=[{...cgu("2027-01-01","substantielle","Test fixture only"),text:"contrat-coach"}];
+    const shown=legalText("contrat-coach","fr",{on:today,version:"2027-01-01"},versions);
+    expect(shown?.upcoming).toBe(true);
+    expect(legalTextHistory("contrat-coach","fr","2027-01-01",versions)[0]?.url).toBe("/espace-coach/contrat/versions/2027-01-01");
+  });
+});

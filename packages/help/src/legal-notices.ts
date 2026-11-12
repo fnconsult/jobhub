@@ -9,7 +9,7 @@ import type { LegalTextId, LegalTextVersion } from "./legal-texts";
 export const LEGAL_NOTICE_DAYS = 30;
 
 /** The Legal Texts whose substantial versions are noticed: the CGU, the CGV and the privacy policy, not the legal notice. */
-export const NOTICED_LEGAL_TEXTS: readonly LegalTextId[] = ["cgu", "cgv", "confidentialite"];
+export const NOTICED_LEGAL_TEXTS: readonly LegalTextId[] = ["cgu", "cgv", "confidentialite", "contrat-coach"];
 
 /** `day` (`YYYY-MM-DD`) moved by `days` days. */
 export function addDays(day: string, days: number): string {

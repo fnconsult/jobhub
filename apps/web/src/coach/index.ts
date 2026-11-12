@@ -51,7 +51,7 @@
  * Coaching Playbook whose Playbook Agent the reply always consults first, besides those chosen.
  */
 import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
-import { article } from "@jobhub/help";
+import { article, type HelpSettings } from "@jobhub/help";
 import { createI18n } from "@jobhub/shared/i18n";
 import { DEFAULT_COACH_CONTEXT_LIMITS, failureOf, type CoachContextLimits, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
@@ -164,6 +164,8 @@ export type CoachReply =
   | { ok: false; error: "unavailable"; reason: FailureReason };
 
 export interface CoachReplyOptions {
+  /** Trusted Session Report context: only actions that copy no text may be offered (ADR-0098). */
+  untrustedSessionReport?: boolean;
   /** The Candidate's, for a Guardrail message. Default French. */
   language?: GuardrailLanguage;
   /** The Candidate's Stop (#328): every AI call of the reply is aborted, and there is no reply. */
@@ -207,6 +209,11 @@ export interface CoachOptions {
   jobOfferLinks?: Pick<JobOfferLinks, "read">;
   /** The Coach Actions (ADR-0077, #713) a reply may call, while switched on. Without them, the AI Coach has no tool. */
   coachActions?: Pick<CoachActions, "forReply">;
+  /**
+   * The Help Articles' settings at the time of the reply (#867): « Espace coach v2 » on or off, which decides the Help
+   * Article whose title the AI Coach is told. Without it, off: the articles main served.
+   */
+  helpSettings?: () => HelpSettings;
 }
 
 /** Room for the Sources the knowledge cites, in estimated tokens. */
@@ -227,8 +234,8 @@ const inputSchema = z.object({
  * What the AI Coach is told of the Help Article the Candidate read before asking (ADR-0035): its title alone, in the
  * Candidate's language, never its text. Nothing for an article the help does not have.
  */
-function helpArticleText(helpArticle: { id: string } | undefined, language: GuardrailLanguage): string {
-  const read = helpArticle ? article(helpArticle.id, language) : null;
+function helpArticleText(helpArticle: { id: string } | undefined, language: GuardrailLanguage, settings: HelpSettings = {}): string {
+  const read = helpArticle ? article(helpArticle.id, language, settings) : null;
   return read ? `Le candidat vient de lire l'article d'aide de Jobbbox « ${read.title} » : il n'y a pas trouvé toute sa réponse.` : "";
 }
 
@@ -395,7 +402,7 @@ export function createCoach(deps: CoachDeps): Coach {
           const advice = consulted.filter((each): each is PlaybookAdvice => each !== null);
           const advised = advice.map(adviceText);
           const sources = sourcesText(served, [served.coreDigest?.content ?? "", ...advice.map((each) => each.advice)]);
-          const system = [instructions, ...advised, sources, context, helpArticleText(parsed.data.helpArticle, options.language ?? "fr")].filter(Boolean).join("\n\n");
+          const system = [instructions, ...advised, sources, context, helpArticleText(parsed.data.helpArticle, options.language ?? "fr", deps.helpSettings?.())].filter(Boolean).join("\n\n");
           return {
             served,
             choice,
@@ -430,7 +437,7 @@ export function createCoach(deps: CoachDeps): Coach {
           const offered = deps.coachActions
             ? await deps.coachActions.forReply(candidateId, {
                 recorder,
-                untrustedInView: untrustedInView(focus?.kind),
+                untrustedInView: options.untrustedSessionReport === true || untrustedInView(focus?.kind),
                 language: options.language ?? "fr",
                 ...(focus ? { focus } : {}),
                 ...(guard ? { guard } : {}),

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
 import type { MailMessage } from "../auth";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../billing/fake-stripe";
@@ -41,7 +41,13 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
     const profiles = createProfiles(t.database);
     const applications = createApplications(t.database, { jobOffers: createJobOffers(t.database), profiles });
     const now = () => t.clock.now;
-    coaches = createHumanCoaches(t.database, { profiles, applications, tailoredDocuments: { get: async () => null }, tailoredCvs: { get: async () => null }, now });
+    coaches = createHumanCoaches(t.database, {
+      profiles,
+      applications,
+      tailoredDocuments: { get: async () => null },
+      tailoredCvs: { get: async () => null },
+      now,
+    });
     // The page before Checkout (#512), with no CGV version in effect: only the Immediate Performance Request is asked.
     orders = createOrders(t.database, {
       billing: t.billing,
@@ -75,7 +81,9 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
     const marie = await t.signUp("marie.dupont@example.fr");
     await t.billing.startCheckout(marie, "standard");
     const customer = fakeCustomerId(marie.email);
-    await deliver(subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.standard, status: "active", startDate: startedAt }, startedAt));
+    await deliver(
+      subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.standard, status: "active", startDate: startedAt }, startedAt),
+    );
     const paymentIntent = t.stripe.payInvoice(`sub_fake_${customer}`, amount);
     return { ...marie, customer, paymentIntent };
   }
@@ -90,9 +98,20 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
     if (!placed.ok) throw new Error("fixture refused");
     const customer = fakeCustomerId(marie.email);
     const subscriptionId = `sub_fake_${customer}`;
-    const { rows } = await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order WHERE candidate_id = $1", [marie.id]);
-    await deliver(subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.standard, status: "active", startDate: startedAt }, startedAt));
-    await orders.paid({ checkoutSessionId: rows[0]!.checkout_session_id, candidateId: marie.id, mode: "subscription", subscriptionId, amount: 1900, currency: "eur" });
+    const { rows } = await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order WHERE candidate_id = $1", [
+      marie.id,
+    ]);
+    await deliver(
+      subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.standard, status: "active", startDate: startedAt }, startedAt),
+    );
+    await orders.paid({
+      checkoutSessionId: rows[0]!.checkout_session_id,
+      candidateId: marie.id,
+      mode: "subscription",
+      subscriptionId,
+      amount: 1900,
+      currency: "eur",
+    });
     const end = new Date(startedAt);
     end.setMonth(end.getMonth() + 1);
     const paymentIntent = t.stripe.payInvoice(subscriptionId, 1900, { start: startedAt, end });
@@ -106,7 +125,14 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       const marie = await subscribedMarie(paris("2026-10-12T10:00"));
 
       expect(await withdrawals.contracts(marie.id)).toEqual([
-        { ref: "plan", kind: "plan", subject: { fr: "Standard", en: "Standard" }, concludedAt: paris("2026-10-12T10:00"), deadline: paris("2026-10-27T00:00"), paid: null },
+        {
+          ref: "plan",
+          kind: "plan",
+          subject: { fr: "Standard", en: "Standard" },
+          concludedAt: paris("2026-10-12T10:00"),
+          deadline: paris("2026-10-27T00:00"),
+          paid: null,
+        },
       ]);
 
       t.clock.now = paris("2026-10-27T00:00");
@@ -159,7 +185,11 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       // 12 October to 12 November: 31 days, 3 of them elapsed on the 15th.
       const marie = await orderedMarie(paris("2026-10-12T10:00"), true);
 
-      expect(await withdrawals.contract(marie.id, "plan")).toMatchObject({ paid: { amount: 1900 }, refund: { amount: 1716, currency: "eur" }, immediateExecutionRequested: true });
+      expect(await withdrawals.contract(marie.id, "plan")).toMatchObject({
+        paid: { amount: 1900 },
+        refund: { amount: 1716, currency: "eur" },
+        immediateExecutionRequested: true,
+      });
       const result = await withdrawals.withdraw(marie, confirm, "fr");
 
       expect(result).toMatchObject({ ok: true, withdrawal: { refunds: [{ amount: 1716, kept: 184, status: "succeeded" }] } });
@@ -229,7 +259,10 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       const marie = await subscribedMarie(paris("2026-10-12T10:00"));
 
       expect(await withdrawals.withdraw(marie, { ...confirm, name: " " }, "fr")).toEqual({ ok: false, errors: [{ field: "name", code: "required" }] });
-      expect(await withdrawals.withdraw(marie, { ...confirm, receipt: "other", receiptEmail: "pas-une-adresse" }, "fr")).toEqual({ ok: false, errors: [{ field: "receiptEmail", code: "invalid" }] });
+      expect(await withdrawals.withdraw(marie, { ...confirm, receipt: "other", receiptEmail: "pas-une-adresse" }, "fr")).toEqual({
+        ok: false,
+        errors: [{ field: "receiptEmail", code: "invalid" }],
+      });
       t.clock.now = paris("2026-10-28T10:00");
       expect(await withdrawals.withdraw(marie, confirm, "fr")).toEqual({ ok: false, error: "not_withdrawable" });
       expect(t.stripe.refunds()).toEqual([]);
@@ -258,6 +291,24 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       return { marie, sessionId: session!.id, paymentIntent };
     }
 
+    it("preserves connected-account routing and application-fee refunds on the initial request and Support retry", async () => {
+      const { marie, sessionId, paymentIntent } = await paidSession(paris("2026-10-13T09:00"));
+      const lookup = vi
+        .spyOn(t.billing, "coachingSessionPayment")
+        .mockResolvedValue({ id: paymentIntent, amount: 9000, currency: "eur", stripeAccount: "acct_original_coach" });
+      t.stripe.refuseRefunds("insufficient_funds");
+      const result = await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr");
+      expect(result).toMatchObject({ ok: true, withdrawal: { refunds: [{ status: "failed" }] } });
+      t.stripe.refuseRefunds(null);
+      const [listed] = await withdrawals.list();
+      expect(await withdrawals.retryRefund(listed!.refunds[0]!.id)).toMatchObject({ ok: true, status: "succeeded" });
+      const calls = t.stripe.calls.filter((call) => call.method === "POST" && call.path === "/v1/refunds");
+      expect(calls).toHaveLength(2);
+      expect(calls.map((call) => call.account)).toEqual(["acct_original_coach", "acct_original_coach"]);
+      expect(calls.every((call) => call.params.get("refund_application_fee") === "true")).toBe(true);
+      expect(lookup).toHaveBeenCalledTimes(2);
+    });
+
     it("is offered for a paid session not held yet, within 14 days of its payment", async () => {
       const { marie, sessionId } = await paidSession(paris("2026-10-13T09:00"));
 
@@ -285,7 +336,9 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
         const added = await coaches.add({ name: "Sophie Martin", email: "sophie.martin@rh-conseil.fr", bookingUrl: "https://cal.com/sophie-martin/seance" });
         if (!added.ok) throw new Error("fixture refused");
         await orders.place(marie, { kind: "coachingSession", coachId: added.coach.id }, immediateExecution ? { immediateExecution: "yes" } : {}, "fr");
-        const { rows } = await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order WHERE candidate_id = $1", [marie.id]);
+        const { rows } = await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order WHERE candidate_id = $1", [
+          marie.id,
+        ]);
         const checkoutSessionId = rows[0]!.checkout_session_id;
         await coaches.recordPaidSession({ checkoutSessionId, candidateId: marie.id, coachId: added.coach.id, amount: 9000, currency: "eur" });
         const paymentIntent = t.stripe.payCheckoutSession(checkoutSessionId, 9000);
@@ -302,7 +355,10 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
         await coaches.scheduleSession(marie.id, sessionId, { scheduledAt: "2026-10-15T09:30" });
 
         expect(await withdrawals.contracts(marie.id)).toEqual([]);
-        expect(await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr")).toEqual({ ok: false, error: "not_withdrawable" });
+        expect(await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr")).toEqual({
+          ok: false,
+          error: "not_withdrawable",
+        });
       });
 
       it("is refunded in full once held, without the Immediate Performance Request, and keeps its date", async () => {
@@ -337,7 +393,10 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
 
       const result = await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr");
 
-      expect(result).toMatchObject({ ok: true, withdrawal: { contract: "coachingSession", subject: { fr: "Sophie Martin" }, refunds: [{ amount: 9000, status: "succeeded" }] } });
+      expect(result).toMatchObject({
+        ok: true,
+        withdrawal: { contract: "coachingSession", subject: { fr: "Sophie Martin" }, refunds: [{ amount: 9000, status: "succeeded" }] },
+      });
       expect(t.stripe.refunds()).toEqual([expect.objectContaining({ payment_intent: paymentIntent, amount: 9000 })]);
       expect(await coaches.sessions(marie.id)).toEqual([]);
       expect(sent.map((message) => message.to).sort()).toEqual([marie.email, "sophie.martin@rh-conseil.fr"].sort());
@@ -360,7 +419,11 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       expect(result).toMatchObject({ ok: true, withdrawal: { refunds: [{ status: "failed", failureReason: "insufficient_funds" }] } });
       expect(sent).toHaveLength(1);
       const [listed] = await withdrawals.list();
-      expect(listed).toMatchObject({ candidateEmail: marie.email, contract: "plan", refunds: [{ amount: 1900, status: "failed", failureReason: "insufficient_funds", attempts: 1 }] });
+      expect(listed).toMatchObject({
+        candidateEmail: marie.email,
+        contract: "plan",
+        refunds: [{ amount: 1900, status: "failed", failureReason: "insufficient_funds", attempts: 1 }],
+      });
 
       t.stripe.refuseRefunds(null);
       expect(await withdrawals.retryRefund(listed!.refunds[0]!.id)).toEqual({ ok: true, status: "succeeded" });

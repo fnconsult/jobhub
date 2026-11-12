@@ -22,7 +22,7 @@ const pushNotifications = createPushNotifications(database, { senders: () => (mo
 try {
   const { rows } = await database.query<{ id: string }>(`SELECT id FROM candidate WHERE lower(email) = lower($1)`, [email]);
   if (!rows[0]) throw new Error(`no account for ${email}`);
-  const notification = { event, jobSearchId: "js_1", jobDigestId: "jd_1", applicationId: "app_1", candidateId: "cand_1" };
+  const notification = { event, jobSearchId: "js_1", jobDigestId: "jd_1", applicationId: "app_1", candidateId: "cand_1", sessionId: "session_1", noticeKey: "a".repeat(64) };
   const job = createJobs({ database, pushNotifications })[PUSH_NOTIFICATIONS_QUEUE]!;
   const before = await database.query(`SELECT count(*)::int AS n FROM push_device WHERE candidate_id = $1`, [rows[0].id]);
   await job.handler({ personId: rows[0].id, notification });

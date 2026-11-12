@@ -1,3 +1,6 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { getCoachingCancellations } from "@/coaching-cancellations/server";
+import {getCoachingOffers} from "@/coaching-offers/server";
 import { getAcceptances } from "@/acceptances/server";
 import { getAuth, getMailer } from "@/auth/server";
 import { getBilling } from "@/billing/server";
@@ -11,6 +14,9 @@ let instance: Orders | undefined;
 export function getOrders(): Orders {
   instance ??= createOrders(sharedPool(), {
     billing: getBilling(),
+    offers:getCoachingOffers(),
+    coachSpaceV2: coachSpaceV2On,
+    peerOrderCap: (candidate, id, coach) => getCoachingCancellations().peerOrderCap(candidate, id, coach),
     coaches: getHumanCoaches(),
     acceptances: getAcceptances(),
     mailer: getMailer(),

@@ -1,3 +1,5 @@
+import {getCoachingNotifications} from "@/coaching-notifications/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { sharedPool } from "@/database/pool";
 import { getJobQueue } from "@/job-queue/server";
 import { createPushNotifications, type PushNotifications } from "./index";
@@ -10,6 +12,6 @@ let instance: PushNotifications | undefined;
  * which alone holds APNs' and FCM's keys and sends it.
  */
 export function getPushNotifications(): PushNotifications {
-  instance ??= createPushNotifications(sharedPool(), { senders: () => ({}), queue: getJobQueue() });
+  instance ??= createPushNotifications(sharedPool(), { coachSpaceV2: coachSpaceV2On, eligibleNotification:(id,notice)=>getCoachingNotifications().pushStillCurrent(id,notice),senders: () => ({}), queue: getJobQueue() });
   return instance;
 }

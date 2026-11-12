@@ -1,3 +1,4 @@
+import { migrateCoachingTimeZones } from "../coaching-time";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -74,6 +75,7 @@ describe.skipIf(!connectionString)("Appointment Reminders (needs Postgres: DATAB
     await migrateJobOffers(database);
     await migrateApplications(database);
     await migrateHumanCoaches(database);
+    await migrateCoachingTimeZones(database);
     await migrateAppointmentReminders(database);
     await migrateAppointmentReminders(database); // safe to run twice
     at(MORNING);

@@ -5,7 +5,8 @@
  * with its reason (#367), until the next of its kind takes its place; a finished one leaves, announced as before
  * (AiActivityLive's live region).
  *
- *   enCeMoment(actions, pathname, now)   what the block shows, read from AI Activity's live actions (ai-activity/live)
+ *   enCeMoment(actions, pathname, now, followed)   what the block shows, read from AI Activity's live actions
+ *                                        (ai-activity/live), the Job Search the page follows counted here (#1001)
  *   glyphNow(action)                     an action's glyph, which « Activité » in the Top Bar draws too
  *
  * Pure: no state of its own; the component (components/EnCeMoment) reads `useAiActivityLive` and ticks `now`.
@@ -69,9 +70,12 @@ function itemOf(action: LiveAction, now: number): NowItem {
   };
 }
 
-/** What « En ce moment » shows at `now` on the page at `pathname`: a finished action is no longer in it. */
-export function enCeMoment(actions: readonly LiveAction[], pathname: string, now: number): EnCeMoment {
-  const view = liveView(actions, pathname);
+/**
+ * What « En ce moment » shows at `now` on the page at `pathname`, `followed` the key of the action it follows as its own
+ * (#1001): a finished action is no longer in it.
+ */
+export function enCeMoment(actions: readonly LiveAction[], pathname: string, now: number, followed: string | null = null): EnCeMoment {
+  const view = liveView(actions, pathname, followed);
   const shown = (action: LiveAction) => action.status !== "done";
   return {
     here: view.here.filter(shown).map((action) => itemOf(action, now)),

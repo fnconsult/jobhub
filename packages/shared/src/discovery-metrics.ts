@@ -167,7 +167,7 @@ export function noDiscoveryMetrics(): DiscoveryMetrics {
 }
 
 /**
- * The sources a run consults, as the onboarding's search card names them (#1001): France Travail, Fantastic.jobs
+ * The sources a run consults, as AI Activity names them for the onboarding's search (#1001): France Travail, Fantastic.jobs
  * (« sites carrières des employeurs »), the web search, the ATS APIs, and the Profile's Target Companies.
  */
 export const DISCOVERY_SOURCES = ["france_travail", "fantastic_jobs", "web_search", "ats_apis", "target_companies"] as const;
@@ -185,7 +185,7 @@ export const LIVE_DISCOVERY_STEPS = ["search", "analysis"] as const;
 export type LiveDiscoveryStep = (typeof LIVE_DISCOVERY_STEPS)[number];
 
 /**
- * What a run has measured so far, published on its Job Search while it runs (#1001), for the onboarding's search card:
+ * What a run has measured so far, published on its Job Search while it runs (#1001), for AI Activity's « En ce moment » on the onboarding's page:
  * only what is counted, never an estimate. `sources` lists the run's active sources only, in DISCOVERY_SOURCES' order
  * (`target_companies` once the run has some to visit); `pagesRead` is the funnel's `fetched`; `offersAnalysed` the
  * distinct Job Offers found so far, `jobOfferIds`; `matched` the worker's own count at FUNNEL_MATCH_SCORE once it

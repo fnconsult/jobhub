@@ -422,6 +422,7 @@ describe("the live glyph of « Activité » in the Top Bar (#333, ADR-0034)", ()
       jobSearchId: "j1",
       profile: { id: "p1", name: "HEAD OF BU" },
       startedAt: at,
+      live: null,
       steps: [
         {
           type: "step_ended" as const,

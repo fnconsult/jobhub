@@ -5812,7 +5812,8 @@ textarea.title-edit {
 }
 
 /* An entry's Provenance sites (#980): its label, then the sites, each a disclosure of the pages read. */
-.activity-entry-sites .ai-activity-list {
+.activity-entry-sites .ai-activity-list,
+.activity-entry-offers .ai-activity-list {
   padding: 0;
   margin: var(--space-1) 0 0;
   list-style: none;
@@ -6020,6 +6021,26 @@ textarea.title-edit {
 }
 
 .en-ce-moment-words > p {
+  margin: 0;
+}
+
+/* The Job Search the page follows (#1001): across the whole entry, under its glyph, words and stop icon; its Stats two
+   by two in the panel's width, which their own grid would stack one per row. */
+.en-ce-moment-followed {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.en-ce-moment-followed .ds-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.en-ce-moment-followed .ai-activity-list,
+.en-ce-moment-refined {
   margin: 0;
 }
 

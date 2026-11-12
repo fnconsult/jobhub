@@ -157,6 +157,16 @@ export interface EntryCost {
   quota: WeeklyQuota | null;
   tokens: { count: number; calls: number | null; partial: boolean } | null;
   noAi: boolean;
+  /** Offered (the onboarding's Job Search, ADR-0106): no Plan Quota used, not counted in « Votre consommation ». */
+  offered?: true;
+}
+
+/** One of a Job Search's best Job Offers, as its entry lists them (#1001): its title, employer, Match Score and page. */
+export interface EntryOffer {
+  title: string;
+  employer: string | null;
+  score: number;
+  href: string;
 }
 
 /** How it ended, and what it gave when known: a Job Search's Job Offers, an ATS Score's score, the change a card made. */
@@ -212,6 +222,8 @@ export interface ActivityEntry {
   proposals?: EntryProposal[];
   /** A Profile's creation's: its parts, in their order, each as an entry. */
   parts?: ActivityEntry[];
+  /** A Job Search the page followed (#1001): its best Job Offers, the best first, its object's page listing them all. */
+  offers?: EntryOffer[];
 }
 
 export interface ActivityInput {
@@ -227,6 +239,8 @@ export interface ActivityInput {
   built?: readonly ServedEntry[];
   /** A Profile's creation as the page knows it: on a Profile's page, its page; in the browser, what it alone knows. */
   creation?: CreationGiven;
+  /** Entries the browser alone knows, made already: the Job Search the page followed, once over (#1001, followed-search). */
+  known?: readonly ActivityEntry[];
 }
 
 /**
@@ -445,6 +459,7 @@ function build(input: ActivityInput): Built[] {
   const built = newestFirst([
     ...prior,
     ...(creation ? [creation] : []),
+    ...(input.known ?? []).map((entry): Built => structuredClone(entry)),
     ...elements.flatMap((entry) => (entry ? [entry] : [])),
     ...replies.filter((entry) => !(entry.kind === "change" && madeVersion.has(entry.card!))),
     ...versions.map(([, entry]) => entry),

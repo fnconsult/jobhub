@@ -23,8 +23,9 @@
  *      and ends (the same events as the web streams'), and `notifications`, which every page
  *      polls while one is searching, gives them back (« En cours ailleurs »), until it is over.
  *    - `live`: while it searches, the worker also writes what it has measured so far (#1001: its sources, pages read,
- *      Job Offers found, its step), kept once it is over; `live` gives it back with the Job Offers found so far (kept,
- *      once over), as the Match Score reads them, for the onboarding's search card to count those matching its criteria.
+ *      Job Offers found, its step), kept once it is over; `notifications` gives its measures back with its steps, for
+ *      AI Activity's « En ce moment », and `live` the Job Offers found so far (kept, once over), as the Match Score reads
+ *      them, for the onboarding's page to count those matching its criteria of the moment and name the best.
  *    - `stop` one still searching (#331), the Candidate's own only: the worker, asking `stopRequested`
  *      as it searches, stops between two steps and the AI call on its way, and records it 'stopped'
  *      with the Job Offers found until then (a failed one keeps them too). A stop that kept no Job
@@ -167,6 +168,21 @@ export interface RunningJobSearch {
   startedAt: string;
   /** Each step's latest event, in order: started, or ended in its place. None before the worker's first step. */
   steps: ProvenanceEvent[];
+  /**
+   * What its run has measured so far (#1001): each source's state, pages read, Job Offers found, its step; null before the
+   * worker's first measure. Without the Job Offers' ids, which only the onboarding's page asks for (`live`).
+   */
+  live: LiveMeasures | null;
+}
+
+/** A run's Live discovery metrics as every page's poll brings them (#1001): its measures, not its Job Offers' ids. */
+export type LiveMeasures = Omit<LiveDiscoveryMetrics, "jobOfferIds">;
+
+/** The measures of live metrics, their Job Offers' ids left out; null for none. */
+export function measuresOf(live: LiveDiscoveryMetrics | null): LiveMeasures | null {
+  if (!live) return null;
+  const { step, sources, pagesRead, offersAnalysed, matched } = live;
+  return { step, sources, pagesRead, offersAnalysed, matched };
 }
 
 /**
@@ -242,19 +258,19 @@ export interface JobSearches {
    */
   dismissNotification(candidateId: string, jobSearchId: string): Promise<void>;
   /**
-   * The Candidate's Job Search as the onboarding's search card polls it (#1001), with the Job Offers found so far but
+   * The Candidate's Job Search as the onboarding's page reads it (#1001), with the Job Offers found so far but
    * those in `known`; null when it is not theirs. One past its time is failed first.
    */
   live(candidateId: string, jobSearchId: string, known: readonly string[]): Promise<JobSearchLive | null>;
 }
 
-/** A Job Offer as the onboarding's search card scores it (#1001): what the Match Score reads of it, and its id. */
+/** A Job Offer as the onboarding's page scores it (#1001): what the Match Score reads of it, and its id. */
 export type ScoredJobOffer = Pick<JobOffer, "id" | "title" | "content" | "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears">;
 
 /**
- * A Job Search as the onboarding's search card polls it (#1001): where it stands, what its run has measured so far (null
+ * A Job Search as the onboarding's page reads it (#1001): where it stands, what its run has measured so far (null
  * before the worker's first measure, and for one run before #1001), and the Job Offers found so far (kept, once over),
- * Expired ones and those the card already has (`known`) left out.
+ * Expired ones and those the page already has (`known`) left out.
  */
 export interface JobSearchLive {
   id: string;
@@ -672,8 +688,9 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         finished_at: Date | null;
         progress: unknown;
         provenance: unknown;
+        live: unknown;
       }>(
-        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure, s.started_at, s.finished_at, s.progress, s.provenance,
+        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure, s.started_at, s.finished_at, s.progress, s.provenance, s.live,
                 (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL AND ${visibleTo("$1", "o")}) AS found
          FROM job_search s JOIN profile p ON p.id = s.profile_id
          WHERE s.candidate_id = $1 AND (s.notification_pending OR s.status = 'searching')
@@ -689,7 +706,13 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         }));
       const running: RunningJobSearch[] = rows
         .filter((row) => row.status === "searching")
-        .map((row) => ({ jobSearchId: row.id, profile: { id: row.profile_id, name: row.profile_name }, startedAt: row.started_at.toISOString(), steps: readRunProgress(row.progress) }));
+        .map((row) => ({
+          jobSearchId: row.id,
+          profile: { id: row.profile_id, name: row.profile_name },
+          startedAt: row.started_at.toISOString(),
+          steps: readRunProgress(row.progress),
+          live: measuresOf(readLiveDiscoveryMetrics(row.live)),
+        }));
       return { notifications, searching: running.length > 0, running };
     },
     stop,
@@ -711,7 +734,7 @@ function outcomeOf(row: { status: JobSearchStatus; failure: string | null; found
   return { status: "failed", failure: failureOf(row.failure), at, step, found };
 }
 
-/** What the Match Score reads of a Job Offer, for the onboarding's search card (#1001). */
+/** What the Match Score reads of a Job Offer, for the onboarding's page (#1001). */
 function scoredJobOffer({ id, title, content, employer, location, contractType, remoteWork, salary, skills, requiredExperienceYears }: JobOffer): ScoredJobOffer {
   return {
     id,

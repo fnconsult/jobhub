@@ -18,6 +18,7 @@ import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { routes } from "@/routes";
 import { creationOnPage } from "@/ai-activity/creation";
+import { followedOn, followedSearchEntry } from "@/ai-activity/followed-search";
 
 type Language = "fr" | "en";
 
@@ -52,7 +53,8 @@ export const AiActivityControl = createContext<Control | null>(null);
  * Activité column show under « En ce moment »: the server's (`served`, one loader per page type, ai-activity/index.ts),
  * finished with the AI Coach replies the page's thread shows, with their questions and cards (#808); and, live, the
  * Candidate's AI actions as they run, here or « En cours ailleurs » (AiActivityLive, #333); and what the browser alone knows
- * of a Profile being created, « Création du profil » (#810). `usage`: the Usage Meter's
+ * of a Profile being created, « Création du profil » (#810), and the Job Search the page follows as its own (#1001), « ici »
+ * while it runs and an entry of its own once over. `usage`: the Usage Meter's
  * week, for the Plan Quotas the entries used. Candidate pages only: the Back Office mounts no provider.
  */
 export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children }: { served?: readonly ServedEntry[]; usage?: UsageMeter | null; children: ReactNode }) {
@@ -61,12 +63,19 @@ export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children
   const pathname = usePathname();
   const column = useActivityColumn();
   const actions = store?.actions ?? NO_ACTIONS;
-  const live = useMemo(() => liveView(actions, pathname), [actions, pathname]);
+  // The Job Search this page follows as its own (the onboarding's offered one, #1001) is « ici » too.
+  const followed = store?.followed ?? null;
+  const live = useMemo(() => liveView(actions, pathname, followedOn(followed, pathname)), [actions, pathname, followed]);
   const stopAction = store?.stop;
   const stop = useCallback((key: string) => stopAction?.(key), [stopAction]);
   const [asked, setAsked] = useState<Control["asked"]>(null);
   const creation = creationOnPage(store?.creation ?? null, pathname);
-  const entries = useMemo(() => activityEntries({ page: "any", built: served, replies, ...(creation ? { creation } : {}) }), [served, replies, creation]);
+  // Once over, the page that followed it keeps its entry, with its best Job Offers (#1001).
+  const followedEntry = useMemo(() => (followedOn(followed, pathname) ? followedSearchEntry(followed, store?.followedAction ?? null) : null), [followed, pathname, store?.followedAction]);
+  const entries = useMemo(
+    () => activityEntries({ page: "any", built: served, replies, ...(creation ? { creation } : {}), ...(followedEntry ? { known: [followedEntry] } : {}) }),
+    [served, replies, creation, followedEntry],
+  );
   const inThread = useMemo(() => new Set(replies.map((reply) => reply.messageId)), [replies]);
   const quotas = usage?.quotas ?? null;
   const openColumn = column?.open;

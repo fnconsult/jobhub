@@ -49,11 +49,17 @@ export const activityButtonOf = (page: Page) => page.getByRole("banner").getByRo
  */
 export const activityOf = (page: Page) => page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
 
-/** Shows the side panel on « Activité » with AI Activity's icon (#809, #980), which `activityOf` returns; left as it is when shown. */
+/**
+ * Shows the side panel on « Activité » with AI Activity's icon (#809, #980), which `activityOf` returns; left as it is when
+ * shown. The panel may also open by itself (the onboarding's search starting, ADR-0106): if it did so just before the
+ * click, the click closed it, so the click is tried again until the panel stays open.
+ */
 export async function openActivity(page: Page) {
   const button = activityButtonOf(page);
-  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
-  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(async () => {
+    if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
   return activityOf(page);
 }
 

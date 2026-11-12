@@ -25,6 +25,16 @@ describe("what the browser knows of a Profile's creation (#810), never kept", ()
     ).toEqual({ reading: { provenance: reading }, review: { at: at("10:32") }, href: "/profils/p" });
   });
 
+  it("knows the Profile born during the questionnaire (#999), when first, and still shows on `/profils/nouveau` only", () => {
+    const born = replay([
+      [{ type: "answered", answered: 3, skipped: 0 }, at("10:31")],
+      [{ type: "created", href: "/profils/p/versions/1" }, at("10:32")],
+      [{ type: "created", href: "/profils/q/versions/1" }, at("10:33")],
+    ]);
+    expect(born).toEqual({ questionnaire: { at: at("10:31"), answered: 3, skipped: 0 }, created: { at: at("10:32"), href: "/profils/p/versions/1" } });
+    expect(creationOnPage(born, "/")).toBeUndefined();
+  });
+
   it("counts the questionnaire's answers given and skipped, from when it started", () => {
     expect(
       replay([

@@ -63,3 +63,7 @@ The product owner chose the variant. The prototype's three other questions were 
 - The Coach reply's cost must be served per message, not only for the latest reply (#791 serves only the latest).
 - `ai-activity/pane.ts` gives way to a builder of Activité entries over the page's elements, the Coach replies with their cost, Master CV Versions and applied Action Cards. The « Par élément », « Sources » and « Outils » blocks are removed.
 - The Help Articles that describe AI Activity and the Fiche are rewritten. The AI Activity e2e and the screenshot baselines of the Fiche change.
+
+## Amended by ADR-0105: the onboarding is an interview with the AI Coach (2026-11-12)
+
+« Création du profil » stops being « Sans IA » once the AI Coach leads the onboarding interview (#1002): its questions are the AI's, with their Provenance and cost. From the scripted questionnaire, the Profile is born once its target role and location are answered (#999), so « Profil créé » shows before the review.

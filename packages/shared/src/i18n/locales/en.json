@@ -897,6 +897,10 @@
       "active": "Active",
       "archived": "Archived"
     },
+    "onboarding": {
+      "unfinished": "Creation to finish",
+      "resume": "Resume creating it"
+    },
     "actions": {
       "searchOffers": "Search for offers",
       "download": "Download"
@@ -1003,7 +1007,8 @@
     "conversation": "Creating a profile with your coach",
     "openReview": "Review and save",
     "questionsStart": "Fine. I'll ask my questions one at a time; answer in your own words, you can read it all again and correct it at the end.",
-    "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page."
+    "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page.",
+    "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it."
   },
   "questionnaire": {
     "transcript": "Your conversation with the coach",

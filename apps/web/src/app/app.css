@@ -1244,8 +1244,10 @@ button.coach-panel-badge:hover {
   }
 
   /* A menu's card holds its whole width on a phone (#608): a long button or pill (« Réserver avec … », « Reporté ·
-     initialement prévu le … ») wraps rather than pushing the page sideways. */
-  .page-conversation .chat-card :is(.ds-button, .ds-pill) {
+     initialement prévu le … ») wraps rather than pushing the page sideways. So do the coaching cancellations' choices
+     (« Voir et accepter la nouvelle commande », #883), with « Espace coach v2 » on. */
+  .page-conversation .chat-card :is(.ds-button, .ds-pill),
+  .coaching-cancellations :is(.ds-button, .ds-pill) {
     max-width: 100%;
     height: auto;
     white-space: normal;

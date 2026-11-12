@@ -24,7 +24,7 @@ export async function CancellationPanel({ candidateId, locale, timeZone }: { can
   if (!cases.length) return null;
   const bookingPaths=await getCoachingBooking().paths(candidateId);
   return (
-    <section className="stack" aria-label={t("coachingCancellation.title")}>
+    <section className="stack coaching-cancellations" aria-label={t("coachingCancellation.title")}>
       <h3>{t("coachingCancellation.title")}</h3>
       {await Promise.all(
         cases.map(async (c) => {

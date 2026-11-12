@@ -138,7 +138,7 @@ export default async function HumanCoachesPage({ searchParams }: {
                   {calPaths[paid.id] ? (<Link className={buttonClass()} href={calPaths[paid.id]!}>
                       {t("coachingBooking.manage")}
                     </Link>) : null}
-                  <CoachingSessionDialog withVideoLink={meetings === null} session={{
+                  <CoachingSessionDialog coachSpaceV2 withVideoLink={meetings === null} session={{
                 id: paid.id,
                 scheduledAt: interviewWallClock(paid.scheduledAt),
                 durationMinutes: paid.durationMinutes,
@@ -159,7 +159,7 @@ export default async function HumanCoachesPage({ searchParams }: {
                       </Link>) : (<ExternalLink className={buttonClass({ variant: "primary" })} href={paid.coach.bookingUrl}>
                         {t("humanCoaches.pickSlot", { name: paid.coach.name })}
                       </ExternalLink>)}
-                    <CoachingSessionDialog withVideoLink={meetings === null} session={{ id: paid.id, scheduledAt: "", durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }} withName={paid.coach.name}/>
+                    <CoachingSessionDialog coachSpaceV2 withVideoLink={meetings === null} session={{ id: paid.id, scheduledAt: "", durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }} withName={paid.coach.name}/>
                   </>)}
               </div>
             </li>))}

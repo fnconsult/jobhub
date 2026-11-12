@@ -136,7 +136,7 @@ test("invite, explicitly join, accept the contract, scope the offer, refuse ever
     expect(sold).toEqual({ amount: 12500, duration_minutes: 90, association_id: id, commission_bps: 0 });
     await candidate.goto("/coachs");
     await expect(candidate.getByText(copy.proposedBy.replace("{{name}}", "Transitions Association"), { exact: true })).toBeVisible();
-    expect(await (await manager.request.get("/api/coach-space")).json()).toEqual({ humanCoach: false, associationSpace: true });
+    expect(await (await manager.request.get("/api/coach-space")).json()).toEqual({ humanCoach: false, associationSpace: true, coachSpaceV2: true });
     for (const route of [
       "/espace-coach",
       "/espace-coach/aujourdhui",

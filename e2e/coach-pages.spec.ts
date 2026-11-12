@@ -18,7 +18,9 @@ async function account(browser: Browser, email: string) {
 }
 const photoAlt = copy.photoAlt.replace("{{name}}", NAME);
 function queueCard(admin: Page) {
-  return admin.locator("article").filter({ has: admin.getByRole("heading", { name: NAME, exact: true }) });
+  // The queue's own section: the Back Office's other coaching sections list the same coach as an article too.
+  const queue = admin.locator("section").filter({ has: admin.getByRole("heading", { name: copy.adminTitle, exact: true }) });
+  return queue.locator("article").filter({ has: admin.getByRole("heading", { name: NAME, exact: true }) });
 }
 async function save(page: Page, presentation: string) {
   await page.getByLabel(copy.presentation, { exact: true }).fill(presentation);

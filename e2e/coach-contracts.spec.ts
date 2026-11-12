@@ -57,7 +57,7 @@ test("every Coach page is gated, then explicit acceptance opens the workspace wi
       await expect(page.getByRole("button", { name: fr.coachContract.accept, exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: fr.coachSpaceV2.pages.candidates, exact: true })).toHaveCount(0);
     }
-    expect(await (await page.request.get("/api/coach-space")).json()).toEqual({humanCoach:true});
+    expect(await (await page.request.get("/api/coach-space")).json()).toEqual({ humanCoach: true, coachSpaceV2: true });
     expect(
       (await page.request.put("/api/coach-space/contact", { headers: { origin: own.origin }, data: { kind: "phone", phone: "+33123456789" } })).status(),
     ).toBe(404);

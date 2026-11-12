@@ -35,6 +35,18 @@ describe("what the browser knows of a Profile's creation (#810), never kept", ()
     expect(creationOnPage(born, "/")).toBeUndefined();
   });
 
+  it("knows each rewritten summary the AI translated (#1005), from the first, their steps and times together", () => {
+    const first: Provenance = { v: 1, steps: [], sites: [{ kind: "candidate", links: [] }], startedAt: at("10:40"), wallMs: 900 };
+    const second: Provenance = { ...first, startedAt: at("10:42"), wallMs: 1_100 };
+    expect(
+      replay([
+        [{ type: "summaryChanged", provenance: first }, at("10:40")],
+        [{ type: "summaryChanged", provenance: null }, at("10:41")],
+        [{ type: "summaryChanged", provenance: second }, at("10:42")],
+      ]),
+    ).toEqual({ summaryChanges: { at: at("10:40"), provenance: { ...first, sites: [...first.sites, ...second.sites], wallMs: 2_000 } } });
+  });
+
   it("counts the questionnaire's answers given and skipped, from when it started", () => {
     expect(
       replay([

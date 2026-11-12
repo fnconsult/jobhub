@@ -47,3 +47,37 @@
 .onb-summary-card .notice {
   margin: var(--space-4) 0 0;
 }
+
+/* « Modifier » (#1005): the summary as plain text, to rewrite in the Candidate's own words. */
+.onb-edit .ds-field__hint {
+  margin: 0 0 var(--space-2);
+}
+
+.onb-textarea {
+  width: 100%;
+  min-height: 11rem;
+  font-size: var(--font-size-lead);
+  line-height: var(--line-height-body);
+  resize: vertical;
+}
+
+.onb-understanding {
+  margin: var(--space-4) 0 0;
+  color: var(--color-text-secondary);
+}
+
+/* « J'ai compris : + CDD, − Lyon, + Paris », under the summary, for validation. */
+.onb-understood {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+}
+
+.onb-understood p {
+  margin: 0;
+}
+
+.onb-understood p + p {
+  margin-top: var(--space-2);
+}

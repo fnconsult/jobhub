@@ -62,6 +62,8 @@ export const FAILURE_REASONS = [
   "cv_reading_fallback",
   /** The AI Coach's Tailored CV reply was refused: no Tailored CV proposed from it. */
   "tailored_cv_refused",
+  /** The AI could not turn a rewriting of the onboarding summary into Search Criteria changes (#1005): the summary stays as it was. */
+  "summary_changes_unusable",
   /** The Job Offer's text could not be read: the Match Score is from its structured data only. */
   "match_score_text_unread",
   /** The Job Offer's text was read too slowly: the Match Score is from its structured data only. */
@@ -130,6 +132,7 @@ export const AI_CALL_WARNINGS: readonly FailureReason[] = [
   "company_news_unavailable",
   "cv_reading_fallback",
   "tailored_cv_refused",
+  "summary_changes_unusable",
   "match_score_text_unread",
   "match_score_too_slow",
 ];

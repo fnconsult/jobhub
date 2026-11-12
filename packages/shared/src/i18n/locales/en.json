@@ -1048,7 +1048,28 @@
     "confirming": "Saving…",
     "invalid": "Some fields need completing or correcting: {{fields}}. Correct them in « See the details ».",
     "saved": "Noted: your profile is saved, with its search criteria and its reference CV.",
-    "toProfile": "Continue to my profile"
+    "toProfile": "Continue to my profile",
+    "editing": "Editing",
+    "editLabel": "Your job search, in your own words",
+    "editHint": "Write it as you would explain it to a recruiter.",
+    "cancel": "Cancel",
+    "done": "Done",
+    "understanding": "Reading your text…",
+    "understood": "Here is what I understood: {{changes}}",
+    "validate": "Confirm these changes",
+    "other": "The rest (a skill, an experience, a job you held) is not changed here: use « See the details ».",
+    "changes": {
+      "targetRole": "Target role: {{value}}",
+      "salary": "Minimum salary: {{value}}",
+      "noSalary": "− Minimum salary"
+    },
+    "notices": {
+      "applied": "Noted: here is your updated summary. Did I get it right?",
+      "unchanged": "I see no change to your search criteria: your summary stays as it was.",
+      "other": "I see no change to your search criteria. A skill, an experience or a job you held is not changed here: use « See the details ».",
+      "unusable": "I could not turn your text into criteria changes: your summary stays as it was. Try again, or use « See the details ».",
+      "tooManyPlaces": "At most {{max}} places per profile: remove some before adding others. Your summary stays as it was."
+    }
   },
   "newProfile": {
     "title": "Create a profile",
@@ -5160,6 +5181,7 @@
     "company_news_unavailable": "Company Dossier built without news",
     "cv_reading_fallback": "CV read by rules, without the AI",
     "tailored_cv_refused": "Reply refused: no Tailored CV proposed from it",
+    "summary_changes_unusable": "Rewritten summary not understood: the summary stays as it was",
     "match_score_text_unread": "Job Offer text unread: Match Score from its structured data only",
     "match_score_too_slow": "Job Offer reading too slow: Match Score from its structured data only",
     "test_failed": "Connection test failed",
@@ -5282,6 +5304,7 @@
       "profile_creation": "Profile creation",
       "questionnaire": "Onboarding questionnaire",
       "review": "Review",
+      "summary_changes": "Summary edited",
       "profile_created": "Profile created"
     },
     "live": {

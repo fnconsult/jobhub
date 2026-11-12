@@ -24,6 +24,7 @@ import { followUp } from "./follow-up";
 import { jobOfferEmailReading } from "./job-offer-email-reading";
 import { jobOfferReading } from "./job-offer-reading";
 import { jobSearchQueries } from "./job-search-queries";
+import { onboardingSummaryChanges } from "./onboarding-summary-changes";
 import { outreachMessage } from "./outreach-message";
 import { tailoredCv } from "./tailored-cv";
 import type { TaskPlaybookSeed } from "./types";
@@ -40,6 +41,7 @@ export const TASK_PLAYBOOKS = [
   outreachMessage,
   followUp,
   coachMemory,
+  onboardingSummaryChanges,
   companyFactsSearch,
   companyNewsSearch,
   jobSearchQueries,

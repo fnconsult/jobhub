@@ -348,7 +348,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
       const { tasks } = importedPlaybooks({ AI_WRITING_PROVIDER: "mistral", AI_WRITING_MODEL: "mistral-medium-3-5" });
 
       expect(tasks.map((task) => task.id)).toEqual(TASK_PLAYBOOKS.map((task) => task.id));
-      expect(tasks.filter((task) => task.validatedBy === null).map((task) => task.id)).toEqual(["job-offer-reading", "job-offer-email-reading"]);
+      expect(tasks.filter((task) => task.validatedBy === null).map((task) => task.id)).toEqual(["job-offer-reading", "job-offer-email-reading", "onboarding-summary-changes"]);
       expect(tasks.find((task) => task.id === "cv-reading")?.validatedBy).toBe(IMPORT_VALIDATOR);
       expect(IMPORT_VALIDATOR).toBe("François Nader");
       expect(tasks.find((task) => task.id === "tailored-cv")?.agent).toEqual({ provider: "mistral", model: "mistral-medium-3-5", effort: null, consultWhen: "" });

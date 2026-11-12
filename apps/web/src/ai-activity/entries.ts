@@ -98,7 +98,7 @@ export interface VersionGiven {
 }
 
 /** The parts of a Profile's creation (#810), in their order: an ATS Score is Version 1's. */
-export const CREATION_PARTS = ["cv_reading", "questionnaire", "review", "profile_created", "ats_score"] as const;
+export const CREATION_PARTS = ["cv_reading", "questionnaire", "review", "summary_changes", "profile_created", "ats_score"] as const;
 export type CreationPartKind = (typeof CREATION_PARTS)[number];
 
 /**
@@ -119,6 +119,8 @@ export interface CreationGiven {
   /** The Profile born during the questionnaire, once its target role and location were answered (ADR-0105, #999): its Version 1. */
   created?: { at: string; href: string };
   review?: { at: string };
+  /** « Modifier » on the summary (#1005): the rewritings the AI translated into Search Criteria changes, from the first, their steps together. */
+  summaryChanges?: { at: string; provenance: Provenance | null };
 }
 
 /**
@@ -494,13 +496,14 @@ function keptParts(first: VersionGiven, score: PageElement | undefined): Activit
  * during it (#999: « Profil créé » with its Version 1, before the review) and the review.
  */
 function knownParts(creation: CreationGiven): ActivityEntry[] {
-  const { reading, questionnaire, created, review } = creation;
+  const { reading, questionnaire, created, review, summaryChanges } = creation;
   const read = reading ? (reading.provenance ? readingPart(reading.provenance) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null }))) : null;
   return [
     ...(read ? [read] : []),
     ...(questionnaire ? [part("questionnaire", questionnaire.at, "jobbbox", { answered: questionnaire.answered, skipped: questionnaire.skipped })] : []),
     ...(created ? [part("profile_created", created.at, "candidate", { version: FIRST }, created.href)] : []),
     ...(review ? [part("review", review.at, "candidate")] : []),
+    ...(summaryChanges ? [asPart("summary_changes", elementEntry({ kind: "master_cv", provenance: summaryChanges.provenance, at: summaryChanges.at }))] : []),
   ];
 }
 
@@ -510,7 +513,10 @@ function knownParts(creation: CreationGiven): ActivityEntry[] {
  */
 function creationEntry(given: readonly ActivityEntry[], href: string | null): Built {
   const parts = CREATION_PARTS.flatMap((kind) => given.filter((each) => each.kind === kind).slice(0, 1));
-  const reading = parts.find((each) => each.kind === "cv_reading");
+  // Its AI: the CV read, and the rewritten summary translated (#1005).
+  const withAi = parts.filter((each) => each.kind === "cv_reading" || each.kind === "summary_changes");
+  const counted = withAi.flatMap((each) => (each.cost.tokens ? [each.cost.tokens] : []));
+  const tokens = counted.length === 0 ? null : { count: counted.reduce((sum, each) => sum + each.count, 0), calls: null, partial: counted.some((each) => each.partial) };
   const created = parts.find((each) => each.kind === "profile_created");
   const at = parts.flatMap((each) => (each.at ? [each.at] : [])).sort()[0] ?? null;
   return {
@@ -524,7 +530,7 @@ function creationEntry(given: readonly ActivityEntry[], href: string | null): Bu
     sites: once(parts.flatMap((each) => each.sites)),
     tools: once(parts.flatMap((each) => each.tools)),
     models: once(parts.flatMap((each) => each.models)),
-    cost: { quota: null, tokens: reading?.cost.tokens ?? null, noAi: !reading || reading.cost.noAi },
+    cost: { quota: null, tokens, noAi: withAi.every((each) => each.cost.noAi) },
     parts,
   };
 }

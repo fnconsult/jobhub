@@ -5500,6 +5500,11 @@
     "noActiveProfileTitle": "Aucun profil actif"
   },
   "receivedByEmail": {
+    "toCapture": {
+      "title": "À capturer",
+      "intro": "La source de ces annonces n’a pas pu être lue : aucun Match Score n’a été calculé. Ouvrez le lien, puis utilisez l’extension pour capturer l’annonce. Au plus 50 liens distincts sont affichés, les plus récents en premier.",
+      "listLabel": "Annonces à capturer"
+    },
     "title": "Reçues par email",
     "fresh_one": "{{count}} nouvelle cette semaine",
     "fresh_other": "{{count}} nouvelles cette semaine",

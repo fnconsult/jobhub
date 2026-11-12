@@ -1,6 +1,6 @@
 import { createAiLayer, type AiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider, type FakeProviderOptions } from "@jobhub/ai/testing";
-import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
+import type { JobOfferDetails, MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import { createSecretKey, randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -19,6 +19,7 @@ import { cadremploiAlert, jobijobaPromo, linkedInDigest, newsletter, recruiterMe
 import { offerBoxOf, recordArrivals } from "../../../web/src/offer-box";
 import { createAesGcmCipher, type SecretCipher } from "../../../web/src/provider-secrets/cipher";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "@jobhub/web/guardrails/checks";
+import { offerLink } from "./offer-links";
 import { createEmailReading, MAX_READING_TRIES, type EmailReading } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -83,7 +84,12 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       },
       triggers: { record: (trigger) => void triggers.push(trigger) },
     });
-    reading = createEmailReading({ readings, jobOffers, profiles: createProfiles(database), ai, guardrails, taskPlaybooks: async () => SERVED, now: () => now });
+    const readSource = async (url: string): Promise<{ url: string; details: JobOfferDetails }> => {
+      const offer = cadremploiAlert.reply.offers.find((offer) => offerLink(offer.link!) === url);
+      if (!offer) throw new Error("No public fixture source");
+      return { url, details: { title: offer.title!, content: `Public source: ${offer.title}.`, ...(offer.employer ? { employer: offer.employer } : {}), location: offer.location, contractType: offer.contract === "CDI" ? "cdi" : "cdd" } };
+    };
+    reading = createEmailReading({ readSource, readings, jobOffers, profiles: createProfiles(database), ai, guardrails, taskPlaybooks: async () => SERVED, now: () => now });
   }
 
   const emails = async () => (await emailIntakeOf(database, marie)).receivedOfferEmails;
@@ -180,8 +186,8 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
         { title: "Responsable consolidation", url: "https://www.cadremploi.fr/emploi/detail_offre?offreId=158700002", employer: "Société Fictive", contractType: "cdi" },
         { title: "Directeur financier adjoint", url: "https://www.cadremploi.fr/emploi/detail_offre?offreId=158700003", employer: undefined, contractType: "cdd" },
       ]);
-      // Its Posting date is the email's, the offers stating none.
-      expect(stored[0]!.postedAt).toEqual(new Date("2026-10-26T22:18:15Z"));
+      // Neither public fixture nor email states a posting date: receipt is no publication evidence.
+      expect(stored[0]!.postedAt).toBeUndefined();
       // Each new one reaches the Candidate's Offer box (ADR-0090), with the Profile it went to: none, « Non classées ».
       const box = await offerBoxOf(database, marie);
       expect(box.map(({ jobOfferId, profileId: profile, arrivalSources }) => ({ jobOfferId, profile, sources: arrivalSources.map((arrival) => arrival.source) })).sort((a, b) => (a.jobOfferId < b.jobOfferId ? -1 : 1))).toEqual(
@@ -233,6 +239,8 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
         ["step_ended", "tool"],
         ["step_ended", "ai"],
         ["step_ended", "ai"],
+        ...Array.from({ length: 3 }, () => ["step_ended", "tool"]),
+        ...Array.from({ length: 2 }, () => ["step_ended", "rules"]),
         ["step_ended", "rules"],
         ["step_ended", "rules"],
         ["step_ended", "rules"],
@@ -296,6 +304,27 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
         { disposition: "new", jobOfferId: expect.any(String) },
         { disposition: "new", jobOfferId: expect.any(String) },
       ]);
+    });
+
+    it("a public alert does not deduplicate against a private recruiter posting at the same URL (#973)", async () => {
+      const link = cadremploiAlert.reply.offers[0]!.link!;
+      const recruiter = recruiterMessage.email(address);
+      recruiter.text = `${recruiter.text}\n${link}`;
+      useAi(JSON.stringify({ kind: "recruteur", offers: [{ ...recruiterMessage.reply.offers[0], link }] }));
+      const [privateEmail] = await deliver(recruiter);
+      await reading.read(privateEmail!);
+      const privateId = (await emailOf(privateEmail!)).offers[0]!.jobOfferId!;
+      expect(await jobOffers.get(privateId)).toBeNull();
+
+      useAi();
+      const [publicEmail] = await deliver(cadremploiAlert.email(address));
+      await reading.read(publicEmail!);
+      const publicOffer = (await emailOf(publicEmail!)).offers[0]!;
+      expect(publicOffer.disposition).toBe("new");
+      expect(publicOffer.jobOfferId).not.toBe(privateId);
+      expect(await jobOffers.get(publicOffer.jobOfferId!)).not.toBeNull();
+      expect(await jobOffers.get(privateId)).toBeNull();
+      expect((await privateJobOffersOf(database, marie)).map((offer) => offer.id)).toContain(privateId);
     });
 
     it("a recruiter's offer stays private: another Candidate's same message makes their own, and never shows them Marie's", async () => {
@@ -375,6 +404,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       { kind: "tool", tool: "email-intake", activity: "read", outcome: "ok" },
       { kind: "ai", task: "email_guardrail", provider: "mistral", model: "fake-mistral", activity: "think", outcome: "ok" },
       { kind: "ai", task: "offer_email_reading", provider: "mistral", model: "fake-mistral", activity: "read", outcome: "ok" },
+      { kind: "tool", tool: "job-site", activity: "read", outcome: "ok" },
       { kind: "rules", rule: "match_score", activity: "compute", outcome: "ok" },
       { kind: "rules", rule: "offer_dedup", activity: "compute", outcome: "ok" },
     ]);
@@ -391,7 +421,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
     expect(JSON.stringify((await jobOffers.provenance(privateOffer))?.sites)).not.toContain("example.fr");
   });
 
-  describe("Posting date: the offer's stated date, else the email's; the 30-day rule applies", () => {
+  describe("Posting date: source or offer evidence, never the email receipt; the 30-day rule applies", () => {
     it("keeps an offer's stated date over the email's", async () => {
       // Its link is one the email holds, as the output rules ask.
       const link = cadremploiAlert.reply.offers[0]!.link!;
@@ -404,13 +434,13 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       expect((await jobOffers.get(offer!.jobOfferId!))?.postedAt).toEqual(new Date("2026-10-20T00:00:00Z"));
     });
 
-    it("makes no Job Offer of an email sent more than 30 days ago whose offers state no date", async () => {
+    it("does not infer an old publication date from an old email with undated offers", async () => {
       const [id] = await deliver(cadremploiAlert.email(address, { sentAt: "Tue, 15 Sep 2026 08:00:00 +0000" }));
 
       await reading.read(id!);
 
-      expect((await emailOf(id!)).offers.map((offer) => offer.disposition)).toEqual(["too_old", "too_old", "too_old"]);
-      expect(await jobOfferCount()).toBe(0);
+      expect((await emailOf(id!)).offers.map((offer) => offer.disposition)).toEqual(["new", "new", "new"]);
+      expect(await jobOfferCount()).toBe(3);
     });
   });
 

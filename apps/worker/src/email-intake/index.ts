@@ -13,7 +13,8 @@
  *     model check, both in its Provenance), which may block the email before any AI reads it; then the fixed output
  *     rules, always on. Either sets the email aside by a Guardrail: no Job Offer, its text deleted;
  *  3. each offer's link through its sender's module (offer-links.ts); one linking to a Forbidden site makes no Job
- *     Offer: it is kept « À capturer »; one published more than 30 days ago (its stated date, else the email's) neither;
+ *     Offer: it is kept « À capturer », as is an inaccessible public source. Public postings are read before scoring;
+ *     one published more than 30 days ago (its stated posting date, never reception) makes no Job Offer;
  *  4. the Match Score rules: each offer against each of the Candidate's active Profiles, counted against no Plan
  *     Quota; it goes to the highest, or to « Non classées » under 60;
  *  5. deduplication, before the Candidate sees anything: an offer already there for them (a Job Search, a Job Digest,
@@ -23,7 +24,7 @@
  * A try that fails leaves the email awaiting, its text kept, and throws, for the job runner to try again; the
  * MAX_READING_TRIES-th, or one past the text's 72 hours, records it « échec ». Each AI call is in AI Usage under its task.
  */
-import { readOfferEmail, createProvenanceRecorder, type AiLayer, type EmailOffer } from "@jobhub/ai";
+import { readOfferEmail, createProvenanceRecorder, type AiLayer, type EmailOffer, type ProvenanceRecorder } from "@jobhub/ai";
 import {
   believablePostingDate,
   createRunProgress,
@@ -42,7 +43,9 @@ import type { EmailReadings, ReadEmailOffer } from "@jobhub/web/email-intake/rea
 import type { Guardrails } from "@jobhub/web/guardrails/checks";
 import type { JobOffers } from "@jobhub/web/job-offers";
 import { servedTaskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
-import { offerLink } from "./offer-links";
+import { emailOfferLink } from "./offer-links";
+import { createEmailSourceReader, isRetryableSourceFailure } from "./source-reading";
+import { pageReadTool } from "@jobhub/shared/page-reading";
 
 /** How many times an email is tried before it is « échec ». */
 export const MAX_READING_TRIES = 3;
@@ -77,6 +80,8 @@ export interface EmailReadingOptions {
   /** Default: FORBIDDEN_SITES. */
   forbiddenSites?: readonly string[];
   now?: () => Date;
+  /** Public postings only; never receives email text or recruiter correspondence. */
+  readSource?: ReturnType<typeof createEmailSourceReader>;
 }
 
 export type EmailReadOutcome = { outcome: "offers_found" | "other" | "failed" | "guardrail" | "not_awaiting" };
@@ -124,6 +129,7 @@ export function createEmailReading(options: EmailReadingOptions): EmailReading {
   const now = options.now ?? (() => new Date());
   const forbiddenSites = options.forbiddenSites ?? FORBIDDEN_SITES;
   const { readings, jobOffers } = options;
+  const readSource = options.readSource ?? createEmailSourceReader({ forbiddenSites });
 
   async function activeProfiles(candidateId: string): Promise<ProfileToScore[]> {
     const listed = (await options.profiles.list(candidateId)).filter((profile) => !profile.archived);
@@ -175,37 +181,85 @@ export function createEmailReading(options: EmailReadingOptions): EmailReading {
         const { kind, offers } = guarded.reading;
         if (!email.manualForward) run.site(`https://${email.senderDomain}/`);
 
-        // Which offers may become Job Offers: not a Forbidden site's, not published more than 30 days ago.
-        const at = now();
-        const emailDate = believablePostingDate(email.sentAt ?? undefined, at) ?? email.receivedAt;
-        const planned = offers.map((offer) => {
-          const link = offer.link ? offerLink(offer.link) : null;
-          const host = link ? hostOf(link) : offer.link ? hostOf(offer.link) : null;
-          if (host && isForbiddenSite(host, forbiddenSites)) return link ? ({ disposition: "to_capture", title: offer.title, link } as const) : null;
-          const postedAt = believablePostingDate(offer.postedAt, at) ?? emailDate;
-          if (isPostingTooOld(postedAt, at)) return { disposition: "too_old" } as const;
-          return { disposition: "candidate" as const, offer, link, postedAt, details: detailsOf(offer) };
-        });
-        const profiles = await activeProfiles(email.candidateId);
-        const matched = await run.step({ rule: "match_score" }, () =>
-          planned.map((plan) => (plan?.disposition === "candidate" ? bestProfile(plan.details, profiles) : null)),
-        );
         const howRead = run.provenance();
 
+        // A public alert must be read at its source before it is scored. Recruiter correspondence stays private.
+        const at = now();
+        // The last try records what it can rather than fail the whole email (MAX_READING_TRIES, or past the text's hours).
+        const lastTry = email.try >= MAX_READING_TRIES;
+        type Planned =
+          | { disposition: "candidate"; offer: EmailOffer; link: string | null; postedAt: Date | undefined; details: JobOfferDetails; part: ProvenanceRecorder }
+          | { disposition: "to_capture"; title: string; link: string }
+          | { disposition: "too_old" }
+          | { disposition: "seen"; jobOfferId: string };
+        const planned: Planned[] = [];
+        const seenHere = new Set<string>();
+        let linkless = 0;
+        for (const offer of offers) {
+          const link = emailOfferLink(offer, text);
+          const host = link ? hostOf(link) : offer.link ? hostOf(offer.link) : null;
+          if (host && isForbiddenSite(host, forbiddenSites)) {
+            if (link) planned.push({ disposition: "to_capture" as const, title: offer.title, link });
+            continue;
+          }
+          const part = run.part();
+          let details = detailsOf(offer);
+          let sourceUrl = link;
+          if (kind === "alert") {
+            // Missing/ambiguous links use the bounded email retry, never an invented association. The last try leaves
+            // out only that offer: no Job Offer reduced to its title, and the email's other offers are still recorded.
+            if (!link) {
+              if (!lastTry) throw new Error("Email alert has no unambiguous offer link");
+              linkless += 1;
+              continue;
+            }
+            // An offer the Candidate already has is « déjà vue » without reading its source again. Only a lookup: the
+            // deduplication step below, after the reading, is the one the Provenance records.
+            const stored = await jobOffers.findBySourceUrl(link);
+            const known = stored && (seenHere.has(stored.id) || (await readings.alreadyThere(email.candidateId, stored.id))) ? stored.id : null;
+            if (known) {
+              seenHere.add(known);
+              planned.push({ disposition: "seen" as const, jobOfferId: known });
+              continue;
+            }
+            try {
+              const source = await part.step({ tool: pageReadTool(link) }, () => readSource(link, part.ai));
+              details = source.details;
+              sourceUrl = source.url;
+              part.site(source.url);
+            } catch (error) {
+              // A site that did not answer may on the next try; a refusal, or the last try, is explicitly À capturer:
+              // no misleading score, no invented full posting.
+              if (!lastTry && isRetryableSourceFailure(error)) throw error;
+              planned.push({ disposition: "to_capture" as const, title: offer.title, link });
+              continue;
+            }
+          }
+          const postedAt = believablePostingDate(details.postedAt, at) ?? believablePostingDate(offer.postedAt, at);
+          if (isPostingTooOld(postedAt, at)) {
+            planned.push({ disposition: "too_old" as const });
+            continue;
+          }
+          planned.push({ disposition: "candidate" as const, offer, link: sourceUrl, postedAt, details, part });
+        }
+        // Every offer of an alert left without its link: nothing was read, the email fails rather than reads « autre ».
+        if (linkless > 0 && planned.length === 0) throw new Error("Email alert has no unambiguous offer link");
+        const profiles = await activeProfiles(email.candidateId);
+        const matched = await Promise.all(planned.map((plan) => plan.disposition === "candidate" ? plan.part.step({ rule: "match_score" }, () => bestProfile(plan.details, profiles)) : null));
+
         const recorded: ReadEmailOffer[] = [];
-        const inThisEmail = new Set<string>();
+        const inThisEmail = new Set<string>(seenHere);
         for (const [index, plan] of planned.entries()) {
-          if (!plan) continue;
           if (plan.disposition !== "candidate") {
             recorded.push(plan);
             continue;
           }
-          const part = run.part();
+          const part = plan.part;
           if (plan.link) part.site(plan.link);
           const privateTo = kind === "recruiter" ? email.candidateId : undefined;
           // Deduplication, before the Candidate sees anything: the Job Offer stored for this link, and whether it is already there for them.
           const known = await part.step({ rule: "offer_dedup" }, async () => {
-            const stored = plan.link ? await jobOffers.findBySourceUrl(plan.link, email.candidateId) : null;
+            const stored = plan.link && kind !== "recruiter" ? await jobOffers.findBySourceUrl(plan.link) : null;
             return stored && (inThisEmail.has(stored.id) || (await readings.alreadyThere(email.candidateId, stored.id))) ? stored.id : null;
           });
           if (known) {
@@ -213,13 +267,18 @@ export function createEmailReading(options: EmailReadingOptions): EmailReading {
             recorded.push({ disposition: "seen", jobOfferId: known });
             continue;
           }
-          const { title, content, employer, location, contractType } = plan.details;
+          const { postedAt: _stated, summary, sector, subsector, ...details } = plan.details;
+          void _stated;
           const captured = await jobOffers.capture(
-            { source: plan.link ? { url: plan.link } : {}, title, content, ...(employer ? { employer } : {}), ...(location ? { location } : {}), ...(contractType ? { contractType } : {}) },
+            { source: plan.link ? { url: plan.link } : {}, ...details },
             "candidate",
-            { postedAt: plan.postedAt, provenance: joinProvenance(howRead, part.provenance()) ?? undefined, ...(privateTo ? { privateTo } : {}) },
+            { postedAt: plan.postedAt, summary, sector, subsector, provenance: joinProvenance(howRead, part.provenance()) ?? undefined, ...(privateTo ? { privateTo } : {}) },
           );
-          if (!captured.ok) continue;
+          if (!captured.ok) {
+            // A source the Job Offers refuse (too long, malformed): the Candidate can still capture it themselves.
+            if (plan.link) recorded.push({ disposition: "to_capture", title: plan.offer.title, link: plan.link });
+            continue;
+          }
           const jobOfferId = captured.jobOffer.id;
           if (!captured.created && (inThisEmail.has(jobOfferId) || (await readings.alreadyThere(email.candidateId, jobOfferId)))) {
             inThisEmail.add(jobOfferId);

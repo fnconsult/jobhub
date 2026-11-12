@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Set your availability
 synonyms: [Cal.com, agenda, disponibilité, availability]
+requires: coach-space-v2
 ---
 1. Open “Availability” in your Coach space, then “Set my availability in Cal.com”.
 2. Set working hours in your time zone and connect your calendar in Cal.com. These permissions remain at Cal.com; Jobbbox collects no Google, Microsoft or iCloud token.

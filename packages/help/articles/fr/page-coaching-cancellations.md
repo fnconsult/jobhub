@@ -5,6 +5,7 @@ topic: utiliser
 title: Annulations et remboursements
 route: /coachs/annulations
 synonyms: [annulations, remboursements, séance annulée, autre coach, nouvelle réservation]
+requires: coach-space-v2
 ---
 Lorsque les nouvelles conditions de coaching sont activées, cette page privée permet d’annuler vos séances dans le délai de 24 heures et de suivre les annulations déjà demandées. Le nom du coach distingue chaque suivi. Les horaires utilisent votre fuseau, avec l’heure de Paris à côté quand elle diffère.
 

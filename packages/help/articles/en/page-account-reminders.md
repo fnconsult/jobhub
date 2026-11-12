@@ -5,6 +5,7 @@ topic: utiliser
 title: Reminders in My account
 route: /compte/rappels
 synonyms: [reminders, reminder email, notifications, coaching one hour before, disable reminders]
+requires: coach-space-v2
 ---
 This section separates emails from app notifications. The existing day-before email groups your appointments and is sent at 18:00 Paris time. When the new coaching notifications are activated, another setting lets you receive or switch off the email one hour before a coaching session.
 

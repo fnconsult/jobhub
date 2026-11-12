@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Quand recevez-vous vos rappels de séance ?
 synonyms: [vos rappels, rappel coach, veille, une heure, récapitulatif matin, fuseau horaire]
+requires: coach-space-v2
 ---
 Lorsque les nouvelles notifications sont activées, Jobbbox vous informe d’une séance payée, réservée, déplacée ou annulée. La veille, le rappel se prépare à 18 h dans votre fuseau, pour les dates connues à cette heure. Une réservation ou un report plus tardif garde sa notification de changement ; il ne reçoit pas un rappel de veille supplémentaire.
 

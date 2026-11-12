@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Your income and the tax authorities
 synonyms: [DAC7, TIN, SIRET, IBAN, tax reporting, annual copy]
+requires: coach-space-v2
 ---
 When tax collection is activated after the necessary texts become effective, **Income → Tax information** lets you enter your identity, address, professional TIN, SIRET and payout account. An individual, including a sole trader, also enters their first and last name and date of birth. A legal entity enters its legal name. The current flow handles French tax identities without a permanent establishment outside France; contact the team for another situation.
 

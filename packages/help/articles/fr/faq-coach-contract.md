@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Le contrat des coachs
 synonyms: [contrat B2B, acceptation du contrat, contrat association]
+requires: coach-space-v2
 ---
 Avant d’utiliser votre espace, lisez le « Contrat » puis cochez « J’ai lu et j’accepte le Contrat des coachs » avec la version indiquée, et choisissez « Accepter le contrat ». L’approbation d’une candidature ne remplace pas cette acceptation. Si aucun contrat n’est encore disponible, vous devez attendre sa publication.
 

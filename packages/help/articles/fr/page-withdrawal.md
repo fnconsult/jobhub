@@ -11,5 +11,3 @@ Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans 
 Vérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés. Le remboursement est entier, sauf pour un abonnement souscrit avec la demande que le service commence immédiatement : vous payez alors le service déjà fourni, et la page indique le montant « Remboursé si vous confirmez maintenant » (le montant payé, moins la part des jours écoulés depuis le début de la période).
 
 Vous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le.
-
-Le suivi d’une annulation contractuelle de séance se trouve dans « Mes coachs humains », puis « Annulations et remboursements », lorsque les nouvelles conditions sont activées. Il indique sa propre date limite et ses choix ; il ne remplace pas cette démarche de rétractation.

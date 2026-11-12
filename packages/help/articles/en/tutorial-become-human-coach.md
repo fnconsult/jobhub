@@ -4,6 +4,7 @@ audience: visitor
 topic: decouvrir
 title: Become a coach on Jobbbox
 synonyms: [coach enrolment, candidature coach, demande coach]
+requires: coach-space-v2
 ---
 1. Open “Become a coach on Jobbbox”. Choose “An independent coach” or “An Association”, provide your professional identity and attach the useful supporting PDF.
 2. Choose “Submit my application”. Unless you are already signed in with that verified address, open the emailed link, review your application and choose “Confirm my application”.

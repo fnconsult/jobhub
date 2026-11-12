@@ -11,7 +11,18 @@ import { fileURLToPath } from "node:url";
 import { CONTACT_EMAIL_TOKEN } from "./contact";
 import { NUMBERED_LINE, takeMicroAnimations, type MicroAnimationPlacement } from "./micro-animations";
 import { routeAddresses } from "./route-addresses";
-import { BACK_OFFICE_HELP_TOPICS, HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
+import { HELP_SETTINGS_STATES, servedArticles } from "./requirements";
+import {
+  BACK_OFFICE_HELP_TOPICS,
+  HELP_ARTICLE_KINDS,
+  HELP_ARTICLE_REQUIREMENTS,
+  HELP_AUDIENCES,
+  HELP_LOCALES,
+  PUBLIC_HELP_TOPICS,
+  type HelpArticle,
+  type HelpArticleRequirement,
+  type HelpLocale,
+} from "./types";
 
 /** The Help Articles are inconsistent: a translation is missing, or a front matter is invalid. */
 export class HelpContentError extends Error {
@@ -35,7 +46,10 @@ export function renderArticlesModule(content: HelpContent): string {
   const sorted = Object.fromEntries(
     HELP_LOCALES.map((locale) => [
       locale,
-      [...content[locale]].sort((a, b) => KIND_ORDER[a.kind]! - KIND_ORDER[b.kind]! || a.title.localeCompare(b.title, locale)),
+      // An article and the `.v2` that replaces it under « Espace coach v2 » may share their title: the base one first.
+      [...content[locale]].sort(
+        (a, b) => KIND_ORDER[a.kind]! - KIND_ORDER[b.kind]! || a.title.localeCompare(b.title, locale) || a.id.localeCompare(b.id) || Number(Boolean(a.requires)) - Number(Boolean(b.requires)),
+      ),
     ]),
   );
   return [
@@ -59,23 +73,31 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
     }
   }
 
+  // The file each article was read from: `<id>.md`, or `<id>.v2.md` for the one replacing it under « Espace coach v2 ».
+  const fileOf = new Map<HelpArticle, string>();
   const content = Object.fromEntries(
     HELP_LOCALES.map((locale) => [
       locale,
       files[locale].map((file) => {
-        const { microAnimationProblems, ...article } = parseArticle(file.replace(/\.md$/, ""), locale, readFileSync(path.join(dir, locale, file), "utf8"));
-        problems.push(...[...microAnimationProblems, ...articleProblems(article)].map((problem) => `${locale}/${file}: ${problem}`));
+        const { microAnimationProblems, replaces, ...article } = parseArticle(articleId(file), locale, readFileSync(path.join(dir, locale, file), "utf8"));
+        fileOf.set(article, file);
+        problems.push(
+          ...[...microAnimationProblems, ...articleProblems(article), ...requirementProblems(file, article, replaces, files[locale], dir, locale)].map(
+            (problem) => `${locale}/${file}: ${problem}`,
+          ),
+        );
         return article;
       }),
     ]),
   ) as HelpContent;
 
   for (const locale of HELP_LOCALES) {
-    const explained = new Map<string, string>();
     for (const article of content[locale]) {
-      const where = `${locale}/${article.id}.md`;
-      const french = content.fr.find((candidate) => candidate.id === article.id);
+      const where = `${locale}/${fileOf.get(article)}`;
+      const french = content.fr.find((candidate) => fileOf.get(candidate) === fileOf.get(article));
       if (locale !== "fr" && french) {
+        if (article.requires !== french.requires)
+          problems.push(`${where}: it requires ${article.requires ?? "(nothing)"}, the French one ${french.requires ?? "(nothing)"}: both languages wait for the same setting`);
         if (article.kind !== french.kind) problems.push(`${where}: its kind ${article.kind} differs from the French one (${french.kind})`);
         else if (article.route !== french.route) problems.push(`${where}: its route ${article.route} differs from the French one (${french.route})`);
         if (article.audience !== french.audience) problems.push(`${where}: its audience ${article.audience} differs from the French one (${french.audience})`);
@@ -84,17 +106,58 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
           problems.push(`${where}: its Micro-animations ${placements(article) || "(none)"} differ from the French ones (${placements(french) || "(none)"})`);
         if (article.topic !== french.topic) problems.push(`${where}: its topic ${article.topic} differs from the French one (${french.topic})`);
       }
-      if (article.kind !== "page" || !article.route) continue;
-      for (const route of routeAddresses(article.route)) {
-        const other = explained.get(route);
-        if (other) problems.push(`${where}: ${other} already explains ${route}`);
-        else explained.set(route, article.id);
+    }
+    // One page article per address, « Espace coach v2 » off (the articles main served) and on (the epic's).
+    const reported = new Set<string>();
+    for (const settings of HELP_SETTINGS_STATES) {
+      const explained = new Map<string, string>();
+      for (const article of servedArticles(content[locale], settings)) {
+        if (article.kind !== "page" || !article.route) continue;
+        for (const route of routeAddresses(article.route)) {
+          const other = explained.get(route);
+          const problem = `${locale}/${fileOf.get(article)}: ${other} already explains ${route}`;
+          if (!other) explained.set(route, article.id);
+          else if (!reported.has(problem)) {
+            reported.add(problem);
+            problems.push(settings.coachSpaceV2 ? `${problem} (« Espace coach v2 » on)` : problem);
+          }
+        }
       }
     }
   }
 
   if (problems.length > 0) throw new HelpContentError(problems.join("\n"));
   return content;
+}
+
+/** The suffix of the file that replaces `<id>.md` while « Espace coach v2 » is on: `<id>.v2.md`. */
+const V2_SUFFIX = ".v2.md";
+
+/** An article's id from its file name: `faq-x.md` and `faq-x.v2.md` are both `faq-x`. */
+function articleId(file: string): string {
+  return file.endsWith(V2_SUFFIX) ? file.slice(0, -V2_SUFFIX.length) : file.replace(/\.md$/, "");
+}
+
+/**
+ * What is wrong with an article's `requires` and `replaces` (#867, ADR-0106): a requirement is one of
+ * HELP_ARTICLE_REQUIREMENTS; a `<id>.v2.md` requires one, `replaces: <id>`, and `<id>.md` is there, requiring nothing;
+ * any other file replaces nothing.
+ */
+function requirementProblems(file: string, article: HelpArticle, replaces: string, files: readonly string[], dir: string, locale: HelpLocale): string[] {
+  const problems: string[] = [];
+  if (article.requires && !(HELP_ARTICLE_REQUIREMENTS as readonly string[]).includes(article.requires))
+    problems.push(`requires must be ${orList(HELP_ARTICLE_REQUIREMENTS)}`);
+  if (!file.endsWith(V2_SUFFIX)) {
+    if (replaces) problems.push(`only an article's <id>${V2_SUFFIX} replaces it: replaces ${replaces}`);
+    return problems;
+  }
+  if (!article.requires) problems.push(`a ${V2_SUFFIX} article requires the setting it waits for: requires: coach-space-v2`);
+  if (replaces !== article.id) problems.push(`a ${V2_SUFFIX} article replaces the article it is named after: replaces: ${article.id}`);
+  const base = `${article.id}.md`;
+  if (!files.includes(base)) problems.push(`it replaces ${base}, which is missing`);
+  else if (parseFrontmatter(readFileSync(path.join(dir, locale, base), "utf8")).frontmatter.requires)
+    problems.push(`it replaces ${base}, which requires a setting itself: the article replaced is the one served while the setting is off`);
+  return problems;
 }
 
 function markdownFiles(dir: string): string[] {
@@ -163,7 +226,7 @@ export function numberedSteps(body: string): number {
 }
 
 /** The article as its file says, unchecked: `articleProblems` says what is wrong with it. */
-function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArticle & { microAnimationProblems: string[] } {
+function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArticle & { microAnimationProblems: string[]; replaces: string } {
   const { frontmatter, body: written } = parseFrontmatter(markdown);
   const { body, references, problems } = takeMicroAnimations(written);
   const text = (value: string | string[] | undefined) => (typeof value === "string" ? value : "");
@@ -179,7 +242,10 @@ function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArt
     motion: text(frontmatter.motion) || null,
     microAnimations: references as MicroAnimationPlacement[],
     body: body.trim(),
+    // Written only when set: an article served whatever the settings reads as before #867.
+    ...(text(frontmatter.requires) ? { requires: text(frontmatter.requires) as HelpArticleRequirement } : {}),
     microAnimationProblems: problems,
+    replaces: text(frontmatter.replaces),
   };
 }
 

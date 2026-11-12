@@ -43,6 +43,14 @@ export const BACK_OFFICE_HELP_TOPICS = [
 ] as const;
 export type BackOfficeHelpTopic = (typeof BACK_OFFICE_HELP_TOPICS)[number];
 
+/**
+ * What a Help Article may wait for (front matter `requires:`): `coach-space-v2`, the « Espace coach v2 » Platform Setting
+ * (#867, ADR-0106). Such an article is served only while it is on; one that also `replaces: <id>` (its file
+ * `<id>.v2.md`) then takes the place of the article `<id>`, which is served while it is off.
+ */
+export const HELP_ARTICLE_REQUIREMENTS = ["coach-space-v2"] as const;
+export type HelpArticleRequirement = (typeof HELP_ARTICLE_REQUIREMENTS)[number];
+
 /** A Help Article in one language: drafted by an agent or a person, never served before a person reviewed and merged it (ADR-0065). */
 export interface HelpArticle {
   /** The same in both languages: the article's file name. */
@@ -67,4 +75,10 @@ export interface HelpArticle {
   microAnimations: MicroAnimationPlacement[];
   /** Short Markdown, no images. */
   body: string;
+  /**
+   * The Platform Setting it waits for (HELP_ARTICLE_REQUIREMENTS), the same in both languages; absent for an article
+   * served whatever the settings. `articlesFor` serves it only while that setting is on, in place of the article of the
+   * same id without it.
+   */
+  requires?: HelpArticleRequirement;
 }

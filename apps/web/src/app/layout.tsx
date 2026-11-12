@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { pendingAcceptance } from "@/acceptances/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { coachActionsOn } from "@/coach-actions/on";
+import { HelpSettingsProvider } from "@/coach-help/settings";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { CandidateProviders } from "@/components/CandidateProviders";
 import { ResponseWatcher } from "@/components/ResponseWatcher";
 import { DocumentHead } from "@/design/document-head";
@@ -21,35 +23,54 @@ import "./app.css";
 /** Every page is `noindex` but the public ones indexed, whose own metadata says so (#545, see public-pages/indexing). */
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
-  return { title: t("app.name"), description: t("app.tagline"), robots: NOINDEX };
+  return {
+    title: t("app.name"),
+    description: t("app.tagline"),
+    robots: NOINDEX,
+  };
 }
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const locale = await getRequestLocale();
   // AI Activity's live actions follow a signed-in Candidate from page to page, the Back Office's aside (their own pages
   // sit in the sidebar layout, CandidateLayout, whose conversations are the pages, ADR-0070). Not while a CGU version
   // waits for their Acceptance (ADR-0062): the AI Coach waits too.
   const candidate = await getCurrentCandidate();
-  const coached = candidate !== null && !(await pendingAcceptance(candidate.id));
+  const coached =
+    candidate !== null && !(await pendingAcceptance(candidate.id));
   // Inside the Jobbbox app's WebView (#689), the page goes without the web's Sidebar: the app has its own drawer.
   const inApp = inAppWebView((await headers()).get("user-agent"));
   return (
-    <ThemedHtml lang={locale} data-in-app={inApp || undefined} suppressHydrationWarning>
+    <ThemedHtml
+      lang={locale}
+      data-in-app={inApp || undefined}
+      suppressHydrationWarning
+    >
       <head>
         <DocumentHead />
       </head>
       <body>
         <ScrollbarActivity />
         <I18nProvider locale={locale}>
-          {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
-          <ResponseWatcher signedIn={candidate !== null} />
-          {coached ? (
-            <CandidateProviders version={jobbboxVersion()} coachActions={coachActionsOn()}>
-              {children}
-            </CandidateProviders>
-          ) : (
-            children
-          )}
+          {/* The Help Articles « Espace coach v2 » serves (ADR-0106): main's while it is off. */}
+          <HelpSettingsProvider coachSpaceV2={coachSpaceV2On()}>
+            {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
+            <ResponseWatcher signedIn={candidate !== null} />
+            {coached ? (
+              <CandidateProviders
+                version={jobbboxVersion()}
+                coachActions={coachActionsOn()}
+              >
+                {children}
+              </CandidateProviders>
+            ) : (
+              children
+            )}
+          </HelpSettingsProvider>
         </I18nProvider>
       </body>
     </ThemedHtml>

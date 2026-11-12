@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Comment annuler une séance avec un candidat ?
 synonyms: [coach annuler, motif annulation, absence, rembourser candidat]
+requires: coach-space-v2
 ---
 Lorsque les nouvelles conditions sont activées, ouvrez la séance dans votre espace coach, puis **Annuler la séance avec un motif**. Vous pouvez l’annuler à tout moment ; un motif est obligatoire et sera visible du candidat. Ne saisissez aucune information sensible inutile dans ce motif.
 

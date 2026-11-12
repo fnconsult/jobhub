@@ -23,7 +23,8 @@ describe("the Help Centre's media origin (HELP_MEDIA_ORIGIN, #568)", () => {
   });
 
   it("is the only source of media the pages allow", () => {
-    expect(contentSecurityPolicy("https://media.jobbbox.ai")).toBe("media-src https://media.jobbbox.ai; frame-src 'self' https://cal.com https://app.cal.com");
+    expect(contentSecurityPolicy("https://media.jobbbox.ai")).toBe("media-src https://media.jobbbox.ai");
+    expect(contentSecurityPolicy("https://media.jobbbox.ai", true)).toBe("media-src https://media.jobbbox.ai; frame-src 'self' https://cal.com https://app.cal.com");
   });
 });
 

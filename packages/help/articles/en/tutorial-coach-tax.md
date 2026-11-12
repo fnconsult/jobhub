@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Enter your tax information
 synonyms: [complete TIN, save IBAN, Seller tax information]
+requires: coach-space-v2
 ---
 When tax collection is activated:
 

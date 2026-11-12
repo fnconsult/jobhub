@@ -5,6 +5,7 @@ topic: espace-coach
 title: Earnings
 route: /espace-coach/revenus
 synonyms: [coach earnings, Stripe account, payouts, compensation]
+requires: coach-space-v2
 ---
 This page lets you set up your Stripe payout account. Your professional identity must be complete, your contract accepted and the required Legal Texts in effect. Stripe collects identity documents and bank details directly.
 

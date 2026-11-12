@@ -14,5 +14,3 @@ As a coach, the Jobbbox app can show a notification on your phone's or tablet's 
 A notification never names the candidate: tapping it opens your coach space, where the details show. Each event sends only one notification, even when the processing runs again. These notifications reach the app where you are signed in with your coach account's email address, once you have allowed it to notify you.
 
 In My account, « Reminders » section, « Your coach space » has one switch per event: an event switched off sends nothing. If you refused notifications on the device, the app's « Reminders » section explains how to turn them on in the device's Settings.
-
-When the new coaching notifications are activated, you also receive bookings and changes without assuming who requested them, day-before and one-hour reminders, and the morning summary. **Coach space → Reminders** controls these events and emails separately. A push contains no private note or reason; it opens your workspace or session under your account’s permissions. An obsolete queued reminder is excluded if its session moved or was cancelled.

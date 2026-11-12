@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: How can I cancel a session with a Candidate?
 synonyms: [coach cancel, cancellation reason, absence, refund Candidate]
+requires: coach-space-v2
 ---
 When the new conditions are activated, open the session in your coach space and choose **Cancel the session with a reason**. You can cancel at any time; a reason is mandatory and visible to the Candidate. Avoid unnecessary sensitive information in it.
 

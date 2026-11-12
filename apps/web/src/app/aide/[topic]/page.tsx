@@ -4,6 +4,7 @@ import { EmptyState } from "@/design/EmptyState";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { publicMetadata } from "@/public-pages/indexing-server";
+import { servedHelpArticles } from "@/coach-help/server";
 import { routes } from "@/routes";
 import { HelpArticleList, HelpBreadcrumb, HelpSearchForm, topicOrNotFound } from "../help-centre";
 
@@ -17,13 +18,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * A topic of the Help Centre (#549): its public articles, in the page's language; « Bientôt des articles ici » while it
- * has none, never a 404. Any other address under /aide is a 404.
+ * has none, never a 404. Any other address under /aide is a 404. The articles served under « Espace coach v2 » (#867).
  */
 export default async function HelpTopicPage({ params }: Params) {
   const topic = topicOrNotFound((await params).topic);
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const articles = helpCentreTopics(locale).find((entry) => entry.topic === topic)!.articles;
+  const articles = helpCentreTopics(locale, servedHelpArticles(locale)).find((entry) => entry.topic === topic)!.articles;
   return (
     <PublicSite current="aide">
       <main id="main" className="ds-site__page">

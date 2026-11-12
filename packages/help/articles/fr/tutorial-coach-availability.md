@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Régler vos disponibilités
 synonyms: [Cal.com, agenda, disponibilité, availability]
+requires: coach-space-v2
 ---
 1. Ouvrez « Disponibilités » dans votre espace coach, puis « Régler mes disponibilités dans Cal.com ».
 2. Dans votre compte Cal.com, réglez vos horaires dans votre fuseau et connectez votre agenda. Ces autorisations restent chez Cal.com ; Jobbbox ne recueille aucun jeton Google, Microsoft ou iCloud.

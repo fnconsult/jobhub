@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Edit your public profile
 synonyms: [coach page, change photo, update presentation]
+requires: coach-space-v2
 ---
 1. Open “Public profile” in your Coach space. Your agreement must be up to date.
 2. Complete “About you”, “Specialties” and “Languages”. Separate specialties and languages with commas.

@@ -4,6 +4,7 @@ audience: candidate
 topic: utiliser
 title: Cancel a session or choose after a coach cancellation
 synonyms: [cancel session, choose refund, same coach booking, another coach, cancellation follow-up]
+requires: coach-space-v2
 ---
 When the new conditions are activated, use your private session follow-up. Contractual cancellation and legal withdrawal remain separate processes.
 

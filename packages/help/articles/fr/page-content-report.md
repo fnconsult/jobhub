@@ -5,6 +5,7 @@ topic: decouvrir
 title: Signaler un contenu de coaching
 route: /signaler-coaching
 synonyms: [signaler une offre, signaler un coach, contenu illicite, notification DSA]
+requires: coach-space-v2
 ---
 Ce formulaire est accessible sans compte depuis « Signaler cette page de coach » ou « Signaler cette offre ». Il identifie le contenu concerné ; expliquez précisément où se trouve le problème et pourquoi vous le signalez. Votre déclaration de bonne foi est obligatoire. Aucun retrait n’est automatique : une personne examine les éléments.
 

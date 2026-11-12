@@ -5,6 +5,7 @@ topic: espace-coach
 title: Vos rappels de coaching
 route: /espace-coach/rappels
 synonyms: [rappels coach, notifications coach, récapitulatif matin, 7 h 30, une heure avant, e-mails de séances]
+requires: coach-space-v2
 ---
 Lorsque les nouvelles notifications de coaching sont activées, cette page règle les e-mails de vos séances et votre récapitulatif du matin. Chaque modification s’enregistre aussitôt. Le récapitulatif a son propre interrupteur ; les notifications de l’app se règlent indépendamment, événement par événement.
 

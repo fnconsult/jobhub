@@ -5,6 +5,7 @@ topic: espace-coach
 title: Profil public du coach
 synonyms: [coach page, photo coach, présentation publique, spécialités, langues]
 route: /espace-coach/profil
+requires: coach-space-v2
 ---
 Modifiez votre « Présentation », vos « Spécialités », vos « Langues » et votre « Photo professionnelle », puis choisissez « Envoyer pour validation ». « Aperçu pour les Candidates » montre votre proposition ; « Version actuellement visible » reste celle déjà approuvée. Une proposition ne remplace jamais cette dernière avant validation.
 

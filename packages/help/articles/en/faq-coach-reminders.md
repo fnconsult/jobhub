@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: When do you receive session reminders?
 synonyms: [your reminders, coach reminder, day before, one hour, morning summary, time zone]
+requires: coach-space-v2
 ---
 When the new notifications are activated, Jobbbox informs you of a paid, booked, rescheduled or cancelled session. The day-before reminder is prepared at 18:00 in your time zone for dates known then. A later booking or rescheduling keeps its change notification; it receives no additional day-before reminder.
 

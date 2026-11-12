@@ -4,6 +4,7 @@ audience: candidate
 topic: utiliser
 title: How can I cancel or reschedule a coaching session?
 synonyms: [cancel session, reschedule, session refund, absent coach, 24 hours, another coach]
+requires: coach-space-v2
 ---
 When the new coaching conditions are activated, you can cancel or reschedule until 24 hours before the session starts. The limit uses the actual instant, including time-zone changes and daylight-saving transitions. Cancelling in Jobbbox requests a full refund to the original payment method. After the limit, contact the coach or support; the form cannot extend it.
 

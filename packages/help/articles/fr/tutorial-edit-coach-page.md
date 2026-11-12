@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Modifier votre profil public
 synonyms: [coach page, changer photo, corriger présentation]
+requires: coach-space-v2
 ---
 1. Dans votre Espace coach, ouvrez « Profil public ». Votre contrat doit être à jour.
 2. Renseignez « Présentation », « Spécialités » et « Langues ». Séparez les spécialités et langues par des virgules.

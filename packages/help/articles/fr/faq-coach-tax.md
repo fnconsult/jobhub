@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Vos revenus et l’administration fiscale
 synonyms: [DAC7, NIF, SIRET, IBAN, déclaration fiscale, copie annuelle]
+requires: coach-space-v2
 ---
 Lorsque la collecte fiscale est activée après l’entrée en vigueur des textes nécessaires, **Revenus → Informations fiscales** permet de renseigner votre identité, votre adresse, votre NIF professionnel, votre SIRET et votre compte de versement. Une personne physique, même entrepreneur individuel, renseigne aussi son nom, son prénom et sa date de naissance. Une personne morale renseigne sa raison sociale. Le parcours actuel traite les identités fiscales françaises sans établissement stable hors de France ; contactez l’équipe pour une autre situation.
 

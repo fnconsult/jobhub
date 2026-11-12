@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Get paid by Jobbbox
 synonyms: [Stripe Connect, payout, bank account, verification, commission]
+requires: coach-space-v2
 ---
 Payouts are available after the required Legal Texts are approved and in effect. Your professional Seller identity must be complete and your contract accepted.
 

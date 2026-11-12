@@ -6,26 +6,12 @@ title: Your coach space
 route: /espace-coach
 synonyms: [coach space, my coach space, human coach, my sessions, my candidates, coaching sessions, coach access, coach dashboard, coach, goes by, candidate's name]
 ---
-“My coach space” opens on “Today”. Sign in with your verified professional email, set up two-step verification and accept the required agreement version. If no agreement is available yet, wait for publication.
+« My coach space » is your human coach's page on Jobbbox. Sign in to Jobbbox with the email address the Jobbbox team registered for you, by receiving a sign-in link: « My coach space » then shows in the menu. The Jobbbox name, at the top of each page of your coach space, brings you back to it, and « My account » opens your account.
 
-The sidebar offers “Today”, “My Candidates”, “My sessions”, “Availability”, “Public page”, “Earnings”, “Contract” and “Help”. Reminders become available when their activation requirements are met. “My account” and “Sign out” remain accessible. On a phone, “Menu” opens the drawer; Escape closes it and returns focus to the button. Old home addresses lead to this navigation.
+The page has two parts.
 
-## Your time zone
+« My coaching sessions » lists the sessions candidates paid for with you, even when they have not given you coach access. Each session shows the candidate's first name and last initial, for example Claire D., followed by « goes by … » when the candidate gave the coaches another name than their first name, and the payment date: « Paid on … ». Until its date is entered, the session is « To schedule ». Once dated, it shows « On … (Paris time) », its duration and « Video link with … ». The tutorial « Enter a session's date and link » explains how to fill them in.
 
-“Public page” offers “Your time zone”, initially Europe/Paris. Confirm an IANA zone with “Save time zone”. Sessions follow your clock, with Paris time alongside when it differs.
+« Candidates with coach access » lists the candidates who gave you coach access, by their first and last name, for example Claire Durand · goes by Clo: « goes by » gives the name the candidate would like the coaches to call them, when it is not their first name. A candidate who gave neither a first name nor a last name shows under their email address. Click one to open their file, which repeats their name and « goes by … »: their applications, with their status, and their profiles. Everything there is read only, as the page reminds you: « Read only: only the candidate can change their profiles and applications. » Open an application to read its tailored CV, cover letter and outreach message, and to give your review: the tutorial « Write a review of an application document » explains how.
 
-## Today and your Candidates
-
-“Today” gathers today’s and tomorrow’s sessions in your zone, dates to confirm and sessions to schedule. Each action opens its session. “My Candidates” lists people who have a session with you or granted Coach Access. Without Coach Access, you see only their short name, sessions with you and your Private Coach Notes. With Coach Access, the page adds their Profiles and Applications, documents and reviews, read only. You never see their Agenda, conversations or personal notes.
-
-## Your Private Coach Notes
-
-On a Candidate’s or session’s page, “Your Private Coach Notes” save as you type; wait for “Notes saved” before leaving. They are not shown to the Candidate on screen, but “The Candidate can obtain these notes by exporting their data.” They are deleted with the account and become unreadable when you leave Jobbbox. If another tab changed the notes, keep a copy of your text and reload.
-
-## My sessions
-
-“Upcoming”, “To schedule” and “Past” count your sessions; a Withdrawal removes a session. Open a session for preparation, its link and private notes. The page changes from “Before the session” to “During the session” ten minutes before it starts, then to “After the session” at its scheduled end. “Prepare: open the Candidate’s page” leads to their file. Manual date entry remains available for sessions without a linked booking and keeps Reschedule history.
-
-## Shared Reading
-
-During the session window, the Candidate can show you one document. Your reading follows their page and scrolling, even without Coach Access. You can present your PDF; either participant can choose “Stop”. There is no download or annotation control, and the temporary document is deleted at the end of this window.
+You see neither the candidate's agenda, nor their conversations with their AI coach, nor the note they may have added to a session. The « Help Centre » link, at the bottom of each page of your coach space, leads to this topic of the help.

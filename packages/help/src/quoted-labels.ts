@@ -1,5 +1,6 @@
 import { resources } from "@jobhub/shared/i18n";
 import { articles } from "./index";
+import type { HelpSettings } from "./requirements";
 import type { HelpLocale } from "./types";
 
 /** Every string of a catalogue, its `{{placeholders}}` written « … » as the articles quote them. */
@@ -16,13 +17,14 @@ const quotes = (body: string) => [...body.matchAll(/«\s*([^«»]+?)\s*»/g)].ma
  * The quotes of a topic's Help Articles that the interface does not have (ADR-0065: labels word for word), as
  * « <id>: « quote » ». A quote is found when it is a string of the interface's catalogue (the web app's and the
  * extension's), or its beginning up to a sentence break (« Ce lien de désabonnement n'est plus valable »), or the
- * title of another Help Article in the same language. Used by the tests only.
+ * title of another Help Article served in the same language under the same `settings` (« Espace coach v2 » off unless
+ * said, #867). Used by the tests only.
  */
-export function unknownQuotes(topic: string, locale: HelpLocale): { count: number; missing: string[] } {
+export function unknownQuotes(topic: string, locale: HelpLocale, settings: HelpSettings = {}): { count: number; missing: string[] } {
   const strings = catalogueStrings(resources[locale]);
-  const titles = articles(locale).map((article) => article.title);
+  const titles = articles(locale, settings).map((article) => article.title);
   const found = (quote: string) =>
     titles.includes(quote) || strings.some((value) => value === quote || (value.startsWith(quote) && /^[\s.,;:!?]/.test(value.slice(quote.length))));
-  const inTopic = articles(locale).filter((article) => article.topic === topic);
+  const inTopic = articles(locale, settings).filter((article) => article.topic === topic);
   return { count: inTopic.length, missing: inTopic.flatMap((article) => quotes(article.body).filter((quote) => !found(quote)).map((quote) => `${article.id}: « ${quote} »`)) };
 }

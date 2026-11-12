@@ -9,8 +9,6 @@ import { captureMotion, CaptureError } from "../packages/motions/src/capture";
 import { DEMO_APPLICATIONS, DEMO_EMAIL, demoEmail, seedDemoCandidate } from "../packages/motions/src/demo-seed";
 import { stepDurations } from "../packages/motions/src/narration";
 import { failure, fixturesDir, motionDir, readNarration, readPlan, scriptOf, writeStageError } from "../packages/motions/src/run";
-import config from "../playwright.config";
-import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-server";
 import type { Capture } from "../packages/motions/src/timeline";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -25,31 +23,15 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 const work = process.env.MOTIONS_WORK;
 
 /** The demo Candidate, signed in and seeded in `locale`: its session for the capture's own context. */
-async function demoSession(browser: Browser, locale: "fr" | "en", address = DEMO_EMAIL, own?: OwnServer) {
-  const baseURL = own?.origin ?? origin;
-  const context = await browser.newContext({ baseURL });
+async function demoSession(browser: Browser, locale: "fr" | "en", address = DEMO_EMAIL) {
+  const context = await browser.newContext({ baseURL: origin });
   const page = await context.newPage();
-  if (own) await signInByEmail(page, own, address);
-  else await signInWithMagicLink(page, address);
-  await seedDemoCandidate(page.request, baseURL, locale);
+  await signInWithMagicLink(page, address);
+  await seedDemoCandidate(page.request, origin, locale);
   const state = await context.storageState();
   await context.close();
   return state;
 }
-
-let coachServer: OwnServer | undefined;
-async function environmentFor(script: {routes: readonly string[]}) {
-  if (!script.routes.some((route) => route.startsWith("/coachs"))) return undefined;
-  if (!coachServer) {
-    const env = (config.webServer as {env: NodeJS.ProcessEnv}).env;
-    coachServer = await startOwnServer(570, "coach_motion", { ...env,
-      STRIPE_CONNECT_WEBHOOK_SECRET: "whsec_coach_motion",
-      NODE_OPTIONS: `${env.NODE_OPTIONS} --import=${path.resolve("e2e/support/fake-coach-contract.mjs")} --import=${path.resolve("e2e/support/fake-coaching-legal.mjs")}`,
-    });
-  }
-  return coachServer;
-}
-test.afterAll(async () => { await coachServer?.stop(); });
 
 test.describe("motions: the capture stage of a run", () => {
   test.skip(!work, "MOTIONS_WORK names no run");
@@ -61,11 +43,10 @@ test.describe("motions: the capture stage of a run", () => {
       try {
         const script = scriptOf(motion);
         // « Mes coachs humains » lists the Human Coaches: the demo one, added by the run's Administrator (#570).
-        const own = await environmentFor(script);
-        if (own) await addDemoCoach(browser, own);
-        const storageState = script.viewer === "candidate" ? await demoSession(browser, motion.locale, demoEmail(motion.id, motion.locale), own) : undefined;
+        if (script.routes.some((route) => route.startsWith("/coachs"))) await addDemoCoach(browser);
+        const storageState = script.viewer === "candidate" ? await demoSession(browser, motion.locale, demoEmail(motion.id, motion.locale)) : undefined;
         const durations = stepDurations(readNarration(work!, motion));
-        await captureMotion({ browser, script, baseURL: own?.origin ?? origin, dir: motionDir(work!, motion), durations, storageState, services: captureServices(script, own) });
+        await captureMotion({ browser, script, baseURL: origin, dir: motionDir(work!, motion), durations, storageState, services: captureServices(script) });
       } catch (error) {
         writeStageError(work!, motion, "capture", error);
       }
@@ -188,11 +169,10 @@ test.describe("motions: the Help Centre's Motion Scripts", () => {
     for (const script of scripts[locale]) {
       test(`films ${script.id} in ${locale === "fr" ? "French" : "English"}, through the pages it declares`, async ({ browser }) => {
         test.setTimeout(180_000);
-        const own = await environmentFor(script);
-        if (own) await addDemoCoach(browser, own);
-        const storageState = script.viewer === "candidate" ? await demoSession(browser, locale, demoEmail(`essai-${script.id}`, locale), own) : undefined;
+        if (script.routes.some((route) => route.startsWith("/coachs"))) await addDemoCoach(browser);
+        const storageState = script.viewer === "candidate" ? await demoSession(browser, locale, demoEmail(`essai-${script.id}`, locale)) : undefined;
         const durations = script.steps.map(() => 300);
-        const capture = await captureMotion({ browser, script, baseURL: own?.origin ?? origin, dir, durations, storageState, services: captureServices(script, own), typingDelay: 5, pointerPause: 50 });
+        const capture = await captureMotion({ browser, script, baseURL: origin, dir, durations, storageState, services: captureServices(script), typingDelay: 5, pointerPause: 50 });
         expect(capture.steps).toHaveLength(script.steps.length);
         expect(capture.warnings).toEqual([]);
         expect(existsSync(path.join(dir, "capture.webm"))).toBe(true);

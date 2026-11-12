@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Régler vos rappels de séances
 synonyms: [désactiver récapitulatif, régler notifications coach]
+requires: coach-space-v2
 ---
 Lorsque les nouveaux rappels sont activés :
 

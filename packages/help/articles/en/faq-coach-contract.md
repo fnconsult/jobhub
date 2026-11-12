@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: The Coach agreement
 synonyms: [B2B agreement, agreement acceptance, Association agreement]
+requires: coach-space-v2
 ---
 Before using your workspace, read “Contract”, tick “I have read and accept the Coach agreement” with the displayed version, then choose “Accept agreement”. Application approval does not replace acceptance. If no agreement is available yet, wait for its publication.
 

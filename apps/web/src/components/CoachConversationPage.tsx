@@ -10,6 +10,7 @@ import type { SubjectRef } from "@/coach-conversations";
 import type { CoachProposalCard as ProposalCard } from "@/coach-proposals/card";
 import { formOpenedOnArrival, readCoachProposalsDisplay } from "@/coach-proposals-display/choice";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
+import { useHelpSettings } from "@/coach-help/settings";
 import { threadReplies } from "@/ai-activity/thread";
 import { useShowInActivity } from "@/components/AiActivity";
 import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
@@ -258,6 +259,8 @@ export function CoachConversationPage(page: PagePlacement) {
   // The help (#342): the Help Articles matching the draft, once the Candidate pauses; the one read last, whose title goes
   // with the next message; the question the AI Coach could not answer, for the help to answer instead.
   const locale = helpLocale(i18n.language);
+  // The Help Articles « Espace coach v2 » serves (#867): main's while it is off.
+  const helpSettings = useHelpSettings();
   const [query, setQuery] = useState("");
   const [readArticle, setReadArticle] = useState<{ id: string; title: string } | null>(null);
   const [unanswered, setUnanswered] = useState<string | null>(null);
@@ -265,7 +268,7 @@ export function CoachConversationPage(page: PagePlacement) {
     const timer = setTimeout(() => setQuery(draft), SUGGEST_DELAY_MS);
     return () => clearTimeout(timer);
   }, [draft]);
-  const found = useMemo(() => helpSuggestions(query, locale), [query, locale]);
+  const found = useMemo(() => helpSuggestions(query, locale, "candidate", helpSettings), [query, locale, helpSettings]);
   // A draft cleared (sent) or cut short hides them at once.
   const suggestions = draft.trim().length >= MIN_SUGGESTION_LENGTH ? found : [];
 
@@ -322,7 +325,7 @@ export function CoachConversationPage(page: PagePlacement) {
   // address: the box starts a question about it, and the address drops it.
   useEffect(() => {
     const asked = askedAbout(window.location.search);
-    const article = asked ? helpArticle(asked, locale) : null;
+    const article = asked ? helpArticle(asked, locale, helpSettings) : null;
     if (!asked) return;
     window.history.replaceState(null, "", window.location.pathname);
     if (article) pageActions.current?.askAbout({ id: article.id, title: article.title });

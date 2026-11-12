@@ -20,13 +20,20 @@ Click « Book a session with … » for the coach of your choice. On the « Your
 
 Click « Go to payment », then pay on the secure page of Stripe, our payment provider, which this video does not show. Back in Jobbbox, « Payment received. Now pick the time of your session. » shows.
 
-## Find your session
-- scroll region « My paid sessions »
-- zoom region « My paid sessions »
+## Pick your time
+- hover link « Pick my time with Sophie Démo on Cal.com »
 
-Once payment is confirmed, your session appears under “My paid sessions”. Choose its time in the embedded Cal.com booking when available. Confirmed times and rescheduling automatically update your Agenda. “Choose later” keeps the session to schedule. For a session without a linked booking, the manual form remains a fallback; it can never change a linked booking.
+Click « Pick my time with … on Cal.com » and book your time.
 
-## Prepare the call
-- zoom off
+## Enter the date
+- click button « I've booked: enter the date of the session with Sophie Démo »
+- fill label « Session date and time (Paris time) » « 2027-03-16T10:00 »
+- fill label « Video call link (optional) » « https://visio.exemple.invalid/seance-demo »
+- click button « Save »
 
-The coach sets the session’s video link or phone contact in Jobbbox. “Join” becomes available ten minutes before the start until thirty minutes after the scheduled end. Your private page gathers session details and Shared Reading. The contact, your notes and documents never appear on the coach’s public profile.
+Come back to Jobbbox and click « I've booked: enter the date ». Enter the « Session date and time (Paris time) » and, if you have it, the « Video call link (optional) », then click « Save ».
+
+## Join the video call
+- hover link « Join the video call with Sophie Démo »
+
+The session joins your agenda. On the day, click « Join the video call with … », in « My human coaches », under « My paid sessions ».

@@ -7,7 +7,7 @@ synonyms: [avis, coach review, donner mon avis, commenter, commentaire, relire, 
 ---
 Avec l'accès coach, vous pouvez donner votre avis sur un document de candidature : le CV adapté, la lettre de motivation ou le message d'approche. Vous ne modifiez pas le document : le candidat lit votre avis et décide de ce qu'il change. Dans cet exemple, Claire D. vous a donné l'accès et prépare sa candidature au poste de responsable des achats chez Exemple Industrie, une entreprise fictive.
 
-1. Ouvrez « Mon espace coach ». Dans « Mes Candidates », cliquez sur Claire D.
+1. Ouvrez « Mon espace coach ». Dans « Candidats avec accès coach », cliquez sur Claire D.
 2. Dans « Candidatures », cliquez sur la candidature Responsable des achats · Exemple Industrie.
 3. Lisez les « Documents de candidature ». Un document que le candidat n'a pas encore rédigé affiche « Pas encore rédigé. » ; vous ne pouvez commenter qu'un document déjà rédigé.
 4. Dans « Votre avis », choisissez le « Document commenté », par exemple « Lettre de motivation ».

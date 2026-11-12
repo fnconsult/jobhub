@@ -4,6 +4,7 @@ audience: candidate
 topic: utiliser
 title: Comment annuler ou déplacer une séance de coaching ?
 synonyms: [annuler séance, déplacement, remboursement séance, coach absent, délai 24 heures, autre coach]
+requires: coach-space-v2
 ---
 Lorsque les nouvelles conditions de coaching sont activées, vous pouvez annuler ou déplacer votre séance jusqu’à 24 heures avant son début. Le délai utilise l’instant réel de la séance, même si votre fuseau horaire change ou lors du passage à l’heure d’été ou d’hiver. Une annulation dans Jobbbox demande le remboursement intégral sur le moyen de paiement initial. Après le délai, contactez le coach ou le support ; le formulaire ne peut pas le prolonger.
 

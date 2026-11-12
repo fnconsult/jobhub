@@ -5,6 +5,7 @@ topic: decouvrir
 title: Report coaching content
 route: /signaler-coaching
 synonyms: [report an offer, report a coach, illegal content, DSA notice]
+requires: coach-space-v2
 ---
 This form is available without an account from “Report this Coach page” or “Report this offer”. It identifies the content concerned; explain precisely where the problem is and why you are reporting it. Your good-faith declaration is required. Removal is never automatic: a person reviews the evidence.
 

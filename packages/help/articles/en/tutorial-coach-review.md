@@ -7,7 +7,7 @@ synonyms: [review, coach review, give my review, comment, feedback, proofread, t
 ---
 With coach access, you can give your review of an application document: the tailored CV, the cover letter or the outreach message. You do not change the document: the candidate reads your review and decides what to change. In this example, Claire D. gave you access and is preparing an application for the purchasing manager role at Exemple Industrie, a fictitious company.
 
-1. Open « My coach space ». In « My Candidates », click Claire D.
+1. Open « My coach space ». In « Candidates with coach access », click Claire D.
 2. In « Applications », click the application Responsable des achats · Exemple Industrie.
 3. Read the « Application documents ». A document the candidate has not written yet shows « Not written yet. »; you can only review a document already written.
 4. In « Your review », choose the « Document reviewed », for example « Cover letter ».

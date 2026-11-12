@@ -231,7 +231,7 @@ test.describe("« L'extension » (#553)", () => {
 // Issue #554: the « Espace coach » articles, a Human Coach's. Listed under their topic in French and English, the
 // tutorials a numbered list of the coach space's labels; the coach space's footer leads there (e2e/public-shell.spec.ts).
 test.describe("« Espace coach » (#554)", () => {
-  const COACH_SPACE = ["page-coach-space", "page-association-coachs", "page-association-invitation", "page-association-membres", "page-association-offres", "page-association-revenus", "page-association-space", "page-coach-availability", "page-coach-contract-version", "page-coach-contract", "page-coach-earnings", "page-coach-public-profile", "page-coach-reminders", "page-coach-session", "faq-coach-access", "faq-retired-human-coach", "faq-coach-two-step-verification", "faq-coach-app-two-step-verification", "faq-coach-app-notifications", "faq-coach-cancel-session", "faq-coach-contract", "faq-coach-reminders", "faq-coach-tax", "tutorial-association-add-coach", "tutorial-coach-availability", "tutorial-coach-get-paid", "tutorial-coach-meeting-contact", "tutorial-coach-present-slides", "tutorial-coach-review", "tutorial-coach-session-date", "tutorial-coach-session-report", "tutorial-coach-shared-reading", "tutorial-coach-tax", "tutorial-coaching-reminders", "tutorial-edit-coach-page", "glossary-association-member", "glossary-coach-page"];
+  const COACH_SPACE = ["page-coach-space", "faq-coach-access", "faq-retired-human-coach", "tutorial-coach-session-date", "tutorial-coach-review", "faq-coach-two-step-verification", "faq-coach-app-two-step-verification", "faq-coach-app-notifications"];
 
   test("/aide/espace-coach and /en/aide/espace-coach list the coach space's articles (#554, #665, #688, #699)", async ({ page }) => {
     for (const [locale, prefix] of [["fr", ""], ["en", "/en"]] as const) {
@@ -245,12 +245,12 @@ test.describe("« Espace coach » (#554)", () => {
   test("the tutorial « Saisir la date et le lien d'une séance » is a numbered list of the coach space's labels", async ({ page }) => {
     await page.goto("/aide/espace-coach/tutorial-coach-session-date");
     const steps = main(page).locator(".help-centre__body ol > li");
-    await expect(steps).toHaveCount(3);
-    await expect(steps.nth(0)).toContainText(`« ${fr.coachSpaceV2.pages.seances} »`);
-    await expect(steps.nth(0)).toContainText(`« ${fr.coachingSession.coachEnterDate} »`);
-    await expect(steps.nth(1)).toContainText(`« ${fr.coachingSession.date} »`);
-    await expect(steps.nth(1)).toContainText(`« ${fr.coachingSession.save} »`);
-    await expect(steps.nth(2)).toContainText(`« ${fr.coachMeeting.sessionContact} »`);
+    await expect(steps).toHaveCount(6);
+    await expect(steps.nth(0)).toContainText(`« ${fr.coachSpace.sessionsTitle} »`);
+    await expect(steps.nth(1)).toContainText(`« ${fr.coachingSession.coachEnterDate} »`);
+    await expect(steps.nth(2)).toContainText(`« ${fr.coachingSession.date} »`);
+    await expect(steps.nth(4)).toContainText(`« ${fr.coachingSession.videoLink} »`);
+    await expect(steps.nth(5)).toContainText(`« ${fr.coachingSession.save} »`);
     expect(await axeViolations(page)).toEqual([]);
   });
 

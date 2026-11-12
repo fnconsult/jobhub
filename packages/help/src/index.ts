@@ -8,6 +8,10 @@
  *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
  *   helpCentreTopics("fr");                             // the four topics of /aide, each with its public articles
  *   backOfficeHelpTopics("fr");                         // the Back Office's topics of /admin/aide, with the Administrators' articles
+ *
+ * What is served depends on « Espace coach v2 » (#867, ADR-0106): every function reads the articles served while it is
+ * off (those main served) unless given `from: articlesFor(locale, { coachSpaceV2: true })`, or `{ coachSpaceV2 }` where
+ * it takes settings.
  */
 import { ARTICLES } from "./articles.generated";
 import { isNoticed } from "./legal-notices";
@@ -19,6 +23,7 @@ import type { MotionScript } from "./motion-scripts";
 import { MOTION_SCRIPTS } from "./motions.generated";
 import { RELEASE_NOTES } from "./release-notes.generated";
 import { routeMatches as routeMatchesPath } from "./motion-scripts";
+import { servedArticles, type HelpSettings } from "./requirements";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
 import { BACK_OFFICE_HELP_TOPICS, PUBLIC_HELP_TOPICS, type BackOfficeHelpTopic, type HelpArticle, type HelpLocale, type PublicHelpTopic } from "./types";
 
@@ -41,6 +46,7 @@ export {
   type LegalTextVersionRecord,
 } from "./legal-texts";
 export { CONTACT_EMAIL_TOKEN, fillContactEmail } from "./contact";
+export { HELP_SETTINGS_STATES, servedArticles, type HelpSettings } from "./requirements";
 export { routeAddresses } from "./route-addresses";
 export { addDays, earliestNoticedEffective, isNoticed, LEGAL_NOTICE_DAYS, legalNoticesDue, NOTICED_LEGAL_TEXTS, privacyChangeInEffect } from "./legal-notices";
 export {
@@ -78,12 +84,14 @@ export {
 export {
   BACK_OFFICE_HELP_TOPICS,
   HELP_ARTICLE_KINDS,
+  HELP_ARTICLE_REQUIREMENTS,
   HELP_AUDIENCES,
   HELP_LOCALES,
   PUBLIC_HELP_TOPICS,
   type BackOfficeHelpTopic,
   type HelpArticle,
   type HelpArticleKind,
+  type HelpArticleRequirement,
   type HelpAudience,
   type HelpLocale,
   type PublicHelpTopic,
@@ -133,12 +141,12 @@ export interface HelpCentreTopic {
  * The Help Centre's four topics, in PUBLIC_HELP_TOPICS' order, each with its public articles in `locale` (an
  * Administrator's never). `from` defaults to the articles this build carries.
  */
-export function helpCentreTopics(locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): HelpCentreTopic[] {
+export function helpCentreTopics(locale: HelpLocale, from: readonly HelpArticle[] = articlesFor(locale)): HelpCentreTopic[] {
   return PUBLIC_HELP_TOPICS.map((topic) => ({ topic, articles: from.filter((entry) => isPublic(entry) && entry.topic === topic) }));
 }
 
 /** The public article `id` of `topic`, as /aide/<topic>/<id> serves it; null for any other, an Administrator's above all. */
-export function helpCentreArticle(topic: string, id: string, locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): HelpArticle | null {
+export function helpCentreArticle(topic: string, id: string, locale: HelpLocale, from: readonly HelpArticle[] = articlesFor(locale)): HelpArticle | null {
   if (!isPublicHelpTopic(topic)) return null;
   return from.find((entry) => entry.id === id && entry.topic === topic && isPublic(entry)) ?? null;
 }
@@ -148,7 +156,7 @@ export function helpCentreArticle(topic: string, id: string, locale: HelpLocale,
  * its topic, never itself. Found without AI, like the search.
  */
 export function relatedArticles(article: HelpArticle, { limit = 3, from }: { limit?: number; from?: readonly HelpArticle[] } = {}): HelpArticle[] {
-  const index = (from ? from.filter(isPublic).map(indexArticle) : indexed(article.locale, "public")).filter((entry) => entry.article.id !== article.id);
+  const index = indexed(from ?? articlesFor(article.locale), "public").filter((entry) => entry.article.id !== article.id);
   const others = index.map((entry) => entry.article);
   const found = searchIndex(index, `${article.title} ${article.synonyms.join(" ")}`, limit);
   const sameTopic = others.filter((entry) => entry.topic === article.topic && !found.includes(entry));
@@ -169,19 +177,35 @@ export interface BackOfficeHelpTopicArticles {
  * The Back Office's help topics (#551), in BACK_OFFICE_HELP_TOPICS' order (« Fournisseurs et Tools » first, « IA et
  * conformité » last), each with its Administrator articles in `locale`, never another audience's.
  */
-export function backOfficeHelpTopics(locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): BackOfficeHelpTopicArticles[] {
+export function backOfficeHelpTopics(locale: HelpLocale, from: readonly HelpArticle[] = articlesFor(locale)): BackOfficeHelpTopicArticles[] {
   return BACK_OFFICE_HELP_TOPICS.map((topic) => ({ topic, articles: from.filter((entry) => entry.audience === "administrator" && entry.topic === topic) }));
 }
 
 /** The Administrator article `id` of `topic`, as /admin/aide/<topic>/<id> serves it; null for any other, a public one above all. */
-export function backOfficeHelpArticle(topic: string, id: string, locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): HelpArticle | null {
+export function backOfficeHelpArticle(topic: string, id: string, locale: HelpLocale, from: readonly HelpArticle[] = articlesFor(locale)): HelpArticle | null {
   if (!isBackOfficeHelpTopic(topic)) return null;
   return from.find((entry) => entry.id === id && entry.topic === topic && entry.audience === "administrator") ?? null;
 }
 
-/** Every Help Article in `locale`, the Administrators' too: the page articles, the glossary, the frequent questions, then the tutorials, each by title. */
-export function articles(locale: HelpLocale): readonly HelpArticle[] {
-  return ARTICLES[locale];
+const served = new Map<string, readonly HelpArticle[]>();
+
+/**
+ * The Help Articles served in `locale` under `settings` (#867, ADR-0106), the Administrators' too, in this build's order
+ * (the page articles, the glossary, the frequent questions, then the tutorials, each by title). « Espace coach v2 » off
+ * (the default): those main served, with main's text; on: the epic's, an article's `.v2` in its place. The one filter
+ * every reader of the articles goes through: the Help Centre, its search and sitemap, « Sur cette page », the Coach
+ * Panel, the AI Coach, the Back Office Assistant and /admin/aide. The same array for the same arguments.
+ */
+export function articlesFor(locale: HelpLocale, { coachSpaceV2 = false }: HelpSettings = {}): readonly HelpArticle[] {
+  const key = `${locale} ${coachSpaceV2}`;
+  let found = served.get(key);
+  if (!found) served.set(key, (found = Object.freeze(servedArticles(ARTICLES[locale], { coachSpaceV2 }))));
+  return found;
+}
+
+/** Every Help Article served in `locale` (see `articlesFor`; « Espace coach v2 » off unless `settings` say), the Administrators' too. */
+export function articles(locale: HelpLocale, settings: HelpSettings = {}): readonly HelpArticle[] {
+  return articlesFor(locale, settings);
 }
 
 /**
@@ -196,7 +220,7 @@ export function search(
   locale: HelpLocale,
   { limit = 4, scope = "public", from }: { limit?: number; scope?: HelpScope; from?: readonly HelpArticle[] } = {},
 ): HelpArticle[] {
-  return searchIndex(from ? from.filter(IN_SCOPE[scope]).map(indexArticle) : indexed(locale, scope), query, limit);
+  return searchIndex(indexed(from ?? articlesFor(locale), scope), query, limit);
 }
 
 /**
@@ -301,18 +325,20 @@ export function legalTextVersionInEffect(text: LegalTextId, on: string, registry
   );
 }
 
-const indexes = new Map<string, IndexedArticle[]>();
+/** Each list of articles' search index, per scope: read once for `articlesFor`'s lists, which stay the same. */
+const indexes = new WeakMap<readonly HelpArticle[], Map<HelpScope, IndexedArticle[]>>();
 
-function indexed(locale: HelpLocale, scope: HelpScope): IndexedArticle[] {
-  const key = `${locale} ${scope}`;
-  let index = indexes.get(key);
-  if (!index) indexes.set(key, (index = ARTICLES[locale].filter(IN_SCOPE[scope]).map(indexArticle)));
+function indexed(from: readonly HelpArticle[], scope: HelpScope): IndexedArticle[] {
+  let byScope = indexes.get(from);
+  if (!byScope) indexes.set(from, (byScope = new Map()));
+  let index = byScope.get(scope);
+  if (!index) byScope.set(scope, (index = from.filter(IN_SCOPE[scope]).map(indexArticle)));
   return index;
 }
 
-/** The Help Article `id` in `locale`, or null when there is none. */
-export function article(id: string, locale: HelpLocale): HelpArticle | null {
-  return ARTICLES[locale].find((entry) => entry.id === id) ?? null;
+/** The Help Article `id` served in `locale` (« Espace coach v2 » off unless `settings` say), or null when there is none. */
+export function article(id: string, locale: HelpLocale, settings: HelpSettings = {}): HelpArticle | null {
+  return articlesFor(locale, settings).find((entry) => entry.id === id) ?? null;
 }
 
 /**
@@ -325,7 +351,7 @@ export function article(id: string, locale: HelpLocale): HelpArticle | null {
  * With `scope`, only an article of that scope (`backOffice`: an Administrator's, « Sur cette page » in the Back Office).
  * Null for a page without an article.
  */
-export function articleFor(route: string, locale: HelpLocale, { scope, from = ARTICLES[locale] }: { scope?: HelpScope; from?: readonly HelpArticle[] } = {}): HelpArticle | null {
+export function articleFor(route: string, locale: HelpLocale, { scope, from = articlesFor(locale) }: { scope?: HelpScope; from?: readonly HelpArticle[] } = {}): HelpArticle | null {
   const [address = "", query = ""] = route.split("#")[0]!.split("?");
   const path = segments(address);
   const params = new URLSearchParams(query);

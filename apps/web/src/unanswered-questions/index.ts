@@ -22,7 +22,7 @@
  * MARKED_RETENTION_DAYS after it was marked written or dismissed.
  */
 import { redactIdentity, type CandidateIdentity } from "@jobhub/ai";
-import { HELP_AUDIENCES, questionKey, type HelpAudience } from "@jobhub/help";
+import { HELP_AUDIENCES, questionKey, type HelpAudience, type HelpSettings } from "@jobhub/help";
 import type { Pool } from "pg";
 import type { CoachReplyOutcome } from "../coach";
 import { helpLocale, helpSuggestions } from "../coach-help";
@@ -102,6 +102,8 @@ export interface UnansweredQuestionsDeps {
   identityOf: (candidateId: string) => Promise<CandidateIdentity | null>;
   /** When a question is asked or marked. Default: the system clock. */
   now?: () => Date;
+  /** The Help Articles' settings when a question is asked (#867): « Espace coach v2 » on or off. Default off: main's articles. */
+  helpSettings?: () => HelpSettings;
 }
 
 /** How long an Unanswered Question is kept after it was last asked. */
@@ -128,9 +130,12 @@ export function routePattern(address: string | null | undefined): string | null 
   return `/${segments.map((segment) => (/^[a-z]+(?:-[a-z]+)*$/.test(segment) ? segment : "[id]")).join("/")}`;
 }
 
-/** Whether the help missed `asked`: the AI Coach replied, said it asks how to use Jobbbox, and no Help Article matched it. */
-function helpMissed({ question, reply, language }: NoticedReply): boolean {
-  return reply.outcome === "replied" && reply.aboutJobbbox === true && helpSuggestions(question, helpLocale(language)).length === 0;
+/**
+ * Whether the help missed `asked`: the AI Coach replied, said it asks how to use Jobbbox, and no Help Article served
+ * under `settings` (#867) matched it.
+ */
+export function helpMissed({ question, reply, language }: NoticedReply, settings: HelpSettings = {}): boolean {
+  return reply.outcome === "replied" && reply.aboutJobbbox === true && helpSuggestions(question, helpLocale(language), "candidate", settings).length === 0;
 }
 
 interface Row {
@@ -188,7 +193,7 @@ export function createUnansweredQuestions(database: Queryable, deps: UnansweredQ
 
   return {
     async notice(candidateId, asked) {
-      if (!helpMissed(asked)) return false;
+      if (!helpMissed(asked, deps.helpSettings?.())) return false;
       const key = questionKey(asked.question);
       if (!key) return false;
       const [question, answer] = await redacted(candidateId, [asked.question.trim(), asked.reply.text.trim().slice(0, MAX_ANSWER_LENGTH)]);

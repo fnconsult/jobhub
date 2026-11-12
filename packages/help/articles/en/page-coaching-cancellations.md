@@ -5,6 +5,7 @@ topic: utiliser
 title: Cancellations and refunds
 route: /coachs/annulations
 synonyms: [cancellations, refunds, cancelled session, another coach, new booking]
+requires: coach-space-v2
 ---
 When the new coaching conditions are activated, this private page lets you cancel sessions within the 24-hour limit and follow existing cancellation requests. Each follow-up names the original coach. Times use your time zone, with Paris time beside them when different.
 

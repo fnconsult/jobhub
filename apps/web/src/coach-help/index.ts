@@ -13,11 +13,15 @@
  * articles and those of the Help Centre's « extension » topic, never an Administrator's; or `administrator` (the Back
  * Office Assistant, #551), whose search covers the Administrators' articles only (ADR-0065). Runs in the browser and on
  * the server: it reads the bundled Help Articles and calls no AI model, so nothing here costs anything.
+ *
+ * Each also takes the Help Articles' `settings` (#867, ADR-0106): « Espace coach v2 » off unless `{ coachSpaceV2: true }`,
+ * main's articles while it is off. On the server, `helpSettings()` (./server) reads it for the request; in the browser,
+ * `useHelpSettings()` (./settings), as the server read it for the page.
  */
 import { isPublic, type HelpArticle } from "@jobhub/help";
 import { routes } from "../routes";
 
-export type { HelpArticle, HelpLocale } from "@jobhub/help";
+export type { HelpArticle, HelpLocale, HelpSettings } from "@jobhub/help";
 // Found without AI, shared with the native app (#690): what the box suggests, what the help offers when the AI Coach
 // could not answer, the page's article and the frequent questions.
 export {

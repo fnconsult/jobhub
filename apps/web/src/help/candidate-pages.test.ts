@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { articleFor } from "@jobhub/help";
+import { articleFor, articlesFor } from "@jobhub/help";
 import { describe, expect, it } from "vitest";
 
 const appDir = fileURLToPath(new URL("../app", import.meta.url));
@@ -41,8 +41,17 @@ describe("Help Articles of the Candidate's pages (ADR-0035)", () => {
     expect(candidatePages).not.toContain("/admin");
   });
 
-  it.each(["fr", "en"] as const)("gives every Candidate page a page article, in %s", (locale) => {
-    const withoutArticle = candidatePages.filter((route) => articleFor(route, locale)?.kind !== "page");
+  // « Espace coach v2 » on (#867): every page, the Human Coach epic's too.
+  it.each(["fr", "en"] as const)("gives every Candidate page a page article, in %s (« Espace coach v2 » on)", (locale) => {
+    const withoutArticle = candidatePages.filter((route) => articleFor(route, locale, { from: articlesFor(locale, { coachSpaceV2: true }) })?.kind !== "page");
     expect(withoutArticle).toEqual([]);
+  });
+
+  // Off, the articles main served: a page the epic added (a 404 while it is off, ADR-0106) has its article on only.
+  it.each(["fr", "en"] as const)("gives every Candidate page a page article, in %s, but the epic's pages while « Espace coach v2 » is off", (locale) => {
+    const withoutArticle = candidatePages.filter((route) => articleFor(route, locale)?.kind !== "page");
+    const epics = withoutArticle.filter((route) => articleFor(route, locale, { from: articlesFor(locale, { coachSpaceV2: true }) })?.requires === "coach-space-v2");
+    expect(withoutArticle).toEqual(epics);
+    expect(withoutArticle).not.toContain("/coachs");
   });
 });

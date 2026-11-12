@@ -5,6 +5,7 @@ topic: espace-coach
 title: Prepare and follow your session
 route: /espace-coach/seances/[sessionId]
 synonyms: [prepare session, private note, report, cancel session, reason, shared reading]
+requires: coach-space-v2
 ---
 Your coach-space session page brings together the date, relevant Candidate, preparation and report. You can access only your active sessions. Shared reading and the join link follow their time windows and update while the page stays open.
 

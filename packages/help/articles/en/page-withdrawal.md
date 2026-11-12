@@ -11,5 +11,3 @@ This page lets you withdraw from a contract made on Jobbbox, without giving a re
 Check the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirm the withdrawal » ends the contract at once and refunds you to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days. The refund is in full, but for a subscription taken with the request for the service to start at once: you then pay for the service already provided, and the page shows the amount « Refunded if you confirm now » (the amount paid, less the share of the days elapsed since the start of the period).
 
 You get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it.
-
-Contractual session-cancellation tracking is under “My human coaches”, then “Cancellations and refunds” when the new conditions are activated. It shows its own deadline and choices; it does not replace this withdrawal process.

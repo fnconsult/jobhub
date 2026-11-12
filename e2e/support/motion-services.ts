@@ -4,14 +4,13 @@ import { Pool } from "pg";
 import { migrateCoachPages } from "../../apps/web/src/coach-pages";
 import { expect, type Browser, type Locator, type Page } from "@playwright/test";
 import type { MotionScript } from "@jobhub/help";
-import { signedEvent } from "../../apps/web/src/billing/fake-stripe";
+import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, signedEvent } from "../../apps/web/src/billing/fake-stripe";
 import { pdfCv } from "../../apps/web/src/cv/test-support";
 import type { CaptureServices } from "../../packages/motions/src/capture";
 import { DEMO_ADMINISTRATOR, DEMO_COACH, DEMO_CV_LINES, DEMO_JOB_OFFER, DEMO_JOB_OFFER_HTML } from "../../packages/motions/src/demo-seed";
 import { signInWithMagicLink } from "./candidate";
-import { signInByEmail, type OwnServer } from "./own-server";
 import { buildE2eExtension, e2eExtensionDir, unpackedExtensionId } from "./extension";
-import { emailsTo, emailsIn, linkIn } from "./mailbox";
+import { emailsTo, linkIn } from "./mailbox";
 
 // Issue #570: what the motions' captures use beyond the page they film, on the e2e server of the run: the demo CV, the
 // sign-in email as a mail client shows it, a Coaching Session paid in Stripe's test mode (the fake Stripe API of the
@@ -44,13 +43,19 @@ async function payInTestMode(page: Page, submit: Locator) {
           await route.fulfill({ response: answer });
           return done(new Error(`the checkout answered ${answer.status()}: ${(await answer.text()).slice(0, 200)}`));
         }
-        const state = await (await fetch(`${stripeUrl}/__connect/state`)).json();
-        const session = state.sessions.findLast((item: { value: {metadata?: {jobhub_context?: string}} }) => item.value.metadata?.jobhub_context === checkout["metadata[jobhub_context]"])?.value;
-        if (!session) throw new Error("Motion Checkout has no frozen payment context");
-        await fetch(`${stripeUrl}/__connect/pay`, {method:"POST",body:new URLSearchParams({session:session.id})});
-        const paid = (await (await fetch(`${stripeUrl}/__connect/state`)).json()).sessions.find((item: {value:{id:string}})=>item.value.id===session.id).value;
-        const signed = signedEvent({id:`evt_motion_${session.id}`,object:"event",type:"checkout.session.completed",data:{object:paid}},"whsec_coach_motion");
-        const delivered = await page.request.post("/api/coaching/connect/webhook", { data: signed.payload, headers: { "stripe-signature": signed.signature, "content-type": "application/json" }, timeout: 60_000 });
+        const price = checkout["line_items[0][price]"];
+        const amount = price === FAKE_STRIPE_COACHING_SESSION_PRICES.discounted ? 7200 : 9000;
+        const event = checkoutSessionEvent("checkout.session.completed", {
+          id: `cs_motions_${Date.now()}`,
+          candidateId: checkout["metadata[candidate_id]"]!,
+          coachId: checkout["metadata[coach_id]"],
+          amount,
+          currency: "eur",
+          paymentStatus: "paid",
+        });
+        // An event id of its own: the app takes an event it already had for Stripe delivering it twice.
+        const { payload, signature } = signedEvent({ ...event, id: `evt_motions_${Date.now()}_${Math.random().toString(36).slice(2)}` });
+        const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" }, timeout: 60_000 });
         if (delivered.status() !== 200) throw new Error(`the webhook answered ${delivered.status()}`);
         // Back where Stripe sends the Candidate. A redirect answered for a form's navigation is not always followed: the page
         // goes there itself, and the capture makes sure it did (below).
@@ -72,23 +77,22 @@ async function payInTestMode(page: Page, submit: Locator) {
 }
 
 /** The services of a capture of `script`. */
-export function captureServices(script: MotionScript, own?: OwnServer): CaptureServices {
+export function captureServices(script: MotionScript): CaptureServices {
   const sentBefore: Record<string, number> = {};
-  const mailbox = (address: string) => own ? emailsIn(own.output(), address) : emailsTo(address);
   const services: CaptureServices = {
     files: { "cv-claire-demo.pdf": { name: "CV Claire Démo.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(DEMO_CV_LINES)) } },
     email: async (address, subject) => {
       // Only an email sent since the address was typed: a database kept from an earlier run holds its old ones.
       const before = sentBefore[address] ?? 0;
-      await expect.poll(() => mailbox(address).length, { message: `an email to ${address}`, timeout: 30_000 }).toBeGreaterThan(before);
-      const email = mailbox(address).at(-1)!;
+      await expect.poll(() => emailsTo(address).length, { message: `an email to ${address}`, timeout: 30_000 }).toBeGreaterThan(before);
+      const email = emailsTo(address).at(-1)!;
       if (email.subject !== subject) throw new Error(`the last email to ${address} is « ${email.subject} », not « ${subject} »`);
       // The sign-in email as it was sent (its language is the subject's); any other as its text.
       if (/\/api\/auth\/magic-link\/verify/.test(email.text)) return signInEmail(linkIn(email), script.locale).html;
       return `<!doctype html><meta charset="utf-8"><title>${escapeHtml(subject)}</title><pre style="font:16px/1.5 system-ui;margin:40px;white-space:pre-wrap">${escapeHtml(email.text)}</pre>`;
     },
     typed: (address) => {
-      sentBefore[address] = mailbox(address).length;
+      sentBefore[address] = emailsTo(address).length;
     },
     pay: payInTestMode,
   };
@@ -99,15 +103,13 @@ export function captureServices(script: MotionScript, own?: OwnServer): CaptureS
   return services;
 }
 
-const coachesAdded = new Set<string>();
+let coachAdded = false;
 /** The demo Human Coach, added once by the run's Administrator in the Back Office, for a video that films « Mes coachs humains ». */
-export async function addDemoCoach(browser: Browser, own?: OwnServer): Promise<void> {
-  const baseURL = own?.origin ?? origin;
-  if (coachesAdded.has(baseURL)) return;
-  const context = await browser.newContext({ baseURL, locale: "fr-FR" });
+export async function addDemoCoach(browser: Browser): Promise<void> {
+  if (coachAdded) return;
+  const context = await browser.newContext({ baseURL: origin, locale: "fr-FR" });
   const admin = await context.newPage();
-  if (own) await signInByEmail(admin, own, DEMO_ADMINISTRATOR);
-  else await signInWithMagicLink(admin, DEMO_ADMINISTRATOR);
+  await signInWithMagicLink(admin, DEMO_ADMINISTRATOR);
   await admin.goto("/admin/coachs");
   if ((await admin.getByText(DEMO_COACH.name, { exact: true }).count()) === 0) {
     await admin.getByLabel("Nom", { exact: true }).fill(DEMO_COACH.name);
@@ -116,9 +118,10 @@ export async function addDemoCoach(browser: Browser, own?: OwnServer): Promise<v
     await admin.getByRole("button", { name: "Ajouter le coach" }).click();
     await expect(admin.getByRole("status")).toHaveText(`Coach ${DEMO_COACH.name} ajouté.`);
   }
-  // Test-only historical Coach fixture: production-created profiles require moderation. Bootstrap the
-  // already approved legacy biography in this run's throwaway database, without inventing a legal approval.
-  const database = new Pool({ connectionString: own?.databaseUrl ?? process.env.E2E_DATABASE_URL });
+  // The Back Office's form no longer takes a biography (#867, not gated: the Back Office is the same whatever « Espace
+  // coach v2 »): the demo coach's is written in this run's throwaway database, as an already approved legacy biography,
+  // without inventing a legal approval.
+  const database = new Pool({ connectionString: process.env.E2E_DATABASE_URL });
   try {
     await database.query("UPDATE human_coach SET public_ready=true,bio=$2 WHERE email=$1", [DEMO_COACH.email, DEMO_COACH.bio]);
     await migrateCoachPages(database);
@@ -126,28 +129,5 @@ export async function addDemoCoach(browser: Browser, own?: OwnServer): Promise<v
     await database.end();
   }
   await context.close();
-  if (own) {
-    const coach = await (await browser.newContext({ baseURL })).newPage();
-    try {
-      await signInByEmail(coach, own, DEMO_COACH.email);
-      await coach.goto("/espace-coach/contrat");
-      await coach.getByRole("checkbox").check();
-      await coach.getByRole("button", { name: "Accepter le contrat" }).click();
-      await expect(coach).toHaveURL(`${baseURL}/espace-coach/aujourdhui`);
-      const database = new Pool({ connectionString: own.databaseUrl });
-      try {
-        const human = (await database.query("SELECT id FROM human_coach WHERE email=$1 AND retired_at IS NULL", [DEMO_COACH.email])).rows[0];
-        const seller = (await database.query("INSERT INTO coaching_seller(kind,name,status,siret,coach_id) VALUES('human_coach',$1,'EI','12345678901234',$2) RETURNING id", [DEMO_COACH.name, human.id])).rows[0];
-        await database.query("INSERT INTO coaching_offer(coach_id,seller_id,payout_seller_id,coach_share_bps) SELECT $1,id,$2,8000 FROM coaching_seller WHERE kind='jobbbox' ON CONFLICT(coach_id) DO UPDATE SET payout_seller_id=$2,coach_share_bps=8000", [human.id, seller.id]);
-        const identity = {kind: "individual",legalName: DEMO_COACH.name,firstName:"Synthetic",lastName:"Coach",birthDate:"1980-01-01",residence:"FR",tin:"12345678901234",tinCountry:"FR",siret:"12345678901234",street:"1 rue Test",postalCode:"75001",city:"Paris",addressCountry:"FR",iban:"FR7630006000011234567890189",accountHolder:"Synthetic Coach"};
-        const saved = await coach.request.put("/api/account/coaching/tax-identity", { headers: {origin: baseURL}, data: {sellerId:seller.id,year:2026,identity} });
-        expect(saved.status(),await saved.text()).toBe(200);
-        const remote = await (await fetch(`${stripeUrl}/v1/accounts`, {method:"POST",body:new URLSearchParams({country:"FR","metadata[jobhub_seller]":seller.id,"controller[fees][payer]":"application","controller[losses][payments]":"application","controller[requirement_collection]":"stripe","controller[stripe_dashboard][type]":"express","settings[payouts][schedule][interval]":"manual","capabilities[card_payments][requested]":"true","capabilities[transfers][requested]":"true"})})).json();
-        const person = (await (await coach.request.get("/api/auth/get-session")).json()).user;
-        await database.query("INSERT INTO coaching_connect_account(seller_id,account_id,created_at,owner_id) VALUES($1,$2,now(),$3)",[seller.id,remote.id,person.id]);
-        await fetch(`${stripeUrl}/__connect/activate`,{method:"POST",body:new URLSearchParams({account:remote.id})});
-      } finally { await database.end(); }
-    } finally { await coach.context().close(); }
-  }
-  coachesAdded.add(baseURL);
+  coachAdded = true;
 }

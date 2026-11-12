@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Être payé par Jobbbox
 synonyms: [Stripe Connect, reversement, compte bancaire, justificatifs, commission]
+requires: coach-space-v2
 ---
 Les versements sont disponibles après l’approbation et l’entrée en vigueur des textes nécessaires. Votre identité professionnelle de vendeur doit être complète et votre contrat accepté.
 

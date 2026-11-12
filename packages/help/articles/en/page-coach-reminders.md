@@ -5,6 +5,7 @@ topic: espace-coach
 title: Your coaching reminders
 route: /espace-coach/rappels
 synonyms: [coach reminders, coach notifications, morning summary, 07:30, one hour before, session emails]
+requires: coach-space-v2
 ---
 When the new coaching notifications are activated, this page controls session emails and your morning summary. Changes save immediately. The summary has its own switch; app notifications are controlled independently, event by event.
 

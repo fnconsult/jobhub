@@ -5,6 +5,7 @@ topic: espace-coach
 title: Revenus
 route: /espace-coach/revenus
 synonyms: [revenus coach, compte Stripe, reversements, rémunération]
+requires: coach-space-v2
 ---
 Cette page vous permet de configurer votre compte de reversement Stripe. L’identité professionnelle doit être complète, le contrat accepté et les textes nécessaires en vigueur. Stripe recueille directement les justificatifs et coordonnées bancaires.
 

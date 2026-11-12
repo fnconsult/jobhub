@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Ajouter un coach à votre association
 synonyms: [inviter coach, coach d’association]
+requires: coach-space-v2
 ---
 1. Ouvrez « Espace association », acceptez le contrat demandé puis ouvrez « Mes coachs ».
 2. Dans « Inviter un coach », renseignez « Nom complet » et « Adresse e-mail », puis choisissez « Envoyer l’invitation ».

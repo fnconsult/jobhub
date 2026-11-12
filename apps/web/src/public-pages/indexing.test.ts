@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { articles, isPublic } from "@jobhub/help";
+import { articles, articlesFor, isPublic } from "@jobhub/help";
 import { helpCentrePaths, indexedPages, publicPageMetadata, robotsFile, siteOrigin, sitemapEntries, type IndexSources } from "./indexing";
 
 const ORIGIN = "https://app.jobbbox.fr";
@@ -80,6 +80,20 @@ describe("sitemap.xml (#545)", () => {
       expect(built).toContain(`${ORIGIN}/aide/${found.topic}/${found.id}`);
       expect(built).toContain(`${ORIGIN}/en/aide/${found.topic}/${found.id}`);
     }
+  });
+
+  // #867 (ADR-0106): the sitemap lists the articles served under « Espace coach v2 » (indexSources), main's while it is off.
+  it("lists no address of the epic's Help Articles while « Espace coach v2 » is off, and lists them while it is on", () => {
+    const listed = (coachSpaceV2: boolean) =>
+      sitemapEntries({ origin: ORIGIN, beta: false, sources: { helpArticles: articlesFor("fr", { coachSpaceV2 }), legalTextInEffect: () => false } }).map((entry) => entry.url);
+    const added = articlesFor("fr", { coachSpaceV2: true }).filter((found) => isPublic(found) && found.requires && !articlesFor("fr").some((other) => other.id === found.id));
+    expect(added.length).toBeGreaterThan(0);
+    for (const found of added) {
+      expect(listed(false)).not.toContain(`${ORIGIN}/aide/${found.topic}/${found.id}`);
+      expect(listed(true)).toContain(`${ORIGIN}/aide/${found.topic}/${found.id}`);
+    }
+    expect(listed(false)).toContain(`${ORIGIN}/aide/utiliser/tutorial-book-coaching-session`);
+    expect(listed(true)).toContain(`${ORIGIN}/aide/utiliser/tutorial-book-coaching-session`);
   });
 
   it("lists no Administrator article and no noindex page", () => {

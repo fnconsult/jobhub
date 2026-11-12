@@ -4,6 +4,7 @@ audience: visitor
 topic: decouvrir
 title: Signaler une page de coach ou une offre
 synonyms: [signaler un contenu, formulaire DSA]
+requires: coach-space-v2
 ---
 1. Sur le contenu concerné, ouvrez « Signaler cette page de coach » ou « Signaler cette offre ». Choisissez le motif et indiquez précisément l’emplacement du contenu et votre explication.
 2. Renseignez votre nom et votre e-mail, sauf si le motif est « Abus sur mineur », puis cochez la déclaration de bonne foi et appuyez sur « Envoyer le signalement ». Conservez la référence affichée.

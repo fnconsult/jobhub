@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Set your session reminders
 synonyms: [disable morning summary, coach notification settings]
+requires: coach-space-v2
 ---
 When the new reminders are activated:
 

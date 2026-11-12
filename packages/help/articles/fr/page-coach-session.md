@@ -5,6 +5,7 @@ topic: espace-coach
 title: Préparer et suivre votre séance
 route: /espace-coach/seances/[sessionId]
 synonyms: [préparer séance, note privée, compte rendu, annuler séance, motif, lecture partagée]
+requires: coach-space-v2
 ---
 La page d’une séance de votre espace coach réunit sa date, le candidat concerné, votre préparation et le compte rendu. Vous accédez uniquement à vos séances actives. La lecture partagée et le lien pour rejoindre l’appel suivent leurs fenêtres horaires ; ils se mettent à jour lorsque la page reste ouverte.
 

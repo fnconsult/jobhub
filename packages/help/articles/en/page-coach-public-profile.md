@@ -5,6 +5,7 @@ topic: espace-coach
 title: Coach public profile
 synonyms: [coach page, coach photo, public presentation, specialties, languages]
 route: /espace-coach/profil
+requires: coach-space-v2
 ---
 Edit “About you”, “Specialties”, “Languages” and your “Professional photo”, then choose “Send for approval”. “Candidate preview” shows your proposal; “Currently visible version” remains the approved one. A proposal never replaces it before approval.
 

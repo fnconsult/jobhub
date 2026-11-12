@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Renseigner vos informations fiscales
 synonyms: [compléter NIF, enregistrer IBAN, fiscalité vendeur]
+requires: coach-space-v2
 ---
 Lorsque la collecte fiscale est activée :
 

@@ -4,6 +4,7 @@ audience: human-coach
 topic: espace-coach
 title: Add a coach to your Association
 synonyms: [invite coach, Association coach]
+requires: coach-space-v2
 ---
 1. Open “Association workspace”, accept the requested agreement, then open “My coaches”.
 2. Under “Invite a coach”, enter “Full name” and “Email address”, then choose “Send invitation”.

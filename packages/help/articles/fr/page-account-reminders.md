@@ -5,6 +5,7 @@ topic: utiliser
 title: Rappels dans Mon compte
 route: /compte/rappels
 synonyms: [rappels, e-mail de rappel, notifications, coaching une heure avant, couper les rappels]
+requires: coach-space-v2
 ---
 Cette rubrique distingue les e-mails et les notifications de l’app. Le rappel existant de la veille regroupe vos rendez-vous, envoyé à 18 h en heure de Paris. Lorsque les nouvelles notifications de coaching sont activées, un réglage supplémentaire permet de recevoir ou couper l’e-mail une heure avant votre séance de coaching.
 

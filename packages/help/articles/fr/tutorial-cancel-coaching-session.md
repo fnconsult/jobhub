@@ -4,6 +4,7 @@ audience: candidate
 topic: utiliser
 title: Annuler une séance ou choisir après l’annulation du coach
 synonyms: [annuler séance, choisir remboursement, reprise même coach, autre coach, suivi annulation]
+requires: coach-space-v2
 ---
 Lorsque les nouvelles conditions sont activées, utilisez le suivi privé de votre séance. Une annulation contractuelle et une rétractation légale restent deux démarches distinctes.
 

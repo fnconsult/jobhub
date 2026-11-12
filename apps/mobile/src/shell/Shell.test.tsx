@@ -337,6 +337,14 @@ describe("Shell, its Top Bar's title", () => {
     for (const words of ["Masquer le menu", "Activité", "Mes candidatures"]) expect(topBar.getByText(words)).toHaveProp("maxFontSizeMultiplier", 2);
   });
 
+  // The same iPhone SE: a 1rem gutter each side of the conversation, 57 pt at that size, left its words 261 of the
+  // window's 375 points, and they broke mid-word (#905). Full page, the gutter stops growing at 16 pt.
+  it("keeps the conversation the window's width at the largest text size, a 16 pt margin each side", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderShell(candidatures);
+    expect(StyleSheet.flatten(screen.getByTestId("shell-conversation").props.style)).toMatchObject({ marginHorizontal: 16 });
+  });
+
   it("keeps the link back to the page above it on its own line", async () => {
     setWindow({ width: 412, height: 800 });
     const onUp = jest.fn();

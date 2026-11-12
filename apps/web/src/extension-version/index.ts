@@ -8,11 +8,12 @@ import type { Release } from "@/release";
 export const builtExtensionVersion: string = extensionManifest.version;
 
 /**
- * The repo's GitHub Releases, filtered on the Extension Versions (`extension-vX.Y.Z`, made by extension.yml with both
- * zips): not `releases/latest`, which stays the web app's Version (ADR-0063). The repo is private: an Administrator
- * needs access to it; the server holds no GitHub token.
+ * Where an Administrator downloads this deployment's zip (#989): served by the web app itself, from the image that
+ * apps/web/Dockerfile builds with both zips of the Extension Version its commit carries. Not the repo's GitHub
+ * Releases: the repo is private, and an Extension Version's Release only exists once the product owner runs
+ * extension.yml (docs/ops/extension.md).
  */
-export const EXTENSION_RELEASES_URL = "https://github.com/fnconsult/jobhub/releases?q=extension-v&expanded=true";
+export const EXTENSION_TEST_BUILD_URL = "/api/account/extension-test-build";
 
 /** What an Administrator reads in Outils to load the latest extension unpacked, before the store review (#920). */
 export interface ExtensionTestBuild {
@@ -20,9 +21,9 @@ export interface ExtensionTestBuild {
   extensionVersion: string;
   /** The API Version the server serves: an extension that states an older one than the one before is asked to update (proxy.ts). */
   apiVersion: number;
-  /** The zip tied to this environment: the beta one on the Beta, the public one in Production (extension.yml). */
+  /** The zip tied to this environment: the beta one on the Beta, the public one in Production (extension.yml, apps/web/Dockerfile). */
   zip: string;
-  releasesUrl: string;
+  downloadUrl: string;
 }
 
 export function extensionTestBuild(
@@ -34,6 +35,6 @@ export function extensionTestBuild(
     extensionVersion,
     apiVersion,
     zip: `jobbbox-extension-${extensionVersion}-chrome${release.beta ? "-beta" : ""}.zip`,
-    releasesUrl: EXTENSION_RELEASES_URL,
+    downloadUrl: EXTENSION_TEST_BUILD_URL,
   };
 }

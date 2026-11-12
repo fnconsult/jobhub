@@ -804,6 +804,171 @@
     font-size: var(--font-size-landing-display);
   }
 
+  /* —— Two audiences, each at its own address (only while the Human Coaches' path is switched on) —— */
+  .landing-audience {
+    display: inline-flex;
+    padding: 3px;
+    background: var(--color-hover);
+    border-radius: var(--radius-control);
+  }
+
+  .landing-audience > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--size-control);
+    padding: 0 var(--space-6);
+    font-weight: 500;
+    color: var(--color-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-control);
+  }
+
+  .landing-audience > a[aria-current="page"] {
+    color: var(--color-text);
+    background: var(--color-background);
+    box-shadow: var(--shadow-card);
+  }
+
+  .landing-doors {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .landing-door {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+    padding: clamp(1.5rem, 3vw, 2.25rem);
+    color: var(--color-text);
+    text-decoration: none;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 1.25rem;
+    transition: border-color var(--motion-base) var(--motion-easing);
+  }
+
+  .landing-door[data-current] {
+    background: var(--color-background);
+  }
+
+  a.landing-door:hover {
+    border-color: var(--color-accent-line);
+  }
+
+  .landing-door__link {
+    margin-top: var(--space-2);
+    font-weight: 500;
+    color: var(--color-accent);
+  }
+
+  /* —— The coach's screens —— */
+  .landing-app[data-plain] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-field {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .landing-input {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--size-control);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+  }
+
+  .landing-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .landing-choices > span {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--size-control);
+    padding: 0 var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+  }
+
+  .landing-choices > span[data-chosen] {
+    border-color: var(--color-accent);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+
+  .landing-drop {
+    display: grid;
+    place-items: center;
+    min-height: 4.5rem;
+    padding: var(--space-3);
+    color: var(--color-meta);
+    text-align: center;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-card);
+  }
+
+  .landing-coach-card__head {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .landing-avatar {
+    flex: none;
+    width: 4rem;
+    height: 4rem;
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent-line);
+    border-radius: 50%;
+  }
+
+  .landing-chat__actions[data-flush] {
+    padding-left: 0;
+  }
+
+  .landing-row[data-boxed] {
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .landing-row[data-plain] {
+    padding: 0;
+    border: 0;
+  }
+
+  .landing-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .landing-card {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .landing-amount {
+    display: block;
+    width: 4.5rem;
+    height: 0.625rem;
+    background: var(--color-hover);
+    border-radius: var(--radius-sm);
+  }
+
+  .landing-amount[data-strong] {
+    background: var(--color-border-strong);
+  }
+
   /* —— Motion, only where it is welcome —— */
   @media (prefers-reduced-motion: no-preference) {
     /* The hero's conversation arrives once: the question, the coach's reply, then the Fiche. */
@@ -912,8 +1077,21 @@
     }
 
     .landing-browser__body,
-    .landing-pair {
+    .landing-pair,
+    .landing-doors,
+    .landing-cards {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .landing-audience {
+      display: flex;
+      width: 100%;
+    }
+
+    .landing-audience > a {
+      flex: 1;
+      justify-content: center;
+      padding: 0 var(--space-3);
     }
 
     .landing-browser__panel {

@@ -10,7 +10,7 @@ import { APPLE_ORIGIN } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration, getSignInProviders, refreshSignInConfiguration } from "@/sign-in-providers/server";
 import { REQUEST_PATH_HEADER } from "@/request-path";
 import { authConfigFromEnv } from "./config";
-import { createAuth, type Auth, type Mailer, type SignInSetup } from "./index";
+import { createAuth, type Auth, type Mailer, type ReviewSignInUse, type SignInSetup } from "./index";
 import { swapWhenReady } from "./instances";
 import { liveMailer } from "./mailers";
 import { signInHref } from "./sign-in-return";
@@ -58,6 +58,20 @@ function signInSetup(configuration: SignInConfiguration): SignInSetup {
 }
 
 /**
+ * Writes a use of the store review's sign-in code (#981) to the Back Office Audit, section `review_sign_in`, by the demo
+ * account's address, its actor the demo account: `signed_in`, or a `signed_in` refused for a wrong code. Never the code.
+ */
+async function recordReviewSignIn(use: ReviewSignInUse): Promise<void> {
+  // Imported here: the Back Office's module reads the session through this one.
+  const { getBackOffice } = await import("@/admin/server");
+  const actor = { id: use.candidateId, email: use.email };
+  if (use.outcome === "failed") {
+    return getBackOffice().recordFailure(actor, { section: "review_sign_in", target: use.email, tried: "signed_in", reason: "wrong_code" });
+  }
+  await getBackOffice().record(actor, async () => undefined, () => [{ section: "review_sign_in", target: use.email, action: "signed_in", before: null, after: null }]);
+}
+
+/**
  * The app's Candidate-accounts module, configured from the environment (and the Provider
  * Secrets) and from the Sign-in Providers in use. Built again whenever those change (a
  * provider added, enabled, edited in the Back Office): over the same tables and secret,
@@ -70,6 +84,7 @@ export function getAuth(): Auth {
       ...authConfigFromEnv(getSecretResolver().current().env, { mailer: getMailer() }),
       signIn: signInSetup(configuration),
       externalApis: getExternalApiLog(),
+      recordReviewSignIn,
     }),
   );
 }

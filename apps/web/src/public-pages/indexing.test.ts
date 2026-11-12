@@ -97,6 +97,12 @@ describe("sitemap.xml (#545)", () => {
     }
   });
 
+  it("lists the Human Coaches' path only while it is switched on (ADR-0105)", () => {
+    const paths = (sources: IndexSources) => indexedPages(sources).map((page) => page.path);
+    expect(paths(SOURCES)).not.toContain("/coachs-humains");
+    expect(paths({ ...SOURCES, humanCoachPath: true })).toContain("/coachs-humains");
+  });
+
   it("is empty on the Beta", () => {
     expect(sitemapEntries({ origin: ORIGIN, beta: true, sources: SOURCES })).toEqual([]);
   });

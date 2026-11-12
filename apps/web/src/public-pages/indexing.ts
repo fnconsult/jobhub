@@ -90,6 +90,8 @@ export const INDEXED_LEGAL_PAGES: readonly string[] = ["/legal/destinataires"];
 export type IndexSources = {
   helpArticles: readonly HelpCentreArticle[];
   legalTextInEffect: (text: LegalTextId, locale: Locale) => boolean;
+  /** Whether the Human Coaches' path is on the public site (ADR-0105): its page is indexed only then. */
+  humanCoachPath?: boolean;
 };
 
 /** The languages a Legal Text is indexed in: those it has a version in effect in (#501). */
@@ -98,10 +100,11 @@ export function legalTextIndexedIn(text: LegalTextId, inEffect: IndexSources["le
 }
 
 /** Every indexed page (without `/en`) and the languages it is indexed in, from the sources as they are today. */
-export function indexedPages({ helpArticles, legalTextInEffect }: IndexSources): { path: string; indexedIn: Locale[] }[] {
+export function indexedPages({ helpArticles, legalTextInEffect, humanCoachPath = false }: IndexSources): { path: string; indexedIn: Locale[] }[] {
   const everywhere = (path: string) => ({ path, indexedIn: [...SUPPORTED_LOCALES] });
   return [
     everywhere("/"),
+    ...(humanCoachPath ? [everywhere("/coachs-humains")] : []),
     everywhere("/aide"),
     ...PUBLIC_HELP_TOPICS.map((topic) => everywhere(`/aide/${topic}`)),
     ...helpCentrePaths(helpArticles).map(everywhere),

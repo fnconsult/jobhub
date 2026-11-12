@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { isPublicPage, splitLocalePrefix, urlLocale } from "./locale-header";
 
-const PUBLIC = ["/", "/desabonnement", "/nouveautes", "/legal/cgv", "/legal/cgu/2026-01-01", "/aide", "/connexion", "/connexion/back-office", "/compte/supprime"];
+const PUBLIC = ["/", "/desabonnement", "/nouveautes", "/legal/cgv", "/legal/cgu/2026-01-01", "/aide", "/connexion", "/connexion/back-office", "/compte/supprime", "/coachs-humains"];
 
 describe("the public pages (#544, #545)", () => {
   it("are the home page, Nouveautés, Légal, Aide, sign-in, the unsubscribe page and the deleted account's", () => {
     for (const path of PUBLIC) expect(isPublicPage(path), path).toBe(true);
-    for (const path of ["/compte", "/admin", "/api/health", "/espace-coach", "/legalese", "/candidatures"]) expect(isPublicPage(path), path).toBe(false);
+    for (const path of ["/compte", "/admin", "/api/health", "/espace-coach", "/legalese", "/candidatures", "/coachs", "/coachs-humains-x"]) expect(isPublicPage(path), path).toBe(false);
   });
 });
 

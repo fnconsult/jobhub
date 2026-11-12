@@ -132,6 +132,7 @@ describe("Failure Reason catalog", () => {
       "invalid_value",
       "reply_required",
       "already_handled",
+      "wrong_code",
       "guardrail_timeout",
       "invalid_verdict",
       "provider_error",
@@ -194,6 +195,8 @@ describe("Failure Reason catalog", () => {
       // A Signalement's status or reply refused (#376).
       "reply_required",
       "already_handled",
+      // A wrong store review sign-in code (#981).
+      "wrong_code",
       "other",
     ]);
   });

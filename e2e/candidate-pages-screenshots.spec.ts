@@ -896,6 +896,10 @@ test.describe("the onboarding's search in Activity (#1001)", () => {
         .getByRole("article", { name: `${fr.aiActivity.kinds.job_search} · Directrice administrative et financière` });
       await expect(entry.locator(".ds-stat__value")).toHaveText(["3 sur 4", "27", "3", /^\d$/]);
       await fixTimesOfDay(page);
+      // A screen tall enough for the whole entry in the panel, which scrolls on its own: its steps, figures, sources and
+      // criteria, under the Context bar.
+      await page.setViewportSize({ width, height: 1800 });
+      await expect(entry.getByText(fr.onboardingSearch.refined)).toBeInViewport();
       await check(page, page.locator("body"), "body", `onboarding-search-activity-${name}`, width, false);
       await page.context().clearCookies();
     }

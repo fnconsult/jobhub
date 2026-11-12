@@ -266,7 +266,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon", "marie.dupont@example.fr"]);
-      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière (lieu : Lyon).");
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
       await user.click(within(summary()).getByRole("button", { name: "Cela semble correct" }));
 
       // The coach says it is saved, in the thread; the Candidate goes on to the Profile when they choose.
@@ -363,7 +363,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon"]);
       await user.click(within(summary()).getByRole("button", { name: "Voir le détail" }));
       await user.click(within(reviewPane()).getByRole("checkbox", { name: "CDI" }));
-      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI (lieu : Lyon).");
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI ; lieu : Lyon.");
 
       await user.click(within(reviewPane()).getByRole("button", { name: "Enregistrer mon profil" }));
       await waitFor(() => expect(push).toHaveBeenCalledWith("/profils/p1"));
@@ -588,7 +588,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         </AiActivityLiveProvider>,
       );
       expect(within(thread()).getByText(/Reprenons la création de votre profil/)).toBeTruthy();
-      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI (lieu : Lyon).");
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI ; lieu : Lyon.");
       await user.click(within(summary()).getByRole("button", { name: "Voir le détail" }));
       expect((within(reviewPane()).getByLabelText("Nom et prénom") as HTMLInputElement).value).toBe("Marie Dupont");
       expect((within(reviewPane()).getByRole("checkbox", { name: "CDI" }) as HTMLInputElement).checked).toBe(true);

@@ -96,9 +96,6 @@ export function profileSummary(profile: ProfileSummaryInput, { locale, today = n
           ),
         }),
       );
-    if (places.length > 0)
-      // Named, not placed with a preposition: « à Lyon », but « en Île-de-France », « dans le Rhône »; the text is the Candidate's.
-      sentence.push(...fill(t("profileSummary.locations", { count: places.length, locations: slot("locations") }), { locations: list(places.map(strong), "or") }));
     if (remote.length > 0)
       sentence.push(
         ...fill(t("profileSummary.remote", { remote: slot("remote") }), {
@@ -109,6 +106,10 @@ export function profileSummary(profile: ProfileSummaryInput, { locale, today = n
         }),
       );
     if (hasSalary) sentence.push(...fill(t("profileSummary.salary", { salary: slot("salary") }), { salary: strong(euros(salary, locale)) }));
+    // The places last, named without a French preposition: « à Lyon », but « en Île-de-France », « dans le Rhône », and the
+    // text is the Candidate's (« Paris (75) »): « ; lieux : Lyon ou Paris (75) ».
+    if (places.length > 0)
+      sentence.push(...fill(t("profileSummary.locations", { count: places.length, locations: slot("locations") }), { locations: list(places.map(strong), "or") }));
     sentence.push({ text: t("profileSummary.end") });
     sentences.push(sentence);
   }

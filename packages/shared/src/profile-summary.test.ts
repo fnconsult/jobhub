@@ -36,17 +36,17 @@ describe("profileSummary", () => {
   it("says the whole search in French, its key items strong", () => {
     const parts = fr(FULL);
     expect(text(parts)).toBe(
-      "Vous recherchez un poste de Directrice financière en CDI (lieux : Lyon ou Paris), en télétravail partiel, à partir de 85 000 € brut par an. " +
+      "Vous recherchez un poste de Directrice financière en CDI, en télétravail partiel, à partir de 85 000 € brut par an ; lieux : Lyon ou Paris. " +
         "Avec 17 ans d'expérience, vous mettez en avant vos compétences Consolidation, IFRS, SAP et Trésorerie. " +
         "Vos derniers postes : Directrice financière chez Groupe Seb et Responsable du contrôle de gestion chez Valmont.",
     );
     expect(strong(parts)).toEqual([
       "Directrice financière",
       "CDI",
-      "Lyon",
-      "Paris",
       "en télétravail partiel",
       "85 000 €",
+      "Lyon",
+      "Paris",
       "17 ans d'expérience",
       "Consolidation",
       "IFRS",
@@ -59,7 +59,7 @@ describe("profileSummary", () => {
 
   it("says the same in English", () => {
     expect(text(en(FULL))).toBe(
-      "You are looking for a position as Directrice financière on a permanent contract in Lyon or Paris, partly remote, from €85,000 gross a year. " +
+      "You are looking for a position as Directrice financière on a permanent contract, partly remote, from €85,000 gross a year, in Lyon or Paris. " +
         "With 17 years of experience, you highlight your skills in Consolidation, IFRS, SAP, and Trésorerie. " +
         "Your latest roles: Directrice financière at Groupe Seb and Responsable du contrôle de gestion at Valmont.",
     );
@@ -72,9 +72,9 @@ describe("profileSummary", () => {
 
   it("leaves out every criterion the Profile does not have, never inventing one", () => {
     const parts = fr(criteria({ targetRole: "Contrôleur de gestion", locations: ["Nantes"], contractTypes: [], remoteWorkOptions: [] }));
-    expect(text(parts)).toBe("Vous recherchez un poste de Contrôleur de gestion (lieu : Nantes).");
+    expect(text(parts)).toBe("Vous recherchez un poste de Contrôleur de gestion ; lieu : Nantes.");
     expect(text(fr(criteria({ targetRole: "Contrôleur de gestion", locations: [] })))).toBe("Vous recherchez un poste de Contrôleur de gestion.");
-    expect(text(fr(criteria({ targetRole: "", locations: ["Nantes"], minSalary: 50000 })))).toBe("Vous recherchez un poste (lieu : Nantes), à partir de 50 000 € brut par an.");
+    expect(text(fr(criteria({ targetRole: "", locations: ["Nantes"], minSalary: 50000 })))).toBe("Vous recherchez un poste, à partir de 50 000 € brut par an ; lieu : Nantes.");
     // No salary of zero, and no figure that is not a number.
     expect(text(fr(criteria({ targetRole: "Comptable", locations: [], minSalary: 0 })))).toBe("Vous recherchez un poste de Comptable.");
   });
@@ -86,15 +86,15 @@ describe("profileSummary", () => {
       contractTypes: ["cdi", "cdd", "interim"],
       remoteWorkOptions: ["on_site", "full_remote"],
     });
-    expect(text(fr(profile))).toBe("Vous recherchez un poste de Comptable en CDI, CDD ou intérim (lieux : Lyon, Grenoble ou Annecy), sur site ou en télétravail complet.");
+    expect(text(fr(profile))).toBe("Vous recherchez un poste de Comptable en CDI, CDD ou intérim, sur site ou en télétravail complet ; lieux : Lyon, Grenoble ou Annecy.");
     expect(text(en(profile))).toBe(
-      "You are looking for a position as Comptable on a permanent, fixed-term, or temporary contract in Lyon, Grenoble, or Annecy, on site or fully remote.",
+      "You are looking for a position as Comptable on a permanent, fixed-term, or temporary contract, on site or fully remote, in Lyon, Grenoble, or Annecy.",
     );
   });
 
   it("names the places in French without a preposition, right for a town, a région or a département alike", () => {
-    expect(text(fr(criteria({ targetRole: "Comptable", locations: ["Île-de-France"] })))).toBe("Vous recherchez un poste de Comptable (lieu : Île-de-France).");
-    expect(text(fr(criteria({ targetRole: "Comptable", locations: ["Rhône", "Lyon"] })))).toBe("Vous recherchez un poste de Comptable (lieux : Rhône ou Lyon).");
+    expect(text(fr(criteria({ targetRole: "Comptable", locations: ["Île-de-France"] })))).toBe("Vous recherchez un poste de Comptable ; lieu : Île-de-France.");
+    expect(text(fr(criteria({ targetRole: "Comptable", locations: ["Rhône", "Lyon"] })))).toBe("Vous recherchez un poste de Comptable ; lieux : Rhône ou Lyon.");
   });
 
   it("elides « de » before a vowel in French", () => {

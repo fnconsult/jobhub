@@ -142,6 +142,7 @@ Le simulateur et l'émulateur, eux :
 - le simulateur iOS est créé **en français avant son premier démarrage** (`.GlobalPreferences.plist`), ce qui évite le second démarrage que `run.ts` faisait pour prendre la langue (6 à 14 minutes sur l'iPad) ; `bootSetup` (`devices.ts`) le vérifie et, s'il n'est pas en français, le règle et le redémarre comme avant ;
 - un premier démarrage qui échoue, ou qui finit sur « Data Migration Failed », fait supprimer et recréer le simulateur, une fois ;
 - le pilote XCTest de Maestro a 6 minutes pour démarrer (`MAESTRO_DRIVER_STARTUP_TIMEOUT`) ; s'il ne démarre pas, `run.ts` redémarre le simulateur une fois (`ios-driver-recovery.ts`, #944) ;
+- une commande Maestro qui ne se termine pas est arrêtée : après 15 minutes pour la préparation de l'app (qui compte alors comme échouée, d'où le second essai ou la reprise ci-dessus), après une heure pour les flux d'un passage (qui échoue). Sans cela, un Maestro planté sans quitter gardait le job jusqu'à sa limite de 3 heures (exécution 43182114920) ;
 - après le redémarrage du framework Android (pour la langue), `bootSetup` attend que ses services répondent (`cmd uimode`, `wm`), et les réglages d'un passage (thème, taille du texte, barre d'état) sont réessayés 3 fois : ce sont des préparatifs, jamais une vérification de l'app.
 
 Aucun flux n'est réessayé, et aucune vérification de l'app n'est assouplie par ces reprises.

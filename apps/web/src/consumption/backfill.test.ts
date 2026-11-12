@@ -91,6 +91,8 @@ describe.skipIf(!connectionString)("Consumption backfill: the last 12 months reb
     await jobSearch("marie", marie, "2026-11-02T12:00:00Z", "stopped"); // stopped empty: given back too
     const { rows: offers } = await database.query<{ id: string }>(`SELECT id FROM job_offer LIMIT 1`);
     await jobSearch("marie", marie, "2026-11-02T13:00:00Z", "stopped", [offers[0]!.id]); // stopped with a Job Offer: counted
+    // Offered by the onboarding (#1000): it used no Plan Quota, so it is not counted.
+    await database.query(`INSERT INTO job_search (candidate_id, profile_id, status, started_at, offered) VALUES ($1, $2, 'done', '2026-11-02T14:00:00Z', 'first')`, ["marie", marie]);
     await database.query(`INSERT INTO tailored_cv (application_id, proposal, saved) VALUES ($1, $2, $3)`, [
       applicationId,
       { proposedAt: "2026-11-04T09:00:00Z" },

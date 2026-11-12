@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -46,6 +47,8 @@ export interface ResumedProfile extends BornProfile {
 type Refused = { prompt: Prompt | null };
 
 const IN_PROGRESS: OnboardingState = "in_progress";
+/** The Job Searches the onboarding offers a Profile (#1000): its first, and one restart. */
+const OFFERED_SEARCHES = 2;
 const JSON_BODY = { "content-type": "application/json" };
 
 interface Turn {
@@ -80,6 +83,8 @@ const HELP = "help" as const;
  * its onboarding in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the
  * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
  * review. From a CV or from scratch, the Profile is still created at the review's save (#1003 changes it).
+ * Born, it gets its first Job Search, offered outside the Plan Quota (#1000), started again once when an answer changes
+ * its target role or locations; a coach line in the thread says so, with a link to the Job Search (its card is #1001).
  */
 export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const { t } = useTranslation();
@@ -95,6 +100,10 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   // The Search Criteria last sent for it, so that only an answer changing them is saved.
   const sentCriteria = useRef(resumed ? criteriaKey(resumed.searchCriteria) : "");
   const [refused, setRefused] = useState<Refused | null>(null);
+  // The Job Search the onboarding offers (#1000), once started: told in the thread after the answer that started it
+  // (`after`: how many answers then); and how many times it was asked for.
+  const [offeredSearch, setOfferedSearch] = useState<{ id: string; restarted: boolean; after: number } | null>(null);
+  const offeredStarts = useRef(0);
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState("");
@@ -157,6 +166,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setOpener("");
     setAsides([]);
     setRefused(null);
+    setOfferedSearch(null);
   }
 
   /**
@@ -164,16 +174,40 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
    * progress; once born, an answer changing them changes its Search Criteria. Each waits for the one before. A creation
    * refused leaves no Profile, tried again only when they change: the review's save creates it, or shows why not.
    */
-  function keepCriteria(draft: CvDraft) {
+  function keepCriteria(draft: CvDraft, after: number) {
     const { searchCriteria } = draft;
     const key = criteriaKey(searchCriteria);
     if (!searchCriteria.targetRole || searchCriteria.locations.length === 0 || key === sentCriteria.current) return;
     sentCriteria.current = key;
     born.current = (born.current ?? Promise.resolve(null)).then(async (profile) => {
-      if (!profile) return createProfile(draft);
-      await fetch(`/api/profiles/${profile.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) }).catch(() => null);
+      if (!profile) {
+        const created = await createProfile(draft);
+        if (created) await startOfferedSearch(created.id, after);
+        return created;
+      }
+      const changed = await fetch(`/api/profiles/${profile.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) }).catch(() => null);
+      // The search follows the new target role or locations: started again, once (#1000).
+      if (changed?.ok) await startOfferedSearch(profile.id, after);
       return profile;
     });
+  }
+
+  /**
+   * Starts the Job Search the onboarding offers the Profile born (ADR-0106, #1000), outside the Plan Quota, then starts it
+   * again once when its target role or locations change; the server refuses beyond (409), so no more is asked. Not
+   * started, the onboarding goes on: the Candidate can still search from Recherches d'offres.
+   */
+  async function startOfferedSearch(profileId: string, after: number): Promise<void> {
+    if (offeredStarts.current >= OFFERED_SEARCHES) return;
+    offeredStarts.current += 1;
+    try {
+      const response = await fetch(`/api/profiles/${profileId}/onboarding-search`, { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 201 && typeof body.id === "string") setOfferedSearch({ id: body.id, restarted: body.offered === "restart", after });
+      else if (response.status === 409) offeredStarts.current = OFFERED_SEARCHES;
+    } catch {
+      // Not started: nothing to tell.
+    }
   }
 
   async function createProfile(draft: CvDraft): Promise<BornProfile | null> {
@@ -209,7 +243,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setValue("");
     setError(null);
     const draft = draftFromQuestionnaire(result.questionnaire);
-    keepCriteria(draft);
+    keepCriteria(draft, answered.length);
     if (!currentQuestion(result.questionnaire)) review(draft, "questionnaire");
   }
 
@@ -284,6 +318,15 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                     <span className="visually-hidden">{t("questionnaire.you")}</span>
                     <p>{answerText(turn)}</p>
                   </li>,
+                  // The Job Search the onboarding offers (#1000), told after the answer that started it.
+                  offeredSearch?.after === index + 1 ? (
+                    <CoachLine key="offered-search">
+                      <p>
+                        {offeredSearch.restarted ? t("newProfile.offeredSearchRestarted") : t("newProfile.offeredSearchStarted")}{" "}
+                        <Link href={routes.jobSearch(offeredSearch.id)}>{t("newProfile.offeredSearchLink")}</Link>
+                      </p>
+                    </CoachLine>
+                  ) : null,
                 ])}
               </>
             ) : null}

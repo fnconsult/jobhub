@@ -18,3 +18,5 @@ Vos alertes d'offres (sites d'emploi, sites carrière) et les messages de recrut
 8. Ouvrez la page Recherches d'offres : les offres de vos emails arrivent dans « Reçues par email », sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60.
 
 Si une de vos alertes est ignorée comme « Expéditeur non reconnu », cliquez sur « C'est une alerte d'offres » : son expéditeur est reconnu pour vous à partir de son prochain email. Pour arrêter, cliquez sur « Désactiver » dans la rubrique « Réception par email » : l'adresse cesse aussitôt de fonctionner, et les offres déjà reçues restent.
+
+Pour les alertes publiques, le classement utilise l’annonce liée lorsqu’elle peut être lue. Si le site refuse la lecture, ouvrez le lien dans « À capturer » et utilisez l’extension. Gardez les liens lors du transfert : sans association certaine entre un titre et son lien, Jobbbox ne crée pas l’offre. Les messages de recruteurs restent privés.

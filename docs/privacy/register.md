@@ -643,7 +643,7 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 7. ADR-0051 asks fo
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)) for the Candidate; legitimate interest (GDPR art. 6(1)(f)) for the third parties an email names (recruiters, senders). |
 | People concerned | Candidates; senders and people named in the emails. |
 | Data | The Forwarding address; each Received offer email (its sender, subject and text, encrypted), the offers read from it, the recognised and switched-off senders; Activité's counts, without the Candidate. |
-| Source | The emails the Candidate forwards, received by Jobbbox's own MTA (Haraka, on the VPS, #580). |
+| Source | The emails the Candidate forwards, received by Jobbbox's own MTA (Haraka, on the VPS, #580). Public alert links are read under ADR-0002 before classification (#973); only the normalized URL and public posting enter the existing public offer reading path. Recruiter correspondence is never sent to it or to an external search. |
 | Processors | Hostinger (the MTA and the app). Mistral, in the EU, reads the text (`offer_email_reading`, `email_guardrail`: `euOnly` tasks, ADR-0055). |
 | Who can read it | The Candidate. Administrators see Activité › Emails reçus, without the Candidate nor the text. |
 | Storage | The `forwarding_address`, `received_offer_email`, `received_offer_email_offer`, `received_email_activity`, `candidate_recognised_sender`, `candidate_switched_off_sender`, `recognised_sender` and `linked_mailbox_event` tables in the app's Postgres database (EU). |

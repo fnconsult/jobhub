@@ -377,7 +377,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(entry.getByRole("list", { name: fr.onboardingSearch.stepsLabel })).toBeVisible();
 
     for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
-    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    await expect(onboardingSummary(page)).toBeVisible();
 
     // Outside the Plan Quota: no use of it this week, and none in « Votre consommation ».
     const [{ id: profileId }] = await (await page.request.get("/api/profiles")).json();

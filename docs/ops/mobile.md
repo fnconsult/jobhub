@@ -142,3 +142,89 @@ Le script `scripts/setup/issue-704.sh` fait ces étapes pas à pas (projet EAS, 
    2. Enregistrer comme variables d'environnement du projet EAS (`npx eas-cli env:create`), dans l'environnement que lisent les builds `staging` et `production`, le jeton en visibilité « secret » : `EXPO_PUBLIC_SENTRY_DSN` (le DSN du projet, `https://<clé>@<org>.ingest.de.sentry.io/<projet>`), `SENTRY_ORG`, `SENTRY_PROJECT` et `SENTRY_AUTH_TOKEN` (un jeton d'organisation qui peut envoyer les source maps). Ils restent chez EAS, pas dans le dépôt.
    3. Retirer `SENTRY_DISABLE_AUTO_UPLOAD` des deux profils d'`eas.json` : une valeur d'`eas.json` passe avant celle d'EAS. Le test `apps/mobile/e2e/delivery.e2e.test.ts` est à mettre à jour dans le même changement.
 6. **Extension de partage iOS (Share capture, #697)** : le plugin `apps/mobile/plugins/with-share-extension.js` ajoute à la build iOS la cible `JobbboxShare`, identifiant `ai.jobbbox.app.share`, signée par EAS avec l'app (`extra.eas.build.experimental.ios.appExtensions`). Au premier `eas build` iOS, laisser EAS créer cet identifiant dans le compte Apple Developer (ou le créer à la main, sans capacité particulière : l'extension n'a ni App Group ni trousseau partagé). Sur Android, l'activité de partage vient du module local `apps/mobile/modules/share-intent`, sans réglage. À vérifier sur un appareil avant la première soumission : depuis Safari, LinkedIn, Indeed et Mail, « Partager → Jobbbox » ouvre l'app sur l'écran de capture (l'extension ouvre l'app par la chaîne des répondeurs, ce que l'App Review doit accepter).
+
+## Fiches des stores et première soumission
+
+_#708, ADR-0076. **État au 2026-11-12 : préparé, rien de soumis.** L'entité éditrice n'existe pas encore (ni nom, ni D-U-N-S) : aucun compte développeur n'est ouvert, et les textes juridiques (#706, #707) ne sont pas arrêtés._
+
+### Ce qui est dans le dépôt (`apps/mobile/store/`)
+
+| Fichier | Contenu |
+| --- | --- |
+| `fr.md`, `en.md` | Les fiches des deux stores, champ par champ, chacun sous la limite de son store. Le français fait foi. |
+| `../store.config.json` | Les champs de l'App Store et la classification par âge, pour `npx eas-cli metadata:push` (iOS seulement ; Google Play se saisit à la main). |
+| `declarations.md` | Brouillons : classification par âge, confidentialité de l'app (App Store), Sécurité des données (Google Play), chiffrement, positions sur les paiements. |
+| `review-notes.md` | Brouillon des notes pour la revue, en anglais, et ce qui manque pour les envoyer. |
+| `screenshots/` | Les captures des stores, l'icône 512 px et l'image de présentation de Google Play. |
+| `screenshots.ts`, `screenshot-sets.ts` | Le script qui les dessine, et ses lots. |
+
+Un champ qui attend le nom de l'entité porte `[ENTITÉ À CONFIRMER]`. Tant que ce marqueur est dans `apps/mobile/store`, `mobile.yml` refuse une build `production`, et `apps/mobile/e2e/store-listings.e2e.test.ts` vérifie qu'il n'est dans rien de ce qu'une build ou EAS lit (`app.json`, `eas.json`, `store.config.json`). Un champ noté « brouillon, #706 » ou « brouillon, #707 » attend la Legal Review de cette issue.
+
+### Les captures des stores
+
+```sh
+npx tsx apps/mobile/store/screenshots.ts   # redessine apps/mobile/store/screenshots/ et l'icône, à committer
+```
+
+Elles viennent des captures de référence claires des écrans clés (`maestro/captures/<appareil>/light/`, données inventées de `maestro/seed.ts`). Le test échoue quand une capture de référence a été redessinée sans relancer le script.
+
+| Lot | Emplacement dans la console | Taille | Source |
+| --- | --- | --- | --- |
+| `app-store-iphone-6.9` | App Store, iPhone 6,9 pouces (sert aussi les tailles inférieures) | 1290 × 2796 | `iphone-se`, agrandie 1,4 fois sous une légende |
+| `app-store-ipad-13` | App Store, iPad 13 pouces | 2752 × 2064 | `ipad-landscape` |
+| `google-play-phone` | Google Play, téléphone | 1080 × 2092 | `foldable-folded`, telle quelle |
+| `google-play-tablet` | Google Play, tablette 7 pouces et 10 pouces | 2560 × 1600 | `android-tablet`, telle quelle |
+
+Trois limites connues, à lever avant la soumission en production (elles ne bloquent ni TestFlight ni le test fermé) :
+
+- **Deux écrans clés sont écartés** : `accueil`, dont l'introduction dit encore « L'application est en cours de construction. » (un texte de l'app à retirer avant la revue : Apple refuse une app qui se dit inachevée, règle 2.2), et `conversation`, dont la réponse est celle du faux fournisseur de la pile de test. Il faut un jeu de données fait pour les stores (une vraie réponse du coach, des scores de correspondance variés) avant de les y remettre. Ils reviennent après #979, qui remplace l'écran d'accueil provisoire.
+- **Le lot iPhone est agrandi** depuis l'iPhone SE (750 × 1334), seul téléphone iOS de la matrice Maestro : un peu flou. Un iPhone de 6,9 pouces dans `devices.ts` donnerait des captures nettes.
+- **Les captures sont en français seulement** : les simulateurs parlent français. La fiche anglaise montre celles de la langue par défaut, ce que les deux stores font d'eux-mêmes.
+
+### Ce qui reste à l'humain, dans l'ordre
+
+Rien de ce qui suit n'est faisable par un agent : ce sont des comptes, des contrats, des paiements et des déclarations au nom de l'éditeur.
+
+**A. L'entité éditrice**
+
+1. Créer l'entité juridique (nom légal, adresse, numéro d'immatriculation). Elle sera le vendeur affiché sur les deux stores.
+2. Demander son **numéro D-U-N-S** (Dun & Bradstreet, gratuit par le formulaire d'Apple ; compter jusqu'à deux semaines, puis un à deux jours avant qu'Apple le voie). Le nom et l'adresse du D-U-N-S doivent être ceux de l'entité, à la lettre.
+3. Avoir une adresse e-mail au domaine de l'entité, un site public qui la nomme (jobbbox.ai et ses mentions légales), et une personne habilitée à l'engager.
+
+**B. Les Legal Texts (avant toute soumission)**
+
+4. **#706** : valider les clauses de la politique de confidentialité pour l'app, fixer la date d'effet, dire si la version est substantielle (annonce 30 jours avant, ADR-0072), y nommer `apns`, `fcm` et Sentry ; trancher la sauvegarde du cache de lecture et le transfert hors UE d'un texte partagé. La version doit être **en vigueur** à l'adresse de la fiche avant la soumission.
+5. **#707** : confirmer les trois positions (Coaching Session payée hors achat intégré, 3.1.3(d), et son équivalent Google Play ; aucun achat de Plan dans l'app, 3.1.3(b) ; la rétractation sur sa page web), les mentions de l'éditeur, puis valider `declarations.md` rubrique par rubrique (les lignes « à trancher »).
+6. Mettre à jour les mentions légales et les CGU/CGV au nom de l'entité (ADR-0062 : par le product owner, jamais par un agent).
+
+**C. Les comptes (au nom de l'entité)**
+
+7. **Apple Developer Program**, inscription comme **organisation** : identifiant Apple de la personne habilitée avec la validation en deux étapes, D-U-N-S, 99 USD par an. Apple vérifie par téléphone.
+8. **Google Play Console**, compte d'**organisation** : D-U-N-S, vérification de l'identité et du site, 25 USD une fois. Un compte d'organisation n'a pas l'obligation des 12 testeurs pendant 14 jours qui pèse sur un compte personnel.
+9. Dans App Store Connect : accepter les contrats, puis déclarer le **statut de professionnel** (règlement européen sur les services numériques, DSA) : adresse, téléphone et e-mail de l'entité, affichés sur la fiche dans l'UE. Aucun contrat d'apps payantes n'est nécessaire (pas d'achat intégré).
+10. **Compte Expo de l'organisation** et projet EAS, s'ils ne sont pas faits (« Mise en place, une fois », étapes 1 et 2).
+
+**D. Les identifiants et les clés**
+
+11. Apple Developer : l'identifiant d'app `ai.jobbbox.app` (capacités : Associated Domains, Push Notifications, Sign in with Apple) et celui de l'extension de partage `ai.jobbbox.app.share` (EAS les crée au premier `eas build` iOS).
+12. App Store Connect : créer l'app « Jobbbox » (langue principale : français ; identifiant de lot `ai.jobbbox.app` ; SKU `ai.jobbbox.app`). Recopier son **identifiant Apple** dans `app.json` (`expo.extra.appStoreId`) et `eas.json` (`submit.staging.ios.ascAppId`, `submit.production.ios.ascAppId`), et l'identifiant d'équipe dans `appleTeamId`.
+13. **Clé d'API App Store Connect** (rôle App Manager) et **clé APNs** (.p8), confiées à EAS (`npx eas-cli credentials`) ; la clé APNs va aussi au worker (`APNS_AUTH_KEY`, `APNS_KEY_ID`, #698).
+14. Play Console : créer l'app `ai.jobbbox.app` ; projet Google Cloud avec un **compte de service** invité dans la Play Console, sa clé confiée à EAS ; **Firebase** pour FCM (`google-services.json`, clé du worker, #698).
+15. Renseigner `APPLE_TEAM_ID` et `ANDROID_CERT_SHA256` (l'empreinte du certificat de signature de Play) sur la Beta et en Production, puis vérifier `https://jobbbox.ai/.well-known/apple-app-site-association` et `assetlinks.json` (liens universels, #685).
+16. « Continuer avec Apple » configuré sur la Beta et en Production (Services ID, clé .p8 ; #687) et proposé aux candidats : la règle 4.8 l'exige dès que Google l'est.
+17. Sentry (étape 5 de « Mise en place, une fois »), ou soumettre sans rapports de plantage et retirer cette ligne des déclarations.
+
+**E. Les champs à remplir**
+
+18. Remplacer chaque `[ENTITÉ À CONFIRMER]` de `apps/mobile/store/` (éditeur, copyright, e-mail de contact, signataire des déclarations, contact de la revue) ; ajouter `copyright` à `store.config.json`. Le test et `mobile.yml` suivent le marqueur.
+19. App Store : `npx eas-cli metadata:push` depuis `apps/mobile` (ou la saisie à la main depuis `fr.md` et `en.md`), puis dans App Store Connect : les captures de `screenshots/app-store-*`, la confidentialité de l'app et la classification par âge selon `declarations.md`, le prix (gratuit), les cinq pays, le contact et les notes de la revue.
+20. Google Play : la fiche depuis `fr.md` et `en.md`, l'icône, l'image de présentation et les captures de `screenshots/google-play-*`, puis « Contenu de l'application » : politique de confidentialité, accès à l'app (comptes de démonstration), annonces (aucune), classification du contenu, public cible, Sécurité des données, suppression du compte, les cinq pays.
+21. Ajouter `NSPrivacyCollectedDataTypes` au manifeste de confidentialité (`app.json`) d'après le tableau validé par #707.
+22. **Comptes de démonstration** (un Candidate, un Human Coach, données inventées) et le moyen pour le relecteur de se connecter : à trancher, voir `review-notes.md` (le code de connexion d'aujourd'hui ne peut pas être écrit dans des notes).
+23. Après #979 (l'écran d'accueil provisoire remplacé) : remettre `accueil` et `conversation` dans `STORE_SCREENS` et redessiner les captures.
+
+**F. La soumission**
+
+24. `gh workflow run mobile.yml -f profile=staging -f action=build` : la build part à TestFlight et au test interne de Play. Sur Play, le tout premier envoi se fait à la main.
+25. **TestFlight externe** (une revue bêta d'Apple, avec les notes) et **test fermé** sur Play : y inviter les testeurs, vérifier sur de vrais appareils le partage depuis Safari, LinkedIn, Indeed et Mail, les notifications, le paiement d'une Coaching Session et l'iPad en Split View.
+26. Production à la **Promotion** d'une Version (ADR-0063), depuis son tag : `mobile.yml` avec `profile=production`, soumission à la revue, publication à la main. Ajouter alors le fragment de Release Note (`new`, `announce: true`) « L'app Jobbbox sur iPhone, iPad et Android » : pas avant, il annoncerait une app introuvable.

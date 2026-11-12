@@ -25,9 +25,18 @@ const ENTRY: OfferBoxEntryRead = {
   laterUntil: null,
 };
 
+/** The web app's « Écartées » window: `GET /api/offer-box` leaves out an entry écartée longer ago (OFFER_BOX_DISMISSED_DAYS). */
+const DISMISSED_DAYS = 30;
+const TODAY = "2026-11-05T12:00:00.000Z";
+const inTheBox = (one: OfferBoxEntryRead) => one.state !== "dismissed" || !one.dismissedAt || Date.parse(TODAY) - Date.parse(one.dismissedAt) <= DISMISSED_DAYS * 24 * 60 * 60 * 1000;
+
+/** The entry écartée 31 days ago: the Offer box no longer gives it, its Job Offer's own read does (#895). */
+const longAgo = (dismissalReason: OfferBoxEntryRead["dismissalReason"]): OfferBoxEntryRead => ({ ...ENTRY, state: "dismissed", dismissalReason, dismissedAt: "2026-10-05T09:00:00.000Z" });
+
 /**
  * The web app at the network: `POST /api/applications` answering `status`, and the Offer box (`GET /api/offer-box`,
- * holding `entries`) with its `POST` / `DELETE /api/offer-box/:id/dismissal`, which écarte an entry or brings it back.
+ * holding `entries` but those écartées more than 30 days ago; `GET /api/offer-box/job-offers/:id`, a Job Offer's entry
+ * whatever its age) with its `POST` / `DELETE /api/offer-box/:id/dismissal`, which écarte an entry or brings it back.
  */
 function serve(status = 201, entries: OfferBoxEntryRead[] = [ENTRY]) {
   const writes: unknown[] = [];
@@ -35,7 +44,15 @@ function serve(status = 201, entries: OfferBoxEntryRead[] = [ENTRY]) {
   let box = entries;
   jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = new URL(String(input));
-    if (url.pathname === "/api/offer-box") return Response.json({ today: "2026-11-05", toHandle: box.filter((one) => one.state === "to_handle").length, entries: box });
+    if (url.pathname === "/api/offer-box") {
+      const shown = box.filter(inTheBox);
+      return Response.json({ today: "2026-11-05", toHandle: shown.filter((one) => one.state === "to_handle").length, entries: shown });
+    }
+    const ofJobOffer = /^\/api\/offer-box\/job-offers\/([^/]+)$/.exec(url.pathname);
+    if (ofJobOffer) {
+      const entry = box.find((one) => one.jobOffer.id === decodeURIComponent(ofJobOffer[1]!));
+      return entry ? Response.json(entry) : Response.json({ error: "not_found" }, { status: 404 });
+    }
     if (url.pathname === "/api/applications" && init?.method === "POST") {
       writes.push(JSON.parse(String(init.body)));
       return Response.json({ id: "app-1" }, { status });
@@ -141,6 +158,40 @@ describe("a Job Offer a Job Search found, in the Work Pane (#692)", () => {
 
     expect(dismissals).toEqual([{ method: "DELETE", path: "/api/offer-box/e-a/dismissal", body: undefined }]);
     expect(await screen.findByRole("button", { name: "Écarter : Offre a" })).toBeOnTheScreen();
+  });
+
+  it.each([
+    ["with its Dismissal reason", "location", "Écartée · Lieu"],
+    ["without a Dismissal reason", null, "Écartée"],
+  ] as const)("an offer écartée 31 days ago, %s, still says so, with no « Suivre » (#895)", async (_case, reason, said) => {
+    const { writes } = serve(201, [longAgo(reason)]);
+    await renderInApp(<FoundJobOfferPane found={found("a", { decision: "dismissed" })} profile={DAF} />);
+
+    expect(await screen.findByRole("button", { name: "Revenir sur ce choix : Offre a" })).toBeOnTheScreen();
+    expect(screen.getByText(said)).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Suivre : Offre a" })).toBeNull();
+    expect(writes).toEqual([]);
+  });
+
+  it("« Revenir sur ce choix » puts an offer écartée 31 days ago back to handle (#895)", async () => {
+    const { dismissals } = serve(201, [longAgo("location")]);
+    const user = userEvent.setup();
+    await renderInApp(<FoundJobOfferPane found={found("a", { decision: "dismissed" })} profile={DAF} />);
+
+    await user.press(await screen.findByRole("button", { name: "Revenir sur ce choix : Offre a" }));
+
+    expect(dismissals).toEqual([{ method: "DELETE", path: "/api/offer-box/e-a/dismissal", body: undefined }]);
+    expect(await screen.findByRole("button", { name: "Écarter : Offre a" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Suivre : Offre a" })).toBeOnTheScreen();
+  });
+
+  it("an offer écartée whose entry cannot be read says « Écartée », and nothing follows it (ADR-0090)", async () => {
+    serve();
+    jest.mocked(globalThis.fetch).mockImplementation(async () => Response.json({ error: "unavailable" }, { status: 503 }));
+    await renderInApp(<FoundJobOfferPane found={found("a", { decision: "dismissed" })} profile={DAF} />);
+
+    expect(screen.getByText("Écartée")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Suivre : Offre a" })).toBeNull();
   });
 
   it("says so when « Écarter » failed, and the offer stays to handle", async () => {

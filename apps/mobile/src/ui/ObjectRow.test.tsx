@@ -1,11 +1,12 @@
 import { fireEvent, screen, userEvent } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { colorsFor } from "../theme/colors";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
 import { Control } from "./Control";
 import { ROW_MAX_SCALE } from "./AppText";
 import { ObjectRow } from "./ObjectRow";
 
-const { hover } = colorsFor("light");
+const { hover, accent, onAccent } = colorsFor("light");
 
 const open = jest.fn();
 const share = jest.fn();
@@ -98,6 +99,53 @@ describe("ObjectRow, a row of an Application, a Job Offer or a Free conversation
     expect(row()).toHaveStyle({ backgroundColor: hover });
     await fireEvent(row(), "pointerLeave");
     expect(row()).not.toHaveStyle({ backgroundColor: hover });
+  });
+});
+
+/** A Sidebar's menu row with a count (Recherches d'offres' offers à traiter, #818). */
+async function renderCounted(value: number) {
+  await renderInApp(<ObjectRow label="Recherches d'offres" onPress={open} actions={[]} count={{ value, label: `${value} offres à traiter` }} />);
+}
+const styleOf = (element: { props: { style?: unknown } }) => StyleSheet.flatten(element.props.style as never) as Record<string, unknown>;
+
+// Option B of the prototype (#939): the count of #865 at the body size pushed « Recherches d'offres » onto two lines in
+// the tablets' 256 pt column; a compact badge, as the web Sidebar's, leaves the label its line.
+describe("ObjectRow's count, a compact badge (#939)", () => {
+  it("draws its digits at the meta size, semi-bold and tabular, on the accent", async () => {
+    await renderCounted(9);
+    const digits = screen.getByText("9");
+    expect(styleOf(digits)).toMatchObject({ fontSize: 13, fontFamily: "Inter_600SemiBold", fontVariant: ["tabular-nums"], color: onAccent });
+    expect(digits.props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
+    expect(styleOf(digits.parent!)).toMatchObject({ minHeight: 18, minWidth: 18, paddingHorizontal: 5, backgroundColor: accent });
+  });
+
+  it("stands 4 pt from the label: the counted row's gap of 8, pulled in by 4", async () => {
+    await renderCounted(9);
+    expect(styleOf(screen.getByText("9").parent!)).toMatchObject({ marginLeft: -4 });
+  });
+
+  it.each([1, 9])("keeps the current label semi-bold and recovers 8 pt at N=%i", async (value) => {
+    await renderInApp(<ObjectRow current label="Recherches d'offres" onPress={open} actions={[]} count={{ value, label: `${value} offres à traiter` }} />);
+    const link = screen.getByRole("link", { name: `Recherches d'offres, ${value} offres à traiter` });
+    expect(link).toHaveStyle({ gap: 8, paddingRight: 8, paddingHorizontal: 12 });
+    expect(styleOf(screen.getByText("Recherches d'offres"))).toMatchObject({ fontFamily: "Inter_600SemiBold" });
+  });
+
+  it("shows « 99+ » over 99, the exact number said to VoiceOver and TalkBack", async () => {
+    await renderCounted(128);
+    expect(screen.getByText("99+")).toBeOnTheScreen();
+    expect(screen.getByRole("link", { name: "Recherches d'offres, 128 offres à traiter" })).toBeOnTheScreen();
+  });
+
+  it("keeps the label on two lines at most, as a fallback", async () => {
+    await renderCounted(100);
+    expect(screen.getByText("Recherches d'offres").props.numberOfLines).toBe(2);
+  });
+
+  it("shows nothing at zero", async () => {
+    await renderCounted(0);
+    expect(screen.queryByText("0")).toBeNull();
+    expect(screen.getByRole("link", { name: "Recherches d'offres" })).toBeOnTheScreen();
   });
 });
 

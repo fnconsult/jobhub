@@ -24,11 +24,11 @@
   },
   "submit": {
     "staging": {
-      "ios": {},
+      "ios": { "language": "fr-FR", "appName": "Jobbbox", "sku": "ai.jobbbox.app", "metadataPath": "store.config.json" },
       "android": { "track": "internal", "releaseStatus": "completed" }
     },
     "production": {
-      "ios": {},
+      "ios": { "language": "fr-FR", "appName": "Jobbbox", "sku": "ai.jobbbox.app", "metadataPath": "store.config.json" },
       "android": { "track": "production", "releaseStatus": "draft" }
     }
   }

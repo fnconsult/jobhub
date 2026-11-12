@@ -5,6 +5,7 @@ import { Modal, Pressable, View, useWindowDimensions, type AccessibilityActionEv
 import { useKeyCommand } from "../keyboard/key-commands";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
 import { AppText, CappedTextScale, ROW_MAX_SCALE } from "./AppText";
+import { CountBadge } from "./CountBadge";
 import { isSecondaryClick, usePointerHover } from "./pointer";
 
 /** One of a row's actions, in its context menu and its accessibility actions. */
@@ -26,8 +27,8 @@ const ORIENTATIONS = ["portrait", "landscape"] as const;
  * highlighted under a pointer; a long press or a right click opens its context menu with `actions`, which VoiceOver and
  * TalkBack also find among the row's actions. The menu closes on a choice, Échap, « Fermer », a tap beside it, or
  * Android's back. Without `actions` (a Sidebar's menu), a link highlighted under the pointer, and no menu. `count`: a
- * number at the row's end (Recherches d'offres' offers à traiter, #818), its `label` said after the row's to a screen
- * reader; none at 0.
+ * compact badge at the row's end (Recherches d'offres' offers à traiter, #818, #939), « 99+ » over 99, its `label` said
+ * after the row's to a screen reader with the exact number; none at 0. The label keeps two lines at most as a fallback.
  */
 export function ObjectRow({
   label,
@@ -48,6 +49,7 @@ export function ObjectRow({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
+  const counted = !!count && count.value > 0;
   const [menuAt, setMenuAt] = useState<Anchor | null>(null);
   const openMenu = ({ pageX, pageY }: { pageX: number; pageY: number }) => (actions.length ? setMenuAt({ x: pageX, y: pageY }) : undefined);
 
@@ -67,8 +69,10 @@ export function ObjectRow({
           minHeight: TARGET,
           flexDirection: "row",
           alignItems: "center",
-          gap: space[3],
+          // Recover 8 pt for the current semi-bold label in the tablet column (#939).
+          gap: counted ? space[2] : space[3],
           paddingHorizontal: space[3],
+          paddingRight: counted ? space[2] : space[3],
           borderRadius: radius.md,
           backgroundColor: current || pressed || hovered || menuAt ? colors.hover : "transparent",
         })}
@@ -81,13 +85,7 @@ export function ObjectRow({
             </AppText>
           </CappedTextScale>
         </View>
-        {count && count.value > 0 ? (
-          <View style={{ minWidth: space[6], paddingHorizontal: space[2], borderRadius: radius.control, backgroundColor: colors.accent, alignItems: "center" }}>
-            <AppText weight="semiBold" tone="onAccent">
-              {String(count.value)}
-            </AppText>
-          </View>
-        ) : null}
+        {count && count.value > 0 ? <CountBadge count={count.value} /> : null}
       </Pressable>
       {menuAt ? <ContextMenu name={t("conversationFirst.actions", { title: label })} anchor={menuAt} actions={actions} onClose={() => setMenuAt(null)} /> : null}
     </>

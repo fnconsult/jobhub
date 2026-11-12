@@ -5,7 +5,7 @@ import {
   coachConversationResponseSchema,
   coachConversationsResponseSchema,
   coachingOrderResponseSchema,
-  coachingResponseSchema, jobDigestResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxOfferResponseSchema, offerBoxResponseSchema, offersToHandleResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+  coachingResponseSchema, jobDigestResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, offerBoxEntryOfResponseSchema, offerBoxOfferResponseSchema, offerBoxResponseSchema, offersToHandleResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { rulesProvenance, type MasterCvContent } from "@jobhub/shared";
@@ -450,6 +450,20 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
         applicationId: null,
       });
       expect(offer.found.matchScoreDetail).toMatchObject({ location: { status: "match", offer: "Lyon", wanted: ["Lyon"] }, contractType: { status: "match", offer: "cdi", wanted: ["cdi"] } });
+    });
+
+    it("gives a Job Offer's entry however long ago it was écartée, where the Offer box leaves it out after 30 days (#895)", async () => {
+      const found = await captureOffer();
+      await searched(marie, await createProfile(marie), [found]);
+      const [entry] = (await reads.offerBox(marie)).entries;
+      await offerBox.dismiss(marie, entry!.id, { reason: "location" });
+      await database.query(`UPDATE offer_box_entry SET decided_at = decided_at - interval '31 days' WHERE id = $1`, [entry!.id]);
+
+      expect((await reads.offerBox(marie)).entries).toEqual([]);
+      const read = overHttp(offerBoxEntryOfResponseSchema, await reads.offerBoxEntryOf(marie, found));
+      expect(read).toMatchObject({ id: entry!.id, jobOffer: { id: found }, state: "dismissed", dismissalReason: "location", dismissedAt: expect.any(String) });
+      expect(await reads.offerBoxEntryOf(paul, found)).toBeNull();
+      expect(await reads.offerBoxEntryOf(marie, "missing")).toBeNull();
     });
 
     it("never gives a Candidate another Candidate's entry, nor one that is not there", async () => {

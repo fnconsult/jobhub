@@ -5,8 +5,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { useTranslation } from "react-i18next";
 import { formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, type Activity, type ProvenanceSite } from "@jobhub/shared";
 import type { ActivityEntry, EntryKind, EntryProposal, EntryStep } from "@/ai-activity/entries";
-import { costShown, historyByDay, pageSources, type CostShown, type QuotaUse } from "@/ai-activity/history";
-import type { ActivityTool, ElementEnd } from "@/ai-activity/pane";
+import { costShown, historyByDay, type CostShown, type QuotaUse } from "@/ai-activity/history";
+import type { ElementEnd } from "@/ai-activity/pane";
 import { messageAnchor } from "@/ai-activity/thread";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useActivityColumn } from "@/components/activity-column";
@@ -161,7 +161,6 @@ export function ActivityHistory({
           ))}
         </div>
       </section>
-      <PageSources entries={entries} />
     </>
   );
 }
@@ -362,6 +361,19 @@ function Detail({
         </Line>
       ) : null}
       {toolNames.length > 0 && !entry.parts ? <Line label={t("aiActivity.history.tools")}>{toolNames.join(", ")}</Line> : null}
+      {/* Its Provenance sites, each once, its pages a disclosure: the page's « Sources et outils » block is gone (#980). */}
+      {entry.sites.length > 0 && !entry.parts ? (
+        <div className="activity-entry-line activity-entry-sites">
+          <span className="activity-entry-label">{t("aiActivity.history.sources")}</span>
+          <ul className="ai-activity-list">
+            {entry.sites.map((site) => (
+              <li key={site.kind === "web" ? site.domain : "candidate"}>
+                <SiteDisclosure site={site} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {entry.models.length > 0 && !entry.parts ? (
         <Line label={t("aiActivity.history.models")}>
           {entry.models.map((model, index) => (
@@ -515,54 +527,6 @@ function FullCost({ cost }: { cost: CostShown }) {
         </span>
       ))}
     </p>
-  );
-}
-
-/** « Sources et outils de cette page », folded at the foot: each Provenance site once (its pages a disclosure), each Tool once. */
-function PageSources({ entries }: { entries: readonly ActivityEntry[] }) {
-  const t = useT();
-  const { sites, tools } = useMemo(() => pageSources(entries), [entries]);
-  const [open, setOpen] = useState(false);
-  const id = useId();
-  if (sites.length === 0 && tools.length === 0) return null;
-  return (
-    <section className="activity-sources">
-      <h4>
-        <button type="button" className="ai-activity-disclosure" aria-expanded={open} aria-controls={id} onClick={() => setOpen((was) => !was)}>
-          <Icons.chevron />
-          {t("aiActivity.history.sources")}
-        </button>
-      </h4>
-      <ul id={id} className="ai-activity-list" hidden={!open}>
-        {sites.map((site) => (
-          <li key={site.kind === "web" ? site.domain : "candidate"}>
-            <SiteDisclosure site={site} />
-          </li>
-        ))}
-        {tools.map((tool) => (
-          <li key={tool.name ?? "rules"}>
-            <ToolName tool={tool} />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/** A Tool by its logo (where its owner allowed it) and name, or « J » for Jobbbox's rules. */
-function ToolName({ tool }: { tool: ActivityTool }) {
-  const t = useT();
-  return (
-    <span className="ai-activity-tool">
-      {tool.logo ? (
-        <img className="ai-activity-logo" src={tool.logo} alt="" />
-      ) : (
-        <span className="ai-activity-glyph" aria-hidden="true">
-          {tool.name === null ? PROVENANCE_GLYPHS.rules : "⚙"}
-        </span>
-      )}
-      {tool.name ?? t("aiActivity.rules")}
-    </span>
   );
 }
 

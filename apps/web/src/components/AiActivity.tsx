@@ -16,7 +16,6 @@ import { useActivityColumn } from "@/components/activity-column";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
-import { buttonClass } from "@/design/button-class";
 import { routes } from "@/routes";
 import { creationOnPage } from "@/ai-activity/creation";
 
@@ -108,13 +107,12 @@ export function useSummary(entries: readonly ActivityEntry[]): string | null {
 }
 
 /**
- * AI Activity's button, « Activité » in the Top Bar (#809, ADR-0086): it shows Activity, the Fiche on its Activity group or
- * the Activité column, and hides it again; so does Escape on it. In its frame, the tasks icon, or while an action runs its
- * live Activity glyph (#333), and « Activité ». While Activity is not shown, its words sit left of the frame, outside the
- * button (#369): the page's summary, or the step under way with its stop icon beside them, between the words and the
- * frame; none on a page with no AI. The words are not a control of their own: clicking them is clicking the button, which
- * takes the focus, and its name says them (aria-labelledby): « Activité IA », then its words, one tab stop. On a phone,
- * the frame alone (app.css). Renders nothing outside AiActivityProvider or without a column (the Back Office).
+ * AI Activity's icon, the first of the side panel's in the Top Bar (#809, #980, ADR-0086): it shows the panel on its
+ * « Activité » view, and hides it again; so does Escape on it. The tasks icon, or while an action runs its live Activity
+ * glyph (#333), with no words in its frame: its tooltip says « Activité IA ». While an action runs and Activity is not
+ * shown, its step sits left of it with its stop icon (#369); clicking the step is clicking the icon. Its name says
+ * « Activité IA », then the page's summary or the step under way (aria-labelledby), one tab stop. Renders nothing outside
+ * AiActivityProvider or without a panel (the Back Office).
  */
 export function AiActivityButton() {
   const { t } = useTranslation();
@@ -139,8 +137,10 @@ export function AiActivityButton() {
         <span
           id={wordsId}
           className="ai-activity-summary"
+          // The step under way shows; the page's summary is only said, in the icon's name.
+          hidden={!underWay}
           onClick={() => {
-            // The button takes the focus, so it gets it back when Activity, opened over the conversation, closes.
+            // The icon takes the focus, so it gets it back when Activity, opened over the conversation, closes.
             button.current?.focus();
             toggle();
           }}
@@ -151,7 +151,7 @@ export function AiActivityButton() {
       {underWay && !shown ? <StopButton action={underWay} stop={control.stop} /> : null}
       <button
         ref={button}
-        className={`${buttonClass()} topbar-activity`}
+        className="topbar-view topbar-activity"
         type="button"
         aria-expanded={shown}
         aria-controls={controls}
@@ -164,7 +164,6 @@ export function AiActivityButton() {
         }}
       >
         {icon}
-        {t("fiche.activity")}
       </button>
     </span>
   );
@@ -209,11 +208,11 @@ function LearnMore() {
 }
 
 /**
- * The page's history where the Fiche shows it, in its Activity group (#603, ADR-0070), or the Activité column, under
- * « En ce moment » (ADR-0086, #808): the Activité entries by day, then « Sources et outils de cette page » and « En savoir
- * plus ». Outside an AiActivityProvider, that the page has nothing yet.
+ * The page's history in the side panel's « Activité » view (#980, ADR-0086), under « En ce moment »: the Activité entries by
+ * day, then what the page adds (an object's latest Results, `children`) and « En savoir plus ». « Sources et outils de
+ * cette page » is gone (#980): each entry names its own. Outside an AiActivityProvider, that the page has nothing yet.
  */
-export function AiActivityContent() {
+export function AiActivityContent({ children }: { children?: ReactNode }) {
   const control = useContext(AiActivityControl);
   return (
     <div className="fiche-activity">
@@ -223,6 +222,7 @@ export function AiActivityContent() {
         usage={control?.usage ?? null}
         asked={control?.asked ?? null}
       />
+      {children}
       <LearnMore />
     </div>
   );

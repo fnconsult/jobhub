@@ -12,10 +12,10 @@ import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
 import type { ServedEntry } from "@/ai-activity/entries";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
-import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
+import { ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
 import { PageHelpProvider } from "@/components/page-help";
-import { ActivityColumn, Fiche, FicheButtons, FicheProvider, useColumnOverPage, type FicheContent } from "@/components/Fiche";
+import { Fiche, FicheButtons, FicheProvider, panelViews, useColumnOverPage, type FicheContent } from "@/components/Fiche";
 import { accountLink, sidebarNav, subscriptionLink, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
@@ -43,11 +43,10 @@ const LABELS = {
  * Signalement icon (#375), whose form opens in the Work Pane; `version` is the Jobbbox version it shows. « Mon compte » shows
  * the `candidate`'s name and Plan (#923) and is a menu (AccountMenu): their name and email, « Aide et légal » (#544), Mon
  * compte's page, « Mon abonnement » and « Se déconnecter », in the drawer too on a phone.
- * Its Top Bar has « Effacer » while the page is a conversation, « Aide » on a page without one (#602). The Work Pane opens
- * beside the page (#602). `fiche`: an object's page (an Application's, #603): the Fiche beside the conversation, after
- * the Work Pane, and « Fiche » and AI Activity's button, « Activité », in the Top Bar (#809); the Fiche shows the page's
- * `aiActivity`. Without one (the home page, the menus, #607), AI Activity's button alone, which opens the Activité column
- * with the Context bar and AI Activity.
+ * Its Top Bar has « Aide » on a page without a conversation (#602). The Work Pane opens beside the page (#602). The side
+ * panel (#980) beside the conversation, after the Work Pane, with its views' icons in the Top Bar: on an object's page
+ * (`fiche`, an Application's, #603), Activité, Fiche, L'offre (an Application's) and Documents; without one (the home page,
+ * the menus, #607), Activité alone, the page's `aiActivity` with the Context bar, where « Effacer la conversation » is.
  * On a phone those columns open over the conversation, full screen, the page behind out of reach (#608).
  */
 export function SidebarLayout({
@@ -105,15 +104,14 @@ export function SidebarLayout({
         topBarEnd={
           // One group, so on a phone its buttons stay together at the right of Menu, the title on its own row (#608).
           <div className="topbar-actions">
-            <FicheButtons />
-            <ClearConversationButton />
+            <FicheButtons content={fiche} />
             {fiche ? null : <PageHelpButton />}
           </div>
         }
         beside={
           <>
             <WorkPane />
-            {fiche ? <Fiche content={fiche} /> : <ActivityColumn />}
+            <Fiche content={fiche} />
           </>
         }
         signOut={false}
@@ -178,7 +176,7 @@ export function SidebarLayout({
     <ConversationFirstProvider conversations={freeConversations} welcomeClosed={welcomeClosed} {...(menus ? { menus } : {})}>
       <WorkPaneProvider version={version}>
         <PageHelpProvider>
-          <FicheProvider object={fiche !== null}>
+          <FicheProvider object={fiche !== null} views={panelViews(fiche)}>
             <ColumnsOverPage>{shell}</ColumnsOverPage>
           </FicheProvider>
         </PageHelpProvider>

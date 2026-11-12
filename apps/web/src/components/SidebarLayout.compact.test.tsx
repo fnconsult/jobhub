@@ -27,7 +27,7 @@ function RunsAReply() {
   );
 }
 
-/** An Application's page: its Fiche, « Fiche » and « Activité » in its Top Bar. */
+/** An Application's page: its side panel, its views' icons in its Top Bar (#980). */
 function ApplicationPage() {
   return (
     <AiActivityLiveProvider>
@@ -38,7 +38,7 @@ function ApplicationPage() {
   );
 }
 
-/** The home page: its conversation, « Activité » and « Effacer » in its Top Bar. */
+/** The home page: its conversation, « Activité » in its Top Bar. */
 function HomePage() {
   return (
     <SidebarLayout profiles={[]} canAddProfile={false} title="Nouvelle conversation" version="1.2.3" freeConversations={[]}>
@@ -104,19 +104,18 @@ describe("the compact Top Bar on a phone (#897)", () => {
     expect(within(topBar()).getByRole("heading", { level: 1, name: "Responsable logistique, Ledger, Paris" })).toBeTruthy();
   });
 
-  it("lists the other actions under « … » with their words; « Activité » opens the Fiche on its Activity, the focus back on « … » when it closes", async () => {
+  it("lists the panel's other views under « … » with their words; « Activité » opens the panel on it, the focus back on « … » when it closes (#980)", async () => {
     const user = userEvent.setup();
     renderInFrench(<ApplicationPage />);
 
     const menu = await openMore(user);
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Activité"]);
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Activité", "Documents"]);
     await user.click(within(menu).getByRole("menuitem", { name: "Activité" }));
 
-    const fiche = await screen.findByRole("complementary", { name: "Fiche" });
-    expect(within(fiche).getByRole("button", { name: "Activité" }).getAttribute("aria-expanded")).toBe("true");
-    await user.click(within(fiche).getByRole("button", { name: "Fermer" }));
+    const panel = await screen.findByRole("complementary", { name: "Activité" });
+    await user.click(within(panel).getByRole("button", { name: "Fermer le volet" }));
 
-    expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
+    expect(screen.queryByRole("complementary")).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(more()));
   });
 
@@ -126,32 +125,32 @@ describe("the compact Top Bar on a phone (#897)", () => {
 
     const menu = await openMore(user);
     await user.click(within(menu).getByRole("menuitem", { name: "Activité" }));
-    const fiche = await screen.findByRole("complementary", { name: "Fiche" });
-    expect(within(fiche).getByRole("button", { name: "Activité" }).getAttribute("aria-expanded")).toBe("true");
-    within(fiche).getByRole("button", { name: "Fermer" }).focus();
+    const panel = await screen.findByRole("complementary", { name: "Activité" });
+    within(panel).getByRole("button", { name: "Fermer le volet" }).focus();
 
     await user.keyboard("{Escape}");
 
-    expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
+    expect(screen.queryByRole("complementary")).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(more()));
   });
 
-  it("shows « Activité » on the home page, « Effacer la conversation » under « … » opening its confirming Dialog", async () => {
+  it("shows « Activité » alone on the home page, « Effacer la conversation » in its Context bar opening its confirming Dialog (#980)", async () => {
     pathname.current = "/";
     const user = userEvent.setup();
     renderInFrench(<HomePage />);
 
     // « Activité » is named and has its tooltip as AI Activity's button has them: « Activité IA », then its words (#809).
-    expect(names(within(topBar()).getAllByRole("button"))).toEqual(["Menu", "Activité IA", "Autres actions"]);
+    expect(names(within(topBar()).getAllByRole("button"))).toEqual(["Menu", "Activité IA"]);
     expect(within(topBar()).getByRole("button", { name: "Activité IA" }).getAttribute("title")).toBe("Activité IA");
-    const menu = await openMore(user);
-    await user.click(within(menu).getByRole("menuitem", { name: "Effacer la conversation" }));
+    await user.click(within(topBar()).getByRole("button", { name: "Activité IA" }));
+    const clear = within(await screen.findByRole("complementary", { name: "Activité" })).getByRole("button", { name: "Effacer la conversation" });
+    await user.click(clear);
 
     const dialog = await screen.findByRole("alertdialog", { name: "Effacer cette conversation ?" });
     await user.click(within(dialog).getByRole("button", { name: "Annuler" }));
 
     expect(screen.queryByRole("alertdialog")).toBeNull();
-    await waitFor(() => expect(document.activeElement).toBe(more()));
+    await waitFor(() => expect(document.activeElement).toBe(clear));
   });
 
   it("shows « Activité » while an action runs, with its stop icon and the step in its name, then gives the place back without moving the focus", async () => {
@@ -165,7 +164,7 @@ describe("the compact Top Bar on a phone (#897)", () => {
 
     expect(names(within(topBar()).getAllByRole("button"))).toEqual(["Menu", "Arrêter la réponse du coach", "Activité IA Démarrage", "Autres actions"]);
     const menu = await openMore(user);
-    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Fiche"]);
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Fiche", "Documents"]);
     await user.keyboard("{Escape}");
     shown.focus();
 
@@ -184,16 +183,15 @@ describe("the compact Top Bar on a phone (#897)", () => {
 
     await user.click(activity);
 
-    const fiche = await screen.findByRole("complementary", { name: "Fiche" });
-    expect(within(fiche).getByRole("button", { name: "Activité" }).getAttribute("aria-expanded")).toBe("true");
+    const fiche = await screen.findByRole("complementary", { name: "Activité" });
     expect(activity.getAttribute("aria-expanded")).toBe("true");
     expect(activity.getAttribute("aria-controls")).toBe(fiche.id);
     // Shown, Activity has the step and its stop icon (« En ce moment »): the button says « Activité IA » alone, as on a computer.
     expect(within(topBar()).getByRole("button", { name: "Activité IA" })).toBe(activity);
     expect(within(topBar()).queryByRole("button", { name: "Arrêter la réponse du coach" })).toBeNull();
-    await user.click(within(fiche).getByRole("button", { name: "Fermer" }));
+    await user.click(within(fiche).getByRole("button", { name: "Fermer le volet" }));
 
-    expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
+    expect(screen.queryByRole("complementary")).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(activity));
     expect(within(topBar()).getByRole("button", { name: "Activité IA Démarrage" })).toBe(activity);
   });
@@ -226,10 +224,10 @@ describe("the Top Bar on a computer (#897)", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("is as before: its buttons with their words, no « … »", () => {
+  it("has the side panel's icons, named by their views, and its own « … » while it is open (#980)", () => {
     renderInFrench(<ApplicationPage />);
 
-    expect(within(topBar()).getAllByRole("button").map((button) => button.textContent)).toEqual(["Menu", "Fiche", "Activité"]);
+    expect(names(within(topBar()).getAllByRole("button"))).toEqual(["Menu", "Activité IA", "Fiche", "Documents", "Plus d'actions sur le volet"]);
     expect(within(topBar()).queryByRole("button", { name: "Autres actions" })).toBeNull();
   });
 });

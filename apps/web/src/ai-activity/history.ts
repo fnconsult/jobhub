@@ -5,16 +5,14 @@
  *
  *   historyByDay(entries, now, timeZone?)        the days, today first, an entry of unknown time last
  *   costShown(entry, usage)                      its Plan Quota with the week's use, « compté dans votre consommation », its tokens, « Sans IA »
- *   pageSources(entries)                         the page's sites and Tools, once each
  *   entryToOpen(entries, { messageId, card? })   the entry « Dans l'activité » opens, under a reply or one of its cards
  *   pageSummary(entries)                         AI Activity's button's words: « 3 modèles · 10,9k tokens »
  *
  * Pure. Activity counts nothing itself: the week's use is the Usage Meter's (ADR-0032), what Votre consommation counts
  * is its own (ADR-0091).
  */
-import type { ProvenanceSite, WeeklyQuota } from "@jobhub/shared";
+import type { WeeklyQuota } from "@jobhub/shared";
 import type { ActivityEntry, EntryCost } from "./entries";
-import { addSite, addTool, type ActivityTool } from "./pane";
 
 /** One day of the history: its entries in the page's order; `at` the first one's time, to word the day. */
 export interface HistoryDay {
@@ -72,17 +70,6 @@ export function costShown(entry: Pick<ActivityEntry, "cost" | "unrecorded">, usa
     tokens,
     noAi,
   };
-}
-
-/** « Sources et outils de cette page »: each Provenance site once (its links joined), each Tool once, in the entries' order. */
-export function pageSources(entries: readonly ActivityEntry[]): { sites: ProvenanceSite[]; tools: ActivityTool[] } {
-  const sites: ProvenanceSite[] = [];
-  const tools: ActivityTool[] = [];
-  for (const entry of entries) {
-    for (const site of entry.sites) addSite(sites, site);
-    for (const tool of entry.tools) addTool(tools, { ...tool });
-  }
-  return { sites, tools };
 }
 
 /**

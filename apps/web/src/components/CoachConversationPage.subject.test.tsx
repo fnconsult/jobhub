@@ -162,7 +162,7 @@ describe("an Application's page is its conversation (#603, ADR-0070)", () => {
     renderInFrench(<ApplicationPage conversationId={SAVED.id} />);
     expect(await within(thread()).findByText("Aide-moi à préparer l'entretien.")).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(screen.getByRole("button", { name: "Effacer la conversation" }));
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
 
     expect(await screen.findByText("Conversation effacée.")).toBeTruthy();

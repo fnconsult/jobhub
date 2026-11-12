@@ -3549,15 +3549,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "charger l'extension non empaquetée",
         "mode développeur",
         "chrome://extensions",
-        "github",
-        "releases",
-        "extension-v",
+        "télécharger le zip",
         "tester l'extension"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Avant sa publication sur le Chrome Web Store, un administrateur peut charger dans Chrome la dernière version de l'extension, celle que sert le serveur. Les candidats ne voient pas ce bloc.\n\n1. Dans Mon compte, ouvrez « Outils ». Sous le bouton du Chrome Web Store, le bloc « Dernière version de l'extension » indique la « Version de l'extension » et la « Version d'API servie ».\n2. Cliquez sur « Voir les versions sur GitHub ». La page s'ouvre dans un nouvel onglet ; le dépôt est privé : il faut y avoir accès.\n3. Dans la version `extension-v` de cette version de l'extension, téléchargez le zip que nomme le bloc : `-chrome-beta.zip` sur la Beta (branché sur staging.jobbbox.ai), `-chrome.zip` en Production. Décompressez-le.\n4. Ouvrez chrome://extensions et activez le « Mode développeur ».\n5. Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé.\n\nUne extension chargée ainsi ne se met pas à jour seule : recommencez à chaque nouvelle version. Si le serveur ne sert plus sa version d'API, l'extension demande de se mettre à jour."
+      "body": "Avant sa publication sur le Chrome Web Store, un administrateur peut charger dans Chrome la dernière version de l'extension, celle que sert le serveur. Les candidats ne voient pas ce bloc.\n\n1. Dans Mon compte, ouvrez « Outils ». Sous le bouton du Chrome Web Store, le bloc « Dernière version de l'extension » indique la « Version de l'extension » et la « Version d'API servie ».\n2. Cliquez sur « Télécharger », suivi du nom du zip : `-chrome-beta.zip` sur la Beta (branché sur staging.jobbbox.ai), `-chrome.zip` en Production. Le serveur le fournit lui-même : aucun accès à GitHub n'est nécessaire. Décompressez-le.\n3. Ouvrez chrome://extensions et activez le « Mode développeur ».\n4. Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé.\n\nUne extension chargée ainsi ne se met pas à jour seule : recommencez à chaque nouvelle version. Si le serveur ne sert plus sa version d'API, l'extension demande de se mettre à jour. Si le bloc indique que ce serveur ne sert pas de zip, c'est un serveur de développement : seuls les déploiements en portent un."
     },
     {
       "id": "tutorial-getting-started",
@@ -7738,15 +7736,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "load unpacked",
         "developer mode",
         "chrome://extensions",
-        "github",
-        "releases",
-        "extension-v",
+        "download the zip",
         "test the extension"
       ],
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Before it is published on the Chrome Web Store, an administrator can load in Chrome the latest version of the extension, the one the server serves. Candidates do not see this block.\n\n1. In My account, open « Tools ». Under the Chrome Web Store button, the « Latest version of the extension » block gives the « Extension version » and the « API version served ».\n2. Click « See the versions on GitHub ». The page opens in a new tab; the repository is private: you need access to it.\n3. In the `extension-v` release of this extension version, download the zip the block names: `-chrome-beta.zip` on the Beta (tied to staging.jobbbox.ai), `-chrome.zip` in Production. Unzip it.\n4. Open chrome://extensions and turn on « Developer mode ».\n5. Click « Load unpacked » and choose the unzipped folder.\n\nAn extension loaded this way does not update itself: do it again for each new version. If the server no longer serves its API version, the extension asks to be updated."
+      "body": "Before it is published on the Chrome Web Store, an administrator can load in Chrome the latest version of the extension, the one the server serves. Candidates do not see this block.\n\n1. In My account, open « Tools ». Under the Chrome Web Store button, the « Latest version of the extension » block gives the « Extension version » and the « API version served ».\n2. Click « Download », followed by the zip's name: `-chrome-beta.zip` on the Beta (tied to staging.jobbbox.ai), `-chrome.zip` in Production. The server provides it itself: no GitHub access is needed. Unzip it.\n3. Open chrome://extensions and turn on « Developer mode ».\n4. Click « Load unpacked » and choose the unzipped folder.\n\nAn extension loaded this way does not update itself: do it again for each new version. If the server no longer serves its API version, the extension asks to be updated. If the block says this server serves no extension zip, it is a development server: only deployments carry one."
     },
     {
       "id": "tutorial-admin-two-step-verification",

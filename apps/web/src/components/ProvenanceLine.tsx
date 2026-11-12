@@ -35,8 +35,10 @@ export function ProvenanceLine({ provenance, at }: { provenance: Provenance | nu
         <span key={`${model.name}-${model.where?.en ?? ""}-${model.euAiConsent}`} className="provenance-line-model" title={model.where?.[language]}>
           {model.name}
           {model.where ? <span className="visually-hidden"> ({model.where[language]})</span> : null}
-          {model.euAiConsent ? <span className="provenance-chip">{t("provenanceLine.euAiConsent")}</span> : null}
-          {model.outsideEu ? <span className="provenance-chip">{t("provenanceLine.outsideEu")}</span> : null}
+          {/* Said in the line's own metadata text, after « · » as its other parts: the Design System has no boxed tag
+              at the metadata size (a Pill is read at body size), so none is drawn. */}
+          {model.euAiConsent ? <span className="provenance-tag">{` · ${t("provenanceLine.euAiConsent")}`}</span> : null}
+          {model.outsideEu ? <span className="provenance-tag">{` · ${t("provenanceLine.outsideEu")}`}</span> : null}
         </span>
       ))}
       {line.tokens !== null || line.ms !== null ? (

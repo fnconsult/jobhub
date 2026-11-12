@@ -38,6 +38,7 @@ import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createEmailReading } from "./email-intake";
+import { createEmailSourceReader } from "./email-intake/source-reading";
 import { createJobs, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
 import { workerPostgresUsageLog } from "./ai-usage-log";
@@ -219,6 +220,7 @@ const jobs = createJobs({
   // guarded by the « Contenu piégé dans un email » Guardrail and the fixed output rules (#446).
   emailReading: createEmailReading({
     readings: createEmailReadings(database, { cipher: () => secretCipher }),
+    readSource: createEmailSourceReader({ externalApis }),
     jobOffers,
     profiles,
     ai: worker.ai,

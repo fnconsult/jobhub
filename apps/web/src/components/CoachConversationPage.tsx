@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +17,7 @@ import type { ConversationSummary } from "@/components/CoachConversationList";
 import { focusFirstSuggestion, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
 import { CoachMemoryProposals } from "@/components/CoachMemory";
+import { CoachJobOfferCard } from "@/components/CoachJobOfferCard";
 import { CoachProposalCard } from "@/components/CoachProposalCard";
 import { CoachReplyText, replyWordCount } from "@/components/CoachReplyText";
 import { namesByPage, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "@/components/coach-tool-steps";
@@ -179,26 +179,6 @@ function StoppedReplyLine({ reply }: { reply: StoppedReply }) {
         {formatDuration(reply.ms, language)}
       </span>
     </p>
-  );
-}
-
-/**
- * A Job Offer card: the Job Offer an AI Coach reply read from a pasted link, linking to its page, where the
- * Candidate processes it. "À traiter" until they follow it; its state said in words, never by colour alone.
- */
-function JobOfferCard({ jobOffer }: { jobOffer: JobOfferCardData }) {
-  const { t } = useTranslation();
-  return (
-    <article className="job-offer-card" aria-label={t("coachPanel.jobOfferLink.card")}>
-      <span className="pill" data-tone={jobOffer.followed ? "success" : "accent"}>
-        {t(jobOffer.followed ? "coachPanel.jobOfferLink.followed" : "coachPanel.jobOfferLink.toProcess")}
-      </span>
-      <p className="job-offer-card-title">{jobOffer.title}</p>
-      {jobOffer.employer ? <p className="hint">{jobOffer.employer}</p> : null}
-      <Link className="button" href={routes.jobOffer(jobOffer.id)}>
-        {t("coachPanel.jobOfferLink.open")}
-      </Link>
-    </article>
   );
 }
 
@@ -698,7 +678,7 @@ export function CoachConversationPage(page: PagePlacement) {
                   {/* A reply is unframed text, the thread's full width, no glyph once it is there (#788); the Candidate's words, a bubble. */}
                   {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                   {message.from === "coach" ? <CoachReplyText text={message.text} reveal={message.revealing !== undefined} /> : <p>{message.text}</p>}
-                  {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
+                  {message.jobOffer ? <CoachJobOfferCard jobOffer={message.jobOffer} /> : null}
                   {/* What the AI Coach consulted in Jobbbox (#788), folded, before the Provenance line. */}
                   {message.from === "coach" ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
                   {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}

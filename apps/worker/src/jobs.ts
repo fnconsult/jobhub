@@ -419,7 +419,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }
         // The Candidate is waiting for this Job Search: each step of the run is written on it as it starts and ends.
         const progress = jobSearchId ? createRunProgress((steps) => deps.jobSearches.progress(jobSearchId, steps)) : null;
-        // And what it has measured so far, per source and step (#1001): the onboarding's search card reads it.
+        // And what it has measured so far, per source and step (#1001): AI Activity shows it on the onboarding's page.
         const live = jobSearchId ? createLatestWrite<LiveDiscoveryMetrics>((metrics) => deps.jobSearches.live(jobSearchId, metrics)) : null;
         const startedAt = now();
         /**

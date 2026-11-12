@@ -7,6 +7,7 @@ import type { LandingPlan, LandingStoreLinks } from "@/landing";
 import { localePath } from "@/public-pages/public-shell";
 import { routes } from "@/routes";
 import { ApplicationScreen, AppScreen, ConversationScreen, ExtensionScreen, FollowUpScreen, OffersScreen } from "./LandingScreens";
+import { LandingAudience, LandingDoors } from "./LandingAudience";
 import { LandingStory } from "./LandingStory";
 import "./Landing.css";
 
@@ -20,9 +21,11 @@ const PLANS_ARTICLE = routes.helpArticle("decouvrir", "faq-plans-and-quotas");
  * The landing page (ADR-0105), inside the public shell: one idea, the product under it, one action; then the method as
  * a story read by scrolling, the coach's own first message, the extension and the app, the Human Coaches, the Plans as
  * the Back Office offers them, the questions, and the same action again. `plans`: none, the section is left out.
- * `stores`: a store whose page Paramètres does not set has no link. Its links keep the URL's language (`/en`).
+ * `stores`: a store whose page Paramètres does not set has no link. `coachPath`: the Human Coaches' path is switched on,
+ * so the page opens with « Candidat | Coach humain » and shows the two doors before its end. Its links keep the URL's
+ * language (`/en`).
  */
-export async function Landing({ plans, stores }: { plans: readonly LandingPlan[]; stores: LandingStoreLinks }) {
+export async function Landing({ plans, stores, coachPath = false }: { plans: readonly LandingPlan[]; stores: LandingStoreLinks; coachPath?: boolean }) {
   const t = await getServerT();
   const locale = await getUrlLocale();
   const href = (path: string) => localePath(path, locale);
@@ -35,6 +38,7 @@ export async function Landing({ plans, stores }: { plans: readonly LandingPlan[]
   return (
     <main id="main" className="landing">
       <section className="landing-hero">
+        {coachPath ? <LandingAudience current="candidate" /> : null}
         <h1 className="landing-display">{t("landing.hero.title")}</h1>
         <p className="landing-lead">{t("landing.hero.lead")}</p>
         <div className="landing-hero__action">
@@ -196,6 +200,8 @@ export async function Landing({ plans, stores }: { plans: readonly LandingPlan[]
           </Link>
         </p>
       </section>
+
+      {coachPath ? <LandingDoors current="candidate" /> : null}
 
       <section className="landing-end" aria-labelledby="landing-end">
         <span className="landing-end__logo">

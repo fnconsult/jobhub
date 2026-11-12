@@ -29,6 +29,21 @@ export function landingStoreLinks(settings: PlatformSettingsSnapshot): LandingSt
   return { extension: extensionStorePage(settings), appStore: storePage(settings, "APP_STORE_URL"), playStore: storePage(settings, "PLAY_STORE_URL") };
 }
 
+/**
+ * Whether the Human Coaches' path is on the public site (HUMAN_COACH_PAGE_ENABLED, off by default): its page at
+ * `/coachs-humains`, and the « Candidat | Coach humain » choice on the landing page.
+ */
+export function humanCoachPathEnabled(settings: PlatformSettingsSnapshot): boolean {
+  const flag = settings.setting("HUMAN_COACH_PAGE_ENABLED");
+  return flag?.valid === true && flag.value === "true";
+}
+
+/**
+ * « Devenir coach sur Jobbbox », the Coach Enrolment form the coach's path leads to. The page itself comes with the
+ * coach space's epic (#867), which is why the path stays switched off until then.
+ */
+export const COACH_ENROLMENT_PATH = "/devenir-coach";
+
 /** One offered Plan as the landing page shows it: its name, its price if Stripe gave one, and what it includes. */
 export interface LandingPlan {
   key: string;

@@ -33,6 +33,24 @@ describe("disposition", () => {
     });
   });
 
+  // On an iPhone SE at iOS's largest text size (3.57), a 1rem gutter each side of the conversation took 114 of its 375
+  // points: « Propose / r une idée », « Contrôleus / e de gestion » broke mid-word in what was left (#905).
+  describe("the conversation's side margin", () => {
+    it("full page, is a gutter that stops growing at 16 pt: the words keep the window's width", () => {
+      expect(disposition({ width: 375, fontScale: 3.571 }, nothingOpen).size.margin).toBe(16);
+      expect(disposition({ width: 411, fontScale: 2 }, nothingOpen).size.margin).toBe(16);
+      expect(disposition({ width: 1032, fontScale: 3.571 }, nothingOpen).size.margin).toBe(16);
+      expect(disposition({ width: 375, fontScale: 1 }, nothingOpen).size.margin).toBe(16);
+      expect(disposition({ width: 375, fontScale: 0.85 }, nothingOpen).size.margin).toBeCloseTo(13.6);
+    });
+
+    it("beside columns, is the gutter, which grows with the text", () => {
+      const layout = disposition({ width: 1600, fontScale: 1.25 }, nothingOpen);
+      expect(layout.panes).toBe("columns");
+      expect(layout.size.margin).toBe(20);
+    });
+  });
+
   describe("the 64rem threshold", () => {
     it("puts the panes in columns from 64rem", () => {
       expect(disposition({ width: 1024, fontScale: 1 }, nothingOpen).panes).toBe("columns");

@@ -107,7 +107,9 @@ test.describe("Database connections", () => {
       const urls = [`/candidatures/${applicationId}`, "/candidatures", "/profils", "/compte", `/api/applications/${applicationId}/enriched-contacts`];
       for (let round = 0; round < 3; round++) {
         const responses = await Promise.all(
-          Array.from({ length: 40 }, (_, i) => page.request.get(`${serverOrigin}${urls[i % urls.length]}`, { maxRedirects: 0 })),
+          // A connection per request: a round on a busy runner takes over ten seconds, so a kept-alive socket answered
+          // early in it came back to the next round as the server closed it for being idle (read ECONNRESET, #990).
+          Array.from({ length: 40 }, (_, i) => page.request.get(`${serverOrigin}${urls[i % urls.length]}`, { maxRedirects: 0, headers: { connection: "close" } })),
         ).catch((cause: unknown) => {
           throw new Error(`busy web app request failed (exit=${child.exitCode}, signal=${child.signalCode}); server log: ${log.file}`, { cause });
         });

@@ -7,10 +7,12 @@ import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDuration, formatTimeOfDay } from "@jobhub/shared";
 import { enCeMoment, type NowItem } from "@/ai-activity/en-ce-moment";
+import { followedOn, type FollowedSearch } from "@/ai-activity/followed-search";
 import type { LiveAction, LiveStep } from "@/ai-activity/live";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { StopButton } from "@/components/AiActivity";
 import { useAiActivityLive } from "@/components/AiActivityLive";
+import { FollowedSearchNow } from "@/components/FollowedSearchNow";
 import { Icons } from "@/components/icons";
 
 type Language = "fr" | "en";
@@ -44,7 +46,10 @@ export function EnCeMoment() {
   const actions = store?.actions ?? NO_ACTIONS;
   const ticking = actions.some((action) => action.status === "running" || action.status === "stopping");
   const now = useNow(ticking);
-  const view = useMemo(() => enCeMoment(actions, pathname, now), [actions, pathname, now]);
+  // The Job Search the page follows as its own (the onboarding's offered one, #1001): here, with what the page counts.
+  const followed = store?.followed ?? null;
+  const followedKey = followedOn(followed, pathname);
+  const view = useMemo(() => enCeMoment(actions, pathname, now, followedKey), [actions, pathname, now, followedKey]);
   const stop = (key: string) => store?.stop(key);
   const running = [...view.here, ...view.elsewhere].some((item) => item.live);
   return (
@@ -54,7 +59,7 @@ export function EnCeMoment() {
       </h4>
       {view.here.length === 0 ? <p className="en-ce-moment-nothing">{t("aiActivity.live.nothing")}</p> : null}
       {view.here.map((item) => (
-        <NowAction key={item.action.key} item={item} elsewhere={false} stop={stop} now={now} />
+        <NowAction key={item.action.key} item={item} elsewhere={false} stop={stop} now={now} followed={followed && item.action.key === followedKey ? followed : null} />
       ))}
       {view.elsewhere.length > 0 ? <Elsewhere items={view.elsewhere} stop={stop} now={now} /> : null}
     </section>
@@ -83,9 +88,10 @@ function useLanguage(): Language {
  * One action: its glyph, live while it runs; its kind (and its Profile); what it is doing in words (its step, « Arrêt en
  * cours… », or when it stopped or failed and during which step); « 3 étapes finies · 12 s »; a failed one's reason; its
  * tool steps, each ticked once done or a small accent dot while under way; elsewhere, a link to its page; while it runs,
- * its stop icon.
+ * its stop icon. The Job Search the page follows (#1001) adds its steps, its run's measures, its sources and the criteria
+ * it is narrowed with, across the whole entry (FollowedSearchNow).
  */
-function NowAction({ item, elsewhere, stop, now }: { item: NowItem; elsewhere: boolean; stop: (key: string) => void; now: number }) {
+function NowAction({ item, elsewhere, stop, now, followed = null }: { item: NowItem; elsewhere: boolean; stop: (key: string) => void; now: number; followed?: FollowedSearch | null }) {
   const { t } = useTranslation();
   const language = useLanguage();
   const titleId = useId();
@@ -121,6 +127,7 @@ function NowAction({ item, elsewhere, stop, now }: { item: NowItem; elsewhere: b
         ) : null}
       </div>
       {item.live ? <StopButton action={action} stop={stop} /> : null}
+      {followed ? <FollowedSearchNow action={action} followed={followed} /> : null}
     </article>
   );
 }

@@ -59,7 +59,7 @@ The browser-held, time-limited holding of a Guest's captured Job Offer and CV: a
 _Avoid_: Temporary account, trial
 
 **Landing page**:
-What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead.
+What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead. Its counterpart for a Human Coach, at `/coachs-humains`, has the same design and leads to the Coach Enrolment; it is behind a switch in Paramètres, off by default, and the landing page offers « Candidat | Coach humain » only while it is on.
 _Avoid_: Home page (for the Visitor's), marketing site, splash page
 
 **Logo**:
@@ -462,7 +462,7 @@ France Travail's code for a job, derived from the Search Criteria title; a title
 
 **Discovery metrics**:
 What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
-While a Job Search runs, what it has measured so far is kept on its row too, its **Live discovery metrics** (#1001): each active source's state (to come, under way, consulted, refused, failed), the pages read, the Job Offers found so far, then its analysis with the Job Offers matched. They feed the onboarding's search card; « offres qui vous correspondent » there is counted by the page itself, by Match Score against the Search Criteria of the moment. Nothing in them is estimated, and they name no one.
+While a Job Search runs, what it has measured so far is kept on its row too, its **Live discovery metrics** (#1001): each active source's state (to come, under way, consulted, refused, failed), the pages read, the Job Offers found so far, then its analysis with the Job Offers matched. AI Activity's poll brings them with its steps, and « En ce moment » shows them for the onboarding's offered Job Search, which `/profils/nouveau` follows as its own (« ici » there, ADR-0106): its sources' states, pages read and Job Offers analysed, with « offres qui vous correspondent », counted by the page itself, by Match Score against the Search Criteria of the moment; once over, its entry in that page's history lists its best Job Offers. Nothing in them is estimated, and they name no one.
 
 **Discovery run**:
 One run of Job discovery (a Job Search or a Job Digest top-up) as the Back Office's Recherches tab lists it, failed and stopped ones included: its Discovery metrics, its web searches (kind: plan, Target Company or site) with the query texts they actually sent, how many **new Job Offers** it stored for the first time, and its **Stop reason**. Its figures name no one and are kept 24 months; its Profile pseudonym, Search Criteria, query texts and link to the Job Search are kept 30 days, are part of the Candidate's Data export and go with their account or Profile (ADR-0047). A failure to record a run never stops the Job Search or Job Digest.
@@ -737,7 +737,7 @@ The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle c
 _Avoid_: Navigation bar, workspace header
 
 **Side panel** (« Volet de la page »):
-The one column beside a Coach Conversation, never over it, that shows one view at a time, the one its icon in the Top Bar chose (ADR-0070, #980): « Activité » (the page's Activity, ADR-0086), and on an object's page its « Fiche », an Application's « L'offre » and its Results, « Documents » (« Offres trouvées » for a Job Search or a Job Digest). Its head names its view and has ✕ « Fermer le volet ». It opens on the Fiche when an object's page loads on a wide screen and is closed otherwise; its left edge resizes it; it gives way to the Work Pane for want of room, and opens full screen below 64rem.
+The one column beside a Coach Conversation, never over it, that shows one view at a time, the one its icon in the Top Bar chose (ADR-0070, #980): « Activité » (the page's Activity, ADR-0086), and on an object's page its « Fiche », an Application's « L'offre » and its Results, « Documents » (« Offres trouvées » for a Job Search or a Job Digest). Its head names its view and has ✕ « Fermer le volet ». It opens on the Fiche when an object's page loads on a wide screen and is closed otherwise (on `/profils/nouveau`, it opens on « Activité » on a wide screen when the offered Job Search starts, #1001); its left edge resizes it; it gives way to the Work Pane for want of room, and opens full screen below 64rem.
 _Avoid_: Sidebar (that is the left one), drawer, inspector
 
 **Fiche**:
@@ -757,7 +757,7 @@ The bar in Activity showing how much of a Coach Conversation the AI Coach reads:
 _Avoid_: Memory gauge, quota bar (that is the Usage Meter)
 
 **Activité column**:
-The side panel of the home page and the menus, where there is no object: « Activité » its only view (the Context bar, « En ce moment », then the history, ADR-0086). Closed when the page loads; gives way to the Work Pane; never over the conversation.
+The side panel of the home page and the menus, where there is no object: « Activité » its only view (the Context bar, « En ce moment », then the history, ADR-0086). Closed when the page loads; on `/profils/nouveau`, it opens on a wide screen when the onboarding's offered Job Search starts (ADR-0106, #1001), never on a phone; gives way to the Work Pane; never over the conversation.
 _Avoid_: Activity pane
 
 **Top Bar**:
@@ -805,7 +805,7 @@ The Design System's small centred box that asks the person to confirm or cancel 
 _Avoid_: Modal, popup, confirmation page
 
 **Stepper**:
-The Design System's vertical list of steps known in advance (the onboarding's search card, #1001): a marker each on a hairline, ✓ once done, a pulsing dot for the step under way, an empty circle to come, each step's state said in words to screen readers. Its pulse stops when the device asks for less motion. Steps not known in advance (the AI Coach's live steps) are not a Stepper.
+The Design System's vertical list of steps known in advance (the onboarding's offered Job Search in « En ce moment », #1001): a marker each on a hairline, ✓ once done, a pulsing dot for the step under way, an empty circle to come, each step's state said in words to screen readers. Its pulse stops when the device asks for less motion. Steps not known in advance (the AI Coach's live steps) are not a Stepper.
 _Avoid_: Progress bar, timeline, wizard
 
 **Toast**:
@@ -951,7 +951,7 @@ The step, run by the product owner alone, that turns what the Beta serves into a
 _Avoid_: Release, go-live, prod deploy
 
 **Extension Version**:
-The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token.
+The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token, and lets them download its zip for this environment from the server itself: the web image carries both zips (`apps/web/Dockerfile`, #989), since the repo's Releases are private and only exist once the product owner runs `extension.yml`.
 The extension states it in `Jobbbox-Extension-Version` on every call. The API Version's guard also refuses an extension older than `MINIMUM_EXTENSION_VERSION` (0.2.0: nothing refused yet), with the same 426 update answer (ADR-0104).
 _Avoid_: Version (for the extension)
 
@@ -1326,7 +1326,7 @@ An Activité entry the server builds from what only it reads (the page's element
 _Avoid_: Row
 
 **En ce moment**:
-The top of an Activity, under the Context bar: the Candidate's AI actions under way, this page's then « En cours ailleurs », each with its live Activity glyph, current step, finished steps, time so far and stop icon; an AI Coach reply under way is one of them. « Rien ne tourne sur cette page. » when none runs. A finished action becomes the first Activité entry of « Aujourd'hui ».
+The top of an Activity, under the Context bar: the Candidate's AI actions under way, this page's then « En cours ailleurs », each with its live Activity glyph, current step, finished steps, time so far and stop icon; an AI Coach reply under way is one of them. A page may follow an action of another page as its own: `/profils/nouveau` follows its offered Job Search (#1001), counted there among this page's, with its four steps, its Live discovery metrics, its sources' states, « offres qui vous correspondent » and the criteria it is narrowed with (« Affinée avec : … »); no other page changes. « Rien ne tourne sur cette page. » when none runs. A finished action becomes the first Activité entry of « Aujourd'hui »; the followed Job Search's, kept by the browser, lists its 3 to 5 best Job Offers and « Voir toutes les offres ».
 _Avoid_: Live pane, running tasks
 
 **End state**:

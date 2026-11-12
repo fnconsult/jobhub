@@ -108,6 +108,10 @@ describe("the guard on the Platform Settings", () => {
         "JOBHUB_TARGET",
         "AI_FAKE",
         "MAIL_TRANSPORT",
+        // The store review's sign-in code (#981): whether it is on, for whom; the code only set or missing.
+        "REVIEW_SIGN_IN",
+        "REVIEW_SIGN_IN_EMAILS",
+        "REVIEW_SIGN_IN_CODE",
         "STRIPE_PRICE_STANDARD",
         "STRIPE_PRICE_PREMIUM",
         "STRIPE_PRICE_COACHING_SESSION",

@@ -123,13 +123,23 @@ export function runsOn(hardwareId: HardwareId): Run[] {
  */
 export function bootSetup(hardwareId: HardwareId): string[][] {
   if (CI_HARDWARE[hardwareId].platform === "ios") {
+    const spawn = `xcrun simctl spawn ${SIMULATOR} defaults`;
     return [
-      ["xcrun", "simctl", "spawn", SIMULATOR, "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
-      ["xcrun", "simctl", "spawn", SIMULATOR, "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
-      // The system reads them as it boots.
-      ["xcrun", "simctl", "shutdown", SIMULATOR],
-      ["xcrun", "simctl", "boot", SIMULATOR],
-      ["xcrun", "simctl", "bootstatus", SIMULATOR, "-b"],
+      [
+        "sh",
+        "-c",
+        [
+          // Already French, which the system only is if it booted so (mobile-e2e.yml writes it before the first boot):
+          // no second boot, minutes long on the iPad.
+          `if [ "$(${spawn} read -g AppleLocale 2>/dev/null)" = fr_FR ] && ${spawn} read -g AppleLanguages 2>/dev/null | grep -q fr-FR; then exit 0; fi`,
+          `${spawn} write -g AppleLanguages -array fr-FR`,
+          `${spawn} write -g AppleLocale -string fr_FR`,
+          // The system reads them as it boots.
+          `xcrun simctl shutdown ${SIMULATOR}`,
+          `xcrun simctl boot ${SIMULATOR}`,
+          `xcrun simctl bootstatus ${SIMULATOR} -b`,
+        ].join(" && ").replace("fi && ", "fi; "),
+      ],
     ];
   }
   return [
@@ -139,7 +149,10 @@ export function bootSetup(hardwareId: HardwareId): string[][] {
     ["adb", "shell", "setprop", "persist.sys.locale", "fr-FR"],
     ["adb", "shell", "setprop", "ctl.restart", "zygote"],
     ["adb", "wait-for-device"],
-    ["adb", "shell", 'while [ "$(getprop sys.boot_completed)" != 1 ]; do sleep 1; done; sleep 5'],
+    // `sys.boot_completed` is still 1 from the first boot: the framework is back once the services the runs' set-up
+    // calls answer (`cmd uimode`, the window manager). It was not, 7 s after the restart, on run 42666513659
+    // (« Can't find service: uimode »). Three minutes at most.
+    ["adb", "shell", `n=0; until [ "$(getprop sys.boot_completed)" = 1 ] && cmd uimode night >/dev/null 2>&1 && wm size >/dev/null 2>&1; do n=$((n + 1)); [ "$n" -gt 180 ] && exit 1; sleep 1; done; sleep 5`],
   ];
 }
 

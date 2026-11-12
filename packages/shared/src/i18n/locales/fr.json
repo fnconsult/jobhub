@@ -4,9 +4,183 @@
     "tagline": "Votre coach pour décrocher votre prochain poste après 40 ans."
   },
   "home": {
-    "title": "Bienvenue sur Jobbbox",
     "intro": "Nous construisons votre positionnement, trouvons les offres d'emploi qui vous correspondent et préparons vos candidatures.",
     "comingSoon": "L'application est en cours de construction."
+  },
+  "landing": {
+    "meta": {
+      "title": "Jobbbox · Un coach IA pour votre recherche d'emploi",
+      "description": "Jobbbox est un coach IA pour les candidats expérimentés. Il établit votre CV de référence, trouve les offres qui vous correspondent et prépare chaque candidature avec vous."
+    },
+    "cta": "Créer mon compte",
+    "free": "Offre Gratuit, sans paiement.",
+    "example": "Exemple",
+    "hero": {
+      "title": "Votre expérience mérite une candidature à sa mesure.",
+      "lead": "Jobbbox est un coach IA pour les candidats expérimentés. Il établit votre CV de référence, trouve les offres qui vous correspondent et prépare chaque candidature avec vous."
+    },
+    "method": {
+      "eyebrow": "La méthode",
+      "title": "Quatre étapes, dans l'ordre.",
+      "lead": "Chacune se fait avec le coach, à votre rythme.",
+      "steps": {
+        "cv": {
+          "label": "Étape 1 sur 4",
+          "title": "Votre CV de référence",
+          "text": "Vous confiez votre CV au coach. Il le lit avec vous, puis vous précisez le poste, le lieu et vos conditions."
+        },
+        "offers": {
+          "label": "Étape 2 sur 4",
+          "title": "Les offres qui vous correspondent",
+          "text": "Jobbbox recherche les offres selon vos critères. Chacune reçoit un score de correspondance, et ses raisons."
+        },
+        "application": {
+          "label": "Étape 3 sur 4",
+          "title": "Une candidature préparée",
+          "text": "Pour chaque offre retenue, le coach prépare un CV adapté et une lettre de motivation. Vous les relisez avant de postuler."
+        },
+        "followUp": {
+          "label": "Étape 4 sur 4",
+          "title": "Un suivi au même endroit",
+          "text": "Vous y retrouvez vos candidatures, vos entretiens et vos relances."
+        }
+      }
+    },
+    "coach": {
+      "eyebrow": "Le coach",
+      "quote": "« Je suis un coach IA, pas une personne. »",
+      "source": "Premier message de chaque conversation",
+      "text": "Le coach répond à partir de vos compétences, de votre expérience et de vos critères. S'il lui manque une information, il vous la demande. Sous chaque réponse, vous voyez ce qu'il a consulté."
+    },
+    "tools": {
+      "eyebrow": "L'extension et l'app",
+      "title": "Là où vous lisez les offres.",
+      "extension": {
+        "title": "Sur la page de l'offre",
+        "text": "L'extension pour Google Chrome ajoute le bouton « Analyser cette offre ». Elle enregistre l'offre et calcule son score de correspondance avec votre CV, sur 100. Sans compte, vos données sont effacées sous 24 heures.",
+        "install": "Installer l'extension"
+      },
+      "app": {
+        "title": "Sur votre téléphone",
+        "text": "L'app pour iPhone, iPad et Android utilise le même compte. Vous vous connectez par un lien reçu par e-mail.",
+        "appStore": "Télécharger dans l'App Store",
+        "playStore": "Disponible sur Google Play"
+      }
+    },
+    "humans": {
+      "eyebrow": "Les coachs humains",
+      "title": "Une personne, si vous le souhaitez.",
+      "text": "Des professionnels des ressources humaines, sélectionnés par Jobbbox, vous reçoivent en visio ou par téléphone. Les séances sont facultatives et payées à part.",
+      "more": "Un coach humain ne lit vos candidatures qu'avec votre accord. Il ne voit jamais vos conversations avec le coach IA."
+    },
+    "reading": {
+      "eyebrow": "La lecture",
+      "title": "Un texte à votre vue.",
+      "text": "Jobbbox est rédigé sans jargon, et chaque terme a son article d'aide. Vous agrandissez le texte sur toutes les pages, avec « Taille du texte », en haut de la page."
+    },
+    "plans": {
+      "eyebrow": "Les offres",
+      "title": "Des offres claires, dont une gratuite.",
+      "note": "Vos échanges avec le coach ne sont décomptés d'aucun quota. Une offre payante se résilie à tout moment, et vous disposez de 14 jours pour vous rétracter.",
+      "detail": "Le détail des offres et de leurs quotas",
+      "notIncluded": "Non compris"
+    },
+    "questions": {
+      "eyebrow": "Vos questions",
+      "title": "Avant de commencer.",
+      "more": "Consulter le Centre d'aide",
+      "person": {
+        "question": "Le coach est-il une personne ?",
+        "answer": "Non. Le coach est un programme d'intelligence artificielle, et il le dit dès son premier message. Pour parler à une personne, vous pouvez réserver une séance avec un coach humain."
+      },
+      "data": {
+        "question": "Que devient mon CV ?",
+        "answer": "Jobbbox l'utilise, avec vos critères et vos candidatures, pour vous aider dans votre recherche. Avec votre accord, les demandes à l'IA qui contiennent votre identité sont traitées par un fournisseur d'IA européen. Vous téléchargez vos données ou supprimez votre compte depuis « Mon compte »."
+      },
+      "install": {
+        "question": "Dois-je installer un logiciel ?",
+        "answer": "Non. Jobbbox s'utilise dans votre navigateur. L'extension et l'app sont facultatives."
+      },
+      "signIn": {
+        "question": "Comment me connecter ?",
+        "answer": "Vous saisissez votre adresse e-mail et vous recevez un lien de connexion, accompagné d'un code à 6 chiffres. Il n'y a pas de mot de passe."
+      },
+      "stop": {
+        "question": "Puis-je arrêter quand je le souhaite ?",
+        "answer": "Oui. Vous résiliez une offre payante à tout moment, et vous supprimez vous-même votre compte."
+      }
+    },
+    "end": {
+      "title": "Commencez par votre CV.",
+      "lead": "Une adresse e-mail suffit pour créer votre compte."
+    },
+    "screens": {
+      "matchScore": "Match Score",
+      "nav": {
+        "conversation": "Nouvelle conversation",
+        "searches": "Recherches d'offres",
+        "applications": "Candidatures",
+        "agenda": "Agenda",
+        "humanCoaches": "Mes coachs humains"
+      },
+      "conversation": {
+        "alt": "Exemple de conversation : le coach IA se présente comme une IA, la personne demande si une offre lui correspond, le coach répond à partir de son CV et propose de préparer un CV adapté.",
+        "question": "J'ai trouvé une offre de responsable logistique à Lyon. Est-ce qu'elle me correspond ?",
+        "reply": "D'après votre CV, oui pour l'essentiel : la gestion d'équipe et l'organisation des flux. L'offre demande aussi un anglais courant, que votre CV ne montre pas. Voulez-vous que je prépare un CV adapté à cette offre ?",
+        "prepareCv": "Préparer le CV adapté",
+        "prepareLetter": "Préparer la lettre de motivation",
+        "fiche": "Fiche",
+        "outOf": "sur 100"
+      },
+      "offers": {
+        "alt": "Exemple de recherche d'offres : quatre offres, chacune avec son score de correspondance sur 100 et ses raisons.",
+        "logistics": "Responsable logistique",
+        "logisticsPlace": "Lyon · CDI",
+        "warehouse": "Responsable d'entrepôt",
+        "warehousePlace": "Villeurbanne · CDI",
+        "supplyChain": "Chef de projet supply chain",
+        "supplyChainPlace": "Lyon · CDI",
+        "procurement": "Responsable des approvisionnements",
+        "procurementPlace": "Saint-Priest · CDI",
+        "why": "Pourquoi 82 ?",
+        "team": "Gestion d'équipe",
+        "flows": "Organisation des flux",
+        "english": "Anglais courant : absent du CV",
+        "logisticsScore": "82 / 100",
+        "warehouseScore": "76 / 100",
+        "supplyChainScore": "68 / 100",
+        "procurementScore": "61 / 100"
+      },
+      "application": {
+        "alt": "Exemple de candidature : un CV adapté à l'offre, prêt à relire, et une lettre de motivation.",
+        "title": "Responsable logistique · Lyon",
+        "cv": "CV adapté",
+        "letter": "Lettre de motivation",
+        "ready": "Prêt à relire",
+        "profile": "Profil",
+        "experience": "Expérience",
+        "skills": "Compétences",
+        "note": "En surbrillance : ce que le coach a adapté à l'offre.",
+        "cvReady": "CV adapté · Prêt à relire"
+      },
+      "followUp": {
+        "alt": "Exemple de suivi : trois candidatures avec leur état, entretien, envoyée, à préparer.",
+        "interview": "Entretien",
+        "interviewWhen": "Jeudi, 14 h",
+        "sent": "Candidature envoyée",
+        "sentNext": "Relance à prévoir",
+        "toPrepare": "À préparer",
+        "toPrepareNext": "CV adapté prêt à relire"
+      },
+      "extension": {
+        "alt": "Sur la page d'une offre, le panneau de l'extension affiche un Match Score sur 100 et son détail.",
+        "detail": "Détail du Match Score"
+      },
+      "app": {
+        "alt": "L'app Jobbbox sur un téléphone, avec la liste des candidatures."
+      },
+      "scoreValue": "82"
+    }
   },
   "textSize": {
     "label": "Taille du texte",
@@ -2484,6 +2658,8 @@
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
+        "APP_STORE_URL": "Page de l'app sur l'App Store (lien de la page d'accueil)",
+        "PLAY_STORE_URL": "Page de l'app sur Google Play (lien de la page d'accueil)",
         "HELP_MEDIA_ORIGIN": "Origine des vidéos d'aide (Explainer Videos du centre d'aide)",
         "MAINTENANCE_MODE": "Maintenance en cours (toutes les pages hors Back Office répondent 503)",
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",

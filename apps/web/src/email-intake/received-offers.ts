@@ -17,8 +17,9 @@ import type { Pool } from "pg";
 import type { Applications } from "../applications";
 import { visibleTo, type JobOffers } from "../job-offers";
 import type { Profiles } from "../profiles";
+import { exitDestination } from "../external-links";
 
-/** At most this many Job Offers are listed per Profile, and in « Non classées », newest first. */
+/** At most this many items per Profile, « Non classées » and « À capturer », newest first. */
 export const MAX_LISTED = 50;
 
 const TIME_ZONE = "Europe/Paris";
@@ -58,6 +59,8 @@ export interface IgnoredEmail {
 }
 
 export interface ReceivedOffersOverview {
+  /** Latest distinct source links that could not be read: no Job Offer or Match Score was made. */
+  toCapture: { title: string; link: string; receivedAt: Date; senderDomain: string }[];
   /** By Profile id: the Job Offers its emails brought (newest first, at most MAX_LISTED) and how many arrived this week (« nouvelles »). */
   byProfile: Record<string, { offers: ReceivedOffer[]; fresh: number }>;
   /** « Non classées »: the Job Offers no Profile scored 60 or more for. */
@@ -80,7 +83,7 @@ export interface ReceivedOffers {
 }
 
 export interface ReceivedOffersDeps {
-  jobOffers: Pick<JobOffers, "get">;
+  jobOffers: Pick<JobOffers, "get" | "findBySourceUrl">;
   profiles: Pick<Profiles, "get">;
   applications: Pick<Applications, "list">;
   now?: () => Date;
@@ -124,6 +127,36 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
     return rows;
   }
 
+  /**
+   * The links to capture, newest first, each once: only destinations our Exit Page accepts (historical rows are
+   * untrusted too), and not one the Candidate has since captured and saved as an Application.
+   */
+  async function toCaptureOf(candidateId: string, applied: ReadonlySet<string>): Promise<ReceivedOffersOverview["toCapture"]> {
+    const { rows } = await database.query<ReceivedOffersOverview["toCapture"][number]>(
+      `SELECT title, link, "receivedAt", "senderDomain" FROM (
+         SELECT DISTINCT ON (offer.link) offer.title, offer.link,
+                email.received_at AS "receivedAt", email.sender_domain AS "senderDomain"
+           FROM received_offer_email_offer offer
+           JOIN received_offer_email email ON email.id = offer.received_offer_email_id
+          WHERE offer.candidate_id = $1 AND email.candidate_id = $1
+            AND offer.disposition = 'to_capture' AND email.outcome = 'offers_found'
+            AND offer.title IS NOT NULL AND offer.link IS NOT NULL
+          ORDER BY offer.link, email.received_at DESC, email.id DESC, offer.position
+       ) latest ORDER BY "receivedAt" DESC, link LIMIT $2`,
+      // Read past the cap, so that links left out below do not shorten the list.
+      [candidateId, MAX_LISTED * 4],
+    );
+    const listed: ReceivedOffersOverview["toCapture"] = [];
+    for (const row of rows) {
+      if (listed.length >= MAX_LISTED) break;
+      if (exitDestination(row.link) === null) continue;
+      const stored = await deps.jobOffers.findBySourceUrl(row.link, candidateId);
+      if (stored && applied.has(stored.id)) continue;
+      listed.push(row);
+    }
+    return listed;
+  }
+
   /** The latest Paris day this week whose emails reached `threshold`; Gmail's forwarding confirmation is not one. */
   async function tooBroadOf(candidateId: string, at: Date, threshold: number): Promise<ReceivedOffersOverview["tooBroad"]> {
     const { rows } = await database.query<{ day: string; count: number }>(
@@ -145,6 +178,7 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
         deps.applications.list(candidateId),
       ]);
       const applicationOf = new Map(saved.map((application) => [application.jobOffer.id, application.id]));
+      const toCapture = await toCaptureOf(candidateId, new Set(applicationOf.keys()));
       const groups = new Map<string | null, OfferRow[]>();
       for (const row of offers) groups.set(row.profileId, [...(groups.get(row.profileId) ?? []), row]);
 
@@ -175,6 +209,7 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
       }
       const unclassified = groups.get(null) ?? [];
       return {
+        toCapture,
         byProfile,
         unclassified: { offers: (await listed(unclassified)).map(({ row, jobOffer }) => ({ ...facts(row, jobOffer), matchScore: row.matchScore })), fresh: fresh(unclassified) },
         ignored,

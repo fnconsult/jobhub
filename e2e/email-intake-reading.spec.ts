@@ -187,6 +187,8 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
     expect(stored.map((offer) => offer.title)).toEqual(["Contrôleur de gestion industriel", "Responsable consolidation", "Directeur financier adjoint"]);
     expect(stored.map((offer) => offer.contractType)).toEqual(["cdi", "cdi", "cdd"]);
     expect(stored[0]).toMatchObject({ employer: "Exemple Mécanique", source: { url: "https://www.cadremploi.fr/emploi/detail_offre?offreId=158700001" } });
+    expect(stored[0].content).toContain("PUBLIC_EMAIL_SOURCE");
+    expect(stored[0].skills).toEqual(["IFRS"]);
     // Shared: a Guest gets them too.
     const guest = await browser.newContext({ baseURL: origin });
     expect((await guest.request.get(`/api/job-offers/${alert.offers[0]!.jobOfferId}`)).status()).toBe(200);

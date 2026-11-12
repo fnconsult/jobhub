@@ -70,6 +70,7 @@ async function receivedEmail(candidateId: string, outcome: string, senderDomain:
       [id, position, candidateId, offer.jobOfferId, offer.profileId, offer.matchScore],
     );
   }
+  return id;
 }
 
 async function expectNoAxeViolations(page: Page) {
@@ -111,6 +112,10 @@ test("a Candidate with Received offer emails sees each offer under its Profile, 
   await receivedEmail(candidateId, "failed", "welcometothejungle.com");
   await receivedEmail(candidateId, "guardrail", "piege.example");
   await receivedEmail(paulId, "other", "paul-only.example");
+  const unread = await receivedEmail(candidateId, "offers_found", "careers.example");
+  const otherUnread = await receivedEmail(paulId, "offers_found", "other.example");
+  await query(`INSERT INTO received_offer_email_offer (received_offer_email_id, position, candidate_id, disposition, title, link) VALUES ($1, 0, $2, 'to_capture', $3, $4), ($5, 0, $6, 'to_capture', $7, $8)`, [unread, candidateId, `Annonce inaccessible ${tag}`, "https://careers.example.org/jobs/unread", otherUnread, paulId, `Annonce de Paul ${tag}`, "https://careers.example.org/jobs/paul"]);
+
 
   // « Reçues par email » opens in the Work Pane beside Recherches d'offres' conversation, each active Profile's offers
   // under its name (#606).
@@ -131,6 +136,16 @@ test("a Candidate with Received offer emails sees each offer under its Profile, 
   const unclassifiedSection = page.getByRole("region", { name: "Non classées" });
   await expect(unclassifiedSection.getByRole("link", { name: `Assistante de direction ${tag}` })).toBeVisible();
   await expect(unclassifiedSection.getByText("Meilleure correspondance : 31 sur 100")).toBeVisible();
+
+  const toCapture = pane.getByRole("region", { name: "À capturer", exact: true });
+  await expect(toCapture).toContainText("aucun Match Score n’a été calculé");
+  const unreadLink = toCapture.getByRole("link", { name: `Annonce inaccessible ${tag}` });
+  await expect(unreadLink).toBeVisible();
+  const destination = new URL((await unreadLink.getAttribute("href"))!, origin);
+  expect(destination.pathname).toBe("/sortie");
+  expect(destination.searchParams.get("url")).toBe("https://careers.example.org/jobs/unread");
+  await expect(toCapture.getByRole("link")).toHaveCount(1);
+  await expect(page.getByText(`Annonce de Paul ${tag}`)).toHaveCount(0);
 
   const ignored = page.getByRole("region", { name: "4 mails ignorés cette semaine" });
   const reasons = ignored.getByRole("list", { name: "Mails ignorés cette semaine" }).getByRole("listitem");

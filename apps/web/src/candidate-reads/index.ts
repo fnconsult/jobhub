@@ -30,6 +30,7 @@ import type {
   JobOfferLine,
   JobSearchesResponse,
   JobSearchResponse,
+  OfferBoxEntryRead,
   OfferBoxOfferResponse,
   OfferBoxResponse,
   OffersToHandleResponse,
@@ -55,7 +56,7 @@ import type { JobSearches } from "../job-searches";
 import type { Orders } from "../orders";
 import type { Withdrawals } from "../withdrawals";
 import { jobSearchesMenu } from "../job-searches/menu";
-import type { OfferBox, OfferBoxContents } from "../offer-box";
+import type { OfferBox, OfferBoxContents, OfferBoxEntry } from "../offer-box";
 import type { Profiles } from "../profiles";
 import type { Reschedule } from "../reschedules";
 import type { TailoredCvs } from "../tailored-cv";
@@ -77,6 +78,11 @@ export interface CandidateReads {
    * when it is not theirs, or has no Profile to be scored against.
    */
   offerBoxOffer(candidateId: string, entryId: string): Promise<OfferBoxOfferResponse | null>;
+  /**
+   * The Candidate's Offer box entry of one Job Offer, however long ago it was écartée (#895): where they stand with a
+   * Job Offer a Job Search or a Job Digest found, in its Work Pane; null when they have none.
+   */
+  offerBoxEntryOf(candidateId: string, jobOfferId: string): Promise<OfferBoxEntryRead | null>;
   /** One of the Candidate's Job Searches and its Job Offers, best Match Score first; null when it is not theirs. */
   jobSearch(candidateId: string, jobSearchId: string): Promise<JobSearchResponse | null>;
   /** The Job Digests' card: each active Profile, its Job Digest's frequency and those sent, newest first. */
@@ -242,28 +248,29 @@ const foundJobOffer = (result: { jobOffer: JobOffer; matchScore: MatchScore; app
   applicationId: result.applicationId,
 });
 
+/** One Offer box entry as the reads give it. */
+function offerBoxEntryRead(entry: OfferBoxEntry): OfferBoxEntryRead {
+  return {
+    id: entry.id,
+    jobOffer: { ...jobOfferLine(entry.jobOffer), contractType: entry.jobOffer.contractType ?? null },
+    profile: entry.profile,
+    scoredWith: entry.scoredWith,
+    matchScore: entry.matchScore ? figure(entry.matchScore) : null,
+    firstArrivalAt: iso(entry.firstArrivalAt),
+    arrivalDay: entry.arrivalDay,
+    sources: entry.sources.map(({ source, at }) => ({ source, at: iso(at) })),
+    state: entry.state,
+    applicationId: entry.applicationId,
+    followedAt: isoOrNull(entry.followedAt),
+    dismissalReason: entry.dismissalReason,
+    dismissedAt: isoOrNull(entry.dismissedAt),
+    laterUntil: isoOrNull(entry.laterUntil),
+  };
+}
+
 /** The Offer box as `GET /api/offer-box` answers it, and as the web page reads it too (ADR-0090): the two cannot drift apart. */
 export function offerBoxResponse(box: OfferBoxContents): OfferBoxResponse {
-  return {
-    today: box.today,
-    toHandle: box.toHandle,
-    entries: box.entries.map((entry) => ({
-      id: entry.id,
-      jobOffer: { ...jobOfferLine(entry.jobOffer), contractType: entry.jobOffer.contractType ?? null },
-      profile: entry.profile,
-      scoredWith: entry.scoredWith,
-      matchScore: entry.matchScore ? figure(entry.matchScore) : null,
-      firstArrivalAt: iso(entry.firstArrivalAt),
-      arrivalDay: entry.arrivalDay,
-      sources: entry.sources.map(({ source, at }) => ({ source, at: iso(at) })),
-      state: entry.state,
-      applicationId: entry.applicationId,
-      followedAt: isoOrNull(entry.followedAt),
-      dismissalReason: entry.dismissalReason,
-      dismissedAt: isoOrNull(entry.dismissedAt),
-      laterUntil: isoOrNull(entry.laterUntil),
-    })),
-  };
+  return { today: box.today, toHandle: box.toHandle, entries: box.entries.map(offerBoxEntryRead) };
 }
 
 /** The menus' cards name no day: the app writes it in the Candidate's language from the instant. */
@@ -347,6 +354,11 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       if (!entry?.scoredWith || !entry.matchScore) return null;
       const { jobOffer, matchScore, applicationId, state } = entry;
       return { profile: entry.scoredWith, found: foundJobOffer({ jobOffer, matchScore, applicationId, dismissed: state === "dismissed" }) };
+    },
+
+    async offerBoxEntryOf(candidateId, jobOfferId) {
+      const entry = await deps.offerBox.entryOf(candidateId, jobOfferId);
+      return entry ? offerBoxEntryRead(entry) : null;
     },
 
     async jobSearch(candidateId, jobSearchId) {

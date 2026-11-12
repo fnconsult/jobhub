@@ -794,7 +794,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
   });
 });
 
-// Issue #1001 (ADR-0105): the offered Job Search's card on /profils/nouveau, compact and stuck at the top of the thread while
+// Issue #1001 (ADR-0106): the offered Job Search's card on /profils/nouveau, compact and stuck at the top of the thread while
 // the questions go on, whole at the review (the Work Pane closed), on a computer and on a phone. Nothing runs the
 // worker here: the run's measures are written on the Job Search as the worker writes them, with three Job Offers found,
 // and the motion is reduced so that the loupe and the orbit stand still.

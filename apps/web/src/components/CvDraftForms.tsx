@@ -132,7 +132,7 @@ interface ReviewState {
   upgradePrompt: Prompt | null;
 }
 
-/** A Profile born during its onboarding (ADR-0105, #999): the review finishes it rather than creating one. */
+/** A Profile born during its onboarding (ADR-0106, #999): the review finishes it rather than creating one. */
 export interface BornProfile {
   id: string;
   /** The version of its Master CV the review's save is based on. */

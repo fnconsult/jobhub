@@ -5,7 +5,7 @@ import { getProfiles } from "@/profiles/server";
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * Finishes the onboarding of a Profile born during it on `/profils/nouveau` (ADR-0105, #999): saves the Master CV the
+ * Finishes the onboarding of a Profile born during it on `/profils/nouveau` (ADR-0106, #999): saves the Master CV the
  * Candidate reviewed as its next version (one for the whole onboarding, none when unchanged) and marks it done. Its Search
  * Criteria are changed beforehand by `PATCH /api/profiles/:id`.
  * Body: { basedOnVersion, masterCv: MasterCvContent }.

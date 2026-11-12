@@ -23,21 +23,24 @@
       "eyebrow": "The method",
       "title": "Four steps, in order.",
       "lead": "You take each one with the coach, at your own pace.",
-      "step": "Step {{step}} of {{count}}",
       "steps": {
         "cv": {
+          "label": "Step 1 of 4",
           "title": "Your reference CV",
           "text": "You give the coach your CV. It reads it with you; you then state the position, the location and your terms."
         },
         "offers": {
+          "label": "Step 2 of 4",
           "title": "The offers that suit you",
           "text": "Jobbbox searches for offers that meet your criteria. Each one is given a match score, with its reasons."
         },
         "application": {
+          "label": "Step 3 of 4",
           "title": "An application, prepared",
           "text": "For each offer you select, the coach prepares a tailored CV and a cover letter. You review them before you apply."
         },
         "followUp": {
+          "label": "Step 4 of 4",
           "title": "Follow-up in one place",
           "text": "Your applications, your interviews and your follow-up messages are kept together."
         }
@@ -73,7 +76,7 @@
     "reading": {
       "eyebrow": "Reading",
       "title": "Text that suits your eyesight.",
-      "text": "Jobbbox is written without jargon, and each term has its own help article. You may enlarge the text on every page. Try it here."
+      "text": "Jobbbox is written without jargon, and each term has its own help article. You may enlarge the text on every page, with “Text size”, at the top of the page."
     },
     "plans": {
       "eyebrow": "Plans",
@@ -143,7 +146,10 @@
         "team": "Team management",
         "flows": "Organisation of flows",
         "english": "Fluent English: not in the CV",
-        "score": "{{score}} / 100"
+        "logisticsScore": "82 / 100",
+        "warehouseScore": "76 / 100",
+        "supplyChainScore": "68 / 100",
+        "procurementScore": "61 / 100"
       },
       "application": {
         "alt": "Example application: a CV tailored to the offer, ready to review, and a cover letter.",
@@ -154,7 +160,8 @@
         "profile": "Profile",
         "experience": "Experience",
         "skills": "Skills",
-        "note": "Highlighted: what the coach tailored to the offer."
+        "note": "Highlighted: what the coach tailored to the offer.",
+        "cvReady": "Tailored CV · Ready to review"
       },
       "followUp": {
         "alt": "Example follow-up: three applications with their status, interview, sent, to prepare.",
@@ -171,7 +178,8 @@
       },
       "app": {
         "alt": "The Jobbbox app on a telephone, with the list of applications."
-      }
+      },
+      "scoreValue": "82"
     }
   },
   "textSize": {

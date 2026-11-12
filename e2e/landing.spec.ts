@@ -41,7 +41,7 @@ test.describe("the landing page (ADR-0105)", () => {
     const steps = page.getByRole("main").getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3 }) });
     await expect(steps).toHaveCount(STEPS.length);
     for (const [index, step] of STEPS.entries()) {
-      await expect(steps.nth(index)).toContainText(fr.landing.method.step.replace("{{step}}", String(index + 1)).replace("{{count}}", String(STEPS.length)));
+      await expect(steps.nth(index)).toContainText(fr.landing.method.steps[step].label);
       await expect(steps.nth(index).getByRole("heading", { level: 3 })).toHaveText(fr.landing.method.steps[step].title);
       await expect(steps.nth(index)).toContainText(fr.landing.method.steps[step].text);
     }

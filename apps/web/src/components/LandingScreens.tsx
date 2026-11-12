@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Logo } from "@/design/Logo";
 import { Pill, Status } from "@/design/Pill";
-import { Ring } from "@/design/Ring";
+import "@/design/Ring.css";
 import { getServerT } from "@/i18n/server";
 
 /**
@@ -10,6 +10,7 @@ import { getServerT } from "@/i18n/server";
  * description, its inside hidden from assistive technology, and nothing in it takes the focus.
  */
 
+/** The example offer's Match Score, as its ring is filled; the number shown is the catalogue's (`landing.screens.scoreValue`). */
 const SCORE = 82;
 
 type NavItem = "conversation" | "searches" | "applications" | "agenda" | "humanCoaches";
@@ -64,7 +65,9 @@ async function Score() {
   const t = await getServerT();
   return (
     <div className="landing-score">
-      <Ring value={SCORE} decorative />
+      <span className="ds-ring" style={{ "--ds-ring-value": SCORE } as CSSProperties}>
+        {t("landing.screens.scoreValue")}
+      </span>
       <div>
         <strong>{t("landing.screens.matchScore")}</strong>
         <br />
@@ -87,7 +90,7 @@ export async function ConversationScreen({ fiche = false }: { fiche?: boolean })
       <Score />
       <Reasons />
       <div>
-        <Pill tone="success">{`${t("landing.screens.application.cv")} · ${t("landing.screens.application.ready")}`}</Pill>
+        <Pill tone="success">{t("landing.screens.application.cvReady")}</Pill>
       </div>
     </>
   ) : undefined;
@@ -114,12 +117,7 @@ export async function ConversationScreen({ fiche = false }: { fiche?: boolean })
   );
 }
 
-const OFFERS = [
-  { name: "logistics", score: SCORE },
-  { name: "warehouse", score: 76 },
-  { name: "supplyChain", score: 68 },
-  { name: "procurement", score: 61 },
-] as const;
+const OFFERS = ["logistics", "warehouse", "supplyChain", "procurement"] as const;
 
 /** Recherches d'offres: four example offers, each with its Match Score; the first one says why. */
 export async function OffersScreen() {
@@ -127,14 +125,14 @@ export async function OffersScreen() {
   return (
     <AppFrame title={t("landing.screens.nav.searches")} current="searches" alt={t("landing.screens.offers.alt")}>
       <div className="landing-rows">
-        {OFFERS.map(({ name, score }, index) => (
+        {OFFERS.map((name, index) => (
           <div key={name} className="landing-row">
             <div>
               <strong>{t(`landing.screens.offers.${name}`)}</strong>
               <br />
               <span className="landing-meta">{t(`landing.screens.offers.${name}Place`)}</span>
             </div>
-            <strong className="landing-row__end">{t("landing.screens.offers.score", { score })}</strong>
+            <strong className="landing-row__end">{t(`landing.screens.offers.${name}Score`)}</strong>
             {index === 0 ? (
               <div className="landing-row__more">
                 <span className="landing-meta">{t("landing.screens.offers.why")}</span>

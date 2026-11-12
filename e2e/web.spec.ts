@@ -14,8 +14,9 @@ test.describe("web app", () => {
   test("speaks French by default, even to an English-speaking browser", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-    await expect(page).toHaveTitle("Jobbbox");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bienvenue sur Jobbbox");
+    // The Visitor's home page is the landing page (ADR-0105), with its own title.
+    await expect(page).toHaveTitle(frCatalogue.landing.meta.title);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(frCatalogue.landing.hero.title);
     await expect(page.getByLabel("Taille du texte")).toBeVisible();
     await expect(page.getByLabel("Taille du texte").locator("option")).toHaveText(["Petit", "Standard", "Moyen", "Grand"]);
   });
@@ -25,7 +26,10 @@ test.describe("web app", () => {
     const allowed = new Set(catalogueStrings(frCatalogue));
     const texts = await renderedTexts(page);
     expect(texts.length).toBeGreaterThan(3);
-    const stray = texts.map((t) => t.text).filter((text) => !allowed.has(text));
+    // The Plans are the Back Office's data (their prices from Stripe, their quotas from the Plans catalogue), not copy:
+    // what the landing page shows of them is left out here (ADR-0105).
+    const plans = new Set(await page.locator(".landing-plans *").allInnerTexts());
+    const stray = texts.map((t) => t.text).filter((text) => !allowed.has(text) && !plans.has(text));
     expect(stray).toEqual([]);
   });
 

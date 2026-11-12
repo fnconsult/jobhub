@@ -11,7 +11,7 @@ export const STORE_ICON = { accent: "#4f5fe0", soft: "#eef0fd", line: "#c9cff7",
  * The key screens shown in the stores, in the listing's order, with the French caption of the iPhone set.
  * Two key screens are left out until a seed made for the stores exists (docs/ops/mobile.md): « accueil », whose
  * introduction still says « L'application est en cours de construction. », and « conversation », whose reply is the
- * test stack's fake provider's.
+ * test stack's fake provider's. They come back after #979, which replaces the provisional home screen.
  */
 export const STORE_SCREENS = [
   { id: "candidatures", caption: "Vos candidatures et votre coach IA, au même endroit" },

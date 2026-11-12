@@ -177,7 +177,7 @@ Elles viennent des captures de référence claires des écrans clés (`maestro/c
 
 Trois limites connues, à lever avant la soumission en production (elles ne bloquent ni TestFlight ni le test fermé) :
 
-- **Deux écrans clés sont écartés** : `accueil`, dont l'introduction dit encore « L'application est en cours de construction. » (un texte de l'app à retirer avant la revue : Apple refuse une app qui se dit inachevée, règle 2.2), et `conversation`, dont la réponse est celle du faux fournisseur de la pile de test. Il faut un jeu de données fait pour les stores (une vraie réponse du coach, des scores de correspondance variés) avant de les y remettre.
+- **Deux écrans clés sont écartés** : `accueil`, dont l'introduction dit encore « L'application est en cours de construction. » (un texte de l'app à retirer avant la revue : Apple refuse une app qui se dit inachevée, règle 2.2), et `conversation`, dont la réponse est celle du faux fournisseur de la pile de test. Il faut un jeu de données fait pour les stores (une vraie réponse du coach, des scores de correspondance variés) avant de les y remettre. Ils reviennent après #979, qui remplace l'écran d'accueil provisoire.
 - **Le lot iPhone est agrandi** depuis l'iPhone SE (750 × 1334), seul téléphone iOS de la matrice Maestro : un peu flou. Un iPhone de 6,9 pouces dans `devices.ts` donnerait des captures nettes.
 - **Les captures sont en français seulement** : les simulateurs parlent français. La fiche anglaise montre celles de la langue par défaut, ce que les deux stores font d'eux-mêmes.
 
@@ -221,7 +221,7 @@ Rien de ce qui suit n'est faisable par un agent : ce sont des comptes, des contr
 20. Google Play : la fiche depuis `fr.md` et `en.md`, l'icône, l'image de présentation et les captures de `screenshots/google-play-*`, puis « Contenu de l'application » : politique de confidentialité, accès à l'app (comptes de démonstration), annonces (aucune), classification du contenu, public cible, Sécurité des données, suppression du compte, les cinq pays.
 21. Ajouter `NSPrivacyCollectedDataTypes` au manifeste de confidentialité (`app.json`) d'après le tableau validé par #707.
 22. **Comptes de démonstration** (un Candidate, un Human Coach, données inventées) et le moyen pour le relecteur de se connecter : à trancher, voir `review-notes.md` (le code de connexion d'aujourd'hui ne peut pas être écrit dans des notes).
-23. Retirer de l'accueil « L'application est en cours de construction. » ; redessiner les captures.
+23. Après #979 (l'écran d'accueil provisoire remplacé) : remettre `accueil` et `conversation` dans `STORE_SCREENS` et redessiner les captures.
 
 **F. La soumission**
 

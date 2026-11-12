@@ -159,24 +159,24 @@ Le contrôle automatique (`accessibility.e2e.test.tsx`) vérifie que chaque cont
 
 Le relecteur d'Apple ou de Google se connecte à un compte de démonstration avec un code fixe, écrit dans les notes de revue (#981, #708). Hors revue, ce code est coupé : le code de connexion ne vient que de l'e-mail, aléatoire, 15 minutes, une fois (#686).
 
-**Ce qu'il fait.** Tant qu'il est allumé, l'e-mail de connexion envoyé à une adresse de démonstration porte le code fixe au lieu d'un code aléatoire ; toute autre adresse reçoit un code aléatoire, comme avant. Le relecteur suit le parcours habituel : il saisit l'adresse, « Recevoir mon lien de connexion », puis le code des notes sous « Saisir le code reçu par e-mail » et « Me connecter avec ce code ». Le reste ne change pas : 15 minutes après l'e-mail, 5 codes faux puis un nouvel e-mail, la même limite de débit, la même session (magic-link) sur le web et dans l'app, et **la deuxième étape du compte si elle est demandée** (ADR-0075) : rien n'est contourné. Un Human Coach doit avoir la vérification en deux étapes (#665) : son compte de démonstration la demandera aussi, à prévoir dans les notes (#708). Le code ne connecte jamais un Administrator (ADMIN_EMAILS refusé au démarrage, Back Office Role refusé à la connexion).
+**Ce qu'il fait.** Tant qu'il est allumé, l'e-mail de connexion envoyé à une adresse de démonstration porte le code fixe au lieu d'un code aléatoire ; toute autre adresse reçoit un code aléatoire, comme avant. Le relecteur suit le parcours habituel : il saisit l'adresse, « Recevoir mon lien de connexion », puis le code des notes sous « Saisir le code reçu par e-mail » et « Me connecter avec ce code ». Le reste ne change pas : 15 minutes après l'e-mail, 5 codes faux puis un nouvel e-mail, la même limite de débit, la même session (magic-link) sur le web et dans l'app, et **la deuxième étape du compte si elle est demandée** (ADR-0075) : rien n'est contourné. Aucun compte Human Coach n'est donné aux relecteurs (product owner, 2026-11-12) : un Human Coach doit avoir la vérification en deux étapes (#665), que le code ne contourne pas. Le code ne connecte jamais un Administrator (ADMIN_EMAILS refusé au démarrage, Back Office Role refusé à la connexion).
 
 **Ce qui en reste.** Chaque connexion par le code, et chaque code faux tapé pour une adresse de démonstration qui a un compte, est inscrit au Back Office Audit (Activité › Actions des administrateurs, section « Code de revue des stores ») : l'adresse, la date, « Connexion » ou « Code faux », jamais le code. Paramètres › Environnement montre s'il est allumé et pour quelles adresses ; le code, seulement « défini ».
 
 **L'allumer pour une revue** (Production, juste avant la soumission ; la Beta de même pour un test) :
 
-1. Les comptes de démonstration existent sur l'environnement, aux données inventées, sans Back Office Role ; leurs adresses sont des boîtes de `jobbbox.ai` que l'équipe lit (l'e-mail y part à chaque demande, avec le code).
+1. Le compte de démonstration, un Candidate, existe sur l'environnement, aux données inventées, sans Back Office Role ni vérification en deux étapes ; son adresse est une boîte de `jobbbox.ai` que l'équipe lit (l'e-mail y part à chaque demande, avec le code).
 2. Tirer un code, sur le poste : `python3 -c "import secrets; print(f'{secrets.randbelow(10**6):06d}')"`. Un code d'un seul chiffre répété ou de chiffres à la suite (`123456`, `987654`) est refusé.
 3. Dans le `.env` de l'environnement sur le VPS (`/opt/jobbbox/production/.env`, mode 600, `docs/ops/hosting.md`), jamais dans le dépôt :
    ```
    REVIEW_SIGN_IN=on
-   REVIEW_SIGN_IN_EMAILS=demo.candidat@jobbbox.ai,demo.coach@jobbbox.ai
+   REVIEW_SIGN_IN_EMAILS=demo.candidat@jobbbox.ai
    REVIEW_SIGN_IN_CODE=<le code>
    ```
-   Une ou deux adresses au plus. S'il manque quelque chose, ou que c'est mal formé, il reste coupé et le journal du conteneur `web` dit pourquoi (`[review-sign-in] …`), sans le code.
+   L'adresse du Candidate de démonstration seule (le code en accepte deux au plus). S'il manque quelque chose, ou que c'est mal formé, il reste coupé et le journal du conteneur `web` dit pourquoi (`[review-sign-in] …`), sans le code.
 4. Relancer le conteneur `web` pour qu'il relise le `.env` : redéployer la Version en cours (`deploy.yml`, ou le skill `deploy-staging` pour la Beta).
 5. Vérifier : Paramètres › Environnement montre `REVIEW_SIGN_IN` à `on` et les adresses ; une connexion avec le code depuis l'app réussit, et s'inscrit au journal.
-6. Écrire le code et les adresses dans les notes de revue (`apps/mobile/store/review-notes.md`, paragraphe « SIGNING IN ») au moment de les saisir dans App Store Connect et la Play Console, pas dans le dépôt.
+6. Écrire le code et l'adresse dans les notes de revue (`apps/mobile/store/review-notes.md`, paragraphe « SIGNING IN ») au moment de les saisir dans App Store Connect et la Play Console, pas dans le dépôt.
 
 **Le couper**, une fois la revue acceptée (ou refusée et close) : retirer les trois lignes du `.env` (ou `REVIEW_SIGN_IN=` vide), redéployer, vérifier que Paramètres › Environnement le montre manquant. Pour la revue suivante, tirer un nouveau code : celui des notes précédentes est connu des relecteurs.
 
@@ -269,9 +269,9 @@ Rien de ce qui suit n'est faisable par un agent : ce sont des comptes, des contr
 
 18. Remplacer chaque `[ENTITÉ À CONFIRMER]` de `apps/mobile/store/` (éditeur, copyright, e-mail de contact, signataire des déclarations, contact de la revue) ; ajouter `copyright` à `store.config.json`. Le test et `mobile.yml` suivent le marqueur.
 19. App Store : `npx eas-cli metadata:push` depuis `apps/mobile` (ou la saisie à la main depuis `fr.md` et `en.md`), puis dans App Store Connect : les captures de `screenshots/app-store-*`, la confidentialité de l'app et la classification par âge selon `declarations.md`, le prix (gratuit), les cinq pays, le contact et les notes de la revue.
-20. Google Play : la fiche depuis `fr.md` et `en.md`, l'icône, l'image de présentation et les captures de `screenshots/google-play-*`, puis « Contenu de l'application » : politique de confidentialité, accès à l'app (comptes de démonstration), annonces (aucune), classification du contenu, public cible, Sécurité des données, suppression du compte, les cinq pays.
+20. Google Play : la fiche depuis `fr.md` et `en.md`, l'icône, l'image de présentation et les captures de `screenshots/google-play-*`, puis « Contenu de l'application » : politique de confidentialité, accès à l'app (le compte de démonstration), annonces (aucune), classification du contenu, public cible, Sécurité des données, suppression du compte, les cinq pays.
 21. Ajouter `NSPrivacyCollectedDataTypes` au manifeste de confidentialité (`app.json`) d'après le tableau validé par #707.
-22. **Comptes de démonstration** (un Candidate, un Human Coach, données inventées) et le moyen pour le relecteur de se connecter : à trancher, voir `review-notes.md` (le code de connexion d'aujourd'hui ne peut pas être écrit dans des notes).
+22. **Compte de démonstration** : un Candidate seul, aux données inventées, et le code de revue des stores pour s'y connecter (#981, « Code de revue des stores » ci-dessus). Aucun compte Human Coach pour la revue (product owner, 2026-11-12). Si un relecteur demande un accès coach, le product owner décide alors (par exemple un compte coach temporaire, sa deuxième étape donnée en privé dans App Store Connect).
 23. Après #979 (l'écran d'accueil provisoire remplacé) : remettre `accueil` et `conversation` dans `STORE_SCREENS` et redessiner les captures.
 
 **F. La soumission**

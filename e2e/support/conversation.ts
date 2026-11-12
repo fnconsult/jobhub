@@ -162,9 +162,12 @@ export async function unfoldedEntryOf(page: Page, label: string | RegExp) {
   return entry;
 }
 
-/** « Sources et outils de cette page », folded at the foot of Activity: unfolded, it lists each site once. */
+/**
+ * The Provenance sites the page's entries name (#980): « Sources et outils de cette page » is gone, each entry names its own
+ * under « Sources : » in its detail. Unfolds every entry, and returns their « Sources » lines.
+ */
 export async function pageSourcesOf(page: Page) {
-  const button = activityOf(page).getByRole("button", { name: fr.aiActivity.history.sources });
-  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
-  return activityOf(page).locator(".activity-sources");
+  const rows = activityOf(page).locator(".activity-entry-row");
+  for (const row of await rows.all()) if ((await row.getAttribute("aria-expanded")) !== "true") await row.click();
+  return activityOf(page).locator(".activity-entry-sites");
 }

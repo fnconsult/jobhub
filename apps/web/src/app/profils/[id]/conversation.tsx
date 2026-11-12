@@ -7,6 +7,7 @@ import { ProfileTitle } from "@/components/ProfileInlineEdits";
 import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
 import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { Ring } from "@/design/Ring";
 import { profileFicheLinks } from "@/fiches";
@@ -71,10 +72,10 @@ async function ProfileCard({ id, atsScore, t }: { id: string; atsScore: number |
       {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
       {/* Born during its onboarding and not finished (ADR-0106, #999): resumed at its review on /profils/nouveau. */}
       {profile.onboarding === IN_PROGRESS && !profile.archived ? (
-        <p className="notice">
+        <Note tone="info">
           {t("profilePage.onboarding.unfinished")}{" "}
           <Link href={routes.resumeProfileCreation(profile.id)}>{t("profilePage.onboarding.resume")}</Link>
-        </p>
+        </Note>
       ) : null}
       {profile.archived ? null : (
         <Link className={buttonClass({ size: "sm" })} href={routes.jobSearches(profile.id)}>

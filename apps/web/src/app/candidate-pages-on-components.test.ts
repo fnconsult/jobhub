@@ -22,6 +22,7 @@ const PAGES = [
   join(components, "TailoredDocuments.tsx"),
   join(components, "QuickActions.tsx"),
   join(components, "OfferBox.tsx"),
+  join(components, "ProfileOnboarding.tsx"),
 ];
 
 /** The old markup's classes, each with the Design System component that replaces it. */

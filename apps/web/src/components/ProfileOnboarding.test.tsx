@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
@@ -43,7 +43,11 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     push.mockClear();
     vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    // Unmounted first: AI Activity's Job Search poll renders nothing more once the stubs are gone.
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it("opens on the Coach's Introduction, the CV's drop zone a card in the thread, the Questionnaire a suggestion above the box", () => {
     renderInFrench(<NewProfilePage />);

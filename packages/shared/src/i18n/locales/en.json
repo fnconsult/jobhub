@@ -5491,7 +5491,7 @@
         "partial": "last call only",
         "noAi": "No AI"
       },
-      "sources": "This page's sources and tools"
+      "sources": "Sources:"
     }
   },
   "signalement": {
@@ -6270,10 +6270,25 @@
       "results": "Results"
     },
     "noResults": "No results yet: what the coach makes here is added to this list.",
-    "matchScore": "Match Score: {{score}}"
+    "matchScore": "Match Score: {{score}}",
+    "panel": "Page panel",
+    "views": {
+      "activity": "Activity",
+      "fiche": "Fiche",
+      "offer": "The job offer",
+      "documents": "Documents",
+      "offers": "Job offers found"
+    },
+    "close": "Close the panel",
+    "more": "More panel actions",
+    "resetWidth": "Default panel width",
+    "allResults": "See all",
+    "openOffer": "Show the offer larger"
   },
   "contextBar": {
     "title": "Conversation context",
+    "used": "{{percent}}% used",
+    "share": "{{percent}}%",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
     "clear": "Clear the conversation",

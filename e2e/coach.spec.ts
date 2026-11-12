@@ -310,9 +310,9 @@ test.describe("onboarding with the AI Coach", () => {
     const email = newAddress("questionnaire-offered-search");
     await signInWithMagicLink(page, email);
     await page.goto("/profils/nouveau");
-    /** Answers up to the review: a name, `targetRole` and Lyon, every other question skipped. */
+    /** Answers the scripted questions (#1002's fallback) up to the review: a name, `targetRole` and Lyon, every other question skipped. */
     const answerUpToReview = async (targetRole: string) => {
-      await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+      await startScriptedQuestions(page);
       await reply(page, q.fullName, "Marie Dupont");
       await reply(page, q.targetRole, targetRole);
       await reply(page, q.location, "Lyon");

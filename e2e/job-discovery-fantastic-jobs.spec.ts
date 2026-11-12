@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
+import { openResults } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 
 // Issue #243: Fantastic.jobs is a Job discovery source (its active-ats API of ATS postings) with its own
@@ -307,9 +308,10 @@ test.describe("Fantastic.jobs as a Job discovery source with its own Provider Se
     expect(run.webSearches.length).toBeGreaterThanOrEqual(1);
     expect(run.metrics.funnel.afterDedup).toBeGreaterThan(3);
 
-    // The Candidate sees them on the Job Search page.
+    // The Candidate sees them on the Job Search page, in its panel's « Offres trouvées » (#980).
     await page.goto(`/recherches/${run.id}`);
-    await expect(page.getByText(/Chef de projet Assurance Qualité Système \(F\/H\) – Fantastic 1/).first()).toBeVisible({ timeout: 30_000 });
+    const found = await openResults(page, "Offres trouvées");
+    await expect(found.getByText(/Chef de projet Assurance Qualité Système \(F\/H\) – Fantastic 1/).first()).toBeVisible({ timeout: 30_000 });
   });
 
   test("Job Offers already stored are not stored again: a second Job Search over the same postings finds them stored", async ({ page, browser }) => {

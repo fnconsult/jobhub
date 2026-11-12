@@ -705,7 +705,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     }
   });
 
-  // Issue #808 (ADR-0086): the Fiche's Activity group and the Activité column hold Activity's history, by day, one row per
+  // Issue #808 (ADR-0086), #980: the side panel's « Activité » view holds Activity's history, by day, one row per
   // entry, an entry unfolding its detail. On a Profile's page, « Création du profil » (#810): Version 1 of its Master CV and
   // the ATS Score Jobbbox's rules gave it, its parts: no AI, so nothing changes from run to run but the time of day, set to
   // a fixed one before the shot.
@@ -724,18 +724,17 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     for (const { name, width, height } of SCREENSHOT_WIDTHS) {
       await page.setViewportSize({ width, height });
       await page.goto(`/profils/${id}`);
-      // « Activité » opens the Fiche on its Activity group, unfolded, wherever the Fiche is: beside the page, or over it.
-      // The Fiche stays as it was left: open already at a width where it was opened before. On a phone, « Activité » is
+      // AI Activity's icon shows the side panel on « Activité » (#980), wherever it is: beside the page, or over it. The panel
+      // stays as it was left: on « Activité » already at a width where it was shown before. On a phone, « Activité » is
       // under the compact Top Bar's « … » (#897).
       await page.waitForLoadState("networkidle");
       const fiche = page.getByRole("complementary", {
-        name: fr.fiche.label,
+        name: fr.fiche.views.activity,
         exact: true,
       });
       if (name === "phone") {
         await chooseInTopBarMore(page, fr.fiche.activity);
         await expect(fiche).toBeVisible();
-        await expect(fiche.getByRole("button", { name: fr.fiche.groups.activity })).toHaveAttribute("aria-expanded", "true");
       } else {
         if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
         await expect(activity).toHaveAttribute("aria-expanded", "true");
@@ -809,7 +808,10 @@ test.describe("the onboarding's search card (#1001)", () => {
       await signInWithMagicLink(page, email);
       await page.setViewportSize({ width, height });
       await page.goto("/profils/nouveau");
-      await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+      // The scripted questions (#1002's fallback, the AI unavailable): the same answers, so the same card, every run.
+      await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV à jour E2E_AI_DOWN");
+      await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+      await expect(page.getByText(fr.newProfile.interview.fallback)).toBeVisible();
       for (const said of ["Catherine Morel", "Directrice administrative et financière", "Lyon"]) {
         await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
         await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();

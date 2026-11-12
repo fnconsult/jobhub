@@ -27,9 +27,11 @@ import {
   ExternalLink,
   FileQuestionMark,
   FileSearch,
+  Folder,
   Flag,
   Funnel,
   Globe,
+  IdCard,
   Info,
   KeyRound,
   Landmark,
@@ -49,7 +51,6 @@ import {
   PackageCheck,
   Palette,
   PanelLeftClose,
-  PanelRight,
   Plus,
   Puzzle,
   RefreshCw,
@@ -183,8 +184,11 @@ const LUCIDE = {
   help: CircleHelp,
   // « Nouveautés » in Mon compte's menu, beside Aide and Légal.
   nouveautes: Sparkles,
-  // « Fiche » in the Top Bar of an object's page (#603).
-  fiche: PanelRight,
+  // « Fiche » in the Top Bar of an object's page (#603); the side panel's views there since #980: the object's card, its
+  // Job Offer (as an agent harness's preview) and its Results (as its files).
+  fiche: IdCard,
+  offer: Globe,
+  results: Folder,
   // Recherches d'offres' filter in the compact Top Bar (#898): the Offer box's count and source chips behind it.
   filter: Funnel,
   // The Job discovery sources, as the onboarding's search card pictures them (#1001): no third party's logo.

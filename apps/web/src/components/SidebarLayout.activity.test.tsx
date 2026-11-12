@@ -79,7 +79,7 @@ function Grab({
 /** The Context bar, « En ce moment » and the page's AI Activity, in the order they come in `column`. */
 function inOrder(column: HTMLElement): string[] {
   const parts = {
-    context: within(column).getByRole("group", {
+    context: within(column).getByRole("region", {
       name: "Contexte de la conversation",
     }),
     now: within(column).getByRole("region", { name: "En ce moment" }),
@@ -150,7 +150,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("is AI Activity's button in the Top Bar, « Activité » on its frame and named « Activité IA », the column closed (#809)", () => {
+  it("is AI Activity's icon in the Top Bar, named « Activité IA », its tooltip saying so, the panel closed (#809, #980)", () => {
     renderInFrench(<Page />);
 
     expect(
@@ -162,7 +162,8 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     expect(within(topBar()).getByRole("button", { name: "Activité IA" })).toBe(
       activityButton(),
     );
-    expect(activityButton().textContent).toBe("Activité");
+    // An icon alone, as the side panel's other icons (#980).
+    expect(activityButton().textContent).toBe("");
     expect(
       within(topBar()).queryByRole("button", { name: "Fiche" }),
     ).toBeNull();
@@ -171,27 +172,15 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     ).toBeNull();
   });
 
-  it("keeps its words, the page's summary, left of its frame and in its name (#369, #809)", () => {
+  it("says the page's summary in its name, not beside it (#369, #809, #980)", () => {
     renderInFrench(<Page aiActivity={REPLIED} />);
 
-    expect(within(topBar()).getByText("1 modèle · 6,9k tokens")).toBeTruthy();
+    expect(within(topBar()).getByText("1 modèle · 6,9k tokens").closest("[hidden]")).not.toBeNull();
     expect(
       within(topBar()).getByRole("button", {
         name: "Activité IA 1 modèle · 6,9k tokens",
       }),
     ).toBe(activityButton());
-  });
-
-  it("opens Activity when its words are clicked, the focus on the button (#809)", async () => {
-    const user = userEvent.setup();
-    renderInFrench(<Page aiActivity={REPLIED} />);
-
-    await user.click(within(topBar()).getByText("1 modèle · 6,9k tokens"));
-
-    expect(
-      screen.getByRole("complementary", { name: "Activité" }),
-    ).toBeTruthy();
-    expect(document.activeElement).toBe(activityButton());
   });
 
   it("closes Activity with Escape, the focus staying on the button (#809)", async () => {
@@ -266,7 +255,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     );
   });
 
-  it("speaks English to an English-speaking Candidate: « Activity » on its frame, named « AI activity » and its words (#809)", () => {
+  it("speaks English to an English-speaking Candidate: named « AI activity » and its words (#809)", () => {
     render(
       <I18nProvider locale="en">
         <Page aiActivity={REPLIED} />
@@ -276,11 +265,11 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     const button = within(topBar()).getByRole("button", {
       name: "AI activity 1 model · 6.9k tokens",
     });
-    expect(button.textContent).toBe("Activity");
+    expect(button.textContent).toBe("");
     expect(button.getAttribute("title")).toBe("AI activity");
   });
 
-  it("opens the Activité column beside the conversation, with the Context bar and AI Activity, and no heading nor ✕", async () => {
+  it("opens the side panel on « Activité » beside the conversation, its head naming it with « Fermer le volet », then the Context bar and AI Activity (#980)", async () => {
     const user = userEvent.setup();
     renderInFrench(<Page />);
 
@@ -291,7 +280,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     expect(activityButton().getAttribute("aria-controls")).toBe(column.id);
     expect(screen.getByRole("main").contains(column)).toBe(false);
     expect(
-      within(column).getByRole("group", {
+      within(column).getByRole("region", {
         name: "Contexte de la conversation",
       }),
     ).toBeTruthy();
@@ -301,8 +290,11 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     expect(
       within(column).getByText("Rien encore sur cette page."),
     ).toBeTruthy();
-    expect(within(column).queryByRole("heading", { level: 2 })).toBeNull();
-    expect(within(column).queryByRole("button", { name: /Fermer/ })).toBeNull();
+    expect(within(column).getByRole("heading", { level: 2, name: "Activité" })).toBeTruthy();
+    expect(within(column).getByRole("button", { name: "Fermer le volet" })).toBeTruthy();
+    // Without an object, the panel has « Activité » alone.
+    expect(within(topBar()).queryByRole("button", { name: "Fiche" })).toBeNull();
+    expect(within(topBar()).queryByRole("button", { name: "Documents" })).toBeNull();
   });
 
   it("shows « En ce moment » under the Context bar, before the page's AI Activity (#806, ADR-0086)", async () => {
@@ -334,7 +326,7 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
   });
 });
 
-describe("the Context bar in an object's Fiche (#607)", () => {
+describe("the Context bar in an object's side panel (#607, #980)", () => {
   beforeEach(() => {
     pathname.current = "/candidatures/a1";
     vi.stubGlobal("matchMedia", (query: string) => ({
@@ -353,38 +345,38 @@ describe("the Context bar in an object's Fiche (#607)", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("is in its Activity group, before AI Activity", () => {
+  it("heads its « Activité » view, which AI Activity's icon shows in place of the Fiche", async () => {
+    const user = userEvent.setup();
     renderInFrench(
       <Page
         fiche={{ card: <p>Ledger · Paris</p>, sections: [], results: [] }}
       />,
     );
+    expect(screen.getByRole("complementary", { name: "Fiche" })).toBeTruthy();
 
-    const fiche = screen.getByRole("complementary", { name: "Fiche" });
-    const group = within(fiche).getByRole("group", {
+    await user.click(activityButton());
+
+    expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
+    const activity = screen.getByRole("complementary", { name: "Activité" });
+    const bar = within(activity).getByRole("region", {
       name: "Contexte de la conversation",
     });
     expect(
-      within(group).getByText("12 / 40 messages · 3,1k / 12k jetons"),
+      within(bar).getByText("12 / 40 messages · 3,1k / 12k jetons"),
     ).toBeTruthy();
-    expect(group.closest("[data-group]")?.getAttribute("data-group")).toBe(
-      "activity",
-    );
   });
 
-  it("is followed by « En ce moment », then the page's AI Activity (#806, ADR-0086)", () => {
+  it("is followed by « En ce moment », then the page's AI Activity (#806, ADR-0086)", async () => {
+    const user = userEvent.setup();
     renderInFrench(
       <Page
         fiche={{ card: <p>Ledger · Paris</p>, sections: [], results: [] }}
       />,
     );
 
-    const fiche = screen.getByRole("complementary", { name: "Fiche" });
-    const now = within(fiche).getByRole("region", { name: "En ce moment" });
-    expect(now.closest("[data-group]")?.getAttribute("data-group")).toBe(
-      "activity",
-    );
-    expect(inOrder(fiche)).toEqual(["context", "now", "history"]);
+    await user.click(activityButton());
+
+    expect(inOrder(screen.getByRole("complementary", { name: "Activité" }))).toEqual(["context", "now", "history"]);
   });
 });
 

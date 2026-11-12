@@ -362,7 +362,7 @@ function Detail({
       ) : null}
       {toolNames.length > 0 && !entry.parts ? <Line label={t("aiActivity.history.tools")}>{toolNames.join(", ")}</Line> : null}
       {/* Its Provenance sites, each once, its pages a disclosure: the page's « Sources et outils » block is gone (#980). */}
-      {entry.sites.length > 0 && !entry.parts ? (
+      {entry.sites.length > 0 ? (
         <div className="activity-entry-line activity-entry-sites">
           <span className="activity-entry-label">{t("aiActivity.history.sources")}</span>
           <ul className="ai-activity-list">

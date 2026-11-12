@@ -2422,6 +2422,7 @@
         "enriched_contacts": "Contacts enrichis",
         "extension": "Extension du navigateur",
         "help_centre": "Centre d'aide",
+        "coach_space": "Espace coach v2",
         "maintenance": "Maintenance"
       },
       "setting": "Réglage",
@@ -2668,7 +2669,8 @@
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours",
         "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison",
         "CAL_COM_TEAM_ID": "Équipe Cal.com Jobbbox",
-        "CAL_COM_REMINDERS_DISABLED": "Rappels et workflows Cal.com désactivés (confirmation opérateur)"
+        "CAL_COM_REMINDERS_DISABLED": "Rappels et workflows Cal.com désactivés (confirmation opérateur)",
+        "COACH_SPACE_V2": "Espace coach v2 allumé (nouvel Espace coach, offres, réservation et paiement des coachs humains)"
       },
       "aiTasks": {
         "providerDefault": "modèle par défaut",

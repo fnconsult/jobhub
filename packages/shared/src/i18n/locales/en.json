@@ -2422,6 +2422,7 @@
         "enriched_contacts": "Enriched Contacts",
         "extension": "Browser extension",
         "help_centre": "Help Centre",
+        "coach_space": "Coach space v2",
         "maintenance": "Maintenance"
       },
       "setting": "Setting",
@@ -2668,7 +2669,8 @@
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
         "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email",
         "CAL_COM_TEAM_ID": "Jobbbox Cal.com team",
-        "CAL_COM_REMINDERS_DISABLED": "Cal.com reminders and workflows disabled (operator confirmation)"
+        "CAL_COM_REMINDERS_DISABLED": "Cal.com reminders and workflows disabled (operator confirmation)",
+        "COACH_SPACE_V2": "Coach space v2 on (new Coach space, Human Coach offers, booking and payment)"
       },
       "aiTasks": {
         "providerDefault": "default model",

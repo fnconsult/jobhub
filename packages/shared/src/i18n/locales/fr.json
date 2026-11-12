@@ -2476,7 +2476,7 @@
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails par jour à partir desquels le filtre est « trop large »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Réseaux d'où le MTA de réception poste les emails (CIDR)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
-        "REVIEW_SIGN_IN": "Code de revue des stores allumé (« on »)",
+        "REVIEW_SIGN_IN": "Code de revue des stores allumé (on)",
         "REVIEW_SIGN_IN_EMAILS": "Comptes de démonstration du code de revue des stores",
         "REVIEW_SIGN_IN_CODE": "Code de revue des stores",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",

@@ -2476,7 +2476,7 @@
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails a day from which the filter is « too broad »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Networks the receiving MTA posts emails from (CIDR)",
         "MAIL_TRANSPORT": "Email sending",
-        "REVIEW_SIGN_IN": "Store review sign-in code switched on (« on »)",
+        "REVIEW_SIGN_IN": "Store review sign-in code switched on (on)",
         "REVIEW_SIGN_IN_EMAILS": "Demo accounts of the store review sign-in code",
         "REVIEW_SIGN_IN_CODE": "Store review sign-in code",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",

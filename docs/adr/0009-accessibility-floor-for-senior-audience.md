@@ -97,3 +97,11 @@ Asked by the product owner after reviewing #933 (« when empty show the 2 button
 - Both stay at least 44 px, the glyphs at least 3:1.
 
 The exception covers Send's icon, in the web conversation's box only. Every other function still needs a visible label.
+
+## Amendment: the small Pill, at the metadata size (2026-11-12)
+
+The Provenance line's « hors UE » and « consentement IA UE » were drawn in a box of their own (`.provenance-chip`), outside the Design System, until the product owner's review of the Job Offer card regression (#1016) removed it. The product owner then decided they are Pills. A Pill is at body size, because a status is read; inside a line of metadata it would stand out from the line it belongs to. So the Pill gets a small size:
+- `size="sm"`: `--font-size-meta`, the metadata floor of the amendment of 2026-10-23 (0.8125rem in Confort, 0.78125rem in Compact), in `rem`, so it follows the Text Size; its colours are the Pill's own, at least 4.5:1, checked by the token audit.
+- Only inside a line of metadata, beside the metadata it qualifies (the model that served a reply). A status the person reads on its own (an Application's status, « À traiter », « Suivie ») stays at body size.
+- Its words carry the meaning; like any metadata it is never the only place the information lives (where the model ran is also in the line's accessible text and its tooltip).
+

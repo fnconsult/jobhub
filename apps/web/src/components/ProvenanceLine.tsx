@@ -4,6 +4,7 @@ import { useId, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDuration, formatTimeOfDay, formatTokens, provenanceLine, type Provenance, type ProvenanceSite } from "@jobhub/shared";
 import { ExternalLink } from "@/components/ExternalLink";
+import { Pill } from "@/design/Pill";
 
 type Language = "fr" | "en";
 
@@ -35,10 +36,9 @@ export function ProvenanceLine({ provenance, at }: { provenance: Provenance | nu
         <span key={`${model.name}-${model.where?.en ?? ""}-${model.euAiConsent}`} className="provenance-line-model" title={model.where?.[language]}>
           {model.name}
           {model.where ? <span className="visually-hidden"> ({model.where[language]})</span> : null}
-          {/* Said in the line's own metadata text, after « · » as its other parts: the Design System has no boxed tag
-              at the metadata size (a Pill is read at body size), so none is drawn. */}
-          {model.euAiConsent ? <span className="provenance-tag">{` · ${t("provenanceLine.euAiConsent")}`}</span> : null}
-          {model.outsideEu ? <span className="provenance-tag">{` · ${t("provenanceLine.outsideEu")}`}</span> : null}
+          {/* Small Pills, at the metadata size of the line they sit in (ADR-0009, amendment of 2026-11-12). */}
+          {model.euAiConsent ? <Pill size="sm">{t("provenanceLine.euAiConsent")}</Pill> : null}
+          {model.outsideEu ? <Pill size="sm">{t("provenanceLine.outsideEu")}</Pill> : null}
         </span>
       ))}
       {line.tokens !== null || line.ms !== null ? (

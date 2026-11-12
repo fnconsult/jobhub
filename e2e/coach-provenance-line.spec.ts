@@ -6,6 +6,8 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { openFreeConversation, toConversation } from "./support/conversation";
 import { EXIT_LINK_REL } from "./support/exit-page";
+import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
 // Issue #327: each AI Coach reply keeps its Provenance, and one quiet line under it says what served it (the model that
 // actually did, tokens · time, Tools, Provenance sites and the hour). « Votre coach » and « Vous » are read only by screen
@@ -78,7 +80,7 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     await expectNoAxeViolations(page, ".page-conversation");
   });
 
-  test("a reply that went to the EU AI Consent route shows Mistral followed by « · consentement IA UE », in the line's own text", async ({ page }) => {
+  test("a reply that went to the EU AI Consent route shows Mistral with « consentement IA UE » as a small Pill", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("provenance-consent"));
     expect((await page.request.put("/api/account/eu-ai-consent", { headers: { origin } })).ok()).toBe(true);
     await toConversation(page);
@@ -87,8 +89,40 @@ test.describe("the Provenance line under each AI Coach reply", () => {
 
     const line = lineOf(messagesOf(panelOf(page), fr.coachPanel.messagesLabel).last());
     await expect(line).toContainText("Mistral Large");
-    // In the line's metadata text after « · », never boxed: the Design System has no tag at the metadata size.
-    await expect(line.getByText(`· ${fr.provenanceLine.euAiConsent}`, { exact: true })).toBeVisible();
+    // A small Pill of the Design System, at the metadata size (ADR-0009, amendment of 2026-11-12).
+    const pill = line.getByText(fr.provenanceLine.euAiConsent, { exact: true });
+    await expect(pill).toBeVisible();
+    await expect(pill).toHaveClass("ds-pill");
+    await expect(pill).toHaveAttribute("data-size", "sm");
+    // At the line's own size: the metadata size, never the body size of a status Pill.
+    const [pillSize, lineSize] = await Promise.all([pill.evaluate((element) => getComputedStyle(element).fontSize), line.evaluate((element) => getComputedStyle(element).fontSize)]);
+    expect(pillSize).toBe(lineSize);
+
+    // Its baselines: the model and its small Pill, light and dark, at the three widths and, on a phone, at the largest
+    // Text Size (the line's tokens, time and hour change from run to run, so only the model is compared).
+    test.setTimeout(120_000);
+    const model = line.locator(".provenance-line-model");
+    const shots = [
+      ...SCREENSHOT_WIDTHS.map((size) => ({ ...size, textSize: "standard" as const })),
+      { ...SCREENSHOT_WIDTHS[0], name: "phone-xlarge", textSize: "xlarge" as const },
+    ];
+    for (const shot of shots) {
+      await page.setViewportSize({ width: shot.width, height: shot.height });
+      if (shot.textSize === "xlarge") {
+        await page.evaluate(() => localStorage.setItem("jobbbox.textSize", "xlarge"));
+        await page.reload();
+        await toConversation(page);
+        await expect(page.locator("html")).toHaveAttribute("data-text-size", "xlarge");
+      }
+      for (const theme of THEMES) {
+        await showInTheme(page, theme);
+        await model.scrollIntoViewIfNeeded();
+        await expectNoAxeViolations(page, ".provenance-line");
+        if (theme === "dark") await expectTextContrast(page, `provenance-small-pill-${shot.name}`);
+        if (comparesScreenshots()) await expect(model).toHaveScreenshot(`${themedName(`provenance-small-pill-${shot.name}`, theme)}.png`);
+      }
+    }
+    await showInTheme(page, "light");
   });
 
   test("a reply saved before shows its partial line, one that saved nothing says « modèle non enregistré », and both pass axe", async ({ page }) => {

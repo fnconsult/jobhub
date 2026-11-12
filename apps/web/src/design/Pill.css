@@ -17,6 +17,13 @@
     border-radius: var(--radius-control);
   }
 
+  /* At the metadata size, for a label inside a line of metadata (ADR-0009, amendment of 2026-11-12): its words still
+     carry the meaning; a status the person reads keeps the body size above. */
+  .ds-pill[data-size="sm"] {
+    padding: 0 var(--space-1);
+    font-size: var(--font-size-meta);
+  }
+
   .ds-pill[data-tone="accent"] {
     color: var(--color-accent);
     background: var(--color-accent-soft);

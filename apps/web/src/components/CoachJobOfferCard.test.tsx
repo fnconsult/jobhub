@@ -99,11 +99,22 @@ describe("the Provenance line's « hors UE » (#327)", () => {
     wallMs: 6400,
   };
 
-  it("is said in the line's metadata text after « · », never in a box of its own", () => {
+  it("is a small neutral Pill of the Design System, at the metadata size, never the old boxed chip (ADR-0009, 2026-11-12)", () => {
     const { container } = renderInFrench(<ProvenanceLine provenance={provenance} at="2026-10-23T08:40:06.400Z" />);
 
-    const tag = within(container).getByText("· hors UE");
-    expect(tag.className).toBe("provenance-tag");
-    expect(container.querySelector(".provenance-chip")).toBeNull();
+    const tag = within(container).getByText("hors UE");
+    expect(tag.className).toBe("ds-pill");
+    expect(tag.dataset.size).toBe("sm");
+    expect(tag.dataset.tone).toBe("neutral");
+    expect(container.querySelector(".provenance-chip, .provenance-tag")).toBeNull();
+  });
+
+  it("says « consentement IA UE » the same way for a reply on the EU AI Consent route", () => {
+    const consent: Provenance = { ...provenance, steps: [{ ...provenance.steps[0]!, provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest", euAiConsent: true } as Provenance["steps"][number]] };
+    const { container } = renderInFrench(<ProvenanceLine provenance={consent} at="2026-10-23T08:40:06.400Z" />);
+
+    const tag = within(container).getByText("consentement IA UE");
+    expect(tag.className).toBe("ds-pill");
+    expect(tag.dataset.size).toBe("sm");
   });
 });

@@ -28,6 +28,15 @@
     align-items: center;
   }
 
+  /* A line of metadata holding small Pills, as the Provenance line under a reply. */
+  .ds-gallery__meta {
+    gap: var(--space-1);
+    align-items: baseline;
+    margin: 0;
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
   .ds-gallery__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));

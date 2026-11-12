@@ -803,6 +803,10 @@ _Avoid_: Modal, popup, dialog (a Dialog only confirms)
 The Design System's small centred box that asks the person to confirm or cancel one action before it happens, with focus starting on « Annuler ». Forms never use it; they open in a Drawer.
 _Avoid_: Modal, popup, confirmation page
 
+**Pill**:
+The Design System's tinted label, whose words carry its meaning, never its tint alone: an Application's status, a Job Offer's « À traiter » or « Suivie », where a setting comes from, a Plan. At body size, since a status is read. Its small size, at the metadata size, goes only inside a line of metadata: the Provenance line's « hors UE » and « consentement IA UE » (ADR-0009, amendment of 2026-11-12).
+_Avoid_: Chip, tag, badge (the « Coach IA » badge is the message box's)
+
 **Toast**:
 The Design System's short message that appears briefly at the screen's edge to say an action worked or failed, without moving focus. Not a place for text the person must act on.
 _Avoid_: Alert, snackbar, banner

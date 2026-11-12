@@ -197,6 +197,12 @@ function Gallery({ head }: { head?: ReactNode }) {
           <Pill tone="danger">{t("designSystem.gallery.refused")}</Pill>
           <Pill>{t("designSystem.gallery.draft")}</Pill>
         </div>
+        {/* The small Pill, inside a line of metadata only, at its size (ADR-0009, amendment of 2026-11-12). */}
+        <p className="ds-gallery__row ds-gallery__meta">
+          {t("designSystem.gallery.metaModel")}
+          <Pill size="sm">{t("designSystem.gallery.metaOutsideEu")}</Pill>
+          <Pill size="sm">{t("designSystem.gallery.metaEuAiConsent")}</Pill>
+        </p>
       </section>
 
       <section className="ds-gallery__section" aria-labelledby="ds-tables">

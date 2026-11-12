@@ -29,7 +29,7 @@ npm run dev                   # web app on http://localhost:3000
 npm run dev -w @jobhub/extension   # extension, with a Chrome dev profile; its dev server is on http://localhost:3100
 ```
 
-The extension's store builds, public (Production) and beta (the Beta), and how they are published: `docs/ops/extension.md`. Mon compte › Outils shows an Administrator the Extension Version and the API Version (`apps/web/src/extension-version`, read from `apps/extension/package.json`, which `apps/web/Dockerfile` copies).
+The extension's store builds, public (Production) and beta (the Beta), and how they are published: `docs/ops/extension.md`. Mon compte › Outils shows an Administrator the Extension Version and the API Version (`apps/web/src/extension-version`, read from `apps/extension/package.json`, which `apps/web/Dockerfile` copies), and serves them this environment's zip, which `apps/web/Dockerfile` builds into the image (`EXTENSION_ZIP_DIR`).
 
 The Jobbbox app's builds (EAS: development, staging for TestFlight and Play internal testing, production), its EAS Update channels and the forced update (426): `docs/ops/mobile.md`.
 

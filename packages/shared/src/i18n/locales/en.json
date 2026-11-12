@@ -8,6 +8,165 @@
     "comingSoon": "The application is under construction."
   },
   "landing": {
+    "coachPath": {
+      "meta": {
+        "title": "Become a coach on Jobbbox · Offer your sessions to candidates",
+        "description": "Jobbbox presents your profile to candidates, collects their payments and gives you a workspace in which to prepare, hold and follow up each session."
+      },
+      "audience": {
+        "label": "You are",
+        "candidate": "Candidate",
+        "coach": "Human coach"
+      },
+      "doors": {
+        "candidate": {
+          "title": "You are looking for a position",
+          "text": "An AI coach prepares each application with you.",
+          "link": "See the candidate's path"
+        },
+        "coach": {
+          "title": "You are a coach",
+          "text": "Offer your sessions to Jobbbox candidates.",
+          "link": "See the coach's path"
+        }
+      },
+      "cta": "Become a coach on Jobbbox",
+      "note": "The team reviews every request.",
+      "hero": {
+        "title": "Offer your sessions to Jobbbox candidates.",
+        "lead": "Jobbbox presents your profile to candidates, collects their payments and gives you a workspace in which to prepare, hold and follow up each session."
+      },
+      "method": {
+        "eyebrow": "The path",
+        "title": "From your request to your payout.",
+        "lead": "Four steps, the same for every coach.",
+        "steps": {
+          "request": {
+            "title": "Your request",
+            "text": "You present your practice, your specialities and your languages, with a professional credential. The Jobbbox team reviews every request."
+          },
+          "profile": {
+            "title": "Your public profile",
+            "text": "Photograph, presentation, specialities, languages and session offers. Each change is approved before candidates see it."
+          },
+          "sessions": {
+            "title": "Your sessions",
+            "text": "The candidate pays, then chooses a slot from your availability. The session is held by video, on your own link. You prepare it, then publish a report."
+          },
+          "earnings": {
+            "title": "Your earnings",
+            "text": "Jobbbox collects payment on your behalf and pays you the net amount through Stripe. A monthly statement lists your sessions."
+          }
+        }
+      },
+      "terms": {
+        "eyebrow": "The terms",
+        "quote": "The candidate decides what you read.",
+        "text": "You read their profiles and applications only if they grant you access, and you cannot change anything. Their conversations with the AI coach are never shown to you. Your preparation notes remain private."
+      },
+      "seller": {
+        "eyebrow": "Price and commission",
+        "title": "You are the seller.",
+        "text": "You set the price of your sessions. Jobbbox acts as a marketplace: it collects payment on your behalf and retains a commission, set for each seller."
+      },
+      "associations": {
+        "eyebrow": "Associations",
+        "title": "On your own, or with your association.",
+        "text": "An association may join Jobbbox, enrol its coaches and sell their sessions. It never reads candidates' records."
+      },
+      "questions": {
+        "eyebrow": "Your questions",
+        "title": "Before you submit your request.",
+        "who": {
+          "question": "Who may become a coach?",
+          "answer": "An independent coach or an association. The Jobbbox team reviews every request together with your professional credential. You then accept the contract before you work with candidates."
+        },
+        "price": {
+          "question": "Who sets the price of a session?",
+          "answer": "You do. You are the seller of your sessions, and your name appears on the offer."
+        },
+        "paid": {
+          "question": "How am I paid?",
+          "answer": "Jobbbox collects the candidate's payment on your behalf. The net amount is paid to you through Stripe once the candidate's withdrawal period has ended."
+        },
+        "reviews": {
+          "question": "Does my profile carry reviews?",
+          "answer": "No. A profile carries neither reviews nor ratings."
+        },
+        "where": {
+          "question": "Where is the session held?",
+          "answer": "By video, on your own link. During the session, the candidate may open a document that you read together in Jobbbox."
+        }
+      },
+      "end": {
+        "title": "Present your practice.",
+        "lead": "A form and a professional credential are all you need to submit your request."
+      },
+      "screens": {
+        "nav": {
+          "today": "Today",
+          "candidates": "My candidates",
+          "sessions": "My sessions",
+          "availability": "Availability",
+          "profile": "Public profile",
+          "earnings": "Earnings",
+          "contract": "Contract"
+        },
+        "request": {
+          "alt": "Example of the request form: whom you represent, your specialities, your languages and a professional credential.",
+          "represents": "You represent",
+          "independent": "An independent coach",
+          "association": "An association",
+          "specialities": "Specialities",
+          "specialitiesValue": "Career change, executives, interview preparation",
+          "languages": "Languages",
+          "languagesValue": "French, English",
+          "proof": "Professional credential",
+          "proofHint": "Choose or drop your credential as a PDF",
+          "send": "Send my request"
+        },
+        "profile": {
+          "alt": "Example of a coach's public profile: presentation, specialities, languages, a session offer and its seller.",
+          "preview": "Preview for candidates",
+          "name": "Camille R.",
+          "role": "Coach · French, English",
+          "presentation": "Presentation",
+          "careerChange": "Career change",
+          "executives": "Executives",
+          "interview": "Interview preparation",
+          "offer": "60-minute session",
+          "soldBy": "Sold by Camille R.",
+          "price": "Your price",
+          "book": "Book a session with Camille R."
+        },
+        "session": {
+          "alt": "Example of a session's page in the coach workspace: the date, the video link, private preparation, shared reading and the session report.",
+          "title": "Session with Marie D.",
+          "when": "Thursday, 2 pm (Paris time) · 60 min",
+          "join": "Join the video call",
+          "preparation": "Preparation",
+          "private": "Visible to you alone",
+          "sharedReading": "Shared reading",
+          "sharedReadingNote": "Marie D. has opened her tailored CV.",
+          "report": "Session report",
+          "draft": "Draft",
+          "covered": "What was covered",
+          "nextSteps": "Next steps"
+        },
+        "earnings": {
+          "alt": "Example of the Earnings page: sessions held, collected, commission, net and payout, for one month, the amounts hidden.",
+          "month": "November 2026",
+          "masked": "Amounts are hidden in this example",
+          "held": "Sessions held",
+          "collected": "Collected",
+          "commission": "Commission",
+          "net": "Net",
+          "payout": "Stripe payout",
+          "scheduled": "Scheduled",
+          "statement": "Download the PDF statement"
+        }
+      }
+    },
     "meta": {
       "title": "Jobbbox · An AI coach for your job search",
       "description": "Jobbbox is an AI coach for experienced candidates. It builds your reference CV, finds the offers that suit you and prepares each application with you."
@@ -536,14 +695,13 @@
       "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
       "install": "Install the extension from the Chrome Web Store",
       "soon": "The extension is coming soon to the Chrome Web Store.",
-      "newTab": "(new tab)",
       "testBuild": {
         "title": "Latest version of the extension",
         "intro": "For administrators only: load the extension this server serves, before it is published on the Chrome Web Store.",
         "extensionVersion": "Extension version",
         "apiVersion": "API version served",
-        "releases": "See the versions on GitHub",
-        "access": "The repository is private: you need access to it.",
+        "download": "Download {{zip}}",
+        "unavailable": "This server serves no extension zip: only a deployment's image holds {{zip}}. Locally, build it with npm run zip -w @jobhub/extension (or zip:beta).",
         "stepsLabel": "Load the extension in Chrome",
         "steps": {
           "download": "Download {{zip}}, then unzip it.",
@@ -2462,6 +2620,7 @@
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
         "extension": "Browser extension",
+        "public_site": "Public site",
         "help_centre": "Help Centre",
         "maintenance": "Maintenance"
       },
@@ -2692,11 +2851,15 @@
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails a day from which the filter is « too broad »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Networks the receiving MTA posts emails from (CIDR)",
         "MAIL_TRANSPORT": "Email sending",
+        "REVIEW_SIGN_IN": "Store review sign-in code switched on (on)",
+        "REVIEW_SIGN_IN_EMAILS": "Demo accounts of the store review sign-in code",
+        "REVIEW_SIGN_IN_CODE": "Store review sign-in code",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
         "APP_STORE_URL": "App's App Store page (the landing page's link)",
         "PLAY_STORE_URL": "App's Google Play page (the landing page's link)",
+        "HUMAN_COACH_PAGE_ENABLED": "Human coaches' path on the public site (to switch on with the coach space)",
         "HELP_MEDIA_ORIGIN": "Origin of the help videos (the Help Centre's Explainer Videos)",
         "MAINTENANCE_MODE": "Maintenance on (every page but the Back Office answers 503)",
         "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
@@ -2882,7 +3045,8 @@
         "discovery_runs": "Activity › Searches",
         "received_emails": "Activity › Received emails",
         "extension_events": "Activity › Extension",
-        "withdrawals": "Withdrawals"
+        "withdrawals": "Withdrawals",
+        "review_sign_in": "Store review sign-in code"
       },
       "actions": {
         "added": "Added",
@@ -2904,7 +3068,8 @@
         "switched_on": "Switched on",
         "scheduled": "Scheduling",
         "cancelled": "Cancellation",
-        "applied": "Application"
+        "applied": "Application",
+        "signed_in": "Sign-in"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -5339,6 +5504,7 @@
     "invalid_value": "Value the setting does not take",
     "reply_required": "A Question is handled with a reply",
     "already_handled": "Feedback already handled",
+    "wrong_code": "Wrong code",
     "guardrail_timeout": "Check took too long",
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",

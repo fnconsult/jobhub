@@ -5,7 +5,8 @@
  * foldable).
  *
  * - Below 64rem the conversation takes the window, the Sidebar is a drawer, and the Fiche, the Activité column and the
- *   Work Pane open full page over it, the Work Pane over the Fiche.
+ *   Work Pane open full page over it, the Work Pane over the Fiche. The conversation's side margin is then a gutter
+ *   that stops growing at 16 pt: a larger text keeps the window's width for its words (#905).
  * - From 64rem they are columns beside the conversation, a 1rem gutter around each. Where the Fiche and the Work Pane
  *   together would leave the conversation under 28rem, the Work Pane takes the Fiche's place, the Sidebar counted as
  *   the person left it (below 100rem with it, 76.5rem without). The Sidebar is then a column while the conversation
@@ -33,7 +34,8 @@ export type Disposition = {
   /** The panes drawn, in order: the Fiche or Activité first, the Work Pane last (on top, full page). */
   shown: ShownPane[];
   /** Widths in points. */
-  size: { sidebar: number; fiche: number; workPane: number; gutter: number };
+  /** `margin`: each side of the conversation, the gutter beside columns; full page, a gutter of 16 pt at most. */
+  size: { sidebar: number; fiche: number; workPane: number; gutter: number; margin: number };
 };
 
 /** In rem, as on the web (apps/web/src/components/Fiche.tsx). */
@@ -50,10 +52,13 @@ export function disposition(window: AppWindow, wanted: Wanted): Disposition {
   const rem = ROOT_PT * window.fontScale;
   const widthRem = window.width / rem;
   const workPane = workPaneRem(widthRem);
-  const size = { sidebar: SIDEBAR * rem, fiche: FICHE * rem, workPane: workPane * rem, gutter: GUTTER * rem };
+  const gutter = GUTTER * rem;
+  const size = { sidebar: SIDEBAR * rem, fiche: FICHE * rem, workPane: workPane * rem, gutter, margin: gutter };
   const wantedPanes: ShownPane[] = [...(wanted.pane ? [wanted.pane] : []), ...(wanted.workPane ? ["workPane" as const] : [])];
 
-  if (widthRem < WIDE) return { rem, widthRem, sidebar: "drawer", panes: "fullPage", shown: wantedPanes, size };
+  // Full page, a gutter growing with the text only takes its width from the words: 57 pt each side of an iPhone SE's
+  // 375 at iOS's largest size, where « Propose / r une idée » and « Contrôleus / e de gestion » broke mid-word (#905).
+  if (widthRem < WIDE) return { rem, widthRem, sidebar: "drawer", panes: "fullPage", shown: wantedPanes, size: { ...size, margin: Math.min(gutter, GUTTER * ROOT_PT) } };
 
   const widthOf = (pane: ShownPane) => (pane === "workPane" ? workPane : FICHE);
   /** What the conversation keeps beside `columns`, a gutter on each side of it and after each column. */

@@ -4,6 +4,7 @@ import { configurationFromEnv } from "../sign-in-providers/index";
 import { mustHaveTwoStepVerification } from "../two-step-verification/obligation";
 import type { AuthConfig, Mailer } from "./index";
 import { mailerFromEnv } from "./mailers";
+import { reviewSignInFromEnv } from "./review-sign-in";
 
 export { mailerFromEnv };
 
@@ -41,5 +42,7 @@ export function authConfigFromEnv(env: Env, options: { mailer?: Mailer } = {}): 
       .map((origin) => origin.trim())
       .filter(Boolean),
     mustHaveTwoStepVerification: (candidateId) => mustHaveTwoStepVerification(database, candidateId, permanentSuperAdmin.emails),
+    // Off unless REVIEW_SIGN_IN=on (#981, docs/ops/mobile.md).
+    reviewSignIn: reviewSignInFromEnv(env),
   };
 }

@@ -22,6 +22,7 @@ import {
   interviewDraft,
   questionnaireDraft,
   replied,
+  REQUIRED_FIELDS,
   type ExchangeTurn,
   type InterviewDraft,
   type InterviewField,
@@ -163,6 +164,8 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const firstChoice = useRef<HTMLButtonElement>(null);
   const question = step.kind === "questionnaire" ? currentQuestion(questionnaire) : null;
   const turn = step.kind === "interview" && !asking.running ? interview.turn : null;
+  // « Passer » never on the target role or a place, whatever the AI says (#999, #1002): the Profile is born at them.
+  const turnOptional = turn ? skippable(turn) : false;
   const reviewShown = pane?.item?.kind === REVIEW && pane.item.href === REVIEW_HREF;
   const language = i18n.language === "en" ? "en" : "fr";
 
@@ -238,7 +241,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     const current = interview.turn;
     if (!current || asking.running) return;
     if (reply.kind === "answer" && !reply.text.trim() && reply.choice === undefined) {
-      if (!current.ask.optional) setError("required");
+      if (!skippable(current)) setError("required");
       return;
     }
     const draft = replied(interview.draft, current, reply);
@@ -409,7 +412,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const fromQuestions = step.kind === "review" && (step.from === "questionnaire" || step.from === "interview");
   const startOverLabel = fromQuestions ? t("questionnaire.startOver") : t("cvReview.startOver");
   const answering = step.kind === "questionnaire" || step.kind === "interview" || fromQuestions;
-  const optional = question?.optional || turn?.ask.optional;
+  const optional = question?.optional || turnOptional;
   const described = [optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
 
   const answeringNow = question !== null || turn !== null;
@@ -603,7 +606,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                   rows={1}
                   placeholder={boxLabel}
                   value={value}
-                  required={(question !== null && question.kind !== "yesNo" && !question.optional) || (turn !== null && !turn.ask.optional)}
+                  required={(question !== null && question.kind !== "yesNo" && !question.optional) || (turn !== null && !turnOptional)}
                   aria-invalid={error ? true : undefined}
                   aria-describedby={described}
                   onChange={(event) => setValue(event.target.value)}
@@ -672,7 +675,7 @@ function TurnSuggestions(props: {
   const { turn, declining, firstRef, choiceLabel, onReply, onDecline } = props;
   const proposed = turn.proposal && !declining;
   const choices = turn.ask.kind === "choice" ? (turn.ask.choices ?? []) : [];
-  if (!proposed && choices.length === 0 && !turn.ask.optional) return null;
+  if (!proposed && choices.length === 0 && !skippable(turn)) return null;
   return (
     <Suggestions label={t("conversationFirst.suggestions")}>
       {proposed ? (
@@ -696,7 +699,7 @@ function TurnSuggestions(props: {
           {choiceLabel(turn.ask.field, choice)}
         </button>
       ))}
-      {turn.ask.optional ? (
+      {skippable(turn) ? (
         <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" onClick={() => onReply({ kind: "skipped" })}>
           {t("questionnaire.skip")}
         </button>
@@ -776,6 +779,11 @@ function Suggestions({ label, children }: { label: string; children: ReactNode }
       <div className="quick-actions">{children}</div>
     </div>
   );
+}
+
+/** Whether the turn's question may be skipped: as the AI says, but never the target role or a place (REQUIRED_FIELDS). */
+function skippable(turn: Pick<InterviewTurn, "ask">): boolean {
+  return turn.ask.optional && !REQUIRED_FIELDS.includes(turn.ask.field);
 }
 
 const REFINING: readonly string[] = ["targetRole", "locations", "contractTypes", "remoteWorkOptions", "minSalary"] satisfies RefiningCriterion[];

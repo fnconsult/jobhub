@@ -141,8 +141,11 @@ export function isFilled(draft: InterviewDraft, field: InterviewField): boolean 
   return Array.isArray(value) ? value.length > 0 : Boolean(value);
 }
 
-/** Whether the Candidate may skip a question on `field` now: all but the target role and a place until they are known. */
-export const isOptional = (draft: InterviewDraft, field: InterviewField): boolean => !REQUIRED_FIELDS.includes(field) || isFilled(draft, field);
+/**
+ * Whether the Candidate may skip a question on `field`: all but the target role and a place, never skippable, even asked
+ * again after a vague answer (the draft then holds that answer, which is not yet a target role the coach accepted).
+ */
+export const isOptional = (_draft: InterviewDraft, field: InterviewField): boolean => !REQUIRED_FIELDS.includes(field);
 
 /** Whether the Profile can be born: a target role and a place (#999). */
 export const canBeBorn = (draft: InterviewDraft): boolean => isFilled(draft, "targetRole") && isFilled(draft, "locations");

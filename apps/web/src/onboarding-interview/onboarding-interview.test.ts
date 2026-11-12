@@ -113,6 +113,14 @@ describe("the AI's turn as the code lets it through (#1002)", () => {
     expect((await checkedTurn(aiTurn({ ask: { field: "skills", question: "Vos compétences ?", kind: "multiline" }, done: true }), BORN, [], deps)).done).toBe(true);
   });
 
+  it("never lets the target role or the place be skipped, even asked again once answered (a vague answer challenged)", async () => {
+    const vague = { ...BLANK, searchCriteria: { ...BLANK.searchCriteria, targetRole: "Finance" } };
+    const again = await checkedTurn(aiTurn({ ask: { field: "targetRole", question: "Quel intitulé exactement ?", kind: "text" }, challenge: "Trop vague." }), vague, [], deps);
+    expect(again.ask).toMatchObject({ field: "targetRole", optional: false });
+    const place = await checkedTurn(aiTurn({ ask: { field: "locations", question: "Où ?", kind: "text" } }), BORN, [], deps);
+    expect(place.ask).toMatchObject({ field: "locations", optional: false });
+  });
+
   it("gives a choice field its own codes, whatever the AI listed, and makes every question but the first two optional", async () => {
     const turn = await checkedTurn(aiTurn({ ask: { field: "remoteWorkOptions", question: "Télétravail ?", kind: "text", choices: ["souvent"] } }), BORN, [], deps);
     expect(turn.ask).toEqual({ field: "remoteWorkOptions", question: "Télétravail ?", kind: "choice", choices: ["on_site", "hybrid", "full_remote"], optional: true });

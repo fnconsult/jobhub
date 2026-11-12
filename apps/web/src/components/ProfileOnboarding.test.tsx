@@ -361,6 +361,28 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         expect(await screen.findByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeTruthy();
       });
 
+      it("never offers « Passer » on the target role or the place, even asked again after a vague answer and said optional by the AI", async () => {
+        const optionally = (turn: { ask: object }) => ({ ...turn, ask: { ...turn.ask, optional: true } });
+        turns = [optionally(ROLE), { ...optionally(ROLE), challenge: "« Finance » est trop vague : quel intitulé de poste ?" }, optionally(PLACE), DONE];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+
+        await within(thread()).findByText("Quel poste recherchez-vous ?");
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+        await user.type(await screen.findByLabelText("Votre réponse"), "Finance{Enter}");
+        expect(await within(thread()).findByText(/« Finance » est trop vague/)).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+        // An empty answer is refused, not taken as skipped.
+        await user.click(screen.getByRole("button", { name: "Envoyer au coach" }));
+        expect(screen.getByRole("alert").textContent).toMatch(/nécessaire/);
+        expect(interviewCalls).toHaveLength(2);
+
+        await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+        await within(thread()).findByText("Dans quelle ville souhaitez-vous travailler ?");
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+      });
+
       it("proposes a deduction as suggestions: « Oui, … » puts it in the Profile, and a choice by its options", async () => {
         turns = [PLACE, CONTRACT, ask("remoteWorkOptions", "Quel rythme de télétravail vous convient ?", { kind: "choice", choices: ["on_site", "hybrid", "full_remote"] }), DONE];
         const user = userEvent.setup();

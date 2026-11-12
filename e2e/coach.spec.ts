@@ -599,7 +599,8 @@ test.describe("AI Coach cost", () => {
   const ADMINISTRATOR = "cost-office@e2e.jobbbox.test";
 
   test("an Administrator sees today's median and p90 cost per AI Coach reply, and who answered", async ({ page, browser }) => {
-    await signInWithMagicLink(page, newAddress("coach-cost"));
+    const email = newAddress("coach-cost");
+    await signInWithMagicLink(page, email);
     const sent = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Combien coûte ma question ?" } });
     expect(sent.status(), await sent.text()).toBe(200);
     // What the Candidate gets back says nothing of the cost: its Provenance (#327) carries the tokens, a technical measure, never euros.
@@ -621,7 +622,30 @@ test.describe("AI Coach cost", () => {
     // The fake Mistral answers each call with 100 tokens in and 50 out: $0.000125 at Mistral Large's list price.
     // With Coaching Playbooks served, a reply takes the choice of Playbook Agents (none here) and the reply itself (#225),
     // and the Guardrails' check on the message and on the reply (#228): four calls.
-    await expect(row.getByRole("cell").nth(1)).toHaveText(/0,0004\s?€/);
+    /** This reply's cost and the day's median cost per reply, as the database holds them now. */
+    const costs = () =>
+      withDatabase(async (db) => {
+        const { rows } = await db.query(
+          `SELECT (SELECT m.cost_eur FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id JOIN candidate a ON a.id = c.candidate_id
+                    WHERE a.email = $1 AND m.author = 'coach' ORDER BY m.created_at DESC LIMIT 1)::float8 AS own,
+                  (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY cost_eur) FROM coach_message
+                    WHERE author = 'coach' AND cost_eur IS NOT NULL
+                      AND to_char(created_at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD') = $2)::float8 AS median`,
+          [email, today],
+        );
+        return rows[0] as { own: number; median: number };
+      });
+    const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    // This reply costs its four calls.
+    expect(eur.format((await costs()).own)).toMatch(/^0,0004\s?€$/);
+    // The day's median is over every reply of the day in the shared e2e database, whichever specs ran before this one or run
+    // beside it (a reply that calls a Coach Action makes one call more): the page shows the median the database holds, read
+    // again with the page until both agree.
+    await expect(async () => {
+      await admin.reload();
+      const shown = (await row.getByRole("cell").nth(1).textContent()) ?? "";
+      expect(shown.replace(/\s/g, " ")).toContain(eur.format((await costs()).median).replace(/\s/g, " "));
+    }).toPass({ timeout: 15_000 });
     await context.close();
   });
 

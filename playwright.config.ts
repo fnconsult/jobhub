@@ -90,7 +90,10 @@ export default defineConfig({
     { name: "extension", testMatch: /extension(-events)?\.spec\.ts/, use: { baseURL: webOrigin } },
     // The motions' captures (#567, ADR-0066): the test Motion Scripts filmed on the demo Candidate; with MOTIONS_WORK, the
     // `motions` workflow's capture stage (packages/motions, docs/ops/motions.md).
-    { name: "motions", testMatch: /\/motions\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
+    // After the extension's specs, never beside them: one of those runs the worker's clean-up of Guest captures a day
+    // ahead on the suite's database (« forgotten by the worker within 24 hours »), which deleted the Job Offer a `guest`
+    // Motion Script had just captured, so its Application was answered 404 (#987).
+    { name: "motions", testMatch: /\/motions\.spec\.ts/, dependencies: process.env.MOTIONS_WORK ? [] : ["extension"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
     { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },

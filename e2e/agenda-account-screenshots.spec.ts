@@ -88,9 +88,9 @@ async function seed(page: Page, email: string): Promise<void> {
   const cancelled = exported.applications.find((application) => application.id === seb.applicationId)!.interviews.find((interview) => interview.scheduledAt.startsWith("2030-03-18"))!;
   expect((await page.request.post(`/api/applications/${seb.applicationId}/interviews/${cancelled.id}/cancel`, { headers: { origin } })).ok()).toBe(true);
 
-  // Retired after the recorded reschedule: the Agenda still shows a Retired Human Coach's Coaching Sessions, and the Back Office's
+  // Retired from the start: the Agenda still shows a Retired Human Coach's Coaching Sessions, and the Back Office's
   // « Coachs », shot alongside (back-office-sections-screenshots.spec.ts), lists only the active ones.
-  const [coach] = await query<{ id: string }>(`INSERT INTO human_coach (name, email, booking_url) VALUES ('Camille Martin', $1, 'https://cal.com/camille-martin') RETURNING id`, [
+  const [coach] = await query<{ id: string }>(`INSERT INTO human_coach (name, email, booking_url, retired_at) VALUES ('Camille Martin', $1, 'https://cal.com/camille-martin', now()) RETURNING id`, [
     `camille.martin+${tag}@e2e.jobbbox.test`,
   ]);
   const [dated] = await query<{ id: string }>(
@@ -101,8 +101,6 @@ async function seed(page: Page, email: string): Promise<void> {
   // Rescheduled by the Candidate: « Reporté · initialement prévu le 13 mars 2030 à 11:00 ».
   const moved = await page.request.patch(`/api/coaching/sessions/${dated!.id}`, { headers: { origin }, data: { scheduledAt: `${MONTH_DAY}T11:00`, durationMinutes: 60, videoLink: "", note: "" } });
   expect(moved.ok(), await moved.text()).toBe(true);
-  // A retired Coach cannot reschedule: retire only after the historical change has been recorded.
-  await query("UPDATE human_coach SET retired_at=now() WHERE id=$1", [coach!.id]);
   await query(`INSERT INTO coaching_session (stripe_checkout_session_id, candidate_id, coach_id, amount, currency, paid_at) VALUES ($1, $2, $3, 9000, 'eur', '2026-10-02T09:00:00Z')`, [
     `cs_e2e_${tag}_unscheduled`,
     candidate!.id,
@@ -202,8 +200,6 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
 
   for (const shot of PAGES) {
     test(`${shot.name}: in the Confort Density, matches its baseline at every width, and axe passes`, async () => {
-      // Collect every failing theme/width while retaining every visual assertion and its threshold.
-      test.setTimeout(240_000);
       const page = await session.newPage();
       for (const { name, width, height } of SCREENSHOT_WIDTHS) {
         await page.setViewportSize({ width, height });
@@ -232,7 +228,7 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
             const fixedTexts: Record<string, string> = "fixedTexts" in shot ? shot.fixedTexts : {};
             for (const [selector, text] of Object.entries(fixedTexts)) await page.locator(selector).evaluateAll((elements, value) => elements.forEach((element) => (element.textContent = value)), text);
             const masks = [...MASK, ...("mask" in shot ? shot.mask : [])];
-            await expect.soft(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: masks.map((selector) => page.locator(selector)) });
+            await expect(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: masks.map((selector) => page.locator(selector)) });
           }
         }
         await showInTheme(page, "light");

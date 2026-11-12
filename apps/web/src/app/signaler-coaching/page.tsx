@@ -1,3 +1,5 @@
+// « Espace coach v2 » (ADR-0106): this page is a 404 while it is off.
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { PublicSite } from "@/design/PublicSite";
@@ -6,6 +8,7 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import { ContentReportForm } from "@/coaching-content-reports/Form";
 export const metadata = { robots: { index: false } };
 export default async function Page({ searchParams }: { searchParams: Promise<{ coach?: string; target?: string }> }) {
+  requireCoachSpaceV2();
   const input = await searchParams;
   if (!z.uuid().safeParse(input.coach).success || !["page", "offer"].includes(input.target ?? "")) notFound();
   const target = input.target as "page" | "offer",

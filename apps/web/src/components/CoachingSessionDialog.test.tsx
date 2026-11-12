@@ -24,6 +24,7 @@ it.each([false, true])("only sends fields actually edited, including a stale dat
       session={{ id: "session-1", scheduledAt: "2026-11-11T12:00", durationMinutes: 90, videoLink: "https://meet.google.com/old", note: "Reminder" }}
       withName="Sophie"
       withVideoLink={withVideoLink}
+      coachSpaceV2
     />,
   );
   const user = userEvent.setup();
@@ -32,4 +33,27 @@ it.each([false, true])("only sends fields actually edited, including a stale dat
   await user.click(screen.getByRole("button", { name: "Enregistrer" }));
   await waitFor(() => expect(request).toHaveBeenCalled());
   expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({ scheduledAt: "2026-11-12T12:00" });
+});
+
+it("off « Espace coach v2 » (ADR-0106), sends every field, as on main", async () => {
+  const request = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", request);
+  renderInFrench(
+    <CoachingSessionDialog
+      session={{ id: "session-1", scheduledAt: "2026-11-11T12:00", durationMinutes: 90, videoLink: "https://meet.google.com/old", note: "Reminder" }}
+      withName="Sophie"
+    />,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: /Modifier la date/ }));
+  expect(screen.getByLabelText(/Lien de la visio/)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Date et heure de la séance (heure de Paris)"), { target: { value: "2026-11-12T12:00" } });
+  await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+  await waitFor(() => expect(request).toHaveBeenCalled());
+  expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+    scheduledAt: "2026-11-12T12:00",
+    durationMinutes: 90,
+    videoLink: "https://meet.google.com/old",
+    note: "Reminder",
+  });
 });

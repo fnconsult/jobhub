@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, View } from "react-native";
 import { useApi, type ApiFetch } from "../api/api";
 import { read } from "../api/reads";
+import { useCoachSpaceV2 } from "../navigation/human-coach";
 import { paths } from "../navigation/pages";
 import { readKey, useOnline } from "../offline/read-cache";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
@@ -151,11 +152,13 @@ export function CoachingOrder() {
 /** « Récapitulatif »: what is bought, its price all taxes included, paid once. */
 function Summary({ order }: { order: CoachingOrderResponse }) {
   const { t, i18n } = useTranslation();
+  // « Espace coach v2 » off (ADR-0106): no Seller, as before the epic.
+  const coachSpaceV2 = useCoachSpaceV2();
   const { colors } = useTheme();
   const price = order.price ? t("orders.priceOnce", { price: new Intl.NumberFormat(i18n.language, { style: "currency", currency: order.price.currency }).format(order.price.amount / 100) }) : t("orders.page.priceUnknown");
   const rows: [string, string][] = [
     [t("orders.page.item"), t("orders.email.coachingSession", { coach: order.coach.name })],
-    ...(order.seller?[[t("coachingOffers.soldByLabel"),order.seller.name] as [string,string],...(order.seller.kind!=="jobbbox"?[[t("coachingOffers.identity"),`${order.seller.status} · SIRET ${order.seller.siret}`] as [string,string],[t("coachingOffers.marketplaceLabel"),t("coachingOffers.marketplace")] as [string,string]]:[])]:[]),
+    ...(coachSpaceV2 && order.seller?[[t("coachingOffers.soldByLabel"),order.seller.name] as [string,string],...(order.seller.kind!=="jobbbox"?[[t("coachingOffers.identity"),`${order.seller.status} · SIRET ${order.seller.siret}`] as [string,string],[t("coachingOffers.marketplaceLabel"),t("coachingOffers.marketplace")] as [string,string]]:[])]:[]),
     [t("orders.page.price"), price],
     [t("orders.page.renewal"), t("orders.renewal.session")],
   ];

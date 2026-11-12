@@ -1,3 +1,5 @@
+// « Espace coach v2 » (ADR-0106): a 404 while it is off, as before the Human Coach epic.
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { getCoachPages } from "@/coach-pages/server";
@@ -8,6 +10,7 @@ export async function GET(_request: Request, { params }: {
         versionId: string;
     }>;
 }) {
+    if (!coachSpaceV2On()) return NextResponse.json({ error: "not_found" }, { status: 404 });
     if (!(await getCurrentCandidate()))
         return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const { coachId, versionId } = await params, photo = await getCoachPages().photo(coachId, versionId);

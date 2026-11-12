@@ -1,3 +1,5 @@
+// « Espace coach v2 » (ADR-0106): this page is a 404 while it is off.
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
@@ -7,6 +9,7 @@ import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import { PublicSite } from "@/design/PublicSite";
 export default async function Page({ params }: { params: Promise<{ sessionId: string }> }) {
+  requireCoachSpaceV2();
   const person = await getCurrentCandidate();
   if (!person) return signInRedirect();
   const claim = await getCoachingBooking().forCandidate(person.id, (await params).sessionId);

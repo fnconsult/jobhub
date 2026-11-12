@@ -5,6 +5,7 @@ import { getCoachAssociations } from "@/coach-associations/server";
 import { getCoachingOffers } from "@/coaching-offers/server";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import { getCoachingTimeZones } from "@/coaching-time/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getAgenda } from "@/agenda/server";
 import { getApplications } from "@/applications/server";
 import { getAtsScoring } from "@/ats-score/server";
@@ -25,6 +26,8 @@ let instance: CandidateReads | undefined;
 /** The app's reads over HTTP (#684), on the modules the pages read, on the database named by DATABASE_URL. */
 export function getCandidateReads(): CandidateReads {
     instance ??= createCandidateReads({
+        // « Espace coach v2 » (ADR-0106), per request: off, the reads answer the app as before the Human Coach epic.
+        coachSpaceV2: coachSpaceV2On,
         coachPages: (ids) => (getCoachPages().approved(ids)),
         coachAssociations: (ids) => (getCoachAssociations().providers(ids)),
         coachingCancellations: cancellationPolicyOn,

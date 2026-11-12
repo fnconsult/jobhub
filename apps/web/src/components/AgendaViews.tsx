@@ -52,6 +52,8 @@ const ids = (scope: string) => ({
 
 /** How the page writes days and times: in French time, in the Interface Language. */
 export interface Formats {
+  /** « Espace coach v2 » (ADR-0106): off, the Agenda is drawn as before the Human Coach epic. */
+  coachSpaceV2?: boolean;
   cancellationPolicy?: boolean;
   /** The time formatter, for `InterviewTimes`: "14:30". */
   timeFormat: Intl.DateTimeFormat;
@@ -85,7 +87,12 @@ export interface Formats {
 /** A calendar day at noon UTC: always that same day in French time, so `Intl` writes it in Europe/Paris. */
 const noonOf = (day: string) => new Date(`${day}T12:00:00Z`);
 
-export function formatsFor(locale: string, now: Date, coachingZone = INTERVIEW_TIME_ZONE): Formats {
+/**
+ * Off « Espace coach v2 » (no `coachSpaceV2`), a Coaching Session's time is written as an Interview's ("11:00", Paris);
+ * on, in the Candidate's zone with its date (`coachSpaceV2.timeZone`, Paris by default).
+ */
+export function formatsFor(locale: string, now: Date, coachSpaceV2?: { timeZone?: string }): Formats {
+  const coachingZone = coachSpaceV2 ? (coachSpaceV2.timeZone ?? INTERVIEW_TIME_ZONE) : undefined;
   const zone = { timeZone: INTERVIEW_TIME_ZONE };
   const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", ...zone });
   const dayIn = (options: Intl.DateTimeFormatOptions) => {
@@ -95,8 +102,9 @@ export function formatsFor(locale: string, now: Date, coachingZone = INTERVIEW_T
   const range = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", ...zone });
   return {
     timeFormat: time,
+    coachSpaceV2: Boolean(coachSpaceV2),
     coachingZone,
-    coachingTime: (value) => coachingTime(value, locale, coachingZone),
+    coachingTime: (value) => (coachingZone ? coachingTime(value, locale, coachingZone) : time.format(value)),
     time: (value) => time.format(value),
     fullDay: dayIn({ dateStyle: "full" }),
     weekday: dayIn({ weekday: "long", day: "numeric", month: "long" }),
@@ -387,6 +395,7 @@ export function ToSchedule({
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
               </ExternalLink>
               <CoachingSessionDialog
+                coachSpaceV2={formats.coachSpaceV2}
                 withVideoLink={!formats.meetings}
                 session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }}
                 withName={session.coach.name}
@@ -456,7 +465,7 @@ function CoachingSessionItem({
           </span>
           <span className="agenda-item-title">{t("agenda.withCoach", { name: item.coach.name })}</span>
           {item.durationMinutes ? <span className="agenda-item-employer">{t("agenda.duration", { count: item.durationMinutes })}</span> : null}
-          {item.changedBy === "cal_com" ? <span className="agenda-item-changed">{t("coachingBooking.viaCal")}</span> : null}
+          {formats.coachSpaceV2 && item.changedBy === "cal_com" ? <span className="agenda-item-changed">{t("coachingBooking.viaCal")}</span> : null}
           {item.changedBy === "coach" ? <span className="agenda-item-changed">{t("agenda.changedByCoach")}</span> : null}
         </span>
       </Link>
@@ -470,6 +479,7 @@ function CoachingSessionItem({
       ) : null}
       <CancellationWindow at={formats.cancellationPolicy ? item.scheduledAt.toISOString() : null}>
         <CoachingSessionDialog
+          coachSpaceV2={formats.coachSpaceV2}
           withVideoLink={!formats.meetings}
           session={{
             id: item.id,

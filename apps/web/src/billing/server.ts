@@ -1,3 +1,4 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getCoachingRefunds } from "@/coaching-refunds/server";
 import { getCoachingConnect, getConnectStripe } from "@/coaching-connect/server";
 import { getCoachingOffers } from "@/coaching-offers/server";
@@ -24,6 +25,7 @@ let instance: Billing | undefined;
 export function getBilling(): Billing {
     instance ??= liveObject(getSecretResolver(), STRIPE_SECRET_NAMES, (env) => createBilling({
         ...billingConfigFromEnv(env),
+        coachSpaceV2: coachSpaceV2On,
         connectedCoachingCheckout: (candidate, quoteId, locale, urls) => getCoachingConnect().startCheckout(candidate, quoteId, locale, urls),
         onConnectedCoachingPaid: async (session) => { const stripe = getConnectStripe(); if (!stripe)
             throw new Error("Connect unavailable"); await getCoachingConnect().paid(stripe.decodeCheckout(session), null); },

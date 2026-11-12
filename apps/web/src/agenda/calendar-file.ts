@@ -7,7 +7,7 @@
  * a later download names the same event.
  */
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
-import { calendarFileText } from "@jobhub/shared/calendar-file";
+import { calendarFileText, FRENCH_TIME_ZONE } from "@jobhub/shared/calendar-file";
 import { interviewEndsAt, interviewPlaceParts } from "../applications";
 import type { AgendaItem, AgendaItemRef } from "./index";
 
@@ -21,7 +21,16 @@ export interface CalendarFileOptions {
   agendaUrl: string;
   /** The Candidate's Interface Language, for the SUMMARY and DESCRIPTION. */
   locale: Locale;
+  /** « Espace coach v2 » (ADR-0106): off, the file is the one before the Human Coach epic (Paris time, `timeZone` ignored). */
+  coachSpaceV2?: boolean;
+  /** The Candidate's coaching time zone, for a Coaching Session's file under « Espace coach v2 ». */
   timeZone?: string;
+}
+
+/** The event's zone: none off « Espace coach v2 » (as before it); on, the Candidate's for a Coaching Session, else Paris. */
+function eventZone(item: AgendaItem, options: CalendarFileOptions): string | undefined {
+  if (!options.coachSpaceV2) return undefined;
+  return item.kind === "coachingSession" ? (options.timeZone ?? FRENCH_TIME_ZONE) : FRENCH_TIME_ZONE;
 }
 
 /** The first http or https web address in `value`, as it is shown linked on the Agenda, if it is a valid URI. */
@@ -53,7 +62,7 @@ export function calendarFile(item: AgendaItem, options: CalendarFileOptions): st
   const url = webAddressIn(location);
   const description = [item.note, t("agenda.calendarFile.seeInAgenda", { url: options.agendaUrl })].filter(Boolean).join("\n\n");
   return calendarFileText(
-    { uid, timeZone: item.kind === "coachingSession" ? options.timeZone : undefined, start: item.scheduledAt, end: endsAt, sequence: item.reschedules.length, summary, location, url, description },
+    { uid, timeZone: eventZone(item, options), start: item.scheduledAt, end: endsAt, sequence: item.reschedules.length, summary, location, url, description },
     { now: options.now },
   );
 }

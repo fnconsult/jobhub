@@ -89,6 +89,11 @@ export interface BillingConfig {
    * throws, the webhook fails and Stripe retries the delivery.
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+  /**
+   * Whether « Espace coach v2 » (ADR-0106) is on, read at each Coaching Session Checkout. Off, it is started as before
+   * the Human Coach epic: no Connect checkout, and back to « /coachs?session=paid ». Without it, on.
+   */
+  coachSpaceV2?: () => boolean;
   /** Undefined selects the legacy path; null closes the v2 payment gate. */
   connectedCoachingCheckout?: (candidate:{id:string;email:string},quoteId:string,locale:Locale,urls:{success:string;cancel:string})=>Promise<CheckoutStart|null|undefined>;
   onConnectedCoachingPaid?: (session:Stripe.Checkout.Session)=>Promise<unknown>;
@@ -236,6 +241,12 @@ export interface PlanPrice {
   currency: string;
   interval: BillingInterval;
 }
+
+/**
+ * Where Stripe sends a Candidate back once a Coaching Session is paid on the web: with its Checkout's id under
+ * « Espace coach v2 » (ADR-0106), as before the Human Coach epic without.
+ */
+export const coachingPaidQuery = (coachSpaceV2: boolean): string => (coachSpaceV2 ? "?session=paid&checkout_id={CHECKOUT_SESSION_ID}" : "?session=paid");
 
 /** What a Coaching Session costs a Candidate, in the currency's smallest unit (cents). */
 export interface CoachingSessionPrice {
@@ -1482,7 +1493,8 @@ export function createBilling(config: BillingConfig) {
       locale: Locale = "fr",
       options: CoachingSessionCheckoutOptions = {},
     ): Promise<CheckoutStart> {
-      if(options.quoteId && config.connectedCoachingCheckout){
+      const coachSpaceV2 = config.coachSpaceV2?.() ?? true;
+      if(coachSpaceV2 && options.quoteId && config.connectedCoachingCheckout){
         const connected=await config.connectedCoachingCheckout(candidate,options.quoteId,locale,{success:options.inApp?appPaymentURL():coachingPageURL("?session=paid&checkout_id={CHECKOUT_SESSION_ID}"),cancel:options.inApp?appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`):coachingPageURL()});
         if(connected===null)throw new BillingError("coaching_sessions_not_configured");
         if(connected!==undefined)return connected;
@@ -1497,7 +1509,7 @@ export function createBilling(config: BillingConfig) {
         line_items: [{ price: options.priceId ?? (discounted ? prices.discounted : prices.regular), quantity: 1 }],
         metadata: { purpose: "coaching_session", coach_id: coachId, candidate_id: candidate.id, ...(options.quoteId?{coaching_quote_id:options.quoteId}:{}) },
         locale,
-        success_url: options.inApp ? appPaymentURL() : coachingPageURL("?session=paid&checkout_id={CHECKOUT_SESSION_ID}"),
+        success_url: options.inApp ? appPaymentURL() : coachingPageURL(coachingPaidQuery(coachSpaceV2)),
         cancel_url: options.inApp ? appPaymentURL(`?${APP_PAYMENT_CANCELLED}=1`) : coachingPageURL(),
       });
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");

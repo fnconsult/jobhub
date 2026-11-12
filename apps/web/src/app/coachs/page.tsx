@@ -14,6 +14,8 @@ import { MeetingLink } from "@/coach-space/MeetingLink";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import type { Metadata } from "next";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { LegacyHumanCoachesPage } from "./LegacyHumanCoachesPage";
 import Link from "next/link";
 const CANCELLATIONS = "/coachs/annulations";
 import { redirect } from "next/navigation";
@@ -72,6 +74,9 @@ export default async function HumanCoachesPage({ searchParams }: {
         checkout_id?: string;
     }>;
 }) {
+    // « Espace coach v2 » off (ADR-0106): the page as before the Human Coach epic.
+    if (!coachSpaceV2On())
+        return <LegacyHumanCoachesPage searchParams={searchParams}/>;
     const candidate = await getCurrentCandidate();
     if (!candidate)
         return signInRedirect();

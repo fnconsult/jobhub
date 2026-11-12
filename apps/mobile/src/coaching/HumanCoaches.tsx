@@ -8,11 +8,13 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Linking, View } from "react-native";
 import { useRead } from "../api/reads";
 import { FRENCH_TIME_ZONE } from "../agenda/french-time";
+import { useCoachSpaceV2 } from "../navigation/human-coach";
 import { paths } from "../navigation/pages";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { paymentReturn, paymentWait, readAgainWhileWaiting, usePendingCheckout, type PaymentWait } from "./payment-return";
+import { LegacyLoaded } from "./LegacyHumanCoaches";
 import { SessionForm } from "./SessionForm";
 
 type Session = CoachingResponse["sessions"][number];
@@ -63,6 +65,8 @@ export function HumanCoaches() {
   const pending = usePendingCheckout();
   const coaching = useCoaching();
   const wait = usePaymentWait(coaching);
+  // « Espace coach v2 » off (ADR-0106): main's page, as before the Human Coach epic.
+  const coachSpaceV2 = useCoachSpaceV2();
   // Back from Checkout: read at once, whatever was read before it opened.
   const back = pending?.how ?? null;
   const { refetch } = coaching;
@@ -75,7 +79,10 @@ export function HumanCoaches() {
       void refetch();
     }, [refetch]),
   );
-  if (coaching.data) return <Loaded coaching={coaching.data} wait={wait} onRefresh={() => void refetch()} />;
+  if (coaching.data) {
+    const Page = coachSpaceV2 ? Loaded : LegacyLoaded;
+    return <Page coaching={coaching.data} wait={wait} onRefresh={() => void refetch()} />;
+  }
   return (
     <View style={{ gap: space[3], alignItems: "flex-start" }}>
       {coaching.isError ? (

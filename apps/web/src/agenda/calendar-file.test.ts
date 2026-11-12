@@ -183,3 +183,24 @@ describe("the Calendar file's address", () => {
     expect(agendaItemRefFrom("applications", interview.id)).toBeNull();
   });
 });
+
+describe("« Espace coach v2 » (ADR-0106)", () => {
+  /** A Coaching Session on the night French clocks go back (2026-10-25, 02:30 happens twice), first occurrence. */
+  const fold: CoachingSessionAgendaItem = { ...session, scheduledAt: new Date("2026-10-25T00:30:00.000Z") };
+
+  it("off: a Coaching Session's file is in French time as on main, whatever the Candidate's zone", () => {
+    const file = calendarFile(session, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr", timeZone: "America/Montreal" })!;
+    expect(property(file, "DTSTART")).toBe("DTSTART;TZID=Europe/Paris:20261207T090000");
+    const folded = calendarFile(fold, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr" })!;
+    expect(property(folded, "DTSTART")).toBe("DTSTART;TZID=Europe/Paris:20261025T023000");
+    expect(lines(folded).some((line) => line.startsWith("X-JOBBBOX-TIMEZONE"))).toBe(false);
+  });
+
+  it("on: in the Candidate's zone, and a repeated clock in UTC", () => {
+    const file = calendarFile(session, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr", coachSpaceV2: true, timeZone: "America/Montreal" })!;
+    expect(property(file, "DTSTART")).toBe("DTSTART;TZID=America/Montreal:20261207T030000");
+    const folded = calendarFile(fold, { now: NOW, agendaUrl: AGENDA_URL, locale: "fr", coachSpaceV2: true })!;
+    expect(property(folded, "DTSTART")).toBe("DTSTART:20261025T003000Z");
+    expect(lines(folded)).toContain("X-JOBBBOX-TIMEZONE:Europe/Paris");
+  });
+});

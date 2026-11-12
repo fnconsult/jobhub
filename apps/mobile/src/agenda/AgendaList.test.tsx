@@ -4,6 +4,7 @@ import { Slot } from "expo-router";
 import { renderRouter } from "expo-router/testing-library";
 import { Linking, Text } from "react-native";
 import { AppProviders } from "../app-providers";
+import { CoachSpaceV2Context } from "../navigation/human-coach";
 import { METRICS, setWindow } from "../testing";
 import { ROW_MAX_SCALE } from "../ui/AppText";
 import { fakeNetwork, memoryStorage } from "../offline/testing";
@@ -83,14 +84,16 @@ function fakeSheets() {
   return { sheets, events };
 }
 
-async function renderAgenda(agenda: Agenda = AGENDA, sheets: CalendarSheets = fakeSheets().sheets) {
+async function renderAgenda(agenda: Agenda = AGENDA, sheets: CalendarSheets = fakeSheets().sheets, { coachSpaceV2 = false } = {}) {
   const i18n = createI18n(DEFAULT_LOCALE);
   const Placeholder = () => <Text>Page suivante</Text>;
   await renderRouter(
     {
       _layout: () => (
         <AppProviders i18n={i18n} initialMetrics={METRICS} device={{ storage: memoryStorage(), network: fakeNetwork(true) }}>
-          <Slot />
+          <CoachSpaceV2Context.Provider value={coachSpaceV2}>
+            <Slot />
+          </CoachSpaceV2Context.Provider>
         </AppProviders>
       ),
       agenda: () => <AgendaList agenda={agenda} sheets={sheets} now={NOW} />,
@@ -117,6 +120,34 @@ describe("the Agenda, as a list", () => {
     const interview = screen.getByRole("link", { name: /Responsable qualité/ });
     expect(within(interview).getByText("14:30")).toBeOnTheScreen();
     expect(within(interview).getByText("Aéroline")).toBeOnTheScreen();
+    const session = screen.getByRole("link", { name: /Claire Martin/ });
+    // « Espace coach v2 » off (ADR-0106): the time alone, as before the Human Coach epic.
+    expect(within(session).getByText("09:00")).toBeOnTheScreen();
+    expect(within(session).queryByText(/Europe\/Paris/)).toBeNull();
+    expect(within(session).getByText("60 min")).toBeOnTheScreen();
+  });
+
+  it("« Espace coach v2 » on: writes a Coaching Session's time with its zone, its meeting and « via Cal.com » (ADR-0106)", async () => {
+    const [, sessionDay] = AGENDA.days;
+    const session = { ...sessionDay!.items[0]!, changedBy: "cal_com" as const, timeZone: "America/Montreal" };
+    await renderAgenda({ ...AGENDA, days: [{ ...sessionDay!, items: [session] }] }, fakeSheets().sheets, { coachSpaceV2: true });
+    const row = screen.getByRole("link", { name: /Claire Martin/ });
+    expect(within(row).getByText(/America\/Montreal.*Europe\/Paris/)).toBeOnTheScreen();
+    expect(within(row).getByText("via Cal.com")).toBeOnTheScreen();
+  });
+
+  it("« Espace coach v2 » off: shows neither the zone nor « via Cal.com », even if the read carried them", async () => {
+    const [, sessionDay] = AGENDA.days;
+    const session = { ...sessionDay!.items[0]!, changedBy: "cal_com" as const, timeZone: "America/Montreal" };
+    await renderAgenda({ ...AGENDA, days: [{ ...sessionDay!, items: [session] }] });
+    const row = screen.getByRole("link", { name: /Claire Martin/ });
+    expect(within(row).getByText("09:00")).toBeOnTheScreen();
+    expect(within(row).queryByText(/America\/Montreal/)).toBeNull();
+    expect(within(row).queryByText("via Cal.com")).toBeNull();
+  });
+
+  it("« Espace coach v2 » on: the time with its zone", async () => {
+    await renderAgenda(AGENDA, fakeSheets().sheets, { coachSpaceV2: true });
     const session = screen.getByRole("link", { name: /Claire Martin/ });
     expect(within(session).getByText(/09:00.*Europe\/Paris/)).toBeOnTheScreen();
     expect(within(session).getByText("60 min")).toBeOnTheScreen();

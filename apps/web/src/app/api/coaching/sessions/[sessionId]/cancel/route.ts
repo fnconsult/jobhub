@@ -1,3 +1,4 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { randomUUID } from "node:crypto";
 import { getCoachingCancellations, cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { NextResponse } from "next/server";
@@ -14,7 +15,8 @@ export async function POST(request: Request, { params }: RouteContext<"/api/coac
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { sessionId } = await params;
-  if (await cancellationPolicyOn()) {
+  // The cancellation policy is part of « Espace coach v2 » (ADR-0106): off, a cancellation is the one before it.
+  if (coachSpaceV2On() && (await cancellationPolicyOn())) {
     const body = await request.json().catch(() => ({}));
     const key = typeof body.requestKey === "string" ? body.requestKey : randomUUID();
     const result = await getCoachingCancellations().candidateCancel(candidate.id, sessionId, key);

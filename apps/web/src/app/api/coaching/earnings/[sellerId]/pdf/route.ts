@@ -1,3 +1,6 @@
+// « Espace coach v2 » (ADR-0106): a 404 while it is off, as before the Human Coach epic.
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { NextResponse } from "next/server";
 import { sharedPool } from "@/database/pool";
 import { getCurrentCandidate } from "@/auth/server";
 import { getCoachEarnings } from "@/coaching-earnings/server";
@@ -13,6 +16,7 @@ export async function GET(request: Request, { params }: {
         sellerId: string;
     }>;
 }) {
+    if (!coachSpaceV2On()) return NextResponse.json({ error: "not_found" }, { status: 404 });
     const person = await getCurrentCandidate();
     if (!person)
         return Response.json({ error: "unauthorized" }, { status: 401 });

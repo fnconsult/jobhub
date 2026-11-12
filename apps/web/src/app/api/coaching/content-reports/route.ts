@@ -1,8 +1,11 @@
+// « Espace coach v2 » (ADR-0106): a 404 while it is off, as before the Human Coach epic.
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAuth, getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getContentReports } from "@/coaching-content-reports/server";
 export async function POST(request: Request) {
+  if (!coachSpaceV2On()) return NextResponse.json({ error: "not_found" }, { status: 404 });
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const secret = getAuth().options.secret;
   if (typeof secret !== "string") throw Error("Auth secret required");

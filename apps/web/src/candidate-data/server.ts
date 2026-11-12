@@ -1,6 +1,7 @@
 import {secretCipherFromEnv} from "@/provider-secrets/cipher";
 import {getSecretResolver} from "@/provider-secrets/server";
 import { cancellationPolicyOn } from "@/coaching-cancellations/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
@@ -21,6 +22,7 @@ export function getCandidateData(): CandidateData {
     tailoredDocuments: getTailoredDocuments(),
     billing: getBilling(),
     coachingCancellationOn: cancellationPolicyOn,
+    coachSpaceV2: coachSpaceV2On,
   });
   return instance;
 }

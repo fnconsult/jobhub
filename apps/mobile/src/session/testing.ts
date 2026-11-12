@@ -154,6 +154,8 @@ export function fakeWebApp() {
   let offline = false;
   const humanCoaches = new Set<string>();
   const associationMembers=new Set<string>();
+  // « Espace coach v2 » (ADR-0106): off by default, as the Platform Setting.
+  let coachSpaceV2 = false;
   const steps = new Map<string, LegalStepsResponse>();
   const recorded: Recorded[] = [];
   const stepsOf = (email: string): LegalStepsResponse => steps.get(email) ?? { acceptance: null, privacyChange: null, euAiConsentGiven: true };
@@ -317,7 +319,7 @@ export function fakeWebApp() {
       const body = request.method === "GET" ? undefined : await request.text().then((text) => (text ? JSON.parse(text) : undefined));
       recorded.push({ email, method: request.method, path: url.pathname, body, client: request.headers.get(API_CLIENT_HEADER) });
       const current = stepsOf(email);
-      if (url.pathname === "/api/coach-space" && request.method === "GET") return json({ humanCoach: humanCoaches.has(email),...associationMembers.has(email)?{associationSpace:true}:{} });
+      if (url.pathname === "/api/coach-space" && request.method === "GET") return json({ humanCoach: humanCoaches.has(email),...associationMembers.has(email)?{associationSpace:true}:{}, ...(coachSpaceV2 ? { coachSpaceV2: true } : {}) });
       if (url.pathname === "/api/account/legal-steps" && request.method === "GET") return json(current);
       // apps/web/src/app/api/account/export/route.ts: the Data export, an attachment (#756 follows its redirects).
       if (url.pathname === "/api/account/export" && request.method === "GET") {
@@ -432,6 +434,8 @@ export function fakeWebApp() {
     sessionCount: () => sessions.size,
     /** `email` is an active Human Coach (ADR-0016), or no longer one. */
     humanCoach: (email: string, active = true) => void (active ? humanCoaches.add(email) : humanCoaches.delete(email)),
+    /** « Espace coach v2 » on (or off again): `GET /api/coach-space` says so, as the web app does. */
+    coachSpaceV2: (on = true) => void (coachSpaceV2 = on),
     associationMember:(email:string,active=true)=>void(active?associationMembers.add(email):associationMembers.delete(email)),
     /** What the web app asks of `email` after sign-in (nothing by default, the EU AI Consent given). */
     asks: (email: string, asked: Partial<LegalStepsResponse>) => void steps.set(email, { ...stepsOf(email), ...asked }),

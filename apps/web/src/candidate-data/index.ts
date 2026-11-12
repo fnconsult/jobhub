@@ -602,6 +602,52 @@ export const RETAINED_BUSINESS_TABLES:Readonly<Record<string,string>>={
  coaching_connect_batch:"Seller monthly bank payouts (#878), same financial retention; no Candidate identity",
 };
 
+/** The export's sections the Human Coach epic added (#867). */
+const COACH_SPACE_V2_SECTIONS = [
+  "coachingTax",
+  "contentReports",
+  "coachingNotifications",
+  "coachingCancellations",
+  "coachingRefunds",
+  "calBookings",
+  "connectMoney",
+  "coachPages",
+  "associationActivity",
+  "coachContractAcceptances",
+  "coachContractNotices",
+  "coachEnrolments",
+  "managedAssociations",
+  "coachingSales",
+  "coachingQuotes",
+  "sharedReading",
+  "sessionReports",
+  "privateCoachNotes",
+] as const satisfies readonly (keyof CandidateDataExport)[];
+
+/** Nothing in it: null, an empty list, or an object of empty values only. */
+function holdsNothing(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object" && !(value instanceof Date)) return Object.values(value).every(holdsNothing);
+  return false;
+}
+
+/**
+ * The export as main writes it, « Espace coach v2 » off (ADR-0106): the Human Coach epic's sections and fields are left
+ * out when they hold nothing, so a Candidate who never met it gets main's export; any data it did leave is still exported.
+ */
+export function asBeforeCoachSpaceV2(data: CandidateDataExport): CandidateDataExport {
+  const out: Record<string, unknown> = { ...data };
+  for (const section of COACH_SPACE_V2_SECTIONS) if (holdsNothing(out[section])) delete out[section];
+  if (data.account && data.account.coachingTimeZone === null) {
+    const account: Partial<ExportedAccount> = { ...data.account };
+    delete account.coachingTimeZone;
+    out.account = account;
+  }
+  out.coachingSessions = data.coachingSessions.map(({ meeting, ...session }) => (meeting === null ? session : { ...session, meeting }));
+  return out as unknown as CandidateDataExport;
+}
+
 export interface CandidateData {
   /** All the Candidate's data. */
   export(candidateId: string): Promise<CandidateDataExport>;
@@ -616,6 +662,11 @@ export interface CandidateData {
 export interface CandidateDataDeps {
   fiscalCipher?:()=>SecretCipher|null;
   coachingCancellationOn?: () => Promise<boolean>;
+  /**
+   * Whether « Espace coach v2 » (ADR-0106) is on, read at each export. Off, the export is main's (`asBeforeCoachSpaceV2`):
+   * the Human Coach epic's sections only when they hold data. Without it, on. Deletion never depends on it.
+   */
+  coachSpaceV2?: () => boolean;
   profiles: Pick<Profiles, "list" | "get" | "masterCvVersions">;
   applications: Pick<Applications, "list" | "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
@@ -1054,7 +1105,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return {
+      const full: CandidateDataExport = {
         coachingTax:await taxDataOf(database,candidateId,deps.fiscalCipher?deps.fiscalCipher():secretCipherFromEnv(process.env)),
         contentReports:await contentReportsOf(database,candidateId),
         coachingNotifications:await coachingNotificationsOf(database,candidateId),
@@ -1122,6 +1173,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         privateJobOffers,
         offerBox,
       };
+      return (deps.coachSpaceV2?.() ?? true) ? full : asBeforeCoachSpaceV2(full);
     },
 
     async delete(candidateId) {

@@ -19,7 +19,7 @@ import { deviceI18n } from "../i18n";
 import { LegalSteps } from "../legal/LegalSteps";
 import { deviceNetwork, deviceStorage } from "../offline/device";
 import { applicationIdOf, NEW_CONVERSATION, pageFor, paths, profileIdOf } from "../navigation/pages";
-import { useIsHumanCoach,useIsAssociationMember } from "../navigation/human-coach";
+import { CoachSpaceV2Context, useCoachSpaceV2Read, useIsAssociationMember, useIsHumanCoach } from "../navigation/human-coach";
 import { Sidebar } from "../navigation/Sidebar";
 import { useFreeConversations } from "../navigation/FreeConversations";
 import { ActivityPane, useLiveReply } from "../coach/ActivityPane";
@@ -101,7 +101,9 @@ function PagesInShell() {
   const free = useFreeConversations().data?.conversations;
   const page = pageFor(pathname, t, { application, profile, conversationTitle: (id) => free?.find((conversation) => conversation.id === id)?.title });
   const isHumanCoach = useIsHumanCoach();
-  const isAssociationMember=useIsAssociationMember();
+  // « Espace coach v2 » (ADR-0106), as the server says it: off, the app is as before the Human Coach epic.
+  const coachSpaceV2 = useCoachSpaceV2Read();
+  const isAssociationMember = useIsAssociationMember() && coachSpaceV2 === true;
   // What another app shared while signed out, or while another page was shown: the capture screen opens on it.
   useResumeShare(pathname, (path) => router.navigate(path));
   // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
@@ -109,18 +111,20 @@ function PagesInShell() {
   const clear = useClearAction();
   const liveReply = useLiveReply();
   return (
-    <Shell
-      page={page}
-      paneContent={page.pane === "activite" ? <ActivityPane /> : <PaneContent pathname={pathname} page={page} reader={reader} />}
-      sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} isAssociationMember={isAssociationMember} onNavigate={closeDrawer} />}
-      onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
-      onUp={(path) => router.navigate(path)}
-      actions={clear ? [clear] : []}
-      aiRun={liveReply}
-    >
-      <AboveKeyboard>
-        <Stack screenOptions={{ headerShown: false }} />
-      </AboveKeyboard>
-    </Shell>
+    <CoachSpaceV2Context.Provider value={coachSpaceV2}>
+      <Shell
+        page={page}
+        paneContent={page.pane === "activite" ? <ActivityPane /> : <PaneContent pathname={pathname} page={page} reader={reader} />}
+        sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} isAssociationMember={isAssociationMember} onNavigate={closeDrawer} />}
+        onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
+        onUp={(path) => router.navigate(path)}
+        actions={clear ? [clear] : []}
+        aiRun={liveReply}
+      >
+        <AboveKeyboard>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AboveKeyboard>
+      </Shell>
+    </CoachSpaceV2Context.Provider>
   );
 }

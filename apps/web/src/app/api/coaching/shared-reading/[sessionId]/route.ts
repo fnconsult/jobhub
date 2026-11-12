@@ -1,9 +1,12 @@
+// « Espace coach v2 » (ADR-0106): a 404 while it is off, as before the Human Coach epic.
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { NextResponse } from "next/server";
 import { isFromTrustedOrigin } from "@/auth/server";
 import { readingActor } from "@/shared-reading/actor";
 import { candidateReadingSources, getSharedReading } from "@/shared-reading/server";
 type Context = { params: Promise<{ sessionId: string }> };
 export async function GET(_request: Request, { params }: Context) {
+  if (!coachSpaceV2On()) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const actor = await readingActor();
   const { sessionId } = await params;
   const reading = getSharedReading();
@@ -16,6 +19,7 @@ export async function GET(_request: Request, { params }: Context) {
   );
 }
 export async function POST(request: Request, { params }: Context) {
+  if (!coachSpaceV2On()) return NextResponse.json({ error: "not_found" }, { status: 404 });
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const actor = await readingActor();
   if (!actor) return NextResponse.json({ error: "not_found" }, { status: 404 });

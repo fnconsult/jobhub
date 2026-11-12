@@ -89,6 +89,11 @@ export interface OrdersDeps {
   /** The Legal Text Versions (#546); defaults to the ones this build carries. */
   registry?: () => readonly LegalTextVersionRecord[];
   now?: () => Date;
+  /**
+   * Whether « Espace coach v2 » (ADR-0106) is on, read at each call. Off, a Coaching Session is ordered as before the
+   * Human Coach epic: at the Plan's price, no Coaching Offer, quote, seller or Peer remedy. Without it, on.
+   */
+  coachSpaceV2?: () => boolean;
 }
 
 export interface Orders {
@@ -129,6 +134,10 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
   const registry = deps.registry ?? legalTextRegistry;
   const cgvInEffect = () => legalTextVersionInEffect("cgv", parisDay(now()), registry());
   const absolute = (path: string) => new URL(path, deps.baseURL).toString();
+  const coachSpaceV2 = () => deps.coachSpaceV2?.() ?? true;
+  /** The Coaching Offers, and a Peer remedy's cap, only under « Espace coach v2 ». */
+  const offersNow = () => (coachSpaceV2() ? deps.offers : undefined);
+  const remedyOf = (item: Extract<OrderItem, { kind: "coachingSession" }>) => (coachSpaceV2() ? item.remedyId : undefined);
 
   async function summaryOf(candidateId: string, item: OrderItem): Promise<OrderSummary | null> {
     if (item.kind === "plan") {
@@ -140,13 +149,15 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
     }
     const coach = (await deps.coaches.list()).find((each) => each.id === item.coachId);
     if (!coach) return null;
-    if(item.remedyId) {
-      const cap = await deps.peerOrderCap?.(candidateId, item.remedyId, item.coachId);
-      const sale = await deps.offers?.sale(candidateId, item.coachId);
+    const offers = offersNow();
+    const remedyId = remedyOf(item);
+    if(remedyId) {
+      const cap = await deps.peerOrderCap?.(candidateId, remedyId, item.coachId);
+      const sale = await offers?.sale(candidateId, item.coachId);
       if (!cap || !sale || sale.currency !== cap.currency || sale.amount > cap.amount) return null;
     }
-    if (deps.offers) {
-      const sale=await deps.offers.sale(candidateId,item.coachId);if(!sale)return null;
+    if (offers) {
+      const sale=await offers.sale(candidateId,item.coachId);if(!sale)return null;
       return {kind:"coachingSession",subject:{fr:coach.name,en:coach.name},price:{amount:sale.amount,currency:sale.currency,interval:null},sale,
       };
     }
@@ -168,10 +179,12 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
       // Read before Checkout: what the Order Confirmation sums up is what the page showed.
       const summary = await summaryOf(candidate.id, item);
       if (!summary) return { ok: false, error: "not_orderable" };
-      const quote=item.kind==="coachingSession"&&deps.offers?await deps.offers.quote(candidate.id,item.coachId):null;
-      if(item.kind==="coachingSession"&&deps.offers&&!quote)return {ok:false,error:"not_orderable"};
-      if(item.kind === "coachingSession" && item.remedyId) {
-        const cap = await deps.peerOrderCap?.(candidate.id, item.remedyId, item.coachId);
+      const offers = offersNow();
+      const remedyId = item.kind === "coachingSession" ? remedyOf(item) : undefined;
+      const quote=item.kind==="coachingSession"&&offers?await offers.quote(candidate.id,item.coachId):null;
+      if(item.kind==="coachingSession"&&offers&&!quote)return {ok:false,error:"not_orderable"};
+      if(item.kind === "coachingSession" && remedyId) {
+        const cap = await deps.peerOrderCap?.(candidate.id, remedyId, item.coachId);
         if (!cap || !quote || quote.sale.currency !== cap.currency || quote.sale.amount > cap.amount) return { ok: false, error: "not_orderable" };
       }
       if (quote){summary.sale=quote.sale;summary.price={amount:quote.sale.amount,currency:quote.sale.currency,interval:null};}
@@ -243,7 +256,9 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
           immediateExecutionRequested: order.immediate_execution_requested,
           withdrawal: { url: absolute(order.kind === "plan" ? routes.withdrawal("plan") : routes.agenda()), until: withdrawalDeadline(concludedAt) },
           preferredName: order.preferred_name,
-          seller:order.coaching_sale?.seller??(order.kind==="coaching_session"?JOBBBOX_SELLER:undefined),
+          // Off « Espace coach v2 », an Order without a Coaching Offer names no seller, as before the Human Coach epic.
+          seller:order.coaching_sale?.seller??(order.kind==="coaching_session"&&coachSpaceV2()?JOBBBOX_SELLER:undefined),
+          coachSpaceV2: coachSpaceV2(),
         },
         order.language,
       );

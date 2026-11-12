@@ -1,3 +1,4 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import {CoachingNoticeSettings} from "@/coaching-notifications/Settings";
 import {getCoachingNotifications,coachingNoticesOn} from "@/coaching-notifications/server";
 import { getAppointmentReminders } from "@/appointment-reminders/server";
@@ -21,8 +22,9 @@ export default async function AccountRemindersPage() {
   return (
     <>
       <AppointmentRemindersForm enabled={enabled} />
-      {coachingNoticesOn()?<CoachingNoticeSettings initial={await getCoachingNotifications().settings(candidate.id)} audience={CANDIDATE}/>:null}
-      <PushNotificationsForm events={pushEventsFor(pushAudiencesOf(coach !== null))} settings={settings} devices={devices.length} />
+      {/* Coaching notices are part of « Espace coach v2 » (ADR-0106): off, none, as before it. */}
+      {coachSpaceV2On()&&coachingNoticesOn()?<CoachingNoticeSettings initial={await getCoachingNotifications().settings(candidate.id)} audience={CANDIDATE}/>:null}
+      <PushNotificationsForm events={pushEventsFor(pushAudiencesOf(coach !== null), coachSpaceV2On())} settings={settings} devices={devices.length} />
     </>
   );
 }

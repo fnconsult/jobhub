@@ -1,5 +1,6 @@
-import { ShareDocumentButton } from "@/shared-reading/ShareDocumentButton";
 import Link from "next/link";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { ShareDocumentButton } from "@/shared-reading/ShareDocumentButton";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import type { ActionCard } from "@/action-cards";
@@ -37,30 +38,28 @@ import { buttonClass } from "@/design/button-class";
 import { EmptyState } from "@/design/EmptyState";
 import { MicroAnimation } from "@/design/MicroAnimation";
 import { Pill } from "@/design/Pill";
-export type Params = {
-    params: Promise<{
-        id: string;
-    }>;
-};
+
+export type Params = { params: Promise<{ id: string }> };
 type T = Awaited<ReturnType<typeof getServerT>>;
+
 /** How an Action Card on an Application shows: a Follow-up draft is to send, then mark as sent (drafts only, ADR-0005). */
 function cardView({ id, kind, title, body, payload }: ActionCard, t: T): ActionCardView {
-    if (kind === FOLLOW_UP_CARD) {
-        const { subject } = (payload ?? {}) as Partial<FollowUpPayload>;
-        return {
-            id,
-            title,
-            body: subject ? `${t("followUps.subject", { subject })}\n\n${body}` : body,
-            label: t("followUps.cardLabel"),
-            acceptLabel: t("followUps.markSent"),
-            hint: t("followUps.sentHint"),
-            draft: true,
-        };
-    }
-    if (kind === ABANDON_CARD)
-        return { id, title, body, label: t("followUps.abandonLabel"), acceptLabel: t("followUps.abandonAccept") };
-    return { id, title, body };
+  if (kind === FOLLOW_UP_CARD) {
+    const { subject } = (payload ?? {}) as Partial<FollowUpPayload>;
+    return {
+      id,
+      title,
+      body: subject ? `${t("followUps.subject", { subject })}\n\n${body}` : body,
+      label: t("followUps.cardLabel"),
+      acceptLabel: t("followUps.markSent"),
+      hint: t("followUps.sentHint"),
+      draft: true,
+    };
+  }
+  if (kind === ABANDON_CARD) return { id, title, body, label: t("followUps.abandonLabel"), acceptLabel: t("followUps.abandonAccept") };
+  return { id, title, body };
 }
+
 /**
  * Everything an Application's page shows, loaded once per request (the layout
  * and the Section shown share it), and which of its Sections there are, in
@@ -70,57 +69,44 @@ function cardView({ id, kind, title, body, payload }: ActionCard, t: T): ActionC
  * Sends anonymous visitors to sign in, and answers 404 for an Application that is not theirs.
  */
 export const loadApplicationPage = cache(async (id: string) => {
-    const { candidateId, application } = await requireOwnApplication(id);
-    const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
-    const inView = { kind: "application", id: application.id, name: application.jobOffer.title, profileId: application.profile.id } as const;
-    const [pendingCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews] = await Promise.all([
-        getActionCards().pending(candidateId, inView),
-        getProfiles().list(candidateId),
-        getCompanyDossiers().get(candidateId, application.id),
-        getEnrichedContacts().get(candidateId, application.id),
-        getTailoredCvs().get(candidateId, application.id),
-        getTailoredDocuments().get(candidateId, application.id),
-        getHumanCoaches().reviews(candidateId, application.id),
-    ]);
-    const shownCards = pendingCards.filter((card) => followUpCardApplies(card, application.status));
-    const cards = shownCards.map((card) => cardView(card, t));
-    const present: Record<ApplicationSection, boolean> = {
-        propositions: cards.length > 0,
-        documents: Boolean(tailoredCv || drafts),
-        correspondance: true,
-        entretiens: true,
-        avis: coachReviews.length > 0,
-        dossier: true,
-        contacts: Boolean(enrichedContacts && (enrichedContacts.enabled || enrichedContacts.contacts.length > 0)),
-        offre: true,
-    };
-    const sections = APPLICATION_SECTIONS.filter((section) => present[section]);
-    // The Agenda, at its past Agenda Items when every Interview here is past there (before today).
-    const now = new Date();
-    const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
-    const agendaHref = routes.agenda(allPast);
-    return {
-        candidateId,
-        application,
-        t,
-        locale,
-        inView,
-        cards,
-        shownCards,
-        profiles,
-        companyDossier,
-        enrichedContacts,
-        tailoredCv,
-        drafts,
-        coachReviews,
-        sections,
-        agendaHref,
-    };
+  const { candidateId, application } = await requireOwnApplication(id);
+  const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
+  const inView = { kind: "application", id: application.id, name: application.jobOffer.title, profileId: application.profile.id } as const;
+  const [pendingCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews] = await Promise.all([
+    getActionCards().pending(candidateId, inView),
+    getProfiles().list(candidateId),
+    getCompanyDossiers().get(candidateId, application.id),
+    getEnrichedContacts().get(candidateId, application.id),
+    getTailoredCvs().get(candidateId, application.id),
+    getTailoredDocuments().get(candidateId, application.id),
+    getHumanCoaches().reviews(candidateId, application.id),
+  ]);
+  const shownCards = pendingCards.filter((card) => followUpCardApplies(card, application.status));
+  const cards = shownCards.map((card) => cardView(card, t));
+  const present: Record<ApplicationSection, boolean> = {
+    propositions: cards.length > 0,
+    documents: Boolean(tailoredCv || drafts),
+    correspondance: true,
+    entretiens: true,
+    avis: coachReviews.length > 0,
+    dossier: true,
+    contacts: Boolean(enrichedContacts && (enrichedContacts.enabled || enrichedContacts.contacts.length > 0)),
+    offre: true,
+  };
+  const sections = APPLICATION_SECTIONS.filter((section) => present[section]);
+  // The Agenda, at its past Agenda Items when every Interview here is past there (before today).
+  const now = new Date();
+  const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
+  const agendaHref = routes.agenda(allPast);
+  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
 });
+
 export type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
+
 /** What an Application's Section and Result are, in the Work Pane (#603). */
 const SECTION: AddressedKind = "section";
 const RESULT: AddressedKind = "result";
+
 /**
  * One Section of an Application's page, at its own address. A Section there
  * is not (no Tailored Documents yet, say) answers 404, except Propositions: its
@@ -128,141 +114,200 @@ const RESULT: AddressedKind = "result";
  * It opens in the Work Pane beside the Application's conversation (#603, ADR-0070);
  * the « documents » Section shows one Result alone when its address names it (`result`: `?resultat=lettre`).
  */
-export async function ApplicationSectionPage({ params, section, result }: Params & {
-    section: ApplicationSection;
-    result?: string | string[];
-}) {
-    const data = await loadApplicationPage((await params).id);
-    if (section !== "propositions" && !data.sections.includes(section))
-        notFound();
-    const { application, t } = data;
-    const back = routes.application(application.id);
-    const alone = section === "documents" ? shownResult(data, applicationResultOf(result)) : null;
-    if (alone)
-        return (<InWorkPane kind={RESULT} title={resultTitle(alone, t)} href={routes.applicationResult(application.id, alone)} back={back}>
-        <SectionView data={data} section={section} result={alone}/>
-      </InWorkPane>);
-    return (<InWorkPane kind={SECTION} title={t(`application.sections.${section}`)} href={routes.applicationSection(application.id, section)} back={back}>
-      <SectionView data={data} section={section}/>
-    </InWorkPane>);
+export async function ApplicationSectionPage({ params, section, result }: Params & { section: ApplicationSection; result?: string | string[] }) {
+  const data = await loadApplicationPage((await params).id);
+  if (section !== "propositions" && !data.sections.includes(section)) notFound();
+  const { application, t } = data;
+  const back = routes.application(application.id);
+  const alone = section === "documents" ? shownResult(data, applicationResultOf(result)) : null;
+  if (alone)
+    return (
+      <InWorkPane kind={RESULT} title={resultTitle(alone, t)} href={routes.applicationResult(application.id, alone)} back={back}>
+        <SectionView data={data} section={section} result={alone} />
+      </InWorkPane>
+    );
+  return (
+    <InWorkPane kind={SECTION} title={t(`application.sections.${section}`)} href={routes.applicationSection(application.id, section)} back={back}>
+      <SectionView data={data} section={section} />
+    </InWorkPane>
+  );
 }
+
 /** The Result an address names, when the Application has it. */
 function shownResult({ tailoredCv, drafts }: ApplicationPageData, result: ApplicationResult | null): ApplicationResult | null {
-    if (result === "tailored_cv")
-        return tailoredCv ? result : null;
-    return result && drafts ? result : null;
+  if (result === "tailored_cv") return tailoredCv ? result : null;
+  return result && drafts ? result : null;
 }
+
 function resultTitle(result: ApplicationResult, t: T): string {
-    if (result === "tailored_cv")
-        return t("tailoredCv.tailored");
-    return t(result === "cover_letter" ? "tailoredDocuments.coverLetter.title" : "tailoredDocuments.outreachMessage.title");
+  if (result === "tailored_cv") return t("tailoredCv.tailored");
+  return t(result === "cover_letter" ? "tailoredDocuments.coverLetter.title" : "tailoredDocuments.outreachMessage.title");
 }
+
+/** The Tailored Documents Shared Reading can share (« Espace coach v2 », ADR-0106). */
 const SHARED_KINDS = ["tailored_cv", "cover_letter", "outreach_message"] as const;
-function SectionView({ data, section, result }: {
-    data: ApplicationPageData;
-    section: ApplicationSection;
-    result?: ApplicationResult;
-}) {
-    const { application, t, locale } = data;
-    switch (section) {
-        case "propositions":
-            return <ActionCardList key={application.id} cards={data.cards} alone/>;
-        case "documents": {
-            const { tailoredCv, drafts } = data;
-            if (!tailoredCv && !drafts)
-                return null;
-            const recipients = (data.enrichedContacts?.contacts ?? []).map(({ id, name, jobTitle, emails }) => ({
-                id,
-                name,
-                ...(jobTitle && { jobTitle }),
-                ...(emails[0] && { email: emails[0] }),
-            }));
-            return (<>
-          {(<div className="actions shared-reading-actions">
-              {SHARED_KINDS
-                        .filter((kind) => (kind === "tailored_cv" ? tailoredCv?.saved : kind === "cover_letter" ? drafts?.coverLetter : drafts?.outreachMessage))
-                        .map((kind) => (<ShareDocumentButton key={kind} source={{ kind, id: application.id }}/>))}
-            </div>)}
-          <TailoredDocuments key={`documents-${application.id}`} applicationId={application.id} documentLanguage={drafts?.documentLanguage ?? tailoredCv!.documentLanguage} tailoredCv={tailoredCv} drafts={drafts} recipients={recipients} locale={locale} target={{ title: application.jobOffer.title, ...(application.jobOffer.employer && { employer: application.jobOffer.employer }) }} {...(result ? { only: result } : {})}/>
-        </>);
-        }
-        case "correspondance":
-            return <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale}/>;
-        case "entretiens":
-            return <Interviews data={data}/>;
-        case "avis":
-            return <CoachReviewList reviews={data.coachReviews}/>;
-        case "dossier":
-            return <CompanyDossierView applicationId={application.id} state={data.companyDossier} t={t} locale={locale}/>;
-        case "contacts":
-            return data.enrichedContacts ? (<EnrichedContactsPanel key={`enriched-contacts-${application.id}`} applicationId={application.id} initial={data.enrichedContacts} hasDossier={data.companyDossier?.status === "built"} locale={locale}/>) : null;
-        case "offre":
-            // Its facts and its Job Offer Summary come first, then its full text (#603).
-            return (<>
-          <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale}/>
-          <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector}/>
-          <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false}/>
-        </>);
+
+function SectionView({ data, section, result }: { data: ApplicationPageData; section: ApplicationSection; result?: ApplicationResult }) {
+  const { application, t, locale } = data;
+  switch (section) {
+    case "propositions":
+      return <ActionCardList key={application.id} cards={data.cards} alone />;
+    case "documents": {
+      const { tailoredCv, drafts } = data;
+      if (!tailoredCv && !drafts) return null;
+      const recipients = (data.enrichedContacts?.contacts ?? []).map(({ id, name, jobTitle, emails }) => ({
+        id,
+        name,
+        ...(jobTitle && { jobTitle }),
+        ...(emails[0] && { email: emails[0] }),
+      }));
+      // Shared Reading is part of « Espace coach v2 » (ADR-0106): off, not offered, as before it.
+      const shared = coachSpaceV2On() ? (
+        <div className="actions shared-reading-actions">
+          {SHARED_KINDS.filter((kind) => (kind === "tailored_cv" ? tailoredCv?.saved : kind === "cover_letter" ? drafts?.coverLetter : drafts?.outreachMessage)).map((kind) => (
+            <ShareDocumentButton key={kind} source={{ kind, id: application.id }} />
+          ))}
+        </div>
+      ) : null;
+      const documents = (
+        <TailoredDocuments
+          key={`documents-${application.id}`}
+          applicationId={application.id}
+          documentLanguage={drafts?.documentLanguage ?? tailoredCv!.documentLanguage}
+          tailoredCv={tailoredCv}
+          drafts={drafts}
+          recipients={recipients}
+          locale={locale}
+          target={{ title: application.jobOffer.title, ...(application.jobOffer.employer && { employer: application.jobOffer.employer }) }}
+          {...(result ? { only: result } : {})}
+        />
+      );
+      return shared ? (
+        <>
+          {shared}
+          {documents}
+        </>
+      ) : (
+        documents
+      );
     }
+    case "correspondance":
+      return <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale} />;
+    case "entretiens":
+      return <Interviews data={data} />;
+    case "avis":
+      return <CoachReviewList reviews={data.coachReviews} />;
+    case "dossier":
+      return <CompanyDossierView applicationId={application.id} state={data.companyDossier} t={t} locale={locale} />;
+    case "contacts":
+      return data.enrichedContacts ? (
+        <EnrichedContactsPanel
+          key={`enriched-contacts-${application.id}`}
+          applicationId={application.id}
+          initial={data.enrichedContacts}
+          hasDossier={data.companyDossier?.status === "built"}
+          locale={locale}
+        />
+      ) : null;
+    case "offre":
+      // Its facts and its Job Offer Summary come first, then its full text (#603).
+      return (
+        <>
+          <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale} />
+          <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector} />
+          <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />
+        </>
+      );
+  }
 }
+
 /**
  * The Application's Interviews: each one changed, cancelled or removed in place, and a form
  * to add one while it is at the interview stage. A Cancelled Interview stays, struck through,
  * with its date of cancellation; a Rescheduled one says when it was first planned, with its
  * history. A link leads to the Agenda: its past Agenda Items when all the Interviews here are past.
  */
-function Interviews({ data: { application, t, locale, agendaHref } }: {
-    data: ApplicationPageData;
-}) {
-    const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
-    const date = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: INTERVIEW_TIME_ZONE });
-    const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
-    const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
-    const cancelledOn = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
-    const { interviews } = application;
-    return (<section aria-labelledby="interviews-title">
+function Interviews({ data: { application, t, locale, agendaHref } }: { data: ApplicationPageData }) {
+  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: INTERVIEW_TIME_ZONE });
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const changedAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  const cancelledOn = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
+  const { interviews } = application;
+  return (
+    <section aria-labelledby="interviews-title">
       <div className="application-section-head">
         <h2 id="interviews-title">{t("application.interviewsTitle")}</h2>
         <Link className={buttonClass({ variant: "quiet", size: "sm" })} href={agendaHref}>
           {t("application.seeInAgenda")}
         </Link>
       </div>
-      {interviews.length > 0 ? (<ul className="application-interviews">
+      {interviews.length > 0 ? (
+        <ul className="application-interviews">
           {interviews.map((interview) => {
-                const when = dateTime.format(interview.scheduledAt);
-                return (<li key={interview.id} className="application-interview" data-cancelled={interview.cancelledAt ? true : undefined}>
+            const when = dateTime.format(interview.scheduledAt);
+            return (
+              <li key={interview.id} className="application-interview" data-cancelled={interview.cancelledAt ? true : undefined}>
                 <p className="application-interview__date">
-                  {date.format(interview.scheduledAt)}, <InterviewTimes interview={interview} time={time}/>
+                  {date.format(interview.scheduledAt)}, <InterviewTimes interview={interview} time={time} />
                 </p>
-                {interview.cancelledAt ? (<p>
+                {interview.cancelledAt ? (
+                  <p>
                     <Pill tone="danger">{t("agendaChanges.cancelledOn", { date: cancelledOn.format(interview.cancelledAt) })}</Pill>
-                  </p>) : null}
-                <InterviewFacts interview={interview} t={t}/>
+                  </p>
+                ) : null}
+                <InterviewFacts interview={interview} t={t} />
                 {interview.note ? <p>{interview.note}</p> : null}
-                <RescheduleHistory reschedules={interview.reschedules} dateTime={changedAt} t={t}/>
+                <RescheduleHistory reschedules={interview.reschedules} dateTime={changedAt} t={t} />
                 {/* As a Coach proposal the Candidate applied left it (#718): said only on demand. */}
-                <OriginDisclosure appliedAt={interview.origin?.appliedAt.toISOString() ?? null}/>
+                <OriginDisclosure appliedAt={interview.origin?.appliedAt.toISOString() ?? null} />
                 <div className="application-interview__actions">
-                  <EditInterview applicationId={application.id} interview={{
-                        id: interview.id,
-                        scheduledAt: interviewWallClock(interview.scheduledAt),
-                        durationMinutes: interview.durationMinutes === null ? "" : String(interview.durationMinutes),
-                        format: interview.format ?? "",
-                        place: interview.place,
-                        note: interview.note,
-                    }} label={t("application.editInterview", { date: when })}/>
-                  {interview.cancelledAt ? null : (<CancelAgendaItemButton url={`/api/applications/${application.id}/interviews/${interview.id}/cancel`} label={t("agendaChanges.cancelInterview")} name={t("agendaChanges.cancelInterviewFor", { date: when })} question={t("agendaChanges.cancelInterviewConfirm")}/>)}
-                  <RemoveInterviewButton applicationId={application.id} interviewId={interview.id} label={t("application.removeInterview", { date: when })}/>
+                  <EditInterview
+                    applicationId={application.id}
+                    interview={{
+                      id: interview.id,
+                      scheduledAt: interviewWallClock(interview.scheduledAt),
+                      durationMinutes: interview.durationMinutes === null ? "" : String(interview.durationMinutes),
+                      format: interview.format ?? "",
+                      place: interview.place,
+                      note: interview.note,
+                    }}
+                    label={t("application.editInterview", { date: when })}
+                  />
+                  {interview.cancelledAt ? null : (
+                    <CancelAgendaItemButton
+                      url={`/api/applications/${application.id}/interviews/${interview.id}/cancel`}
+                      label={t("agendaChanges.cancelInterview")}
+                      name={t("agendaChanges.cancelInterviewFor", { date: when })}
+                      question={t("agendaChanges.cancelInterviewConfirm")}
+                    />
+                  )}
+                  <RemoveInterviewButton applicationId={application.id} interviewId={interview.id} label={t("application.removeInterview", { date: when })} />
                 </div>
-              </li>);
-            })}
-        </ul>) : (<EmptyState title={t("application.interviewsNone")} headingLevel={3} help={<>
-              <EmptyStateHelp of="agenda"/>
-              {application.status === "interview" ? null : <MicroAnimation id="interview-status"/>}
-            </>}>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <EmptyState
+          title={t("application.interviewsNone")}
+          headingLevel={3}
+          help={
+            <>
+              <EmptyStateHelp of="agenda" />
+              {application.status === "interview" ? null : <MicroAnimation id="interview-status" />}
+            </>
+          }
+        >
           {application.status === "interview" ? undefined : t("application.interviewsHint")}
-        </EmptyState>)}
+        </EmptyState>
+      )}
       {interviews.length > 0 ? <p className="application-hint">{t("agendaChanges.removeHint")}</p> : null}
-      {application.status === "interview" ? (<AddInterviewForm applicationId={application.id}/>) : interviews.length > 0 ? (<p className="application-hint">{t("application.interviewsHint")}</p>) : null}
-    </section>);
+      {application.status === "interview" ? (
+        <AddInterviewForm applicationId={application.id} />
+      ) : interviews.length > 0 ? (
+        <p className="application-hint">{t("application.interviewsHint")}</p>
+      ) : null}
+    </section>
+  );
 }

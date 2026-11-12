@@ -18,7 +18,10 @@ export const FRENCH_TIME_ZONE = "Europe/Paris";
 export interface CalendarFileEvent {
   /** Stable per Agenda Item, so a later file names the same event. */
   uid: string;
-  /** Coaching Sessions use the viewer’s zone; Interviews keep the Paris default. */
+  /**
+   * Coaching Sessions use the viewer’s zone; Interviews keep the Paris default. Named (even Paris), a repeated DST
+   * clock is written in UTC; left out, the file is the one before « Espace coach v2 » (ADR-0106).
+   */
   timeZone?: string;
   start: Date;
   end: Date;
@@ -126,7 +129,8 @@ function ambiguousClock(at: Date, zone: string): boolean {
 /** The Calendar file of `event`, made at `now` (its DTSTAMP), with CRLF line breaks. */
 export function calendarFileText(event: CalendarFileEvent, { now }: { now: Date }): string {
   const zone = coachingTimeZone(event.timeZone) ?? FRENCH_TIME_ZONE;
-  const utc = ambiguousClock(event.start, zone) || ambiguousClock(event.end, zone);
+  // Without a named zone, the file is written as before ADR-0096 (TZID=Europe/Paris, even on a repeated clock).
+  const utc = event.timeZone !== undefined && (ambiguousClock(event.start, zone) || ambiguousClock(event.end, zone));
   const clock = (at: Date) => zonedClock(at, zone).replace(/[-:]/g, "");
   const lines = [
     "BEGIN:VCALENDAR",

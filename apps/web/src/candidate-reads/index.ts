@@ -116,6 +116,11 @@ export interface CandidateReads {
 }
 
 export interface CandidateReadsDeps {
+  /**
+   * « Espace coach v2 » (ADR-0106), read per call: off (or absent), the reads answer as before the Human Coach epic, none
+   * of the deps below is asked, and no message names its Human Coach.
+   */
+  coachSpaceV2?: () => boolean;
   coachPages?(ids:string[]):Promise<{coachId:string;page:PublicCoachPage}[]>;
   coachAssociations?(ids:string[]):Promise<{coachId:string;id:string;name:string}[]>;
   coachingOffer?(candidateId:string,coachId:string):Promise<CoachingSale|null>;
@@ -204,13 +209,13 @@ const conversationSummary = (conversation: CoachConversationSummary): CoachConve
   lastMessageAt: iso(conversation.lastMessageAt),
 });
 
-const conversationRead = (conversation: CoachConversation): CoachConversationRead => ({
+const conversationRead = (conversation: CoachConversation, coachSpaceV2: boolean): CoachConversationRead => ({
   ...conversationSummary(conversation),
   aiDisclosure: conversation.aiDisclosure,
   messages: conversation.messages.map((message) => ({
     from: message.from,
     text: message.text,
-    ...(message.humanCoach ? { humanCoach: message.humanCoach } : {}),
+    ...(coachSpaceV2 && message.humanCoach ? { humanCoach: message.humanCoach } : {}),
     ...(message.provenance !== undefined && { provenance: message.provenance }),
     ...(message.at !== undefined && { at: message.at }),
     ...(message.sent !== undefined && { sent: message.sent }),
@@ -294,6 +299,7 @@ const NO_DAY_LABEL = () => "";
 
 export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
   const now = deps.now ?? (() => new Date());
+  const coachSpaceV2 = (): boolean => deps.coachSpaceV2?.() ?? false;
 
   /** The Candidate's active Profiles, in their order: the cards leave an Archived Profile out. */
   async function activeProfiles(candidateId: string) {
@@ -428,11 +434,12 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async agenda(candidateId, { past = false } = {}) {
-      const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
-      const meetings = (await deps.coachingMeetings?.(candidateId)) ?? null;
+      const v2 = coachSpaceV2();
+      const timeZone = v2 ? ((await deps.coachingTimeZone?.(candidateId)) ?? undefined) : undefined;
+      const meetings = v2 ? ((await deps.coachingMeetings?.(candidateId)) ?? null) : null;
       const [unscheduled, days] = await Promise.all([
         deps.agenda.unscheduled(candidateId),
-        deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now(), timeZone }),
+        deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now(), ...(v2 ? { timeZone } : {}) }),
       ]);
       return {
         toSchedule: unscheduled.map((session) => ({
@@ -453,9 +460,10 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async coaching(candidateId) {
-      const bookingPaths = await deps.coachingBookings?.(candidateId);
-      const timeZone = (await deps.coachingTimeZone?.(candidateId)) ?? undefined;
-      const meetings = (await deps.coachingMeetings?.(candidateId)) ?? null;
+      const v2 = coachSpaceV2();
+      const bookingPaths = v2 ? await deps.coachingBookings?.(candidateId) : undefined;
+      const timeZone = v2 ? ((await deps.coachingTimeZone?.(candidateId)) ?? undefined) : undefined;
+      const meetings = v2 ? ((await deps.coachingMeetings?.(candidateId)) ?? null) : null;
       const [coaches, granted, sessions, contracts, price] = await Promise.all([
         deps.humanCoaches.list(),
         deps.humanCoaches.accessGranted(candidateId),
@@ -467,16 +475,18 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           return null;
         }),
       ]);
-      const pages = new Map(((await deps.coachPages?.(coaches.map((c) => c.id))) ?? []).map((p) => [p.coachId, p.page]));
-      const associations = new Map(((await deps.coachAssociations?.(coaches.map((c) => c.id))) ?? []).map((a) => [a.coachId, { id: a.id, name: a.name }]));
-      const offers = deps.coachingOffer
+      const pages = new Map(((v2 ? await deps.coachPages?.(coaches.map((c) => c.id)) : undefined) ?? []).map((p) => [p.coachId, p.page]));
+      const associations = new Map(
+        ((v2 ? await deps.coachAssociations?.(coaches.map((c) => c.id)) : undefined) ?? []).map((a) => [a.coachId, { id: a.id, name: a.name }]),
+      );
+      const offers = v2 && deps.coachingOffer
         ? new Map(await Promise.all(coaches.map(async (coach) => [coach.id, await deps.coachingOffer!(candidateId, coach.id)] as const)))
         : null;
       // As the Agenda: the sessions still in their Withdrawal period, and not held under the Immediate Performance Request.
       const withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
       return {
         ...(timeZone ? { timeZone } : {}),
-        ...((await deps.coachingCancellations?.()) ? { cancellationPath: "/coachs/annulations" } : {}),
+        ...(v2 && (await deps.coachingCancellations?.()) ? { cancellationPath: "/coachs/annulations" } : {}),
         // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
         coaches: coaches.map((coach) => ({
           id: coach.id,
@@ -518,7 +528,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       const { summary, cgv } = terms;
       return {
         coach: { id: coachId, name: summary.subject.fr },
-        ...(summary.sale ? { seller: summary.sale.seller, durationMinutes: summary.sale.durationMinutes } : {}),
+        ...(coachSpaceV2() && summary.sale ? { seller: summary.sale.seller, durationMinutes: summary.sale.durationMinutes } : {}),
         price: summary.price && { amount: summary.price.amount, currency: summary.price.currency },
         cgv: cgv && { version: cgv.version, url: cgv.url },
       };
@@ -599,12 +609,12 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     async coachConversationOfSubject(candidateId, subject) {
       const result = await deps.coachConversations.ofSubject(candidateId, subject);
       if (!result.ok) return { error: result.error };
-      return { conversation: result.conversation && conversationRead(result.conversation) };
+      return { conversation: result.conversation && conversationRead(result.conversation, coachSpaceV2()) };
     },
 
     async coachConversation(candidateId, conversationId) {
       const conversation = await deps.coachConversations.open(candidateId, conversationId);
-      return conversation && { conversation: conversationRead(conversation) };
+      return conversation && { conversation: conversationRead(conversation, coachSpaceV2()) };
     },
   };
 }

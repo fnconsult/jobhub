@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { OrderForm } from "@/components/OrderForm";
@@ -24,7 +25,8 @@ export default async function CoachingOrderPage({ searchParams }: { searchParams
   const t = await getServerT(locale);
   const query = await searchParams;
   const coachId = typeof query[ORDER_PARAMS.coach] === "string" ? (query[ORDER_PARAMS.coach] as string) : "";
-  const remedyId = typeof query.remedy === "string" ? query.remedy : undefined;
+  // A Peer remedy (« Espace coach v2 », ADR-0106): off, none, as before the Human Coach epic.
+  const remedyId = coachSpaceV2On() && typeof query.remedy === "string" ? query.remedy : undefined;
   const terms = await getOrders()
     .terms(candidate.id, { kind: "coachingSession", coachId, remedyId })
     .catch((cause: unknown) => {

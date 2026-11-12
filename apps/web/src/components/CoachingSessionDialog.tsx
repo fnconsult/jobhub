@@ -28,8 +28,14 @@ const ENDPOINT: Record<SessionEditor, (id: string) => string> = {
 
 /** What the button reads while the session is unscheduled, per editor. */
 const ENTER_DATE = {
-  candidate: { text: "coachingSession.enterDate", label: "coachingSession.enterDateFor" },
-  coach: { text: "coachingSession.coachEnterDate", label: "coachingSession.coachEnterDateFor" },
+  candidate: {
+    text: "coachingSession.enterDate",
+    label: "coachingSession.enterDateFor",
+  },
+  coach: {
+    text: "coachingSession.coachEnterDate",
+    label: "coachingSession.coachEnterDateFor",
+  },
 } as const;
 
 /**
@@ -47,12 +53,18 @@ export function CoachingSessionDialog({
   withName,
   editor = "candidate",
   withVideoLink = true,
+  coachSpaceV2 = false,
   className = buttonClass(),
 }: {
   session: CoachingSessionFields;
   withName: string;
   editor?: SessionEditor;
   withVideoLink?: boolean;
+  /**
+   * « Espace coach v2 » (ADR-0106): on, only the fields edited are sent, and a booking linked to Cal.com leads there;
+   * off, every field is sent, as before the Human Coach epic.
+   */
+  coachSpaceV2?: boolean;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -70,7 +82,14 @@ export function CoachingSessionDialog({
       title={t("coachingSession.title", { name: withName })}
     >
       {/* Mounted on each opening, from the session as the page last read it. */}
-      <CoachingSessionForm session={session} editor={editor} withVideoLink={withVideoLink} onSaved={() => setOpen(false)} onCancel={() => setOpen(false)} />
+      <CoachingSessionForm
+        session={session}
+        editor={editor}
+        withVideoLink={withVideoLink}
+        coachSpaceV2={coachSpaceV2}
+        onSaved={() => setOpen(false)}
+        onCancel={() => setOpen(false)}
+      />
     </Drawer>
   );
 }
@@ -88,12 +107,14 @@ function CoachingSessionForm({
   session,
   editor,
   withVideoLink,
+  coachSpaceV2,
   onSaved,
   onCancel,
 }: {
   session: CoachingSessionFields;
   editor: SessionEditor;
   withVideoLink: boolean;
+  coachSpaceV2: boolean;
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -108,7 +129,7 @@ function CoachingSessionForm({
   const [working, setWorking] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [failed, setFailed] = useState(false);
-  const [useCal,setUseCal]=useState(false);
+  const [useCal, setUseCal] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,17 +138,25 @@ function CoachingSessionForm({
     let response: Response | null = null;
     try {
       // A datetime-local value ("2026-11-12T14:30") is French time: the app reads it so.
-      const fields = {
-        scheduledAt,
-        ...(durationMinutes !== (initial.durationMinutes === null ? "" : String(initial.durationMinutes))
-          ? { durationMinutes: durationMinutes.trim() === "" ? null : Number(durationMinutes) }
-          : {}),
-        ...(withVideoLink && videoLink !== (initial.videoLink ?? "") ? { videoLink } : {}),
-      };
+      const fields = coachSpaceV2
+        ? {
+            scheduledAt,
+            ...(durationMinutes !== (initial.durationMinutes === null ? "" : String(initial.durationMinutes))
+              ? {
+                  durationMinutes: durationMinutes.trim() === "" ? null : Number(durationMinutes),
+                }
+              : {}),
+            ...(withVideoLink && videoLink !== (initial.videoLink ?? "") ? { videoLink } : {}),
+          }
+        : {
+            scheduledAt,
+            durationMinutes: durationMinutes.trim() === "" ? null : Number(durationMinutes),
+            videoLink,
+          };
       response = await fetch(ENDPOINT[editor](session.id), {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(editor === "candidate" && note !== (initial.note ?? "") ? { ...fields, note } : fields),
+        body: JSON.stringify(editor === "candidate" && (!coachSpaceV2 || note !== (initial.note ?? "")) ? { ...fields, note } : fields),
       });
     } catch {
       response = null;
@@ -138,8 +167,11 @@ function CoachingSessionForm({
       router.refresh();
       return;
     }
-    const result: { errors?: FieldError[];error?:string } = response ? await response.json().catch(() => ({})) : {};
-    if(result.error==="use_cal"){setUseCal(true);return;}
+    const result: { errors?: FieldError[]; error?: string } = response ? await response.json().catch(() => ({})) : {};
+    if (coachSpaceV2 && result.error === "use_cal") {
+      setUseCal(true);
+      return;
+    }
     if (Array.isArray(result.errors)) setErrors(result.errors);
     else setFailed(true);
   }
@@ -148,7 +180,9 @@ function CoachingSessionForm({
   function errorOf(field: SessionField) {
     const error = errors.find((candidate) => candidate.field === field);
     if (!error) return null;
-    return { text: t(field === "scheduledAt" && error.code === "required" ? "coachingSession.requiredDate" : ERROR_MESSAGES[field]) };
+    return {
+      text: t(field === "scheduledAt" && error.code === "required" ? "coachingSession.requiredDate" : ERROR_MESSAGES[field]),
+    };
   }
 
   const dateError = errorOf("scheduledAt");
@@ -157,7 +191,12 @@ function CoachingSessionForm({
   const noteError = errorOf("note");
   return (
     <form className="stack" onSubmit={submit} noValidate>
-      {useCal?<Note tone="warn" role="alert"><p>{t("coachingBooking.useCal")}</p><a href={editor==="coach"?"https://app.cal.com/bookings":`/coachs/seances/${session.id}/reserver`}>{t("coachingBooking.manage")}</a></Note>:null}
+      {useCal ? (
+        <Note tone="warn" role="alert">
+          <p>{t("coachingBooking.useCal")}</p>
+          <a href={editor === "coach" ? "https://app.cal.com/bookings" : `/coachs/seances/${session.id}/reserver`}>{t("coachingBooking.manage")}</a>
+        </Note>
+      ) : null}
       <Field id={`${id}-date`} label={t("coachingSession.date")} error={dateError?.text}>
         <TextInput type="datetime-local" required value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
       </Field>

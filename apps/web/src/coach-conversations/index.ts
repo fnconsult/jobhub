@@ -219,6 +219,11 @@ export interface CoachConversationsDeps {
   proposals?: Pick<CoachProposals, "place" | "ofReplies">;
   /** When messages are sent. Default: the system clock. */
   now?: () => Date;
+  /**
+   * Whether « Espace coach v2 » (ADR-0106) is on, read at each call. Off, the Candidate sees no Session Report: no
+   * conversation about a Coaching Session, no Human Coach's message, as before the Human Coach epic. Without it, on.
+   */
+  sessionReports?: () => boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -439,10 +444,14 @@ function titleFrom(message: string): string {
 
 export function createCoachConversations(database: Pool, deps: CoachConversationsDeps): CoachConversations {
   const now = deps.now ?? (() => new Date());
+  /** Whether Session Reports are shown (« Espace coach v2 », ADR-0106). */
+  const reportsShown = () => deps.sessionReports?.() ?? true;
+  /** Off « Espace coach v2 », a conversation about a Coaching Session is not the Candidate's to see. */
+  const shown = (row: Pick<SubjectRow, "subject_kind">) => reportsShown() || row.subject_kind !== "coaching_session";
   async function findRow(candidateId: string, conversationId: string): Promise<ConversationRow | null> {
     if (!UUID.test(conversationId)) return null;
     const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.id = $1 AND c.candidate_id = $2`, [conversationId, candidateId]);
-    return rows[0] ?? null;
+    return rows[0] && shown(rows[0]) ? rows[0] : null;
   }
   async function find(candidateId: string, conversationId: string): Promise<CoachConversationSummary | null> {
     const row = await findRow(candidateId, conversationId);
@@ -488,6 +497,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
    */
   async function ownSubject(candidateId: string, subject: SubjectRef): Promise<{ subject: Subject; profile: { id: string; name: string } | null } | null> {
     if (subject.kind === "menu") return { subject: { ...subject, name: MENU_NAMES[subject.id] }, profile: null };
+    if (subject.kind === "coaching_session" && !reportsShown()) return null;
     const { rows } = await database.query<Partial<SubjectRow>>(OWN_SUBJECT[subject.kind], [subject.id, candidateId]);
     const row = rows[0];
     if (!row) return null;
@@ -500,7 +510,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
    * `forCoach`: without the stopped questions the input Guardrails never let through, which the AI Coach must never be sent.
    */
   async function lastMessages(candidateId: string, conversationId: string, limit: number | null, forCoach = false): Promise<CoachMessage[]> {
-    const { rows } = await database.query<MessageRow>(
+    let { rows } = await database.query<MessageRow>(
       `SELECT recent.seq, recent.human_coach AS "humanCoach", recent.author AS "from", recent.text, recent.blocked,
               CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
               ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}, ${replyCostOf("recent")} AS sent
@@ -510,6 +520,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         ORDER BY recent.seq`,
       [conversationId, limit, candidateId],
     );
+    if (!reportsShown()) rows = rows.filter((row) => !row.humanCoach);
     const replies = rows.filter((row) => row.from === "coach").map((row) => String(row.seq));
     const cards = !forCoach && deps.proposals && replies.length > 0 ? await deps.proposals.ofReplies(candidateId, replies) : new Map<string, CoachProposalCard[]>();
     const provenances = new Map(rows.filter((row) => row.from === "coach").map((row) => [row, savedReplyProvenance(row)] as const));
@@ -710,7 +721,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.created_at DESC`, [
         candidateId,
       ]);
-      return rows.map(summaryFrom);
+      return rows.filter(shown).map(summaryFrom);
     },
 
     async open(candidateId, conversationId) {

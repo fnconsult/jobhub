@@ -382,3 +382,12 @@
     animation: none;
   }
 }
+
+/* The status pill stays on one line beside the title, which wraps instead (« En cours » on a phone). */
+.onb-search-card .ds-card__actions {
+  flex: none;
+}
+
+.onb-search-card .ds-pill {
+  white-space: nowrap;
+}

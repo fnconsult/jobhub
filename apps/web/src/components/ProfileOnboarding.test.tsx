@@ -306,6 +306,17 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(within(thread()).getByRole("list", { name: "Étapes de la recherche" })).toBeTruthy();
     });
 
+    it("closes the review without leaving the page: no new load of it, which would meet the Plan Quota the Profile born counts in", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon"]);
+      await user.click(within(reviewPane()).getByRole("button", { name: "Fermer" }));
+      await waitFor(() => expect(screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeNull());
+      expect(push).not.toHaveBeenCalled();
+      // The thread is still there, the search card whole.
+      expect(within(thread()).getByRole("list", { name: "Étapes de la recherche" })).toBeTruthy();
+    });
+
     it("goes on without a word when the offered Job Search cannot start (#1000)", async () => {
       searches = 2;
       const user = userEvent.setup();

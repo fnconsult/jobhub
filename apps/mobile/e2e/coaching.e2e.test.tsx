@@ -63,9 +63,12 @@ async function signedIn() {
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
 
 let web: ReturnType<typeof serveCoaching>;
+/** « Espace coach v2 » (ADR-0107) as the web app says it at launch: off unless a test turns it on (`v2 = true`). */
+let v2 = false;
 /** Signed in, the web app serving Mes coachs humains (`changed` before the page reads it), the page opened at `url`. */
 async function launch(url = "/coachs", changed: (route: typeof web) => void = () => {}) {
   await signedIn();
+  mockWeb.app.coachSpaceV2(v2);
   web = serveCoaching(mockWeb.app, EMAIL);
   changed(web);
   await renderRouter("./src/app", { initialUrl: url });
@@ -87,11 +90,72 @@ beforeEach(async () => {
   Object.defineProperty(Platform, "OS", { value: "ios", configurable: true });
 });
 afterEach(() => {
+  v2 = false;
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
 
 describe("Mes coachs humains, read from the web app", () => {
+  it('opens cancellation tracking inside the authenticated web companion',async()=>{
+    v2 = true;
+    await launch('/coachs',route=>{route.coaching.cancellationPath='/coachs/annulations';});
+    await screen.findByText('Annulation et déplacement possibles jusqu’à 24 heures avant la séance. Une annulation dans Jobbbox demande le remboursement intégral. Après ce délai, contactez votre coach ou le support.');
+    await userEvent.setup().press(button('Annulations et remboursements'));
+    await screen.findByTestId('web-view');expect(fakeWebView.shown?.source.uri).toContain('/coachs/annulations');
+  });
+  it("opens a paid Cal booking inside the authenticated web companion and labels its source",async()=>{
+    v2 = true;
+    const path="/coachs/seances/11111111-1111-1111-1111-111111111111/reserver";
+    await launch("/coachs",route=>{route.coaching.sessions[0]!.changedBy="cal_com";route.coaching.sessions[1]!.bookingPath=path;});
+    expect(await screen.findByText("via Cal.com")).toBeOnTheScreen();
+    await userEvent.setup().press(button("Choisir mon créneau avec Paul Durand sur Cal.com"));
+    await screen.findByTestId("web-view");
+    expect(fakeWebView.shown?.source.uri).toContain(path);
+  });
+  it("renders only the approved profile and requests its portrait with the signed-in session",async()=>{
+    v2 = true;
+    await launch("/coachs",route=>{route.coaching.coaches[0]!.profile={versionId:"public-version",presentation:"Un profil approuvé pour les transitions professionnelles.",specialties:["Reconversion"],languages:["français"],photoUrl:"/api/coaching/profiles/coach-1/public-version/photo"};});
+    expect(await screen.findByText("Un profil approuvé pour les transitions professionnelles.")).toBeOnTheScreen();
+    expect(screen.queryByText("Coach carrière, 15 ans de RH.")).toBeNull();
+    const portrait=await screen.findByLabelText("Portrait de Claire Martin");
+    expect(portrait.props.source.uri).toBe("data:image/webp;base64,AQID");
+    expect(portrait.props.source).not.toHaveProperty("headers");
+  });
+  it("names the Association offering a Coach separately from the Seller",async()=>{
+    v2 = true;
+    await launch("/coachs",route=>{route.coaching.coaches[0]!.association={id:"association-1",name:"Transitions"};});
+    expect(await screen.findByText("Proposé par Transitions")).toBeOnTheScreen();
+  });
+  it("uses the Candidate’s Montréal clock beside Paris in the future join hint",async()=>{
+    v2 = true;
+    await launch("/coachs",route=>{route.coaching.timeZone="America/Montreal";route.coaching.sessions[0]={...route.coaching.sessions[0]!,scheduledAt:"2030-11-12T14:30:00Z",meeting:{kind:"video",target:"https://meet.google.com/test",confirmed:false}};});
+    const hint=await screen.findByText(/Le lien apparaît/);
+    expect(hint.props.children).toContain("09:20");expect(hint.props.children).toContain("America/Montreal");expect(hint.props.children).toContain("15:20");expect(hint.props.children).toContain("Europe/Paris");
+  });
+  it("shows none of it while « Espace coach v2 » is off, as before the Human Coach epic (ADR-0107)", async () => {
+    const path = "/coachs/seances/11111111-1111-1111-1111-111111111111/reserver";
+    await launch("/coachs", (route) => {
+      route.coaching.cancellationPath = "/coachs/annulations";
+      route.coaching.timeZone = "America/Montreal";
+      route.coaching.sessions[0] = { ...route.coaching.sessions[0]!, changedBy: "cal_com", meeting: { kind: "video", target: "https://meet.google.com/test", confirmed: true } };
+      route.coaching.sessions[1]!.bookingPath = path;
+      route.coaching.coaches[0]!.association = { id: "association-1", name: "Transitions" };
+      route.coaching.coaches[0]!.profile = { versionId: "v", presentation: "Un profil approuvé.", specialties: [], languages: [], photoUrl: null };
+    });
+    expect(await screen.findByText("Coach carrière, 15 ans de RH.")).toBeOnTheScreen();
+    expect(screen.queryByText("Un profil approuvé.")).toBeNull();
+    expect(screen.queryByText("Proposé par Transitions")).toBeNull();
+    expect(screen.queryByText(/Vendu par/)).toBeNull();
+    expect(screen.queryByText("via Cal.com")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Annulations et remboursements" })).toBeNull();
+    expect(screen.queryByText(/America\/Montreal|Europe\/Paris/)).toBeNull();
+    // Main's « Rejoindre la visio » from the session's video link, and Paul's Cal.com page in the system's browser.
+    expect(screen.getByRole("button", { name: /visio avec Claire Martin/ })).toBeOnTheScreen();
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    await userEvent.setup().press(button("Choisir mon créneau avec Paul Durand sur Cal.com"));
+    expect(openURL).toHaveBeenCalledWith("https://cal.com/paul-durand");
+  });
+
   it("lists the Coaching Sessions with their status, then the Human Coaches to book, as the menu's card on the web", async () => {
     await openCoaches();
 
@@ -154,11 +218,22 @@ async function pay() {
 }
 
 describe("« Réserver »: the Order, then Stripe Checkout in the in-app browser (ADR-0074, App Store 3.1.3(d))", () => {
+  it("shows the Order as before the Human Coach epic while « Espace coach v2 » is off: no Seller (ADR-0107)", async () => {
+    await openOrder();
+
+    expect(screen.getByText("72,00 € TTC")).toBeOnTheScreen();
+    expect(screen.queryByText("Vendu par")).toBeNull();
+    expect(screen.getByText("Paiement unique, sans reconduction")).toBeOnTheScreen();
+  });
+
   it("shows the Order as the web's Order page: the Human Coach, the price all taxes included, the two boxes, neither ticked", async () => {
+    v2 = true;
     await openOrder();
 
     expect(screen).toHavePathname("/coachs/commande");
     expect(screen.getByText("72,00 € TTC")).toBeOnTheScreen();
+    expect(screen.getByText("Vendu par")).toBeOnTheScreen();
+    expect(screen.getByText("Jobbbox")).toBeOnTheScreen();
     expect(screen.getByText("Paiement unique, sans reconduction")).toBeOnTheScreen();
     expect(screen.getByRole("checkbox", { name: CGV_BOX })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: IMMEDIATE_BOX })).not.toBeChecked();
@@ -288,6 +363,7 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
   const NOTE = "Note (facultatif)";
 
   it("enters the date booked on Cal.com, in French time, with its duration, video link and note", async () => {
+    v2 = true;
     await openCoaches();
     const user = userEvent.setup();
 
@@ -300,13 +376,43 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
     await user.press(button("Enregistrer"));
 
     expect(web.edits).toEqual([{ id: "s2", body: { scheduledAt: "2026-11-12T14:30", durationMinutes: 45, videoLink: "https://meet.google.com/abc", note: "Relire mon CV avant" } }]);
-    const dated = await screen.findByLabelText("Séance avec Paul Durand, le jeudi 12 novembre 2026 à 14:30");
+    const dated = await screen.findByLabelText("Séance avec Paul Durand, le jeudi 12 novembre 2026 à 14:30 (Europe/Paris)");
     expect(within(dated).getByText("Durée : 45 minutes")).toBeOnTheScreen();
     expect(within(dated).getByText("Relire mon CV avant")).toBeOnTheScreen();
     expect(screen.queryByLabelText(DATE)).toBeNull();
   });
 
+  it("« Espace coach v2 » off: enters the date with all four fields, its time without a zone, as before the epic (ADR-0107)", async () => {
+    await openCoaches();
+    const user = userEvent.setup();
+
+    await user.press(button("J'ai réservé : saisir la date de la séance avec Paul Durand"));
+    await user.type(field(DATE), "12/11/2026");
+    await user.type(field(TIME), "14:30");
+    await user.type(field(DURATION), "45");
+    await user.type(field(VIDEO), "https://meet.google.com/abc");
+    await user.type(field(NOTE), "Relire mon CV avant");
+    await user.press(button("Enregistrer"));
+
+    expect(web.edits).toEqual([{ id: "s2", body: { scheduledAt: "2026-11-12T14:30", durationMinutes: 45, videoLink: "https://meet.google.com/abc", note: "Relire mon CV avant" } }]);
+    expect(await screen.findByLabelText("Séance avec Paul Durand, le jeudi 12 novembre 2026 à 14:30")).toBeOnTheScreen();
+  });
+
+  it("« Espace coach v2 » off: corrects a dated Coaching Session, all four fields replaced, as before the epic (ADR-0107)", async () => {
+    await openCoaches();
+    const user = userEvent.setup();
+
+    await user.press(button("Modifier la date de la séance avec Claire Martin"));
+    await user.clear(field(TIME));
+    await user.type(field(TIME), "15:00");
+    await user.press(button("Enregistrer"));
+
+    expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00", durationMinutes: 60, videoLink: "https://meet.google.com/exemple", note: "Préparer l'entretien Aéroline" } }]);
+    expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00")).toBeOnTheScreen();
+  });
+
   it("corrects a dated Coaching Session, its fields filled in as last read, the hour in French time", async () => {
+    v2 = true;
     await openCoaches();
     const user = userEvent.setup();
 
@@ -320,8 +426,8 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
     await user.type(field(TIME), "15:00");
     await user.press(button("Enregistrer"));
 
-    expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00", durationMinutes: 60, videoLink: "https://meet.google.com/exemple", note: "Préparer l'entretien Aéroline" } }]);
-    expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00")).toBeOnTheScreen();
+    expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00" } }]);
+    expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00 (Europe/Paris)")).toBeOnTheScreen();
   });
 
   it("says under each field what the web app refused, and changes nothing", async () => {

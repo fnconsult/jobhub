@@ -1,3 +1,5 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import { createI18n } from "@jobhub/shared/i18n";
 import { NextResponse } from "next/server";
 import { agendaItemRefFrom, calendarFile } from "@/agenda/calendar-file";
@@ -22,7 +24,10 @@ export async function GET(request: Request, { params }: RouteContext<"/api/agend
   const locale = localeOf(candidate);
   const now = new Date();
   const agendaUrl = new URL(routes.agenda(), process.env.APP_URL ?? request.url).href;
-  const file = item ? calendarFile(item, { now, agendaUrl, locale }) : null;
+  // « Espace coach v2 » (ADR-0107): off, the file is in French time, as before the Human Coach epic.
+  const coachSpaceV2 = coachSpaceV2On();
+  const timeZone = coachSpaceV2 ? ((await getCoachingTimeZones().candidate(candidate.id)) ?? undefined) : undefined;
+  const file = item ? calendarFile(item, { now, agendaUrl, locale, coachSpaceV2, timeZone }) : null;
   if (!item || !file) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const t = createI18n(locale).t;

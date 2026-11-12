@@ -1,0 +1,27 @@
+/* A Job Offer card in the thread (#267), under the reply that read it: a Design System Card, laid out as the Coach
+   proposals' Action Cards (CoachProposalCard.css, #788): its background, border, radius and shadow, no edge of its own,
+   only as wide as it needs; its title in the card's head, the employer quiet, its Pill, its small Button. Beside its
+   component (ADR-0053). */
+.coach-job-offer-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  width: fit-content;
+  max-width: min(100%, 34rem);
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+}
+
+.coach-job-offer-card > * {
+  margin: 0;
+}
+
+.coach-job-offer-card .coach-job-offer-card__title {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.coach-job-offer-card__employer {
+  color: var(--color-secondary);
+}

@@ -1,4 +1,4 @@
-import { JOB_DISCOVERY_SOURCES, TOOLS, type JobDiscoverySource, type Tool } from "@jobhub/shared";
+import { JOB_DISCOVERY_SOURCES, TOOLS, type JobDiscoverySource, type Tool, toolKeys } from "@jobhub/shared";
 import { AddressDrawer } from "@/design/AddressDrawer";
 import { buttonClass } from "@/design/button-class";
 import { Checkbox, Select, TextInput } from "@/design/Field";
@@ -41,7 +41,7 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
   const { t } = ctx;
   /** `ctx` on the tab that shows what a form adds: its action comes back there. */
   const on = (slug: string): Ctx => ({ ...ctx, tab: parametresTab(slug), sheet: undefined });
-  const withKeys = (TOOLS as readonly Tool[]).filter((tool) => tabOfTool(tool) && tool.keys.some((key) => (PROVIDER_SECRET_NAMES as readonly string[]).includes(key)));
+  const withKeys = (TOOLS as readonly Tool[]).filter((tool) => tabOfTool(tool) && toolKeys(tool).some((key) => (PROVIDER_SECRET_NAMES as readonly string[]).includes(key)));
   const models = [...new Set([...ctx.tab.settings, ...MODEL_SETTINGS, ...(parametresTab("ia").settings as string[])])].filter(isModel);
   const disabledSources = JOB_DISCOVERY_SOURCES.filter((source) => !sources[source]);
   const missingSocial = SOCIAL_TYPES.filter((social) => !signInTypes.includes(social));

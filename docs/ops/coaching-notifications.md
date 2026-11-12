@@ -1,0 +1,11 @@
+# Coaching delivery (#885)
+
+New reminders require `CAL_COM_REMINDERS_DISABLED=true`, and current human-approved CGV, Coach contract and privacy versions covering `coach-space`. These checks run in the web settings routes and Worker. A runtime setting supplies neither legal approval nor confirmation that Cal workflows have actually been disabled; the operator must check the team configuration first. Existing contractual cancellation/refund messages remain independent.
+
+The minute Worker discovers canonical paid/date/cancellation facts and delivers due H-1 reminders to both participants. Coach day-before notices run from 18:00 until local midnight for sessions known by 18:00. The daily summary runs from 07:30 until noon local time, once per Coach/local day, and includes only upcoming services. H-1 uses absolute instants; local windows use each Coach’s stored IANA zone. Restarts may catch up within these windows. Activity facts older than 24 hours are not delivered late.
+
+Each notice has an opaque deterministic key and a per-notice database advisory lock. Email and push completion are recorded separately; failure of one channel does not block or repeat the other. Failed channels retry after five minutes. A crash between external email acceptance and the local completion write can still repeat that email: SMTP supplies no transactional idempotency guarantee. Push uses the existing keyed queue. Delivery eligibility is checked again when that queue reaches the device transport, so cancellation, date changes, opt-outs and lost Coach access invalidate stale reminders.
+
+Settings and delivery facts belong to the account and cascade on erasure. The daily purge removes notice/channel and source-event facts after 90 days, including unprocessed expired facts; preferences last with the account. No message body, meeting credentials, private notes or participant name is persisted in the delivery ledger or notification payload. These retention proposals remain subject to human #890 review.
+
+The browser fixture explicitly preloads `e2e/support/fake-coaching-notification-legal.mjs` outside the standalone bundle. `JOBHUB_TARGET=e2e` alone supplies no legal coverage. Tests use local transports and do not send real reminders or approve text.

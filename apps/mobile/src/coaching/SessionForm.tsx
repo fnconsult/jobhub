@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { View, type TextInputProps } from "react-native";
 import { useApi, type ApiFetch } from "../api/api";
 import { inFrenchTime, wallClockOf } from "../agenda/french-time";
+import { useCoachSpaceV2 } from "../navigation/human-coach";
 import { useOnline } from "../offline/read-cache";
 import { space } from "../theme/theme";
 import { AppText } from "../ui/AppText";
@@ -36,13 +37,32 @@ interface Typed {
   note: string;
 }
 
-/**
- * Saves the Coaching Session's date (`PATCH /api/coaching/sessions/:id`, ADR-0027): all four fields replaced, as the
- * web's form sends them. The web app's refusals by field, or `failed` when it could not be reached or failed.
- */
-async function saveSession(api: ApiFetch, id: string, typed: Typed): Promise<{ ok: true } | { ok: false; errors: FieldError[] } | { ok: false; failed: true }> {
+/** The body with « Espace coach v2 » on: the date, and only the optional fields the Candidate changed. */
+function sinceInitial(typed: Typed, initial: Typed, withVideoLink: boolean) {
   const duration = typed.duration.trim();
-  const body = { scheduledAt: wallClockOf(typed.date, typed.time), durationMinutes: duration === "" ? null : Number(duration), videoLink: typed.videoLink.trim(), note: typed.note };
+  return {
+    scheduledAt: wallClockOf(typed.date, typed.time),
+    ...(typed.duration !== initial.duration ? { durationMinutes: duration === "" ? null : Number(duration) } : {}),
+    ...(withVideoLink && typed.videoLink !== initial.videoLink ? { videoLink: typed.videoLink.trim() } : {}),
+    ...(typed.note !== initial.note ? { note: typed.note } : {}),
+  };
+}
+
+/**
+ * Saves the Coaching Session's date (`PATCH /api/coaching/sessions/:id`, ADR-0027): only edited optional fields sent, as the
+ * web's form sends them; « Espace coach v2 » off (`edited` null, ADR-0107), all four fields replaced, as before the epic.
+ * The web app's refusals by field, or `failed` when it could not be reached or failed.
+ */
+async function saveSession(
+  api: ApiFetch,
+  id: string,
+  typed: Typed,
+  edited: { initial: Typed; withVideoLink: boolean } | null,
+): Promise<{ ok: true } | { ok: false; errors: FieldError[] } | { ok: false; failed: true }> {
+  const duration = typed.duration.trim();
+  const body = edited
+    ? sinceInitial(typed, edited.initial, edited.withVideoLink)
+    : { scheduledAt: wallClockOf(typed.date, typed.time), durationMinutes: duration === "" ? null : Number(duration), videoLink: typed.videoLink.trim(), note: typed.note };
   try {
     const response = await api(`/api/coaching/sessions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) });
     if (response.ok) return { ok: true };
@@ -63,8 +83,16 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
   const { t } = useTranslation();
   const api = useApi();
   const online = useOnline();
+  // « Espace coach v2 » off (ADR-0107): the video link always asked, and all four fields sent, as before the epic.
+  const coachSpaceV2 = useCoachSpaceV2();
   const at = session.scheduledAt ? inFrenchTime(session.scheduledAt) : { date: "", time: "" };
-  const [typed, setTyped] = useState<Typed>({ ...at, duration: session.durationMinutes === null ? "" : String(session.durationMinutes), videoLink: session.videoLink ?? "", note: session.note ?? "" });
+  const [initial] = useState<Typed>({
+    ...at,
+    duration: session.durationMinutes === null ? "" : String(session.durationMinutes),
+    videoLink: session.videoLink ?? "",
+    note: session.note ?? "",
+  });
+  const [typed, setTyped] = useState<Typed>(initial);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [failed, setFailed] = useState(false);
   const [working, setWorking] = useState(false);
@@ -82,7 +110,7 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
   const save = async () => {
     setWorking(true);
     setFailed(false);
-    const saved = await saveSession(api, session.id, typed);
+    const saved = await saveSession(api, session.id, typed, coachSpaceV2 ? { initial, withVideoLink: session.meeting === undefined } : null);
     setWorking(false);
     if (saved.ok) return onSaved();
     if ("errors" in saved) setErrors(saved.errors);
@@ -101,12 +129,26 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
       </View>
       <FieldError message={refused.scheduledAt} />
       <Field label={t("coachingSession.duration")} value={typed.duration} onChangeText={change.duration} {...NUMBER_KEYS} error={refused.durationMinutes} />
-      <Field label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} value={typed.videoLink} onChangeText={change.videoLink} {...LINK_KEYS} error={refused.videoLink} />
+      {!coachSpaceV2 || session.meeting === undefined ? (
+        <Field
+          label={t("coachingSession.videoLink")}
+          hint={t("coachingSession.videoLinkHint")}
+          value={typed.videoLink}
+          onChangeText={change.videoLink}
+          {...LINK_KEYS}
+          error={refused.videoLink}
+        />
+      ) : null}
       <Field label={t("coachingSession.note")} value={typed.note} onChangeText={change.note} multiline maxLength={500} error={refused.note} />
       {failed ? <FieldError message={t("coachingSession.error")} /> : null}
       {online ? null : <AppText tone="secondary">{t("mobile.offline.writeDisabled")}</AppText>}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
-        <Control look="primary" label={working ? t("coachingSession.working") : t("coachingSession.save")} disabled={working || !online} onPress={() => void save()} />
+        <Control
+          look="primary"
+          label={working ? t("coachingSession.working") : t("coachingSession.save")}
+          disabled={working || !online}
+          onPress={() => void save()}
+        />
         <Control label={t("coachingSession.cancel")} onPress={onCancel} />
       </View>
     </View>

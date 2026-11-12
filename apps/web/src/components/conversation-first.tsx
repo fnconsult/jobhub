@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useId, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { badgeCount } from "@jobhub/shared";
 import { helpLocale, onThisPage } from "@/coach-help";
+import { useHelpSettings } from "@/coach-help/settings";
 import type { ConversationContext } from "@/coach/conversation";
 import type { ReplyGiven } from "@/ai-activity/entries";
 import { Icons } from "@/components/icons";
@@ -517,7 +518,7 @@ export function PageHelpButton() {
   const conversationFirst = useConversationFirst();
   const workPane = useWorkPane();
   const pathname = usePathname();
-  const article = onThisPage(pathname, helpLocale(i18n.language))?.article;
+  const article = onThisPage(pathname, helpLocale(i18n.language), "candidate", useHelpSettings())?.article;
   // A conversation's page is known by its address too, before it registers itself: the button never flashes there.
   const isConversation = conversationFirst?.page || pathname === routes.home || pathname.startsWith(routes.conversation(""));
   const open = conversationFirst && !isConversation && workPane && article ? () => workPane.open({ kind: "help", article }) : null;

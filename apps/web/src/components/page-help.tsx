@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { helpArticle, helpLocale } from "@/coach-help";
+import { useHelpSettings } from "@/coach-help/settings";
 import { useCloseDrawerThen } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
 import { createMentions, type Mentions } from "@/help-terms";
@@ -29,18 +30,19 @@ function useOpenHelp(): ((articleId: string) => void) | null {
   const closeDrawerThen = useCloseDrawerThen();
   const { i18n } = useTranslation();
   const locale = helpLocale(i18n.language);
+  const settings = useHelpSettings();
   return useMemo(
     () =>
       open
         ? (articleId: string) => {
-            const article = helpArticle(articleId, locale);
+            const article = helpArticle(articleId, locale, settings);
             if (!article) return;
             const show = () => open({ kind: "help", article });
             if (closeDrawerThen) closeDrawerThen(show);
             else show();
           }
         : null,
-    [open, locale, closeDrawerThen],
+    [open, locale, settings, closeDrawerThen],
   );
 }
 

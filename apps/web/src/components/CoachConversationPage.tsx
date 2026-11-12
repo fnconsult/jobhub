@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +9,7 @@ import type { SubjectRef } from "@/coach-conversations";
 import type { CoachProposalCard as ProposalCard } from "@/coach-proposals/card";
 import { formOpenedOnArrival, readCoachProposalsDisplay } from "@/coach-proposals-display/choice";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
+import { useHelpSettings } from "@/coach-help/settings";
 import { threadReplies } from "@/ai-activity/thread";
 import { useShowInActivity } from "@/components/AiActivity";
 import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
@@ -18,6 +18,7 @@ import type { ConversationSummary } from "@/components/CoachConversationList";
 import { focusFirstSuggestion, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
 import { CoachMemoryProposals } from "@/components/CoachMemory";
+import { CoachJobOfferCard } from "@/components/CoachJobOfferCard";
 import { CoachProposalCard } from "@/components/CoachProposalCard";
 import { CoachReplyText, replyWordCount } from "@/components/CoachReplyText";
 import { namesByPage, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "@/components/coach-tool-steps";
@@ -183,26 +184,6 @@ function StoppedReplyLine({ reply }: { reply: StoppedReply }) {
 }
 
 /**
- * A Job Offer card: the Job Offer an AI Coach reply read from a pasted link, linking to its page, where the
- * Candidate processes it. "À traiter" until they follow it; its state said in words, never by colour alone.
- */
-function JobOfferCard({ jobOffer }: { jobOffer: JobOfferCardData }) {
-  const { t } = useTranslation();
-  return (
-    <article className="job-offer-card" aria-label={t("coachPanel.jobOfferLink.card")}>
-      <span className="pill" data-tone={jobOffer.followed ? "success" : "accent"}>
-        {t(jobOffer.followed ? "coachPanel.jobOfferLink.followed" : "coachPanel.jobOfferLink.toProcess")}
-      </span>
-      <p className="job-offer-card-title">{jobOffer.title}</p>
-      {jobOffer.employer ? <p className="hint">{jobOffer.employer}</p> : null}
-      <Link className="button" href={routes.jobOffer(jobOffer.id)}>
-        {t("coachPanel.jobOfferLink.open")}
-      </Link>
-    </article>
-  );
-}
-
-/**
  * A Coach Conversation that is the page itself (#601, ADR-0070): the home page's new Free conversation, a saved Free
  * conversation, an object's (#603) or a Sidebar menu's (#604). The thread at its reading width, centred; the box at the
  * page's foot with the « Coach IA » badge, « Arrêter » while a reply is on its way, the help's articles while the
@@ -258,6 +239,8 @@ export function CoachConversationPage(page: PagePlacement) {
   // The help (#342): the Help Articles matching the draft, once the Candidate pauses; the one read last, whose title goes
   // with the next message; the question the AI Coach could not answer, for the help to answer instead.
   const locale = helpLocale(i18n.language);
+  // The Help Articles « Espace coach v2 » serves (#867): main's while it is off.
+  const helpSettings = useHelpSettings();
   const [query, setQuery] = useState("");
   const [readArticle, setReadArticle] = useState<{ id: string; title: string } | null>(null);
   const [unanswered, setUnanswered] = useState<string | null>(null);
@@ -265,7 +248,7 @@ export function CoachConversationPage(page: PagePlacement) {
     const timer = setTimeout(() => setQuery(draft), SUGGEST_DELAY_MS);
     return () => clearTimeout(timer);
   }, [draft]);
-  const found = useMemo(() => helpSuggestions(query, locale), [query, locale]);
+  const found = useMemo(() => helpSuggestions(query, locale, "candidate", helpSettings), [query, locale, helpSettings]);
   // A draft cleared (sent) or cut short hides them at once.
   const suggestions = draft.trim().length >= MIN_SUGGESTION_LENGTH ? found : [];
 
@@ -322,7 +305,7 @@ export function CoachConversationPage(page: PagePlacement) {
   // address: the box starts a question about it, and the address drops it.
   useEffect(() => {
     const asked = askedAbout(window.location.search);
-    const article = asked ? helpArticle(asked, locale) : null;
+    const article = asked ? helpArticle(asked, locale, helpSettings) : null;
     if (!asked) return;
     window.history.replaceState(null, "", window.location.pathname);
     if (article) pageActions.current?.askAbout({ id: article.id, title: article.title });
@@ -332,7 +315,7 @@ export function CoachConversationPage(page: PagePlacement) {
   const registerPage = conversationFirst?.setPage;
   const conversationOnPage = conversation?.id ?? null;
   const replying = status === "sending";
-  const hasReplied = messages.some((message) => message.from === "coach");
+  const hasReplied = messages.some((message) => message.from === "coach" && !message.humanCoach);
   useEffect(() => {
     if (!registerPage) return;
     registerPage({
@@ -689,21 +672,22 @@ export function CoachConversationPage(page: PagePlacement) {
                 <li
                   key={index}
                   // Where « Voir dans la conversation » brings it (#808): a saved reply, by when it was saved.
-                  data-message-id={message.from === "coach" && message.at ? message.at : undefined}
+                  data-message-id={message.from === "coach" && !message.humanCoach && message.at ? message.at : undefined}
                   className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}${message.from === "coach" && message.revealing !== undefined ? " chat-revealing" : ""}`}
                   aria-busy={(message.from === "coach" && message.revealing !== undefined) || undefined}
                   style={message.from === "coach" && message.revealing !== undefined ? ({ "--reply-words": message.revealing } as CSSProperties) : undefined}
                 >
-                  <span className="visually-hidden">{message.from === "coach" ? t("questionnaire.coach") : t("questionnaire.you")}</span>
+                  <span className="visually-hidden">{message.from === "coach" ? (message.humanCoach ? t("coachReports.author", { name: message.humanCoach.name }) : t("questionnaire.coach")) : t("questionnaire.you")}</span>
                   {/* A reply is unframed text, the thread's full width, no glyph once it is there (#788); the Candidate's words, a bubble. */}
+                  {message.from === "coach" && message.humanCoach ? <p className="coach-report-author">{message.humanCoach.photoUrl ? <img src={message.humanCoach.photoUrl} alt="" width={40} height={40} /> : null}{t("coachReports.author", { name: message.humanCoach.name })}</p> : null}
                   {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                   {message.from === "coach" ? <CoachReplyText text={message.text} reveal={message.revealing !== undefined} /> : <p>{message.text}</p>}
-                  {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
+                  {message.jobOffer ? <CoachJobOfferCard jobOffer={message.jobOffer} /> : null}
                   {/* What the AI Coach consulted in Jobbbox (#788), folded, before the Provenance line. */}
-                  {message.from === "coach" ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
-                  {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
+                  {message.from === "coach" && !message.humanCoach ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
+                  {message.from === "coach" && !message.humanCoach && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
                   {/* « Dans l'activité » (#808): its entry in the page's Activity. */}
-                  {message.from === "coach" && message.at && showInActivity ? <InActivity onShow={() => showInActivity({ messageId: message.at! })} /> : null}
+                  {message.from === "coach" && !message.humanCoach && message.at && showInActivity ? <InActivity onShow={() => showInActivity({ messageId: message.at! })} /> : null}
                   {/* Its Coach proposals (#715), each an Action Card, after its Provenance line, with « Dans l'activité » once decided. */}
                   {message.from === "coach" && message.cards?.length
                     ? message.cards.map((card, at) => (
@@ -713,7 +697,7 @@ export function CoachConversationPage(page: PagePlacement) {
                         </div>
                       ))
                     : null}
-                  {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
+                  {openSignalement && message.from === "coach" && !message.humanCoach && !message.blocked && !message.jobOffer ? (
                     <ReplyFeedback
                       couldNotAnswer={message.couldNotAnswer === true}
                       satisfied={message.satisfied}

@@ -9,4 +9,11 @@ describe("the « Utiliser Jobbbox » Help Articles' quoted labels (#555)", () =>
     expect(count).toBeGreaterThanOrEqual(29);
     expect(missing).toEqual([]);
   });
+
+  // « Espace coach v2 » on (#867): its articles, and each `.v2` in its base's place, quote the interface as well.
+  it.each(HELP_LOCALES)("each exists in the %s catalogue, « Espace coach v2 » on", (locale: HelpLocale) => {
+    const { count, missing } = unknownQuotes("utiliser", locale, { coachSpaceV2: true });
+    expect(count).toBeGreaterThanOrEqual(29);
+    expect(missing).toEqual([]);
+  });
 });

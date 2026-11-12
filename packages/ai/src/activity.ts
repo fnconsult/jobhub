@@ -72,6 +72,7 @@ export const TOOL_STEPS = {
   kaspr: "search",
   apollo: "search",
   stripe: "not_a_step",
+  "cal-com":"not_a_step",
   "brevo-api": "not_a_step",
   "brevo-smtp": "not_a_step",
   apns: "not_a_step",

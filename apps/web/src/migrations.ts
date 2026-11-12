@@ -1,3 +1,20 @@
+import {migrateCoachingTaxes} from "./coaching-tax";
+import {migrateCoachingNotifications} from "./coaching-notifications";
+import { migrateCoachingCancellations } from "./coaching-cancellations";
+import {migrateCoachingRefunds} from "./coaching-refunds";
+import {migrateCoachingBooking} from "./coaching-booking";
+import {migrateCoachingEarnings} from "./coaching-earnings";
+import { migrateCoachingConnect } from "./coaching-connect";
+import {migrateCoachPages} from "./coach-pages";
+import {migrateCoachAssociations} from "./coach-associations";
+import {migrateCoachContracts} from "./coach-contracts";
+import {migrateCoachEnrolments} from "./coach-enrolments";
+import { migrateCoachingOffers } from "./coaching-offers";
+import { migrateSharedReading } from "./shared-reading";
+import { migrateSessionReports } from "./coach-space/reports";
+import { migrateCoachContacts } from "./coach-space/contacts";
+import { migrateCoachWorkspace } from "./coach-space/workspace";
+import { migrateCoachingTimeZones } from "./coaching-time";
 /**
  * Every table of the web app, created or upgraded in dependency order. Safe to
  * run repeatedly. `npm run db:migrate` runs it; tests use it to check rules that
@@ -90,10 +107,17 @@ export async function migrateDatabase(
     ["Job discovery runs are up to date", () => migrateDiscoveryRuns(database)],
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
+    ["Coach Enrolments are up to date",()=>migrateCoachEnrolments(database)],
+    ["Coach Contracts are up to date",()=>migrateCoachContracts(database)],
+    ["Coaching time zones are up to date", () => migrateCoachingTimeZones(database)],
+    ["Coaching Session contacts are up to date", () => migrateCoachContacts(database)],
+    ["Shared Reading is up to date", () => migrateSharedReading(database)],
+    ["Private Coach Notes are up to date", () => migrateCoachWorkspace(database)],
     ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Push notifications' devices and switches are up to date", () => migratePushNotifications(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
+    ["Session Reports are up to date", () => migrateSessionReports(database)],
     ["Action Cards in Coach Conversations are up to date", () => migrateActionCardsInThread(database)],
     ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
@@ -101,6 +125,16 @@ export async function migrateDatabase(
     ["Quota Reductions are up to date", () => migrateQuotaReductions(database)],
     ["Acceptances of the CGU and CGV are up to date", () => migrateAcceptances(database)],
     ["Orders are up to date", () => migrateOrders(database)],
+    ["Coaching Offers and Sellers are up to date", () => migrateCoachingOffers(database)],
+    ["Coach Associations are up to date",()=>migrateCoachAssociations(database)],
+    ["Coach Pages are up to date",()=>migrateCoachPages(database)],
+    ["Coaching Connect is up to date",()=>migrateCoachingConnect(database)],
+    ["Coaching Earnings are up to date",()=>migrateCoachingEarnings(database)],
+    ["Coaching Bookings are up to date",()=>migrateCoachingBooking(database)],
+    ["Coaching Refunds are up to date",()=>migrateCoachingRefunds(database)],
+    ["Coaching Cancellations are up to date", () => migrateCoachingCancellations(database)],
+    ["Coaching Notifications are up to date",()=>migrateCoachingNotifications(database)],
+    ["Coaching fiscal identity is up to date",()=>migrateCoachingTaxes(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],
@@ -108,7 +142,8 @@ export async function migrateDatabase(
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
     ["Web search alerts are up to date", () => migrateWebSearchAlerts(database)],
-    ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
+    ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env)),
+    ],
     ["Guardrails are up to date", () => migrateGuardrails(database)],
     ["Eval Cases and Eval Runs are up to date", () => migrateEvals(database)],
     ["Reference data is up to date", () => migrateReferenceData(database)],
@@ -127,7 +162,8 @@ export async function migrateDatabase(
     ["The Offer box is up to date", async () => {
       await migrateOfferBox(database);
       await backfillOfferBox(database, new Date());
-    }],
+    },
+    ],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

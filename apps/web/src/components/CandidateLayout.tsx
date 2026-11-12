@@ -1,3 +1,5 @@
+import {currentAssociationIdentity} from "@/coach-associations/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { requireAcceptedTerms } from "@/acceptances/server";
@@ -18,7 +20,7 @@ import { getCoachConversations } from "@/coach-conversations/server";
 import type { SidebarMenus } from "@/components/conversation-first";
 import { getFollowUps } from "@/follow-ups/server";
 import { getRequestLocale } from "@/i18n/server";
-import { currentHumanCoach } from "@/human-coaches/server";
+import { currentHasHumanCoachIdentity } from "@/human-coaches/server";
 import { jobDigestsMenu } from "@/job-digests/menu";
 import { getJobDigests } from "@/job-digests/server";
 import { jobSearchesMenu } from "@/job-searches/menu";
@@ -159,13 +161,13 @@ export async function CandidateLayout({
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, { usage, plan }, identity, privacy, free, menus, welcomeClosed] = await Promise.all([
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, { usage, plan }, identity, privacy, free, menus, welcomeClosed, associationMember] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     Promise.all([getRequestLocale(), headers()]).then(([locale, requestHeaders]) => getPaymentFailedNotice(candidateId, locale, inAppWebView(requestHeaders.get("user-agent")))),
     getJobSearches().notifications(candidateId),
     getSignalements().notifications(candidateId),
-    currentHumanCoach(),
+    currentHasHumanCoachIdentity(),
     currentIsAdministrator(),
     sidebarBilling(candidateId),
     sidebarIdentity(candidateId),
@@ -173,6 +175,8 @@ export async function CandidateLayout({
     freeConversations(candidateId),
     sidebarMenus(candidateId),
     closedWelcome(candidateId),
+    // « Espace coach v2 » off (ADR-0107): no « Espace association » entry.
+    coachSpaceV2On() ? currentAssociationIdentity() : false,
   ]);
   return (
     <SidebarLayout
@@ -180,6 +184,7 @@ export async function CandidateLayout({
       currentProfileId={currentProfileId}
       canAddProfile={canAddProfile}
       isHumanCoach={Boolean(humanCoach)}
+      isAssociationMember={associationMember}
       isAdministrator={isAdministrator}
       usage={usage}
       candidate={{ ...identity, plan }}

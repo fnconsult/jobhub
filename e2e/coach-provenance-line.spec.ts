@@ -78,7 +78,7 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     await expectNoAxeViolations(page, ".page-conversation");
   });
 
-  test("a reply that went to the EU AI Consent route shows Mistral with the « consentement IA UE » chip", async ({ page }) => {
+  test("a reply that went to the EU AI Consent route shows Mistral followed by « · consentement IA UE », in the line's own text", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("provenance-consent"));
     expect((await page.request.put("/api/account/eu-ai-consent", { headers: { origin } })).ok()).toBe(true);
     await toConversation(page);
@@ -87,7 +87,8 @@ test.describe("the Provenance line under each AI Coach reply", () => {
 
     const line = lineOf(messagesOf(panelOf(page), fr.coachPanel.messagesLabel).last());
     await expect(line).toContainText("Mistral Large");
-    await expect(line.getByText(fr.provenanceLine.euAiConsent, { exact: true })).toBeVisible();
+    // In the line's metadata text after « · », never boxed: the Design System has no tag at the metadata size.
+    await expect(line.getByText(`· ${fr.provenanceLine.euAiConsent}`, { exact: true })).toBeVisible();
   });
 
   test("a reply saved before shows its partial line, one that saved nothing says « modèle non enregistré », and both pass axe", async ({ page }) => {

@@ -42,6 +42,23 @@ describe("calendarFileText", () => {
     expect(lines(winter)).toContain("TZID:Europe/Paris");
   });
 
+  it.each([
+    ["America/Montreal", "2026-11-01T05:30:00Z", "2026-11-01T06:30:00Z"],
+    ["America/Montreal", "2026-11-01T06:30:00Z", "2026-11-01T07:30:00Z"],
+    ["Europe/Paris", "2026-10-25T00:30:00Z", "2026-10-25T01:30:00Z"],
+    ["Europe/Paris", "2026-10-25T01:30:00Z", "2026-10-25T02:30:00Z"],
+  ])("round-trips both occurrences of a DST fold in %s (%s)", (timeZone, start, end) => {
+    const file = calendarFileText({ ...event, timeZone, start: new Date(start), end: new Date(end) }, { now: NOW });
+    const readUtc = (name: string) => {
+      const value = property(file, name)!.split(":").at(-1)!;
+      expect(value).toMatch(/^\d{8}T\d{6}Z$/);
+      return new Date(value.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z"));
+    };
+    expect(+readUtc("DTSTART")).toBe(+new Date(start));
+    expect(+readUtc("DTEND")).toBe(+new Date(end));
+    expect(+readUtc("DTEND") - +readUtc("DTSTART")).toBe(+new Date(end) - +new Date(start));
+    expect(lines(file)).toContain(`X-JOBBBOX-TIMEZONE:${timeZone}`);
+  });
   it("escapes text, leaves the URL as it is, and leaves out an absent location or URL", () => {
     const file = calendarFileText(event, { now: NOW });
     expect(property(file, "SUMMARY")).toBe("SUMMARY:Entretien — DAF\\, Acme");

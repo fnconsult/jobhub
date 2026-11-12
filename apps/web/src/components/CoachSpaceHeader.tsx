@@ -1,38 +1,17 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { PublicFooter } from "@/design/PublicSite";
-import { getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
+import { coachingNoticesOn } from "@/coaching-notifications/activation-server";
+import { CoachSpaceLayout } from "@/coach-space/CoachSpaceLayout";
+import { LegacyCoachSpaceHeader, LegacyCoachSpaceShell } from "@/coach-space/legacy/LegacyCoachSpaceShell";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 
-/** The Help Centre's topic of a Human Coach's articles (#554), where the coach space's « Centre d'aide » leads. */
-const COACH_SPACE_HELP = routes.helpTopic("espace-coach");
+/** Header of a Human Coach's pages in the old Coach space (« Espace coach v2 » off). */
+export const CoachSpaceHeader = LegacyCoachSpaceHeader;
 
-/** Header of a Human Coach's pages. */
-export async function CoachSpaceHeader() {
-  const t = await getServerT();
-  return (
-    <header className="page-header">
-      <Link className="brand" href={routes.coachSpace}>
-        {`${t("app.name")} · ${t("coachSpace.title")}`}
-      </Link>
-      <div className="page-nav">
-        <Link className="button" href={routes.account}>
-          {t("nav.account")}
-        </Link>
-      </div>
-    </header>
-  );
-}
-
-/** A Human Coach's page: its header, the page, then the public site's footer (#544), its « Centre d'aide » the « Espace coach » topic (#554). */
+/**
+ * A Human Coach's page. « Espace coach v2 » on (ADR-0107): the workspace's sidebar layout; off: the old Coach space's
+ * header, the page, then the public site's footer, as before the Human Coach epic.
+ */
 export function CoachSpaceShell({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <main className="page">
-        <CoachSpaceHeader />
-        {children}
-      </main>
-      <PublicFooter helpCentre={COACH_SPACE_HELP} />
-    </>
-  );
+  if (!coachSpaceV2On()) return <LegacyCoachSpaceShell>{children}</LegacyCoachSpaceShell>;
+  return <CoachSpaceLayout remindersEnabled={coachingNoticesOn()}>{children}</CoachSpaceLayout>;
 }

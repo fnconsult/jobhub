@@ -26,6 +26,10 @@
  *      as it searches, stops between two steps and the AI call on its way, and records it 'stopped'
  *      with the Job Offers found until then (a failed one keeps them too). A stop that kept no Job
  *      Offer gives its Plan Quota use back.
+ *    - `startOffered` the Job Search the onboarding offers a Profile it created (ADR-0106, #1000): outside the Plan
+ *      Quota, so it uses none, gives none back and « Votre consommation » does not count it; once while its onboarding is
+ *      in progress, and once more, a restart, when its target role or locations changed (the first is stopped by a Stop
+ *      request). Each is marked on its row (`offered`: 'first' | 'restart'), one of each per Profile, held by a unique index.
  *  - `migrateJobSearches(database)` creates / upgrades the table.
  * Every read is scoped to the Candidate; `start`'s input is untrusted (it comes
  * from the browser) and problems come back as results, never exceptions. A
@@ -106,6 +110,8 @@ export interface JobSearch {
   results: JobSearchResult[];
   /** Null while it is searching (and for Job Searches finished before metrics were kept). */
   metrics: JobSearchMetrics | null;
+  /** Offered by the onboarding (ADR-0106, #1000), outside the Plan Quota: its first, or its one restart. Absent otherwise. */
+  offered?: OfferedJobSearch;
   /**
    * What served it (ADR-0034): null while it is searching, when it failed before Job discovery ran, and for
    * one finished before Provenance was kept (« modèle non enregistré »).
@@ -122,6 +128,21 @@ export type StartJobSearchResult =
   | { ok: false; error: "archived" }
   /** The Plan Quota of Job Searches is used up this week. */
   | { ok: false; error: "quota_exceeded"; refusal: Extract<QuotaDecision, { allowed: false }> };
+
+/** A Job Search the onboarding offers (ADR-0106, #1000): the Profile's first, or its one restart. */
+export type OfferedJobSearch = "first" | "restart";
+export const OFFERED_JOB_SEARCHES: readonly OfferedJobSearch[] = ["first", "restart"];
+
+export type StartOfferedJobSearchResult =
+  | { ok: true; jobSearch: JobSearch; offered: OfferedJobSearch }
+  /** No such Profile for this Candidate. */
+  | { ok: false; error: "not_found" }
+  /** Archived Profiles are set aside. */
+  | { ok: false; error: "archived" }
+  /** The Profile's onboarding is not in progress: created otherwise (the extension, a duplicate), or finished. */
+  | { ok: false; error: "not_onboarding" }
+  /** Its first offered Job Search and its one restart are both spent. */
+  | { ok: false; error: "used_up" };
 
 /**
  * What Job discovery reported for a Job Search, with what it measured and the run's Provenance (none: it did not run):
@@ -179,6 +200,12 @@ export interface JobSearchSummary {
 export interface JobSearches {
   /** Starts a Job Search. `input`: { profileId }. */
   start(candidateId: string, input: unknown): Promise<StartJobSearchResult>;
+  /**
+   * Starts the Job Search the onboarding offers a Profile it created (ADR-0106, #1000), outside the Plan Quota: only while
+   * the Profile's onboarding is in progress; its first, then once more at most (`restart`, for a change of its target role
+   * or locations), which stops the first if it is still searching (a Stop request). `used_up` beyond.
+   */
+  startOffered(candidateId: string, profileId: string): Promise<StartOfferedJobSearchResult>;
   /** The Job Search, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, jobSearchId: string): Promise<JobSearch | null>;
   /** The Profile's latest done Job Search, with its results (as `get` gives them), or null. */
@@ -270,6 +297,11 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS stop_requested_at timestamptz;
     ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_status_check;
     ALTER TABLE job_search ADD CONSTRAINT job_search_status_check CHECK (status IN ('searching', 'done', 'failed', 'stopped'));
+    -- Offered by the onboarding (ADR-0106, #1000), outside the Plan Quota: a Profile's first, then its one restart.
+    ALTER TABLE job_search ADD COLUMN IF NOT EXISTS offered text;
+    ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_offered_check;
+    ALTER TABLE job_search ADD CONSTRAINT job_search_offered_check CHECK (offered IN ('first', 'restart'));
+    CREATE UNIQUE INDEX IF NOT EXISTS job_search_offered_once_idx ON job_search (profile_id, offered) WHERE offered IS NOT NULL;
     CREATE INDEX IF NOT EXISTS job_search_candidate_profile_idx ON job_search (candidate_id, profile_id, started_at DESC);
     -- The month's runs, for the Back Office Dashboard (#408).
     CREATE INDEX IF NOT EXISTS job_search_started_at_idx ON job_search (started_at);
@@ -285,6 +317,7 @@ interface JobSearchRow {
   started_at: Date;
   metrics: JobSearchMetrics | null;
   provenance?: unknown;
+  offered?: string | null;
 }
 
 /** The metrics column for an outcome reported at $at: what was measured, and the time since the Job Search started. */
@@ -313,11 +346,11 @@ export function createJobSearchReports(
       const provenance = readProvenance(outcome.provenance);
       const at = now();
       // Only the one report that moves the Job Search out of 'searching' gets a row back.
-      const { rows } = await database.query<{ candidate_id: string; profile_id: string }>(
+      const { rows } = await database.query<{ candidate_id: string; profile_id: string; offered: string | null }>(
         `UPDATE job_search SET status = $2, job_offer_ids = $3, failure = $4, finished_at = $5, metrics = ${METRICS_AT("$6", "$5")}, notification_pending = true,
                 provenance = $7::jsonb, progress = NULL
          WHERE id = $1 AND status = 'searching'
-         RETURNING candidate_id, profile_id`,
+         RETURNING candidate_id, profile_id, offered`,
         [
           jobSearchId,
           status,
@@ -330,9 +363,9 @@ export function createJobSearchReports(
       );
       // The Job Offers it kept reach the Candidate's Offer box (ADR-0090), for its Profile.
       if (rows[0]) await recordArrivals(database, { candidateId: rows[0].candidate_id, profileId: rows[0].profile_id, source: "job_search", at, jobOfferIds });
-      // A failed Job Search is not counted; a stopped one only when it kept a Job Offer.
+      // A failed Job Search is not counted; a stopped one only when it kept a Job Offer. An offered one used none (#1000).
       const counted = status === "done" || (status === "stopped" && jobOfferIds.length > 0);
-      if (!counted && rows[0]) await quotas.release(rows[0].candidate_id, "jobSearches");
+      if (!counted && rows[0] && !rows[0].offered) await quotas.release(rows[0].candidate_id, "jobSearches");
       // New results, the Candidate away: their devices hear of them (a stopped one, the Candidate was there).
       if (push && rows[0] && status === "done" && jobOfferIds.length > 0) {
         await push
@@ -363,13 +396,14 @@ async function expireTimedOut(
   { quotas, now }: { quotas: Pick<JobSearchQuotas, "release">; now: () => Date },
   candidateId?: string,
 ): Promise<number> {
-  const { rows } = await database.query<{ candidate_id: string }>(
+  const { rows } = await database.query<{ candidate_id: string; offered: string | null }>(
     `UPDATE job_search SET status = 'failed', failure = 'timeout', finished_at = $1, metrics = ${METRICS_AT("$3", "$1")}, notification_pending = true, progress = NULL
      WHERE status = 'searching' AND started_at < $2 AND ($4::text IS NULL OR candidate_id = $4)
-     RETURNING candidate_id`,
+     RETURNING candidate_id, offered`,
     [now(), new Date(now().getTime() - SEARCH_TIMEOUT_MS), JSON.stringify(noDiscoveryMetrics()), candidateId ?? null],
   );
-  for (const { candidate_id } of rows) await quotas.release(candidate_id, "jobSearches");
+  // An offered Job Search (#1000) used no Plan Quota: nothing to give back.
+  for (const { candidate_id, offered } of rows) if (!offered) await quotas.release(candidate_id, "jobSearches");
   return rows.length;
 }
 
@@ -411,6 +445,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       );
     }
     const failure = status === "failed" ? failureOf(row.failure) : null;
+    const offered = offeredOf(row.offered);
     return {
       id: row.id,
       profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria },
@@ -420,16 +455,54 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       results,
       metrics: row.metrics,
       provenance: readProvenance(row.provenance),
+      ...(offered ? { offered } : {}),
     };
   }
 
   async function get(candidateId: string, jobSearchId: string): Promise<JobSearch | null> {
     if (!UUID.test(jobSearchId)) return null;
     const { rows } = await database.query<JobSearchRow>(
-      "SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics, provenance FROM job_search WHERE id = $1 AND candidate_id = $2",
+      "SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics, provenance, offered FROM job_search WHERE id = $1 AND candidate_id = $2",
       [jobSearchId, candidateId],
     );
     return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
+  }
+
+  /** Queues Job discovery for a Job Search just inserted and gives it back as it starts (failed when it could not be queued). */
+  async function queued(candidateId: string, profile: Pick<JobSearch["profile"], "id" | "name" | "searchCriteria">, row: JobSearchRow): Promise<JobSearch> {
+    try {
+      await deps.queue.send(JOB_DISCOVERY_QUEUE, { candidateId, profileId: profile.id, jobSearchId: row.id });
+    } catch (error) {
+      console.warn("[job-searches] could not queue Job discovery:", error instanceof Error ? error.message : error);
+      await record(row.id, { failed: "queue_unavailable" });
+      const failed = await get(candidateId, row.id);
+      if (failed) return failed;
+    }
+    const { id, status, started_at: startedAt, metrics } = row;
+    const offered = offeredOf(row.offered);
+    return {
+      id,
+      profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria },
+      status,
+      failure: null,
+      startedAt,
+      results: [],
+      metrics,
+      provenance: null,
+      ...(offered ? { offered } : {}),
+    };
+  }
+
+  async function stop(candidateId: string, jobSearchId: string): Promise<StopJobSearchResult> {
+    if (!UUID.test(jobSearchId)) return { ok: false, error: "not_found" };
+    const { rowCount } = await database.query(
+      "UPDATE job_search SET stop_requested_at = coalesce(stop_requested_at, $3) WHERE id = $1 AND candidate_id = $2 AND status = 'searching'",
+      [jobSearchId, candidateId, now()],
+    );
+    if (rowCount) return { ok: true };
+    const { rows } = await database.query<{ candidate_id: string }>("SELECT candidate_id FROM job_search WHERE id = $1", [jobSearchId]);
+    if (!rows[0]) return { ok: false, error: "not_found" };
+    return { ok: false, error: rows[0].candidate_id === candidateId ? "over" : "forbidden" };
   }
 
   return {
@@ -449,24 +522,45 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
          RETURNING id, profile_id, status, failure, job_offer_ids, started_at, metrics`,
         [candidateId, profile.id, now()],
       );
-      const row = rows[0]!;
+      return { ok: true, jobSearch: await queued(candidateId, profile, rows[0]!) };
+    },
+    async startOffered(candidateId, profileId) {
+      if (!UUID.test(profileId)) return { ok: false, error: "not_found" };
+      const profile = await deps.profiles.get(candidateId, profileId);
+      if (!profile) return { ok: false, error: "not_found" };
+      if (profile.archived) return { ok: false, error: "archived" };
+      // Only a Profile the onboarding created, while it is in progress: the offer is the onboarding's (ADR-0106).
+      if (profile.onboarding !== "in_progress") return { ok: false, error: "not_onboarding" };
+
+      const { rows: before } = await database.query<{ id: string; status: JobSearchStatus }>(
+        "SELECT id, status FROM job_search WHERE profile_id = $1 AND offered IS NOT NULL ORDER BY started_at",
+        [profile.id],
+      );
+      const offered = OFFERED_JOB_SEARCHES[before.length];
+      if (!offered) return { ok: false, error: "used_up" };
+      let row: JobSearchRow;
       try {
-        await deps.queue.send(JOB_DISCOVERY_QUEUE, { candidateId, profileId: profile.id, jobSearchId: row.id });
+        // No Plan Quota use: « Votre consommation », which counts the Plan Quota's uses, does not count it either (ADR-0091).
+        const { rows } = await database.query<JobSearchRow>(
+          `INSERT INTO job_search (candidate_id, profile_id, started_at, offered) VALUES ($1, $2, $3, $4)
+           RETURNING id, profile_id, status, failure, job_offer_ids, started_at, metrics, offered`,
+          [candidateId, profile.id, now(), offered],
+        );
+        row = rows[0]!;
       } catch (error) {
-        console.warn("[job-searches] could not queue Job discovery:", error instanceof Error ? error.message : error);
-        await record(row.id, { failed: "queue_unavailable" });
-        row.status = "failed";
-        const failed = await get(candidateId, row.id);
-        if (failed) return { ok: true, jobSearch: failed };
+        // Two calls at once: the unique index keeps one of each per Profile.
+        if ((error as { code?: string }).code === "23505") return { ok: false, error: "used_up" };
+        throw error;
       }
-      const { id, status, started_at: startedAt, metrics } = row;
-      return { ok: true, jobSearch: { id, profile: { id: profile.id, name: profile.name, searchCriteria: profile.searchCriteria }, status, failure: null, startedAt, results: [], metrics, provenance: null } };
+      // The restart replaces the first: still searching, it is stopped, keeping what it had found (#331).
+      for (const previous of before) if (previous.status === "searching") await stop(candidateId, previous.id);
+      return { ok: true, jobSearch: await queued(candidateId, profile, row), offered };
     },
     get,
     async latest(candidateId, profileId) {
       if (!UUID.test(profileId)) return null;
       const { rows } = await database.query<JobSearchRow>(
-        `SELECT id, profile_id, status, job_offer_ids, started_at, metrics, provenance FROM job_search
+        `SELECT id, profile_id, status, job_offer_ids, started_at, metrics, provenance, offered FROM job_search
          WHERE candidate_id = $1 AND profile_id = $2 AND status = 'done' ORDER BY started_at DESC LIMIT 1`,
         [candidateId, profileId],
       );
@@ -494,7 +588,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     async searching(candidateId, profileId) {
       if (!UUID.test(profileId)) return null;
       const { rows } = await database.query<JobSearchRow>(
-        `SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics, provenance FROM job_search
+        `SELECT id, profile_id, status, failure, job_offer_ids, started_at, metrics, provenance, offered FROM job_search
          WHERE candidate_id = $1 AND profile_id = $2 AND status = 'searching' ORDER BY started_at DESC LIMIT 1`,
         [candidateId, profileId],
       );
@@ -536,17 +630,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         .map((row) => ({ jobSearchId: row.id, profile: { id: row.profile_id, name: row.profile_name }, startedAt: row.started_at.toISOString(), steps: readRunProgress(row.progress) }));
       return { notifications, searching: running.length > 0, running };
     },
-    async stop(candidateId, jobSearchId) {
-      if (!UUID.test(jobSearchId)) return { ok: false, error: "not_found" };
-      const { rowCount } = await database.query(
-        "UPDATE job_search SET stop_requested_at = coalesce(stop_requested_at, $3) WHERE id = $1 AND candidate_id = $2 AND status = 'searching'",
-        [jobSearchId, candidateId, now()],
-      );
-      if (rowCount) return { ok: true };
-      const { rows } = await database.query<{ candidate_id: string }>("SELECT candidate_id FROM job_search WHERE id = $1", [jobSearchId]);
-      if (!rows[0]) return { ok: false, error: "not_found" };
-      return { ok: false, error: rows[0].candidate_id === candidateId ? "over" : "forbidden" };
-    },
+    stop,
     async dismissNotification(candidateId, jobSearchId) {
       if (!UUID.test(jobSearchId)) return;
       await database.query("UPDATE job_search SET notification_pending = false WHERE id = $1 AND candidate_id = $2", [jobSearchId, candidateId]);
@@ -562,6 +646,11 @@ function outcomeOf(row: { status: JobSearchStatus; failure: string | null; found
   if (row.status === "stopped") return { status: "stopped", at, found };
   const step = (readProvenance(row.provenance)?.steps ?? []).filter((ran) => ran.outcome === "failed").at(-1)?.activity ?? null;
   return { status: "failed", failure: failureOf(row.failure), at, step, found };
+}
+
+/** The mark of an offered Job Search (#1000), or null for an ordinary one. */
+function offeredOf(stored: string | null | undefined): OfferedJobSearch | null {
+  return OFFERED_JOB_SEARCHES.find((offered) => offered === stored) ?? null;
 }
 
 const FAILURES: readonly JobSearchFailure[] = ["timeout", "queue_unavailable", "profile_unavailable", "unavailable", "discovery_failed"];

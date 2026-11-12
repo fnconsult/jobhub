@@ -370,24 +370,6 @@ textarea.input {
   font-style: italic;
 }
 
-/* A Job Offer card: the Job Offer a reply read from a pasted link, and the way to its page. */
-.job-offer-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: flex-start;
-  margin-top: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-accent);
-  border-radius: var(--radius-md);
-}
-
-.job-offer-card .job-offer-card-title {
-  font-weight: 600;
-}
-
 /* The Coach Panel (#134, ADR-0024), the Back Office Assistant's alone since the Candidate's conversation became their
    page (ADR-0070, #608): docked beside the page from 64rem, the page then scrolling in its own column so its scrollbar
    never lands on the panel; the whole screen below. Agrandir widens it into a modal drawer over the page. Its button
@@ -792,17 +774,31 @@ textarea.input {
   line-height: var(--line-height-body);
 }
 
+/* Who wrote a session report in the thread, a Human Coach (#867): a metadata line above it, like the Provenance line
+   under an AI Coach's reply, their photo beside it. In rem, so it grows with the Text Size. */
+.coach-report-author {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-meta);
+  font-size: var(--font-size-meta);
+  line-height: var(--line-height-body);
+}
+
+.coach-report-author img {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  object-fit: cover;
+  border-radius: var(--radius-control);
+}
+
 .provenance-line-model {
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--space-1);
   align-items: baseline;
-}
-
-.provenance-chip {
-  padding: 0 var(--space-1);
-  border: 1px solid var(--color-text-meta);
-  border-radius: var(--radius-sm);
 }
 
 .provenance-sites {
@@ -1224,8 +1220,10 @@ button.coach-panel-badge:hover {
   }
 
   /* A menu's card holds its whole width on a phone (#608): a long button or pill (« Réserver avec … », « Reporté ·
-     initialement prévu le … ») wraps rather than pushing the page sideways. */
-  .page-conversation .chat-card :is(.ds-button, .ds-pill) {
+     initialement prévu le … ») wraps rather than pushing the page sideways. So do the coaching cancellations' choices
+     (« Voir et accepter la nouvelle commande », #883), with « Espace coach v2 » on. */
+  .page-conversation .chat-card :is(.ds-button, .ds-pill),
+  .coaching-cancellations :is(.ds-button, .ds-pill) {
     max-width: 100%;
     height: auto;
     white-space: normal;
@@ -1613,6 +1611,7 @@ button.coach-panel-badge:hover {
 
 /* A Section in the Work Pane: the pane's title names it, so its own heading would say it twice. It still names the
    Section (aria-labelledby reads a hidden heading). */
+.work-pane-addressed > .shared-reading-actions + section > .section-head > h2:first-child,
 .work-pane-addressed > section:first-child > h2:first-child,
 .work-pane-addressed > section:first-child > :is(.section-head, .application-section-head) > h2:first-child {
   display: none;
@@ -4099,6 +4098,34 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   }
 
   .topbar .menu-toggle {
+    display: inline-flex;
+  }
+}
+
+/* A shell that docks its sidebar from 48rem rather than 64rem (SidebarShell's `dockAt`, data-dock-at): the Human Coach's
+   and an Association's spaces (ADR-0099). Every other shell keeps the 64rem breakpoint above. */
+@media (48rem <= width < 64rem) {
+  :root .app-shell[data-dock-at="48rem"] {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+
+  [data-dock-at="48rem"] .sidebar-docked {
+    display: flex;
+  }
+
+  [data-dock-at="48rem"] .topbar .menu-toggle {
+    display: none;
+  }
+
+  html[data-sidebar="closed"] .app-shell[data-dock-at="48rem"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-sidebar="closed"] [data-dock-at="48rem"] .sidebar-docked {
+    display: none;
+  }
+
+  html[data-sidebar="closed"] [data-dock-at="48rem"] .topbar .menu-toggle {
     display: inline-flex;
   }
 }

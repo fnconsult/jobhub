@@ -126,6 +126,16 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     await testAuth.stop();
   }, 60_000);
 
+  it("exports Private Coach Notes including a retired author's given name, then deletes them with the account", async () => {
+    const { rows } = await database.query("INSERT INTO human_coach (name,email,booking_url) VALUES ('Sophie Martin','notes-export@example.test','https://cal.com/sophie') RETURNING id");
+    const coachId = rows[0].id;
+    await database.query("INSERT INTO private_coach_note (coach_id,candidate_id,text) VALUES ($1,$2,'Notes privées de Sophie')", [coachId,candidateId]);
+    await database.query("UPDATE human_coach SET retired_at=now() WHERE id=$1", [coachId]);
+    expect((await candidateData.export(candidateId)).privateCoachNotes).toEqual([{ coachName:"Sophie",sessionId:null,text:"Notes privées de Sophie",updatedAt:expect.any(Date) }]);
+    await candidateData.delete(candidateId);
+    expect((await database.query("SELECT * FROM private_coach_note WHERE candidate_id=$1",[candidateId])).rows).toEqual([]);
+  });
+
   it("the export holds the Candidate's account: email address and Interface Language", async () => {
     expect((await candidateData.export(candidateId)).account).toEqual({
       email: "marie.dupont@example.fr",
@@ -134,6 +144,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       familyName: null,
       preferredName: null,
       interfaceLanguage: "fr",
+      coachingTimeZone: null,
       createdAt: expect.any(Date),
       signInMethods: [],
       sessions: [expect.objectContaining({ createdAt: expect.any(Date) })],
@@ -667,6 +678,22 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(done).not.toHaveProperty("stopRequestedAt");
   });
 
+  it("the export says which Job Searches the onboarding offered (#1000)", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    await database.query(
+      `INSERT INTO job_search (candidate_id, profile_id, status, started_at, finished_at, offered) VALUES
+         ($1, $2, 'done', '2026-10-02T08:00:00Z', '2026-10-02T08:04:00Z', 'restart'),
+         ($1, $2, 'stopped', '2026-10-01T08:00:00Z', '2026-10-01T08:01:00Z', 'first'),
+         ($1, $2, 'done', '2026-09-01T08:00:00Z', '2026-09-01T08:04:00Z', NULL)`,
+      [candidateId, profileId],
+    );
+
+    const [restart, first, ordinary] = (await candidateData.export(candidateId)).profiles[0]!.jobSearches;
+
+    expect([restart?.offered, first?.offered]).toEqual(["restart", "first"]);
+    expect(ordinary).not.toHaveProperty("offered");
+  });
+
   it("the export holds a Job Search's Provenance, when it was kept, and never its live steps (#330)", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const provenance: Provenance = {
@@ -915,6 +942,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         durationMinutes: 60,
         videoLink: "https://meet.google.com/abc-defg-hij",
         note: "Préparer mon pitch.",
+        meeting: null,
         changedBy: "candidate",
         reschedules: [],
       },

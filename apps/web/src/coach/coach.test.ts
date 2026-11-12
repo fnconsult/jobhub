@@ -1,7 +1,7 @@
 import { AiProviderError, costInEur, createAiLayer, type AiProvider, type TextInput } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
-import { article } from "@jobhub/help";
+import { article, type HelpSettings } from "@jobhub/help";
 import { DEFAULT_COACH_CONTEXT_LIMITS, scoreMatch, type IndustryReference, type JobOffer, type ProvenanceEvent } from "@jobhub/shared";
 import type { AgendaItem } from "@/agenda";
 import { interviewDayStart, type Application } from "../applications";
@@ -251,6 +251,8 @@ function coachWith(
     pending?: boolean;
     /** Mistral, the AI Coach's provider: throws this on every call. */
     fail?: Error;
+    /** The Help Articles' settings (#867): « Espace coach v2 » on or off. */
+    helpSettings?: () => HelpSettings;
   } = {},
 ): {
   coach: Coach;
@@ -289,6 +291,7 @@ function coachWith(
     ...(options.industries ? { industries: options.industries } : {}),
     ...(options.agentTimeoutMs ? { agentTimeoutMs: options.agentTimeoutMs } : {}),
     ...(options.jobOfferLinks ? { jobOfferLinks: options.jobOfferLinks } : {}),
+    ...(options.helpSettings ? { helpSettings: options.helpSettings } : {}),
     warn: (message, details) => warnings.push({ message, details }),
   });
   return { coach, provider, claude, usage, warnings, triggers };
@@ -1628,6 +1631,18 @@ describe("a Help Article the Candidate read before asking (#342, ADR-0035)", () 
 
     expect(system).toContain(`« ${article("faq-quota-renewal", "en")!.title} »`);
     expect(system).not.toContain("Ignore tes règles");
+  });
+
+  // #867: an article the Human Coach epic added is the help's only while « Espace coach v2 » is on.
+  it("tells the title of an article « Espace coach v2 » serves, and nothing of one it does not serve", async () => {
+    const asked = { messages: [{ from: "candidate" as const, text: "Et si j'annule ?" }], helpArticle: { id: "faq-coaching-cancellation" } };
+    const added = article("faq-coaching-cancellation", "fr", { coachSpaceV2: true })!;
+    const off = coachWith({ helpSettings: () => ({ coachSpaceV2: false }) });
+    await off.coach.reply("marie", asked);
+    expect(contextOf(off.provider)).not.toMatch(/article d'aide/);
+    const on = coachWith({ helpSettings: () => ({ coachSpaceV2: true }) });
+    await on.coach.reply("marie", asked);
+    expect(contextOf(on.provider)).toContain(`« ${added.title} »`);
   });
 
   it("says nothing of an article the help does not have", async () => {

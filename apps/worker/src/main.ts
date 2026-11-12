@@ -1,3 +1,30 @@
+import {coachingTaxes} from "@jobhub/web/coaching-tax";
+import {taxLegalReady} from "@jobhub/web/coaching-tax/legal";
+import {fiscalCopyEmail} from "@jobhub/web/coaching-tax/email";
+import {coachingContentReports} from "@jobhub/web/coaching-content-reports";
+import {contentReportEmail} from "@jobhub/web/coaching-content-reports/email";
+import {coachingNotifications} from "@jobhub/web/coaching-notifications";
+import {coachingNoticeEmail,coachingNoticePush} from "@jobhub/web/coaching-notifications/messages";
+import {coachingNoticesEnabled} from "@jobhub/web/coaching-notifications/legal";
+import { coachingCancellations, recordProviderCancellation } from "@jobhub/web/coaching-cancellations";
+import { cancellationLegalReady } from "@jobhub/web/coaching-cancellations/legal";
+import { cancellationNotice } from "@jobhub/web/coaching-cancellations/notice";
+import {coachingRefunds} from "@jobhub/web/coaching-refunds";
+import {coachingRefundStripe} from "@jobhub/web/coaching-refunds/stripe";
+import {recordingFetch} from "@jobhub/shared";
+import {coachingBooking} from "@jobhub/web/coaching-booking";
+import {calTeam} from "@jobhub/web/coaching-booking/cal";
+import {calLegalReady} from "@jobhub/web/coaching-booking/legal";
+import {bookingChanged} from "@jobhub/web/coaching-booking/notice";
+import {coachingConnect} from "@jobhub/web/coaching-connect";
+import {stripeConnect} from "@jobhub/web/coaching-connect/stripe";
+import {connectLegalReady,connectLegalRegistry} from "@jobhub/web/coaching-connect/legal";
+import {payoutRecipient,payoutInformationEmail} from "@jobhub/web/coaching-connect/email";
+import { coachPages } from "@jobhub/web/coach-pages";
+import { coachPageDecisionEmail } from "@jobhub/web/coach-pages/email";
+import {coachAssociations,associationInvitationEmail} from "@jobhub/web/coach-associations";
+import {coachContracts,coachContractNoticeEmail} from "@jobhub/web/coach-contracts";
+import {coachEnrolments,coachEnrolmentDecisionEmail} from "@jobhub/web/coach-enrolments";
 import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications } from "@jobhub/web/applications";
@@ -24,7 +51,7 @@ import { maintenanceOf } from "@jobhub/web/maintenance";
 import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
 import { createProfiles } from "@jobhub/web/profiles";
 import { offersToHandle } from "@jobhub/web/offer-box";
-import { createPushNotifications } from "@jobhub/web/push-notifications";
+import { coachSpaceV2InEnv, createPushNotifications } from "@jobhub/web/push-notifications";
 import { pushSendersFromEnv } from "@jobhub/web/push-notifications/worker";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
@@ -38,6 +65,7 @@ import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createEmailReading } from "./email-intake";
+import { createEmailSourceReader } from "./email-intake/source-reading";
 import { createJobs, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
 import { workerPostgresUsageLog } from "./ai-usage-log";
@@ -155,14 +183,64 @@ const workerQueue = {
 // send (the .p8 and the service account, Back Office over env), each call recorded under its Tool. The worker's own
 // events (results, Job Digests, Appointment Reminders, Follow-ups due) queue theirs on its runner (#699). Each one
 // carries the app icon's badge, the person's offers à traiter at sending (#818).
+// « Espace coach v2 » (ADR-0107), read from the Platform Settings at each use: switching it needs no restart.
+const coachSpaceV2 = () => coachSpaceV2InEnv(settingsEnv());
 const pushNotifications = createPushNotifications(database, {
+  coachSpaceV2,
+  eligibleNotification:(id,notice)=>notices().pushStillCurrent(id,notice),
   senders: pushSendersFromEnv({ env: () => secrets.current().env, externalApis }),
   log: (line) => console.warn(line),
   queue: workerQueue,
   // Each notification sets the app icon's badge to the person's offers à traiter (#818, ADR-0090): no push of its own.
   badge: (personId) => offersToHandle(database, personId, new Date()),
 });
+const connect=()=>{
+ const env=secrets.current().env;
+ const stripe=env.STRIPE_SECRET_KEY&&env.STRIPE_CONNECT_WEBHOOK_SECRET?stripeConnect({secretKey:env.STRIPE_SECRET_KEY,webhookSecret:env.STRIPE_CONNECT_WEBHOOK_SECRET,apiUrl:env.STRIPE_API_URL,externalApis}):undefined;
+ return coachingConnect(database,{stripe,baseURL,permitted:async()=>connectLegalReady(),sendPayoutNotice:async (notice) =>{const recipient=await payoutRecipient(database,notice.sellerId);if(recipient)await mailer.send({to:recipient.email,...payoutInformationEmail(recipient,notice,baseURL)});},
+  });
+};
+const booking=()=>{const env=secrets.current().env;return coachingBooking(database,{secret:env.AUTH_SECRET??"",webhookSecret:env.CAL_COM_WEBHOOK_SECRET??"",...(env.CAL_COM_API_KEY?{cal:calTeam({apiKey:env.CAL_COM_API_KEY,fetch:recordingFetch(fetch,externalApis,{provider:"cal_com",operation:()=>"booking.cancel"})}),
+        }
+      : {}),
+    cancelled: async (within, id, key, at, reason) => {
+      if (cancellationLegalReady()) await recordProviderCancellation(within, id, key, at, reason);
+    },changed:(id,key)=>bookingChanged(database,pushNotifications,id,key,{coach:!coachingDeliveryOn()}),
+  });};
+const coachingDeliveryOn=()=>coachSpaceV2()&&coachingNoticesEnabled(settingsEnv().CAL_COM_REMINDERS_DISABLED==='true');
+const notices=()=>coachingNotifications(database,{permitted:async()=>coachingDeliveryOn(),eligibleCoach:(person,id)=>coachContracts(database,{registry:connectLegalRegistry}).mayEnter(person,id),email:async(person,notice)=>{await mailer.send({to:person.email,...coachingNoticeEmail(person,notice,baseURL)});},push:async(person,notice)=>{await pushNotifications.notify(person.id,coachingNoticePush(person,notice),{once:notice.key});}});
+const contractualRefunds=()=>{const env=secrets.current().env;return coachingRefunds(database,{...(env.STRIPE_SECRET_KEY?{stripe:coachingRefundStripe({secretKey:env.STRIPE_SECRET_KEY,apiUrl:env.STRIPE_API_URL,externalApis})}:{}),
+  });
+};
+const cancellations = () =>
+  coachingCancellations(database, {
+    refunds: contractualRefunds(),
+    permitted: async () => cancellationLegalReady(),
+    sendNotice: (record, kind) =>
+      cancellationNotice(database, record, kind, baseURL, (email, message) => mailer.send({ to: email, ...message }), pushNotifications),
+  });
 const jobs = createJobs({
+  coachSpaceV2,
+  coachingTaxes:coachingTaxes(database,{cipher:secretCipherFromEnv(secrets.current().env),permitted:async()=>taxLegalReady(),sendCopy:async notice=>{await mailer.send({to:notice.to,...fiscalCopyEmail(notice,baseURL)})}}),
+  coachingContentReports:coachingContentReports(database,{platformEmail:()=>{const from=settingsEnv().MAIL_FROM??'';return /<([^<>]+)>$/.exec(from)?.[1]??(from.includes('@')?from:undefined)},send:async notice=>{await mailer.send({to:notice.to,...contentReportEmail(notice,baseURL)})}}),
+  coachingNotifications:{sendDue:()=>notices().sendDue(),purge:()=>notices().purge()},
+  coachingCancellations: {
+    expireChoices: () => cancellations().expireChoices(),
+    retiredCoaches: () => cancellations().retiredCoaches(),
+    deliverNotices: () => cancellations().deliverNotices(),
+  },
+  coachingRefunds:{runPending:()=>contractualRefunds().runPending(),purge:()=>contractualRefunds().purge()},
+  coachingBooking:{replayPending:()=>booking().replayPending(),deliverCancellations:()=>booking().deliverCancellations(),deliverNotices:()=>booking().deliverNotices(),purge:()=>booking().purge(),observeLegal:()=>calLegalReady(database),
+  },
+  coachingConnect:{runMonthly:()=>connect().runMonthly(),purge:()=>connect().purge()},
+  coachPages:coachPages(database,{sendDecision:async (record) =>{await mailer.send({to:record.email,...coachPageDecisionEmail(record,baseURL)});},
+  }),
+  coachAssociations:coachAssociations(database,{secret:process.env.AUTH_SECRET??"",mayManage:async(person,id)=>(await coachContracts(database,{}).state(person,"association",id))?.accepted===true,sendInvitation:async(record,token)=>{await mailer.send({to:record.email,...associationInvitationEmail(record,token,baseURL)});},
+  }),
+  coachContracts:coachContracts(database,{production:sendsLegalTextNotices(process.env),sendNotice:async(recipient,version)=>{await mailer.send({to:recipient.email,...coachContractNoticeEmail(version,recipient.locale,baseURL)});},
+  }),
+  coachEnrolments:coachEnrolments(database,{sendDecision:async (record) =>{await mailer.send({to:record.email,...coachEnrolmentDecisionEmail(record,baseURL)});},
+  }),
   database,
   discovery: worker.discovery,
   profiles,
@@ -185,10 +263,11 @@ const jobs = createJobs({
   }),
   // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
   // Its Push notification too, under its own switch.
-  appointmentReminders: createAppointmentReminders(database, { mailer, baseURL, push: pushNotifications }),
+  appointmentReminders: createAppointmentReminders(database, { mailer, baseURL, push: pushNotifications, coachSpaceV2 }),
   pushNotifications,
   // Livraison's daily email (18:00 Paris) to DELIVERY_STATUS_EMAIL_TO, read with GITHUB_STATUS_TOKEN (Provider Secrets over env).
-  deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }) }),
+  deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }),
+  }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
   legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
   // The Nouveautés email of each announced Release Note up to the Version this build serves, from Production only (#566).
@@ -219,6 +298,7 @@ const jobs = createJobs({
   // guarded by the « Contenu piégé dans un email » Guardrail and the fixed output rules (#446).
   emailReading: createEmailReading({
     readings: createEmailReadings(database, { cipher: () => secretCipher }),
+    readSource: createEmailSourceReader({ externalApis }),
     jobOffers,
     profiles,
     ai: worker.ai,
@@ -236,6 +316,7 @@ await runner.enqueue("system.heartbeat");
 await runner.enqueue(PROVIDER_SECRETS_REENCRYPT);
 // The Production deployment carrying a substantial Legal Text Version starts the worker: its notices go out now (#547).
 await runner.enqueue(LEGAL_TEXT_NOTICES);
+await runner.enqueue("coach-contracts.notices");
 // The Production deployment carrying an announced Release Note starts the worker: its Nouveautés emails go out now (#566).
 await runner.enqueue(NOUVEAUTES_EMAILS);
 console.info(`[worker] running ${Object.keys(jobs).length} job(s)`);

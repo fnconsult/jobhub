@@ -93,3 +93,18 @@ export function offerLink(link: string): string | null {
   if (sender) return sender.offerUrl(url);
   return keeping(url, (name) => !TRACKING.test(name));
 }
+
+/** Recover an omitted link only beside the exact title, with one distinct destination. */
+export function emailOfferLink(offer: { title: string; link?: string }, text: string): string | null {
+  if (offer.link) return offerLink(offer.link);
+  const title = offer.title.trim().toLocaleLowerCase();
+  const links = new Set<string>();
+  for (const line of text.split(/\r?\n/)) {
+    // HTML intake writes an anchor as its words followed by <url>. Plain text may do the same.
+    const match = /^(.*?)\s*<\s*(https?:\/\/[^\s<>]+)\s*>\s*$/.exec(line.trim());
+    if (!match || match[1]!.trim().toLocaleLowerCase() !== title) continue;
+    const link = offerLink(match[2]!);
+    if (link) links.add(link);
+  }
+  return links.size === 1 ? [...links][0]! : null;
+}

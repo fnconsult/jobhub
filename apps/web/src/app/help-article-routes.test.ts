@@ -18,8 +18,13 @@ function pageRoutes(dir: string, path: string[] = []): string[] {
 }
 
 const routes = new Set(pageRoutes(app));
-/** The web app's page articles: the Side Panel's lives in the extension, not under `app`. */
-const pageArticles = articles("fr").filter((article) => article.route !== null && article.topic !== "extension");
+/**
+ * The web app's page articles: the Side Panel's lives in the extension, not under `app`. Those served while « Espace
+ * coach v2 » is off, then those it serves on only (#867): the epic's, and each `.v2`.
+ */
+const pageArticles = [...articles("fr"), ...articles("fr", { coachSpaceV2: true }).filter((article) => article.requires)].filter(
+  (article) => article.route !== null && article.topic !== "extension",
+);
 
 describe("each page Help Article's route (#555)", () => {
   it("finds the web app's pages and page articles", () => {
@@ -29,7 +34,7 @@ describe("each page Help Article's route (#555)", () => {
   });
 
   // A route may name a tab in its query (`/admin/parametres?tab=connexion`, #557): its page is the path before it.
-  it.each(pageArticles.map((article) => [article.id, article.route!]))("%s: %s is a page of apps/web/src/app", (_, route) => {
+  it.each(pageArticles.map((article) => [`${article.id}${article.requires ? ` (${article.requires})` : ""}`, article.route!]))("%s: %s is a page of apps/web/src/app", (_, route) => {
     expect(routes).toContain(route.split("?")[0]);
   });
 });

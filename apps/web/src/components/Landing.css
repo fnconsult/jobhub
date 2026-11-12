@@ -544,12 +544,26 @@
     gap: var(--space-3);
     align-content: center;
     min-height: 78vh;
-    opacity: 0.38;
-    transition: opacity 500ms ease;
+    padding-left: var(--space-6);
   }
 
-  .landing-story__step[data-reading] {
-    opacity: 1;
+  /* The step being read is marked by its rule, never by dimming the others: every step keeps its full contrast. */
+  .landing-story__step > * {
+    grid-column: 1;
+  }
+
+  .landing-story__step::before {
+    grid-row: 1 / span 3;
+    grid-column: 1;
+    width: 2px;
+    margin-left: calc(-1 * var(--space-6));
+    content: "";
+    background: var(--color-border);
+    transition: background-color 300ms;
+  }
+
+  .landing-story__step[data-reading]::before {
+    background: var(--color-accent);
   }
 
   .landing-story__label {
@@ -830,7 +844,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .landing-story__step,
+    .landing-story__step::before,
     .landing-story__view,
     .landing-story__view[data-reading],
     .landing-story__progress > i {
@@ -882,7 +896,11 @@
     .landing-story__step {
       min-height: 0;
       padding-block: var(--space-8);
-      opacity: 1;
+      padding-left: 0;
+    }
+
+    .landing-story__step::before {
+      display: none;
     }
 
     .landing-story__inline {

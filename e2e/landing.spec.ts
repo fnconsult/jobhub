@@ -107,7 +107,8 @@ test.describe("the landing page (ADR-0105)", () => {
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${label} fits the width`).toBe(true);
         await expectNoAxeViolations(page, label);
         if (theme === "dark") await expectTextContrast(page, label);
-        if (comparesScreenshots()) await expect(page).toHaveScreenshot(`${themedName(`landing-${width}`, theme)}.png`, { fullPage: true });
+        // Soft: one run then shows every width and theme that changed, not only the first.
+        if (comparesScreenshots()) await expect.soft(page).toHaveScreenshot(`${themedName(`landing-${width}`, theme)}.png`, { fullPage: true });
       }
     }
   });

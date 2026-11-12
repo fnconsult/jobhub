@@ -185,7 +185,7 @@ for (const [name, size] of [["computer", COMPUTER], ["phone", PHONE]] as const) 
     await page.getByRole("button", { name: "Répondre aux questions de mon coach" }).click();
     const box = page.getByRole("textbox", { name: fr.questionnaire.answerLabel });
     const oneLine = await heightOf(box);
-    const send = page.getByRole("button", { name: fr.questionnaire.send, exact: true });
+    const send = page.getByRole("button", { name: fr.coachPanel.send, exact: true });
     expect(oneLine).toBe(await heightOf(send));
     await checkOtherComposerGrowth(box, oneLine);
     await box.fill("Marie Dupont");

@@ -64,7 +64,7 @@ describe("« Effacer » on the home conversation while its first reply is on its
 
     await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Comment préparer mon pitch ?{Enter}");
     await screen.findByRole("button", { name: "Arrêter" });
-    await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(screen.getByRole("button", { name: "Effacer la conversation" }));
     const dialog = screen.queryByRole("alertdialog");
     if (dialog) await user.click(within(dialog).getByRole("button", { name: "Effacer" }));
     // Whatever the Stop that clearing causes saves, a moment later.
@@ -82,16 +82,16 @@ describe("« Effacer » on the home conversation while its first reply is on its
     await screen.findByRole("button", { name: "Arrêter" });
 
     // The server has the message already: clearing now would leave it saved by the Stop that follows.
-    const clear = screen.getByRole("button", { name: "Effacer" });
+    const clear = screen.getByRole("button", { name: "Effacer la conversation" });
     expect(clear.hasAttribute("disabled")).toBe(true);
     await user.click(clear);
     expect(screen.queryByRole("alertdialog")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Arrêter" }));
     await waitFor(() => expect(server.saved.has(CONVERSATION.id)).toBe(true));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Effacer" }).hasAttribute("disabled")).toBe(false));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Effacer la conversation" }).hasAttribute("disabled")).toBe(false));
 
-    await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(screen.getByRole("button", { name: "Effacer la conversation" }));
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
 
     expect(await screen.findByText("Conversation effacée.")).toBeTruthy();
@@ -199,7 +199,7 @@ describe("a Sidebar menu's conversation as its page: Mes candidatures (ADR-0070,
     renderInFrench(<ApplicationsPage conversationId={MENU_CONVERSATION.id} />);
     await screen.findByText("Par la relance.");
 
-    await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(screen.getByRole("button", { name: "Effacer la conversation" }));
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
 
     expect(await screen.findByText("Conversation effacée.")).toBeTruthy();

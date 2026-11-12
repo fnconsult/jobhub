@@ -1010,8 +1010,74 @@
     "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
     "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
     "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
-    "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",
-    "offeredSearchLink": "Voir la recherche"
+    "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi."
+  },
+  "onboardingSearch": {
+    "title": "Recherche de vos offres",
+    "status": {
+      "searching": "En cours",
+      "done": "Terminée",
+      "stopped": "Arrêtée",
+      "failed": "Échouée"
+    },
+    "stepOf": "Étape {{number}} sur {{total}}",
+    "stepsLabel": "Étapes de la recherche",
+    "steps": {
+      "profile": "Lecture de votre profil",
+      "search": "Recherche sur France Travail, les sites carrières et le web",
+      "analysis": "Analyse des offres trouvées",
+      "selection": "Sélection de vos meilleures offres"
+    },
+    "details": {
+      "search": "Sources consultées : {{consulted}} sur {{total}} · pages lues : {{pages}}",
+      "analysis": "Offres analysées : {{count}}",
+      "selection": "Offres qui vous correspondent : {{count}}, avec un score de correspondance d'au moins {{threshold}}"
+    },
+    "counters": {
+      "sources": "sources consultées",
+      "sourcesShort": "sources",
+      "pages": "pages lues",
+      "pagesShort": "pages",
+      "analysed": "offres analysées",
+      "analysedShort": "analysées",
+      "matching": "offres qui vous correspondent",
+      "matchingShort": "pour vous",
+      "outOf": "{{count}} sur {{total}}"
+    },
+    "recounted": "recalculé avec {{criteria}}",
+    "refined": "Affinée avec :",
+    "assumed": "supposé",
+    "assumedTitle": "Supposé, en attente de votre réponse",
+    "minSalary": "à partir de {{amount}}",
+    "sourcesLabel": "Sources de la recherche",
+    "sources": {
+      "france_travail": "France Travail",
+      "fantastic_jobs": "Sites carrières des employeurs",
+      "web_search": "Recherche web",
+      "ats_apis": "API d'ATS",
+      "target_companies": "Entreprises cibles"
+    },
+    "sourceStates": {
+      "waiting": "à venir",
+      "searching": "en cours…",
+      "searched": "consultée",
+      "refused": "refusée",
+      "failed": "indisponible"
+    },
+    "open": "Voir la recherche",
+    "stoppedTitle": "Recherche arrêtée",
+    "failedTitle": "La recherche n'a pas abouti",
+    "kept_zero": "Elle n'avait encore trouvé aucune offre. Vous pourrez lancer une recherche depuis Recherches d'offres.",
+    "kept_one": "Ce qu'elle a trouvé est gardé : une offre analysée.",
+    "kept_other": "Ce qu'elle a trouvé est gardé : {{count}} offres analysées.",
+    "announce": {
+      "started": "Recherche de vos offres lancée.",
+      "restarted": "Recherche de vos offres relancée.",
+      "refined": "Recherche affinée avec {{criteria}}.",
+      "done": "Recherche terminée. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}.",
+      "stopped": "Recherche arrêtée. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}.",
+      "failed": "La recherche n'a pas abouti. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}."
+    }
   },
   "questionnaire": {
     "transcript": "Votre échange avec le coach",
@@ -5621,6 +5687,13 @@
       "chartCard": "Dépense quotidienne",
       "chartText": "Le graphique de la dépense quotidienne se place ici.",
       "scores": "Scores",
+      "steps": "Étapes",
+      "stepsLabel": "Étapes d'une recherche",
+      "stepRead": "Lecture de votre profil",
+      "stepReadDetail": "Directrice financière · Lyon",
+      "stepSearch": "Recherche des offres",
+      "stepSearchDetail": "Sources consultées : 2 sur 3",
+      "stepSelect": "Sélection de vos meilleures offres",
       "messages": "Messages",
       "infoTitle": "Une valeur saisie ici l'emporte sur l'environnement.",
       "infoText": "Elle s'applique en quelques secondes, sans redémarrage.",
@@ -5666,6 +5739,11 @@
       "loading": "Ouverture du document…",
       "failed": "Ce document n'a pas pu s'afficher. Téléchargez-le pour l'ouvrir.",
       "title": "Visionneuse"
+    },
+    "stepper": {
+      "done": "terminé",
+      "current": "en cours",
+      "pending": "à venir"
     }
   },
   "emails": {

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +28,7 @@ import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
+import { OnboardingSearchCard, searchedWith } from "./OnboardingSearchCard";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 import "./QuickActions.css";
@@ -83,7 +83,7 @@ const HELP = "help" as const;
  * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
  * review. From a CV or from scratch, the Profile is still created at the review's save (#1003 changes it).
  * Born, it gets its first Job Search, offered outside the Plan Quota (#1000), started again once when an answer changes
- * its target role or locations; a coach line in the thread says so, with a link to the Job Search (its card is #1001).
+ * its target role or locations; a coach line in the thread says so, then its live card (OnboardingSearchCard, #1001).
  */
 export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const { t } = useTranslation();
@@ -317,15 +317,21 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                     <span className="visually-hidden">{t("questionnaire.you")}</span>
                     <p>{answerText(turn)}</p>
                   </li>,
-                  // The Job Search the onboarding offers (#1000), told after the answer that started it.
-                  offeredSearch?.after === index + 1 ? (
-                    <CoachLine key="offered-search">
-                      <p>
-                        {offeredSearch.restarted ? t("newProfile.offeredSearchRestarted") : t("newProfile.offeredSearchStarted")}{" "}
-                        <Link href={routes.jobSearch(offeredSearch.id)}>{t("newProfile.offeredSearchLink")}</Link>
-                      </p>
-                    </CoachLine>
-                  ) : null,
+                  // The Job Search the onboarding offers (#1000), told after the answer that started it, then its card (#1001).
+                  ...(offeredSearch?.after === index + 1
+                    ? [
+                        <CoachLine key="offered-search">
+                          <p>{offeredSearch.restarted ? t("newProfile.offeredSearchRestarted") : t("newProfile.offeredSearchStarted")}</p>
+                        </CoachLine>,
+                        <OnboardingSearchCard
+                          key={`offered-search-${offeredSearch.id}`}
+                          jobSearchId={offeredSearch.id}
+                          restarted={offeredSearch.restarted}
+                          compact={step.kind === "questionnaire"}
+                          {...searchedWith(draftFromQuestionnaire(questionnaire))}
+                        />,
+                      ]
+                    : []),
                 ])}
               </>
             ) : null}

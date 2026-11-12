@@ -1,5 +1,6 @@
 "use client";
 
+import type { TFunction } from "i18next";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
@@ -14,10 +15,20 @@ import { Note } from "./Note";
 import { PageHeader } from "./PageHeader";
 import { Pill, Status } from "./Pill";
 import { Ring } from "./Ring";
+import { Stepper, type Step } from "./Stepper";
 import { Table, type Column } from "./Table";
 import { Tabs } from "./Tabs";
 import { ToastProvider, useToast } from "./Toast";
 import "./ComponentGallery.css";
+
+/** The Stepper's specimen: a step done, one under way, one to come. */
+function gallerySteps(t: TFunction): Step[] {
+  return [
+    { id: "read", title: t("designSystem.gallery.stepRead"), status: "done", detail: t("designSystem.gallery.stepReadDetail") },
+    { id: "search", title: t("designSystem.gallery.stepSearch"), status: "current", detail: t("designSystem.gallery.stepSearchDetail") },
+    { id: "select", title: t("designSystem.gallery.stepSelect"), status: "pending" },
+  ];
+}
 
 type Provider = { id: string; name: string; key: "connected" | "keyMissing" | "testFailed"; cost: number };
 
@@ -230,6 +241,8 @@ function Gallery({ head }: { head?: ReactNode }) {
           <Ring {...SAMPLE.matchScore} />
           <Ring {...SAMPLE.atsScore} />
         </div>
+        <h3>{t("designSystem.gallery.steps")}</h3>
+        <Stepper label={t("designSystem.gallery.stepsLabel")} steps={gallerySteps(t)} />
       </section>
 
       <section className="ds-gallery__section" aria-labelledby="ds-messages">

@@ -1010,8 +1010,74 @@
     "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page.",
     "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it.",
     "offeredSearchStarted": "Your profile is created: I'm starting a first job search right away, on us, which does not count toward your quota. Let's carry on while it searches.",
-    "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too.",
-    "offeredSearchLink": "See the search"
+    "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too."
+  },
+  "onboardingSearch": {
+    "title": "Searching for your job offers",
+    "status": {
+      "searching": "In progress",
+      "done": "Done",
+      "stopped": "Stopped",
+      "failed": "Failed"
+    },
+    "stepOf": "Step {{number}} of {{total}}",
+    "stepsLabel": "Steps of the search",
+    "steps": {
+      "profile": "Reading your profile",
+      "search": "Searching France Travail, careers sites and the web",
+      "analysis": "Analysing the job offers found",
+      "selection": "Picking your best job offers"
+    },
+    "details": {
+      "search": "Sources consulted: {{consulted}} of {{total}} · pages read: {{pages}}",
+      "analysis": "Job offers analysed: {{count}}",
+      "selection": "Job offers that fit you: {{count}}, with a Match Score of at least {{threshold}}"
+    },
+    "counters": {
+      "sources": "sources consulted",
+      "sourcesShort": "sources",
+      "pages": "pages read",
+      "pagesShort": "pages",
+      "analysed": "job offers analysed",
+      "analysedShort": "analysed",
+      "matching": "job offers that fit you",
+      "matchingShort": "for you",
+      "outOf": "{{count}} of {{total}}"
+    },
+    "recounted": "recounted with {{criteria}}",
+    "refined": "Narrowed with:",
+    "assumed": "assumed",
+    "assumedTitle": "Assumed, waiting for your answer",
+    "minSalary": "from {{amount}}",
+    "sourcesLabel": "Sources of the search",
+    "sources": {
+      "france_travail": "France Travail",
+      "fantastic_jobs": "Employers' careers sites",
+      "web_search": "Web search",
+      "ats_apis": "ATS APIs",
+      "target_companies": "Target companies"
+    },
+    "sourceStates": {
+      "waiting": "to come",
+      "searching": "in progress…",
+      "searched": "consulted",
+      "refused": "refused",
+      "failed": "unavailable"
+    },
+    "open": "See the search",
+    "stoppedTitle": "Search stopped",
+    "failedTitle": "The search did not succeed",
+    "kept_zero": "It had not found any job offer yet. You can start a search from Job searches.",
+    "kept_one": "What it found is kept: one job offer analysed.",
+    "kept_other": "What it found is kept: {{count}} job offers analysed.",
+    "announce": {
+      "started": "Search for your job offers started.",
+      "restarted": "Search for your job offers started again.",
+      "refined": "Search narrowed with {{criteria}}.",
+      "done": "Search done. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}.",
+      "stopped": "Search stopped. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}.",
+      "failed": "The search did not succeed. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}."
+    }
   },
   "questionnaire": {
     "transcript": "Your conversation with the coach",
@@ -5621,6 +5687,13 @@
       "chartCard": "Daily spend",
       "chartText": "The daily spend chart goes here.",
       "scores": "Scores",
+      "steps": "Steps",
+      "stepsLabel": "Steps of a search",
+      "stepRead": "Reading your profile",
+      "stepReadDetail": "Finance director · Lyon",
+      "stepSearch": "Searching for job offers",
+      "stepSearchDetail": "Sources consulted: 2 of 3",
+      "stepSelect": "Picking your best job offers",
       "messages": "Messages",
       "infoTitle": "A value entered here wins over the environment.",
       "infoText": "It applies within seconds, without a restart.",
@@ -5666,6 +5739,11 @@
       "loading": "Opening the document…",
       "failed": "This document could not be shown. Download it to open it.",
       "title": "Viewer"
+    },
+    "stepper": {
+      "done": "done",
+      "current": "in progress",
+      "pending": "to come"
     }
   },
   "emails": {

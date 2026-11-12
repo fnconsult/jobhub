@@ -248,11 +248,15 @@ test.describe("onboarding with the AI Coach", () => {
       });
 
     await answerUpToReview("Directrice financière");
-    // Born, its search starts at once, offered; the coach says so in the thread, with a link to its page.
+    // Born, its search starts at once, offered; the coach says so in the thread, then its live card links to its page (#1001).
     await expect(transcript(page)).toContainText(fr.newProfile.offeredSearchStarted);
     await expect.poll(async () => (await offered()).map((search) => search.offered)).toEqual(["first"]);
     const [first] = await offered();
-    await expect(transcript(page).getByRole("link", { name: fr.newProfile.offeredSearchLink })).toHaveAttribute("href", `/recherches/${first!.id}`);
+    const card = transcript(page).getByRole("region", { name: fr.onboardingSearch.title });
+    await expect(card.getByRole("link", { name: fr.onboardingSearch.open })).toHaveAttribute("href", `/recherches/${first!.id}`);
+    // Nothing measured yet (no worker here): every counter says 0, never a figure of its own.
+    await expect(card.locator("dd")).toHaveText(["0", "0", "0", "0"]);
+    await expect(card).toContainText(`${fr.onboardingSearch.refined} Directrice financière · Lyon`);
 
     // Outside the Plan Quota: no use of it this week, and none in « Votre consommation ».
     const [{ id: profileId }] = await (await page.request.get("/api/profiles")).json();

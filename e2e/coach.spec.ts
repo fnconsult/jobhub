@@ -387,7 +387,7 @@ test.describe("onboarding with the AI Coach", () => {
     ]);
 
     // Beyond, it is refused, and the page asks no more.
-    expect((await page.request.post(`/api/profiles/${profileId}/onboarding-search`)).status()).toBe(409);
+    expect((await page.request.post(`/api/profiles/${profileId}/onboarding-search`, { headers: { origin } })).status()).toBe(409);
     await startOver();
     await answerUpToReview("Comptable");
     await expect(transcript(page)).not.toContainText(fr.newProfile.offeredSearchRestarted);

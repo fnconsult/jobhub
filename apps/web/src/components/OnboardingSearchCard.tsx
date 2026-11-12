@@ -60,7 +60,7 @@ interface Refining {
 }
 
 /**
- * The search card of `/profils/nouveau` (#1001, ADR-0105): the offered Job Search, live, in the thread of the onboarding
+ * The search card of `/profils/nouveau` (#1001, ADR-0106): the offered Job Search, live, in the thread of the onboarding
  * interview. Its four counters are the run's own measures, polled from the Job Search every LIVE_POLL_MS while it
  * searches (`GET /api/job-searches/:id/live`): sources consulted out of the active ones, pages read, Job Offers analysed;
  * 0 until something is measured. The fourth, « offres qui vous correspondent », is counted here, never by the AI: the

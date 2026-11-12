@@ -15,7 +15,7 @@ The search refresh (#396–#409) shipped far from the finish of the Paramètres 
 - **Motion is short and functional**: 150–220 ms ease-out on drawers, dialogs, toasts and hovers. Data never animates, and nothing moves under `prefers-reduced-motion`.
 - **Scrollbars show only while their area scrolls**: thin, transparent at rest. The content still says there is more (a cut-off row, a fade), so nothing relies on seeing a scrollbar.
 - **Everything is in `rem`**, so the Text Size applies to both Densities, the Back Office included.
-- **A logo is out of scope**: a wordmark and monogram are designed separately. Until then, the name « Jobbbox » in bold text stands in, on every surface (the app, the public pages, sign-in, emails, the extension). _Amended 2026-10-30 (#542): the square « J » in the accent colour is gone; the « J » glyph of AI Activity is a provenance mark, not the logo, and stays._
+- **A logo is out of scope**: a wordmark and monogram are designed separately. Until then, the name « Jobbbox » in bold text stands in, on every surface (the app, the public pages, sign-in, emails, the extension). _Amended 2026-10-30 (#542): the square « J » in the accent colour is gone; the « J » glyph of AI Activity is a provenance mark, not the logo, and stays. Amended 2026-11-12 (ADR-0105): the logo is « La boîte qui répond », a symbol beside the name in text; it is on the public pages and the favicons first, and the other surfaces keep the name in text until each is redrawn._
 - **Migration order**:
   0. Tokens (light and dark), Inter, the two Densities.
   1. The components, the Design System page and the screenshot baselines.

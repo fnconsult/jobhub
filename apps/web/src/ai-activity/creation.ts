@@ -2,7 +2,7 @@
  * What the browser knows of a Profile's creation (ADR-0070, #810) while the Candidate creates it on `/profils/nouveau`,
  * for « Création du profil » in Activity (entries.ts): the uploaded CV read, the AI Coach's onboarding interview (#1002)
  * with its Provenance, the scripted Onboarding Questionnaire when it takes over, the Profile
- * born during it (ADR-0105, #999), the review and, once saved, the Profile's page. Held in memory only, so a page loaded again knows none of it: nothing new is kept of
+ * born during it (ADR-0106, #999), the review and, once saved, the Profile's page. Held in memory only, so a page loaded again knows none of it: nothing new is kept of
  * the questionnaire's timing.
  *
  *   nextCreation(was, note, at)        what is known after `note`, made at `at`

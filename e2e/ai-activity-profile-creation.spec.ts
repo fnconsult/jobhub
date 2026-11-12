@@ -9,7 +9,7 @@ import { confirmSummary, onboardingSummary } from "./support/onboarding-summary"
 // Issue #810 (ADR-0086, ADR-0070): a Profile's creation is one Activité entry, « Création du profil », on `/profils/nouveau`
 // and then on the new Profile's page: the CV read (its Provenance, the only AI), the Onboarding Questionnaire (« Questions
 // écrites par Jobbbox », « Sans IA », its answers), the review, « Profil créé » with Version 1, and Version 1's ATS Score.
-// From the questionnaire, the Profile is born once its target role and location are answered (#999, ADR-0105): « Profil
+// From the questionnaire, the Profile is born once its target role and location are answered (#999, ADR-0106): « Profil
 // créé » shows from then on. Without a CV, the AI Coach leads the interview (#1002): « Entretien d'accueil », with its model
 // and tokens; « Questions écrites par Jobbbox », « Sans IA » only when the scripted questions take over (the AI down:
 // "E2E_AI_DOWN" in what the interview is sent).

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { planRuns, recordedCaptures } from "./run";
+import { FLOWS_TIMEOUT_MS, planRuns, PREPARE_TIMEOUT_MS, ran, recordedCaptures, settled } from "./run";
 
 const ROOT = "/repo/apps/mobile/maestro";
 const STACK = { helper: "http://127.0.0.1:4705", origin: "http://localhost:3705" };
@@ -79,5 +79,40 @@ describe("the Maestro runs of one CI job (#705)", () => {
       [`${out}/2026-11-06_101112/takeScreenshot/record/ipad-landscape/dark/accueil.png`, `${ROOT}/captures/ipad-landscape/dark/accueil.png`],
       [`${out}/record/ipad-landscape/dark/agenda.png`, `${ROOT}/captures/ipad-landscape/dark/agenda.png`],
     ]);
+  });
+});
+
+describe("a device's set-up, tried again while the device does not take it", () => {
+  it("is tried again after a wait, a bounded number of times", () => {
+    const waits: number[] = [];
+    const answers = [false, false, true];
+    expect(settled(() => answers.shift()!, { pause: (seconds) => waits.push(seconds) })).toBe(true);
+    expect(waits).toEqual([10, 10]);
+  });
+
+  it("fails once its tries are spent, without a last wait", () => {
+    const waits: number[] = [];
+    let tried = 0;
+    expect(settled(() => (tried++, false), { tries: 3, pause: (seconds) => waits.push(seconds) })).toBe(false);
+    expect(tried).toBe(3);
+    expect(waits).toHaveLength(2);
+  });
+});
+
+describe("a Maestro command that does not end (run 43182114920: 2 h 06 min, until the job's limit)", () => {
+  it("is stopped past its time, and has not ended well", () => {
+    const started = Date.now();
+    expect(ran(["sleep", "20"], { timeoutMs: 300 })).toBe(false);
+    expect(Date.now() - started).toBeLessThan(10_000);
+  });
+
+  it("ends well, or not, as the command does", () => {
+    expect(ran(["true"], { timeoutMs: 5_000 })).toBe(true);
+    expect(ran(["false"])).toBe(false);
+  });
+
+  it("gives the preparation 15 minutes and a run's flows an hour, within the job's own limit", () => {
+    expect(PREPARE_TIMEOUT_MS).toBe(15 * 60_000);
+    expect(FLOWS_TIMEOUT_MS).toBe(60 * 60_000);
   });
 });

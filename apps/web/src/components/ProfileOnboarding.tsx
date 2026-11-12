@@ -109,14 +109,14 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
  * summary. Its Activity groups it in one entry, « Création du profil » (#810): the page tells AI Activity the CV read,
  * the interview's turns, the answers and the review as the Candidate goes, and the Profile once saved.
  *
- * Without a CV, the AI Coach leads the interview (ADR-0105, #1002): one question at a time from `/api/onboarding/interview`,
+ * Without a CV, the AI Coach leads the interview (ADR-0106, #1002): one question at a time from `/api/onboarding/interview`,
  * in the thread; a vague answer challenged; a deduction proposed as suggestions, « Oui, … » and « Non, plutôt… »; a choice
  * by its options; « Passer » on what is optional; the answers through the box. Only what the Candidate answers or validates
  * enters the draft (ADR-0006, `replied`): a proposal answered otherwise, or not at all, never does. The exchange is not kept
  * as a Coach Conversation. When the AI cannot give the next turn (it fails, it is stopped, its reply is unusable), the
  * scripted Onboarding Questionnaire takes over at the next question, skipping what is already known: no dead end.
  *
- * The Profile is born as soon as its target role and location are answered (ADR-0105, #999): created with its onboarding
+ * The Profile is born as soon as its target role and location are answered (ADR-0106, #999): created with its onboarding
  * in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the review's save
  * finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its review. From a
  * CV or from scratch, the Profile is still created at the review's save (#1003 changes it).
@@ -314,7 +314,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   }
 
   /**
-   * Starts the Job Search the onboarding offers the Profile born (ADR-0105, #1000), outside the Plan Quota, then starts it
+   * Starts the Job Search the onboarding offers the Profile born (ADR-0106, #1000), outside the Plan Quota, then starts it
    * again once when its target role or locations change; the server refuses beyond (409), so no more is asked. Not
    * started, the onboarding goes on: the Candidate can still search from Recherches d'offres.
    */

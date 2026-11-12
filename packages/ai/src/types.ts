@@ -36,7 +36,7 @@ export const TEXT_TASKS = {
   /** Reading an uploaded CV into a structured Master CV: reads CVs. */
   cv_parsing: { personalData: true },
   /**
-   * The onboarding interview the AI Coach leads without a CV (#1002, ADR-0105): the Candidate's answers so far and the
+   * The onboarding interview the AI Coach leads without a CV (#1002, ADR-0106): the Candidate's answers so far and the
    * draft they made. Routed like cv_parsing unless set: where a CV is read.
    */
   onboarding_interview: { personalData: true },

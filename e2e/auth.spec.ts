@@ -20,7 +20,7 @@ test.describe("magic-link sign-up and sign-in", () => {
   test("a new person signs up with only their email and lands on their account, in French", async ({ page }) => {
     const email = newAddress("marie.dupont");
     await page.goto("/");
-    await page.getByRole("link", { name: fr.nav.signIn }).click();
+    await page.getByRole("banner").getByRole("link", { name: fr.nav.signIn }).click();
     await expect(page).toHaveURL(/\/connexion(\?|$)/);
     await expect(page).toHaveTitle(`${fr.signIn.title} · ${fr.app.name}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.signIn.title);
@@ -92,7 +92,7 @@ test.describe("magic-link sign-up and sign-in", () => {
   test("a new person who signs up from the English sign-in page gets the email and the account in English", async ({ page, browser }) => {
     const email = newAddress("claire.english");
     await page.goto("/en");
-    await page.getByRole("link", { name: en.nav.signIn }).click();
+    await page.getByRole("banner").getByRole("link", { name: en.nav.signIn }).click();
     await expect(page).toHaveURL(/\/en\/connexion$/);
     await page.getByLabel(en.signIn.emailLabel).fill(email);
     await page.getByRole("button", { name: en.signIn.submit }).click();
@@ -141,7 +141,7 @@ test.describe("magic-link sign-up and sign-in", () => {
     await page.getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
     await page.getByRole("menuitem", { name: fr.account.signOut }).click();
     await expect(page).toHaveURL(`${origin}/`);
-    await expect(page.getByRole("link", { name: fr.nav.signIn })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: fr.nav.signIn })).toBeVisible();
     expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
     await page.goto("/compte");
     await expect(page).toHaveURL(/\/connexion(\?|$)/);
@@ -320,7 +320,7 @@ test.describe("Interface Language", () => {
     await page.goto("/compte");
     await page.getByRole("button", { name: accountButtonName(en.nav.account) }).click();
     await page.getByRole("menuitem", { name: en.account.signOut }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.home.title);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.landing.hero.title);
     const message = await signInWithMagicLink(page, email);
     expect(message.subject).toBe(en.signInEmail.subject);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");

@@ -5,7 +5,7 @@ import { getJobSearches } from "@/job-searches/server";
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * Starts, or starts again, the Job Search the onboarding offers a Profile it created (ADR-0105, #1000), outside the Plan
+ * Starts, or starts again, the Job Search the onboarding offers a Profile it created (ADR-0106, #1000), outside the Plan
  * Quota: `/profils/nouveau` calls it once the Profile is born, then once more when its target role or locations change
  * (the first, still searching, is stopped). Only while the Profile's onboarding is in progress: a Profile created
  * otherwise, or whose onboarding is finished, is refused, as is a third call.

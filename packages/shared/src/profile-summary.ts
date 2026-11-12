@@ -1,5 +1,5 @@
 /**
- * The summary of a Profile at the end of its onboarding (#1004, ADR-0105): « Voici comment je comprends ce que vous
+ * The summary of a Profile at the end of its onboarding (#1004, ADR-0106): « Voici comment je comprends ce que vous
  * recherchez. Ai-je bien compris ? », then a paragraph in plain words, composed by Jobbbox from the Profile itself, not by
  * an AI, so it can say nothing that no answer said (ADR-0006). The key items are strong: the target role, the contract
  * types, the places, remote work, the minimum salary, the years of experience (the span of the dated jobs, as the Match

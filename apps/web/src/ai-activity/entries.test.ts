@@ -309,7 +309,7 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
       expect(creation!.cost).toEqual({ quota: null, tokens: { count: 9_600, calls: null, partial: false }, noAi: false });
     });
 
-    it("without a CV, holds the AI Coach's interview (#1002, ADR-0105): its model and tokens, its answers, no longer « Sans IA »", () => {
+    it("without a CV, holds the AI Coach's interview (#1002, ADR-0106): its model and tokens, its answers, no longer « Sans IA »", () => {
       const interview: Provenance = {
         v: 1,
         steps: [{ kind: "ai", activity: "think_write", task: "onboarding_interview", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 6_000, output: 400 }, ms: 4_000, at: at("10:31", day), outcome: "ok", count: 5 }],

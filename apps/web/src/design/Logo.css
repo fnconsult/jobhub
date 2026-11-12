@@ -1,0 +1,106 @@
+@layer base, components;
+
+/*
+ * Jobbbox's symbol (ADR-0105). Every moving part's own style is its resting state: its keyframes start elsewhere and end
+ * there (fill-mode both), as the Micro-animations do (#569). It moves only when asked (`data-animated`), once, and never
+ * under prefers-reduced-motion: the symbol is then drawn as it rests.
+ */
+@layer components {
+  .ds-logo {
+    display: block;
+    flex: none;
+    width: 1.55em;
+    height: 1.55em;
+    overflow: visible;
+  }
+
+  .ds-logo__top,
+  .ds-logo__offer {
+    transform-box: view-box;
+  }
+
+  .ds-logo__top {
+    transform-origin: 48px 45px;
+  }
+
+  .ds-logo__dot {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    /* The offer slides into the slot, pauses, and is taken in. */
+    .ds-logo[data-animated] .ds-logo__offer {
+      animation: ds-logo-offer 1050ms 100ms both;
+    }
+
+    /* The bubble is pressed like a key when the offer lands. */
+    .ds-logo[data-animated] .ds-logo__top {
+      animation: ds-logo-press 460ms 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+
+    /* The coach answers: the three dots lift one after the other. */
+    .ds-logo[data-animated] .ds-logo__dot {
+      animation: ds-logo-dot 420ms 1180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+
+    .ds-logo[data-animated] .ds-logo__dot:nth-of-type(2) {
+      animation-delay: 1300ms;
+    }
+
+    .ds-logo[data-animated] .ds-logo__dot:nth-of-type(3) {
+      animation-delay: 1420ms;
+    }
+  }
+
+  @keyframes ds-logo-offer {
+    0% {
+      transform: translateY(-66px);
+      animation-timing-function: cubic-bezier(0.45, 0, 0.85, 0.5);
+    }
+
+    38% {
+      transform: translateY(-9px);
+      animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+    }
+
+    52% {
+      transform: translateY(-12px);
+      animation-timing-function: cubic-bezier(0.5, 0, 0.3, 1);
+    }
+
+    78% {
+      transform: translateY(1.5px);
+    }
+
+    100% {
+      transform: none;
+    }
+  }
+
+  @keyframes ds-logo-press {
+    0%,
+    100% {
+      transform: none;
+    }
+
+    35% {
+      transform: translateY(3.2px);
+    }
+
+    70% {
+      transform: translateY(-0.6px);
+    }
+  }
+
+  @keyframes ds-logo-dot {
+    0%,
+    100% {
+      transform: none;
+    }
+
+    40% {
+      transform: translateY(-3.2px) scale(1.18);
+    }
+  }
+}

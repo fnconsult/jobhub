@@ -69,6 +69,51 @@ describe("the mobile-e2e workflow (#705)", () => {
     }
   });
 
+  // What a job downloads is not a point of failure of each run (docs/ops/mobile.md « Les téléchargements du workflow »).
+  describe("its downloads", () => {
+    const caches = (job: string, action: string) => steps(job).filter((step) => step.uses?.startsWith(`actions/cache${action}@`));
+
+    it("installs Maestro from the cache or its release, the archive checked against a pinned SHA-256", () => {
+      expect(workflow.env.MAESTRO_SHA256).toMatch(/^[0-9a-f]{64}$/);
+      for (const job of ["maestro-ios", "maestro-android"]) {
+        expect(runs(job)).toContain("bash apps/mobile/maestro/ci/install-maestro.sh");
+        expect(runs(job)).not.toContain("get.maestro.mobile.dev");
+        const key = "maestro-${{ runner.os }}-${{ env.MAESTRO_VERSION }}-${{ env.MAESTRO_SHA256 }}";
+        expect(caches(job, "/restore").map((step) => step.with?.key)).toContain(key);
+      }
+      const installer = readFileSync(join(__dirname, "ci", "install-maestro.sh"), "utf8");
+      expect(installer).toContain('shasum -a 256 "$archive"');
+      expect(installer).toContain('unzip -tq "$archive"');
+    });
+
+    it("installs Chromium's headless shell alone for the seeded stack, kept per Playwright version", () => {
+      for (const job of ["maestro-ios", "maestro-android"]) {
+        expect(runs(job)).toMatch(/retry\.sh \d+ \d+ npx playwright install (--with-deps )?--only-shell chromium/);
+        expect(caches(job, "/restore").map((step) => step.with?.key)).toContain("playwright-shell-${{ runner.os }}-${{ steps.playwright.outputs.version }}");
+        // Saved as soon as installed: a run whose flows fail keeps them for the next.
+        expect(caches(job, "/save")).toHaveLength(2);
+      }
+    });
+
+    it("keeps Gradle's and CocoaPods' downloads from one run to the next", () => {
+      expect(caches("build-android", "").map((step) => step.with?.path)).toEqual([expect.stringContaining("~/.gradle/caches")]);
+      expect(caches("build-ios", "").map((step) => step.with?.path)).toEqual(["~/Library/Caches/CocoaPods"]);
+    });
+
+    it("tries again, a bounded number of times, what it still downloads", () => {
+      const retried = (job: string) => [...runs(job).matchAll(/retry\.sh"? (\d+) (\d+) (.+)/g)].map((match) => match[3]!.trim());
+      for (const job of Object.keys(workflow.jobs)) {
+        expect(retried(job)).toContain("npm ci");
+        expect(runs(job)).not.toMatch(/^\s*npm ci$/m);
+      }
+      expect(retried("build-ios")).toContain("npx expo prebuild --platform ios --clean");
+      expect(retried("build-android")).toEqual(expect.arrayContaining(["npx expo prebuild --platform android --clean", "./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon)"]));
+      expect(retried("maestro-ios")).toEqual(expect.arrayContaining(["brew install postgresql@17", 'xcodebuild -downloadPlatform iOS -buildVersion "${{ matrix.ios }}"']));
+      const retry = readFileSync(join(__dirname, "ci", "retry.sh"), "utf8");
+      expect(retry).toContain('if [ "$try" -ge "$tries" ]; then');
+    });
+  });
+
   it("keeps each job's results and the captures it drew", () => {
     for (const job of ["maestro-ios", "maestro-android"]) {
       const uploads = steps(job).filter((step) => step.uses?.startsWith("actions/upload-artifact@"));

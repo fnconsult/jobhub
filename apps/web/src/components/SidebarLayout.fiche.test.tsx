@@ -36,11 +36,12 @@ describe("an object's page under « Conversation au centre » (#603, ADR-0070)",
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("has « Fiche » and AI Activity's button, « Activité », in its Top Bar, in place of « Aide » (#809)", () => {
+  it("has the side panel's icons, AI Activity's « Activité IA » first, in its Top Bar, in place of « Aide » and « Effacer » (#809, #980)", () => {
     renderInFrench(<ApplicationPage />);
 
     expect(within(topBar()).getByRole("button", { name: "Fiche" }).getAttribute("aria-expanded")).toBe("true");
-    expect(within(topBar()).getByRole("button", { name: "Activité IA" }).textContent).toBe("Activité");
+    expect(within(topBar()).getByRole("button", { name: "Activité IA" }).textContent).toBe("");
+    expect(within(topBar()).queryByRole("button", { name: /^Effacer/ })).toBeNull();
     expect(within(topBar()).queryByRole("button", { name: "Activité" })).toBeNull();
     expect(within(topBar()).queryByRole("button", { name: "Aide" })).toBeNull();
   });

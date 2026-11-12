@@ -73,7 +73,7 @@ async function reply(page: Page, question: string, value: string | "skip" | "yes
   else if (value === "skip") await page.getByRole("button", { name: fr.questionnaire.skip }).click();
   else {
     await answerBox(page).fill(value);
-    await page.getByRole("button", { name: fr.questionnaire.send, exact: true }).click();
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
   }
 }
 
@@ -99,7 +99,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(transcript(page).getByLabel(fr.cvUpload.fileLabel)).toBeVisible();
     await conversation.getByRole("group", { name: fr.conversationFirst.suggestions }).getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
 
-    await expect(transcript(page)).toContainText(fr.questionnaire.welcome);
+    await expect(transcript(page)).toContainText(fr.newProfile.questionsStart);
     await expect(transcript(page).getByRole("listitem").last()).toContainText(q.fullName);
     await expect(answerBox(page)).toBeFocused();
   });
@@ -110,7 +110,7 @@ test.describe("onboarding with the AI Coach", () => {
     await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
 
     // A name, a target role and a location are needed for a Profile.
-    await page.getByRole("button", { name: fr.questionnaire.send, exact: true }).click();
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
     await expect(page.locator(".field-error[role=alert]")).toHaveText(fr.questionnaire.errors.required);
     await expect(page.getByRole("button", { name: fr.questionnaire.skip })).toHaveCount(0);
 

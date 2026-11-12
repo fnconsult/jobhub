@@ -37,7 +37,7 @@ test.describe("the public site in English (#545)", () => {
     await page.goto("/en");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     // Its « Sign in » leads to the sign-in page in English (#570), the French home's to the French one.
-    await page.getByRole("link", { name: en.nav.signIn }).click();
+    await page.getByRole("banner").getByRole("link", { name: en.nav.signIn }).click();
     await expect(page).toHaveURL(/\/en\/connexion$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.signIn.title);
 

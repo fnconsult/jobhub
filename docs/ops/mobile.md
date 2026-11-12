@@ -121,6 +121,32 @@ Une capture qui manque est dessinée et fait échouer son passage, comme une cap
 
 Un écart à la comparaison laisse dans l'artefact `maestro-results-<matériel>` la capture prise et la différence.
 
+### Les téléchargements du workflow
+
+Ce qu'un job télécharge n'est plus un point de panne de chaque exécution (une panne coûte, sur macOS, une à deux heures de file d'attente des runners) :
+
+| Téléchargement | Ce qui le couvre |
+| --- | --- |
+| Le CLI de Maestro | Gardé dans le cache d'Actions (`~/.maestro/bin`, `~/.maestro/lib`), par version et empreinte. Sinon `apps/mobile/maestro/ci/install-maestro.sh` le prend à sa release GitHub, 5 essais au plus, et **vérifie l'archive avant de s'en servir** : son SHA-256 est `MAESTRO_SHA256`, et elle se décompresse en entier |
+| Le navigateur de Playwright | La pile semée connecte le Candidate de chaque passage par une page (`e2e/support/mobile-stack.ts`) : il lui faut un navigateur, mais le « headless shell » de Chromium suffit (`--only-shell`), pas Chrome for Testing. Gardé dans le cache par version de Playwright ; sinon 4 essais |
+| Gradle (distribution, compilateur Kotlin, bibliothèques) | `~/.gradle/caches` et `~/.gradle/wrapper` dans le cache, par `package-lock.json` ; `./gradlew assembleRelease` relancé jusqu'à 3 fois, Gradle reprenant où il s'est arrêté |
+| CocoaPods | `~/Library/Caches/CocoaPods` dans le cache, par `package-lock.json` ; `expo prebuild --clean` relancé jusqu'à 3 fois |
+| `npm ci`, `brew install postgresql@17`, le runtime iOS 18.6 de l'iPad (8,9 Go, trop gros pour le cache) | Relancés, un nombre borné de fois, par `apps/mobile/maestro/ci/retry.sh`, l'attente doublant à chaque essai |
+
+Les caches de Maestro et du navigateur sont enregistrés dès l'installation, pas à la fin du job : une exécution dont les flux échouent les laisse à la suivante. Un cache enregistré par une pull request ne sert qu'à elle ; celui de `main` sert à toutes.
+
+**Changer la version de Maestro** : `MAESTRO_VERSION` et `MAESTRO_SHA256` ensemble, dans `mobile-e2e.yml` (`shasum -a 256 maestro.zip` sur l'archive de la release `cli-<version>`).
+
+Le simulateur et l'émulateur, eux :
+
+- le simulateur iOS est créé **en français avant son premier démarrage** (`.GlobalPreferences.plist`), ce qui évite le second démarrage que `run.ts` faisait pour prendre la langue (6 à 14 minutes sur l'iPad) ; `bootSetup` (`devices.ts`) le vérifie et, s'il n'est pas en français, le règle et le redémarre comme avant ;
+- un premier démarrage qui échoue, ou qui finit sur « Data Migration Failed », fait supprimer et recréer le simulateur, une fois ;
+- le pilote XCTest de Maestro a 6 minutes pour démarrer (`MAESTRO_DRIVER_STARTUP_TIMEOUT`) ; s'il ne démarre pas, `run.ts` redémarre le simulateur une fois (`ios-driver-recovery.ts`, #944) ;
+- une commande Maestro qui ne se termine pas est arrêtée : après 15 minutes pour la préparation de l'app (qui compte alors comme échouée, d'où le second essai ou la reprise ci-dessus), après une heure pour les flux d'un passage (qui échoue). Sans cela, un Maestro planté sans quitter gardait le job jusqu'à sa limite de 3 heures (exécution 43182114920) ;
+- après le redémarrage du framework Android (pour la langue), `bootSetup` attend que ses services répondent (`cmd uimode`, `wm`), et les réglages d'un passage (thème, taille du texte, barre d'état) sont réessayés 3 fois : ce sont des préparatifs, jamais une vérification de l'app.
+
+Aucun flux n'est réessayé, et aucune vérification de l'app n'est assouplie par ces reprises.
+
 ### À vérifier au premier passage d'un nouvel Xcode ou d'une nouvelle image Android
 
 L'iPad en Split View (1/2) n'est pas dans la matrice Maestro (décision du product owner, #705) : ni `simctl` ni Maestro ne le mettent en Split View, et, fait à la main par le bouton multitâche d'iPadOS, le pilote iOS de Maestro place les éléments de l'app sur la mauvaise moitié de l'écran, ses taps allant à l'autre app (quatre approches essayées, détail dans #904). Sa fenêtre (683 × 1032) est vérifiée par la suite d'accessibilité (`apps/mobile/e2e/accessibility.e2e.test.tsx` : mise en page pleine page, libellés et aucun texte coupé à la plus grande taille), et **à la main sur un iPad avant chaque Version** : l'app ouverte en Split View à côté de Safari, en paysage, la connexion, l'Accueil, Mes candidatures et une Fiche parcourus. #904 la ramène dans Maestro quand son pilote le permettra ; le job de l'iPad reste sur iPadOS 18 (`ios` dans la matrice de `mobile-e2e.yml`, runtime téléchargé si l'image macOS ne l'a pas), qui a Split View, et sur lequel ses captures de référence sont enregistrées. Sur iOS 18, WebKit laisse parfois sans réponse l'effacement des cookies des WebViews (`removeData` « started » sans « finished » dans `device.log`) : l'app ne l'attend que 3 s (`WEB_VIEWS_WAIT_MS`, `src/session/app-session.ts`), sans quoi elle restait vide après la connexion sur chaque passage de l'iPad. De même, le pliable se plie par la console de l'émulateur (`adb emu fold`, `adb emu unfold`) et la langue d'Android se règle par `adb root` (`bootSetup`, `devices.ts`), ce qu'une image `google_apis` permet.

@@ -5,10 +5,9 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { useTranslation } from "react-i18next";
 import type { CvDraft } from "@/cv";
 import { useAutoGrow } from "@/design/auto-grow";
-import { helpLocale } from "@/coach-help";
+import { helpLocale, onThisPage } from "@/coach-help";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
-import { HelpIntro } from "@/components/CoachHelp";
 import { useConversationFirst } from "@/components/conversation-first";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
 import { InWorkPane } from "@/components/WorkPane";
@@ -334,22 +333,29 @@ function OnboardingIntroduction() {
   );
 }
 
-/** The help under the Introduction, as on every conversation: a Help Article opens in the Work Pane. */
+/**
+ * « Comment marche cette page ? » under the Introduction: its Help Article, in the Work Pane. Not the help's greeting of
+ * the other conversations, which promises an answer from the help to a question: this page's box answers none (#997).
+ */
 function OnboardingHelp({ onOpen }: { onOpen?: () => void }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const pathname = usePathname();
   const pane = useWorkPane();
+  const here = onThisPage(pathname, helpLocale(i18n.language), "candidate");
+  if (!here || !pane) return null;
   return (
-    <HelpIntro
-      pathname={pathname}
-      locale={helpLocale(i18n.language)}
-      howThisPageWorks={pane !== null}
-      oftenAsked={false}
-      onOpen={(article) => {
-        onOpen?.();
-        pane?.open({ kind: HELP, article });
-      }}
-    />
+    <p>
+      <button
+        type="button"
+        className="link-action"
+        onClick={() => {
+          onOpen?.();
+          pane.open({ kind: HELP, article: here.article });
+        }}
+      >
+        {t("conversationFirst.howThisPageWorks")}
+      </button>
+    </p>
   );
 }
 

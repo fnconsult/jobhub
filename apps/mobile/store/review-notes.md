@@ -1,13 +1,12 @@
 # Notes pour la revue des stores : brouillon
 
-_#708, ADR-0076. **Brouillon, à confirmer par #707** (les positions sur les paiements) **et à compléter par l'éditeur** (les comptes de démonstration, le contact). Rien n'est soumis. Les notes se saisissent en anglais : App Store Connect, « App Review Information » › « Notes » (4 000 caractères au plus) ; Play Console, « Accès aux applications » › instructions, et la réponse à une demande de la revue._
+_#708, ADR-0076. **Brouillon, à confirmer par #707** (les positions sur les paiements) **et à compléter par l'éditeur** (le compte de démonstration, le contact). Rien n'est soumis. Les notes se saisissent en anglais : App Store Connect, « App Review Information » › « Notes » (4 000 caractères au plus) ; Play Console, « Accès aux applications » › instructions, et la réponse à une demande de la revue._
 
 ## Ce qui manque avant de pouvoir les envoyer
 
 1. **Le contact de la revue** (prénom, nom, e-mail, téléphone d'une personne joignable) : [ENTITÉ À CONFIRMER]. Pour cette raison `../store.config.json` n'a pas de rubrique `review` : la saisir dans App Store Connect.
-2. **Les deux comptes de démonstration**, sur la Production : un Candidate et un Human Coach, aux données inventées (les noms de `maestro/seed.ts` conviennent), sans Back Office Role, leurs adresses des boîtes de `jobbbox.ai` que l'équipe lit. Le Candidate, sans vérification en deux étapes.
-   **TODO (product owner) : le Human Coach de démonstration.** Un Human Coach doit avoir la vérification en deux étapes (#665), et le code de revue ne la contourne pas (#981). Le relecteur se verra donc demander une deuxième étape sur ce compte. À trancher : donner la deuxième étape dans les notes (par exemple un code de secours du compte de démonstration), ou retirer le Human Coach de la démonstration. La phrase « Neither demo account has two-step verification » des notes ne vaut que pour le Candidate tant que ce n'est pas tranché.
-3. **Comment le relecteur se connecte : le code de revue des stores (#981).** Le product owner a choisi un code fixe plutôt qu'une boîte e-mail de démonstration partagée. Coupé par défaut, il s'allume dans le `.env` de la Production juste avant la soumission, pour les deux seuls comptes de démonstration, et se coupe après la revue : procédure dans `docs/ops/mobile.md`, « Code de revue des stores ». Le relecteur suit le parcours habituel (adresse, e-mail demandé, code saisi) ; chaque connexion est inscrite au Journal. Au moment de saisir les notes dans App Store Connect et la Play Console, y remplacer `[REVIEW CODE]` et les adresses par les valeurs de ce `.env`, **jamais dans ce fichier** : le code est un secret, tiré à nouveau pour chaque revue.
+2. **Le compte de démonstration**, sur la Production : un seul, un Candidate, aux données inventées (les noms de `maestro/seed.ts` conviennent), sans Back Office Role, sans vérification en deux étapes, son adresse une boîte de `jobbbox.ai` que l'équipe lit. **Aucun compte Human Coach n'est donné aux relecteurs** (product owner, 2026-11-12) : un Human Coach doit avoir la vérification en deux étapes (#665), que le code de revue ne contourne pas (#981), et son espace n'est pas l'expérience Candidate revue. Si un relecteur demande un accès coach, le product owner décide alors (par exemple un compte coach temporaire, sa deuxième étape donnée en privé dans App Store Connect).
+3. **Comment le relecteur se connecte : le code de revue des stores (#981).** Le product owner a choisi un code fixe plutôt qu'une boîte e-mail de démonstration partagée. Coupé par défaut, il s'allume dans le `.env` de la Production juste avant la soumission, pour le seul compte de démonstration, et se coupe après la revue : procédure dans `docs/ops/mobile.md`, « Code de revue des stores ». Le relecteur suit le parcours habituel (adresse, e-mail demandé, code saisi) ; chaque connexion est inscrite au Journal. Au moment de saisir les notes dans App Store Connect et la Play Console, y remplacer `[REVIEW CODE]` et l'adresse par les valeurs de ce `.env`, **jamais dans ce fichier** : le code est un secret, tiré à nouveau pour chaque revue.
 4. La confirmation de #707 sur les paragraphes « Payments » ci-dessous.
 
 ## Notes (anglais, à coller)
@@ -18,9 +17,8 @@ Jobbbox is a job-search coaching service for candidates in France and French-spe
 SIGNING IN
 There is no password. On « Sign in to Jobbbox », enter the demo email address, tap « Send me a sign-in link », then enter the 6-digit code under « Enter the code from the email » and tap « Sign in with this code ».
 Demo Candidate: [TO BE COMPLETED: email], code [REVIEW CODE]
-Demo Human Coach: [TO BE COMPLETED: email], code [REVIEW CODE]
-The review code works only for these two demo accounts, during the review. You may type it as soon as you have asked for the sign-in email: there is no need to open the email. If a code is refused 5 times, ask for a new email and type the same code again.
-Neither demo account has two-step verification. « Continue with Apple » (Sign in with Apple) is offered beside the other sign-in providers.
+The review code works only for this demo account, during the review. You may type it as soon as you have asked for the sign-in email: there is no need to open the email. If a code is refused 5 times, ask for a new email and type the same code again.
+The demo account has no two-step verification. « Continue with Apple » (Sign in with Apple) is offered beside the other sign-in providers.
 
 THE AI COACH
 The coach in every conversation is an AI, not a person. It says so in a fixed first message at the top of every conversation, and each of its replies is labelled « AI Coach ». Its replies pass through content checks before they are shown. « Report a problem », under every conversation, lets a person report a reply.
@@ -45,11 +43,11 @@ PRIVACY
 No advertising, no analytics SDK, no advertising identifier, no tracking: the App Tracking Transparency prompt is never shown. Crash reports are stored in the EU without a user identifier.
 
 HUMAN COACH ROLE
-Sign in as the demo Human Coach and open « Menu », then « Coach space »: the coach's pages open in a web view of jobbbox.ai, already signed in.
+The « My coach space » entry appears in the menu only for Human Coaches: HR professionals validated by the Jobbbox team, whose accounts require two-step verification. It opens Jobbbox's web coach space inside the app and is not part of the Candidate experience under review, so no coach account is provided. Everything a Candidate can do is reachable with the demo account.
 <!-- notes:end -->
 
 ## Google Play, « Accès aux applications »
 
 - « Tout ou partie des fonctionnalités est restreint » : oui, par la connexion.
-- Instructions : le paragraphe « SIGNING IN » ci-dessus, avec les deux comptes de démonstration.
+- Instructions : le paragraphe « SIGNING IN » ci-dessus, avec le compte de démonstration.
 - Aucun abonnement ni achat à déclarer.

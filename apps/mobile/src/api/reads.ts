@@ -11,6 +11,7 @@ import {
   enrichedContactsResponseSchema,
   jobDigestResponseSchema,
   jobSearchResponseSchema,
+  offerBoxEntryOfResponseSchema,
   offerBoxOfferResponseSchema,
   offerBoxResponseSchema,
   offersToHandleResponseSchema,
@@ -23,6 +24,7 @@ import {
   type EnrichedContactsResponse,
   type JobDigestResponse,
   type JobSearchResponse,
+  type OfferBoxEntryOfResponse,
   type OfferBoxOfferResponse,
   type OfferBoxResponse,
   type OffersToHandleResponse,
@@ -130,6 +132,14 @@ export const useOfferBox = (): Read<OfferBoxResponse> => useRead("offerBox", "/a
  * « Recherches d'offres » and the app icon's badge.
  */
 export const useOffersToHandle = (): Read<OffersToHandleResponse> => useRead("offersToHandle", "/api/offer-box/count", offersToHandleResponseSchema, []);
+
+/**
+ * `GET /api/offer-box/job-offers/:jobOfferId`: the Candidate's Offer box entry of one Job Offer, however long ago it was
+ * écartée (#895), where the Offer box leaves out those écartées more than 30 days ago; not read while `enabled` is
+ * false. Not kept on the device (READS).
+ */
+export const useOfferBoxEntryOf = (jobOfferId: string, enabled: boolean): Read<OfferBoxEntryOfResponse> =>
+  useRead("offerBoxEntryOf", `/api/offer-box/job-offers/${segment(jobOfferId)}`, offerBoxEntryOfResponseSchema, [jobOfferId], enabled);
 
 /**
  * `GET /api/offer-box/:id`: one Offer box entry's Job Offer as its Work Pane shows it (#692), its text and why its Match

@@ -4,3 +4,16 @@ html[data-in-app] .coach-space-v2 .sidebar-docked,
 html[data-in-app] .coach-space-v2 .sidebar.sidebar-drawer { display: flex; }
 html[data-in-app] .coach-space-v2 .topbar .menu-toggle { display: inline-flex; }
 @media (width < 48rem) { html[data-in-app] .coach-space-v2 .sidebar-docked { display: none; } }
+/* The column's Cards are never wider than it: a wide table (Revenus' detail by offer) scrolls in its own frame, not the
+   page (#867, a phone's 390 pixels). */
+.coach-space-column > * { min-width: 0; }
+/* A section of the column (Aujourd'hui's days, a Candidate's sessions): on the column's rhythm, its Cards as wide as the
+   column's other Cards rather than as wide as their text. */
+.coach-space-column > section.stack { margin-top: 0; align-items: stretch; }
+/* Inside a Card, a stack starts under the Card's title, or at the Card's padding when it has none, and spaces its
+   paragraphs by its own gap alone, not by their margins as well. */
+.coach-space-column .ds-card > .stack { margin-top: 0; }
+.coach-space-column .ds-card .stack > p { margin-block: 0; }
+/* A form in a Card's stack (Revenus' tax identity) as wide as the Card at most: a select's long option (« Personne
+   physique (y compris entreprise individuelle) ») no longer pushes it, and its paragraphs, past the Card's edge. */
+.coach-space-column .ds-card .stack > * { max-width: 100%; }

@@ -118,7 +118,7 @@ export default async function HumanCoachesPage({ searchParams }: {
           {t(error === "unavailable" ? "humanCoaches.unavailable" : "humanCoaches.error")}
         </p>) : null}
     </>);
-    const sessionsList = sessions.length > 0 ? (<ul className="stack">
+    const sessionsList = sessions.length > 0 ? (<ul className="stack coaching-list">
         {sessions.map((paid) => paid.scheduledAt ? (<li key={paid.id} id={`seance-${paid.id}`} className="stack">
               <p>
                 <strong>{t("humanCoaches.sessionOn", { name: paid.coach.name, date: coachingTime(paid.scheduledAt, locale, timeZone) })}</strong>
@@ -178,7 +178,7 @@ export default async function HumanCoachesPage({ searchParams }: {
           {t("humanCoaches.price", { price: money(price.amount, price.currency) })} {t("humanCoaches.discountHint")}
         </p>)}
       {coaches.length === 0 ? <p>{t("humanCoaches.none")}</p> : null}
-      <ul className="stack">
+      <ul className="stack coaching-list">
         {coaches.map((coach) => {
             const hasAccess = granted.includes(coach.id);
             return (<li key={coach.id} className="stack">
@@ -196,7 +196,7 @@ export default async function HumanCoachesPage({ searchParams }: {
                 // To the Order page (#512): its summary and boxes come before Stripe Checkout.
                 <form method="get" action={COACHING_ORDER}>
                   <input type="hidden" name={ORDER_PARAMS.coach} value={coach.id}/>
-                  <button className="button button-primary" type="submit">
+                  <button className={buttonClass({ variant: "primary" })} type="submit">
                     {t("humanCoaches.book", { name: coach.name })}
                   </button>
                 </form>) : null}
@@ -204,7 +204,7 @@ export default async function HumanCoachesPage({ searchParams }: {
               <form action={changeCoachAccess}>
                 <input type="hidden" name="coachId" value={coach.id}/>
                 <input type="hidden" name="access" value={hasAccess ? ACCESS.revoke : ACCESS.grant}/>
-                <button className="button" type="submit">
+                <button className={buttonClass()} type="submit">
                   {t(hasAccess ? "humanCoaches.revoke" : "humanCoaches.grant", { name: coach.name })}
                 </button>
               </form>

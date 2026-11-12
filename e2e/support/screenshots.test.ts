@@ -45,13 +45,16 @@ describe("comparesEmailScreenshots (#472)", () => {
 // nobody changed. Every spec with a toHaveScreenshot asks this module whether to compare.
 describe("the screenshot specs", () => {
   const e2e = path.resolve(import.meta.dirname, "..");
-  const specs = readdirSync(e2e)
-    .filter((file) => file.endsWith(".spec.ts"))
+  // The coach-v2 project's specs (e2e/coach-v2/) included; not the baselines' folders, named after their specs.
+  const specs = readdirSync(e2e, { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".spec.ts") && !file.startsWith("__screenshots__"))
     .map((file) => ({ file, source: readFileSync(path.join(e2e, file), "utf8") }))
     .filter(({ source }) => /\.toHaveScreenshot\(/.test(source));
 
   it("are found", () => {
-    expect(specs.map(({ file }) => file)).toEqual(expect.arrayContaining(["email-html.spec.ts", "shell-screenshots.spec.ts"]));
+    expect(specs.map(({ file }) => file)).toEqual(
+      expect.arrayContaining(["email-html.spec.ts", "shell-screenshots.spec.ts", path.join("coach-v2", "coach-space-v2-screenshots.spec.ts")]),
+    );
   });
 
   it("each compare only when e2e/support/screenshots.ts says so, never on the platform alone", () => {

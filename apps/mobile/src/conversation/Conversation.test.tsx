@@ -119,6 +119,12 @@ describe("Conversation's thread, when the window changes (rotation, Split View, 
     expect(scrollToEnd()).not.toHaveBeenCalled();
   });
 
+  it("opens on the top of the thread when the page asks it (the home page's card, #979), and follows nothing until scrolled to the end", async () => {
+    await renderInApp(<CoachConversation conversationId={null} route="/" opensAtTop />, fakeCoachWeb().client);
+    await rewrap(2600);
+    expect(scrollToEnd()).not.toHaveBeenCalled();
+  });
+
   it("keeps the latest message in view when the person was reading it", async () => {
     await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
     await scrollTo(1500);

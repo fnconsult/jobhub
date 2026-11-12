@@ -40,6 +40,8 @@ export type PagePlacement = {
    * accessible name. It still says the AI Coach is an AI, not a person, and that a Human Coach can be booked.
    */
   shortDisclosure?: boolean;
+  /** The page opens on the top of its thread, its Introduction, rather than its end (the home page's card, #979). */
+  opensAtTop?: boolean;
 };
 
 /** What a page's suggestions and cards do with its conversation: put the focus in the box, or open its « Joindre un CV ». */
@@ -148,6 +150,7 @@ export function CoachConversation(page: PagePlacement) {
         attach={attach}
         inputRef={input}
         lead={page.lead}
+        opensAtTop={page.opensAtTop}
         // The help's articles, while the Candidate types, take the page's suggestions' place (shown until something is sent).
         aboveBox={
           found.length > 0 ? (

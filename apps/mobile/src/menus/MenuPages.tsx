@@ -75,6 +75,7 @@ export function HomePage({ onSaved }: { onSaved: (id: string) => void }) {
       conversationId={null}
       route={paths.home}
       shortDisclosure
+      opensAtTop
       onSaved={(saved) => onSaved(saved.id)}
       introduction={
         <>

@@ -59,7 +59,7 @@ The browser-held, time-limited holding of a Guest's captured Job Offer and CV: a
 _Avoid_: Temporary account, trial
 
 **Landing page**:
-What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead.
+What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead. Its counterpart for a Human Coach, at `/coachs-humains`, has the same design and leads to the Coach Enrolment; it is behind a switch in Paramètres, off by default, and the landing page offers « Candidat | Coach humain » only while it is on.
 _Avoid_: Home page (for the Visitor's), marketing site, splash page
 
 **Logo**:
@@ -950,7 +950,7 @@ The step, run by the product owner alone, that turns what the Beta serves into a
 _Avoid_: Release, go-live, prod deploy
 
 **Extension Version**:
-The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token.
+The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change. Outils shows an Administrator the one the deployed commit carries (`apps/extension/package.json`, read at build time), not the latest `extension-v` GitHub Release, since the server holds no GitHub token, and lets them download its zip for this environment from the server itself: the web image carries both zips (`apps/web/Dockerfile`, #989), since the repo's Releases are private and only exist once the product owner runs `extension.yml`.
 The extension states it in `Jobbbox-Extension-Version` on every call. The API Version's guard also refuses an extension older than `MINIMUM_EXTENSION_VERSION` (0.2.0: nothing refused yet), with the same 426 update answer (ADR-0104).
 _Avoid_: Version (for the extension)
 

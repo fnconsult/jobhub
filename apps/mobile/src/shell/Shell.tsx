@@ -188,7 +188,7 @@ export function Shell({
           />
           <OfflineBanner />
           <View style={{ flex: 1, flexDirection: "row", paddingBottom: insets.bottom }}>
-            <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>
+            <View testID="shell-conversation" style={{ flex: 1, marginHorizontal: layout.size.margin }}>
               <TopBarPrimaryProvider value={topBarHost}>{children}</TopBarPrimaryProvider>
             </View>
             {layout.panes === "columns"

@@ -69,7 +69,7 @@ export const PARAMETRES_TABS: readonly ParametresTab[] = [
   },
   { id: "sign_in", slug: "connexion", toolCategories: ["sign_in"], settings: [] },
   { id: "extension", slug: "extension", toolCategories: [], settings: namesOf(["extension"]) },
-  { id: "environment", slug: "environnement", toolCategories: ["delivery", "push"], settings: namesOf(["maintenance", "help_centre", "coach_space"]) },
+  { id: "environment", slug: "environnement", toolCategories: ["delivery", "push"], settings: namesOf(["maintenance", "help_centre", "public_site", "coach_space"]) },
 ];
 
 /** What « + Ajouter » adds (#396): a provider (its key, on its sheet), a key, a model, a source, a Job discovery site, a Job Site or a Sign-in Provider. */

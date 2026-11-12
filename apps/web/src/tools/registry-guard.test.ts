@@ -118,7 +118,7 @@ describe("the guard on the Tools", () => {
     // worded, its Target Companies visited and its monthly web search spend alerted (#402), the EUR/USD rate (#403), maintenance (#542), « Conversation au centre » (#601) and the help videos' origin (#568), Scaleway's: a Host, not a Tool.
     const taskRouting = Object.keys(TEXT_TASKS).flatMap((task) => [`AI_${task.toUpperCase()}_PROVIDER`, `AI_${task.toUpperCase()}_MODEL`]);
     const discoveryWide = ["JOB_DISCOVERY_TITLES_PER_LANGUAGE", "JOB_DISCOVERY_QUERY_LANGUAGES", "JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN", "JOB_DISCOVERY_COMPANY_REVISIT_DAYS", "WEB_SEARCH_MONTHLY_ALERT_EUR", "EUR_PER_USD"];
-    const tiedToNoProvider = (name: string) => taskRouting.includes(name) || name.startsWith("JOB_DIGEST_") || name === "EXTENSION_STORE_URL" || name === "APP_STORE_URL" || name === "PLAY_STORE_URL" || name === "HELP_MEDIA_ORIGIN" || name === "COACH_SPACE_V2" || name.startsWith("MAINTENANCE_") || discoveryWide.includes(name);
+    const tiedToNoProvider = (name: string) => taskRouting.includes(name) || name.startsWith("JOB_DIGEST_") || name === "EXTENSION_STORE_URL" || name === "APP_STORE_URL" || name === "PLAY_STORE_URL" || name === "HUMAN_COACH_PAGE_ENABLED" || name === "COACH_SPACE_V2" || name === "HELP_MEDIA_ORIGIN" || name.startsWith("MAINTENANCE_") || discoveryWide.includes(name);
     const attached = new Set(tools.flatMap((tool) => (tool.settings ?? []).map(({ name }) => name)));
     expect(PLATFORM_SETTINGS.map(({ name }) => name).filter((name) => !tiedToNoProvider(name) && !attached.has(name))).toEqual([]);
   });

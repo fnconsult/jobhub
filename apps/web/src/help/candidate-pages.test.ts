@@ -21,6 +21,8 @@ const NOT_CANDIDATE_PAGES = [
   /^\/nouveautes(\/\[version\])?$/,
   /^\/legal(\/|$)/,
   /^\/aide(\/|$)/,
+  // The Human Coaches' path on the public site (ADR-0105): a Visitor's page, behind a switch.
+  /^\/coachs-humains$/,
 ];
 
 /** Every page's route pattern (`/candidatures/[id]/documents`), route groups such as `(sections)` left out. */

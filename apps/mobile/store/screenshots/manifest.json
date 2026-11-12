@@ -1,7 +1,7 @@
 {
   "app-store-iphone-6.9/1-accueil.png": {
     "source": "maestro/captures/iphone-se/light/accueil.png",
-    "sha256": "814d5f629e10af58c117596516d367aed5450144ce260869515b8bf9b4a2fab8"
+    "sha256": "a4d5762182532332c81a958e168fa73cbf980dae9b978f42c83e76030f4a58b3"
   },
   "app-store-iphone-6.9/2-candidatures.png": {
     "source": "maestro/captures/iphone-se/light/candidatures.png",
@@ -21,7 +21,7 @@
   },
   "app-store-ipad-13/1-accueil.png": {
     "source": "maestro/captures/ipad-landscape/light/accueil.png",
-    "sha256": "b1e77ab4fd0dd9c063fe82cbceb665373180d15fb94153b0c08b78560035143d"
+    "sha256": "6b7d7beaed3077689422b5eff11a0a5b385c70e7ecea63902a7fd6642a2b8888"
   },
   "app-store-ipad-13/2-candidatures.png": {
     "source": "maestro/captures/ipad-landscape/light/candidatures.png",
@@ -41,7 +41,7 @@
   },
   "google-play-phone/1-accueil.png": {
     "source": "maestro/captures/foldable-folded/light/accueil.png",
-    "sha256": "c8940048b609ac2143f96c8f845f3f51a4e10d075db51f345da86984e0595ecf"
+    "sha256": "c435c52e33483c40fa621c77779058367b219f40ac081cb047dc35b49fa4c1b2"
   },
   "google-play-phone/2-candidatures.png": {
     "source": "maestro/captures/foldable-folded/light/candidatures.png",

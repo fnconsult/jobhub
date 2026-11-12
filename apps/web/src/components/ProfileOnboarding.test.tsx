@@ -170,11 +170,15 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     let calls: Call[];
     let created: number;
     let turns: (object | "down")[];
+    let searches: number;
+    let polled: string[];
 
     beforeEach(() => {
       calls = [];
+      polled = [];
       created = 201;
       turns = [];
+      searches = 0;
       vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
         // The Sectors' and Domains' labels: none here.
         if (url === "/api/reference-data") return new Response(null, { status: 404 });
@@ -182,9 +186,24 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
           interviewCalls.push(JSON.parse(String(init.body)));
           return interviewReply(turns);
         }
+        // The search card's poll (#1001): the offered Job Search, searching, one Job Offer found in Lyon.
+        if (url.startsWith("/api/job-searches/")) {
+          polled.push(url);
+          return Response.json({
+            id: "s1",
+            status: "searching",
+            failure: null,
+            live: { step: "search", sources: [{ source: "france_travail", state: "searched" }, { source: "web_search", state: "searching" }], pagesRead: 3, offersAnalysed: 1, matched: null, jobOfferIds: ["o1"] },
+            jobOffers: url.includes("known=") ? [] : [{ id: "o1", title: "DAF", content: "DAF à Lyon.", location: "Lyon", contractType: "cdi" }],
+          });
+        }
         calls.push({ url, method: init.method ?? "GET", body: JSON.parse(String(init.body ?? "{}")) });
         if (url === "/api/profiles") return Response.json(created === 201 ? { id: "p1" } : { error: "plan_quota_reached", prompt: null }, { status: created });
         if (url === "/api/profiles/p1/onboarding") return Response.json({ id: "p1", version: 2 });
+        if (url === "/api/profiles/p1/onboarding-search") {
+          searches += 1;
+          return searches > 2 ? Response.json({ error: "used_up" }, { status: 409 }) : Response.json({ id: `s${searches}`, offered: searches === 1 ? "first" : "restart" }, { status: 201 });
+        }
         return Response.json({ id: "p1" });
       });
     });
@@ -198,7 +217,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       }
     }
 
-    it("creates the Profile once the target role and location are answered, its onboarding in progress, then nothing more until the review", async () => {
+    it("creates the Profile once the target role and location are answered, its onboarding in progress, starts its offered Job Search, then nothing more until the review", async () => {
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
@@ -207,7 +226,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(calls).toEqual([]);
 
       await user.type((await screen.findByLabelText("Votre réponse")), "Lyon{Enter}");
-      await waitFor(() => expect(calls).toHaveLength(1));
+      await waitFor(() => expect(calls).toHaveLength(2));
+      expect(calls[1]).toMatchObject({ url: "/api/profiles/p1/onboarding-search", method: "POST" });
       expect(calls[0]).toMatchObject({
         url: "/api/profiles",
         method: "POST",
@@ -219,7 +239,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       });
 
       await user.type((await screen.findByLabelText("Votre réponse")), "marie.dupont@example.fr{Enter}");
-      expect(calls).toHaveLength(1);
+      expect(calls).toHaveLength(2);
 
       // Its Activity says « Profil créé » as soon as it is born, still « En cours ».
       const activity = screen.getByRole("complementary", { name: "Activité" });
@@ -235,9 +255,66 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       await user.click(within(reviewPane()).getByRole("button", { name: "Enregistrer mon profil" }));
 
       await waitFor(() => expect(push).toHaveBeenCalledWith("/profils/p1"));
-      expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual(["POST /api/profiles", "PATCH /api/profiles/p1", "POST /api/profiles/p1/onboarding"]);
-      expect(calls[1]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
-      expect(calls[2]!.body).toMatchObject({ basedOnVersion: 1, masterCv: { fullName: "Marie Dupont", email: "marie.dupont@example.fr" } });
+      expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual([
+        "POST /api/profiles",
+        "POST /api/profiles/p1/onboarding-search",
+        "PATCH /api/profiles/p1",
+        "POST /api/profiles/p1/onboarding",
+      ]);
+      expect(calls[2]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+      expect(calls[3]!.body).toMatchObject({ basedOnVersion: 1, masterCv: { fullName: "Marie Dupont", email: "marie.dupont@example.fr" } });
+    });
+
+    it("tells in the thread that the offered Job Search started, its card linking to it, and starts it again once when the target role changes (#1000)", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon"]);
+
+      expect(await within(thread()).findByText(/je lance dès maintenant une première recherche d'offres, offerte/)).toBeTruthy();
+      expect(within(thread()).getByRole("link", { name: "Voir la recherche" }).getAttribute("href")).toBe("/recherches/s1");
+
+      // Started over, another target role: its Search Criteria changed, the search started again, offered too.
+      await user.click(within(reviewPane()).getByRole("button", { name: "Recommencer" }));
+      await answerUpToReview(user, ["Marie Dupont", "Contrôleuse de gestion", "Lyon"]);
+      expect(await within(thread()).findByText(/je relance la recherche, offerte elle aussi/)).toBeTruthy();
+      expect(within(thread()).getByRole("link", { name: "Voir la recherche" }).getAttribute("href")).toBe("/recherches/s2");
+
+      // A third change asks for nothing more: the restart is spent.
+      await user.click(within(reviewPane()).getByRole("button", { name: "Recommencer" }));
+      await answerUpToReview(user, ["Marie Dupont", "Comptable", "Lyon"]);
+      await waitFor(() => expect(calls.filter((call) => call.url === "/api/profiles/p1" && call.method === "PATCH")).toHaveLength(2));
+      expect(calls.filter((call) => call.url === "/api/profiles/p1/onboarding-search")).toHaveLength(2);
+      expect(within(thread()).queryByRole("link", { name: "Voir la recherche" })).toBeNull();
+    });
+
+    it("shows the offered Job Search's live card in the thread, compact while the questions go on, whole at the review (#1001)", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type((await screen.findByLabelText("Votre réponse")), `${said}{Enter}`);
+
+      const card = await within(thread()).findByRole("region", { name: "Recherche de vos offres" });
+      await waitFor(() => expect(within(card).getByText(/Étape 2 sur 4/)).toBeTruthy());
+      expect(within(card).getByText(/Affinée avec :/).textContent).toBe("Affinée avec : Directrice financière · Lyon");
+      expect(polled[0]).toBe("/api/job-searches/s1/live");
+      expect(within(card).getByRole("link", { name: "Voir la recherche" }).getAttribute("href")).toBe("/recherches/s1");
+
+      // The questions go on; at the review, the card is whole, with its steps.
+      while (!screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })) {
+        await user.click(screen.getByRole("button", { name: "Passer cette question" }));
+      }
+      expect(within(thread()).getByRole("list", { name: "Étapes de la recherche" })).toBeTruthy();
+    });
+
+    it("goes on without a word when the offered Job Search cannot start (#1000)", async () => {
+      searches = 2;
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type((await screen.findByLabelText("Votre réponse")), `${said}{Enter}`);
+      await waitFor(() => expect(calls.map((call) => call.url)).toEqual(["/api/profiles", "/api/profiles/p1/onboarding-search"]));
+      expect(within(thread()).queryByRole("link", { name: "Voir la recherche" })).toBeNull();
+      expect(screen.getByLabelText("Votre réponse")).toBeTruthy();
     });
 
     it("shows the Upgrade prompt in the thread when the Plan Quota refuses it, and creates nothing behind it", async () => {
@@ -344,9 +421,16 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
         await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
         await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+        // The search card counts the CDI proposed, « supposé » until it is validated (#1001).
+        const card = await within(thread()).findByRole("region", { name: "Recherche de vos offres" });
+        await waitFor(() => expect(within(card).getByText(/Affinée avec :/).textContent).toMatch(/^Affinée avec : Directrice financière · Lyon · CDI\s*\(supposé\)$/));
         await user.click(await screen.findByRole("button", { name: "Oui, CDI" }));
-        await waitFor(() => expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual(["POST /api/profiles", "PATCH /api/profiles/p1"]));
-        expect(calls[1]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: ["cdi"] } });
+        await waitFor(() =>
+          expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual(["POST /api/profiles", "POST /api/profiles/p1/onboarding-search", "PATCH /api/profiles/p1"]),
+        );
+        expect(calls[2]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: ["cdi"] } });
+        // Validated, it narrows the search: in « Affinée avec », no longer supposed; the search is not started again.
+        await waitFor(() => expect(within(card).getByText(/Affinée avec :/).textContent).toBe("Affinée avec : Directrice financière · Lyon · CDI"));
       });
 
       it("hands over to the scripted questions at the next question when the AI fails, not asking again what it knows", async () => {

@@ -794,3 +794,62 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     }
   });
 });
+
+// Issue #1001 (ADR-0105): the offered Job Search's card on /profils/nouveau, compact and stuck at the top of the thread while
+// the questions go on, whole at the review (the Work Pane closed), on a computer and on a phone. Nothing runs the
+// worker here: the run's measures are written on the Job Search as the worker writes them, with three Job Offers found,
+// and the motion is reduced so that the loupe and the orbit stand still.
+test.describe("the onboarding's search card (#1001)", () => {
+  const PHONE_AND_COMPUTER = SCREENSHOT_WIDTHS.filter(({ name }) => name !== "tablet");
+
+  test("compact during the questions, whole at the review, its counters the run's own measures", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    for (const { name, width, height } of PHONE_AND_COMPUTER) {
+      const email = newAddress(`shots-search-card-${name}`);
+      await signInWithMagicLink(page, email);
+      await page.setViewportSize({ width, height });
+      await page.goto("/profils/nouveau");
+      await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+      for (const said of ["Catherine Morel", "Directrice administrative et financière", "Lyon"]) {
+        await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
+        await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+      }
+      const card = page.getByRole("region", { name: fr.onboardingSearch.title });
+      await expect(card).toBeVisible();
+
+      // The worker's measures, written as it writes them while it searches.
+      const [search] = await query<{ id: string }>(
+        "SELECT s.id FROM job_search s JOIN candidate c ON c.id = s.candidate_id WHERE c.email = $1 AND s.offered = 'first'",
+        [email],
+      );
+      const jobOfferIds = await insertJobOffers(OFFERS.slice(0, 3), `card-${name}-`);
+      const live = {
+        step: "search",
+        sources: [
+          { source: "france_travail", state: "searched" },
+          { source: "fantastic_jobs", state: "searched" },
+          { source: "web_search", state: "searching" },
+          { source: "ats_apis", state: "waiting" },
+        ],
+        pagesRead: 27,
+        offersAnalysed: 3,
+        matched: null,
+        jobOfferIds,
+      };
+      await query("UPDATE job_search SET live = $2::jsonb WHERE id = $1", [search!.id, JSON.stringify(live)]);
+      await expect(card.locator('[data-counter="pages"] dd')).toHaveText("27");
+      await expect(card.locator('[data-counter="sources"] dd')).toHaveText("3 sur 4");
+      await check(page, page.locator(".onb-search-wrap"), ".onb-search-wrap", `onboarding-search-compact-${name}`, width, false);
+
+      // At the review, the Work Pane closed: the whole card, its orbit, counters, sources and steps.
+      while (!(await page.getByRole("heading", { level: 2, name: fr.cvReview.title }).isVisible())) {
+        await page.getByRole("button", { name: fr.questionnaire.skip }).click();
+      }
+      await page.locator("aside.work-pane").getByRole("button", { name: fr.conversationFirst.close }).click();
+      await expect(page.locator("aside.work-pane")).toHaveCount(0);
+      await expect(page.getByRole("list", { name: fr.onboardingSearch.stepsLabel })).toBeVisible();
+      await check(page, page.locator(".onb-search-wrap"), ".onb-search-wrap", `onboarding-search-card-${name}`, width, false);
+      await page.context().clearCookies();
+    }
+  });
+});

@@ -41,6 +41,7 @@ import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
+import { OnboardingSearchCard, searchedWith, type RefiningCriterion } from "./OnboardingSearchCard";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 import "./QuickActions.css";
@@ -71,6 +72,8 @@ interface Interview {
 }
 
 const IN_PROGRESS: OnboardingState = "in_progress";
+/** The Job Searches the onboarding offers a Profile (#1000): its first, and one restart. */
+const OFFERED_SEARCHES = 2;
 const JSON_BODY = { "content-type": "application/json" };
 const INTERVIEW_URL = "/api/onboarding/interview";
 
@@ -113,6 +116,8 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
  * in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the review's save
  * finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its review. From a
  * CV or from scratch, the Profile is still created at the review's save (#1003 changes it).
+ * Born, it gets its first Job Search, offered outside the Plan Quota (#1000), started again once when an answer changes
+ * its target role or locations; a coach line in the thread says so, then its live card (OnboardingSearchCard, #1001).
  */
 export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const { t, i18n } = useTranslation();
@@ -128,10 +133,16 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const born = useRef<Promise<BornProfile | null> | null>(bornAtStart);
   // The Search Criteria last sent for it, so that only an answer changing them is saved.
   const sentCriteria = useRef(resumed ? criteriaKey(resumed.searchCriteria) : "");
+  // Its target role and locations last sent: only a change of them starts the offered Job Search again (#1000).
+  const sentTarget = useRef(resumed ? targetKey(resumed.searchCriteria) : "");
   const [refused, setRefused] = useState<Refused | null>(null);
   const [interview, setInterview] = useState<Interview>(newInterview);
   // The interview gave way to the scripted questions (the AI unavailable): they start from what it had.
   const [fellBack, setFellBack] = useState(false);
+  // The Job Search the onboarding offers (#1000), once started: told in the thread after the answer that started it
+  // (`after`: how many answers then, the interview's and then the scripted questions'); and how many times it was asked for.
+  const [offeredSearch, setOfferedSearch] = useState<{ id: string; restarted: boolean; after: number } | null>(null);
+  const offeredStarts = useRef(0);
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState("");
@@ -242,7 +253,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setValue("");
     setError(null);
     noteCreation?.({ type: "interviewed", ...answerCounts(now.exchange), provenance: now.provenance });
-    keepCriteria(draft.masterCv, draft.searchCriteria);
+    keepCriteria(draft.masterCv, draft.searchCriteria, now.exchange.length);
     void askNext(now);
   }
 
@@ -261,6 +272,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setOpener("");
     setAsides([]);
     setRefused(null);
+    setOfferedSearch(null);
   }
 
   /**
@@ -268,15 +280,41 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
    * progress; once born, an answer changing its Search Criteria changes them. Each waits for the one before. A creation
    * refused leaves no Profile, tried again only when they change: the review's save creates it, or shows why not.
    */
-  function keepCriteria(masterCv: MasterCvContent, searchCriteria: CvDraft["searchCriteria"] & Partial<SearchCriteria>) {
+  function keepCriteria(masterCv: MasterCvContent, searchCriteria: CvDraft["searchCriteria"] & Partial<SearchCriteria>, after: number) {
     const key = criteriaKey(searchCriteria);
     if (!searchCriteria.targetRole || searchCriteria.locations.length === 0 || key === sentCriteria.current) return;
     sentCriteria.current = key;
+    const retargeted = targetKey(searchCriteria) !== sentTarget.current;
+    sentTarget.current = targetKey(searchCriteria);
     born.current = (born.current ?? Promise.resolve(null)).then(async (profile) => {
-      if (!profile) return createProfile(masterCv, searchCriteria);
-      await fetch(`/api/profiles/${profile.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) }).catch(() => null);
+      if (!profile) {
+        const created = await createProfile(masterCv, searchCriteria);
+        if (created) await startOfferedSearch(created.id, after);
+        return created;
+      }
+      const changed = await fetch(`/api/profiles/${profile.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) }).catch(() => null);
+      // The search follows the new target role or locations: started again, once (#1000); not another criterion (#1002).
+      if (changed?.ok && retargeted) await startOfferedSearch(profile.id, after);
       return profile;
     });
+  }
+
+  /**
+   * Starts the Job Search the onboarding offers the Profile born (ADR-0105, #1000), outside the Plan Quota, then starts it
+   * again once when its target role or locations change; the server refuses beyond (409), so no more is asked. Not
+   * started, the onboarding goes on: the Candidate can still search from Recherches d'offres.
+   */
+  async function startOfferedSearch(profileId: string, after: number): Promise<void> {
+    if (offeredStarts.current >= OFFERED_SEARCHES) return;
+    offeredStarts.current += 1;
+    try {
+      const response = await fetch(`/api/profiles/${profileId}/onboarding-search`, { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 201 && typeof body.id === "string") setOfferedSearch({ id: body.id, restarted: body.offered === "restart", after });
+      else if (response.status === 409) offeredStarts.current = OFFERED_SEARCHES;
+    } catch {
+      // Not started: nothing to tell.
+    }
   }
 
   async function createProfile(masterCv: MasterCvContent, searchCriteria: CvDraft["searchCriteria"]): Promise<BornProfile | null> {
@@ -318,7 +356,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setValue("");
     setError(null);
     const draft = scriptedDraft(result.questionnaire);
-    keepCriteria(draft.masterCv, draft.searchCriteria);
+    keepCriteria(draft.masterCv, draft.searchCriteria, interview.exchange.length + answered.length);
     if (!currentQuestion(result.questionnaire)) review(draftFromQuestionnaire(result.questionnaire), "questionnaire", fellBack ? reviewEditsOf(interviewDraft(draft)) : null);
   }
 
@@ -375,6 +413,30 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const described = [optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
 
   const answeringNow = question !== null || turn !== null;
+
+  // The search card's criteria: what was answered or validated so far, in « Affinée avec » (#1001); the interview's
+  // proposal waiting for its « Oui, … » counted too, said « supposé » until it is validated (#1002).
+  const answersDraft = fellBack ? scriptedDraft(questionnaire) : interview.draft;
+  const proposed = turn?.proposal && !interview.declining && isRefining(turn.proposal.field) ? turn.proposal.field : null;
+  const searchedDraft = turn && proposed ? replied(interview.draft, turn, { kind: "accepted" }) : answersDraft;
+
+  /** The Job Search the onboarding offers (#1000), told after the answer that started it (the `after`-th), then its card (#1001). */
+  const offeredSearchAfter = (answers: number): ReactNode[] =>
+    offeredSearch?.after === answers
+      ? [
+          <CoachLine key="offered-search">
+            <p>{offeredSearch.restarted ? t("newProfile.offeredSearchRestarted") : t("newProfile.offeredSearchStarted")}</p>
+          </CoachLine>,
+          <OnboardingSearchCard
+            key={`offered-search-${offeredSearch.id}`}
+            jobSearchId={offeredSearch.id}
+            restarted={offeredSearch.restarted}
+            compact={step.kind === "questionnaire" || step.kind === "interview"}
+            assumed={proposed ? [proposed] : []}
+            {...searchedWith(searchedDraft)}
+          />,
+        ]
+      : [];
   const boxLabel = answeringNow ? t("questionnaire.answerLabel") : t("coachPanel.messageLabel");
 
   return (
@@ -408,6 +470,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                     <span className="visually-hidden">{t("questionnaire.you")}</span>
                     <p>{replyText(said)}</p>
                   </li>,
+                  ...offeredSearchAfter(index + 1),
                 ])}
                 {fellBack ? (
                   <CoachLine>
@@ -422,6 +485,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                     <span className="visually-hidden">{t("questionnaire.you")}</span>
                     <p>{answerText(turn)}</p>
                   </li>,
+                  ...offeredSearchAfter(interview.exchange.length + index + 1),
                 ])}
               </>
             ) : null}
@@ -714,9 +778,21 @@ function Suggestions({ label, children }: { label: string; children: ReactNode }
   );
 }
 
+const REFINING: readonly string[] = ["targetRole", "locations", "contractTypes", "remoteWorkOptions", "minSalary"] satisfies RefiningCriterion[];
+
+/** Whether the interview's field is one of the search card's « Affinée avec » criteria. */
+function isRefining(field: InterviewField): field is InterviewField & RefiningCriterion {
+  return REFINING.includes(field);
+}
+
 /** The Search Criteria the Profile is born with, as one key: a change of any is saved on it (#999, #1002). */
 function criteriaKey(criteria: Partial<SearchCriteria>): string {
   return JSON.stringify(criteria);
+}
+
+/** The target role and locations, as one key: what the offered Job Search searches for (#1000). */
+function targetKey(criteria: Pick<SearchCriteria, "targetRole" | "locations">): string {
+  return JSON.stringify([criteria.targetRole, criteria.locations]);
 }
 
 /** « oui », « Non », « yes »… typed for a yes-or-no question: "yes" or "no", or null when it is neither. */

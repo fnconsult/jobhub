@@ -1,7 +1,7 @@
 import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import type { SearchOptions, ToolCall } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider, type MemoryUsageLog } from "@jobhub/ai/testing";
-import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type Provenance, type ProvenanceEvent, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
+import { consultedSources, DEFAULT_JOB_DISCOVERY_SETTINGS, type LiveDiscoveryMetrics, type IndustryReference, type Provenance, type ProvenanceEvent, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
 import type { TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -1603,6 +1603,76 @@ describe("Job discovery", () => {
 
       expect(report.jobOffers.map((jobOffer) => jobOffer.title)).toEqual(["DAF H/F"]);
       expect(report.franceTravail).toEqual({ status: reason, calls: 2, offers: 0 });
+    });
+
+    describe("what the run has measured, told while it runs (#1001)", () => {
+      const dafPage = { [DAF_URL]: { body: jobPostingPage({ title: "DAF H/F", description: "Poste de DAF à Lyon.", datePosted: "2026-10-12" }) } };
+
+      it("tells each source's state, the pages read and the Job Offers found as they change, from nothing measured", async () => {
+        const ft = fakeFranceTravail({ ok: true, calls: 2, offers: [ftOffer("201A", daysAgo(5))] });
+        const { discovery } = setup({ sources: [DAF_URL], pages: dafPage, now: NOW, franceTravail: ft.franceTravail });
+        const measured: LiveDiscoveryMetrics[] = [];
+
+        const report = await discovery.discover({ candidateId: "c", criteria, onMetrics: (live) => measured.push(live) });
+
+        // Nothing measured yet: every active source waiting (the ATS APIs too, which the web search may lead to).
+        expect(measured[0]).toEqual({
+          step: "search",
+          sources: [
+            { source: "france_travail", state: "waiting" },
+            { source: "web_search", state: "waiting" },
+            { source: "ats_apis", state: "waiting" },
+          ],
+          pagesRead: 0,
+          offersAnalysed: 0,
+          matched: null,
+          jobOfferIds: [],
+        });
+        const states = measured.map((live) => live.sources.map(({ source, state }) => `${source}:${state}`).join(" "));
+        expect(states).toContain("france_travail:searching web_search:waiting ats_apis:waiting");
+        expect(states).toContain("france_travail:searched web_search:searching ats_apis:waiting");
+        // The counters only grow, and end where the report does.
+        for (const [index, live] of measured.entries()) {
+          const before = measured[index - 1];
+          if (!before) continue;
+          expect(live.pagesRead).toBeGreaterThanOrEqual(before.pagesRead);
+          expect(live.offersAnalysed).toBeGreaterThanOrEqual(before.offersAnalysed);
+        }
+        expect(measured.at(-1)).toEqual({
+          step: "search",
+          sources: [
+            { source: "france_travail", state: "searched" },
+            { source: "web_search", state: "searched" },
+            { source: "ats_apis", state: "waiting" },
+          ],
+          pagesRead: report.funnel.fetched,
+          offersAnalysed: 2,
+          matched: null,
+          jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id),
+        });
+        expect(report.funnel.fetched).toBe(1);
+      });
+
+      it("tells a source that turned the run away, and lists only the sources on", async () => {
+        const ft = fakeFranceTravail({ ok: false, reason: "refused", detail: "search refused (403)", calls: 1 });
+        const settings = async (): Promise<JobDiscoverySettings> => ({ ...DEFAULT_JOB_DISCOVERY_SETTINGS, sources: { ...DEFAULT_JOB_DISCOVERY_SETTINGS.sources, ats_apis: false } });
+        const { discovery } = setup({ sources: [DAF_URL], pages: dafPage, now: NOW, franceTravail: ft.franceTravail, settings });
+        const measured: LiveDiscoveryMetrics[] = [];
+
+        await discovery.discover({ candidateId: "c", criteria, onMetrics: (live) => measured.push(live) });
+
+        expect(measured.at(-1)!.sources).toEqual([
+          { source: "france_travail", state: "refused" },
+          { source: "web_search", state: "searched" },
+        ]);
+        expect(consultedSources(measured.at(-1)!)).toBe(2);
+      });
+
+      it("measures nothing for a run nobody waits on", async () => {
+        const { discovery } = setup({ sources: [DAF_URL], pages: dafPage, now: NOW });
+
+        await expect(discovery.discover({ candidateId: "c", criteria })).resolves.toMatchObject({ jobOffers: [expect.anything()] });
+      });
     });
 
     it("is off without France Travail configured", async () => {

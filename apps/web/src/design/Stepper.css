@@ -1,0 +1,111 @@
+@layer base, components;
+
+/* Steps known in advance (#1001), from the onboarding prototype (#995): a marker per step on a hairline, ✓ on the accent
+   once done, a pulsing accent dot under way, an empty circle to come. */
+@layer components {
+  .ds-stepper {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ds-stepper__step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    column-gap: var(--space-3);
+    padding-bottom: var(--space-4);
+  }
+
+  .ds-stepper__step:last-child {
+    padding-bottom: 0;
+  }
+
+  /* The hairline from one marker to the next. */
+  .ds-stepper__step:not(:last-child)::before {
+    position: absolute;
+    top: 1.6rem;
+    bottom: 0.15rem;
+    left: calc(0.625rem - 0.5px);
+    width: 1px;
+    content: "";
+    background: var(--color-border-strong);
+  }
+
+  .ds-stepper__step[data-status="done"]:not(:last-child)::before {
+    background: var(--color-accent-line);
+  }
+
+  .ds-stepper__marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.2rem;
+    color: var(--color-on-accent);
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: 50%;
+  }
+
+  .ds-stepper__marker .icon {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+
+  .ds-stepper__step[data-status="done"] .ds-stepper__marker {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+
+  .ds-stepper__step[data-status="current"] .ds-stepper__marker {
+    border-color: var(--color-accent);
+  }
+
+  .ds-stepper__pulse {
+    width: 0.5rem;
+    height: 0.5rem;
+    background: var(--color-accent);
+    border-radius: 50%;
+    animation: ds-stepper-pulse 1.6s ease-in-out infinite;
+  }
+
+  .ds-stepper__title {
+    margin: 0;
+    color: var(--color-secondary);
+  }
+
+  .ds-stepper__step[data-status="current"] .ds-stepper__title {
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .ds-stepper__step[data-status="done"] .ds-stepper__title {
+    color: var(--color-text);
+  }
+
+  .ds-stepper__detail {
+    margin: var(--space-1) 0 0;
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  @keyframes ds-stepper-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.45;
+      transform: scale(0.7);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ds-stepper__pulse {
+      animation: none;
+    }
+  }
+}

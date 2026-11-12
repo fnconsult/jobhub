@@ -1,4 +1,4 @@
-import type { MasterCvContent, Provenance, ProvenanceEvent } from "@jobhub/shared";
+import type { LiveDiscoveryMetrics, MasterCvContent, Provenance, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, migrateApplications, type Applications } from "../applications";
@@ -931,6 +931,74 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       await reports.record(naming.id, { jobOfferIds: [], provenance: withId });
 
       for (const { id } of [searching, unavailable, naming]) expect((await jobSearches.get(candidateId, id))?.provenance).toBeNull();
+    });
+  });
+
+  describe("a Job Search's live metrics, for the onboarding's search card (#1001)", () => {
+    let reports: ReturnType<typeof createJobSearchReports>;
+    beforeEach(() => {
+      reports = createJobSearchReports(testAuth.auth.options.database as Pool, { quotas: billing, now: () => clock.now });
+    });
+    const measuring = (jobOfferIds: string[]): LiveDiscoveryMetrics => ({
+      step: "search",
+      sources: [
+        { source: "france_travail", state: "searched" },
+        { source: "web_search", state: "searching" },
+      ],
+      pagesRead: 7,
+      offersAnalysed: jobOfferIds.length,
+      matched: null,
+      jobOfferIds,
+    });
+
+    it("gives what the run measured so far with the Job Offers found until then, as the Match Score reads them, but those the card has", async () => {
+      const strong = await capture("DAF H/F", { employer: "Acme Industrie", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] });
+      const weak = await capture("Contrôleur de gestion", { location: "Marseille", contractType: "cdd" });
+      const jobSearch = await started();
+
+      expect(await jobSearches.live(candidateId, jobSearch.id, [])).toEqual({ id: jobSearch.id, status: "searching", failure: null, live: null, jobOffers: [] });
+      await reports.live(jobSearch.id, measuring([strong, weak]));
+
+      const polled = await jobSearches.live(candidateId, jobSearch.id, []);
+      expect(polled?.live).toEqual(measuring([strong, weak]));
+      expect(polled?.jobOffers).toEqual([
+        { id: strong, title: "DAF H/F", content: "DAF H/F. Poste à pourvoir.", employer: "Acme Industrie", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] },
+        { id: weak, title: "Contrôleur de gestion", content: "Contrôleur de gestion. Poste à pourvoir.", location: "Marseille", contractType: "cdd" },
+      ]);
+      expect((await jobSearches.live(candidateId, jobSearch.id, [strong]))?.jobOffers.map((offer) => offer.id)).toEqual([weak]);
+    });
+
+    it("keeps the last measure once over, with the Job Offers kept, and writes none after", async () => {
+      const strong = await capture("DAF H/F", { location: "Lyon", contractType: "cdi" });
+      const jobSearch = await started();
+      await reports.live(jobSearch.id, { ...measuring([strong]), step: "analysis", matched: 1 });
+      await reports.record(jobSearch.id, { jobOfferIds: [strong] });
+      await reports.live(jobSearch.id, measuring([]));
+
+      expect(await jobSearches.live(candidateId, jobSearch.id, [])).toMatchObject({
+        status: "done",
+        live: { step: "analysis", matched: 1, jobOfferIds: [strong] },
+        jobOffers: [{ id: strong }],
+      });
+    });
+
+    it("says a failed run failed, with what it had found; one the worker never answered as a timeout", async () => {
+      const jobSearch = await started();
+      await reports.record(jobSearch.id, { failed: "discovery_failed" });
+      expect(await jobSearches.live(candidateId, jobSearch.id, [])).toMatchObject({ status: "failed", failure: "discovery_failed" });
+
+      const lost = await started();
+      clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+      expect(await jobSearches.live(candidateId, lost.id, [])).toMatchObject({ status: "failed", failure: "timeout" });
+    });
+
+    it("is nobody else's, and keeps nothing that is not of its shape", async () => {
+      const jobSearch = await started();
+      await reports.live(jobSearch.id, { ...measuring([]), step: "guessing" } as unknown as LiveDiscoveryMetrics);
+
+      expect(await jobSearches.live(otherCandidateId, jobSearch.id, [])).toBeNull();
+      expect(await jobSearches.live(candidateId, "not-an-id", [])).toBeNull();
+      expect((await jobSearches.live(candidateId, jobSearch.id, []))?.live).toBeNull();
     });
   });
 });

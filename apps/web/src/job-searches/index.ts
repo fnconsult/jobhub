@@ -22,6 +22,9 @@
  *    - `progress`: while it searches, the worker writes its live steps after each one starts
  *      and ends (the same events as the web streams'), and `notifications`, which every page
  *      polls while one is searching, gives them back (« En cours ailleurs »), until it is over.
+ *    - `live`: while it searches, the worker also writes what it has measured so far (#1001: its sources, pages read,
+ *      Job Offers found, its step), kept once it is over; `live` gives it back with the Job Offers found so far (kept,
+ *      once over), as the Match Score reads them, for the onboarding's search card to count those matching its criteria.
  *    - `stop` one still searching (#331), the Candidate's own only: the worker, asking `stopRequested`
  *      as it searches, stops between two steps and the AI call on its way, and records it 'stopped'
  *      with the Job Offers found until then (a failed one keeps them too). A stop that kept no Job
@@ -43,12 +46,14 @@
 import {
   noDiscoveryMetrics,
   rankByMatchScore,
+  readLiveDiscoveryMetrics,
   readProvenance,
   readRunProgress,
   scoreMatch,
   type Activity,
   type DiscoveryMetrics,
   type JobOffer,
+  type LiveDiscoveryMetrics,
   type MatchScore,
   type Provenance,
   type ProvenanceEvent,
@@ -236,6 +241,27 @@ export interface JobSearches {
    * notification, or opened the Job Search). Nothing for anyone else's, or one still searching.
    */
   dismissNotification(candidateId: string, jobSearchId: string): Promise<void>;
+  /**
+   * The Candidate's Job Search as the onboarding's search card polls it (#1001), with the Job Offers found so far but
+   * those in `known`; null when it is not theirs. One past its time is failed first.
+   */
+  live(candidateId: string, jobSearchId: string, known: readonly string[]): Promise<JobSearchLive | null>;
+}
+
+/** A Job Offer as the onboarding's search card scores it (#1001): what the Match Score reads of it, and its id. */
+export type ScoredJobOffer = Pick<JobOffer, "id" | "title" | "content" | "employer" | "location" | "contractType" | "remoteWork" | "salary" | "skills" | "requiredExperienceYears">;
+
+/**
+ * A Job Search as the onboarding's search card polls it (#1001): where it stands, what its run has measured so far (null
+ * before the worker's first measure, and for one run before #1001), and the Job Offers found so far (kept, once over),
+ * Expired ones and those the card already has (`known`) left out.
+ */
+export interface JobSearchLive {
+  id: string;
+  status: JobSearchStatus;
+  failure: JobSearchFailure | null;
+  live: LiveDiscoveryMetrics | null;
+  jobOffers: ScoredJobOffer[];
 }
 
 export type StopJobSearchResult = { ok: true } | { ok: false; error: "not_found" | "forbidden" | "over" };
@@ -246,6 +272,8 @@ export interface JobSearchReports extends Pick<JobSearches, "record"> {
   stopRequested(jobSearchId: string): Promise<boolean>;
   /** Writes the live steps of a Job Search still searching (each step's latest event); nothing once it is over. */
   progress(jobSearchId: string, steps: ProvenanceEvent[]): Promise<void>;
+  /** Writes what the run of a Job Search still searching has measured so far (#1001); nothing once it is over. */
+  live(jobSearchId: string, metrics: LiveDiscoveryMetrics): Promise<void>;
   /**
    * Fails ('timeout') every Job Search still searching after SEARCH_TIMEOUT_MS and
    * gives each one's Plan Quota use back. Returns how many it failed.
@@ -293,6 +321,8 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS provenance jsonb;
     -- Its live steps while it searches (each step's latest event), written by the worker; null once it is over.
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS progress jsonb;
+    -- What its run has measured so far (#1001: sources, pages read, Job Offers found), written by the worker; kept once over.
+    ALTER TABLE job_search ADD COLUMN IF NOT EXISTS live jsonb;
     -- A Job Search the Candidate stopped (#331): asked at stop_requested_at, 'stopped' once the worker stops.
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS stop_requested_at timestamptz;
     ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_status_check;
@@ -377,6 +407,12 @@ export function createJobSearchReports(
       if (!UUID.test(jobSearchId)) return;
       // Only steps' events are written: nothing a Provenance never keeps.
       await database.query("UPDATE job_search SET progress = $2::jsonb WHERE id = $1 AND status = 'searching'", [jobSearchId, JSON.stringify(readRunProgress(steps))]);
+    },
+    async live(jobSearchId, metrics) {
+      if (!UUID.test(jobSearchId)) return;
+      const checked = readLiveDiscoveryMetrics(metrics);
+      if (!checked) return;
+      await database.query("UPDATE job_search SET live = $2::jsonb WHERE id = $1 AND status = 'searching'", [jobSearchId, JSON.stringify(checked)]);
     },
     async stopRequested(jobSearchId) {
       if (!UUID.test(jobSearchId)) return false;
@@ -490,6 +526,32 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       metrics,
       provenance: null,
       ...(offered ? { offered } : {}),
+    };
+  }
+
+  async function live(candidateId: string, jobSearchId: string, known: readonly string[]): Promise<JobSearchLive | null> {
+    if (!UUID.test(jobSearchId)) return null;
+    const { rows } = await database.query<{ id: string; status: JobSearchStatus; failure: string | null; started_at: Date; live: unknown; job_offer_ids: string[] }>(
+      "SELECT id, status, failure, started_at, live, job_offer_ids FROM job_search WHERE id = $1 AND candidate_id = $2",
+      [jobSearchId, candidateId],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    // A search the worker never answered is over: said failed rather than waited on.
+    if (row.status === "searching" && now().getTime() - row.started_at.getTime() > SEARCH_TIMEOUT_MS) {
+      await record(row.id, { failed: "timeout" });
+      return live(candidateId, jobSearchId, known);
+    }
+    const metrics = readLiveDiscoveryMetrics(row.live);
+    const ids = row.status === "searching" ? (metrics?.jobOfferIds ?? []) : row.job_offer_ids;
+    const has = new Set(known);
+    const found = await Promise.all(ids.filter((id) => UUID.test(id) && !has.has(id)).map((id) => deps.jobOffers.get(id, candidateId)));
+    return {
+      id: row.id,
+      status: row.status,
+      failure: row.status === "failed" ? failureOf(row.failure) : null,
+      live: metrics,
+      jobOffers: found.filter((jobOffer): jobOffer is JobOffer => jobOffer !== null && !jobOffer.expiredAt).map(scoredJobOffer),
     };
   }
 
@@ -631,6 +693,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       return { notifications, searching: running.length > 0, running };
     },
     stop,
+    live,
     async dismissNotification(candidateId, jobSearchId) {
       if (!UUID.test(jobSearchId)) return;
       await database.query("UPDATE job_search SET notification_pending = false WHERE id = $1 AND candidate_id = $2", [jobSearchId, candidateId]);
@@ -646,6 +709,22 @@ function outcomeOf(row: { status: JobSearchStatus; failure: string | null; found
   if (row.status === "stopped") return { status: "stopped", at, found };
   const step = (readProvenance(row.provenance)?.steps ?? []).filter((ran) => ran.outcome === "failed").at(-1)?.activity ?? null;
   return { status: "failed", failure: failureOf(row.failure), at, step, found };
+}
+
+/** What the Match Score reads of a Job Offer, for the onboarding's search card (#1001). */
+function scoredJobOffer({ id, title, content, employer, location, contractType, remoteWork, salary, skills, requiredExperienceYears }: JobOffer): ScoredJobOffer {
+  return {
+    id,
+    title,
+    content,
+    ...(employer !== undefined ? { employer } : {}),
+    ...(location !== undefined ? { location } : {}),
+    ...(contractType !== undefined ? { contractType } : {}),
+    ...(remoteWork !== undefined ? { remoteWork } : {}),
+    ...(salary !== undefined ? { salary } : {}),
+    ...(skills !== undefined ? { skills } : {}),
+    ...(requiredExperienceYears !== undefined ? { requiredExperienceYears } : {}),
+  };
 }
 
 /** The mark of an offered Job Search (#1000), or null for an ordinary one. */

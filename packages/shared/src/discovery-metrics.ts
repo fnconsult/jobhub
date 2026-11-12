@@ -165,3 +165,70 @@ export function noDiscoveryMetrics(): DiscoveryMetrics {
     costEur: 0,
   };
 }
+
+/**
+ * The sources a run consults, as the onboarding's search card names them (#1001): France Travail, Fantastic.jobs
+ * (« sites carrières des employeurs »), the web search, the ATS APIs, and the Profile's Target Companies.
+ */
+export const DISCOVERY_SOURCES = ["france_travail", "fantastic_jobs", "web_search", "ats_apis", "target_companies"] as const;
+export type DiscoverySource = (typeof DISCOVERY_SOURCES)[number];
+
+/**
+ * Where a source stands in a run (#1001): not consulted yet (`waiting`), under way (`searching`), consulted
+ * (`searched`), or it turned the run away (`refused`) or failed (`failed`). Every state but `waiting` is consulted.
+ */
+export const LIVE_SOURCE_STATES = ["waiting", "searching", "searched", "refused", "failed"] as const;
+export type LiveSourceState = (typeof LIVE_SOURCE_STATES)[number];
+
+/** The run's step (#1001): searching its sources and reading their pages, then analysing what it found (its Match Scores). */
+export const LIVE_DISCOVERY_STEPS = ["search", "analysis"] as const;
+export type LiveDiscoveryStep = (typeof LIVE_DISCOVERY_STEPS)[number];
+
+/**
+ * What a run has measured so far, published on its Job Search while it runs (#1001), for the onboarding's search card:
+ * only what is counted, never an estimate. `sources` lists the run's active sources only, in DISCOVERY_SOURCES' order
+ * (`target_companies` once the run has some to visit); `pagesRead` is the funnel's `fetched`; `offersAnalysed` the
+ * distinct Job Offers found so far, `jobOfferIds`; `matched` the worker's own count at FUNNEL_MATCH_SCORE once it
+ * analysed them against the Profile as stored (null before).
+ */
+export interface LiveDiscoveryMetrics {
+  step: LiveDiscoveryStep;
+  sources: { source: DiscoverySource; state: LiveSourceState }[];
+  pagesRead: number;
+  offersAnalysed: number;
+  matched: number | null;
+  jobOfferIds: string[];
+}
+
+/** The most Job Offer ids live metrics keep: far above any run's budget. */
+export const MAX_LIVE_JOB_OFFERS = 500;
+
+const countOf = (value: unknown): number | null => (typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null);
+const oneOf = <T extends string>(list: readonly T[], value: unknown): T | null => list.find((item) => item === value) ?? null;
+
+/** Live metrics as stored or sent, checked: null for anything not of their shape. */
+export function readLiveDiscoveryMetrics(stored: unknown): LiveDiscoveryMetrics | null {
+  if (typeof stored !== "object" || stored === null) return null;
+  const value = stored as Record<string, unknown>;
+  const step = oneOf(LIVE_DISCOVERY_STEPS, value.step);
+  const pagesRead = countOf(value.pagesRead);
+  const offersAnalysed = countOf(value.offersAnalysed);
+  const matched = value.matched === null ? null : countOf(value.matched);
+  if (!step || pagesRead === null || offersAnalysed === null || (value.matched !== null && matched === null)) return null;
+  if (!Array.isArray(value.sources) || !Array.isArray(value.jobOfferIds)) return null;
+  const sources: LiveDiscoveryMetrics["sources"] = [];
+  for (const item of value.sources as unknown[]) {
+    const { source, state } = (item ?? {}) as Record<string, unknown>;
+    const known = oneOf(DISCOVERY_SOURCES, source);
+    const at = oneOf(LIVE_SOURCE_STATES, state);
+    if (!known || !at || sources.some((other) => other.source === known)) return null;
+    sources.push({ source: known, state: at });
+  }
+  const jobOfferIds = (value.jobOfferIds as unknown[]).filter((id): id is string => typeof id === "string").slice(0, MAX_LIVE_JOB_OFFERS);
+  return { step, sources, pagesRead, offersAnalysed, matched, jobOfferIds };
+}
+
+/** How many of a run's active sources it has consulted so far: every one past `waiting`. */
+export function consultedSources(live: Pick<LiveDiscoveryMetrics, "sources">): number {
+  return live.sources.filter((source) => source.state !== "waiting").length;
+}

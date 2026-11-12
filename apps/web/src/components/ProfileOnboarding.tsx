@@ -6,16 +6,16 @@ import { useTranslation } from "react-i18next";
 import type { ContractType, MasterCvContent, Provenance, RemoteWork, SearchCriteria } from "@jobhub/shared";
 import type { CvDraft } from "@/cv";
 import { useAutoGrow } from "@/design/auto-grow";
-import { helpLocale } from "@/coach-help";
+import { helpLocale, onThisPage } from "@/coach-help";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
-import { HelpIntro } from "@/components/CoachHelp";
 import { useConversationFirst } from "@/components/conversation-first";
 import { StreamedActionStatus, useStreamedAction } from "@/components/StreamedAction";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
 import { InWorkPane } from "@/components/WorkPane";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
 import {
   answerCounts,
   foldedProvenance,
@@ -42,6 +42,7 @@ import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
+import { CoachLine } from "./CoachLine";
 import { OnboardingSummary } from "./OnboardingSummary";
 import { OnboardingSearchCard, searchedWith, type RefiningCriterion } from "./OnboardingSearchCard";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
@@ -501,9 +502,9 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                 {refused.prompt ? (
                   <UpgradePrompt prompt={refused.prompt} />
                 ) : (
-                  <p className="notice" role="alert">
+                  <Note tone="warn" role="alert">
                     {t("profiles.quotaReached")}
-                  </p>
+                  </Note>
                 )}
               </li>
             ) : null}
@@ -730,22 +731,29 @@ function OnboardingIntroduction() {
   );
 }
 
-/** The help under the Introduction, as on every conversation: a Help Article opens in the Work Pane. */
+/**
+ * « Comment marche cette page ? » under the Introduction: its Help Article, in the Work Pane. Not the help's greeting of
+ * the other conversations, which promises an answer from the help to a question: this page's box answers none (#997).
+ */
 function OnboardingHelp({ onOpen }: { onOpen?: () => void }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const pathname = usePathname();
   const pane = useWorkPane();
+  const here = onThisPage(pathname, helpLocale(i18n.language), "candidate");
+  if (!here || !pane) return null;
   return (
-    <HelpIntro
-      pathname={pathname}
-      locale={helpLocale(i18n.language)}
-      howThisPageWorks={pane !== null}
-      oftenAsked={false}
-      onOpen={(article) => {
-        onOpen?.();
-        pane?.open({ kind: HELP, article });
-      }}
-    />
+    <p>
+      <button
+        type="button"
+        className="link-action"
+        onClick={() => {
+          onOpen?.();
+          pane.open({ kind: HELP, article: here.article });
+        }}
+      >
+        {t("conversationFirst.howThisPageWorks")}
+      </button>
+    </p>
   );
 }
 
@@ -769,17 +777,6 @@ function OnboardingBadge() {
       <OnboardingIntroduction />
       <OnboardingHelp onOpen={() => setOpen(false)} />
     </CoachBadge>
-  );
-}
-
-/** One of the AI Coach's lines in the thread: unframed text, its author heard by screen readers only (#317). */
-function CoachLine({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
-  return (
-    <li className="chat-message chat-coach">
-      <span className="visually-hidden">{t("questionnaire.coach")}</span>
-      {children}
-    </li>
   );
 }
 

@@ -1211,7 +1211,6 @@
     }
   },
   "onboardingSummary": {
-    "badge": "Presque fini",
     "question": "Voici comment je comprends ce que vous recherchez. Ai-je bien compris ?",
     "title": "Votre recherche d'offres",
     "empty": "Je ne sais encore rien de ce que vous recherchez : ouvrez « Voir le détail » pour l'indiquer.",
@@ -5879,6 +5878,12 @@
       "componentsSubtitle": "Chaque composant et ses états, tels que les écrans les utilisent."
     },
     "gallery": {
+      "stepper": "Étapes",
+      "stepRead": "Lecture de votre profil",
+      "stepReadDetail": "Contrôleuse de gestion · Nantes",
+      "stepSearch": "Recherche des offres",
+      "stepSearchDetail": "Sources consultées : 2 sur 3",
+      "stepSelect": "Sélection de vos meilleures offres",
       "eyebrow": "Design System",
       "title": "Composants",
       "subtitle": "Chaque composant du Design System sur une page, pour les vérifications d'accessibilité.",

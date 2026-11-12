@@ -4,14 +4,17 @@ import { MAX_SEARCH_LOCATIONS, type Provenance, type SearchCriteria } from "@job
 import { isSupportedLocale } from "@jobhub/shared/i18n";
 import { profileSummary, summaryText } from "@jobhub/shared/profile-summary";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft } from "@/cv";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Pill } from "@/design/Pill";
+import { Field, Textarea } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { changedCriteria, changeWords, criteriaChanges, type CriteriaChange } from "@/onboarding-summary/changes";
 import { useAiActivityLive } from "./AiActivityLive";
+import { CoachLine } from "./CoachLine";
 import { saveReviewedProfile, type BornProfile, type ReviewEdits, type SaveRefusal } from "./CvDraftForms";
 import { Icons } from "./icons";
 import { useIndustryReference } from "./IndustryInputs";
@@ -33,7 +36,7 @@ type Mode =
   | { kind: "proposed"; changes: CriteriaChange[]; next: SearchCriteria; other: boolean };
 
 /**
- * The end of the onboarding (#1004, ADR-0106): « Presque fini », « Voici comment je comprends ce que vous recherchez. Ai-je
+ * The end of the onboarding (#1004, ADR-0106): « Voici comment je comprends ce que vous recherchez. Ai-je
  * bien compris ? », and the card « Votre recherche d'offres », a paragraph composed by Jobbbox from the review's draft, as
  * changed in the review form (`edits`): no AI writes it (`profileSummary`). « Cela semble correct » saves it as the review
  * form's « Enregistrer mon profil » does, then the coach says it is saved; « Voir le détail » opens the review form in the
@@ -80,6 +83,8 @@ export function OnboardingSummary({
   const fieldLabels = useSearchCriteriaLabels();
   const headingId = useId();
   const textId = useId();
+  /** The rewriting typed so far, in « Modifier ». */
+  const edit = (text: string) => setMode({ kind: "editing", text });
 
   const language = isSupportedLocale(i18n.language) ? i18n.language : "fr";
   const reviewed: ReviewEdits = edits ?? { masterCv: draft.masterCv, criteria: criteriaFieldsOf(draft.searchCriteria) };
@@ -155,12 +160,6 @@ export function OnboardingSummary({
   return (
     <>
       <CoachLine>
-        <p className="onb-badge-line">
-          <Pill tone="accent">
-            <Icons.nouveautes />
-            {t("onboardingSummary.badge")}
-          </Pill>
-        </p>
         <p>{t("onboardingSummary.question")}</p>
       </CoachLine>
       <li className="chat-message chat-card onb-summary-card">
@@ -172,28 +171,22 @@ export function OnboardingSummary({
         >
           {mode.kind === "editing" || mode.kind === "understanding" ? (
             <form
-              className="ds-field onb-edit"
+              className="onb-edit"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (mode.kind === "editing") void understand(mode.text);
               }}
             >
-              <label className="visually-hidden" htmlFor={textId}>
-                {t("onboardingSummary.editLabel")}
-              </label>
-              <p id={`${textId}-hint`} className="ds-field__hint">
-                {t("onboardingSummary.editHint")}
-              </p>
-              <textarea
-                id={textId}
-                ref={textBox}
-                className="ds-input ds-textarea onb-textarea"
-                rows={7}
-                aria-describedby={`${textId}-hint`}
-                value={mode.text}
-                readOnly={mode.kind === "understanding"}
-                onChange={(event) => setMode({ kind: "editing", text: event.target.value })}
-              />
+              <Field id={textId} label={t("onboardingSummary.editLabel")} hint={t("onboardingSummary.editHint")}>
+                <Textarea
+                  ref={textBox}
+                  className="onb-textarea"
+                  rows={7}
+                  value={mode.text}
+                  readOnly={mode.kind === "understanding"}
+                  onChange={(event) => edit(event.target.value)}
+                />
+              </Field>
               {mode.kind === "understanding" ? (
                 <p className="onb-understanding" role="status">
                   {t("onboardingSummary.understanding")}
@@ -217,37 +210,37 @@ export function OnboardingSummary({
             <p className="onb-summary-empty">{t("onboardingSummary.empty")}</p>
           )}
           {mode.kind === "proposed" ? (
-            <div className="onb-understood" role="status">
+            <Note tone="info" role="status">
               <p>{t("onboardingSummary.understood", { changes: mode.changes.map((change) => changeWords(change, { t: t as never, language, industries })).join(", ") })}</p>
               {mode.other ? <p>{t("onboardingSummary.other")}</p> : null}
-            </div>
+            </Note>
           ) : null}
           {mode.kind === "reading" && mode.notice ? (
-            <p className={mode.notice === "unusable" || mode.notice === "tooManyPlaces" ? "notice notice-failed" : "notice"} role="status">
+            <Note tone={mode.notice === "unusable" || mode.notice === "tooManyPlaces" ? "warn" : "info"} role="status">
               {t(`onboardingSummary.notices.${mode.notice}`, { max: MAX_SEARCH_LOCATIONS })}
-            </p>
+            </Note>
           ) : null}
           {invalidFields.length > 0 ? (
-            <p className="notice" role="alert">
+            <Note tone="danger" role="alert">
               {t("onboardingSummary.invalid", { fields: invalidFields.join(", ") })}
-            </p>
+            </Note>
           ) : null}
           {refusal?.upgradePrompt ? (
             <UpgradePrompt prompt={refusal.upgradePrompt} />
           ) : refusal?.quotaReached ? (
-            <p className="notice" role="alert">
+            <Note tone="warn" role="alert">
               {t("profiles.quotaReached")}
-            </p>
+            </Note>
           ) : null}
           {refusal?.failed ? (
-            <p className="notice" role="alert">
+            <Note tone="danger" role="alert">
               {t("cvReview.error")}
-            </p>
+            </Note>
           ) : null}
           {mode.kind === "proposed" ? (
             <div className="onb-actions">
               {mode.other ? (
-                <button className="link-button onb-detail-link" type="button" onClick={onDetail}>
+                <button className={`onb-detail-link ${buttonClass({ variant: "quiet" })}`} type="button" onClick={onDetail}>
                   {t("onboardingSummary.detail")}
                 </button>
               ) : null}
@@ -264,7 +257,7 @@ export function OnboardingSummary({
           ) : null}
           {savedAt || mode.kind !== "reading" ? null : (
             <div className="onb-actions">
-              <button className="link-button onb-detail-link" type="button" onClick={onDetail}>
+              <button className={`onb-detail-link ${buttonClass({ variant: "quiet" })}`} type="button" onClick={onDetail}>
                 {t("onboardingSummary.detail")}
               </button>
               <span className="onb-actions-buttons">
@@ -325,15 +318,4 @@ function sentCriteria(criteria: CriteriaFields): Partial<SearchCriteria> {
     subsectors: criteria.subsectors,
     domains: criteria.domains,
   };
-}
-
-/** One of the AI Coach's lines in the thread, as ProfileOnboarding writes them: its author heard by screen readers only. */
-function CoachLine({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
-  return (
-    <li className="chat-message chat-coach">
-      <span className="visually-hidden">{t("questionnaire.coach")}</span>
-      {children}
-    </li>
-  );
 }

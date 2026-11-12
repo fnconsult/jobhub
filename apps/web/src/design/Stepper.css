@@ -103,6 +103,10 @@
     }
   }
 
+  .ds-stepper__pulse[data-still] {
+    animation: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .ds-stepper__pulse {
       animation: none;

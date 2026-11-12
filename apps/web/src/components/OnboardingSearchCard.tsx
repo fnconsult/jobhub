@@ -20,7 +20,8 @@ import { Icons } from "@/components/icons";
 import { Card } from "@/design/Card";
 import { Note } from "@/design/Note";
 import { Pill, type Tone } from "@/design/Pill";
-import { currentStep, Stepper, type Step, type StepStatus } from "@/design/Stepper";
+import { buttonClass } from "@/design/button-class";
+import { currentStep, StepPulse, Stepper, type Step, type StepStatus } from "@/design/Stepper";
 import type { JobSearchFailure, JobSearchStatus, ScoredJobOffer } from "@/job-searches";
 import { routes } from "@/routes";
 import "./OnboardingSearchCard.css";
@@ -177,7 +178,7 @@ export function OnboardingSearchCard({
     ) : null;
   const over = status === "stopped" || status === "failed" ? <OverNote status={status} analysed={analysed} /> : null;
   const open = (
-    <Link className="onb-search-open" href={routes.jobSearch(jobSearchId)}>
+    <Link className={`onb-search-open ${buttonClass({ variant: "quiet", size: "sm" })}`} href={routes.jobSearch(jobSearchId)}>
       {t("onboardingSearch.open")}
     </Link>
   );
@@ -197,9 +198,13 @@ export function OnboardingSearchCard({
               {t("onboardingSearch.title")}
               {under ? (
                 <span className="onb-search-live-step">
-                  <span className="ds-stepper__pulse" aria-hidden />
+                  <StepPulse still={still} />
                   {t("onboardingSearch.stepOf", { number: under.number, total: steps.length })}
-                  <span className="onb-search-live-step-title"> · {under.step.title}</span>
+                  <span className="onb-search-live-step-title" aria-hidden>
+                    {" "}
+                    · {under.step.title}
+                  </span>
+                  <span className="visually-hidden"> · {under.step.title}</span>
                 </span>
               ) : null}
             </p>
@@ -237,7 +242,7 @@ export function OnboardingSearchCard({
                 </ul>
               ) : null}
             </div>
-            <Stepper className="onb-search-steps" steps={steps} label={t("onboardingSearch.stepsLabel")} />
+            <Stepper className="onb-search-steps" steps={steps} label={t("onboardingSearch.stepsLabel")} still={still} />
           </div>
           {refined}
           {over}
@@ -288,7 +293,10 @@ function Counters({
       {rows.map((row) => (
         <div key={row.key} data-counter={row.key}>
           <dt>
-            <span className="onb-search-counter-long">{row.label}</span>
+            <span className="visually-hidden">{row.label}</span>
+            <span className="onb-search-counter-long" aria-hidden>
+              {row.label}
+            </span>
             <span className="onb-search-counter-short" aria-hidden>
               {row.short}
             </span>

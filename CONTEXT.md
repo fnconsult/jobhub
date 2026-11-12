@@ -59,7 +59,7 @@ The browser-held, time-limited holding of a Guest's captured Job Offer and CV: a
 _Avoid_: Temporary account, trial
 
 **Landing page**:
-What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead.
+What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead. Its counterpart for a Human Coach, at `/coachs-humains`, has the same design and leads to the Coach Enrolment; it is behind a switch in Paramètres, off by default, and the landing page offers « Candidat | Coach humain » only while it is on.
 _Avoid_: Home page (for the Visitor's), marketing site, splash page
 
 **Logo**:

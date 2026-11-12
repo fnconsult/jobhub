@@ -3,7 +3,7 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { FreeConversationPage } from "@/components/FreeConversationPage";
 import { Landing } from "@/components/Landing";
 import { PublicSite } from "@/design/PublicSite";
-import { readLandingPlans, readLandingStoreLinks } from "@/landing/server";
+import { readHumanCoachPath, readLandingPlans, readLandingStoreLinks } from "@/landing/server";
 import { routes } from "@/routes";
 import type { Metadata } from "next";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -36,7 +36,7 @@ export default async function HomePage() {
     );
   return (
     <PublicSite>
-      <Landing plans={await readLandingPlans(await getRequestLocale())} stores={readLandingStoreLinks()} />
+      <Landing plans={await readLandingPlans(await getRequestLocale())} stores={readLandingStoreLinks()} coachPath={readHumanCoachPath()} />
     </PublicSite>
   );
 }

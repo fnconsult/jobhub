@@ -95,7 +95,9 @@ test.describe("Coque /legal (#546)", () => {
     const read = spawnSync("npx", ["tsx", "-e", script], { encoding: "utf8" });
     expect(read.status, read.stderr).toBe(0);
     const sha = (day: string) => createHash("sha256").update(readFileSync(path.join(cguDir, `${day}.fr.md`))).digest("hex");
-    expect(JSON.parse(read.stdout)).toEqual(
+    // Only this test's CGU files: the repo's own versions of the other texts are in the registry too.
+    const registry: { text: string }[] = JSON.parse(read.stdout);
+    expect(registry.filter((entry) => entry.text === "cgu")).toEqual(
       [FUTURE, CURRENT, OLD].map((day) => ({ text: "cgu", version: day, url: `/legal/cgu/${day}`, sha256: sha(day), change: "substantielle" })),
     );
   });

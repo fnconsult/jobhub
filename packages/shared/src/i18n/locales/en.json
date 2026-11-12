@@ -1211,7 +1211,6 @@
     }
   },
   "onboardingSummary": {
-    "badge": "Almost done",
     "question": "Here is how I understand what you are looking for. Did I get it right?",
     "title": "Your job search",
     "empty": "I don't know anything yet about what you are looking for: open « See the details » to say it.",

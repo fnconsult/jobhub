@@ -150,7 +150,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
 
     // The summary, not the form: an empty draft says so.
-    expect(within(thread()).getByText("Presque fini")).toBeTruthy();
+    expect(within(thread()).queryByText("Presque fini")).toBeNull();
     expect(within(thread()).getByText("Voici comment je comprends ce que vous recherchez. Ai-je bien compris ?")).toBeTruthy();
     expect(summary().textContent).toMatch(/Je ne sais encore rien de ce que vous recherchez/);
     expect(screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeNull();

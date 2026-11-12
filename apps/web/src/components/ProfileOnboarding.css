@@ -1,11 +1,6 @@
 /* Creating a Profile (ADR-0106): the onboarding's own cards in the thread. Beside its component (ADR-0053), from the
    prototype of #995 (`prototype/onboarding`, never merged). */
 
-/* « Presque fini », above the coach's question. */
-.onb-badge-line {
-  margin: 0 0 var(--space-2);
-}
-
 /* The summary (#1004): a paragraph in plain words, its key items strong. */
 .onb-summary {
   margin: 0;

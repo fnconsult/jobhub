@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
-import { useOfferBox } from "../api/reads";
+import { useOfferBox, useOfferBoxEntryOf } from "../api/reads";
 import { openPostingAction, shareLinkAction } from "../navigation/links";
 import { paths } from "../navigation/pages";
 import { OfferDecision, useDismissalNotice, useFollowJobOffer, useOfferBoxDecisions } from "../offer-box/decisions";
@@ -124,7 +124,9 @@ export function FoundJobOfferPane({ found, profile }: { found: FoundJobOffer; pr
  * Where the Candidate stands with the Job Offer and what they decide, as on its Offer box entry, which the Offer box read
  * finds by its Job Offer (OfferDecision, ADR-0090): « Suivre » with `profile` or, once followed, « Voir la candidature »;
  * « Écarter » with its Dismissal reasons and the notice with « Annuler » (#816); once écartée, its reason and « Revenir
- * sur ce choix ». With no entry found (not read yet, offline), « Suivre » alone.
+ * sur ce choix ». The Offer box leaves out an entry écartée more than 30 days ago: the Job Offer's own entry is then read,
+ * whatever its age (#895). With no entry found (not read yet, offline), « Suivre » alone, or for a Job Offer its Job
+ * Search or Job Digest gave as écartée, « Écartée » alone: nothing follows it while it is (ADR-0090).
  */
 function Decision({ found, profile }: { found: FoundJobOffer; profile: Named }) {
   const { t } = useTranslation();
@@ -137,7 +139,9 @@ function Decision({ found, profile }: { found: FoundJobOffer; profile: Named }) 
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
   const { jobOffer } = found;
-  const entry = box.data?.entries.find((one) => one.jobOffer.id === jobOffer.id);
+  const inBox = box.data?.entries.find((one) => one.jobOffer.id === jobOffer.id);
+  const outOfBox = useOfferBoxEntryOf(jobOffer.id, box.data !== undefined && !inBox);
+  const entry = inBox ?? outOfBox.data;
   const applicationId = followedAs ?? entry?.applicationId ?? null;
   const follow = async () => {
     const saved = await followJobOffer(jobOffer.id, profile.id);
@@ -178,6 +182,7 @@ function Decision({ found, profile }: { found: FoundJobOffer; profile: Named }) 
     );
   }
   if (applicationId !== null) return followed;
+  if (found.decision === "dismissed") return <AppText tone="secondary">{t("offerBox.dismissed")}</AppText>;
   const onFollow = async () => {
     setWorking(true);
     setFailed(false);

@@ -1,11 +1,15 @@
 "use client";
 
-import { useAutoGrow } from "@/design/auto-grow";
-
+import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft } from "@/cv";
+import { useAutoGrow } from "@/design/auto-grow";
+import { helpLocale } from "@/coach-help";
 import { useAiActivityLive } from "@/components/AiActivityLive";
+import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
+import { HelpIntro } from "@/components/CoachHelp";
+import { useConversationFirst } from "@/components/conversation-first";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
 import { InWorkPane } from "@/components/WorkPane";
 import { buttonClass } from "@/design/button-class";
@@ -42,7 +46,8 @@ const REVIEW_HREF = `${routes.newProfile}#relecture`;
 
 /**
  * Creating a Profile under « Conversation au centre » (ADR-0070): the page is a conversation with the AI Coach, its
- * thread at its reading width, centred, the box at its foot. The Coach's Introduction offers two paths: uploading a CV,
+ * thread at its reading width, centred, the box at its foot, with the coach's look of every page (#997): the welcome panel,
+ * the « Coach IA » badge and « Envoyer au coach » (CoachBox). The Coach's Introduction offers two paths: uploading a CV,
  * a card in the thread (« Partir de zéro » under its drop zone, #468), or answering the Onboarding Questionnaire, the
  * suggestion above the box. The Questionnaire is scripted, so it cannot invent facts: one question at a time in the
  * thread, answered in the box, a yes-or-no question by its suggestions. Either path gives the same draft Master CV and
@@ -60,6 +65,10 @@ export function ProfileOnboarding() {
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState("");
+  // What the Candidate sent to start the questions, if they typed it rather than chose the suggestion.
+  const [opener, setOpener] = useState("");
+  // What the Candidate sent outside a question, each answered by a line sending them back to the review.
+  const [asides, setAsides] = useState<string[]>([]);
   const [error, setError] = useState<AnswerError | null>(null);
   // Each opening of the review mounts it afresh in the Work Pane; what was changed in it is kept here meanwhile.
   const [reviewOpening, setReviewOpening] = useState(0);
@@ -78,8 +87,8 @@ export function ProfileOnboarding() {
   // The next question takes the focus: the box, or a yes-or-no question's first answer.
   useEffect(() => {
     if (step.kind !== "questionnaire") return;
-    (box.current ?? firstChoice.current)?.focus();
-  }, [step.kind, turns.length]);
+    (question?.kind === "yesNo" ? firstChoice.current : box.current)?.focus();
+  }, [step.kind, turns.length, question?.kind]);
 
   function review(draft: CvDraft, from: From) {
     if (from === FROM_CV) noteCreation?.({ type: "read", provenance: draft.provenance ?? null });
@@ -93,7 +102,9 @@ export function ProfileOnboarding() {
     noteCreation?.({ type: "saved", href });
   }
 
-  function askQuestionnaire() {
+  function askQuestionnaire(said = "") {
+    setOpener(said);
+    setValue("");
     setStep({ kind: "questionnaire" });
     noteCreation?.({ type: "answered", answered: 0, skipped: 0 });
   }
@@ -106,6 +117,8 @@ export function ProfileOnboarding() {
     setValue("");
     setError(null);
     setEdits(null);
+    setOpener("");
+    setAsides([]);
   }
 
   function reply(given: string) {
@@ -126,7 +139,26 @@ export function ProfileOnboarding() {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    reply(value);
+    const given = value.trim();
+    // Before any question, what is sent starts the questions, as the Candidate's opening line.
+    if (step.kind === "choose") {
+      if (given) askQuestionnaire(given);
+      return;
+    }
+    // A yes-or-no question also takes « oui » / « non » typed in the box.
+    if (question?.kind === "yesNo") {
+      reply(yesOrNo(given, t("questionnaire.yes"), t("questionnaire.no")) ?? given);
+      return;
+    }
+    if (question) {
+      reply(value);
+      return;
+    }
+    // At the review, the scripted coach can only send the Candidate back to it: no AI answers on this page.
+    if (given) {
+      setAsides((said) => [...said, given]);
+      setValue("");
+    }
   }
 
   const questionText = (asked: Question) => t(`questionnaire.questions.${asked.id}`, { number: asked.number ?? 1 });
@@ -137,15 +169,15 @@ export function ProfileOnboarding() {
   const answering = step.kind === "questionnaire" || (step.kind === "review" && step.from === "questionnaire");
   const described = [question?.optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
 
+  const asking = question !== null;
+  const boxLabel = asking ? t("questionnaire.answerLabel") : t("coachPanel.messageLabel");
+
   return (
     <>
       <section className="page-conversation" aria-label={t("newProfile.conversation")}>
         <div className="page-conversation-thread">
-          <ol className="chat" aria-label={t("questionnaire.transcript")} aria-live="polite">
-            <CoachLine>
-              <p>{t("newProfile.intro")}</p>
-              <p>{t("newProfile.withoutCvIntro")}</p>
-            </CoachLine>
+          <ol className="chat coach-panel-messages" aria-label={t("questionnaire.transcript")} aria-live="polite">
+            <OnboardingWelcome />
             {step.kind === "choose" ? (
               <li className="chat-message chat-card">
                 <Card title={t("newProfile.withCv")}>
@@ -158,10 +190,10 @@ export function ProfileOnboarding() {
               <>
                 <li className="chat-message chat-candidate">
                   <span className="visually-hidden">{t("questionnaire.you")}</span>
-                  <p>{t("newProfile.startQuestionnaire")}</p>
+                  <p>{opener || t("newProfile.startQuestionnaire")}</p>
                 </li>
                 <CoachLine>
-                  <p>{t("questionnaire.welcome")}</p>
+                  <p>{t("newProfile.questionsStart")}</p>
                 </CoachLine>
                 {turns.flatMap((turn, index) => [
                   <CoachLine key={`question-${index}`}>
@@ -184,12 +216,21 @@ export function ProfileOnboarding() {
                 <p>{reviewIntro[step.from]}</p>
               </CoachLine>
             ) : null}
+            {asides.map((aside, index) => [
+              <li key={`aside-${index}`} className="chat-message chat-candidate">
+                <span className="visually-hidden">{t("questionnaire.you")}</span>
+                <p>{aside}</p>
+              </li>,
+              <CoachLine key={`aside-reply-${index}`}>
+                <p>{t("newProfile.reviewOnly")}</p>
+              </CoachLine>,
+            ])}
           </ol>
         </div>
         <div className="page-conversation-foot">
           {step.kind === "choose" ? (
             <Suggestions label={t("conversationFirst.suggestions")}>
-              <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={askQuestionnaire}>
+              <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={() => askQuestionnaire()}>
                 {t("newProfile.startQuestionnaire")}
               </button>
             </Suggestions>
@@ -213,58 +254,55 @@ export function ProfileOnboarding() {
                 {t("questionnaire.no")}
               </button>
             </Suggestions>
-          ) : question ? (
-            <>
-              {question.optional ? (
-                <Suggestions label={t("conversationFirst.suggestions")}>
-                  <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" onClick={() => reply("")}>
-                    {t("questionnaire.skip")}
-                  </button>
-                </Suggestions>
-              ) : null}
-              <form className="coach-panel-form coach-panel-form-inline" onSubmit={submit} noValidate>
-                <label className="visually-hidden" htmlFor={id}>
-                  {t("questionnaire.answerLabel")}
-                </label>
-                {question.optional ? (
-                  <p id={`${id}-hint`} className="hint">
-                    {t("questionnaire.answerHint")}
-                  </p>
-                ) : null}
-                {error ? (
-                  <p id={`${id}-error`} className="field-error" role="alert">
-                    {t(`questionnaire.errors.${error}`)}
-                  </p>
-                ) : null}
-                {/* The Send button sits inside the box; a click anywhere in the box writes in it. */}
-                <div className="coach-panel-composer coach-panel-composer-inline" onClick={(event) => event.target === event.currentTarget && box.current?.focus()}>
-                  <textarea
-                    id={id}
-                    ref={box}
-                    rows={1}
-                    placeholder={t("questionnaire.answerLabel")}
-                    value={value}
-                    required={!question.optional}
-                    aria-invalid={error ? true : undefined}
-                    aria-describedby={described}
-                    onChange={(event) => setValue(event.target.value)}
-                    onKeyDown={(event) => {
-                      // Enter answers, as in the conversation's box; Shift+Enter starts a new line.
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        event.currentTarget.form?.requestSubmit();
-                      }
-                    }}
-                  />
-                  <div className="coach-panel-composer-actions">
-                    <button className={buttonClass({ variant: "primary" })} type="submit">
-                      {t("questionnaire.send")}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </>
+          ) : question?.optional ? (
+            <Suggestions label={t("conversationFirst.suggestions")}>
+              <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" onClick={() => reply("")}>
+                {t("questionnaire.skip")}
+              </button>
+            </Suggestions>
           ) : null}
+          {/* The box of every conversation (#997): « Envoyer au coach », the « Coach IA » badge in it. */}
+          <form className="coach-panel-form coach-panel-form-inline" onSubmit={submit} noValidate>
+            <label className="visually-hidden" htmlFor={id}>
+              {boxLabel}
+            </label>
+            {question?.optional ? (
+              <p id={`${id}-hint`} className="hint">
+                {t("questionnaire.answerHint")}
+              </p>
+            ) : null}
+            {error ? (
+              <p id={`${id}-error`} className="field-error" role="alert">
+                {t(`questionnaire.errors.${error}`)}
+              </p>
+            ) : null}
+            <CoachComposer
+              inputRef={box}
+              writing={value !== ""}
+              textarea={
+                <textarea
+                  id={id}
+                  ref={box}
+                  rows={1}
+                  placeholder={boxLabel}
+                  value={value}
+                  required={asking && question.kind !== "yesNo" && !question.optional}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={described}
+                  onChange={(event) => setValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    // Enter sends, as in every conversation's box; Shift+Enter starts a new line.
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+              }
+              badge={<OnboardingBadge />}
+              action={<SendButton />}
+            />
+          </form>
         </div>
       </section>
       {step.kind === "review" ? (
@@ -280,6 +318,59 @@ export function ProfileOnboarding() {
         </InWorkPane>
       ) : null}
     </>
+  );
+}
+
+/** The page's Introduction, in the welcome panel and in the « Coach IA » badge's dialog. */
+function OnboardingIntroduction() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <p>{t("newProfile.intro")}</p>
+      <p>{t("newProfile.withoutCvIntro")}</p>
+    </>
+  );
+}
+
+/** The help under the Introduction, as on every conversation: a Help Article opens in the Work Pane. */
+function OnboardingHelp({ onOpen }: { onOpen?: () => void }) {
+  const { i18n } = useTranslation();
+  const pathname = usePathname();
+  const pane = useWorkPane();
+  return (
+    <HelpIntro
+      pathname={pathname}
+      locale={helpLocale(i18n.language)}
+      howThisPageWorks={pane !== null}
+      oftenAsked={false}
+      onOpen={(article) => {
+        onOpen?.();
+        pane?.open({ kind: "help", article });
+      }}
+    />
+  );
+}
+
+/** The welcome panel of every conversation (#652): AI disclosure, the page's Introduction, the help; closed for good by its ✕. */
+export function OnboardingWelcome() {
+  const welcome = useConversationFirst()?.welcome ?? null;
+  if (welcome?.closed) return null;
+  return (
+    <WelcomePanel {...(welcome ? { onClose: welcome.close } : {})}>
+      <OnboardingIntroduction />
+      <OnboardingHelp />
+    </WelcomePanel>
+  );
+}
+
+/** The « Coach IA » badge, which opens the welcome panel again in a dialog. */
+function OnboardingBadge() {
+  const [open, setOpen] = useState(false);
+  return (
+    <CoachBadge open={open} onOpenChange={setOpen}>
+      <OnboardingIntroduction />
+      <OnboardingHelp onOpen={() => setOpen(false)} />
+    </CoachBadge>
   );
 }
 
@@ -301,4 +392,13 @@ function Suggestions({ label, children }: { label: string; children: ReactNode }
       <div className="quick-actions">{children}</div>
     </div>
   );
+}
+
+/** « oui », « Non », « yes »… typed for a yes-or-no question: "yes" or "no", or null when it is neither. */
+function yesOrNo(given: string, yes: string, no: string): "yes" | "no" | null {
+  const plain = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[.!]+$/, "").trim().toLowerCase();
+  const said = plain(given);
+  if (said === plain(yes) || said === "yes" || said === "oui") return "yes";
+  if (said === plain(no) || said === "no" || said === "non") return "no";
+  return null;
 }

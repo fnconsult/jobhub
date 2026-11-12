@@ -19,7 +19,7 @@ The historical slices below were independently reviewed at pinned commits by the
 | #885 | #969 lifecycle notices, reminders and private settings |
 | #886 | #970 content reports, audited decisions and restrictions |
 | #887 | #971 encrypted fiscal identities and annual preparation; original-year cutoff fix. Official XSD compatibility remains unverified and blocked. |
-| #888 | #972 permanent workspace, legacy removal, Help/motion rewrite. Actual staging activation remains outstanding. |
+| #888 | #972 delivered the new workspace, Help and motion rewrite; merged behind « Espace coach v2 », off (ADR-0106). Open: turning it on (staging, then production) once the gates are met, then removing the former Coach space and the setting. |
 
 The local Coach browser acceptance matrix covers 21 scenarios across enrolment, contract gating, Association isolation, profile moderation, signed booking, Connect fiscal onboarding, refunds, earnings, reminders, content reports, regular-account refusal, Coach Access/reviews, time zones, private notes, Shared Reading and reports. The final corrected workspace checks include nine pages in both themes at 1280/1024/390px. No test was skipped to obtain these results: obsolete pre-epic UI expectations were replaced by current workspace scenarios and dedicated payment/booking/cancellation suites. Workspace fixtures start with already-paid services; actual purchases remain exercised by Connect/booking tests.
 

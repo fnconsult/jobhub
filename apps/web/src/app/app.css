@@ -2089,8 +2089,18 @@ button.coach-panel-badge:hover {
   min-width: 0;
 }
 
+/* Square, as wide as it is high (#939): its padding took the room « Recherches d'offres » needs to stay on its line. */
 .sidebar-menu-fold {
   flex: none;
+  width: calc(var(--size-control) - var(--space-2));
+  padding: 0;
+}
+
+/* A menu's name beside its fold or its count wraps onto a second line rather than ending in « … » (#939): at 16rem,
+   « Recherches d'offres » with its fold and « N » cannot stay on one line. */
+.sidebar-menu-row > .sidebar-link > .sidebar-link-text,
+.sidebar-link:has(> .sidebar-count) > .sidebar-link-text {
+  white-space: normal;
 }
 
 .sidebar-menu-fold .icon {

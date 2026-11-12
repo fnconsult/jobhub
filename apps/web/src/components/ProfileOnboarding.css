@@ -19,7 +19,7 @@
 
 .onb-summary-empty {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--color-secondary);
 }
 
 /* « Voir le détail » at the start, the buttons at the end; they wrap on a phone. */
@@ -40,10 +40,4 @@
 
 .onb-detail-link {
   margin-right: auto;
-  font-weight: 400;
-  color: var(--color-accent);
-}
-
-.onb-summary-card .notice {
-  margin: var(--space-4) 0 0;
 }

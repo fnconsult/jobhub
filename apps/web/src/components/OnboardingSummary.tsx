@@ -4,12 +4,14 @@ import type { SearchCriteria } from "@jobhub/shared";
 import { isSupportedLocale } from "@jobhub/shared/i18n";
 import { profileSummary } from "@jobhub/shared/profile-summary";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft } from "@/cv";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
+import { CoachLine } from "./CoachLine";
 import { saveReviewedProfile, type BornProfile, type ReviewEdits, type SaveRefusal } from "./CvDraftForms";
 import { Icons } from "./icons";
 import { criteriaFieldsOf, useSearchCriteriaLabels, type CriteriaFields } from "./SearchCriteriaFields";
@@ -92,25 +94,25 @@ export function OnboardingSummary({
             <p className="onb-summary-empty">{t("onboardingSummary.empty")}</p>
           )}
           {invalidFields.length > 0 ? (
-            <p className="notice" role="alert">
+            <Note tone="danger" role="alert">
               {t("onboardingSummary.invalid", { fields: invalidFields.join(", ") })}
-            </p>
+            </Note>
           ) : null}
           {refusal?.upgradePrompt ? (
             <UpgradePrompt prompt={refusal.upgradePrompt} />
           ) : refusal?.quotaReached ? (
-            <p className="notice" role="alert">
+            <Note tone="warn" role="alert">
               {t("profiles.quotaReached")}
-            </p>
+            </Note>
           ) : null}
           {refusal?.failed ? (
-            <p className="notice" role="alert">
+            <Note tone="danger" role="alert">
               {t("cvReview.error")}
-            </p>
+            </Note>
           ) : null}
           {savedAt ? null : (
             <div className="onb-actions">
-              <button className="link-button onb-detail-link" type="button" onClick={onDetail}>
+              <button className={`onb-detail-link ${buttonClass({ variant: "quiet" })}`} type="button" onClick={onDetail}>
                 {t("onboardingSummary.detail")}
               </button>
               <span className="onb-actions-buttons">
@@ -157,15 +159,4 @@ function summaryCriteria(criteria: CriteriaFields): Partial<SearchCriteria> {
     remoteWorkOptions: criteria.remoteWorkOptions,
     ...(/^\d+$/.test(salary) ? { minSalary: Number(salary) } : {}),
   };
-}
-
-/** One of the AI Coach's lines in the thread, as ProfileOnboarding writes them: its author heard by screen readers only. */
-function CoachLine({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
-  return (
-    <li className="chat-message chat-coach">
-      <span className="visually-hidden">{t("questionnaire.coach")}</span>
-      {children}
-    </li>
-  );
 }

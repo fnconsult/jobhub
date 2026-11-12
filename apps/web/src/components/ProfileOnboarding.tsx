@@ -42,6 +42,7 @@ import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
+import { CoachLine } from "./CoachLine";
 import { OnboardingSummary } from "./OnboardingSummary";
 import { OnboardingSearchCard, searchedWith, type RefiningCriterion } from "./OnboardingSearchCard";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
@@ -768,17 +769,6 @@ function OnboardingBadge() {
       <OnboardingIntroduction />
       <OnboardingHelp onOpen={() => setOpen(false)} />
     </CoachBadge>
-  );
-}
-
-/** One of the AI Coach's lines in the thread: unframed text, its author heard by screen readers only (#317). */
-function CoachLine({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
-  return (
-    <li className="chat-message chat-coach">
-      <span className="visually-hidden">{t("questionnaire.coach")}</span>
-      {children}
-    </li>
   );
 }
 

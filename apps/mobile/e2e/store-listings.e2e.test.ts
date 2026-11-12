@@ -224,8 +224,8 @@ describe("The stores' screenshots (store/screenshots, drawn by store/screenshots
     expect(drawn.sort()).toEqual(Object.keys(manifest).sort());
   });
 
-  it("keep out the two key screens that are not fit for a store yet, as docs/ops/mobile.md says", () => {
-    expect(STORE_SCREENS.map(({ id }) => id)).toEqual(["candidatures", "fiche", "recherches", "agenda"]);
+  it("keep out the key screen that is not fit for a store yet, as docs/ops/mobile.md says; « accueil » is back since #979", () => {
+    expect(STORE_SCREENS.map(({ id }) => id)).toEqual(["accueil", "candidatures", "fiche", "recherches", "agenda"]);
     const doc = readFileSync(join(ROOT, "docs", "ops", "mobile.md"), "utf8");
     for (const words of ["store/screenshots.ts", "accueil", "conversation", ENTITY_PENDING]) expect(doc).toContain(words);
   });

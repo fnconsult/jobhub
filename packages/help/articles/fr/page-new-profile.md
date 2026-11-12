@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Créer un profil
-synonyms: [nouveau profil, créer, déposer mon cv, questionnaire, commencer]
+synonyms: [nouveau profil, créer, déposer mon cv, questionnaire, commencer, reprendre la création, création à terminer]
 route: /profils/nouveau
 ---
 Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Vous pouvez en avoir plusieurs, selon votre offre.
@@ -12,7 +12,9 @@ La page est une conversation avec votre coach, comme toutes les autres : elle s'
 
 Dans les deux cas, vous vérifiez et corrigez tout dans le volet qui s'ouvre à côté de la conversation, puis vous cliquez sur « Enregistrer mon profil ». Fermé, le volet se rouvre avec « Relire et enregistrer », sans rien perdre. Rien n'est ajouté que vous n'ayez dit.
 
-« Activité », en haut de la page, montre ce qui se passe. Pendant que votre coach lit votre CV, « En ce moment » affiche chaque étape de la lecture, que vous pouvez arrêter. L'historique regroupe ensuite toute la création en une seule ligne, « Création du profil » : la lecture du CV, avec le modèle qui l'a faite et ses jetons, c'est la seule étape faite par l'IA ; le « Questionnaire d'accueil », dont les questions sont écrites par Jobbbox, « Sans IA », avec le nombre de vos réponses ; la « Relecture » ; puis « Profil créé », avec la version 1 de votre CV de référence. La même ligne vous suit sur la page de votre nouveau profil, avec son premier ATS Score une fois calculé. Le questionnaire et la relecture ne sont pas gardés : après un rechargement de la page, la ligne ne montre plus que la lecture du CV, la version 1 et l'ATS Score. Le « Contexte de la conversation » reste vide, « Le coach n'a pas encore répondu. », jusqu'à la première réponse de votre coach dans la conversation du profil.
+Quand vous répondez aux questions, votre profil est créé dès que vous avez donné le poste que vous recherchez et votre ville : il apparaît parmi vos profils et compte dans votre forfait. Si votre forfait n'a plus de place, votre coach vous le dit dans la conversation et vous montre l'offre qui en comprend davantage. Vos réponses suivantes restent sur la page jusqu'à « Enregistrer mon profil », qui complète ce même profil : ses critères de recherche, puis une seule nouvelle version de son CV de référence. Si vous quittez la page avant, le profil reste, avec ce qui était déjà enregistré ; sa page indique « Création à terminer » et « Reprendre la création » vous ramène ici, à la relecture, pour le compléter et l'enregistrer.
+
+« Activité », en haut de la page, montre ce qui se passe. Pendant que votre coach lit votre CV, « En ce moment » affiche chaque étape de la lecture, que vous pouvez arrêter. L'historique regroupe ensuite toute la création en une seule ligne, « Création du profil » : la lecture du CV, avec le modèle qui l'a faite et ses jetons, c'est la seule étape faite par l'IA ; le « Questionnaire d'accueil », dont les questions sont écrites par Jobbbox, « Sans IA », avec le nombre de vos réponses ; la « Relecture » ; puis « Profil créé », avec la version 1 de votre CV de référence. Quand vous répondez aux questions, « Profil créé » apparaît dès que le profil est créé, avant la relecture. La même ligne vous suit sur la page de votre nouveau profil, avec son premier ATS Score une fois calculé. Le questionnaire et la relecture ne sont pas gardés : après un rechargement de la page, la ligne ne montre plus que la lecture du CV, la version 1 et l'ATS Score. Le « Contexte de la conversation » reste vide, « Le coach n'a pas encore répondu. », jusqu'à la première réponse de votre coach dans la conversation du profil.
 
 Vous pouvez aussi écrire directement dans la zone de message : votre premier message lance les questions. Pendant la relecture, votre coach ne fait que vous y renvoyer ; une fois le profil enregistré, vous pourrez lui en parler sur sa page.
 

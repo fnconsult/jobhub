@@ -7,10 +7,12 @@ import { ProfileTitle } from "@/components/ProfileInlineEdits";
 import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
 import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { Ring } from "@/design/Ring";
 import { profileFicheLinks } from "@/fiches";
 import { getServerT } from "@/i18n/server";
+import type { ProfileOnboarding } from "@/profiles";
 import { readIndustryReference } from "@/reference-data/server";
 import { routes, type ProfileSection } from "@/routes";
 import { loadProfileAside, loadProfilePage } from "./(sections)/profile-page";
@@ -21,6 +23,7 @@ const ATS_SCORE: ProfileSection = "ats-score";
 const SUGGESTIONS = ["improveCv", "atsScore", "criteria", "targetCompanies"] as const;
 /** The Subject of a Profile's conversation (ADR-0070). */
 const PROFILE = "profile";
+const IN_PROGRESS: ProfileOnboarding = "in_progress";
 
 /**
  * A Profile's page under « Conversation au centre » (#605, ADR-0070): its Coach Conversation, whose Subject it is, with
@@ -54,7 +57,7 @@ export async function ProfileConversation({ id, children }: { id: string; childr
 
 /**
  * The Profile at a glance, first in its Fiche: what the page's head showed. Whether it is active or archived (and how to
- * restore it), « Chercher des offres » while it is active, its Search Criteria in words (changed in a dialog, as on a Job
+ * restore it), « Création à terminer » with « Reprendre la création » while its onboarding is not finished (#999), « Chercher des offres » while it is active, its Search Criteria in words (changed in a dialog, as on a Job
  * Search's page, read-only while archived: the Fiche is too narrow for them as properties), and its ATS Score, leading
  * to its Section.
  */
@@ -67,6 +70,13 @@ async function ProfileCard({ id, atsScore, t }: { id: string; atsScore: number |
         <Pill tone={profile.archived ? "neutral" : "success"}>{t(profile.archived ? "profilePage.status.archived" : "profilePage.status.active")}</Pill>
       </p>
       {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
+      {/* Born during its onboarding and not finished (ADR-0106, #999): resumed at its review on /profils/nouveau. */}
+      {profile.onboarding === IN_PROGRESS && !profile.archived ? (
+        <Note tone="info">
+          {t("profilePage.onboarding.unfinished")}{" "}
+          <Link href={routes.resumeProfileCreation(profile.id)}>{t("profilePage.onboarding.resume")}</Link>
+        </Note>
+      ) : null}
       {profile.archived ? null : (
         <Link className={buttonClass({ size: "sm" })} href={routes.jobSearches(profile.id)}>
           <Icons.jobSearches />

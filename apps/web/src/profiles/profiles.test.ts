@@ -686,4 +686,79 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect(await profiles.list(candidateId)).toHaveLength(1);
     });
   });
+
+  describe("born during its onboarding (ADR-0106, #999)", () => {
+    /** What the Questionnaire knows once the target role and location are answered: the name, the role, the place. */
+    const partial: MasterCvContent = { ...masterCv, email: "", phone: "", summary: "", experience: [], education: [], skills: [], languages: [] };
+
+    async function bornProfile(using: Profiles = profiles) {
+      const created = await using.create(candidateId, { masterCv: partial, searchCriteria: criteria, onboarding: "in_progress" });
+      if (!created.ok) throw new Error("could not create the Profile");
+      return created.profile;
+    }
+
+    it("is created with its onboarding in progress, then finished by one Master CV Version", async () => {
+      const born = await bornProfile();
+      expect(born.onboarding).toBe("in_progress");
+      expect(await profiles.get(candidateId, born.id)).toMatchObject({ onboarding: "in_progress", masterCv: { version: 1, content: partial } });
+      expect(await profiles.list(candidateId)).toEqual([{ id: born.id, name: "Directrice financière", archived: false }]);
+
+      const finished = await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 1, masterCv });
+      expect(finished).toMatchObject({ ok: true, profile: { onboarding: "done", masterCv: { version: 2, content: masterCv } } });
+      expect(await profiles.get(candidateId, born.id)).toMatchObject({ onboarding: "done", masterCv: { version: 2 } });
+      expect((await profiles.masterCvVersions(candidateId, born.id))?.map((each) => each.version)).toEqual([2, 1]);
+    });
+
+    it("saves no new version when the reviewed Master CV is the one it was born with", async () => {
+      const born = await bornProfile();
+      expect(await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 1, masterCv: partial })).toMatchObject({ ok: true, profile: { masterCv: { version: 1 } } });
+      expect(await profiles.masterCvVersions(candidateId, born.id)).toHaveLength(1);
+      expect((await profiles.get(candidateId, born.id))?.onboarding).toBe("done");
+    });
+
+    it("refuses to finish it twice, from an outdated version, with an invalid CV, archived, or someone else's", async () => {
+      const born = await bornProfile();
+      expect(await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 1, masterCv: { ...masterCv, experience: "none" } })).toMatchObject({ ok: false, errors: [{ field: "masterCv.experience" }] });
+      expect(await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 3, masterCv })).toEqual({ ok: false, conflict: { currentVersion: 1 } });
+      expect(await profiles.finishOnboarding(await otherCandidate(), born.id, { basedOnVersion: 1, masterCv })).toEqual({ ok: false, error: "not_found" });
+
+      await profiles.archive(candidateId, born.id);
+      expect(await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 1, masterCv })).toEqual({ ok: false, error: "archived" });
+      await profiles.restore(candidateId, born.id);
+
+      expect(await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 1, masterCv })).toMatchObject({ ok: true });
+      expect(await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 2, masterCv })).toEqual({ ok: false, error: "finished" });
+      expect(await profiles.finishOnboarding(candidateId, (await createdProfile("Contrôleuse de gestion")).id, { basedOnVersion: 1, masterCv })).toEqual({ ok: false, error: "finished" });
+    });
+
+    it("takes the Search Criteria answered after it was born, its name following the target role until renamed", async () => {
+      const born = await bornProfile();
+      const changed = await profiles.changeSearchCriteria(candidateId, born.id, { searchCriteria: { ...criteria, targetRole: "DAF", locations: ["Lyon", "Paris"], contractTypes: ["cdi"] } });
+      expect(changed).toMatchObject({ ok: true, profile: { name: "DAF", searchCriteria: { targetRole: "DAF", locations: ["Lyon", "Paris"], contractTypes: ["cdi"] } } });
+      expect(await profiles.get(candidateId, born.id)).toMatchObject({ name: "DAF", searchCriteria: { targetRole: "DAF", locations: ["Lyon", "Paris"], contractTypes: ["cdi"] } });
+
+      await profiles.rename(candidateId, born.id, { name: "Mon profil finance" });
+      await profiles.changeSearchCriteria(candidateId, born.id, { searchCriteria: { ...criteria, targetRole: "Directrice administrative et financière" } });
+      expect((await profiles.get(candidateId, born.id))?.name).toBe("Mon profil finance");
+
+      // Finished, it keeps its name whatever its target role becomes, as every Profile does.
+      const other = await bornProfile();
+      await profiles.finishOnboarding(candidateId, other.id, { basedOnVersion: 1, masterCv });
+      await profiles.changeSearchCriteria(candidateId, other.id, { searchCriteria: { ...criteria, targetRole: "DAF" } });
+      expect((await profiles.get(candidateId, other.id))?.name).toBe("Directrice financière");
+    });
+
+    it("counts in the Plan Quota as soon as it is born", async () => {
+      const limited = createProfiles(database, { profileQuota: async () => 1 });
+      await bornProfile(limited);
+      expect(await limited.create(candidateId, { masterCv: partial, searchCriteria: criteria, onboarding: "in_progress" })).toEqual({ ok: false, error: "plan_quota_reached" });
+    });
+
+    it("is created with its onboarding done at the review's save, and without onboarding elsewhere; an unknown state is refused", async () => {
+      const done = await profiles.create(candidateId, { masterCv, searchCriteria: criteria, onboarding: "done" });
+      expect(done.ok && (await profiles.get(candidateId, done.profile.id))?.onboarding).toBe("done");
+      expect((await profiles.get(candidateId, (await createdProfile()).id))?.onboarding).toBeUndefined();
+      expect(await profiles.create(candidateId, { masterCv, searchCriteria: criteria, onboarding: "later" })).toMatchObject({ ok: false, errors: [{ field: "onboarding" }] });
+    });
+  });
 });

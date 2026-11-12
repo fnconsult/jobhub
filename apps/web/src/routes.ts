@@ -70,6 +70,8 @@ export const routes = {
   accountSignalements: "/compte/signalements",
   accountData: "/compte/donnees",
   newProfile: "/profils/nouveau",
+  /** « Reprendre la création » (#999): a Profile born during its onboarding and not finished, at its review on `/profils/nouveau`. */
+  resumeProfileCreation: (id: string) => `/profils/nouveau?profil=${encodeURIComponent(id)}`,
   profile: (id: string) => `/profils/${id}`,
   /** The Recherches d'offres page (ADR-0024); with `profileId`, for that Profile. */
   jobSearches: (profileId?: string) => (profileId ? `/recherches?profil=${encodeURIComponent(profileId)}` : "/recherches"),

@@ -263,7 +263,7 @@ _Avoid_: Error message, refusal
 ### Positioning
 
 **Profile**:
-One professional positioning of a Candidate (e.g. "Directeur Financier" vs "Consultant transformation"), made of a Master CV and Search Criteria.
+One professional positioning of a Candidate (e.g. "Directeur Financier" vs "Consultant transformation"), made of a Master CV and Search Criteria. One created by the Onboarding interview is born as soon as its target role and a location are validated, and counts toward the Plan Quota from then on; until the Candidate finishes it, it may be incomplete, is named after its target role and shows « Création à terminer » with « Reprendre la création ».
 _Avoid_: Account, persona, CV version
 
 **Archived Profile**:
@@ -326,9 +326,9 @@ _Avoid_: Référentiel (in code and English), lookup table
 A commune, département or région offered while the Candidate types a location, from the French public geographic API. Choosing one only fills in its name; the location stays plain text, and typing a place not suggested is fine.
 _Avoid_: Autocomplete (alone)
 
-**Onboarding Questionnaire**:
-The guided interview, one question at a time, that builds a Master CV when the Candidate has no CV to upload. Scripted, so it cannot invent facts; its result is reviewed like an uploaded CV.
-_Avoid_: Form, survey
+**Onboarding interview**:
+How a Candidate creates a Profile on `/profils/nouveau` (ADR-0106): an interview with the AI Coach, one question at a time. Without a CV it builds the Master CV and Search Criteria; with one, it asks only what the CV left missing. The AI Coach challenges a vague answer and proposes what it can deduce for the Candidate to validate; nothing enters the Profile that does not come from an answer or a validation. The Profile is born once the target role and a location are validated and is completed as the answers are validated. Its scripted fallback, the Onboarding Questionnaire (Jobbbox's own questions, without AI), runs when the AI cannot; until #1002 it is the interview itself.
+_Avoid_: Onboarding Questionnaire (its scripted fallback only), form, survey
 
 ### Job offers
 
@@ -407,7 +407,7 @@ A result page that lists several postings (a job board's search results, a caree
 _Avoid_: Results page, index page
 
 **Job Search**:
-One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done, failed or stopped. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Conversation and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails, times out or is stopped without keeping a Job Offer. The Candidate can stop it from its page or from AI Activity (a Stop request); a stopped or failed search keeps, and links, the Job Offers it had already found. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done, failed or stopped. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Conversation and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails, times out or is stopped without keeping a Job Offer. The Candidate can stop it from its page or from AI Activity (a Stop request); a stopped or failed search keeps, and links, the Job Offers it had already found. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with. A Profile's first Job Search is offered by the Onboarding interview (ADR-0106): it starts once the Profile is born, during the collection, outside the Plan Quota and once per Profile created, narrowing by Match Score as Search Criteria are added; a change of target role or locations restarts it, offered too, once more at most.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
 **Stop request**:

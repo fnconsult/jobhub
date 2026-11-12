@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import type { MasterCvContent, SearchCriteria } from "@jobhub/shared";
 import type { CvDraft } from "@/cv";
 import { useAutoGrow } from "@/design/auto-grow";
 import { helpLocale, onThisPage } from "@/coach-help";
@@ -14,6 +15,7 @@ import { useWorkPane, type AddressedKind } from "@/components/work-pane";
 import { InWorkPane } from "@/components/WorkPane";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
 import {
   answer,
   currentQuestion,
@@ -23,12 +25,28 @@ import {
   type Question,
   type Questionnaire,
 } from "@/questionnaire";
+import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
+import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
-import { BLANK_DRAFT, CvReview, CvUpload, type ReviewEdits } from "./CvDraftForms";
+import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
+import { criteriaFieldsOf } from "./SearchCriteriaFields";
+import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 import "./QuickActions.css";
 
-type From = "cv" | "questionnaire" | "scratch";
+type From = "cv" | "questionnaire" | "scratch" | "resumed";
 type Step = { kind: "choose" } | { kind: "questionnaire" } | { kind: "review"; draft: CvDraft; from: From };
+
+/** A Profile born during its onboarding and not finished (#999), resumed at its review on `/profils/nouveau?profil=<id>`. */
+export interface ResumedProfile extends BornProfile {
+  masterCv: MasterCvContent;
+  searchCriteria: SearchCriteria;
+}
+
+/** The Profile's creation refused by the Plan Quota (409), with its Upgrade Prompt when there is one. */
+type Refused = { prompt: Prompt | null };
+
+const IN_PROGRESS: OnboardingState = "in_progress";
+const JSON_BODY = { "content-type": "application/json" };
 
 interface Turn {
   question: Question;
@@ -57,13 +75,26 @@ const HELP = "help" as const;
  * pane is closed, and « Relire et enregistrer » opens it again. No AI replies here, so nothing is stored as a Coach
  * Conversation. Its Activity groups it in one entry, « Création du profil » (#810): the page tells AI Activity the CV read,
  * the Questionnaire's answers and the review as the Candidate goes, and the Profile once saved.
+ *
+ * The Profile is born as soon as the Questionnaire's target role and location are answered (ADR-0106, #999): created with
+ * its onboarding in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the
+ * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
+ * review. From a CV or from scratch, the Profile is still created at the review's save (#1003 changes it).
  */
-export function ProfileOnboarding() {
+export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const { t } = useTranslation();
   const id = useId();
   const pane = useWorkPane();
   const noteCreation = useAiActivityLive()?.noteCreation;
-  const [step, setStep] = useState<Step>({ kind: "choose" });
+  const [step, setStep] = useState<Step>(() =>
+    resumed ? { kind: "review", draft: { masterCv: resumed.masterCv, searchCriteria: resumed.searchCriteria }, from: "resumed" } : { kind: "choose" },
+  );
+  // The Profile born during the onboarding, once its creation has answered (null: none, or refused); kept across « Recommencer ».
+  const [bornAtStart] = useState(() => (resumed ? Promise.resolve<BornProfile | null>({ id: resumed.id, version: resumed.version }) : null));
+  const born = useRef<Promise<BornProfile | null> | null>(bornAtStart);
+  // The Search Criteria last sent for it, so that only an answer changing them is saved.
+  const sentCriteria = useRef(resumed ? criteriaKey(resumed.searchCriteria) : "");
+  const [refused, setRefused] = useState<Refused | null>(null);
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState("");
@@ -73,18 +104,22 @@ export function ProfileOnboarding() {
   const [asides, setAsides] = useState<string[]>([]);
   const [error, setError] = useState<AnswerError | null>(null);
   // Each opening of the review mounts it afresh in the Work Pane; what was changed in it is kept here meanwhile.
-  const [reviewOpening, setReviewOpening] = useState(0);
-  const [edits, setEdits] = useState<ReviewEdits | null>(null);
+  const [reviewOpening, setReviewOpening] = useState(resumed ? 1 : 0);
+  const [edits, setEdits] = useState<ReviewEdits | null>(() =>
+    resumed ? { masterCv: resumed.masterCv, criteria: criteriaFieldsOf(resumed.searchCriteria) } : null,
+  );
   const box = useRef<HTMLTextAreaElement>(null);
   useAutoGrow(box, value);
   const firstChoice = useRef<HTMLButtonElement>(null);
   const question = step.kind === "questionnaire" ? currentQuestion(questionnaire) : null;
   const reviewShown = pane?.item?.kind === REVIEW && pane.item.href === REVIEW_HREF;
 
-  // A creation starts afresh with the page.
+  // A creation starts afresh with the page; one resumed is at its review.
+  const resumedId = resumed?.id;
   useEffect(() => {
     noteCreation?.({ type: "started" });
-  }, [noteCreation]);
+    if (resumedId) noteCreation?.({ type: "reviewed" });
+  }, [noteCreation, resumedId]);
 
   // The next question takes the focus: the box, or a yes-or-no question's first answer.
   useEffect(() => {
@@ -121,6 +156,43 @@ export function ProfileOnboarding() {
     setEdits(null);
     setOpener("");
     setAsides([]);
+    setRefused(null);
+  }
+
+  /**
+   * Once the target role and a location are answered (#999), the Profile is born with the draft so far, its onboarding in
+   * progress; once born, an answer changing them changes its Search Criteria. Each waits for the one before. A creation
+   * refused leaves no Profile, tried again only when they change: the review's save creates it, or shows why not.
+   */
+  function keepCriteria(draft: CvDraft) {
+    const { searchCriteria } = draft;
+    const key = criteriaKey(searchCriteria);
+    if (!searchCriteria.targetRole || searchCriteria.locations.length === 0 || key === sentCriteria.current) return;
+    sentCriteria.current = key;
+    born.current = (born.current ?? Promise.resolve(null)).then(async (profile) => {
+      if (!profile) return createProfile(draft);
+      await fetch(`/api/profiles/${profile.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) }).catch(() => null);
+      return profile;
+    });
+  }
+
+  async function createProfile(draft: CvDraft): Promise<BornProfile | null> {
+    try {
+      const response = await fetch("/api/profiles", {
+        method: "POST",
+        headers: JSON_BODY,
+        body: JSON.stringify({ masterCv: draft.masterCv, searchCriteria: draft.searchCriteria, onboarding: IN_PROGRESS }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 201 && typeof body.id === "string") {
+        noteCreation?.({ type: "created", href: routes.masterCvVersion(body.id, 1) });
+        return { id: body.id, version: 1 };
+      }
+      if (body.error === "plan_quota_reached") setRefused({ prompt: upgradePromptIn(body) });
+    } catch {
+      // Not born: the review's save creates it.
+    }
+    return null;
   }
 
   function reply(given: string) {
@@ -136,7 +208,9 @@ export function ProfileOnboarding() {
     setQuestionnaire(result.questionnaire);
     setValue("");
     setError(null);
-    if (!currentQuestion(result.questionnaire)) review(draftFromQuestionnaire(result.questionnaire), "questionnaire");
+    const draft = draftFromQuestionnaire(result.questionnaire);
+    keepCriteria(draft);
+    if (!currentQuestion(result.questionnaire)) review(draft, "questionnaire");
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -166,7 +240,12 @@ export function ProfileOnboarding() {
   const questionText = (asked: Question) => t(`questionnaire.questions.${asked.id}`, { number: asked.number ?? 1 });
   const answerText = (turn: Turn) =>
     turn.question.kind === "yesNo" ? t(turn.value === "yes" ? "questionnaire.yes" : "questionnaire.no") : turn.value || t("questionnaire.skipped");
-  const reviewIntro: Record<From, string> = { cv: t("cvReview.intro"), questionnaire: t("questionnaire.reviewIntro"), scratch: t("cvReview.scratchIntro") };
+  const reviewIntro: Record<From, string> = {
+    cv: t("cvReview.intro"),
+    questionnaire: t("questionnaire.reviewIntro"),
+    scratch: t("cvReview.scratchIntro"),
+    resumed: t("newProfile.resumeIntro"),
+  };
   const startOverLabel = step.kind === "review" && step.from === "questionnaire" ? t("questionnaire.startOver") : t("cvReview.startOver");
   const answering = step.kind === "questionnaire" || (step.kind === "review" && step.from === "questionnaire");
   const described = [question?.optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
@@ -207,6 +286,17 @@ export function ProfileOnboarding() {
                   </li>,
                 ])}
               </>
+            ) : null}
+            {refused ? (
+              <li className="chat-message chat-card">
+                {refused.prompt ? (
+                  <UpgradePrompt prompt={refused.prompt} />
+                ) : (
+                  <Note tone="warn" role="alert">
+                    {t("profiles.quotaReached")}
+                  </Note>
+                )}
+              </li>
             ) : null}
             {question ? (
               <CoachLine>
@@ -308,13 +398,14 @@ export function ProfileOnboarding() {
         </div>
       </section>
       {step.kind === "review" ? (
-        <InWorkPane key={reviewOpening} kind={REVIEW} title={t("cvReview.title")} href={REVIEW_HREF} back={routes.newProfile}>
+        <InWorkPane key={reviewOpening} kind={REVIEW} title={t("cvReview.title")} href={REVIEW_HREF} back={routes.newProfile} stay>
           <CvReview
             draft={step.draft}
             {...(edits ? { kept: edits } : {})}
             onKeep={setEdits}
             startOverLabel={startOverLabel}
             onStartOver={startOver}
+            born={() => born.current ?? Promise.resolve(null)}
             onSaved={saved}
           />
         </InWorkPane>
@@ -401,6 +492,11 @@ function Suggestions({ label, children }: { label: string; children: ReactNode }
       <div className="quick-actions">{children}</div>
     </div>
   );
+}
+
+/** The target role and locations the Profile is born with, as one key: a change of either is saved on it (#999). */
+function criteriaKey(criteria: Pick<SearchCriteria, "targetRole" | "locations">): string {
+  return JSON.stringify([criteria.targetRole, criteria.locations]);
 }
 
 /** « oui », « Non », « yes »… typed for a yes-or-no question: "yes" or "no", or null when it is neither. */

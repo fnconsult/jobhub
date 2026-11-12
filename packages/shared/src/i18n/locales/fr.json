@@ -1229,6 +1229,10 @@
       "active": "Actif",
       "archived": "Archivé"
     },
+    "onboarding": {
+      "unfinished": "Création à terminer",
+      "resume": "Reprendre la création"
+    },
     "actions": {
       "searchOffers": "Chercher des offres",
       "download": "Télécharger"
@@ -1335,7 +1339,8 @@
     "conversation": "Créer un profil avec votre coach",
     "openReview": "Relire et enregistrer",
     "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
-    "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page."
+    "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
+    "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez."
   },
   "questionnaire": {
     "transcript": "Votre échange avec le coach",
@@ -2812,6 +2817,9 @@
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails par jour à partir desquels le filtre est « trop large »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Réseaux d'où le MTA de réception poste les emails (CIDR)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
+        "REVIEW_SIGN_IN": "Code de revue des stores allumé (on)",
+        "REVIEW_SIGN_IN_EMAILS": "Comptes de démonstration du code de revue des stores",
+        "REVIEW_SIGN_IN_CODE": "Code de revue des stores",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
@@ -3006,7 +3014,8 @@
         "discovery_runs": "Activité › Recherches",
         "received_emails": "Activité › Emails reçus",
         "extension_events": "Activité › Extension",
-        "withdrawals": "Rétractations"
+        "withdrawals": "Rétractations",
+        "review_sign_in": "Code de revue des stores"
       },
       "actions": {
         "added": "Ajout",
@@ -3028,7 +3037,8 @@
         "switched_on": "Activation",
         "scheduled": "Programmation",
         "cancelled": "Annulation",
-        "applied": "Application"
+        "applied": "Application",
+        "signed_in": "Connexion"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -5464,6 +5474,7 @@
     "invalid_value": "Valeur refusée par le réglage",
     "reply_required": "Une Question se traite avec une réponse",
     "already_handled": "Signalement déjà traité",
+    "wrong_code": "Code faux",
     "guardrail_timeout": "Contrôle trop long",
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",

@@ -8,6 +8,8 @@ import { activityOf, openActivity, unfoldedEntryOf } from "./support/conversatio
 // Issue #810 (ADR-0086, ADR-0070): a Profile's creation is one Activité entry, « Création du profil », on `/profils/nouveau`
 // and then on the new Profile's page: the CV read (its Provenance, the only AI), the Onboarding Questionnaire (« Questions
 // écrites par Jobbbox », « Sans IA », its answers), the review, « Profil créé » with Version 1, and Version 1's ATS Score.
+// From the questionnaire, the Profile is born once its target role and location are answered (#999, ADR-0106): « Profil
+// créé » shows from then on.
 // What the browser alone knows (the questionnaire, the review) is gone once the page is loaded again; the entry is made
 // again from what is kept. The Context bar says « Le coach n'a pas encore répondu » until the coach's first reply. The AI is
 // faked inside the server (fake-mistral.mjs): "E2E_CV_SLOW" in the CV makes its reading take 30 s.
@@ -106,8 +108,12 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     expect(await partKinds(answering.parts)).toEqual(["questionnaire"]);
     await expect(answering.parts.first()).toContainText(`${history.writtenByJobbbox} · ${history.results.answered_other.replace("{{count}}", "2")} · ${history.cost.noAi}`);
 
-    // The third answer a Profile needs; every other question skipped.
+    // The third answer a Profile needs: it is born (#999), « Profil créé » before the review.
     await reply(page, q.location, "Lyon");
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(q.email);
+    await openActivity(page);
+    await expect.poll(async () => partKinds((await creationOf(page)).parts)).toEqual(["questionnaire", "profile_created"]);
+    // Every other question skipped.
     for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     await page.getByRole("button", { name: fr.cvReview.save }).click();

@@ -228,9 +228,11 @@ function AskCoach({ article }: { article: HelpArticle }) {
  * is); closing it (✕, Escape) or opening another item in its place goes back to `back`, the
  * object's own address, so the address always says what is shown. Its address left otherwise (the browser's Back, a link
  * elsewhere), the pane closes with it; at another address (a Result of the Section shown, say), it is another item.
+ * `stay`: a form at the page's own address (`href` its hash), whose page holds what it shows: closing it leaves the
+ * address as it is, so the page is not fetched again from the server and keeps its state (the onboarding's review, #999).
  * Nothing outside a WorkPaneProvider.
  */
-export function InWorkPane(props: { kind: AddressedKind; title: string; href: string; back: string; takeFocus?: boolean; children: ReactNode }) {
+export function InWorkPane(props: { kind: AddressedKind; title: string; href: string; back: string; takeFocus?: boolean; stay?: boolean; children: ReactNode }) {
   return <Addressed key={`${props.kind} ${props.href}`} {...props} />;
 }
 
@@ -241,6 +243,7 @@ function Addressed({
   href,
   back,
   takeFocus = true,
+  stay = false,
   children,
 }: {
   kind: AddressedKind;
@@ -248,6 +251,7 @@ function Addressed({
   href: string;
   back: string;
   takeFocus?: boolean;
+  stay?: boolean;
   children: ReactNode;
 }) {
   const control = useContext(WorkPaneContext);
@@ -270,9 +274,9 @@ function Addressed({
     if (mine) shownOnce.current = true;
     else if (shownOnce.current) {
       shownOnce.current = false;
-      router.push(back, { scroll: false });
+      if (!stay) router.push(back, { scroll: false });
     }
-  }, [mine, back, router]);
+  }, [mine, back, router, stay]);
 
   // Its address left while the pane still shows it: the pane closes, not to stay open and empty.
   useEffect(

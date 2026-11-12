@@ -9,6 +9,9 @@
  *  - using the code spends the link, and the link the code (`afterSession`): one email, one sign-in.
  *
  * A session the code signs in is the magic link's (its `signInMethod`), the second step (ADR-0075) included.
+ *
+ * `fixedCode` (#981): the store review's code for a demo address while it is on (review-sign-in.ts), issued, stored, tried
+ * and spent like any other; every other address gets a random code.
  */
 import type { GenericEndpointContext } from "better-auth";
 import { emailOTP } from "better-auth/plugins/email-otp";
@@ -24,12 +27,23 @@ const SIGN_IN_CODE_TRIES = 5;
 /** The email OTP plugin's kind of code that signs in; its row's identifier (Better Auth 1.7: `sign-in-otp-<email>`). */
 const codeIdentifier = (email: string) => `sign-in-otp-${email.trim().toLowerCase()}`;
 
-export function signInCodes({ minutes, database }: { minutes: number; database: Pick<Pool, "query"> }) {
+export function signInCodes({
+  minutes,
+  database,
+  fixedCode,
+}: {
+  minutes: number;
+  database: Pick<Pool, "query">;
+  /** The code to issue to `email` instead of a random one; undefined: a random one. */
+  fixedCode?: ((email: string) => string | undefined) | undefined;
+}) {
   const plugin = emailOTP({
     otpLength: 6,
     expiresIn: minutes * 60,
     allowedAttempts: SIGN_IN_CODE_TRIES,
     storeOTP: "hashed",
+    // Undefined: the plugin's random code. Only a sign-in code is ever issued (the other kinds are not served, index.ts).
+    generateOTP: ({ email, type }) => (type === "sign-in" ? fixedCode?.(email) : undefined),
     // The code is never emailed alone: the plugin's own sending endpoint is not served (index.ts).
     sendVerificationOTP: async () => {
       throw new Error("The sign-in code is emailed with its link");

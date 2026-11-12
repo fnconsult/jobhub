@@ -6188,7 +6188,8 @@
     "close": "Fermer le volet",
     "more": "Plus d'actions sur le volet",
     "resetWidth": "Largeur du volet par défaut",
-    "allResults": "Tout voir"
+    "allResults": "Tout voir",
+    "openOffer": "Afficher l'offre en grand"
   },
   "contextBar": {
     "title": "Contexte de la conversation",

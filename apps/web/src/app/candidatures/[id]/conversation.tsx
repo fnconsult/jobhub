@@ -49,8 +49,9 @@ export function ApplicationConversation({ data, aiActivity, children }: { data: 
 }
 
 /**
- * The Application's side panel (#980): its card and its Sections in order in « Fiche », but « L'offre » and « Documents »,
- * which are views of their own; its Job Offer in « L'offre », as its Section shows it; and its Results in « Documents ».
+ * The Application's side panel (#980): its card and its Sections in order in « Fiche », but « L'offre »,
+ * which is a view of its own; its Job Offer in « L'offre », as its Section shows it, with a link to that Section in the Work
+ * Pane; and its Results in « Documents ».
  */
 function ficheOf(data: ApplicationPageData): FicheContent {
   const { application, t, locale } = data;
@@ -66,13 +67,22 @@ function ficheOf(data: ApplicationPageData): FicheContent {
         <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale} />
         <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector} />
         <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />
+        <p>
+          <Link href={routes.applicationSection(application.id, OFFER)} scroll={false}>
+            {t("fiche.openOffer")}
+          </Link>
+        </p>
       </>
     ),
   };
 }
 
-/** The Sections the side panel shows as views of their own (#980): still at their addresses, no longer listed in « Fiche ». */
-const OWN_VIEWS: ReadonlySet<ApplicationSection> = new Set(["offre", "documents"]);
+/**
+ * The Section the side panel shows as a view of its own (#980): still at its address, which « L'offre » links to, no longer
+ * listed in « Fiche ». « Documents » stays listed: it holds the Tailored Documents' editor with its tabs, the view their list.
+ */
+const OWN_VIEWS: ReadonlySet<ApplicationSection> = new Set(["offre"]);
+const OFFER: ApplicationSection = "offre";
 
 /**
  * What AI actions made for the Application and kept with it: its Tailored CV, Cover Letter and Outreach Message, each

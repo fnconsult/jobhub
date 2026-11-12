@@ -471,6 +471,43 @@ export function ClearConversationButton() {
 }
 
 /**
+ * « Effacer la conversation » under the compact Top Bar's « … » on a phone (#897): the same Dialog as the Context bar's link,
+ * opened from there, the focus back on « … ». The compact Top Bar keeps it there, so that each page's « … » has its menu
+ * from the first paint (#980: the wide Top Bar's « Effacer » became the Context bar's link). Nothing on a wider screen.
+ */
+export function ClearConversationTopBarAction() {
+  const { t } = useTranslation();
+  const conversationFirst = useConversationFirst();
+  const page = conversationFirst?.page;
+  const [confirming, setConfirming] = useState(false);
+  const opener = useRef<HTMLElement | null>(null);
+  function confirm(open: boolean) {
+    setConfirming(open);
+    if (open) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    else requestAnimationFrame(() => opener.current?.focus());
+  }
+  const mode = useTopBarMode();
+  const icon = useTopBarAction(page ? { id: "clear", rank: TOP_BAR_RANK.clear, label: t("contextBar.clear"), icon: Icons.clear, run: () => confirm(true), disabled: page.replying } : null);
+  if (!conversationFirst || !page || mode !== "compact") return icon;
+  async function clear() {
+    const conversationId = page!.conversationId;
+    if ((await page!.clear()) && conversationId) conversationFirst!.removed(conversationId);
+  }
+  return (
+    <ConfirmDialog
+      open={confirming}
+      onOpenChange={confirm}
+      title={t("conversationFirst.clearTitle")}
+      confirmLabel={t("conversationFirst.clear")}
+      tone="danger"
+      onConfirm={() => void clear()}
+    >
+      {t("conversationFirst.clearText")}
+    </ConfirmDialog>
+  );
+}
+
+/**
  * « Aide » in the Top Bar of a page without a conversation (Mon compte, #602, ADR-0070): opens the page's Help Article in
  * the Work Pane, whose « Demander au coach » starts a Free conversation about it. Nothing on a page that is a
  * conversation (its box suggests the help), on a page without an article, or outside the Candidate's layout.

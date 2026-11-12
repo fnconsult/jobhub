@@ -308,8 +308,9 @@ export function FicheButtons({ content }: { content?: FicheContent | null }) {
         )}
         <PanelMenu />
       </div>
-      {activityIcon}
+      {/* Before the page knows its width, app.css shows the first on a phone: « Fiche » ranks first (TOP_BAR_RANK). */}
       {ficheIcon}
+      {activityIcon}
       {offerIcon}
       {resultsIcon}
     </>

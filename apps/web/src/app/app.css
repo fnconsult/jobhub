@@ -1688,6 +1688,20 @@ button.coach-panel-badge:hover {
   gap: 0;
 }
 
+/* Its head, above what scrolls: the view's name and ✕, on the panel's own padding (none beside the conversation, where the
+   panel has no frame of its own). */
+.side-panel > .fiche-head {
+  margin-inline: 0;
+  padding-inline: var(--space-4);
+}
+
+@media (width >= 64rem) {
+  .side-panel > .fiche-head {
+    padding-inline: 0;
+    padding-top: var(--space-4);
+  }
+}
+
 .panel-section {
   display: flex;
   flex-direction: column;

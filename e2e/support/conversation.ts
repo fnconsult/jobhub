@@ -44,15 +44,12 @@ export async function openFreeConversation(page: Page, title: string | RegExp): 
 export const activityButtonOf = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 
 /**
- * Where a page's AI Activity shows (#603, #607, ADR-0070): an object's Fiche, in its Activity group, or the Activité column
- * of the home page and the menus. Its Context bar comes first, then the actions under way and the page's sections.
+ * Where a page's AI Activity shows (#980, ADR-0070): the side panel on its « Activité » view, beside the conversation (over
+ * it on a phone). Its Context bar comes first, then the actions under way and the history.
  */
-export const activityOf = (page: Page) => page.getByRole("complementary", { name: new RegExp(`^(${fr.fiche.label}|${fr.fiche.activity})$`) });
+export const activityOf = (page: Page) => page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
 
-/**
- * Shows the page's AI Activity, which `activityOf` returns: « Activité » opens the Activité column, or the Fiche on its
- * Activity group; already shown (an object's Fiche starts open on a wide screen), it is left as it is.
- */
+/** Shows the side panel on « Activité » with AI Activity's icon (#809, #980), which `activityOf` returns; left as it is when shown. */
 export async function openActivity(page: Page) {
   const button = activityButtonOf(page);
   if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
@@ -72,15 +69,38 @@ export async function chooseInTopBarMore(page: Page, name: string): Promise<void
 /** « Activité »'s glyph, live while an AI action of the page is under way (#603): what the closed button says of it. */
 export const activityUnderWayOf = (page: Page) => activityButtonOf(page).locator(".activity-glyph[data-live]");
 
-/** Hides the page's AI Activity again: « Activité » closes the Activité column, or folds the Fiche's Activity group. */
+/** Hides the page's AI Activity again: AI Activity's icon closes the side panel on « Activité ». */
 export async function closeActivity(page: Page) {
   const button = activityButtonOf(page);
   if ((await button.getAttribute("aria-expanded")) === "true") await button.click();
   await expect(button).toHaveAttribute("aria-expanded", "false");
 }
 
-/** An object's Fiche (#603, #605, ADR-0070): beside its conversation, open on a wide screen as the page loads. */
+/** An object's Fiche (#603, #605, #980): the side panel on its « Fiche » view, open on a wide screen as the page loads. */
 export const ficheOf = (page: Page) => page.getByRole("complementary", { name: fr.fiche.label, exact: true });
+
+/** A side panel view's icon in the Top Bar (#980): « Fiche », « L'offre », « Documents » or « Offres trouvées ». */
+export const panelIconOf = (page: Page, view: string) => page.getByRole("banner").getByRole("button", { name: view, exact: true });
+
+/**
+ * Shows the side panel on a view (#980) with its icon in the Top Bar, or on a phone under « … », and returns it; left as it is
+ * when shown.
+ */
+export async function openPanelView(page: Page, view: string) {
+  const shown = page.getByRole("complementary", { name: view, exact: true });
+  if (await shown.isVisible()) return shown;
+  const icon = panelIconOf(page, view);
+  if (await icon.isVisible()) await icon.click();
+  else await chooseInTopBarMore(page, view);
+  await expect(shown).toBeVisible();
+  return shown;
+}
+
+/** The object's Results (#980): the side panel's « Documents » view, or « Offres trouvées » for a Job Search or a Job Digest. */
+export const openResults = (page: Page, view: string = fr.fiche.views.documents) => openPanelView(page, view);
+
+/** Shows the Fiche (#980), which another view may have taken the place of. */
+export const openFiche = (page: Page) => openPanelView(page, fr.fiche.label);
 
 /** The Work Pane, named by the title of what it shows (#602, ADR-0070). */
 export const workPaneOf = (page: Page, title: string | RegExp) => page.getByRole("complementary", { name: title });
@@ -94,8 +114,8 @@ export const editCriteriaOf = (page: Page) => ficheOf(page).getByRole("button", 
  * first when it is closed, and returns them; a reload closes it.
  */
 export async function openSearchCriteria(page: Page) {
-  // On a phone the Fiche starts closed: « Fiche » in the Top Bar opens it, over the conversation (#608).
-  if (!(await ficheOf(page).isVisible())) await page.getByRole("banner").getByRole("button", { name: fr.fiche.label, exact: true }).click();
+  // On a phone the Fiche starts closed: its icon in the Top Bar, or « … », opens it, over the conversation (#608, #980).
+  await openFiche(page);
   await editCriteriaOf(page).click();
   const criteria = page.getByRole("dialog").getByRole("group", { name: fr.cvReview.searchCriteria });
   await expect(criteria).toBeVisible();

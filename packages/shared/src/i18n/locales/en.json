@@ -6181,14 +6181,15 @@
     "views": {
       "activity": "Activity",
       "fiche": "Fiche",
-      "offer": "The offer",
+      "offer": "The job offer",
       "documents": "Documents",
-      "offers": "Offers found"
+      "offers": "Job offers found"
     },
     "close": "Close the panel",
     "more": "More panel actions",
     "resetWidth": "Default panel width",
-    "allResults": "See all"
+    "allResults": "See all",
+    "openOffer": "Show the offer larger"
   },
   "contextBar": {
     "title": "Conversation context",

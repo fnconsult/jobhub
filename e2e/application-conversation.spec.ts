@@ -72,7 +72,9 @@ const conversation = (page: Page) => page.getByRole("region", { name: texts.labe
 const messages = (page: Page) => conversation(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 const topBar = (page: Page) => page.getByRole("banner");
 const ficheOf = (page: Page) => page.getByRole("complementary", { name: fiche.label });
-const group = (page: Page, name: string) => ficheOf(page).getByRole("button", { name, exact: true });
+/** A side panel view's icon in the Top Bar (#980). */
+const viewIcon = (page: Page, name: string) => topBar(page).getByRole("button", { name, exact: true });
+const panelOf = (page: Page, name: string) => page.getByRole("complementary", { name, exact: true });
 const workPane = (page: Page, name: string) => page.getByRole("complementary", { name });
 
 test.describe.configure({ mode: "serial" });
@@ -118,22 +120,24 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(suggestions.getByRole("button", { name: application.conversation.suggestions.prepareInterview.label })).toBeVisible();
     await expect(suggestions.getByRole("button", { name: application.conversation.suggestions.followUp.label })).toBeVisible();
 
-    // The Top Bar: « Fiche » and « Activité », AI Activity's one button (#809), « Effacer »; no « Aide ».
-    await expect(topBar(page).getByRole("button", { name: fiche.label, exact: true })).toHaveAttribute("aria-expanded", "true");
+    // The Top Bar: the side panel's icons, AI Activity's first (#809, #980): Activité, Fiche, L'offre, Documents; no « Effacer »
+    // nor « Aide ».
+    await expect(viewIcon(page, fiche.label)).toHaveAttribute("aria-expanded", "true");
     await expect(activityButtonOf(page)).toHaveCount(1);
     await expect(activityButtonOf(page)).toBeVisible();
-    await expect(activityButtonOf(page)).toHaveText(fiche.activity);
-    await expect(topBar(page).getByRole("button", { name: texts.clear })).toBeVisible();
+    await expect(activityButtonOf(page)).toHaveText("");
+    await expect(viewIcon(page, fiche.views.offer)).toBeVisible();
+    await expect(viewIcon(page, fiche.views.documents)).toBeVisible();
+    await expect(topBar(page).getByRole("button", { name: texts.clear })).toHaveCount(0);
     await expect(topBar(page).getByRole("button", { name: texts.help, exact: true })).toHaveCount(0);
 
-    // The Fiche: the card, then Sections, Activité and Résultats; no heading nor ✕ of its own.
+    // The Fiche: its head names it, with « Fermer le volet », then the card and the Sections, « L'offre » being a view of its
+    // own.
+    await expect(ficheOf(page).getByRole("heading", { level: 2, name: fiche.label })).toBeVisible();
+    await expect(ficheOf(page).getByRole("button", { name: fiche.close })).toBeVisible();
     await expect(ficheOf(page)).toContainText("Acme Industrie");
-    await expect(group(page, fiche.groups.sections)).toHaveAttribute("aria-expanded", "true");
-    await expect(group(page, fiche.groups.activity)).toHaveAttribute("aria-expanded", "true");
-    await expect(group(page, fiche.groups.results)).toHaveAttribute("aria-expanded", "true");
-    await expect(ficheOf(page).getByRole("button", { name: texts.close })).toHaveCount(0);
     await expect(ficheOf(page).getByRole("link", { name: application.sections.entretiens })).toBeVisible();
-    await expect(ficheOf(page).getByRole("link", { name: new RegExp(fr.tailoredDocuments.coverLetter.title) })).toBeVisible();
+    await expect(ficheOf(page).getByRole("link", { name: application.sections.offre, exact: true })).toHaveCount(0);
 
     // Columns push the conversation aside: never over it, a 1rem gutter, the conversation centred with equal margins.
     const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
@@ -147,33 +151,36 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     const axe = await new AxeBuilder({ page }).include(".page-conversation").include(".fiche").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map(({ id }) => id)).toEqual([]);
 
-    // « Fiche » closes it, the conversation taking the room; « Activité » opens it on its Activity group.
-    await topBar(page).getByRole("button", { name: fiche.label, exact: true }).click();
+    // Its icon closes it, the conversation taking the room; AI Activity's opens the panel on « Activité ».
+    await viewIcon(page, fiche.label).click();
     await expect(ficheOf(page)).toHaveCount(0);
     await activityButtonOf(page).click();
-    await expect(ficheOf(page)).toBeVisible();
-    await expect(group(page, fiche.groups.activity)).toHaveAttribute("aria-expanded", "true");
+    await expect(panelOf(page, fiche.views.activity)).toBeVisible();
     await expect(activityButtonOf(page)).toHaveAttribute("aria-expanded", "true");
+
+    // « Documents » lists its Results, « L'offre » shows its Job Offer.
+    await viewIcon(page, fiche.views.documents).click();
+    await expect(panelOf(page, fiche.views.documents).getByRole("link", { name: new RegExp(fr.tailoredDocuments.coverLetter.title) })).toBeVisible();
+    await viewIcon(page, fiche.views.offer).click();
+    await expect(panelOf(page, fiche.views.offer)).toContainText("Pilotage de deux entrepôts.");
+    await expect(panelOf(page, fiche.views.offer).getByRole("link", { name: fiche.openOffer })).toHaveAttribute("href", `/candidatures/${id}/offre`);
+    await expect(viewIcon(page, fiche.views.offer)).toHaveAttribute("aria-expanded", "true");
   });
 
-  test("the Fiche's Activité group carries the Context bar, empty before the coach's first reply (#607, #810)", async ({ browser }) => {
+  test("« Activité » opens on the Context bar, empty before the coach's first reply, « Effacer la conversation » at its foot (#607, #810, #980)", async ({ browser }) => {
     const { page, id } = await withApplication(browser);
     await page.goto(`/candidatures/${id}`);
-    const contextBar = ficheOf(page).getByRole("group", { name: fr.contextBar.title });
+    await activityButtonOf(page).click();
+    const contextBar = panelOf(page, fiche.views.activity).getByRole("region", { name: fr.contextBar.title });
     await expect(contextBar).toContainText(fr.contextBar.noReply);
     await expect(contextBar).not.toContainText("tokens");
-    await expect(contextBar.getByRole("button", { name: fr.contextBar.clear })).toHaveCount(0);
+    await expect(contextBar.getByRole("meter")).toHaveCount(0);
+    await expect(contextBar.getByRole("button", { name: fr.contextBar.clear })).toBeVisible();
   });
 
-  test("a group folds; a Section and a Result open in the Work Pane at their own address", async ({ browser }) => {
+  test("a Section and a Result open in the Work Pane at their own address", async ({ browser }) => {
     const { page, id } = await withApplication(browser);
     await page.goto(`/candidatures/${id}`);
-
-    // Folding a group.
-    await group(page, fiche.groups.sections).click();
-    await expect(group(page, fiche.groups.sections)).toHaveAttribute("aria-expanded", "false");
-    await expect(ficheOf(page).getByRole("link", { name: application.sections.entretiens })).toHaveCount(0);
-    await group(page, fiche.groups.sections).click();
 
     // A Section: in the Work Pane, beside the conversation, at its address; its actions there; ✕ back to the Application.
     await ficheOf(page).getByRole("link", { name: application.sections.entretiens }).click();
@@ -192,8 +199,9 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(workPane(page, application.sections.offre)).toContainText("Pilotage de deux entrepôts.");
     await expect(conversation(page)).toBeVisible();
 
-    // A Result: the Cover Letter alone, editable and downloadable, in the Work Pane at its address.
-    await ficheOf(page).getByRole("link", { name: new RegExp(fr.tailoredDocuments.coverLetter.title) }).click();
+    // A Result: the Cover Letter alone, editable and downloadable, in the Work Pane at its address, from « Documents ».
+    await viewIcon(page, fiche.views.documents).click();
+    await panelOf(page, fiche.views.documents).getByRole("link", { name: new RegExp(fr.tailoredDocuments.coverLetter.title) }).click();
     await expect(page).toHaveURL(`${server.origin}/candidatures/${id}/documents?resultat=lettre`);
     const letter = workPane(page, fr.tailoredDocuments.coverLetter.title);
     await expect(letter.getByRole("textbox").first()).toHaveValue(LETTER);
@@ -204,7 +212,7 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(page).toHaveURL(`${server.origin}/candidatures/${id}`);
   });
 
-  test("on a laptop's screen a Section takes the Fiche's place, the conversation still readable; Back closes it", async ({ browser }) => {
+  test("on a laptop's screen a Section takes the side panel's place, the conversation still readable; Back closes it", async ({ browser }) => {
     const { page, id } = await withApplication(browser, { width: 1280, height: 800 });
     await page.goto(`/candidatures/${id}`);
     const entretiens = ficheOf(page).getByRole("link", { name: application.sections.entretiens });
@@ -238,8 +246,8 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(ficheOf(page)).toBeVisible();
     await expect(entretiens).not.toHaveAttribute("aria-current", "page");
 
-    // While the Fiche has given way, « Fiche » and « Activité » say it is not shown, and bring it back in the pane's place.
-    const ficheButton = topBar(page).getByRole("button", { name: fiche.label, exact: true });
+    // While the panel has given way, its icons say it is not shown, and bring it back in the pane's place.
+    const ficheButton = viewIcon(page, fiche.label);
     const activityButton = activityButtonOf(page);
     await entretiens.click();
     await expect(interviews).toBeVisible();
@@ -251,13 +259,11 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(ficheOf(page)).toBeVisible();
     await expect(ficheButton).toHaveAttribute("aria-expanded", "true");
     await expect(ficheButton).toBeFocused();
-    await group(page, fiche.groups.activity).click();
     await entretiens.click();
     await expect(interviews).toBeVisible();
     await activityButton.click();
     await expect(page.locator(".work-pane")).toHaveCount(0);
-    await expect(ficheOf(page)).toBeVisible();
-    await expect(group(page, fiche.groups.activity)).toHaveAttribute("aria-expanded", "true");
+    await expect(panelOf(page, fiche.views.activity)).toBeVisible();
     await expect(activityButton).toHaveAttribute("aria-expanded", "true");
   });
 

@@ -12,7 +12,7 @@ import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
 import type { ServedEntry } from "@/ai-activity/entries";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
-import { ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
+import { ClearConversationTopBarAction, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
 import { PageHelpProvider } from "@/components/page-help";
 import { Fiche, FicheButtons, FicheProvider, panelViews, useColumnOverPage, type FicheContent } from "@/components/Fiche";
@@ -105,6 +105,7 @@ export function SidebarLayout({
           // One group, so on a phone its buttons stay together at the right of Menu, the title on its own row (#608).
           <div className="topbar-actions">
             <FicheButtons content={fiche} />
+            <ClearConversationTopBarAction />
             {fiche ? null : <PageHelpButton />}
           </div>
         }

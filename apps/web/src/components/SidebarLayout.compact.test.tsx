@@ -134,13 +134,19 @@ describe("the compact Top Bar on a phone (#897)", () => {
     await waitFor(() => expect(document.activeElement).toBe(more()));
   });
 
-  it("shows « Activité » alone on the home page, « Effacer la conversation » in its Context bar opening its confirming Dialog (#980)", async () => {
+  it("shows « Activité » on the home page, « Effacer la conversation » under « … » and in its Context bar, each opening its confirming Dialog (#897, #980)", async () => {
     pathname.current = "/";
     const user = userEvent.setup();
     renderInFrench(<HomePage />);
 
     // « Activité » is named and has its tooltip as AI Activity's button has them: « Activité IA », then its words (#809).
-    expect(names(within(topBar()).getAllByRole("button"))).toEqual(["Menu", "Activité IA"]);
+    expect(names(within(topBar()).getAllByRole("button"))).toEqual(["Menu", "Activité IA", "Autres actions"]);
+    const menu = await openMore(user);
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Effacer la conversation"]);
+    await user.click(within(menu).getByRole("menuitem", { name: "Effacer la conversation" }));
+    await user.click(within(await screen.findByRole("alertdialog", { name: "Effacer cette conversation ?" })).getByRole("button", { name: "Annuler" }));
+    await waitFor(() => expect(document.activeElement).toBe(more()));
+
     expect(within(topBar()).getByRole("button", { name: "Activité IA" }).getAttribute("title")).toBe("Activité IA");
     await user.click(within(topBar()).getByRole("button", { name: "Activité IA" }));
     const clear = within(await screen.findByRole("complementary", { name: "Activité" })).getByRole("button", { name: "Effacer la conversation" });

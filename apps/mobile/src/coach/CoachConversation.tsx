@@ -35,10 +35,15 @@ export type PagePlacement = {
   suggestions?: ReactNode;
   lead?: ReactNode;
   onSaved?: (conversation: ConversationSummary) => void;
+  /**
+   * The AI disclosure in its short words (the home page, #979, so its card fits on an iPhone SE), the full one its
+   * accessible name. It still says the AI Coach is an AI, not a person, and that a Human Coach can be booked.
+   */
+  shortDisclosure?: boolean;
 };
 
-/** What a page's suggestions do with its conversation: put the focus in the box. */
-const CoachBox = createContext<{ focus: () => void }>({ focus: () => {} });
+/** What a page's suggestions and cards do with its conversation: put the focus in the box, or open its « Joindre un CV ». */
+const CoachBox = createContext<{ focus: () => void; pickCv: () => void }>({ focus: () => {}, pickCv: () => {} });
 
 /** The page's box, from a suggestion above it or a card in its thread. */
 export const useCoachBox = () => useContext(CoachBox);
@@ -93,7 +98,6 @@ export function CoachConversation(page: PagePlacement) {
     stop: coach.stop,
   });
   const input = useRef<ComponentRef<typeof TextInput>>(null);
-  const box = useMemo(() => ({ focus: () => input.current?.focus() }), []);
   const empty = !coach.restoring && coach.messages.length === 0;
   // The latest Job Offer card of the thread, while it is still to process: « Scorer contre mon profil » is suggested (#697).
   const offerToScore = coach.messages.flatMap((message) => (message.from === "coach" && message.jobOffer ? [message.jobOffer] : [])).at(-1);
@@ -128,6 +132,8 @@ export function CoachConversation(page: PagePlacement) {
       if (!(await coach.send(url))) setDraft((typed) => (typed.trim() ? `${typed.trimEnd()} ${url}` : url));
     },
   });
+  const pickCv = attach.pickCv;
+  const box = useMemo(() => ({ focus: () => input.current?.focus(), pickCv }), [pickCv]);
   const askTeam = (question: string, coachReply: string) => openSignalement({ kind: "question", question, coachReply });
   const intro = empty ? <HelpIntro pathname={page.route} locale={locale} onOpen={openArticle} showOftenAsked={page.suggestions === undefined} /> : null;
 
@@ -158,7 +164,13 @@ export function CoachConversation(page: PagePlacement) {
           <AppText tone="secondary">{t("coachPanel.loading")}</AppText>
         ) : (
           <CoachSays>
-            <AppText>{t(coach.aiDisclosure ? "coachPanel.aiDisclosure" : "coachPanel.welcome")}</AppText>
+            {coach.aiDisclosure && page.shortDisclosure ? (
+              <View accessible aria-label={t("coachPanel.aiDisclosure")}>
+                <AppText>{t("mobile.home.aiDisclosure")}</AppText>
+              </View>
+            ) : (
+              <AppText>{t(coach.aiDisclosure ? "coachPanel.aiDisclosure" : "coachPanel.welcome")}</AppText>
+            )}
             {page.introduction}
             {page.card ? null : intro}
           </CoachSays>

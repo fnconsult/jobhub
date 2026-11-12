@@ -799,16 +799,54 @@ describe("Jobbbox app, on an iPad with a pointer", () => {
   });
 });
 
+/** A Candidate's Profile: the home page then shows « Votre point du jour » (#979). */
+const HOME_PROFILE: ProfileResponse = {
+  id: "p1",
+  name: "Qualité aéronautique",
+  archived: false,
+  searchCriteria: { targetRole: "Responsable qualité", locations: ["Toulouse"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+  masterCv: { version: 1, content: { fullName: "Marie Dupont", email: EMAIL, phone: "", location: "Toulouse", headline: "", summary: "", experience: [], education: [], skills: [], languages: [] } },
+  atsScore: null,
+};
+
 describe("Jobbbox app, the home page and the menus as their conversations (#690)", () => {
   beforeEach(() => window(...PHONE));
 
-  it("opens on the home page's Introduction, without an AI call, and its Quick actions above the box", async () => {
+  it("opens on the home page's Introduction, without an AI call: the AI disclosure in short, « Votre point du jour », the Quick actions (#979)", async () => {
+    jest.requireMock("../src/session/instance");
+    mockWeb.app.has(EMAIL, { profiles: [HOME_PROFILE] });
+    try {
+      await launch();
+      // The short words on screen, the full disclosure its accessible name: still an AI, not a person, a human coach to book.
+      expect(screen.getByText("Je suis un coach IA, pas une personne. Pour parler à quelqu'un, réservez un coach humain.")).toBeOnTheScreen();
+      expect(screen.getByLabelText(/Je suis un coach IA, pas une personne : un programme d'intelligence artificielle de Jobbbox/)).toBeOnTheScreen();
+      expect(screen.queryByText("L'application est en cours de construction.")).toBeNull();
+      expect(await screen.findByRole("heading", { name: "Votre point du jour" })).toBeOnTheScreen();
+      // Only what calls for an action: the Follow-up ready, the Free conversation last active; no Interview, no offer à traiter.
+      expect(await screen.findByRole("link", { name: "1 candidature à relancer", hidden: true })).toBeOnTheScreen();
+      expect(screen.getByText("Responsable qualité · Aéroline")).toBeOnTheScreen();
+      expect(link("Reprendre « Me présenter en deux minutes »")).toBeOnTheScreen();
+      expect(screen.queryByText(/offres? à traiter/)).toBeNull();
+      expect(screen.queryByText(/^Entretien le/)).toBeNull();
+      for (const name of ["Chercher des offres", "Ajouter une candidature", "Planifier un entretien", "Demander au coach"]) expect(button(name)).toBeOnTheScreen();
+      const user = userEvent.setup();
+      await user.press(link("1 candidature à relancer"));
+      expect(screen).toHavePathname("/candidatures/a1");
+    } finally {
+      mockWeb.app.has(EMAIL, {});
+    }
+  });
+
+  it("opens on « Pour commencer » for a Candidate without a Profile: their CV, or the questionnaire on jobbbox.ai (#979)", async () => {
     await launch();
-    expect(screen.getByText(/Je suis un coach IA, pas une personne/)).toBeOnTheScreen();
-    expect(screen.getByText("L'application est en cours de construction.")).toBeOnTheScreen();
-    for (const name of ["Chercher des offres", "Ajouter une candidature", "Planifier un entretien", "Demander au coach"]) expect(button(name)).toBeOnTheScreen();
-    await userEvent.setup().press(button("Planifier un entretien"));
-    expect(screen).toHavePathname("/agenda");
+    expect(await screen.findByRole("heading", { name: "Pour commencer" })).toBeOnTheScreen();
+    expect(screen.getByText(/Commençons par votre profil/)).toBeOnTheScreen();
+    expect(link("Envoyer mon CV")).toBeOnTheScreen();
+    expect(screen.queryByRole("heading", { name: "Votre point du jour" })).toBeNull();
+    // No Quick actions to search or apply before there is a Profile to do it with.
+    expect(screen.queryByRole("button", { name: "Chercher des offres" })).toBeNull();
+    await userEvent.setup().press(link("Je n'ai pas de CV à jour"));
+    expect((await webView()).source).toEqual({ uri: `${mockWeb.app.baseURL}/profils/nouveau` });
   });
 
   it("shows Mes candidatures as its conversation: its Introduction, its card read from the API, its suggestions", async () => {

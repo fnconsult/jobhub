@@ -152,8 +152,9 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const [value, setValue] = useState("");
   // What the Candidate sent to start the questions, if they typed it rather than chose the suggestion.
   const [opener, setOpener] = useState("");
-  // What the Candidate sent outside a question, each answered by a line sending them back to the review.
-  const [asides, setAsides] = useState<string[]>([]);
+  // What the Candidate sent outside a question, each answered by a line sending them back to the review, or, once the
+  // Profile is saved (« Cela semble correct »), on to it (`saved`).
+  const [asides, setAsides] = useState<{ text: string; saved: boolean }[]>([]);
   const [error, setError] = useState<AnswerError | null>(null);
   // Each opening of the review form (« Voir le détail ») mounts it afresh in the Work Pane, none until the first; what was
   // changed in it is kept here meanwhile.
@@ -394,9 +395,9 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
       reply(value);
       return;
     }
-    // At the review, the coach can only send the Candidate back to it: it answers nothing else on this page.
+    // At the review, the coach can only send the Candidate back to it, or on to the Profile saved: it answers nothing else here.
     if (given) {
-      setAsides((said) => [...said, given]);
+      setAsides((said) => [...said, { text: given, saved: step.kind === "review" && Boolean(step.saved) }]);
       setValue("");
     }
   }
@@ -538,10 +539,10 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
             {asides.map((aside, index) => [
               <li key={`aside-${index}`} className="chat-message chat-candidate">
                 <span className="visually-hidden">{t("questionnaire.you")}</span>
-                <p>{aside}</p>
+                <p>{aside.text}</p>
               </li>,
               <CoachLine key={`aside-reply-${index}`}>
-                <p>{t("newProfile.reviewOnly")}</p>
+                <p>{aside.saved ? t("newProfile.savedOnly") : t("newProfile.reviewOnly")}</p>
               </CoachLine>,
             ])}
           </ol>

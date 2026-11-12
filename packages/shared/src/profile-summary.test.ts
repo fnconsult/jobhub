@@ -36,7 +36,7 @@ describe("profileSummary", () => {
   it("says the whole search in French, its key items strong", () => {
     const parts = fr(FULL);
     expect(text(parts)).toBe(
-      "Vous recherchez un poste de Directrice financière en CDI à Lyon ou Paris, en télétravail partiel, à partir de 85 000 € brut par an. " +
+      "Vous recherchez un poste de Directrice financière en CDI (lieux : Lyon ou Paris), en télétravail partiel, à partir de 85 000 € brut par an. " +
         "Avec 17 ans d'expérience, vous mettez en avant vos compétences Consolidation, IFRS, SAP et Trésorerie. " +
         "Vos derniers postes : Directrice financière chez Groupe Seb et Responsable du contrôle de gestion chez Valmont.",
     );
@@ -72,9 +72,9 @@ describe("profileSummary", () => {
 
   it("leaves out every criterion the Profile does not have, never inventing one", () => {
     const parts = fr(criteria({ targetRole: "Contrôleur de gestion", locations: ["Nantes"], contractTypes: [], remoteWorkOptions: [] }));
-    expect(text(parts)).toBe("Vous recherchez un poste de Contrôleur de gestion à Nantes.");
+    expect(text(parts)).toBe("Vous recherchez un poste de Contrôleur de gestion (lieu : Nantes).");
     expect(text(fr(criteria({ targetRole: "Contrôleur de gestion", locations: [] })))).toBe("Vous recherchez un poste de Contrôleur de gestion.");
-    expect(text(fr(criteria({ targetRole: "", locations: ["Nantes"], minSalary: 50000 })))).toBe("Vous recherchez un poste à Nantes, à partir de 50 000 € brut par an.");
+    expect(text(fr(criteria({ targetRole: "", locations: ["Nantes"], minSalary: 50000 })))).toBe("Vous recherchez un poste (lieu : Nantes), à partir de 50 000 € brut par an.");
     // No salary of zero, and no figure that is not a number.
     expect(text(fr(criteria({ targetRole: "Comptable", locations: [], minSalary: 0 })))).toBe("Vous recherchez un poste de Comptable.");
   });
@@ -86,10 +86,15 @@ describe("profileSummary", () => {
       contractTypes: ["cdi", "cdd", "interim"],
       remoteWorkOptions: ["on_site", "full_remote"],
     });
-    expect(text(fr(profile))).toBe("Vous recherchez un poste de Comptable en CDI, CDD ou intérim à Lyon, Grenoble ou Annecy, sur site ou en télétravail complet.");
+    expect(text(fr(profile))).toBe("Vous recherchez un poste de Comptable en CDI, CDD ou intérim (lieux : Lyon, Grenoble ou Annecy), sur site ou en télétravail complet.");
     expect(text(en(profile))).toBe(
       "You are looking for a position as Comptable on a permanent, fixed-term, or temporary contract in Lyon, Grenoble, or Annecy, on site or fully remote.",
     );
+  });
+
+  it("names the places in French without a preposition, right for a town, a région or a département alike", () => {
+    expect(text(fr(criteria({ targetRole: "Comptable", locations: ["Île-de-France"] })))).toBe("Vous recherchez un poste de Comptable (lieu : Île-de-France).");
+    expect(text(fr(criteria({ targetRole: "Comptable", locations: ["Rhône", "Lyon"] })))).toBe("Vous recherchez un poste de Comptable (lieux : Rhône ou Lyon).");
   });
 
   it("elides « de » before a vowel in French", () => {

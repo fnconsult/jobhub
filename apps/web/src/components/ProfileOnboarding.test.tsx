@@ -266,7 +266,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon", "marie.dupont@example.fr"]);
-      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière à Lyon.");
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière (lieu : Lyon).");
       await user.click(within(summary()).getByRole("button", { name: "Cela semble correct" }));
 
       // The coach says it is saved, in the thread; the Candidate goes on to the Profile when they choose.
@@ -284,6 +284,11 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       ]);
       expect(calls[2]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
       expect(calls[3]!.body).toMatchObject({ basedOnVersion: 1, masterCv: { fullName: "Marie Dupont", email: "marie.dupont@example.fr" } });
+
+      // Written to the coach once saved: it sends the Candidate on to the Profile, no longer back to a review.
+      await user.type(screen.getByLabelText("Votre message"), "Et maintenant ?{Enter}");
+      expect(await within(thread()).findByText(/Votre profil est enregistré : cliquez sur « Continuer vers mon profil »/)).toBeTruthy();
+      expect(within(thread()).queryByText(/relisez-le, corrigez ce qu'il faut et enregistrez-le/)).toBeNull();
     });
 
     it("tells in the thread that the offered Job Search started, its card linking to it, and starts it again once when the target role changes (#1000)", async () => {
@@ -358,7 +363,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon"]);
       await user.click(within(summary()).getByRole("button", { name: "Voir le détail" }));
       await user.click(within(reviewPane()).getByRole("checkbox", { name: "CDI" }));
-      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI à Lyon.");
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI (lieu : Lyon).");
 
       await user.click(within(reviewPane()).getByRole("button", { name: "Enregistrer mon profil" }));
       await waitFor(() => expect(push).toHaveBeenCalledWith("/profils/p1"));
@@ -583,7 +588,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         </AiActivityLiveProvider>,
       );
       expect(within(thread()).getByText(/Reprenons la création de votre profil/)).toBeTruthy();
-      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI à Lyon.");
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDI (lieu : Lyon).");
       await user.click(within(summary()).getByRole("button", { name: "Voir le détail" }));
       expect((within(reviewPane()).getByLabelText("Nom et prénom") as HTMLInputElement).value).toBe("Marie Dupont");
       expect((within(reviewPane()).getByRole("checkbox", { name: "CDI" }) as HTMLInputElement).checked).toBe(true);

@@ -739,7 +739,6 @@
   },
   "cvReview": {
     "title": "Check your CV and your search criteria",
-    "intro": "Here is what we read in your CV. Correct or complete any field if needed, then save your profile.",
     "searchCriteria": "Search criteria",
     "targetRole": "Target role",
     "location": "Location",
@@ -802,7 +801,6 @@
     "invalidValue": "This value is not valid.",
     "tooLong": "This field cannot be longer than {{max}} characters.",
     "error": "Your profile could not be saved. Please try again.",
-    "scratchIntro": "Fill in your master CV and search criteria, then save your profile.",
     "locations": "Locations",
     "locationsHint": "Up to 5 places: a job offer near any one of them suits you.",
     "removeLocation": "Remove {{place}}",
@@ -1003,7 +1001,8 @@
     "searchElided": "You are looking for a position as {{role}}",
     "searchWithoutRole": "You are looking for a position",
     "contracts": " on a {{contracts}} contract",
-    "locations": " in {{locations}}",
+    "locations_one": " in {{locations}}",
+    "locations_other": " in {{locations}}",
     "remote": ", {{remote}}",
     "salary": ", from {{salary}} gross a year",
     "end": ".",
@@ -1057,9 +1056,9 @@
     "withoutCvIntro": "I ask my questions one at a time. When I can guess an answer, I suggest it: nothing enters your profile without your answer or your approval. You can skip what does not apply to you.",
     "startQuestionnaire": "Answer my coach's questions",
     "conversation": "Creating a profile with your coach",
-    "openReview": "Review and save",
     "questionsStart": "Fine. I'll ask my questions one at a time; answer in your own words, you can read it all again and correct it at the end.",
     "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page.",
+    "savedOnly": "Your profile is saved: click “Continue to my profile” to open it. You can talk to me about it on its page.",
     "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it.",
     "offeredSearchStarted": "Your profile is created: I'm starting a first job search right away, on us, which does not count toward your quota. Let's carry on while it searches.",
     "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too.",
@@ -1171,7 +1170,6 @@
       "required": "This answer is needed to create your profile.",
       "yes_or_no": "Please answer yes or no."
     },
-    "reviewIntro": "Here are your reference CV and search criteria, built from your answers. Correct or complete each field if needed, then save your profile.",
     "startOver": "Start again"
   },
   "coachPanel": {

@@ -229,7 +229,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(transcript(page)).toContainText(fr.onboardingSummary.question);
     const summary = onboardingSummary(page);
     await expect(summary.locator(".onb-summary")).toHaveText(
-      "Vous recherchez un poste de Directrice financière à Lyon. Avec 19 ans d'expérience, vous mettez en avant vos compétences Consolidation, IFRS et SAP. " +
+      "Vous recherchez un poste de Directrice financière (lieu : Lyon). Avec 19 ans d'expérience, vous mettez en avant vos compétences Consolidation, IFRS et SAP. " +
         "Vos derniers postes : Directrice financière chez Groupe Seb et Responsable du contrôle de gestion chez Renault.",
     );
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toHaveCount(0);
@@ -250,7 +250,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(page.getByRole("group", { name: "Langue 2" }).getByLabel(fr.cvReview.level)).toHaveValue("notions");
     await page.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi }).check();
     // What is changed in the form shows in the summary; « Cela semble correct » saves it and the coach says so.
-    await expect(summary.locator(".onb-summary")).toContainText("Vous recherchez un poste de Directrice financière en CDI à Lyon.");
+    await expect(summary.locator(".onb-summary")).toContainText("Vous recherchez un poste de Directrice financière en CDI (lieu : Lyon).");
     await expect(summary.getByText("CDI", { exact: true })).toHaveJSProperty("tagName", "STRONG");
     await summary.getByRole("button", { name: fr.onboardingSummary.confirm }).click();
     await expect(transcript(page)).toContainText(fr.onboardingSummary.saved);
@@ -301,7 +301,7 @@ test.describe("onboarding with the AI Coach", () => {
     // Resumed at its review, on what is saved: the e-mail answered after it was born is not.
     await expect(page).toHaveURL(`${origin}/profils/nouveau?profil=${id}`);
     await expect(transcript(page)).toContainText(fr.newProfile.resumeIntro);
-    await expect(onboardingSummary(page).locator(".onb-summary")).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+    await expect(onboardingSummary(page).locator(".onb-summary")).toHaveText("Vous recherchez un poste de Directrice financière (lieu : Lyon).");
     // The review form, by « Voir le détail »; its own « Enregistrer mon profil » saves as « Cela semble correct » does.
     await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();

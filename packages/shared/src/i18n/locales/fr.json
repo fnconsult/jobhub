@@ -739,7 +739,6 @@
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
-    "intro": "Voici ce que nous avons lu dans votre CV. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
     "searchCriteria": "Critères de recherche",
     "targetRole": "Poste recherché",
     "location": "Lieu",
@@ -802,7 +801,6 @@
     "invalidValue": "Cette valeur n'est pas valide.",
     "tooLong": "Ce champ ne peut pas dépasser {{max}} caractères.",
     "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer.",
-    "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil.",
     "locations": "Lieux",
     "locationsHint": "Jusqu'à 5 lieux : une offre proche de l'un d'eux vous correspond.",
     "removeLocation": "Retirer {{place}}",
@@ -1003,7 +1001,8 @@
     "searchElided": "Vous recherchez un poste d'{{role}}",
     "searchWithoutRole": "Vous recherchez un poste",
     "contracts": " en {{contracts}}",
-    "locations": " à {{locations}}",
+    "locations_one": " (lieu : {{locations}})",
+    "locations_other": " (lieux : {{locations}})",
     "remote": ", {{remote}}",
     "salary": ", à partir de {{salary}} brut par an",
     "end": ".",
@@ -1057,9 +1056,9 @@
     "withoutCvIntro": "Je vous pose mes questions une à une. Quand je peux deviner une réponse, je vous la propose : rien n'entre dans votre profil sans votre réponse ou votre accord. Vous pouvez passer ce qui ne vous concerne pas.",
     "startQuestionnaire": "Répondre aux questions de mon coach",
     "conversation": "Créer un profil avec votre coach",
-    "openReview": "Relire et enregistrer",
     "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
     "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
+    "savedOnly": "Votre profil est enregistré : cliquez sur « Continuer vers mon profil » pour l'ouvrir. Vous pourrez m'en parler sur sa page.",
     "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
     "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
     "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",
@@ -1171,7 +1170,6 @@
       "required": "Cette réponse est nécessaire pour créer votre profil.",
       "yes_or_no": "Répondez par oui ou par non."
     },
-    "reviewIntro": "Voici votre CV de référence et vos critères de recherche, construits à partir de vos réponses. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
     "startOver": "Recommencer"
   },
   "coachPanel": {

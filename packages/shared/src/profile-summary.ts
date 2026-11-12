@@ -97,7 +97,8 @@ export function profileSummary(profile: ProfileSummaryInput, { locale, today = n
         }),
       );
     if (places.length > 0)
-      sentence.push(...fill(t("profileSummary.locations", { locations: slot("locations") }), { locations: list(places.map(strong), "or") }));
+      // Named, not placed with a preposition: « à Lyon », but « en Île-de-France », « dans le Rhône »; the text is the Candidate's.
+      sentence.push(...fill(t("profileSummary.locations", { count: places.length, locations: slot("locations") }), { locations: list(places.map(strong), "or") }));
     if (remote.length > 0)
       sentence.push(
         ...fill(t("profileSummary.remote", { remote: slot("remote") }), {

@@ -28,12 +28,14 @@ import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
+import { OnboardingSummary } from "./OnboardingSummary";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 import "./QuickActions.css";
 
 type From = "cv" | "questionnaire" | "scratch" | "resumed";
-type Step = { kind: "choose" } | { kind: "questionnaire" } | { kind: "review"; draft: CvDraft; from: From };
+/** At the review, the summary first (#1004); `saved` once « Cela semble correct » has saved the Profile, at its page. */
+type Step = { kind: "choose" } | { kind: "questionnaire" } | { kind: "review"; draft: CvDraft; from: From; saved?: string };
 
 /** A Profile born during its onboarding and not finished (#999), resumed at its review on `/profils/nouveau?profil=<id>`. */
 export interface ResumedProfile extends BornProfile {
@@ -70,8 +72,9 @@ const HELP = "help" as const;
  * a card in the thread (« Partir de zéro » under its drop zone, #468), or answering the Onboarding Questionnaire, the
  * suggestion above the box. The Questionnaire is scripted, so it cannot invent facts: one question at a time in the
  * thread, answered in the box, a yes-or-no question by its suggestions. Either path gives the same draft Master CV and
- * Search Criteria, reviewed in the Work Pane before anything is saved; what the Candidate changed there is kept while the
- * pane is closed, and « Relire et enregistrer » opens it again. No AI replies here, so nothing is stored as a Coach
+ * Search Criteria, summed up in plain words by Jobbbox (OnboardingSummary, #1004): « Ai-je bien compris ? ». « Cela semble
+ * correct » saves it; « Voir le détail » opens the review form in the Work Pane, where what the Candidate changes is kept
+ * while the pane is closed and shows in the summary. No AI replies here, so nothing is stored as a Coach
  * Conversation. Its Activity groups it in one entry, « Création du profil » (#810): the page tells AI Activity the CV read,
  * the Questionnaire's answers and the review as the Candidate goes, and the Profile once saved.
  *
@@ -102,8 +105,9 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   // What the Candidate sent outside a question, each answered by a line sending them back to the review.
   const [asides, setAsides] = useState<string[]>([]);
   const [error, setError] = useState<AnswerError | null>(null);
-  // Each opening of the review mounts it afresh in the Work Pane; what was changed in it is kept here meanwhile.
-  const [reviewOpening, setReviewOpening] = useState(resumed ? 1 : 0);
+  // Each opening of the review form (« Voir le détail ») mounts it afresh in the Work Pane, none until the first; what was
+  // changed in it is kept here meanwhile.
+  const [reviewOpening, setReviewOpening] = useState(0);
   const [edits, setEdits] = useState<ReviewEdits | null>(() =>
     resumed ? { masterCv: resumed.masterCv, criteria: criteriaFieldsOf(resumed.searchCriteria) } : null,
   );
@@ -131,11 +135,16 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     noteCreation?.({ type: "reviewed" });
     setEdits(null);
     setStep({ kind: "review", draft, from });
-    setReviewOpening((opening) => opening + 1);
   }
 
   function saved(href: string) {
     noteCreation?.({ type: "saved", href });
+  }
+
+  /** « Cela semble correct » saved the Profile: the coach says so in the thread, and the review form closes. */
+  function confirmed(href: string) {
+    saved(href);
+    setStep((current) => (current.kind === "review" ? { ...current, saved: href } : current));
   }
 
   function askQuestionnaire(said = "") {
@@ -156,6 +165,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setOpener("");
     setAsides([]);
     setRefused(null);
+    setReviewOpening(0);
   }
 
   /**
@@ -239,12 +249,6 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const questionText = (asked: Question) => t(`questionnaire.questions.${asked.id}`, { number: asked.number ?? 1 });
   const answerText = (turn: Turn) =>
     turn.question.kind === "yesNo" ? t(turn.value === "yes" ? "questionnaire.yes" : "questionnaire.no") : turn.value || t("questionnaire.skipped");
-  const reviewIntro: Record<From, string> = {
-    cv: t("cvReview.intro"),
-    questionnaire: t("questionnaire.reviewIntro"),
-    scratch: t("cvReview.scratchIntro"),
-    resumed: t("newProfile.resumeIntro"),
-  };
   const startOverLabel = step.kind === "review" && step.from === "questionnaire" ? t("questionnaire.startOver") : t("cvReview.startOver");
   const answering = step.kind === "questionnaire" || (step.kind === "review" && step.from === "questionnaire");
   const described = [question?.optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
@@ -302,10 +306,19 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                 <p>{questionText(question)}</p>
               </CoachLine>
             ) : null}
-            {step.kind === "review" ? (
+            {step.kind === "review" && step.from === "resumed" ? (
               <CoachLine>
-                <p>{reviewIntro[step.from]}</p>
+                <p>{t("newProfile.resumeIntro")}</p>
               </CoachLine>
+            ) : null}
+            {step.kind === "review" ? (
+              <OnboardingSummary
+                draft={step.draft}
+                edits={edits}
+                born={() => born.current ?? Promise.resolve(null)}
+                onDetail={() => setReviewOpening((opening) => opening + 1)}
+                onSaved={confirmed}
+              />
             ) : null}
             {asides.map((aside, index) => [
               <li key={`aside-${index}`} className="chat-message chat-candidate">
@@ -326,11 +339,8 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
               </button>
             </Suggestions>
           ) : null}
-          {step.kind === "review" && !reviewShown ? (
+          {step.kind === "review" && !step.saved && !reviewShown ? (
             <Suggestions label={t("conversationFirst.suggestions")}>
-              <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={() => setReviewOpening((opening) => opening + 1)}>
-                {t("newProfile.openReview")}
-              </button>
               <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" onClick={startOver}>
                 {startOverLabel}
               </button>
@@ -396,7 +406,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
           </form>
         </div>
       </section>
-      {step.kind === "review" ? (
+      {step.kind === "review" && !step.saved && reviewOpening > 0 ? (
         <InWorkPane key={reviewOpening} kind={REVIEW} title={t("cvReview.title")} href={REVIEW_HREF} back={routes.newProfile}>
           <CvReview
             draft={step.draft}

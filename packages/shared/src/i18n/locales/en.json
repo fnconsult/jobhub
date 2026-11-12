@@ -998,6 +998,58 @@
     "hint": "Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search. Changing them does not rename the profile.",
     "archived": "This profile is archived: restore it to change its search criteria."
   },
+  "profileSummary": {
+    "search": "You are looking for a position as {{role}}",
+    "searchElided": "You are looking for a position as {{role}}",
+    "searchWithoutRole": "You are looking for a position",
+    "contracts": " on a {{contracts}} contract",
+    "locations": " in {{locations}}",
+    "remote": ", {{remote}}",
+    "salary": ", from {{salary}} gross a year",
+    "end": ".",
+    "contractTypes": {
+      "cdi": "permanent",
+      "cdd": "fixed-term",
+      "freelance": "freelance",
+      "interim": "temporary"
+    },
+    "remoteWorkOptions": {
+      "on_site": "on site",
+      "hybrid": "partly remote",
+      "full_remote": "fully remote"
+    },
+    "years_one": "{{count}} year of experience",
+    "years_other": "{{count}} years of experience",
+    "experienceAndSkills_one": "With {{years}}, you highlight your skill in {{skills}}.",
+    "experienceAndSkills_other": "With {{years}}, you highlight your skills in {{skills}}.",
+    "experience": "You have {{years}}.",
+    "skills_one": "You highlight your skill in {{skills}}.",
+    "skills_other": "You highlight your skills in {{skills}}.",
+    "roleAt": "{{title}} at {{employer}}",
+    "latestRoles_one": "Your latest role: {{roles}}.",
+    "latestRoles_other": "Your latest roles: {{roles}}.",
+    "or": {
+      "two": " or ",
+      "last": ", or "
+    },
+    "and": {
+      "two": " and ",
+      "last": ", and "
+    }
+  },
+  "onboardingSummary": {
+    "badge": "Almost done",
+    "question": "Here is how I understand what you are looking for. Did I get it right?",
+    "title": "Your job search",
+    "empty": "I don't know anything yet about what you are looking for: open « See the details » to say it.",
+    "detail": "See the details",
+    "edit": "Edit",
+    "confirm": "That looks right",
+    "confirming": "Saving…",
+    "invalid": "Some fields need completing or correcting: {{fields}}. Correct them in « See the details ».",
+    "saved": "Noted: your profile is saved, with its search criteria and its reference CV.",
+    "toProfile": "Continue to my profile"
+  },
   "newProfile": {
     "title": "Create a profile",
     "intro": "I'll help you build your reference CV and search criteria. Upload your CV or, if yours isn't up to date, answer my questions: you can check and correct everything before saving.",

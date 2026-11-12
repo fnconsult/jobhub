@@ -998,6 +998,58 @@
     "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Les modifier ne renomme pas le profil.",
     "archived": "Ce profil est archivé : restaurez-le pour modifier ses critères de recherche."
   },
+  "profileSummary": {
+    "search": "Vous recherchez un poste de {{role}}",
+    "searchElided": "Vous recherchez un poste d'{{role}}",
+    "searchWithoutRole": "Vous recherchez un poste",
+    "contracts": " en {{contracts}}",
+    "locations": " à {{locations}}",
+    "remote": ", {{remote}}",
+    "salary": ", à partir de {{salary}} brut par an",
+    "end": ".",
+    "contractTypes": {
+      "cdi": "CDI",
+      "cdd": "CDD",
+      "freelance": "freelance",
+      "interim": "intérim"
+    },
+    "remoteWorkOptions": {
+      "on_site": "sur site",
+      "hybrid": "en télétravail partiel",
+      "full_remote": "en télétravail complet"
+    },
+    "years_one": "{{count}} an d'expérience",
+    "years_other": "{{count}} ans d'expérience",
+    "experienceAndSkills_one": "Avec {{years}}, vous mettez en avant votre compétence {{skills}}.",
+    "experienceAndSkills_other": "Avec {{years}}, vous mettez en avant vos compétences {{skills}}.",
+    "experience": "Vous avez {{years}}.",
+    "skills_one": "Vous mettez en avant votre compétence {{skills}}.",
+    "skills_other": "Vous mettez en avant vos compétences {{skills}}.",
+    "roleAt": "{{title}} chez {{employer}}",
+    "latestRoles_one": "Votre dernier poste : {{roles}}.",
+    "latestRoles_other": "Vos derniers postes : {{roles}}.",
+    "or": {
+      "two": " ou ",
+      "last": " ou "
+    },
+    "and": {
+      "two": " et ",
+      "last": " et "
+    }
+  },
+  "onboardingSummary": {
+    "badge": "Presque fini",
+    "question": "Voici comment je comprends ce que vous recherchez. Ai-je bien compris ?",
+    "title": "Votre recherche d'offres",
+    "empty": "Je ne sais encore rien de ce que vous recherchez : ouvrez « Voir le détail » pour l'indiquer.",
+    "detail": "Voir le détail",
+    "edit": "Modifier",
+    "confirm": "Cela semble correct",
+    "confirming": "Enregistrement…",
+    "invalid": "Certains champs sont à compléter ou à corriger : {{fields}}. Corrigez-les dans « Voir le détail ».",
+    "saved": "C'est noté : votre profil est enregistré, avec ses critères de recherche et son CV de référence.",
+    "toProfile": "Continuer vers mon profil"
+  },
   "newProfile": {
     "title": "Créer un profil",
     "intro": "Je vous aide à construire votre CV de référence et vos critères de recherche. Importez votre CV, ou, si vous n'en avez pas à jour, répondez à mes questions : vous pourrez tout vérifier et corriger avant d'enregistrer.",

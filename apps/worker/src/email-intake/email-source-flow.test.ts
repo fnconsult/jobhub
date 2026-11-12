@@ -4,7 +4,7 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { type JobOfferDetails } from "@jobhub/shared";
 import { inboundTextOf } from "../../../web/src/email-intake/inbound-email";
 import { createEmailReading } from "./index";
-import { createEmailSourceReader } from "./source-reading";
+import { createEmailSourceReader, EmailSourceUnread } from "./source-reading";
 
 vi.mock("@jobhub/web/task-playbooks", () => ({ servedTaskRun: async () => ({ instructions: () => ({ text: "Read offers only." }) }) }));
 const url = "https://careers.example.org/jobs/finance";
@@ -13,9 +13,9 @@ const details: JobOfferDetails = { title: "Finance director", content: "Lead fin
 const masterCv = { fullName: "Fixture", headline: "Finance director", email: "", phone: "", location: "Lyon", summary: "", experience: [{ title: "Finance director", employer: "Example", period: "2010 – present", location: "Lyon", description: "Finance" }], education: [], skills: ["IFRS"], languages: [] };
 const searchCriteria = { targetRole: "Finance director", locations: ["Lyon"], contractTypes: ["cdi" as const], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 
-function fixture({ kind = "alerte", link = url as string | null, text = `Finance director <${url}>`, readSource = vi.fn(async () => ({ url, details })), seen = false, attempt = 1, privateStored = false } = {}) {
-  const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: JSON.stringify({ kind, offers: [{ title: "Finance director", link }] }) })], routes: { offer_email_reading: "mistral", offer_analysis: "mistral" }, usage: createMemoryUsageLog(), warn: () => {} });
-  const capture = vi.fn(async (input, _by, trusted) => ({ ok: true as const, created: true, jobOffer: { id: "offer-fixture", ...input, ...trusted } }));
+function fixture({ kind = "alerte", link = url as string | null, text = `Finance director <${url}>`, readSource = vi.fn(async () => ({ url, details })), seen = false, attempt = 1, privateStored = false, offers = [{ title: "Finance director", link }] as { title: string; link: string | null }[], refused = false } = {}) {
+  const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: JSON.stringify({ kind, offers }) })], routes: { offer_email_reading: "mistral", offer_analysis: "mistral" }, usage: createMemoryUsageLog(), warn: () => {} });
+  const capture = vi.fn(async (input, _by, trusted) => refused ? ({ ok: false as const, error: "invalid" }) as never : ({ ok: true as const, created: true, jobOffer: { id: "offer-fixture", ...input, ...trusted } }));
   const recorded = vi.fn();
   const failed = vi.fn();
   const tryFailed = vi.fn();
@@ -48,10 +48,27 @@ describe("email alert source reading before classification (#973)", () => {
     await f.worker.read("email-fixture");
     expect(f.readSource).toHaveBeenCalledWith(url, expect.anything());
   });
-  it("records unread sources À capturer, without scoring or creating a heading-only offer", async () => {
-    const f = fixture({ readSource: vi.fn(async () => { throw new Error("unreachable"); }) });
+  it("records a refused source À capturer at once, without scoring or creating a heading-only offer", async () => {
+    const f = fixture({ readSource: vi.fn(async () => { throw new EmailSourceUnread("gone", false); }) });
     await f.worker.read("email-fixture");
     expect(f.capture).not.toHaveBeenCalled();
+    expect(f.tryFailed).not.toHaveBeenCalled();
+    expect(f.recorded).toHaveBeenCalledWith("email-fixture", { kind: "alert", offers: [{ disposition: "to_capture", title: "Finance director", link: url }] });
+  });
+  it("tries again a source that did not answer, and records it À capturer on the last try", async () => {
+    const unreachable = () => vi.fn(async () => { throw new EmailSourceUnread("unreachable", true); });
+    const first = fixture({ readSource: unreachable() });
+    await expect(first.worker.read("email-fixture")).rejects.toThrow("unreachable");
+    expect(first.tryFailed).toHaveBeenCalledOnce();
+    expect(first.recorded).not.toHaveBeenCalled();
+    const last = fixture({ readSource: unreachable(), attempt: 3 });
+    expect(await last.worker.read("email-fixture")).toEqual({ outcome: "offers_found" });
+    expect(last.capture).not.toHaveBeenCalled();
+    expect(last.recorded).toHaveBeenCalledWith("email-fixture", { kind: "alert", offers: [{ disposition: "to_capture", title: "Finance director", link: url }] });
+  });
+  it("records À capturer a source whose posting the Job Offers refuse, rather than dropping it", async () => {
+    const f = fixture({ refused: true });
+    await f.worker.read("email-fixture");
     expect(f.recorded).toHaveBeenCalledWith("email-fixture", { kind: "alert", offers: [{ disposition: "to_capture", title: "Finance director", link: url }] });
   });
   it("does not fetch a Forbidden site", async () => {
@@ -69,9 +86,17 @@ describe("email alert source reading before classification (#973)", () => {
     expect(last.failed).toHaveBeenCalledOnce();
     expect(last.capture).not.toHaveBeenCalled();
   });
-  it("does not reimport a duplicate on retry", async () => {
+  it("on the last try leaves out only the offer without a link, and records the email's others", async () => {
+    const f = fixture({ attempt: 3, text: `Finance director <${url}>\nControl lead`, offers: [{ title: "Finance director", link: url }, { title: "Control lead", link: null }] });
+    expect(await f.worker.read("email-fixture")).toEqual({ outcome: "offers_found" });
+    expect(f.failed).not.toHaveBeenCalled();
+    expect(f.capture).toHaveBeenCalledOnce();
+    expect(f.recorded).toHaveBeenCalledWith("email-fixture", { kind: "alert", offers: [{ disposition: "new", jobOfferId: "offer-fixture", profileId: "profile-fixture", matchScore: 100 }] });
+  });
+  it("does not reimport a duplicate on retry, nor read its source again", async () => {
     const f = fixture({ seen: true, attempt: 2 });
     await f.worker.read("email-fixture");
+    expect(f.readSource).not.toHaveBeenCalled();
     expect(f.capture).not.toHaveBeenCalled();
     expect(f.recorded).toHaveBeenCalledWith("email-fixture", { kind: "alert", offers: [{ disposition: "seen", jobOfferId: "offer-fixture" }] });
   });

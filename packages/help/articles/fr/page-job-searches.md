@@ -42,4 +42,4 @@ Sur un téléphone, l'application fait comme le site : le compte et les sources 
 
 Dans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page.
 
-Dans « Reçues par email », « À capturer » affiche les annonces dont la source n’a pas pu être lue, y compris les sites interdits à la lecture automatique. Aucun Match Score n’a été calculé pour ces annonces. Ouvrez le lien, puis utilisez l’extension pour capturer l’annonce. Cette liste montre au plus 50 liens distincts de vos propres emails, les plus récents en premier.
+Dans « Reçues par email », « À capturer » affiche les annonces dont la source n’a pas pu être lue, y compris les sites interdits à la lecture automatique. Aucun Match Score n’a été calculé pour ces annonces. Ouvrez le lien, puis utilisez l’extension pour capturer l’annonce. Cette liste montre au plus 50 liens distincts de vos propres emails, les plus récents en premier ; une annonce que vous avez capturée et enregistrée en candidature n’y figure plus.

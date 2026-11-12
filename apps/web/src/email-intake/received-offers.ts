@@ -83,7 +83,7 @@ export interface ReceivedOffers {
 }
 
 export interface ReceivedOffersDeps {
-  jobOffers: Pick<JobOffers, "get">;
+  jobOffers: Pick<JobOffers, "get" | "findBySourceUrl">;
   profiles: Pick<Profiles, "get">;
   applications: Pick<Applications, "list">;
   now?: () => Date;
@@ -127,7 +127,11 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
     return rows;
   }
 
-  async function toCaptureOf(candidateId: string): Promise<ReceivedOffersOverview["toCapture"]> {
+  /**
+   * The links to capture, newest first, each once: only destinations our Exit Page accepts (historical rows are
+   * untrusted too), and not one the Candidate has since captured and saved as an Application.
+   */
+  async function toCaptureOf(candidateId: string, applied: ReadonlySet<string>): Promise<ReceivedOffersOverview["toCapture"]> {
     const { rows } = await database.query<ReceivedOffersOverview["toCapture"][number]>(
       `SELECT title, link, "receivedAt", "senderDomain" FROM (
          SELECT DISTINCT ON (offer.link) offer.title, offer.link,
@@ -139,10 +143,18 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
             AND offer.title IS NOT NULL AND offer.link IS NOT NULL
           ORDER BY offer.link, email.received_at DESC, email.id DESC, offer.position
        ) latest ORDER BY "receivedAt" DESC, link LIMIT $2`,
-      [candidateId, MAX_LISTED],
+      // Read past the cap, so that links left out below do not shorten the list.
+      [candidateId, MAX_LISTED * 4],
     );
-    // Historical rows are untrusted too: only destinations our Exit Page accepts become links.
-    return rows.filter((row) => exitDestination(row.link) !== null);
+    const listed: ReceivedOffersOverview["toCapture"] = [];
+    for (const row of rows) {
+      if (listed.length >= MAX_LISTED) break;
+      if (exitDestination(row.link) === null) continue;
+      const stored = await deps.jobOffers.findBySourceUrl(row.link, candidateId);
+      if (stored && applied.has(stored.id)) continue;
+      listed.push(row);
+    }
+    return listed;
   }
 
   /** The latest Paris day this week whose emails reached `threshold`; Gmail's forwarding confirmation is not one. */
@@ -159,14 +171,14 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
   return {
     async overview(candidateId, { broadFilterThreshold }) {
       const at = now();
-      const [offers, ignored, tooBroad, saved, toCapture] = await Promise.all([
+      const [offers, ignored, tooBroad, saved] = await Promise.all([
         offersOf(candidateId, at),
         ignoredOf(candidateId, at),
         tooBroadOf(candidateId, at, broadFilterThreshold),
         deps.applications.list(candidateId),
-        toCaptureOf(candidateId),
       ]);
       const applicationOf = new Map(saved.map((application) => [application.jobOffer.id, application.id]));
+      const toCapture = await toCaptureOf(candidateId, new Set(applicationOf.keys()));
       const groups = new Map<string | null, OfferRow[]>();
       for (const row of offers) groups.set(row.profileId, [...(groups.get(row.profileId) ?? []), row]);
 

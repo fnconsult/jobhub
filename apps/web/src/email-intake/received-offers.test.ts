@@ -175,6 +175,23 @@ describe.skipIf(!connectionString)("Email intake: what it gave the Candidate, fo
     expect((await overviewOf(paul)).toCapture.map((offer) => offer.title)).toEqual(["Other Candidate correspondence"]);
   });
 
+  it("leaves out of « À capturer » a link the Candidate has since captured and saved, and an unsafe link does not shorten the list (#973)", async () => {
+    const savedId = await offer("DAF – capturée depuis");
+    const savedLink = (await jobOffers.get(savedId, marie))!.source.url!;
+    const unsafe = Array.from({ length: 5 }, (_, index) => ({ disposition: "to_capture" as const, title: `Unsafe ${index}`, link: `javascript:alert(${index})` }));
+    const unread = Array.from({ length: 50 }, (_, index) => ({ disposition: "to_capture" as const, title: `Unread ${index}`, link: `https://careers.example.org/jobs/${index}` }));
+    await seedReceivedOfferEmail(database, { candidateId: marie, receivedAt: hoursAgo(3), offers: unread });
+    await seedReceivedOfferEmail(database, { candidateId: marie, receivedAt: hoursAgo(1), offers: [...unsafe, { disposition: "to_capture", title: "DAF – capturée depuis", link: savedLink }] });
+    expect((await overviewOf(marie)).toCapture.map((offer) => offer.link)).toContain(savedLink);
+
+    const application = await applications.save(marie, { jobOfferId: savedId, profileId: daf });
+    if (!application.ok) throw new Error("fixture Application refused");
+    const listed = (await overviewOf(marie)).toCapture;
+    expect(listed.map((offer) => offer.link)).not.toContain(savedLink);
+    expect(listed).toHaveLength(50);
+    expect(listed.every((offer) => offer.link.startsWith("https://careers.example.org/"))).toBe(true);
+  });
+
   it("names the Candidate's Application for a Job Offer they saved", async () => {
     const saved = await offer("DAF – enregistrée");
     await alert(marie, 1, daf, saved);

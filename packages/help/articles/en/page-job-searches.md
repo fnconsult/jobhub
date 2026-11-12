@@ -42,4 +42,4 @@ On a phone, the app does as the site does: the count and the sources are behind 
 
 In the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page.
 
-In “Received by email”, “To capture” lists postings whose source could not be read, including sites that do not allow automated reading. No Match Score was calculated for these postings. Open a link, then use the extension to capture the posting. This list shows up to 50 distinct links from your own emails, newest first.
+In “Received by email”, “To capture” lists postings whose source could not be read, including sites that do not allow automated reading. No Match Score was calculated for these postings. Open a link, then use the extension to capture the posting. This list shows up to 50 distinct links from your own emails, newest first; a posting you have captured and saved as an application no longer appears there.

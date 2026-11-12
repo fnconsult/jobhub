@@ -29,6 +29,7 @@ const READS = {
   jobSearch: true,
   offerBox: true,
   offerBoxOffer: true,
+  offerBoxEntryOf: false,
   offersToHandle: false,
   jobOffer: true,
   jobDigests: true,

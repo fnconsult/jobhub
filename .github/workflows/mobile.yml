@@ -62,6 +62,13 @@ jobs:
             echo "::error::An update needs its message: what it fixes"; exit 1
           fi
       - uses: actions/checkout@v4
+      # The stores' listings are drafts while a field waits for the publishing entity's name (#708, apps/mobile/store).
+      - name: Refuse production while a listing waits for the publishing entity
+        if: inputs.profile == 'production' && inputs.action == 'build'
+        run: |
+          if pending=$(grep -rlF '[ENTITÉ À CONFIRMER]' apps/mobile/store); then
+            echo "::error::Fields still wait for the publishing entity (docs/ops/mobile.md « Fiches des stores et première soumission »): $(echo $pending)"; exit 1
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc

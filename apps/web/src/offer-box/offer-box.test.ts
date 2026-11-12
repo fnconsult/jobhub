@@ -272,6 +272,34 @@ describe.skipIf(!connectionString)("The Offer box (needs Postgres: DATABASE_URL)
       expect((await entries()).map((one) => one.id)).toEqual([recent]);
     });
 
+    it("is still read as its Job Offer's entry 31 days after it was écartée, with its reason, and can be brought back (#895)", async () => {
+      const { offer: withReason, entry: old } = await arrived("Écartée il y a 31 jours");
+      const { offer: withoutReason, entry: bare } = await arrived("Écartée sans motif il y a 31 jours");
+      const today = clock.now;
+      clock.now = new Date(today.getTime() - 31 * DAY);
+      await offerBox.dismiss(marie, old, { reason: "location" });
+      await offerBox.dismiss(marie, bare, {});
+      clock.now = today;
+
+      expect(await entries()).toEqual([]);
+      expect(await offerBox.entryOf(marie, withReason)).toMatchObject({ id: old, state: "dismissed", dismissalReason: "location", dismissedAt: new Date(today.getTime() - 31 * DAY) });
+      expect(await offerBox.entryOf(marie, withoutReason)).toMatchObject({ id: bare, state: "dismissed", dismissalReason: null });
+
+      expect(await offerBox.reconsider(marie, old)).toEqual({ ok: true });
+      expect(await offerBox.entryOf(marie, withReason)).toMatchObject({ id: old, state: "to_handle", dismissalReason: null, dismissedAt: null });
+      expect((await entries()).map((one) => one.id)).toEqual([old]);
+    });
+
+    it("gives a Job Offer's entry to its Candidate only, and none for a Job Offer that never reached them", async () => {
+      const { offer, entry } = await arrived("DAF H/F");
+      const elsewhere = await stored("Jamais arrivée");
+
+      expect(await offerBox.entryOf(marie, offer)).toMatchObject({ id: entry, state: "to_handle" });
+      expect(await offerBox.entryOf(paul, offer)).toBeNull();
+      expect(await offerBox.entryOf(marie, elsewhere)).toBeNull();
+      expect(await offerBox.entryOf(marie, "missing")).toBeNull();
+    });
+
     it("lists the Job Offers the Candidate écarta, for the doors that must not bring them again", async () => {
       const { offer, entry } = await arrived("DAF H/F");
       const { offer: kept } = await arrived("Gardée");

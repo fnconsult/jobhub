@@ -1,5 +1,5 @@
 # Une conversation avec réponse en flux: a new conversation, a message sent, the AI Coach's reply arriving as it is
-# written (« Arrêter » shown meanwhile), then its last line, the box free again.
+# written (« Arrêter » shown meanwhile), then its last line, the box free again, and its other actions in the Top Bar.
 appId: ai.jobbbox.app
 name: Une conversation, la réponse en flux
 tags:
@@ -37,3 +37,27 @@ tags:
     visible: ".*FIN DE LA RÉPONSE"
     timeout: 60000
 - assertVisible: "Envoyer"
+# The conversation's other actions (#899): on a phone, under the Top Bar's « … », each with its words, the system's sheet
+# on iOS (« Annuler »), a menu on Android (« Fermer »); « Effacer » beside « Activité » on a wide window.
+- runFlow:
+    when:
+      true: ${LAYOUT == 'fullPage'}
+    commands:
+      - tapOn: "Autres actions"
+      - assertVisible: "Effacer la conversation"
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - tapOn: "Annuler"
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - tapOn: "Fermer"
+      - assertNotVisible: "Effacer la conversation"
+- runFlow:
+    when:
+      true: ${LAYOUT == 'columns'}
+    commands:
+      - assertVisible: "Effacer"

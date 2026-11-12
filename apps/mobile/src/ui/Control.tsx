@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react-native";
+import type { ComponentRef, Ref } from "react";
 import { Pressable, View } from "react-native";
 import { space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "./AppText";
@@ -27,9 +28,12 @@ export function Control({
   look = "quiet",
   expanded,
   selected,
+  toggled = false,
+  badge = false,
   disabled = false,
   onPress,
   testID,
+  ref,
 }: {
   label: string;
   /** Its accessible name when the label alone does not say which, among several alike: the label otherwise. */
@@ -39,17 +43,27 @@ export function Control({
   look?: Look;
   expanded?: boolean;
   selected?: boolean;
+  /**
+   * Drawn pressed while what it opens is open: the accent's soft background, an accent border, its icon in the accent
+   * (the compact Top Bar's Recherches d'offres filter, #899, as the web's « filtre ouvert »).
+   */
+  toggled?: boolean;
+  /** A dot on its icon: a state worth seeing at a glance (a source chosen in the Recherches d'offres filter, #899). */
+  badge?: boolean;
   /** Not usable for now (« Hors ligne »): its caller says why beside it. */
   disabled?: boolean;
   onPress: () => void;
   /** Its id for the e2e flows, where its label is not the only one of its name on screen (apps/mobile/maestro). */
   testID?: string;
+  /** The button itself: to measure it, or move VoiceOver's and TalkBack's focus to it. */
+  ref?: Ref<ComponentRef<typeof View>>;
 }) {
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
-  const foreground = look === "primary" ? colors.onAccent : selected ? colors.accent : colors.text;
+  const foreground = look === "primary" ? colors.onAccent : selected || toggled ? colors.accent : colors.text;
   return (
     <Pressable
+      ref={ref}
       role="button"
       aria-label={accessibleName ?? label}
       aria-expanded={expanded}
@@ -69,13 +83,25 @@ export function Control({
         gap: space[2],
         paddingHorizontal: iconOnly ? 0 : space[3],
         borderRadius: PILL,
-        borderWidth: look === "secondary" ? 1 : 0,
-        borderColor: colors.borderStrong,
-        backgroundColor: look === "primary" ? (pressed || hovered ? colors.accentHover : colors.accent) : pressed || hovered || selected ? colors.hover : "transparent",
+        borderWidth: look === "secondary" || toggled ? 1 : 0,
+        borderColor: toggled ? colors.accent : colors.borderStrong,
+        backgroundColor:
+          look === "primary" ? (pressed || hovered ? colors.accentHover : colors.accent) : toggled ? colors.accentSoft : pressed || hovered || selected ? colors.hover : "transparent",
         opacity: disabled ? 0.5 : 1,
       })}
     >
-      {Icon ? <Icon color={foreground} size={22} aria-hidden /> : null}
+      {Icon && badge ? (
+        <View>
+          <Icon color={foreground} size={22} aria-hidden />
+          <View
+            testID="control-badge"
+            aria-hidden
+            style={{ position: "absolute", top: -2, right: -3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: colors.background, backgroundColor: colors.accent }}
+          />
+        </View>
+      ) : Icon ? (
+        <Icon color={foreground} size={22} aria-hidden />
+      ) : null}
       {iconOnly ? null : (
         <View style={{ flexShrink: 1 }}>
           <AppText weight="semiBold" tone={look === "primary" ? "onAccent" : selected ? "accent" : "text"}>

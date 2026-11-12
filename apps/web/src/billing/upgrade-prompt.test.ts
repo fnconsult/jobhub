@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { quotaExceededResponse, upgradePrompt } from "./upgrade-prompt";
 
-const FREE = { fr: "Gratuite", en: "Free" };
+const FREE = { fr: "Gratuit", en: "Free" };
 const STANDARD = { fr: "Standard", en: "Standard" };
 const PREMIUM = { fr: "Premium", en: "Premium" };
 
@@ -12,7 +12,7 @@ describe("upgrade prompts", () => {
     expect(prompt).toEqual({
       title: "Vous avez atteint la limite de votre offre",
       message:
-        "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuite. Avec l'offre Standard, vous pouvez en faire davantage.",
+        "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuit. Avec l'offre Standard, vous pouvez en faire davantage.",
       upgradeTo: "standard",
       action: "Découvrir l'offre Standard",
       href: "/abonnement",
@@ -31,7 +31,7 @@ describe("upgrade prompts", () => {
 
   it("speaks of a single Profile in the singular", () => {
     expect(upgradePrompt({ allowed: false, quota: "profiles", plan: "free", planName: FREE, limit: 1, upgradeTo: "standard", upgradeToName: STANDARD }, "fr").message).toBe(
-      "L'offre Gratuite comprend 1 profil. Avec l'offre Standard, vous pouvez en créer davantage.",
+      "L'offre Gratuit comprend 1 profil. Avec l'offre Standard, vous pouvez en créer davantage.",
     );
   });
 
@@ -43,7 +43,7 @@ describe("upgrade prompts", () => {
 
   it("explains that the Plan does not include the Job Digest, and which Plan does", () => {
     expect(upgradePrompt({ quota: "jobDigest", plan: "free", planName: FREE, limit: 0, upgradeTo: "standard", upgradeToName: STANDARD }, "fr").message).toBe(
-      "La réception du Job Digest n'est pas comprise dans l'offre Gratuite. L'offre Standard la comprend.",
+      "La réception du Job Digest n'est pas comprise dans l'offre Gratuit. L'offre Standard la comprend.",
     );
   });
 

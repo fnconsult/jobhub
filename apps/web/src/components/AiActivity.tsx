@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { formatTokens, type Activity } from "@jobhub/shared";
+import { formatTokens } from "@jobhub/shared";
 import { activityEntries, type ActivityEntry, type ReplyGiven, type ServedEntry } from "@/ai-activity/entries";
+import { glyphNow } from "@/ai-activity/en-ce-moment";
 import { entryToOpen, pageSummary, type QuotaUse } from "@/ai-activity/history";
 import { liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
 import type { UsageMeter } from "@/billing/usage-meter";
@@ -17,6 +18,7 @@ import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { buttonClass } from "@/design/button-class";
 import { routes } from "@/routes";
+import { creationOnPage } from "@/ai-activity/creation";
 
 type Language = "fr" | "en";
 
@@ -50,7 +52,8 @@ export const AiActivityControl = createContext<Control | null>(null);
  * AI Activity (CONTEXT.md, #314, #332, ADR-0086): the page's Activité entries, which the Fiche's « Activité » group and the
  * Activité column show under « En ce moment »: the server's (`served`, one loader per page type, ai-activity/index.ts),
  * finished with the AI Coach replies the page's thread shows, with their questions and cards (#808); and, live, the
- * Candidate's AI actions as they run, here or « En cours ailleurs » (AiActivityLive, #333). `usage`: the Usage Meter's
+ * Candidate's AI actions as they run, here or « En cours ailleurs » (AiActivityLive, #333); and what the browser alone knows
+ * of a Profile being created, « Création du profil » (#810). `usage`: the Usage Meter's
  * week, for the Plan Quotas the entries used. Candidate pages only: the Back Office mounts no provider.
  */
 export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children }: { served?: readonly ServedEntry[]; usage?: UsageMeter | null; children: ReactNode }) {
@@ -63,7 +66,8 @@ export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children
   const stopAction = store?.stop;
   const stop = useCallback((key: string) => stopAction?.(key), [stopAction]);
   const [asked, setAsked] = useState<Control["asked"]>(null);
-  const entries = useMemo(() => activityEntries({ page: "any", built: served, replies }), [served, replies]);
+  const creation = creationOnPage(store?.creation ?? null, pathname);
+  const entries = useMemo(() => activityEntries({ page: "any", built: served, replies, ...(creation ? { creation } : {}) }), [served, replies, creation]);
   const inThread = useMemo(() => new Set(replies.map((reply) => reply.messageId)), [replies]);
   const quotas = usage?.quotas ?? null;
   const openColumn = column?.open;
@@ -125,7 +129,7 @@ export function AiActivityButton() {
   const underWay = control.live.underWay;
   // Shown, Activity says it all: « En ce moment » has the step and its stop icon.
   const words = shown ? null : underWay ? <StepWords action={underWay} /> : summary;
-  const icon = underWay ? <ActivityGlyph activity={underWay.current?.activity ?? BEFORE_FIRST_STEP} live /> : <Icons.aiActivity />;
+  const icon = underWay ? <UnderWayGlyph action={underWay} /> : <Icons.aiActivity />;
   return (
     <span className="ai-activity-control">
       <span id={labelId} hidden>
@@ -166,8 +170,13 @@ export function AiActivityButton() {
   );
 }
 
-/** The glyph before an action's first step. */
-export const BEFORE_FIRST_STEP: Activity = "think";
+/**
+ * The live glyph of the action under way, on « Activité » in the Top Bar (#333, ADR-0034): the very glyph « En ce moment »
+ * draws (glyphNow), its step's label and the step itself included, so it morphs from one step into the next.
+ */
+export function UnderWayGlyph({ action }: { action: LiveAction }) {
+  return <ActivityGlyph {...glyphNow(action)} live />;
+}
 
 /** What an action under way is doing, in words: its step, « Arrêt en cours… », or « Démarrage » before its first step. */
 export function StepWords({ action }: { action: LiveAction }) {

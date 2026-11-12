@@ -26,6 +26,7 @@ export const BACK_OFFICE_PAGES = {
   // are the pages a denied Administrator is recorded on.
   discoveryRuns: { href: routes.adminDiscoveryRuns(), resource: "discoveryRuns" },
   receivedEmails: { href: routes.adminReceivedEmails(), resource: "receivedEmails" },
+  extensionEvents: { href: routes.adminExtensionEvents(), resource: "extensionEvents" },
   activity: { href: routes.adminActivity, resource: "discoveryRuns" },
   aiMessages: { href: routes.adminAiMessages(), resource: "aiMessages" },
   searchSites: { href: routes.adminSearchSites, resource: "searchSites" },

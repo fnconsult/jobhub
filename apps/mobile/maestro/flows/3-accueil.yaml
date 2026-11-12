@@ -15,7 +15,7 @@ tags:
       - tapOn: "Menu"
 - assertVisible: "Nouvelle conversation"
 - assertVisible: "Mes candidatures"
-- assertVisible: "Recherches d'offres"
+- assertVisible: "Recherches d'offres(, .+)?"
 - assertVisible: "Agenda"
 - assertVisible: "Préparer mon entretien chez Aéroline"
 - runFlow:

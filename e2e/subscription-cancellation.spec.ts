@@ -42,8 +42,10 @@ test.describe("Cancelling the contract from the subscription page", () => {
     await page.getByRole("link", { name: fr.billing.cancellation.action }).click();
     await expect(page).toHaveURL(/\/abonnement\/resiliation$/);
     await expect(page.getByRole("heading", { level: 2, name: fr.billing.cancellation.title })).toBeVisible();
-    await expect(page.getByText("Standard", { exact: true })).toBeVisible();
-    await expect(page.getByText("15 novembre 2026", { exact: true })).toBeVisible();
+    // On the page, not the Sidebar's foot, which shows the Plan too (#923).
+    const main = page.getByRole("main");
+    await expect(main.getByText("Standard", { exact: true })).toBeVisible();
+    await expect(main.getByText("15 novembre 2026", { exact: true })).toBeVisible();
     await expect(page.getByText("Vous gardez l'offre Standard jusqu'au 15 novembre 2026, fin de la période déjà payée. Aucun prélèvement ne suivra")).toBeVisible();
 
     // 2: confirmed, without a questionnaire or an offer in the way.
@@ -53,6 +55,8 @@ test.describe("Cancelling the contract from the subscription page", () => {
     await expect(page.getByRole("status")).toContainText(fr.billing.cancellation.receiptSent);
     await expect(page.getByText("Votre offre actuelle : Standard jusqu'au 15 novembre 2026")).toBeVisible();
     await expect(page.getByRole("link", { name: fr.billing.cancellation.action })).toHaveCount(0);
+    // « Mon compte », in the Sidebar's foot, says until when the Plan is kept (#923).
+    await expect(page.locator(".sidebar-docked").getByRole("button", { name: `${fr.nav.account}, Standard jusqu'au 15 nov.`, exact: true })).toBeVisible();
 
     const calls = await (await fetch(`${stripeUrl}/__calls`)).json();
     const updates = calls.filter((call: { method: string; path: string }) => call.method === "POST" && call.path === `/v1/subscriptions/sub_fake_${customer}`);
@@ -78,7 +82,7 @@ test.describe("Cancelling the contract from the subscription page", () => {
     await expect(page.getByText("Votre offre actuelle : Standard jusqu'au 15 novembre 2026")).toBeVisible();
     await deliverWebhook(page, subscriptionEvent("customer.subscription.deleted", { ...standard, status: "canceled" }, later(20)));
     await page.goto("/abonnement");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     expect(acknowledgements(email, fr.billing.cancellation.email.subject)).toHaveLength(1);
   });
 
@@ -101,7 +105,7 @@ test.describe("Cancelling the contract from the subscription page", () => {
   test("a Free Candidate has no contract to cancel", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("resiliation-free"));
     await page.goto("/abonnement");
-    await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
+    await expect(page.getByText("Votre offre actuelle : Gratuit")).toBeVisible();
     await expect(page.getByRole("link", { name: fr.billing.cancellation.action })).toHaveCount(0);
 
     await page.goto("/abonnement/resiliation");

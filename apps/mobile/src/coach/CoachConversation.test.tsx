@@ -41,7 +41,9 @@ describe("a Coach Conversation in the app", () => {
 
   it("sends the message to the coach and shows the reply as its events come, « Arrêter » meanwhile", async () => {
     await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
+    expect(screen.getByTestId("conversation-end")).toBeOnTheScreen();
     await write("Aide-moi à préparer un entretien");
+    expect(screen.queryByTestId("conversation-end")).toBeNull();
 
     expect(web.asked).toEqual([{ message: "Aide-moi à préparer un entretien", route: "/" }]);
     expect(screen.getByText("Aide-moi à préparer un entretien")).toBeOnTheScreen();
@@ -56,6 +58,7 @@ describe("a Coach Conversation in the app", () => {
       web.pending().end();
     });
     expect(await screen.findByText("Parlons de vos réussites.")).toBeOnTheScreen();
+    expect(screen.getByTestId("conversation-end")).toBeOnTheScreen();
     expect(screen.queryByText("Réflexion")).toBeNull();
     expect(button("Envoyer")).toBeOnTheScreen();
   });
@@ -117,9 +120,17 @@ describe("a Coach Conversation in the app", () => {
         },
       ],
     });
-    await renderInApp(<CoachConversation conversationId="c7" route="/conversations/c7" />, web.client);
+    let release!: () => void;
+    const loaded = new Promise<void>((resolve) => { release = resolve; });
+    await renderInApp(<CoachConversation conversationId="c7" route="/conversations/c7" />, {
+      ...web.client,
+      fetch: async (...args) => { await loaded; return web.client.fetch(...args); },
+    });
+    expect(screen.queryByTestId("conversation-end")).toBeNull();
+    await act(async () => release());
     expect(await screen.findByText("Visez haut.")).toBeOnTheScreen();
     expect(screen.getByText("Comment négocier ?")).toBeOnTheScreen();
+    expect(screen.getByTestId("conversation-end")).toBeOnTheScreen();
   });
 
   describe("with VoiceOver or TalkBack", () => {
@@ -355,7 +366,7 @@ describe("a Coach proposal under a reply", () => {
     await write("Calcule le Match Score");
     const prompt = {
       title: "Vous avez atteint la limite de votre offre",
-      message: "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuite. Passez à l'offre Pro pour en utiliser davantage.",
+      message: "Vous avez utilisé les 3 Match Scores compris cette semaine dans l'offre Gratuit. Passez à l'offre Pro pour en utiliser davantage.",
       upgradeTo: "pro",
       action: "Passer à l'offre Pro",
       href: "/abonnement",

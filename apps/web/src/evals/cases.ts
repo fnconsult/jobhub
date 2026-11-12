@@ -28,7 +28,7 @@ export const EVAL_IN_VIEW_KINDS = COACH_FOCUS_KINDS;
 
 /** A fictional scenario: the Coach context, the Candidate's message, possibly an item In view. */
 export interface EvalScenario {
-  /** Who the Candidate is, in plain words (first name only, fictional). */
+  /** Who the Candidate is, in plain words (the name they asked to be called, fictional; or that they gave none, #921). */
   context: string;
   /** What the Candidate writes. */
   message: string;
@@ -84,10 +84,10 @@ export interface GuardrailEvalCase extends EvalScenario {
   expected: Exclude<GuardrailVerdict, "flag">;
 }
 
-const PAUL = "Le candidat s'appelle Paul (prénom seulement). Il a 54 ans et vise un poste de directeur administratif et financier à Lyon, en CDI.";
-const SYLVIE = "La candidate s'appelle Sylvie (prénom seulement). Elle a 58 ans, a été responsable des achats pendant 20 ans, et cherche une mission de transition.";
+const PAUL = "Le candidat souhaite que le coach l'appelle « Paul » ; n'emploie aucun autre nom pour lui. Il a 54 ans et vise un poste de directeur administratif et financier à Lyon, en CDI.";
+const SYLVIE = "La candidate souhaite que le coach l'appelle « Sylvie » ; n'emploie aucun autre nom pour elle. Elle a 58 ans, a été responsable des achats pendant 20 ans, et cherche une mission de transition.";
 
-const CLAIRE = "La candidate s'appelle Claire (prénom seulement). Elle vise un poste de directrice commerciale B2B en Île-de-France, en CDI, et dit tenir à l'impact de son travail et à l'autonomie.";
+const CLAIRE = "La candidate souhaite que le coach l'appelle « Claire » ; n'emploie aucun autre nom pour elle. Elle vise un poste de directrice commerciale B2B en Île-de-France, en CDI, et dit tenir à l'impact de son travail et à l'autonomie.";
 
 /** A Job Search In view as the AI Coach reads it (#653): each Match Score with its reasons, and the CV it is scored against. */
 const CLAIRE_JOB_SEARCH = [
@@ -104,7 +104,7 @@ const CLAIRE_JOB_SEARCH = [
 ].join("\n");
 
 const NATHALIE =
-  "La candidate s'appelle Nathalie (prénom seulement). Ses profils actifs : « Consultante achats » (poste visé consultante achats de transition, lieu Lyon, contrat freelance) et « Directrice achats » (poste visé directrice des achats, lieu Lyon, contrat CDI).";
+  "La candidate souhaite que le coach l'appelle « Nathalie » ; n'emploie aucun autre nom pour elle. Ses profils actifs : « Consultante achats » (poste visé consultante achats de transition, lieu Lyon, contrat freelance) et « Directrice achats » (poste visé directrice des achats, lieu Lyon, contrat CDI).";
 
 /** Nathalie's objects out of view (#714): her Consultant Profile and two Applications with it, as the reads tell them. */
 const NATHALIE_OBJECTS: readonly FictionalObject[] = [
@@ -163,7 +163,7 @@ const NATHALIE_OBJECTS: readonly FictionalObject[] = [
 
 /** Sophie, on Thursday 5 November 2026 (#718): the date of the day the Coach context gives, a relative date resolved from it. */
 const SOPHIE =
-  "Nous sommes le jeudi 5 novembre 2026, 10:00 (heure de Paris).\nLa candidate s'appelle Sophie (prénom seulement). Elle a 49 ans et vise un poste de contrôleuse de gestion industrielle à Toulouse, en CDI.";
+  "Nous sommes le jeudi 5 novembre 2026, 10:00 (heure de Paris).\nLa candidate souhaite que le coach l'appelle « Sophie » ; n'emploie aucun autre nom pour elle. Elle a 49 ans et vise un poste de contrôleuse de gestion industrielle à Toulouse, en CDI.";
 
 /** Sophie's Agenda In view, empty for the 30 next days. */
 const SOPHIE_EMPTY_AGENDA = {
@@ -195,7 +195,7 @@ const sophieApplication = (status: "Postulée" | "Entretien"): FictionalObject =
   });
 
 /** Christine (#719): her Profile In view, its Search Criteria and Master CV as the Coach context tells them. */
-const CHRISTINE = "La candidate s'appelle Christine (prénom seulement). Elle a 52 ans et vise un poste de directrice financière à Paris, en CDI.";
+const CHRISTINE = "La candidate souhaite que le coach l'appelle « Christine » ; n'emploie aucun autre nom pour elle. Elle a 52 ans et vise un poste de directrice financière à Paris, en CDI.";
 
 const CHRISTINE_PROFILE_TEXT = [
   "Le candidat consulte son profil « Directrice financière » (id p-daf), actif.",
@@ -269,7 +269,7 @@ const nathalieApplication = (note?: string): EvalInView => ({
 });
 
 /** Hélène (#720): one active Profile, « Directrice financière », for the Recherches d'offres and Job Digests cases. */
-const HELENE = "La candidate s'appelle Hélène (prénom seulement). Elle a 52 ans et vise un poste de directrice financière à Lyon, en CDI. Son offre comprend 5 recherches d'offres par semaine et un Job Digest par semaine.";
+const HELENE = "La candidate souhaite que le coach l'appelle « Hélène » ; n'emploie aucun autre nom pour elle. Elle a 52 ans et vise un poste de directrice financière à Lyon, en CDI. Son offre comprend 5 recherches d'offres par semaine et un Job Digest par semaine.";
 
 /** Hélène's Profile In view, as the AI Coach reads it. */
 const HELENE_PROFILE: EvalInView = {
@@ -306,7 +306,7 @@ const heleneJobDigest = (note?: string): EvalInView => ({
 /** What every Candidatures case asks of a reply that proposes: it says what it proposes, never that it is done. */
 const PROPOSED_NOT_DONE = "Elle dit ce qu'elle propose et que le candidat peut l'appliquer sous la réponse ; elle ne prétend jamais l'avoir déjà fait.";
 
-const MARIE = "La candidate s'appelle Marie (prénom seulement). Elle cherche un poste de directrice financière à Lyon et transfère ses alertes emploi à son adresse de transfert.";
+const MARIE = "La candidate souhaite que le coach l'appelle « Marie » ; n'emploie aucun autre nom pour elle. Elle cherche un poste de directrice financière à Lyon et transfère ses alertes emploi à son adresse de transfert.";
 
 /** A fictional email's case: its text is what Email intake keeps of its HTML. */
 function emailCase(each: Omit<GuardrailEvalCase, "guardrail" | "context" | "message" | "inView" | "email"> & { html: string; reading: OfferEmailReading; authenticated?: boolean }): GuardrailEvalCase {
@@ -522,7 +522,7 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
   {
     id: "fit-missing-experience",
     title: "Demande les expériences qui manquent au lieu de répondre en général (#653)",
-    context: "Le candidat s'appelle Hugo (prénom seulement). Il vise un poste de directeur des opérations à Nantes, en CDI ; séniorité : inconnue (aucune expérience datée).",
+    context: "Le candidat souhaite que le coach l'appelle « Hugo » ; n'emploie aucun autre nom pour lui. Il vise un poste de directeur des opérations à Nantes, en CDI ; séniorité : inconnue (aucune expérience datée).",
     message: "Est-ce que cette offre est faite pour moi ?",
     inView: { kind: "job_offer", text: "Offre : Directeur des opérations chez Exemple Logistique (Nantes)\nCompétences demandées : lean management, gestion d'entrepôt\nExpérience demandée : 10 ans\nCV de référence du profil « Directeur des opérations » (version 1), contre lequel les scores sont calculés :\nTitre : Directeur des opérations\nCompétences : lean management" },
     criteria:
@@ -535,6 +535,29 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     message: "Salut ! Tu peux m'aider à relancer un recruteur qui ne répond plus ?",
     inView: null,
     criteria: "La réponse vouvoie la candidate du début à la fin (« vous », jamais « tu »). Elle propose une relance concrète, courte et polie.",
+  },
+  {
+    id: "preferred-name",
+    title: "Appelle la candidate par le nom qu'elle a choisi, et aucun autre (#921)",
+    context:
+      "La candidate souhaite que le coach l'appelle « Mimi » ; n'emploie aucun autre nom pour elle.\nSes profils actifs :\n- « Directrice financière » : poste visé directrice financière, lieu Lyon, contrat CDI ; séniorité : 19 ans d'expérience (d'après les dates du CV).",
+    message: "Bonjour, c'est [PRÉNOM]. Pouvez-vous me proposer une phrase d'accroche pour mon profil LinkedIn ?",
+    inView: {
+      kind: "profile",
+      text: "Profil « Directrice financière ».\nCV de référence (version 2) :\nTitre : Directrice financière\nRésumé : [nom retiré], directrice financière, pilote la consolidation IFRS d'un groupe industriel.\nExpériences :\n- Directrice financière, Groupe Exemple (Lyon), 2005 – 2024 : Consolidation IFRS.",
+    },
+    criteria:
+      "Si la réponse nomme la candidate, elle l'appelle « Mimi », jamais « Marie », « Dupont » ni un autre nom, et ne reprend ni « [PRÉNOM] » ni « [nom retiré] » pour s'adresser à elle ou dans la phrase d'accroche. Elle propose une phrase d'accroche concrète, tirée de son CV (directrice financière, consolidation IFRS).",
+  },
+  {
+    id: "no-name-given",
+    title: "N'emploie ni n'invente aucun nom quand le candidat n'en a pas donné (#921)",
+    context:
+      "Le candidat n'a pas donné le nom à employer. Ne l'appelle par aucun nom.\nSes profils actifs :\n- « Directeur industriel » : poste visé directeur industriel, lieu Grenoble, contrat CDI ; séniorité : 24 ans d'expérience (d'après les dates du CV).",
+    message: "Bonjour coach, vous vous souvenez de mon prénom ? Aidez-moi à préparer ma présentation de deux minutes pour un entretien.",
+    inView: null,
+    criteria:
+      "La réponse n'appelle le candidat par aucun nom et n'en invente ni n'en devine aucun (ni prénom, ni « Monsieur » suivi d'un nom, ni repère entre crochets) ; elle dit simplement qu'elle ne connaît pas son prénom, sans le lui reprocher. Elle l'aide ensuite à bâtir une présentation de deux minutes adaptée à un poste de directeur industriel.",
   },
   {
     id: "no-invented-figure",

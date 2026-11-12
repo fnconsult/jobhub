@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
+import { CalledBy } from "@/components/CalledBy";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { ExternalLink } from "@/components/ExternalLink";
@@ -57,7 +58,9 @@ export default async function CoachSpacePage() {
           <ul>
             {candidates.map((candidate) => (
               <li key={candidate.id}>
-                <Link href={routes.coachSpaceCandidate(candidate.id)}>{candidate.name ? `${candidate.name} (${candidate.email})` : candidate.email}</Link>
+                <Link href={routes.coachSpaceCandidate(candidate.id)}>{candidate.name || candidate.email}</Link>
+                <CalledBy name={candidate.calledBy} t={t} />
+                {candidate.name ? ` (${candidate.email})` : null}
               </li>
             ))}
           </ul>
@@ -68,14 +71,17 @@ export default async function CoachSpacePage() {
 }
 
 /**
- * One of the coach's Coaching Sessions: the Candidate's first name and last initial, its date in French
+ * One of the coach's Coaching Sessions: the Candidate's first name and last initial (and the Preferred Name beside it), its date in French
  * time or « À planifier », its duration and video link, and the button to enter or correct them.
  */
 function CoachedSessionItem({ session, formats, t }: { session: CoachedSession; formats: { dateTime: Intl.DateTimeFormat; date: Intl.DateTimeFormat }; t: T }) {
   const name = session.candidateName || t("coachSpace.unnamedCandidate");
   return (
     <li id={`seance-${session.id}`} className="coach-session">
-      <p className="coach-session-name">{name}</p>
+      <p className="coach-session-name">
+        {name}
+        <CalledBy name={session.candidateCalledBy} t={t} />
+      </p>
       {session.scheduledAt ? (
         <p>
           <time dateTime={session.scheduledAt.toISOString()}>{t("coachSpace.sessionOn", { date: formats.dateTime.format(session.scheduledAt) })}</time>

@@ -142,12 +142,20 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
 
   /** Emails the Candidate their `items` (all on one day), in their Interface Language. */
   async function email(candidateId: string, items: ReminderItem[]): Promise<void> {
-    const { rows } = await database.query<{ email: string; interfaceLanguage: string | null }>(`SELECT email, "interfaceLanguage" FROM candidate WHERE id = $1`, [candidateId]);
+    const { rows } = await database.query<{ email: string; interfaceLanguage: string | null; preferredName: string | null }>(
+      `SELECT email, "interfaceLanguage", preferred_name AS "preferredName" FROM candidate WHERE id = $1`,
+      [candidateId],
+    );
     const candidate = rows[0];
     if (!candidate) return;
     const language = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;
     const email = appointmentReminderEmail(
-      { items, agendaUrl: new URL(routes.agendaList(), deps.baseURL).toString(), settingsUrl: new URL(routes.accountReminders, deps.baseURL).toString() },
+      {
+        items,
+        agendaUrl: new URL(routes.agendaList(), deps.baseURL).toString(),
+        settingsUrl: new URL(routes.accountReminders, deps.baseURL).toString(),
+        preferredName: candidate.preferredName,
+      },
       language,
     );
     await deps.mailer.send({ to: candidate.email, ...email });

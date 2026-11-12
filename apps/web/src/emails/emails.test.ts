@@ -40,6 +40,19 @@ describe("renderEmail: the plain-text part", () => {
     expect(text).toBe("Hello,\n\nSign in to Jobbbox:\nhttps://x/y\n\nThe Jobbbox team\n\n--\nWhy.");
   });
 
+  it("greets the Candidate by their Preferred Name when the email gives it, in both parts (#921)", () => {
+    const named = renderEmail({ ...digest, greetingName: "Mimi" });
+    expect(named.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+    expect(named.html).toContain(">Bonjour Mimi,</p>");
+    expect(renderEmail({ ...digest, language: "en", greetingName: "Mimi" }).text.startsWith("Hello Mimi,\n\n")).toBe(true);
+  });
+
+  it("greets without a name when there is none, or only spaces, and escapes the name in the HTML", () => {
+    expect(renderEmail({ ...digest, greetingName: null }).text.startsWith("Bonjour,\n\n")).toBe(true);
+    expect(renderEmail({ ...digest, greetingName: "  " }).text.startsWith("Bonjour,\n\n")).toBe(true);
+    expect(renderEmail({ ...digest, greetingName: "<b>Jo</b>" }).html).toContain(">Bonjour &lt;b&gt;Jo&lt;/b&gt;,</p>");
+  });
+
   it("keeps the subject", () => {
     expect(renderEmail(digest).subject).toBe(digest.subject);
   });
@@ -99,6 +112,15 @@ describe("renderEmail: the HTML part", () => {
     expect(escaped).toContain("R&amp;D &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
     expect(escaped).not.toContain("<script>");
     expect(escaped).toContain('href="https://x/?a=1&amp;b=&quot;2&quot;"');
+  });
+
+  it("draws a link block as a paragraph that leads to its page, beside the one primary button, in both parts (#818)", () => {
+    const withLink = renderEmail({ ...digest, body: [...digest.body, { link: { label: "Il vous reste 3 offres à traiter", url: "https://app.jobbbox.fr/recherches" } }] });
+    expect(withLink.html).toMatch(/<p [^>]*><a [^>]*href="https:\/\/app\.jobbbox\.fr\/recherches"[^>]*>Il vous reste 3 offres à traiter<\/a><\/p>/);
+    expect(withLink.html.match(/data-button="primary"/g)).toHaveLength(1);
+    expect(withLink.text).toContain("Voir ce Job Digest :\nhttps://app.jobbbox.fr/job-digests/9\n\nIl vous reste 3 offres à traiter :\nhttps://app.jobbbox.fr/recherches\n\nL'équipe Jobbbox");
+    expect(mailClientLint(withLink.html)).toEqual([]);
+    expect(() => renderEmail({ ...digest, body: [{ link: { label: "Go", url: "javascript:alert(1)" } }] })).toThrow(/http/);
   });
 
   it("refuses a second primary button, or a link that is not http(s)", () => {

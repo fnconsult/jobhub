@@ -1,6 +1,7 @@
 import { getAgenda } from "@/agenda/server";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
+import { getIdentityNames } from "@/candidate-identity/server";
 import { getCoachActions } from "@/coach-actions/server";
 import { getCoachMemory } from "@/coach-memory/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
@@ -47,6 +48,8 @@ export function getCoach(): Coach {
           return days.flatMap((day) => day.items);
         },
       },
+      // What the Candidate asked the coaches to call them (#921).
+      names: getIdentityNames(),
       // Each active Profile's Sectors and Domains, by their labels (#236).
       industries: readIndustryReference,
       // Coach Memory needs Coach Conversations, which need the AI Coach: resolved on first use, not at construction.

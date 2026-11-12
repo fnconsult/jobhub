@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { badgeCount } from "@jobhub/shared";
 import { helpLocale, onThisPage } from "@/coach-help";
 import type { ConversationContext } from "@/coach/conversation";
 import type { ReplyGiven } from "@/ai-activity/entries";
@@ -246,7 +247,8 @@ function useUnfolded(menu: string): [boolean, (open: boolean) => void] {
 /**
  * One of the Sidebar's menus (#604): its link, to its page; with objects (Mes candidatures, Recherches d'offres and Job
  * Digests (#606), under « Conversation au centre »), the button that unfolds it into them, each to its page, the one open highlighted rather than the menu, those
- * à traiter marked with a dot, then « Tout voir (N) ». Its fold is remembered in this browser. `current`: the page shown is
+ * à traiter marked with a dot, then « Tout voir (N) »; beside its name, the menu's `count` when there is one (Recherches
+ * d'offres' offers à traiter, #818), even with no object to unfold into. Its fold is remembered in this browser. `current`: the page shown is
  * the menu's or one under it. `onNavigate`: closes the Sidebar's drawer on phones.
  */
 export function SidebarMenu({
@@ -272,10 +274,20 @@ export function SidebarMenu({
   const unfolds = objects !== undefined && objects.total > 0;
   // The object open, listed under the menu: it is the one highlighted.
   const objectShown = unfolds && open && objects.shown.some((object) => object.href === pathname);
+  const count = objects?.count ?? 0;
   const link = (
     <Link className="sidebar-link" href={href} aria-current={current && !objectShown ? CURRENT : undefined} onClick={onNavigate}>
       {icon}
       <span className="sidebar-link-text">{label}</span>
+      {count > 0 ? (
+        // « N » on screen, « 99+ » over 99 (#939); its exact words for a screen reader (#818).
+        <>
+          <span className="sidebar-count" aria-hidden="true">
+            {badgeCount(count)}
+          </span>
+          <span className="visually-hidden">, {t("conversationFirst.offersToHandle", { count })}</span>
+        </>
+      ) : null}
     </Link>
   );
   if (!unfolds) return <li>{link}</li>;

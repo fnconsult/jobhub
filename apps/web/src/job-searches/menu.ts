@@ -16,35 +16,45 @@ export interface JobSearchesMenu {
   groups: JobSearchesMenuGroup[];
   /** How many Job Searches are à traiter: finished, their outcome still unseen. */
   unseen: number;
-  /** The Sidebar's objects: the active Profiles' Job Searches, each named by its Profile and day. */
+  /**
+   * The Sidebar's objects: the active Profiles' Job Searches, each named by its Profile and day; and beside its name, the
+   * Offer box's offers à traiter (#818).
+   */
   sidebar: UnfoldedMenu;
 }
 
 /**
  * Recherches d'offres from the Candidate's active `profiles` (in their order) and their `searches` (most recent first, as
  * the Job Searches module lists them); an Archived Profile's are left out. `dateLabel` writes the day a Job Search started.
+ * `offersToHandle`: the Offer box's « N à traiter » (`offersToHandle`, ADR-0090), shown beside the Sidebar's « Recherches
+ * d'offres »; nothing at 0.
  */
 export function jobSearchesMenu({
   profiles,
   searches,
   dateLabel,
+  offersToHandle = 0,
 }: {
   profiles: readonly Profile[];
   searches: readonly JobSearchSummary[];
   dateLabel: (date: Date) => string;
+  offersToHandle?: number;
 }): JobSearchesMenu {
   const active = new Set(profiles.map((profile) => profile.id));
   const shown = searches.filter((search) => active.has(search.profile.id));
   return {
     groups: profiles.map((profile) => ({ profile, searches: shown.filter((search) => search.profile.id === profile.id) })),
     unseen: shown.filter((search) => search.unseen).length,
-    sidebar: unfoldMenu(
-      shown.map((search) => ({
-        id: search.id,
-        label: `${search.profile.name} · ${dateLabel(search.startedAt)}`,
-        href: routes.jobSearch(search.id),
-        toHandle: search.unseen,
-      })),
-    ),
+    sidebar: {
+      ...unfoldMenu(
+        shown.map((search) => ({
+          id: search.id,
+          label: `${search.profile.name} · ${dateLabel(search.startedAt)}`,
+          href: routes.jobSearch(search.id),
+          toHandle: search.unseen,
+        })),
+      ),
+      ...(offersToHandle > 0 ? { count: offersToHandle } : {}),
+    },
   };
 }

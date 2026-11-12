@@ -16,6 +16,7 @@ import {
   CircleDollarSign,
   CircleHelp,
   CircleUser,
+  CornerDownLeft,
   ClipboardList,
   Copy,
   CreditCard,
@@ -47,6 +48,7 @@ import {
   PanelLeftClose,
   PanelRight,
   Plus,
+  Puzzle,
   RefreshCw,
   Scale,
   Sparkles,
@@ -71,8 +73,8 @@ import {
 
 /**
  * The interface's icons, from Lucide only (ISC licence, ADR-0053), drawn inline at stroke 1.7. Decoration only:
- * each one sits beside its label in words (ADR-0009: no icon-only function, but AI Activity's stop icon and the
- * Sidebar's Signalement icon, named by their aria-label), so it is hidden from screen readers. The Activity glyphs
+ * each one sits beside its label in words (ADR-0009: no icon-only function, but AI Activity's stop icon, the
+ * Sidebar's Signalement icon and the message box's Send while the Candidate writes, #933, named by their label), so it is hidden from screen readers. The Activity glyphs
  * and the Signalement glyphs are not here: they stay our own (ActivityGlyph, signalement-glyphs).
  */
 const LUCIDE = {
@@ -100,6 +102,8 @@ const LUCIDE = {
   stop: Square,
   // A tick: an AI action done (#333), « ✓ Dernière recherche · 16 s ».
   done: Check,
+  // The Enter key: « Envoyer au coach » once the Candidate writes (#933, ADR-0009's amendment).
+  enter: CornerDownLeft,
   add: Plus,
   conversations: MessageSquare,
   searchAgain: RefreshCw,
@@ -138,6 +142,8 @@ const LUCIDE = {
   discoveryRuns: SearchCheck,
   // An envelope: Activité › Emails reçus, Email intake's Received offer emails (#449).
   receivedEmails: Mail,
+  // A puzzle piece, as browsers draw their extensions: Activité › Extension, the Extension Events (#925).
+  extensionEvents: Puzzle,
   tools: Wrench,
   // A parcel ticked: Livraison, what is built and where it runs.
   deliveryStatus: PackageCheck,

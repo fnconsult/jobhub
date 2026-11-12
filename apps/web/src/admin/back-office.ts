@@ -62,6 +62,8 @@ export const BACK_OFFICE_SECTIONS = [
   "discovery_runs",
   // An Administrator denied Activité › Emails reçus (#449).
   "received_emails",
+  // An Administrator denied Activité › Extension (#925).
+  "extension_events",
   "coaching_playbooks",
   "eval_cases",
   "guardrails",
@@ -231,6 +233,7 @@ const DENIED_SECTIONS = {
   discoveryRuns: "discovery_runs",
   jobSearches: "discovery_runs",
   receivedEmails: "received_emails",
+  extensionEvents: "extension_events",
   planQuotas: "plan_quotas",
   plans: "plans",
   coupons: "coupons",

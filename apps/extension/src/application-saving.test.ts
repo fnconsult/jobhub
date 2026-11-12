@@ -35,19 +35,22 @@ type Saving = Pick<JobbboxApi, "profiles" | "createProfile" | "saveApplication">
 function account({ profiles = [] as { id: string; name: string }[], profileQuota = Infinity } = {}) {
   const state = {
     profiles: profiles.map((profile) => ({ ...profile, cv: undefined as CvContent | undefined, searchCriteria: undefined as unknown })),
+    /** The web app counts a CV read in the Candidate's Consumption when a Profile comes with its reading's Provenance (#799, #926). */
+    cvReadings: 0,
     applications: [] as { id: string; jobOfferId: string; profileId: string }[],
   };
   const api: Saving = {
     async profiles() {
       return { ok: true, profiles: state.profiles.map(({ id, name }) => ({ id, name })) };
     },
-    async createProfile(cv, searchCriteria) {
+    async createProfile(cv, searchCriteria, provenance) {
       if (!searchCriteria.targetRole || searchCriteria.locations.length === 0) return { ok: false, error: "invalid" };
       if (state.profiles.length >= profileQuota) {
         return { ok: false, error: "plan_quota_reached", prompt: { message: "Your Plan includes 1 Profile.", action: "Upgrade", href: "/abonnement" } };
       }
       const id = `p-${state.profiles.length + 1}`;
       state.profiles.push({ id, name: searchCriteria.targetRole, cv, searchCriteria });
+      if (provenance) state.cvReadings += 1;
       return { ok: true, profileId: id };
     },
     async saveApplication(jobOfferId, profileId) {
@@ -72,10 +75,10 @@ function oneAtATime() {
   };
 }
 
-async function guestWork(work: { jobOffer?: JobOffer; cv?: CvContent; searchCriteria?: typeof searchCriteria }) {
+async function guestWork(work: { jobOffer?: JobOffer; cv?: CvContent; searchCriteria?: typeof searchCriteria; provenance?: Record<string, unknown> }) {
   const session = createGuestSession(memoryStorage());
   if (work.jobOffer) await session.keepJobOffer(work.jobOffer);
-  if (work.cv) await session.keepCv(work.cv, work.searchCriteria);
+  if (work.cv) await session.keepCv(work.cv, work.searchCriteria, work.provenance);
   return session;
 }
 
@@ -136,6 +139,26 @@ describe("saving a captured Job Offer as an Application, from the extension", ()
     expect(await saving.open()).toEqual({ state: "choose", profiles: [{ id: "p-1", name: "DAF" }], fromCv: true });
     expect(await saving.save("new_profile_from_cv")).toMatchObject({ state: "saved", newProfile: { id: "p-2", name: "Directrice financière" } });
     expect(state.applications).toEqual([{ id: "a-1", jobOfferId: "jo-1", profileId: "p-2" }]);
+  });
+
+  it("a Profile a Candidate makes from a CV the AI read counts as a CV read in their Consumption: its reading's Provenance goes with it (#926)", async () => {
+    const provenance = { v: 1, steps: [{ kind: "ai", activity: "read", task: "cv_parsing" }] };
+    const session = await guestWork({ jobOffer, cv, searchCriteria, provenance });
+    const { api, state } = account({ profiles: [{ id: "p-1", name: "DAF" }] });
+
+    await createApplicationSaving({ api, session, lock: oneAtATime() }).save("new_profile_from_cv");
+
+    expect(state.cvReadings).toBe(1);
+  });
+
+  it("a Guest's CV, read by rules, makes a Profile on sign-up that counts no CV read (ADR-0003)", async () => {
+    const session = await guestWork({ jobOffer, cv, searchCriteria });
+    const { api, state } = account();
+
+    await createApplicationSaving({ api, session, lock: oneAtATime() }).open();
+
+    expect(state.profiles).toHaveLength(1);
+    expect(state.cvReadings).toBe(0);
   });
 
   it("takes the target role and location the CV does not give from the Job Offer", async () => {

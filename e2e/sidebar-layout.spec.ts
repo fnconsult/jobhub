@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { catalogueStrings, fromCatalogue, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { accountButtonName } from "./support/account-menu";
 
 // Issue #134: the Candidate's pages sit in the sidebar layout approved in the
 // prototype (#132): a sidebar with the Profile switcher and labelled links,
@@ -49,7 +50,7 @@ async function expectNavLinks(nav: ReturnType<typeof sidebarNav>) {
 }
 /** Mon compte sits in the sidebar's foot, above signing out; the Subscription is one of its Sections. */
 /** « Mon compte », the menu button in the docked sidebar's foot: Aide et légal, Mon compte's page and « Se déconnecter ». */
-const accountButton = (page: Page) => page.locator(".sidebar-docked").getByRole("button", { name: fr.nav.account, exact: true });
+const accountButton = (page: Page) => page.locator(".sidebar-docked").getByRole("button", { name: accountButtonName(fr.nav.account) });
 
 /** What the focused element says: its accessible name as a screen reader would read it, roughly. */
 const focused = (page: Page) =>
@@ -106,9 +107,9 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
     // The Text Size setting moved to Mon compte → Préférences.
     await expect(page.getByLabel(fr.textSize.label)).toHaveCount(0);
-    // « Se déconnecter » is in Mon compte's menu, with Aide et légal.
+    // « Se déconnecter » is in Mon compte's menu, with Aide et légal and « Mon abonnement » (#923).
     await accountButton(page).click();
-    await expect(page.getByRole("menuitem")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes, fr.nav.account, fr.account.signOut]);
+    await expect(page.getByRole("menuitem")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes, fr.nav.account, new RegExp(`^${fr.account.plan}`), fr.account.signOut]);
     await page.keyboard.press("Escape");
     await expect(accountButton(page)).toBeFocused();
 
@@ -183,7 +184,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       ...NAV_LABELS,
       // The Usage Meter reads as its title and the week's percentage.
       `${fr.usageMeter.title} ${fr.usageMeter.percent.replace("{{percent}}", "0")}`,
-      fr.nav.account,
+      // « Mon compte », named with the Candidate's Plan (#923): this one has no name yet.
+      `${fr.nav.account}, ${fr.billing.plans.free}`,
       // The Signalement icon, beside Mon compte on its row (#375).
       fr.signalement.open,
       // « Activité » (#607) and « Aide » on a page without a conversation (#602).
@@ -296,7 +298,7 @@ test.describe("below 64rem", () => {
     const nav = drawer(page).getByRole("navigation", { name: fr.sidebar.label });
     await expectNavLinks(nav);
     // Focus goes into the drawer, onto the current page's entry: Mon compte's menu button.
-    await expect(drawer(page).getByRole("button", { name: fr.nav.account, exact: true })).toBeFocused();
+    await expect(drawer(page).getByRole("button", { name: accountButtonName(fr.nav.account) })).toBeFocused();
     // The page behind is out of reach while it is open: its content and <main> itself,
     // which holds a live region (the Job Search notifications) that Radix's modal leaves exposed.
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);

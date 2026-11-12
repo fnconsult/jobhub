@@ -43,7 +43,7 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
     });
     return { metered, asked };
   }
-  const REFUSED: QuotaDecision = { allowed: false, quota: "matchScores", plan: "free", planName: { fr: "Gratuite", en: "Free" }, limit: 3, upgradeTo: "standard", upgradeToName: { fr: "Standard", en: "Standard" } };
+  const REFUSED: QuotaDecision = { allowed: false, quota: "matchScores", plan: "free", planName: { fr: "Gratuit", en: "Free" }, limit: 3, upgradeTo: "standard", upgradeToName: { fr: "Standard", en: "Standard" } };
 
   beforeEach(async () => {
     testAuth = await startTestAuth();

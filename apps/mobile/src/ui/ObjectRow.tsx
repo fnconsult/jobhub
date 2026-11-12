@@ -5,13 +5,14 @@ import { Modal, Pressable, View, useWindowDimensions, type AccessibilityActionEv
 import { useKeyCommand } from "../keyboard/key-commands";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
 import { AppText, CappedTextScale, ROW_MAX_SCALE } from "./AppText";
+import { CountBadge } from "./CountBadge";
 import { isSecondaryClick, usePointerHover } from "./pointer";
 
 /** One of a row's actions, in its context menu and its accessibility actions. */
 export type RowAction = { label: string; icon?: LucideIcon; onPress: () => void };
 
-/** Where the menu opens: under the pointer, or under the finger of a long press. */
-type Anchor = { x: number; y: number };
+/** Where the menu opens: under the pointer, or under the finger of a long press (or under the button that opens it). */
+export type Anchor = { x: number; y: number };
 
 /** The menu's width, in rem. */
 const MENU_REM = 16;
@@ -25,7 +26,9 @@ const ORIENTATIONS = ["portrait", "landscape"] as const;
  * A row of a list that names an object (an Application, a Job Offer, a Free conversation; #700): pressed, it opens it;
  * highlighted under a pointer; a long press or a right click opens its context menu with `actions`, which VoiceOver and
  * TalkBack also find among the row's actions. The menu closes on a choice, Échap, « Fermer », a tap beside it, or
- * Android's back. Without `actions` (a Sidebar's menu), a link highlighted under the pointer, and no menu.
+ * Android's back. Without `actions` (a Sidebar's menu), a link highlighted under the pointer, and no menu. `count`: a
+ * compact badge at the row's end (Recherches d'offres' offers à traiter, #818, #939), « 99+ » over 99, its `label` said
+ * after the row's to a screen reader with the exact number; none at 0. The label keeps two lines at most as a fallback.
  */
 export function ObjectRow({
   label,
@@ -33,6 +36,7 @@ export function ObjectRow({
   current = false,
   onPress,
   actions,
+  count,
 }: {
   label: string;
   icon?: LucideIcon;
@@ -40,9 +44,12 @@ export function ObjectRow({
   current?: boolean;
   onPress: () => void;
   actions: readonly RowAction[];
+  count?: { value: number; label: string } | undefined;
 }) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { hovered, hoverProps } = usePointerHover();
+  const counted = !!count && count.value > 0;
   const [menuAt, setMenuAt] = useState<Anchor | null>(null);
   const openMenu = ({ pageX, pageY }: { pageX: number; pageY: number }) => (actions.length ? setMenuAt({ x: pageX, y: pageY }) : undefined);
 
@@ -50,7 +57,7 @@ export function ObjectRow({
     <>
       <Pressable
         role="link"
-        aria-label={label}
+        aria-label={count && count.value > 0 ? `${label}, ${count.label}` : label}
         aria-selected={current}
         onPress={onPress}
         onLongPress={(event: GestureResponderEvent) => openMenu(event.nativeEvent)}
@@ -62,8 +69,10 @@ export function ObjectRow({
           minHeight: TARGET,
           flexDirection: "row",
           alignItems: "center",
-          gap: space[3],
+          // Recover 8 pt for the current semi-bold label in the tablet column (#939).
+          gap: counted ? space[2] : space[3],
           paddingHorizontal: space[3],
+          paddingRight: counted ? space[2] : space[3],
           borderRadius: radius.md,
           backgroundColor: current || pressed || hovered || menuAt ? colors.hover : "transparent",
         })}
@@ -76,13 +85,18 @@ export function ObjectRow({
             </AppText>
           </CappedTextScale>
         </View>
+        {count && count.value > 0 ? <CountBadge count={count.value} /> : null}
       </Pressable>
-      {menuAt ? <ContextMenu title={label} anchor={menuAt} actions={actions} onClose={() => setMenuAt(null)} /> : null}
+      {menuAt ? <ContextMenu name={t("conversationFirst.actions", { title: label })} anchor={menuAt} actions={actions} onClose={() => setMenuAt(null)} /> : null}
     </>
   );
 }
 
-function ContextMenu({ title, anchor, actions, onClose }: { title: string; anchor: Anchor; actions: readonly RowAction[]; onClose: () => void }) {
+/**
+ * A menu of actions over the page, its top left at `anchor`, kept inside the window: a row's context menu, or the
+ * Top Bar's « … » on Android (#899). `name` is its accessible name.
+ */
+export function ContextMenu({ name, anchor, actions, onClose }: { name: string; anchor: Anchor; actions: readonly RowAction[]; onClose: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const window = useWindowDimensions();
@@ -103,7 +117,7 @@ function ContextMenu({ title, anchor, actions, onClose }: { title: string; ancho
       <Pressable accessible={false} onPress={onClose} style={{ flex: 1 }} />
       <View
         role="menu"
-        aria-label={t("conversationFirst.actions", { title })}
+        aria-label={name}
         onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
         style={{
           position: "absolute",

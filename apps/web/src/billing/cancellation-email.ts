@@ -10,6 +10,8 @@ export interface CancellationReceipt {
   endsAt: Date;
   /** The subscription page, where a scheduled cancellation can be undone through Stripe. */
   subscriptionUrl: string;
+  /** Their Preferred Name, which the email greets them by (#921); none: « Bonjour, ». */
+  preferredName?: string | null;
 }
 
 const ZONE = { timeZone: "Europe/Paris" } as const;
@@ -25,6 +27,7 @@ export function cancellationReceiptEmail(receipt: CancellationReceipt, language:
   const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", ...ZONE }).format(receipt.endsAt);
   return renderEmail({
     language,
+    greetingName: receipt.preferredName,
     subject: t("billing.cancellation.email.subject"),
     title: t("billing.cancellation.email.title"),
     body: [

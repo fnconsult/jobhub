@@ -1,14 +1,14 @@
 /**
  * Back Office Activity (« Activité », #404, ADR-0042): one page, a tab each for what happened, each tab with its own
  * readers and retention: Recherches (the Job discovery runs), Emails reçus (Email intake's Received offer emails, #449),
- * Appels IA (the AI Message Log) and Actions des
- * administrateurs (the Back Office Audit). This module says which tabs an Administrator sees, in order, and where the
+ * Appels IA (the AI Message Log), Actions des administrateurs (the Back Office Audit) and Extension (the Extension
+ * Events, #925). This module says which tabs an Administrator sees, in order, and where the
  * former Journal and Journaux IA addresses now lead.
  */
 import { routes } from "../routes";
 import type { BackOfficeAccess, BackOfficeResource } from "./access";
 
-export type ActivityTabId = "discoveryRuns" | "receivedEmails" | "aiMessages" | "audit";
+export type ActivityTabId = "discoveryRuns" | "receivedEmails" | "aiMessages" | "audit" | "extensionEvents";
 
 export interface ActivityTab {
   id: ActivityTabId;
@@ -22,6 +22,7 @@ const TABS: readonly ActivityTab[] = [
   { id: "receivedEmails", href: routes.adminReceivedEmails(), resource: "receivedEmails" },
   { id: "aiMessages", href: routes.adminAiMessages(), resource: "aiMessages" },
   { id: "audit", href: routes.adminAudit(), resource: "audit" },
+  { id: "extensionEvents", href: routes.adminExtensionEvents(), resource: "extensionEvents" },
 ];
 
 /** The tabs `access` reads, in order; the first is where Activité's own address leads. */

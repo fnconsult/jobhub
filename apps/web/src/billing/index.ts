@@ -1240,7 +1240,9 @@ export function createBilling(config: BillingConfig) {
       if (config.mailer) {
         try {
           const names = { plan: await nameOf(scheduled.plan), free: await nameOf(FREE_PLAN) };
-          const email = cancellationReceiptEmail({ planName: names.plan[locale], freePlanName: names.free[locale], requestedAt, endsAt: scheduled.endsAt, subscriptionUrl: pageURL() }, locale);
+          // Greeted by the Preferred Name the account has now (#921), not one the caller would have to think of passing.
+          const { rows } = await database.query<{ preferredName: string | null }>(`SELECT preferred_name AS "preferredName" FROM candidate WHERE id = $1`, [candidate.id]);
+          const email = cancellationReceiptEmail({ planName: names.plan[locale], freePlanName: names.free[locale], requestedAt, endsAt: scheduled.endsAt, subscriptionUrl: pageURL(), preferredName: rows[0]?.preferredName }, locale);
           await config.mailer.send({ to: candidate.email, ...email });
           acknowledged = true;
         } catch (error) {

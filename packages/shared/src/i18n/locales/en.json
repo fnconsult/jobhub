@@ -343,6 +343,7 @@
     "sections": {
       "sectionsLabel": "Sections of my account",
       "backToSections": "My account",
+      "identity": "Identity",
       "profiles": "Profiles",
       "followUps": "Follow-ups",
       "euAi": "European AI",
@@ -360,7 +361,31 @@
       "extensionTitle": "Jobbbox Chrome extension",
       "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
       "install": "Install the extension from the Chrome Web Store",
-      "soon": "The extension is coming soon to the Chrome Web Store."
+      "soon": "The extension is coming soon to the Chrome Web Store.",
+      "newTab": "(new tab)",
+      "testBuild": {
+        "title": "Latest version of the extension",
+        "intro": "For administrators only: load the extension this server serves, before it is published on the Chrome Web Store.",
+        "extensionVersion": "Extension version",
+        "apiVersion": "API version served",
+        "releases": "See the versions on GitHub",
+        "access": "The repository is private: you need access to it.",
+        "stepsLabel": "Load the extension in Chrome",
+        "steps": {
+          "download": "Download {{zip}}, then unzip it.",
+          "developerMode": "Open chrome://extensions and turn on « Developer mode ».",
+          "loadUnpacked": "Click « Load unpacked » and choose the unzipped folder."
+        }
+      }
+    },
+    "identity": {
+      "givenName": "First name",
+      "familyName": "Last name",
+      "preferredName": "What would you like the coaches to call you?",
+      "preferredNameHint": "The AI Coach and your coaches call you this. Leave it empty not to be called by a name.",
+      "save": "Save",
+      "tooLong": "80 characters at most.",
+      "error": "Your identity could not be saved. Please try again."
     }
   },
   "accountData": {
@@ -1022,6 +1047,7 @@
     "openShort": "Help",
     "title": "AI Coach",
     "badge": "AI Coach",
+    "badgeShort": "AI",
     "close": "Close",
     "inView": "You are viewing: {{label}}",
     "inViewProfile": "the profile \"{{name}}\"",
@@ -1292,6 +1318,7 @@
       "title": "My subscription",
       "currentPlan": "Your current Plan: {{plan}}",
       "currentPlanUntil": "Your current Plan: {{plan}} until {{date}}",
+      "planUntil": "until {{date}}",
       "checkoutSuccess": "Thank you! Your payment is recorded. Your new Plan shows here as soon as Stripe confirms it, usually within seconds.",
       "usageTitle": "Your usage this week",
       "usage": "{{used}} of {{limit}}",
@@ -1587,6 +1614,39 @@
         "aiUsageLink": "Every detail in AI consumption",
         "webSearchSettingsLink": "Web search alert threshold",
         "budgetSettingsLink": "Budget per run"
+      },
+      "extension": {
+        "title": "Extension",
+        "period": "last 30 days",
+        "captures": "Captures",
+        "capturesSub": "{{candidate}} by candidates · {{guest}} by guests",
+        "matchScores": "Match Scores",
+        "matchScoresSub": "Asked from the extension",
+        "applications": "Applications created",
+        "applicationsSub": "From the extension",
+        "activeCandidates": "Active candidates",
+        "activeCandidatesSub": "Distinct, over 30 days",
+        "errors": "Errors",
+        "errorsSub": "Reported by the extension",
+        "capturesTitle": "Captures per day, candidates and guests",
+        "candidates": "Candidates",
+        "guests": "Guests",
+        "errorsTitle": "Errors per day",
+        "noActivity": "No extension events in 30 days.",
+        "day": "Day",
+        "versions": "Versions",
+        "versionsTitle": "Versions in service",
+        "versionEvents_one": "{{count}} event",
+        "versionEvents_other": "{{count}} events",
+        "unknownVersion": "Not stated",
+        "noVersions": "No version in service in 30 days.",
+        "events": "Events",
+        "domainsTitle": "Pages that cannot be captured: the top 5 domains",
+        "domain": "Domain",
+        "domainErrors_one": "{{count}} error",
+        "domainErrors_other": "{{count}} errors",
+        "noDomains": "No page that cannot be captured in 30 days.",
+        "link": "See Activity › Extension"
       }
     },
     "roles": {
@@ -1637,6 +1697,7 @@
       "discoveryRuns": "Searches",
       "designSystem": "Design System",
       "receivedEmails": "Received emails",
+      "extensionEvents": "Extension",
       "withdrawals": "Withdrawals",
       "deliveryStatus": "Delivery"
     },
@@ -2602,6 +2663,7 @@
         "recipients_outside_eu": "Recipients outside the EU",
         "discovery_runs": "Activity › Searches",
         "received_emails": "Activity › Received emails",
+        "extension_events": "Activity › Extension",
         "withdrawals": "Withdrawals"
       },
       "actions": {
@@ -2706,6 +2768,16 @@
       "estimate": "Estimates at the providers' list prices, in dollars converted at €{{rate}} per $1 (an assumption, not today's rate), fixed when each call was made. Aggregates only: no Candidate, no text.",
       "coachCostLink": "Median and 90th percentile of one AI Coach reply's cost: Coach cost",
       "period": "Period",
+      "surface": "Origin",
+      "anySurface": "All",
+      "surfaces": {
+        "web": "Web",
+        "extension": "Extension",
+        "app": "App",
+        "worker": "Background jobs",
+        "unknown": "Unknown"
+      },
+      "surfaceExternal": "External APIs record no origin: they are all still counted.",
       "show": "Show",
       "periods": {
         "7d": "Last 7 days",
@@ -2803,7 +2875,8 @@
       "at": "Date",
       "provider": "Provider and model",
       "candidate": "Candidate",
-      "noCandidate": "None (Guest)",
+      "guest": "Guest",
+      "test": "Eval / test",
       "result": "Result",
       "open": "Open",
       "openLabel": "Open the call of {{at}}",
@@ -3606,7 +3679,8 @@
         "discoveryRuns": "Searches",
         "receivedEmails": "Received emails",
         "aiMessages": "AI calls",
-        "audit": "Administrator actions"
+        "audit": "Administrator actions",
+        "extensionEvents": "Extension"
       }
     },
     "receivedEmails": {
@@ -3658,6 +3732,57 @@
       "notRead": "Not read",
       "noCandidate": "No Candidate name, email or id here, and nothing of the emails' content.",
       "subtitle": "Each offer email a Candidate's Forwarding address received."
+    },
+    "extensionEvents": {
+      "subtitle": "What the extension did and what failed, newest first.",
+      "intro": "Each Extension Event: a capture, a Match Score, a CV draft, a profile or an application made from the extension, or an error. For each, the time, the type, the candidate or « Guest », the extension's version and the object; for an error, its code, where it happened, the route and status, the browser and the page's domain, never its address or text. They are kept {{months}} months, a guest's {{days}} days, and deleted with the candidate's account.",
+      "filter": "Filter the extension's events",
+      "kind": "Type",
+      "anyKind": "All types",
+      "kinds": {
+        "capture": "Capture",
+        "match_score": "Match Score",
+        "cv_draft": "CV draft",
+        "profile_created": "Profile created",
+        "application_created": "Application created",
+        "error": "Error"
+      },
+      "errorsFilter": "Errors",
+      "who": "Candidate / Guest",
+      "anyone": "Everyone",
+      "whos": {
+        "candidate": "Candidates",
+        "guest": "Guests"
+      },
+      "version": "Version",
+      "domain": "Domain",
+      "apply": "Show",
+      "reset": "Show all",
+      "ofCandidate": "Only one candidate's events are shown.",
+      "none": "No extension events for these filters.",
+      "count_one": "{{count}} event",
+      "count_other": "{{count}} events",
+      "limit": "Only the {{count}} most recent events are shown.",
+      "caption": "The extension's events, newest first",
+      "at": "Time",
+      "candidate": "Candidate",
+      "guest": "Guest",
+      "candidateLink": "{{email}}'s events",
+      "object": "Object",
+      "objects": {
+        "job_offer": "Job offer",
+        "profile": "Profile",
+        "application": "Application"
+      },
+      "error": "Error",
+      "places": {
+        "side_panel": "Side panel",
+        "content_script": "Reading the page",
+        "page_button": "Page button"
+      },
+      "routeStatus": "{{route}} → {{status}}",
+      "network": "network",
+      "noValue": "—"
     },
     "discoveryRuns": {
       "intro": "Every run of Job discovery, started by a Candidate's Job Search or to top up a Job Digest: its searches and what they gave. Queries, criteria and the link to the Candidate's Job Search are kept {{days}} days; the runs' figures, {{months}} months.",
@@ -4792,6 +4917,7 @@
     "sessionsTitle": "My coaching sessions",
     "sessionsIntro": "The sessions candidates paid for with you. Enter or correct the date booked and the video link: the candidate finds them in their agenda.",
     "sessionsNone": "No paid session yet.",
+    "calledBy": "goes by {{name}}",
     "unnamedCandidate": "Unnamed candidate",
     "sessionToSchedule": "To schedule",
     "sessionOn": "On {{date}} (Paris time)",
@@ -4838,6 +4964,8 @@
       "offersLabel": "Job offers",
       "archived": "This profile is archived: it no longer gets a Job Digest. Restore it to get it again."
     },
+    "offersToHandle_one": "You have {{count}} job offer left to handle",
+    "offersToHandle_other": "You have {{count}} job offers left to handle",
     "email": {
       "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
       "subject_other": "Job Digest “{{profile}}”: {{count}} new job offers",
@@ -5093,7 +5221,11 @@
       "action_card": "Coach proposal",
       "ats_score": "ATS Score",
       "master_cv": "Master CV, read from your file",
-      "cv_reading": "CV reading"
+      "cv_reading": "CV reading",
+      "profile_creation": "Profile creation",
+      "questionnaire": "Onboarding questionnaire",
+      "review": "Review",
+      "profile_created": "Profile created"
     },
     "live": {
       "starting": "Starting",
@@ -5204,7 +5336,13 @@
         "version": "Version {{version}}",
         "restored": "restores version {{version}}",
         "proposals_one": "{{count}} proposal",
-        "proposals_other": "{{count}} proposals"
+        "proposals_other": "{{count}} proposals",
+        "creating": "In progress",
+        "created": "Profile created · Version {{version}}",
+        "answered_one": "{{count}} answer",
+        "answered_other": "{{count}} answers",
+        "skipped_one": "{{count}} skipped",
+        "skipped_other": "{{count}} skipped"
       },
       "origin": {
         "candidate": "By you",
@@ -5214,6 +5352,8 @@
       },
       "you": "You: {{question}}",
       "steps": "Steps",
+      "parts": "Creation steps",
+      "writtenByJobbbox": "Questions written by Jobbbox",
       "read": "Read:",
       "tools": "Tools:",
       "models": "Models:",
@@ -5243,7 +5383,9 @@
         "ats_score": "See the ATS Score",
         "master_cv": "Open the version",
         "master_cv_version": "Open the version",
-        "change": "Open {{label}}"
+        "change": "Open {{label}}",
+        "profile_creation": "Open the profile",
+        "profile_created": "Open the version"
       },
       "cost": {
         "quota": {
@@ -5520,6 +5662,7 @@
   },
   "emails": {
     "greeting": "Hello,",
+    "greetingNamed": "Hello {{name}},",
     "signature": "The Jobbbox team",
     "linkLead": "{{label}}:",
     "reasons": {
@@ -5692,6 +5835,8 @@
     "suggestions": "Suggestions",
     "unfold": "Unfold “{{menu}}”",
     "toHandle": "to handle",
+    "offersToHandle_one": "{{count}} offer to handle",
+    "offersToHandle_other": "{{count}} offers to handle",
     "seeAll": "See all ({{count}})",
     "help": "Help",
     "howThisPageWorks": "How does this page work?",
@@ -5938,6 +6083,7 @@
       "unscheduled": "It had no date yet: if a slot is booked on your Cal.com page, free it.",
       "held": "It took place on {{at}}: the Candidate had not asked for it to start before the end of their withdrawal period, so it is refunded to them.",
       "refunded": "Jobbbox refunds the session to the Candidate.",
+      "calledBy": "{{candidate}} (goes by {{name}})",
       "someone": "A Candidate",
       "reason": "You get this email because you are a Human Coach on Jobbbox."
     },
@@ -6022,6 +6168,7 @@
   },
   "fiche": {
     "label": "Fiche",
+    "resize": "Resize the Fiche",
     "activity": "Activity",
     "groups": {
       "sections": "Sections",
@@ -6065,7 +6212,8 @@
         "cached": "Of which {{tokens}} read again from the provider's cache, at a lower cost.",
         "why": "This total can exceed the context size above: each call (choosing the advice, the agents, the checks, then each round in which the coach looks at your data) sends the whole context again, with what the coach has already read. It is a technical measure, not counted against your plan."
       }
-    }
+    },
+    "noReply": "The coach has not replied yet."
   },
   "microAnimation": {
     "show": "Show me how",

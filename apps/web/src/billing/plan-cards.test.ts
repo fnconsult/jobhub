@@ -14,7 +14,7 @@ const plan = (key: string, rank: number, fr: string, status: "offered" | "hidden
   features: [],
 });
 
-const PLANS = [plan("free", 1, "Gratuite"), plan("standard", 2, "Standard"), plan("premium", 3, "Premium")];
+const PLANS = [plan("free", 1, "Gratuit"), plan("standard", 2, "Standard"), plan("premium", 3, "Premium")];
 
 const QUOTAS: Record<string, PlanQuotas> = {
   free: { profiles: 1, matchScores: 1, atsScores: 0, enrichedContacts: 0, jobSearches: 2, jobDigest: "none" },
@@ -65,7 +65,7 @@ describe("the Plan comparison cards on Mon abonnement (#469)", () => {
   });
 
   it("name each Plan in the Candidate's language, with its price, and no price when Stripe could not be read", () => {
-    const plans = [plan("free", 1, "Gratuite"), { ...plan("standard", 2, "Standard"), name: { fr: "Standard", en: "Standard plan" } }];
+    const plans = [plan("free", 1, "Gratuit"), { ...plan("standard", 2, "Standard"), name: { fr: "Standard", en: "Standard plan" } }];
     const [free, standard] = planCards({ plans, current: "free", quotas: QUOTAS, prices: PRICES, locale: "en" });
     expect(standard!.name).toBe("Standard plan");
     expect(standard!.price?.replace(/\s/g, " ")).toBe("€19 / month");
@@ -115,7 +115,7 @@ describe("the Coach context on the Plan cards (ADR-0078, #732)", () => {
   });
 
   it("measure from the lowest offered Plan, not a hidden one, and keep one decimal", () => {
-    const plans = [plan("free", 1, "Gratuite", "hidden"), plan("standard", 2, "Standard"), plan("premium", 3, "Premium")];
+    const plans = [plan("free", 1, "Gratuit", "hidden"), plan("standard", 2, "Standard"), plan("premium", 3, "Premium")];
     const coachContext = { ...COACH_CONTEXT, premium: { coachContextMessages: 60, coachContextTokens: 36_000 } };
     expect(coachLines(planCards({ plans, current: "standard", quotas: QUOTAS, coachContext, prices: PRICES, locale: "fr" }))).toEqual([
       ["Mémoire du coach : 40 messages", "Contexte du coach : ×1"],

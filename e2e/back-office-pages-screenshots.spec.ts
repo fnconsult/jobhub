@@ -7,7 +7,7 @@ import { comparesScreenshots, leaveOutRelease, SCREENSHOT_WIDTHS } from "./suppo
 import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
 // Issue #465 (ADR-0053): the pilot of the Back Office in the Compact Density, Paramètres, the Dashboard and Activité,
-// drawn in the Design System. Their screenshot baselines, light and dark (#473), at three widths, live in e2e/__screenshots__ and fail
+// drawn in the Design System; Activité › Extension and the Dashboard's Extension card since #925. Their screenshot baselines, light and dark (#473), at three widths, live in e2e/__screenshots__ and fail
 // CI on a visual difference; axe runs on each. Only the page (`<main>`) is compared: the shell has its own baselines
 // (shell-screenshots.spec.ts). What changes with the day is masked: the Dashboard's month and its day-by-day axes.
 // How to update a baseline on purpose: docs/agents/screenshot-baselines.md.
@@ -46,6 +46,58 @@ async function recordCalls() {
   }
 }
 
+/** The Extension Version of the Extension Events this spec records, so Activité › Extension lists only them. */
+const EXTENSION_VERSION = "0.0.925";
+const JOB_OFFER = "0b6c2f1e-9250-4925-8925-000000000465";
+/**
+ * Over 30 days before any run: the Dashboard's Extension card counts none of them. A Candidate's (the super-admin's own
+ * account, its email fixed) and a Guest's, an action and an error each.
+ */
+const EXTENSION_EVENTS = [
+  { at: "2026-10-01T09:42:10Z", kind: "error", candidate: false, error: { code: "captureImpossible", route: null, status: null, place: "content_script", domain: "www.indeed.com" } },
+  { at: "2026-10-01T09:40:03Z", kind: "error", candidate: true, error: { code: "callFailed", route: "/api/match-score", status: 502, place: "side_panel", domain: "www.welcometothejungle.com" } },
+  { at: "2026-10-01T09:31:47Z", kind: "match_score", candidate: true, error: null },
+  { at: "2026-10-01T09:30:12Z", kind: "capture", candidate: false, error: null },
+] as const;
+
+/**
+ * Records EXTENSION_EVENTS afresh: the worker's purge (e2e/extension-events.spec.ts, beside this spec) deletes a Guest's
+ * after 30 days, so they are written again just before they are shown.
+ */
+async function recordExtensionEvents() {
+  const database = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
+  try {
+    const { rows } = await database.query<{ id: string }>(`SELECT id FROM candidate WHERE lower(email) = $1`, [SUPER_ADMIN]);
+    await database.query(`DELETE FROM extension_event WHERE extension_version = $1`, [EXTENSION_VERSION]);
+    for (const event of EXTENSION_EVENTS) {
+      const action = event.kind !== "error";
+      await database.query(
+        `INSERT INTO extension_event (at, kind, candidate_id, extension_version, object_type, object_id, error_code, route, http_status, place, browser, page_domain)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [
+          event.at,
+          event.kind,
+          event.candidate ? rows[0]!.id : null,
+          EXTENSION_VERSION,
+          action ? "job_offer" : null,
+          action ? JOB_OFFER : null,
+          event.error?.code ?? null,
+          event.error?.route ?? null,
+          event.error?.status ?? null,
+          event.error?.place ?? null,
+          event.error ? "Chrome 141" : null,
+          event.error?.domain ?? null,
+        ],
+      );
+    }
+  } finally {
+    await database.end();
+  }
+}
+
+/** What a page needs written just before it is shown. */
+const PREPARE: Partial<Record<string, () => Promise<void>>> = { "activite-extension": recordExtensionEvents };
+
 const PAGES = [
   {
     name: "parametres",
@@ -68,6 +120,13 @@ const PAGES = [
     ready: (page: Page) => page.getByRole("region", { name: new RegExp(`^${admin.dashboard.jobDiscovery.title}`) }),
     // The month and day, and the axes and notes that follow the days of the month.
     mask: () => [".dashboard-period", ".chart-note", ".chart-plot", ".chart-x"],
+  },
+  {
+    name: "activite-extension",
+    component: "main .ds-table",
+    path: `/admin/activite/extension?version=${EXTENSION_VERSION}`,
+    ready: (page: Page) => page.getByRole("table", { name: admin.extensionEvents.caption }),
+    mask: () => [] as string[],
   },
   {
     name: "activite",
@@ -110,6 +169,7 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
 
   for (const shot of PAGES) {
     test(`${shot.name}: in the Compact Density, matches its baseline at every width, and axe passes`, async () => {
+      await PREPARE[shot.name]?.();
       const page = await session.newPage();
       for (const { name, width, height } of SCREENSHOT_WIDTHS) {
         await page.setViewportSize({ width, height });

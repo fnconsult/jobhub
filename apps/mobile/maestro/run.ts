@@ -14,6 +14,7 @@ import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readF
 import { dirname, join } from "node:path";
 import { bootSetup, CI_HARDWARE, runsOn, type HardwareId } from "./devices";
 import { KEY_SCREENS } from "./seed";
+import { prepareIOSRun } from "./ios-driver-recovery";
 
 /** The flow of the key screens (tag `key-screens`), run alone in the dark theme and at the largest text size. */
 export const KEY_SCREENS_FLOW = "flows/2-ecrans-cles.yaml";
@@ -105,8 +106,12 @@ function main(argv: string[]) {
     // Maestro writes a screenshot it takes under its working directory when it makes no bundle: the run's own.
     // The app's preparation (cleared, oriented) is set-up, not a check: tried a second time should
     // Maestro's driver give up on it (an iPhone SE's « Set orientation » hung until Maestro quit, run 42323647801).
+    // iOS first stops that simulator's orphaned XCTest process and restores its settings after rebooting it.
     const prepared = () => exec(run.prepare(email!, dir), dir);
-    const ok = setUp && email !== null && (prepared() || prepared()) && exec(run.flows(email, dir), dir);
+    const prepare = () => CI_HARDWARE[hardware as HardwareId].platform === "ios"
+      ? prepareIOSRun(prepared, () => run.setup.every((command) => exec(command)))
+      : prepared() || prepared();
+    const ok = setUp && email !== null && prepare() && exec(run.flows(email, dir), dir);
     writeFileSync(join(dir, "device.log"), spawnSync(run.logs[0]!, run.logs.slice(1), { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).stdout ?? "");
     if (run.captures.mode === "record") {
       const files = (readdirSync(dir, { recursive: true }) as string[]).map((file) => join(dir, file));

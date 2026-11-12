@@ -187,6 +187,8 @@ export function CoachConversation(page: PagePlacement) {
         ) : null}
         {coach.status.kind === "failed" || coach.status.kind === "invalid" ? <Notice>{failureText(coach.status)}</Notice> : null}
         {attach.shown}
+        {/* An absolute marker cannot appear while the saved thread is still loading or a reply is streaming. */}
+        {!coach.restoring && !sending ? <View testID="conversation-end" style={{ position: "absolute", bottom: 0, left: 0, width: 1, height: 1 }} /> : null}
         {/* The help still answers when the AI Coach cannot (ADR-0035), and the team, directly (#345). */}
         {coach.status.kind === "failed" ? (
           <HelpForUnanswered

@@ -2,8 +2,7 @@
 
 import { useContext, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityGlyph } from "@/components/ActivityGlyph";
-import { AiActivityControl, BEFORE_FIRST_STEP, StepWords, StopButton, useSummary } from "@/components/AiActivity";
+import { AiActivityControl, StepWords, StopButton, UnderWayGlyph, useSummary } from "@/components/AiActivity";
 import { useActivityColumn } from "@/components/activity-column";
 import { Icons } from "@/components/icons";
 import { TOP_BAR_RANK, useTopBarAction } from "@/components/top-bar";
@@ -40,7 +39,7 @@ export function useActivityTopBarAction(): ReactNode {
             {label} {words}
           </>
         ),
-      glyph: underWay ? <ActivityGlyph activity={underWay.current?.activity ?? BEFORE_FIRST_STEP} live /> : null,
+      glyph: underWay ? <UnderWayGlyph action={underWay} /> : null,
       beside: underWay && stop && !shown ? <StopButton action={underWay} stop={stop} /> : null,
     };
   }, [underWay, stop, shown, summary, label]);

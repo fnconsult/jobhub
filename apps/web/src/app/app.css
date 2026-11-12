@@ -913,6 +913,116 @@ textarea.input {
   justify-content: space-between;
 }
 
+/* The conversation's message box (#933): one line to start with, the height of « Envoyer au coach », its text centred in
+   it; it grows with the text (`field-sizing: content`, useAutoGrow where a browser lacks it) up to 8 lines, then scrolls
+   inside. Where its column has room, the « Coach IA » badge and Send stand on its row, at its right: the box is one line
+   on a computer, and the text wraps beside them. A narrower column (a phone) keeps them on the row under the text, so the
+   text keeps a writable width. */
+.coach-panel-form-inline {
+  container: message-box / inline-size;
+}
+
+.coach-panel-composer-inline textarea {
+  --message-box-padding: max(var(--space-1), (var(--control-height) - 1lh) / 2);
+  box-sizing: border-box;
+  min-height: calc(1lh + 2 * var(--message-box-padding));
+  max-height: calc(8lh + 2 * var(--message-box-padding));
+  padding-block: var(--message-box-padding);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* The Back Office keeps its denser design-system controls. */
+.coach-panel .coach-panel-composer-inline textarea {
+  --message-box-padding: max(var(--space-1), (var(--size-control) - 1lh) / 2);
+}
+
+@container message-box (width >= 32rem) {
+  .coach-panel-composer-inline {
+    flex-direction: row;
+    gap: var(--space-2);
+    align-items: flex-end;
+  }
+
+  .coach-panel-composer-inline textarea {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .coach-panel-composer-inline .coach-panel-composer-actions {
+    flex: none;
+  }
+}
+
+/* Once the Candidate writes (`data-writing`), the badge and Send shrink to their icons, side by side at the right: the
+   badge to its AI dot, Send to the Enter key (an exception to ADR-0009, in its amendment of #933). Their words stay in
+   the page for screen readers, and show on the keyboard's focus at once, or once the pointer has rested on one for 2
+   seconds (useDwellReveal, `data-revealed`): the action then floats over the text, anchored at its right, without
+   moving it. Emptied (sent), the box shows them in words again. */
+.coach-panel-composer-inline :is(.composer-send .icon, .composer-short) {
+  display: none;
+}
+
+/* Writing, the badge says « IA » (« AI »), not its dot alone: the AI disclosure stays in words (AI Act art. 50(1)). */
+.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed])::before {
+  display: none;
+}
+
+.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed]) .composer-short {
+  display: inline;
+  font-weight: 600;
+}
+
+.coach-panel-composer-inline[data-writing] .coach-panel-composer-actions {
+  position: relative;
+  flex: none;
+  align-self: flex-end;
+  width: calc(2 * var(--control-height) + var(--space-2));
+  height: var(--control-height);
+}
+
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send) {
+  position: absolute;
+  bottom: 0;
+  justify-content: center;
+  width: var(--control-height);
+  min-width: 0;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+}
+
+.coach-panel-composer-inline[data-writing] .composer-send {
+  right: 0;
+}
+
+.coach-panel-composer-inline[data-writing] .coach-panel-badge {
+  right: calc(var(--control-height) + var(--space-2));
+}
+
+.coach-panel-composer-inline[data-writing] .composer-send .icon {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send):not([data-revealed]) .composer-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.coach-panel-composer-inline[data-writing] :is(.coach-panel-badge, .composer-send)[data-revealed] {
+  z-index: 3;
+  gap: var(--space-2);
+  width: max-content;
+  padding: 0 var(--space-4);
+  box-shadow: var(--shadow-pop);
+}
+
 /* « En savoir plus » beside the AI badge (#338): « IA dans Jobbbox ». */
 .coach-panel-learn-more {
   margin-right: auto;
@@ -1251,18 +1361,90 @@ button.coach-panel-badge:hover {
    from its neighbours and from the screen's edge. The conversation keeps 1rem on either side, and its reading width
    (46rem) centred in what is left, so its left and right margins stay equal whichever columns are open. */
 .fiche {
+  position: relative;
   z-index: 14;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   box-sizing: border-box;
-  padding: var(--space-4);
-  overflow-y: auto;
-  scrollbar-width: thin;
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+}
+
+/* What the column holds scrolls inside it, under its resize handle, which stays on its left edge (#932). */
+.fiche-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* The Fiche's resize handle (#932), on its left edge: a strip 24px wide (the target floor, WCAG 2.2), mostly over the
+   Fiche's own edge so the conversation's scrollbar, just left of it, stays within reach. A short grip says it is there;
+   hovered or dragged, a line the Fiche's height. */
+.fiche-resize {
+  position: absolute;
+  inset-block: 0;
+  left: -0.25rem;
+  z-index: 2;
+  width: 1.5rem;
+  cursor: col-resize;
+  touch-action: none;
+  border-radius: var(--radius-md);
+}
+
+.fiche-resize::after {
+  position: absolute;
+  top: calc(50% - 1.25rem);
+  left: calc(0.25rem - 1.5px);
+  width: 3px;
+  height: 2.5rem;
+  content: "";
+  background: var(--color-border-strong);
+  border-radius: 2px;
+}
+
+.fiche-resize:is(:hover, :active, :focus-visible)::after {
+  top: var(--space-2);
+  height: calc(100% - 2 * var(--space-2));
+}
+
+.fiche-resize:focus {
+  outline: none;
+}
+
+/* Focused from the keyboard, the line itself is the focus indicator, in the accent with the focus ring round it: a frame
+   the handle's width would cover the Fiche's first letters. */
+.fiche-resize:focus-visible::after {
+  left: calc(0.25rem - 2px);
+  width: 4px;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+/* In forced colours a background and a shadow are dropped: the line in the text's colour, the focus as an outline. */
+@media (forced-colors: active) {
+  .fiche-resize::after {
+    background: CanvasText;
+  }
+
+  .fiche-resize:focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fiche-resize::after {
+    transition:
+      top 120ms ease-out,
+      height 120ms ease-out;
+  }
 }
 
 /* The object's card, first in its Fiche (the prototype's, #586): rounded, like its Sections and Results under it. */
@@ -1546,11 +1728,15 @@ button.coach-panel-badge:hover {
     padding-inline: var(--space-4);
   }
 
+  /* 20rem, or as wide as the Candidate dragged it (#932): `--fiche-width` on <html>, up to `--fiche-max`, which the Fiche
+     sets from what it measures (fiche-width.ts); before that, the same limits from the window: half of it, 44rem, and
+     28rem for the conversation and its 3rem of gutters beside the Sidebar and the Work Pane. */
   .fiche {
+    --fiche-room: calc(100vw - var(--sidebar-width) - 31rem);
     position: sticky;
     top: calc(var(--topbar-height, 3.5rem) + var(--space-4));
     align-self: start;
-    width: 20rem;
+    width: clamp(20rem, var(--fiche-width, 20rem), var(--fiche-max, min(44rem, 50vw, var(--fiche-room))));
     max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-4));
     margin: var(--space-4) var(--space-4) var(--space-4) 0;
   }
@@ -1563,6 +1749,18 @@ button.coach-panel-badge:hover {
     max-height: calc(100% - 2 * var(--space-4));
   }
 
+  html[data-sidebar="closed"] .fiche {
+    --fiche-room: calc(100vw - 31rem);
+  }
+
+  .workspace:has(> .work-pane) > .fiche {
+    --fiche-room: calc(100vw - var(--sidebar-width) - 32rem - clamp(20rem, 32vw, 32rem));
+  }
+
+  html[data-sidebar="closed"] .workspace:has(> .work-pane) > .fiche {
+    --fiche-room: calc(100vw - 32rem - clamp(20rem, 32vw, 32rem));
+  }
+
   .workspace:has(> .page > .page-conversation):not(:has(> :is(.work-pane, .fiche))) {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1570,10 +1768,13 @@ button.coach-panel-badge:hover {
   /* The Fiche, and the Activité column, have no frame of their own beside the conversation: their cards are (the
      prototype's, #586). */
   .fiche {
-    padding: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  .fiche-body {
+    padding: 0;
   }
 }
 
@@ -1758,10 +1959,13 @@ button.coach-panel-badge:hover {
     position: fixed;
     inset: 0;
     z-index: 25;
-    padding-top: 0;
-    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
     border: 0;
     border-radius: 0;
+  }
+
+  .fiche-body {
+    padding-top: 0;
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1885,8 +2089,18 @@ button.coach-panel-badge:hover {
   min-width: 0;
 }
 
+/* Square, as wide as it is high (#939): its padding took the room « Recherches d'offres » needs to stay on its line. */
 .sidebar-menu-fold {
   flex: none;
+  width: calc(var(--size-control) - var(--space-2));
+  padding: 0;
+}
+
+/* A menu's name beside its fold or its count wraps onto a second line rather than ending in « … » (#939): at 16rem,
+   « Recherches d'offres » with its fold and « N » cannot stay on one line. */
+.sidebar-menu-row > .sidebar-link > .sidebar-link-text,
+.sidebar-link:has(> .sidebar-count) > .sidebar-link-text {
+  white-space: normal;
 }
 
 .sidebar-menu-fold .icon {
@@ -1905,6 +2119,20 @@ button.coach-panel-badge:hover {
   margin-left: auto;
   background: var(--color-warn);
   border-radius: 50%;
+}
+
+/* Recherches d'offres' « N » (#818): its offers à traiter, at the line's end; none at 0. */
+.sidebar-count {
+  flex: none;
+  min-width: 1.5rem;
+  padding: 0 var(--space-2);
+  margin-left: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-on-accent);
+  text-align: center;
+  background: var(--color-accent);
+  border-radius: 999px;
 }
 
 .sidebar-link.sidebar-see-all {
@@ -3441,6 +3669,51 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   transform: rotate(180deg);
 }
 
+/* Its two lines (#923, variant A of #914): the name the Candidate is called by, then their Plan, each cut by an ellipsis. */
+.account-lines {
+  display: grid;
+  min-width: 0;
+  line-height: var(--line-height-heading);
+}
+
+.account-name,
+.account-plan,
+.account-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-button .account-name {
+  font-weight: 600;
+}
+
+.account-plan,
+.account-email {
+  font-size: var(--font-size-meta);
+  color: var(--color-text-meta);
+}
+
+/* A Plan whose cancellation is scheduled: until when it is kept. */
+.account-plan-ending {
+  color: var(--color-warn);
+}
+
+/* The Candidate's initials, in place of the photo to come; hidden from screen readers: a mark, not text. */
+.account-initials {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  font-size: var(--font-size-meta);
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-line);
+  border-radius: 999px;
+}
+
 /* Its menu, over the sidebar (and its drawer): « Aide et légal », Mon compte's page, « Se déconnecter » nearest the button. */
 .account-menu {
   z-index: 60;
@@ -3484,6 +3757,22 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   width: 1.125em;
   height: 1.125em;
   color: var(--color-secondary);
+}
+
+/* Its head (#923): « Prénom Nom » and the email, not an item. */
+.account-menu-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  color: var(--color-text);
+}
+
+/* Mon abonnement's Plan, at the end of its line. */
+.account-menu-aside {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  color: var(--color-text-meta);
 }
 
 .account-menu-separator {
@@ -5362,6 +5651,38 @@ textarea.title-edit {
 
 .activity-entry-step-done {
   color: var(--color-success);
+}
+
+/* A Profile's creation (#810): its parts, each a line like an entry's row, the CV read's steps and a part's link under it. */
+.activity-entry-parts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-entry-part {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-2);
+  align-items: start;
+}
+
+.activity-entry-part > .activity-glyph {
+  margin-top: 0.15em;
+}
+
+.activity-entry-part > .activity-entry-steps,
+.activity-entry-part > .activity-entry-links {
+  grid-column: 2 / -1;
+}
+
+/* Its own class, so that an entry is never found by the title of one of its parts. */
+.activity-entry-part-title {
+  overflow-wrap: anywhere;
+  color: var(--color-text);
 }
 
 .activity-entry-links {

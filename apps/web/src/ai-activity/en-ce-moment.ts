@@ -6,6 +6,7 @@
  * (AiActivityLive's live region).
  *
  *   enCeMoment(actions, pathname, now)   what the block shows, read from AI Activity's live actions (ai-activity/live)
+ *   glyphNow(action)                     an action's glyph, which « Activité » in the Top Bar draws too
  *
  * Pure: no state of its own; the component (components/EnCeMoment) reads `useAiActivityLive` and ticks `now`.
  */
@@ -41,16 +42,26 @@ export interface EnCeMoment {
 /** The glyph before an action's first step. */
 const BEFORE_FIRST_STEP: Activity = "think";
 
+/** What an action's glyph draws: its Activity, its step's label and the step itself (ActivityGlyph). */
+export type GlyphNow = Pick<NowItem, "activity" | "label" | "step">;
+
+/**
+ * An action's glyph (ADR-0034, #333): the step under way's; between two steps (a Job Search's poll can find them all
+ * ended) and once it ended, the last step's; the brain before its first step. « En ce moment » and « Activité » in the
+ * Top Bar draw this one, so both show the same step and morph into the next one together.
+ */
+export function glyphNow(action: LiveAction): GlyphNow {
+  const shown = action.current ?? action.steps[action.steps.length - 1] ?? null;
+  return { activity: shown?.activity ?? BEFORE_FIRST_STEP, label: shown?.label, step: shown?.id };
+}
+
 const COACH_ACTION: Activity = "act";
 
 function itemOf(action: LiveAction, now: number): NowItem {
-  const shown = action.current ?? action.steps[action.steps.length - 1] ?? null;
   const until = action.endedAt ? Date.parse(action.endedAt) : now;
   return {
     action,
-    activity: shown?.activity ?? BEFORE_FIRST_STEP,
-    label: shown?.label,
-    step: shown?.id,
+    ...glyphNow(action),
     live: isRunning(action),
     finished: action.steps.filter((step) => !step.running && step.outcome !== "stopped" && step.outcome !== "failed").length,
     ms: Math.max(0, until - Date.parse(action.startedAt)),

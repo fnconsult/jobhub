@@ -5806,6 +5806,12 @@
       "componentsSubtitle": "Chaque composant et ses états, tels que les écrans les utilisent."
     },
     "gallery": {
+      "stepper": "Étapes",
+      "stepRead": "Lecture de votre profil",
+      "stepReadDetail": "Contrôleuse de gestion · Nantes",
+      "stepSearch": "Recherche des offres",
+      "stepSearchDetail": "Sources consultées : 2 sur 3",
+      "stepSelect": "Sélection de vos meilleures offres",
       "eyebrow": "Design System",
       "title": "Composants",
       "subtitle": "Chaque composant du Design System sur une page, pour les vérifications d'accessibilité.",

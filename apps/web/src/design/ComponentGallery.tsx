@@ -13,6 +13,7 @@ import { Checkbox, Field, KeyValueRow, Radio, SegmentedControl, Select, Switch, 
 import { Note } from "./Note";
 import { PageHeader } from "./PageHeader";
 import { Pill, Status } from "./Pill";
+import { Stepper } from "./Stepper";
 import { Ring } from "./Ring";
 import { Table, type Column } from "./Table";
 import { Tabs } from "./Tabs";
@@ -33,6 +34,13 @@ const PROVIDERS = {
 } satisfies Record<string, Provider[]>;
 
 const KEY_TONE = { connected: "success", keyMissing: "warn", testFailed: "danger" } as const;
+
+/** The Stepper's three states, on the onboarding's own steps (#1001): one done, one under way, one to come. */
+const GALLERY_STEPS = [
+  { id: "stepRead", status: "done", detail: "stepReadDetail" },
+  { id: "stepSearch", status: "current", detail: "stepSearchDetail" },
+  { id: "stepSelect", status: "pending", detail: null },
+] as const;
 
 /** What the fields hold: sample values a Candidate or an Administrator would have typed. */
 const SAMPLE = {
@@ -197,6 +205,20 @@ function Gallery({ head }: { head?: ReactNode }) {
           <Pill tone="danger">{t("designSystem.gallery.refused")}</Pill>
           <Pill>{t("designSystem.gallery.draft")}</Pill>
         </div>
+      </section>
+
+      <section className="ds-gallery__section" aria-labelledby="ds-stepper">
+        <h2 id="ds-stepper">{t("designSystem.gallery.stepper")}</h2>
+        <Stepper
+          label={t("designSystem.gallery.stepper")}
+          still
+          steps={GALLERY_STEPS.map(({ id, status, detail }) => ({
+            id,
+            status,
+            title: t(`designSystem.gallery.${id}`),
+            ...(detail ? { detail: t(`designSystem.gallery.${detail}`) } : {}),
+          }))}
+        />
       </section>
 
       <section className="ds-gallery__section" aria-labelledby="ds-tables">

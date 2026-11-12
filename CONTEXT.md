@@ -804,6 +804,10 @@ _Avoid_: Modal, popup, dialog (a Dialog only confirms)
 The Design System's small centred box that asks the person to confirm or cancel one action before it happens, with focus starting on « Annuler ». Forms never use it; they open in a Drawer.
 _Avoid_: Modal, popup, confirmation page
 
+**Stepper**:
+The Design System's vertical list of steps known in advance (the onboarding's search card, #1001): a marker each on a hairline, ✓ once done, a pulsing dot for the step under way, an empty circle to come, each step's state said in words to screen readers. Its pulse stops when the device asks for less motion. Steps not known in advance (the AI Coach's live steps) are not a Stepper.
+_Avoid_: Progress bar, timeline, wizard
+
 **Toast**:
 The Design System's short message that appears briefly at the screen's edge to say an action worked or failed, without moving focus. Not a place for text the person must act on.
 _Avoid_: Alert, snackbar, banner

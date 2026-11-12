@@ -108,6 +108,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     renderInFrench(<NewProfilePage />);
     const welcome = thread().querySelector(".welcome-panel")!;
     expect(welcome.textContent).toMatch(/Je suis un coach IA, pas une personne/);
+    // Not the help greeting of the other conversations: this page's box answers no question from the help (#997).
+    expect(welcome.textContent).not.toMatch(/Posez votre question/);
     expect(welcome.textContent).toMatch(/Je vous aide à construire votre CV de référence/);
     const box = screen.getByLabelText("Votre message");
     expect(box.closest(".coach-panel-composer-inline")).toBeTruthy();

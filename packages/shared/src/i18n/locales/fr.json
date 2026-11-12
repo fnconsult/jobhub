@@ -5407,7 +5407,7 @@
         "partial": "dernier appel seulement",
         "noAi": "Sans IA"
       },
-      "sources": "Sources et outils de cette page"
+      "sources": "Sources :"
     }
   },
   "signalement": {
@@ -6181,10 +6181,25 @@
       "results": "Résultats"
     },
     "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste.",
-    "matchScore": "Match Score : {{score}}"
+    "matchScore": "Match Score : {{score}}",
+    "panel": "Volet de la page",
+    "views": {
+      "activity": "Activité",
+      "fiche": "Fiche",
+      "offer": "L'offre",
+      "documents": "Documents",
+      "offers": "Offres trouvées"
+    },
+    "close": "Fermer le volet",
+    "more": "Plus d'actions sur le volet",
+    "resetWidth": "Largeur du volet par défaut",
+    "allResults": "Tout voir",
+    "openOffer": "Afficher l'offre en grand"
   },
   "contextBar": {
     "title": "Contexte de la conversation",
+    "used": "{{percent}} % utilisé",
+    "share": "{{percent}} %",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
     "clear": "Effacer la conversation",

@@ -157,10 +157,10 @@ describe("the Sidebar's conversations, « Conversation au centre » on (#601, AD
   });
 });
 
-describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
+describe("« Effacer la conversation », the Context bar's link (#601, #980, ADR-0070)", () => {
   it("is there only while a page shows its conversation", () => {
     renderInFrench(<Shell />);
-    expect(screen.queryByRole("button", { name: "Effacer" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Effacer la conversation" })).toBeNull();
   });
 
   it("asks first, the focus on « Annuler », and deletes nothing on « Annuler »", async () => {
@@ -168,7 +168,7 @@ describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
     const user = userEvent.setup();
     renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, context: null, replies: [], clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
 
-    await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(screen.getByRole("button", { name: "Effacer la conversation" }));
     const dialog = screen.getByRole("alertdialog", { name: "Effacer cette conversation ?" });
     expect(within(dialog).getByText("Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.")).toBeTruthy();
     expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Annuler" }));
@@ -181,7 +181,7 @@ describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
     const user = userEvent.setup();
     renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, context: null, replies: [], clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
 
-    await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(screen.getByRole("button", { name: "Effacer la conversation" }));
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
 
     expect(clear).toHaveBeenCalledTimes(1);

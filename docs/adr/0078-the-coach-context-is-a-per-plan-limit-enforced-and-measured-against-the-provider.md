@@ -39,3 +39,10 @@ With Coach Actions (ADR-0077) a reply makes up to three Turns, each sending the 
 - **The estimate is checked against the first Turn**, the call the context was sent with; replies saved before keep their `ai_call_id`.
 - **The breakdown card says the whole reply**: « Cette réponse : N appels, X jetons envoyés au total », its Tool rounds, the cached share, and why it can exceed the context. Tokens only, never euros, never the Tools' internal names; the rule of #332 holds (no jetons on Mon abonnement, Plans or Upgrade Prompts).
 - **The AI Message Log** shows, on every call of a reply, the reply's calls summed against the estimate, the gap (also as a multiple), the cached share and its Tool rounds and Tools.
+
+
+## Amendment of 2026-11-12: the bar draws its categories, « Effacer la conversation » always offered (#980)
+
+- **The Context bar is drawn as an agent harness's context view**, at the head of the side panel's « Activité » view (ADR-0070 amendment): « 18 % utilisé », the messages and jetons out of the Plan's limits, a stacked bar of the categories the breakdown card counts (`contextBreakdown`) in the chart series' colours, and their legend with jetons and share, « Espace libre » last. A reply saved before the split was kept shows one fill. Before the first reply it says « Le coach n'a pas encore répondu. » with no bar (#810). Only the categories the server measures are drawn: the Job Offer or the documents are not counted apart.
+- **« Effacer la conversation » is a link at its foot, whatever the bar says**, beside « Voir le détail »: the Top Bar's « Effacer » became it. From 80 % the bar still says the AI Coach reads only the latest messages and names the Plan above.
+- **« Voir le détail »** keeps the breakdown card with « Cette réponse ».

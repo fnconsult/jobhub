@@ -21,7 +21,7 @@ const history = fr.aiActivity.history;
 const origin = process.env.E2E_WEB_ORIGIN!;
 
 const nowOf = (page: Page) => activityOf(page).locator(".ai-activity-live");
-const contextBarOf = (page: Page) => activityOf(page).getByRole("group", { name: fr.contextBar.title });
+const contextBarOf = (page: Page) => activityOf(page).getByRole("region", { name: fr.contextBar.title });
 /** « Création du profil », unfolded: its parts by their kind, in their order. */
 async function creationOf(page: Page) {
   const entry = await unfoldedEntryOf(page, new RegExp(`^${kinds.profile_creation}$`));

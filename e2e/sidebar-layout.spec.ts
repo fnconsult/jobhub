@@ -58,7 +58,8 @@ const focused = (page: Page) =>
     const el = document.activeElement as HTMLElement | null;
     if (!el) return "";
     if (el instanceof HTMLSelectElement) return el.selectedOptions[0]?.textContent?.trim() ?? "";
-    return (el.getAttribute("aria-label") ?? el.innerText ?? "").replace(/\s+/g, " ").trim() || el.id || el.tagName.toLowerCase();
+    // An icon alone is named by its aria-label, or its title (AI Activity's, #980, named by aria-labelledby).
+    return (el.getAttribute("aria-label") ?? el.innerText ?? "").replace(/\s+/g, " ").trim() || el.title || el.id || el.tagName.toLowerCase();
   });
 
 test.describe("the sidebar layout of the Candidate's pages", () => {
@@ -188,8 +189,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       `${fr.nav.account}, ${fr.billing.plans.free}`,
       // The Signalement icon, beside Mon compte on its row (#375).
       fr.signalement.open,
-      // « Activité » (#607) and « Aide » on a page without a conversation (#602).
-      fr.fiche.activity,
+      // AI Activity's icon, its tooltip « Activité IA » (#607, #980), and « Aide » on a page without a conversation (#602).
+      fr.aiActivity.label,
       fr.conversationFirst.help,
       order[stops - 1],
     ]);

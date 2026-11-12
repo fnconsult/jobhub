@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
-import { ficheOf, workPaneOf } from "./support/conversation";
+import { ficheOf, openPanelView, workPaneOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { exitHref } from "./support/exit-page";
 
@@ -71,6 +71,16 @@ async function openApplication(page: Page, label: string): Promise<{ id: string;
 
 /** The link to one of the Application's Sections (ADR-0024), in its Fiche (#603): the Section opens in the Work Pane. */
 const sectionLink = (page: Page, name: string) => ficheOf(page).getByRole("link", { name, exact: true });
+/**
+ * The Application's Section « L'offre » in the Work Pane, which the side panel's « L'offre » view links to since #980: opened
+ * at its address, so the panel is back on the Fiche, as the page loads.
+ */
+async function openOfferSection(page: Page) {
+  const offer = await openPanelView(page, fr.fiche.views.offer);
+  const link = offer.getByRole("link", { name: fr.fiche.openOffer, exact: true });
+  await expect(link).toHaveAttribute("href", /\/candidatures\/[0-9a-f-]+\/offre$/);
+  await page.goto((await link.getAttribute("href"))!);
+}
 /** The Job Offer's Section, in the Work Pane: its facts and its Job Offer Summary first, then its full text (#603). */
 const offerSection = (page: Page) => workPaneOf(page, fr.application.sections.offre);
 const documents = (page: Page) => page.getByRole("region", { name: fr.application.documentsTitle });
@@ -95,7 +105,7 @@ test.describe("the Application page", () => {
     const card = ficheOf(page).locator(".application-card");
 
     // The Job Offer Summary, written by the AI once its Section is shown (faked from the offer's title), labelled so, above the facts.
-    await sectionLink(page, fr.application.sections.offre).click();
+    await openOfferSection(page);
     await expect(page).toHaveURL(new RegExp(`/candidatures/${id}/offre$`));
     const summary = offerSection(page).locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`);
     await expect(summary.locator("dt")).toHaveText(fr.jobOffer.summaryLabel);

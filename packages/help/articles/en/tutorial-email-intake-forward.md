@@ -18,3 +18,5 @@ Your job alerts (job boards, careers sites) and recruiters' messages can reach J
 8. Open the Job searches page: the job offers from your emails arrive in « Received by email », under the profile they match best, or in « Unclassified » when no profile reaches 60.
 
 If one of your alerts is ignored as « Unrecognised sender », click « It's a job alert »: its sender is recognised for you from its next email. To stop, click « Switch off » in the « Email intake » section: the address stops working at once, and the job offers already received stay.
+
+Public alerts are classified using the linked posting when it can be read. If the site refuses reading, open its link in “To capture” and use the extension. Keep links when forwarding: Jobbbox does not create an offer without a certain title/link association. Recruiter messages stay private.

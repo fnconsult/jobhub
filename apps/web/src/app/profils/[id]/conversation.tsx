@@ -69,7 +69,7 @@ async function ProfileCard({ id, atsScore, t }: { id: string; atsScore: number |
         <Pill tone={profile.archived ? "neutral" : "success"}>{t(profile.archived ? "profilePage.status.archived" : "profilePage.status.active")}</Pill>
       </p>
       {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
-      {/* Born during its onboarding and not finished (ADR-0105, #999): resumed at its review on /profils/nouveau. */}
+      {/* Born during its onboarding and not finished (ADR-0106, #999): resumed at its review on /profils/nouveau. */}
       {profile.onboarding === IN_PROGRESS && !profile.archived ? (
         <p className="notice">
           {t("profilePage.onboarding.unfinished")}{" "}

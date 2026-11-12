@@ -153,7 +153,7 @@ test.describe("Push notifications", () => {
     expect(send(email, "test").before).toBe(2);
     await other.getByRole("button", { name: accountButtonName(fr.nav.account) }).click();
     await other.getByRole("menuitem", { name: fr.account.signOut }).click();
-    await expect(other.getByRole("link", { name: fr.nav.signIn })).toBeVisible();
+    await expect(other.getByRole("banner").getByRole("link", { name: fr.nav.signIn })).toBeVisible();
     expect(send(email, "test").before).toBe(1);
     await other.context().close();
 

@@ -142,7 +142,7 @@ export interface ExportedJobSearch {
   finishedAt: Date | null;
   /** When the Candidate asked to stop it (#331); absent unless they did. */
   stopRequestedAt?: Date;
-  /** Offered by the onboarding, outside the Plan Quota (ADR-0105, #1000): its first, or its one restart; absent otherwise. */
+  /** Offered by the onboarding, outside the Plan Quota (ADR-0106, #1000): its first, or its one restart; absent otherwise. */
   offered?: OfferedJobSearch;
   /** The Job Offers it found, in the order Job discovery found them. */
   jobOfferIds: string[];

@@ -532,7 +532,7 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
       expect(await used()).toBe(1);
     });
   });
-  describe("the Job Search the onboarding offers (ADR-0105, #1000)", () => {
+  describe("the Job Search the onboarding offers (ADR-0106, #1000)", () => {
     const used = async () => (await billing.entitlements(candidateId)).usedThisWeek.jobSearches;
     const counted = async () => (await createConsumption(database).forCandidate(candidateId, { from: clock.now, to: clock.now })).totals.jobSearch;
     let bornId: string;

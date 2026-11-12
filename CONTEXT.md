@@ -58,6 +58,14 @@ _Avoid_: Anonymous user, visitor, lead
 The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request. When the Guest creates an account or signs in, the CV becomes a Profile and the Job Offer an Application, then both leave the session.
 _Avoid_: Temporary account, trial
 
+**Landing page**:
+What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbbox does, the method in four steps, the Plans and the store links as the Back Office sets them, and one action, « Créer mon compte ». A signed-in Candidate's home page is a new Free conversation instead.
+_Avoid_: Home page (for the Visitor's), marketing site, splash page
+
+**Logo**:
+« La boîte qui répond » (ADR-0105): a letterbox in the shape of a speech bubble, the offer in its slot and three dots for the coach answering, beside the name « Jobbbox » in text. On the public pages and the favicons; elsewhere the name in text still stands in for it.
+_Avoid_: Icon (that is a Lucide icon), the « J » (AI Activity's provenance mark)
+
 **Visitor**:
 A person reading Jobbbox's public site without being signed in: the Help Centre, the legal texts, Nouveautés. Leaves no CV and no Job Offer. The role follows the surface and the sign-in, not the person: the same person is a Guest in the extension and a Visitor on the site, and a signed-out Candidate is a Visitor.
 _Avoid_: Anonymous user, prospect, lead, Guest (for someone on the site)
@@ -319,7 +327,7 @@ A commune, département or région offered while the Candidate types a location,
 _Avoid_: Autocomplete (alone)
 
 **Onboarding interview**:
-How a Candidate creates a Profile on `/profils/nouveau` (ADR-0105): an interview with the AI Coach, one question at a time. Without a CV it builds the Master CV and Search Criteria; with one, it asks only what the CV left missing. The AI Coach challenges a vague answer and proposes what it can deduce for the Candidate to validate; nothing enters the Profile that does not come from an answer or a validation. The Profile is born once the target role and a location are validated and is completed as the answers are validated. Its scripted fallback, the Onboarding Questionnaire (Jobbbox's own questions, without AI), runs when the AI cannot; until #1002 it is the interview itself.
+How a Candidate creates a Profile on `/profils/nouveau` (ADR-0106): an interview with the AI Coach, one question at a time. Without a CV it builds the Master CV and Search Criteria; with one, it asks only what the CV left missing. The AI Coach challenges a vague answer and proposes what it can deduce for the Candidate to validate; nothing enters the Profile that does not come from an answer or a validation. The Profile is born once the target role and a location are validated and is completed as the answers are validated. Its scripted fallback, the Onboarding Questionnaire (Jobbbox's own questions, without AI), runs when the AI cannot; until #1002 it is the interview itself.
 _Avoid_: Onboarding Questionnaire (its scripted fallback only), form, survey
 
 ### Job offers
@@ -399,7 +407,7 @@ A result page that lists several postings (a job board's search results, a caree
 _Avoid_: Results page, index page
 
 **Job Search**:
-One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done, failed or stopped. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Conversation and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails, times out or is stopped without keeping a Job Offer. The Candidate can stop it from its page or from AI Activity (a Stop request); a stopped or failed search keeps, and links, the Job Offers it had already found. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with. A Profile's first Job Search is offered by the Onboarding interview (ADR-0105): it starts once the Profile is born, during the collection, outside the Plan Quota (it uses none, gives none back and is not counted in Consumption) and once per Profile created, only while its onboarding is in progress, narrowing by Match Score as Search Criteria are added; a change of target role or locations restarts it, offered too, once more at most, the first one stopped by a Stop request. It is otherwise an ordinary Job Search: its page, its Job Search Notification, its row in AI Activity.
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done, failed or stopped. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Conversation and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails, times out or is stopped without keeping a Job Offer. The Candidate can stop it from its page or from AI Activity (a Stop request); a stopped or failed search keeps, and links, the Job Offers it had already found. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with. A Profile's first Job Search is offered by the Onboarding interview (ADR-0106): it starts once the Profile is born, during the collection, outside the Plan Quota (it uses none, gives none back and is not counted in Consumption) and once per Profile created, only while its onboarding is in progress, narrowing by Match Score as Search Criteria are added; a change of target role or locations restarts it, offered too, once more at most, the first one stopped by a Stop request. It is otherwise an ordinary Job Search: its page, its Job Search Notification, its row in AI Activity.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
 **Stop request**:

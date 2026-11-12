@@ -8,7 +8,7 @@ import { activityOf, openActivity, unfoldedEntryOf } from "./support/conversatio
 // Issue #810 (ADR-0086, ADR-0070): a Profile's creation is one Activité entry, « Création du profil », on `/profils/nouveau`
 // and then on the new Profile's page: the CV read (its Provenance, the only AI), the Onboarding Questionnaire (« Questions
 // écrites par Jobbbox », « Sans IA », its answers), the review, « Profil créé » with Version 1, and Version 1's ATS Score.
-// From the questionnaire, the Profile is born once its target role and location are answered (#999, ADR-0105): « Profil
+// From the questionnaire, the Profile is born once its target role and location are answered (#999, ADR-0106): « Profil
 // créé » shows from then on.
 // What the browser alone knows (the questionnaire, the review) is gone once the page is loaded again; the entry is made
 // again from what is kept. The Context bar says « Le coach n'a pas encore répondu » until the coach's first reply. The AI is

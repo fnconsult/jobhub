@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * Creating a Profile from an uploaded CV, the Onboarding Questionnaire or from scratch (no LinkedIn import of any kind,
  * ADR-0001), the page a conversation with the AI Coach (ADR-0070, see ProfileOnboarding). When the Plan allows no more
  * Profiles, the conversation's card is the Upgrade prompt, after the same welcome panel (#997). With `?profil=<id>`, a
- * Profile of the Candidate born during its onboarding and not finished (ADR-0105, #999) resumes at its review: it counts
+ * Profile of the Candidate born during its onboarding and not finished (ADR-0106, #999) resumes at its review: it counts
  * in the Plan Quota already. Any other Profile of theirs opens its own page.
  */
 export default async function NewProfilePage({ searchParams }: { searchParams: Promise<{ profil?: string | string[] }> }) {

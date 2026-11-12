@@ -12,4 +12,6 @@ Les valeurs secrètes ne sont jamais enregistrées : une clé apparaît « Valeu
 
 « Afficher » filtre par section : « Tout », « Rôles », « Offres », « Codes promo », « Coachs humains », « Playbooks de coaching », « Garde-fous », « Signalements »… Le filtre « Outils » ajoute chaque appel aux outils externes (Stripe, Brevo, connexion, tests de connexion, pages lues), avec son outil, son opération, son résultat et sa durée : ni contenu, ni candidat, ni secret. Le filtre « Boîtes reliées » ajoute les boîtes reliées activées, remplacées, coupées ou à leur plafond du jour, sans candidat ni adresse. Les modifications les plus récentes viennent d'abord.
 
+La section « Code de revue des stores » inscrit chaque connexion d'un compte de démonstration par le code de revue des stores (action « Connexion »), et chaque « Code faux » tapé pour lui, au nom du compte de démonstration. Le code n'y figure jamais. Elle ne se remplit que pendant une revue de l'app par l'App Store ou Google Play, quand le code est allumé.
+
 Les super-admins et Technique lisent ce journal. Personne ne le modifie ni n'en efface une ligne.

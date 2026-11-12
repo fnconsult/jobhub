@@ -2476,6 +2476,9 @@
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails a day from which the filter is « too broad »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Networks the receiving MTA posts emails from (CIDR)",
         "MAIL_TRANSPORT": "Email sending",
+        "REVIEW_SIGN_IN": "Store review sign-in code switched on (« on »)",
+        "REVIEW_SIGN_IN_EMAILS": "Demo accounts of the store review sign-in code",
+        "REVIEW_SIGN_IN_CODE": "Store review sign-in code",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
@@ -2664,7 +2667,8 @@
         "discovery_runs": "Activity › Searches",
         "received_emails": "Activity › Received emails",
         "extension_events": "Activity › Extension",
-        "withdrawals": "Withdrawals"
+        "withdrawals": "Withdrawals",
+        "review_sign_in": "Store review sign-in code"
       },
       "actions": {
         "added": "Added",
@@ -2686,7 +2690,8 @@
         "switched_on": "Switched on",
         "scheduled": "Scheduling",
         "cancelled": "Cancellation",
-        "applied": "Application"
+        "applied": "Application",
+        "signed_in": "Sign-in"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -5121,6 +5126,7 @@
     "invalid_value": "Value the setting does not take",
     "reply_required": "A Question is handled with a reply",
     "already_handled": "Feedback already handled",
+    "wrong_code": "Wrong code",
     "guardrail_timeout": "Check took too long",
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",

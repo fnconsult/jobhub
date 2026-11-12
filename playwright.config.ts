@@ -51,6 +51,9 @@ Object.assign(process.env, utf8CharacterType());
 // from a session that served other Legal Text Versions, it answered 404 for routes it has (#673).
 process.env.JOBHUB_DEV_CACHE = "off";
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
+// Where the web server looks for the extension's zips, as an image's EXTENSION_ZIP_DIR (apps/web/Dockerfile, #989): empty
+// until e2e/version.spec.ts writes one there.
+process.env.E2E_EXTENSION_ZIP_DIR ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "extension");
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");
   url.pathname = `/jobhub_e2e_${webPort}`;
@@ -77,7 +80,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-proposal-card|coach-agenda-actions|coach-application-actions|coach-job-search-actions|coach-document-actions|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-subject|conversation-first|coach-memory|coach-playbooks|coach-actions|coach-actions-profile|coach-never-writes|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|two-step-verification|email-intake|appointment-reminders|nouveautes-email|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|application-conversation|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|ai-activity-history|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|public-shell|public-site-en|help-centre|micro-animations|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer|withdrawal|withdrawal-coaching|subscription-cancellation|conversation-applications|version|conversation-objects|conversation-menus|offer-box|offer-box-arrival-source|offer-box-phone|conversation-activity|conversation-phone-a11y|conversation-scroll|back-office-help|exit-page|recipient-list|app-reads|push-notifications|coach-tool-activity|coach-reply-cost|push-notification-events|consumption|consumption-section|top-bar-compact|fiche-resize|ai-calls-for-whom|identity|origin-ai-calls|sidebar-account|preferred-name-ai-emails|ai-activity-profile-creation|message-box|extension-events-activite)\.spec\.ts/,
+      testMatch: /(web|landing|landing-coach|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-proposal-card|coach-agenda-actions|coach-application-actions|coach-job-search-actions|coach-document-actions|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-subject|conversation-first|coach-memory|coach-playbooks|coach-actions|coach-actions-profile|coach-never-writes|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|two-step-verification|email-intake|appointment-reminders|nouveautes-email|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|application-conversation|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|ai-activity-history|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|public-shell|public-site-en|help-centre|micro-animations|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer|withdrawal|withdrawal-coaching|subscription-cancellation|conversation-applications|version|conversation-objects|conversation-menus|offer-box|offer-box-arrival-source|offer-box-phone|conversation-activity|conversation-phone-a11y|conversation-scroll|back-office-help|exit-page|recipient-list|app-reads|push-notifications|coach-tool-activity|coach-reply-cost|push-notification-events|consumption|consumption-section|top-bar-compact|fiche-resize|ai-calls-for-whom|identity|origin-ai-calls|sidebar-account|preferred-name-ai-emails|ai-activity-profile-creation|message-box|extension-events-activite)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     // Quota Reductions (#514) change Standard's and Free's quotas for real for a few seconds, and put them back: run after
@@ -90,7 +93,10 @@ export default defineConfig({
     { name: "extension", testMatch: /extension(-events)?\.spec\.ts/, use: { baseURL: webOrigin } },
     // The motions' captures (#567, ADR-0066): the test Motion Scripts filmed on the demo Candidate; with MOTIONS_WORK, the
     // `motions` workflow's capture stage (packages/motions, docs/ops/motions.md).
-    { name: "motions", testMatch: /\/motions\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
+    // After the extension's specs, never beside them: one of those runs the worker's clean-up of Guest captures a day
+    // ahead on the suite's database (« forgotten by the worker within 24 hours »), which deleted the Job Offer a `guest`
+    // Motion Script had just captured, so its Application was answered 404 (#987).
+    { name: "motions", testMatch: /\/motions\.spec\.ts/, dependencies: process.env.MOTIONS_WORK ? [] : ["extension"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
     { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },
@@ -163,6 +169,7 @@ export default defineConfig({
       // An editable setting set by env (#299): Paramètres shows it from env, and « Rétablir » falls back to it. Only the web
       // server has it; the specs start their own workers with the suite's environment.
       JOB_DISCOVERY_BUDGET_SECONDS: "75",
+      EXTENSION_ZIP_DIR: process.env.E2E_EXTENSION_ZIP_DIR,
       PERPLEXITY_API_KEY: "e2e-perplexity-key",
       NODE_OPTIONS: [
         `--import=${path.resolve("e2e/support/fake-google.mjs")}`,

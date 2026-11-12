@@ -10,7 +10,7 @@ import { TailoredDocuments } from "../documents/TailoredDocuments";
 import { ReadState } from "../screens/ReadState";
 import { useWorkPane } from "../shell/Shell";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
-import { AppText } from "../ui/AppText";
+import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { usePointerHover } from "../ui/pointer";
 import { applicationFormats, matchScoreInWords, siteOf } from "./application-formats";
@@ -74,15 +74,20 @@ function ApplicationCard({ application }: { application: ApplicationResponse }) 
   const openMatchScore = () => open(MATCH_SCORE);
   return (
     <View style={{ gap: space[4] }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: space[3] }}>
-        <View aria-hidden style={{ width: TARGET, height: TARGET, borderRadius: radius.md, backgroundColor: colors.hover, alignItems: "center", justifyContent: "center" }}>
-          <AppText weight="bold">{(jobOffer.employer ?? jobOffer.title).trim().charAt(0).toUpperCase()}</AppText>
+      {/* The Job Offer's title and its employer's line name the object, as its row does: up to twice their size
+          (ROW_MAX_SCALE), its initial with them, which fits its square. Growing freely beside it, the title broke
+          mid-word on an iPhone SE at iOS's largest size (« Responsa / ble qualité », #905). */}
+      <CappedTextScale scale={ROW_MAX_SCALE}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space[3] }}>
+          <View aria-hidden style={{ width: TARGET, height: TARGET, borderRadius: radius.md, backgroundColor: colors.hover, alignItems: "center", justifyContent: "center" }}>
+            <AppText weight="bold">{(jobOffer.employer ?? jobOffer.title).trim().charAt(0).toUpperCase()}</AppText>
+          </View>
+          <View testID="fiche-job-offer" style={{ flex: 1 }}>
+            <AppText weight="semiBold">{jobOffer.title}</AppText>
+            {facts ? <AppText tone="secondary">{facts}</AppText> : null}
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <AppText weight="semiBold">{jobOffer.title}</AppText>
-          {facts ? <AppText tone="secondary">{facts}</AppText> : null}
-        </View>
-      </View>
+      </CappedTextScale>
       <StatusField application={application} />
       <Property label={t("application.savedOnLabel")}>
         <AppText>{formats.date(application.createdAt)}</AppText>

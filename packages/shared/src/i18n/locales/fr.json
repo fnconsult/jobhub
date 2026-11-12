@@ -4,9 +4,342 @@
     "tagline": "Votre coach pour décrocher votre prochain poste après 40 ans."
   },
   "home": {
-    "title": "Bienvenue sur Jobbbox",
     "intro": "Nous construisons votre positionnement, trouvons les offres d'emploi qui vous correspondent et préparons vos candidatures.",
     "comingSoon": "L'application est en cours de construction."
+  },
+  "landing": {
+    "coachPath": {
+      "meta": {
+        "title": "Devenir coach sur Jobbbox · Proposez vos séances aux candidats",
+        "description": "Jobbbox présente votre profil aux candidats, encaisse leurs paiements et vous donne un espace pour préparer, tenir et suivre chaque séance."
+      },
+      "audience": {
+        "label": "Vous êtes",
+        "candidate": "Candidat",
+        "coach": "Coach humain"
+      },
+      "doors": {
+        "candidate": {
+          "title": "Vous cherchez un poste",
+          "text": "Un coach IA prépare chaque candidature avec vous.",
+          "link": "Voir le parcours candidat"
+        },
+        "coach": {
+          "title": "Vous êtes coach",
+          "text": "Proposez vos séances aux candidats de Jobbbox.",
+          "link": "Voir le parcours coach"
+        }
+      },
+      "cta": "Devenir coach sur Jobbbox",
+      "note": "L'équipe examine chaque demande.",
+      "hero": {
+        "title": "Proposez vos séances aux candidats de Jobbbox.",
+        "lead": "Jobbbox présente votre profil aux candidats, encaisse leurs paiements et vous donne un espace pour préparer, tenir et suivre chaque séance."
+      },
+      "method": {
+        "eyebrow": "Le parcours",
+        "title": "De votre demande à votre reversement.",
+        "lead": "Quatre étapes, les mêmes pour chaque coach.",
+        "steps": {
+          "request": {
+            "title": "Votre demande",
+            "text": "Vous présentez votre activité, vos spécialités et vos langues, avec un justificatif professionnel. L'équipe Jobbbox examine chaque demande."
+          },
+          "profile": {
+            "title": "Votre profil public",
+            "text": "Photo, présentation, spécialités, langues et offres de séances. Chaque modification est validée avant d'être montrée aux candidats."
+          },
+          "sessions": {
+            "title": "Vos séances",
+            "text": "Le candidat paie, puis choisit un créneau dans vos disponibilités. La séance se tient en visio, sur votre lien. Vous la préparez, puis vous publiez un compte rendu."
+          },
+          "earnings": {
+            "title": "Vos revenus",
+            "text": "Jobbbox encaisse pour votre compte et vous reverse le net par Stripe. Un relevé mensuel détaille vos séances."
+          }
+        }
+      },
+      "terms": {
+        "eyebrow": "Le cadre",
+        "quote": "Le candidat décide de ce que vous lisez.",
+        "text": "Vous lisez ses profils et ses candidatures seulement s'il vous en donne l'accès, sans rien pouvoir modifier. Ses conversations avec le coach IA ne vous sont jamais montrées. Vos notes de préparation restent privées."
+      },
+      "seller": {
+        "eyebrow": "Le prix et la commission",
+        "title": "Vous êtes le vendeur.",
+        "text": "Vous fixez le prix de vos séances. Jobbbox agit comme place de marché : il encaisse le paiement pour votre compte et retient une commission, fixée pour chaque vendeur."
+      },
+      "associations": {
+        "eyebrow": "Les associations",
+        "title": "Seul, ou avec votre association.",
+        "text": "Une association peut rejoindre Jobbbox, y inscrire ses coachs et vendre leurs séances. Elle ne lit jamais les dossiers des candidats."
+      },
+      "questions": {
+        "eyebrow": "Vos questions",
+        "title": "Avant de déposer votre demande.",
+        "who": {
+          "question": "Qui peut devenir coach ?",
+          "answer": "Un coach indépendant ou une association. L'équipe Jobbbox examine chaque demande avec votre justificatif professionnel. Vous acceptez ensuite le contrat avant d'accompagner des candidats."
+        },
+        "price": {
+          "question": "Qui fixe le prix d'une séance ?",
+          "answer": "Vous. Vous êtes le vendeur de vos séances, et votre nom figure sur l'offre."
+        },
+        "paid": {
+          "question": "Comment suis-je payé ?",
+          "answer": "Jobbbox encaisse le paiement du candidat pour votre compte. Le net vous est reversé par Stripe, une fois écoulé le délai de rétractation du candidat."
+        },
+        "reviews": {
+          "question": "Mon profil comporte-t-il des avis ?",
+          "answer": "Non. Un profil ne comporte ni avis ni note."
+        },
+        "where": {
+          "question": "Où se tient la séance ?",
+          "answer": "En visio, sur votre propre lien. Pendant la séance, le candidat peut ouvrir un document que vous lisez ensemble dans Jobbbox."
+        }
+      },
+      "end": {
+        "title": "Présentez votre activité.",
+        "lead": "Un formulaire et un justificatif professionnel suffisent pour déposer votre demande."
+      },
+      "screens": {
+        "nav": {
+          "today": "Aujourd'hui",
+          "candidates": "Mes candidats",
+          "sessions": "Mes séances",
+          "availability": "Disponibilités",
+          "profile": "Profil public",
+          "earnings": "Revenus",
+          "contract": "Contrat"
+        },
+        "request": {
+          "alt": "Exemple du formulaire de demande : qui vous représentez, vos spécialités, vos langues et un justificatif professionnel.",
+          "represents": "Vous représentez",
+          "independent": "Un coach indépendant",
+          "association": "Une association",
+          "specialities": "Spécialités",
+          "specialitiesValue": "Reconversion, cadres, préparation d'entretien",
+          "languages": "Langues",
+          "languagesValue": "Français, anglais",
+          "proof": "Justificatif professionnel",
+          "proofHint": "Choisissez ou déposez votre justificatif PDF",
+          "send": "Envoyer ma demande"
+        },
+        "profile": {
+          "alt": "Exemple de profil public d'un coach : présentation, spécialités, langues, une offre de séance et son vendeur.",
+          "preview": "Aperçu pour les candidats",
+          "name": "Camille R.",
+          "role": "Coach · Français, anglais",
+          "presentation": "Présentation",
+          "careerChange": "Reconversion",
+          "executives": "Cadres",
+          "interview": "Préparation d'entretien",
+          "offer": "Séance de 60 minutes",
+          "soldBy": "Vendu par Camille R.",
+          "price": "Votre prix",
+          "book": "Réserver une séance avec Camille R."
+        },
+        "session": {
+          "alt": "Exemple de page d'une séance dans l'espace coach : la date, le lien de la visio, la préparation privée, la lecture partagée et le compte rendu.",
+          "title": "Séance avec Marie D.",
+          "when": "Jeudi, 14 h (heure de Paris) · 60 min",
+          "join": "Rejoindre la visio",
+          "preparation": "Préparation",
+          "private": "Visible par vous seul",
+          "sharedReading": "Lecture partagée",
+          "sharedReadingNote": "Marie D. a ouvert son CV adapté.",
+          "report": "Compte rendu",
+          "draft": "Brouillon",
+          "covered": "Ce qui a été vu",
+          "nextSteps": "Prochaines étapes"
+        },
+        "earnings": {
+          "alt": "Exemple de la page Revenus : séances tenues, encaissé, commission, net et reversement, pour un mois, les montants masqués.",
+          "month": "Novembre 2026",
+          "masked": "Montants masqués dans cet exemple",
+          "held": "Séances tenues",
+          "collected": "Encaissé",
+          "commission": "Commission",
+          "net": "Net",
+          "payout": "Reversement Stripe",
+          "scheduled": "Prévu",
+          "statement": "Télécharger le relevé PDF"
+        }
+      }
+    },
+    "meta": {
+      "title": "Jobbbox · Un coach IA pour votre recherche d'emploi",
+      "description": "Jobbbox est un coach IA pour les candidats expérimentés. Il établit votre CV de référence, trouve les offres qui vous correspondent et prépare chaque candidature avec vous."
+    },
+    "cta": "Créer mon compte",
+    "free": "Offre Gratuit, sans paiement.",
+    "example": "Exemple",
+    "hero": {
+      "title": "Votre expérience mérite une candidature à sa mesure.",
+      "lead": "Jobbbox est un coach IA pour les candidats expérimentés. Il établit votre CV de référence, trouve les offres qui vous correspondent et prépare chaque candidature avec vous."
+    },
+    "method": {
+      "eyebrow": "La méthode",
+      "title": "Quatre étapes, dans l'ordre.",
+      "lead": "Chacune se fait avec le coach, à votre rythme.",
+      "steps": {
+        "cv": {
+          "label": "Étape 1 sur 4",
+          "title": "Votre CV de référence",
+          "text": "Vous confiez votre CV au coach. Il le lit avec vous, puis vous précisez le poste, le lieu et vos conditions."
+        },
+        "offers": {
+          "label": "Étape 2 sur 4",
+          "title": "Les offres qui vous correspondent",
+          "text": "Jobbbox recherche les offres selon vos critères. Chacune reçoit un score de correspondance, et ses raisons."
+        },
+        "application": {
+          "label": "Étape 3 sur 4",
+          "title": "Une candidature préparée",
+          "text": "Pour chaque offre retenue, le coach prépare un CV adapté et une lettre de motivation. Vous les relisez avant de postuler."
+        },
+        "followUp": {
+          "label": "Étape 4 sur 4",
+          "title": "Un suivi au même endroit",
+          "text": "Vous y retrouvez vos candidatures, vos entretiens et vos relances."
+        }
+      }
+    },
+    "coach": {
+      "eyebrow": "Le coach",
+      "quote": "« Je suis un coach IA, pas une personne. »",
+      "source": "Premier message de chaque conversation",
+      "text": "Le coach répond à partir de vos compétences, de votre expérience et de vos critères. S'il lui manque une information, il vous la demande. Sous chaque réponse, vous voyez ce qu'il a consulté."
+    },
+    "tools": {
+      "eyebrow": "L'extension et l'app",
+      "title": "Là où vous lisez les offres.",
+      "extension": {
+        "title": "Sur la page de l'offre",
+        "text": "L'extension pour Google Chrome ajoute le bouton « Analyser cette offre ». Elle enregistre l'offre et calcule son score de correspondance avec votre CV, sur 100. Sans compte, vos données sont effacées sous 24 heures.",
+        "install": "Installer l'extension"
+      },
+      "app": {
+        "title": "Sur votre téléphone",
+        "text": "L'app pour iPhone, iPad et Android utilise le même compte. Vous vous connectez par un lien reçu par e-mail.",
+        "appStore": "Télécharger dans l'App Store",
+        "playStore": "Disponible sur Google Play"
+      }
+    },
+    "humans": {
+      "eyebrow": "Les coachs humains",
+      "title": "Une personne, si vous le souhaitez.",
+      "text": "Des professionnels des ressources humaines, sélectionnés par Jobbbox, vous reçoivent en visio ou par téléphone. Les séances sont facultatives et payées à part.",
+      "more": "Un coach humain ne lit vos candidatures qu'avec votre accord. Il ne voit jamais vos conversations avec le coach IA."
+    },
+    "reading": {
+      "eyebrow": "La lecture",
+      "title": "Un texte à votre vue.",
+      "text": "Jobbbox est rédigé sans jargon, et chaque terme a son article d'aide. Vous agrandissez le texte sur toutes les pages, avec « Taille du texte », en haut de la page."
+    },
+    "plans": {
+      "eyebrow": "Les offres",
+      "title": "Des offres claires, dont une gratuite.",
+      "note": "Vos échanges avec le coach ne sont décomptés d'aucun quota. Une offre payante se résilie à tout moment, et vous disposez de 14 jours pour vous rétracter.",
+      "detail": "Le détail des offres et de leurs quotas",
+      "notIncluded": "Non compris"
+    },
+    "questions": {
+      "eyebrow": "Vos questions",
+      "title": "Avant de commencer.",
+      "more": "Consulter le Centre d'aide",
+      "person": {
+        "question": "Le coach est-il une personne ?",
+        "answer": "Non. Le coach est un programme d'intelligence artificielle, et il le dit dès son premier message. Pour parler à une personne, vous pouvez réserver une séance avec un coach humain."
+      },
+      "data": {
+        "question": "Que devient mon CV ?",
+        "answer": "Jobbbox l'utilise, avec vos critères et vos candidatures, pour vous aider dans votre recherche. Avec votre accord, les demandes à l'IA qui contiennent votre identité sont traitées par un fournisseur d'IA européen. Vous téléchargez vos données ou supprimez votre compte depuis « Mon compte »."
+      },
+      "install": {
+        "question": "Dois-je installer un logiciel ?",
+        "answer": "Non. Jobbbox s'utilise dans votre navigateur. L'extension et l'app sont facultatives."
+      },
+      "signIn": {
+        "question": "Comment me connecter ?",
+        "answer": "Vous saisissez votre adresse e-mail et vous recevez un lien de connexion, accompagné d'un code à 6 chiffres. Il n'y a pas de mot de passe."
+      },
+      "stop": {
+        "question": "Puis-je arrêter quand je le souhaite ?",
+        "answer": "Oui. Vous résiliez une offre payante à tout moment, et vous supprimez vous-même votre compte."
+      }
+    },
+    "end": {
+      "title": "Commencez par votre CV.",
+      "lead": "Une adresse e-mail suffit pour créer votre compte."
+    },
+    "screens": {
+      "matchScore": "Match Score",
+      "nav": {
+        "conversation": "Nouvelle conversation",
+        "searches": "Recherches d'offres",
+        "applications": "Candidatures",
+        "agenda": "Agenda",
+        "humanCoaches": "Mes coachs humains"
+      },
+      "conversation": {
+        "alt": "Exemple de conversation : le coach IA se présente comme une IA, la personne demande si une offre lui correspond, le coach répond à partir de son CV et propose de préparer un CV adapté.",
+        "question": "J'ai trouvé une offre de responsable logistique à Lyon. Est-ce qu'elle me correspond ?",
+        "reply": "D'après votre CV, oui pour l'essentiel : la gestion d'équipe et l'organisation des flux. L'offre demande aussi un anglais courant, que votre CV ne montre pas. Voulez-vous que je prépare un CV adapté à cette offre ?",
+        "prepareCv": "Préparer le CV adapté",
+        "prepareLetter": "Préparer la lettre de motivation",
+        "fiche": "Fiche",
+        "outOf": "sur 100"
+      },
+      "offers": {
+        "alt": "Exemple de recherche d'offres : quatre offres, chacune avec son score de correspondance sur 100 et ses raisons.",
+        "logistics": "Responsable logistique",
+        "logisticsPlace": "Lyon · CDI",
+        "warehouse": "Responsable d'entrepôt",
+        "warehousePlace": "Villeurbanne · CDI",
+        "supplyChain": "Chef de projet supply chain",
+        "supplyChainPlace": "Lyon · CDI",
+        "procurement": "Responsable des approvisionnements",
+        "procurementPlace": "Saint-Priest · CDI",
+        "why": "Pourquoi 82 ?",
+        "team": "Gestion d'équipe",
+        "flows": "Organisation des flux",
+        "english": "Anglais courant : absent du CV",
+        "logisticsScore": "82 / 100",
+        "warehouseScore": "76 / 100",
+        "supplyChainScore": "68 / 100",
+        "procurementScore": "61 / 100"
+      },
+      "application": {
+        "alt": "Exemple de candidature : un CV adapté à l'offre, prêt à relire, et une lettre de motivation.",
+        "title": "Responsable logistique · Lyon",
+        "cv": "CV adapté",
+        "letter": "Lettre de motivation",
+        "ready": "Prêt à relire",
+        "profile": "Profil",
+        "experience": "Expérience",
+        "skills": "Compétences",
+        "note": "En surbrillance : ce que le coach a adapté à l'offre.",
+        "cvReady": "CV adapté · Prêt à relire"
+      },
+      "followUp": {
+        "alt": "Exemple de suivi : trois candidatures avec leur état, entretien, envoyée, à préparer.",
+        "interview": "Entretien",
+        "interviewWhen": "Jeudi, 14 h",
+        "sent": "Candidature envoyée",
+        "sentNext": "Relance à prévoir",
+        "toPrepare": "À préparer",
+        "toPrepareNext": "CV adapté prêt à relire"
+      },
+      "extension": {
+        "alt": "Sur la page d'une offre, le panneau de l'extension affiche un Match Score sur 100 et son détail.",
+        "detail": "Détail du Match Score"
+      },
+      "app": {
+        "alt": "L'app Jobbbox sur un téléphone, avec la liste des candidatures."
+      },
+      "scoreValue": "82"
+    }
   },
   "textSize": {
     "label": "Taille du texte",
@@ -362,14 +695,13 @@
       "extensionIntro": "Depuis la page d'une offre d'emploi, l'extension l'enregistre dans Jobbbox et calcule son score de correspondance, sans copier-coller.",
       "install": "Installer l'extension depuis le Chrome Web Store",
       "soon": "L'extension arrive bientôt sur le Chrome Web Store.",
-      "newTab": "(nouvel onglet)",
       "testBuild": {
         "title": "Dernière version de l'extension",
         "intro": "Réservé aux administrateurs : chargez l'extension que sert ce serveur, avant sa publication sur le Chrome Web Store.",
         "extensionVersion": "Version de l'extension",
         "apiVersion": "Version d'API servie",
-        "releases": "Voir les versions sur GitHub",
-        "access": "Le dépôt est privé : il faut y avoir accès.",
+        "download": "Télécharger {{zip}}",
+        "unavailable": "Ce serveur ne sert pas de zip de l'extension : seule l'image d'un déploiement contient {{zip}}. En local, construisez-le avec npm run zip -w @jobhub/extension (ou zip:beta).",
         "stepsLabel": "Charger l'extension dans Chrome",
         "steps": {
           "download": "Téléchargez {{zip}}, puis décompressez-le.",
@@ -897,6 +1229,10 @@
       "active": "Actif",
       "archived": "Archivé"
     },
+    "onboarding": {
+      "unfinished": "Création à terminer",
+      "resume": "Reprendre la création"
+    },
     "actions": {
       "searchOffers": "Chercher des offres",
       "download": "Télécharger"
@@ -1001,13 +1337,15 @@
     "withoutCvIntro": "Mes questions portent sur votre parcours, une à la fois. Vous pouvez passer celles qui ne vous concernent pas. Comptez une dizaine de minutes.",
     "startQuestionnaire": "Répondre aux questions de mon coach",
     "conversation": "Créer un profil avec votre coach",
-    "openReview": "Relire et enregistrer"
+    "openReview": "Relire et enregistrer",
+    "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
+    "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
+    "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez."
   },
   "questionnaire": {
     "transcript": "Votre échange avec le coach",
     "coach": "Votre coach",
     "you": "Vous",
-    "welcome": "Bonjour, je suis votre coach Jobbbox. Je vais vous poser quelques questions pour construire votre CV de référence. Répondez avec vos mots : vous pourrez tout relire et corriger à la fin.",
     "questions": {
       "fullName": "Pour commencer, quels sont vos prénom et nom ?",
       "targetRole": "Quel poste recherchez-vous ? Par exemple : « Directeur financier ».",
@@ -1030,7 +1368,6 @@
     },
     "answerLabel": "Votre réponse",
     "answerHint": "Vous pouvez passer cette question.",
-    "send": "Répondre",
     "skip": "Passer cette question",
     "skipped": "(question passée)",
     "yes": "Oui",
@@ -2246,6 +2583,7 @@
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
         "extension": "Extension du navigateur",
+        "public_site": "Site public",
         "help_centre": "Centre d'aide",
         "maintenance": "Maintenance"
       },
@@ -2476,9 +2814,15 @@
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails par jour à partir desquels le filtre est « trop large »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Réseaux d'où le MTA de réception poste les emails (CIDR)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
+        "REVIEW_SIGN_IN": "Code de revue des stores allumé (on)",
+        "REVIEW_SIGN_IN_EMAILS": "Comptes de démonstration du code de revue des stores",
+        "REVIEW_SIGN_IN_CODE": "Code de revue des stores",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
+        "APP_STORE_URL": "Page de l'app sur l'App Store (lien de la page d'accueil)",
+        "PLAY_STORE_URL": "Page de l'app sur Google Play (lien de la page d'accueil)",
+        "HUMAN_COACH_PAGE_ENABLED": "Parcours des coachs humains sur le site public (à activer avec l'espace coach)",
         "HELP_MEDIA_ORIGIN": "Origine des vidéos d'aide (Explainer Videos du centre d'aide)",
         "MAINTENANCE_MODE": "Maintenance en cours (toutes les pages hors Back Office répondent 503)",
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
@@ -2664,7 +3008,8 @@
         "discovery_runs": "Activité › Recherches",
         "received_emails": "Activité › Emails reçus",
         "extension_events": "Activité › Extension",
-        "withdrawals": "Rétractations"
+        "withdrawals": "Rétractations",
+        "review_sign_in": "Code de revue des stores"
       },
       "actions": {
         "added": "Ajout",
@@ -2686,7 +3031,8 @@
         "switched_on": "Activation",
         "scheduled": "Programmation",
         "cancelled": "Annulation",
-        "applied": "Application"
+        "applied": "Application",
+        "signed_in": "Connexion"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -5121,6 +5467,7 @@
     "invalid_value": "Valeur refusée par le réglage",
     "reply_required": "Une Question se traite avec une réponse",
     "already_handled": "Signalement déjà traité",
+    "wrong_code": "Code faux",
     "guardrail_timeout": "Contrôle trop long",
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",
@@ -5402,7 +5749,7 @@
         "partial": "dernier appel seulement",
         "noAi": "Sans IA"
       },
-      "sources": "Sources et outils de cette page"
+      "sources": "Sources :"
     }
   },
   "signalement": {
@@ -6176,10 +6523,25 @@
       "results": "Résultats"
     },
     "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste.",
-    "matchScore": "Match Score : {{score}}"
+    "matchScore": "Match Score : {{score}}",
+    "panel": "Volet de la page",
+    "views": {
+      "activity": "Activité",
+      "fiche": "Fiche",
+      "offer": "L'offre",
+      "documents": "Documents",
+      "offers": "Offres trouvées"
+    },
+    "close": "Fermer le volet",
+    "more": "Plus d'actions sur le volet",
+    "resetWidth": "Largeur du volet par défaut",
+    "allResults": "Tout voir",
+    "openOffer": "Afficher l'offre en grand"
   },
   "contextBar": {
     "title": "Contexte de la conversation",
+    "used": "{{percent}} % utilisé",
+    "share": "{{percent}} %",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
     "clear": "Effacer la conversation",

@@ -5,7 +5,7 @@
 // Only the device's native modules are faked besides: the system's Dialog (Alert) and browser (Linking).
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ApplicationResponse, CompanyDossierResponse, EnrichedContactsResponse } from "@jobhub/shared/reads";
-import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
 import { Alert, Dimensions, Linking, type AlertButton } from "react-native";
 import { fakeCoachWeb, withCoach } from "../src/coach/testing";
@@ -191,6 +191,21 @@ describe("Mes candidatures, at a large system text size", () => {
     const status = await screen.findByText("Postulée · Score de correspondance 82 · Relance prête");
     expect(status.props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
     expect(screen.getByText("Responsable logistique · Rhône Distribution").props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
+  });
+});
+
+// At that size the Fiche's card named its Job Offer at 57 pt beside its initial: « Responsa / ble qualité » (#905, Maestro,
+// iphone-se light-largest-text). Its title and its employer's line name the object as a row does: twice their size at most.
+describe("An Application's Fiche, at a large system text size", () => {
+  it("lets its Job Offer's title and employer grow up to twice their size", async () => {
+    const size = { width: 375, height: 667, scale: 2, fontScale: 3.571 };
+    Dimensions.set({ window: size, screen: size });
+    await openFiche();
+    const card = within(screen.getByTestId("fiche-job-offer"));
+    expect(card.getByText("Responsable qualité").props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
+    expect(card.getByText("Aéroline · Toulouse").props.maxFontSizeMultiplier).toBe(ROW_MAX_SCALE);
+    // What it says under them grows freely: body text is never capped (ADR-0009).
+    expect(screen.getByText("28 octobre 2026").props.maxFontSizeMultiplier).toBeUndefined();
   });
 });
 

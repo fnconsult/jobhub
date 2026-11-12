@@ -62,7 +62,7 @@ import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-e
 import { coachProposalsDisplayOf, type ExportedCoachProposalsDisplay } from "../coach-proposals-display";
 import { consumptionOf, type ConsumptionDay } from "../consumption";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
-import type { MasterCvVersion, Profiles } from "../profiles";
+import type { MasterCvVersion, ProfileOnboarding, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
 import { signalementsOf, type Signalement } from "../signalements";
 import { extensionEventsOf, type ExportedExtensionEvent } from "../extension-events";
@@ -81,6 +81,8 @@ export interface ExportedProfile {
   searchCriteria: SearchCriteria;
   /** The Search Criteria came from a Coach proposal the Candidate applied (#719): its Origin. */
   searchCriteriaOrigin?: Origin;
+  /** Where its onboarding stands, when it was created on `/profils/nouveau` since #999: « in_progress » or « done ». */
+  onboarding?: ProfileOnboarding;
   /** Newest first, each with its Origin when it came from a Coach proposal (#719). */
   masterCvVersions: MasterCvVersion[];
   /** The ATS Score of the Master CV version last scored, or null when it never was. Its Provenance is fixed (rules), so not exported. */
@@ -454,7 +456,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   nouveautes_email_sent: "nouveautesEmail.sent (the Version each Nouveautés email told of, #566)",
   coach_proposals_display: "coachProposalsDisplay (« Propositions du coach » in Mon compte, #717)",
   consumption_day: "consumption (each day's count per Tool, the 12 months kept, #799)",
-  profile: "profiles (the Search Criteria's Origin, #719)",
+  profile: "profiles (the Search Criteria's Origin, #719; where its onboarding stands, #999)",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it; its Origin, #719)",
   ats_score: "profiles[].atsScore",
   job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
@@ -580,6 +582,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           archived: profile.archived,
           searchCriteria: profile.searchCriteria,
           ...(profile.searchCriteriaOrigin ? { searchCriteriaOrigin: profile.searchCriteriaOrigin } : {}),
+          ...(profile.onboarding ? { onboarding: profile.onboarding } : {}),
           masterCvVersions: versions,
           atsScore: atsScoresOf(id)[0] ?? null,
           jobSearches: jobSearchesOf(id).map(({ provenance, stopRequestedAt, ...jobSearch }) => {

@@ -1,35 +1,33 @@
-import Link from "next/link";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { FreeConversationPage } from "@/components/FreeConversationPage";
+import { Landing } from "@/components/Landing";
+import { PublicSite } from "@/design/PublicSite";
+import { readHumanCoachPath, readLandingPlans, readLandingStoreLinks } from "@/landing/server";
 import { routes } from "@/routes";
-import { TextSizeControl } from "@/components/TextSizeControl";
-import { buttonClass } from "@/design/button-class";
-import { Note } from "@/design/Note";
 import type { Metadata } from "next";
-import { getServerT, getUrlLocale } from "@/i18n/server";
-import { localePath } from "@/public-pages/public-shell";
+import { getRequestLocale, getServerT } from "@/i18n/server";
 import { publicMetadata } from "@/public-pages/indexing-server";
 
-/** The home page is indexed, in French at `/` and in English at `/en` (#545). */
+/**
+ * The home page is indexed, in French at `/` and in English at `/en` (#545). Its title and description are the landing
+ * page's (ADR-0105): what a search engine and a shared link show of Jobbbox.
+ */
 export async function generateMetadata(): Promise<Metadata> {
-  return publicMetadata(routes.home, ["fr", "en"]);
+  const t = await getServerT();
+  const title = t("landing.meta.title");
+  const description = t("landing.meta.description");
+  return { ...(await publicMetadata(routes.home, ["fr", "en"])), title, description, openGraph: { type: "website", siteName: t("app.name"), title, description } };
 }
 
 /**
  * The home page: for a signed-in Candidate, in the sidebar layout like every page of theirs (ADR-0024), a new Free
- * conversation, the page itself (#601, ADR-0070), the quick actions its suggestions (#467).
+ * conversation, the page itself (#601, ADR-0070), the quick actions its suggestions (#467). For a Visitor, the landing
+ * page in the public shell (ADR-0105), its Plans and store links as the Back Office sets them.
  */
 export default async function HomePage() {
   const t = await getServerT();
   const candidate = await getCurrentCandidate();
-  const intro = (
-    <>
-      <p className="lead">{t("app.tagline")}</p>
-      <p>{t("home.intro")}</p>
-      <Note>{t("home.comingSoon")}</Note>
-    </>
-  );
   if (candidate)
     return (
       <CandidateLayout candidateId={candidate.id} title={t("conversationFirst.newConversation")}>
@@ -37,19 +35,8 @@ export default async function HomePage() {
       </CandidateLayout>
     );
   return (
-    <main className="page">
-      <header className="page-header">
-        <span className="brand">{t("app.name")}</span>
-        <nav className="page-nav">
-          <TextSizeControl />
-          {/* In English at `/en`, the sign-in page in English too (#570: it went to the French one). */}
-          <Link className={buttonClass()} href={localePath(routes.signIn, await getUrlLocale())}>
-            {t("nav.signIn")}
-          </Link>
-        </nav>
-      </header>
-      <h1>{t("home.title")}</h1>
-      {intro}
-    </main>
+    <PublicSite>
+      <Landing plans={await readLandingPlans(await getRequestLocale())} stores={readLandingStoreLinks()} coachPath={readHumanCoachPath()} />
+    </PublicSite>
   );
 }

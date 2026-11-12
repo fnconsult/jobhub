@@ -19,7 +19,7 @@ import { DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES, type Locale } fro
 import { expo } from "@better-auth/expo";
 import { passkey } from "@better-auth/passkey";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
+import { APIError, createAuthMiddleware, getOAuthState, isAPIError } from "better-auth/api";
 import { getMigrations } from "better-auth/db/migration";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { magicLink } from "better-auth/plugins/magic-link";
@@ -28,6 +28,7 @@ import * as z from "zod";
 import { routes } from "../routes";
 import { emailedMagicLink } from "./app-sign-in";
 import { withDiscoveryDocuments } from "./discovery-documents";
+import { isReviewAddress, reviewCodeFor, type ReviewSignIn } from "./review-sign-in";
 import { signInCodes, SIGN_IN_CODE_PATH } from "./sign-in-code";
 import { signInEmail } from "./sign-in-email";
 import { recordingSignInCalls } from "./sign-in-calls";
@@ -103,7 +104,22 @@ export interface AuthConfig {
    * link then signs it into a pending session even with no factor yet, to set one up. Default: nobody must.
    */
   mustHaveTwoStepVerification?: ((candidateId: string) => Promise<boolean>) | undefined;
+  /** The store review's sign-in code (#981, review-sign-in.ts): null or missing, off. */
+  reviewSignIn?: ReviewSignIn | null | undefined;
+  /** Writes one use of the store review's sign-in code to the Back Office Audit. Default: nowhere. */
+  recordReviewSignIn?: ((use: ReviewSignInUse) => Promise<void>) | undefined;
 }
+
+/** One use of the store review's sign-in code (#981): a demo account signed in with it, or a wrong code typed for it. */
+export interface ReviewSignInUse {
+  candidateId: string;
+  /** The demo account's address. Never the code. */
+  email: string;
+  outcome: "succeeded" | "failed";
+}
+
+/** The refusal of a sign-in by the store review's code into an Administrator's account (#981). */
+export const REVIEW_SIGN_IN_REFUSED = "REVIEW_SIGN_IN_NOT_ALLOWED";
 
 /** How long a magic link stays valid. */
 export const MAGIC_LINK_MINUTES = 15;
@@ -327,9 +343,46 @@ const refuseUnservedEndpoints = createAuthMiddleware(async (ctx) => {
   }
 });
 
+/**
+ * The store review's sign-in code (#981) at the code's endpoint, while it is on:
+ *  - `refuseAdministrator` (before the session is created): an Administrator's account is never signed in by it, whatever
+ *    the environment names (ADMIN_EMAILS is refused at startup, a Back Office Role here);
+ *  - `record` (after the endpoint): each try for a demo address goes to the Back Office Audit, signed in or refused, never
+ *    the code. A try for a demo address with no account yet is not recorded: there is nobody to name.
+ * A Back Office Audit that cannot be written is said in the log; the sign-in stands.
+ */
+function reviewSignInGuards(config: AuthConfig, signIn: SignInSetup) {
+  const review = config.reviewSignIn ?? null;
+  return {
+    async refuseAdministrator(session: { userId: string }, ctx: HookContext): Promise<void> {
+      if (!review || !ctx || ctx.path !== SIGN_IN_CODE_PATH) return;
+      const user = await ctx.context.internalAdapter.findUserById(session.userId);
+      if (!user || !isReviewAddress(review, user.email)) return;
+      if (await signIn.isAdministrator({ id: user.id, email: user.email, emailVerified: user.emailVerified })) {
+        throw new APIError("FORBIDDEN", { code: REVIEW_SIGN_IN_REFUSED, message: "Sign in with the link of the email" });
+      }
+    },
+    record: createAuthMiddleware(async (ctx) => {
+      if (!review || !config.recordReviewSignIn || ctx.path !== SIGN_IN_CODE_PATH) return;
+      const email: unknown = (ctx.body as { email?: unknown } | undefined)?.email;
+      if (typeof email !== "string" || !isReviewAddress(review, email)) return;
+      const found = await ctx.context.internalAdapter.findUserByEmail(email.toLowerCase());
+      if (!found) return;
+      const outcome = isAPIError(ctx.context.returned) ? "failed" : "succeeded";
+      try {
+        await config.recordReviewSignIn({ candidateId: found.user.id, email: found.user.email, outcome });
+      } catch (error) {
+        console.warn("[review-sign-in] the Back Office Audit could not record a use:", error instanceof Error ? error.message : error);
+      }
+    }),
+  };
+}
+
 function authOptions(config: AuthConfig) {
   const signIn = config.signIn ?? NO_SIGN_IN;
-  const codes = signInCodes({ minutes: MAGIC_LINK_MINUTES, database: config.database });
+  // The store review's code (#981) for a demo address while it is on; a random code for every other address.
+  const codes = signInCodes({ minutes: MAGIC_LINK_MINUTES, database: config.database, fixedCode: (email) => reviewCodeFor(config.reviewSignIn, email) });
+  const review = reviewSignInGuards(config, signIn);
   const hooks = signInHooks(
     signIn,
     config.baseURL,
@@ -360,8 +413,19 @@ function authOptions(config: AuthConfig) {
         trustedProviders: () => trustedProviderIds(signIn.current?.() ?? signIn.configuration),
       },
     },
-    databaseHooks: { ...hooks, session: { create: { ...hooks.session.create, after: codes.afterSession } } },
-    hooks: { before: refuseUnservedEndpoints },
+    databaseHooks: {
+      ...hooks,
+      session: {
+        create: {
+          before: async (session: { userId: string }, ctx: HookContext) => {
+            await review.refuseAdministrator(session, ctx);
+            return hooks.session.create.before(session, ctx);
+          },
+          after: codes.afterSession,
+        },
+      },
+    },
+    hooks: { before: refuseUnservedEndpoints, after: review.record },
     // The account of a person looking for a job is a Candidate (CONTEXT.md).
     user: {
       modelName: "candidate",

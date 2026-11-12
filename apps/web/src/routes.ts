@@ -70,6 +70,8 @@ export const routes = {
   accountSignalements: "/compte/signalements",
   accountData: "/compte/donnees",
   newProfile: "/profils/nouveau",
+  /** « Reprendre la création » (#999): a Profile born during its onboarding and not finished, at its review on `/profils/nouveau`. */
+  resumeProfileCreation: (id: string) => `/profils/nouveau?profil=${encodeURIComponent(id)}`,
   profile: (id: string) => `/profils/${id}`,
   /** The Recherches d'offres page (ADR-0024); with `profileId`, for that Profile. */
   jobSearches: (profileId?: string) => (profileId ? `/recherches?profil=${encodeURIComponent(profileId)}` : "/recherches"),
@@ -155,6 +157,8 @@ export const routes = {
   /** Where a Nouveautés email's unsubscribe link leads (#566, no sign-in needed). */
   nouveautesEmailUnsubscribe: "/desabonnement/nouveautes",
   /** The Help Centre (#549, ADR-0065): its four topics and its search (`?q=`); public. */
+  /** The Human Coaches' path on the public site (ADR-0105), behind HUMAN_COACH_PAGE_ENABLED. */
+  humanCoachLanding: "/coachs-humains",
   help: "/aide",
   /** A topic of the Help Centre: its public articles, or « Bientôt des articles ici ». */
   helpTopic: (topic: string) => `/aide/${encodeURIComponent(topic)}`,

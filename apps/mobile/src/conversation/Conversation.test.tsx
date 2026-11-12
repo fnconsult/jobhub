@@ -87,6 +87,14 @@ describe("Conversation's box, at a large system text size", () => {
     expect(screen.getByText("Chercher des offres").props.maxFontSizeMultiplier).toBe(BAR_MAX_SCALE);
   });
 
+  // Ending the thread, they grew freely: « Propose / r une idée » on an iPhone SE at the largest size (#905, Maestro,
+  // iphone-se light-largest-text). They grow up to twice their size, as the box they sit under otherwise.
+  it("lets « Signaler un problème » and « Proposer une idée » grow up to twice their size", async () => {
+    setWindow({ width: 375, height: 667, fontScale: 3.571 });
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);
+    for (const words of ["Signaler un problème", "Proposer une idée"]) expect(screen.getByText(words).props.maxFontSizeMultiplier).toBe(BAR_MAX_SCALE);
+  });
+
   it("keeps what sits under the box there at the standard size", async () => {
     setWindow({ width: 375, height: 667, fontScale: 1 });
     await renderInApp(<CoachConversation conversationId={null} route="/" />, fakeCoachWeb().client);

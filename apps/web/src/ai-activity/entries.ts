@@ -116,6 +116,8 @@ export interface CreationGiven {
   href?: string;
   reading?: { provenance: Provenance | null };
   questionnaire?: { at: string; answered: number; skipped: number };
+  /** The Profile born during the questionnaire, once its target role and location were answered (ADR-0106, #999): its Version 1. */
+  created?: { at: string; href: string };
   review?: { at: string };
 }
 
@@ -487,13 +489,17 @@ function keptParts(first: VersionGiven, score: PageElement | undefined): Activit
   ];
 }
 
-/** What the browser alone knows of a Profile's creation: the CV read from its draft, the questionnaire and the review. */
+/**
+ * What the browser alone knows of a Profile's creation: the CV read from its draft, the questionnaire, the Profile born
+ * during it (#999: « Profil créé » with its Version 1, before the review) and the review.
+ */
 function knownParts(creation: CreationGiven): ActivityEntry[] {
-  const { reading, questionnaire, review } = creation;
+  const { reading, questionnaire, created, review } = creation;
   const read = reading ? (reading.provenance ? readingPart(reading.provenance) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null }))) : null;
   return [
     ...(read ? [read] : []),
     ...(questionnaire ? [part("questionnaire", questionnaire.at, "jobbbox", { answered: questionnaire.answered, skipped: questionnaire.skipped })] : []),
+    ...(created ? [part("profile_created", created.at, "candidate", { version: FIRST }, created.href)] : []),
     ...(review ? [part("review", review.at, "candidate")] : []),
   ];
 }

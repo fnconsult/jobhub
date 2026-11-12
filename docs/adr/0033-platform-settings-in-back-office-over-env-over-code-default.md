@@ -12,6 +12,7 @@ What is a Platform Setting (editable):
 - `EXTENSION_STORE_URL`.
 
 Shown on Paramètres, read-only:
+- The store review's sign-in code (#981): `REVIEW_SIGN_IN` and `REVIEW_SIGN_IN_EMAILS`, and `REVIEW_SIGN_IN_CODE` only as set or missing. A secret and a switch for the duration of a store review, kept in env so no Administrator can turn on a fixed sign-in code from the Back Office.
 - `MAIL_TRANSPORT`, with a warning when it is `console` outside e2e; `STRIPE_PRICE_STANDARD` / `STRIPE_PRICE_PREMIUM` (fallbacks on their way out, #206), and the Coaching Session Prices.
 - The bootstrap settings only env holds: `DATABASE_URL` without its password, `AUTH_SECRET` and `SECRETS_MASTER_KEYS` only as set or missing (and the master keys' versions), `APP_URL`, `ADMIN_EMAILS`, `JOBHUB_TARGET`, `AI_FAKE`.
 - Settings with a section of their own (Plan Quotas, Guardrails, Coach Message Cost, Provider Secrets), linked there.

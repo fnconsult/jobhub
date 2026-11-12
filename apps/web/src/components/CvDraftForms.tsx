@@ -8,7 +8,7 @@ import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
 import { MAX_CV_FILE_BYTES } from "@/cv/limits";
 import { FileUpload } from "@/design/FileUpload";
-import type { ProfileFieldError } from "@/profiles";
+import type { ProfileFieldError, ProfileOnboarding } from "@/profiles";
 import { routes } from "@/routes";
 import { MasterCvFields } from "./MasterCvFields";
 import { useStreamedAction } from "./StreamedAction";
@@ -30,6 +30,10 @@ const BLANK_MASTER_CV: MasterCvContent = {
 
 /** The draft a Candidate starts from when they start from scratch: the review form left blank. */
 export const BLANK_DRAFT: CvDraft = { masterCv: BLANK_MASTER_CV, searchCriteria: { targetRole: "", locations: [] } };
+
+const JSON_BODY = { "content-type": "application/json" };
+/** A Profile created at the review's save is created with its onboarding done (#999). */
+const ONBOARDING_DONE: ProfileOnboarding = "done";
 
 const FILE_ERRORS = new Set<string>(["unsupported_format", "too_large", "unreadable", "empty"]);
 
@@ -128,11 +132,20 @@ interface ReviewState {
   upgradePrompt: Prompt | null;
 }
 
+/** A Profile born during its onboarding (ADR-0106, #999): the review finishes it rather than creating one. */
+export interface BornProfile {
+  id: string;
+  /** The version of its Master CV the review's save is based on. */
+  version: number;
+}
+
 /**
  * Reviewing a draft Master CV and Search Criteria, whether read from an uploaded
  * CV, built by the Onboarding Questionnaire or left blank to start from scratch,
  * then saving it as a Profile. Opened in the Work Pane, which titles it (ADR-0070): it starts from `kept`, what was
- * changed before the pane last closed, and hands each change to `onKeep`.
+ * changed before the pane last closed, and hands each change to `onKeep`. When the Profile was born during the
+ * onboarding (`born`, #999), the save changes its Search Criteria and finishes it with one Master CV Version; otherwise it
+ * creates the Profile, its onboarding done.
  */
 export function CvReview(props: {
   draft: CvDraft;
@@ -140,6 +153,8 @@ export function CvReview(props: {
   onKeep?: (edits: ReviewEdits) => void;
   startOverLabel: string;
   onStartOver: () => void;
+  /** The Profile born during the onboarding, once its creation has answered; null when there is none. */
+  born?: () => Promise<BornProfile | null>;
   /** The Profile saved, at its page, just before the Candidate is taken there. */
   onSaved?: (href: string) => void;
 }) {
@@ -165,20 +180,35 @@ export function CvReview(props: {
     event.preventDefault();
     const { criteria, masterCv } = review;
     const searchCriteria = searchCriteriaInput(criteria);
-    update({ saving: true, failed: false, quotaReached: false, upgradePrompt: null });
+    update({ saving: true, failed: false, quotaReached: false, upgradePrompt: null, errors: [] });
+    const done = (id: string) => {
+      props.onSaved?.(routes.profile(id));
+      router.push(routes.profile(id));
+    };
+    const refused = (body: { errors?: unknown }) =>
+      update({ saving: false, errors: Array.isArray(body.errors) ? body.errors : [], failed: !Array.isArray(body.errors) });
     try {
+      const born = (await props.born?.()) ?? null;
+      if (born) {
+        // Born during the onboarding (#999): its Search Criteria changed as on its page, then one Master CV Version.
+        const changed = await fetch(`/api/profiles/${born.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) });
+        if (!changed.ok) return refused(await changed.json().catch(() => ({})));
+        const finished = await fetch(`/api/profiles/${born.id}/onboarding`, {
+          method: "POST",
+          headers: JSON_BODY,
+          body: JSON.stringify({ masterCv, basedOnVersion: born.version }),
+        });
+        if (finished.ok) return done(born.id);
+        return refused(await finished.json().catch(() => ({})));
+      }
       const response = await fetch("/api/profiles", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: JSON_BODY,
         // What read the CV, when the AI Coach did (#335): kept with the Master CV's first version.
-        body: JSON.stringify({ masterCv, searchCriteria, ...(props.draft.provenance ? { provenance: props.draft.provenance } : {}) }),
+        body: JSON.stringify({ masterCv, searchCriteria, onboarding: ONBOARDING_DONE, ...(props.draft.provenance ? { provenance: props.draft.provenance } : {}) }),
       });
       const body = await response.json().catch(() => ({}));
-      if (response.status === 201) {
-        props.onSaved?.(routes.profile(body.id));
-        router.push(routes.profile(body.id));
-        return;
-      }
+      if (response.status === 201) return done(body.id);
       const quotaReached = body.error === "plan_quota_reached";
       update({
         saving: false,

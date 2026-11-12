@@ -73,7 +73,7 @@ async function reply(page: Page, question: string, value: string | "skip" | "yes
   else if (value === "skip") await page.getByRole("button", { name: fr.questionnaire.skip }).click();
   else {
     await answerBox(page).fill(value);
-    await page.getByRole("button", { name: fr.questionnaire.send, exact: true }).click();
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
   }
 }
 
@@ -99,7 +99,7 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(transcript(page).getByLabel(fr.cvUpload.fileLabel)).toBeVisible();
     await conversation.getByRole("group", { name: fr.conversationFirst.suggestions }).getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
 
-    await expect(transcript(page)).toContainText(fr.questionnaire.welcome);
+    await expect(transcript(page)).toContainText(fr.newProfile.questionsStart);
     await expect(transcript(page).getByRole("listitem").last()).toContainText(q.fullName);
     await expect(answerBox(page)).toBeFocused();
   });
@@ -110,7 +110,7 @@ test.describe("onboarding with the AI Coach", () => {
     await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
 
     // A name, a target role and a location are needed for a Profile.
-    await page.getByRole("button", { name: fr.questionnaire.send, exact: true }).click();
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
     await expect(page.locator(".field-error[role=alert]")).toHaveText(fr.questionnaire.errors.required);
     await expect(page.getByRole("button", { name: fr.questionnaire.skip })).toHaveCount(0);
 
@@ -157,21 +157,70 @@ test.describe("onboarding with the AI Coach", () => {
     await page.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi }).check();
     await page.getByRole("button", { name: fr.cvReview.save }).click();
 
-    // Saved as a Profile with version 1 of its Master CV, like an uploaded CV.
+    // Born at its target role and location (#999), the Profile is finished by one Master CV Version: version 2, after the
+    // partial version 1 it was born with.
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
+    const profiles = await (await page.request.get("/api/profiles")).json();
+    expect(profiles).toHaveLength(1);
     // Its Master CV, a Section opened in the Work Pane beside the Profile's conversation (#605).
     const profilePath = new URL(page.url()).pathname;
     await page.goto(`${profilePath}/cv-de-reference`);
-    await expect(page.locator("aside.work-pane").getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 1 · /)).toBeVisible();
+    await expect(page.locator("aside.work-pane").getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 2 · /)).toBeVisible();
     // The whole Master CV, as its version page shows it.
-    await page.goto(`${profilePath}/versions/1`);
+    await page.goto(`${profilePath}/versions/2`);
     await expect(page.getByText("Marie Dupont", { exact: true })).toBeVisible();
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2024")).toBeVisible();
     await expect(page.getByText("Responsable du contrôle de gestion · Renault · Paris · 2005 – 2015")).toBeVisible();
     await expect(page.getByText("Master Finance · ESSEC · 1998")).toBeVisible();
     await expect(page.getByText("Allemand · notions")).toBeVisible();
     await expect(page.getByText("Directrice financière, 25 ans d'expérience dans l'industrie.")).toBeVisible();
+  });
+
+  test("the Profile is born at its target role and location, and a creation left unfinished is resumed at its review (#999)", async ({ page }) => {
+    // Wide enough for the Profile's Fiche beside its conversation.
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await signInWithMagicLink(page, newAddress("questionnaire-resume"));
+    await page.goto("/profils/nouveau");
+    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await reply(page, q.fullName, "Marie Dupont");
+    await reply(page, q.targetRole, "Directrice financière");
+    expect(await (await page.request.get("/api/profiles")).json()).toEqual([]);
+    await reply(page, q.location, "Lyon");
+    await reply(page, q.email, "marie.dupont@example.fr");
+
+    // Born once the target role and location are answered: the Candidate leaves the page before the end.
+    await expect.poll(async () => (await (await page.request.get("/api/profiles")).json()).length).toBe(1);
+    const [{ id, name }] = await (await page.request.get("/api/profiles")).json();
+    expect(name).toBe("Directrice financière");
+    await page.goto(`/profils/${id}`);
+    const fiche = page.getByRole("complementary", { name: fr.fiche.label, exact: true });
+    await expect(fiche).toContainText(fr.profilePage.onboarding.unfinished);
+    await fiche.getByRole("link", { name: fr.profilePage.onboarding.resume }).click();
+
+    // Resumed at its review, on what is saved: the e-mail answered after it was born is not.
+    await expect(page).toHaveURL(`${origin}/profils/nouveau?profil=${id}`);
+    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    await expect(transcript(page)).toContainText(fr.newProfile.resumeIntro);
+    await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
+    await expect(page.getByLabel(fr.cvReview.email)).toHaveValue("");
+    const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
+    await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
+    await expect(placeNames(criteria)).toHaveText(["Lyon"]);
+    await page.getByLabel(fr.cvReview.email).fill("marie.dupont@example.fr");
+    await criteria.getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi }).check();
+    await page.getByRole("button", { name: fr.cvReview.save }).click();
+
+    // Finished on the same Profile, by version 2 of its Master CV.
+    await expect(page).toHaveURL(`${origin}/profils/${id}`);
+    await expect(fiche).toContainText("CDI");
+    await expect(fiche.getByText(fr.profilePage.onboarding.unfinished)).toHaveCount(0);
+    expect(await (await page.request.get("/api/profiles")).json()).toHaveLength(1);
+    await page.goto(`/profils/${id}/cv-de-reference`);
+    await expect(page.locator("aside.work-pane").getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 2 · /)).toBeVisible();
+    // Finished, the resume link opens the Profile's page.
+    await page.goto(`/profils/nouveau?profil=${id}`);
+    await expect(page).toHaveURL(`${origin}/profils/${id}`);
   });
 
   test("the questionnaire and an uploaded CV produce the same Master CV structure", async ({ page }) => {

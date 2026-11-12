@@ -6,6 +6,8 @@ title: Accueil
 synonyms: [accueil, démarrer, commencer, début, par où commencer, nouvelle conversation]
 route: /
 ---
+Sans être connecté, cette adresse est la page d'accueil de Jobbbox : ce que fait Jobbbox, la méthode en quatre étapes, les offres et les réponses aux questions les plus fréquentes. « Créer mon compte » y mène à la page de connexion, qui crée aussi votre compte ; « Se connecter » est en haut de la page. Une fois connecté, l'accueil est celui décrit ici.
+
 L'accueil est votre point de départ dans Jobbbox : une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La zone tient sur une ligne et s'agrandit avec votre texte ; Maj+Entrée passe à la ligne, Entrée envoie. Pendant que vous écrivez, « Coach IA » et « Envoyer au coach » se réduisent à « IA » et à l'icône de la touche Entrée ; deux secondes de souris sur l'un d'eux affichent son nom. La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages.
 
 Pour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.

@@ -59,17 +59,56 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     expect(document.activeElement).toBe(box);
     expect(box.getAttribute("rows")).toBe("1");
     expect(box.closest(".coach-panel-composer-inline")).toBeTruthy();
-    expect(within(thread()).getByText(/Bonjour, je suis votre coach Jobbbox/)).toBeTruthy();
+    expect(within(thread()).getByText(/Je vous pose mes questions une à une/)).toBeTruthy();
     expect(within(thread()).getByText("Répondre aux questions de mon coach")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "J'ai un CV" })).toBeNull();
 
     // A required question can't be left empty.
-    await user.click(screen.getByRole("button", { name: "Répondre" }));
+    await user.click(screen.getByRole("button", { name: "Envoyer au coach" }));
     expect(screen.getByRole("alert").textContent).not.toBe("");
 
     await user.type(box, "Marie Dupont{Enter}");
     expect(within(thread()).getByText("Marie Dupont")).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByLabelText("Votre réponse"));
+  });
+
+  it("has the coach's look of every conversation (#997): the welcome panel, the « Coach IA » badge, « Envoyer au coach »", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage />);
+    const welcome = thread().querySelector(".welcome-panel")!;
+    expect(welcome.textContent).toMatch(/Je suis un coach IA, pas une personne/);
+    // Not the help greeting of the other conversations: this page's box answers no question from the help (#997).
+    expect(welcome.textContent).not.toMatch(/Posez votre question/);
+    expect(welcome.textContent).toMatch(/Je vous aide à construire votre CV de référence/);
+    const box = screen.getByLabelText("Votre message");
+    expect(box.closest(".coach-panel-composer-inline")).toBeTruthy();
+    expect(within(conversation()).getByRole("button", { name: "Envoyer au coach" })).toBeTruthy();
+
+    await user.click(within(conversation()).getByRole("button", { name: "Le Coach IA : qui il est, ce qu'il voit" }));
+    expect(await screen.findByRole("dialog", { name: "Votre coach IA" })).toBeTruthy();
+  });
+
+  it("starts the questions from what is typed in the box, and takes « oui » typed for a yes-or-no question", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage />);
+    await user.type(screen.getByLabelText("Votre message"), "Je n'ai pas de CV à jour{Enter}");
+    expect(within(thread()).getByText("Je n'ai pas de CV à jour")).toBeTruthy();
+    for (const said of ["Marie Dupont", "Directrice financière", "Lyon", "", "", "Directrice financière", "Acme", "Lyon", "2019 - 2024", "Pilotage"]) {
+      if (said) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      else await user.click(screen.getByRole("button", { name: "Passer cette question" }));
+    }
+    await user.type(screen.getByRole("textbox", { name: "Votre réponse" }), "Non{Enter}");
+    expect(within(thread()).getAllByText("Non").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("answers what is sent at the review by sending the Candidate back to it, without AI", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage />);
+    await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+    await user.type(screen.getByLabelText("Votre message"), "Et ensuite ?{Enter}");
+    expect(within(thread()).getByText("Et ensuite ?")).toBeTruthy();
+    expect(within(thread()).getByText(/Ici, je vous aide seulement à créer ce profil/)).toBeTruthy();
   });
 
   it("reviews an empty draft in the Work Pane when starting from scratch, and keeps what was changed when the pane closes", async () => {
@@ -94,6 +133,122 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
 
     await waitFor(() => expect(screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeNull());
     expect(within(thread()).getByRole("heading", { name: "J'ai un CV" })).toBeTruthy();
+  });
+
+  describe("the Profile born at its target role and location (ADR-0106, #999)", () => {
+    type Call = { url: string; method: string; body: Record<string, unknown> };
+    let calls: Call[];
+    let created: number;
+
+    beforeEach(() => {
+      calls = [];
+      created = 201;
+      vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+        // The Sectors' and Domains' labels: none here.
+        if (url === "/api/reference-data") return new Response(null, { status: 404 });
+        calls.push({ url, method: init.method ?? "GET", body: JSON.parse(String(init.body ?? "{}")) });
+        if (url === "/api/profiles") return Response.json(created === 201 ? { id: "p1" } : { error: "plan_quota_reached", prompt: null }, { status: created });
+        if (url === "/api/profiles/p1/onboarding") return Response.json({ id: "p1", version: 2 });
+        return Response.json({ id: "p1" });
+      });
+    });
+
+    /** Answers the Questionnaire's first questions in the box, then skips each question left, to its review. */
+    async function answerUpToReview(user: ReturnType<typeof userEvent.setup>, answers: string[]) {
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      for (const said of answers) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      while (!screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })) {
+        await user.click(screen.getByRole("button", { name: "Passer cette question" }));
+      }
+    }
+
+    it("creates the Profile once the target role and location are answered, its onboarding in progress, then nothing more until the review", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      await user.type(screen.getByLabelText("Votre réponse"), "Marie Dupont{Enter}");
+      await user.type(screen.getByLabelText("Votre réponse"), "Directrice financière{Enter}");
+      expect(calls).toEqual([]);
+
+      await user.type(screen.getByLabelText("Votre réponse"), "Lyon{Enter}");
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]).toMatchObject({
+        url: "/api/profiles",
+        method: "POST",
+        body: {
+          onboarding: "in_progress",
+          searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] },
+          masterCv: { fullName: "Marie Dupont", headline: "Directrice financière", location: "Lyon", email: "" },
+        },
+      });
+
+      await user.type(screen.getByLabelText("Votre réponse"), "marie.dupont@example.fr{Enter}");
+      expect(calls).toHaveLength(1);
+
+      // Its Activity says « Profil créé » as soon as it is born, still « En cours ».
+      const activity = screen.getByRole("complementary", { name: "Activité" });
+      const row = within(activity).getByRole("button", { name: /Création du profil/ });
+      await user.click(row);
+      expect(document.getElementById(row.getAttribute("aria-controls")!)!.textContent).toMatch(/Profil créé/);
+    });
+
+    it("saves the review on the Profile born: its Search Criteria, then one Master CV Version that finishes it", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon", "marie.dupont@example.fr"]);
+      await user.click(within(reviewPane()).getByRole("button", { name: "Enregistrer mon profil" }));
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/profils/p1"));
+      expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual(["POST /api/profiles", "PATCH /api/profiles/p1", "POST /api/profiles/p1/onboarding"]);
+      expect(calls[1]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+      expect(calls[2]!.body).toMatchObject({ basedOnVersion: 1, masterCv: { fullName: "Marie Dupont", email: "marie.dupont@example.fr" } });
+    });
+
+    it("shows the Upgrade prompt in the thread when the Plan Quota refuses it, and creates nothing behind it", async () => {
+      created = 409;
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      expect(await within(thread()).findByText(/Vous avez atteint le nombre de profils/)).toBeTruthy();
+      expect(calls).toHaveLength(1);
+    });
+
+    it("creates the Profile at the review's save from scratch, its onboarding done", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+      await user.type(within(reviewPane()).getByLabelText("Nom et prénom"), "Marie Dupont");
+      await user.click(within(reviewPane()).getByRole("button", { name: "Enregistrer mon profil" }));
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]).toMatchObject({ url: "/api/profiles", method: "POST", body: { onboarding: "done" } });
+    });
+
+    it("resumes a Profile not finished at its review, filled with what is saved, and finishes it", async () => {
+      const user = userEvent.setup();
+      const resumed = {
+        id: "p1",
+        version: 1,
+        masterCv: { fullName: "Marie Dupont", headline: "Directrice financière", email: "", phone: "", location: "Lyon", summary: "", experience: [], education: [], skills: [], languages: [] },
+        searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: ["cdi" as const], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+      };
+      renderInFrench(
+        <AiActivityLiveProvider>
+          <WorkPaneProvider version="1.2.3">
+            <ProfileOnboarding resumed={resumed} />
+            <WorkPane />
+          </WorkPaneProvider>
+        </AiActivityLiveProvider>,
+      );
+      expect(within(thread()).getByText(/Reprenons la création de votre profil/)).toBeTruthy();
+      expect((within(reviewPane()).getByLabelText("Nom et prénom") as HTMLInputElement).value).toBe("Marie Dupont");
+      expect((within(reviewPane()).getByRole("checkbox", { name: "CDI" }) as HTMLInputElement).checked).toBe(true);
+
+      await user.click(within(reviewPane()).getByRole("button", { name: "Enregistrer mon profil" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/profils/p1"));
+      expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual(["PATCH /api/profiles/p1", "POST /api/profiles/p1/onboarding"]);
+      expect(calls[0]!.body).toMatchObject({ searchCriteria: { contractTypes: ["cdi"] } });
+    });
   });
 
   describe("its Activity (#810): one entry « Création du profil », as the Candidate goes", () => {

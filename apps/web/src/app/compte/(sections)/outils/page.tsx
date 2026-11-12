@@ -5,6 +5,7 @@ import { Card } from "@/design/Card";
 import { Note } from "@/design/Note";
 import { Properties, Property } from "@/design/Properties";
 import { extensionTestBuild } from "@/extension-version";
+import { hasExtensionZip } from "@/extension-version/server";
 import { getServerT } from "@/i18n/server";
 import { extensionStorePage } from "@/platform-settings/extension-store";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
@@ -44,11 +45,13 @@ export default async function AccountToolsPage() {
 
 /**
  * « Dernière version de l'extension » (#920, decided in #913): the Extension Version this deployment carries and the
- * API Version it serves, how to load this environment's zip unpacked in Chrome, and the repo's Releases where
- * extension.yml attaches the zips (private: no GitHub token on the server).
+ * API Version it serves, its zip tied to this environment, served by this server (#989: apps/web/Dockerfile builds it
+ * into the image, so no GitHub access is needed), and how to load it unpacked in Chrome. A server with no zip
+ * (outside an image) says so.
  */
-function ExtensionTestBuildSection({ t }: { t: Awaited<ReturnType<typeof getServerT>> }) {
+async function ExtensionTestBuildSection({ t }: { t: Awaited<ReturnType<typeof getServerT>> }) {
   const build = extensionTestBuild(currentRelease());
+  const available = await hasExtensionZip(build.zip);
   return (
     <section className="stack" aria-labelledby="extension-test-build-title">
       <h3 id="extension-test-build-title">{t("account.tools.testBuild.title")}</h3>
@@ -57,18 +60,20 @@ function ExtensionTestBuildSection({ t }: { t: Awaited<ReturnType<typeof getServ
         <Property term={t("account.tools.testBuild.extensionVersion")}>{build.extensionVersion}</Property>
         <Property term={t("account.tools.testBuild.apiVersion")}>{build.apiVersion}</Property>
       </Properties>
+      {available ? (
+        <div className="actions">
+          <a className={buttonClass({ variant: "secondary" })} href={build.downloadUrl} download={build.zip}>
+            {t("account.tools.testBuild.download", { zip: build.zip })}
+          </a>
+        </div>
+      ) : (
+        <Note>{t("account.tools.testBuild.unavailable", { zip: build.zip })}</Note>
+      )}
       <ol aria-label={t("account.tools.testBuild.stepsLabel")}>
         <li>{t("account.tools.testBuild.steps.download", { zip: build.zip })}</li>
         <li>{t("account.tools.testBuild.steps.developerMode")}</li>
         <li>{t("account.tools.testBuild.steps.loadUnpacked")}</li>
       </ol>
-      <p>
-        <ExternalLink href={build.releasesUrl}>
-          {t("account.tools.testBuild.releases")}
-          <span className="visually-hidden"> {t("account.tools.newTab")}</span>
-        </ExternalLink>{" "}
-        {t("account.tools.testBuild.access")}
-      </p>
     </section>
   );
 }

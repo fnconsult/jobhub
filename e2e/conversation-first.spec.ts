@@ -115,7 +115,8 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     // The home page: « Nouvelle conversation », its Introduction, the note, the Quick actions above the box.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(texts.newConversation);
     await expect(topBar(page).getByRole("button", { name: fr.coachPanel.open })).toHaveCount(0);
-    await expect(topBar(page).getByRole("button", { name: texts.clear })).toBeVisible();
+    // « Effacer » left the Top Bar for the Context bar's « Effacer la conversation » (#980).
+    await expect(topBar(page).getByRole("button", { name: texts.clear })).toHaveCount(0);
     const introduction = messages(page).first();
     await expect(introduction).toContainText(fr.coachPanel.aiDisclosure);
     await expect(introduction).toContainText(fr.app.tagline);
@@ -158,8 +159,12 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await expect(messages(page)).toHaveCount(3);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
 
-    // « Effacer »: a confirming Dialog, the focus on « Annuler », which deletes nothing.
-    await topBar(page).getByRole("button", { name: texts.clear }).click();
+    // « Effacer la conversation », a link in « Activité »'s Context bar (#980): a confirming Dialog, the focus on « Annuler »,
+    // which deletes nothing.
+    await expect(topBar(page).getByRole("button", { name: texts.clear })).toHaveCount(0);
+    await topBar(page).getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) }).click();
+    const clear = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true }).getByRole("button", { name: fr.contextBar.clear });
+    await clear.click();
     const dialog = page.getByRole("alertdialog", { name: texts.clearTitle });
     await expect(dialog).toContainText(texts.clearText);
     await expect(dialog.getByRole("button", { name: fr.designSystem.cancel })).toBeFocused();
@@ -168,7 +173,7 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await expect(messages(page)).toHaveCount(3);
 
     // Confirmed, every message of the page's conversation goes; the page is a new conversation again.
-    await topBar(page).getByRole("button", { name: texts.clear }).click();
+    await clear.click();
     await page.getByRole("alertdialog").getByRole("button", { name: texts.clear }).click();
     await expect(conversation(page).getByRole("status").filter({ hasText: texts.cleared })).toBeVisible();
     await expect(messages(page)).toHaveCount(1);

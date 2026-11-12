@@ -102,14 +102,17 @@ describe("the history of Activity (#808)", () => {
     expect(within(history).queryByRole("button", { name: "Voir dans la conversation" })).toBeNull();
   });
 
-  it("folds « Sources et outils de cette page » at its foot, each site once", async () => {
+  it("names each entry's own Provenance sites in its detail, the page's « Sources et outils » block gone (#980)", async () => {
     const user = userEvent.setup();
-    show();
-    const sources = screen.getByRole("button", { name: "Sources et outils de cette page" });
-    expect(sources.getAttribute("aria-expanded")).toBe("false");
-    await user.click(sources);
-    expect(screen.getAllByRole("button", { name: /welcometothejungle\.com/ })).toHaveLength(1);
-    expect(screen.getByText("Règles Jobbbox")).toBeTruthy();
+    const history = show();
+    expect(screen.queryByRole("button", { name: /Sources et outils/ })).toBeNull();
+    const row = within(history).getAllByRole("button")[2]!;
+    await user.click(row);
+    const detail = document.getElementById(row.getAttribute("aria-controls")!)!;
+    expect(detail.textContent).toContain("Sources :");
+    const site = within(detail).getByRole("button", { name: /welcometothejungle\.com/ });
+    await user.click(site);
+    expect(within(detail).getByRole("link", { name: /welcometothejungle\.com\/offre/ }).getAttribute("href")).toContain(encodeURIComponent("https://www.welcometothejungle.com/offre"));
   });
 
   it("unfolds the entry « Dans l'activité » asks for, each time it is asked", () => {

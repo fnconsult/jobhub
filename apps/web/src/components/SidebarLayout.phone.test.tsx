@@ -82,7 +82,7 @@ describe("an object's page on a phone (#608, ADR-0070)", () => {
     renderInFrench(<ApplicationPage />);
     await user.click(ficheButton());
 
-    await user.click(within(screen.getByRole("complementary", { name: "Fiche" })).getByRole("button", { name: "Fermer" }));
+    await user.click(within(screen.getByRole("complementary", { name: "Fiche" })).getByRole("button", { name: "Fermer le volet" }));
 
     expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
     expect(screen.getByRole("main").closest("[inert]")).toBeNull();
@@ -110,7 +110,7 @@ describe("an object's page on a phone (#608, ADR-0070)", () => {
     expect(document.activeElement).toBe(within(column).getByRole("heading", { level: 2, name: "Activité" }));
     expect(screen.getByRole("main").closest("[inert]")).not.toBeNull();
 
-    await user.click(within(column).getByRole("button", { name: "Fermer" }));
+    await user.click(within(column).getByRole("button", { name: "Fermer le volet" }));
 
     expect(screen.queryByRole("complementary", { name: "Activité" })).toBeNull();
     expect(document.activeElement).toBe(activityButton());
@@ -121,14 +121,14 @@ describe("an object's page on a phone (#608, ADR-0070)", () => {
     renderInFrench(<ApplicationPage />);
 
     await user.click(activityButton());
-    const fiche = screen.getByRole("complementary", { name: "Fiche" });
-    expect(within(fiche).getByRole("button", { name: "Activité" }).getAttribute("aria-expanded")).toBe("true");
-    expect(within(fiche).getByRole("button", { name: "Fermer" })).toBeTruthy();
+    const panel = screen.getByRole("complementary", { name: "Activité" });
+    expect(document.activeElement).toBe(within(panel).getByRole("heading", { level: 2, name: "Activité" }));
+    expect(within(panel).getByRole("button", { name: "Fermer le volet" })).toBeTruthy();
     expect(screen.getByRole("main").closest("[inert]")).not.toBeNull();
 
     await user.keyboard("{Escape}");
 
-    expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
+    expect(screen.queryByRole("complementary")).toBeNull();
     expect(document.activeElement).toBe(activityButton());
   });
 

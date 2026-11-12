@@ -75,7 +75,7 @@ const HELP = "help" as const;
  * Conversation. Its Activity groups it in one entry, « Création du profil » (#810): the page tells AI Activity the CV read,
  * the Questionnaire's answers and the review as the Candidate goes, and the Profile once saved.
  *
- * The Profile is born as soon as the Questionnaire's target role and location are answered (ADR-0105, #999): created with
+ * The Profile is born as soon as the Questionnaire's target role and location are answered (ADR-0106, #999): created with
  * its onboarding in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the
  * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
  * review. From a CV or from scratch, the Profile is still created at the review's save (#1003 changes it).

@@ -116,7 +116,7 @@ export interface CreationGiven {
   href?: string;
   reading?: { provenance: Provenance | null };
   questionnaire?: { at: string; answered: number; skipped: number };
-  /** The Profile born during the questionnaire, once its target role and location were answered (ADR-0105, #999): its Version 1. */
+  /** The Profile born during the questionnaire, once its target role and location were answered (ADR-0106, #999): its Version 1. */
   created?: { at: string; href: string };
   review?: { at: string };
 }

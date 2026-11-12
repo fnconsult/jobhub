@@ -24,14 +24,15 @@ export interface Step {
  * prefers-reduced-motion. The vertical counterpart of the AI Coach's steps (`.coach-panel-steps`), which are not known
  * in advance.
  */
-export function Stepper({ steps, label, className }: { steps: readonly Step[]; label?: string; className?: string }) {
+/** `still`: the pulse stands still, whatever the device asks (the page asked for less motion itself). */
+export function Stepper({ steps, label, className, still = false }: { steps: readonly Step[]; label?: string; className?: string; still?: boolean }) {
   const { t } = useTranslation();
   return (
     <ol className={["ds-stepper", className].filter(Boolean).join(" ")} aria-label={label}>
       {steps.map((step) => (
         <li key={step.id} className="ds-stepper__step" data-status={step.status} aria-current={step.status === "current" ? "step" : undefined}>
           <span className="ds-stepper__marker" aria-hidden>
-            {step.status === "done" ? <Icons.done /> : step.status === "current" ? <span className="ds-stepper__pulse" /> : null}
+            {step.status === "done" ? <Icons.done /> : step.status === "current" ? <StepPulse still={still} /> : null}
           </span>
           <div>
             <p className="ds-stepper__title">
@@ -44,6 +45,11 @@ export function Stepper({ steps, label, className }: { steps: readonly Step[]; l
       ))}
     </ol>
   );
+}
+
+/** The pulsing dot of a step under way, alone (a compact line saying which step is under way, #1001). Decoration only. */
+export function StepPulse({ still = false }: { still?: boolean }) {
+  return <span className="ds-stepper__pulse" data-still={still || undefined} aria-hidden />;
 }
 
 /** The step under way, with its place (from 1), or null when none is. */

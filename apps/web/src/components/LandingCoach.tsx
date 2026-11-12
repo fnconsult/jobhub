@@ -12,6 +12,8 @@ import "./Landing.css";
 
 const STEPS = ["request", "profile", "sessions", "earnings"] as const;
 const QUESTIONS = ["who", "price", "paid", "reviews", "where"] as const;
+/** « Étape n sur 4 »: the same labels as the Candidate's four steps, by position. */
+const STEP_LABELS = ["cv", "offers", "application", "followUp"] as const;
 type CoachNav = "today" | "candidates" | "sessions" | "availability" | "profile" | "earnings" | "contract";
 const EARNING_LINES = ["held", "collected", "commission"] as const;
 const NAV: readonly CoachNav[] = ["today", "candidates", "sessions", "availability", "profile", "earnings", "contract"];
@@ -225,7 +227,7 @@ export async function LandingCoach() {
         <LandingStory
           steps={STEPS.map((step, index) => ({
             id: step,
-            label: t("landing.method.step", { step: index + 1, count: STEPS.length }),
+            label: t(`landing.method.steps.${STEP_LABELS[index]!}.label`),
             title: t(`landing.coachPath.method.steps.${step}.title`),
             text: t(`landing.coachPath.method.steps.${step}.text`),
             screen: screens[step],

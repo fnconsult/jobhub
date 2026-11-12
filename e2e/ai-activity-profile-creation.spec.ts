@@ -34,7 +34,7 @@ async function reply(page: Page, question: string, value: string | "skip") {
   if (value === "skip") await page.getByRole("button", { name: fr.questionnaire.skip }).click();
   else {
     await page.getByLabel(fr.questionnaire.answerLabel).fill(value);
-    await page.getByRole("button", { name: fr.questionnaire.send, exact: true }).click();
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
   }
 }
 const partKinds = (parts: Locator) => parts.evaluateAll((items) => items.map((item) => (item as HTMLElement).dataset.kind));

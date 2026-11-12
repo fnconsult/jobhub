@@ -1001,13 +1001,14 @@
     "withoutCvIntro": "My questions are about your career, one at a time. You can skip the ones that don't apply to you. It takes about ten minutes.",
     "startQuestionnaire": "Answer my coach's questions",
     "conversation": "Creating a profile with your coach",
-    "openReview": "Review and save"
+    "openReview": "Review and save",
+    "questionsStart": "Fine. I'll ask my questions one at a time; answer in your own words, you can read it all again and correct it at the end.",
+    "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page."
   },
   "questionnaire": {
     "transcript": "Your conversation with the coach",
     "coach": "Your coach",
     "you": "You",
-    "welcome": "Hello, I'm your Jobbbox coach. I'm going to ask you a few questions to build your reference CV. Answer in your own words: you can read it all again and correct it at the end.",
     "questions": {
       "fullName": "To start with, what is your full name?",
       "targetRole": "Which position are you looking for? For example: \"Chief Financial Officer\".",
@@ -1030,7 +1031,6 @@
     },
     "answerLabel": "Your answer",
     "answerHint": "You can skip this question.",
-    "send": "Answer",
     "skip": "Skip this question",
     "skipped": "(question skipped)",
     "yes": "Yes",

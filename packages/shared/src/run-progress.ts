@@ -70,3 +70,47 @@ export function readRunProgress(stored: unknown): ProvenanceEvent[] {
   if (!Array.isArray(stored)) return [];
   return stored.flatMap((event) => readProvenanceEvent(event) ?? []);
 }
+
+/** Writes the newest value it is given, one write at a time (#1001): a run's live metrics. */
+export interface LatestWrite<T> {
+  /** Takes the newest value: written now, or once the write on its way is done. Never throws. */
+  set(value: T): void;
+  /** The newest value taken, or null. */
+  latest(): T | null;
+  /** Resolves once the newest value taken is written (or its write failed). */
+  flush(): Promise<void>;
+}
+
+/**
+ * Coalesces the values written on a row while a run goes on, as `createRunProgress` its events: what comes while a write
+ * is on its way is written once after it, the newest only. A write that fails is skipped; the run never stops for it.
+ */
+export function createLatestWrite<T>(write: (value: T) => Promise<void>): LatestWrite<T> {
+  let newest: { value: T } | null = null;
+  let writing: Promise<void> | null = null;
+  let dirty = false;
+
+  function writeNow(value: T) {
+    dirty = false;
+    writing = write(value)
+      .catch((error: unknown) => {
+        console.warn("[run-progress] could not write a run's live value:", error instanceof Error ? error.message : error);
+      })
+      .then(() => {
+        writing = null;
+        if (dirty && newest) writeNow(newest.value);
+      });
+  }
+
+  return {
+    set(value) {
+      newest = { value };
+      if (writing) dirty = true;
+      else writeNow(value);
+    },
+    latest: () => newest?.value ?? null,
+    async flush() {
+      while (writing) await writing;
+    },
+  };
+}

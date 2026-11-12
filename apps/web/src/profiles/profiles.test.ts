@@ -687,7 +687,7 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
     });
   });
 
-  describe("born during its onboarding (ADR-0105, #999)", () => {
+  describe("born during its onboarding (ADR-0106, #999)", () => {
     /** What the Questionnaire knows once the target role and location are answered: the name, the role, the place. */
     const partial: MasterCvContent = { ...masterCv, email: "", phone: "", summary: "", experience: [], education: [], skills: [], languages: [] };
 

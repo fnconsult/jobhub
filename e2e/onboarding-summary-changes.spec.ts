@@ -5,7 +5,7 @@ import { newAddress } from "./support/mailbox";
 import { openActivity, unfoldedEntryOf } from "./support/conversation";
 import { onboardingSummary } from "./support/onboarding-summary";
 
-// Issue #1005 (ADR-0105, ADR-0077): « Modifier » on the onboarding's summary lets the Candidate rewrite it in their own
+// Issue #1005 (ADR-0106, ADR-0077): « Modifier » on the onboarding's summary lets the Candidate rewrite it in their own
 // words; the AI translates the rewriting into Search Criteria changes, shown for validation (« J'ai compris : + CDD,
 // − Lyon, + Paris (75) ») and made once validated; the summary is composed again and asked again. « Annuler » changes
 // nothing; an answer the AI could not give says so and leaves the summary as it was. The AI is faked inside the server
@@ -38,7 +38,7 @@ async function toSummary(page: Page, who: string) {
   await reply(page, q.targetRole, "Directrice financière");
   await reply(page, q.location, "Lyon");
   for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
-  await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+  await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
 }
 
 const summaryText = (page: Page) => onboardingSummary(page).locator(".onb-summary");
@@ -62,19 +62,19 @@ test.describe("« Modifier » on the onboarding summary (#1005)", () => {
     await onboardingSummary(page).getByRole("button", { name: texts.edit, exact: true }).click();
     await expect(onboardingSummary(page).getByText(texts.editing, { exact: true })).toBeVisible();
     await expect(onboardingSummary(page).getByText(texts.editHint)).toBeVisible();
-    await expect(textBox(page)).toHaveValue("Vous recherchez un poste de Directrice financière à Lyon.");
+    await expect(textBox(page)).toHaveValue("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
     await expect(textBox(page)).toBeFocused();
     // « Annuler »: nothing changes.
     await textBox(page).fill("Je cherche en CDD à Paris.");
     await onboardingSummary(page).getByRole("button", { name: texts.cancel, exact: true }).click();
-    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
 
     await rewrite(page, "Je cherche un poste de Directrice financière en CDD, à Paris plutôt qu'à Lyon.");
     await expect(onboardingSummary(page)).toContainText("J'ai compris : + CDD, − Lyon, + Paris (75)");
     // Nothing changed until validated.
-    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
     await onboardingSummary(page).getByRole("button", { name: texts.validate }).click();
-    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière en CDD à Paris (75).");
+    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière en CDD ; lieu : Paris (75).");
     await expect(onboardingSummary(page)).toContainText(texts.notices.applied);
 
     // « Création du profil » shows the step, with its model and tokens.
@@ -100,14 +100,14 @@ test.describe("« Modifier » on the onboarding summary (#1005)", () => {
 
     await rewrite(page, "Je cherche autre chose. E2E_SUMMARY_GARBLED");
     await expect(onboardingSummary(page)).toContainText(texts.notices.unusable);
-    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
 
     await rewrite(page, "Je cherche en CDD à Paris. E2E_AI_DOWN");
     await expect(onboardingSummary(page)).toContainText(texts.notices.unusable);
-    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
 
-    await rewrite(page, "Vous recherchez un poste de Directrice financière à Lyon. Je maîtrise SAP.");
+    await rewrite(page, "Vous recherchez un poste de Directrice financière ; lieu : Lyon. Je maîtrise SAP.");
     await expect(onboardingSummary(page)).toContainText(texts.notices.other);
-    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière à Lyon.");
+    await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
   });
 });

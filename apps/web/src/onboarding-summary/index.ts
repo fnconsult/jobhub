@@ -1,10 +1,11 @@
 /**
- * « Modifier » on the onboarding's summary (#1005, ADR-0105): the Candidate rewrites, in their own words, the summary
+ * « Modifier » on the onboarding's summary (#1005, ADR-0106): the Candidate rewrites, in their own words, the summary
  * Jobbbox composed from their Search Criteria; the AI Coach translates the rewriting into changes of those criteria, with
  * the schema and the validation of `propose_search_criteria` (ADR-0077: places through Place suggestion, codes for
  * Sectors and Domains), for the Candidate to validate before anything changes. Its instructions and the AI running it are
- * the "onboarding-summary-changes" task Playbook's (ADR-0026), on the `coaching` task; the JSON shape, the values each
- * criterion takes and the rule that the rewriting is data stay here. What is not a Search Criterion (a skill, a job held)
+ * the "onboarding-summary-changes" task Playbook's (ADR-0026), on the `onboarding_interview` task: the Profile's
+ * creation, routed where a CV is read (in the EU, like `cv_parsing`), not `coaching`, which goes outside the EU by
+ * default. The JSON shape, the values each criterion takes and the rule that the rewriting is data stay here. What is not a Search Criterion (a skill, a job held)
  * is only flagged (`other`): the card sends it to « Voir le détail ».
  *
  * Nothing is saved here, and the rewriting is kept nowhere: it goes to the AI provider for this call only. No Plan
@@ -109,7 +110,7 @@ export async function summaryChanges(input: z.output<typeof summaryChangesInput>
     recorder = createProvenanceRecorder(layer, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
     const run = await taskRun(deps.taskPlaybooks, "onboarding-summary-changes", layer);
     ({ text: reply } = await recorder.ai.generate({
-      task: "coaching",
+      task: "onboarding_interview",
       candidateId: deps.candidateId,
       system: `${run.text()}\n${SHAPE}`,
       prompt: `Critères actuels :\n${JSON.stringify(current)}\n\nRésumé :\n${input.summaryText}\n\nRéécriture :\n${input.rewritten}`,

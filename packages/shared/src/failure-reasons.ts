@@ -60,6 +60,8 @@ export const FAILURE_REASONS = [
   "company_news_unavailable",
   /** The AI reading of a CV gave nothing usable: the CV is read by rules. */
   "cv_reading_fallback",
+  /** The AI Coach's onboarding interview gave nothing usable: the scripted questions take over (#1002). */
+  "onboarding_interview_fallback",
   /** The AI Coach's Tailored CV reply was refused: no Tailored CV proposed from it. */
   "tailored_cv_refused",
   /** The AI could not turn a rewriting of the onboarding summary into Search Criteria changes (#1005): the summary stays as it was. */
@@ -131,6 +133,7 @@ export const AI_CALL_WARNINGS: readonly FailureReason[] = [
   "job_titles_unavailable",
   "company_news_unavailable",
   "cv_reading_fallback",
+  "onboarding_interview_fallback",
   "tailored_cv_refused",
   "summary_changes_unusable",
   "match_score_text_unread",

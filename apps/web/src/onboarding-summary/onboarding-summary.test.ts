@@ -15,7 +15,7 @@ const places: PlaceSuggestions = {
 
 const INPUT: SummaryChangesInput = {
   criteria: { targetRole: "Contrôleur de gestion", locations: ["Lyon (69)"], contractTypes: ["cdi"] },
-  summaryText: "Vous recherchez un poste de Contrôleur de gestion en CDI à Lyon (69).",
+  summaryText: "Vous recherchez un poste de Contrôleur de gestion en CDI ; lieu : Lyon (69).",
   rewritten: "Je cherche un poste de Contrôleur de gestion en CDI ou en CDD, à Paris plutôt qu'à Lyon.",
 };
 
@@ -25,7 +25,7 @@ const UNDERSTOOD = JSON.stringify({ changements: { contractTypes: ["cdi", "cdd"]
 function layer(reply: string | Error) {
   const usage = createMemoryUsageLog();
   const provider = createFakeProvider(typeof reply === "string" ? { reply } : { fail: reply });
-  const ai = createAiLayer({ providers: [provider], routes: { coaching: "anthropic" }, usage });
+  const ai = createAiLayer({ providers: [provider], routes: { onboarding_interview: "anthropic" }, usage });
   return { ai: () => ai, provider, usage };
 }
 
@@ -44,7 +44,7 @@ describe("« Modifier » on the onboarding summary: the rewriting translated int
     expect(result).toMatchObject({ ok: true, changed: ["locations", "contractTypes"], other: false });
     if (!result.ok) throw new Error("not understood");
     expect(result.searchCriteria).toMatchObject({ targetRole: "Contrôleur de gestion", locations: ["Paris (75)"], contractTypes: ["cdi", "cdd"] });
-    expect(result.provenance.steps).toEqual([expect.objectContaining({ kind: "ai", task: "coaching" })]);
+    expect(result.provenance.steps).toEqual([expect.objectContaining({ kind: "ai", task: "onboarding_interview" })]);
     expect(result.provenance.sites).toEqual([{ kind: "candidate", links: [] }]);
   });
 
@@ -83,7 +83,7 @@ describe("« Modifier » on the onboarding summary: the rewriting translated int
     const { result, usage } = await run("Vous voulez un CDD à Paris.");
     expect(result).toMatchObject({ ok: false, error: "unusable" });
     expect(usage.entries).toEqual([
-      expect.objectContaining({ task: "coaching", outcome: "warning", reason: "summary_changes_unusable", warnings: expect.arrayContaining([{ reason: "summary_changes_unusable", detail: "the reply is not the JSON of Search Criteria changes" }]) }),
+      expect.objectContaining({ task: "onboarding_interview", outcome: "warning", reason: "summary_changes_unusable", warnings: expect.arrayContaining([{ reason: "summary_changes_unusable", detail: "the reply is not the JSON of Search Criteria changes" }]) }),
     ]);
 
     // Arguments the schema of `propose_search_criteria` refuses: a contract type it does not know.

@@ -8,7 +8,7 @@
  *    `get` one; edit the Master CV (`saveMasterCv`, each change a new version),
  *    list its versions and restore one (`restoreMasterCv`); change the Search
  *    Criteria of an active Profile (`changeSearchCriteria`). Every read and change is scoped to the Candidate.
- *    A Profile created during its onboarding (ADR-0105, #999) is born as soon as its target role and a location are
+ *    A Profile created during its onboarding (ADR-0106, #999) is born as soon as its target role and a location are
  *    validated (`create` with `onboarding: "in_progress"`), is completed as the answers are validated, and is finished by
  *    one Master CV Version (`finishOnboarding`); until then it is named after its target role.
  *    From a Coach proposal the Candidate applies (#719, ADR-0077), a Master CV Version and the Search Criteria keep
@@ -55,14 +55,14 @@ export interface Profile {
   /** The Search Criteria came from a Coach proposal the Candidate applied (#719); absent once changed on the page. */
   searchCriteriaOrigin?: Origin;
   /**
-   * Created during its onboarding on `/profils/nouveau` (ADR-0105, #999): « in_progress » while the Candidate has not
+   * Created during its onboarding on `/profils/nouveau` (ADR-0106, #999): « in_progress » while the Candidate has not
    * finished it (« Création à terminer »), « done » once they have. Absent for a Profile created otherwise (the extension,
    * a duplicate) or before #999.
    */
   onboarding?: ProfileOnboarding;
 }
 
-/** Where a Profile's onboarding stands (ADR-0105, #999). */
+/** Where a Profile's onboarding stands (ADR-0106, #999). */
 export type ProfileOnboarding = "in_progress" | "done";
 
 export interface ProfileSummary {
@@ -159,7 +159,7 @@ export interface Profiles {
    * Saves a reviewed CV draft as a new Profile. `input` is untrusted (it comes from the browser): { masterCv, searchCriteria,
    * provenance? }, `provenance` the draft's when the AI Coach read it from a file, kept with version 1 only when it is a CV
    * reading's (one `cv_parsing` step) this version can read. `extension`: saved from the browser extension, which writes
-   * its Extension Event `profile_created` in the same transaction (#924). From `/profils/nouveau` (ADR-0105, #999),
+   * its Extension Event `profile_created` in the same transaction (#924). From `/profils/nouveau` (ADR-0106, #999),
    * `onboarding`: "in_progress" when the Profile is born during the onboarding (its target role and a location validated,
    * finished later by `finishOnboarding`), "done" when it is created at its end.
    */
@@ -194,7 +194,7 @@ export interface Profiles {
    */
   saveMasterCv(candidateId: string, profileId: string, input: unknown, options?: SaveMasterCvOptions): Promise<SaveMasterCvResult | null>;
   /**
-   * Finishes the onboarding of a Profile born during it (ADR-0105, #999): saves the Master CV the Candidate reviewed as its
+   * Finishes the onboarding of a Profile born during it (ADR-0106, #999): saves the Master CV the Candidate reviewed as its
    * next version (one for the whole onboarding; none when unchanged) and marks the onboarding done. `input` is untrusted:
    * `{ basedOnVersion, masterCv }`. Refused while archived, and once finished.
    */
@@ -727,7 +727,7 @@ export async function migrateProfiles(database: Pool): Promise<void> {
     -- From a Coach proposal the Candidate applied (#719, ADR-0077): the Origin of a Master CV Version, and of the Search Criteria.
     ALTER TABLE master_cv_version ADD COLUMN IF NOT EXISTS origin jsonb;
     ALTER TABLE profile ADD COLUMN IF NOT EXISTS search_criteria_origin jsonb;
-    -- Where its onboarding stands (ADR-0105, #999): 'in_progress' for a Profile born during it and not finished, 'done'
+    -- Where its onboarding stands (ADR-0106, #999): 'in_progress' for a Profile born during it and not finished, 'done'
     -- once finished; null for a Profile created otherwise (the extension, a duplicate) or before.
     ALTER TABLE profile ADD COLUMN IF NOT EXISTS onboarding text;
   `);

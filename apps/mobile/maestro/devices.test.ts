@@ -64,14 +64,17 @@ describe("the devices the Maestro flows run on (#705)", () => {
   });
 
   describe("speaks French once booted, as the flows read the app's French labels", () => {
-    it("sets an iOS simulator's language and region, then boots it again to take them", () => {
+    it("sets an iOS simulator's language and region, then boots it again to take them, unless it booted in French", () => {
       expect(SIMULATOR).toBe("maestro");
       expect(bootSetup("ipad")).toEqual([
-        ["xcrun", "simctl", "spawn", "maestro", "defaults", "write", "-g", "AppleLanguages", "-array", "fr-FR"],
-        ["xcrun", "simctl", "spawn", "maestro", "defaults", "write", "-g", "AppleLocale", "-string", "fr_FR"],
-        ["xcrun", "simctl", "shutdown", "maestro"],
-        ["xcrun", "simctl", "boot", "maestro"],
-        ["xcrun", "simctl", "bootstatus", "maestro", "-b"],
+        [
+          "sh",
+          "-c",
+          'if [ "$(xcrun simctl spawn maestro defaults read -g AppleLocale 2>/dev/null)" = fr_FR ] && xcrun simctl spawn maestro defaults read -g AppleLanguages 2>/dev/null | grep -q fr-FR; then exit 0; fi; ' +
+            "xcrun simctl spawn maestro defaults write -g AppleLanguages -array fr-FR && " +
+            "xcrun simctl spawn maestro defaults write -g AppleLocale -string fr_FR && " +
+            "xcrun simctl shutdown maestro && xcrun simctl boot maestro && xcrun simctl bootstatus maestro -b",
+        ],
       ]);
     });
 
@@ -82,7 +85,7 @@ describe("the devices the Maestro flows run on (#705)", () => {
         ["adb", "shell", "setprop", "persist.sys.locale", "fr-FR"],
         ["adb", "shell", "setprop", "ctl.restart", "zygote"],
         ["adb", "wait-for-device"],
-        ["adb", "shell", "while [ \"$(getprop sys.boot_completed)\" != 1 ]; do sleep 1; done; sleep 5"],
+        ["adb", "shell", 'n=0; until [ "$(getprop sys.boot_completed)" = 1 ] && cmd uimode night >/dev/null 2>&1 && wm size >/dev/null 2>&1; do n=$((n + 1)); [ "$n" -gt 180 ] && exit 1; sleep 1; done; sleep 5'],
       ]);
     });
   });

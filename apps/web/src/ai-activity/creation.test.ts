@@ -47,6 +47,15 @@ describe("what the browser knows of a Profile's creation (#810), never kept", ()
     ).toEqual({ summaryChanges: { at: at("10:40"), provenance: { ...first, sites: [...first.sites, ...second.sites], wallMs: 2_000 } } });
   });
 
+  it("knows the AI Coach's interview (#1002): its answers and its turns' Provenance so far, from when it started", () => {
+    expect(
+      replay([
+        [{ type: "interviewed", answered: 0, skipped: 0, provenance: null }, at("10:31")],
+        [{ type: "interviewed", answered: 2, skipped: 1, provenance: reading }, at("10:34")],
+      ]),
+    ).toEqual({ interview: { at: at("10:31"), answered: 2, skipped: 1, provenance: reading } });
+  });
+
   it("counts the questionnaire's answers given and skipped, from when it started", () => {
     expect(
       replay([

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProvenanceEvent, ProvenanceStep } from "./provenance";
-import { createRunProgress, MAX_PROGRESS_EVENTS, readRunProgress } from "./run-progress";
+import { createLatestWrite, createRunProgress, MAX_PROGRESS_EVENTS, readRunProgress } from "./run-progress";
 
 const started = (id: number): ProvenanceEvent => ({ type: "step_started", id, step: { kind: "tool", activity: "search", tool: "france-travail", at: "2026-10-23T10:00:00.000Z" } });
 const endedStep: ProvenanceStep = { kind: "tool", activity: "search", tool: "france-travail", ms: 640, at: "2026-10-23T10:00:00.000Z", outcome: "ok", count: 1 };
@@ -103,5 +103,48 @@ describe("a run's progress read from its row (#330)", () => {
     expect(readRunProgress({ events: [] })).toEqual([]);
     const namingSomeone = { ...ended(2), step: { ...endedStep, candidateId: "4b1c2d3e-0000-4000-8000-000000000000" } };
     expect(readRunProgress([ended(1), namingSomeone, { type: "done" }, "text"])).toEqual([ended(1)]);
+  });
+});
+
+describe("a run's live value, written as it changes (#1001)", () => {
+  it("writes the first value at once, then only the newest of those that came while a write was on its way", async () => {
+    const written: number[] = [];
+    const pending: (() => void)[] = [];
+    const live = createLatestWrite<number>(
+      (value) =>
+        new Promise<void>((resolve) => {
+          written.push(value);
+          pending.push(resolve);
+        }),
+    );
+
+    live.set(1);
+    live.set(2);
+    live.set(3);
+    expect(written).toEqual([1]);
+    pending.shift()?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(written).toEqual([1, 3]);
+    pending.shift()?.();
+    await live.flush();
+    expect(live.latest()).toBe(3);
+  });
+
+  it("goes on after a write that failed", async () => {
+    const written: number[] = [];
+    let fail = true;
+    const live = createLatestWrite<number>(async (value) => {
+      if (fail) {
+        fail = false;
+        throw new Error("database down");
+      }
+      written.push(value);
+    });
+
+    live.set(1);
+    await live.flush();
+    live.set(2);
+    await live.flush();
+    expect(written).toEqual([2]);
   });
 });

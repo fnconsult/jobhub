@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
-import { ficheOf } from "./support/conversation";
+import { ficheOf, openPanelView } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 import { exitHref } from "./support/exit-page";
@@ -20,6 +20,16 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 
 /** The link to one of an Application's Sections (ADR-0024), in its Fiche (#603): the Section opens in the Work Pane. */
 const sectionLink = (page: Page, name: string) => ficheOf(page).getByRole("link", { name, exact: true });
+/**
+ * The Application's Section « L'offre » in the Work Pane, which the side panel's « L'offre » view links to since #980: opened
+ * at its address, so the panel is back on the Fiche, as the page loads.
+ */
+async function openOfferSection(page: Page) {
+  const offer = await openPanelView(page, fr.fiche.views.offer);
+  const link = offer.getByRole("link", { name: fr.fiche.openOffer, exact: true });
+  await expect(link).toHaveAttribute("href", /\/candidatures\/[0-9a-f-]+\/offre$/);
+  await page.goto((await link.getAttribute("href"))!);
+}
 /** The Application's status and Profile, changed in place on its Fiche (#603). */
 const statusOf = (page: Page) => ficheOf(page).getByLabel(fr.application.statusLabel);
 /** Mes candidatures' list, a card in its conversation (#604). */
@@ -99,7 +109,7 @@ test.describe("Applications", () => {
     await expect(statusOf(page)).toHaveValue("to_apply");
     await expect(ficheOf(page).getByLabel(fr.application.profileLabel)).toHaveValue(consultantId);
     // Each in a Section of its own (ADR-0024).
-    await sectionLink(page, fr.application.sections.offre).click();
+    await openOfferSection(page);
     await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]{36}\/offre$/);
     const offer = page.getByRole("region", { name: fr.jobOffer.contentTitle });
     await expect(offer.getByRole("heading", { name: "Vos missions :" })).toBeVisible();

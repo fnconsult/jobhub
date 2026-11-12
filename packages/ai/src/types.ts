@@ -35,6 +35,11 @@ export const TEXT_TASKS = {
   eval: { personalData: false },
   /** Reading an uploaded CV into a structured Master CV: reads CVs. */
   cv_parsing: { personalData: true },
+  /**
+   * The onboarding interview the AI Coach leads without a CV (#1002, ADR-0106): the Candidate's answers so far and the
+   * draft they made. Routed like cv_parsing unless set: where a CV is read.
+   */
+  onboarding_interview: { personalData: true },
   /** Extracting structured fields from a Job Offer: public posting text only. */
   offer_analysis: { personalData: false },
   /** Job title variants for a Job Search's queries: given the Search Criteria title alone. */

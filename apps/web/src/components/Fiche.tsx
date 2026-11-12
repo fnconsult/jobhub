@@ -1,5 +1,6 @@
 "use client";
 
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -13,6 +14,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type ComponentType,
   type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
@@ -32,70 +34,72 @@ import { buttonClass } from "@/design/button-class";
 import { clampFicheWidth, FICHE_MIN_REM, ficheMaxWidth, ficheWidthFromKey, readFicheWidth, setFicheWidthProperty, writeFicheWidth } from "@/design/fiche-width";
 import { SIDEBAR_CLOSED } from "@/design/sidebar-state";
 
-/** A Section or a Result the Fiche lists: its own address, which opens it in the Work Pane. */
+/** A Section or a Result the panel lists: its own address, which opens it in the Work Pane. */
 export type FicheLink = { href: string; label: string; detail?: string };
 
 /**
- * What an object's Fiche shows (ADR-0070), from its page: the object's `card` (its properties, changed in place), then
- * its `sections` and its `results`, each opened in the Work Pane at its address.
+ * What an object's side panel shows (ADR-0070, #980), from its page: the object's `card` (its properties, changed in place)
+ * and its `sections`, in its « Fiche » view; its `results`, in their own view (« Documents », or « Offres trouvées » for a
+ * Job Search or a Job Digest, `resultsLabel`) and, the latest three, in « Activité »; and `offer`, an Application's Job
+ * Offer, in « L'offre ». Each Section or Result opens in the Work Pane at its address.
  */
-export type FicheContent = { card: ReactNode; sections: readonly FicheLink[]; results: readonly FicheLink[] };
+export type FicheContent = {
+  card: ReactNode;
+  sections: readonly FicheLink[];
+  results: readonly FicheLink[];
+  offer?: ReactNode;
+  resultsLabel?: "documents" | "offers";
+};
 
-/** The Fiche's groups, each folded or not. */
-export type FicheGroup = "sections" | "activity" | "results";
+/**
+ * The side panel's views (#980), one per icon of the Top Bar, in this order: Activity (ADR-0086), the object's Fiche, its
+ * Job Offer and its Results. A page offers those it has: the home page and the menus, Activity alone.
+ */
+export const PANEL_VIEWS = ["activity", "fiche", "offer", "results"] as const;
+export type PanelView = (typeof PANEL_VIEWS)[number];
 
-/** Whether the Fiche is open, and which of its groups are folded. */
-export type FicheState = { open: boolean; folded: ReadonlySet<FicheGroup> };
+/** The panel's view, or null while it is closed. */
+export type FicheState = { view: PanelView | null };
 
-/** « Fiche » opens it, or closes it. */
-export const toggleFiche = (state: FicheState): FicheState => ({ ...state, open: !state.open });
+/** A view's icon: its button in the Top Bar shows it on that view, or closes it when it shows it already. */
+export const toggleView = (state: FicheState, view: PanelView): FicheState => ({ view: state.view === view ? null : view });
 
-/** Its Activity group is shown: the Fiche is open, the group unfolded. « Activité » in the Top Bar says so. */
-export const activityShown = (state: FicheState) => state.open && !state.folded.has("activity");
-
-/** Folds `group`, or unfolds it. */
-export function toggleGroup(state: FicheState, group: FicheGroup): FicheState {
-  const folded = new Set(state.folded);
-  if (!folded.delete(group)) folded.add(group);
-  return { ...state, folded };
+/** The views a page offers: Activity alone without an object; an object's Fiche and Results, and an Application's offer. */
+export function panelViews(content: FicheContent | null): PanelView[] {
+  if (!content) return ["activity"];
+  return PANEL_VIEWS.filter((view) => view !== "offer" || content.offer !== undefined);
 }
 
-/** « Activité » folds the Activity group when it is shown; otherwise opens the Fiche on it, unfolded. */
-export function toggleActivity(state: FicheState): FicheState {
-  if (activityShown(state)) return toggleGroup(state, "activity");
-  const folded = new Set(state.folded);
-  folded.delete("activity");
-  return { open: true, folded };
-}
-
-/** Wide enough for the Fiche beside the conversation: it starts open there (below, it would cover the page). */
+/** Wide enough for the panel beside the conversation: it starts open there (below, it would cover the page). */
 const WIDE = "(width >= 64rem)";
 /**
- * Wide enough for the Fiche and the Work Pane beside the conversation, the Sidebar open: the Sidebar (16rem), the Fiche
+ * Wide enough for the panel and the Work Pane beside the conversation, the Sidebar open: the Sidebar (16rem), the panel
  * (20rem), the Work Pane (32vw, 20 to 32rem) and their gutters leave the conversation 0.68 × the screen − 40rem, which
  * under 28rem no longer reads (its box and suggestions cut, its words wrapping letter by letter).
  */
 const ROOM_FOR_BOTH = "(width >= 100rem)";
 /** The same, the Sidebar hidden: 0.68 × the screen − 24rem. */
 const ROOM_FOR_BOTH_SIDEBAR_HIDDEN = "(width >= 76.5rem)";
-const UNFOLDED: ReadonlySet<FicheGroup> = new Set();
 /** The page's `<main>` (SidebarShell): the focus goes there when what opened a column is gone. */
 const MAIN_ID = "main";
-const SECTIONS: FicheGroup = "sections";
-const ACTIVITY: FicheGroup = "activity";
-const RESULTS: FicheGroup = "results";
+/** Alt+Shift and a view's letter, read by the key's place (`code`): the same on a Mac and in AZERTY. */
+const SHORTCUTS: Record<string, PanelView> = { KeyA: "activity", KeyF: "fiche", KeyO: "offer", KeyD: "results" };
+/** « … »'s menu, under it, at its right edge. */
+const MENU_ALIGN = "end";
+/** How many Results « Activité » lists before « Tout voir ». */
+const LATEST_RESULTS = 3;
 
-/** Calls `onChange` when the screen crosses 64rem: below it, the columns open over the conversation, full screen (#608). */
+/** Calls `onChange` when the screen crosses 64rem: below it, the panel opens over the conversation, full screen (#608). */
 function onWideChange(onChange: () => void) {
   const query = typeof window.matchMedia === "function" ? window.matchMedia(WIDE) : null;
   query?.addEventListener?.("change", onChange);
   return () => query?.removeEventListener?.("change", onChange);
 }
-/** Whether the screen is wide enough for the Fiche: the server's HTML, and a browser without media queries, say it is. */
+/** Whether the screen is wide enough for the panel: the server's HTML, and a browser without media queries, say it is. */
 const wideScreen = () => typeof window.matchMedia !== "function" || window.matchMedia(WIDE).matches;
 const wideOnServer = () => true;
 
-/** Whether the screen has room for the Fiche beside the Work Pane, with the Sidebar as the Candidate left it. */
+/** Whether the screen has room for the panel beside the Work Pane, with the Sidebar as the Candidate left it. */
 function roomForBoth() {
   if (typeof window.matchMedia !== "function") return true;
   const sidebarHidden = document.documentElement.dataset.sidebar === SIDEBAR_CLOSED;
@@ -115,111 +119,131 @@ function onRoomChange(onChange: () => void) {
 }
 
 type Control = {
-  /** An object's page, with a Fiche; otherwise the home page's or a menu's, whose column is Activité alone (#607). */
+  /** An object's page; otherwise the home page's or a menu's, whose panel has Activity alone (#607). */
   object: boolean;
-  /** As the Candidate left it: open or not, its groups folded or not. */
+  /** The views the page offers, in the Top Bar's order. */
+  views: readonly PanelView[];
+  /** As the Candidate left it: its view, or closed. */
   state: FicheState;
   /** Open, it has given its place to the Work Pane for want of room (ADR-0070), so is not shown. */
   givenWay: boolean;
+  /** The view shown: none while closed or given way. */
+  shown: PanelView | null;
   ficheId: string;
-  toggleFiche: () => void;
-  toggleActivity: () => void;
-  toggleGroup: (group: FicheGroup) => void;
-  /** Counts « Activité »'s openings: the Fiche scrolls its Activity group into view. */
-  activityAsked: number;
-  /** Wide enough for the columns beside the conversation; below 64rem they open over it, full screen, with a ✕ (#608). */
+  /** A view's icon: shows the panel on it, bringing it back if it gave way, or closes it when it shows it already. */
+  toggle: (view: PanelView) => void;
+  /** Shows the panel on a view (« Tout voir », « Dans l'activité »); nothing when it shows it already. */
+  open: (view: PanelView) => void;
+  /** Wide enough for the panel beside the conversation; below 64rem it opens over it, full screen, with a ✕ (#608). */
   wide: boolean;
-  /** The column's ✕ (and Escape) on a phone: closes it, the focus back on the Top Bar's button that opened it. */
+  /** Its ✕ (and Escape on a phone): closes it, the focus back on the Top Bar's icon that opened it. */
   close: () => void;
+  /** « Largeur du volet par défaut »: counted, so the handle goes back to the default width each time. */
+  resetWidth: () => void;
+  widthReset: number;
 };
 
 const FicheControl = createContext<Control | null>(null);
 
 /**
- * The Fiche's state on an object's page (#603, ADR-0070), shared by the Top Bar's « Fiche » and « Activité », which alone
- * open and close it, and by the Fiche itself, whose groups fold. Open, every group unfolded, when the page loads on a wide
- * screen; closed on a narrower one.
+ * The side panel's state (#980, ADR-0070), shared by the Top Bar's icons, which open it on their view and close it, and by
+ * the panel itself. On an object's page it opens on the Fiche when the page loads on a wide screen, and is closed on a
+ * narrower one; on the home page and the menus (`object={false}`, #607) it has Activity alone, closed when the page loads.
  *
- * Without room for both beside the conversation, the Work Pane takes the Fiche's place while it is open, and the Fiche
- * comes back as it was when it closes. « Fiche » and « Activité » then say it is not shown, and bring it back, closing the
- * Work Pane.
- *
- * `object={false}`: the home page's or a menu's (#607), which have no Fiche: the column is Activité alone, which
- * « Activité » opens and closes, closed when the page loads; it gives way to the Work Pane as the Fiche does.
+ * Without room for both beside the conversation, the Work Pane takes the panel's place while it is open, and the panel
+ * comes back as it was when it closes. Its icons then say it is not shown, and bring it back, closing the Work Pane.
+ * Alt+Shift and a view's letter (A, F, O, D) do what its icon does.
  */
-export function FicheProvider({ object = true, children }: { object?: boolean; children: ReactNode }) {
+export function FicheProvider({ object = true, views: offered, children }: { object?: boolean; views?: readonly PanelView[]; children: ReactNode }) {
+  // The same views, the same array: the panel's control is made again only when they change.
+  const viewsKey = (offered ?? (object ? ["activity", "fiche", "results"] : ["activity"])).join(" ");
+  const views = useMemo(() => viewsKey.split(" ") as PanelView[], [viewsKey]);
   const wide = useSyncExternalStore(onWideChange, wideScreen, wideOnServer);
   const room = useSyncExternalStore(onRoomChange, roomForBoth, wideOnServer);
   const workPane = useWorkPane();
   const givenWay = !room && workPane?.item != null;
-  // Untouched, the Fiche is as the screen has it; once « Fiche », « Activité » or a group is used, as the Candidate left it.
+  // Untouched, the panel is as the screen has it; once an icon is used, as the Candidate left it.
   const [changed, setChanged] = useState<FicheState | null>(null);
-  const state = useMemo(() => changed ?? { open: object && wide, folded: UNFOLDED }, [changed, object, wide]);
-  const [activityAsked, setActivityAsked] = useState(0);
-  const ficheId = useId();
-  // On a phone, what opened the column over the conversation: the focus goes back to it when its ✕ closes it (#608).
+  const state = useMemo<FicheState>(() => changed ?? { view: object && wide ? "fiche" : null }, [changed, object, wide]);
+  const [widthReset, setWidthReset] = useState(0);
+  const ficheId = `${useId()}-panel`;
+  // What opened the panel: the focus goes back to it when its ✕ closes it (#608).
   const opener = useRef<HTMLElement | null>(null);
   const focusBack = useRef(false);
   useEffect(() => {
-    if (state.open || !focusBack.current) return;
+    if (state.view !== null || !focusBack.current) return;
     focusBack.current = false;
     const back = opener.current?.isConnected ? opener.current : document.getElementById(MAIN_ID);
     opener.current = null;
     back?.focus();
-  }, [state.open]);
+  }, [state.view]);
+  // The icons act on what is shown: a panel that has given way is brought back, in the Work Pane's place.
+  const shownView = givenWay ? null : state.view;
   const control = useMemo<Control>(() => {
-    // « Fiche » and AI Activity's button act on what is shown: a Fiche that has given way is brought back, in the Work Pane's place.
-    const shown = { ...state, open: state.open && !givenWay };
-    const bringBack = () => {
-      if (givenWay) workPane?.close();
-      // Opened over the conversation on a phone: its ✕ gives the focus back to the button that opened it.
-      if (!shown.open && document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
+    const shownState: FicheState = { view: shownView };
+    const remember = () => {
+      if (document.activeElement instanceof HTMLElement && !document.getElementById(ficheId)?.contains(document.activeElement)) opener.current = document.activeElement;
     };
     return {
       object,
+      views,
       state,
       givenWay,
-      ficheId: `${ficheId}-fiche`,
-      toggleFiche: () => {
-        bringBack();
-        setChanged(toggleFiche(shown));
+      shown: shownState.view,
+      ficheId,
+      toggle: (view) => {
+        if (!views.includes(view)) return;
+        if (givenWay) workPane?.close();
+        remember();
+        setChanged(toggleView(shownState, view));
       },
-      toggleActivity: () => {
-        bringBack();
-        // Without a Fiche, the column is Activité alone: it opens or closes.
-        setChanged(object ? toggleActivity(shown) : toggleFiche(shown));
-        setActivityAsked((n) => n + 1);
+      open: (view) => {
+        if (!views.includes(view) || shownState.view === view) return;
+        if (givenWay) workPane?.close();
+        remember();
+        setChanged({ view });
       },
-      toggleGroup: (group) => setChanged(toggleGroup(state, group)),
-      activityAsked,
       wide,
       close: () => {
         focusBack.current = true;
-        setChanged({ ...state, open: false });
+        setChanged({ view: null });
       },
+      resetWidth: () => {
+        setFicheWidthProperty(null);
+        writeFicheWidth(null);
+        setWidthReset((n) => n + 1);
+      },
+      widthReset,
     };
-  }, [object, state, givenWay, workPane, ficheId, activityAsked, wide]);
-  // AI Activity's button shows or hides it (#809); « Dans l'activité » opens it on its Activity; « Voir dans la
-  // conversation » closes it where it covers the conversation (#808).
-  const column = useMemo<ActivityColumn>(() => {
-    const shown = { ...state, open: state.open && !givenWay };
-    return {
-      shown: object ? activityShown(shown) : shown.open,
-      toggle: control.toggleActivity,
-      controls: shown.open ? control.ficheId : undefined,
-      open: () => {
-        setActivityAsked((n) => n + 1);
-        if (object ? activityShown(shown) : shown.open) return;
-        if (givenWay) workPane?.close();
-        if (document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
-        setChanged(object ? toggleActivity(shown) : { ...shown, open: true });
-      },
+  }, [object, views, state, givenWay, shownView, workPane, ficheId, wide, widthReset]);
+  // Alt+Shift and a view's letter: what its icon does, wherever the focus is, the message box included.
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return;
+      const view = SHORTCUTS[event.code];
+      if (!view || !control.views.includes(view)) return;
+      event.preventDefault();
+      control.toggle(view);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [control]);
+  // AI Activity's icon shows Activity or hides it (#809); « Dans l'activité » opens it; « Voir dans la conversation »
+  // closes it where it covers the conversation (#808).
+  const { toggle, open } = control;
+  const column = useMemo<ActivityColumn>(
+    () => ({
+      shown: shownView === "activity",
+      toggle: () => toggle("activity"),
+      controls: shownView !== null ? ficheId : undefined,
+      open: () => open("activity"),
       closeOverConversation: () => {
-        if (wide || !shown.open) return;
-        setChanged({ ...state, open: false });
+        if (wide || shownView === null) return;
+        setChanged({ view: null });
       },
-    };
-  }, [object, state, givenWay, workPane, wide, control]);
+    }),
+    [shownView, toggle, open, ficheId, wide],
+  );
   return (
     <FicheControl.Provider value={control}>
       <ActivityColumnControl.Provider value={column}>{children}</ActivityColumnControl.Provider>
@@ -227,123 +251,180 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
   );
 }
 
+const VIEW_ICONS: Record<Exclude<PanelView, "activity">, ComponentType> = { fiche: Icons.fiche, offer: Icons.offer, results: Icons.results };
+const VIEW_RANKS: Record<Exclude<PanelView, "activity">, number> = { fiche: TOP_BAR_RANK.fiche, offer: TOP_BAR_RANK.offer, results: TOP_BAR_RANK.results };
+
+/** A view's name, as its icon and the panel's head say it. */
+function useViewLabel(): (view: PanelView, object: FicheContent | null | undefined) => string {
+  const { t } = useTranslation();
+  return (view, content) => (view === "results" ? t(content?.resultsLabel === "offers" ? "fiche.views.offers" : "fiche.views.documents") : t(`fiche.views.${view}`));
+}
+
 /**
- * « Fiche » and AI Activity's button, « Activité », in the Top Bar of an object's page (#603, #809): they alone open and
- * close the Fiche, AI Activity's button on its Activity group. On the home page and the menus (#607), AI Activity's button
- * alone, which opens and closes the Activité column. Nothing outside a FicheProvider. On a phone, nothing: they offer
- * their toggles to the compact Top Bar (#897), « Activité » shown there while an action runs (useActivityTopBarAction).
+ * The side panel's icons in the Top Bar (#980), in place of « Fiche », « Activité » and « Effacer »: Activité (AI Activity's
+ * icon, #809), Fiche, L'offre and Documents, those the page offers, each a toggle named by its view, with its tooltip; then
+ * « … » (« Largeur du volet par défaut », « Fermer le volet ») while the panel is open beside the conversation. ← and → go
+ * from one icon to the next. On a phone, nothing: they offer their toggles to the compact Top Bar (#897).
  */
-export function FicheButtons() {
+export function FicheButtons({ content }: { content?: FicheContent | null }) {
   const { t } = useTranslation();
   const control = useContext(FicheControl);
-  // On a phone, the compact Top Bar shows them (#897): the same toggles.
   const mode = useTopBarMode();
-  // What is shown: a Fiche that has given way to the Work Pane is not.
-  const open = control ? control.state.open && !control.givenWay : false;
-  // While the width is not known, each draws its icon too, which app.css shows on a phone (useTopBarAction).
-  const ficheIcon = useTopBarAction(
-    control?.object
-      ? { id: "fiche", rank: TOP_BAR_RANK.fiche, label: t("fiche.label"), icon: Icons.fiche, run: control.toggleFiche, expanded: open, controls: open ? control.ficheId : undefined }
-      : null,
-  );
+  const label = useViewLabel();
   const activityIcon = useActivityTopBarAction();
+  const viewIcons = (["fiche", "offer", "results"] as const).map((view) => ({ view, action: control?.views.includes(view) ? viewAction(control, view, label(view, content)) : null }));
+  // One hook per view, in a fixed order.
+  const ficheIcon = useTopBarAction(viewIcons[0]!.action);
+  const offerIcon = useTopBarAction(viewIcons[1]!.action);
+  const resultsIcon = useTopBarAction(viewIcons[2]!.action);
   if (!control || mode === "compact") return null;
-  const { ficheId } = control;
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>(".topbar-view")];
+    const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    if (at < 0) return;
+    event.preventDefault();
+    buttons[(at + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+  };
   return (
     <>
-      {control.object ? (
-        <button className={`${buttonClass()} topbar-fiche`} type="button" aria-expanded={open} aria-controls={open ? ficheId : undefined} onClick={control.toggleFiche}>
-          <Icons.fiche />
-          {t("fiche.label")}
-        </button>
-      ) : null}
+      <div className="topbar-views" role="group" aria-label={t("fiche.panel")} onKeyDown={onKeyDown}>
+        <AiActivityButton />
+        {viewIcons.map(({ view, action }) =>
+          action ? (
+            <button
+              key={view}
+              className="topbar-view"
+              type="button"
+              aria-label={action.label}
+              title={action.label}
+              aria-expanded={control.shown === view}
+              aria-controls={control.shown === view ? control.ficheId : undefined}
+              onClick={action.run}
+            >
+              <action.icon />
+            </button>
+          ) : null,
+        )}
+        <PanelMenu />
+      </div>
+      {/* Before the page knows its width, app.css shows the first on a phone: « Fiche » ranks first (TOP_BAR_RANK). */}
       {ficheIcon}
-      <AiActivityButton />
       {activityIcon}
+      {offerIcon}
+      {resultsIcon}
     </>
   );
 }
 
-/**
- * The Fiche (#603, ADR-0070): the column beside an object's conversation, never over it, with no heading nor ✕ of its
- * own (the Top Bar's « Fiche » closes it); on a phone it opens over the conversation, full screen, titled and closed by its
- * ✕ or Escape (#608). The object's card, then three groups the Candidate folds: its Sections, its
- * Activity (the page's AI Activity) and its Results; a Section or a Result opens in the Work Pane at its address, the one
- * shown marked as the current page. Nothing while it is closed, or outside a FicheProvider; hidden while it has given
- * way to the Work Pane, still there for the link that opened it to get the focus back when the pane closes.
- */
-export function Fiche({ content }: { content: FicheContent }) {
+function viewAction(control: Control, view: Exclude<PanelView, "activity">, label: string) {
+  return {
+    id: `view-${view}`,
+    rank: VIEW_RANKS[view],
+    label,
+    icon: VIEW_ICONS[view],
+    run: () => control.toggle(view),
+    expanded: control.shown === view,
+    controls: control.shown === view ? control.ficheId : undefined,
+  };
+}
+
+/** « … » beside the icons, while the panel is open beside the conversation: its default width again, or close it. */
+function PanelMenu() {
   const { t } = useTranslation();
   const control = useContext(FicheControl);
-  const pathname = usePathname();
-  const activity = useRef<HTMLDivElement>(null);
-  const asked = control?.activityAsked ?? 0;
-  const open = control?.state.open ?? false;
-  const visible = open && !control?.givenWay;
-
-  // « Activité » brings the Activity group into view.
-  useEffect(() => {
-    if (asked > 0 && visible) activity.current?.scrollIntoView?.({ block: "nearest" });
-  }, [asked, visible]);
-
-  // The address shown, with its query (a Result's).
-  const query = useSearchParams()?.toString() ?? "";
-  const shown = query ? `${pathname}?${query}` : pathname;
-
-  if (!control || !open) return null;
-  const { state, ficheId } = control;
-  const links = (items: readonly FicheLink[]) => (
-    <ul className="fiche-links">
-      {items.map((item) => (
-        <li key={item.href}>
-          <Link href={item.href} aria-current={item.href === shown ? CURRENT : undefined} scroll={false}>
-            <span className="fiche-link-label">{item.label}</span>
-            {item.detail ? <span className="fiche-link-detail">{item.detail}</span> : null}
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
+  if (!control || control.shown === null || !control.wide) return null;
+  const label = t("fiche.more");
   return (
-    <aside id={ficheId} className="fiche" aria-label={t("fiche.label")} hidden={control.givenWay} onKeyDown={closeOnEscape(control)}>
-      {control.wide ? <FicheResizeHandle /> : null}
-      <div className="fiche-body">
-        {control.wide ? null : <ColumnHead label={t("fiche.label")} close={control.close} />}
-        <div className="fiche-card">{content.card}</div>
-        <Group group={SECTIONS} label={t("fiche.groups.sections")} state={state} toggle={control.toggleGroup}>
-          {links(content.sections)}
-        </Group>
-        <Group group={ACTIVITY} label={t("fiche.groups.activity")} state={state} toggle={control.toggleGroup} anchor={activity}>
-          <ContextBar />
-          <EnCeMoment />
-          <AiActivityContent />
-        </Group>
-        <Group group={RESULTS} label={t("fiche.groups.results")} state={state} toggle={control.toggleGroup}>
-          {content.results.length > 0 ? links(content.results) : <p className="hint">{t("fiche.noResults")}</p>}
-        </Group>
-      </div>
-    </aside>
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger className="topbar-view topbar-view-more" aria-label={label} title={label}>
+        <Icons.more />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content className="menu topbar-menu" align={MENU_ALIGN} sideOffset={4}>
+          <DropdownMenu.Item className="menu-item" onSelect={control.resetWidth}>
+            {t("fiche.resetWidth")}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item className="menu-item" onSelect={control.close}>
+            <Icons.close />
+            {t("fiche.close")}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
 /**
- * The Activité column of the home page and the menus (#607, ADR-0070), beside the conversation, never over it: the
- * Context bar of the page's conversation, « En ce moment » (the actions under way, ADR-0086), then AI Activity, with no heading
- * nor ✕ (the Top Bar's « Activité » closes it); on a phone, over the conversation like the Fiche, with both (#608). Nothing while it is closed, or outside a FicheProvider; hidden while it
- * has given way to the Work Pane.
+ * The side panel (#980, ADR-0070): one column beside the conversation, never over it, showing one view at a time, the one
+ * its Top Bar icon chose. Its head names the view and has ✕ « Fermer le volet »; on a phone it opens over the
+ * conversation, full screen, its name taking the focus (#608). Nothing while it is closed, or outside a FicheProvider;
+ * hidden while it has given way to the Work Pane, still there for the link that opened it to get the focus back.
+ *
+ * - « Activité » (ADR-0086): the Context bar, « En ce moment », the history, then the latest Results with « Tout voir ».
+ * - « Fiche »: the object's card and its Sections, each opened in the Work Pane, the one shown marked.
+ * - « L'offre »: an Application's Job Offer.
+ * - « Documents » (« Offres trouvées »): its Results.
  */
-export function ActivityColumn() {
+export function Fiche({ content }: { content: FicheContent | null }) {
   const { t } = useTranslation();
   const control = useContext(FicheControl);
-  if (!control || control.object || !control.state.open) return null;
+  const label = useViewLabel();
+
+  if (!control || control.state.view === null) return null;
+  const view = control.state.view;
+  const name = label(view, content);
+  const links = (items: readonly FicheLink[]) => <PanelLinks items={items} />;
+  const results = content?.results ?? [];
   return (
-    <aside id={control.ficheId} className="fiche activity-column" aria-label={t("fiche.activity")} hidden={control.givenWay} onKeyDown={closeOnEscape(control)}>
-      {control.wide ? <FicheResizeHandle /> : null}
+    <aside
+      id={control.ficheId}
+      className={`fiche side-panel${content ? "" : " activity-column"}`}
+      data-view={view}
+      aria-label={name}
+      hidden={control.givenWay}
+      onKeyDown={closeOnEscape(control)}
+    >
+      {/* « Largeur du volet par défaut » forgets the width remembered and draws the handle afresh, at the default. */}
+      {control.wide ? <FicheResizeHandle key={control.widthReset} /> : null}
+      <PanelHead key={view} label={name} close={control.close} focus={!control.wide} />
       <div className="fiche-body">
-        {control.wide ? null : <ColumnHead label={t("fiche.activity")} close={control.close} />}
-        <ContextBar />
-        <EnCeMoment />
-        <AiActivityContent />
+        {view === "activity" ? (
+          <>
+            <ContextBar />
+            <EnCeMoment />
+            <AiActivityContent>
+              {content ? (
+                <section className="panel-section panel-results" aria-labelledby={`${control.ficheId}-latest`}>
+                  <h3 id={`${control.ficheId}-latest`} className="panel-section-title">
+                    {t("fiche.groups.results")}
+                    {results.length > LATEST_RESULTS ? (
+                      <button className="panel-section-action" type="button" onClick={() => control.open("results")}>
+                        {t("fiche.allResults")}
+                      </button>
+                    ) : null}
+                  </h3>
+                  {results.length > 0 ? links(results.slice(0, LATEST_RESULTS)) : <p className="hint">{t("fiche.noResults")}</p>}
+                </section>
+              ) : null}
+            </AiActivityContent>
+          </>
+        ) : null}
+        {view === "fiche" && content ? (
+          <>
+            <div className="fiche-card">{content.card}</div>
+            {content.sections.length > 0 ? (
+              <section className="panel-section" aria-labelledby={`${control.ficheId}-sections`}>
+                <h3 id={`${control.ficheId}-sections`} className="panel-section-title">
+                  {t("fiche.groups.sections")}
+                </h3>
+                {links(content.sections)}
+              </section>
+            ) : null}
+          </>
+        ) : null}
+        {view === "offer" && content?.offer ? <div className="panel-offer">{content.offer}</div> : null}
+        {view === "results" && content ? (results.length > 0 ? links(results) : <p className="hint">{t("fiche.noResults")}</p>) : null}
       </div>
     </aside>
   );
@@ -360,7 +441,7 @@ const DOUBLE_CLICK_MS = 300;
 const rootRem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 
 /**
- * The handle on the left edge of the Fiche, and of the Activité column (#932), beside the conversation only: dragged, it
+ * The handle on the left edge of the side panel (#932, #980), beside the conversation only: dragged, it
  * widens the column from its default width (20rem, its narrowest) up to the widest it may be (fiche-width.ts), which it
  * sets on the column as `--fiche-max` for app.css. A window splitter (WAI-ARIA): focusable, ← and → by steps, Home and
  * End to its limits. A click without dragging takes it to its widest, or back to its narrowest from there, so a single
@@ -483,7 +564,27 @@ function FicheResizeHandle() {
   );
 }
 
-/** On a phone, Escape closes the column open over the conversation, as its ✕ does; beside it, the Top Bar's button alone. */
+/** Sections or Results, each opened in the Work Pane at its address, the one shown marked as the current page. */
+function PanelLinks({ items }: { items: readonly FicheLink[] }) {
+  const pathname = usePathname();
+  // The address shown, with its query (a Result's).
+  const query = useSearchParams()?.toString() ?? "";
+  const shownAddress = query ? `${pathname}?${query}` : pathname;
+  return (
+    <ul className="fiche-links">
+      {items.map((item) => (
+        <li key={item.href + item.label}>
+          <Link href={item.href} aria-current={item.href === shownAddress ? CURRENT : undefined} scroll={false}>
+            <span className="fiche-link-label">{item.label}</span>
+            {item.detail ? <span className="fiche-link-detail">{item.detail}</span> : null}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** On a phone, Escape closes the panel open over the conversation, as its ✕ does; beside it, the Top Bar's icons. */
 const closeOnEscape = (control: Control) => (event: KeyboardEvent<HTMLElement>) => {
   if (control.wide || event.key !== "Escape" || event.defaultPrevented) return;
   event.stopPropagation();
@@ -491,68 +592,34 @@ const closeOnEscape = (control: Control) => (event: KeyboardEvent<HTMLElement>) 
 };
 
 /**
- * On a phone, the head of a column open over the conversation, full screen (#608): its name, which takes the focus as it
- * opens, so it is read out, and its ✕ « Fermer ». Beside the conversation it has neither: the Top Bar's button closes it.
+ * The panel's head (#980): the view's name and ✕ « Fermer le volet ». On a phone, open over the conversation, full screen
+ * (#608), the name takes the focus as it opens, so it is read out.
  */
-function ColumnHead({ label, close }: { label: string; close: () => void }) {
+function PanelHead({ label, close, focus }: { label: string; close: () => void; focus: boolean }) {
   const { t } = useTranslation();
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => heading.current?.focus(), []);
+  useEffect(() => {
+    if (focus) heading.current?.focus();
+  }, [focus]);
   return (
     <div className="fiche-head">
       <h2 ref={heading} tabIndex={-1}>
         {label}
       </h2>
-      <button className={buttonClass({ variant: "quiet" })} type="button" onClick={close}>
+      <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" aria-label={t("fiche.close")} title={t("fiche.close")} onClick={close}>
         <Icons.close />
-        {t("conversationFirst.close")}
       </button>
     </div>
   );
 }
 
 /**
- * Whether a column covers the conversation: on a phone, the Work Pane or the Fiche (the Activité column) open over it,
- * full screen (#608). The page behind is then out of reach (SidebarShell's `pageInert`), as behind a dialog.
+ * Whether a column covers the conversation: on a phone, the Work Pane or the side panel open over it, full screen (#608).
+ * The page behind is then out of reach (SidebarShell's `pageInert`), as behind a dialog.
  */
 export function useColumnOverPage(): boolean {
   const control = useContext(FicheControl);
   const workPane = useWorkPane();
   if (!control || control.wide) return false;
-  return workPane?.item != null || control.state.open;
-}
-
-/** One of the Fiche's groups: its heading is the button that folds it. */
-function Group({
-  group,
-  label,
-  state,
-  toggle,
-  anchor,
-  children,
-}: {
-  group: FicheGroup;
-  label: string;
-  state: FicheState;
-  toggle: (group: FicheGroup) => void;
-  anchor?: React.RefObject<HTMLDivElement | null>;
-  children: ReactNode;
-}) {
-  const id = useId();
-  const unfolded = !state.folded.has(group);
-  return (
-    <div ref={anchor} className="fiche-group" data-group={group}>
-      <h3 className="fiche-group-head">
-        <button type="button" aria-expanded={unfolded} aria-controls={`${id}-body`} onClick={() => toggle(group)}>
-          <Icons.chevron />
-          {label}
-        </button>
-      </h3>
-      {unfolded ? (
-        <div id={`${id}-body`} className="fiche-group-body">
-          {children}
-        </div>
-      ) : null}
-    </div>
-  );
+  return workPane?.item != null || control.state.view !== null;
 }

@@ -1,7 +1,6 @@
-import type { ProvenanceSite } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import type { ActivityEntry, EntryCost } from "./entries";
-import { costShown, entryToOpen, historyByDay, pageSources, pageSummary, type QuotaUse } from "./history";
+import { costShown, entryToOpen, historyByDay, pageSummary, type QuotaUse } from "./history";
 import type { ActivityModel } from "./pane";
 
 /**
@@ -96,26 +95,6 @@ describe("costShown", () => {
 
   it("an element whose Provenance was not kept says nothing of its cost", () => {
     expect(costShown(entry("o", null, { unrecorded: true }), usage)).toEqual({ quota: null, consumption: false, tokens: null, noAi: false });
-  });
-});
-
-describe("pageSources", () => {
-  const airbus = (link: string): ProvenanceSite => ({ kind: "web", domain: "airbus.com", links: [link] });
-
-  it("lists each Provenance site once, its links joined, and each Tool once, Jobbbox's rules among them", () => {
-    const sources = pageSources([
-      entry("a", null, { sites: [airbus("https://airbus.com/1"), { kind: "candidate", links: ["/profils/p"] }], tools: [{ name: "Brave Search", ms: 2_000 }, { name: null, ms: 40 }] }),
-      entry("b", null, { sites: [airbus("https://airbus.com/2"), airbus("https://airbus.com/1")], tools: [{ name: "Brave Search", ms: 1_000 }] }),
-    ]);
-    expect(sources.sites).toEqual([
-      { kind: "web", domain: "airbus.com", links: ["https://airbus.com/1", "https://airbus.com/2"] },
-      { kind: "candidate", links: ["/profils/p"] },
-    ]);
-    expect(sources.tools.map((tool) => tool.name)).toEqual(["Brave Search", null]);
-  });
-
-  it("has nothing for a page whose entries name none", () => {
-    expect(pageSources([entry("a", null)])).toEqual({ sites: [], tools: [] });
   });
 });
 

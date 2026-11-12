@@ -1,5 +1,5 @@
 /**
- * The summary of a Profile at the end of its onboarding (#1004, ADR-0105): « Voici comment je comprends ce que vous
+ * The summary of a Profile at the end of its onboarding (#1004, ADR-0106): « Voici comment je comprends ce que vous
  * recherchez. Ai-je bien compris ? », then a paragraph in plain words, composed by Jobbbox from the Profile itself, not by
  * an AI, so it can say nothing that no answer said (ADR-0006). The key items are strong: the target role, the contract
  * types, the places, remote work, the minimum salary, the years of experience (the span of the dated jobs, as the Match
@@ -96,8 +96,6 @@ export function profileSummary(profile: ProfileSummaryInput, { locale, today = n
           ),
         }),
       );
-    if (places.length > 0)
-      sentence.push(...fill(t("profileSummary.locations", { locations: slot("locations") }), { locations: list(places.map(strong), "or") }));
     if (remote.length > 0)
       sentence.push(
         ...fill(t("profileSummary.remote", { remote: slot("remote") }), {
@@ -108,6 +106,10 @@ export function profileSummary(profile: ProfileSummaryInput, { locale, today = n
         }),
       );
     if (hasSalary) sentence.push(...fill(t("profileSummary.salary", { salary: slot("salary") }), { salary: strong(euros(salary, locale)) }));
+    // The places last, named without a French preposition: « à Lyon », but « en Île-de-France », « dans le Rhône », and the
+    // text is the Candidate's (« Paris (75) »): « ; lieux : Lyon ou Paris (75) ».
+    if (places.length > 0)
+      sentence.push(...fill(t("profileSummary.locations", { count: places.length, locations: slot("locations") }), { locations: list(places.map(strong), "or") }));
     sentence.push({ text: t("profileSummary.end") });
     sentences.push(sentence);
   }

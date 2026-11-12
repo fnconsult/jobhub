@@ -169,7 +169,7 @@ export async function changedSearchCriteria(
 }
 
 /** `name` as Place suggestion would offer it: the suggestion named the same (« Lyon » → « Lyon (69) »), else as written. */
-async function placeOf(places: PlaceSuggestions, name: string): Promise<string> {
+export async function placeOf(places: PlaceSuggestions, name: string): Promise<string> {
   const suggestions = await places.suggest(name).catch(() => []);
   const bare = (place: string) => folded(place.replace(/\s*\([^)]*\)\s*$/, ""));
   return suggestions.find((suggestion) => bare(suggestion.name) === folded(name))?.name ?? name;

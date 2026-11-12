@@ -107,6 +107,12 @@
 // Job Offer Summary, "Résumé du poste : <the offer's title>.", unless the json gives one. A text holding
 // "E2E_ECHO_RULES" gets the last line of the rules it was sent as its summary instead (ADR-0026: the
 // rules come from the job-offer-reading task Playbook).
+//
+// The onboarding interview without a CV (#1002, task onboarding_interview, prompt "Entretien d'accueil") asks, from the
+// draft and the exchange it is sent, one field at a time: the target role (a one-word answer is challenged once, « trop
+// vague »), a place, the contract type with a deduction to validate (CDI, from the target role), remote work (a choice),
+// the minimum salary, then it is done. The whole interview fails with a 503 once "E2E_AI_DOWN" is in what it is sent (an
+// answer or the opening line), so tests can watch the scripted questions take over.
 const realFetch = globalThis.fetch;
 /** Calls so far per scripted Tailored CV id (E2E_CV_REPLIES). */
 const scriptedCalls = new Map();
@@ -178,6 +184,7 @@ globalThis.fetch = async (input, init) => {
   }
   const slow = /E2E_COACH_SLOW=(\d+)/.exec(prompt)?.[1];
   if (slow && system.includes("coach Jobbbox")) await answerAfter(Number(slow), input instanceof Request ? input.signal : init?.signal);
+  if (prompt.startsWith("Entretien d'accueil")) return completion(body, JSON.stringify(interviewTurn(prompt)));
   if (system.includes("coach Jobbbox")) {
     const inView = /Le candidat consulte son profil « (.+?) »/.exec(system)?.[1];
     const turns = body.messages.filter((message) => message.role !== "system").length;
@@ -468,6 +475,37 @@ function explanation(asked, system = "") {
   // Asked from the Email intake's inbound domain (#448), it also repeats the MX lines of the setup it was told.
   const mx = field("Libellé") && asked.includes("EMAIL_INTAKE_DOMAIN") ? system.split("\n").filter((line) => /\bMX\b/.test(line)) : [];
   return mx.length ? `${explained}\n${mx.join("\n")}` : explained;
+}
+
+/**
+ * The onboarding interview's next turn (see above), from the draft and the exchange in its prompt: each field asked once
+ * (the target role twice when its first answer is one word), in a fixed order, then done.
+ */
+function interviewTurn(prompt) {
+  const draft = JSON.parse(/^Brouillon[^:]*: (\{.*\})$/m.exec(prompt)?.[1] ?? "{}");
+  const criteria = draft.searchCriteria ?? {};
+  const exchange = /^Échange :\n([\s\S]*)$/m.exec(prompt)?.[1] ?? "";
+  const asked = [...exchange.matchAll(/^Coach \[([\w.]+)\] : /gm)].map((match) => match[1]);
+  const answers = [...exchange.matchAll(/^Candidat : (.*)$/gm)].map((match) => match[1].trim());
+  const last = asked.at(-1);
+  const lastAnswer = answers.at(-1) ?? "";
+  const ask = (field, question, kind = "text") => ({ field, question, kind });
+  if (last === "targetRole" && !/\s/.test(lastAnswer) && asked.filter((field) => field === "targetRole").length === 1) {
+    return { ask: ask("targetRole", "Quel intitulé de poste visez-vous exactement ?"), proposal: null, challenge: `« ${lastAnswer} » est trop vague : dites-moi l'intitulé du poste, par exemple « Directrice financière ».`, done: false };
+  }
+  if (!criteria.targetRole) return { ask: ask("targetRole", "Quel poste recherchez-vous ?"), proposal: null, challenge: "", done: false };
+  if (!criteria.locations?.length) return { ask: ask("locations", "Dans quelle ville souhaitez-vous travailler ?"), proposal: null, challenge: "", done: false };
+  if (!asked.includes("contractTypes")) {
+    return {
+      ask: ask("contractTypes", "Quel type de contrat recherchez-vous ?", "choice"),
+      proposal: { field: "contractTypes", value: ["cdi"], because: `Un poste de « ${criteria.targetRole} » est le plus souvent proposé en CDI.` },
+      challenge: "",
+      done: false,
+    };
+  }
+  if (!asked.includes("remoteWorkOptions")) return { ask: ask("remoteWorkOptions", "Quel rythme de télétravail vous convient ?", "choice"), proposal: null, challenge: "", done: false };
+  if (!asked.includes("minSalary")) return { ask: ask("minSalary", "Quel salaire annuel brut minimum visez-vous ?"), proposal: null, challenge: "", done: false };
+  return { ask: ask("summary", "Merci, j'ai ce qu'il faut."), proposal: null, challenge: "", done: true };
 }
 
 /** Waits `ms`, or rejects with `signal`'s reason once it aborts, as fetch does. */

@@ -33,7 +33,7 @@ type Mode =
   | { kind: "proposed"; changes: CriteriaChange[]; next: SearchCriteria; other: boolean };
 
 /**
- * The end of the onboarding (#1004, ADR-0105): « Presque fini », « Voici comment je comprends ce que vous recherchez. Ai-je
+ * The end of the onboarding (#1004, ADR-0106): « Presque fini », « Voici comment je comprends ce que vous recherchez. Ai-je
  * bien compris ? », and the card « Votre recherche d'offres », a paragraph composed by Jobbbox from the review's draft, as
  * changed in the review form (`edits`): no AI writes it (`profileSummary`). « Cela semble correct » saves it as the review
  * form's « Enregistrer mon profil » does, then the coach says it is saved; « Voir le détail » opens the review form in the

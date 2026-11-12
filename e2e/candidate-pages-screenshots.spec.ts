@@ -705,7 +705,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     }
   });
 
-  // Issue #1004 (ADR-0105): at the end of creating a Profile, « Ai-je bien compris ? » and the summary Jobbbox composes, its
+  // Issue #1004 (ADR-0106): at the end of creating a Profile, « Ai-je bien compris ? » and the summary Jobbbox composes, its
   // key items strong, « Voir le détail », « Modifier » and « Cela semble correct ». A Profile born and not finished is
   // resumed at it; its jobs dated to a closed year, so the years of experience do not change from one year to the next.
   test("the onboarding's summary: « Ai-je bien compris ? » and its card (#1004)", async ({
@@ -745,7 +745,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     }
   });
 
-  // Issue #808 (ADR-0086): the Fiche's Activity group and the Activité column hold Activity's history, by day, one row per
+  // Issue #808 (ADR-0086), #980: the side panel's « Activité » view holds Activity's history, by day, one row per
   // entry, an entry unfolding its detail. On a Profile's page, « Création du profil » (#810): Version 1 of its Master CV and
   // the ATS Score Jobbbox's rules gave it, its parts: no AI, so nothing changes from run to run but the time of day, set to
   // a fixed one before the shot.
@@ -764,18 +764,17 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     for (const { name, width, height } of SCREENSHOT_WIDTHS) {
       await page.setViewportSize({ width, height });
       await page.goto(`/profils/${id}`);
-      // « Activité » opens the Fiche on its Activity group, unfolded, wherever the Fiche is: beside the page, or over it.
-      // The Fiche stays as it was left: open already at a width where it was opened before. On a phone, « Activité » is
+      // AI Activity's icon shows the side panel on « Activité » (#980), wherever it is: beside the page, or over it. The panel
+      // stays as it was left: on « Activité » already at a width where it was shown before. On a phone, « Activité » is
       // under the compact Top Bar's « … » (#897).
       await page.waitForLoadState("networkidle");
       const fiche = page.getByRole("complementary", {
-        name: fr.fiche.label,
+        name: fr.fiche.views.activity,
         exact: true,
       });
       if (name === "phone") {
         await chooseInTopBarMore(page, fr.fiche.activity);
         await expect(fiche).toBeVisible();
-        await expect(fiche.getByRole("button", { name: fr.fiche.groups.activity })).toHaveAttribute("aria-expanded", "true");
       } else {
         if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
         await expect(activity).toHaveAttribute("aria-expanded", "true");
@@ -831,6 +830,70 @@ test.describe("Candidate pages in the Design System (#468)", () => {
         `documents-${name}`,
         width,
       );
+    }
+  });
+});
+
+// Issue #1001 (ADR-0106): the offered Job Search's card on /profils/nouveau, compact and stuck at the top of the thread while
+// the questions go on, whole at the review (the Work Pane closed), on a computer and on a phone. Nothing runs the
+// worker here: the run's measures are written on the Job Search as the worker writes them, with three Job Offers found,
+// and the motion is reduced so that the loupe and the orbit stand still.
+test.describe("the onboarding's search card (#1001)", () => {
+  const PHONE_AND_COMPUTER = SCREENSHOT_WIDTHS.filter(({ name }) => name !== "tablet");
+
+  test("compact during the questions, whole at the review, its counters the run's own measures", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    for (const { name, width, height } of PHONE_AND_COMPUTER) {
+      const email = newAddress(`shots-search-card-${name}`);
+      await signInWithMagicLink(page, email);
+      await page.setViewportSize({ width, height });
+      await page.goto("/profils/nouveau");
+      // The scripted questions (#1002's fallback, the AI unavailable): the same answers, so the same card, every run.
+      await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV à jour E2E_AI_DOWN");
+      await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+      await expect(page.getByText(fr.newProfile.interview.fallback)).toBeVisible();
+      for (const said of ["Catherine Morel", "Directrice administrative et financière", "Lyon"]) {
+        await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
+        await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+      }
+      const card = page.getByRole("region", { name: fr.onboardingSearch.title });
+      await expect(card).toBeVisible();
+
+      // The worker's measures, written as it writes them while it searches.
+      const [search] = await query<{ id: string }>(
+        "SELECT s.id FROM job_search s JOIN candidate c ON c.id = s.candidate_id WHERE c.email = $1 AND s.offered = 'first'",
+        [email],
+      );
+      const jobOfferIds = await insertJobOffers(OFFERS.slice(0, 3), `card-${name}-`);
+      const live = {
+        step: "search",
+        sources: [
+          { source: "france_travail", state: "searched" },
+          { source: "fantastic_jobs", state: "searched" },
+          { source: "web_search", state: "searching" },
+          { source: "ats_apis", state: "waiting" },
+        ],
+        pagesRead: 27,
+        offersAnalysed: 3,
+        matched: null,
+        jobOfferIds,
+      };
+      await query("UPDATE job_search SET live = $2::jsonb WHERE id = $1", [search!.id, JSON.stringify(live)]);
+      await expect(card.locator('[data-counter="pages"] dd')).toHaveText("27");
+      await expect(card.locator('[data-counter="sources"] dd')).toHaveText("3 sur 4");
+      await check(page, page.locator(".onb-search-wrap"), ".onb-search-wrap", `onboarding-search-compact-${name}`, width, false);
+
+      // At the summary (#1004), the Work Pane closed: the whole card, its orbit, counters, sources and steps.
+      while (!(await page.getByRole("region", { name: fr.onboardingSummary.title, exact: true }).isVisible())) {
+        await page.getByRole("button", { name: fr.questionnaire.skip }).click();
+      }
+      await expect(page.locator("aside.work-pane")).toHaveCount(0);
+      await expect(page.getByRole("list", { name: fr.onboardingSearch.stepsLabel })).toBeVisible();
+      // A screen tall enough for the whole card in the thread, which scrolls within the page: taller than a phone's, it
+      // would be cut at the thread's foot, above the box.
+      await page.setViewportSize({ width, height: 2000 });
+      await check(page, page.locator(".onb-search-wrap"), ".onb-search-wrap", `onboarding-search-card-${name}`, width, false);
+      await page.context().clearCookies();
     }
   });
 });

@@ -479,14 +479,17 @@ describe("AI layer configured from the environment", () => {
       // The email Guardrail checks the email the reading reads: it takes the reading's route, in the EU (#446, ADR-0052).
       expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "email_guardrail")).toEqual({ provider: "mistral" });
       expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak", AI_OFFER_EMAIL_READING_PROVIDER: "mistral", AI_OFFER_EMAIL_READING_MODEL: "mistral-large-latest" }, "email_guardrail")).toEqual({ provider: "mistral", model: "mistral-large-latest" });
+      // The onboarding interview reads what a CV would tell: it runs where a CV is read, unless set (#1002).
+      expect(taskRouteFromEnv({ ...base, AI_CV_PARSING_PROVIDER: "mistral", AI_CV_PARSING_MODEL: "mistral-medium-3-5" }, "onboarding_interview")).toEqual({ provider: "mistral", model: "mistral-medium-3-5" });
+      expect(taskRouteFromEnv({ ...base, AI_CV_PARSING_PROVIDER: "mistral", AI_ONBOARDING_INTERVIEW_PROVIDER: "anthropic" }, "onboarding_interview")).toEqual({ provider: "anthropic" });
     });
   });
 
   it("says which provider each model setting names a model of, without any key (#301)", () => {
     const providers = modelSettingProviders({ AI_COACHING_PROVIDER: "mistral", AI_WEB_SEARCH_PROVIDER: "tavily" });
 
-    expect(providers).toMatchObject({ AI_SCORING_MODEL: "anthropic", AI_COACHING_MODEL: "mistral", AI_GUARDRAIL_MODEL: "mistral", AI_WEB_SEARCH_MODEL: "tavily", AI_IDENTITY_MODEL: "mistral" });
-    expect(Object.keys(providers)).toHaveLength(13);
+    expect(providers).toMatchObject({ AI_SCORING_MODEL: "anthropic", AI_COACHING_MODEL: "mistral", AI_GUARDRAIL_MODEL: "mistral", AI_WEB_SEARCH_MODEL: "tavily", AI_ONBOARDING_INTERVIEW_MODEL: "anthropic", AI_IDENTITY_MODEL: "mistral" });
+    expect(Object.keys(providers)).toHaveLength(14);
   });
 
   describe("web-search providers a task Playbook may choose (ADR-0026)", () => {

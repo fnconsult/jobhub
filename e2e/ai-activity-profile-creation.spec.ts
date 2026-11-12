@@ -9,8 +9,10 @@ import { confirmSummary, onboardingSummary } from "./support/onboarding-summary"
 // Issue #810 (ADR-0086, ADR-0070): a Profile's creation is one Activité entry, « Création du profil », on `/profils/nouveau`
 // and then on the new Profile's page: the CV read (its Provenance, the only AI), the Onboarding Questionnaire (« Questions
 // écrites par Jobbbox », « Sans IA », its answers), the review, « Profil créé » with Version 1, and Version 1's ATS Score.
-// From the questionnaire, the Profile is born once its target role and location are answered (#999, ADR-0105): « Profil
-// créé » shows from then on.
+// From the questionnaire, the Profile is born once its target role and location are answered (#999, ADR-0106): « Profil
+// créé » shows from then on. Without a CV, the AI Coach leads the interview (#1002): « Entretien d'accueil », with its model
+// and tokens; « Questions écrites par Jobbbox », « Sans IA » only when the scripted questions take over (the AI down:
+// "E2E_AI_DOWN" in what the interview is sent).
 // What the browser alone knows (the questionnaire, the review) is gone once the page is loaded again; the entry is made
 // again from what is kept. The Context bar says « Le coach n'a pas encore répondu » until the coach's first reply. The AI is
 // faked inside the server (fake-mistral.mjs): "E2E_CV_SLOW" in the CV makes its reading take 30 s.
@@ -22,7 +24,7 @@ const history = fr.aiActivity.history;
 const origin = process.env.E2E_WEB_ORIGIN!;
 
 const nowOf = (page: Page) => activityOf(page).locator(".ai-activity-live");
-const contextBarOf = (page: Page) => activityOf(page).getByRole("group", { name: fr.contextBar.title });
+const contextBarOf = (page: Page) => activityOf(page).getByRole("region", { name: fr.contextBar.title });
 /** « Création du profil », unfolded: its parts by their kind, in their order. */
 async function creationOf(page: Page) {
   const entry = await unfoldedEntryOf(page, new RegExp(`^${kinds.profile_creation}$`));
@@ -94,12 +96,35 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await expect(activityOf(page).locator(".activity-entry-title").getByText(kinds.master_cv, { exact: true })).toHaveCount(0);
   });
 
-  test("the Onboarding Questionnaire: two answers counted, « Questions écrites par Jobbbox », « Sans IA », then saved, gone after a reload", async ({ page }) => {
+  test("the AI Coach's interview: « Entretien d'accueil », its model and tokens, no longer « Sans IA » (#1002)", async ({ page }) => {
+    test.setTimeout(120_000);
+    await signInWithMagicLink(page, newAddress("activity-profile-creation-interview"));
+    await page.goto("/profils/nouveau");
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await reply(page, "Quel poste recherchez-vous ?", "Directrice financière");
+    await reply(page, "Dans quelle ville souhaitez-vous travailler ?", "Lyon");
+    await expect(transcript(page).getByRole("listitem").last()).toContainText("Quel type de contrat recherchez-vous ?");
+
+    await openActivity(page);
+    await expect.poll(async () => partKinds((await creationOf(page)).parts)).toEqual(["onboarding_interview", "profile_created"]);
+    const { entry, parts } = await creationOf(page);
+    await expect(parts.first()).toContainText(kinds.onboarding_interview);
+    await expect(parts.first()).toContainText(history.results.answered_other.replace("{{count}}", "2"));
+    await expect(parts.first()).toContainText("Mistral");
+    await expect(entry.locator(".activity-entry-row")).not.toContainText(history.cost.noAi);
+    await expect(parts.first()).not.toContainText(history.writtenByJobbbox);
+  });
+
+  test("the scripted Onboarding Questionnaire, the AI down: two answers counted, « Questions écrites par Jobbbox », « Sans IA », then saved, gone after a reload", async ({ page }) => {
     test.setTimeout(120_000);
     await signInWithMagicLink(page, newAddress("activity-profile-creation-questionnaire"));
     await page.goto("/profils/nouveau");
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    // The interview fails at once (fake-mistral's E2E_AI_DOWN in the opening line): the scripted questions, no AI at all.
+    await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV E2E_AI_DOWN");
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+    await expect(transcript(page)).toContainText(fr.newProfile.interview.fallback);
     // Two answers: « Création du profil » counts them, the questions written by Jobbbox, without AI.
     await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");

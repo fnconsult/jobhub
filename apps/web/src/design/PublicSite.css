@@ -31,8 +31,11 @@
     border-bottom: 1px solid var(--color-border);
   }
 
-  /* The « Jobbbox » wordmark, in text: the logo's stand-in (#542). */
+  /* The logo (ADR-0105): its symbol, then the name « Jobbbox » in text. */
   .ds-site__brand {
+    display: inline-flex;
+    gap: 0.36em;
+    align-items: center;
     font-size: var(--font-size-h3);
     font-weight: 700;
     color: var(--color-text);
@@ -159,6 +162,9 @@
   }
 
   .ds-site__copyright {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
     margin: 0;
   }
 

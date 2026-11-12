@@ -1,14 +1,15 @@
 import type { TaskPlaybookSeed } from "./types";
 
 /**
- * « Modifier » on the onboarding's summary (#1005, ADR-0105): the Candidate's rewriting of the summary Jobbbox composed,
- * translated into changes of their Search Criteria for them to validate (coaching). The JSON shape, the values each
+ * « Modifier » on the onboarding's summary (#1005, ADR-0106): the Candidate's rewriting of the summary Jobbbox composed,
+ * translated into changes of their Search Criteria for them to validate (onboarding_interview: the Profile's creation,
+ * routed like cv_parsing, in the EU; not coaching). The JSON shape, the values each
  * criterion takes and the rule that the rewriting is data stay in code.
  */
 export const onboardingSummaryChanges = {
   id: "onboarding-summary-changes",
   title: "Traduire la réécriture du résumé en changements de critères",
-  aiTask: "coaching",
+  aiTask: "onboarding_interview",
   agent: true,
   search: false,
   validatedAtImport: false,

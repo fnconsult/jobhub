@@ -7,7 +7,7 @@ import { getPlaceSuggestions } from "@/places/server";
 import { getTaskPlaybooks } from "@/task-playbooks/server";
 
 /**
- * « Modifier » on the onboarding's summary (#1005, ADR-0105): the Candidate's rewriting of the summary, translated by the
+ * « Modifier » on the onboarding's summary (#1005, ADR-0106): the Candidate's rewriting of the summary, translated by the
  * AI Coach into Search Criteria changes for them to validate. For a signed-in Candidate only (a Guest has no onboarding);
  * no Plan Quota. Saves nothing, and the rewriting is kept nowhere.
  * Body: { criteria, summaryText, rewritten }.

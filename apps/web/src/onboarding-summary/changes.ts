@@ -1,5 +1,5 @@
 /**
- * The changes « Modifier » found in a rewritten onboarding summary (#1005, ADR-0105), as the card shows them for the
+ * The changes « Modifier » found in a rewritten onboarding summary (#1005, ADR-0106), as the card shows them for the
  * Candidate to validate: « J'ai compris : + CDD, − Lyon, + Paris ».
  *
  *   criteriaChanges(before, after)              each change, in the order the card tells them

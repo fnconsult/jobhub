@@ -29,11 +29,11 @@ type Context = { messages: number; tokens: number; limits: Limits; split: Record
 /** Saves the Free Plan's two Coach context limits on the Quotas page; "" is unlimited. */
 async function setFreeLimits(admin: Page, messages: string, tokens: string) {
   await admin.goto("/admin/quotas");
-  const free = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Offre Gratuite" }) });
+  const free = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Offre Gratuit" }) });
   await free.getByLabel(MESSAGES_LABEL).fill(messages);
   await free.getByLabel(TOKENS_LABEL).fill(tokens);
-  await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
-  await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
+  await free.getByRole("button", { name: "Enregistrer l'offre Gratuit" }).click();
+  await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuit enregistrés.");
 }
 
 /** Sends a message to the AI Coach; the reply and the conversation's Context bar figures. */
@@ -86,7 +86,7 @@ test.describe("Coach context limits of a Plan (#731)", () => {
     await signInWithMagicLink(page, newAddress("ctx-limits-default"));
     const admin = await adminPage(browser, baseURL);
     await admin.goto("/admin/quotas");
-    const free = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Offre Gratuite" }) });
+    const free = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Offre Gratuit" }) });
     await expect(free.getByLabel(MESSAGES_LABEL)).toHaveValue("40");
     await expect(free.getByLabel(TOKENS_LABEL)).toHaveValue("12000");
     await admin.close();
@@ -230,8 +230,8 @@ test.describe("Coach context limits of a Plan (#731)", () => {
 
       // Free reads 4 messages within 6 000; Standard and Premium, none stored, 40 within 12 000: twice Free's.
       await page.goto("/abonnement");
-      await expect(card("Gratuite").locator("li").filter({ hasText: memory })).toContainText("4 messages");
-      await expect(card("Gratuite").locator("li").filter({ hasText: size })).toContainText("×1");
+      await expect(card("Gratuit").locator("li").filter({ hasText: memory })).toContainText("4 messages");
+      await expect(card("Gratuit").locator("li").filter({ hasText: size })).toContainText("×1");
       await expect(card("Standard").locator("li").filter({ hasText: memory })).toContainText("40 messages");
       await expect(card("Standard").locator("li").filter({ hasText: size })).toContainText("×2");
       await expect(page.locator(".subscription")).not.toContainText(/jetons?|tokens?/i);

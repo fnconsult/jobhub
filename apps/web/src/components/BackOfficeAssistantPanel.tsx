@@ -1,5 +1,7 @@
 "use client";
 
+import { useAutoGrow } from "@/design/auto-grow";
+
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -154,6 +156,7 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
   const restored = useRef(false);
   const toggles = useRef(new Set<HTMLButtonElement>());
   const input = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(input, draft);
   const body = useRef<HTMLDivElement>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const focusMoved = useRef(false);
@@ -531,7 +534,7 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                 {status === "unavailable" && unanswered !== null ? <HelpForUnanswered question={unanswered} locale={locale} audience={AUDIENCE} onOpen={showArticle} /> : null}
                 <div ref={messagesEnd} aria-hidden="true" />
               </div>
-              <form className="coach-panel-form" onSubmit={send}>
+              <form className="coach-panel-form coach-panel-form-inline" onSubmit={send}>
                 <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
                 {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
                 <p className="visually-hidden" aria-live="polite">
@@ -541,11 +544,11 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                   {t("coachPanel.messageLabel")}
                 </label>
                 {/* The Send button sits inside the message box; a click anywhere in the box writes in it. */}
-                <div className="coach-panel-composer" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
+                <div className="coach-panel-composer coach-panel-composer-inline" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
                   <textarea
                     id={`${id}-message`}
                     ref={input}
-                    rows={2}
+                    rows={1}
                     placeholder={t("coachPanel.messageLabel")}
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}

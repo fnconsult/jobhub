@@ -17,6 +17,7 @@ import { createGuardrailStore, migrateGuardrails } from "@jobhub/web/guardrails"
 import { createUnansweredQuestions, migrateUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { createSignalements, migrateSignalements, signalementsOf } from "@jobhub/web/signalements";
 import { consumptionOf, countUse, migrateConsumption } from "@jobhub/web/consumption";
+import { extensionEventsOf, migrateExtensionEvents, recordExtensionAction } from "@jobhub/web/extension-events";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import { createDiscoveryRuns, migrateDiscoveryRuns, type DiscoveryRunRecord } from "@jobhub/web/discovery-runs";
@@ -28,7 +29,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, EXTENSION_EVENTS_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -1477,6 +1478,46 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       expect(await kept()).toEqual(["2026-11-05 jobSearch"]);
       expect(logs).toEqual(["[consumption] 1 day(s) of Consumption purged, 12 months old", "[consumption] 1 day(s) of Consumption purged, 12 months old"]);
       await expect(createJobs({ ...otherDeps, database: (await createThrowawayDatabase("test_worker_jobs_empty")).pool })[CONSUMPTION_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Extension Events 12 months old, and a Guest's 30 days old (#924)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateExtensionEvents(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const marie = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const recordedAt = async (iso: string, candidateId: string | null) => {
+        await recordExtensionAction(database, { candidateId, extensionVersion: "0.2.0" }, "capture");
+        await database.query(`UPDATE extension_event SET at = $1 WHERE id = (SELECT max(id) FROM extension_event)`, [iso]);
+      };
+      await recordedAt("2025-11-01T12:00:00Z", marie);
+      await recordedAt("2026-10-01T12:00:00Z", marie);
+      await recordedAt("2026-10-01T12:00:00Z", null);
+      await recordedAt("2026-11-01T12:00:00Z", null);
+      const logs: string[] = [];
+      const jobAt = (iso: string) => createJobs({ ...otherDeps, database, now: () => new Date(iso), log: (line) => logs.push(line) })[EXTENSION_EVENTS_PURGE]!;
+      const kept = async () => (await database.query<{ day: string; guest: boolean }>(`SELECT to_char(at, 'YYYY-MM-DD') AS day, candidate_id IS NULL AS guest FROM extension_event ORDER BY at, guest`)).rows;
+
+      expect(jobAt("2026-11-05T12:00:00Z").cron).toBe("20 4 * * *");
+      await jobAt("2026-11-05T12:00:00Z").handler({});
+      await jobAt("2026-11-05T12:00:00Z").handler({});
+
+      expect(await kept()).toEqual([
+        { day: "2026-10-01", guest: false },
+        { day: "2026-11-01", guest: true },
+      ]);
+      expect((await extensionEventsOf(database, marie)).map((event) => event.at.toISOString().slice(0, 10))).toEqual(["2026-10-01"]);
+      expect(logs).toEqual(["[extension-events] 2 Extension Event(s) purged, 12 months old, or 30 days for a Guest's"]);
+      const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+      try {
+        await expect(createJobs({ ...otherDeps, database: empty.pool })[EXTENSION_EVENTS_PURGE]!.handler({})).resolves.toBeUndefined();
+      } finally {
+        await empty.drop();
+      }
     } finally {
       await testAuth.stop();
     }

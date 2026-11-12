@@ -1,0 +1,10 @@
+# On a phone (#899), the Offer box's header behind the Top Bar's filter icon (« Filtrer les offres à traiter : N à
+# traiter, … »): opens its panel, finds the chip LABEL there, and chooses it, which filters the box and closes the panel.
+appId: ai.jobbbox.app
+---
+- tapOn: "Filtrer les offres à traiter.*"
+- extendedWaitUntil:
+    visible: ${LABEL}
+    timeout: 5000
+- tapOn: ${LABEL}
+- assertNotVisible: ${LABEL}

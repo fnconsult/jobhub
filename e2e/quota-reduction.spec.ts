@@ -85,7 +85,7 @@ test("a reduction of Standard waits 30 days; a subscriber cancels over it, refun
     expect.objectContaining({ amount: 666 }),
   ]);
   await page.goto("/abonnement");
-  await expect(page.getByText(fr.billing.page.currentPlan.replace("{{plan}}", "Gratuite"))).toBeVisible();
+  await expect(page.getByText(fr.billing.page.currentPlan.replace("{{plan}}", "Gratuit"))).toBeVisible();
 
   // On Offres, the reduction is listed, and cancelled before its date: Standard keeps what it has, for the other tests.
   await admin.goto("/admin/offres#baisses");
@@ -100,14 +100,14 @@ test("a rise and a reduction on Free apply at once, with no notice", async ({ br
   const admin = await (await browser.newContext({ baseURL })).newPage();
   await signInWithMagicLink(admin, ADMINISTRATOR);
   await admin.goto("/admin/quotas");
-  const free = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Offre Gratuite" }) });
+  const free = admin.locator("form").filter({ has: admin.getByRole("heading", { name: "Offre Gratuit" }) });
   const field = free.getByLabel("Match Scores (par semaine)");
   const original = await field.inputValue();
-  const save = free.getByRole("button", { name: "Enregistrer l'offre Gratuite" });
+  const save = free.getByRole("button", { name: "Enregistrer l'offre Gratuit" });
 
   await field.fill(String(Number(original) + 3));
   await save.click();
-  await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
+  await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuit enregistrés.");
   // Back to the page without its « enregistrés » status (?saved=free), so the next one can only be the next save's.
   await admin.goto("/admin/quotas");
   await expect(admin.getByRole("status")).toHaveCount(0);
@@ -115,7 +115,7 @@ test("a rise and a reduction on Free apply at once, with no notice", async ({ br
 
   await field.fill(original);
   await save.click();
-  await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
+  await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuit enregistrés.");
   await admin.goto("/admin/quotas");
   await expect(field).toHaveValue(original);
 

@@ -486,6 +486,11 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
     const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
 
+    it("has a case calling the Candidate by their Preferred Name alone, and one giving no name when they gave none (#921)", () => {
+      expect(AI_COACH_EVAL_CASES.find((each) => each.id === "preferred-name")).toMatchObject({ context: expect.stringContaining("« Mimi »"), criteria: expect.stringMatching(/jamais « Marie », « Dupont »/) });
+      expect(AI_COACH_EVAL_CASES.find((each) => each.id === "no-name-given")).toMatchObject({ context: expect.stringContaining("Le candidat n'a pas donné le nom à employer."), criteria: expect.stringMatching(/n'en invente/) });
+    });
+
     it("names each Eval Case once: a case a merge doubles would hide its other copy from every check by id", () => {
       for (const cases of [AI_COACH_EVAL_CASES, GUARDRAIL_EVAL_CASES]) {
         const ids = cases.map((each) => each.id);

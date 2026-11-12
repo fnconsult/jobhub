@@ -18,7 +18,7 @@ export type ReminderEmailItem = {
  * order as given; the button opens the Agenda; the footer links to the Rappels Section, which switches them off.
  */
 export function appointmentReminderEmail(
-  { items, agendaUrl, settingsUrl }: { items: ReminderEmailItem[]; agendaUrl: string; settingsUrl: string },
+  { items, agendaUrl, settingsUrl, preferredName }: { items: ReminderEmailItem[]; agendaUrl: string; settingsUrl: string; preferredName?: string | null },
   language: Locale,
 ): RenderedEmail {
   const i18n = createI18n(language);
@@ -45,6 +45,7 @@ export function appointmentReminderEmail(
   });
   return renderEmail({
     language,
+    greetingName: preferredName,
     subject: t("appointmentReminder.email.subject", { count, date }),
     title: t("appointmentReminder.email.title", { count }),
     body: [t("appointmentReminder.email.intro", { count, date }), ...cards, { action: { label: t("appointmentReminder.email.seeAgenda"), url: agendaUrl } }],

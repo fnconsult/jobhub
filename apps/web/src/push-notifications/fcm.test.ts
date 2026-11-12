@@ -75,6 +75,17 @@ describe("FCM (HTTP v1, a service account's OAuth access token)", () => {
     expect(JSON.parse(send!.init.body!)).toEqual({ message: { token: TOKEN, notification: { title: MESSAGE.title, body: MESSAGE.body }, data: { path: "/candidatures/42" } } });
   });
 
+  it("gives Android the offers à traiter as the notification's count, for launchers that show one; none at 0 (#818)", async () => {
+    const google = fakeGoogle();
+    const fcm = createFcmSender({ serviceAccount: serviceAccount().json, fetch: google.fetch, now: () => now });
+    await fcm.send({ token: TOKEN, environment: "production" }, { ...MESSAGE, badge: 7 });
+    await fcm.send({ token: TOKEN, environment: "production" }, { ...MESSAGE, badge: 0 });
+
+    const [counted, none] = google.sends().map((send) => JSON.parse(send.init.body!).message);
+    expect(counted).toEqual({ token: TOKEN, notification: { title: MESSAGE.title, body: MESSAGE.body }, android: { notification: { notification_count: 7 } }, data: { path: "/candidatures/42" } });
+    expect(none).not.toHaveProperty("android");
+  });
+
   it("reuses its access token until shortly before it expires", async () => {
     let clock = now;
     const google = fakeGoogle();

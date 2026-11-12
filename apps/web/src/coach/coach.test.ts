@@ -117,10 +117,12 @@ interface Workspace {
   memory: string[];
   /** Her dated Agenda Items, past and upcoming, in any order. */
   agenda: AgendaItem[];
+  /** What she asked the coaches to call her (#921); null when she gave nothing. */
+  preferredName: string | null;
 }
 
 function emptyWorkspace(): Workspace {
-  return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [], agenda: [] };
+  return { profiles: [profile], applications: [], jobOffers: [], jobSearches: [], jobDigests: [], memory: [], agenda: [], preferredName: "Mimi" };
 }
 
 function sourcesOf(workspace: Workspace): CoachSources {
@@ -156,6 +158,7 @@ function sourcesOf(workspace: Workspace): CoachSources {
       latest: async (candidateId, profileId) => mine(candidateId, workspace.jobDigests).find((d) => d.profile.id === profileId) ?? null,
     },
     coachMemory: { items: async (candidateId) => mine(candidateId, workspace.memory) },
+    names: { of: async (candidateId) => (candidateId === "marie" ? { givenName: "Marie", familyName: "Dupont", preferredName: workspace.preferredName } : null) },
     // As the Agenda gives them: from the start of today in French time on, oldest first.
     agenda: {
       upcoming: async (candidateId, now) =>
@@ -467,13 +470,13 @@ describe("talking with the AI Coach in the Coach Panel", () => {
 });
 
 describe("what the AI Coach always knows: a short Candidate summary", () => {
-  it("tells the AI Coach the Candidate's first name, target role, Search Criteria and seniority, whatever is in view", async () => {
+  it("tells the AI Coach the Candidate's Preferred Name, target role, Search Criteria and seniority, whatever is in view", async () => {
     const { coach, provider } = coachWith();
 
     await ask(coach);
 
     const context = contextOf(provider);
-    expect(context).toContain("Marie");
+    expect(context).toContain("Le candidat souhaite que le coach l'appelle « Mimi » ; n'emploie aucun autre nom pour lui.");
     expect(context).toContain("Directrice financière");
     expect(context).toContain("Lyon");
     expect(context).toContain("120000");
@@ -489,7 +492,27 @@ describe("what the AI Coach always knows: a short Candidate summary", () => {
   });
 });
 
-describe("the Candidate's identity: first name only", () => {
+describe("the Candidate's identity: the Preferred Name only (#921)", () => {
+  it("calls the Candidate by their Preferred Name, never by the first name of their CV or account", async () => {
+    const { coach, provider } = coachWith();
+
+    await ask(coach, { kind: "profile", id: profile.id });
+
+    const context = contextOf(provider);
+    expect(context).toContain("« Mimi »");
+    expect(context).not.toMatch(/Marie|Dupont/);
+  });
+
+  it("says no name was given when the Candidate gave no Preferred Name, and gives none", async () => {
+    const { coach, provider } = coachWith({ workspace: { preferredName: null } });
+
+    await ask(coach);
+
+    const context = contextOf(provider);
+    expect(context).toContain("Le candidat n'a pas donné le nom à employer. Ne l'appelle par aucun nom.");
+    expect(context).not.toMatch(/Marie|Dupont|s'appelle/);
+  });
+
   const writtenEverywhere: Profile = {
     ...profile,
     masterCv: {
@@ -507,10 +530,10 @@ describe("the Candidate's identity: first name only", () => {
     await ask(coach, { kind: "profile", id: profile.id });
 
     const context = contextOf(provider);
-    expect(context).toContain("Marie");
+    expect(context).toContain("[nom retiré], joignable");
     expect(context).toContain("Groupe Seb");
     expect(context).toContain("Consolidation IFRS.");
-    for (const identity of ["Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République", "69002"]) expect(context).not.toContain(identity);
+    for (const identity of ["Marie", "Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République", "69002"]) expect(context).not.toContain(identity);
   });
 
   it("strips them too from the onboarding answers summarised when nothing is in view", async () => {
@@ -520,7 +543,7 @@ describe("the Candidate's identity: first name only", () => {
 
     const context = contextOf(provider);
     expect(context).toContain("joignable");
-    for (const identity of ["Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République", "69002"]) expect(context).not.toContain(identity);
+    for (const identity of ["Marie", "Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République", "69002"]) expect(context).not.toContain(identity);
   });
 
   it("so the AI Coach's context is not identity-bearing: it stays on the provider configured for coaching, even under EU AI consent", async () => {
@@ -1072,7 +1095,7 @@ describe("consulting Playbook Agents before replying (ADR-0021)", () => {
     const interview = claude.calls[0]!;
     expect(interview).toMatchObject({ model: "anthropic.claude-haiku-5-5", effort: "low" });
     expect(interview.system).toContain("**R1. Préparez trois exemples chiffrés.** [S24]");
-    expect(interview.system).toContain("Le candidat s'appelle Marie");
+    expect(interview.system).toContain("l'appelle « Mimi »");
     expect(interview.system).toContain("Directrice financière");
     expect(interview.system).not.toContain("Comparez portage");
     expect(interview.messages.map((message) => message.content)).toEqual(conversation.map((message) => message.text));
@@ -1725,7 +1748,7 @@ describe("a fit question: grounded in the Candidate's own data (#653)", () => {
     const context = contextOf(provider);
     expect(context).toContain("CV de référence du profil « Directrice financière » (version 2), contre lequel les scores sont calculés :");
     expect(context).toContain("- Directrice financière, Groupe Seb (Lyon), 2005 – 2024 : Consolidation IFRS.");
-    for (const identity of ["Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République"]) expect(context).not.toContain(identity);
+    for (const identity of ["Marie", "Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République"]) expect(context).not.toContain(identity);
   });
 
   it("the Profile the Job Search ran for, not another active one", async () => {

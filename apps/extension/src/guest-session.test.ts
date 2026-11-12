@@ -59,6 +59,18 @@ describe("a Guest session", () => {
     expect(await session.read()).toEqual({ cv, searchCriteria, expiresAt: 23 * HOUR });
   });
 
+  it("keeps the Provenance of the CV's reading with it, when the AI read it, and drops it with the CV (#926)", async () => {
+    const session = createGuestSession(memoryStorage(), () => 0);
+    const provenance = { v: 1, steps: [{ kind: "ai", task: "cv_parsing" }] };
+
+    await session.keepCv(cv, searchCriteria, provenance);
+    expect(await session.read()).toEqual({ cv, searchCriteria, cvProvenance: provenance, expiresAt: 23 * HOUR });
+
+    // Another CV, read by rules (a Guest's): no Provenance of the earlier one stays with it.
+    await session.keepCv({ ...cv, fullName: "Marie Martin" }, searchCriteria);
+    expect((await session.read()).cvProvenance).toBeUndefined();
+  });
+
   it("once the work is saved in an account, keeps only where it went, until another Job Offer is captured", async () => {
     const session = createGuestSession(memoryStorage(), () => 0);
     await session.keepJobOffer(jobOffer);

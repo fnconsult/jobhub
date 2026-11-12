@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountLink, sidebarNav } from "./sidebar-nav";
+import { accountLink, sidebarNav, subscriptionLink } from "./sidebar-nav";
 
 const daf = { id: "p-daf", archived: false };
 const consultant = { id: "p-consultant", archived: false };
@@ -71,5 +71,13 @@ describe("sidebarNav", () => {
     ["/candidatures", false],
   ])("Mon compte, in the sidebar's foot, is current on %s: %s", (pathname, expected) => {
     expect(accountLink(pathname)).toEqual({ href: "/compte", current: expected });
+  });
+
+  it.each([
+    ["/abonnement", true],
+    ["/abonnement/resiliation", true],
+    ["/compte", false],
+  ])("Mon abonnement, in Mon compte's menu (#923), is current on %s: %s", (pathname, expected) => {
+    expect(subscriptionLink(pathname)).toEqual({ href: "/abonnement", current: expected });
   });
 });

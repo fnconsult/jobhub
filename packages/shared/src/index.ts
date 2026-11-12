@@ -28,5 +28,6 @@ export * from "./sign-in-code";
 export * from "./context-bar";
 export * from "./consumption";
 export * from "./offer-box";
+export * from "./badge-count";
 export * from "./cv-file";
 export * from "./job-search-words";

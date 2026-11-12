@@ -22,11 +22,12 @@ import { applicationIdOf, NEW_CONVERSATION, pageFor, paths, profileIdOf } from "
 import { useIsHumanCoach } from "../navigation/human-coach";
 import { Sidebar } from "../navigation/Sidebar";
 import { useFreeConversations } from "../navigation/FreeConversations";
-import { ActivityPane } from "../coach/ActivityPane";
-import { ClearConversation } from "../coach/ClearConversation";
+import { ActivityPane, useLiveReply } from "../coach/ActivityPane";
+import { useClearAction } from "../coach/ClearConversation";
 import { PageConversationProvider } from "../coach/page-conversation";
 import { usePortraitOnPhones } from "../orientation";
 import { appFetch, appSession } from "../session/instance";
+import { AppIconBadge } from "../offer-box/AppIconBadge";
 import { AppPush, AppPushDevice } from "../push/app-push";
 import { showNotificationsInForeground } from "../push/device";
 import { SessionGate } from "../session/SessionGate";
@@ -46,7 +47,7 @@ showNotificationsInForeground();
  * theme, the session (signed out, the sign-in screen; #685), the read cache kept on the device, the optional app lock over
  * the signed-in app (#702), the legal steps after sign-in (the CGU to accept, the privacy policy's change, the EU AI
  * Consent; #689), the Push notifications (the device registered, forgotten at sign-out, a notification tapped opening
- * its page, asked for in context; #699), then the shell around every page.
+ * its page, asked for in context; #699), the app icon's badge of offers à traiter (#818), then the shell around every page.
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_600SemiBold, Inter_700Bold });
@@ -66,6 +67,7 @@ export default function RootLayout() {
           <AppLock>
             <LegalSteps>
               <AppPush>
+                <AppIconBadge />
                 <AppShell />
               </AppPush>
             </LegalSteps>
@@ -84,7 +86,10 @@ function AppShell() {
   );
 }
 
-/** Each page in the shell: its title (a Free conversation's, as the drawer lists it), its pane, « Effacer » on a conversation saved. */
+/**
+ * Each page in the shell: its title (a Free conversation's, as the drawer lists it), its pane, « Effacer » on a
+ * conversation saved, and the coach's reply on its way, which the compact Top Bar shows on Activité.
+ */
 function PagesInShell() {
   const { t } = useTranslation();
   const pathname = usePathname();
@@ -100,6 +105,8 @@ function PagesInShell() {
   useResumeShare(pathname, (path) => router.navigate(path));
   // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
   const reader = useMemo(() => createDocumentReader(systemDocuments), []);
+  const clear = useClearAction();
+  const liveReply = useLiveReply();
   return (
     <Shell
       page={page}
@@ -107,7 +114,8 @@ function PagesInShell() {
       sidebar={(closeDrawer) => <Sidebar isHumanCoach={isHumanCoach} onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
       onUp={(path) => router.navigate(path)}
-      actions={<ClearConversation />}
+      actions={clear ? [clear] : []}
+      aiRun={liveReply}
     >
       <AboveKeyboard>
         <Stack screenOptions={{ headerShown: false }} />

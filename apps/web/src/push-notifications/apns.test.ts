@@ -57,6 +57,16 @@ describe("APNs (token-based connection, HTTP/2)", () => {
     expect(jwt.claims).toEqual({ iss: "TEAM123456", iat: Math.floor(now.getTime() / 1000) });
   });
 
+  it("sets the app icon's badge to the offers à traiter it is given, 0 clearing it (#818)", async () => {
+    const key = p8();
+    const { fetch, calls } = fakeFetch(() => new Response(null, { status: 200 }));
+    const apns = createApnsSender({ key: key.pem, keyId: "ABC123DEFG", teamId: "TEAM123456", topic: "ai.jobbbox.app", fetch, now: () => now });
+    await apns.send({ token: TOKEN, environment: "production" }, { ...MESSAGE, badge: 7 });
+    await apns.send({ token: TOKEN, environment: "production" }, { ...MESSAGE, badge: 0 });
+
+    expect(calls.map((call) => JSON.parse(String(call.init.body)).aps.badge)).toEqual([7, 0]);
+  });
+
   it("sends a development build's token to the sandbox", async () => {
     const { fetch, calls } = fakeFetch(() => new Response(null, { status: 200 }));
     const apns = createApnsSender({ key: p8().pem, keyId: "ABC123DEFG", teamId: "TEAM123456", topic: "ai.jobbbox.app", fetch });

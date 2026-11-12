@@ -28,6 +28,8 @@ const METADATA_SIZE_SELECTORS = [
   ".release-line", // « Version de Jobbbox » (#559)
   ".usage-meter-renews", // when the usage meter renews
   ".usage-meter-detail",
+  ".account-plan, .account-email", // the Plan under the Candidate's name, the email under « Prénom Nom » (#923)
+  ".account-initials", // the Candidate's initials, hidden from screen readers: a mark, not text (#923)
   ".signalement-tip", // a hint
   ".signalement-meta",
   ".cv-card-meta", // a Master CV card's version line and the full editor's hint (#468)

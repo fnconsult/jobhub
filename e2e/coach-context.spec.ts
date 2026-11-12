@@ -116,14 +116,20 @@ async function contextOf(page: Page, focus?: { kind: string; id: string }): Prom
 const tokens = (text: string) => Math.ceil(text.length / 4);
 
 test.describe("what the AI Coach is told", () => {
-  test("always includes a short Candidate summary: first name, target role, Search Criteria and seniority; and no Coach Memory when there is none", async ({ page }) => {
+  test("always includes a short Candidate summary: Preferred Name, target role, Search Criteria and seniority; and no Coach Memory when there is none", async ({ page }) => {
     const email = newAddress("ctx-summary");
     await signInWithMagicLink(page, email);
     await createProfile(page, "Directrice financière");
 
+    // No Preferred Name yet: no name at all, not the first word of the CV's (#921).
+    expect(await contextOf(page)).toContain("Le candidat n'a pas donné le nom à employer. Ne l'appelle par aucun nom.");
+    const named = await page.request.put("/api/account/identity", { headers: { origin }, data: { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" } });
+    expect(named.ok(), await named.text()).toBe(true);
+
     const context = await contextOf(page);
 
-    expect(context).toContain("Le candidat s'appelle Marie (prénom seulement).");
+    expect(context).toContain("Le candidat souhaite que le coach l'appelle « Mimi » ; n'emploie aucun autre nom pour lui.");
+    expect(context).not.toMatch(/Marie|Dupont/);
     expect(context).toContain("poste visé Directrice financière");
     expect(context).toContain("lieu Lyon");
     expect(context).toContain("contrat CDI");
@@ -262,7 +268,7 @@ test.describe("what the AI Coach is told", () => {
 
     expect(tokens(context)).toBeLessThanOrEqual(12_000);
     expect(tokens(context)).toBeGreaterThan(11_000);
-    expect(context).toContain("Le candidat s'appelle Marie (prénom seulement).");
+    expect(context).toContain("Le candidat n'a pas donné le nom à employer.");
     expect(context).toContain("Le candidat consulte son agenda « Entretiens et rendez-vous ».");
   });
 
@@ -326,13 +332,13 @@ test.describe("what the AI Coach is told", () => {
     expect(tokens(capped)).toBeGreaterThan(11_000);
     // Summaries went first; the Candidate summary and the start of the item in view stayed.
     expect(capped).not.toContain("Candidature trimée");
-    expect(capped).toContain("Le candidat s'appelle Marie (prénom seulement).");
+    expect(capped).toContain("Le candidat n'a pas donné le nom à employer.");
     expect(capped).toContain("poste visé Directrice financière");
     expect(capped).toContain("Offre : Offre géante chez Acme Industrie");
     expect(capped).toContain("(la suite est coupée)");
   });
 
-  test("tells the AI Coach the first name only: the Master CV's full name, email, phone and address never leave", async ({ page }) => {
+  test("tells the AI Coach the Preferred Name only: the Master CV's full name, first name, email, phone and address never leave (#921)", async ({ page }) => {
     const email = newAddress("ctx-identity");
     await signInWithMagicLink(page, email);
     await subscribe(page, email, "standard");
@@ -352,10 +358,10 @@ test.describe("what the AI Coach is told", () => {
     const inView = await createProfile(page, "Directrice financière", leaky);
     await createProfile(page, "Consultante transformation", leaky);
 
-    const identityValues = [IDENTITY.fullName, "Dupont", IDENTITY.email, IDENTITY.phone, "12 rue de la République", "69002"];
+    const identityValues = [IDENTITY.fullName, "Marie", "Dupont", IDENTITY.email, IDENTITY.phone, "12 rue de la République", "69002"];
     for (const focus of [{ kind: "profile", id: inView }, undefined]) {
       const context = await contextOf(page, focus);
-      expect(context).toContain("Marie");
+      expect(context).toContain("Le candidat n'a pas donné le nom à employer.");
       for (const value of identityValues) expect(context, `${value} (${focus?.kind ?? "no focus"})`).not.toContain(value);
     }
   });

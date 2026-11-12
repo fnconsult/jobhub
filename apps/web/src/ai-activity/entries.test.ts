@@ -227,7 +227,7 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
         { kind: "coach_reply", at: at("21:14"), result: { end: { state: "done" } }, after: undefined },
         { kind: "ats_score", at: at("20:40", "2026-10-27"), result: { end: { state: "done" }, score: 68 }, after: "master_cv_version" },
         { kind: "master_cv_version", at: at("20:38", "2026-10-27"), result: { end: { state: "done" }, version: 6, restoredFrom: null }, after: undefined },
-        { kind: "master_cv", at: at("10:31", "2026-10-12"), result: { end: { state: "done" }, version: 1 }, after: undefined },
+        { kind: "profile_creation", at: at("10:31", "2026-10-12"), result: { end: { state: "done" }, version: 1 }, after: undefined },
       ]);
       expect(byKey.get(entries[0]!.after!)!.result.version).toBe(7);
       expect(byKey.get(entries[3]!.after!)!.result.version).toBe(6);
@@ -240,11 +240,12 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
       expect(reply!.proposals).toEqual([{ object: { href: CV, label: "CV de référence" }, what: "3 modifications du CV", before: "Version 6", after: "Version 7", state: "applied", led: seventh!.key }]);
     });
 
-    it("says a version saved by hand is the Candidate's, and Version 1 read from their file has its model and tokens", () => {
+    it("says a version saved by hand is the Candidate's, and Version 1 read from their file is the Profile's creation (#810), with its model and tokens", () => {
       expect(entries[4]).toMatchObject({ origin: "candidate", cost: { noAi: true } });
       expect(entries[4]).not.toHaveProperty("messageId");
       expect(entries[5]).toMatchObject({ origin: "candidate", cost: { quota: null, tokens: { count: 9_600, calls: null, partial: false }, noAi: false } });
       expect(entries[5]!.models.map((model) => model.name)).toEqual(["Mistral Medium 3.5"]);
+      expect(entries[5]!.parts!.map((part) => part.kind)).toEqual(["cv_reading", "profile_created"]);
     });
 
     it("keeps Version 7 « suite de » the reply once its card is undone, with no change entry", () => {
@@ -271,6 +272,91 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
 
     it("counts an ATS Score in its Plan Quota, made by Jobbbox's rules without AI", () => {
       expect(entries[0]).toMatchObject({ origin: "jobbbox", cost: { quota: "atsScores", tokens: null, noAi: true }, models: [], tools: [{ name: null }] });
+    });
+  });
+
+  describe("scenario 3b, a Profile's creation (#810): the CV read, the Onboarding Questionnaire, the review, the Profile created", () => {
+    const PAGE = `/profils/${PROFILE}`;
+    const day = "2026-10-12";
+    /** The uploaded CV, read by Mistral Medium. */
+    const reading: Provenance = {
+      v: 1,
+      steps: [
+        { kind: "ai", activity: "think", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 8_000, output: 1_600 }, ms: 20_000, at: at("10:31", day), outcome: "ok", count: 1 },
+      ],
+      sites: [{ kind: "candidate", links: [] }],
+      startedAt: at("10:31", day),
+      wallMs: 27_000,
+    };
+    const first: VersionGiven = { version: 1, savedAt: new Date(at("10:38", day)), restoredFrom: null, provenance: reading, href: `${PAGE}/versions/1` };
+    const firstScore = { kind: "ats_score" as const, provenance: rulesProvenance("ats_score", { at: new Date(at("10:39", day)) }), scored: 1, href: `${PAGE}/ats-score`, result: { score: 64 } };
+    /** What the browser still knows of it, on `/profils/nouveau` and until the page is loaded again. */
+    const known = { reading: { provenance: reading }, questionnaire: { at: at("10:32", day), answered: 2, skipped: 1 }, review: { at: at("10:36", day) } };
+
+    it("on `/profils/nouveau`, groups what is done so far in one entry « Création du profil », the CV read its only AI", () => {
+      const [creation, ...others] = activityEntries({ page: "any", creation: known });
+      expect(others).toEqual([]);
+      expect(creation).toMatchObject({ key: "profile_creation", kind: "profile_creation", at: at("10:31", day), object: { href: null, label: null }, origin: "candidate" });
+      expect(creation!.result).toEqual({ end: { state: "done" } });
+      expect(creation!.parts!.map(({ kind, at, origin, result, cost }) => ({ kind, at, origin, result, noAi: cost.noAi }))).toEqual([
+        { kind: "cv_reading", at: at("10:31", day), origin: "candidate", result: { end: { state: "done" } }, noAi: false },
+        { kind: "questionnaire", at: at("10:32", day), origin: "jobbbox", result: { end: { state: "done" }, answered: 2, skipped: 1 }, noAi: true },
+        { kind: "review", at: at("10:36", day), origin: "candidate", result: { end: { state: "done" } }, noAi: true },
+      ]);
+      const read = creation!.parts![0]!;
+      expect(read.steps.map(({ model, tokens }) => ({ model, tokens }))).toEqual([{ model: "Mistral Medium 3.5", tokens: 9_600 }]);
+      expect(creation!.models.map((model) => model.name)).toEqual(["Mistral Medium 3.5"]);
+      expect(creation!.cost).toEqual({ quota: null, tokens: { count: 9_600, calls: null, partial: false }, noAi: false });
+    });
+
+    it("on the Profile's page, after a reload, makes it again from what is kept: the CV read, the Profile created with Version 1, its first ATS Score", () => {
+      const later: VersionGiven = { version: 2, savedAt: new Date(at("11:00", day)), restoredFrom: null, href: `${PAGE}/versions/2` };
+      const entries = activityEntries({ page: "profile", elements: [firstScore], versions: [later, first], creation: { href: PAGE } });
+      expect(entries.map(({ kind }) => kind)).toEqual(["master_cv_version", "profile_creation"]);
+      const creation = entries[1]!;
+      expect(creation).toMatchObject({ key: "profile_creation", at: at("10:31", day), object: { href: PAGE, label: null }, result: { end: { state: "done" }, version: 1 } });
+      expect(creation.parts!.map(({ kind, at, object, result }) => ({ kind, at, href: object.href, result }))).toEqual([
+        { kind: "cv_reading", at: at("10:31", day), href: null, result: { end: { state: "done" } } },
+        { kind: "profile_created", at: at("10:38", day), href: `${PAGE}/versions/1`, result: { end: { state: "done" }, version: 1 } },
+        { kind: "ats_score", at: at("10:39", day), href: `${PAGE}/ats-score`, result: { end: { state: "done" }, score: 64 } },
+      ]);
+      expect(creation.parts![2]).toMatchObject({ origin: "jobbbox", cost: { quota: "atsScores", noAi: true } });
+      expect(creation.parts!.every((part) => part.after === undefined)).toBe(true);
+    });
+
+    it("leaves out the steps no longer known: a Profile from the questionnaire, saved without AI, its ATS Score not yet computed", () => {
+      const [creation] = activityEntries({ page: "profile", versions: [{ ...first, provenance: null }], creation: { href: PAGE } });
+      expect(creation!.parts!.map(({ kind }) => kind)).toEqual(["profile_created"]);
+      expect(creation!.cost).toEqual({ quota: null, tokens: null, noAi: true });
+      expect(creation!.models).toEqual([]);
+    });
+
+    it("keeps an ATS Score of a later version an entry of its own, « suite de » that version", () => {
+      const second: VersionGiven = { version: 2, savedAt: new Date(at("11:00", day)), restoredFrom: null, href: `${PAGE}/versions/2` };
+      const entries = activityEntries({ page: "profile", elements: [{ ...firstScore, provenance: rulesProvenance("ats_score", { at: new Date(at("11:01", day)) }), scored: 2 }], versions: [second, first], creation: { href: PAGE } });
+      expect(entries.map(({ kind }) => kind)).toEqual(["ats_score", "master_cv_version", "profile_creation"]);
+      expect(entries[0]!.after).toBe(entries[1]!.key);
+      expect(entries[2]!.parts!.map(({ kind }) => kind)).toEqual(["cv_reading", "profile_created"]);
+    });
+
+    it("once saved, before any reload: the server's entry with the questionnaire and the review the browser still knows, each once", () => {
+      const served = servedEntries({ page: "profile", elements: [firstScore], versions: [first], creation: { href: PAGE } });
+      const [creation, ...others] = activityEntries({ page: "any", built: served, creation: { ...known, href: PAGE } });
+      expect(others).toEqual([]);
+      expect(creation!.parts!.map(({ kind }) => kind)).toEqual(["cv_reading", "questionnaire", "review", "profile_created", "ats_score"]);
+      expect(creation!.cost.tokens).toEqual({ count: 9_600, calls: null, partial: false });
+    });
+
+    it("adds nothing on another Profile's page, and nothing once saved where the server built no creation", () => {
+      const served = servedEntries({ page: "profile", versions: [first], creation: { href: PAGE } });
+      const elsewhere = activityEntries({ page: "any", built: served, creation: { ...known, href: "/profils/autre" } });
+      expect(elsewhere.map(({ kind, parts }) => ({ kind, parts: parts!.map((part) => part.kind) }))).toEqual([{ kind: "profile_creation", parts: ["cv_reading", "profile_created"] }]);
+      expect(activityEntries({ page: "any", creation: { ...known, href: PAGE } })).toEqual([]);
+    });
+
+    it("never carries a Provenance: the parts are entries as the browser shows them", () => {
+      const json = JSON.stringify(servedEntries({ page: "profile", elements: [firstScore], versions: [first], creation: { href: PAGE } }));
+      expect(json).not.toMatch(/"(task|outcome|provider|endpoint|startedAt|wallMs)":/);
     });
   });
 

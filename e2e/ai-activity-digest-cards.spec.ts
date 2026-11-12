@@ -130,7 +130,8 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
 
     await openPane(page);
     const pane = paneOf(page);
-    const score = await elementOf(page, fr.aiActivity.kinds.ats_score);
+    // Version 1's ATS Score is a part of « Création du profil » (#810).
+    const score = (await elementOf(page, fr.aiActivity.kinds.profile_creation)).locator('.activity-entry-part[data-kind="ats_score"]');
     await expect(score).toContainText(fr.aiActivity.steps.compute);
     await expect(score).not.toContainText(fr.aiActivity.modelNotRecorded);
 

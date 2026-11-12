@@ -24,9 +24,9 @@ describe("the Plan form of the Back Office", () => {
   });
 
   it("reads an unticked box as hidden and no feature, and no product as none", () => {
-    expect(planFromForm(form([["nameFr", "Gratuite"], ["nameEn", "Free"]]))).toEqual({
+    expect(planFromForm(form([["nameFr", "Gratuit"], ["nameEn", "Free"]]))).toEqual({
       key: "",
-      name: { fr: "Gratuite", en: "Free" },
+      name: { fr: "Gratuit", en: "Free" },
       status: "hidden",
       stripeProductId: null,
       features: [],

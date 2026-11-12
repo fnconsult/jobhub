@@ -17,10 +17,12 @@ export interface JobDigestEmailOffer {
 
 /**
  * The Job Digest email: its Job Offers as cards, best Match Score first; the button to the Job Digest, which holds
- * all `count` of them; the unsubscribe link in the footer (the List-Unsubscribe header is the mailer call's).
+ * all `count` of them; then, while the Candidate's Offer box has some, « Il vous reste N offres à traiter » (`toHandle`,
+ * #818, ADR-0090) leading to Recherches d'offres (`offerBoxUrl`); the unsubscribe link in the footer (the
+ * List-Unsubscribe header is the mailer call's).
  */
 export function jobDigestEmail(
-  digest: { profileName: string; count: number; offers: JobDigestEmailOffer[]; digestUrl: string; unsubscribeUrl: string },
+  digest: { profileName: string; count: number; offers: JobDigestEmailOffer[]; digestUrl: string; toHandle: number; offerBoxUrl: string; unsubscribeUrl: string; preferredName?: string | null },
   language: Locale,
 ): RenderedEmail {
   const i18n = createI18n(language);
@@ -29,6 +31,7 @@ export function jobDigestEmail(
   const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: DIGEST_TIME_ZONE });
   return renderEmail({
     language,
+    greetingName: digest.preferredName,
     subject: t("jobDigest.email.subject", { count, profile }),
     title: t("jobDigest.email.title", { count, profile }),
     body: [
@@ -45,6 +48,7 @@ export function jobDigestEmail(
         },
       })),
       { action: { label: t("jobDigest.email.seeDigest", { count }), url: digest.digestUrl } },
+      ...(digest.toHandle > 0 ? [{ link: { label: t("jobDigest.offersToHandle", { count: digest.toHandle }), url: digest.offerBoxUrl } }] : []),
     ],
     footer: { reason: t("jobDigest.email.reason", { profile }), link: { label: t("jobDigest.email.unsubscribe"), url: digest.unsubscribeUrl } },
   });

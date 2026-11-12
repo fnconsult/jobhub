@@ -14,6 +14,7 @@ import { migrateAppointmentReminders } from "./appointment-reminders/index";
 import { migratePushNotifications } from "./push-notifications/index";
 import { migrateAtsScores } from "./ats-score/index";
 import { migrateCandidateAccounts, type AuthConfig } from "./auth/index";
+import { migrateIdentityNames } from "./candidate-identity/identity-names";
 import { migrateAssistantConversations } from "./back-office-assistant/conversations";
 import { migrateBilling } from "./billing/index";
 import { migrateCoachConversations } from "./coach-conversations/index";
@@ -29,6 +30,7 @@ import { migrateEmailReadings } from "./email-intake/reading";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateEuAiConsents } from "./eu-ai-consent/index";
 import { migrateEvals } from "./evals/index";
+import { migrateExtensionEvents } from "./extension-events/index";
 import { migrateFollowUps } from "./follow-ups/index";
 import { migrateGuardrails } from "./guardrails/store";
 import { migrateHumanCoaches } from "./human-coaches/index";
@@ -71,6 +73,8 @@ export async function migrateDatabase(
     ["Agent Run log is up to date", () => migrateAgentRunLog(database)],
     ["EU AI consents are up to date", () => migrateEuAiConsents(database)],
     ["Profiles are up to date", () => migrateProfiles(database)],
+    // After Profiles: the names of the accounts there are come from their name, else their latest Master CV (#918), once.
+    ["Given Names, Family Names and Preferred Names are up to date", () => migrateIdentityNames(database)],
     ["Job Offers are up to date", () => migrateJobOffers(database)],
     ["Applications are up to date", () => migrateApplications(database)],
     ["Company Dossiers are up to date", () => migrateCompanyDossiers(database)],
@@ -110,6 +114,7 @@ export async function migrateDatabase(
     ["Reference data is up to date", () => migrateReferenceData(database)],
     ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
     ["Signalements are up to date", () => migrateSignalements(database)],
+    ["Extension Events are up to date", () => migrateExtensionEvents(database)],
     ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
     ["Legal Text notices are up to date", () => migrateLegalTextNotices(database)],
     ["The Nouveautés email is up to date", () => migrateNouveautesEmails(database)],

@@ -113,6 +113,14 @@ describe.skipIf(!connectionString)("Legal Text notices: the email 30 days ahead,
       expect(mailClientLint(french.html!)).toEqual([]);
     });
 
+    it("greets each Candidate by their Preferred Name, or by no name (#921)", async () => {
+      await database.query(`UPDATE candidate SET preferred_name = 'Mimi' WHERE id = 'marie'`);
+      await notices(written(both("cgu", "2026-06-01", "substantielle"), both("cgu", "2026-11-30", "substantielle"))).sendDue();
+
+      expect(outbox.find((message) => message.to === "marie@example.fr")!.text.startsWith("Bonjour Mimi,\n\n")).toBe(true);
+      expect(outbox.find((message) => message.to === "john@example.com")!.text.startsWith("Hello,\n\n")).toBe(true);
+    });
+
     it("tracks nothing: no image, no pixel, and every link goes straight to Jobbbox", async () => {
       await notices(written(both("confidentialite", "2026-12-15", "substantielle"))).sendDue();
 

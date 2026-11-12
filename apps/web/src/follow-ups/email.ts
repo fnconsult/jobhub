@@ -7,13 +7,14 @@ import { renderEmail, type RenderedEmail } from "../emails";
  */
 export function followUpEmail(
   kind: "followUp" | "abandoned",
-  { jobTitle: title, applicationUrl, settingsUrl }: { jobTitle: string; applicationUrl: string; settingsUrl: string },
+  { jobTitle: title, applicationUrl, settingsUrl, preferredName }: { jobTitle: string; applicationUrl: string; settingsUrl: string; preferredName?: string | null },
   language: Locale,
 ): RenderedEmail {
   const { t } = createI18n(language);
   const key = kind === "followUp" ? "followUps.email" : "followUps.abandonEmail";
   return renderEmail({
     language,
+    greetingName: preferredName,
     subject: t(`${key}.subject`, { title }),
     title: t(`${key}.title`),
     body: [t(`${key}.body`, { title }), { action: { label: t(`${key}.action`), url: applicationUrl } }],

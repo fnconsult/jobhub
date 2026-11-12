@@ -173,6 +173,10 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   audit: { name: "Activité › Actions des administrateurs (Back Office Audit)", page: routes.adminAudit() },
   discoveryRuns: { name: "Activité › Recherches : chaque run de la recherche d'offres (Job discovery), ses recherches et ses chiffres", page: routes.adminDiscoveryRuns() },
   receivedEmails: { name: "Activité › Emails reçus : chaque email d'offres reçu par l'adresse de transfert d'un candidat (Email intake), sans candidat ni contenu", page: routes.adminReceivedEmails() },
+  extensionEvents: {
+    name: "Activité › Extension : chaque Extension Event (Capture, Match Score, brouillon de CV, Profile, Application faits depuis l'extension, ou erreur), le candidat ou « Invité », la version de l'extension ; et la carte Extension du tableau de bord",
+    page: routes.adminExtensionEvents(),
+  },
   jobSearches: { name: "La recherche d'offres (Job Search) d'un candidat derrière un run, ouverte depuis Activité › Recherches" },
   // On each provider's sheet in Paramètres (#396), formerly the Clés section.
   providerSecrets: { name: "Clés des fournisseurs (Provider Secrets)", page: routes.adminPlatformSettings },
@@ -343,7 +347,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     });
     return [
       heading("plans"),
-      "Les offres, de la plus basse à la plus haute : c'est l'ordre de la comparaison des offres, et une invitation à passer à l'offre supérieure (Upgrade Prompt) propose la première offre proposée au-dessus de celle du candidat qui permet ce qu'il demandait. Chaque offre payante est liée à un produit Stripe : son tarif par défaut est vendu au paiement, et tous ses tarifs donnent l'offre. Les prix viennent de Stripe, jamais du Back Office. Une offre masquée n'est ni comparée, ni vendue, ni proposée dans les invitations ; ses abonnés la gardent. Aucune offre n'est jamais supprimée. L'offre Gratuite est intégrée : toujours la première. Une nouvelle offre est créée masquée. Les séances de coaching se paient à part, à prix réduit pour les offres qui ont cette fonctionnalité.",
+      "Les offres, de la plus basse à la plus haute : c'est l'ordre de la comparaison des offres, et une invitation à passer à l'offre supérieure (Upgrade Prompt) propose la première offre proposée au-dessus de celle du candidat qui permet ce qu'il demandait. Chaque offre payante est liée à un produit Stripe : son tarif par défaut est vendu au paiement, et tous ses tarifs donnent l'offre. Les prix viennent de Stripe, jamais du Back Office. Une offre masquée n'est ni comparée, ni vendue, ni proposée dans les invitations ; ses abonnés la gardent. Aucune offre n'est jamais supprimée. L'offre Gratuit est intégrée : toujours la première. Une nouvelle offre est créée masquée. Les séances de coaching se paient à part, à prix réduit pour les offres qui ont cette fonctionnalité.",
       ...lines,
     ].join("\n");
   },
@@ -353,7 +357,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     const lines = listed?.coupons.slice(0, COUPONS).map((coupon) => `- ${untrusted(coupon.code)} : ${"unreadable" in coupon ? "illisible (voir Stripe)" : couponLine(coupon, listed.plans)}`);
     return [
       heading("coupons"),
-      "Les codes promo que les candidats saisissent au paiement d'une offre (ou reçoivent par un lien /abonnement?code=…), créés par les Responsables des offres dans Stripe depuis le Back Office. Un code désactivé ne peut plus être utilisé ; les réductions déjà accordées vont à leur terme. Un code à -100 % s'abonne sans carte ; à la fin de la période offerte, sans paiement, l'abonnement prend fin et le candidat revient à l'offre Gratuite. Les séances de coaching ne prennent pas de code promo. Le nombre d'utilisations vient de Stripe.",
+      "Les codes promo que les candidats saisissent au paiement d'une offre (ou reçoivent par un lien /abonnement?code=…), créés par les Responsables des offres dans Stripe depuis le Back Office. Un code désactivé ne peut plus être utilisé ; les réductions déjà accordées vont à leur terme. Un code à -100 % s'abonne sans carte ; à la fin de la période offerte, sans paiement, l'abonnement prend fin et le candidat revient à l'offre Gratuit. Les séances de coaching ne prennent pas de code promo. Le nombre d'utilisations vient de Stripe.",
       ...(lines === undefined ? ["- liste indisponible : Stripe ne répond pas"] : lines.length ? lines : ["- aucun"]),
     ].join("\n");
   },
@@ -429,6 +433,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   ai_messages: "appels IA",
   discovery_runs: "recherches d'offres (Activité)",
   received_emails: "emails reçus (Activité)",
+  extension_events: "extension (Activité)",
   coaching_playbooks: "playbooks de coaching",
   eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",

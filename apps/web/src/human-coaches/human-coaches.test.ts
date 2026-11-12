@@ -8,6 +8,7 @@ import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { ApplicationTailoredCv } from "../tailored-cv";
 import type { ApplicationDrafts } from "../tailored-documents";
 import type { PushNotification } from "../push-notifications";
+import { createIdentityNames } from "../candidate-identity";
 import { createHumanCoaches, migrateHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -150,11 +151,28 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       expect(await coaches.grantAccess(marie.id, sophie.id)).toBe(true);
 
       expect(await coaches.accessGranted(marie.id)).toEqual([sophie.id]);
-      expect(await coaches.candidates(sophie.id)).toEqual([{ id: marie.id, name: "", email: "marie.dupont@example.fr" }]);
+      expect(await coaches.candidates(sophie.id)).toEqual([{ id: marie.id, name: "", calledBy: null, email: "marie.dupont@example.fr" }]);
       const file = await coaches.candidateFile(sophie.id, marie.id);
       expect(file?.profiles).toMatchObject([{ id: marie.profileId, masterCv: { content: masterCv } }]);
       expect(file?.applications).toMatchObject([{ id: marie.applicationId, jobOffer: { title: "DAF H/F" } }]);
       expect((await coaches.application(sophie.id, marie.id, marie.applicationId))?.application).toMatchObject({ id: marie.applicationId });
+    });
+
+    it("names the Candidate « Prénom Nom », with the Preferred Name beside it when it differs from the Given Name (#922)", async () => {
+      const sophie = await addCoach();
+      const marie = await candidateWithApplication("marie.dupont@example.fr");
+      const paul = await candidateWithApplication("paul.martin@example.fr");
+      const identity = createIdentityNames(database);
+      await identity.save(marie.id, { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" });
+      await identity.save(paul.id, { givenName: "Paul", familyName: "Martin", preferredName: "Paul" });
+      await coaches.grantAccess(marie.id, sophie.id);
+      await coaches.grantAccess(paul.id, sophie.id);
+
+      expect(await coaches.candidates(sophie.id)).toEqual([
+        { id: marie.id, name: "Marie Dupont", calledBy: "Mimi", email: "marie.dupont@example.fr" },
+        { id: paul.id, name: "Paul Martin", calledBy: null, email: "paul.martin@example.fr" },
+      ]);
+      expect((await coaches.candidateFile(sophie.id, marie.id))?.candidate).toEqual({ id: marie.id, name: "Marie Dupont", calledBy: "Mimi", email: "marie.dupont@example.fr" });
     });
 
     it("Coach Access is per Human Coach and per Candidate", async () => {
@@ -410,6 +428,7 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
             held: false,
             coach: { name: SOPHIE.name, email: SOPHIE.email },
             candidateName: "",
+            candidateCalledBy: null,
           });
           expect(await clocked.sessions(marie)).toEqual([]);
           expect(await clocked.coachSessions(sophie.id)).toEqual([]);
@@ -422,6 +441,13 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
 
           expect(await clocked.withdrawSession(marie, session.id)).toMatchObject({ checkoutSessionId: "cs_1", scheduledAt: null });
           expect(await clocked.withdrawSession(marie, session.id)).toBeNull();
+        });
+
+        it("names the Candidate to the Human Coach by the Given Name and the Family Name's initial, and the Preferred Name when it differs (#922)", async () => {
+          const { marie, session } = await paidSession();
+          await createIdentityNames(database).save(marie, { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" });
+
+          expect(await clocked.withdrawSession(marie, session.id)).toMatchObject({ candidateName: "Marie D.", candidateCalledBy: "Mimi" });
         });
 
         it("refuses a session already held, and anyone else's", async () => {
@@ -528,12 +554,21 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
 
         // « À planifier » first, then the dated ones, latest first.
         expect(sessions).toEqual([
-          { id: expect.any(String), candidateName: "éric T.", paidAt: expect.any(Date), scheduledAt: null, durationMinutes: null, videoLink: null, reschedules: [] },
-          { id: marieWithSophie!.id, candidateName: "Marie D.", paidAt: expect.any(Date), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc", reschedules: [] },
+          { id: expect.any(String), candidateName: "éric T.", candidateCalledBy: null, paidAt: expect.any(Date), scheduledAt: null, durationMinutes: null, videoLink: null, reschedules: [] },
+          { id: marieWithSophie!.id, candidateName: "Marie D.", candidateCalledBy: null, paidAt: expect.any(Date), scheduledAt: new Date("2026-10-22T12:30:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc", reschedules: [] },
         ]);
         expect(JSON.stringify(sessions)).not.toContain("Mon pitch.");
         expect(JSON.stringify(sessions)).not.toContain("example.fr");
         expect(await coaches.coachSessions("not-a-coach")).toEqual([]);
+      });
+
+      it("names the Candidate of a session by their Given Name and the Family Name's initial, with the Preferred Name when it differs (#922)", async () => {
+        const sophie = await addCoach();
+        const marie = await candidateNamed("marie.dupont@example.fr", "Marie Dupont");
+        await createIdentityNames(database).save(marie, { givenName: "Marie", familyName: "Dupont", preferredName: "Mimi" });
+        await coaches.recordPaidSession({ checkoutSessionId: "cs_1", candidateId: marie, coachId: sophie.id, ...payment });
+
+        expect(await coaches.coachSessions(sophie.id)).toEqual([expect.objectContaining({ candidateName: "Marie D.", candidateCalledBy: "Mimi" })]);
       });
 
       it("a Human Coach enters or corrects the date, duration and video link of their own Coaching Session; the Candidate's note stays, and the change is the coach's", async () => {

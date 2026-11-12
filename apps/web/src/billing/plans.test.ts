@@ -17,7 +17,7 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
   describe("the Plans Jobbbox starts with", () => {
     it("are Free, Standard and Premium, offered in that order, the paid ones tied to the products of their env prices, the discount on Premium", async () => {
       expect(await t.billing.plans()).toEqual([
-        { key: "free", name: { fr: "Gratuite", en: "Free" }, rank: 1, status: "offered", stripeProductId: null, features: [] },
+        { key: "free", name: { fr: "Gratuit", en: "Free" }, rank: 1, status: "offered", stripeProductId: null, features: [] },
         { key: "standard", name: { fr: "Standard", en: "Standard" }, rank: 2, status: "offered", stripeProductId: FAKE_STRIPE_PRODUCTS.standard, features: [] },
         {
           key: "premium",
@@ -63,6 +63,20 @@ describe.skipIf(!connectionString)("Plans defined by Administrators (needs Postg
       await deployed.linkPlansToEnvPrices();
 
       expect((await deployed.plans()).find((plan) => plan.key === "standard")?.stripeProductId).toBe(FAKE_STRIPE_PRODUCTS.essential);
+    });
+
+    it("rename Free « Gratuit » where it is still « Gratuite », and keep a name an Administrator chose (#945)", async () => {
+      const freeName = async () => (await t.billing.plans()).find((plan) => plan.key === "free")?.name;
+      await t.database.query("UPDATE plan SET name_fr = 'Gratuite' WHERE key = 'free'");
+
+      await t.migrateAgain();
+      expect(await freeName()).toEqual({ fr: "Gratuit", en: "Free" });
+      await t.migrateAgain();
+      expect(await freeName()).toEqual({ fr: "Gratuit", en: "Free" });
+
+      await t.database.query("UPDATE plan SET name_fr = 'Découverte' WHERE key = 'free'");
+      await t.migrateAgain();
+      expect(await freeName()).toEqual({ fr: "Découverte", en: "Free" });
     });
 
     it("are not tied to a product two env prices share: each price follows its own Plan, and the team is told", async () => {

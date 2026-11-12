@@ -7,10 +7,17 @@
  * build speaks a later one and forgets it; any other answer from the web app forgets it too.
  * When to raise the API Version: docs/ops/extension-api-version.md.
  */
-import { API_VERSION, API_VERSION_HEADER, EXTENSION_OUTDATED } from "@jobhub/shared";
+import { API_VERSION, API_VERSION_HEADER, EXTENSION_OUTDATED, EXTENSION_VERSION_HEADER } from "@jobhub/shared";
+import extensionPackage from "../package.json" with { type: "json" };
 
-/** The header every call to the web app carries. */
-export const API_VERSION_HEADERS: Readonly<Record<string, string>> = { [API_VERSION_HEADER]: String(API_VERSION) };
+/** This build's Extension Version: package.json's, which WXT writes into the manifest (ADR-0063). */
+export const EXTENSION_VERSION: string = extensionPackage.version;
+
+/**
+ * The headers every call to the web app carries: the API Version this build speaks, and its Extension Version (#924),
+ * which the web app keeps with each Extension Event and weighs beside the API Version before asking for an update.
+ */
+export const API_VERSION_HEADERS: Readonly<Record<string, string>> = { [API_VERSION_HEADER]: String(API_VERSION), [EXTENSION_VERSION_HEADER]: EXTENSION_VERSION };
 
 /** The Help Article the notice links to while the web app names no store page (Paramètres' EXTENSION_STORE_URL). */
 export const UPDATE_HELP_PATH = "/aide/extension/faq-extension-update";

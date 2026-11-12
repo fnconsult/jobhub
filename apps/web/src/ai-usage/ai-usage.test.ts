@@ -4,7 +4,8 @@ import { recordingFetch, type ExternalApiCall, type FailureReason } from "@jobhu
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
-import { aiUsagePeriod, aiUsageReport, createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets, migrateAiUsage, purgeExpiredAiUsage } from "./index";
+import type { Surface } from "../request-surface";
+import { aiUsagePeriod, aiUsageReport, aiUsageSurfaceFilter, createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets, migrateAiUsage, purgeExpiredAiUsage } from "./index";
 
 const MILLION = 1_000_000;
 
@@ -275,6 +276,67 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
 
     const { rows } = await database.query("SELECT input_tokens FROM ai_usage WHERE id = $1", [call.callId]);
     expect(rows).toEqual([{ input_tokens: MILLION }]);
+  });
+
+  describe("the Surface each call was asked from (#919)", () => {
+    /** The layer recording through a usage log that reads its Surface from `surface`. */
+    const layerFrom = (surface: () => Surface | null | Promise<Surface | null>) =>
+      createAiLayer({
+        providers: [createFakeProvider({ id: "mistral", usage: { inputTokens: MILLION, outputTokens: 0 } })],
+        routes: { scoring: { provider: "mistral", model: "mistral-small-latest" } },
+        usage: awaited(createPostgresUsageLog(database, { surface })),
+        now: () => now,
+      });
+    const surfaces = async () =>
+      (await database.query(`SELECT u.surface AS usage, m.surface AS log FROM ai_usage u JOIN ai_message_log m ON m.usage_id = u.id ORDER BY u.at`)).rows;
+
+    it("is written on the call's usage and on its message log, as read where the call was made", async () => {
+      await layerFrom(() => "extension").generate({ task: "scoring", candidateId: null, prompt: "Score" });
+      now = new Date(now.getTime() + 1_000);
+      await layerFrom(async () => "web" as const).generate({ task: "scoring", candidateId: null, prompt: "Score" });
+      await settled();
+
+      expect(await surfaces()).toEqual([
+        { usage: "extension", log: "extension" },
+        { usage: "web", log: "web" },
+      ]);
+    });
+
+    it("is none when the call was made from nowhere known, or when it could not be read: the call is recorded all the same", async () => {
+      await ai.generate({ task: "scoring", candidateId: null, prompt: "Score" });
+      now = new Date(now.getTime() + 1_000);
+      await layerFrom(() => Promise.reject(new Error("outside a request"))).generate({ task: "scoring", candidateId: null, prompt: "Score" });
+      await settled();
+
+      expect(await surfaces()).toEqual([
+        { usage: null, log: null },
+        { usage: null, log: null },
+      ]);
+    });
+
+    it("restricts the report to one Surface, or to the calls recorded with none (« inconnue »); external APIs are never filtered", async () => {
+      await seed();
+      now = new Date("2026-10-17T09:00:00Z");
+      await layerFrom(() => "extension").generate({ task: "scoring", candidateId: null, prompt: "Score" });
+      await settled();
+      now = new Date("2026-10-18T10:00:00Z");
+      const period = aiUsagePeriod("30d", now);
+
+      const extension = await aiUsageReport(database, period, { surface: "extension" });
+      expect(extension.totals).toMatchObject({ calls: 1, failures: 0, toolCalls: 0, externalCalls: 2 });
+      expect(extension.byTask).toEqual([expect.objectContaining({ task: "scoring", calls: 1 })]);
+      expect((await aiUsageReport(database, period, { surface: "app" })).totals).toMatchObject({ calls: 0, toolCalls: 0 });
+      const unknown = await aiUsageReport(database, period, { surface: "unknown" });
+      const all = await aiUsageReport(database, period);
+      expect(unknown.totals.calls).toBe(all.totals.calls - 1);
+      expect(unknown.tools).toEqual(all.tools);
+    });
+
+    it("reads the report's filter from the page's query string: a Surface, « unknown », or none for anything else", () => {
+      expect(aiUsageSurfaceFilter("worker")).toBe("worker");
+      expect(aiUsageSurfaceFilter("unknown")).toBe("unknown");
+      for (const input of [undefined, "", "mobile", ["web"]]) expect(aiUsageSurfaceFilter(input)).toBeUndefined();
+    });
   });
 
   it("never fails the AI call when its usage cannot be recorded, and says so", async () => {

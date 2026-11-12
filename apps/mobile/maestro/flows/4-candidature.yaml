@@ -70,8 +70,18 @@ tags:
       visible: "Être prévenu la veille de vos rendez-vous \\?"
     commands:
       - tapOn: "Pas maintenant"
-- runFlow:
-    file: ../subflows/pane-scroll.yaml
-    env:
-      TEXT: "Second tour"
-      DIRECTION: UP
+# A delayed explanation can arrive after the optional wait while the pane is being searched. A failed search
+# retries only after dismissing that explanation; the saved Interview must still be found, never skipped.
+- retry:
+    maxRetries: 2
+    commands:
+      - runFlow:
+          when:
+            visible: "Être prévenu la veille de vos rendez-vous \\?"
+          commands:
+            - tapOn: "Pas maintenant"
+      - runFlow:
+          file: ../subflows/pane-scroll.yaml
+          env:
+            TEXT: "Second tour"
+            DIRECTION: UP

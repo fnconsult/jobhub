@@ -5791,6 +5791,12 @@
       "componentsSubtitle": "Every component and its states, as screens use them."
     },
     "gallery": {
+      "stepper": "Steps",
+      "stepRead": "Reading your profile",
+      "stepReadDetail": "Management controller · Nantes",
+      "stepSearch": "Searching for job offers",
+      "stepSearchDetail": "Sources consulted: 2 of 3",
+      "stepSelect": "Picking your best job offers",
       "eyebrow": "Design System",
       "title": "Components",
       "subtitle": "Every Design System component on one page, for the accessibility checks.",

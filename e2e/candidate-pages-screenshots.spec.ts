@@ -734,13 +734,18 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     });
     expect(created.status(), await created.text()).toBe(201);
     const { id } = await created.json();
-    for (const { name, width, height } of SCREENSHOT_WIDTHS) {
-      await page.setViewportSize({ width, height });
+    // The welcome panel closed for good (« Ne plus afficher »): the thread opens on the summary, not on the panel.
+    await page.goto(`/profils/nouveau?profil=${id}`);
+    await page.getByRole("button", { name: fr.conversationFirst.closeWelcome }).click();
+    for (const { name, width } of SCREENSHOT_WIDTHS) {
+      // A screen tall enough for the whole card in the thread, which scrolls within the page.
+      await page.setViewportSize({ width, height: 1400 });
       await page.goto(`/profils/nouveau?profil=${id}`);
       await page.waitForLoadState("networkidle");
       await expect(
         page.getByRole("region", { name: fr.onboardingSummary.title }),
       ).toBeVisible();
+      await expect(page.getByRole("button", { name: fr.conversationFirst.closeWelcome })).toHaveCount(0);
       await check(page, page.locator("#main"), "#main", `onboarding-summary-${name}`, width);
     }
   });

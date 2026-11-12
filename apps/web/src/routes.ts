@@ -155,6 +155,8 @@ export const routes = {
   /** Where a Nouveautés email's unsubscribe link leads (#566, no sign-in needed). */
   nouveautesEmailUnsubscribe: "/desabonnement/nouveautes",
   /** The Help Centre (#549, ADR-0065): its four topics and its search (`?q=`); public. */
+  /** The Human Coaches' path on the public site (ADR-0105), behind HUMAN_COACH_PAGE_ENABLED. */
+  humanCoachLanding: "/coachs-humains",
   help: "/aide",
   /** A topic of the Help Centre: its public articles, or « Bientôt des articles ici ». */
   helpTopic: (topic: string) => `/aide/${encodeURIComponent(topic)}`,

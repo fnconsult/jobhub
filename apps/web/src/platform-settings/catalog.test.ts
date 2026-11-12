@@ -30,6 +30,7 @@ const ADR_0033 = [
   "EXTENSION_STORE_URL",
   "APP_STORE_URL",
   "PLAY_STORE_URL",
+  "HUMAN_COACH_PAGE_ENABLED",
 ];
 
 /** The web search's bounded settings (#386, #402), on Paramètres' Recherche web tab. */

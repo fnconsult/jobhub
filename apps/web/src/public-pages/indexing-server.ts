@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getUrlLocale } from "@/i18n/server";
 import { currentRelease } from "@/release";
+import { readHumanCoachPath } from "@/landing/server";
 import { legalTextIndexedIn, publicPageMetadata, siteOrigin, type IndexSources } from "./indexing";
 
 /** The site's origin (see siteOrigin). Reading the request makes robots.txt and the sitemap answer at each request. */
@@ -17,6 +18,7 @@ export function indexSources(on: string = parisDay()): IndexSources {
   return {
     helpArticles: articles("fr"),
     legalTextInEffect: (text, locale) => legalText(text, locale, { on })?.inEffect === true,
+    humanCoachPath: readHumanCoachPath(),
   };
 }
 

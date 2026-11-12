@@ -29,7 +29,7 @@ export const ENGLISH_PREFIX = "/en";
  * unsubscribe page and the page shown once an account is deleted. Each is served in English under `/en`, with the
  * same French slugs, and their URL's `lang` chooses their language.
  */
-const PUBLIC_PAGE = /^\/(?:(?:desabonnement|nouveautes|legal|aide|connexion|compte\/supprime)(?:\/|$)|$)/;
+const PUBLIC_PAGE = /^\/(?:(?:desabonnement|nouveautes|legal|aide|connexion|coachs-humains|compte\/supprime)(?:\/|$)|$)/;
 
 /** Whether `pathname` (without `/en`) is a public page. */
 export function isPublicPage(pathname: string): boolean {

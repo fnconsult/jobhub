@@ -23,7 +23,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "coach", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "help_centre", "maintenance"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "coach", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "public_site", "help_centre", "maintenance"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -119,6 +119,9 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   // link to that store.
   { name: "APP_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
   { name: "PLAY_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
+  // The Human Coaches' path on the public site (ADR-0105): off, its page answers 404 and the landing page offers no
+  // « Candidat | Coach humain » choice; to switch on once the coach space's enrolment is live.
+  { name: "HUMAN_COACH_PAGE_ENABLED", group: "public_site", type: { kind: "boolean" }, default: "false" },
   // Where the Help Centre's Explainer Videos are played from (ADR-0066, #568): the Scaleway bucket's origin, whose
   // manifest.json says which video each Tutorial shows; the pages' CSP `media-src` allows it and nothing else.
   { name: "HELP_MEDIA_ORIGIN", group: "help_centre", type: { kind: "origin" }, default: MOTION_MEDIA_ORIGIN },
@@ -156,6 +159,7 @@ const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
   "job_discovery",
   "enriched_contacts",
   "extension",
+  "public_site",
   "help_centre",
   "maintenance",
 ];
@@ -334,6 +338,8 @@ export const ENV_ONLY_SETTINGS = {
   JOBHUB_COMMIT: { kind: "deployment", shown: false },
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
+  // The folder holding the extension's zips that apps/web/Dockerfile builds into the image (#989), served to Administrators in Outils.
+  EXTENSION_ZIP_DIR: { kind: "deployment", shown: false },
   // The native app's domain association files (#685, ADR-0076): its Apple team and its Android signing certificates.
   APPLE_TEAM_ID: { kind: "deployment", shown: false },
   // The Key ID of the .p8 key APNs' Push notifications are signed with (APNS_AUTH_KEY, #698); with APPLE_TEAM_ID.

@@ -66,6 +66,15 @@ test.describe("the landing page (ADR-0105)", () => {
     for (const link of [fr.landing.tools.extension.install, fr.landing.tools.app.appStore, fr.landing.tools.app.playStore]) await expect(main.getByRole("link", { name: link })).toHaveCount(0);
   });
 
+  test("offers no « Candidat | Coach humain » choice and no coach page while the Human Coaches' path is switched off", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("navigation", { name: fr.landing.coachPath.audience.label })).toHaveCount(0);
+    await expect(page.getByRole("main").getByText(fr.landing.coachPath.doors.coach.title)).toHaveCount(0);
+    expect((await page.goto("/coachs-humains"))!.status()).toBe(404);
+    expect((await page.goto("/en/coachs-humains"))!.status()).toBe(404);
+    expect(await (await page.request.get("/sitemap.xml")).text()).not.toContain("coachs-humains");
+  });
+
   test("answers the questions asked before starting, each one opened by the keyboard", async ({ page }) => {
     await page.goto("/");
     const question = page.getByText(fr.landing.questions.person.question, { exact: true });

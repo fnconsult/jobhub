@@ -29,3 +29,11 @@ The product owner wants the Job Search to start « before even finishing the CV 
 - `profile.onboarding` (`in_progress` | `done` | null) is added by `migrateProfiles`, read with the Profile and in the Personal Data Export. `POST /api/profiles` takes `onboarding`; `POST /api/profiles/:id/onboarding` saves the one Master CV Version and finishes it.
 - The answers are kept on the Profile as they are validated, no longer only in the browser until the save (privacy register, « Création du profil »).
 - `CONTEXT.md`: **Onboarding interview** replaces **Onboarding Questionnaire**; **Profile** and **Job Search** say how the onboarding creates and searches.
+
+## Decisions of the build (#1002)
+
+- **Its own AI task, `onboarding_interview`, routed where a CV is read**: `cv_parsing`'s provider and model unless a super-admin sets its own on Paramètres, so the interview's calls are counted apart in AI Usage. Its task Playbook, `onboarding-interview`, is new and imported **not Human-validated** (ADR-0026): until an Administrator validates it, production runs its built-in text, each call recorded with the warning `task_playbook_fallback`.
+- **The code decides what a turn may hold**, never the AI: a field among the Master CV's and the Search Criteria's, a choice field's own codes, a proposal only with a value the Search Criteria's validation takes (Sectors, Subsectors and Domains among the nomenclatures' codes, places as Place suggestion names them) and never the name, email or phone; the target role and a place asked first, the interview done only once they are known. The name, email and phone are never sent to the AI: the page's answers to them reach it as « (réponse donnée) ».
+- **Seniority is proposed in the CV's title** (`headline`, « Contrôleur de gestion senior »): the Profile has no field of its own for it.
+- **The scripted questions take over** when the AI gives no turn (a failed call, a reply that is no turn, a Stop), starting from what the interview knows and asking nothing it already holds; « Création du profil » then shows the « Questionnaire d'accueil », « Sans IA », and the « Entretien d'accueil » only when at least one turn came from the AI.
+- **« Partir de zéro » stays for now**: removing it changes other paths (the e2e of the review form, multiple Profiles) and the pages #1000 and #1004 touch; it goes in a follow-up.

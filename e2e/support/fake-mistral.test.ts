@@ -5,6 +5,8 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createAiLayer, createMistralProvider, type ToolRunner } from "@jobhub/ai";
 import { createMemoryUsageLog } from "@jobhub/ai/testing";
+import { NO_INDUSTRY_REFERENCE } from "@jobhub/shared";
+import { interviewDraft, interviewInputSchema, nextInterviewTurn, replied, type ExchangeTurn, type InterviewDraft, type InterviewReply } from "@/onboarding-interview";
 
 beforeAll(async () => {
   // It stands in for api.eu.mistral.ai by replacing globalThis.fetch, as the e2e web server preloads it.
@@ -68,5 +70,50 @@ describe("fake Mistral: E2E_COACH_TOOL (#712)", () => {
     expect(runTool).not.toHaveBeenCalled();
     // The AI Coach's usual reply (one message, no profile in view).
     expect(result.text).toBe("Je ne vois aucun profil. (1 message)");
+  });
+});
+
+describe("fake Mistral: the onboarding interview (#1002), as the e2e suite plays it", () => {
+  const ai = createAiLayer({ providers: [createMistralProvider({ apiKey: "e2e-mistral-key" })], routes: { onboarding_interview: "mistral" }, usage: createMemoryUsageLog() });
+  const places = { suggest: async () => [] };
+  const blank = interviewDraft({ masterCv: { fullName: "", headline: "", email: "", phone: "", location: "", summary: "", experience: [], education: [], skills: [], languages: [] }, searchCriteria: { targetRole: "", locations: [] } });
+
+  /** Plays the interview: each turn asked, then answered with the next reply, as the page does. */
+  async function play(replies: InterviewReply[], opener?: string) {
+    let draft: InterviewDraft = blank;
+    const exchange: ExchangeTurn[] = [];
+    const turns = [];
+    for (;;) {
+      const input = interviewInputSchema.parse({ language: "fr", draft, exchange, ...(opener ? { opener } : {}) });
+      const next = await nextInterviewTurn(input, { ai: () => ai, candidateId: "cand-1", places, industries: async () => NO_INDUSTRY_REFERENCE });
+      if (!next) return { turns, draft, fallback: true };
+      turns.push(next.turn);
+      const reply = replies.shift();
+      if (next.turn.done || !reply) return { turns, draft, fallback: false };
+      draft = replied(draft, next.turn, reply);
+      exchange.push({ ask: next.turn.ask, ...(next.turn.proposal ? { proposal: next.turn.proposal } : {}), reply });
+    }
+  }
+
+  it("challenges a one-word role, proposes the CDI to validate, then is done", async () => {
+    const { turns, draft } = await play([
+      { kind: "answer", text: "Finance" },
+      { kind: "answer", text: "Directrice financière" },
+      { kind: "answer", text: "Lyon" },
+      { kind: "accepted" },
+      { kind: "answer", text: "Hybride", choice: "hybrid" },
+      { kind: "skipped" },
+    ]);
+    expect(turns.map((turn) => turn.ask.field)).toEqual(["targetRole", "targetRole", "locations", "contractTypes", "remoteWorkOptions", "minSalary", "summary"]);
+    expect(turns[1]!.challenge).toMatch(/« Finance » est trop vague/);
+    expect(turns[3]!.proposal).toMatchObject({ field: "contractTypes", value: ["cdi"], shown: "CDI" });
+    expect(turns.at(-1)!.done).toBe(true);
+    expect(draft.searchCriteria).toMatchObject({ targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: ["hybrid"] });
+  });
+
+  it("fails once E2E_AI_DOWN is in what it is sent: the scripted questions take over", async () => {
+    const { turns, fallback } = await play([{ kind: "answer", text: "Directrice financière" }, { kind: "answer", text: "E2E_AI_DOWN" }]);
+    expect(turns.map((turn) => turn.ask.field)).toEqual(["targetRole", "locations"]);
+    expect(fallback).toBe(true);
   });
 });

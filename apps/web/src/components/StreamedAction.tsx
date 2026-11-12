@@ -46,7 +46,7 @@ export interface StreamedAction {
   stop(): void;
 }
 
-export function useStreamedAction(kind: Extract<RequestKind, "company_dossier" | "cv_reading">): StreamedAction {
+export function useStreamedAction(kind: Extract<RequestKind, "company_dossier" | "cv_reading" | "onboarding_interview">): StreamedAction {
   const aiActivity = useAiActivityLive();
   const pathname = usePathname();
   const [step, setStep] = useState<StreamedAction["step"]>(null);

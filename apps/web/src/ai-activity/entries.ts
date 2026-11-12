@@ -98,7 +98,7 @@ export interface VersionGiven {
 }
 
 /** The parts of a Profile's creation (#810), in their order: an ATS Score is Version 1's. */
-export const CREATION_PARTS = ["cv_reading", "questionnaire", "review", "profile_created", "ats_score"] as const;
+export const CREATION_PARTS = ["cv_reading", "onboarding_interview", "questionnaire", "review", "profile_created", "ats_score"] as const;
 export type CreationPartKind = (typeof CREATION_PARTS)[number];
 
 /**
@@ -115,6 +115,9 @@ export type EntryKind = ElementKind | "master_cv_version" | "change" | "profile_
 export interface CreationGiven {
   href?: string;
   reading?: { provenance: Provenance | null };
+  /** The AI Coach's onboarding interview without a CV (#1002): when it started, the answers given and skipped, its turns' Provenance. */
+  interview?: { at: string; answered: number; skipped: number; provenance: Provenance | null };
+  /** The scripted questions: the onboarding without AI, or after the interview when the AI was unavailable (#1002). */
   questionnaire?: { at: string; answered: number; skipped: number };
   /** The Profile born during the questionnaire, once its target role and location were answered (ADR-0105, #999): its Version 1. */
   created?: { at: string; href: string };
@@ -494,23 +497,39 @@ function keptParts(first: VersionGiven, score: PageElement | undefined): Activit
  * during it (#999: « Profil créé » with its Version 1, before the review) and the review.
  */
 function knownParts(creation: CreationGiven): ActivityEntry[] {
-  const { reading, questionnaire, created, review } = creation;
+  const { reading, interview, questionnaire, created, review } = creation;
   const read = reading ? (reading.provenance ? readingPart(reading.provenance) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null }))) : null;
   return [
     ...(read ? [read] : []),
+    // Once a turn came from the AI: an interview that fell back at once made nothing but the scripted questions.
+    ...(interview?.provenance ? [interviewPart({ ...interview, provenance: interview.provenance })] : []),
     ...(questionnaire ? [part("questionnaire", questionnaire.at, "jobbbox", { answered: questionnaire.answered, skipped: questionnaire.skipped })] : []),
     ...(created ? [part("profile_created", created.at, "candidate", { version: FIRST }, created.href)] : []),
     ...(review ? [part("review", review.at, "candidate")] : []),
   ];
 }
 
+/** The AI Coach's onboarding interview (#1002): its turns' calls with their model and tokens, the answers given and skipped. */
+function interviewPart(interview: NonNullable<CreationGiven["interview"]> & { provenance: Provenance }): ActivityEntry {
+  const entry = asPart("onboarding_interview", elementEntry({ kind: "master_cv", provenance: interview.provenance, at: interview.at }));
+  return { ...entry, at: interview.at, origin: "candidate", result: { ...entry.result, answered: interview.answered, skipped: interview.skipped } };
+}
+
+/** The tokens of the parts made with AI, summed; null when none spent any. */
+function creationTokens(parts: readonly ActivityEntry[]): EntryCost["tokens"] {
+  const spent = parts.flatMap((each) => (each.cost.tokens ? [each.cost.tokens] : []));
+  if (spent.length === 0) return null;
+  return { count: spent.reduce((sum, each) => sum + each.count, 0), calls: null, partial: spent.some((each) => each.partial) };
+}
+
 /**
  * « Création du profil »: its parts in their order, one of each kind (the first given); dated by the first; created with
- * the version of « Profil créé »; its models, Tools and sites, and its cost, the CV read's tokens, else without AI.
+ * the version of « Profil créé »; its models, Tools and sites, and its cost, the tokens of the CV read and the interview,
+ * else without AI.
  */
 function creationEntry(given: readonly ActivityEntry[], href: string | null): Built {
   const parts = CREATION_PARTS.flatMap((kind) => given.filter((each) => each.kind === kind).slice(0, 1));
-  const reading = parts.find((each) => each.kind === "cv_reading");
+  const withAi = parts.filter((each) => each.kind === "cv_reading" || each.kind === "onboarding_interview");
   const created = parts.find((each) => each.kind === "profile_created");
   const at = parts.flatMap((each) => (each.at ? [each.at] : [])).sort()[0] ?? null;
   return {
@@ -524,7 +543,7 @@ function creationEntry(given: readonly ActivityEntry[], href: string | null): Bu
     sites: once(parts.flatMap((each) => each.sites)),
     tools: once(parts.flatMap((each) => each.tools)),
     models: once(parts.flatMap((each) => each.models)),
-    cost: { quota: null, tokens: reading?.cost.tokens ?? null, noAi: !reading || reading.cost.noAi },
+    cost: { quota: null, tokens: creationTokens(withAi), noAi: withAi.every((each) => each.cost.noAi) },
     parts,
   };
 }

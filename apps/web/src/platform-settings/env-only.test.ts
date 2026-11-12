@@ -30,6 +30,9 @@ describe("the settings only env holds, as Paramètres shows them", () => {
       "JOBHUB_TARGET",
       "AI_FAKE",
       "MAIL_TRANSPORT",
+      "REVIEW_SIGN_IN",
+      "REVIEW_SIGN_IN_EMAILS",
+      "REVIEW_SIGN_IN_CODE",
       "STRIPE_PRICE_STANDARD",
       "STRIPE_PRICE_PREMIUM",
       "STRIPE_PRICE_COACHING_SESSION",
@@ -44,6 +47,14 @@ describe("the settings only env holds, as Paramètres shows them", () => {
     expect(rows.SECRETS_MASTER_KEYS?.shown).toEqual({ kind: "key_versions", versions: [1, 2] });
     const everything = JSON.stringify(envOnlySettingsShown(ENV));
     for (const secret of ["s3cr3t-db-pass", "again-s3cr3t", AUTH_SECRET, MASTER_KEY, OLD_MASTER_KEY, "sk-openai-never-shown"]) expect(everything).not.toContain(secret);
+  });
+
+  it("shows whether the store review's sign-in code is on and for whom, never the code (#981)", () => {
+    const rows = shown({ REVIEW_SIGN_IN: "on", REVIEW_SIGN_IN_EMAILS: "demo@jobbbox.ai", REVIEW_SIGN_IN_CODE: "482915" });
+    expect(rows.REVIEW_SIGN_IN?.shown).toEqual({ kind: "value", value: "on" });
+    expect(rows.REVIEW_SIGN_IN_EMAILS?.shown).toEqual({ kind: "value", value: "demo@jobbbox.ai" });
+    expect(rows.REVIEW_SIGN_IN_CODE?.shown).toEqual({ kind: "set" });
+    expect(JSON.stringify(envOnlySettingsShown({ REVIEW_SIGN_IN_CODE: "482915" }))).not.toContain("482915");
   });
 
   it("says what is missing, and a master key list or database URL it cannot read without showing it", () => {

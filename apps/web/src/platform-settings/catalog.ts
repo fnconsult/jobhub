@@ -313,6 +313,10 @@ export const ENV_ONLY_SETTINGS = {
   JOBHUB_TARGET: { kind: "bootstrap", shown: "value" },
   AI_FAKE: { kind: "bootstrap", shown: "value" },
   MAIL_TRANSPORT: { kind: "read_only", shown: "value" },
+  // The store review's sign-in code (#981, docs/ops/mobile.md): its switch and demo accounts shown, the code only set or missing.
+  REVIEW_SIGN_IN: { kind: "read_only", shown: "value" },
+  REVIEW_SIGN_IN_EMAILS: { kind: "read_only", shown: "value" },
+  REVIEW_SIGN_IN_CODE: { kind: "read_only", shown: "set_or_missing" },
   // Fallbacks on their way out (#206), and the Coaching Session Prices.
   STRIPE_PRICE_STANDARD: { kind: "read_only", shown: "value" },
   STRIPE_PRICE_PREMIUM: { kind: "read_only", shown: "value" },

@@ -441,6 +441,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   signalements: "signalements",
   recipients_outside_eu: "destinataires hors UE",
   withdrawals: "rétractations",
+  review_sign_in: "code de revue des stores",
   eval_runs: "Eval Runs",
   coach_message_cost: "coût coach",
   ai_usage: "consommation IA",
@@ -471,6 +472,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   refused: "tentative refusée",
   denied: "accès refusé",
   switched_on: "activation",
+  signed_in: "connexion",
 };
 
 /**
@@ -478,6 +480,8 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
  * A failed attempt says what was tried and its Failure Reason's wording, never its technical detail.
  */
 function journalLine(entry: BackOfficeAuditEntry): string {
+  // A demo account of the store review (#981): named by what it is, never by its address.
+  if (entry.section === "review_sign_in") entry = { ...entry, target: "un compte de démonstration" };
   if (entry.failure) {
     const tried = entry.action === "refused" || entry.action === "denied" ? `${ACTIONS[entry.action]} (${ACTIONS[entry.failure.tried]})` : ACTIONS[entry.action];
     return `${JOURNAL_SECTIONS[entry.section]}, ${tried} de ${entry.target} ; échec : ${failureReasonWording(entry.failure.reason)}`;

@@ -12,4 +12,6 @@ Secret values are never recorded: a key shows « Value replaced (never recorded)
 
 « Show » filters by section: « All », « Roles », « Plans », « Coupons », « Human Coaches », « Coaching Playbooks », « Guardrails », « Feedback »… The « Tools » filter adds every call to an external tool (Stripe, Brevo, sign-in, connection tests, pages read), with its tool, operation, outcome and duration: no content, no Candidate, no secret. The « Linked mailboxes » filter adds the Linked mailboxes switched on, replaced, switched off or at their daily cap, with no Candidate or address. The most recent changes come first.
 
+The « Store review sign-in code » section records each sign-in of a demo account with the store review sign-in code (action « Sign-in »), and each « Wrong code » typed for it, under the demo account's name. The code is never shown. It only fills during a review of the app by the App Store or Google Play, while the code is switched on.
+
 Super-admins and Technique read this journal. No one changes it or erases a line.

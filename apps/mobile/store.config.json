@@ -1,0 +1,85 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "categories": [
+      "BUSINESS",
+      "PRODUCTIVITY"
+    ],
+    "info": {
+      "fr-FR": {
+        "title": "Jobbbox",
+        "subtitle": "Votre coach IA pour l'emploi",
+        "description": "Jobbbox vous accompagne dans votre recherche d'emploi après 40 ans : un coach IA, vos candidatures, vos recherches d'offres et votre agenda, sur votre téléphone et votre tablette.\n\nL'app utilise le même compte que jobbbox.ai : ce que vous faites sur l'un se retrouve sur l'autre. Pas de mot de passe : vous vous connectez par un lien ou un code reçu par e-mail.\n\nVotre coach IA\nÉcrivez-lui comme dans une conversation : préparer un entretien, relancer un recruteur, comprendre une offre. Le coach est une intelligence artificielle, pas une personne : il le dit au début de chaque conversation. Il propose, vous décidez de chaque changement. Comme toute IA, il peut se tromper : relisez ce qu'il écrit.\n\nVos candidatures\nChaque candidature a sa fiche : son statut, ses entretiens, son score de correspondance avec votre profil. Ajoutez, déplacez ou annulez un entretien. Ouvrez, partagez ou téléchargez votre CV adapté et votre lettre de motivation.\n\nVos recherches d'offres\nLes offres trouvées pour vous attendent dans une boîte : suivez celles qui vous intéressent, écartez les autres. Depuis une autre app, partagez une offre vers Jobbbox pour l'enregistrer.\n\nVotre agenda\nVos entretiens et vos séances, jour par jour, à ajouter au calendrier de votre appareil. Jobbbox ne lit pas votre calendrier.\n\nDes coachs humains\nPour parler à une personne, réservez une séance avec un coach humain, un professionnel RH sélectionné par Jobbbox. La séance se tient en visio, en direct et en tête-à-tête.\n\nEt aussi\n• Les notifications que vous choisissez : nouveaux résultats, rappel d'un entretien, avis d'un coach. Leur texte ne nomme jamais une entreprise, un poste ni une personne.\n• Hors ligne, vous relisez ce que vous avez consulté en dernier.\n• Verrouillage de l'app par la biométrie ou le code de votre appareil.\n• Le texte suit la taille choisie dans votre appareil, le thème sombre aussi ; l'app se lit avec le lecteur d'écran de votre appareil.\n• En français et en anglais.\n\nVos données\nPas de publicité, pas de mesure d'audience, pas de suivi publicitaire. Vous pouvez télécharger vos données ou supprimer votre compte à tout moment, dans Mon compte.\n\nAide : https://jobbbox.ai/aide\nPolitique de confidentialité : https://jobbbox.ai/legal/confidentialite",
+        "keywords": [
+          "emploi",
+          "candidature",
+          "CV",
+          "lettre de motivation",
+          "entretien",
+          "coach",
+          "offres",
+          "recrutement",
+          "senior",
+          "carrière"
+        ],
+        "promoText": "Votre coach IA, vos candidatures, vos offres et votre agenda dans votre poche. Le même compte que sur jobbbox.ai, sur iPhone et iPad.",
+        "marketingUrl": "https://jobbbox.ai",
+        "supportUrl": "https://jobbbox.ai/aide",
+        "privacyPolicyUrl": "https://jobbbox.ai/legal/confidentialite"
+      },
+      "en-US": {
+        "title": "Jobbbox",
+        "subtitle": "Your AI coach for job hunting",
+        "description": "Jobbbox supports your job search after 40: an AI coach, your applications, your job searches and your agenda, on your phone and your tablet.\n\nThe app uses the same account as jobbbox.ai: what you do on one shows on the other. No password: you sign in with a link or a code sent by email.\n\nYour AI coach\nWrite to it as in a conversation: prepare an interview, follow up with a recruiter, understand a job offer. The coach is an artificial intelligence, not a person: it says so at the start of every conversation. It proposes, you decide on every change. Like any AI, it can be wrong: read over what it writes.\n\nYour applications\nEach application has its own sheet: its status, its interviews, its match score with your profile. Add, move or cancel an interview. Open, share or download your tailored CV and your cover letter.\n\nYour job searches\nThe offers found for you wait in a box: follow the ones you like, set the others aside. From another app, share a job offer to Jobbbox to save it.\n\nYour agenda\nYour interviews and sessions, day by day, to add to your device's calendar. Jobbbox does not read your calendar.\n\nHuman coaches\nTo talk to a person, book a session with a human coach, an HR professional selected by Jobbbox. The session is held by video, live and one to one.\n\nAnd also\n• The notifications you choose: new results, an interview reminder, a coach's review. Their text never names a company, a job or a person.\n• Offline, you can read what you last looked at.\n• App lock with your device's biometrics or passcode.\n• Text follows the size set on your device, and so does the dark theme; the app works with your device's screen reader.\n• In French and in English.\n\nYour data\nNo advertising, no audience measurement, no ad tracking. You can download your data or delete your account at any time, in My account.\n\nHelp: https://jobbbox.ai/aide\nPrivacy policy: https://jobbbox.ai/legal/confidentialite",
+        "keywords": [
+          "job search",
+          "application",
+          "CV",
+          "resume",
+          "cover letter",
+          "interview",
+          "coach",
+          "jobs",
+          "career",
+          "recruiter",
+          "senior"
+        ],
+        "promoText": "Your AI coach, your applications, your job offers and your agenda in your pocket. The same account as on jobbbox.ai, on iPhone and iPad.",
+        "marketingUrl": "https://jobbbox.ai",
+        "supportUrl": "https://jobbbox.ai/aide",
+        "privacyPolicyUrl": "https://jobbbox.ai/legal/confidentialite"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gunsOrOtherWeapons": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "kidsAgeBand": null,
+      "ageRatingOverride": "NONE",
+      "koreaAgeRatingOverride": "NONE",
+      "lootBox": false,
+      "advertising": false,
+      "ageAssurance": false,
+      "healthOrWellnessTopics": false,
+      "messagingAndChat": false,
+      "parentalControls": false,
+      "userGeneratedContent": false
+    },
+    "release": {
+      "automaticRelease": false,
+      "phasedRelease": true
+    }
+  }
+}

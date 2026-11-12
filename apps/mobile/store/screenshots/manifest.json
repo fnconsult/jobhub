@@ -1,0 +1,66 @@
+{
+  "app-store-iphone-6.9/1-candidatures.png": {
+    "source": "maestro/captures/iphone-se/light/candidatures.png",
+    "sha256": "a60631cf314d970d1e79bc884118ff48eacef8496e388f88be87e49aacf73ba6"
+  },
+  "app-store-iphone-6.9/2-fiche.png": {
+    "source": "maestro/captures/iphone-se/light/fiche.png",
+    "sha256": "37e139c003f20a217959309844c25f112621030be47f23a857f5c0ee6f481871"
+  },
+  "app-store-iphone-6.9/3-recherches.png": {
+    "source": "maestro/captures/iphone-se/light/recherches.png",
+    "sha256": "dd2a8e1595b11cf3dc6318566cc5c5749b5057097a46ea11f19beab9e60646d1"
+  },
+  "app-store-iphone-6.9/4-agenda.png": {
+    "source": "maestro/captures/iphone-se/light/agenda.png",
+    "sha256": "cf1b5ae9a5c3803cf4becaa455a4ae0dab13272433b30bbcbb0c5c15305e85d1"
+  },
+  "app-store-ipad-13/1-candidatures.png": {
+    "source": "maestro/captures/ipad-landscape/light/candidatures.png",
+    "sha256": "90ebc43d798dc5cc89b7a600a0fba050c90a6770bc5d88357ab0d069361f89c8"
+  },
+  "app-store-ipad-13/2-fiche.png": {
+    "source": "maestro/captures/ipad-landscape/light/fiche.png",
+    "sha256": "28e81f580a5f1f60c6ae0709d2fbfc29a531f45e014f8e89c3d973f08352b8d8"
+  },
+  "app-store-ipad-13/3-recherches.png": {
+    "source": "maestro/captures/ipad-landscape/light/recherches.png",
+    "sha256": "60d2dbbd364c4cab779fc7ebc5ae0b67f5374d867ff5ef03216fa807d94b1c7c"
+  },
+  "app-store-ipad-13/4-agenda.png": {
+    "source": "maestro/captures/ipad-landscape/light/agenda.png",
+    "sha256": "ff7ce3ac129c4acd68e6db7f682732e93c0ac1cdddc0b16a75f6e4302b181687"
+  },
+  "google-play-phone/1-candidatures.png": {
+    "source": "maestro/captures/foldable-folded/light/candidatures.png",
+    "sha256": "b1505587cf1ac69530920ac0622565c4952414bd6b45d00767bdf5e9d5214abe"
+  },
+  "google-play-phone/2-fiche.png": {
+    "source": "maestro/captures/foldable-folded/light/fiche.png",
+    "sha256": "e19252dce39d4a2bc4c73002105d687a9281b8574b64b4f68aaedb9b24760128"
+  },
+  "google-play-phone/3-recherches.png": {
+    "source": "maestro/captures/foldable-folded/light/recherches.png",
+    "sha256": "c2c43b1acefbeb86a0f942dc4e9fa027db6f59d856da9391fa2aaa5ec82749e5"
+  },
+  "google-play-phone/4-agenda.png": {
+    "source": "maestro/captures/foldable-folded/light/agenda.png",
+    "sha256": "60452a130a62e35571d9e45f48070d73441c00afbdfb395ed4cfb4520053aaf9"
+  },
+  "google-play-tablet/1-candidatures.png": {
+    "source": "maestro/captures/android-tablet/light/candidatures.png",
+    "sha256": "7d8b19fe933e8030562d51d28ec2e4b73859c69bcee98d3cd6aa9085a32d6120"
+  },
+  "google-play-tablet/2-fiche.png": {
+    "source": "maestro/captures/android-tablet/light/fiche.png",
+    "sha256": "8e2f29415afa0ebd44c58d46543ae2231b58f1eba37e6662fdf921144e8578b1"
+  },
+  "google-play-tablet/3-recherches.png": {
+    "source": "maestro/captures/android-tablet/light/recherches.png",
+    "sha256": "3ad75825d19e4db779f7453832be3e53884ce3d508f9202921ccd466b132f6ee"
+  },
+  "google-play-tablet/4-agenda.png": {
+    "source": "maestro/captures/android-tablet/light/agenda.png",
+    "sha256": "7d2920d3086ea3fe0540fca44f2a5ad508c3e38b066f8944f860492547bf9811"
+  }
+}

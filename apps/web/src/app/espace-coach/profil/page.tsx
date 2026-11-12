@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import { MeetingForm } from "@/coach-space/MeetingForm";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
@@ -14,6 +15,7 @@ import { getCoachingOffers } from "@/coaching-offers/server";
 import { SellerInfo } from "@/coaching-offers/SellerInfo";
 import { notFound } from "next/navigation";
 export default async function Page() {
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
   const coach = await requireCoachSpace(),
     person = await getCurrentCandidate();
   if (!person) notFound();

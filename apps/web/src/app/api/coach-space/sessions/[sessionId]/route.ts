@@ -2,6 +2,7 @@ import {linkedBookingConflict} from "@/coaching-booking/manual";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 
 /**
  * The signed-in Human Coach enters or corrects the date of one of their own Coaching Sessions, from
@@ -20,7 +21,7 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/coa
   const { sessionId } = await params;
   const body: unknown = await request.json().catch(() => undefined);
   let result;
-  try{result=await coaches.scheduleCoachedSession(coach.id, sessionId, body);}catch(error){if(linkedBookingConflict(error))return NextResponse.json({error:"use_cal"},{status:409});throw error;}
+  try{result=await coaches.scheduleCoachedSession(coach.id, sessionId, body);}catch(error){if(coachSpaceV2On()&&linkedBookingConflict(error))return NextResponse.json({error:"use_cal"},{status:409});throw error;}
   if (result.ok) return NextResponse.json({ id: result.session.id });
   if ("errors" in result) return NextResponse.json({ errors: result.errors }, { status: 400 });
   return NextResponse.json({ error: result.error }, { status: 404 });

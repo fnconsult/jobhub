@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import Link from "next/link";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { requireCoachSpace } from "@/coach-space/server";
@@ -8,6 +9,7 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 const CURRENT = "page";
 const TABS = ["upcoming", "unscheduled", "past"] as const;
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
   const coach = await requireCoachSpace();
   const [t, locale, timeZone, all, params] = await Promise.all([
     getServerT(),

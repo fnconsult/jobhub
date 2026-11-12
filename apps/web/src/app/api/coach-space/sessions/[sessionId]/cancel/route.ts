@@ -3,6 +3,7 @@ import { getCoachingCancellations, cancellationPolicyOn } from "@/coaching-cance
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 
 /**
  * The signed-in Human Coach cancels one of their own Coaching Sessions: its date is cleared, so the
@@ -17,7 +18,8 @@ export async function POST(request: Request, { params }: RouteContext<"/api/coac
   const coach = await coaches.coachSignedIn(person);
   if (!coach) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const { sessionId } = await params;
-  if (await cancellationPolicyOn()) {
+  // « Espace coach v2 » off (ADR-0106): no cancellation policy, the session is simply left undated.
+  if (coachSpaceV2On() && (await cancellationPolicyOn())) {
     const body = await request.json().catch(() => ({}));
     const key = typeof body.requestKey === "string" ? body.requestKey : randomUUID();
     const result = await getCoachingCancellations().coachCancel(coach.id, sessionId, typeof body.reason === "string" ? body.reason : "", key);

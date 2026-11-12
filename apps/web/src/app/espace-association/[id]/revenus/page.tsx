@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import {TaxPanel} from "@/coaching-tax/Panel";
 import { notFound } from "next/navigation";
 import { getCoachEarnings } from "@/coaching-earnings/server";
@@ -12,6 +13,7 @@ import { requireAssociation } from "@/coach-associations/server";
 import { getServerT } from "@/i18n/server";
 const PAGE = "revenus";
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ mois?: string;fiscalYear?:string }> }) {
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
   const { association, person } = await requireAssociation((await params).id),
     t = await getServerT();
   const seller = (await sharedPool().query<{ id: string }>("SELECT id FROM coaching_seller WHERE association_id=$1", [association.id])).rows[0];

@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -7,6 +8,7 @@ export async function PUT(request: Request, { params }: {
         candidateId: string;
     }>;
 }) {
+    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): this route answers 404.
     if (!isFromTrustedOrigin(request))
         return NextResponse.json({ error: "forbidden" }, { status: 403 });
     const person = await getCurrentCandidate();

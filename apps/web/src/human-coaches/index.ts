@@ -181,6 +181,11 @@ export type CoachReviewResult =
   | { ok: false; error: "not_found" };
 
 export interface HumanCoachesDeps {
+  /**
+   * Whether « Espace coach v2 » is on (ADR-0106). Off, the module behaves as before the epic: every non-retired Human Coach is
+   * listed and enters the Coach space. Absent: on.
+   */
+  coachSpaceV2On?: () => boolean | Promise<boolean>;
   coachingNotificationsOwned?:()=>boolean|Promise<boolean>;
   mayChangeSession?: (within: Queryable, sessionId: string, by: RescheduledBy, to: Date | null) => Promise<boolean>;
   contractualCancellationOn?: () => Promise<boolean>;
@@ -396,6 +401,8 @@ const coachFrom = (row: CoachRow): HumanCoach => ({ id: row.id, name: row.name, 
 
 export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): HumanCoaches {
   const now = deps.now ?? (() => new Date());
+  /** « Espace coach v2 »: on unless the dep says otherwise. */
+  const v2On = async (): Promise<boolean> => (deps.coachSpaceV2On ? await deps.coachSpaceV2On() : true);
 
   /** The Candidate, if they granted this (not retired) Human Coach Coach Access. */
   async function coachedCandidate(coachId: string, candidateId: string): Promise<CoachedCandidate | null> {
@@ -616,6 +623,10 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     },
 
     async list(options = {}) {
+      if (!(await v2On())) {
+        const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL ORDER BY name, created_at`);
+        return rows.map(coachFrom);
+      }
       const { rows } = await database.query<CoachRow>(
         `SELECT ${COACH_COLUMNS} FROM human_coach WHERE retired_at IS NULL AND ($1::boolean OR (NOT contract_pending AND public_ready AND NOT EXISTS(SELECT 1 FROM coaching_content_case m WHERE m.coach_id=human_coach.id AND m.target='page' AND m.outcome IN ('remove','suspend')))) ORDER BY name, created_at`,
         [options.includePending ?? false],
@@ -637,6 +648,12 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
 
     async coachSignedIn(person) {
       if (!person.emailVerified) return null;
+      if (!(await v2On())) {
+        const { rows } = await database.query<CoachRow>(`SELECT ${COACH_COLUMNS} FROM human_coach WHERE email = $1 AND retired_at IS NULL`, [
+          person.email.trim().toLowerCase(),
+        ]);
+        return rows[0] ? coachFrom(rows[0]) : null;
+      }
       const { rows } = await database.query<CoachRow>(
         `SELECT ${COACH_COLUMNS} FROM human_coach WHERE email = $1 AND retired_at IS NULL AND NOT contract_pending`,
         [person.email.trim().toLowerCase()],

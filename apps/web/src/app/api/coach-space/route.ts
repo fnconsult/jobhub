@@ -2,7 +2,8 @@ import {hasAssociationIdentity} from "@/coach-associations/server";
 import type { CoachSpaceResponse } from "@jobhub/shared/reads";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate } from "@/auth/server";
-import { hasHumanCoachIdentity } from "@/human-coaches/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { getHumanCoaches, hasHumanCoachIdentity } from "@/human-coaches/server";
 
 /**
  * Whether the signed-in person is an active Human Coach (ADR-0016): the Jobbbox app shows « Espace coach » in its
@@ -12,6 +13,11 @@ import { hasHumanCoachIdentity } from "@/human-coaches/server";
 export async function GET() {
   const person = await getCurrentCandidate();
   if (!person) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body: CoachSpaceResponse = { humanCoach: await hasHumanCoachIdentity(person),...await hasAssociationIdentity(person)?{associationSpace:true}:{} };
+  // « Espace coach v2 » off (ADR-0106): an active Human Coach only, and no Association entry.
+  if (!coachSpaceV2On()) {
+    const legacy: CoachSpaceResponse = { humanCoach: (await getHumanCoaches().coachSignedIn(person)) !== null };
+    return NextResponse.json(legacy, { headers: { "cache-control": "no-store" } });
+  }
+  const body: CoachSpaceResponse = { humanCoach: await hasHumanCoachIdentity(person),...await hasAssociationIdentity(person)?{associationSpace:true}:{}, coachSpaceV2: true };
   return NextResponse.json(body, { headers: { "cache-control": "no-store" } });
 }

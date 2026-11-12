@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import {MeetingLink} from "@/coach-space/MeetingLink";
 import { CoachCancel } from "@/coaching-cancellations/Actions";
 import { cancellationPolicyOn } from "@/coaching-cancellations/server";
@@ -24,6 +25,7 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 const COACH = "coach";
 const EDITOR = "coach";
 export default async function Page({ params }: { params: Promise<{ sessionId: string }> }) {
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
   const coach = await requireCoachSpace();
   const space = getCoachWorkspace();
   const session = await space.session(coach.id, (await params).sessionId);
@@ -52,6 +54,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
         <CoachingSessionDialog
           editor={EDITOR}
           withVideoLink={false}
+          coachSpaceV2
           session={{
             id: session.id,
             scheduledAt: session.scheduledAt ? interviewWallClock(session.scheduledAt) : "",

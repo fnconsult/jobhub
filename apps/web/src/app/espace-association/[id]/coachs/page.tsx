@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import { AssociationLayout } from "@/coach-associations/AssociationLayout";
 import { requireAssociation } from "@/coach-associations/server";
 import { InviteForm, PendingInvitations } from "@/coach-associations/InviteForm";
@@ -12,6 +13,7 @@ export default async function Page({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string; invited?: string; retired?: string }>;
 }) {
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
   const { id } = await params,
     { person, association, associations } = await requireAssociation(id),
     t = await getServerT();

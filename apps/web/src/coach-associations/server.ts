@@ -1,3 +1,5 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { notFound, redirect } from "next/navigation";
 import { getAuth, getCurrentCandidate, getMailer, signInRedirect } from "@/auth/server";
 import { getCoachContracts } from "@/coach-contracts/server";
@@ -11,12 +13,17 @@ export function getCoachAssociations() {
     return coachAssociations(sharedPool(), {
         secret,
         mayManage: async (person, id) => (await getCoachContracts().state(person, "association", id))?.accepted === true,
-        sendInvitation: async (record, token) => {
-            await getMailer().send({ to: record.email, ...associationInvitationEmail(record, token, String(getAuth().options.baseURL)) });
-        },
+        // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+        ...(coachSpaceV2On() ? {
+            sendInvitation: async (record: Parameters<typeof associationInvitationEmail>[0], token: string) => {
+                await getMailer().send({ to: record.email, ...associationInvitationEmail(record, token, String(getAuth().options.baseURL)) });
+            },
+        } : {}),
     });
 }
 export async function requireAssociation(id: string) {
+    // An Association's space and its actions exist only with « Espace coach v2 » on (ADR-0106).
+    requireCoachSpaceV2();
     const person = await getCurrentCandidate();
     if (!person)
         return signInRedirect();

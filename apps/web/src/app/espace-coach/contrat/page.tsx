@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import { AssociationLayout } from "@/coach-associations/AssociationLayout";
 import { headers } from "next/headers";
 import { fromJobbboxApp } from "@/api-version";
@@ -14,6 +15,7 @@ const ASSOCIATION_CONTRACT_PAGE = "contrat";
 const KIND = "kind", ID = "id", VERSION = "version", SHA = "sha256", AGREED = "agreed", YES = "yes";
 async function accept(form: FormData) {
     "use server";
+    requireCoachSpaceV2();
     const person = await getCurrentCandidate();
     if (!person)
         return signInRedirect();
@@ -31,6 +33,7 @@ export default async function Page({ searchParams }: {
         association?: string;
     }>;
 }) {
+    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
     const person = await getCurrentCandidate();
     if (!person)
         return signInRedirect();

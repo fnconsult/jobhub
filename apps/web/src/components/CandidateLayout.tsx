@@ -1,4 +1,5 @@
 import {currentAssociationIdentity} from "@/coach-associations/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { requireAcceptedTerms } from "@/acceptances/server";
@@ -174,7 +175,8 @@ export async function CandidateLayout({
     freeConversations(candidateId),
     sidebarMenus(candidateId),
     closedWelcome(candidateId),
-    currentAssociationIdentity(),
+    // « Espace coach v2 » off (ADR-0106): no « Espace association » entry.
+    coachSpaceV2On() ? currentAssociationIdentity() : false,
   ]);
   return (
     <SidebarLayout

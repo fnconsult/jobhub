@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
@@ -8,6 +9,7 @@ const CONTRACT_PATH = "/espace-coach/contrat";
 const ID = "id", ACTION = "action", CONFIRM = "confirm", WITHDRAW = "withdraw";
 async function act(form: FormData) {
     "use server";
+    requireCoachSpaceV2();
     const person = await getCurrentCandidate();
     if (!person)
         redirect("/connexion?suite=%2Fdevenir-coach%2Fmes-demandes");

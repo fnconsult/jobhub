@@ -3,6 +3,7 @@ import { getCoachingCancellations, cancellationPolicyOn } from "@/coaching-cance
 import { getCoachPages } from "@/coach-pages/server";
 import { getCoachContracts } from "@/coach-contracts/server";
 import { redirect } from "next/navigation";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
@@ -15,10 +16,12 @@ import { createHumanCoaches, type HumanCoach, type HumanCoaches } from "./index"
 let instance: HumanCoaches | undefined;
 /** The app's Human Coaches module, on the database named by DATABASE_URL. */
 export function getHumanCoaches(): HumanCoaches {
+    // « Espace coach v2 » off (ADR-0106): no contract, no cancellation policy, no Coaching notices, every coach listed.
     instance ??= createHumanCoaches(sharedPool(), {
-        contractualCancellationOn: cancellationPolicyOn,
-        mayChangeSession: (within, id, by, to) => (by === "cal_com" ? Promise.resolve(true) : getCoachingCancellations().maySchedule(within, id, by, to)),
-        coachingNotificationsOwned: coachingNoticesOn,
+        coachSpaceV2On,
+        contractualCancellationOn: async () => coachSpaceV2On() && (await cancellationPolicyOn()),
+        mayChangeSession: (within, id, by, to) => (by === "cal_com" || !coachSpaceV2On() ? Promise.resolve(true) : getCoachingCancellations().maySchedule(within, id, by, to)),
+        coachingNotificationsOwned: () => coachSpaceV2On() && coachingNoticesOn(),
         publicProfileApprovalRequired: () => true,
         publishedCoachIds: async (ids) => ((await getCoachPages().approved(ids)).map((p) => p.coachId)),
         profiles: getProfiles(),
@@ -26,7 +29,7 @@ export function getHumanCoaches(): HumanCoaches {
         tailoredDocuments: getTailoredDocuments(),
         tailoredCvs: getTailoredCvs(),
         push: getPushNotifications(),
-        mayEnter: (person, id) => (getCoachContracts().mayEnter(person, id)),
+        mayEnter: (person, id) => (coachSpaceV2On() ? getCoachContracts().mayEnter(person, id) : Promise.resolve(true)),
     });
     return instance;
 }
@@ -45,6 +48,8 @@ export async function requireHumanCoach(): Promise<HumanCoach> {
         return signInRedirect();
     const coach = await getHumanCoaches().coachSignedIn(person);
     if (!coach) {
+        if (!coachSpaceV2On())
+            notFound();
         const approved = (await getCoachContracts().actors(person)).length > 0;
         if (approved)
             redirect("/espace-coach/contrat");
@@ -52,11 +57,14 @@ export async function requireHumanCoach(): Promise<HumanCoach> {
     }
     return coach;
 }
-/** Navigation identity only: the destination still enforces contract acceptance before any Candidate access. */
+/** Navigation identity only (« Espace coach v2 » on): the destination still enforces contract acceptance before any Candidate access. */
 export async function hasHumanCoachIdentity(person: {
     email: string;
     emailVerified: boolean;
 }): Promise<boolean> {
+    // Off, as before the epic: only an active Human Coach, signed in, sees « Espace coach ».
+    if (!coachSpaceV2On())
+        return (await getHumanCoaches().coachSignedIn(person)) !== null;
     return (await getCoachContracts().actors(person)).some((actor) => actor.kind === "coach");
 }
 export async function currentHasHumanCoachIdentity(): Promise<boolean> {

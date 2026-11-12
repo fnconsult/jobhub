@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import { notFound } from "next/navigation";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getCoachEnrolments } from "@/coach-enrolments/server";
@@ -10,6 +11,7 @@ export default async function Page({ params }: {
         id: string;
     }>;
 }) {
+    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
     const person = await getCurrentCandidate();
     if (!person)
         return signInRedirect();

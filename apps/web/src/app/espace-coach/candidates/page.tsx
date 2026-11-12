@@ -1,3 +1,4 @@
+import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import Link from "next/link";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { CalledBy } from "@/components/CalledBy";
@@ -6,6 +7,7 @@ import { getCoachWorkspace } from "@/coach-space/workspace-server";
 import { coachCandidateUrl } from "@/coach-space/SessionCard";
 import { getServerT } from "@/i18n/server";
 export default async function Page() {
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
   const coach = await requireCoachSpace();
   const t = await getServerT();
   const candidates = await getCoachWorkspace().candidates(coach.id);

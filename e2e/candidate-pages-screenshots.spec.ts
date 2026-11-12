@@ -846,6 +846,7 @@ test.describe("the onboarding's search card (#1001)", () => {
         await page.getByRole("button", { name: fr.questionnaire.skip }).click();
       }
       await page.locator("aside.work-pane").getByRole("button", { name: fr.conversationFirst.close }).click();
+      await expect(page.locator("aside.work-pane")).toHaveCount(0);
       await expect(page.getByRole("list", { name: fr.onboardingSearch.stepsLabel })).toBeVisible();
       await check(page, page.locator(".onb-search-wrap"), ".onb-search-wrap", `onboarding-search-card-${name}`, width, false);
       await page.context().clearCookies();

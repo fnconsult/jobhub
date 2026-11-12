@@ -79,7 +79,8 @@ describe("the onboarding's search card (#1001)", () => {
   }
   const region = () => screen.getByRole("region", { name: "Recherche de vos offres" });
   const counter = (label: string) => {
-    const term = within(region()).getByText(label);
+    // The label screen readers hear: the long and short ones on screen are hidden from them.
+    const term = within(region()).getByText(label, { ignore: '[aria-hidden="true"]' });
     return term.closest("div")!.querySelector("dd")!.textContent;
   };
 

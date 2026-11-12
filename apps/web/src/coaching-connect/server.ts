@@ -1,3 +1,4 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getCoachingTaxes } from "@/coaching-tax/server";
 import { getCoachContracts } from "@/coach-contracts/server";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
@@ -44,11 +45,14 @@ export function getCoachingConnect(): ReturnType<typeof coachingConnect> {
         recordPaid: (paid, financials) => getHumanCoaches().recordPaidSession(paid, financials),
         attachSale: (paid, within) => getCoachingOffers().attachPaid(paid, within),
         confirmOrder: (paid) => getOrders().paid(paid),
-        sendPayoutNotice: async (notice) => {
-            const recipient = await payoutRecipient(sharedPool(), notice.sellerId);
-            if (!recipient)
-                return;
-            await getMailer().send({ to: recipient.email, ...payoutInformationEmail(recipient, notice, String(getAuth().options.baseURL)) });
-        },
+        // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+        ...(coachSpaceV2On() ? {
+            sendPayoutNotice: async (notice: Parameters<typeof payoutInformationEmail>[1] & { sellerId: string }) => {
+                const recipient = await payoutRecipient(sharedPool(), notice.sellerId);
+                if (!recipient)
+                    return;
+                await getMailer().send({ to: recipient.email, ...payoutInformationEmail(recipient, notice, String(getAuth().options.baseURL)) });
+            },
+        } : {}),
     });
 }

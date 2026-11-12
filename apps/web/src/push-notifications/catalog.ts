@@ -38,8 +38,32 @@ export const isPushEvent = (value: unknown): value is PushEvent => PUSH_EVENT_ID
 /** Who a person is, as far as their events go: every account a Candidate's, a Human Coach's their own too. */
 export const pushAudiencesOf = (isHumanCoach: boolean): PushAudience[] => (isHumanCoach ? ["candidate", "human_coach"] : ["candidate"]);
 
-/** The events `audiences` see in Rappels, in the catalogue's order. */
-export const pushEventsFor = (audiences: readonly PushAudience[]): PushEvent[] => PUSH_EVENTS.filter((event) => audiences.includes(event.audience)).map((event) => event.id);
+/**
+ * The events that existed before the Human Coach epic (#867): the only ones while « Espace coach v2 » is off (ADR-0106).
+ * The others are the epic's: not shown in Rappels, not queued, not sent while it is off.
+ */
+export const LEGACY_PUSH_EVENTS: readonly PushEvent[] = [
+  "job_search_results",
+  "job_digest",
+  "appointment_reminder",
+  "coach_review",
+  "coaching_session_changed",
+  "follow_up_due",
+  "coach_access_granted",
+  "coaching_session_paid",
+  "coaching_session_changed_by_candidate",
+];
+
+/** Whether `event` exists while « Espace coach v2 » is `coachSpaceV2`: every event when on, the legacy ones and the test when off. */
+export const pushEventAvailable = (event: PushNotificationEvent, coachSpaceV2: boolean): boolean =>
+  coachSpaceV2 || event === "test" || LEGACY_PUSH_EVENTS.includes(event);
+
+/**
+ * The events `audiences` see in Rappels, in the catalogue's order. With « Espace coach v2 » off (the default), the events
+ * before the epic only, as before it.
+ */
+export const pushEventsFor = (audiences: readonly PushAudience[], coachSpaceV2 = false): PushEvent[] =>
+  PUSH_EVENTS.filter((event) => audiences.includes(event.audience) && pushEventAvailable(event.id, coachSpaceV2)).map((event) => event.id);
 
 /**
  * One Push notification: its event and the id of the object it opens, nothing else. `test` is the one a super-admin

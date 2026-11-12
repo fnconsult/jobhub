@@ -75,7 +75,14 @@ describe("a Push notification's deep link (the app fetches the rest once opened)
     expect(pushMessage(ONE_OF_EACH.job_digest, "fr").path).toBe(`/job-digests/${JOB_DIGEST}`);
     expect(pushMessage(ONE_OF_EACH.coach_review, "fr").path).toBe(`/candidatures/${APPLICATION}`);
     expect(pushMessage(ONE_OF_EACH.follow_up_due, "fr").path).toBe(`/candidatures/${APPLICATION}`);
-    expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr").path).toBe(`/espace-coach/candidates/${CANDIDATE}`);
+    expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr", { coachSpaceV2: true }).path).toBe(`/espace-coach/candidates/${CANDIDATE}`);
+  });
+
+  it("opens a Candidate's page of the Coach space as before the Human Coach epic while « Espace coach v2 » is off (ADR-0106)", () => {
+    expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr").path).toBe(`/espace-coach/${CANDIDATE}`);
+    expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr", { coachSpaceV2: false }).path).toBe(`/espace-coach/${CANDIDATE}`);
+    for (const event of ["job_search_results", "job_digest", "appointment_reminder", "coach_review", "coaching_session_changed", "follow_up_due", "coaching_session_paid", "coaching_session_changed_by_candidate", "test"] as const)
+      expect(pushMessage(ONE_OF_EACH[event], "fr").path).toBe(pushMessage(ONE_OF_EACH[event], "fr", { coachSpaceV2: true }).path);
   });
 
   it("opens the Agenda, the coach space or the home page for an event about no one object", () => {
@@ -113,7 +120,7 @@ describe("a notification as a queued job carries it", () => {
 describe("the events a person sees in Rappels", () => {
   it("are a Candidate's for every account, and a Human Coach's own too, in the catalogue's order", async () => {
     const { pushAudiencesOf, pushEventsFor } = await import("./catalog");
-    expect(pushEventsFor(pushAudiencesOf(false))).toEqual([
+    expect(pushEventsFor(pushAudiencesOf(false), true)).toEqual([
       "job_search_results",
       "job_digest",
       "appointment_reminder",
@@ -123,6 +130,24 @@ describe("the events a person sees in Rappels", () => {
       "coaching_session_hour",
       "follow_up_due",
     ]);
-    expect(pushEventsFor(pushAudiencesOf(true)).slice(8)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate","coaching_session_updated","coaching_session_hour_for_coach","coaching_session_eve","coaching_day"]);
+    expect(pushEventsFor(pushAudiencesOf(true), true).slice(8)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate","coaching_session_updated","coaching_session_hour_for_coach","coaching_session_eve","coaching_day"]);
+  });
+});
+
+describe("the events while « Espace coach v2 » is off (ADR-0106)", () => {
+  it("are those before the Human Coach epic, in Rappels as on main", async () => {
+    const { pushAudiencesOf, pushEventsFor } = await import("./catalog");
+    expect(pushEventsFor(pushAudiencesOf(false))).toEqual(["job_search_results", "job_digest", "appointment_reminder", "coach_review", "coaching_session_changed", "follow_up_due"]);
+    expect(pushEventsFor(pushAudiencesOf(true), false).slice(6)).toEqual(["coach_access_granted", "coaching_session_paid", "coaching_session_changed_by_candidate"]);
+  });
+
+  it("leave out each event of the epic, never the test", async () => {
+    const { LEGACY_PUSH_EVENTS, pushEventAvailable } = await import("./catalog");
+    for (const event of Object.keys(ONE_OF_EACH) as PushNotification["event"][]) {
+      expect(pushEventAvailable(event, true)).toBe(true);
+      expect(pushEventAvailable(event, false)).toBe(event === "test" || LEGACY_PUSH_EVENTS.includes(event as never));
+    }
+    expect(pushEventAvailable("coaching_day", false)).toBe(false);
+    expect(pushEventAvailable("coaching_session_changed_by_candidate", false)).toBe(true);
   });
 });

@@ -1,3 +1,4 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getDocumentProxy } from "unpdf";
 import { sharedPool } from "@/database/pool";
 import { getAuth, getMailer } from "@/auth/server";
@@ -18,7 +19,12 @@ export const getCoachEnrolments = () =>
         body: { email, callbackURL: `/devenir-coach/confirmer/${id}`, errorCallbackURL: "/devenir-coach", metadata: { language: locale } },
       });
     },
-    async sendDecision(record) {
-      await getMailer().send({ to: record.email, ...coachEnrolmentDecisionEmail(record, String(getAuth().options.baseURL)) });
-    },
+    // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+    ...(coachSpaceV2On()
+      ? {
+          async sendDecision(record: Parameters<typeof coachEnrolmentDecisionEmail>[0]) {
+            await getMailer().send({ to: record.email, ...coachEnrolmentDecisionEmail(record, String(getAuth().options.baseURL)) });
+          },
+        }
+      : {}),
   });

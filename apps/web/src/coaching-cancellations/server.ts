@@ -1,3 +1,4 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getAuth, getMailer } from "@/auth/server";
 import { getPushNotifications } from "@/push-notifications/server";
 import { cancellationNotice } from "./notice";
@@ -15,7 +16,10 @@ export function getCoachingCancellations() {
     return coachingCancellations(sharedPool(), {
         refunds: getCoachingRefunds(),
         permitted: cancellationPolicyOn,
-        sendNotice: (record, kind) => cancellationNotice(sharedPool(), record, kind, String(getAuth().options.baseURL), (email, message) => getMailer().send({ to: email, ...message }), getPushNotifications()),
+        // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+        ...(coachSpaceV2On()
+            ? { sendNotice: (record: Parameters<typeof cancellationNotice>[1], kind: string) => cancellationNotice(sharedPool(), record, kind, String(getAuth().options.baseURL), (email, message) => getMailer().send({ to: email, ...message }), getPushNotifications()) }
+            : {}),
         reopen: (id, within) => getCoachingBooking().reopen(id, within),
         async peers(candidateId, session, within) {
             // Lock current offer/Coach facts until the choice commits. A different Seller always requires a new explicit Order after the original refund.

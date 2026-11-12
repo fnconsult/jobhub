@@ -280,6 +280,8 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
     beforeEach(() => {
       queued = [];
       notifying = createPushNotifications(database, {
+        // Every event of the catalogue, the Human Coach epic's too (ADR-0106).
+        coachSpaceV2: () => true,
         senders: () => senders,
         now: () => clock.now,
         queue: { send: async (name, data) => void queued.push({ name, data }) },
@@ -408,5 +410,72 @@ describe("queueing a Push notification for the worker", () => {
   it("refuses to queue without a queue: the worker's side never queues", async () => {
     const push = createPushNotifications({} as Pool, { senders: () => ({}) });
     await expect(push.notify("cand_marie", { event: "test" })).rejects.toThrow(/queue/);
+  });
+});
+
+describe("« Espace coach v2 » (ADR-0106)", () => {
+  /** A database that has the person's switches all on and one iPhone, with what was asked of it. */
+  function fakeDatabase() {
+    const queries: string[] = [];
+    const database = {
+      query: async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("FROM push_device d")) return { rows: [{ id: "device-1", platform: "ios", environment: "production", token: "token-1", language: "fr" }] };
+        return { rows: [], rowCount: 1 };
+      },
+    } as unknown as Pool;
+    return { database, queries };
+  }
+  const sender = () => {
+    const sent: PushMessage[] = [];
+    const ios: PushSender = { send: async (_device: PushDevice, message: PushMessage): Promise<PushOutcome> => (sent.push(message), { ok: true }) };
+    return { sent, senders: () => ({ ios }) as Partial<Record<PushPlatform, PushSender>> };
+  };
+  const HOUR: PushNotification = { event: "coaching_session_hour", sessionId: "session-1", noticeKey: "e".repeat(64) };
+  const GRANTED: PushNotification = { event: "coach_access_granted", candidateId: "cand_marie" };
+
+  for (const coachSpaceV2 of [undefined, () => false]) {
+    it(`off${coachSpaceV2 ? "" : " (not given)"}: queues and sends no event of the Human Coach epic, and opens the paths before it`, async () => {
+      const { database, queries } = fakeDatabase();
+      const { sent, senders } = sender();
+      const queued: object[] = [];
+      const asked: string[] = [];
+      const push = createPushNotifications(database, {
+        ...(coachSpaceV2 ? { coachSpaceV2 } : {}),
+        senders,
+        queue: { send: async (_name, data) => void queued.push(data) },
+        eligibleNotification: async (_id, notification) => (asked.push(notification.event), true),
+      });
+      expect(await push.notify("cand_marie", HOUR, { once: "hour-1" })).toBe(false);
+      expect(queued).toEqual([]);
+      expect(queries).toEqual([]);
+      expect(await push.send("cand_marie", HOUR)).toEqual({ sent: 0, failed: 0, removed: 0 });
+      expect(sent).toEqual([]);
+      expect(await push.send("cand_marie", GRANTED)).toEqual({ sent: 1, failed: 0, removed: 0 });
+      expect(sent.map((message) => message.path)).toEqual(["/espace-coach/cand_marie"]);
+      expect(asked).toEqual([]);
+    });
+  }
+
+  it("on, asked at each notify and send: queues and sends the epic's events, asks whether each is still current, opens the new paths", async () => {
+    const { database } = fakeDatabase();
+    const { sent, senders } = sender();
+    let on = false;
+    const queued: object[] = [];
+    const asked: string[] = [];
+    const push = createPushNotifications(database, {
+      coachSpaceV2: () => on,
+      senders,
+      queue: { send: async (_name, data) => void queued.push(data) },
+      eligibleNotification: async (_id, notification) => (asked.push(notification.event), true),
+    });
+    expect(await push.notify("cand_marie", HOUR)).toBe(false);
+    on = true;
+    expect(await push.notify("cand_marie", HOUR)).toBe(true);
+    expect(queued).toEqual([{ personId: "cand_marie", notification: HOUR }]);
+    expect(await push.send("cand_marie", HOUR)).toEqual({ sent: 1, failed: 0, removed: 0 });
+    expect(await push.send("cand_marie", GRANTED)).toEqual({ sent: 1, failed: 0, removed: 0 });
+    expect(sent.map((message) => message.path)).toEqual(["/coachs/seances/session-1", "/espace-coach/candidates/cand_marie"]);
+    expect(asked).toEqual(["coaching_session_hour", "coach_access_granted"]);
   });
 });

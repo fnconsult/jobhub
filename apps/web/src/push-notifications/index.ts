@@ -20,13 +20,15 @@
 import { isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import type { PushFailureReason } from "@jobhub/shared";
 import type { Pool } from "pg";
-import { isPushEvent, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, type PushNotification, type PushNotificationEvent } from "./catalog";
+import { isPushEvent, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, pushEventAvailable, type PushEvent, type PushNotification, type PushNotificationEvent } from "./catalog";
 import { utcBefore } from "../database/before";
 import { pushMessage } from "./messages";
 import { PUSH_ENVIRONMENTS, PUSH_PLATFORMS, type PushEnvironment, type PushOutcome, type PushPlatform, type PushSender } from "./senders";
 
-export { PUSH_EVENTS, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, isPushEvent, pushAudiencesOf, pushEventsFor, pushNotificationOf, type PushAudience, type PushEvent, type PushNotification } from "./catalog";
+export { LEGACY_PUSH_EVENTS, PUSH_EVENTS, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, isPushEvent, pushAudiencesOf, pushEventAvailable, pushEventsFor, pushNotificationOf, type PushAudience, type PushEvent, type PushNotification } from "./catalog";
 export { pushMessage, type PushMessage } from "./messages";
+// « Espace coach v2 » (ADR-0106) for the worker, which reads @jobhub/web through its package exports.
+export { COACH_SPACE_V2, coachSpaceV2InEnv } from "../coach-space-v2";
 export { PUSH_PLATFORMS, pushPlatformOfTool, type PushPlatform, type PushSender, type PushOutcome, type PushDevice } from "./senders";
 
 /** How long a failure to send is kept. */
@@ -36,6 +38,12 @@ export const FAILURE_RETENTION_DAYS = 90;
 const MAX_TOKEN_LENGTH = 4096;
 
 export interface PushNotificationsDeps {
+  /**
+   * Whether « Espace coach v2 » is on (ADR-0106), asked at each notify and send. Off (or none): the Human Coach epic's
+   * events are neither queued nor sent, `eligibleNotification` is not asked, and each path is the one before the epic.
+   */
+  coachSpaceV2?: () => boolean;
+  /** Whether a notification is still current for the person when sent (the epic's coaching reminders); asked only while « Espace coach v2 » is on. */
   eligibleNotification?:(personId:string,notification:PushNotification)=>Promise<boolean>;
   /**
    * Each platform's provider, asked at each send (the worker's follow its Provider Secrets): null, or none, while its key
@@ -129,6 +137,7 @@ function deviceOf(input: unknown): DeviceInput | null {
 export function createPushNotifications(database: Pool, deps: PushNotificationsDeps): PushNotifications {
   const now = deps.now ?? (() => new Date());
   const log = deps.log ?? (() => {});
+  const coachSpaceV2 = () => deps.coachSpaceV2?.() ?? false;
 
   async function keepFailure(platform: PushPlatform, event: PushNotificationEvent, outcome: Exclude<PushOutcome, { ok: true }>, at: Date) {
     await database.query(`INSERT INTO push_notification_failure (at, platform, event, reason, http_status) VALUES ($1, $2, $3, $4, $5)`, [at, platform, event, outcome.reason, outcome.status]);
@@ -178,6 +187,8 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
 
     async notify(personId, notification, options = {}) {
       if (!deps.queue) throw new Error("Push notifications: no job queue to queue a notification on");
+      // An event of the Human Coach epic is not queued while « Espace coach v2 » is off (ADR-0106).
+      if (!pushEventAvailable(notification.event, coachSpaceV2())) return false;
       // An event switched off is not queued, nor its key taken (`send` asks again: it may be switched off meanwhile).
       if (notification.event !== "test" && !(await this.settings(personId))[notification.event]) return false;
       const { once } = options;
@@ -202,7 +213,10 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
       const at = now();
       const result = { sent: 0, failed: 0, removed: 0 };
       if (notification.event !== "test" && !(await this.settings(personId))[notification.event]) return result;
-      if(deps.eligibleNotification&&!(await deps.eligibleNotification(personId,notification)))return result;
+      const v2 = coachSpaceV2();
+      // Queued while « Espace coach v2 » was on, sent once it is off: an event of the epic goes to no one (ADR-0106).
+      if (!pushEventAvailable(notification.event, v2)) return result;
+      if (v2 && deps.eligibleNotification && !(await deps.eligibleNotification(personId, notification))) return result;
       const { rows } = await database.query<{ id: string; platform: PushPlatform; environment: PushEnvironment; token: string; language: string }>(
         `SELECT d.id, d.platform, d.environment, d.token, d.language
            FROM push_device d JOIN session s ON s.id = d.session_id
@@ -220,7 +234,7 @@ export function createPushNotifications(database: Pool, deps: PushNotificationsD
           outcome = { ok: false, reason: "key_missing", tokenInvalid: false, status: null, message: `no ${device.platform} key entered` };
         } else {
           try {
-            const message = pushMessage(notification, isSupportedLocale(device.language) ? device.language : "fr");
+            const message = pushMessage(notification, isSupportedLocale(device.language) ? device.language : "fr", { coachSpaceV2: v2 });
             outcome = await sender.send({ token: device.token, environment: device.environment }, badge === undefined ? message : { ...message, badge });
           } catch (error) {
             outcome = { ok: false, reason: "provider_unavailable", tokenInvalid: false, status: null, message: error instanceof Error ? error.message : String(error) };

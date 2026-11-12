@@ -51,7 +51,7 @@ import { maintenanceOf } from "@jobhub/web/maintenance";
 import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
 import { createProfiles } from "@jobhub/web/profiles";
 import { offersToHandle } from "@jobhub/web/offer-box";
-import { createPushNotifications } from "@jobhub/web/push-notifications";
+import { coachSpaceV2InEnv, createPushNotifications } from "@jobhub/web/push-notifications";
 import { pushSendersFromEnv } from "@jobhub/web/push-notifications/worker";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
@@ -182,7 +182,10 @@ const workerQueue = {
 // send (the .p8 and the service account, Back Office over env), each call recorded under its Tool. The worker's own
 // events (results, Job Digests, Appointment Reminders, Follow-ups due) queue theirs on its runner (#699). Each one
 // carries the app icon's badge, the person's offers à traiter at sending (#818).
+// « Espace coach v2 » (ADR-0106), read from the Platform Settings at each use: switching it needs no restart.
+const coachSpaceV2 = () => coachSpaceV2InEnv(settingsEnv());
 const pushNotifications = createPushNotifications(database, {
+  coachSpaceV2,
   eligibleNotification:(id,notice)=>notices().pushStillCurrent(id,notice),
   senders: pushSendersFromEnv({ env: () => secrets.current().env, externalApis }),
   log: (line) => console.warn(line),
@@ -203,7 +206,7 @@ const booking=()=>{const env=secrets.current().env;return coachingBooking(databa
       if (cancellationLegalReady()) await recordProviderCancellation(within, id, key, at, reason);
     },changed:(id,key)=>bookingChanged(database,pushNotifications,id,key,{coach:!coachingDeliveryOn()}),
   });};
-const coachingDeliveryOn=()=>coachingNoticesEnabled(settingsEnv().CAL_COM_REMINDERS_DISABLED==='true');
+const coachingDeliveryOn=()=>coachSpaceV2()&&coachingNoticesEnabled(settingsEnv().CAL_COM_REMINDERS_DISABLED==='true');
 const notices=()=>coachingNotifications(database,{permitted:async()=>coachingDeliveryOn(),eligibleCoach:(person,id)=>coachContracts(database,{registry:connectLegalRegistry}).mayEnter(person,id),email:async(person,notice)=>{await mailer.send({to:person.email,...coachingNoticeEmail(person,notice,baseURL)});},push:async(person,notice)=>{await pushNotifications.notify(person.id,coachingNoticePush(person,notice),{once:notice.key});}});
 const contractualRefunds=()=>{const env=secrets.current().env;return coachingRefunds(database,{...(env.STRIPE_SECRET_KEY?{stripe:coachingRefundStripe({secretKey:env.STRIPE_SECRET_KEY,apiUrl:env.STRIPE_API_URL,externalApis})}:{}),
   });
@@ -216,6 +219,7 @@ const cancellations = () =>
       cancellationNotice(database, record, kind, baseURL, (email, message) => mailer.send({ to: email, ...message }), pushNotifications),
   });
 const jobs = createJobs({
+  coachSpaceV2,
   coachingTaxes:coachingTaxes(database,{cipher:secretCipherFromEnv(secrets.current().env),permitted:async()=>taxLegalReady(),sendCopy:async notice=>{await mailer.send({to:notice.to,...fiscalCopyEmail(notice,baseURL)})}}),
   coachingContentReports:coachingContentReports(database,{platformEmail:()=>{const from=settingsEnv().MAIL_FROM??'';return /<([^<>]+)>$/.exec(from)?.[1]??(from.includes('@')?from:undefined)},send:async notice=>{await mailer.send({to:notice.to,...contentReportEmail(notice,baseURL)})}}),
   coachingNotifications:{sendDue:()=>notices().sendDue(),purge:()=>notices().purge()},
@@ -258,7 +262,7 @@ const jobs = createJobs({
   }),
   // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
   // Its Push notification too, under its own switch.
-  appointmentReminders: createAppointmentReminders(database, { mailer, baseURL, push: pushNotifications }),
+  appointmentReminders: createAppointmentReminders(database, { mailer, baseURL, push: pushNotifications, coachSpaceV2 }),
   pushNotifications,
   // Livraison's daily email (18:00 Paris) to DELIVERY_STATUS_EMAIL_TO, read with GITHUB_STATUS_TOKEN (Provider Secrets over env).
   deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }),

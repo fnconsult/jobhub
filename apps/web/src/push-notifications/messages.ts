@@ -14,7 +14,7 @@ export interface PushMessage {
 }
 
 /** The path a notification opens: its object's page, by id; the Agenda, the coach space or home for an event about no one object. */
-function pathOf(notification: PushNotification): string {
+function pathOf(notification: PushNotification, coachSpaceV2: boolean): string {
   switch (notification.event) {
     case "job_search_results":
       return routes.jobSearch(notification.jobSearchId);
@@ -29,7 +29,8 @@ function pathOf(notification: PushNotification): string {
     case "coaching_cancellation":
       return "/coachs/annulations";
     case "coach_access_granted":
-      return routes.coachSpaceCandidate(notification.candidateId);
+      // Before « Espace coach v2 » (ADR-0106), the Coach space's page of a Candidate was /espace-coach/<id>.
+      return coachSpaceV2 ? routes.coachSpaceCandidate(notification.candidateId) : `/espace-coach/${encodeURIComponent(notification.candidateId)}`;
     case "coaching_session_paid":
     case "coaching_session_changed_by_candidate":
       return routes.coachSpace;
@@ -49,12 +50,13 @@ function pathOf(notification: PushNotification): string {
 /**
  * A Push notification as a device shows it, in `language`. Its text is the event's fixed gabarit: nothing is filled in,
  * so it never names a company, a job or a person (ADR-0076: a lock screen is public). The rest is read once the app opens.
+ * The path is the one before the Human Coach epic unless « Espace coach v2 » is on (`coachSpaceV2`, ADR-0106).
  */
-export function pushMessage(notification: PushNotification, language: Locale): PushMessage {
+export function pushMessage(notification: PushNotification, language: Locale, options: { coachSpaceV2?: boolean } = {}): PushMessage {
   const { t } = createI18n(language);
   return {
     title: t(`pushNotifications.messages.${notification.event}.title`),
     body: t(`pushNotifications.messages.${notification.event}.body`),
-    path: pathOf(notification),
+    path: pathOf(notification, options.coachSpaceV2 ?? false),
   };
 }

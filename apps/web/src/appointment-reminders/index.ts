@@ -40,6 +40,11 @@ export interface AppointmentRemindersDeps {
   now?: () => Date;
   /** Where the Appointment Reminder's Push notification is queued. Without it, none. */
   push?: PushNotifier;
+  /**
+   * Whether « Espace coach v2 » is on (ADR-0106), asked at each email: on, a Coaching Session's time is in the
+   * Candidate's time zone (ADR-0096). Off, or none: French time, as before the Human Coach epic.
+   */
+  coachSpaceV2?: () => boolean;
 }
 
 export interface AppointmentReminders {
@@ -150,13 +155,14 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
     const candidate = rows[0];
     if (!candidate) return;
     const language = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;
+    const coachSpaceV2 = deps.coachSpaceV2?.() ?? false;
     const email = appointmentReminderEmail(
       {
         items,
         agendaUrl: new URL(routes.agendaList(), deps.baseURL).toString(),
         settingsUrl: new URL(routes.accountReminders, deps.baseURL).toString(),
         preferredName: candidate.preferredName,
-        timeZone: (await coachingTimeZones(database).candidate(candidateId)) ?? undefined,
+        ...(coachSpaceV2 ? { coachSpaceV2, timeZone: (await coachingTimeZones(database).candidate(candidateId)) ?? undefined } : {}),
       },
       language,
     );

@@ -1,3 +1,4 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { sharedPool } from "@/database/pool";
 import { getAuth, getMailer } from "@/auth/server";
 import { getSecretResolver } from "@/provider-secrets/server";
@@ -20,8 +21,13 @@ export function getCoachingTaxes() {
       ? stripeTaxTransfers({ secretKey: env.STRIPE_SECRET_KEY, apiUrl: env.STRIPE_API_URL, externalApis: getExternalApiLog() })
       : undefined,
     validateXml: validateFiscalXml,
-    sendCopy: async (notice) => {
-      await getMailer().send({ to: notice.to, ...fiscalCopyEmail(notice, String(getAuth().options.baseURL)) });
-    },
+    // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+    ...(coachSpaceV2On()
+      ? {
+          sendCopy: async (notice: Parameters<typeof fiscalCopyEmail>[0] & { to: string }) => {
+            await getMailer().send({ to: notice.to, ...fiscalCopyEmail(notice, String(getAuth().options.baseURL)) });
+          },
+        }
+      : {}),
   });
 }

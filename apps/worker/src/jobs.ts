@@ -227,6 +227,11 @@ export interface DiscoveryUnavailable {
 }
 
 export interface JobsDeps {
+  /**
+   * Whether « Espace coach v2 » is on (ADR-0106), asked at each run: a change applies without a restart. Off (or none),
+   * the Human Coach epic's jobs that send, sync or pay anything do nothing; its purges of its own tables still run.
+   */
+  coachSpaceV2?: () => boolean;
   coachingTaxes?:{deliverCopies():Promise<void>;purge():Promise<void>;reencrypt():Promise<number>};
   coachingContentReports?:{deliverNotices():Promise<void>;purge():Promise<void>};
   coachingNotifications?:{sendDue():Promise<void>;purge():Promise<number>};
@@ -382,6 +387,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error;
     }
   };
+  /** A job of the Human Coach epic (#867) that reaches a Candidate, a Coach or a provider: nothing while « Espace coach v2 » is off. */
+  const onceCoachSpaceV2 = (work: () => Promise<void>) => (deps.coachSpaceV2?.() ? onceTablesExist(work) : Promise.resolve());
   return {
     // Proves the runner is alive end to end.
     "system.heartbeat": {
@@ -678,16 +685,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
-    "coaching-tax.copies":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingTaxes?.deliverCopies();})},
+    "coaching-tax.copies":{cron:"* * * * *",handler:()=>onceCoachSpaceV2(async()=>{await deps.coachingTaxes?.deliverCopies();})},
     "coaching-tax.retention":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingTaxes?.reencrypt();await deps.coachingTaxes?.purge();})},
-    "coaching-content-reports.send":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingContentReports?.deliverNotices();})},
+    "coaching-content-reports.send":{cron:"* * * * *",handler:()=>onceCoachSpaceV2(async()=>{await deps.coachingContentReports?.deliverNotices();})},
     "coaching-content-reports.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingContentReports?.purge();})},
-    "coaching-notifications.send":{cron:"* * * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingNotifications?.sendDue();})},
+    "coaching-notifications.send":{cron:"* * * * *",handler:()=>onceCoachSpaceV2(async()=>{await deps.coachingNotifications?.sendDue();})},
     "coaching-notifications.purge":{cron:"0 2 * * *",handler:()=>onceTablesExist(async()=>{await deps.coachingNotifications?.purge();})},
     "coaching-cancellations.reconcile": {
       cron: "* * * * *",
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           await deps.coachingCancellations?.retiredCoaches();
           await deps.coachingCancellations?.expireChoices();
           await deps.coachingCancellations?.deliverNotices();
@@ -696,7 +703,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     "coaching-refunds.reconcile": {
       cron: "* * * * *",
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           await deps.coachingRefunds?.runPending();
         }),
     },
@@ -710,7 +717,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     "coaching-booking.sync": {
       cron: "* * * * *",
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           await deps.coachingBooking?.replayPending();
           await deps.coachingBooking?.deliverCancellations();
           await deps.coachingBooking?.deliverNotices();
@@ -727,7 +734,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     "coaching-connect.payouts": {
       cron: "*/10 * * * *",
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           await deps.coachingConnect?.runMonthly();
         }),
     },
@@ -741,7 +748,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     "coach-pages.notices": {
       cron: "* * * * *",
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           await deps.coachPages?.deliverNotices();
         }),
     },
@@ -755,7 +762,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     "coach-associations.invitations": {
       cron: "* * * * *",
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           await deps.coachAssociations?.deliverInvitations();
         }),
     },
@@ -770,7 +777,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       cron: "0 6 * * *",
       retry: LEGAL_TEXT_NOTICES_RETRY,
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           const result = await deps.coachContracts?.sendNotices();
           if (result?.failed) throw new Error("Coach agreement notices require retry");
         }),
@@ -785,7 +792,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
     "coach-enrolments.notices": {
       cron: "* * * * *",
       handler: () =>
-        onceTablesExist(async () => {
+        onceCoachSpaceV2(async () => {
           await deps.coachEnrolments?.deliverNotices();
         }),
     },

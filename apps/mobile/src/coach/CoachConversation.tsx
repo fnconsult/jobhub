@@ -9,7 +9,7 @@ import { HelpArticleView, HelpForUnanswered, HelpIntro, HelpSuggestions, helpLoc
 import { useWorkPane } from "../shell/Shell";
 import { SignalementForm, type SignalementStart } from "../signalement/SignalementForm";
 import { radius, space, useTheme } from "../theme/theme";
-import { AppText } from "../ui/AppText";
+import { AppText, BAR_MAX_SCALE, CappedTextScale } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import type { ConversationSummary, SubjectRef } from "./coach-reply";
 import { ProposalCard } from "./ProposalCard";
@@ -204,14 +204,20 @@ export function CoachConversation(page: PagePlacement) {
 const REPORT_PROBLEM: SignalementStart = { kind: "type", type: "bug" };
 const SUGGEST_IDEA: SignalementStart = { kind: "type", type: "idee" };
 
-/** Under the box: « Signaler un problème » and « Proposer une idée », whose form opens in the Work Pane. */
+/**
+ * Under the box: « Signaler un problème » and « Proposer une idée », whose form opens in the Work Pane. They grow up to
+ * twice their size, as the box does (BAR_MAX_SCALE), wherever they sit: ending the thread at a large text size, they
+ * grew freely and broke mid-word on an iPhone SE at iOS's largest (« Propose / r une idée », #905).
+ */
 function SignalementLinks({ onOpen }: { onOpen: (start: SignalementStart) => void }) {
   const { t } = useTranslation();
   return (
-    <View role="group" aria-label={t("coachPanel.team.foot")} style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: space[2] }}>
-      <Control label={t("coachPanel.team.reportProblem")} look="quiet" onPress={() => onOpen(REPORT_PROBLEM)} />
-      <Control label={t("coachPanel.team.suggestIdea")} look="quiet" onPress={() => onOpen(SUGGEST_IDEA)} />
-    </View>
+    <CappedTextScale scale={BAR_MAX_SCALE}>
+      <View role="group" aria-label={t("coachPanel.team.foot")} style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: space[2] }}>
+        <Control label={t("coachPanel.team.reportProblem")} look="quiet" onPress={() => onOpen(REPORT_PROBLEM)} />
+        <Control label={t("coachPanel.team.suggestIdea")} look="quiet" onPress={() => onOpen(SUGGEST_IDEA)} />
+      </View>
+    </CappedTextScale>
   );
 }
 

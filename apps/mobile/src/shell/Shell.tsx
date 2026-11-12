@@ -142,7 +142,7 @@ export function Shell({
           />
           <OfflineBanner />
           <View style={{ flex: 1, flexDirection: "row", paddingBottom: insets.bottom }}>
-            <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>{children}</View>
+            <View testID="shell-conversation" style={{ flex: 1, marginHorizontal: layout.size.margin }}>{children}</View>
             {layout.panes === "columns"
               ? // The Work Pane beside the conversation, the Fiche after it (as on the web).
                 [...layout.shown].reverse().map((pane) => (

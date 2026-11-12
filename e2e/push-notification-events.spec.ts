@@ -1,11 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { expect, test as base, type Browser, type Page } from "@playwright/test";
-import config from "../playwright.config";
-import { Pool } from "pg";
-import { approvedLegacyCoach, paidHistoricalSession } from "./support/legacy-coach";
-import { startOwnServer, signInByEmail, type OwnServer } from "./support/own-server";
+import { expect, test, type Browser, type Page } from "@playwright/test";
+import { checkoutSessionEvent, signedEvent } from "../apps/web/src/billing/fake-stripe";
+import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { parisDay } from "./support/paris-days";
 import { queuedPushEvents, registerDevice, sendPush, switchPush } from "./support/push";
@@ -18,46 +16,8 @@ import { queuedPushEvents, registerDevice, sendPush, switchPush } from "./suppor
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const space = fr.coachSpace;
 const hc = fr.humanCoaches;
-let origin = process.env.E2E_WEB_ORIGIN!;
-let own: OwnServer;
-const previousEnvironment = { origin: process.env.E2E_WEB_ORIGIN, database: process.env.E2E_DATABASE_URL };
-const test = base.extend({ page: async ({ browser }, use) => {
-  const context = await browser.newContext({ baseURL: origin });
-  await use(await context.newPage());
-  await context.close();
-} });
-test.beforeAll(async () => {
-  const env = (config.webServer as { env: NodeJS.ProcessEnv }).env;
-  own = await startOwnServer(699, "legacy_push_events", {
-    ...env,
-    NODE_OPTIONS: `${env.NODE_OPTIONS} --import=${path.resolve("e2e/support/fake-coach-contract.mjs")}`,
-  });
-  origin = own.origin;
-  process.env.E2E_WEB_ORIGIN = origin;
-  process.env.E2E_DATABASE_URL = own.databaseUrl;
-});
-test.afterAll(async () => {
-  try { await own?.stop(); }
-  finally {
-    if (previousEnvironment.origin === undefined) delete process.env.E2E_WEB_ORIGIN;
-    else process.env.E2E_WEB_ORIGIN = previousEnvironment.origin;
-    if (previousEnvironment.database === undefined) delete process.env.E2E_DATABASE_URL;
-    else process.env.E2E_DATABASE_URL = previousEnvironment.database;
-  }
-});
-async function signInWithMagicLink(page: Page, email: string) {
-  await signInByEmail(page, own, email);
-  const database = new Pool({ connectionString: own.databaseUrl });
-  try {
-    const coach = (await database.query("SELECT id FROM human_coach WHERE email=$1 AND retired_at IS NULL", [email])).rows[0];
-    if (coach) {
-      const response = await page.request.post("/api/coach-space/contract", {
-        headers: { origin }, data: { kind: "coach", id: coach.id, version: "2026-01-01", sha256: "e".repeat(64), accepted: true },
-      });
-      expect(response.status()).toBe(204);
-    }
-  } finally { await database.end(); }
-}
+const origin = process.env.E2E_WEB_ORIGIN!;
+const stripeUrl = process.env.E2E_STRIPE_URL!;
 const ADMINISTRATOR = "push-events-office@e2e.jobbbox.test";
 const unique = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
@@ -90,24 +50,29 @@ async function addCoach(browser: Browser, email: string) {
   await admin.getByLabel(fr.admin.humanCoaches.name).fill(name);
   await admin.getByLabel(fr.admin.humanCoaches.email).fill(email);
   await admin.getByLabel(fr.admin.humanCoaches.bookingUrl).fill(`https://cal.com/sophie-${unique()}/seance`);
+  await admin.getByLabel(fr.admin.humanCoaches.bio).fill("Ancienne DRH dans l'industrie.");
   await admin.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
   await expect(admin.getByRole("status")).toHaveText(tr(fr.admin.humanCoaches.added, { name }));
   const form = admin.locator("form").filter({ has: admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name }) }) });
   const id = await form.locator('input[name="coachId"]').inputValue();
-  await approvedLegacyCoach(id);
   await admin.context().close();
   return { name, id };
 }
 
 /** The Candidate on `page` pays a Coaching Session of the coach, Stripe's signed webhook delivered `deliveries` times; returns the session's id. */
 async function paidSession(page: Page, coachId: string, deliveries = 1): Promise<string> {
-  const historical = await paidHistoricalSession(page, coachId);
-  for (let delivery = 1; delivery < deliveries; delivery++) {
-    const response = await page.request.post("/api/billing/webhook", { data: historical.signed.payload, headers: { "stripe-signature": historical.signed.signature, "content-type": "application/json" } });
-    expect(response.status()).toBe(200);
+  await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+  const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${stripeUrl}/__calls`)).json();
+  const started = calls.filter((call) => call.path === "/v1/checkout/sessions" && call.params["metadata[coach_id]"] === coachId).at(-1)!.params;
+  const { payload, signature } = signedEvent(
+    checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId: started["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+  );
+  for (let delivery = 0; delivery < deliveries; delivery++) {
+    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    expect(delivered.status()).toBe(200);
   }
-  const sessions = (await (await page.request.get("/api/coaching")).json()).sessions;
-  return sessions.find((session: {coach: {id: string}}) => session.coach.id === coachId).id;
+  const sessions = (await (await page.request.get("/api/account/export")).json()).coachingSessions as { id: string }[];
+  return sessions.at(-1)!.id;
 }
 
 /** A Profile and an Application with a Cover Letter drafted by the AI Coach, for the Candidate on `page`. */
@@ -129,12 +94,9 @@ async function applicationWithCoverLetter(page: Page): Promise<string> {
 
 /** The Human Coach leaves a Coach Review on the Candidate's Cover Letter, from the Coach space. */
 async function leaveReview(coachPage: Page, candidateEmail: string) {
-  const database = new Pool({ connectionString: own.databaseUrl });
-  let subject: {candidateId: string; applicationId: string};
-  try {
-    subject = (await database.query('SELECT c.id AS "candidateId",a.id AS "applicationId" FROM candidate c JOIN application a ON a.candidate_id=c.id WHERE c.email=$1', [candidateEmail])).rows[0];
-  } finally { await database.end(); }
-  await coachPage.goto(`/espace-coach/${subject!.candidateId}/candidatures/${subject!.applicationId}`);
+  await coachPage.goto("/espace-coach");
+  await coachPage.getByRole("link", { name: candidateEmail }).click();
+  await coachPage.getByRole("link", { name: "DAF (H/F) · Acme Industrie" }).click();
   await coachPage.getByLabel(space.reviewDocument).selectOption({ label: fr.coachReviews.documents.cover_letter });
   await coachPage.getByLabel(space.reviewText).fill("Ouvrez sur votre dernier poste de DAF.");
   await coachPage.getByRole("button", { name: space.reviewSubmit }).click();
@@ -197,7 +159,7 @@ test.describe("Push notifications' events", () => {
       coach_review: "/candidatures/app_1",
       coaching_session_changed: "/agenda?vue=liste",
       follow_up_due: "/candidatures/app_1",
-      coach_access_granted: "/espace-coach/candidates/cand_1",
+      coach_access_granted: "/espace-coach/cand_1",
       coaching_session_paid: "/espace-coach",
       coaching_session_changed_by_candidate: "/espace-coach",
     };

@@ -1,6 +1,6 @@
-import { approvedLegacyCoach, paidHistoricalSession } from "./support/legacy-coach";
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { checkoutSessionEvent, signedEvent } from "../apps/web/src/billing/fake-stripe";
 import { signInWithMagicLink } from "./support/candidate";
 import { emailsTo, newAddress, waitForEmail } from "./support/mailbox";
 
@@ -29,17 +29,28 @@ async function addCoach(admin: Page, email: string) {
   await admin.getByLabel(fr.admin.humanCoaches.name).fill(name);
   await admin.getByLabel(fr.admin.humanCoaches.email).fill(email);
   await admin.getByLabel(fr.admin.humanCoaches.bookingUrl).fill(`https://cal.com/sophie-${unique()}/seance`);
+  await admin.getByLabel(fr.admin.humanCoaches.bio).fill("Ancienne DRH dans l'industrie.");
   await admin.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
   await expect(admin.getByRole("status")).toHaveText(tr(fr.admin.humanCoaches.added, { name }));
   const form = admin.locator("form").filter({ has: admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name }) }) });
-  const id = await form.locator('input[name="coachId"]').inputValue();
-  await approvedLegacyCoach(id);
-  return { name, id };
+  return { name, id: await form.locator('input[name="coachId"]').inputValue() };
 }
 
 /** The Candidate signed in on `page` pays a Coaching Session (90 €) through Checkout and Stripe's signed webhook; returns the PaymentIntent. */
 async function paidSession(page: Page, coachId: string) {
-  return (await paidHistoricalSession(page, coachId)).paymentIntent;
+  const checkout = await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+  expect(checkout.status()).toBe(303);
+  const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${stripeUrl}/__calls`)).json();
+  const started = calls.filter((call) => call.path === "/v1/checkout/sessions" && call.params["metadata[coach_id]"] === coachId).at(-1)!.params;
+  const id = `cs_e2e_${unique()}`;
+  const paid = await fetch(`${stripeUrl}/__checkout_sessions/${id}/payment`, { method: "POST", body: new URLSearchParams({ amount: "9000" }) });
+  const { payment_intent: paymentIntent } = (await paid.json()) as { payment_intent: string };
+  const { payload, signature } = signedEvent(
+    checkoutSessionEvent("checkout.session.completed", { id, candidateId: started["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+  );
+  const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+  expect(delivered.status()).toBe(200);
+  return paymentIntent;
 }
 
 const refundsOf = async (paymentIntent: string) =>

@@ -1,8 +1,6 @@
-import { Pool } from "pg";
-import { approvedLegacyCoach, paidHistoricalSession } from "./support/legacy-coach";
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { fakeCustomerId } from "../apps/web/src/billing/fake-stripe";
+import { checkoutSessionEvent, fakeCustomerId, signedEvent } from "../apps/web/src/billing/fake-stripe";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
@@ -77,9 +75,7 @@ async function addCoach(admin: Page, email: string): Promise<{ name: string; id:
   await admin.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
   await expect(admin.getByRole("status")).toHaveText(tr(fr.admin.humanCoaches.added, { name }));
   const form = admin.locator("form").filter({ has: admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name }) }) });
-  const id = await form.locator('input[name="coachId"]').inputValue();
-  await approvedLegacyCoach(id);
-  return { name, id };
+  return { name, id: await form.locator('input[name="coachId"]').inputValue() };
 }
 
 test.describe("exporting my data and deleting my account", () => {
@@ -339,15 +335,28 @@ test.describe("exporting my data and deleting my account", () => {
     await expect(page.getByText(tr(fr.humanCoaches.accessGranted, { name: coach.name }))).toBeVisible();
 
     // A paid Coaching Session, recorded from Stripe's signed webhook.
-    const { candidateId } = await paidHistoricalSession(page, coach.id);
+    const started = await page.request.post("/api/coaching/checkout", { form: { coachId: coach.id }, headers: { origin }, maxRedirects: 0 });
+    expect(started.status()).toBe(303);
+    const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${process.env.E2E_STRIPE_URL}/__calls`)).json();
+    const checkout = calls.filter((call) => call.path === "/v1/checkout/sessions" && call.params["metadata[coach_id]"] === coach.id).at(-1)!;
+    const candidateId = checkout.params["metadata[candidate_id]"]!;
+    const { payload, signature } = signedEvent(
+      checkoutSessionEvent("checkout.session.completed", { id: `cs_e2e_${unique()}`, candidateId, coachId: coach.id, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+    );
+    const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    expect(delivered.status()).toBe(200);
     await page.goto("/coachs?session=paid");
     await expect(page.getByRole("link", { name: tr(fr.humanCoaches.pickSlot, { name: coach.name }) })).toHaveCount(1);
 
-    // Historical review fixture: its creation UI is covered by the isolated contracted-workspace
-    // tests. This privacy regression keeps the production contract gate closed.
-    const database = new Pool({ connectionString: process.env.E2E_DATABASE_URL });
-    await database.query("INSERT INTO coach_review(candidate_id,application_id,coach_id,document,text) VALUES($1,$2,$3,'cover_letter',$4)", [candidateId, applicationId, coach.id, "Ouvrez sur votre dernier poste de DAF."]);
+    // The Human Coach reads the Candidate's file and leaves a Coach Review (a Coaching Session note).
     const coachPage = await personPage(browser, coachEmail);
+    await coachPage.goto("/espace-coach");
+    await coachPage.getByRole("link", { name: email }).click();
+    await coachPage.getByRole("link", { name: "DAF H/F · Acme Industrie" }).click();
+    await coachPage.getByLabel(fr.coachSpace.reviewDocument).selectOption({ label: fr.coachReviews.documents.cover_letter });
+    await coachPage.getByLabel(fr.coachSpace.reviewText).fill("Ouvrez sur votre dernier poste de DAF.");
+    await coachPage.getByRole("button", { name: fr.coachSpace.reviewSubmit }).click();
+    await expect(coachPage.getByRole("status")).toHaveText(fr.coachSpace.reviewSaved);
     await page.goto(`/candidatures/${applicationId}/avis`);
     await expect(page.getByRole("region", { name: fr.coachReviews.title })).toContainText("Ouvrez sur votre dernier poste de DAF.");
 
@@ -358,14 +367,12 @@ test.describe("exporting my data and deleting my account", () => {
     await section.getByRole("button", { name: fr.accountData.delete }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.accountDeleted.title);
 
-    // Account deletion removed the historical private rows, while an uncontracted Coach still
-    // cannot enter the workspace. No test-only legal text is loaded on this server.
-    for (const table of ["coach_access", "coach_review", "coaching_session"]) {
-      expect((await database.query(`SELECT count(*)::int AS n FROM ${table} WHERE candidate_id=$1`, [candidateId])).rows[0].n).toBe(0);
-    }
-    await database.end();
+    // The Human Coach no longer has access: the Candidate is gone from their coach space, their file and Application cannot be reached.
     await coachPage.goto("/espace-coach");
-    await expect(coachPage).toHaveURL(`${origin}/espace-coach/contrat`);
+    await expect(coachPage.getByRole("heading", { level: 1 })).toHaveText(fr.coachSpace.title);
+    await expect(coachPage.getByRole("link", { name: email })).toHaveCount(0);
+    expect((await coachPage.goto(`/espace-coach/${encodeURIComponent(candidateId)}`))?.status()).toBe(404);
+    expect((await coachPage.goto(`/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`))?.status()).toBe(404);
     // The Human Coach's own account stays, and so does the shared Job Offer.
     await coachPage.goto(`/offres/${jobOfferId}`);
     await expect(coachPage.getByRole("heading", { level: 1 })).toHaveText("DAF H/F");

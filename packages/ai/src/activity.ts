@@ -17,6 +17,8 @@ const TASK_STEPS = {
   job_titles: "think",
   web_search: "web_search",
   cv_parsing: "read",
+  /** The onboarding interview's next question (#1002). */
+  onboarding_interview: "think_write",
   writing: "write",
   /** A Job Offer's summary; reading the page is the `read_job_page` feature step. */
   offer_analysis: "think_write",

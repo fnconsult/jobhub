@@ -1054,13 +1054,88 @@
     "title": "Créer un profil",
     "intro": "Je vous aide à construire votre CV de référence et vos critères de recherche. Importez votre CV, ou, si vous n'en avez pas à jour, répondez à mes questions : vous pourrez tout vérifier et corriger avant d'enregistrer.",
     "withCv": "J'ai un CV",
-    "withoutCvIntro": "Mes questions portent sur votre parcours, une à la fois. Vous pouvez passer celles qui ne vous concernent pas. Comptez une dizaine de minutes.",
+    "withoutCvIntro": "Je vous pose mes questions une à une. Quand je peux deviner une réponse, je vous la propose : rien n'entre dans votre profil sans votre réponse ou votre accord. Vous pouvez passer ce qui ne vous concerne pas.",
     "startQuestionnaire": "Répondre aux questions de mon coach",
     "conversation": "Créer un profil avec votre coach",
     "openReview": "Relire et enregistrer",
     "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
     "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
-    "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez."
+    "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
+    "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
+    "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",
+    "interview": {
+      "yes": "Oui, {{value}}",
+      "no": "Non, plutôt…",
+      "proposal": "Je propose : {{value}}. {{because}}",
+      "fallback": "Je continue avec mes questions habituelles, sans l'IA : je ne vous redemande pas ce que vous m'avez déjà dit."
+    }
+  },
+  "onboardingSearch": {
+    "title": "Recherche de vos offres",
+    "status": {
+      "searching": "En cours",
+      "done": "Terminée",
+      "stopped": "Arrêtée",
+      "failed": "Échouée"
+    },
+    "stepOf": "Étape {{number}} sur {{total}}",
+    "stepsLabel": "Étapes de la recherche",
+    "steps": {
+      "profile": "Lecture de votre profil",
+      "search": "Recherche sur France Travail, les sites carrières et le web",
+      "analysis": "Analyse des offres trouvées",
+      "selection": "Sélection de vos meilleures offres"
+    },
+    "details": {
+      "search": "Sources consultées : {{consulted}} sur {{total}} · pages lues : {{pages}}",
+      "analysis": "Offres analysées : {{count}}",
+      "selection": "Offres qui vous correspondent : {{count}}, avec un score de correspondance d'au moins {{threshold}}"
+    },
+    "counters": {
+      "sources": "sources consultées",
+      "sourcesShort": "sources",
+      "pages": "pages lues",
+      "pagesShort": "pages",
+      "analysed": "offres analysées",
+      "analysedShort": "analysées",
+      "matching": "offres qui vous correspondent",
+      "matchingShort": "pour vous",
+      "outOf": "{{count}} sur {{total}}"
+    },
+    "recounted": "recalculé avec {{criteria}}",
+    "refined": "Affinée avec :",
+    "assumed": "supposé",
+    "assumedTitle": "Supposé, en attente de votre réponse",
+    "minSalary": "à partir de {{amount}}",
+    "sourcesLabel": "Sources de la recherche",
+    "sources": {
+      "france_travail": "France Travail",
+      "fantastic_jobs": "Sites carrières des employeurs",
+      "web_search": "Recherche web",
+      "ats_apis": "API d'ATS",
+      "target_companies": "Entreprises cibles"
+    },
+    "sourceStates": {
+      "waiting": "à venir",
+      "searching": "en cours…",
+      "searched": "consultée",
+      "refused": "refusée",
+      "failed": "indisponible"
+    },
+    "open": "Voir la recherche",
+    "stoppedTitle": "Recherche arrêtée",
+    "failedTitle": "La recherche n'a pas abouti",
+    "kept_zero": "Elle n'avait encore trouvé aucune offre. Vous pourrez lancer une recherche depuis Recherches d'offres.",
+    "kept_one": "Ce qu'elle a trouvé est gardé : une offre analysée.",
+    "kept_other": "Ce qu'elle a trouvé est gardé : {{count}} offres analysées.",
+    "announce": {
+      "started": "Recherche de vos offres lancée.",
+      "restarted": "Recherche de vos offres relancée.",
+      "refined": "Recherche affinée avec {{criteria}}.",
+      "done": "Recherche terminée. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}.",
+      "stopped": "Recherche arrêtée. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}.",
+      "failed": "La recherche n'a pas abouti. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}."
+    }
   },
   "questionnaire": {
     "transcript": "Votre échange avec le coach",
@@ -2895,6 +2970,7 @@
         "writing": "Rédaction",
         "coaching": "Coaching",
         "cv_parsing": "Lecture de CV",
+        "onboarding_interview": "Entretien d'accueil",
         "offer_analysis": "Analyse d'offres",
         "offer_email_reading": "Lecture des emails d'offres",
         "job_titles": "Variantes d'intitulés",
@@ -5159,6 +5235,7 @@
     "job_titles_unavailable": "Recherche avec le seul titre des Critères",
     "company_news_unavailable": "Company Dossier construit sans actualités",
     "cv_reading_fallback": "CV lu par les règles, sans l'IA",
+    "onboarding_interview_fallback": "Entretien d'accueil poursuivi par les questions écrites, sans l'IA",
     "tailored_cv_refused": "Réponse refusée : aucun Tailored CV proposé à partir d'elle",
     "match_score_text_unread": "Texte de l'offre non lu : Match Score sur ses seules données structurées",
     "match_score_too_slow": "Lecture de l'offre trop lente : Match Score sur ses seules données structurées",
@@ -5279,6 +5356,7 @@
       "ats_score": "ATS Score",
       "master_cv": "CV de référence, lu dans votre fichier",
       "cv_reading": "Lecture du CV",
+      "onboarding_interview": "Entretien d'accueil",
       "profile_creation": "Création du profil",
       "questionnaire": "Questionnaire d'accueil",
       "review": "Relecture",
@@ -5326,6 +5404,7 @@
         "coach_reply": "Arrêter la réponse du coach",
         "company_dossier": "Arrêter le dossier entreprise",
         "cv_reading": "Arrêter la lecture du CV",
+        "onboarding_interview": "Arrêter la question du coach",
         "tailored_cv": "Arrêter la proposition du CV adapté",
         "tailored_documents": "Arrêter la rédaction du document"
       },
@@ -5334,6 +5413,7 @@
         "coach_reply": "Ouvrir la page",
         "company_dossier": "Ouvrir le dossier",
         "cv_reading": "Ouvrir la page",
+        "onboarding_interview": "Ouvrir la page",
         "tailored_cv": "Ouvrir les documents",
         "tailored_documents": "Ouvrir les documents"
       },
@@ -5343,6 +5423,7 @@
           "coach_reply": "Réponse du coach en cours",
           "company_dossier": "Dossier entreprise en cours",
           "cv_reading": "Lecture du CV en cours",
+          "onboarding_interview": "Le coach prépare sa question",
           "tailored_cv": "Proposition du CV adapté en cours",
           "tailored_documents": "Rédaction du document en cours"
         },
@@ -5351,6 +5432,7 @@
           "coach_reply": "Réponse du coach reçue",
           "company_dossier": "Dossier entreprise terminé",
           "cv_reading": "Lecture du CV terminée",
+          "onboarding_interview": "Question du coach reçue",
           "tailored_cv": "CV adapté proposé",
           "tailored_documents": "Document rédigé"
         },
@@ -5359,6 +5441,7 @@
           "coach_reply": "Réponse du coach arrêtée",
           "company_dossier": "Dossier entreprise arrêté",
           "cv_reading": "Lecture du CV arrêtée",
+          "onboarding_interview": "Question du coach arrêtée",
           "tailored_cv": "Proposition du CV adapté arrêtée",
           "tailored_documents": "Rédaction du document arrêtée"
         },
@@ -5367,6 +5450,7 @@
           "coach_reply": "Réponse du coach échouée",
           "company_dossier": "Dossier entreprise échoué",
           "cv_reading": "Lecture du CV échouée",
+          "onboarding_interview": "Question du coach échouée",
           "tailored_cv": "Proposition du CV adapté échouée",
           "tailored_documents": "Rédaction du document échouée"
         }
@@ -5459,7 +5543,7 @@
         "partial": "dernier appel seulement",
         "noAi": "Sans IA"
       },
-      "sources": "Sources et outils de cette page"
+      "sources": "Sources :"
     }
   },
   "signalement": {
@@ -5715,6 +5799,11 @@
       "loading": "Ouverture du document…",
       "failed": "Ce document n'a pas pu s'afficher. Téléchargez-le pour l'ouvrir.",
       "title": "Visionneuse"
+    },
+    "stepper": {
+      "done": "terminé",
+      "current": "en cours",
+      "pending": "à venir"
     }
   },
   "emails": {
@@ -6233,10 +6322,25 @@
       "results": "Résultats"
     },
     "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste.",
-    "matchScore": "Match Score : {{score}}"
+    "matchScore": "Match Score : {{score}}",
+    "panel": "Volet de la page",
+    "views": {
+      "activity": "Activité",
+      "fiche": "Fiche",
+      "offer": "L'offre",
+      "documents": "Documents",
+      "offers": "Offres trouvées"
+    },
+    "close": "Fermer le volet",
+    "more": "Plus d'actions sur le volet",
+    "resetWidth": "Largeur du volet par défaut",
+    "allResults": "Tout voir",
+    "openOffer": "Afficher l'offre en grand"
   },
   "contextBar": {
     "title": "Contexte de la conversation",
+    "used": "{{percent}} % utilisé",
+    "share": "{{percent}} %",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
     "clear": "Effacer la conversation",

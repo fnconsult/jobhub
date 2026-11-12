@@ -126,7 +126,7 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     await page.reload();
 
     // No model served this page: « Activité » says its name alone, never « 0 modèle ».
-    await expect(aiActivityButton(page)).toHaveText(fr.fiche.activity);
+    await expect(aiActivityButton(page)).toHaveAccessibleName(fr.aiActivity.label);
 
     await openPane(page);
     const pane = paneOf(page);
@@ -156,7 +156,7 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     const before = await storedDigest(candidateId, profileId, offerId, "2026-10-14T06:00:00Z", null);
 
     await page.goto(`/job-digests/${fresh}`);
-    await expect(aiActivityButton(page)).toHaveText(fr.fiche.activity);
+    await expect(aiActivityButton(page)).toHaveText("");
     await openPane(page);
     const digest = await elementOf(page, fr.aiActivity.kinds.job_digest);
     await expect(digest).toContainText(fr.aiActivity.steps.compute);

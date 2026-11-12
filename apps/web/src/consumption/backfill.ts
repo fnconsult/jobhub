@@ -4,7 +4,8 @@
  *
  * It counts what the database still holds, each use on its French day:
  *  - an AI Coach reply: each `coach_message` the AI Coach wrote;
- *  - a Job Search: each one its Plan Quota use was kept for (done, or stopped with a Job Offer, or still searching);
+ *  - a Job Search: each one its Plan Quota use was kept for (done, or stopped with a Job Offer, or still searching), not
+ *    the one the onboarding offers (#1000), which used none;
  *  - a Tailored CV: the proposal under review, and the one saved; a Tailored Document: each draft;
  *  - a Company Dossier: each one built; a CV reading: each Master CV Version read from a file (with its Provenance);
  *  - an ATS Score: the one kept per Profile; an Enriched Contact: each one whose details were retrieved;
@@ -41,7 +42,7 @@ const STORED_USES = `
     FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id WHERE m.author = 'coach'
   UNION ALL
   SELECT candidate_id, 'jobSearch', started_at FROM job_search
-   WHERE status IN ('done', 'searching') OR (status = 'stopped' AND cardinality(job_offer_ids) > 0)
+   WHERE offered IS NULL AND (status IN ('done', 'searching') OR (status = 'stopped' AND cardinality(job_offer_ids) > 0))
   UNION ALL
   SELECT a.candidate_id, 'tailoredCv', (t.proposal ->> 'proposedAt')::timestamptz
     FROM tailored_cv t JOIN application a ON a.id = t.application_id WHERE t.proposal ? 'proposedAt'

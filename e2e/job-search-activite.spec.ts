@@ -194,7 +194,9 @@ test.describe("Back Office « Activité » (#404)", () => {
     await expect(conversation.locator("li[data-message-id]")).toHaveCount(1, { timeout: 30_000 });
 
     await candidate.reload();
-    const fiche = candidate.getByRole("complementary", { name: fr.fiche.label, exact: true });
+    // AI Activity's icon shows the side panel on « Activité » (#980).
+    await candidate.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) }).click();
+    const fiche = candidate.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
     const titles = fiche.locator(".activity-entry-title");
     await expect(titles.first()).toHaveText(fr.aiActivity.kinds.coach_reply);
     await expect(titles.last()).toHaveText(fr.aiActivity.kinds.job_search);

@@ -1054,13 +1054,88 @@
     "title": "Create a profile",
     "intro": "I'll help you build your reference CV and search criteria. Upload your CV or, if yours isn't up to date, answer my questions: you can check and correct everything before saving.",
     "withCv": "I have a CV",
-    "withoutCvIntro": "My questions are about your career, one at a time. You can skip the ones that don't apply to you. It takes about ten minutes.",
+    "withoutCvIntro": "I ask my questions one at a time. When I can guess an answer, I suggest it: nothing enters your profile without your answer or your approval. You can skip what does not apply to you.",
     "startQuestionnaire": "Answer my coach's questions",
     "conversation": "Creating a profile with your coach",
     "openReview": "Review and save",
     "questionsStart": "Fine. I'll ask my questions one at a time; answer in your own words, you can read it all again and correct it at the end.",
     "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page.",
-    "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it."
+    "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it.",
+    "offeredSearchStarted": "Your profile is created: I'm starting a first job search right away, on us, which does not count toward your quota. Let's carry on while it searches.",
+    "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too.",
+    "interview": {
+      "yes": "Yes, {{value}}",
+      "no": "No, rather…",
+      "proposal": "I suggest: {{value}}. {{because}}",
+      "fallback": "I'll go on with my usual questions, without the AI: I won't ask again what you have already told me."
+    }
+  },
+  "onboardingSearch": {
+    "title": "Searching for your job offers",
+    "status": {
+      "searching": "In progress",
+      "done": "Done",
+      "stopped": "Stopped",
+      "failed": "Failed"
+    },
+    "stepOf": "Step {{number}} of {{total}}",
+    "stepsLabel": "Steps of the search",
+    "steps": {
+      "profile": "Reading your profile",
+      "search": "Searching France Travail, careers sites and the web",
+      "analysis": "Analysing the job offers found",
+      "selection": "Picking your best job offers"
+    },
+    "details": {
+      "search": "Sources consulted: {{consulted}} of {{total}} · pages read: {{pages}}",
+      "analysis": "Job offers analysed: {{count}}",
+      "selection": "Job offers that fit you: {{count}}, with a Match Score of at least {{threshold}}"
+    },
+    "counters": {
+      "sources": "sources consulted",
+      "sourcesShort": "sources",
+      "pages": "pages read",
+      "pagesShort": "pages",
+      "analysed": "job offers analysed",
+      "analysedShort": "analysed",
+      "matching": "job offers that fit you",
+      "matchingShort": "for you",
+      "outOf": "{{count}} of {{total}}"
+    },
+    "recounted": "recounted with {{criteria}}",
+    "refined": "Narrowed with:",
+    "assumed": "assumed",
+    "assumedTitle": "Assumed, waiting for your answer",
+    "minSalary": "from {{amount}}",
+    "sourcesLabel": "Sources of the search",
+    "sources": {
+      "france_travail": "France Travail",
+      "fantastic_jobs": "Employers' careers sites",
+      "web_search": "Web search",
+      "ats_apis": "ATS APIs",
+      "target_companies": "Target companies"
+    },
+    "sourceStates": {
+      "waiting": "to come",
+      "searching": "in progress…",
+      "searched": "consulted",
+      "refused": "refused",
+      "failed": "unavailable"
+    },
+    "open": "See the search",
+    "stoppedTitle": "Search stopped",
+    "failedTitle": "The search did not succeed",
+    "kept_zero": "It had not found any job offer yet. You can start a search from Job searches.",
+    "kept_one": "What it found is kept: one job offer analysed.",
+    "kept_other": "What it found is kept: {{count}} job offers analysed.",
+    "announce": {
+      "started": "Search for your job offers started.",
+      "restarted": "Search for your job offers started again.",
+      "refined": "Search narrowed with {{criteria}}.",
+      "done": "Search done. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}.",
+      "stopped": "Search stopped. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}.",
+      "failed": "The search did not succeed. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}."
+    }
   },
   "questionnaire": {
     "transcript": "Your conversation with the coach",
@@ -2895,6 +2970,7 @@
         "writing": "Writing",
         "coaching": "Coaching",
         "cv_parsing": "CV reading",
+        "onboarding_interview": "Onboarding interview",
         "offer_analysis": "Job Offer analysis",
         "offer_email_reading": "Offer email reading",
         "job_titles": "Job title variants",
@@ -5159,6 +5235,7 @@
     "job_titles_unavailable": "Searching with the Search Criteria title alone",
     "company_news_unavailable": "Company Dossier built without news",
     "cv_reading_fallback": "CV read by rules, without the AI",
+    "onboarding_interview_fallback": "Onboarding interview continued with the written questions, without the AI",
     "tailored_cv_refused": "Reply refused: no Tailored CV proposed from it",
     "match_score_text_unread": "Job Offer text unread: Match Score from its structured data only",
     "match_score_too_slow": "Job Offer reading too slow: Match Score from its structured data only",
@@ -5279,6 +5356,7 @@
       "ats_score": "ATS Score",
       "master_cv": "Master CV, read from your file",
       "cv_reading": "CV reading",
+      "onboarding_interview": "Onboarding interview",
       "profile_creation": "Profile creation",
       "questionnaire": "Onboarding questionnaire",
       "review": "Review",
@@ -5326,6 +5404,7 @@
         "coach_reply": "Stop the coach's reply",
         "company_dossier": "Stop the company dossier",
         "cv_reading": "Stop reading the CV",
+        "onboarding_interview": "Stop the coach's question",
         "tailored_cv": "Stop the Tailored CV proposal",
         "tailored_documents": "Stop drafting the document"
       },
@@ -5334,6 +5413,7 @@
         "coach_reply": "Open the page",
         "company_dossier": "Open the dossier",
         "cv_reading": "Open the page",
+        "onboarding_interview": "Open the page",
         "tailored_cv": "Open the documents",
         "tailored_documents": "Open the documents"
       },
@@ -5343,6 +5423,7 @@
           "coach_reply": "Coach reply on its way",
           "company_dossier": "Company dossier under way",
           "cv_reading": "Reading the CV",
+          "onboarding_interview": "The coach is preparing its question",
           "tailored_cv": "Tailored CV proposal on its way",
           "tailored_documents": "Document being drafted"
         },
@@ -5351,6 +5432,7 @@
           "coach_reply": "Coach reply received",
           "company_dossier": "Company dossier done",
           "cv_reading": "CV read",
+          "onboarding_interview": "Coach's question received",
           "tailored_cv": "Tailored CV proposed",
           "tailored_documents": "Document drafted"
         },
@@ -5359,6 +5441,7 @@
           "coach_reply": "Coach reply stopped",
           "company_dossier": "Company dossier stopped",
           "cv_reading": "CV reading stopped",
+          "onboarding_interview": "Coach's question stopped",
           "tailored_cv": "Tailored CV proposal stopped",
           "tailored_documents": "Document drafting stopped"
         },
@@ -5367,6 +5450,7 @@
           "coach_reply": "Coach reply failed",
           "company_dossier": "Company dossier failed",
           "cv_reading": "CV reading failed",
+          "onboarding_interview": "Coach's question failed",
           "tailored_cv": "Tailored CV proposal failed",
           "tailored_documents": "Document drafting failed"
         }
@@ -5459,7 +5543,7 @@
         "partial": "last call only",
         "noAi": "No AI"
       },
-      "sources": "This page's sources and tools"
+      "sources": "Sources:"
     }
   },
   "signalement": {
@@ -5715,6 +5799,11 @@
       "loading": "Opening the document…",
       "failed": "This document could not be shown. Download it to open it.",
       "title": "Viewer"
+    },
+    "stepper": {
+      "done": "done",
+      "current": "in progress",
+      "pending": "to come"
     }
   },
   "emails": {
@@ -6233,10 +6322,25 @@
       "results": "Results"
     },
     "noResults": "No results yet: what the coach makes here is added to this list.",
-    "matchScore": "Match Score: {{score}}"
+    "matchScore": "Match Score: {{score}}",
+    "panel": "Page panel",
+    "views": {
+      "activity": "Activity",
+      "fiche": "Fiche",
+      "offer": "The job offer",
+      "documents": "Documents",
+      "offers": "Job offers found"
+    },
+    "close": "Close the panel",
+    "more": "More panel actions",
+    "resetWidth": "Default panel width",
+    "allResults": "See all",
+    "openOffer": "Show the offer larger"
   },
   "contextBar": {
     "title": "Conversation context",
+    "used": "{{percent}}% used",
+    "share": "{{percent}}%",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
     "clear": "Clear the conversation",

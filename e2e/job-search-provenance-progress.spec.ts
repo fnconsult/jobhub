@@ -213,6 +213,50 @@ test.describe("A Job Search shows its steps while it runs and keeps its Provenan
     expect(activities).toContain("read");
   });
 
+  test("its run's measures land while it searches, over the onboarding card's poll, then its analysis (#1001)", async () => {
+    type Live = { step: string; sources: { source: string; state: string }[]; pagesRead: number; offersAnalysed: number; matched: number | null; jobOfferIds: string[] };
+    type Polled = { status: string; live: Live | null; jobOffers: { id: string; title: string; content: string }[] };
+    const jobSearchId = await startSearch(page);
+    const samples: Live[] = [];
+    const offers = new Set<string>();
+    let polled: Polled | null = null;
+    const begun = Date.now();
+    while (Date.now() - begun < 120_000) {
+      // As the card asks: each Job Offer once, those it has named in `known`.
+      const response = await page.request.get(`/api/job-searches/${jobSearchId}/live${offers.size ? `?known=${[...offers].join(",")}` : ""}`);
+      expect(response.status()).toBe(200);
+      polled = (await response.json()) as Polled;
+      for (const offer of polled.jobOffers) {
+        expect(offers.has(offer.id), "a Job Offer the card has is not sent again").toBe(false);
+        offers.add(offer.id);
+      }
+      if (polled.status !== "searching") break;
+      if (polled.live) samples.push(polled.live);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    expect(polled?.status, workerOutput).toBe("done");
+
+    // While it searched: its sources and pages, measured as they came, never going down.
+    const searching = samples.filter((live) => live.step === "search");
+    expect(searching.length, workerOutput).toBeGreaterThan(1);
+    expect(searching.some((live) => live.sources.some(({ source, state }) => source === "web_search" && state === "searching"))).toBe(true);
+    expect(searching.some((live) => live.pagesRead > 0 && live.pagesRead < searching.at(-1)!.pagesRead), "pages read counted as they were read").toBe(true);
+    for (const [index, live] of searching.entries()) {
+      if (index === 0) continue;
+      expect(live.pagesRead).toBeGreaterThanOrEqual(searching[index - 1]!.pagesRead);
+      expect(live.offersAnalysed).toBeGreaterThanOrEqual(searching[index - 1]!.offersAnalysed);
+    }
+
+    // Over: its analysis, the Job Offers it kept, which the card has, and the worker's own count of those matching.
+    const row = await rowOf(jobSearchId);
+    const final = polled!.live!;
+    expect(final.step).toBe("analysis");
+    expect(final.offersAnalysed).toBe(row.job_offer_ids.length);
+    expect([...final.jobOfferIds].sort()).toEqual([...row.job_offer_ids].sort());
+    expect(typeof final.matched).toBe("number");
+    expect([...offers].sort()).toEqual([...row.job_offer_ids].sort());
+  });
+
   test("the finished search has its Provenance, folded with its wall-clock time, and its Job Offers have theirs", async () => {
     const jobSearchId = await startSearch(page);
     await watchUntilOver(page, jobSearchId);

@@ -9,8 +9,8 @@ import type { FicheLink } from "@/components/Fiche";
 import { matchScoreFigure, matchScoreInWords } from "@/components/job-search-words";
 import { JOB_DIGEST_SECTIONS, JOB_SEARCH_SECTIONS, routes, type ProfileSection } from "@/routes";
 
-/** A Fiche's links: its Sections in order, then its Results. */
-export type FicheLinks = { sections: FicheLink[]; results: FicheLink[] };
+/** A Fiche's links: its Sections in order, then its Results, and what the side panel calls them (#980). */
+export type FicheLinks = { sections: FicheLink[]; results: FicheLink[]; resultsLabel: "documents" | "offers" };
 
 /** One Job Offer found for a Profile, as the Fiche needs it: by a Job Search, or in a Job Digest. */
 type FoundJobOffer = { jobOffer: { id: string; title: string; employer?: string | undefined }; matchScore: MatchScore };
@@ -45,6 +45,7 @@ export function profileFicheLinks(
       }),
       { href: routes.profileSection(profile.id, DOWNLOAD), label: t("cvExport.title"), detail: t("profilePage.results.export", { version: profile.currentVersion }) },
     ],
+    resultsLabel: "documents",
   };
 }
 
@@ -53,6 +54,7 @@ export function jobSearchFicheLinks(jobSearch: { id: string; results: readonly F
   return {
     sections: JOB_SEARCH_SECTIONS.map((section) => ({ href: routes.jobSearchSection(jobSearch.id, section), label: t("jobSearch.resultsLabel") })),
     results: jobOfferLinks(jobSearch.results, (jobOfferId) => routes.jobSearchOffer(jobSearch.id, jobOfferId), t),
+    resultsLabel: "offers",
   };
 }
 
@@ -62,6 +64,7 @@ export function jobDigestFicheLinks(jobDigest: { id: string; results: readonly F
   return {
     sections: JOB_DIGEST_SECTIONS.map((section) => ({ href: routes.jobDigestSection(jobDigest.id, section), label: labels[section] })),
     results: jobOfferLinks(jobDigest.results, (jobOfferId) => routes.jobDigestOffer(jobDigest.id, jobOfferId), t),
+    resultsLabel: "offers",
   };
 }
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, type Activity, type ProvenanceSite } from "@jobhub/shared";
-import type { ActivityEntry, EntryKind, EntryProposal, EntryStep } from "@/ai-activity/entries";
+import type { ActivityEntry, EntryKind, EntryOffer, EntryProposal, EntryStep } from "@/ai-activity/entries";
 import { costShown, historyByDay, type CostShown, type QuotaUse } from "@/ai-activity/history";
 import type { ElementEnd } from "@/ai-activity/pane";
 import { messageAnchor } from "@/ai-activity/thread";
@@ -229,6 +229,7 @@ function endWords(end: Exclude<ElementEnd, { state: "done" }>, t: T, language: L
 /** « 1 recherche du forfait · 4 sur 7 cette semaine », « 4 appels · 21,4k jetons envoyés », « Sans IA »: the cost on the row. */
 function costInShort(cost: CostShown, t: T, language: Language): string | null {
   if (cost.quota) return quotaWords(cost.quota, t);
+  if (cost.offered) return t("aiActivity.history.cost.offered");
   if (cost.tokens) return tokenWords(cost.tokens, t, language);
   if (cost.noAi) return t("aiActivity.history.cost.noAi");
   return null;
@@ -393,8 +394,11 @@ function Detail({
           {t("aiActivity.history.after")} <EntryLink to={entry.after} byKey={byKey} reveal={reveal} />
         </p>
       ) : null}
+      {entry.offers ? <BestOffers offers={entry.offers} /> : null}
       <p className="activity-entry-links">
-        {entry.object.href ? <Link href={entry.object.href}>{t(`aiActivity.history.open.${entry.kind}`, { label: entry.object.label ?? "" })}</Link> : null}
+        {entry.object.href ? (
+          <Link href={entry.object.href}>{entry.offers ? t("aiActivity.history.allOffers") : t(`aiActivity.history.open.${entry.kind}`, { label: entry.object.label ?? "" })}</Link>
+        ) : null}
         {inThread ? (
           <button type="button" className="activity-entry-link" onClick={showInConversation}>
             {t("aiActivity.history.inConversation")}
@@ -508,6 +512,28 @@ function Proposals({ proposals, byKey, reveal }: { proposals: readonly EntryProp
   );
 }
 
+/**
+ * A followed Job Search's best Job Offers (#1001), the best first: each its title, linked to its page in the Job Search, its
+ * employer and its Match Score in words. None found: said.
+ */
+function BestOffers({ offers }: { offers: readonly EntryOffer[] }) {
+  const t = useT();
+  if (offers.length === 0) return <p className="activity-entry-line">{t("aiActivity.history.noBestOffers")}</p>;
+  return (
+    <div className="activity-entry-line activity-entry-offers">
+      <span className="activity-entry-label">{t("aiActivity.history.bestOffers")}</span>
+      <ul className="ai-activity-list">
+        {offers.map((offer) => (
+          <li key={offer.href}>
+            <Link href={offer.href}>{offer.title}</Link>
+            {[offer.employer, t("aiActivity.history.matchScore", { score: offer.score })].filter((part) => part !== null).map((part) => ` · ${part}`)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** Its cost in full, never in euros: the Plan Quota with the week's use, or « compté dans votre consommation », its tokens, or « Sans IA ». */
 function FullCost({ cost }: { cost: CostShown }) {
   const t = useT();
@@ -515,6 +541,7 @@ function FullCost({ cost }: { cost: CostShown }) {
   const parts: ReactNode[] = [];
   if (cost.quota) parts.push(<Link key="quota" href={CONSUMPTION}>{quotaWords(cost.quota, t)}</Link>);
   else if (cost.consumption) parts.push(<Link key="consumption" href={CONSUMPTION}>{t("aiActivity.history.cost.consumption")}</Link>);
+  else if (cost.offered) parts.push(<span key="offered">{t("aiActivity.history.cost.offered")}</span>);
   if (cost.tokens) parts.push(<span key="tokens">{tokenWords(cost.tokens, t, language)}</span>);
   if (cost.noAi) parts.push(<span key="noAi" className="pill">{t("aiActivity.history.cost.noAi")}</span>);
   if (parts.length === 0) return null;

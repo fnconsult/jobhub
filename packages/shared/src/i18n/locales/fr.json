@@ -1187,41 +1187,23 @@
     "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi."
   },
   "onboardingSearch": {
-    "title": "Recherche de vos offres",
-    "status": {
-      "searching": "En cours",
-      "done": "Terminée",
-      "stopped": "Arrêtée",
-      "failed": "Échouée"
-    },
-    "stepOf": "Étape {{number}} sur {{total}}",
     "stepsLabel": "Étapes de la recherche",
+    "countersLabel": "Ce que la recherche a mesuré",
     "steps": {
       "profile": "Lecture de votre profil",
       "search": "Recherche sur France Travail, les sites carrières et le web",
       "analysis": "Analyse des offres trouvées",
       "selection": "Sélection de vos meilleures offres"
     },
-    "details": {
-      "search": "Sources consultées : {{consulted}} sur {{total}} · pages lues : {{pages}}",
-      "analysis": "Offres analysées : {{count}}",
-      "selection": "Offres qui vous correspondent : {{count}}, avec un score de correspondance d'au moins {{threshold}}"
-    },
     "counters": {
       "sources": "sources consultées",
-      "sourcesShort": "sources",
       "pages": "pages lues",
-      "pagesShort": "pages",
       "analysed": "offres analysées",
-      "analysedShort": "analysées",
       "matching": "offres qui vous correspondent",
-      "matchingShort": "pour vous",
       "outOf": "{{count}} sur {{total}}"
     },
-    "recounted": "recalculé avec {{criteria}}",
     "refined": "Affinée avec :",
     "assumed": "supposé",
-    "assumedTitle": "Supposé, en attente de votre réponse",
     "minSalary": "à partir de {{amount}}",
     "sourcesLabel": "Sources de la recherche",
     "sources": {
@@ -1237,20 +1219,6 @@
       "searched": "consultée",
       "refused": "refusée",
       "failed": "indisponible"
-    },
-    "open": "Voir la recherche",
-    "stoppedTitle": "Recherche arrêtée",
-    "failedTitle": "La recherche n'a pas abouti",
-    "kept_zero": "Elle n'avait encore trouvé aucune offre. Vous pourrez lancer une recherche depuis Recherches d'offres.",
-    "kept_one": "Ce qu'elle a trouvé est gardé : une offre analysée.",
-    "kept_other": "Ce qu'elle a trouvé est gardé : {{count}} offres analysées.",
-    "announce": {
-      "started": "Recherche de vos offres lancée.",
-      "restarted": "Recherche de vos offres relancée.",
-      "refined": "Recherche affinée avec {{criteria}}.",
-      "done": "Recherche terminée. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}.",
-      "stopped": "Recherche arrêtée. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}.",
-      "failed": "La recherche n'a pas abouti. Offres analysées : {{analysed}}. Offres qui vous correspondent : {{matching}}."
     }
   },
   "questionnaire": {
@@ -5650,9 +5618,14 @@
         "calls_other": "{{count}} appels · {{tokens}} jetons envoyés",
         "tokens": "{{tokens}} jetons",
         "partial": "dernier appel seulement",
-        "noAi": "Sans IA"
+        "noAi": "Sans IA",
+        "offered": "Offerte, hors forfait"
       },
-      "sources": "Sources :"
+      "sources": "Sources :",
+      "bestOffers": "Vos meilleures offres :",
+      "noBestOffers": "Aucune offre trouvée pour l'instant.",
+      "allOffers": "Voir toutes les offres",
+      "matchScore": "Match Score {{score}}/100"
     }
   },
   "signalement": {

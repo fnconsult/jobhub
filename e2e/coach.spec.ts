@@ -247,16 +247,30 @@ test.describe("onboarding with the AI Coach", () => {
         return rows as { id: string; offered: string; stopped: boolean }[];
       });
 
-    await answerUpToReview("Directrice financière");
-    // Born, its search starts at once, offered; the coach says so in the thread, then its live card links to its page (#1001).
+    // Born, its search starts at once, offered; the coach says so in one line of the thread, no card (#1001).
+    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await reply(page, q.fullName, "Marie Dupont");
+    await reply(page, q.targetRole, "Directrice financière");
+    await reply(page, q.location, "Lyon");
     await expect(transcript(page)).toContainText(fr.newProfile.offeredSearchStarted);
+    await expect(transcript(page).locator(".ds-card, .ds-stats")).toHaveCount(0);
     await expect.poll(async () => (await offered()).map((search) => search.offered)).toEqual(["first"]);
-    const [first] = await offered();
-    const card = transcript(page).getByRole("region", { name: fr.onboardingSearch.title });
-    await expect(card.getByRole("link", { name: fr.onboardingSearch.open })).toHaveAttribute("href", `/recherches/${first!.id}`);
-    // Nothing measured yet (no worker here): every counter says 0, never a figure of its own.
-    await expect(card.locator("dd")).toHaveText(["0", "0", "0", "0"]);
-    await expect(card).toContainText(`${fr.onboardingSearch.refined} Directrice financière · Lyon`);
+
+    // Its progress is in Activity's « En ce moment », counted « ici » on this page (#1001).
+    const activity = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
+    const activityIcon = page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
+    if ((await activityIcon.getAttribute("aria-expanded")) !== "true") await activityIcon.click();
+    const now = activity.getByRole("region", { name: fr.aiActivity.live.now });
+    const entry = now.getByRole("article", { name: `${fr.aiActivity.kinds.job_search} · Directrice financière` });
+    await expect(entry).toBeVisible();
+    await expect(now.locator(".ai-activity-elsewhere")).toHaveCount(0);
+    // Nothing measured yet (no worker here): every figure says 0, never one of its own.
+    await expect(entry.locator(".ds-stat__value")).toHaveText(["0", "0", "0", "0"]);
+    await expect(entry).toContainText(`${fr.onboardingSearch.refined} Directrice financière · Lyon`);
+    await expect(entry.getByRole("list", { name: fr.onboardingSearch.stepsLabel })).toBeVisible();
+
+    for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
+    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
 
     // Outside the Plan Quota: no use of it this week, and none in « Votre consommation ».
     const [{ id: profileId }] = await (await page.request.get("/api/profiles")).json();

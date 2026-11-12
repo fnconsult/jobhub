@@ -1187,41 +1187,23 @@
     "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too."
   },
   "onboardingSearch": {
-    "title": "Searching for your job offers",
-    "status": {
-      "searching": "In progress",
-      "done": "Done",
-      "stopped": "Stopped",
-      "failed": "Failed"
-    },
-    "stepOf": "Step {{number}} of {{total}}",
     "stepsLabel": "Steps of the search",
+    "countersLabel": "What the search measured",
     "steps": {
       "profile": "Reading your profile",
       "search": "Searching France Travail, careers sites and the web",
       "analysis": "Analysing the job offers found",
       "selection": "Picking your best job offers"
     },
-    "details": {
-      "search": "Sources consulted: {{consulted}} of {{total}} · pages read: {{pages}}",
-      "analysis": "Job offers analysed: {{count}}",
-      "selection": "Job offers that fit you: {{count}}, with a Match Score of at least {{threshold}}"
-    },
     "counters": {
       "sources": "sources consulted",
-      "sourcesShort": "sources",
       "pages": "pages read",
-      "pagesShort": "pages",
       "analysed": "job offers analysed",
-      "analysedShort": "analysed",
       "matching": "job offers that fit you",
-      "matchingShort": "for you",
       "outOf": "{{count}} of {{total}}"
     },
-    "recounted": "recounted with {{criteria}}",
     "refined": "Narrowed with:",
     "assumed": "assumed",
-    "assumedTitle": "Assumed, waiting for your answer",
     "minSalary": "from {{amount}}",
     "sourcesLabel": "Sources of the search",
     "sources": {
@@ -1237,20 +1219,6 @@
       "searched": "consulted",
       "refused": "refused",
       "failed": "unavailable"
-    },
-    "open": "See the search",
-    "stoppedTitle": "Search stopped",
-    "failedTitle": "The search did not succeed",
-    "kept_zero": "It had not found any job offer yet. You can start a search from Job searches.",
-    "kept_one": "What it found is kept: one job offer analysed.",
-    "kept_other": "What it found is kept: {{count}} job offers analysed.",
-    "announce": {
-      "started": "Search for your job offers started.",
-      "restarted": "Search for your job offers started again.",
-      "refined": "Search narrowed with {{criteria}}.",
-      "done": "Search done. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}.",
-      "stopped": "Search stopped. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}.",
-      "failed": "The search did not succeed. Job offers analysed: {{analysed}}. Job offers that fit you: {{matching}}."
     }
   },
   "questionnaire": {
@@ -5650,9 +5618,14 @@
         "calls_other": "{{count}} calls · {{tokens}} tokens sent",
         "tokens": "{{tokens}} tokens",
         "partial": "last call only",
-        "noAi": "No AI"
+        "noAi": "No AI",
+        "offered": "Offered, outside your plan"
       },
-      "sources": "Sources:"
+      "sources": "Sources:",
+      "bestOffers": "Your best job offers:",
+      "noBestOffers": "No job offer found yet.",
+      "allOffers": "See all job offers",
+      "matchScore": "Match Score {{score}}/100"
     }
   },
   "signalement": {

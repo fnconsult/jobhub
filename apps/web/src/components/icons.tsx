@@ -5,7 +5,6 @@ import {
   BookOpen,
   Brain,
   Briefcase,
-  Building2,
   Calendar,
   ChartLine,
   ChartNoAxesColumn,
@@ -34,7 +33,6 @@ import {
   IdCard,
   Info,
   KeyRound,
-  Landmark,
   Layers,
   LayoutDashboard,
   ListChecks,
@@ -46,7 +44,6 @@ import {
   MessageCircleQuestion,
   MessageSquare,
   Minus,
-  Network,
   NotebookText,
   PackageCheck,
   Palette,
@@ -65,7 +62,6 @@ import {
   Square,
   SquarePen,
   Tag,
-  Target,
   TriangleAlert,
   Undo2,
   Upload,
@@ -191,11 +187,6 @@ const LUCIDE = {
   results: Folder,
   // Recherches d'offres' filter in the compact Top Bar (#898): the Offer box's count and source chips behind it.
   filter: Funnel,
-  // The Job discovery sources, as the onboarding's search card pictures them (#1001): no third party's logo.
-  sourceFranceTravail: Landmark,
-  sourceCareerSites: Building2,
-  sourceAtsApis: Network,
-  sourceTargetCompanies: Target,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

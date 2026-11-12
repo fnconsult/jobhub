@@ -1,5 +1,6 @@
 import type { ProvenanceEvent, ProvenanceStep } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
+import type { LiveMeasures } from "../job-searches";
 import { failedReason, liveView, nextLive, type LiveAction, type LiveChange, type LiveEnded } from "./live";
 
 const at = "2026-10-24T08:00:00.000Z";
@@ -149,7 +150,7 @@ describe("AI Activity's live actions", () => {
   describe("a Job Search, from the page's poll", () => {
     const id = "3f1c2a4e-0000-4000-8000-000000000001";
     const profile = { id: "p1", name: "DAF Lyon" };
-    const searching = (steps: ProvenanceEvent[]): LiveChange => ({ type: "job_searches", running: [{ jobSearchId: id, profile, startedAt: at, steps }], ended: [], at });
+    const searching = (steps: ProvenanceEvent[], measured: LiveMeasures | null = null): LiveChange => ({ type: "job_searches", running: [{ jobSearchId: id, profile, startedAt: at, steps, live: measured }], ended: [], at });
     const webSearch: ProvenanceEvent = { type: "step_started", id: 1, step: { kind: "ai", activity: "web_search", task: "web_search", at } };
     const over = (outcome: LiveEnded["outcome"]): LiveChange => ({ type: "job_searches", running: [], ended: [{ jobSearchId: id, outcome }], at });
 
@@ -209,6 +210,16 @@ describe("AI Activity's live actions", () => {
       expect(apply(over({ status: "failed", failure: "timeout", at: ended, step: null, found: 0 }))).toEqual([]);
     });
 
+    it("each poll brings its run's measures (#1001), the last ones kept when a poll brings none and once it ended", () => {
+      const first: LiveMeasures = { step: "search", sources: [{ source: "france_travail", state: "searched" }, { source: "web_search", state: "searching" }], pagesRead: 4, offersAnalysed: 2, matched: null };
+      const later: LiveMeasures = { ...first, step: "analysis", pagesRead: 9, offersAnalysed: 5 };
+      expect(apply(searching([webSearch]))[0]!.measured).toBeNull();
+      expect(apply(searching([webSearch], first))[0]!.measured).toEqual(first);
+      expect(apply(searching([webSearch], first), searching([webSearch], later))[0]!.measured).toEqual(later);
+      expect(apply(searching([webSearch], later), searching([webSearch]))[0]!.measured).toEqual(later);
+      expect(apply(searching([webSearch], later), over({ status: "done", at: ended, found: 5, steps: [] }))[0]).toMatchObject({ status: "done", measured: later });
+    });
+
     it("a poll leaves the Coach reply on its way as it is", () => {
       const actions = apply(replyStarted, thinking, searching([webSearch]));
       expect(actions.map((action) => action.key)).toEqual(["coach_reply:1", `job_search:${id}`]);
@@ -229,6 +240,15 @@ describe("AI Activity's live actions", () => {
       const elsewhere = liveView(actions, "/candidatures");
       expect(elsewhere.here).toEqual([]);
       expect(elsewhere.elsewhere).toHaveLength(2);
+    });
+
+    it("a page that follows a Job Search as its own (the onboarding's offered one, #1001) has it « ici »; any other page as before", () => {
+      const actions = apply(search, replyStarted, thinking);
+      const onboarding = liveView(actions, "/profils/nouveau", "job_search:1");
+      expect(onboarding.here.map((action) => action.key)).toEqual(["job_search:1"]);
+      expect(onboarding.elsewhere.map((action) => action.key)).toEqual(["coach_reply:1"]);
+      expect(liveView(actions, "/profils/nouveau").here).toEqual([]);
+      expect(liveView(actions, "/recherches/1", null).here.map((action) => action.key)).toEqual(["job_search:1"]);
     });
 
     it("a stopped or failed action is in the pane, not on the closed button", () => {

@@ -58,17 +58,20 @@ export interface CostShown {
   consumption: boolean;
   tokens: EntryCost["tokens"];
   noAi: boolean;
+  /** Offered (ADR-0106): « Offerte, hors forfait », no Plan Quota and not in « Votre consommation ». */
+  offered?: true;
 }
 
 export function costShown(entry: Pick<ActivityEntry, "cost" | "unrecorded">, usage: readonly QuotaUse[] | null): CostShown {
-  const { quota, tokens, noAi } = entry.cost;
+  const { quota, tokens, noAi, offered } = entry.cost;
   const use = quota ? usage?.find((each) => each.quota === quota) : undefined;
   const week = use && use.limit !== null && use.limit > 0 ? { used: use.used, limit: use.limit } : null;
   return {
     quota: quota ? { quota, week } : null,
-    consumption: !quota && !noAi && !entry.unrecorded,
+    consumption: !quota && !noAi && !offered && !entry.unrecorded,
     tokens,
     noAi,
+    ...(offered ? { offered } : {}),
   };
 }
 

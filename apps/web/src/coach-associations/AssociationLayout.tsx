@@ -67,7 +67,7 @@ export function AssociationLayout({
           </Link>
         )}
       >
-        <div className="coach-space-cards">{children}</div>
+        <div className="coach-space-column">{children}</div>
       </SidebarShell>
     </OverlayScope>
   );

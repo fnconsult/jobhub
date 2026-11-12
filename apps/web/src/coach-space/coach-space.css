@@ -1,14 +1,4 @@
-.coach-space-cards { display: grid; gap: var(--space-5); width: 100%; max-width: 52rem; margin-inline: auto; min-width: 0; }
-.coach-space-card { padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow-wrap: anywhere; min-width: 0; }
-/* This space docks at 768px; Candidate and Back Office keep their existing breakpoint. */
-@media (48rem <= width < 64rem) {
-  .coach-space-v2 .app-shell[data-dock-at="48rem"] { grid-template-columns: var(--sidebar-width) minmax(0, 1fr); }
-  .coach-space-v2 .sidebar-docked { display: flex; }
-  .coach-space-v2 .topbar .menu-toggle { display: none; }
-  html[data-sidebar="closed"] .coach-space-v2 .app-shell { grid-template-columns: minmax(0, 1fr); }
-  html[data-sidebar="closed"] .coach-space-v2 .sidebar-docked { display: none; }
-  html[data-sidebar="closed"] .coach-space-v2 .topbar .menu-toggle { display: inline-flex; }
-}
+.coach-space-column { display: grid; gap: var(--space-4); width: 100%; max-width: 52rem; margin-inline: auto; min-width: 0; }
 /* The native app opens this dedicated coach navigation, rather than the Candidate sidebar. */
 html[data-in-app] .coach-space-v2 .sidebar-docked,
 html[data-in-app] .coach-space-v2 .sidebar.sidebar-drawer { display: flex; }

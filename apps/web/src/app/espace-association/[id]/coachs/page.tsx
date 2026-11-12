@@ -3,7 +3,13 @@ import { AssociationLayout } from "@/coach-associations/AssociationLayout";
 import { requireAssociation } from "@/coach-associations/server";
 import { InviteForm, PendingInvitations } from "@/coach-associations/InviteForm";
 import { retireCoach } from "@/coach-associations/actions";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
+import { Status } from "@/design/Pill";
 import { getServerT } from "@/i18n/server";
+/** One of a list of things: an article (Card). */
+const ARTICLE = "article";
 const F = { associationId: "associationId", coachId: "coachId" };
 const PAGE = "coachs";
 export default async function Page({
@@ -20,9 +26,21 @@ export default async function Page({
   const [coaches, invitations, query] = await Promise.all([associations.coaches(person, id), associations.invitations(person, id), searchParams]);
   return (
     <AssociationLayout association={association} page={PAGE}>
-      {query.error ? <p role="alert">{t("association.invalid")}</p> : null}
-      {query.invited ? <p role="status">{t("association.invited")}</p> : null}
-      {query.retired ? <p role="status">{t("association.coachRetired")}</p> : null}
+      {query.error ? (
+        <Note tone="danger" role="alert">
+          {t("association.invalid")}
+        </Note>
+      ) : null}
+      {query.invited ? (
+        <Note tone="success" role="status">
+          {t("association.invited")}
+        </Note>
+      ) : null}
+      {query.retired ? (
+        <Note tone="success" role="status">
+          {t("association.coachRetired")}
+        </Note>
+      ) : null}
       <p>{t("association.noCandidateAccess")}</p>
       <InviteForm associationId={id} role="coach" />
       <PendingInvitations associationId={id} invitations={(invitations ?? []).filter((x) => x.role === "coach")} />
@@ -30,26 +48,31 @@ export default async function Page({
         <p>{t("association.noCoaches")}</p>
       ) : (
         coaches.map((coach) => (
-          <article className="coach-space-card stack" key={coach.id}>
-            <h2>{coach.name}</h2>
-            <p>{coach.email}</p>
-            <p>{coach.bio}</p>
-            {coach.retiredAt ? (
-              <p>{t("association.retired")}</p>
-            ) : (
-              <>
-                <p>{t(coach.contractPending ? "association.contractPending" : "association.active")}</p>
-                <p>{t("association.retireWarning")}</p>
-                <form action={retireCoach}>
-                  <input type="hidden" name={F.associationId} value={id} />
-                  <input type="hidden" name={F.coachId} value={coach.id} />
-                  <button className="button" type="submit">
-                    {t("association.retireCoach", { name: coach.name })}
-                  </button>
-                </form>
-              </>
-            )}
-          </article>
+          <Card as={ARTICLE} title={coach.name} key={coach.id}>
+            <div className="stack">
+              <p>{coach.email}</p>
+              <p>{coach.bio}</p>
+              {coach.retiredAt ? (
+                <p>
+                  <Status>{t("association.retired")}</Status>
+                </p>
+              ) : (
+                <>
+                  <p>
+                    <Status tone={coach.contractPending ? "warn" : "success"}>{t(coach.contractPending ? "association.contractPending" : "association.active")}</Status>
+                  </p>
+                  <p>{t("association.retireWarning")}</p>
+                  <form action={retireCoach}>
+                    <input type="hidden" name={F.associationId} value={id} />
+                    <input type="hidden" name={F.coachId} value={coach.id} />
+                    <button className={buttonClass({ variant: "danger" })} type="submit">
+                      {t("association.retireCoach", { name: coach.name })}
+                    </button>
+                  </form>
+                </>
+              )}
+            </div>
+          </Card>
         ))
       )}
     </AssociationLayout>

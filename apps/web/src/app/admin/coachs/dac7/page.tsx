@@ -4,6 +4,10 @@ import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
 import { Button } from "@/design/Button";
 import { Field, TextInput, Checkbox } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Card } from "@/design/Card";
+/** One of a list of things: an article (Card). */
+const ARTICLE = "article";
 import { getCoachingTaxes } from "@/coaching-tax/server";
 import { taxLegalReady } from "@/coaching-tax/legal";
 import { officialFiscalSchemaAvailable } from "@/coaching-tax/schema";
@@ -76,8 +80,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
         <p>{t("coachTax.preparedNotFiled")}</p>
         <p>{t("coachTax.basis")}</p>
         <p>{t("coachTax.supportedScope")}</p>
-        {query.error ? <p role="alert">{t("coachTax.prepareError")}</p> : null}
-        {!officialFiscalSchemaAvailable() ? <p role="status">{t("coachTax.schemaPending")}</p> : null}
+        {query.error ? (
+          <Note tone="danger" role="alert">
+            {t("coachTax.prepareError")}
+          </Note>
+        ) : null}
+        {!officialFiscalSchemaAvailable() ? (
+          <Note tone="warn" role="status">
+            {t("coachTax.schemaPending")}
+          </Note>
+        ) : null}
         {taxLegalReady() ? (
           <form action={prepare} className="stack">
             <Field label={t("coachTax.year")}>
@@ -107,39 +119,40 @@ async function ReportCard({ report }: { report: { id: string; year: number; sche
     annual = await getCoachingTaxes().annual(report.id);
   if (!annual) return null;
   return (
-    <article className="card stack">
-      <h2>{t("coachTax.copyTitle", { year: report.year })}</h2>
-      <p>{t(report.supersededAt ? "coachTax.superseded" : report.schemaValid ? "coachTax.schemaValid" : "coachTax.schemaPending")}</p>
-      <a href={`/api/admin/coaching/tax/${report.id}?draft=1`}>{t("coachTax.downloadDraft")}</a>
-      <a href={`/api/admin/coaching/tax/${report.id}?reconciliation=1`}>{t("coachTax.downloadReconciliation")}</a>
-      {report.schemaValid && !report.supersededAt ? <a href={`/api/admin/coaching/tax/${report.id}`}>{t("coachTax.downloadXml")}</a> : null}
-      {!report.supersededAt ? (
-        <>
-          <form action={validate}>
-            <input type="hidden" name={ID} value={report.id} />
-            <Button type="submit">
-              {t("coachTax.validateSchema")}
-            </Button>
-          </form>
-          <details>
-            <summary>{t("coachTax.rebuild")}</summary>
-            <p>{t("coachTax.rebuildExplanation")}</p>
-            <form action={prepare} className="stack">
-              <input type="hidden" name={YEAR} value={report.year} />
-              <input type="hidden" name={REPLACE} value={report.id} />
-              {FIELDS.map((field) => (
-                <Field key={field} label={t(`coachTax.operator.${field}`)}>
-                  <TextInput name={field} required={field !== "vat"} maxLength={200} defaultValue={annual.document.operator[field]} />
-                </Field>
-              ))}
-              <Checkbox name={UNFILED} required label={t("coachTax.confirmUnfiled")} />
-              <Button type="submit">
-                {t("coachTax.rebuild")}
+    <Card as={ARTICLE} title={t("coachTax.copyTitle", { year: report.year })}>
+      <div className="stack">
+        <p>{t(report.supersededAt ? "coachTax.superseded" : report.schemaValid ? "coachTax.schemaValid" : "coachTax.schemaPending")}</p>
+        <a href={`/api/admin/coaching/tax/${report.id}?draft=1`}>{t("coachTax.downloadDraft")}</a>
+        <a href={`/api/admin/coaching/tax/${report.id}?reconciliation=1`}>{t("coachTax.downloadReconciliation")}</a>
+        {report.schemaValid && !report.supersededAt ? <a href={`/api/admin/coaching/tax/${report.id}`}>{t("coachTax.downloadXml")}</a> : null}
+        {!report.supersededAt ? (
+          <>
+            <form action={validate}>
+              <input type="hidden" name={ID} value={report.id} />
+              <Button size="sm" type="submit">
+                {t("coachTax.validateSchema")}
               </Button>
             </form>
-          </details>
-        </>
-      ) : null}
-    </article>
+            <details>
+              <summary>{t("coachTax.rebuild")}</summary>
+              <p>{t("coachTax.rebuildExplanation")}</p>
+              <form action={prepare} className="stack">
+                <input type="hidden" name={YEAR} value={report.year} />
+                <input type="hidden" name={REPLACE} value={report.id} />
+                {FIELDS.map((field) => (
+                  <Field key={field} label={t(`coachTax.operator.${field}`)}>
+                    <TextInput name={field} required={field !== "vat"} maxLength={200} defaultValue={annual.document.operator[field]} />
+                  </Field>
+                ))}
+                <Checkbox name={UNFILED} required label={t("coachTax.confirmUnfiled")} />
+                <Button size="sm" type="submit">
+                  {t("coachTax.rebuild")}
+                </Button>
+              </form>
+            </details>
+          </>
+        ) : null}
+      </div>
+    </Card>
   );
 }

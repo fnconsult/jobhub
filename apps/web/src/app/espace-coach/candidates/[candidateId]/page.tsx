@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { CalledBy } from "@/components/CalledBy";
+import { Card } from "@/design/Card";
 import { MasterCvView } from "@/components/MasterCvView";
 import { PrivateNotes } from "@/coach-space/PrivateNotes";
 import { requireCoachSpace } from "@/coach-space/server";
@@ -22,14 +23,17 @@ export default async function Page({ params }: { params: Promise<{ candidateId: 
   const [t, locale, timeZone] = await Promise.all([getServerT(), getRequestLocale(), getCoachingTimeZones().coach(coach.id)]);
   return (
     <CoachSpaceShell>
-      <section className="coach-space-card">
-        <h2>
-          {file.person.name || t("coachSpace.unnamedCandidate")}
-          <CalledBy name={file.person.calledBy} t={t} />
-        </h2>
+      <Card
+        title={
+          <>
+            {file.person.name || t("coachSpace.unnamedCandidate")}
+            <CalledBy name={file.person.calledBy} t={t} />
+          </>
+        }
+      >
         <p>{t(file.person.access ? "coachWorkspace.access" : "coachWorkspace.noAccess")}</p>
         <PrivateNotes candidateId={file.person.id} initial={file.note} />
-      </section>
+      </Card>
       <section className="stack">
         <h2>{t("coachSpaceV2.pages.seances")}</h2>
         {file.sessions.map((session) => (
@@ -38,8 +42,7 @@ export default async function Page({ params }: { params: Promise<{ candidateId: 
       </section>
       {file.file ? (
         <>
-          <section className="coach-space-card">
-            <h2>{t("coachSpace.applicationsTitle")}</h2>
+          <Card title={t("coachSpace.applicationsTitle")}>
             <p>{t("coachSpace.readOnly")}</p>
             <ul>
               {file.file.applications.map((application) => (
@@ -48,16 +51,15 @@ export default async function Page({ params }: { params: Promise<{ candidateId: 
                 </li>
               ))}
             </ul>
-          </section>
-          <section className="coach-space-card">
-            <h2>{t("coachSpace.profilesTitle")}</h2>
+          </Card>
+          <Card title={t("coachSpace.profilesTitle")}>
             {file.file.profiles.map((profile) => (
               <article key={profile.id}>
                 <h3>{profile.name}</h3>
                 <MasterCvView cv={profile.masterCv.content} t={t} />
               </article>
             ))}
-          </section>
+          </Card>
         </>
       ) : null}
     </CoachSpaceShell>

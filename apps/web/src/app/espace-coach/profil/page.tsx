@@ -14,6 +14,11 @@ import { getCoachEnrolments } from "@/coach-enrolments/server";
 import { getCoachingOffers } from "@/coaching-offers/server";
 import { SellerInfo } from "@/coaching-offers/SellerInfo";
 import { notFound } from "next/navigation";
+import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
+import { Status, type StatusTone } from "@/design/Pill";
+/** The Coach Page's review, in its tone: approved, refused, waiting, or replaced by a newer proposal. */
+const REVIEW_TONE: Record<string, StatusTone> = { approved: "success", refused: "danger", pending: "warn", superseded: "neutral" };
 export default async function Page() {
   requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
   const coach = await requireCoachSpace(),
@@ -38,16 +43,19 @@ export default async function Page() {
       : null;
   return (
     <CoachSpaceShell>
-      {snapshot ? <p role="status">{t(`coachPage.status.${snapshot.state}`)}</p> : null}
-      {snapshot?.reason ? (
-        <p role="alert">
-          {t("coachPage.reason")}: {snapshot.reason}
+      {snapshot ? (
+        <p role="status">
+          <Status tone={REVIEW_TONE[snapshot.state] ?? "neutral"}>{t(`coachPage.status.${snapshot.state}`)}</Status>
         </p>
+      ) : null}
+      {snapshot?.reason ? (
+        <Note tone="danger" role="alert" title={t("coachPage.reason")}>
+          {snapshot.reason}
+        </Note>
       ) : null}
       <CoachPageEditor key={profile.head} coachId={coach.id} name={coach.name} head={profile.head} initial={initial} photoUrl={latestPortrait} />
       {profile.approved ? (
-        <section className="coach-space-card stack">
-          <h2>{t("coachPage.visible")}</h2>
+        <Card title={t("coachPage.visible")}>
           <PublicCoachProfile
             name={coach.name}
             page={{
@@ -55,23 +63,25 @@ export default async function Page() {
               photoUrl: approvedPortrait,
             }}
           />
-        </section>
+        </Card>
       ) : (
         <p>{t("coachPage.notPublished")}</p>
       )}
       {offer ? (
-        <section className="coach-space-card stack">
-          <h2>{t("coachPage.offers")}</h2>
-          <SellerInfo seller={offer.seller} t={t} />
-          <p>{t("humanCoaches.sessionDuration", { count: offer.durationMinutes })}</p>
-          {offer.seller.kind === "jobbbox" ? <p>{t("coachPage.jobbboxPrice")}</p> : offer.amount !== null ? <p>{formattedPrice}</p> : null}
-        </section>
+        <Card title={t("coachPage.offers")}>
+          <div className="stack">
+            <SellerInfo seller={offer.seller} t={t} />
+            <p>{t("humanCoaches.sessionDuration", { count: offer.durationMinutes })}</p>
+            {offer.seller.kind === "jobbbox" ? <p>{t("coachPage.jobbboxPrice")}</p> : offer.amount !== null ? <p>{formattedPrice}</p> : null}
+          </div>
+        </Card>
       ) : null}
-      <section className="coach-space-card stack">
+      <Card>
         <TimeZoneForm value={await getCoachingTimeZones().coach(coach.id)} coach />
-        <h2>{t("coachMeeting.permanent")}</h2>
+      </Card>
+      <Card title={t("coachMeeting.permanent")}>
         <MeetingForm initial={await getCoachContacts().ofCoach(coach.id)} />
-      </section>
+      </Card>
     </CoachSpaceShell>
   );
 }

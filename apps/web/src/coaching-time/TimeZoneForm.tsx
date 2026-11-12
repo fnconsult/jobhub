@@ -3,6 +3,7 @@ import { COACHING_DEFAULT_ZONE, coachingTimeZone } from "@jobhub/shared/coaching
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore, useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/design/Button";
 import { Field, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 
@@ -30,7 +31,7 @@ export function TimeZoneForm({ value, coach = false }: { value: string | null; c
   }
   return <form className="stack" onSubmit={(event) => void save(event)}>
     <Field id={id} label={t("coachingTime.label")} hint={t("coachingTime.hint")}><TextInput name={INPUT_NAME} value={zone} onChange={(event) => changeZone(event.target.value)} required /></Field>
-    <button type="submit" className="button" disabled={status === "saving"}>{t("coachingTime.save")}</button>
+    <Button type="submit" variant="primary" disabled={status === "saving"}>{t("coachingTime.save")}</Button>
     {status === "saved" ? <Note tone="success" role="status">{t("account.saved")}</Note> : null}
     {status === "failed" ? <Note tone="danger" role="alert">{t("coachingTime.invalid")}</Note> : null}
   </form>;

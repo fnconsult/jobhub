@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
 import { Field, Textarea } from "@/design/Field";
+import { Pill } from "@/design/Pill";
 import { getServerT } from "@/i18n/server";
 import { getCoachEnrolments } from "./server";
+import { ENROLMENT_TONE } from "./OwnEnrolment";
+/** One of a list of things: an article (Card). */
+const ARTICLE = "article";
 const ID = "enrolmentId", DECISION = "decision", REASON = "reason", APPROVE = "approve", REFUSE = "refuse";
 async function decide(form: FormData) {
     "use server";
@@ -29,8 +35,8 @@ export async function EnrolmentsAdmin({ canWrite }: {
     const [t, records] = await Promise.all([getServerT(), getCoachEnrolments().queue()]);
     return (<section className="section-block stack">
       <h2>{t("coachEnrolment.adminTitle")}</h2>
-      {records.length ? (records.map((record) => (<article className="stack" key={record.id}>
-            <h3>{record.legalName}</h3>
+      {records.length ? (records.map((record) => (<Card as={ARTICLE} headingLevel={3} title={record.legalName} actions={<Pill tone={ENROLMENT_TONE[record.state]}>{t(`coachEnrolment.state.${record.state}`)}</Pill>} key={record.id}>
+            <div className="stack">
             <p>
               {record.contactName} · {record.email}
             </p>
@@ -41,7 +47,6 @@ export async function EnrolmentsAdmin({ canWrite }: {
               {record.specialties.join(", ")} · {record.languages.join(", ")}
             </p>
             <p>{record.presentation}</p>
-            <p>{t(`coachEnrolment.state.${record.state}`)}</p>
             <Link href={`/admin/coachs/demandes/${record.id}`}>{t("coachEnrolment.adminProof")}</Link>
             {record.reason ? (<p>
                 {t("coachEnrolment.reason")} : {record.reason}
@@ -49,7 +54,7 @@ export async function EnrolmentsAdmin({ canWrite }: {
             {record.state === "pending" && canWrite ? (<>
                 <form action={decide}>
                   <input name={ID} type="hidden" value={record.id}/>
-                  <button className="button" type="submit" name={DECISION} value={APPROVE}>
+                  <button className={buttonClass({ variant: "primary", size: "sm" })} type="submit" name={DECISION} value={APPROVE}>
                     {t("coachEnrolment.approve")}
                   </button>
                 </form>
@@ -58,11 +63,12 @@ export async function EnrolmentsAdmin({ canWrite }: {
                   <Field label={t("coachEnrolment.reason")}>
                     <Textarea name={REASON} minLength={3} maxLength={2000} required/>
                   </Field>
-                  <button className="button" type="submit" name={DECISION} value={REFUSE}>
+                  <button className={buttonClass({ variant: "danger", size: "sm" })} type="submit" name={DECISION} value={REFUSE}>
                     {t("coachEnrolment.refuse")}
                   </button>
                 </form>
               </>) : null}
-          </article>))) : (<p>{t("coachEnrolment.adminEmpty")}</p>)}
+            </div>
+          </Card>))) : (<p>{t("coachEnrolment.adminEmpty")}</p>)}
     </section>);
 }

@@ -22,6 +22,7 @@ function metadataSizeSelectors(source: string): string[] {
 const METADATA_SIZE_SELECTORS = [
   ".live-action-spent, .chat-stopped-spent", // the spend line under a finished action
   ".provenance-line", // where a value came from
+  ".coach-report-author", // who wrote a session report in the thread, a Human Coach (#867)
   ".fiche-link-detail", // where a Result stands, under its name in the Fiche (#603)
   ".context-bar-figures", // the Context bar's messages and jetons, under its bar (#607)
   ".sidebar-count", // a count beside a sidebar link

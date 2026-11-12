@@ -2,6 +2,7 @@ import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import Link from "next/link";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { CalledBy } from "@/components/CalledBy";
+import { Card } from "@/design/Card";
 import { requireCoachSpace } from "@/coach-space/server";
 import { getCoachWorkspace } from "@/coach-space/workspace-server";
 import { coachCandidateUrl } from "@/coach-space/SessionCard";
@@ -13,8 +14,7 @@ export default async function Page() {
   const candidates = await getCoachWorkspace().candidates(coach.id);
   return (
     <CoachSpaceShell>
-      <section className="coach-space-card">
-        <h2>{t("coachSpaceV2.pages.candidates")}</h2>
+      <Card title={t("coachSpaceV2.pages.candidates")}>
         {candidates.length ? (
           <ul>
             {candidates.map((candidate) => (
@@ -28,7 +28,7 @@ export default async function Page() {
         ) : (
           <p>{t("coachSpaceV2.empty.candidates")}</p>
         )}
-      </section>
+      </Card>
     </CoachSpaceShell>
   );
 }

@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { Note } from "@/design/Note";
 export function BookingWait() {
   const router = useRouter(),
     { t } = useTranslation();
@@ -13,5 +14,9 @@ export function BookingWait() {
     }, 2000);
     return () => clearInterval(id);
   }, [router]);
-  return <p role="status">{t("coachingBooking.waiting")}</p>;
+  return (
+    <Note tone="info" role="status">
+      {t("coachingBooking.waiting")}
+    </Note>
+  );
 }

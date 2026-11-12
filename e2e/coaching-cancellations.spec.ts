@@ -135,7 +135,7 @@ test("Coach cancellation offers refund, same paid service and explicit affordabl
     await admin.goto("/admin/coachs");
     const section = admin.locator("section").filter({ has: admin.getByRole("heading", { name: fr.coachingBooking.adminTitle, exact: true }) });
     const create = section
-      .locator(".coach-space-card")
+      .locator("article")
       .filter({ has: admin.getByRole("heading", { name: NAME, exact: true }) })
       .locator("form")
       .filter({ has: admin.getByRole("button", { name: fr.coachingBooking.create, exact: true }) });

@@ -222,7 +222,7 @@ test("a Candidate grants Coach Access; the Human Coach reads their Profiles and 
     };
     await name("Mimi");
     await coachPage.goto("/espace-coach/candidates");
-    const candidates = coachPage.locator(".coach-space-card");
+    const candidates = coachPage.locator(".ds-card");
     await expect(candidates.getByRole("listitem")).toContainText(`Marie Dupont · ${tr(space.calledBy, { name: "Mimi" })}`);
     await name("Marie");
     await coachPage.reload();

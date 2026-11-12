@@ -3,7 +3,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { CoachPageContent } from "./index";
-import { Field, TextInput, Textarea } from "@/design/Field";
+import { Button } from "@/design/Button";
+import { Card } from "@/design/Card";
+import { Checkbox, Field, TextInput, Textarea } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { FileUpload } from "@/design/FileUpload";
 import { COACH_PHOTO_MAX_BYTES, COACH_PHOTO_EXTENSIONS } from "./limits";
 import { PublicCoachProfile } from "./PublicCoachProfile";
@@ -72,48 +75,47 @@ export function CoachPageEditor({
     }
   }
   return (
-    <div className="stack">
-      <form className="coach-space-card stack" onSubmit={submit}>
-        <h2>{t("coachPage.edit")}</h2>
-        <p>{t("coachPage.validationHint")}</p>
-        <Field label={t("coachPage.presentation")}>
-          <Textarea name={F.presentation} required minLength={20} maxLength={4000} value={presentation} onChange={(e) => setPresentation(e.target.value)} />
-        </Field>
-        <Field label={t("coachPage.specialties")} hint={t("coachPage.commas")}>
-          <TextInput name={F.specialties} value={specialties} onChange={(e) => setSpecialties(e.target.value)} />
-        </Field>
-        <Field label={t("coachPage.languages")} hint={t("coachPage.commas")}>
-          <TextInput name={F.languages} value={languages} onChange={(e) => setLanguages(e.target.value)} />
-        </Field>
-        <FileUpload
-          name={F.photo}
-          label={t("coachPage.photo")}
-          prompt={t("coachPage.photoPrompt")}
-          hint={t("coachPage.photoHint")}
-          rules={{ maxBytes: COACH_PHOTO_MAX_BYTES, extensions: COACH_PHOTO_EXTENSIONS }}
-          problems={{ too_large: t("coachPage.photoTooLarge"), unsupported_format: t("coachPage.photoInvalid") }}
-          onChange={choose}
-        />
-        {photoUrl ? (
-          <label>
-            <input type="checkbox" checked={removePhoto} onChange={(e) => setRemovePhoto(e.target.checked)} />
-            {t("coachPage.removePhoto")}
-          </label>
-        ) : null}
-        {error ? (
-          <p role="alert">{t(error === "conflict" ? "coachPage.conflict" : error === "invalid_photo" ? "coachPage.photoInvalid" : "coachPage.invalid")}</p>
-        ) : null}
-        {error === "conflict" ? (
-          <button className="button" type="button" onClick={() => router.refresh()}>
-            {t("coachPage.reload")}
-          </button>
-        ) : null}
-        <button className="button" type="submit" disabled={busy}>
-          {t(busy ? "coachPage.submitting" : "coachPage.submit")}
-        </button>
-      </form>
-      <section className="coach-space-card stack">
-        <h2>{t("coachPage.preview")}</h2>
+    <>
+      <Card title={t("coachPage.edit")}>
+        <form className="stack" onSubmit={submit}>
+          <p>{t("coachPage.validationHint")}</p>
+          <Field label={t("coachPage.presentation")}>
+            <Textarea name={F.presentation} required minLength={20} maxLength={4000} value={presentation} onChange={(e) => setPresentation(e.target.value)} />
+          </Field>
+          <Field label={t("coachPage.specialties")} hint={t("coachPage.commas")}>
+            <TextInput name={F.specialties} value={specialties} onChange={(e) => setSpecialties(e.target.value)} />
+          </Field>
+          <Field label={t("coachPage.languages")} hint={t("coachPage.commas")}>
+            <TextInput name={F.languages} value={languages} onChange={(e) => setLanguages(e.target.value)} />
+          </Field>
+          <FileUpload
+            name={F.photo}
+            label={t("coachPage.photo")}
+            prompt={t("coachPage.photoPrompt")}
+            hint={t("coachPage.photoHint")}
+            rules={{ maxBytes: COACH_PHOTO_MAX_BYTES, extensions: COACH_PHOTO_EXTENSIONS }}
+            problems={{ too_large: t("coachPage.photoTooLarge"), unsupported_format: t("coachPage.photoInvalid") }}
+            onChange={choose}
+          />
+          {photoUrl ? (
+            <Checkbox checked={removePhoto} onChange={(e) => setRemovePhoto(e.target.checked)} label={t("coachPage.removePhoto")} />
+          ) : null}
+          {error ? (
+            <Note tone="danger" role="alert">
+              {t(error === "conflict" ? "coachPage.conflict" : error === "invalid_photo" ? "coachPage.photoInvalid" : "coachPage.invalid")}
+            </Note>
+          ) : null}
+          {error === "conflict" ? (
+            <Button type="button" onClick={() => router.refresh()}>
+              {t("coachPage.reload")}
+            </Button>
+          ) : null}
+          <Button variant="primary" type="submit" disabled={busy}>
+            {t(busy ? "coachPage.submitting" : "coachPage.submit")}
+          </Button>
+        </form>
+      </Card>
+      <Card title={t("coachPage.preview")}>
         <h3>{name}</h3>
         <PublicCoachProfile
           name={name}
@@ -124,7 +126,7 @@ export function CoachPageEditor({
             photoUrl: newPhotoUrl ?? (removePhoto ? null : photoUrl),
           }}
         />
-      </section>
-    </div>
+      </Card>
+    </>
   );
 }

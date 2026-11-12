@@ -2,7 +2,9 @@
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
-import { Field, Select, TextInput } from "@/design/Field";
+import { Button } from "@/design/Button";
+import { Checkbox, Field, Select, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { Meeting } from "./meeting";
 const VIDEO = "video",
   PHONE = "phone",
@@ -47,16 +49,21 @@ export function MeetingForm({ initial, sessionId }: { initial: Meeting | null; s
           </Select>
         </Field>
       ) : (
-        <label>
-          <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-          {t("coachMeeting.confirmHost")}
-        </label>
+        <Checkbox checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} label={t("coachMeeting.confirmHost")} />
       )}
-      <button className="button" type="submit" disabled={status === "saving"}>
+      <Button variant="primary" type="submit" disabled={status === "saving"}>
         {t("coachMeeting.save")}
-      </button>
-      {status === "saved" ? <p role="status">{t("account.saved")}</p> : null}
-      {status === "failed" ? <p role="alert">{t("coachMeeting.invalid")}</p> : null}
+      </Button>
+      {status === "saved" ? (
+        <Note tone="success" role="status">
+          {t("account.saved")}
+        </Note>
+      ) : null}
+      {status === "failed" ? (
+        <Note tone="danger" role="alert">
+          {t("coachMeeting.invalid")}
+        </Note>
+      ) : null}
     </form>
   );
 }

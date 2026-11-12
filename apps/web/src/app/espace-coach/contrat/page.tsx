@@ -10,6 +10,10 @@ import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getCoachContracts, getCoachContractWritten } from "@/coach-contracts/server";
 import { ContractText } from "@/coach-contracts/ContractText";
 import { PublicSite } from "@/design/PublicSite";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Checkbox } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 const ASSOCIATION_CONTRACT_PAGE = "contrat";
 const KIND = "kind", ID = "id", VERSION = "version", SHA = "sha256", AGREED = "agreed", YES = "yes";
@@ -48,21 +52,18 @@ export default async function Page({ searchParams }: {
     const associationActor = records.find((record) => record?.actor.kind === "association" && record.accepted && (!requestedAssociation || record.actor.id === requestedAssociation))?.actor;
     const inBusinessSpace = inCoachSpace || !!associationActor;
     const content = (<>
-      {!inBusinessSpace ? <h1>{t("coachSpaceV2.pages.contrat")}</h1> : null}
-      {error ? <p role="alert">{t("coachContract.stale")}</p> : null}
+      {!inBusinessSpace ? <h1 className="ds-site__title">{t("coachSpaceV2.pages.contrat")}</h1> : null}
+      {error ? <Note tone="danger" role="alert">{t("coachContract.stale")}</Note> : null}
       {shown ? <ContractText shown={shown}/> : <p>{t("coachEnrolment.awaitingContract")}</p>}
-      {records.map((record) => record ? (<section className="coach-space-card stack" key={`${record.actor.kind}:${record.actor.id}`}>
-            <h2>{record.actor.name}</h2>
+      {records.map((record) => record ? (<Card title={record.actor.name} key={`${record.actor.kind}:${record.actor.id}`}>
+            <div className="stack">
             {record.current && !record.accepted ? (<form className="stack" action={accept}>
                 <input type="hidden" name={KIND} value={record.actor.kind}/>
                 <input type="hidden" name={ID} value={record.actor.id}/>
                 <input type="hidden" name={VERSION} value={record.current.version}/>
                 <input type="hidden" name={SHA} value={record.current.sha256}/>
-                <label>
-                  <input type="checkbox" name={AGREED} value={YES} required/>
-                  {t("coachContract.agree", { version: record.current.version })}
-                </label>
-                <button className="button" type="submit">
+                <Checkbox name={AGREED} value={YES} required label={t("coachContract.agree", { version: record.current.version })}/>
+                <button className={buttonClass({ variant: "primary" })} type="submit">
                   {t("coachContract.accept")}
                 </button>
               </form>) : record.accepted ? (<p>{t("coachContract.upToDate")}</p>) : null}
@@ -79,11 +80,12 @@ export default async function Page({ searchParams }: {
                     </li>))}
                 </ul>
               </>) : null}
-          </section>) : null)}
+            </div>
+          </Card>) : null)}
     </>);
     return inCoachSpace ? (<CoachSpaceShell>{content}</CoachSpaceShell>) : associationActor ? (<AssociationLayout association={associationActor} page={ASSOCIATION_CONTRACT_PAGE}>
       {content}
     </AssociationLayout>) : (<PublicSite>
-      <main className="page stack">{content}</main>
+      <main id="main" className="ds-site__page stack">{content}</main>
     </PublicSite>);
 }

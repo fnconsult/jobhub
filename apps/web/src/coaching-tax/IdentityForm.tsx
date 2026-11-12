@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/design/Button";
 import { Field, Select, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { TaxIdentity } from "./model";
 import { TAX_FIELDS, TAX_KINDS } from "./fields";
 export function TaxIdentityForm({
@@ -87,10 +89,14 @@ export function TaxIdentityForm({
           <TextInput name="permanentEstablishments" defaultValue={initial?.permanentEstablishments.join(",") ?? ""} />
         </Field>
       ) : null}
-      <button className="button" type="submit" disabled={working}>
+      <Button variant="primary" type="submit" disabled={working}>
         {t("coachTax.saveIdentity")}
-      </button>
-      {status ? <p role={status === "error" ? "alert" : "status"}>{t(`coachTax.${status}`)}</p> : null}
+      </Button>
+      {status ? (
+        <Note tone={status === "error" ? "danger" : "success"} role={status === "error" ? "alert" : "status"}>
+          {t(`coachTax.${status}`)}
+        </Note>
+      ) : null}
     </form>
   );
 }

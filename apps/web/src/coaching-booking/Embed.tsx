@@ -3,6 +3,9 @@ import Cal, { getCalApi } from "@calcom/embed-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { Note } from "@/design/Note";
+import { useCalTheme } from "./cal-theme";
+import "./cal-embed.css";
 const ORIGIN = "https://cal.com",
   NAMESPACE = "jobbbox-paid-session",
   LAYOUT = "month_view",
@@ -11,7 +14,8 @@ const ORIGIN = "https://cal.com",
 export function BookingEmbed({ bookingUrl, token }: { bookingUrl: string; token: string }) {
   const router = useRouter(),
     { t } = useTranslation(),
-    [submitted, setSubmitted] = useState(false);
+    [submitted, setSubmitted] = useState(false),
+    theme = useCalTheme(NAMESPACE);
   useEffect(() => {
     let active = true,
       unsubscribe: (() => void) | undefined;
@@ -39,13 +43,17 @@ export function BookingEmbed({ bookingUrl, token }: { bookingUrl: string; token:
   }, [submitted, router]);
   return (
     <>
-      {submitted ? <p role="status">{t("coachingBooking.waitingBooking")}</p> : null}
+      {submitted ? (
+        <Note tone="info" role="status">
+          {t("coachingBooking.waitingBooking")}
+        </Note>
+      ) : null}
       <Cal
         calLink={new URL(bookingUrl).pathname.slice(1)}
         calOrigin={ORIGIN}
         namespace={NAMESPACE}
-        config={{ "metadata[jobbbox_session]": token, layout: LAYOUT }}
-        style={{ width: "100%", minHeight: 600, overflow: "auto" }}
+        config={{ "metadata[jobbbox_session]": token, layout: LAYOUT, theme }}
+        className="cal-embed cal-embed--booking"
       />
     </>
   );

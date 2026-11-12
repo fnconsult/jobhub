@@ -23,8 +23,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
   return (
     <PublicSite>
-      <main className="page stack">
-        <h1>{t("contentReport.title")}</h1>
+      <main id="main" className="ds-site__page ds-site__narrow">
+        <h1 className="ds-site__title">{t("contentReport.title")}</h1>
         <p>{t(target === "page" ? "contentReport.pageTarget" : "contentReport.offerTarget", { name: coach.name })}</p>
         <p>{t("contentReport.intro")}</p>
         <ContentReportForm coachId={id} target={target} locale={locale} />

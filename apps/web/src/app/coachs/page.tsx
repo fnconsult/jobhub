@@ -16,6 +16,7 @@ import { getCoachingTimeZones } from "@/coaching-time/server";
 import type { Metadata } from "next";
 import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { LegacyHumanCoachesPage } from "./LegacyHumanCoachesPage";
+import { buttonClass } from "@/design/button-class";
 import Link from "next/link";
 const CANCELLATIONS = "/coachs/annulations";
 import { redirect } from "next/navigation";
@@ -134,7 +135,7 @@ export default async function HumanCoachesPage({ searchParams }: {
               <div className="actions">
                 <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
                 <CancellationWindow at={cancellationOn ? paid.scheduledAt.toISOString() : null}>
-                  {calPaths[paid.id] ? (<Link className="button" href={calPaths[paid.id]!}>
+                  {calPaths[paid.id] ? (<Link className={buttonClass()} href={calPaths[paid.id]!}>
                       {t("coachingBooking.manage")}
                     </Link>) : null}
                   <CoachingSessionDialog withVideoLink={meetings === null} session={{
@@ -153,9 +154,9 @@ export default async function HumanCoachesPage({ searchParams }: {
               <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t}/>
               <div className="actions">
                 {pendingCancellations.has(paid.id) ? (<p>{t("coachingCancellation.open")}</p>) : (<>
-                    {calPaths[paid.id] ? (<Link className="button button-primary" href={calPaths[paid.id]!}>
+                    {calPaths[paid.id] ? (<Link className={buttonClass({ variant: "primary" })} href={calPaths[paid.id]!}>
                         {t("humanCoaches.pickSlot", { name: paid.coach.name })}
-                      </Link>) : (<ExternalLink className="button button-primary" href={paid.coach.bookingUrl}>
+                      </Link>) : (<ExternalLink className={buttonClass({ variant: "primary" })} href={paid.coach.bookingUrl}>
                         {t("humanCoaches.pickSlot", { name: paid.coach.name })}
                       </ExternalLink>)}
                     <CoachingSessionDialog withVideoLink={meetings === null} session={{ id: paid.id, scheduledAt: "", durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }} withName={paid.coach.name}/>

@@ -2,6 +2,7 @@
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Field, Textarea } from "@/design/Field";
+import { Note } from "@/design/Note";
 
 /** Serial, debounced, optimistic saves: a stale browser never overwrites another tab's notes. */
 export function PrivateNotes({ candidateId, sessionId, initial }: { candidateId: string; sessionId?: string; initial: { text: string; revision: number } }) {
@@ -38,7 +39,12 @@ export function PrivateNotes({ candidateId, sessionId, initial }: { candidateId:
       <Field id={id} label={t("coachWorkspace.notes")} hint={t("coachWorkspace.notesExport")}>
         <Textarea value={text} maxLength={20_000} onChange={(event) => change(event.target.value)} />
       </Field>
-      <p role={status === "failed" || status === "conflict" ? "alert" : "status"}>{t(`coachWorkspace.noteStatus.${status}`)}</p>
+      <Note
+        tone={status === "failed" || status === "conflict" ? "danger" : status === "saved" ? "success" : "info"}
+        role={status === "failed" || status === "conflict" ? "alert" : "status"}
+      >
+        {t(`coachWorkspace.noteStatus.${status}`)}
+      </Note>
     </div>
   );
 }

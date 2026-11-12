@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card } from "@/design/Card";
 import { Checkbox } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { NoticeSettings } from "./index";
 export function CoachingNoticeSettings({ initial, audience }: { initial: NoticeSettings; audience: "candidate" | "coach" }) {
   const { t } = useTranslation(),
@@ -44,7 +45,11 @@ export function CoachingNoticeSettings({ initial, audience }: { initial: NoticeS
         ))}
         <p>{t("coachingNotices.settings.independent")}</p>
         <p>{t("coachingNotices.settings.contract")}</p>
-        {status ? <p role={status === "error" ? "alert" : "status"}>{t(`coachingNotices.settings.${status}`)}</p> : null}
+        {status ? (
+          <Note tone={status === "error" ? "danger" : "success"} role={status === "error" ? "alert" : "status"}>
+            {t(`coachingNotices.settings.${status}`)}
+          </Note>
+        ) : null}
       </div>
     </Card>
   );

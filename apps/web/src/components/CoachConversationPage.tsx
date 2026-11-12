@@ -699,7 +699,7 @@ export function CoachConversationPage(page: PagePlacement) {
                 >
                   <span className="visually-hidden">{message.from === "coach" ? (message.humanCoach ? t("coachReports.author", { name: message.humanCoach.name }) : t("questionnaire.coach")) : t("questionnaire.you")}</span>
                   {/* A reply is unframed text, the thread's full width, no glyph once it is there (#788); the Candidate's words, a bubble. */}
-                  {message.from === "coach" && message.humanCoach ? <p className="coach-report-author">{message.humanCoach.photoUrl ? <img src={message.humanCoach.photoUrl} alt={message.humanCoach.name} width={40} height={40} /> : null}{t("coachReports.author", { name: message.humanCoach.name })}</p> : null}
+                  {message.from === "coach" && message.humanCoach ? <p className="coach-report-author">{message.humanCoach.photoUrl ? <img src={message.humanCoach.photoUrl} alt="" width={40} height={40} /> : null}{t("coachReports.author", { name: message.humanCoach.name })}</p> : null}
                   {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                   {message.from === "coach" ? <CoachReplyText text={message.text} reveal={message.revealing !== undefined} /> : <p>{message.text}</p>}
                   {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}

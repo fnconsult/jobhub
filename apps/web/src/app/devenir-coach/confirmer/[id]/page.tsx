@@ -20,8 +20,8 @@ export default async function Page({ params }: {
         notFound();
     const t = await getServerT();
     return (<PublicSite>
-      <main className="page stack">
-        <h1>{t("coachEnrolment.confirmTitle")}</h1>
+      <main id="main" className="ds-site__page ds-site__narrow">
+        <h1 className="ds-site__title">{t("coachEnrolment.confirmTitle")}</h1>
         <p>{t("coachEnrolment.confirmIntro")}</p>
         <OwnEnrolment record={record}/>
       </main>

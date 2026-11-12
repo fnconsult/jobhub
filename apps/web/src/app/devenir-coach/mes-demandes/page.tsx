@@ -12,8 +12,8 @@ export default async function Page() {
         return signInRedirect();
     const [records, t] = await Promise.all([getCoachEnrolments().own(person), getServerT()]);
     return (<PublicSite>
-      <main className="page stack">
-        <h1>{t("coachEnrolment.ownTitle")}</h1>
+      <main id="main" className="ds-site__page ds-site__narrow">
+        <h1 className="ds-site__title">{t("coachEnrolment.ownTitle")}</h1>
         {records.length ? records.map((record) => <OwnEnrolment key={record.id} record={record}/>) : <p>{t("coachEnrolment.noRequests")}</p>}
       </main>
     </PublicSite>);

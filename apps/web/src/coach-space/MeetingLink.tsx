@@ -3,6 +3,7 @@ import { coachingTime } from "@jobhub/shared/coaching-time";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink } from "@/components/ExternalLink";
+import { buttonClass } from "@/design/button-class";
 import { meetingTool, meetingWindow, type Meeting } from "./meeting";
 
 /** The button updates while the page is open, including when it first becomes available. */
@@ -46,7 +47,7 @@ export function MeetingLink({
       </p>
     );
   return (
-    <ExternalLink className="button" href={meeting.target}>
+    <ExternalLink className={buttonClass({ variant: "primary" })} href={meeting.target}>
       {t(`coachMeeting.join.${meetingTool(meeting.target)}`)}
     </ExternalLink>
   );

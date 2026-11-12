@@ -2,7 +2,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/design/Button";
+import { Field, Textarea } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { PeerOffer } from "./index";
+/** The Candidate's three choices after a coach cancels. */
+const REFUND = "refund",
+  SAME = "same",
+  PEER = "peer";
 export function CancellationChoices({ id, peers }: { id: string; peers: PeerOffer[] }) {
   const { t, i18n } = useTranslation(),
     router = useRouter();
@@ -24,12 +31,12 @@ export function CancellationChoices({ id, peers }: { id: string; peers: PeerOffe
   return (
     <div className="stack">
       <div className="actions">
-        <button className="button" disabled={working} onClick={() => void choose("refund")}>
+        <Button type="button" disabled={working} onClick={() => void choose(REFUND)}>
           {t("coachingCancellation.refund")}
-        </button>
-        <button className="button" disabled={working} onClick={() => void choose("same")}>
+        </Button>
+        <Button type="button" disabled={working} onClick={() => void choose(SAME)}>
           {t("coachingCancellation.same")}
-        </button>
+        </Button>
       </div>
       <h4>{t("coachingCancellation.peer")}</h4>
       <p>{t("coachingCancellation.peerExplanation")}</p>
@@ -41,16 +48,20 @@ export function CancellationChoices({ id, peers }: { id: string; peers: PeerOffe
                 {p.name} · {money(p.amount,p.currency)} · {t("humanCoaches.sessionDuration",{count:p.durationMinutes})}
               </p>
               <p>{[...p.specialties, ...p.languages].join(" · ")}</p>
-              <button className="button" disabled={working} onClick={() => void choose("peer", p.coachId)}>
+              <Button type="button" disabled={working} onClick={() => void choose(PEER, p.coachId)}>
                 {t("coachingCancellation.choosePeer", { name: p.name })}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       ) : (
         <p>{t("coachingCancellation.noPeer")}</p>
       )}
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? (
+        <Note tone="danger" role="alert">
+          {error}
+        </Note>
+      ) : null}
     </div>
   );
 }
@@ -79,24 +90,27 @@ export function CoachCancel({ sessionId }: { sessionId: string }) {
   }
   return open ? (
     <form onSubmit={submit} className="stack">
-      <label>
-        {t("coachingCancellation.reason")}
-        <textarea required maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </label>
+      <Field label={t("coachingCancellation.reason")}>
+        <Textarea required maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} />
+      </Field>
       <p>{t("coachingCancellation.choices")}</p>
       <div className="actions">
-        <button className="button" disabled={working || !reason.trim()}>
+        <Button variant="dangerSolid" type="submit" disabled={working || !reason.trim()}>
           {t("coachingCancellation.confirmCoach")}
-        </button>
-        <button className="button" type="button" disabled={working} onClick={() => setOpen(false)}>
+        </Button>
+        <Button type="button" disabled={working} onClick={() => setOpen(false)}>
           {t("coachingCancellation.keep")}
-        </button>
+        </Button>
       </div>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? (
+        <Note tone="danger" role="alert">
+          {error}
+        </Note>
+      ) : null}
     </form>
   ) : (
-    <button className="button" onClick={() => setOpen(true)}>
+    <Button variant="danger" type="button" onClick={() => setOpen(true)}>
       {t("coachingCancellation.cancelCoach")}
-    </button>
+    </Button>
   );
 }

@@ -2,7 +2,9 @@
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
+import { Button } from "@/design/Button";
 import { Field, Textarea } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { ReportFields } from "./reports";
 const FIELDS = ["covered", "nextSteps", "resources"] as const;
 export function ReportEditor({ sessionId, initial }: { sessionId: string; initial: ReportFields | null }) {
@@ -55,14 +57,18 @@ export function ReportEditor({ sessionId, initial }: { sessionId: string; initia
         </Field>
       ))}
       <div className="actions">
-        <button className="button" type="submit" disabled={status === "saving"}>
+        <Button type="submit" disabled={status === "saving"}>
           {t("coachReports.save")}
-        </button>
-        <button className="button" type="button" disabled={status === "saving" || !fields.covered.trim()} onClick={() => void save(true)}>
+        </Button>
+        <Button variant="primary" type="button" disabled={status === "saving" || !fields.covered.trim()} onClick={() => void save(true)}>
           {t("coachReports.publish")}
-        </button>
+        </Button>
       </div>
-      {status !== "idle" ? <p role={status === "failed" ? "alert" : "status"}>{t(`coachReports.status.${status}`)}</p> : null}
+      {status !== "idle" ? (
+        <Note tone={status === "failed" ? "danger" : status === "saving" ? "info" : "success"} role={status === "failed" ? "alert" : "status"}>
+          {t(`coachReports.status.${status}`)}
+        </Note>
+      ) : null}
     </form>
   );
 }

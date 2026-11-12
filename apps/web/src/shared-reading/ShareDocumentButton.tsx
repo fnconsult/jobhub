@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
+import { Button } from "@/design/Button";
 import { Drawer } from "@/design/Drawer";
+import { Note } from "@/design/Note";
 import type { SharedSource } from "./index";
 /** Appears only while the Candidate has an active paid session in its reading window. */
 export function ShareDocumentButton({ source }: { source: SharedSource }) {
@@ -49,21 +51,25 @@ export function ShareDocumentButton({ source }: { source: SharedSource }) {
     <Drawer
       title={t("sharedReading.show")}
       trigger={
-        <button className="button" type="button" aria-label={`${t("sharedReading.show")} · ${t(`sharedReading.sources.${source.kind}`)}`}>
+        <Button type="button" aria-label={`${t("sharedReading.show")} · ${t(`sharedReading.sources.${source.kind}`)}`}>
           {t("sharedReading.show")}
-        </button>
+        </Button>
       }
     >
-      <ul>
+      <ul className="stack">
         {sessions.map((session) => (
           <li key={session.id}>
-            <button className="button" type="button" onClick={() => void show(session.id)}>
+            <Button variant="primary" type="button" onClick={() => void show(session.id)}>
               {session.coachName}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
-      {failed ? <p role="alert">{t("sharedReading.failed")}</p> : null}
+      {failed ? (
+        <Note tone="danger" role="alert">
+          {t("sharedReading.failed")}
+        </Note>
+      ) : null}
     </Drawer>
   );
 }

@@ -2,7 +2,9 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MasterCvView } from "@/components/MasterCvView";
+import { Button } from "@/design/Button";
 import { DocumentViewer } from "@/design/DocumentViewer";
+import { Note } from "@/design/Note";
 import { FileUpload } from "@/design/FileUpload";
 import { Field, Select } from "@/design/Field";
 import { SHARED_PDF_MAX_BYTES, type SharedDocument, type SharedReadingState, type SharedSource } from "./index";
@@ -149,9 +151,9 @@ export function SharedReadingPanel({ sessionId, audience }: { sessionId: string;
               ))}
             </Select>
           </Field>
-          <button className="button" type="submit" disabled={!chosen}>
+          <Button variant="primary" type="submit" disabled={!chosen}>
             {t("sharedReading.show")}
-          </button>
+          </Button>
         </form>
       ) : (
         <form className="stack" onSubmit={(event) => void upload(event)}>
@@ -164,20 +166,24 @@ export function SharedReadingPanel({ sessionId, audience }: { sessionId: string;
             problems={{ unsupported_format: t("sharedReading.badPdf"), too_large: t("sharedReading.tooLarge") }}
             onChange={setFile}
           />
-          <button className="button" type="submit" disabled={!file}>
+          <Button variant="primary" type="submit" disabled={!file}>
             {t("sharedReading.present")}
-          </button>
+          </Button>
         </form>
       )}
-      {failed ? <p role="alert">{t("sharedReading.failed")}</p> : null}
+      {failed ? (
+        <Note tone="danger" role="alert">
+          {t("sharedReading.failed")}
+        </Note>
+      ) : null}
       {state ? (
         <>
-          <p role="status" aria-live="polite">
+          <Note tone="info" role="status">
             {t("sharedReading.page", { page: state.page })}
-          </p>
-          <button className="button" type="button" onClick={() => void stop()}>
+          </Note>
+          <Button type="button" onClick={() => void stop()}>
             {t("sharedReading.stop")}
-          </button>
+          </Button>
           {content?.kind === "pdf" ? (
             <DocumentViewer
               src={`${endpoint}/document?share=${state.id}`}

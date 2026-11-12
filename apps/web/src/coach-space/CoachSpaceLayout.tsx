@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { SidebarShell, CURRENT } from "@/components/SidebarShell";
+import { Button } from "@/design/Button";
 import { Drawer } from "@/design/Drawer";
 import { OverlayScope } from "@/design/overlay";
 import { routes } from "@/routes";
@@ -26,7 +27,7 @@ export function CoachSpaceLayout({ children,remindersEnabled=false }: { children
         dockAt={DOCK_AT}
         brand={{ href: HOME, label: `${t("app.name")} · ${t("coachSpace.title")}` }}
         title={t(current ? `coachSpaceV2.pages.${current}` : "coachSpace.title")}
-        topBarEnd={<Drawer title={t("coachSpaceV2.notifications")} trigger={<button className="button" type="button">{t("coachSpaceV2.notifications")}</button>}><p>{t("coachSpaceV2.noNotifications")}</p></Drawer>}
+        topBarEnd={<Drawer title={t("coachSpaceV2.notifications")} trigger={<Button type="button">{t("coachSpaceV2.notifications")}</Button>}><p>{t("coachSpaceV2.noNotifications")}</p></Drawer>}
         nav={(close) => (
           <nav className="sidebar-nav" aria-label={t("coachSpace.title")}>
             <ul className="sidebar-group">
@@ -36,7 +37,7 @@ export function CoachSpaceLayout({ children,remindersEnabled=false }: { children
         )}
         foot={(close) => <Link className="sidebar-link" href={routes.account} onClick={close}>{t("nav.account")}</Link>}
       >
-        <div className="coach-space-cards">{children}</div>
+        <div className="coach-space-column">{children}</div>
       </SidebarShell>
     </OverlayScope>
   );

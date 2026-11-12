@@ -26,8 +26,8 @@ export default async function Page({ params }: {
         notFound();
     const t = await getServerT();
     return (<PublicSite>
-      <main className="page stack">
-        <h1>{t("coachSpaceV2.pages.contrat")}</h1>
+      <main id="main" className="ds-site__page stack">
+        <h1 className="ds-site__title">{t("coachSpaceV2.pages.contrat")}</h1>
         <ContractText shown={shown}/>
       </main>
     </PublicSite>);

@@ -17,11 +17,13 @@ export default async function Page() {
         redirect(`/espace-association/${associations[0]!.id}/coachs`);
     const t = await getServerT();
     return (<PublicSite>
-      <main className="page stack">
-        <h1>{t("association.title")}</h1>
-        {associations.map((a) => (<Link key={a.id} href={`/espace-association/${a.id}/coachs`}>
-            {a.name}
-          </Link>))}
+      <main id="main" className="ds-site__page ds-site__narrow">
+        <h1 className="ds-site__title">{t("association.title")}</h1>
+        <ul className="stack">
+          {associations.map((a) => (<li key={a.id}>
+              <Link href={`/espace-association/${a.id}/coachs`}>{a.name}</Link>
+            </li>))}
+        </ul>
       </main>
     </PublicSite>);
 }

@@ -3,7 +3,12 @@ import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getServerT } from "@/i18n/server";
 import { getCoachingBooking, calTeamId, calBookingOn } from "./server";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
 import { Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
+/** One of a list of things: an article (Card). */
+const ARTICLE = "article";
 const COACH = "coachId",
   EVENT = "eventTypeId",
   HOST = "hostId",
@@ -79,44 +84,49 @@ export async function BookingAdmin({ canWrite, status }: { canWrite: boolean; st
     <section className="stack">
       <h2>{t("coachingBooking.adminTitle")}</h2>
       <p>{t("coachingBooking.adminIntro")}</p>
-      {status ? <p role="status">{t(status === "saved" || status === "created" ? "coachingBooking.saved" : "coachingBooking.failed")}</p> : null}
+      {status ? (
+        <Note tone={status === "saved" || status === "created" ? "success" : "danger"} role="status">
+          {t(status === "saved" || status === "created" ? "coachingBooking.saved" : "coachingBooking.failed")}
+        </Note>
+      ) : null}
       {!(await calBookingOn()) ? <p>{t("coachingBooking.legalPending")}</p> : null}
       {coaches.map(async (coach) => {
         const event = await booking.configured(coach.id);
         return (
-          <div className="coach-space-card stack" key={coach.id}>
-            <h3>{coach.name}</h3>
-            {coach.bookingUrl.includes("cal.eu") ? <p>{t("coachingBooking.reviewLegacy")}</p> : null}
-            {event ? <p>{t("coachingBooking.configured", { id: event.id, host: event.hostId, minutes: event.durationMinutes })}</p> : null}
-            {canWrite ? (
-              <>
-                <form action={attach} className="stack">
-                  <input type="hidden" name={COACH} value={coach.id} />
-                  <Field label={t("coachingBooking.eventId")}>
-                    <TextInput name={EVENT} type="number" min={1} required />
-                  </Field>
-                  <Field label={t("coachingBooking.hostId")}>
-                    <TextInput name={HOST} type="number" min={1} required />
-                  </Field>
-                  <button className="button" type="submit">
-                    {t("coachingBooking.attach")}
-                  </button>
-                </form>
-                <form action={create} className="stack">
-                  <input type="hidden" name={COACH} value={coach.id} />
-                  <Field label={t("coachingBooking.hostId")}>
-                    <TextInput name={HOST} type="number" min={1} required />
-                  </Field>
-                  <Field label={t("coachingBooking.duration")}>
-                    <TextInput name={DURATION} type="number" min={1} max={480} required />
-                  </Field>
-                  <button className="button" type="submit">
-                    {t("coachingBooking.create")}
-                  </button>
-                </form>
-              </>
-            ) : null}
-          </div>
+          <Card as={ARTICLE} headingLevel={3} title={coach.name} key={coach.id}>
+            <div className="stack">
+              {coach.bookingUrl.includes("cal.eu") ? <p>{t("coachingBooking.reviewLegacy")}</p> : null}
+              {event ? <p>{t("coachingBooking.configured", { id: event.id, host: event.hostId, minutes: event.durationMinutes })}</p> : null}
+              {canWrite ? (
+                <>
+                  <form action={attach} className="stack">
+                    <input type="hidden" name={COACH} value={coach.id} />
+                    <Field label={t("coachingBooking.eventId")}>
+                      <TextInput name={EVENT} type="number" min={1} required />
+                    </Field>
+                    <Field label={t("coachingBooking.hostId")}>
+                      <TextInput name={HOST} type="number" min={1} required />
+                    </Field>
+                    <button className={buttonClass({ size: "sm" })} type="submit">
+                      {t("coachingBooking.attach")}
+                    </button>
+                  </form>
+                  <form action={create} className="stack">
+                    <input type="hidden" name={COACH} value={coach.id} />
+                    <Field label={t("coachingBooking.hostId")}>
+                      <TextInput name={HOST} type="number" min={1} required />
+                    </Field>
+                    <Field label={t("coachingBooking.duration")}>
+                      <TextInput name={DURATION} type="number" min={1} max={480} required />
+                    </Field>
+                    <button className={buttonClass({ size: "sm" })} type="submit">
+                      {t("coachingBooking.create")}
+                    </button>
+                  </form>
+                </>
+              ) : null}
+            </div>
+          </Card>
         );
       })}
     </section>

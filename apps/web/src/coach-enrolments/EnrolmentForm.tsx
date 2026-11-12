@@ -2,7 +2,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/design/Button";
 import { Field, Select, TextInput, Textarea } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { FileUpload } from "@/design/FileUpload";
 import { PROOF_MAX_BYTES } from "./limits";
 const COACH = "coach",
@@ -48,7 +50,12 @@ export function EnrolmentForm({ locale, email = "" }: { locale: "fr" | "en"; ema
     } else if (response?.status === 429) setLimited(true);
     else setFailed(true);
   }
-  if (sent) return <p role="status">{t("coachEnrolment.sent")}</p>;
+  if (sent)
+    return (
+      <Note tone="success" role="status">
+        {t("coachEnrolment.sent")}
+      </Note>
+    );
   return (
     <form className="stack" onSubmit={(event) => void submit(event)}>
       <Field label={t("coachEnrolment.kind")}>
@@ -74,11 +81,19 @@ export function EnrolmentForm({ locale, email = "" }: { locale: "fr" | "en"; ema
         rules={RULES}
         problems={{ unsupported_format: t("coachEnrolment.proofInvalid"), too_large: t("coachEnrolment.proofLarge") }}
       />
-      <button className="button button-primary" type="submit" disabled={working || !proofReady}>
+      <Button variant="primary" type="submit" disabled={working || !proofReady}>
         {t(working ? "coachEnrolment.sending" : "coachEnrolment.submit")}
-      </button>
-      {failed ? <p role="alert">{t("coachEnrolment.failed")}</p> : null}
-      {limited ? <p role="alert">{t("coachEnrolment.tooMany")}</p> : null}
+      </Button>
+      {failed ? (
+        <Note tone="danger" role="alert">
+          {t("coachEnrolment.failed")}
+        </Note>
+      ) : null}
+      {limited ? (
+        <Note tone="danger" role="alert">
+          {t("coachEnrolment.tooMany")}
+        </Note>
+      ) : null}
     </form>
   );
 }

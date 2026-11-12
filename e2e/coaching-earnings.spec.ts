@@ -103,8 +103,8 @@ test("Coach and Association statements stay private, printable and usable at 390
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`${route}?mois=2026-06`);
       await expect(page.getByRole("heading", { name: fr.coachEarnings.offers, exact: true })).toBeVisible();
-      await expect(page.locator(".earnings-list").first()).toContainText("Sophie Revenus");
-      await expect(page.locator(".earnings-table")).not.toBeVisible();
+      // One table, scrolling in its own frame on a phone rather than widening the page.
+      await expect(page.getByRole("table", { name: fr.coachEarnings.offers, exact: true })).toContainText("Sophie Revenus");
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(page.locator("body")).not.toContainText("PRIVATE_BUYER_NOTE");
       await page.screenshot({path:`/tmp/earnings-${seller.kind}-390.png`,fullPage:true});
@@ -116,7 +116,7 @@ test("Coach and Association statements stay private, printable and usable at 390
       await page.getByLabel(fr.coachEarnings.month, { exact: true }).fill("2026-05");
       await page.getByRole("button", { name: fr.coachEarnings.show, exact: true }).click();
       await expect(page).toHaveURL(/mois=2026-05/);
-      await expect(page.locator(".earnings-table")).toHaveCount(0);
+      await expect(page.getByRole("table", { name: fr.coachEarnings.offers, exact: true })).toHaveCount(0);
     }
     expect((await owner.page.request.get(`/api/coaching/earnings/${group.id}/pdf`)).status()).toBe(404);
     expect((await owner.page.request.get(`/api/coaching/earnings/${solo.id}/pdf?mois=not-a-month`)).status()).toBe(404);

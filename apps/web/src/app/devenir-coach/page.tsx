@@ -15,8 +15,8 @@ export default async function Page() {
     requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
     const [t, locale, person] = await Promise.all([getServerT(), getRequestLocale(), getCurrentCandidate()]);
     return (<PublicSite>
-      <main className="page stack">
-        <h1>{t("coachEnrolment.title")}</h1>
+      <main id="main" className="ds-site__page ds-site__narrow">
+        <h1 className="ds-site__title">{t("coachEnrolment.title")}</h1>
         <p>{t("coachEnrolment.intro")}</p>
         {person ? <Link href={OWN}>{t("coachEnrolment.ownTitle")}</Link> : null}
         <EnrolmentForm locale={locale} email={person?.email ?? ""}/>

@@ -10,6 +10,7 @@ import { ConnectOnboarding } from "@/coaching-connect/ConnectOnboarding";
 import { sharedPool } from "@/database/pool";
 import { AssociationLayout } from "@/coach-associations/AssociationLayout";
 import { requireAssociation } from "@/coach-associations/server";
+import { Card } from "@/design/Card";
 import { getServerT } from "@/i18n/server";
 const PAGE = "revenus";
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ mois?: string;fiscalYear?:string }> }) {
@@ -32,9 +33,9 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           timeZone={(await getCoachingTimeZones().candidate(person.id)) ?? COACHING_DEFAULT_ZONE}
         />
       ) : (
-        <section className="coach-space-card">
+        <Card>
           <p>{t("association.earningsEmpty")}</p>
-        </section>
+        </Card>
       )}
     </AssociationLayout>
   );

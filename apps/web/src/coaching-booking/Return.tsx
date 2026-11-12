@@ -4,6 +4,8 @@ import { BookingEmbed } from "./Embed";
 import { BookingWait } from "./ReturnWait";
 import { getServerT } from "@/i18n/server";
 import Link from "next/link";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
 const BACK = "/coachs";
 export async function BookingReturn({ candidateId, checkoutId }: { candidateId: string; checkoutId: string }) {
   if (!/^cs_[\w-]{1,200}$/.test(checkoutId) || !(await calBookingOn())) return null;
@@ -18,12 +20,13 @@ export async function BookingReturn({ candidateId, checkoutId }: { candidateId: 
   if (!claim?.token) return null;
   const t = await getServerT();
   return (
-    <section className="coach-space-card">
-      <h2>{t("coachingBooking.book")}</h2>
-      <BookingEmbed bookingUrl={claim.event.bookingUrl} token={claim.token} />
-      <Link className="button" href={BACK}>
-        {t("coachingBooking.later")}
-      </Link>
-    </section>
+    <Card title={t("coachingBooking.book")} headingLevel={3} flat>
+      <div className="stack">
+        <BookingEmbed bookingUrl={claim.event.bookingUrl} token={claim.token} />
+        <Link className={buttonClass()} href={BACK}>
+          {t("coachingBooking.later")}
+        </Link>
+      </div>
+    </Card>
   );
 }

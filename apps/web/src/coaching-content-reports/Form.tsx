@@ -2,7 +2,9 @@
 import { REPORT_REASONS, type ReportReason } from "./values";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/design/Button";
 import { Field, Select, TextInput, Textarea, Checkbox } from "@/design/Field";
+import { Note } from "@/design/Note";
 export function ContentReportForm({ coachId, target, locale }: { coachId: string; target: "page" | "offer"; locale: "fr" | "en" }) {
   const { t } = useTranslation(),
     [reason, setReason] = useState<ReportReason>("misleading"),
@@ -41,10 +43,9 @@ export function ContentReportForm({ coachId, target, locale }: { coachId: string
   }
   if (result && result !== "error")
     return (
-      <div role="status">
-        <p>{t("contentReport.received")}</p>
+      <Note tone="success" role="status" title={t("contentReport.received")}>
         <p>{t("contentReport.reference", { id: result })}</p>
-      </div>
+      </Note>
     );
   return (
     <form className="stack" onSubmit={(event) => void submit(event)}>
@@ -68,10 +69,14 @@ export function ContentReportForm({ coachId, target, locale }: { coachId: string
         <TextInput name="email" type="email" required={reason !== "child_abuse"} autoComplete="email" />
       </Field>
       <Checkbox name="goodFaith" required label={t("contentReport.goodFaith")} />
-      {result === "error" ? <p role="alert">{t("contentReport.invalid")}</p> : null}
-      <button className="button button-primary" type="submit" disabled={working}>
+      {result === "error" ? (
+        <Note tone="danger" role="alert">
+          {t("contentReport.invalid")}
+        </Note>
+      ) : null}
+      <Button variant="primary" type="submit" disabled={working}>
         {t("contentReport.send")}
-      </button>
+      </Button>
     </form>
   );
 }

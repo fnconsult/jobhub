@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
 import { requireCoachSpace } from "@/coach-space/server";
 import { requireAssociation } from "@/coach-associations/server";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
 import { getServerT } from "@/i18n/server";
 import { sharedPool } from "@/database/pool";
 import { getCoachingConnect } from "./server";
@@ -41,20 +43,19 @@ export async function ConnectOnboarding({ sellerId }: { sellerId: string | null 
   if (!sellerId) return <p>{t("coachConnect.identityPending")}</p>;
   const seller = await getCoachingConnect().seller(sellerId);
   return (
-    <section className="coach-space-card stack">
-      <h2>{t("coachConnect.accountTitle")}</h2>
+    <Card title={t("coachConnect.accountTitle")}>
       <p>{t("coachConnect.hostedKyc")}</p>
-      <form action={openConnect}>
+      <form className="actions" action={openConnect}>
         <input type="hidden" name={SELLER} value={sellerId} />
-        <button className="button" name={OPERATION} value={ONBOARD}>
+        <button className={buttonClass({ variant: "primary" })} type="submit" name={OPERATION} value={ONBOARD}>
           {t(seller?.accountId ? "coachConnect.complete" : "coachConnect.start")}
         </button>
         {seller?.accountId ? (
-          <button className="button" name={OPERATION} value={DASHBOARD}>
+          <button className={buttonClass()} type="submit" name={OPERATION} value={DASHBOARD}>
             {t("coachConnect.dashboard")}
           </button>
         ) : null}
       </form>
-    </section>
+    </Card>
   );
 }

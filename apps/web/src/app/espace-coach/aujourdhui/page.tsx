@@ -3,6 +3,7 @@ import { getSessionReports } from "@/coach-space/reports-server";
 import Link from "next/link";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { CalledBy } from "@/components/CalledBy";
+import { Card } from "@/design/Card";
 import { requireCoachSpace } from "@/coach-space/server";
 import { getCoachWorkspace } from "@/coach-space/workspace-server";
 import { SessionCard, coachSessionUrl, coachCandidateUrl } from "@/coach-space/SessionCard";
@@ -33,8 +34,7 @@ export default async function Page() {
           <p>{t("coachWorkspace.noTomorrow")}</p>
         )}
       </section>
-      <section className="coach-space-card">
-        <h2>{t("coachWorkspace.todo")}</h2>
+      <Card title={t("coachWorkspace.todo")}>
         {day.toSchedule.length + day.toConfirm.length + reportsDue.length === 0 ? (
           <p>{t("coachWorkspace.nothingTodo")}</p>
         ) : (
@@ -56,9 +56,8 @@ export default async function Page() {
             ))}
           </ul>
         )}
-      </section>
-      <section className="coach-space-card">
-        <h2>{t("coachWorkspace.recent")}</h2>
+      </Card>
+      <Card title={t("coachWorkspace.recent")}>
         {day.recent.length ? (
           <ul>
             {day.recent.map((candidate) => (
@@ -71,7 +70,7 @@ export default async function Page() {
         ) : (
           <p>{t("coachSpaceV2.empty.candidates")}</p>
         )}
-      </section>
+      </Card>
     </CoachSpaceShell>
   );
 }

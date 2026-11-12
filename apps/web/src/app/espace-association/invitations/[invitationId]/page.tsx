@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getCoachAssociations } from "@/coach-associations/server";
 import { PublicSite } from "@/design/PublicSite";
+import { buttonClass } from "@/design/button-class";
 import { getServerT } from "@/i18n/server";
 const F = { id: "invitationId", token: "token" };
 async function accept(form: FormData) {
@@ -33,8 +34,8 @@ export default async function Page({ params, searchParams }: {
         notFound();
     const t = await getServerT();
     return (<PublicSite>
-      <main className="page stack">
-        <h1>{t("association.invitationTitle", { name: record.associationName })}</h1>
+      <main id="main" className="ds-site__page ds-site__narrow">
+        <h1 className="ds-site__title">{t("association.invitationTitle", { name: record.associationName })}</h1>
         <p>{t(record.role === "coach" ? "association.joinCoachHint" : "association.joinMemberHint")}</p>
         <p>
           {record.name} · {record.email}
@@ -42,7 +43,7 @@ export default async function Page({ params, searchParams }: {
         <form action={accept}>
           <input type="hidden" name={F.id} value={invitationId}/>
           <input type="hidden" name={F.token} value={token}/>
-          <button className="button" type="submit">
+          <button className={buttonClass({ variant: "primary" })} type="submit">
             {t("association.acceptInvitation")}
           </button>
         </form>

@@ -362,14 +362,13 @@
       "extensionIntro": "Depuis la page d'une offre d'emploi, l'extension l'enregistre dans Jobbbox et calcule son score de correspondance, sans copier-coller.",
       "install": "Installer l'extension depuis le Chrome Web Store",
       "soon": "L'extension arrive bientôt sur le Chrome Web Store.",
-      "newTab": "(nouvel onglet)",
       "testBuild": {
         "title": "Dernière version de l'extension",
         "intro": "Réservé aux administrateurs : chargez l'extension que sert ce serveur, avant sa publication sur le Chrome Web Store.",
         "extensionVersion": "Version de l'extension",
         "apiVersion": "Version d'API servie",
-        "releases": "Voir les versions sur GitHub",
-        "access": "Le dépôt est privé : il faut y avoir accès.",
+        "download": "Télécharger {{zip}}",
+        "unavailable": "Ce serveur ne sert pas de zip de l'extension : seule l'image d'un déploiement contient {{zip}}. En local, construisez-le avec npm run zip -w @jobhub/extension (ou zip:beta).",
         "stepsLabel": "Charger l'extension dans Chrome",
         "steps": {
           "download": "Téléchargez {{zip}}, puis décompressez-le.",

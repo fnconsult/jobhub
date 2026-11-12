@@ -59,6 +59,15 @@ npm run --silent release-note -w @jobhub/help -- --check
 
 Une phrase, recopiée telle quelle dans le rapport : la Release Note `releases/{fr,en}/$VERSION.md` est écrite, ou des fragments l'attendent dans `packages/help/releases/unreleased/` (à assembler avec `npm run release-note -w @jobhub/help` avant la Promotion), ou elle manque. **Ce constat ne bloque jamais le déploiement de la Beta** : il prépare la Promotion.
 
+Puis l'Extension Version que porte `$SHA`, et si sa GitHub Release existe (#989) :
+
+```bash
+EXT=$(git show "$SHA:apps/extension/package.json" | jq -r .version)
+gh api "repos/fnconsult/jobhub/releases/tags/extension-v$EXT" --jq .html_url 2>/dev/null || echo "aucune Release extension-v$EXT"
+```
+
+Une phrase pour le rapport : la Release `extension-v$EXT` existe (son lien), ou elle n'existe pas encore. Dans ce cas, dites que c'est l'étape du product owner pour les fiches du Chrome Web Store (`docs/ops/extension.md`, étape 3) et donnez-lui la commande, sans la lancer : `gh workflow run extension.yml --ref main`. Ce constat ne bloque pas non plus le déploiement : la Beta sert elle-même son zip de test dans Outils (`apps/web/Dockerfile`).
+
 ## 4. Déployer
 
 En mode à blanc, affichez cette commande et passez à l'étape 6.
@@ -101,5 +110,6 @@ En français, court :
 - **Commit choisi** : le dernier commit vert de `main` (ou le SHA demandé), et `$NEWER` commit(s) de `main` plus récent(s) non déployé(s), avec leur état de CI ;
 - **Beta** : ce que répond `/api/health` (avant, et après en mode normal) ;
 - **Release Note** : la phrase de l'étape 3 ;
+- **Extension** : la phrase de l'étape 3 sur la Release `extension-v$EXT` ;
 - **App Jobbbox** : si ce déploiement change l'app (`git log --oneline <commit servi à l'étape 2>..$SHA -- apps/mobile packages/shared`), dites qu'une build staging de l'app est à faire, avec la commande pour le product owner, et ne la lancez pas : `gh workflow run mobile.yml -f profile=staging -f action=build` (ou `-f action=update -f message=…` pour un correctif JavaScript seul) ;
-- **Rappel** : aucun tag, aucune GitHub Release, Version inchangée ; la prochaine Version naîtra à la Promotion du product owner.
+- **Rappel** : aucun tag, aucune GitHub Release (ni `v*`, ni `extension-v*`), Version inchangée ; la prochaine Version naîtra à la Promotion du product owner.

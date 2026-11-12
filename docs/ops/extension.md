@@ -28,6 +28,12 @@ Le product owner, seul : aucun agent ne crée de tag ni de Release, et aucun age
 
 La publication reste manuelle tant qu'aucune clé d'API du Chrome Web Store n'est fournie. Microsoft Edge accepte le même zip (Partner Center), avec les mêmes textes.
 
+## Le zip de test dans Outils
+
+Indépendamment de la Release, chaque image web déployée porte les deux zip de l'Extension Version de son commit : `apps/web/Dockerfile` les construit (étape `extension`, les mêmes commandes que ci-dessus) dans `/app/extension`, que nomme `EXTENSION_ZIP_DIR`. Mon compte → Outils, bloc « Dernière version de l'extension », propose aux Administrators de télécharger celui de l'environnement (le zip beta sur la Beta, le public en Production) depuis le serveur, par `/api/account/extension-test-build` (404 à qui n'est pas Administrator). Aucun accès au dépôt n'est nécessaire, et rien ne dépend de l'étape 3 (#989). Hors image (`npm run dev`, un build local), le bloc dit que ce serveur n'a pas de zip.
+
+La GitHub Release `extension-vX.Y.Z` reste ce que le product owner envoie aux fiches du Chrome Web Store (étapes 4 et 5). Le skill `deploy-staging` signale l'Extension Version de `main` qui n'a pas encore la sienne.
+
 ## Recommandé côté GitHub
 
 Une règle de dépôt (Settings → Rules) qui réserve au product owner les tags `extension-v*`, comme `prod` et `v*` (`promotion.md`).
@@ -39,3 +45,5 @@ Une règle de dépôt (Settings → Rules) qui réserve au product owner les tag
 The extension has its own **Extension Version** `X.Y.Z`, digits only, in `apps/extension/package.json`, which the manifest repeats; it moves apart from the web app's Version. Each Extension Version has **two builds**: the public one (`npm run zip -w @jobhub/extension`), tied to Production (`https://jobbbox.ai`), for the public listing; and the beta one (`npm run zip:beta -w @jobhub/extension`), « Jobbbox (beta) » with an orange β icon, tied to the Beta (`https://staging.jobbbox.ai`), for the unlisted beta listing. The web app's origin comes from the build (`apps/extension/src/build-target.ts`), never from a user setting nor from a stray `WXT_WEB_ORIGIN`. The listings' texts, French (prevailing) and English, are in `apps/extension/store/`.
 
 Only the product owner publishes: raise the Extension Version through a merged pull request; run the `extension` workflow on `main`, which checks the version, tests the extension, builds and checks both zips, and creates the GitHub Release `extension-vX.Y.Z` (never the repo's latest) with both attached; upload each zip to its listing in the Chrome Web Store dashboard and submit it for review; once a listing is first published, set its URL in the Back Office setting `EXTENSION_STORE_URL` (the public listing in Production, the beta one on the Beta). An Extension Version a Candidate can see gets its Release Note through the delivering pull request's fragment, tagged `extension` in Nouveautés. Publishing stays manual while no Chrome Web Store API key is provided.
+
+Apart from the Release, each deployed web image carries both zips of its commit's Extension Version (`apps/web/Dockerfile` builds them into `/app/extension`, named by `EXTENSION_ZIP_DIR`): Mon compte › Outils lets Administrators download the one for the environment from the server (`/api/account/extension-test-build`, 404 to anyone else), with no repo access needed (#989). The `deploy-staging` skill reports when `main`'s Extension Version has no Release yet.

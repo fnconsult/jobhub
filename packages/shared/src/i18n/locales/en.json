@@ -362,14 +362,13 @@
       "extensionIntro": "From a job offer's page, the extension saves it to Jobbbox and works out its Match Score, with no copying and pasting.",
       "install": "Install the extension from the Chrome Web Store",
       "soon": "The extension is coming soon to the Chrome Web Store.",
-      "newTab": "(new tab)",
       "testBuild": {
         "title": "Latest version of the extension",
         "intro": "For administrators only: load the extension this server serves, before it is published on the Chrome Web Store.",
         "extensionVersion": "Extension version",
         "apiVersion": "API version served",
-        "releases": "See the versions on GitHub",
-        "access": "The repository is private: you need access to it.",
+        "download": "Download {{zip}}",
+        "unavailable": "This server serves no extension zip: only a deployment's image holds {{zip}}. Locally, build it with npm run zip -w @jobhub/extension (or zip:beta).",
         "stepsLabel": "Load the extension in Chrome",
         "steps": {
           "download": "Download {{zip}}, then unzip it.",

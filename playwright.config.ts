@@ -51,6 +51,9 @@ Object.assign(process.env, utf8CharacterType());
 // from a session that served other Legal Text Versions, it answered 404 for routes it has (#673).
 process.env.JOBHUB_DEV_CACHE = "off";
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
+// Where the web server looks for the extension's zips, as an image's EXTENSION_ZIP_DIR (apps/web/Dockerfile, #989): empty
+// until e2e/version.spec.ts writes one there.
+process.env.E2E_EXTENSION_ZIP_DIR ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "extension");
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");
   url.pathname = `/jobhub_e2e_${webPort}`;
@@ -163,6 +166,7 @@ export default defineConfig({
       // An editable setting set by env (#299): Paramètres shows it from env, and « Rétablir » falls back to it. Only the web
       // server has it; the specs start their own workers with the suite's environment.
       JOB_DISCOVERY_BUDGET_SECONDS: "75",
+      EXTENSION_ZIP_DIR: process.env.E2E_EXTENSION_ZIP_DIR,
       PERPLEXITY_API_KEY: "e2e-perplexity-key",
       NODE_OPTIONS: [
         `--import=${path.resolve("e2e/support/fake-google.mjs")}`,

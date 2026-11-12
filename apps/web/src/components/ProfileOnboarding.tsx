@@ -43,6 +43,8 @@ const FROM_SCRATCH: From = "scratch";
 /** The review form in the Work Pane: a form, at the page's own address, the draft living in the page. */
 const REVIEW: AddressedKind = "form";
 const REVIEW_HREF = `${routes.newProfile}#relecture`;
+/** A Help Article opened from the welcome panel, in the Work Pane. */
+const HELP = "help" as const;
 
 /**
  * Creating a Profile under « Conversation au centre » (ADR-0070): the page is a conversation with the AI Coach, its
@@ -345,7 +347,7 @@ function OnboardingHelp({ onOpen }: { onOpen?: () => void }) {
       oftenAsked={false}
       onOpen={(article) => {
         onOpen?.();
-        pane?.open({ kind: "help", article });
+        pane?.open({ kind: HELP, article });
       }}
     />
   );

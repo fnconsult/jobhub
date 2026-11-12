@@ -1575,37 +1575,6 @@ button.coach-panel-badge:hover {
   background-color: var(--color-hover);
 }
 
-.fiche-group-head {
-  margin: var(--space-3) 0 0;
-  font-size: inherit;
-  font-weight: 500;
-}
-
-.fiche-group-head button {
-  display: flex;
-  gap: var(--space-1);
-  align-items: center;
-  width: 100%;
-  min-height: var(--control-height);
-  padding: 0;
-  font: inherit;
-  color: var(--color-text-secondary);
-  text-align: start;
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.fiche-group-head .icon {
-  width: 1em;
-  height: 1em;
-  transition: transform 0.15s;
-}
-
-.fiche-group-head button[aria-expanded="false"] .icon {
-  transform: rotate(-90deg);
-}
-
 /* Sections and Results: each its own rounded card, a Result with what it is under its name. */
 .fiche-links {
   display: flex;
@@ -1630,32 +1599,6 @@ button.coach-panel-badge:hover {
 
 .fiche-links a:hover {
   background: var(--color-hover);
-}
-
-/* The Sections, one rounded list, a line between them, as in the prototype (#586); the Results stay a card each. */
-.fiche-group[data-group="sections"] .fiche-links {
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-}
-
-.fiche-group[data-group="sections"] .fiche-links a {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  border: 0;
-  border-radius: 0;
-}
-
-.fiche-group[data-group="sections"] .fiche-links li + li a {
-  border-top: 1px solid var(--color-border);
-}
-
-/* Decoration: its alternative text is empty, so the chevron is not read in the link's name. */
-.fiche-group[data-group="sections"] .fiche-links a::after {
-  color: var(--color-meta);
-  content: "›" / "";
 }
 
 .fiche-links a[aria-current="page"] {
@@ -1696,15 +1639,140 @@ button.coach-panel-badge:hover {
   text-align: start;
 }
 
-/* « Fiche » and « Activité » in the Top Bar: pressed while their column (or group) is shown. */
-.topbar :is(.topbar-fiche, .topbar-activity)[aria-expanded="true"] {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
+/* The side panel's icons in the Top Bar (#980), in place of « Fiche », « Activité » and « Effacer », as an agent harness's
+   header has them: icons alone, close set, the one whose view the panel shows on a soft ground with a hairline. Each is a
+   2.25rem target (24 px at the least, WCAG 2.2), named by its view (aria-label and tooltip). */
+.topbar-views {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  align-items: center;
 }
 
-.topbar :is(.topbar-fiche, .topbar-activity) .icon {
-  width: 1.125em;
-  height: 1.125em;
+.topbar-view {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  font: inherit;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+}
+
+.topbar-view:hover {
+  color: var(--color-text);
+  background: var(--color-hover);
+}
+
+.topbar-view[aria-expanded="true"] {
+  color: var(--color-text);
+  background: var(--color-hover);
+  border-color: var(--color-border);
+}
+
+.topbar-view .icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* ---------- The side panel's views (#980) ----------
+   As an agent harness's session panel: sections with a small grey heading, a hairline between them, no cards; rows
+   rather than tiles. */
+.side-panel .fiche-body {
+  gap: 0;
+}
+
+/* Its head, above what scrolls: the view's name and ✕, on the panel's own padding (none beside the conversation, where the
+   panel has no frame of its own). */
+.side-panel > .fiche-head {
+  margin-inline: 0;
+  padding-inline: var(--space-4);
+}
+
+@media (width >= 64rem) {
+  .side-panel > .fiche-head {
+    padding-inline: 0;
+    padding-top: var(--space-4);
+  }
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-section:last-child {
+  border-bottom: 0;
+}
+
+/* A section's heading: grey, at body size (ADR-0057: a heading is never metadata). */
+.panel-section-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.panel-section-action {
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+/* Sections and Results in the panel: one row each, its detail under it, the one shown marked; no card around them. */
+.side-panel .fiche-links {
+  gap: 0;
+}
+
+.side-panel .fiche-links a {
+  padding: var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+}
+
+.side-panel .fiche-links a:hover {
+  background: var(--color-hover);
+}
+
+.side-panel .fiche-links a[aria-current="page"] {
+  background: var(--color-accent-soft);
+}
+
+.side-panel .fiche-card {
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+
+.side-panel[data-view="results"] .fiche-body > .fiche-links,
+.side-panel[data-view="results"] .fiche-body > .hint {
+  padding-block: var(--space-3);
 }
 
 @media (width >= 64rem) {
@@ -1778,15 +1846,11 @@ button.coach-panel-badge:hover {
   }
 }
 
-/* The Context bar (#607), in Activité: a thin pill like the Usage Meter's, in the accent, in the warning colour from 80 %. */
+/* The Context bar (#607), at the head of Activité: since #980 a section as an agent harness's context view, « 18 %
+   utilisé » and its figures on one line, a thin stacked bar of its categories in the chart series' colours (one fill in
+   the accent for a reply saved before the split), its legend, then « Voir le détail » and « Effacer la conversation ». */
 .context-bar {
-  display: flex;
-  flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3);
-  margin-bottom: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
 }
 
 .context-bar p {
@@ -1794,7 +1858,15 @@ button.coach-panel-badge:hover {
   margin: 0;
 }
 
-.context-bar-title {
+.context-bar-usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.context-bar-used {
   font-weight: 600;
 }
 
@@ -1807,11 +1879,16 @@ button.coach-panel-badge:hover {
   border-radius: var(--radius-control);
 }
 
+.context-bar-track {
+  display: flex;
+  gap: 1px;
+}
+
 .context-bar-track > span {
   display: block;
+  flex: none;
   height: 100%;
-  background: var(--color-accent);
-  border-radius: var(--radius-control);
+  background: var(--category, var(--color-accent));
 }
 
 .context-bar[data-nearly-full] .context-bar-track > span {
@@ -1824,12 +1901,45 @@ button.coach-panel-badge:hover {
   color: var(--color-text-secondary);
 }
 
-.context-bar-clear {
-  margin-top: var(--space-1);
+.context-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0;
+  margin: var(--space-1) 0 0;
+  list-style: none;
 }
 
-.context-bar-details {
-  align-self: flex-start;
+.context-legend li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.context-legend li[data-category="free"] {
+  color: var(--color-text-meta);
+}
+
+.context-legend-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.context-legend-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  text-align: end;
+}
+
+.context-legend-value + .context-legend-value {
+  min-width: 3.5em;
+}
+
+.context-bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
 }
 
 /* The breakdown card (#732, ADR-0078): a stacked bar and its list, each category in a chart series colour (dark mode has
@@ -1849,27 +1959,27 @@ button.coach-panel-badge:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.context-breakdown [data-category="messages"] {
+:is(.context-breakdown, .context-bar) [data-category="messages"] {
   --category: var(--color-chart-series-1);
 }
 
-.context-breakdown [data-category="instructions"] {
+:is(.context-breakdown, .context-bar) [data-category="instructions"] {
   --category: var(--color-chart-series-2);
 }
 
-.context-breakdown [data-category="profile"] {
+:is(.context-breakdown, .context-bar) [data-category="profile"] {
   --category: var(--color-chart-series-3);
 }
 
-.context-breakdown [data-category="advice"] {
+:is(.context-breakdown, .context-bar) [data-category="advice"] {
   --category: var(--color-chart-series-4);
 }
 
-.context-breakdown [data-category="sources"] {
+:is(.context-breakdown, .context-bar) [data-category="sources"] {
   --category: var(--color-text-secondary);
 }
 
-.context-breakdown [data-category="free"] {
+:is(.context-breakdown, .context-bar) [data-category="free"] {
   --category: var(--color-background);
 }
 
@@ -2162,10 +2272,6 @@ button.coach-panel-badge:hover {
 
 .sidebar-rename .input {
   width: 100%;
-}
-
-.topbar .topbar-clear {
-  flex: none;
 }
 
 /* Under an AI Coach reply (#345): « Cela répond à votre question ? Oui / Non », then the team. */
@@ -5492,8 +5598,7 @@ textarea.title-edit {
   margin-top: var(--space-3);
 }
 
-.activity-history-title,
-.activity-sources h4 {
+.activity-history-title {
   margin: 0;
   font-size: inherit;
   font-weight: 600;
@@ -5612,7 +5717,6 @@ textarea.title-edit {
 
 /* Folded: its `hidden` wins over its flex box. */
 .activity-entry-detail[hidden],
-.activity-sources .ai-activity-list[hidden],
 .ai-activity-links[hidden] {
   display: none;
 }
@@ -5707,15 +5811,11 @@ textarea.title-edit {
   text-underline-offset: 2px;
 }
 
-/* « Sources et outils de cette page », folded at the foot. */
-.activity-sources {
-  margin-top: var(--space-4);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
-}
-
-.activity-sources .ai-activity-list {
-  margin-top: var(--space-2);
+/* An entry's Provenance sites (#980): its label, then the sites, each a disclosure of the pages read. */
+.activity-entry-sites .ai-activity-list {
+  padding: 0;
+  margin: var(--space-1) 0 0;
+  list-style: none;
 }
 
 /* « Dans l'activité » under a reply or a card of the thread. */

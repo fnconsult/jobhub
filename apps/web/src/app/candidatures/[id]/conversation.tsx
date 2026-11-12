@@ -6,7 +6,8 @@ import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableBut
 import { ExternalLink } from "@/components/ExternalLink";
 import type { FicheContent, FicheLink } from "@/components/Fiche";
 import { ObjectConversation } from "@/components/ObjectConversation";
-import { ExpiredJobOfferNotice, jobOfferSite } from "@/components/JobOfferView";
+import { JobOfferSummary } from "@/components/JobOfferSummary";
+import { ExpiredJobOfferNotice, JobOfferTiles, JobOfferView, jobOfferSite } from "@/components/JobOfferView";
 import { matchScoreFigure, matchScoreInWords } from "@/components/job-search-words";
 import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
@@ -21,7 +22,7 @@ const APPLICATION = "application";
 
 /**
  * An Application's page under « Conversation au centre » (#603, ADR-0070): its Coach Conversation, whose Subject it is,
- * with the Introduction and the Application's suggestions until its first message; and the Fiche beside it, the
+ * with the Introduction and the Application's suggestions until its first message; and the side panel beside it (#980), the
  * Application's card (status and Profile changed in place, Match Score, when it was saved, its Job Offer's site, whether
  * the offer is expired or Reported Unavailable), its Sections and its Results, each opened in the Work Pane at its own
  * address (`children`, the Section or Result the address names: see sections.tsx).
@@ -47,15 +48,41 @@ export function ApplicationConversation({ data, aiActivity, children }: { data: 
   );
 }
 
-/** The Application's Fiche: its card, its Sections in order, and its Results. */
+/**
+ * The Application's side panel (#980): its card and its Sections in order in « Fiche », but « L'offre »,
+ * which is a view of its own; its Job Offer in « L'offre », as its Section shows it, with a link to that Section in the Work
+ * Pane; and its Results in « Documents ».
+ */
 function ficheOf(data: ApplicationPageData): FicheContent {
-  const { application, t } = data;
+  const { application, t, locale } = data;
   return {
     card: <ApplicationCard data={data} />,
-    sections: data.sections.map((section) => ({ href: routes.applicationSection(application.id, section), label: t(`application.sections.${section}`) })),
+    sections: data.sections
+      .filter((section) => !OWN_VIEWS.has(section))
+      .map((section) => ({ href: routes.applicationSection(application.id, section), label: t(`application.sections.${section}`) })),
     results: resultsOf(data),
+    resultsLabel: "documents",
+    offer: (
+      <>
+        <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale} />
+        <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector} />
+        <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />
+        <p>
+          <Link href={routes.applicationSection(application.id, OFFER)} scroll={false}>
+            {t("fiche.openOffer")}
+          </Link>
+        </p>
+      </>
+    ),
   };
 }
+
+/**
+ * The Section the side panel shows as a view of its own (#980): still at its address, which « L'offre » links to, no longer
+ * listed in « Fiche ». « Documents » stays listed: it holds the Tailored Documents' editor with its tabs, the view their list.
+ */
+const OWN_VIEWS: ReadonlySet<ApplicationSection> = new Set(["offre"]);
+const OFFER: ApplicationSection = "offre";
 
 /**
  * What AI actions made for the Application and kept with it: its Tailored CV, Cover Letter and Outreach Message, each

@@ -19,7 +19,7 @@ const history = fr.aiActivity.history;
 const origin = process.env.E2E_WEB_ORIGIN!;
 
 const nowOf = (page: Page) => activityOf(page).locator(".ai-activity-live");
-const contextBarOf = (page: Page) => activityOf(page).getByRole("group", { name: fr.contextBar.title });
+const contextBarOf = (page: Page) => activityOf(page).getByRole("region", { name: fr.contextBar.title });
 /** « Création du profil », unfolded: its parts by their kind, in their order. */
 async function creationOf(page: Page) {
   const entry = await unfoldedEntryOf(page, new RegExp(`^${kinds.profile_creation}$`));
@@ -34,7 +34,7 @@ async function reply(page: Page, question: string, value: string | "skip") {
   if (value === "skip") await page.getByRole("button", { name: fr.questionnaire.skip }).click();
   else {
     await page.getByLabel(fr.questionnaire.answerLabel).fill(value);
-    await page.getByRole("button", { name: fr.questionnaire.send, exact: true }).click();
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
   }
 }
 const partKinds = (parts: Locator) => parts.evaluateAll((items) => items.map((item) => (item as HTMLElement).dataset.kind));

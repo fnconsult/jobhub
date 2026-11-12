@@ -46,7 +46,14 @@ async function withProfile(browser: Browser, viewport = { width: 1600, height: 1
 
 const conversation = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const thread = (page: Page) => conversation(page).getByRole("list", { name: fr.coachPanel.messagesLabel });
-const fiche = (page: Page) => page.getByRole("complementary", { name: fr.fiche.label, exact: true });
+/** The side panel on « Activité » (#980). */
+const fiche = (page: Page) => page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
+/** AI Activity's icon in the Top Bar: it shows the panel on « Activité ». */
+async function showActivity(page: Page) {
+  const button = page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+  await expect(fiche(page)).toBeVisible();
+}
 const today = (page: Page) => fiche(page).getByRole("region", { name: history.title }).getByRole("region", { name: history.today });
 const rows = (page: Page) => today(page).locator(".activity-entry-row");
 const detailOf = async (page: Page, row: Locator) => page.locator(`[id="${await row.getAttribute("aria-controls")}"]`);
@@ -116,7 +123,7 @@ test.describe("Activity's history (#808)", () => {
     expect(scored.ok(), await scored.text()).toBe(true);
 
     await page.reload();
-    await expect(fiche(page)).toBeVisible();
+    await showActivity(page);
     // Newest first: the ATS Score, Version 2, the reply whose card made it, then « Création du profil » with Version 1 (#810) (the
     // ATS Fixes the score proposed are entries of their own, beside it).
     const version = tr(history.titles.master_cv_version, { version: "2" });
@@ -183,7 +190,7 @@ test.describe("Activity's history (#808)", () => {
     });
     await expect(thread(page).locator("li[data-message-id]")).toHaveCount(1, { timeout: 30_000 });
     await thread(page).getByRole("button", { name: history.inActivity }).first().click();
-    const column = page.getByRole("complementary", { name: fr.fiche.label, exact: true });
+    const column = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
     const row = column.locator(".activity-entry-row").filter({ hasText: fr.aiActivity.kinds.coach_reply });
     await expect(row).toHaveAttribute("aria-expanded", "true");
     await (await detailOf(page, row)).getByRole("button", { name: history.inConversation }).click();

@@ -1334,13 +1334,14 @@
     "withoutCvIntro": "Mes questions portent sur votre parcours, une à la fois. Vous pouvez passer celles qui ne vous concernent pas. Comptez une dizaine de minutes.",
     "startQuestionnaire": "Répondre aux questions de mon coach",
     "conversation": "Créer un profil avec votre coach",
-    "openReview": "Relire et enregistrer"
+    "openReview": "Relire et enregistrer",
+    "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
+    "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page."
   },
   "questionnaire": {
     "transcript": "Votre échange avec le coach",
     "coach": "Votre coach",
     "you": "Vous",
-    "welcome": "Bonjour, je suis votre coach Jobbbox. Je vais vous poser quelques questions pour construire votre CV de référence. Répondez avec vos mots : vous pourrez tout relire et corriger à la fin.",
     "questions": {
       "fullName": "Pour commencer, quels sont vos prénom et nom ?",
       "targetRole": "Quel poste recherchez-vous ? Par exemple : « Directeur financier ».",
@@ -1363,7 +1364,6 @@
     },
     "answerLabel": "Votre réponse",
     "answerHint": "Vous pouvez passer cette question.",
-    "send": "Répondre",
     "skip": "Passer cette question",
     "skipped": "(question passée)",
     "yes": "Oui",
@@ -5739,7 +5739,7 @@
         "partial": "dernier appel seulement",
         "noAi": "Sans IA"
       },
-      "sources": "Sources et outils de cette page"
+      "sources": "Sources :"
     }
   },
   "signalement": {
@@ -6513,10 +6513,25 @@
       "results": "Résultats"
     },
     "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste.",
-    "matchScore": "Match Score : {{score}}"
+    "matchScore": "Match Score : {{score}}",
+    "panel": "Volet de la page",
+    "views": {
+      "activity": "Activité",
+      "fiche": "Fiche",
+      "offer": "L'offre",
+      "documents": "Documents",
+      "offers": "Offres trouvées"
+    },
+    "close": "Fermer le volet",
+    "more": "Plus d'actions sur le volet",
+    "resetWidth": "Largeur du volet par défaut",
+    "allResults": "Tout voir",
+    "openOffer": "Afficher l'offre en grand"
   },
   "contextBar": {
     "title": "Contexte de la conversation",
+    "used": "{{percent}} % utilisé",
+    "share": "{{percent}} %",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
     "clear": "Effacer la conversation",

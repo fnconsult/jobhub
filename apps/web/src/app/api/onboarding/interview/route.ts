@@ -8,7 +8,7 @@ import { readIndustryReference } from "@/reference-data/server";
 import { getTaskPlaybooks } from "@/task-playbooks/server";
 
 /**
- * The onboarding interview's next turn (#1002, ADR-0105): without a CV, the AI Coach asks one question at a time,
+ * The onboarding interview's next turn (#1002, ADR-0106): without a CV, the AI Coach asks one question at a time,
  * challenges a vague answer and proposes what it deduces. Signed-in Candidates only: a Guest has no Profile to create.
  * No Plan Quota; its calls are counted in AI Usage (task `onboarding_interview`). Saves nothing, and the exchange is not
  * kept as a Coach Conversation: the page applies to the Profile only what the Candidate answers or validates.

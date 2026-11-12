@@ -11,6 +11,7 @@ import { footerColumns, HEADER_LINKS, languageLinks, shellHref, type PublicPage 
 import { REQUEST_PATH_HEADER } from "@/request-path";
 import { routes } from "@/routes";
 import { buttonClass } from "./button-class";
+import { Logo } from "./Logo";
 import { PublicSiteMenu } from "./PublicSiteMenu";
 import "./PublicSite.css";
 
@@ -19,7 +20,8 @@ export type { PublicPage };
 const CURRENT_PAGE = "page";
 
 /**
- * A public page (#470, #544): no Sidebar; the site's header sticky at the top (the « Jobbbox » wordmark, Nouveautés,
+ * A public page (#470, #544): no Sidebar; the site's header sticky at the top (the logo, its symbol moving once as the page
+ * is drawn (ADR-0105), Nouveautés,
  * Aide and Légal, behind « Menu » on a phone; the FR/EN switch, the text size, and « Se connecter », or « Mon compte »
  * for a signed-in Candidate), then the page, then the public footer. A sign-in page leaves out the sign-in link.
  * Its links keep the language of the page's URL: under `/en` in English (#545, see shellHref).
@@ -32,6 +34,7 @@ export async function PublicSite({ current, signInLink = true, children }: { cur
     <div className="ds-site">
       <header className="ds-site__head">
         <Link className="ds-site__brand" href={shellHref(routes.home, url)}>
+          <Logo animated />
           {t("app.name")}
         </Link>
         <PublicSiteMenu label={t("publicSite.nav")} menu={t("publicSite.menu")}>
@@ -107,7 +110,10 @@ export async function PublicFooter({ signInLink = true, helpCentre }: { signInLi
       </div>
       <div className="ds-site__foot-end">
         <LanguageSwitch label={t("publicFooter.language")} signedIn={account === "account"} />
-        <p className="ds-site__copyright">{t("publicFooter.copyright")}</p>
+        <p className="ds-site__copyright">
+          <Logo />
+          {t("publicFooter.copyright")}
+        </p>
       </div>
     </footer>
   );

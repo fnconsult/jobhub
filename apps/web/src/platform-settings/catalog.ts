@@ -115,6 +115,10 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "CONTACT_ENRICHMENT_DPA_SIGNED", group: "enriched_contacts", type: { kind: "boolean" }, default: "false", confirm: "true" },
   // The browser extension's Chrome Web Store page; empty: "coming soon".
   { name: "EXTENSION_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
+  // The app's pages on the App Store and on Google Play, which the landing page links to (ADR-0105): empty, it shows no
+  // link to that store.
+  { name: "APP_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
+  { name: "PLAY_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
   // Where the Help Centre's Explainer Videos are played from (ADR-0066, #568): the Scaleway bucket's origin, whose
   // manifest.json says which video each Tutorial shows; the pages' CSP `media-src` allows it and nothing else.
   { name: "HELP_MEDIA_ORIGIN", group: "help_centre", type: { kind: "origin" }, default: MOTION_MEDIA_ORIGIN },

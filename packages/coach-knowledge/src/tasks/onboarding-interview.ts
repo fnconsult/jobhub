@@ -1,7 +1,7 @@
 import type { TaskPlaybookSeed } from "./types";
 
 /**
- * The onboarding interview without a CV (onboarding_interview, #1002, ADR-0105): the AI Coach's next question, what it
+ * The onboarding interview without a CV (onboarding_interview, #1002, ADR-0106): the AI Coach's next question, what it
  * challenges and what it proposes. The JSON shape, the fields, the codes and the safety rules the code reads stay in code.
  */
 export const onboardingInterview = {

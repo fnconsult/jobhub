@@ -164,7 +164,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     expect(within(thread()).getByRole("heading", { name: "J'ai un CV" })).toBeTruthy();
   });
 
-  describe("the Profile born at its target role and location (ADR-0105, #999)", () => {
+  describe("the Profile born at its target role and location (ADR-0106, #999)", () => {
     type Call = { url: string; method: string; body: Record<string, unknown> };
     const interviewCalls: Record<string, unknown>[] = [];
     let calls: Call[];

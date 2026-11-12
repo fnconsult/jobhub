@@ -28,6 +28,8 @@ const ADR_0033 = [
   "CONTACT_ENRICHMENT_PROVIDER",
   "CONTACT_ENRICHMENT_DPA_SIGNED",
   "EXTENSION_STORE_URL",
+  "APP_STORE_URL",
+  "PLAY_STORE_URL",
 ];
 
 /** The web search's bounded settings (#386, #402), on Paramètres' Recherche web tab. */

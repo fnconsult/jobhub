@@ -70,6 +70,6 @@ The product owner chose the variant. The prototype's three other questions were 
 - **« Sources et outils de cette page » is gone.** Each entry names its own Provenance sites in its detail, under « Sources : », each site once with its pages as a disclosure, after its Tools and before its models: an entry was already the place for « Sources and Tools move into the entries ».
 - **AI Activity's button is an icon**, the first of the panel's in the Top Bar, its tooltip « Activité IA ». The step under way and its stop icon still sit beside it while an action runs; the page's summary is only in its name (« Activité IA 3 modèles · … »), no longer shown beside it.
 
-## Amended by ADR-0105: the onboarding is an interview with the AI Coach (2026-11-12)
+## Amended by ADR-0106: the onboarding is an interview with the AI Coach (2026-11-12)
 
 « Création du profil » stops being « Sans IA » once the AI Coach leads the onboarding interview (#1002): its questions are the AI's, with their Provenance and cost. From the scripted questionnaire, the Profile is born once its target role and location are answered (#999), so « Profil créé » shows before the review.

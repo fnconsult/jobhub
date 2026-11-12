@@ -29,7 +29,7 @@
  *      as it searches, stops between two steps and the AI call on its way, and records it 'stopped'
  *      with the Job Offers found until then (a failed one keeps them too). A stop that kept no Job
  *      Offer gives its Plan Quota use back.
- *    - `startOffered` the Job Search the onboarding offers a Profile it created (ADR-0105, #1000): outside the Plan
+ *    - `startOffered` the Job Search the onboarding offers a Profile it created (ADR-0106, #1000): outside the Plan
  *      Quota, so it uses none, gives none back and « Votre consommation » does not count it; once while its onboarding is
  *      in progress, and once more, a restart, when its target role or locations changed (the first is stopped by a Stop
  *      request). Each is marked on its row (`offered`: 'first' | 'restart'), one of each per Profile, held by a unique index.
@@ -115,7 +115,7 @@ export interface JobSearch {
   results: JobSearchResult[];
   /** Null while it is searching (and for Job Searches finished before metrics were kept). */
   metrics: JobSearchMetrics | null;
-  /** Offered by the onboarding (ADR-0105, #1000), outside the Plan Quota: its first, or its one restart. Absent otherwise. */
+  /** Offered by the onboarding (ADR-0106, #1000), outside the Plan Quota: its first, or its one restart. Absent otherwise. */
   offered?: OfferedJobSearch;
   /**
    * What served it (ADR-0034): null while it is searching, when it failed before Job discovery ran, and for
@@ -134,7 +134,7 @@ export type StartJobSearchResult =
   /** The Plan Quota of Job Searches is used up this week. */
   | { ok: false; error: "quota_exceeded"; refusal: Extract<QuotaDecision, { allowed: false }> };
 
-/** A Job Search the onboarding offers (ADR-0105, #1000): the Profile's first, or its one restart. */
+/** A Job Search the onboarding offers (ADR-0106, #1000): the Profile's first, or its one restart. */
 export type OfferedJobSearch = "first" | "restart";
 export const OFFERED_JOB_SEARCHES: readonly OfferedJobSearch[] = ["first", "restart"];
 
@@ -206,7 +206,7 @@ export interface JobSearches {
   /** Starts a Job Search. `input`: { profileId }. */
   start(candidateId: string, input: unknown): Promise<StartJobSearchResult>;
   /**
-   * Starts the Job Search the onboarding offers a Profile it created (ADR-0105, #1000), outside the Plan Quota: only while
+   * Starts the Job Search the onboarding offers a Profile it created (ADR-0106, #1000), outside the Plan Quota: only while
    * the Profile's onboarding is in progress; its first, then once more at most (`restart`, for a change of its target role
    * or locations), which stops the first if it is still searching (a Stop request). `used_up` beyond.
    */
@@ -327,7 +327,7 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS stop_requested_at timestamptz;
     ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_status_check;
     ALTER TABLE job_search ADD CONSTRAINT job_search_status_check CHECK (status IN ('searching', 'done', 'failed', 'stopped'));
-    -- Offered by the onboarding (ADR-0105, #1000), outside the Plan Quota: a Profile's first, then its one restart.
+    -- Offered by the onboarding (ADR-0106, #1000), outside the Plan Quota: a Profile's first, then its one restart.
     ALTER TABLE job_search ADD COLUMN IF NOT EXISTS offered text;
     ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_offered_check;
     ALTER TABLE job_search ADD CONSTRAINT job_search_offered_check CHECK (offered IN ('first', 'restart'));
@@ -591,7 +591,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
       const profile = await deps.profiles.get(candidateId, profileId);
       if (!profile) return { ok: false, error: "not_found" };
       if (profile.archived) return { ok: false, error: "archived" };
-      // Only a Profile the onboarding created, while it is in progress: the offer is the onboarding's (ADR-0105).
+      // Only a Profile the onboarding created, while it is in progress: the offer is the onboarding's (ADR-0106).
       if (profile.onboarding !== "in_progress") return { ok: false, error: "not_onboarding" };
 
       const { rows: before } = await database.query<{ id: string; status: JobSearchStatus }>(

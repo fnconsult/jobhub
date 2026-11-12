@@ -214,17 +214,20 @@ function LearnMore() {
  */
 export function AiActivityContent({ children }: { children?: ReactNode }) {
   const control = useContext(AiActivityControl);
+  // What the page adds stays outside AI Activity's own block: its links carry the object's address.
   return (
-    <div className="fiche-activity">
-      <ActivityHistory
-        entries={control?.entries ?? []}
-        inThread={control?.inThread ?? NO_MESSAGES}
-        usage={control?.usage ?? null}
-        asked={control?.asked ?? null}
-      />
+    <>
+      <div className="fiche-activity">
+        <ActivityHistory
+          entries={control?.entries ?? []}
+          inThread={control?.inThread ?? NO_MESSAGES}
+          usage={control?.usage ?? null}
+          asked={control?.asked ?? null}
+        />
+      </div>
       {children}
       <LearnMore />
-    </div>
+    </>
   );
 }
 

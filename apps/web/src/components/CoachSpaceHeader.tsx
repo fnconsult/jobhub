@@ -8,7 +8,7 @@ import { coachSpaceV2On } from "@/coach-space-v2/server";
 export const CoachSpaceHeader = LegacyCoachSpaceHeader;
 
 /**
- * A Human Coach's page. « Espace coach v2 » on (ADR-0106): the workspace's sidebar layout; off: the old Coach space's
+ * A Human Coach's page. « Espace coach v2 » on (ADR-0107): the workspace's sidebar layout; off: the old Coach space's
  * header, the page, then the public site's footer, as before the Human Coach epic.
  */
 export function CoachSpaceShell({ children }: { children: ReactNode }) {

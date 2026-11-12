@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/coac
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { sessionId } = await params;
-  // The cancellation policy is part of « Espace coach v2 » (ADR-0106): off, a cancellation is the one before it.
+  // The cancellation policy is part of « Espace coach v2 » (ADR-0107): off, a cancellation is the one before it.
   if (coachSpaceV2On() && (await cancellationPolicyOn())) {
     const body = await request.json().catch(() => ({}));
     const key = typeof body.requestKey === "string" ? body.requestKey : randomUUID();

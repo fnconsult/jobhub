@@ -105,7 +105,7 @@ A Human Coach's pages, under their own Sidebar (Aujourd'hui, Mes Candidates, Mes
 _Avoid_: Coach dashboard
 
 **Espace coach v2**:
-The Platform Setting (`COACH_SPACE_V2`, ADR-0106) the Human Coach epic (#867) is built behind, off by default, in Paramètres' « Environnement » tab. Off, Coaches, Candidates, visitors, e-mails, push notifications, the worker, the apps and the Help Centre see what they saw before the epic: the former Coach space (its Coaching Sessions and Coach Access list), no Coach Enrolment, Association, Coach Page, Coaching Offer, booking, Shared Reading or Session Report, and the epic's new routes answer 404. On, the Coach space above and the marketplace. The Back Office's coaching pages, its Outils and its setup do not depend on it. Turning it on approves nothing: the legal, provider and fiscal gates still apply. #888 turns it on, then retires the former Coach space and the setting.
+The Platform Setting (`COACH_SPACE_V2`, ADR-0107) the Human Coach epic (#867) is built behind, off by default, in Paramètres' « Environnement » tab. Off, Coaches, Candidates, visitors, e-mails, push notifications, the worker, the apps and the Help Centre see what they saw before the epic: the former Coach space (its Coaching Sessions and Coach Access list), no Coach Enrolment, Association, Coach Page, Coaching Offer, booking, Shared Reading or Session Report, and the epic's new routes answer 404. On, the Coach space above and the marketplace. The Back Office's coaching pages, its Outils and its setup do not depend on it. Turning it on approves nothing: the legal, provider and fiscal gates still apply. #888 turns it on, then retires the former Coach space and the setting.
 _Avoid_: Coach space flag, feature flag
 
 **Retired Human Coach**:

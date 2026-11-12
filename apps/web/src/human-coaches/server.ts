@@ -16,7 +16,7 @@ import { createHumanCoaches, type HumanCoach, type HumanCoaches } from "./index"
 let instance: HumanCoaches | undefined;
 /** The app's Human Coaches module, on the database named by DATABASE_URL. */
 export function getHumanCoaches(): HumanCoaches {
-    // « Espace coach v2 » off (ADR-0106): no contract, no cancellation policy, no Coaching notices, every coach listed.
+    // « Espace coach v2 » off (ADR-0107): no contract, no cancellation policy, no Coaching notices, every coach listed.
     instance ??= createHumanCoaches(sharedPool(), {
         coachSpaceV2On,
         contractualCancellationOn: async () => coachSpaceV2On() && (await cancellationPolicyOn()),

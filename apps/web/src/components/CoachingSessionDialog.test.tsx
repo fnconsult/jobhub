@@ -35,7 +35,7 @@ it.each([false, true])("only sends fields actually edited, including a stale dat
   expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({ scheduledAt: "2026-11-12T12:00" });
 });
 
-it("off « Espace coach v2 » (ADR-0106), sends every field, as on main", async () => {
+it("off « Espace coach v2 » (ADR-0107), sends every field, as on main", async () => {
   const request = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
   vi.stubGlobal("fetch", request);
   renderInFrench(

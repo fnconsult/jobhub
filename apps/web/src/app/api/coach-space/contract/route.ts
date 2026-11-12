@@ -4,7 +4,7 @@ import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { fromJobbboxApp } from "@/api-version";
 import { getCoachContracts } from "@/coach-contracts/server";
 export async function POST(request: Request) {
-    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): this route answers 404.
+    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): this route answers 404.
     if (!isFromTrustedOrigin(request))
         return NextResponse.json({ error: "forbidden" }, { status: 403 });
     const person = await getCurrentCandidate();

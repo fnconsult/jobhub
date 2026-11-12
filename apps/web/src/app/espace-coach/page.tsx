@@ -4,7 +4,7 @@ import { requireCoachSpace } from "@/coach-space/server";
 import { LegacyCoachSpacePage, legacyCoachSpaceMetadata } from "@/coach-space/legacy/LegacyCoachSpacePage";
 import { coachSpaceV2On } from "@/coach-space-v2/server";
 
-/** « Espace coach v2 » off (ADR-0106): the old Coach space's title. */
+/** « Espace coach v2 » off (ADR-0107): the old Coach space's title. */
 export async function generateMetadata(): Promise<Metadata> {
   return coachSpaceV2On() ? {} : legacyCoachSpaceMetadata();
 }

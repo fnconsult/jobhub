@@ -7,7 +7,7 @@ import { routes } from "@/routes";
 
 type Params = { params: Promise<{ candidateId: string }> };
 
-/** « Espace coach v2 » off (ADR-0106): the old Candidate file's title. */
+/** « Espace coach v2 » off (ADR-0107): the old Candidate file's title. */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return coachSpaceV2On() ? {} : legacyCoachedCandidateMetadata({ params });
 }

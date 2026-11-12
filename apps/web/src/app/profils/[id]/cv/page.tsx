@@ -32,7 +32,7 @@ export default async function EditMasterCvPage({ params }: Params) {
     <InWorkPane kind={SECTION} title={t("cvEditor.title")} href={routes.editMasterCv(profile.id)} back={routes.profile(profile.id)}>
       <p>{t("cvEditor.intro")}</p>
       <p>{t("cvEditor.editingVersion", { version: profile.masterCv.version })}</p>
-      {/* Shared Reading is part of « Espace coach v2 » (ADR-0106): off, not offered, as before it. */}
+      {/* Shared Reading is part of « Espace coach v2 » (ADR-0107): off, not offered, as before it. */}
       {coachSpaceV2On() ? <ShareDocumentButton source={{ kind: PROFILE, id: profile.id }} /> : null}
       <MasterCvEditor profileId={profile.id} version={profile.masterCv.version} content={profile.masterCv.content} />
     </InWorkPane>

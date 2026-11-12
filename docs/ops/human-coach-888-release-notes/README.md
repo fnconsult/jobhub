@@ -1,6 +1,6 @@
 # Release Note fragments held for #888
 
-The Human Coach epic (#867) is merged behind « Espace coach v2 » (`COACH_SPACE_V2`, ADR-0106), off by default: until it is
+The Human Coach epic (#867) is merged behind « Espace coach v2 » (`COACH_SPACE_V2`, ADR-0107), off by default: until it is
 on, a Candidate sees nothing of it, so its fragments do not belong to the next Version's Release Note
 (`docs/agents/documentation.md`).
 

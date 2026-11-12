@@ -16,7 +16,7 @@ function conversationsWith(rows: object[], sessionReports: boolean) {
   return createCoachConversations(database, { coach: { reply: async () => ({ ok: false, error: "unavailable", reason: "error" }) } as never, profiles: { get: async () => null } as never, sessionReports: () => sessionReports });
 }
 
-describe("Session Reports in the Candidate's conversations behind « Espace coach v2 » (ADR-0106)", () => {
+describe("Session Reports in the Candidate's conversations behind « Espace coach v2 » (ADR-0107)", () => {
   it("off: no conversation about a Coaching Session is listed, nor opened, as on main", async () => {
     const off = conversationsWith(CONVERSATIONS, false);
     expect((await off.list(CANDIDATE)).map((conversation) => conversation.title)).toEqual(["Mon CV"]);

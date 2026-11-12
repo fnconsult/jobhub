@@ -1,4 +1,4 @@
-// « Espace coach v2 » (ADR-0106): a 404 while it is off, as before the Human Coach epic.
+// « Espace coach v2 » (ADR-0107): a 404 while it is off, as before the Human Coach epic.
 import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { NextResponse } from "next/server";
 import { isFromTrustedOrigin } from "@/auth/server";

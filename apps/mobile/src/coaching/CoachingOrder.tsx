@@ -152,7 +152,7 @@ export function CoachingOrder() {
 /** « Récapitulatif »: what is bought, its price all taxes included, paid once. */
 function Summary({ order }: { order: CoachingOrderResponse }) {
   const { t, i18n } = useTranslation();
-  // « Espace coach v2 » off (ADR-0106): no Seller, as before the epic.
+  // « Espace coach v2 » off (ADR-0107): no Seller, as before the epic.
   const coachSpaceV2 = useCoachSpaceV2();
   const { colors } = useTheme();
   const price = order.price ? t("orders.priceOnce", { price: new Intl.NumberFormat(i18n.language, { style: "currency", currency: order.price.currency }).format(order.price.amount / 100) }) : t("orders.page.priceUnknown");

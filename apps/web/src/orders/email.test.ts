@@ -15,7 +15,7 @@ const session: OrderConfirmation = {
 };
 const coach: CoachingSeller = { id: "seller-1", kind: "human_coach", name: "Sophie Martin EI", status: "EI", siret: "12345678900011" };
 
-describe("the Order Confirmation's seller (« Espace coach v2 », ADR-0106)", () => {
+describe("the Order Confirmation's seller (« Espace coach v2 », ADR-0107)", () => {
   it("off: says no seller, as before the Human Coach epic, whatever seller it is given; nor without a seller", () => {
     const before = orderConfirmationEmail(session, "en");
     expect(before.text).not.toContain("Sold by");

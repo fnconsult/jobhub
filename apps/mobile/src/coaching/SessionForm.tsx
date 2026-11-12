@@ -50,7 +50,7 @@ function sinceInitial(typed: Typed, initial: Typed, withVideoLink: boolean) {
 
 /**
  * Saves the Coaching Session's date (`PATCH /api/coaching/sessions/:id`, ADR-0027): only edited optional fields sent, as the
- * web's form sends them; « Espace coach v2 » off (`edited` null, ADR-0106), all four fields replaced, as before the epic.
+ * web's form sends them; « Espace coach v2 » off (`edited` null, ADR-0107), all four fields replaced, as before the epic.
  * The web app's refusals by field, or `failed` when it could not be reached or failed.
  */
 async function saveSession(
@@ -83,7 +83,7 @@ export function SessionForm({ session, onSaved, onCancel }: { session: Session; 
   const { t } = useTranslation();
   const api = useApi();
   const online = useOnline();
-  // « Espace coach v2 » off (ADR-0106): the video link always asked, and all four fields sent, as before the epic.
+  // « Espace coach v2 » off (ADR-0107): the video link always asked, and all four fields sent, as before the epic.
   const coachSpaceV2 = useCoachSpaceV2();
   const at = session.scheduledAt ? inFrenchTime(session.scheduledAt) : { date: "", time: "" };
   const [initial] = useState<Typed>({

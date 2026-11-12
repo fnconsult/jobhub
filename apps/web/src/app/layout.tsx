@@ -56,7 +56,7 @@ export default async function RootLayout({
       <body>
         <ScrollbarActivity />
         <I18nProvider locale={locale}>
-          {/* The Help Articles « Espace coach v2 » serves (ADR-0106): main's while it is off. */}
+          {/* The Help Articles « Espace coach v2 » serves (ADR-0107): main's while it is off. */}
           <HelpSettingsProvider coachSpaceV2={coachSpaceV2On()}>
             {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
             <ResponseWatcher signedIn={candidate !== null} />

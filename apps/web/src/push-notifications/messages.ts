@@ -29,7 +29,7 @@ function pathOf(notification: PushNotification, coachSpaceV2: boolean): string {
     case "coaching_cancellation":
       return "/coachs/annulations";
     case "coach_access_granted":
-      // Before « Espace coach v2 » (ADR-0106), the Coach space's page of a Candidate was /espace-coach/<id>.
+      // Before « Espace coach v2 » (ADR-0107), the Coach space's page of a Candidate was /espace-coach/<id>.
       return coachSpaceV2 ? routes.coachSpaceCandidate(notification.candidateId) : `/espace-coach/${encodeURIComponent(notification.candidateId)}`;
     case "coaching_session_paid":
     case "coaching_session_changed_by_candidate":
@@ -50,7 +50,7 @@ function pathOf(notification: PushNotification, coachSpaceV2: boolean): string {
 /**
  * A Push notification as a device shows it, in `language`. Its text is the event's fixed gabarit: nothing is filled in,
  * so it never names a company, a job or a person (ADR-0076: a lock screen is public). The rest is read once the app opens.
- * The path is the one before the Human Coach epic unless « Espace coach v2 » is on (`coachSpaceV2`, ADR-0106).
+ * The path is the one before the Human Coach epic unless « Espace coach v2 » is on (`coachSpaceV2`, ADR-0107).
  */
 export function pushMessage(notification: PushNotification, language: Locale, options: { coachSpaceV2?: boolean } = {}): PushMessage {
   const { t } = createI18n(language);

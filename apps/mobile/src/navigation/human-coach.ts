@@ -28,7 +28,7 @@ export function useIsAssociationMember(): boolean {
 }
 
 /**
- * « Espace coach v2 » (ADR-0106) as the server says it, with `GET /api/coach-space`: true when on; false when off, absent
+ * « Espace coach v2 » (ADR-0107) as the server says it, with `GET /api/coach-space`: true when on; false when off, absent
  * (a server from before it), unreachable or offline; undefined while not known yet.
  */
 export function useCoachSpaceV2Read(): boolean | undefined {

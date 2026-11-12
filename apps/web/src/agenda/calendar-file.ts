@@ -21,7 +21,7 @@ export interface CalendarFileOptions {
   agendaUrl: string;
   /** The Candidate's Interface Language, for the SUMMARY and DESCRIPTION. */
   locale: Locale;
-  /** « Espace coach v2 » (ADR-0106): off, the file is the one before the Human Coach epic (Paris time, `timeZone` ignored). */
+  /** « Espace coach v2 » (ADR-0107): off, the file is the one before the Human Coach epic (Paris time, `timeZone` ignored). */
   coachSpaceV2?: boolean;
   /** The Candidate's coaching time zone, for a Coaching Session's file under « Espace coach v2 ». */
   timeZone?: string;

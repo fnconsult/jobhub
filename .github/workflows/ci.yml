@@ -94,7 +94,7 @@ jobs:
           - { shard: web-4, args: "--project=web --shard=4/4" }
           # worker and root-env each run one spec at a time: together, each takes one of the runner's two workers.
           # Playwright starts projects in config order, so root-env, the last, would otherwise start when all else is done.
-          # The Human Coach epic's specs with « Espace coach v2 » on (ADR-0106), alone on their database: the setting is global.
+          # The Human Coach epic's specs with « Espace coach v2 » on (ADR-0107), alone on their database: the setting is global.
           - { shard: coach-v2, args: "--project=coach-v2" }
           - { shard: worker-1, args: "--project=worker --project=root-env --shard=1/3" }
           - { shard: worker-2, args: "--project=worker --project=root-env --shard=2/3" }

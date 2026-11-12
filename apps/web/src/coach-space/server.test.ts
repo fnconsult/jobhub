@@ -12,7 +12,7 @@ describe("Permanent Coach space entry", () => {
     state.coach = null;
     await expect(requireCoachSpace()).rejects.toThrow("404");
   });
-  it("answers 404 while « Espace coach v2 » is off, even to an active Human Coach (ADR-0106)", async () => {
+  it("answers 404 while « Espace coach v2 » is off, even to an active Human Coach (ADR-0107)", async () => {
     state.v2 = false;
     await expect(requireCoachSpace()).rejects.toThrow("404 v2 off");
   });

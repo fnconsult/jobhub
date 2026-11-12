@@ -22,7 +22,7 @@ const SESSION: AgendaItem = {
 };
 const DAYS = [{ day: "2030-03-13", items: [SESSION] }];
 
-describe("a Coaching Session on the Agenda behind « Espace coach v2 » (ADR-0106)", () => {
+describe("a Coaching Session on the Agenda behind « Espace coach v2 » (ADR-0107)", () => {
   it("off: « 11:00 » in Paris, as on main, with no Cal.com label", () => {
     const formats = formatsFor("fr", NOW);
     expect(formats.coachingTime(SESSION.scheduledAt)).toBe("11:00");

@@ -49,7 +49,7 @@ describe("Help Articles of the Candidate's pages (ADR-0035)", () => {
     expect(withoutArticle).toEqual([]);
   });
 
-  // Off, the articles main served: a page the epic added (a 404 while it is off, ADR-0106) has its article on only.
+  // Off, the articles main served: a page the epic added (a 404 while it is off, ADR-0107) has its article on only.
   it.each(["fr", "en"] as const)("gives every Candidate page a page article, in %s, but the epic's pages while « Espace coach v2 » is off", (locale) => {
     const withoutArticle = candidatePages.filter((route) => articleFor(route, locale)?.kind !== "page");
     const epics = withoutArticle.filter((route) => articleFor(route, locale, { from: articlesFor(locale, { coachSpaceV2: true }) })?.requires === "coach-space-v2");

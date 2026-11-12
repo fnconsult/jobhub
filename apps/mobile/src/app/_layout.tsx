@@ -101,7 +101,7 @@ function PagesInShell() {
   const free = useFreeConversations().data?.conversations;
   const page = pageFor(pathname, t, { application, profile, conversationTitle: (id) => free?.find((conversation) => conversation.id === id)?.title });
   const isHumanCoach = useIsHumanCoach();
-  // « Espace coach v2 » (ADR-0106), as the server says it: off, the app is as before the Human Coach epic.
+  // « Espace coach v2 » (ADR-0107), as the server says it: off, the app is as before the Human Coach epic.
   const coachSpaceV2 = useCoachSpaceV2Read();
   const isAssociationMember = useIsAssociationMember() && coachSpaceV2 === true;
   // What another app shared while signed out, or while another page was shown: the capture screen opens on it.

@@ -61,7 +61,7 @@ export function CoachingSessionDialog({
   editor?: SessionEditor;
   withVideoLink?: boolean;
   /**
-   * « Espace coach v2 » (ADR-0106): on, only the fields edited are sent, and a booking linked to Cal.com leads there;
+   * « Espace coach v2 » (ADR-0107): on, only the fields edited are sent, and a booking linked to Cal.com leads there;
    * off, every field is sent, as before the Human Coach epic.
    */
   coachSpaceV2?: boolean;

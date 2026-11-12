@@ -24,7 +24,7 @@ export default async function AccountPreferencesPage() {
   if (!candidate) return signInRedirect();
   const t = await getServerT();
   const [nouveautesEmail, coachProposalsDisplay] = await Promise.all([getNouveautesEmails().setting(candidate.id), getCoachProposalsDisplays().of(candidate.id)]);
-  // The coaching time zone is part of « Espace coach v2 » (ADR-0106): off, not offered, as before it.
+  // The coaching time zone is part of « Espace coach v2 » (ADR-0107): off, not offered, as before it.
   const coachSpaceV2 = coachSpaceV2On();
   const timeZone = coachSpaceV2 ? await getCoachingTimeZones().candidate(candidate.id) : null;
   return (

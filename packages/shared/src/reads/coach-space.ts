@@ -6,7 +6,7 @@ export const coachSpaceResponseSchema = z.object({
   humanCoach: z.boolean(),
   associationSpace: z.boolean().optional(),
   /**
-   * « Espace coach v2 » (ADR-0106): true only while the Platform Setting is on. Absent (off, or a server from before
+   * « Espace coach v2 » (ADR-0107): true only while the Platform Setting is on. Absent (off, or a server from before
    * it) reads as off: the app then behaves as before the Human Coach epic.
    */
   coachSpaceV2: z.boolean().optional(),

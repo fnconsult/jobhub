@@ -182,7 +182,7 @@ export type CoachReviewResult =
 
 export interface HumanCoachesDeps {
   /**
-   * Whether « Espace coach v2 » is on (ADR-0106). Off, the module behaves as before the epic: every non-retired Human Coach is
+   * Whether « Espace coach v2 » is on (ADR-0107). Off, the module behaves as before the epic: every non-retired Human Coach is
    * listed and enters the Coach space. Absent: on.
    */
   coachSpaceV2On?: () => boolean | Promise<boolean>;

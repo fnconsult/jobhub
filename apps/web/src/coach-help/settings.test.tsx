@@ -8,7 +8,7 @@ import { HelpSettingsProvider } from "./settings";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ refresh: vi.fn() }) }));
 
-// #867 (ADR-0106): the Coach Panel's « Sur cette page » reads the Help Articles « Espace coach v2 » serves, as the
+// #867 (ADR-0107): the Coach Panel's « Sur cette page » reads the Help Articles « Espace coach v2 » serves, as the
 // server read it for the page (HelpSettingsProvider); main's while it is off, or without the provider.
 describe("HelpSettingsProvider — « Sur cette page » in the Coach Panel", () => {
   const intro = <HelpIntro pathname="/coachs/annulations" locale="fr" onOpen={() => {}} />;

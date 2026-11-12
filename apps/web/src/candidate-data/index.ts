@@ -633,7 +633,7 @@ function holdsNothing(value: unknown): boolean {
 }
 
 /**
- * The export as main writes it, « Espace coach v2 » off (ADR-0106): the Human Coach epic's sections and fields are left
+ * The export as main writes it, « Espace coach v2 » off (ADR-0107): the Human Coach epic's sections and fields are left
  * out when they hold nothing, so a Candidate who never met it gets main's export; any data it did leave is still exported.
  */
 export function asBeforeCoachSpaceV2(data: CandidateDataExport): CandidateDataExport {
@@ -663,7 +663,7 @@ export interface CandidateDataDeps {
   fiscalCipher?:()=>SecretCipher|null;
   coachingCancellationOn?: () => Promise<boolean>;
   /**
-   * Whether « Espace coach v2 » (ADR-0106) is on, read at each export. Off, the export is main's (`asBeforeCoachSpaceV2`):
+   * Whether « Espace coach v2 » (ADR-0107) is on, read at each export. Off, the export is main's (`asBeforeCoachSpaceV2`):
    * the Human Coach epic's sections only when they hold data. Without it, on. Deletion never depends on it.
    */
   coachSpaceV2?: () => boolean;

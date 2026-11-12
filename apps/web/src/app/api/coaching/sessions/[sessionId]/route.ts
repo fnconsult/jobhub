@@ -18,7 +18,7 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/coa
   const { sessionId } = await params;
   const body: unknown = await request.json().catch(() => undefined);
   let result;
-  // A booking linked to Cal.com is changed there (« Espace coach v2 », ADR-0106); off, as before the Human Coach epic.
+  // A booking linked to Cal.com is changed there (« Espace coach v2 », ADR-0107); off, as before the Human Coach epic.
   if (!coachSpaceV2On()) result = await getHumanCoaches().scheduleSession(candidate.id, sessionId, body);
   else try{result=await getHumanCoaches().scheduleSession(candidate.id, sessionId, body);}catch(error){if(linkedBookingConflict(error))return NextResponse.json({error:"use_cal"},{status:409});throw error;}
   if (result.ok) return NextResponse.json({ id: result.session.id });

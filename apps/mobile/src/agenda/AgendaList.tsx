@@ -280,7 +280,7 @@ function CoachingSessionRow({
   onAdd: (item: AgendaItem) => void;
 }) {
   const { t, i18n } = useTranslation();
-  // « Espace coach v2 » off (ADR-0106): the time alone, in French time, beside the session, as before the epic.
+  // « Espace coach v2 » off (ADR-0107): the time alone, in French time, beside the session, as before the epic.
   const coachSpaceV2 = useCoachSpaceV2();
   return (
     <Card>

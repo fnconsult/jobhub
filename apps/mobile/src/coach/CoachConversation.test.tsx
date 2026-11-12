@@ -218,7 +218,7 @@ const PROPOSAL = {
   undoable: false,
 };
 
-describe("a Human Coach's message in a Coach Conversation (« Espace coach v2 », ADR-0106)", () => {
+describe("a Human Coach's message in a Coach Conversation (« Espace coach v2 », ADR-0107)", () => {
   const withReport = () =>
     fakeCoachWeb({
       conversations: [

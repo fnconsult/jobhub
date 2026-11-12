@@ -82,7 +82,7 @@ describe("sitemap.xml (#545)", () => {
     }
   });
 
-  // #867 (ADR-0106): the sitemap lists the articles served under « Espace coach v2 » (indexSources), main's while it is off.
+  // #867 (ADR-0107): the sitemap lists the articles served under « Espace coach v2 » (indexSources), main's while it is off.
   it("lists no address of the epic's Help Articles while « Espace coach v2 » is off, and lists them while it is on", () => {
     const listed = (coachSpaceV2: boolean) =>
       sitemapEntries({ origin: ORIGIN, beta: false, sources: { helpArticles: articlesFor("fr", { coachSpaceV2 }), legalTextInEffect: () => false } }).map((entry) => entry.url);

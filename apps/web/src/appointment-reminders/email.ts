@@ -17,7 +17,7 @@ export type ReminderEmailItem = {
 /**
  * The Appointment Reminder: the next day's Agenda Items (all on one day, French time), one card each, in time
  * order as given; the button opens the Agenda; the footer links to the Rappels Section, which switches them off.
- * With « Espace coach v2 » on (`coachSpaceV2`, ADR-0106), a Coaching Session's time is in the Candidate's `timeZone`
+ * With « Espace coach v2 » on (`coachSpaceV2`, ADR-0107), a Coaching Session's time is in the Candidate's `timeZone`
  * with its zone (ADR-0096); off (the default), French time like an Interview's, as before the Human Coach epic.
  */
 export function appointmentReminderEmail(

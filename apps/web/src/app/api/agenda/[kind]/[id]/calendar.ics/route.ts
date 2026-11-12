@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: RouteContext<"/api/agend
   const locale = localeOf(candidate);
   const now = new Date();
   const agendaUrl = new URL(routes.agenda(), process.env.APP_URL ?? request.url).href;
-  // « Espace coach v2 » (ADR-0106): off, the file is in French time, as before the Human Coach epic.
+  // « Espace coach v2 » (ADR-0107): off, the file is in French time, as before the Human Coach epic.
   const coachSpaceV2 = coachSpaceV2On();
   const timeZone = coachSpaceV2 ? ((await getCoachingTimeZones().candidate(candidate.id)) ?? undefined) : undefined;
   const file = item ? calendarFile(item, { now, agendaUrl, locale, coachSpaceV2, timeZone }) : null;

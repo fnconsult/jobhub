@@ -154,7 +154,7 @@ export function fakeWebApp() {
   let offline = false;
   const humanCoaches = new Set<string>();
   const associationMembers=new Set<string>();
-  // « Espace coach v2 » (ADR-0106): off by default, as the Platform Setting.
+  // « Espace coach v2 » (ADR-0107): off by default, as the Platform Setting.
   let coachSpaceV2 = false;
   const steps = new Map<string, LegalStepsResponse>();
   const recorded: Recorded[] = [];

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import AxeBuilder from "../support/axe";
 import { expect, test, type Page } from "@playwright/test";
 
-// « Espace coach v2 » on (#867, ADR-0106): the Help Centre serves the Human Coach epic's articles, each `.v2` in its
+// « Espace coach v2 » on (#867, ADR-0107): the Help Centre serves the Human Coach epic's articles, each `.v2` in its
 // base's place. With it off (e2e/help-centre.spec.ts, e2e/help-centre-videos.spec.ts), the articles main served.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));

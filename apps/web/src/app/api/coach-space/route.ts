@@ -13,7 +13,7 @@ import { getHumanCoaches, hasHumanCoachIdentity } from "@/human-coaches/server";
 export async function GET() {
   const person = await getCurrentCandidate();
   if (!person) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  // « Espace coach v2 » off (ADR-0106): an active Human Coach only, and no Association entry.
+  // « Espace coach v2 » off (ADR-0107): an active Human Coach only, and no Association entry.
   if (!coachSpaceV2On()) {
     const legacy: CoachSpaceResponse = { humanCoach: (await getHumanCoaches().coachSignedIn(person)) !== null };
     return NextResponse.json(legacy, { headers: { "cache-control": "no-store" } });

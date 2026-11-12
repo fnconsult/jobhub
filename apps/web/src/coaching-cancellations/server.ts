@@ -16,7 +16,7 @@ export function getCoachingCancellations() {
     return coachingCancellations(sharedPool(), {
         refunds: getCoachingRefunds(),
         permitted: cancellationPolicyOn,
-        // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+        // « Espace coach v2 » off (ADR-0107): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
         ...(coachSpaceV2On()
             ? { sendNotice: (record: Parameters<typeof cancellationNotice>[1], kind: string) => cancellationNotice(sharedPool(), record, kind, String(getAuth().options.baseURL), (email, message) => getMailer().send({ to: email, ...message }), getPushNotifications()) }
             : {}),

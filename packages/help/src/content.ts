@@ -139,7 +139,7 @@ function articleId(file: string): string {
 }
 
 /**
- * What is wrong with an article's `requires` and `replaces` (#867, ADR-0106): a requirement is one of
+ * What is wrong with an article's `requires` and `replaces` (#867, ADR-0107): a requirement is one of
  * HELP_ARTICLE_REQUIREMENTS; a `<id>.v2.md` requires one, `replaces: <id>`, and `<id>.md` is there, requiring nothing;
  * any other file replaces nothing.
  */

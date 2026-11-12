@@ -1,5 +1,5 @@
 /**
- * Which Help Articles are served under the Platform Settings in force (#867, ADR-0106): an article that `requires`
+ * Which Help Articles are served under the Platform Settings in force (#867, ADR-0107): an article that `requires`
  * « Espace coach v2 » only while it is on, in place of the article of the same id written without it (its `<id>.v2.md`
  * replaces `<id>.md`); while it is off, exactly the articles written without a requirement. Pure: the build, the Help
  * Centre, its search and sitemap, the Coach Panel and the Back Office read the same.

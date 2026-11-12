@@ -280,7 +280,7 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
     beforeEach(() => {
       queued = [];
       notifying = createPushNotifications(database, {
-        // Every event of the catalogue, the Human Coach epic's too (ADR-0106).
+        // Every event of the catalogue, the Human Coach epic's too (ADR-0107).
         coachSpaceV2: () => true,
         senders: () => senders,
         now: () => clock.now,
@@ -413,7 +413,7 @@ describe("queueing a Push notification for the worker", () => {
   });
 });
 
-describe("« Espace coach v2 » (ADR-0106)", () => {
+describe("« Espace coach v2 » (ADR-0107)", () => {
   /** A database that has the person's switches all on and one iPhone, with what was asked of it. */
   function fakeDatabase() {
     const queries: string[] = [];

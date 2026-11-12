@@ -90,7 +90,7 @@ export interface OrdersDeps {
   registry?: () => readonly LegalTextVersionRecord[];
   now?: () => Date;
   /**
-   * Whether « Espace coach v2 » (ADR-0106) is on, read at each call. Off, a Coaching Session is ordered as before the
+   * Whether « Espace coach v2 » (ADR-0107) is on, read at each call. Off, a Coaching Session is ordered as before the
    * Human Coach epic: at the Plan's price, no Coaching Offer, quote, seller or Peer remedy. Without it, on.
    */
   coachSpaceV2?: () => boolean;

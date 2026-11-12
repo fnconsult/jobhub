@@ -10,7 +10,7 @@ import { startOwnServer, signInByEmail, type OwnServer } from "../support/own-se
 import { comparesScreenshots, leaveOutRelease, SCREENSHOT_WIDTHS } from "../support/screenshots";
 import { expectTextContrast, showInTheme, themedName, THEMES } from "../support/theme";
 
-// The Human Coach epic's screens (#867, ADR-0106) checked against the Design System: the Coach space, the Candidate's
+// The Human Coach epic's screens (#867, ADR-0107) checked against the Design System: the Coach space, the Candidate's
 // « Mes coachs humains » and « Devenir coach », and the Association space, with « Espace coach v2 » on (the coach-v2
 // project; this spec's own server has it on through env, e2e/support/own-server.ts). Each screen is shot light and dark
 // at the desktop width, and light at the phone width, where dark is checked by axe and the contrast audit without a

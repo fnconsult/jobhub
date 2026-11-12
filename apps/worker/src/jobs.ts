@@ -228,7 +228,7 @@ export interface DiscoveryUnavailable {
 
 export interface JobsDeps {
   /**
-   * Whether « Espace coach v2 » is on (ADR-0106), asked at each run: a change applies without a restart. Off (or none),
+   * Whether « Espace coach v2 » is on (ADR-0107), asked at each run: a change applies without a restart. Off (or none),
    * the Human Coach epic's jobs that send, sync or pay anything do nothing; its purges of its own tables still run.
    */
   coachSpaceV2?: () => boolean;

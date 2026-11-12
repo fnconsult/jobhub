@@ -60,7 +60,7 @@ export const useCoachBox = () => useContext(CoachBox);
  */
 export function CoachConversation(page: PagePlacement) {
   const { t, i18n } = useTranslation();
-  // « Espace coach v2 » off (ADR-0106): no message is a Human Coach's, as before the epic.
+  // « Espace coach v2 » off (ADR-0107): no message is a Human Coach's, as before the epic.
   const coachSpaceV2 = useCoachSpaceV2();
   const language = i18n.language === "en" ? "en" : "fr";
   const locale = helpLocaleOf(i18n.language);

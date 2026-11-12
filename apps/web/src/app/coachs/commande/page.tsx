@@ -25,7 +25,7 @@ export default async function CoachingOrderPage({ searchParams }: { searchParams
   const t = await getServerT(locale);
   const query = await searchParams;
   const coachId = typeof query[ORDER_PARAMS.coach] === "string" ? (query[ORDER_PARAMS.coach] as string) : "";
-  // A Peer remedy (« Espace coach v2 », ADR-0106): off, none, as before the Human Coach epic.
+  // A Peer remedy (« Espace coach v2 », ADR-0107): off, none, as before the Human Coach epic.
   const remedyId = coachSpaceV2On() && typeof query.remedy === "string" ? query.remedy : undefined;
   const terms = await getOrders()
     .terms(candidate.id, { kind: "coachingSession", coachId, remedyId })

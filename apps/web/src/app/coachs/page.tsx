@@ -75,7 +75,7 @@ export default async function HumanCoachesPage({ searchParams }: {
         checkout_id?: string;
     }>;
 }) {
-    // « Espace coach v2 » off (ADR-0106): the page as before the Human Coach epic.
+    // « Espace coach v2 » off (ADR-0107): the page as before the Human Coach epic.
     if (!coachSpaceV2On())
         return <LegacyHumanCoachesPage searchParams={searchParams}/>;
     const candidate = await getCurrentCandidate();

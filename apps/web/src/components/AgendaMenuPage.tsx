@@ -51,7 +51,7 @@ export async function AgendaMenuPage({ candidateId, params }: { candidateId: str
   const now = new Date();
   const { past, pane } = readAgendaMenuAddress(params, now);
   const agenda = getAgenda();
-  // « Espace coach v2 » (ADR-0106): off, the Agenda is the one before the Human Coach epic (Paris time, no meetings, no policy).
+  // « Espace coach v2 » (ADR-0107): off, the Agenda is the one before the Human Coach epic (Paris time, no meetings, no policy).
   const v2 = coachSpaceV2On();
   const timeZone = v2 ? await candidateZone(candidateId) : undefined;
   const [t, locale, unscheduled, days, applications, contracts, subject] = await Promise.all([

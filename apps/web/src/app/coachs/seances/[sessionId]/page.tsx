@@ -1,4 +1,4 @@
-// « Espace coach v2 » (ADR-0106): this page is a 404 while it is off.
+// « Espace coach v2 » (ADR-0107): this page is a 404 while it is off.
 import { requireCoachSpaceV2 } from "@/coach-space-v2/server";
 import { MeetingLink } from "@/coach-space/MeetingLink";
 import { getCoachContacts } from "@/coach-space/contacts-server";

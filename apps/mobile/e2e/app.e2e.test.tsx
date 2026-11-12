@@ -546,7 +546,7 @@ describe("Jobbbox app, signing in (#685)", () => {
       expect((await webView()).source).toEqual({uri:`${mockWeb.app.baseURL}${path}?token=signature-only-for-test`});
     }finally{mockWeb.app.coachSpaceV2(false);}
   });
-  it("« Espace coach v2 » off: no Association entry, and its addresses are unknown to the app, as before the epic (ADR-0106)", async () => {
+  it("« Espace coach v2 » off: no Association entry, and its addresses are unknown to the app, as before the epic (ADR-0107)", async () => {
     mockWeb.app.associationMember(EMAIL);
     try {
       await launch();

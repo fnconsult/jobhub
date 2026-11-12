@@ -39,7 +39,7 @@ export const isPushEvent = (value: unknown): value is PushEvent => PUSH_EVENT_ID
 export const pushAudiencesOf = (isHumanCoach: boolean): PushAudience[] => (isHumanCoach ? ["candidate", "human_coach"] : ["candidate"]);
 
 /**
- * The events that existed before the Human Coach epic (#867): the only ones while « Espace coach v2 » is off (ADR-0106).
+ * The events that existed before the Human Coach epic (#867): the only ones while « Espace coach v2 » is off (ADR-0107).
  * The others are the epic's: not shown in Rappels, not queued, not sent while it is off.
  */
 export const LEGACY_PUSH_EVENTS: readonly PushEvent[] = [

@@ -90,7 +90,7 @@ export interface BillingConfig {
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
   /**
-   * Whether « Espace coach v2 » (ADR-0106) is on, read at each Coaching Session Checkout. Off, it is started as before
+   * Whether « Espace coach v2 » (ADR-0107) is on, read at each Coaching Session Checkout. Off, it is started as before
    * the Human Coach epic: no Connect checkout, and back to « /coachs?session=paid ». Without it, on.
    */
   coachSpaceV2?: () => boolean;
@@ -244,7 +244,7 @@ export interface PlanPrice {
 
 /**
  * Where Stripe sends a Candidate back once a Coaching Session is paid on the web: with its Checkout's id under
- * « Espace coach v2 » (ADR-0106), as before the Human Coach epic without.
+ * « Espace coach v2 » (ADR-0107), as before the Human Coach epic without.
  */
 export const coachingPaidQuery = (coachSpaceV2: boolean): string => (coachSpaceV2 ? "?session=paid&checkout_id={CHECKOUT_SESSION_ID}" : "?session=paid");
 

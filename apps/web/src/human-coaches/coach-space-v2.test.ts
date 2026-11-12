@@ -2,7 +2,7 @@ import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { createHumanCoaches, type HumanCoachesDeps } from "./index";
 
-// « Espace coach v2 » (ADR-0106): off, the module answers as before the Human Coach epic, whatever the epic's deps say.
+// « Espace coach v2 » (ADR-0107): off, the module answers as before the Human Coach epic, whatever the epic's deps say.
 // No database: a fake pool records the SQL it is asked.
 const COACH = { id: "8e2f6f0c-6a55-4d6b-9a52-0c2a8f0a1f11", name: "Claire Martin", email: "claire@example.com", booking_url: "https://cal.com/claire", bio: "" };
 const PERSON = { email: " Claire@Example.com ", emailVerified: true };

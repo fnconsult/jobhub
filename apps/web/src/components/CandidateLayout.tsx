@@ -175,7 +175,7 @@ export async function CandidateLayout({
     freeConversations(candidateId),
     sidebarMenus(candidateId),
     closedWelcome(candidateId),
-    // « Espace coach v2 » off (ADR-0106): no « Espace association » entry.
+    // « Espace coach v2 » off (ADR-0107): no « Espace association » entry.
     coachSpaceV2On() ? currentAssociationIdentity() : false,
   ]);
   return (

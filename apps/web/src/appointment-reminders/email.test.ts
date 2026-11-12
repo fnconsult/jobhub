@@ -7,7 +7,7 @@ const items: ReminderEmailItem[] = [
 ];
 const links = { agendaUrl: "https://app.jobbbox.fr/agenda?vue=liste", settingsUrl: "https://app.jobbbox.fr/compte/rappels" };
 
-describe("the Appointment Reminder's Coaching Session time (« Espace coach v2 », ADR-0106)", () => {
+describe("the Appointment Reminder's Coaching Session time (« Espace coach v2 », ADR-0107)", () => {
   it("off (or not given): French time, like an Interview's, as before the Human Coach epic, whatever time zone it is given", () => {
     const before = appointmentReminderEmail({ items, ...links }, "fr");
     expect(before.text).toContain("14:30 · Séance de coaching avec Sophie Martin");

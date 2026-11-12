@@ -121,13 +121,13 @@ describe("the Agenda, as a list", () => {
     expect(within(interview).getByText("14:30")).toBeOnTheScreen();
     expect(within(interview).getByText("Aéroline")).toBeOnTheScreen();
     const session = screen.getByRole("link", { name: /Claire Martin/ });
-    // « Espace coach v2 » off (ADR-0106): the time alone, as before the Human Coach epic.
+    // « Espace coach v2 » off (ADR-0107): the time alone, as before the Human Coach epic.
     expect(within(session).getByText("09:00")).toBeOnTheScreen();
     expect(within(session).queryByText(/Europe\/Paris/)).toBeNull();
     expect(within(session).getByText("60 min")).toBeOnTheScreen();
   });
 
-  it("« Espace coach v2 » on: writes a Coaching Session's time with its zone, its meeting and « via Cal.com » (ADR-0106)", async () => {
+  it("« Espace coach v2 » on: writes a Coaching Session's time with its zone, its meeting and « via Cal.com » (ADR-0107)", async () => {
     const [, sessionDay] = AGENDA.days;
     const session = { ...sessionDay!.items[0]!, changedBy: "cal_com" as const, timeZone: "America/Montreal" };
     await renderAgenda({ ...AGENDA, days: [{ ...sessionDay!, items: [session] }] }, fakeSheets().sheets, { coachSpaceV2: true });

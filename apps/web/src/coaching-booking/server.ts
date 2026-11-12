@@ -51,7 +51,7 @@ export function getCoachingBooking() {
             }>(`SELECT c.email,c."emailVerified" FROM human_coach h JOIN candidate c ON lower(c.email)=h.email AND c."emailVerified" WHERE h.id=$1 AND h.retired_at IS NULL`, [coachId])).rows[0];
             return !!owner && (await getCoachContracts().mayEnter(owner, coachId));
         },
-        // « Espace coach v2 » off (ADR-0106): no Cal.com change notification; it stays pending until it is on.
+        // « Espace coach v2 » off (ADR-0107): no Cal.com change notification; it stays pending until it is on.
         ...(coachSpaceV2On()
             ? { changed: (sessionId: string, eventKey: string) => bookingChanged(sharedPool(), getPushNotifications(), sessionId, eventKey, { coach: !coachingNoticesOn() }) }
             : {}),

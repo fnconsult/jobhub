@@ -37,7 +37,7 @@ export default async function Page({ searchParams }: {
         association?: string;
     }>;
 }) {
-    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
+    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): a 404.
     const person = await getCurrentCandidate();
     if (!person)
         return signInRedirect();

@@ -6,7 +6,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 const Settings = createContext<HelpSettings>({});
 
 /**
- * The Help Articles' settings in the browser (#867, ADR-0106): « Espace coach v2 » on or off, as the server read it for
+ * The Help Articles' settings in the browser (#867, ADR-0107): « Espace coach v2 » on or off, as the server read it for
  * this page (`coachSpaceV2On()`). The Coach Panel's help, « Sur cette page » and the page's help links read the articles
  * it serves. Without it, off: the articles main served.
  */

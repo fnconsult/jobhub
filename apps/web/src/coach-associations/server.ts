@@ -13,7 +13,7 @@ export function getCoachAssociations() {
     return coachAssociations(sharedPool(), {
         secret,
         mayManage: async (person, id) => (await getCoachContracts().state(person, "association", id))?.accepted === true,
-        // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+        // « Espace coach v2 » off (ADR-0107): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
         ...(coachSpaceV2On() ? {
             sendInvitation: async (record: Parameters<typeof associationInvitationEmail>[0], token: string) => {
                 await getMailer().send({ to: record.email, ...associationInvitationEmail(record, token, String(getAuth().options.baseURL)) });
@@ -22,7 +22,7 @@ export function getCoachAssociations() {
     });
 }
 export async function requireAssociation(id: string) {
-    // An Association's space and its actions exist only with « Espace coach v2 » on (ADR-0106).
+    // An Association's space and its actions exist only with « Espace coach v2 » on (ADR-0107).
     requireCoachSpaceV2();
     const person = await getCurrentCandidate();
     if (!person)

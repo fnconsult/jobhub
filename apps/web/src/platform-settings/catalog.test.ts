@@ -60,14 +60,14 @@ const MAINTENANCE = ["MAINTENANCE_MODE", "MAINTENANCE_MESSAGE_FR", "MAINTENANCE_
 /** The Help Centre (#568): the origin its Explainer Videos are played from. */
 const HELP_CENTRE = ["HELP_MEDIA_ORIGIN"];
 
-/** « Espace coach v2 » (ADR-0106): the Human Coach epic's one switch, off by default. */
+/** « Espace coach v2 » (ADR-0107): the Human Coach epic's one switch, off by default. */
 const COACH_SPACE = ["COACH_SPACE_V2"];
 
 /** The Coach Actions (ADR-0077, #713): switched on or off, and how many rounds of calls a reply may make. */
 const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX", "CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"];
 
 describe("the Platform Settings catalog", () => {
-  it("has « Espace coach v2 » off by default, a confirmed boolean (ADR-0106)", () => {
+  it("has « Espace coach v2 » off by default, a confirmed boolean (ADR-0107)", () => {
     const setting = PLATFORM_SETTINGS.find(({ name }) => name === "COACH_SPACE_V2");
     expect(setting).toMatchObject({ type: { kind: "boolean" }, default: "false", confirm: "true" });
   });

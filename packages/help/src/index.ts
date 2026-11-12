@@ -9,7 +9,7 @@
  *   helpCentreTopics("fr");                             // the four topics of /aide, each with its public articles
  *   backOfficeHelpTopics("fr");                         // the Back Office's topics of /admin/aide, with the Administrators' articles
  *
- * What is served depends on « Espace coach v2 » (#867, ADR-0106): every function reads the articles served while it is
+ * What is served depends on « Espace coach v2 » (#867, ADR-0107): every function reads the articles served while it is
  * off (those main served) unless given `from: articlesFor(locale, { coachSpaceV2: true })`, or `{ coachSpaceV2 }` where
  * it takes settings.
  */
@@ -190,7 +190,7 @@ export function backOfficeHelpArticle(topic: string, id: string, locale: HelpLoc
 const served = new Map<string, readonly HelpArticle[]>();
 
 /**
- * The Help Articles served in `locale` under `settings` (#867, ADR-0106), the Administrators' too, in this build's order
+ * The Help Articles served in `locale` under `settings` (#867, ADR-0107), the Administrators' too, in this build's order
  * (the page articles, the glossary, the frequent questions, then the tutorials, each by title). « Espace coach v2 » off
  * (the default): those main served, with main's text; on: the epic's, an article's `.v2` in its place. The one filter
  * every reader of the articles goes through: the Help Centre, its search and sitemap, « Sur cette page », the Coach

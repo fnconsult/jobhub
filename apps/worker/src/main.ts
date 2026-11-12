@@ -182,7 +182,7 @@ const workerQueue = {
 // send (the .p8 and the service account, Back Office over env), each call recorded under its Tool. The worker's own
 // events (results, Job Digests, Appointment Reminders, Follow-ups due) queue theirs on its runner (#699). Each one
 // carries the app icon's badge, the person's offers à traiter at sending (#818).
-// « Espace coach v2 » (ADR-0106), read from the Platform Settings at each use: switching it needs no restart.
+// « Espace coach v2 » (ADR-0107), read from the Platform Settings at each use: switching it needs no restart.
 const coachSpaceV2 = () => coachSpaceV2InEnv(settingsEnv());
 const pushNotifications = createPushNotifications(database, {
   coachSpaceV2,

@@ -29,7 +29,7 @@ const EDITOR = "coach";
 /** The session's phase, in its tone: to come, under way, or over. */
 const PHASE_TONE: Record<ReturnType<typeof sessionPhase>, Tone> = { before: "accent", during: "success", after: "neutral" };
 export default async function Page({ params }: { params: Promise<{ sessionId: string }> }) {
-  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): a 404.
   const coach = await requireCoachSpace();
   const space = getCoachWorkspace();
   const session = await space.session(coach.id, (await params).sessionId);

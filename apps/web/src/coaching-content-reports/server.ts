@@ -8,7 +8,7 @@ export const getContentReports = () =>
   coachingContentReports(sharedPool(), {
     platformEmail: publicContactEmail,
     send: async (notice) => {
-      // « Espace coach v2 » off (ADR-0106): nothing to a Candidate or a Coach; the notice is retried until it is on.
+      // « Espace coach v2 » off (ADR-0107): nothing to a Candidate or a Coach; the notice is retried until it is on.
       if (notice.recipient !== "platform" && !coachSpaceV2On()) throw new Error("Espace coach v2 is off");
       await getMailer().send({ to: notice.to, ...contentReportEmail(notice, String(getAuth().options.baseURL)) });
     },

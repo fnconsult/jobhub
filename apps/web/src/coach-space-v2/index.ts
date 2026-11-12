@@ -1,5 +1,5 @@
 /**
- * « Espace coach v2 » (#867, ADR-0106): the one Platform Setting the Human Coach epic is built behind, off by default.
+ * « Espace coach v2 » (#867, ADR-0107): the one Platform Setting the Human Coach epic is built behind, off by default.
  * Off, every page, route, e-mail, notification and app read behaves as before the epic; on, the new Coach workspace and
  * marketplace. #888 turns it on, then retires the old Coach space. The legal, provider and fiscal gates still apply
  * once it is on: this switch never approves them.

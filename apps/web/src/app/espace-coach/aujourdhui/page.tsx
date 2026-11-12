@@ -10,7 +10,7 @@ import { SessionCard, coachSessionUrl, coachCandidateUrl } from "@/coach-space/S
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 export default async function Page() {
-  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): a 404.
   const coach = await requireCoachSpace();
   const [t, locale, timeZone] = await Promise.all([getServerT(), getRequestLocale(), getCoachingTimeZones().coach(coach.id)]);
   const day = await getCoachWorkspace().today(coach.id, new Date(), timeZone);

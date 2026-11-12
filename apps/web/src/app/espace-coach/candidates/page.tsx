@@ -8,7 +8,7 @@ import { getCoachWorkspace } from "@/coach-space/workspace-server";
 import { coachCandidateUrl } from "@/coach-space/SessionCard";
 import { getServerT } from "@/i18n/server";
 export default async function Page() {
-  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): a 404.
   const coach = await requireCoachSpace();
   const t = await getServerT();
   const candidates = await getCoachWorkspace().candidates(coach.id);

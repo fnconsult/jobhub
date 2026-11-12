@@ -8,7 +8,7 @@ import { article, articleFor, articles, articlesFor, backOfficeHelpTopics, helpC
 import { servedArticles } from "./requirements";
 import { HELP_LOCALES, type HelpArticle } from "./types";
 
-// #867 (ADR-0106): the Human Coach epic's Help Articles wait for « Espace coach v2 ». Off, every reader gets the articles
+// #867 (ADR-0107): the Human Coach epic's Help Articles wait for « Espace coach v2 ». Off, every reader gets the articles
 // main served, with main's text; on, the epic's: the articles it added, and each `<id>.v2.md` in its base's place. The
 // Back Office's (an Administrator's) are not gated: the Back Office is the same in both states.
 

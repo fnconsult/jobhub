@@ -20,7 +20,7 @@ import { Status, type StatusTone } from "@/design/Pill";
 /** The Coach Page's review, in its tone: approved, refused, waiting, or replaced by a newer proposal. */
 const REVIEW_TONE: Record<string, StatusTone> = { approved: "success", refused: "danger", pending: "warn", superseded: "neutral" };
 export default async function Page() {
-  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): a 404.
   const coach = await requireCoachSpace(),
     person = await getCurrentCandidate();
   if (!person) notFound();

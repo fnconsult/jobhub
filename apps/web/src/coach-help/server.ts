@@ -2,7 +2,7 @@ import { articlesFor, type HelpArticle, type HelpLocale, type HelpSettings } fro
 import { coachSpaceV2On } from "@/coach-space-v2/server";
 
 /**
- * The Help Articles' settings for this request (#867, ADR-0106): « Espace coach v2 » on or off. Off, every reader on the
+ * The Help Articles' settings for this request (#867, ADR-0107): « Espace coach v2 » on or off. Off, every reader on the
  * server (the Help Centre, its search and sitemap, the AI Coach) gets the articles main served; on, the epic's.
  */
 export function helpSettings(): HelpSettings {

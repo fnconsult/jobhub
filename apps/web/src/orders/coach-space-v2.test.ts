@@ -24,7 +24,7 @@ function ordersWith(coachSpaceV2: boolean) {
   return { orders: createOrders({} as Pool, deps), peerOrderCap };
 }
 
-describe("ordering a Coaching Session behind « Espace coach v2 » (ADR-0106)", () => {
+describe("ordering a Coaching Session behind « Espace coach v2 » (ADR-0107)", () => {
   it("off: at the Plan's price, with no Coaching Offer, seller or Peer remedy, as on main", async () => {
     const { orders, peerOrderCap } = ordersWith(false);
     const terms = await orders.terms("candidate-1", ITEM);

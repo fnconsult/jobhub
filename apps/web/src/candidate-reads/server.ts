@@ -26,7 +26,7 @@ let instance: CandidateReads | undefined;
 /** The app's reads over HTTP (#684), on the modules the pages read, on the database named by DATABASE_URL. */
 export function getCandidateReads(): CandidateReads {
     instance ??= createCandidateReads({
-        // « Espace coach v2 » (ADR-0106), per request: off, the reads answer the app as before the Human Coach epic.
+        // « Espace coach v2 » (ADR-0107), per request: off, the reads answer the app as before the Human Coach epic.
         coachSpaceV2: coachSpaceV2On,
         coachPages: (ids) => (getCoachPages().approved(ids)),
         coachAssociations: (ids) => (getCoachAssociations().providers(ids)),

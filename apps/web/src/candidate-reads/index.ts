@@ -117,7 +117,7 @@ export interface CandidateReads {
 
 export interface CandidateReadsDeps {
   /**
-   * « Espace coach v2 » (ADR-0106), read per call: off (or absent), the reads answer as before the Human Coach epic, none
+   * « Espace coach v2 » (ADR-0107), read per call: off (or absent), the reads answer as before the Human Coach epic, none
    * of the deps below is asked, and no message names its Human Coach.
    */
   coachSpaceV2?: () => boolean;

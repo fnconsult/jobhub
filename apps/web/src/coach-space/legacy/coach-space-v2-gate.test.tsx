@@ -3,7 +3,7 @@ import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// « Espace coach v2 » (ADR-0106) on the Coach space: off, a Human Coach gets main's /espace-coach (its sessions, its Coach
+// « Espace coach v2 » (ADR-0107) on the Coach space: off, a Human Coach gets main's /espace-coach (its sessions, its Coach
 // Access list, the Candidate's file, main's header) and nothing the Human Coach epic added answers; on, the new workspace.
 const state = vi.hoisted(() => ({ on: false }));
 vi.mock("@/coach-space-v2/server", () => ({

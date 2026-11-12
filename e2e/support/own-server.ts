@@ -22,7 +22,7 @@ const adminClient = async (databaseUrl: URL) => {
 };
 
 /**
- * « Espace coach v2 » (ADR-0106) for a server started by a spec of the coach-v2 project: on, through env, since its fresh
+ * « Espace coach v2 » (ADR-0107) for a server started by a spec of the coach-v2 project: on, through env, since its fresh
  * database has none of the suite's Platform Settings. Every other project's servers keep it off, its default.
  */
 function coachSpaceV2Env(): NodeJS.ProcessEnv {

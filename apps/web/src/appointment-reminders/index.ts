@@ -41,7 +41,7 @@ export interface AppointmentRemindersDeps {
   /** Where the Appointment Reminder's Push notification is queued. Without it, none. */
   push?: PushNotifier;
   /**
-   * Whether « Espace coach v2 » is on (ADR-0106), asked at each email: on, a Coaching Session's time is in the
+   * Whether « Espace coach v2 » is on (ADR-0107), asked at each email: on, a Coaching Session's time is in the
    * Candidate's time zone (ADR-0096). Off, or none: French time, as before the Human Coach epic.
    */
   coachSpaceV2?: () => boolean;

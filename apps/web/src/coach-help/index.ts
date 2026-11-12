@@ -14,7 +14,7 @@
  * Office Assistant, #551), whose search covers the Administrators' articles only (ADR-0065). Runs in the browser and on
  * the server: it reads the bundled Help Articles and calls no AI model, so nothing here costs anything.
  *
- * Each also takes the Help Articles' `settings` (#867, ADR-0106): « Espace coach v2 » off unless `{ coachSpaceV2: true }`,
+ * Each also takes the Help Articles' `settings` (#867, ADR-0107): « Espace coach v2 » off unless `{ coachSpaceV2: true }`,
  * main's articles while it is off. On the server, `helpSettings()` (./server) reads it for the request; in the browser,
  * `useHelpSettings()` (./settings), as the server read it for the page.
  */

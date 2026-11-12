@@ -14,7 +14,7 @@ import { getCoachingTimeZones } from "@/coaching-time/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 export default async function Page({ params }: { params: Promise<{ candidateId: string }> }) {
-  // « Espace coach v2 » off (ADR-0106): `routes.coachSpaceCandidate` (a Coach Access push, a link back) leads here; the
+  // « Espace coach v2 » off (ADR-0107): `routes.coachSpaceCandidate` (a Coach Access push, a link back) leads here; the
   // old Coach space reads the Candidate's file at /espace-coach/{candidateId}.
   if (!coachSpaceV2On()) redirect(legacyCandidateUrl((await params).candidateId));
   const coach = await requireCoachSpace();

@@ -22,7 +22,7 @@ export default async function AccountRemindersPage() {
   return (
     <>
       <AppointmentRemindersForm enabled={enabled} />
-      {/* Coaching notices are part of « Espace coach v2 » (ADR-0106): off, none, as before it. */}
+      {/* Coaching notices are part of « Espace coach v2 » (ADR-0107): off, none, as before it. */}
       {coachSpaceV2On()&&coachingNoticesOn()?<CoachingNoticeSettings initial={await getCoachingNotifications().settings(candidate.id)} audience={CANDIDATE}/>:null}
       <PushNotificationsForm events={pushEventsFor(pushAudiencesOf(coach !== null), coachSpaceV2On())} settings={settings} devices={devices.length} />
     </>

@@ -844,7 +844,7 @@ describe("private Coach agreement notices",()=>{
   });
 });
 
-describe("« Espace coach v2 » off (ADR-0106): the Human Coach epic's jobs", () => {
+describe("« Espace coach v2 » off (ADR-0107): the Human Coach epic's jobs", () => {
   const epic = () => {
     const calls: string[] = [];
     const called = (name: string) => async () => {

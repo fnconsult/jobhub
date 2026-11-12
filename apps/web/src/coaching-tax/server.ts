@@ -21,7 +21,7 @@ export function getCoachingTaxes() {
       ? stripeTaxTransfers({ secretKey: env.STRIPE_SECRET_KEY, apiUrl: env.STRIPE_API_URL, externalApis: getExternalApiLog() })
       : undefined,
     validateXml: validateFiscalXml,
-    // « Espace coach v2 » off (ADR-0106): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
+    // « Espace coach v2 » off (ADR-0107): nothing sent to a Candidate or a Coach; the notice stays pending until it is on.
     ...(coachSpaceV2On()
       ? {
           sendCopy: async (notice: Parameters<typeof fiscalCopyEmail>[0] & { to: string }) => {

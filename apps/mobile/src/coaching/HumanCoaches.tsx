@@ -65,7 +65,7 @@ export function HumanCoaches() {
   const pending = usePendingCheckout();
   const coaching = useCoaching();
   const wait = usePaymentWait(coaching);
-  // « Espace coach v2 » off (ADR-0106): main's page, as before the Human Coach epic.
+  // « Espace coach v2 » off (ADR-0107): main's page, as before the Human Coach epic.
   const coachSpaceV2 = useCoachSpaceV2();
   // Back from Checkout: read at once, whatever was read before it opened.
   const back = pending?.how ?? null;

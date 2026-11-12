@@ -220,7 +220,7 @@ export interface CoachConversationsDeps {
   /** When messages are sent. Default: the system clock. */
   now?: () => Date;
   /**
-   * Whether « Espace coach v2 » (ADR-0106) is on, read at each call. Off, the Candidate sees no Session Report: no
+   * Whether « Espace coach v2 » (ADR-0107) is on, read at each call. Off, the Candidate sees no Session Report: no
    * conversation about a Coaching Session, no Human Coach's message, as before the Human Coach epic. Without it, on.
    */
   sessionReports?: () => boolean;
@@ -444,7 +444,7 @@ function titleFrom(message: string): string {
 
 export function createCoachConversations(database: Pool, deps: CoachConversationsDeps): CoachConversations {
   const now = deps.now ?? (() => new Date());
-  /** Whether Session Reports are shown (« Espace coach v2 », ADR-0106). */
+  /** Whether Session Reports are shown (« Espace coach v2 », ADR-0107). */
   const reportsShown = () => deps.sessionReports?.() ?? true;
   /** Off « Espace coach v2 », a conversation about a Coaching Session is not the Candidate's to see. */
   const shown = (row: Pick<SubjectRow, "subject_kind">) => reportsShown() || row.subject_kind !== "coaching_session";

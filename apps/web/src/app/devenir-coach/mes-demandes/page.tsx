@@ -6,7 +6,7 @@ import { PublicSite } from "@/design/PublicSite";
 import { getServerT } from "@/i18n/server";
 export const metadata = { robots: { index: false } };
 export default async function Page() {
-    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
+    requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): a 404.
     const person = await getCurrentCandidate();
     if (!person)
         return signInRedirect();

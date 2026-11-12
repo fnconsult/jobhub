@@ -63,7 +63,7 @@ async function signedIn() {
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
 
 let web: ReturnType<typeof serveCoaching>;
-/** « Espace coach v2 » (ADR-0106) as the web app says it at launch: off unless a test turns it on (`v2 = true`). */
+/** « Espace coach v2 » (ADR-0107) as the web app says it at launch: off unless a test turns it on (`v2 = true`). */
 let v2 = false;
 /** Signed in, the web app serving Mes coachs humains (`changed` before the page reads it), the page opened at `url`. */
 async function launch(url = "/coachs", changed: (route: typeof web) => void = () => {}) {
@@ -132,7 +132,7 @@ describe("Mes coachs humains, read from the web app", () => {
     const hint=await screen.findByText(/Le lien apparaît/);
     expect(hint.props.children).toContain("09:20");expect(hint.props.children).toContain("America/Montreal");expect(hint.props.children).toContain("15:20");expect(hint.props.children).toContain("Europe/Paris");
   });
-  it("shows none of it while « Espace coach v2 » is off, as before the Human Coach epic (ADR-0106)", async () => {
+  it("shows none of it while « Espace coach v2 » is off, as before the Human Coach epic (ADR-0107)", async () => {
     const path = "/coachs/seances/11111111-1111-1111-1111-111111111111/reserver";
     await launch("/coachs", (route) => {
       route.coaching.cancellationPath = "/coachs/annulations";
@@ -218,7 +218,7 @@ async function pay() {
 }
 
 describe("« Réserver »: the Order, then Stripe Checkout in the in-app browser (ADR-0074, App Store 3.1.3(d))", () => {
-  it("shows the Order as before the Human Coach epic while « Espace coach v2 » is off: no Seller (ADR-0106)", async () => {
+  it("shows the Order as before the Human Coach epic while « Espace coach v2 » is off: no Seller (ADR-0107)", async () => {
     await openOrder();
 
     expect(screen.getByText("72,00 € TTC")).toBeOnTheScreen();
@@ -382,7 +382,7 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
     expect(screen.queryByLabelText(DATE)).toBeNull();
   });
 
-  it("« Espace coach v2 » off: enters the date with all four fields, its time without a zone, as before the epic (ADR-0106)", async () => {
+  it("« Espace coach v2 » off: enters the date with all four fields, its time without a zone, as before the epic (ADR-0107)", async () => {
     await openCoaches();
     const user = userEvent.setup();
 
@@ -398,7 +398,7 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
     expect(await screen.findByLabelText("Séance avec Paul Durand, le jeudi 12 novembre 2026 à 14:30")).toBeOnTheScreen();
   });
 
-  it("« Espace coach v2 » off: corrects a dated Coaching Session, all four fields replaced, as before the epic (ADR-0106)", async () => {
+  it("« Espace coach v2 » off: corrects a dated Coaching Session, all four fields replaced, as before the epic (ADR-0107)", async () => {
     await openCoaches();
     const user = userEvent.setup();
 

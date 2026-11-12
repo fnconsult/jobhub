@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/coac
   const coach = await coaches.coachSignedIn(person);
   if (!coach) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const { sessionId } = await params;
-  // « Espace coach v2 » off (ADR-0106): no cancellation policy, the session is simply left undated.
+  // « Espace coach v2 » off (ADR-0107): no cancellation policy, the session is simply left undated.
   if (coachSpaceV2On() && (await cancellationPolicyOn())) {
     const body = await request.json().catch(() => ({}));
     const key = typeof body.requestKey === "string" ? body.requestKey : randomUUID();

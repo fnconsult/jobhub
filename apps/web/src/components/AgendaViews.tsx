@@ -52,7 +52,7 @@ const ids = (scope: string) => ({
 
 /** How the page writes days and times: in French time, in the Interface Language. */
 export interface Formats {
-  /** « Espace coach v2 » (ADR-0106): off, the Agenda is drawn as before the Human Coach epic. */
+  /** « Espace coach v2 » (ADR-0107): off, the Agenda is drawn as before the Human Coach epic. */
   coachSpaceV2?: boolean;
   cancellationPolicy?: boolean;
   /** The time formatter, for `InterviewTimes`: "14:30". */

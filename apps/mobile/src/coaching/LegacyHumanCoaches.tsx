@@ -1,4 +1,4 @@
-// Mes coachs humains as before the Human Coach epic (origin/main), shown while « Espace coach v2 » is off (ADR-0106):
+// Mes coachs humains as before the Human Coach epic (origin/main), shown while « Espace coach v2 » is off (ADR-0107):
 // main's page below its read, copied verbatim (only the read and the payment wait stay in HumanCoaches.tsx, unchanged).
 // #888 retires it with the old Coach space.
 import type { CoachingResponse } from "@jobhub/shared/reads";

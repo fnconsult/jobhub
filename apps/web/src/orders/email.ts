@@ -14,9 +14,9 @@ const WITHDRAWAL_FORM_ANCHOR = LEGAL_TEXT_ANCHORS.cgv[0];
 /** What the Order Confirmation says of an Order Stripe confirmed. */
 export interface OrderConfirmation {
   kind: "plan" | "coachingSession";
-  /** Who sold the Coaching Session (marketplace, #867): none while « Espace coach v2 » is off (ADR-0106), as before the epic. */
+  /** Who sold the Coaching Session (marketplace, #867): none while « Espace coach v2 » is off (ADR-0107), as before the epic. */
   seller?:CoachingSeller|undefined;
-  /** Whether « Espace coach v2 » is on (ADR-0106). False: the email says no seller, whatever `seller` holds, as before the Human Coach epic. */
+  /** Whether « Espace coach v2 » is on (ADR-0107). False: the email says no seller, whatever `seller` holds, as before the Human Coach epic. */
   coachSpaceV2?: boolean;
   /** The Plan's name in this language, or the Human Coach's. */
   subject: string;

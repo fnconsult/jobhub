@@ -78,7 +78,7 @@ describe("a Push notification's deep link (the app fetches the rest once opened)
     expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr", { coachSpaceV2: true }).path).toBe(`/espace-coach/candidates/${CANDIDATE}`);
   });
 
-  it("opens a Candidate's page of the Coach space as before the Human Coach epic while « Espace coach v2 » is off (ADR-0106)", () => {
+  it("opens a Candidate's page of the Coach space as before the Human Coach epic while « Espace coach v2 » is off (ADR-0107)", () => {
     expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr").path).toBe(`/espace-coach/${CANDIDATE}`);
     expect(pushMessage(ONE_OF_EACH.coach_access_granted, "fr", { coachSpaceV2: false }).path).toBe(`/espace-coach/${CANDIDATE}`);
     for (const event of ["job_search_results", "job_digest", "appointment_reminder", "coach_review", "coaching_session_changed", "follow_up_due", "coaching_session_paid", "coaching_session_changed_by_candidate", "test"] as const)
@@ -134,7 +134,7 @@ describe("the events a person sees in Rappels", () => {
   });
 });
 
-describe("the events while « Espace coach v2 » is off (ADR-0106)", () => {
+describe("the events while « Espace coach v2 » is off (ADR-0107)", () => {
   it("are those before the Human Coach epic, in Rappels as on main", async () => {
     const { pushAudiencesOf, pushEventsFor } = await import("./catalog");
     expect(pushEventsFor(pushAudiencesOf(false))).toEqual(["job_search_results", "job_digest", "appointment_reminder", "coach_review", "coaching_session_changed", "follow_up_due"]);

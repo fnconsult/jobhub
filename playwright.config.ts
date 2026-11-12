@@ -81,7 +81,7 @@ export default defineConfig({
   // e2e/support/screenshots.css leaves out what changes with each Version and commit (#559).
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide", timeout: 20_000, stylePath: "e2e/support/screenshots.css" } },
   projects: [
-    // « Espace coach v2 » (ADR-0106): the Human Coach epic's specs, with the setting on. It is global to the suite's
+    // « Espace coach v2 » (ADR-0107): the Human Coach epic's specs, with the setting on. It is global to the suite's
     // database, so the project runs after every web spec (CI gives it a shard of its own), between its setup
     // and teardown, which turn it on and back off. Every other project runs with it off, as before the epic.
     { name: "coach-v2-setup", testMatch: /coach-v2\/coach-space-v2\.setup\.ts/, teardown: "coach-v2-teardown" },

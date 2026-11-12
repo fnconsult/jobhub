@@ -46,7 +46,7 @@ async function changeCoachAccess(form: FormData) {
  * Under « Conversation au centre » (#606, ADR-0070), the menu's conversation is the page instead: the Coaching Sessions and
  * the Human Coaches are cards in its thread, booking and Coach Access unchanged.
  *
- * Main's page, verbatim (« Espace coach v2 » off, ADR-0106): page.tsx draws it until the Human Coach epic is turned on.
+ * Main's page, verbatim (« Espace coach v2 » off, ADR-0107): page.tsx draws it until the Human Coach epic is turned on.
  */
 export async function LegacyHumanCoachesPage({ searchParams }: { searchParams: Promise<{ session?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();

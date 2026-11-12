@@ -20,7 +20,7 @@ export interface CalendarFileEvent {
   uid: string;
   /**
    * Coaching Sessions use the viewer’s zone; Interviews keep the Paris default. Named (even Paris), a repeated DST
-   * clock is written in UTC; left out, the file is the one before « Espace coach v2 » (ADR-0106).
+   * clock is written in UTC; left out, the file is the one before « Espace coach v2 » (ADR-0107).
    */
   timeZone?: string;
   start: Date;

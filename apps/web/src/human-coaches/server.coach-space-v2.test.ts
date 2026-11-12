@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HumanCoachesDeps } from "./index";
 
-// « Espace coach v2 » (ADR-0106) on the app's Human Coaches: off, no contract, no cancellation policy, no Coaching notices,
+// « Espace coach v2 » (ADR-0107) on the app's Human Coaches: off, no contract, no cancellation policy, no Coaching notices,
 // and only an active Human Coach sees « Espace coach », as on main.
 const state = vi.hoisted(() => ({
   on: false,

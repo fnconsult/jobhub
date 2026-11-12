@@ -184,7 +184,7 @@ describe("the Calendar file's address", () => {
   });
 });
 
-describe("« Espace coach v2 » (ADR-0106)", () => {
+describe("« Espace coach v2 » (ADR-0107)", () => {
   /** A Coaching Session on the night French clocks go back (2026-10-25, 02:30 happens twice), first occurrence. */
   const fold: CoachingSessionAgendaItem = { ...session, scheduledAt: new Date("2026-10-25T00:30:00.000Z") };
 

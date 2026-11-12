@@ -1,7 +1,7 @@
 import pg from "pg";
 import { test as setup } from "@playwright/test";
 
-// « Espace coach v2 » (ADR-0106) on for the coach-v2 project: the Human Coach epic's specs run against the new workspace
+// « Espace coach v2 » (ADR-0107) on for the coach-v2 project: the Human Coach epic's specs run against the new workspace
 // and marketplace. Every other project runs with it off, as a deployment does until #888. The setting is global to the
 // suite's database: CI runs this project in a shard of its own, and the project depends on every web spec when run locally.
 setup("turns « Espace coach v2 » on", async () => {

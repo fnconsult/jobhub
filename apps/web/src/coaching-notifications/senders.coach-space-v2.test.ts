@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// « Espace coach v2 » (ADR-0106) on the Human Coach epic's senders: off, nothing goes to a Candidate or a Coach, and each
+// « Espace coach v2 » (ADR-0107) on the Human Coach epic's senders: off, nothing goes to a Candidate or a Coach, and each
 // notice stays pending (no query is even made) until it is on; on, each sender runs as before.
 const state = vi.hoisted(() => ({ on: false, calRemindersDisabled: true, sent: [] as unknown[] }));
 const untouched = {

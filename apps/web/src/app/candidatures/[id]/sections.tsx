@@ -144,7 +144,7 @@ function resultTitle(result: ApplicationResult, t: T): string {
   return t(result === "cover_letter" ? "tailoredDocuments.coverLetter.title" : "tailoredDocuments.outreachMessage.title");
 }
 
-/** The Tailored Documents Shared Reading can share (« Espace coach v2 », ADR-0106). */
+/** The Tailored Documents Shared Reading can share (« Espace coach v2 », ADR-0107). */
 const SHARED_KINDS = ["tailored_cv", "cover_letter", "outreach_message"] as const;
 
 function SectionView({ data, section, result }: { data: ApplicationPageData; section: ApplicationSection; result?: ApplicationResult }) {
@@ -161,7 +161,7 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
         ...(jobTitle && { jobTitle }),
         ...(emails[0] && { email: emails[0] }),
       }));
-      // Shared Reading is part of « Espace coach v2 » (ADR-0106): off, not offered, as before it.
+      // Shared Reading is part of « Espace coach v2 » (ADR-0107): off, not offered, as before it.
       const shared = coachSpaceV2On() ? (
         <div className="actions shared-reading-actions">
           {SHARED_KINDS.filter((kind) => (kind === "tailored_cv" ? tailoredCv?.saved : kind === "cover_letter" ? drafts?.coverLetter : drafts?.outreachMessage)).map((kind) => (

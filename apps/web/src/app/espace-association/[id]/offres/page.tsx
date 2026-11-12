@@ -12,7 +12,7 @@ const F = { associationId: "associationId", coachId: "coachId", seller: "seller"
   JOBBBOX = "jobbbox";
 const PAGE = "offres";
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string }> }) {
-  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0106): a 404.
+  requireCoachSpaceV2(); // « Espace coach v2 » off (ADR-0107): a 404.
   const { id } = await params,
     { person, association, associations } = await requireAssociation(id),
     t = await getServerT(),

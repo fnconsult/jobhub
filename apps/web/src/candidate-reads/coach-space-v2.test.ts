@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createCandidateReads, type CandidateReadsDeps } from "./index";
 
 /**
- * « Espace coach v2 » (ADR-0106) on the app's reads, without a database: off, `GET /api/agenda`, `/api/coaching`,
+ * « Espace coach v2 » (ADR-0107) on the app's reads, without a database: off, `GET /api/agenda`, `/api/coaching`,
  * `/api/coaching/order` and a Coach Conversation answer as before the Human Coach epic, and the epic's deps are never
  * asked; on, they carry the epic's fields.
  */

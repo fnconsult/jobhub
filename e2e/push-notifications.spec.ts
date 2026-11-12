@@ -6,6 +6,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { registerDevice, sendPush } from "./support/push";
 import { accountButtonName } from "./support/account-menu";
+import { LEGACY_PUSH_EVENTS } from "../apps/web/src/push-notifications/catalog";
 
 // Issue #698: the Jobbbox app's Push notifications. The app registers its device (a token, a platform, a language) while
 // signed in; Mon compte's Rappels has one switch per event beside the Appointment Reminder by email, which stays the
@@ -17,7 +18,9 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 const SUPER_ADMIN = "push-office@e2e.jobbbox.test";
-const EVENTS = Object.keys(fr.pushNotifications.events);
+// The events a Candidate or a Human Coach can be told of while « Espace coach v2 » is off (ADR-0107), the suite's state:
+// the Human Coach epic's own are sent only with it on (apps/web/src/push-notifications/catalog.ts, its unit tests).
+const EVENTS = Object.keys(fr.pushNotifications.events).filter((event) => (LEGACY_PUSH_EVENTS as readonly string[]).includes(event));
 const unique = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 const register = registerDevice;

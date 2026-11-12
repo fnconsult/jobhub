@@ -14,7 +14,8 @@ import { ExternalLink } from "@/components/ExternalLink";
 import { PageIntro } from "@/components/PageIntro";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
-import { Field, TextInput } from "@/design/Field";
+import { Field, Textarea, TextInput } from "@/design/Field";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { Note } from "@/design/Note";
 import { Table } from "@/design/Table";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -119,7 +120,12 @@ export default async function HumanCoachesAdminPage({ searchParams }: {
               <Field label={t("admin.humanCoaches.bookingUrl")} hint={t("admin.humanCoaches.bookingUrlHelp")}>
                 <TextInput name="bookingUrl" type="url" required/>
               </Field>
-              {null}
+              {/* Off, main's « Présentation » (ADR-0107): the Candidates' page reads it; on, the Coach Page carries it (#877). */}
+              {coachSpaceV2On() ? null : (
+                <Field label={t("admin.humanCoaches.bio")}>
+                  <Textarea name="bio" />
+                </Field>
+              )}
               <button className={buttonClass({ variant: "primary" })} type="submit">
                 {t("admin.humanCoaches.add")}
               </button>

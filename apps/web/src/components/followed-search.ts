@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { readLiveDiscoveryMetrics, type CvContent, type SearchCriteria } from "@jobhub/shared";
 import { bestOffers, matchingCount, scored, type FollowedSearch, type Refining, type RefiningCriterion } from "@/ai-activity/followed-search";
 import { isRunning, jobSearchKey } from "@/ai-activity/live";
+import { useActivityColumn } from "@/components/activity-column";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import type { ScoredJobOffer } from "@/job-searches";
 
@@ -21,6 +22,9 @@ type Found = { jobSearchId: string; offers: ReadonlyMap<string, ScoredJobOffer>;
  * (#1002); and its best Job Offers, which its history entry lists once it ended. The Job Offers are asked for
  * (`GET /api/job-searches/:id/live`, those the page has left out) each time the poll says its run analysed more, and once
  * it is over. Criteria without a target role or a location (a questionnaire started over) leave the count as it was.
+ *
+ * On a wide screen, the side panel opens on « Activité » as each offered search starts (ADR-0106 amendment); on a
+ * phone, nothing opens.
  *
  * `jobSearchId` null: nothing more is followed than before (a search started earlier keeps being followed). The page's
  * first render lets go of any search an earlier visit followed.
@@ -46,6 +50,16 @@ export function useFollowedSearch({
 
   // A visit starts following nothing: what an earlier one followed is let go.
   useEffect(() => follow?.(null), [follow]);
+
+  // On a wide screen, the side panel opens on Activité as an offered search starts (or starts again), beside the
+  // conversation; on a phone nothing opens, the compact Top Bar already shows « Activité » while it runs (ADR-0101).
+  const column = useActivityColumn();
+  const openColumn = column?.open;
+  const wide = column?.wide ?? false;
+  useEffect(() => {
+    if (jobSearchId && wide) openColumn?.();
+    // Once per search started: not again when the screen widens or the panel changes.
+  }, [jobSearchId]);
 
   // The Job Offers, asked for once the run analysed more than the page has, and once it is over.
   const analysed = action?.measured?.offersAnalysed ?? 0;

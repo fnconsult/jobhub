@@ -737,7 +737,7 @@ The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle c
 _Avoid_: Navigation bar, workspace header
 
 **Side panel** (« Volet de la page »):
-The one column beside a Coach Conversation, never over it, that shows one view at a time, the one its icon in the Top Bar chose (ADR-0070, #980): « Activité » (the page's Activity, ADR-0086), and on an object's page its « Fiche », an Application's « L'offre » and its Results, « Documents » (« Offres trouvées » for a Job Search or a Job Digest). Its head names its view and has ✕ « Fermer le volet ». It opens on the Fiche when an object's page loads on a wide screen and is closed otherwise; its left edge resizes it; it gives way to the Work Pane for want of room, and opens full screen below 64rem.
+The one column beside a Coach Conversation, never over it, that shows one view at a time, the one its icon in the Top Bar chose (ADR-0070, #980): « Activité » (the page's Activity, ADR-0086), and on an object's page its « Fiche », an Application's « L'offre » and its Results, « Documents » (« Offres trouvées » for a Job Search or a Job Digest). Its head names its view and has ✕ « Fermer le volet ». It opens on the Fiche when an object's page loads on a wide screen and is closed otherwise (on `/profils/nouveau`, it opens on « Activité » on a wide screen when the offered Job Search starts, #1001); its left edge resizes it; it gives way to the Work Pane for want of room, and opens full screen below 64rem.
 _Avoid_: Sidebar (that is the left one), drawer, inspector
 
 **Fiche**:
@@ -757,7 +757,7 @@ The bar in Activity showing how much of a Coach Conversation the AI Coach reads:
 _Avoid_: Memory gauge, quota bar (that is the Usage Meter)
 
 **Activité column**:
-The side panel of the home page and the menus, where there is no object: « Activité » its only view (the Context bar, « En ce moment », then the history, ADR-0086). Closed when the page loads; gives way to the Work Pane; never over the conversation.
+The side panel of the home page and the menus, where there is no object: « Activité » its only view (the Context bar, « En ce moment », then the history, ADR-0086). Closed when the page loads; on `/profils/nouveau`, it opens on a wide screen when the onboarding's offered Job Search starts (ADR-0106, #1001), never on a phone; gives way to the Work Pane; never over the conversation.
 _Avoid_: Activity pane
 
 **Top Bar**:

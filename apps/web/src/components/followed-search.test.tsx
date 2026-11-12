@@ -9,6 +9,7 @@ import { I18nProvider } from "@/i18n/I18nProvider";
 import { draftFromQuestionnaire, startQuestionnaire } from "@/questionnaire";
 import { AiActivityContent, AiActivityProvider } from "./AiActivity";
 import { AiActivityLiveProvider, useAiActivityLive } from "./AiActivityLive";
+import { ActivityColumnControl, type ActivityColumn } from "./activity-column";
 import { useFollowedSearch } from "./followed-search";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/profils/nouveau", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -124,5 +125,32 @@ describe("the onboarding's page follows its offered Job Search (#1001)", () => {
     expect(within(offers[0]!).getByRole("link").getAttribute("href")).toBe(`/recherches/${id}/offres/o1`);
     expect(within(detail).getByRole("link", { name: "Voir toutes les offres" }).getAttribute("href")).toBe(`/recherches/${id}`);
     expect(detail.textContent).not.toMatch(/consommation/);
+  });
+
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])("opens the side panel on Activité as the search starts on a wide screen (%s), never on a phone (ADR-0106)", (wide, opened) => {
+    const open = vi.fn();
+    const column: ActivityColumn = { shown: false, toggle: vi.fn(), controls: undefined, open, closeOverConversation: vi.fn(), wide };
+    const view = renderInFrench(
+      <AiActivityLiveProvider>
+        <ActivityColumnControl.Provider value={column}>
+          <Page given={criteria()} onLive={() => {}} />
+        </ActivityColumnControl.Provider>
+      </AiActivityLiveProvider>,
+    );
+    expect(open).toHaveBeenCalledTimes(opened);
+    // Its criteria change: not opened again.
+    view.rerender(
+      <I18nProvider locale="fr">
+        <AiActivityLiveProvider>
+          <ActivityColumnControl.Provider value={{ ...column }}>
+            <Page given={criteria({ contractTypes: ["cdi"] })} onLive={() => {}} />
+          </ActivityColumnControl.Provider>
+        </AiActivityLiveProvider>
+      </I18nProvider>,
+    );
+    expect(open).toHaveBeenCalledTimes(opened);
   });
 });

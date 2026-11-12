@@ -259,7 +259,8 @@ test.describe("onboarding with the AI Coach", () => {
     // Its progress is in Activity's « En ce moment », counted « ici » on this page (#1001).
     const activity = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
     const activityIcon = page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-    if ((await activityIcon.getAttribute("aria-expanded")) !== "true") await activityIcon.click();
+    // On a wide screen the side panel opened on « Activité » as the search started (ADR-0106).
+    await expect(activityIcon).toHaveAttribute("aria-expanded", "true");
     const now = activity.getByRole("region", { name: fr.aiActivity.live.now });
     const entry = now.getByRole("article", { name: `${fr.aiActivity.kinds.job_search} · Directrice financière` });
     await expect(entry).toBeVisible();

@@ -345,6 +345,14 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
       expect(creation.parts!.every((part) => part.after === undefined)).toBe(true);
     });
 
+    it("gives the CV read on `/profils/nouveau` its fields, with when it was read (#1003); none after a reload", () => {
+      const values = [{ field: "targetRole" as const, value: "DAF" }, { field: "minSalary" as const, value: null }];
+      const [creation] = activityEntries({ page: "any", creation: { reading: { provenance: null, at: at("10:31", day), fields: values } } });
+      expect(creation!.parts![0]).toMatchObject({ kind: "cv_reading", fields: { at: at("10:31", day), values } });
+      const [reloaded] = activityEntries({ page: "profile", versions: [first], creation: { href: PAGE } });
+      expect(reloaded!.parts![0]!.fields).toBeUndefined();
+    });
+
     it("leaves out the steps no longer known: a Profile from the questionnaire, saved without AI, its ATS Score not yet computed", () => {
       const [creation] = activityEntries({ page: "profile", versions: [{ ...first, provenance: null }], creation: { href: PAGE } });
       expect(creation!.parts!.map(({ kind }) => kind)).toEqual(["profile_created"]);

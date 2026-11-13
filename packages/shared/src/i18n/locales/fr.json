@@ -1443,8 +1443,6 @@
       "years_other": "{{count}} ans",
       "moreSkills_one": "{{skills}} et {{count}} autre",
       "moreSkills_other": "{{skills}} et {{count}} autres",
-      "built_one": "Profil construit à partir de votre CV · {{count}} information lue",
-      "built_other": "Profil construit à partir de votre CV · {{count}} informations lues",
       "questionsStart": "J'ai lu votre CV. Je vous fais confirmer le poste et le lieu que j'y ai lus, puis je vous demande seulement ce qu'il ne dit pas. Vous pouvez passer ce qui ne vous concerne pas.",
       "confirm": {
         "targetRole": "Quel poste recherchez-vous ?",
@@ -1455,7 +1453,8 @@
         "contractTypes": "Quel type de contrat recherchez-vous ?",
         "remoteWorkOptions": "Quel rythme de télétravail vous convient ?",
         "minSalary": "Quel salaire annuel brut minimum visez-vous ?"
-      }
+      },
+      "reading": "Je lis votre CV. Suivez la lecture dans « Activité » : ce que j'y trouve s'y affiche, et ce qui manque encore."
     }
   },
   "onboardingSearch": {

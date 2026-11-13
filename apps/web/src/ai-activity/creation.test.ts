@@ -22,7 +22,7 @@ describe("what the browser knows of a Profile's creation (#810), never kept", ()
         [{ type: "reviewed" }, at("10:35")],
         [{ type: "saved", href: "/profils/p" }, at("10:38")],
       ]),
-    ).toEqual({ reading: { provenance: reading }, review: { at: at("10:32") }, href: "/profils/p" });
+    ).toEqual({ reading: { provenance: reading, at: at("10:32") }, review: { at: at("10:32") }, href: "/profils/p" });
   });
 
   it("knows the Profile born during the questionnaire (#999), when first, and still shows on `/profils/nouveau` only", () => {

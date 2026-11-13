@@ -1443,8 +1443,6 @@
       "years_other": "{{count}} years",
       "moreSkills_one": "{{skills}} and {{count}} more",
       "moreSkills_other": "{{skills}} and {{count}} more",
-      "built_one": "Profile built from your CV · {{count}} item read",
-      "built_other": "Profile built from your CV · {{count}} items read",
       "questionsStart": "I've read your CV. I'll ask you to confirm the role and the place I read in it, then only what it doesn't say. You can skip what doesn't apply to you.",
       "confirm": {
         "targetRole": "What role are you looking for?",
@@ -1455,7 +1453,8 @@
         "contractTypes": "What type of contract are you looking for?",
         "remoteWorkOptions": "How much remote work suits you?",
         "minSalary": "What minimum gross annual salary are you aiming for?"
-      }
+      },
+      "reading": "I'm reading your CV. Follow the reading in « Activity »: what I find in it shows there, and what is still missing."
     }
   },
   "onboardingSearch": {

@@ -12,6 +12,7 @@
  */
 import type { Provenance } from "@jobhub/shared";
 import { routes } from "../routes";
+import type { ReadFieldValue } from "./cv-reading";
 import type { CreationGiven } from "./entries";
 
 /**
@@ -22,7 +23,7 @@ import type { CreationGiven } from "./entries";
  */
 export type CreationNote =
   | { type: "started" }
-  | { type: "read"; provenance: Provenance | null }
+  | { type: "read"; provenance: Provenance | null; fields?: ReadFieldValue[] }
   | { type: "interviewed"; answered: number; skipped: number; provenance: Provenance | null }
   | { type: "answered"; answered: number; skipped: number }
   | { type: "created"; href: string }
@@ -43,7 +44,7 @@ export function nextCreation(was: CreationGiven | null, note: CreationNote, at: 
     case "started":
       return {};
     case "read":
-      return { ...known, reading: { provenance: note.provenance } };
+      return { ...known, reading: { provenance: note.provenance, at, ...(note.fields ? { fields: note.fields } : {}) } };
     case "interviewed":
       return { ...known, interview: { at: known.interview?.at ?? at, answered: note.answered, skipped: note.skipped, provenance: note.provenance } };
     case "answered":

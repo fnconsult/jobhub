@@ -8,7 +8,7 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 export const onboardingSummary = (page: Page) => page.getByRole("region", { name: fr.onboardingSummary.title, exact: true });
 
 /**
- * From a CV (#1003): once « Profil en construction » has folded into its line, confirms the target role and the place
+ * From a CV (#1003): once the CV is read, confirms the target role and the place
  * the CV read (« Oui, … »), then skips what a CV does not say (contracts, remote work, minimum salary), up to the summary.
  */
 export async function throughCvInterview(page: Page): Promise<void> {
@@ -17,7 +17,7 @@ export async function throughCvInterview(page: Page): Promise<void> {
   const yes = suggestions.getByRole("button", { name: /^Oui, / }).first();
   const skip = suggestions.getByRole("button", { name: fr.questionnaire.skip, exact: true });
   const replies = thread.locator("li.chat-candidate");
-  await expect(thread.locator("details.onb-read")).toBeVisible({ timeout: 15_000 });
+  await expect(thread.getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 15_000 });
   for (let turn = 0; turn < 10; turn++) {
     await expect(onboardingSummary(page).or(turn < 2 ? yes : skip)).toBeVisible({ timeout: 15_000 });
     if (await onboardingSummary(page).isVisible()) return;

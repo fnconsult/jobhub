@@ -171,7 +171,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "Pendant la lecture, la carte « Profil en construction » montre ce que votre coach trouve dans votre CV, puis se replie. Il vous fait confirmer le poste visé et le lieu qu'il a lus : cliquez sur « Oui, … », ou écrivez le vôtre. Il ne vous demande ensuite que ce qu'un CV ne dit pas, le type de contrat, le télétravail et le salaire minimum, et chaque question se passe avec « Passer cette question »."
+          "narration": "Pendant la lecture, « Activité » montre ce que votre coach trouve dans votre CV, à la ligne « Création du profil ». Il vous fait ensuite confirmer le poste visé et le lieu qu'il a lus : cliquez sur « Oui, … », ou écrivez le vôtre. Il ne vous demande ensuite que ce qu'un CV ne dit pas, le type de contrat, le télétravail et le salaire minimum, et chaque question se passe avec « Passer cette question »."
         },
         {
           "title": "Lire le résumé",
@@ -244,7 +244,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Si le résumé est juste, cliquez sur « Cela semble correct », puis sur « Continuer vers mon profil ». Votre premier profil est prêt : votre coach peut chercher des offres pour vous."
         }
       ],
-      "hash": "5065ea0eb764"
+      "hash": "64f172d34eb8"
     },
     {
       "id": "extension-analyser-offre",
@@ -1134,7 +1134,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "While it reads, the « Profile in progress » card shows what your coach finds in your CV, then folds. It has you confirm the target role and the place it read: click « Yes, … », or write your own. It then asks only what a CV does not say, the contract type, remote work and the minimum salary, and each question can be skipped with « Skip this question »."
+          "narration": "While it reads, « Activity » shows what your coach finds in your CV, in the « Profile creation » row. It then has you confirm the target role and the place it read: click « Yes, … », or write your own. It then asks only what a CV does not say, the contract type, remote work and the minimum salary, and each question can be skipped with « Skip this question »."
         },
         {
           "title": "Read the summary",
@@ -1207,7 +1207,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "If the summary is right, click « That looks right », then « Continue to my profile ». Your first profile is ready: your coach can look for offers for you."
         }
       ],
-      "hash": "5e6b7dec0a9e"
+      "hash": "ed42595f6988"
     },
     {
       "id": "extension-analyser-offre",

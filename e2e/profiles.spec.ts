@@ -5,7 +5,7 @@ import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { placeInput, placeNames, placeOptions, removePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
-import { openSearchCriteria, profileSectionLink } from "./support/conversation";
+import { activityButtonOf, openSearchCriteria, profileSectionLink, unfoldedEntryOf } from "./support/conversation";
 import { onboardingSummary, openReviewDetail, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #4: a signed-in Candidate uploads a PDF or Word CV; it is read into a
@@ -47,15 +47,18 @@ test.describe("creating the first Profile from a CV", () => {
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
 
-    // « Profil en construction » in the thread while it is read (#1003): the fields read, one absent said absent.
+    // The reading shows in Activité (#1003), opened by itself on a wide screen; the thread says so in one line, no card.
     const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
-    const building = thread.getByRole("region", { name: fr.newProfile.fromCv.building });
-    await expect(building.getByRole("definition").filter({ hasText: "Directrice financière (lu par l'IA)" })).toBeVisible();
-    await expect(building.getByRole("definition").filter({ hasText: fr.newProfile.fromCv.missing }).first()).toBeVisible();
-    // Then folded into one line, and the interview from what it read: the target role and the place to confirm, no
-    // question on what the CV gave; then only contracts (a deduction proposed), remote work and salary, each skippable.
-    await expect(thread.locator("details.onb-read summary")).toHaveText(/^Profil construit à partir de votre CV · \d+ informations lues$/);
-    await expect(building).toHaveCount(0);
+    await expect(thread.getByText(fr.newProfile.fromCv.reading)).toBeVisible();
+    await expect(activityButtonOf(page)).toHaveAttribute("aria-expanded", "true");
+    await expect(thread.getByRole("list", { name: fr.newProfile.fromCv.building })).toHaveCount(0);
+    // Read: « Création du profil »'s part « Lecture du CV » with the fields read, one absent said absent.
+    await expect(thread.getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible();
+    const reading = (await unfoldedEntryOf(page, new RegExp(`^${fr.aiActivity.kinds.profile_creation}$`))).locator('[data-kind="cv_reading"]');
+    await expect(reading.getByRole("definition").filter({ hasText: "Directrice financière (lu par l'IA)" })).toBeVisible();
+    await expect(reading.getByRole("definition").filter({ hasText: fr.newProfile.fromCv.missing })).toHaveCount(2);
+    // Then the interview from what it read: the target role and the place to confirm, no question on what the CV gave;
+    // then only contracts (a deduction proposed), remote work and salary, each skippable.
     const suggestions = page.getByRole("group", { name: fr.conversationFirst.suggestions });
     await expect(suggestions.getByRole("button", { name: fr.questionnaire.skip, exact: true })).toHaveCount(0);
     await suggestions.getByRole("button", { name: "Oui, Directrice financière (lu par l'IA)" }).click();

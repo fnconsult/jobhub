@@ -619,12 +619,17 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       let readCv: (draft: object) => void;
       /** Whether the device lets things move (prefers-reduced-motion: no-preference). */
       let motion: boolean;
-      const card = () => within(thread()).getByRole("region", { name: "Profil en construction" });
-
+      const now = () => within(screen.getByRole("complementary", { name: "Activité" })).getByRole("region", { name: "En ce moment" });
+      /** « Création du profil » in Activité's history, unfolded: its part « Lecture du CV ». */
+      async function readingPart(user: ReturnType<typeof userEvent.setup>) {
+        const row = await within(screen.getByRole("complementary", { name: "Activité" })).findByRole("button", { name: /Création du profil/ });
+        if (row.getAttribute("aria-expanded") !== "true") await user.click(row);
+        return document.getElementById(row.getAttribute("aria-controls")!)!.querySelector<HTMLElement>('[data-kind="cv_reading"]')!;
+      }
       beforeEach(() => {
         interviewCalls.length = 0;
         motion = true;
-        // The folded line's glyph measures its strokes, which jsdom cannot.
+        // Activité's glyphs measure their strokes, which jsdom cannot.
         Object.assign(SVGElement.prototype, { getTotalLength: () => 10, getPointAtLength: () => ({ x: 12, y: 12 }) });
         vi.stubGlobal("matchMedia", (query: string) => ({ matches: motion && query.includes("no-preference"), media: query, addEventListener: () => {}, removeEventListener: () => {} }));
         const inner = globalThis.fetch;
@@ -642,33 +647,39 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         await user.click(screen.getByRole("button", { name: "Lire mon CV" }));
       }
 
-      it("shows the step under way while the CV is read, then the fields read one by one, an absent one said absent, and folds into one line", async () => {
+      it("shows the reading in Activité, not in the thread: « Lecture de votre profil » under way, then the fields read one by one, an absent one said absent", async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         turns = [{ ...ROLE, proposal: { field: "targetRole", value: "Directrice financière", because: "C'est ce que j'ai lu dans votre CV.", shown: "Directrice financière" } }];
         renderInFrench(<NewProfilePage />);
         await uploadCv(user);
 
-        const reading = await within(thread()).findByRole("list", { name: "Profil en construction" });
-        expect(within(reading).getByRole("listitem").getAttribute("aria-current")).toBe("step");
-        expect(within(reading).getByRole("listitem").textContent).toMatch(/Lecture de votre profil \(en cours\)/);
-        expect(within(card()).queryByRole("term")).toBeNull();
+        // While it is read: « En ce moment », its step under way; the thread says it in one line, no card.
+        const step = (await within(now()).findByRole("list", { name: "Profil en construction" })).querySelector("li")!;
+        expect(step.getAttribute("aria-current")).toBe("step");
+        expect(step.textContent).toMatch(/Lecture de votre profil \(en cours\)/);
+        expect(within(thread()).getByText(/^Je lis votre CV\. Suivez la lecture dans « Activité »/)).toBeTruthy();
+        expect(within(thread()).queryByRole("list", { name: "Profil en construction" })).toBeNull();
+        expect(within(thread()).queryByRole("region", { name: "Profil en construction" })).toBeNull();
 
+        // Read: « Création du profil »'s part, its fields appearing one by one.
         readCv(READ_CV);
-        await waitFor(() => expect(within(card()).getByText("Poste visé")).toBeTruthy());
-        expect(within(card()).getAllByRole("term").map((term) => term.textContent)).toEqual(["Poste visé"]);
-        await vi.advanceTimersByTimeAsync(350 * 5);
-        expect(within(card()).getAllByRole("term")).toHaveLength(6);
-        const values = within(card()).getAllByRole("definition").map((value) => value.textContent);
-        expect(values).toEqual(["Directrice financière", "9 ans", "Lyon", "Consolidation, IFRS, Trésorerie, Contrôle de gestion, SAP et 2 autres", "Pas encore dans votre profil", "Pas encore dans votre profil"]);
-        expect(within(card()).getAllByText("Pas encore dans votre profil")[0]!.tagName).toBe("EM");
-        expect(within(card()).getByRole("listitem").getAttribute("aria-current")).toBeNull();
-
-        // Shown a while, then folded as the interview starts.
-        await vi.advanceTimersByTimeAsync(1200 + 350);
-        await waitFor(() => expect(within(thread()).queryByRole("region", { name: "Profil en construction" })).toBeNull());
-        const line = within(thread()).getByText("Profil construit à partir de votre CV · 4 informations lues");
-        expect(line.closest("details")).toBeTruthy();
         expect(await within(thread()).findByText("Je propose : Directrice financière. C'est ce que j'ai lu dans votre CV.")).toBeTruthy();
+        const part = await readingPart(user);
+        expect(within(part).queryAllByRole("term").length).toBeLessThan(6);
+        await vi.advanceTimersByTimeAsync(350 * 6);
+        await waitFor(() => expect(within(part).getAllByRole("term")).toHaveLength(6));
+        expect(within(part).getAllByRole("term").map((term) => term.textContent)).toEqual(["Poste visé", "Expérience en années", "Basé à", "Compétences", "Types de contrat", "Salaire souhaité"]);
+        expect(within(part).getAllByRole("definition").map((value) => value.textContent)).toEqual([
+          "Directrice financière",
+          "9 ans",
+          "Lyon",
+          "Consolidation, IFRS, Trésorerie, Contrôle de gestion, SAP et 2 autres",
+          "Pas encore dans votre profil",
+          "Pas encore dans votre profil",
+        ]);
+        expect(within(part).getAllByText("Pas encore dans votre profil")[0]!.tagName).toBe("EM");
+        expect(within(part).getByRole("list", { name: "Profil en construction" }).querySelector("li")!.getAttribute("data-status")).toBe("done");
+        expect(within(thread()).queryByRole("term")).toBeNull();
       });
 
       it("shows the fields all at once under prefers-reduced-motion", async () => {
@@ -676,10 +687,10 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         renderInFrench(<NewProfilePage />);
         await uploadCv(user);
-        await within(thread()).findByRole("region", { name: "Profil en construction" });
+        await within(now()).findByRole("list", { name: "Profil en construction" });
         readCv(READ_CV);
-        await waitFor(() => expect(within(card()).getByText("Poste visé")).toBeTruthy());
-        expect(within(card()).getAllByRole("term")).toHaveLength(6);
+        await within(thread()).findByText(/J'ai lu votre CV/);
+        expect(within(await readingPart(user)).getAllByRole("term")).toHaveLength(6);
       });
 
       it("starts the interview from the CV's draft: the role and place to confirm, the Profile born at them with what read it, then only what a CV does not say", async () => {
@@ -693,9 +704,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         ];
         renderInFrench(<NewProfilePage />);
         await uploadCv(user);
-        await within(thread()).findByRole("region", { name: "Profil en construction" });
         readCv(READ_CV);
-        await vi.advanceTimersByTimeAsync(350 * 6 + 1200);
 
         await screen.findByRole("button", { name: "Oui, Directrice financière" });
         expect(interviewCalls[0]).toMatchObject({
@@ -716,8 +725,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         });
         await user.click(await screen.findByRole("button", { name: "Passer cette question" }));
         await within(thread()).findByRole("region", { name: "Votre recherche d'offres" });
-        // The CV's line and the exchange stay in the thread at the summary.
-        expect(within(thread()).getByText("Profil construit à partir de votre CV · 4 informations lues")).toBeTruthy();
+        // The coach's line on the reading and the exchange stay in the thread at the summary.
+        expect(within(thread()).getByText(/^Je lis votre CV/)).toBeTruthy();
         expect(within(thread()).getByText("Oui, Lyon")).toBeTruthy();
       });
     });

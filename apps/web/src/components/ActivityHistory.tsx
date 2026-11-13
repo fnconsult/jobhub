@@ -11,6 +11,7 @@ import { messageAnchor } from "@/ai-activity/thread";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useActivityColumn } from "@/components/activity-column";
 import { ConsultedLabel } from "@/components/CoachToolSteps";
+import { CvReadFields } from "@/components/CvReading";
 import { ExternalLink } from "@/components/ExternalLink";
 import { Icons } from "@/components/icons";
 import { routes } from "@/routes";
@@ -479,6 +480,8 @@ function Parts({ parts, usage }: { parts: readonly ActivityEntry[]; usage: reado
                 ))}
               </ol>
             ) : null}
+            {/* A CV read on « Créer un profil » (#1003): « Lecture de votre profil » and the fields it gave. */}
+            {part.fields ? <CvReadFields fields={part.fields.values} at={part.fields.at} /> : null}
             {part.object.href ? (
               <p className="activity-entry-links">
                 <Link href={part.object.href}>{t(`aiActivity.history.open.${part.kind}`, { label: part.object.label ?? "" })}</Link>

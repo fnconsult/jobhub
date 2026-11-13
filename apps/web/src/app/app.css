@@ -5846,7 +5846,15 @@ textarea.title-edit {
   list-style: none;
 }
 
-/* « Dans l'activité » under a reply or a card of the thread. */
+/* The onboarding's search done with no Job Offer that matches (#1006): what to do next, one under the other. */
+.activity-entry-no-match {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+}
+
+/* « Dans l'activité » under a reply, a card or a line of the coach in the thread (#808, #1006). */
 .chat-in-activity {
   display: inline-flex;
   gap: var(--space-1);
@@ -6077,7 +6085,8 @@ textarea.title-edit {
 }
 
 .en-ce-moment-followed .ai-activity-list,
-.en-ce-moment-refined {
+.en-ce-moment-refined,
+.en-ce-moment-note {
   margin: 0;
 }
 
@@ -6095,6 +6104,11 @@ textarea.title-edit {
 
 .en-ce-moment-followed .ds-prop > dt:not(:first-child) {
   margin-top: var(--space-2);
+}
+
+/* Its best Job Offers so far (#1006): under their label, as in its history entry. */
+.en-ce-moment-followed .activity-entry-offers .ai-activity-list {
+  margin-top: var(--space-1);
 }
 
 /* From 64rem the docked Coach Panel is a card on the right of the page. */

@@ -18,7 +18,7 @@ export type FileReading = { label: string; activity?: Activity; stopLabel: strin
  * while the page reads it, its step beside the Activity glyph, a progress bar and Stop. A file the `rules` refuse is
  * never kept: a Note says why (`problems`), in the page's words. `error` is the page's own Note (the server's answer).
  * The file input stays in the form under `name`, a dropped file put in it, so the form sends whichever was chosen.
- * `children` goes under the drop zone (« Partir de zéro »).
+ * `children` goes under the drop zone (the page's own action, « Lire mon CV »).
  */
 export function FileUpload({
   name,

@@ -241,10 +241,10 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "Si le résumé est juste, cliquez sur « Cela semble correct », puis sur « Continuer vers mon profil ». Votre premier profil est prêt : votre coach peut chercher des offres pour vous."
+          "narration": "Si le résumé est juste, cliquez sur « Cela semble correct ». Vos premières offres s'affichent dans « Activité », à la fin de la recherche offerte que votre coach a lancée : « Dans l'activité » vous y mène. Sans attendre, cliquez sur « Continuer vers mon profil » : votre premier profil est prêt."
         }
       ],
-      "hash": "64f172d34eb8"
+      "hash": "0dd748997909"
     },
     {
       "id": "extension-analyser-offre",
@@ -1204,10 +1204,10 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "If the summary is right, click « That looks right », then « Continue to my profile ». Your first profile is ready: your coach can look for offers for you."
+          "narration": "If the summary is right, click « That looks right ». Your first job offers show in « Activity », at the end of the search on us your coach started: « In Activity » takes you there. Without waiting, click « Continue to my profile »: your first profile is ready."
         }
       ],
-      "hash": "ed42595f6988"
+      "hash": "b8996a3a827b"
     },
     {
       "id": "extension-analyser-offre",

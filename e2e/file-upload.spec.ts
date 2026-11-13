@@ -68,10 +68,12 @@ test.describe("the File upload on the CV upload (#468)", () => {
     await expect(page.getByRole("button", { name: fr.cvUpload.submit })).toHaveCount(0);
   });
 
-  test("« Partir de zéro » under the drop zone opens the review form left blank", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("upload-scratch"));
+  // #1006 (ADR-0106): « Partir de zéro » is gone from under the drop zone; without a CV, the coach's questions.
+  test("nothing under the drop zone but the CV: without one, the coach's questions above the box", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("upload-no-scratch"));
     await page.goto("/profils/nouveau");
-    await page.getByRole("button", { name: fr.cvUpload.fromScratch }).click();
-    await expect(onboardingSummary(page)).toBeVisible();
+    await expect(dropZone(page)).toBeVisible();
+    await expect(page.getByText("Partir de zéro")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: fr.newProfile.startQuestionnaire })).toBeVisible();
   });
 });

@@ -88,4 +88,24 @@ describe("the Job Search a page follows as its own (#1001)", () => {
     // Among the page's entries, newest first.
     expect(activityEntries({ page: "any", known: [entry] }).map((one) => one.kind)).toEqual(["job_search"]);
   });
+
+  it("done with no Job Offer that matches, once the page has those it found, names its Profile for what to do next (#1006)", () => {
+    const action = searchAction();
+    const endedAt = "2026-11-12T09:01:00.000Z";
+    type Outcome = Extract<LiveChange, { type: "job_searches" }>["ended"][number]["outcome"];
+    const outcomes: Record<"done" | "stopped" | "failed", Outcome> = {
+      done: { status: "done", at: endedAt, found: 4, steps: [] },
+      stopped: { status: "stopped", at: endedAt, found: 4 },
+      failed: { status: "failed", failure: "timeout", at: endedAt, step: null, found: 4 },
+    };
+    const ended = (status: keyof typeof outcomes) => nextLive([action], { type: "job_searches", running: [], ended: [{ jobSearchId: id, outcome: outcomes[status] }], at })[0]!;
+    // It analysed 4: not until the page has them, they might match.
+    expect(followedSearchEntry(followed({ profileId: "p1" }), ended("done"))!.noMatch).toBeUndefined();
+    expect(followedSearchEntry(followed({ profileId: "p1", settled: true }), ended("done"))!.noMatch).toEqual({ profileId: "p1" });
+    // One that matches, a failed or stopped one, or no Profile known: nothing of the kind.
+    expect(followedSearchEntry(followed({ profileId: "p1", settled: true, matching: 1 }), ended("done"))!.noMatch).toBeUndefined();
+    expect(followedSearchEntry(followed({ profileId: "p1", settled: true }), ended("failed"))!.noMatch).toBeUndefined();
+    expect(followedSearchEntry(followed({ profileId: "p1", settled: true }), ended("stopped"))!.noMatch).toBeUndefined();
+    expect(followedSearchEntry(followed({ settled: true }), ended("done"))!.noMatch).toBeUndefined();
+  });
 });

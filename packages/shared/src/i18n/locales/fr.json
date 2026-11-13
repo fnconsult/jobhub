@@ -1071,10 +1071,8 @@
       "empty": "Nous n'avons trouvé aucun texte dans ce fichier. S'il s'agit d'un CV scanné, importez plutôt la version PDF ou Word d'origine.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
-    "fromScratch": "Partir de zéro",
     "stopped": "Lecture arrêtée à {{time}} : rien n'a été lu ni enregistré.",
-    "drop": "Glissez votre CV ici",
-    "noCv": "Pas de CV sous la main ?"
+    "drop": "Glissez votre CV ici"
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
@@ -1421,6 +1419,7 @@
     "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
     "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
     "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",
+    "firstOffers": "Vos premières offres s'affichent dans « Activité », à la fin de la recherche offerte : les meilleures d'abord, puis « Voir toutes les offres ». Si elle cherche encore, vous pouvez continuer vers votre profil : une notification vous préviendra quand elle sera terminée.",
     "interview": {
       "yes": "Oui, {{value}}",
       "no": "Non, plutôt…",
@@ -1475,6 +1474,8 @@
     },
     "refined": "Affinée avec :",
     "assumed": "supposé",
+    "bestSoFar": "Vos meilleures offres jusqu'ici :",
+    "running": "Les offres s'ajoutent à mesure qu'elles sont trouvées. Vous pouvez continuer : une notification vous préviendra quand la recherche sera terminée.",
     "minSalary": "à partir de {{amount}}",
     "sourcesLabel": "Sources de la recherche",
     "sources": {
@@ -5934,6 +5935,12 @@
       "bestOffers": "Vos meilleures offres :",
       "noBestOffers": "Aucune offre trouvée pour l'instant.",
       "allOffers": "Voir toutes les offres",
+      "noMatch": {
+        "text": "Aucune offre trouvée ne correspond à vos critères pour l'instant. Vérifiez-les sur votre profil, ou relancez une recherche.",
+        "profile": "Voir mon profil",
+        "quota": "Contrairement à la première, une nouvelle recherche compte dans les recherches d'offres de votre forfait cette semaine.",
+        "searchAgain": "Relancer une recherche"
+      },
       "matchScore": "Match Score {{score}}/100"
     }
   },

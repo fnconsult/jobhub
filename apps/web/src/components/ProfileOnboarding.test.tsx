@@ -67,6 +67,18 @@ const reviewPane = () => screen.getByRole("complementary", { name: "Vérifiez vo
 /** The summary's card in the thread (#1004). */
 const summary = () => within(thread()).getByRole("region", { name: "Votre recherche d'offres" });
 
+/** The AI unavailable but for one turn, `DONE`: the interview ends at once, its draft empty. */
+const interviewDoneAtOnce = () => vi.stubGlobal("fetch", async (url: string) => (url === "/api/onboarding/interview" ? interviewReply([DONE]) : new Response(null, { status: 404 })));
+
+/**
+ * To the summary with nothing in the draft, now that « Partir de zéro » is gone (#1006): the questions started, the
+ * interview done at once (the fetch stub gives `DONE`).
+ */
+async function toEmptySummary(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+  await within(thread()).findByRole("region", { name: "Votre recherche d'offres" });
+}
+
 describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", () => {
   beforeEach(() => {
     push.mockClear();
@@ -85,6 +97,9 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     expect(within(thread()).getByText(/Je vous aide à construire votre CV de référence/)).toBeTruthy();
     expect(within(thread()).getByRole("heading", { name: "J'ai un CV" })).toBeTruthy();
     expect(within(thread()).getByLabelText("Votre CV")).toBeTruthy();
+    // « Partir de zéro » is gone (#1006): without a CV, the coach's questions.
+    expect(screen.queryByText(/Partir de zéro/)).toBeNull();
+    expect(screen.queryByText(/Pas de CV sous la main/)).toBeNull();
     const suggestions = within(conversation()).getByRole("group", { name: "Suggestions" });
     expect(within(suggestions).getByRole("button", { name: "Répondre aux questions de mon coach" })).toBeTruthy();
   });
@@ -144,18 +159,20 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
   });
 
   it("answers what is sent at the review by sending the Candidate back to it, without AI", async () => {
+    interviewDoneAtOnce();
     const user = userEvent.setup();
     renderInFrench(<NewProfilePage />);
-    await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+    await toEmptySummary(user);
     await user.type(screen.getByLabelText("Votre message"), "Et ensuite ?{Enter}");
     expect(within(thread()).getByText("Et ensuite ?")).toBeTruthy();
     expect(within(thread()).getByText(/Ici, je vous aide seulement à créer ce profil/)).toBeTruthy();
   });
 
   it("sums up the draft first (#1004), the review form opened in the Work Pane by « Voir le détail », what is changed there shown in the summary", async () => {
+    interviewDoneAtOnce();
     const user = userEvent.setup();
     renderInFrench(<NewProfilePage />);
-    await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+    await toEmptySummary(user);
 
     // The summary, not the form: an empty draft says so.
     expect(within(thread()).queryByText("Presque fini")).toBeNull();
@@ -178,11 +195,12 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
   });
 
   it("starts over from the review: the two paths again, the pane closed", async () => {
+    interviewDoneAtOnce();
     const user = userEvent.setup();
     renderInFrench(<NewProfilePage />);
-    await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+    await toEmptySummary(user);
     await user.click(within(summary()).getByRole("button", { name: "Voir le détail" }));
-    await user.click(within(reviewPane()).getByRole("button", { name: "Importer un autre CV" }));
+    await user.click(within(reviewPane()).getByRole("button", { name: "Recommencer" }));
 
     await waitFor(() => expect(screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeNull());
     expect(within(thread()).getByRole("heading", { name: "J'ai un CV" })).toBeTruthy();
@@ -308,6 +326,11 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(within(thread()).getByText(/C'est noté : votre profil est enregistré/)).toBeTruthy();
       expect(within(summary()).queryByRole("button", { name: "Cela semble correct" })).toBeNull();
       expect(push).not.toHaveBeenCalled();
+      // The first offers are Activity's (#1006): one line of the coach says so, « Dans l'activité » under it.
+      const firstOffers = within(thread()).getByText(/Vos premières offres s'affichent dans « Activité »/).closest("li")!;
+      expect(firstOffers.classList.contains("chat-coach")).toBe(true);
+      expect(within(firstOffers).getByRole("button", { name: "Dans l'activité" })).toBeTruthy();
+      expect(firstOffers.querySelector(".ds-card")).toBeNull();
       expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual([
         "POST /api/profiles",
         "POST /api/profiles/p1/onboarding-search",
@@ -370,6 +393,10 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(sources.querySelector(".ds-status[data-tone='success']")).toBeTruthy();
       expect(within(entry).getByRole("list", { name: "Étapes de la recherche" })).toBeTruthy();
       expect(within(entry).getByText(/Affinée avec :/).textContent).toBe("Affinée avec : Directrice financière · Lyon");
+      // Still searching (#1006): its best Job Offers so far, added as they are found; the Candidate may go on, notified.
+      expect(within(entry).getByText("Vos meilleures offres jusqu'ici :")).toBeTruthy();
+      expect(within(entry).getAllByRole("link", { name: "DAF" }).map((link) => link.getAttribute("href"))).toEqual(["/recherches/s1/offres/o1", "/recherches/s1/offres/o2"]);
+      expect(within(entry).getByText(/Les offres s'ajoutent à mesure qu'elles sont trouvées/).textContent).toMatch(/une notification vous préviendra/);
 
     });
 
@@ -385,6 +412,16 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(within(thread()).getByText(/je lance dès maintenant une première recherche d'offres/)).toBeTruthy();
       // No card above the summary any more (#1001).
       expect(within(thread()).queryByRole("list", { name: "Étapes de la recherche" })).toBeNull();
+    });
+
+    it("says nothing of first offers after « Cela semble correct » when no offered Job Search started (#1006)", async () => {
+      searches = 2;
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon"]);
+      await user.click(within(summary()).getByRole("button", { name: "Cela semble correct" }));
+      expect(await within(thread()).findByRole("link", { name: "Continuer vers mon profil" })).toBeTruthy();
+      expect(within(thread()).queryByText(/Vos premières offres/)).toBeNull();
     });
 
     it("goes on without a word when the offered Job Search cannot start (#1000)", async () => {
@@ -414,11 +451,12 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     it("says in the summary's card which fields to correct when the save refuses them", async () => {
       vi.stubGlobal("fetch", async (url: string) => {
         if (url === "/api/reference-data") return new Response(null, { status: 404 });
+        if (url === "/api/onboarding/interview") return interviewReply([DONE]);
         return Response.json({ errors: [{ field: "searchCriteria.targetRole", code: "required" }] }, { status: 400 });
       });
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
-      await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+      await toEmptySummary(user);
       await user.click(within(summary()).getByRole("button", { name: "Cela semble correct" }));
       expect((await within(summary()).findByRole("alert")).textContent).toBe(
         "Certains champs sont à compléter ou à corriger : Poste recherché. Corrigez-les dans « Voir le détail ».",
@@ -731,10 +769,11 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       });
     });
 
-    it("creates the Profile at the review's save from scratch, its onboarding done", async () => {
+    it("creates the Profile at the review's save when the interview gave no target role and location, its onboarding done", async () => {
+      turns = [DONE];
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
-      await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+      await toEmptySummary(user);
       await user.click(within(summary()).getByRole("button", { name: "Voir le détail" }));
       await user.type(within(reviewPane()).getByLabelText("Nom et prénom"), "Marie Dupont");
       await user.click(within(summary()).getByRole("button", { name: "Cela semble correct" }));
@@ -976,12 +1015,13 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     });
 
     it("adds the review once opened, and forgets it all when the Candidate starts over", async () => {
+      interviewDoneAtOnce();
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
-      await user.click(screen.getByRole("button", { name: "Partir de zéro" }));
+      await toEmptySummary(user);
       expect((await creation(user)).textContent).toMatch(/RelecturePar vous · Sans IA/);
 
-      await user.click(within(screen.getByRole("group", { name: "Suggestions" })).getByRole("button", { name: "Importer un autre CV" }));
+      await user.click(within(screen.getByRole("group", { name: "Suggestions" })).getByRole("button", { name: "Recommencer" }));
       await waitFor(() => expect(activity().textContent).toContain("Rien encore sur cette page."));
     });
   });

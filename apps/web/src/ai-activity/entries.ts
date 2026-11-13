@@ -233,6 +233,8 @@ export interface ActivityEntry {
   offers?: EntryOffer[];
   /** A CV read on `/profils/nouveau` (#1003): when it was read, and the fields it gave in words, null for one it did not. */
   fields?: { at: string | null; values: ReadFieldValue[] };
+  /** A Job Search the page followed (#1006), done with no Job Offer that matches: its Profile, to see it or search again. */
+  noMatch?: { profileId: string };
 }
 
 export interface ActivityInput {

@@ -40,4 +40,6 @@ After payment, embedded booking lets you choose a time now or later. A linked bo
 
 When the new conditions are activated, the “Cancellations and refunds” link opens private tracking: you can also cancel an undated session there. It explains the 24-hour limit, choices after coach cancellation and bank status. In the app, the same tracking opens in the authenticated web companion.
 
+A session that is over stays in your sessions with its date, but it can no longer be changed or cancelled: « Change the date » and « Cancel the session » are no longer offered.
+
 “Report this Coach page” and “Report this offer” open a form available without an account. A person reviews the evidence; removal is never automatic. A receipt and reasoned decision are sent to the address provided.

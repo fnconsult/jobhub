@@ -57,3 +57,21 @@ it("off « Espace coach v2 » (ADR-0107), sends every field, as on main", async 
     note: "Reminder",
   });
 });
+
+it("« Espace coach v2 »: a session that ended while the page was open says so in a Note (#1019)", async () => {
+  vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "too_late" }), { status: 409 })));
+  renderInFrench(
+    <CoachingSessionDialog
+      session={{ id: "session-1", scheduledAt: "2026-06-04T10:00", durationMinutes: 60, videoLink: null, note: null }}
+      withName="Sophie"
+      withVideoLink={false}
+      coachSpaceV2
+    />,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: /Modifier la date/ }));
+  fireEvent.change(screen.getByLabelText("Date et heure de la séance (heure de Paris)"), { target: { value: "2026-06-05T10:00" } });
+  await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+  expect((await screen.findByRole("alert")).textContent).toBe("Cette séance est passée : elle ne peut plus être modifiée ni annulée.");
+  expect(screen.queryByText("L'enregistrement a échoué. Vérifiez votre connexion et réessayez.")).toBeNull();
+});

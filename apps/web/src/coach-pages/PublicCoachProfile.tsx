@@ -13,14 +13,10 @@ export function PublicCoachProfile({ name, page }: { name: string; page: Omit<Pu
       ) : null}
       <p className="coach-public-presentation">{page.presentation}</p>
       {page.specialties.length ? (
-        <p>
-          {t("coachPage.specialties")}: {page.specialties.join(", ")}
-        </p>
+        <p>{t("coachPage.specialtiesList", { list: page.specialties.join(", ") })}</p>
       ) : null}
       {page.languages.length ? (
-        <p>
-          {t("coachPage.languages")}: {page.languages.join(", ")}
-        </p>
+        <p>{t("coachPage.languagesList", { list: page.languages.join(", ") })}</p>
       ) : null}
     </div>
   );

@@ -65,19 +65,26 @@ const button = (name: string | RegExp) => screen.getByRole("button", { name });
 let web: ReturnType<typeof serveCoaching>;
 /** « Espace coach v2 » (ADR-0107) as the web app says it at launch: off unless a test turns it on (`v2 = true`). */
 let v2 = false;
-/** Signed in, the web app serving Mes coachs humains (`changed` before the page reads it), the page opened at `url`. */
-async function launch(url = "/coachs", changed: (route: typeof web) => void = () => {}) {
+/**
+ * Signed in, the web app serving Mes coachs humains (`changed` before the page reads it), the page opened at `url`, on
+ * the day `at` when a test needs one of its own (renderRouter fakes the clock from Date.now()).
+ */
+async function launch(url = "/coachs", changed: (route: typeof web) => void = () => {}, at?: Date) {
   await signedIn();
   mockWeb.app.coachSpaceV2(v2);
   web = serveCoaching(mockWeb.app, EMAIL);
   changed(web);
+  if (at) jest.spyOn(Date, "now").mockReturnValue(at.getTime());
   await renderRouter("./src/app", { initialUrl: url });
 }
-/** Mes coachs humains, once its Coaching Sessions and Human Coaches are read from the web app. */
-async function openCoaches() {
-  await launch();
+/** Mes coachs humains, once its Coaching Sessions and Human Coaches are read from the web app, on the day `at` if given. */
+async function openCoaches(at?: Date) {
+  await launch(undefined, undefined, at);
   await screen.findByRole("heading", { name: "Mes séances payées" });
 }
+/** Before and after Claire Martin's session of Friday 23 October 2026, 11:00 to 12:00 in Paris. */
+const BEFORE_CLAIRE = new Date("2026-10-20T08:00:00Z");
+const AFTER_CLAIRE = new Date("2026-10-23T10:00:00Z");
 
 beforeEach(async () => {
   jest.clearAllMocks();
@@ -435,7 +442,7 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
 
   it("corrects a dated Coaching Session, its fields filled in as last read, the hour in French time", async () => {
     v2 = true;
-    await openCoaches();
+    await openCoaches(BEFORE_CLAIRE);
     const user = userEvent.setup();
 
     await user.press(button("Modifier la date de la séance avec Claire Martin"));
@@ -450,6 +457,16 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
 
     expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00" } }]);
     expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00 (Europe/Paris)")).toBeOnTheScreen();
+  });
+
+  it("« Espace coach v2 »: a session that has ended keeps its date, without « Modifier la date » (#1019)", async () => {
+    v2 = true;
+    await openCoaches(AFTER_CLAIRE);
+
+    expect(screen.getByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 11:00 (Europe/Paris)")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Modifier la date de la séance avec Claire Martin" })).toBeNull();
+    // A session not yet dated is still entered.
+    expect(button("J'ai réservé : saisir la date de la séance avec Paul Durand")).toBeOnTheScreen();
   });
 
   it("says under each field what the web app refused, and changes nothing", async () => {

@@ -60,7 +60,7 @@ type Screen = {
 let own: OwnServer;
 let database: Pool;
 const contexts = {} as Record<Who, BrowserContext>;
-const ids = { candidate: "", session: "" };
+const ids = { candidate: "", session: "", held: "" };
 /** The relative session's day as the pages write it (« vendredi 13 novembre 2026 »). */
 let sessionDay = "";
 
@@ -76,7 +76,7 @@ const SCREENS: Screen[] = [
     ready: (page) => page.getByText(fr.coachWorkspace.phase.before, { exact: true }),
     variants: true,
   },
-  { name: "revenus", who: "coach", path: () => "/espace-coach/revenus?mois=2026-06&fiscalYear=2026", ready: (page) => page.getByRole("table", { name: fr.coachEarnings.offers }), variants: true },
+  { name: "revenus", who: "coach", path: () => "/espace-coach/revenus?mois=2026-06&fiscalYear=2026", ready: (page) => page.getByRole("article", { name: COACH_NAME }), variants: true },
   { name: "profil", who: "coach", path: () => "/espace-coach/profil", ready: (page) => page.getByRole("heading", { name: fr.coachPage.visible }) },
   { name: "contrat", who: "coach", path: () => "/espace-coach/contrat", ready: (page) => page.getByRole("heading", { name: fr.coachContract.history }) },
   { name: "coachs", who: "candidate", path: () => "/coachs", ready: (page) => page.getByRole("heading", { name: COACH_NAME, level: 3 }) },
@@ -259,10 +259,12 @@ async function seed(browser: Browser) {
     [payment, ids.candidate, coachId, seller.id, { ...snapshot, seller }, seller, `cs_${payment}`],
   );
   await database.query("INSERT INTO coaching_connect_earning(payment_id,amount,commission,available) VALUES($1,9000,1800,true)", [payment]);
-  await database.query(
-    "INSERT INTO coaching_session(candidate_id,coach_id,stripe_checkout_session_id,amount,currency,paid_at,scheduled_at,duration_minutes) VALUES($1,$2,$3,9000,'eur','2026-06-01T08:00:00Z','2026-06-04T08:00:00Z',60)",
-    [ids.candidate, coachId, `cs_${payment}`],
-  );
+  ids.held = (
+    await database.query<{ id: string }>(
+      "INSERT INTO coaching_session(candidate_id,coach_id,stripe_checkout_session_id,amount,currency,paid_at,scheduled_at,duration_minutes) VALUES($1,$2,$3,9000,'eur','2026-06-01T08:00:00Z','2026-06-04T08:00:00Z',60) RETURNING id",
+      [ids.candidate, coachId, `cs_${payment}`],
+    )
+  ).rows[0]!.id;
 
   // Marie gives Sophie Coach Access; Sophie writes a private note.
   await page.goto("/coachs");
@@ -311,6 +313,95 @@ test.describe("Espace coach v2 in the Design System (#867)", () => {
     for (const context of Object.values(contexts)) await context.close();
     await database?.end();
     await own?.stop();
+  });
+
+  // #1018: the session's line names the Seller frozen with its sale, here Sophie's own business, not Jobbbox.
+  test("a session's page names the Seller of its sale (#1018)", async () => {
+    const page = await contexts.coach.newPage();
+    await page.goto(`/espace-coach/seances/${ids.session}`);
+    await expect(page.getByText(tr(fr.coachingOffers.soldBy, { name: "Sophie Martin Conseil" }), { exact: true })).toBeVisible();
+    await expect(page.getByText(fr.coachWorkspace.soldByJobbbox, { exact: true })).toHaveCount(0);
+    await page.close();
+  });
+
+  // #1019: the session held in June stays listed with its date, without « Modifier la date » or « Annuler la séance »;
+  // the one tomorrow keeps both. The routes refuse the held one too, as « trop tard » (#883).
+  test("a session that has ended is neither moved nor cancelled, on the page or through the routes (#1019)", async () => {
+    const page = await contexts.candidate.newPage();
+    await page.goto("/coachs");
+    const held = page.locator(`#seance-${ids.held}`);
+    const next = page.locator(`#seance-${ids.session}`);
+    await expect(held.getByText(/4 juin 2026/)).toBeVisible();
+    await expect(held.getByRole("button", { name: new RegExp(fr.coachingSession.edit) })).toHaveCount(0);
+    await expect(held.getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: COACH_NAME }) })).toHaveCount(0);
+    await expect(next.getByRole("button", { name: new RegExp(fr.coachingSession.edit) })).toBeVisible();
+    await expect(next.getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: COACH_NAME }) })).toBeVisible();
+    const headers = { origin: own.origin };
+    const moved = await page.request.patch(`/api/coaching/sessions/${ids.held}`, { data: { scheduledAt: "2030-03-20T10:00" }, headers });
+    expect([moved.status(), await moved.json()]).toEqual([409, { error: "too_late" }]);
+    const cancelled = await page.request.post(`/api/coaching/sessions/${ids.held}/cancel`, { data: {}, headers });
+    expect([cancelled.status(), await cancelled.json()]).toEqual([409, { error: "too_late" }]);
+    expect((await database.query("SELECT scheduled_at FROM coaching_session WHERE id=$1", [ids.held])).rows[0].scheduled_at).toEqual(new Date("2026-06-04T08:00:00Z"));
+    await page.close();
+  });
+
+  // #1020: a form's fields as wide as the form, and the form as wide as what holds it, at every width and Text Size, so
+  // no field is left at its label's width; at the desktop width the whole Meet link and the whole e-mail then show.
+  // (An input's scrollWidth equals its clientWidth however long its value is, so the text is measured in the page's font.)
+  const measure = (field: Locator) =>
+    field.evaluate((input: HTMLInputElement) => {
+      const style = getComputedStyle(input);
+      const ruler = document.createElement("span");
+      ruler.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${style.font};letter-spacing:${style.letterSpacing}`;
+      ruler.textContent = input.value;
+      document.body.append(ruler);
+      const text = ruler.getBoundingClientRect().width;
+      ruler.remove();
+      const form = input.closest("form")!;
+      const holder = form.parentElement!;
+      const holderStyle = getComputedStyle(holder);
+      return {
+        field: input.closest(".ds-field")!.getBoundingClientRect().width,
+        form: form.getBoundingClientRect().width,
+        holder: holder.clientWidth - parseFloat(holderStyle.paddingLeft) - parseFloat(holderStyle.paddingRight),
+        text,
+        room: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+      };
+    });
+
+  test("form fields take their form's width, and the whole Meet link and e-mail show on a desktop (#1020)", async () => {
+    for (const textSize of [null, "xlarge"]) {
+      for (const { name, width, height } of [DESKTOP, PHONE]) {
+        const coach = await contexts.coach.newPage();
+        const candidate = await contexts.candidate.newPage();
+        for (const page of [coach, candidate]) {
+          await page.setViewportSize({ width, height });
+          if (textSize) await page.addInitScript((size) => localStorage.setItem("jobbbox.textSize", size), textSize);
+        }
+        const label = `at ${width}px, text size ${textSize ?? "default"}`;
+        await coach.goto(`/espace-coach/seances/${ids.session}`);
+        const link = coach.getByLabel(fr.coachMeeting.target);
+        await expect(link).toHaveValue("https://meet.google.com/abc-defg-hij");
+        const meeting = await measure(link);
+        expect(meeting, `the Meet link's field ${label}`).toMatchObject({ field: meeting.form, form: meeting.holder });
+        await candidate.goto("/devenir-coach");
+        const email = candidate.getByLabel(fr.coachEnrolment.fields.email);
+        await expect(email).toHaveValue(CANDIDATE);
+        const enrolment = await measure(email);
+        expect(enrolment, `the e-mail's field ${label}`).toMatchObject({ field: enrolment.form, form: enrolment.holder });
+        // Every Field of one form is as wide as the next: the SIRET's too.
+        expect((await measure(candidate.getByLabel(fr.coachEnrolment.fields.siret))).field, `the SIRET's field ${label}`).toBe(enrolment.field);
+        if (name === "desktop") {
+          expect(meeting.text, `the whole Meet link ${label}`).toBeLessThanOrEqual(meeting.room);
+          expect(enrolment.text, `the whole e-mail ${label}`).toBeLessThanOrEqual(enrolment.room);
+        }
+        // The Text Size is kept per browser: cleared, so it stays out of the screens shot from these same contexts.
+        for (const page of [coach, candidate]) {
+          await page.evaluate(() => localStorage.removeItem("jobbbox.textSize"));
+          await page.close();
+        }
+      }
+    }
   });
 
   for (const screen of SCREENS) {

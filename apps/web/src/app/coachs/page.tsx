@@ -11,7 +11,7 @@ import { getCoachingOffers } from "@/coaching-offers/server";
 import { SellerInfo } from "@/coaching-offers/SellerInfo";
 import { getCoachContacts } from "@/coach-space/contacts-server";
 import { MeetingLink } from "@/coach-space/MeetingLink";
-import { coachingTime } from "@jobhub/shared/coaching-time";
+import { coachingSessionOver, coachingTime } from "@jobhub/shared/coaching-time";
 import { getCoachingTimeZones } from "@/coaching-time/server";
 import type { Metadata } from "next";
 import { coachSpaceV2On } from "@/coach-space-v2/server";
@@ -134,6 +134,8 @@ export default async function HumanCoachesPage({ searchParams }: {
               <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t}/>
               <div className="actions">
                 <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
+                {/* Over, it is neither moved nor cancelled (#1019): the routes refuse it too. */}
+                {coachingSessionOver(paid, now) ? null : (
                 <CancellationWindow at={cancellationOn ? paid.scheduledAt.toISOString() : null}>
                   {calPaths[paid.id] ? (<Link className={buttonClass()} href={calPaths[paid.id]!}>
                       {t("coachingBooking.manage")}
@@ -146,7 +148,7 @@ export default async function HumanCoachesPage({ searchParams }: {
                 note: paid.note,
             }} withName={paid.coach.name}/>
                   <CancelAgendaItemButton url={`/api/coaching/sessions/${paid.id}/cancel`} label={t("agendaChanges.cancelSession")} name={t("agendaChanges.cancelSessionFor", { name: paid.coach.name })} question={t(cancellationOn ? "coachingCancellation.confirmationRefund" : "agendaChanges.cancelSessionConfirm")}/>
-                </CancellationWindow>
+                </CancellationWindow>)}
               </div>
             </li>) : (<li key={paid.id} id={`seance-${paid.id}`} className="stack">
               <p>{t("humanCoaches.sessionPaidOn", { name: paid.coach.name, date: date.format(paid.paidAt) })}</p>

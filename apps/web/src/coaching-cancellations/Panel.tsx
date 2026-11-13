@@ -35,9 +35,7 @@ export async function CancellationPanel({ candidateId, locale, timeZone }: { can
               <div className="stack">
                 <p>{c.reason || t("coachingCancellation.candidateCancelled")}</p>
                 {c.originalAt ? (
-                  <p>
-                    {t("coachingCancellation.original")}: {coachingTime(c.originalAt, locale, timeZone)}
-                  </p>
+                  <p>{t("coachingCancellation.originalOn", { date: coachingTime(c.originalAt, locale, timeZone) })}</p>
                 ) : null}
                 {c.choice === "awaiting" ? (
                   c.choiceDueAt ? (

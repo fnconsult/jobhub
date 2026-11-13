@@ -1,6 +1,6 @@
 import { CoachProfile } from "./CoachProfile";
 import { SessionJoin } from "./SessionJoin";
-import { coachingTime } from "@jobhub/shared/coaching-time";
+import { coachingSessionOver, coachingTime } from "@jobhub/shared/coaching-time";
 import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/reads";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -164,12 +164,15 @@ function SessionCard({ session, formats, timeZone, onSaved }: { session: Session
     />
   ) : (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
-      <Control
-        look="secondary"
-        label={t(session.scheduledAt ? "coachingSession.edit" : "coachingSession.enterDate")}
-        accessibleName={t(session.scheduledAt ? "coachingSession.editFor" : "coachingSession.enterDateFor", { name })}
-        onPress={() => setEditing(true)}
-      />
+      {/* Over, it is no longer moved (#1019): the web app refuses it too. */}
+      {coachingSessionOver(session, new Date()) ? null : (
+        <Control
+          look="secondary"
+          label={t(session.scheduledAt ? "coachingSession.edit" : "coachingSession.enterDate")}
+          accessibleName={t(session.scheduledAt ? "coachingSession.editFor" : "coachingSession.enterDateFor", { name })}
+          onPress={() => setEditing(true)}
+        />
+      )}
       {session.withdrawable ? (
         <Control
           label={t("withdrawals.page.title")}

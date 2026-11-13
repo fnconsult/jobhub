@@ -8,8 +8,8 @@ import { getHumanCoaches } from "@/human-coaches/server";
 /**
  * The Candidate cancels one of their own Coaching Sessions: its date is cleared, so it is back under
  * « À planifier », and the cancellation is kept in its Reschedule history. Refunds are handled outside Jobbbox.
- * 200 { id } · 401 · 403 · 404 (no such session of this Candidate) · 409 { error: "too_late" } (« Espace coach v2 »:
- * the session has ended, #1019, or is within 24 hours under the cancellation policy, #883)
+ * 200 { id } · 401 · 403 · 404 (no such session of this Candidate) · 409 { error: "too_late" } (the session has ended,
+ * « Espace coach v2 » on, #1019, and off, #1022; or, on, it is within 24 hours under the cancellation policy, #883)
  */
 export async function POST(request: Request, { params }: RouteContext<"/api/coaching/sessions/[sessionId]/cancel">) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/coac
   }
   const result = await getHumanCoaches().cancelSession(candidate.id, sessionId);
   if (result.ok) return NextResponse.json({ id: result.session.id });
-  // « Espace coach v2 » only: a session that has ended is not cancelled (#1019), as « trop tard » (#883).
+  // A session that has ended is not cancelled, as « trop tard » (#883): « Espace coach v2 » on (#1019) and off (#1022).
   if ("error" in result && result.error === "too_late") return NextResponse.json({ error: result.error }, { status: 409 });
   return NextResponse.json({ error: "not_found" }, { status: 404 });
 }

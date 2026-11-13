@@ -40,14 +40,10 @@ export function CoachProfile({ name, page }: { name: string; page: PublicCoachPa
       {page.photoUrl ? <CoachPortrait key={page.photoUrl} url={page.photoUrl} name={name} /> : null}
       <AppText>{page.presentation}</AppText>
       {page.specialties.length ? (
-        <AppText>
-          {t("coachPage.specialties")}: {page.specialties.join(", ")}
-        </AppText>
+        <AppText>{t("coachPage.specialtiesList", { list: page.specialties.join(", ") })}</AppText>
       ) : null}
       {page.languages.length ? (
-        <AppText>
-          {t("coachPage.languages")}: {page.languages.join(", ")}
-        </AppText>
+        <AppText>{t("coachPage.languagesList", { list: page.languages.join(", ") })}</AppText>
       ) : null}
     </View>
   );

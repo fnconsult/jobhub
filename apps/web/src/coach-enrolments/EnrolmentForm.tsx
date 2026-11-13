@@ -7,6 +7,7 @@ import { Field, Select, TextInput, Textarea } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { FileUpload } from "@/design/FileUpload";
 import { PROOF_MAX_BYTES } from "./limits";
+import "./coach-enrolments.css";
 const COACH = "coach",
   ASSOCIATION = "association",
   KIND = "kind",
@@ -57,7 +58,7 @@ export function EnrolmentForm({ locale, email = "" }: { locale: "fr" | "en"; ema
       </Note>
     );
   return (
-    <form className="stack" onSubmit={(event) => void submit(event)}>
+    <form className="stack coach-enrolment-form" onSubmit={(event) => void submit(event)}>
       <Field label={t("coachEnrolment.kind")}>
         <Select name={KIND}>
           <option value={COACH}>{t("coachEnrolment.coach")}</option>

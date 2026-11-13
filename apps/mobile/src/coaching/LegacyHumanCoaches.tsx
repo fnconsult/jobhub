@@ -1,6 +1,7 @@
 // Mes coachs humains as before the Human Coach epic (origin/main), shown while « Espace coach v2 » is off (ADR-0107):
 // main's page below its read, copied verbatim (only the read and the payment wait stay in HumanCoaches.tsx, unchanged).
 // #888 retires it with the old Coach space.
+import { coachingSessionOver } from "@jobhub/shared/coaching-time";
 import type { CoachingResponse } from "@jobhub/shared/reads";
 import { useRouter } from "expo-router";
 import { useMemo, useState, type ReactNode } from "react";
@@ -90,12 +91,15 @@ function SessionCard({ session, formats, onSaved }: { session: Session; formats:
     />
   ) : (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space[2] }}>
-      <Control
-        look="secondary"
-        label={t(session.scheduledAt ? "coachingSession.edit" : "coachingSession.enterDate")}
-        accessibleName={t(session.scheduledAt ? "coachingSession.editFor" : "coachingSession.enterDateFor", { name })}
-        onPress={() => setEditing(true)}
-      />
+      {/* Over, it is no longer moved (#1022): the web app refuses it too. */}
+      {coachingSessionOver(session, new Date()) ? null : (
+        <Control
+          look="secondary"
+          label={t(session.scheduledAt ? "coachingSession.edit" : "coachingSession.enterDate")}
+          accessibleName={t(session.scheduledAt ? "coachingSession.editFor" : "coachingSession.enterDateFor", { name })}
+          onPress={() => setEditing(true)}
+        />
+      )}
       {session.withdrawable ? (
         <Control label={t("withdrawals.page.title")} accessibleName={t("withdrawals.agenda.label", { name })} onPress={() => router.navigate(paths.withdrawal(`coaching-session:${session.id}`))} />
       ) : null}

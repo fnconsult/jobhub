@@ -17,6 +17,7 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import { COACHING_ORDER, ORDER_PARAMS, routes } from "@/routes";
 import "@/components/MenuCards.css";
 import { HelpText } from "@/components/HelpTerm";
+import { coachingSessionOver } from "@jobhub/shared/coaching-time";
 
 /** Mes coachs humains' Subject: the menu's one conversation per Candidate (ADR-0070). */
 const SUBJECT = { kind: "menu", id: "humanCoaches" } as const;
@@ -42,7 +43,7 @@ async function changeCoachAccess(form: FormData) {
  * The Candidate's Human Coaches: book (and pay for) a Coaching Session, pick its time on
  * the Human Coach's Cal.com page once paid, then enter that date here (ADR-0027), and grant
  * or revoke Coach Access. A dated Coaching Session links to the Agenda, « Voir dans l'agenda », and
- * can be cancelled, back to « À planifier »; each one shows its Reschedule history.
+ * can be moved or cancelled, back to « À planifier », until it has ended (#1022); each one shows its Reschedule history.
  * Under « Conversation au centre » (#606, ADR-0070), the menu's conversation is the page instead: the Coaching Sessions and
  * the Human Coaches are cards in its thread, booking and Coach Access unchanged.
  *
@@ -108,16 +109,22 @@ export async function LegacyHumanCoachesPage({ searchParams }: { searchParams: P
               <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t} />
               <div className="actions">
                 <Link href={routes.agenda(agendaPeriod(paid.scheduledAt, now) === "past")}>{t("humanCoaches.seeInAgenda")}</Link>
-                <CoachingSessionDialog
-                  session={{ id: paid.id, scheduledAt: interviewWallClock(paid.scheduledAt), durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }}
-                  withName={paid.coach.name}
-                />
-                <CancelAgendaItemButton
-                  url={`/api/coaching/sessions/${paid.id}/cancel`}
-                  label={t("agendaChanges.cancelSession")}
-                  name={t("agendaChanges.cancelSessionFor", { name: paid.coach.name })}
-                  question={t("agendaChanges.cancelSessionConfirm")}
-                />
+                {/* Over, it is neither moved nor cancelled (#1022): the routes refuse it too. */}
+                {coachingSessionOver(paid, now) ? null : (
+                  <>
+                    <CoachingSessionDialog
+                      session={{ id: paid.id, scheduledAt: interviewWallClock(paid.scheduledAt), durationMinutes: paid.durationMinutes, videoLink: paid.videoLink, note: paid.note }}
+                      withName={paid.coach.name}
+                    />
+                    <CancelAgendaItemButton
+                      url={`/api/coaching/sessions/${paid.id}/cancel`}
+                      label={t("agendaChanges.cancelSession")}
+                      name={t("agendaChanges.cancelSessionFor", { name: paid.coach.name })}
+                      question={t("agendaChanges.cancelSessionConfirm")}
+                      tooLate={t("coachingSession.over")}
+                    />
+                  </>
+                )}
               </div>
             </li>
           ) : (

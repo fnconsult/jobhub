@@ -4,12 +4,14 @@ import { Card } from "@/design/Card";
 import { Field, TextInput } from "@/design/Field";
 import { Status, type StatusTone } from "@/design/Pill";
 import { Properties, Property } from "@/design/Properties";
-import { Table } from "@/design/Table";
 import { getServerT } from "@/i18n/server";
 import { coachingTime } from "@jobhub/shared/coaching-time";
 import type { EarningsStatement, EarningsPayout } from "./index";
 const MONTH = "mois",
-  PDF = "/api/coaching/earnings";
+  PDF = "/api/coaching/earnings",
+  ARTICLE = "article",
+  /** An offer's article, named by its heading. */
+  OFFER_ID = "earnings-offer-";
 /** A payout's state, in its tone: paid, to reconcile or check with the support, or under way. */
 const PAYOUT_TONE: Record<EarningsPayout["state"], StatusTone> = {
   pending: "neutral",
@@ -76,32 +78,26 @@ export async function Earnings({ statement, path, locale, timeZone }: { statemen
         {!statement.offers.length ? (
           <p>{t("coachEarnings.empty")}</p>
         ) : (
-          <Table
-            data-earnings-offers=""
-            label={t("coachEarnings.offers")}
-            rows={statement.offers}
-            rowKey={(offer) => offer.key}
-            columns={[
-              {
-                header: t("coachEarnings.offer"),
-                rowHeader: true,
-                cell: (offer) => (
-                  <>
-                    {offer.coachName}
-                    <br />
-                    {t("humanCoaches.sessionDuration", { count: offer.durationMinutes })}
-                    <br />
-                    {t("coachingOffers.soldBy", { name: offer.seller.name })}
-                  </>
-                ),
-              },
-              { header: t("coachEarnings.heldSessions"), numeric: true, cell: (offer) => offer.sessionsHeld },
-              { header: t("coachEarnings.collected"), numeric: true, cell: (offer) => money(offer.collected, offer.currency) },
-              { header: t("coachEarnings.commission"), numeric: true, cell: (offer) => money(offer.commission, offer.currency) },
-              { header: t("coachEarnings.refunds"), numeric: true, cell: (offer) => money(offer.refunded, offer.currency) },
-              { header: t("coachEarnings.net"), numeric: true, cell: (offer) => money(offer.net, offer.currency) },
-            ]}
-          />
+          // One offer and Seller at a time, its amounts in Properties (#1020): readable at every width and Text Size, where a
+          // table's first column wrapped word by word beside five columns of figures.
+          <div className="stack">
+            {statement.offers.map((offer, index) => (
+              <Card key={offer.key} as={ARTICLE} headingId={`${OFFER_ID}${index}`} title={offer.coachName} headingLevel={3} flat>
+                <div className="stack">
+                  <p>
+                    {t("humanCoaches.sessionDuration", { count: offer.durationMinutes })} · {t("coachingOffers.soldBy", { name: offer.seller.name })}
+                  </p>
+                  <Properties>
+                    <Property term={t("coachEarnings.heldSessions")}>{offer.sessionsHeld}</Property>
+                    <Property term={t("coachEarnings.collected")}>{money(offer.collected, offer.currency)}</Property>
+                    <Property term={t("coachEarnings.commission")}>{money(offer.commission, offer.currency)}</Property>
+                    <Property term={t("coachEarnings.refunds")}>{money(offer.refunded, offer.currency)}</Property>
+                    <Property term={t("coachEarnings.net")}>{money(offer.net, offer.currency)}</Property>
+                  </Properties>
+                </div>
+              </Card>
+            ))}
+          </div>
         )}
       </Card>
       <Card title={t("coachEarnings.payouts")}>

@@ -20,6 +20,3 @@ html[data-in-app] .coach-space-v2 .topbar .menu-toggle { display: inline-flex; }
 /* A form's Fields as wide as their Card (#1020): the app's `.stack` sets each child to its own width, which cut off a Meet
    link and gave the fields of one form unequal widths; the Design System's input already fills its Field. */
 .coach-space-column .ds-card form.stack > .ds-field { align-self: stretch; }
-/* Revenus' detail by offer (#1020): the cell naming the offer and its Seller keeps a readable width rather than giving it
-   up to the numbers' headers, which never wrap; on a narrow screen the table scrolls in its own frame, as every Table. */
-.coach-space-column .ds-table[data-earnings-offers] th[scope="row"] { min-width: 12rem; }

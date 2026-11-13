@@ -76,7 +76,7 @@ const SCREENS: Screen[] = [
     ready: (page) => page.getByText(fr.coachWorkspace.phase.before, { exact: true }),
     variants: true,
   },
-  { name: "revenus", who: "coach", path: () => "/espace-coach/revenus?mois=2026-06&fiscalYear=2026", ready: (page) => page.getByRole("table", { name: fr.coachEarnings.offers }), variants: true },
+  { name: "revenus", who: "coach", path: () => "/espace-coach/revenus?mois=2026-06&fiscalYear=2026", ready: (page) => page.getByRole("article", { name: COACH_NAME }), variants: true },
   { name: "profil", who: "coach", path: () => "/espace-coach/profil", ready: (page) => page.getByRole("heading", { name: fr.coachPage.visible }) },
   { name: "contrat", who: "coach", path: () => "/espace-coach/contrat", ready: (page) => page.getByRole("heading", { name: fr.coachContract.history }) },
   { name: "coachs", who: "candidate", path: () => "/coachs", ready: (page) => page.getByRole("heading", { name: COACH_NAME, level: 3 }) },

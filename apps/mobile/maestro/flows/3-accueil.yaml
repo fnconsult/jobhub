@@ -1,11 +1,13 @@
-# Accueil: the home page is a new conversation (ADR-0070), its quick actions under the welcome; the Sidebar holds the
-# menus and « Coach » with the Candidate's Free conversations, the seeded one among them.
+# Accueil: the home page is a new conversation (ADR-0070), « Votre point du jour » in its Introduction (#979), its quick
+# actions above the box; the Sidebar holds the menus and « Coach » with the Candidate's Free conversations, the seeded
+# one among them.
 appId: ai.jobbbox.app
 name: Accueil
 tags:
   - flow
 ---
 - runFlow: ../subflows/launch.yaml
+- assertVisible: "Votre point du jour"
 - assertVisible: "Chercher des offres"
 - assertVisible: "Envoyer"
 - runFlow:

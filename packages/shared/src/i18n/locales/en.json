@@ -6916,6 +6916,27 @@
       "off": "Job Digest turned off for this profile.",
       "frequency": "Frequency: {{frequency}}",
       "introduction": "This conversation is about this Job Digest: the coach can see its job offers and their match scores. Ask which ones to follow."
+    },
+    "home": {
+      "aiDisclosure": "I'm an AI coach, not a person. To talk to someone, book a human coach.",
+      "ask": "What would you like to do today?",
+      "today": "Your day at a glance",
+      "when": "{{day}} at {{time}}",
+      "interview": "Interview on {{when}}",
+      "coachingSession": "Session on {{when}}",
+      "toSchedule_one": "{{count}} session to schedule",
+      "toSchedule_other": "{{count}} sessions to schedule",
+      "followUps_one": "{{count}} application to follow up",
+      "followUps_other": "{{count}} applications to follow up",
+      "resume": "Resume “{{title}}”",
+      "start": {
+        "title": "To get started",
+        "intro": "Let's start with your profile: your CV and the role you're aiming for. Then I'll look for job offers for you.",
+        "sendCv": "Send my CV",
+        "sendCvDetail": "PDF or Word, I read it to create your profile",
+        "noCv": "I don't have an up-to-date CV",
+        "noCvDetail": "A few questions, one at a time, on jobbbox.ai"
+      }
     }
   },
   "coachProposals": {

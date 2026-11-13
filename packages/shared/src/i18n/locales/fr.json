@@ -6916,6 +6916,27 @@
       "off": "Job Digest désactivé pour ce profil.",
       "frequency": "Fréquence : {{frequency}}",
       "introduction": "Cette conversation porte sur ce Job Digest : le coach a sous les yeux ses offres et leur score de correspondance. Demandez-lui lesquelles suivre."
+    },
+    "home": {
+      "aiDisclosure": "Je suis un coach IA, pas une personne. Pour parler à quelqu'un, réservez un coach humain.",
+      "ask": "Que voulez-vous faire aujourd'hui ?",
+      "today": "Votre point du jour",
+      "when": "{{day}} à {{time}}",
+      "interview": "Entretien le {{when}}",
+      "coachingSession": "Séance le {{when}}",
+      "toSchedule_one": "{{count}} séance à planifier",
+      "toSchedule_other": "{{count}} séances à planifier",
+      "followUps_one": "{{count}} candidature à relancer",
+      "followUps_other": "{{count}} candidatures à relancer",
+      "resume": "Reprendre « {{title}} »",
+      "start": {
+        "title": "Pour commencer",
+        "intro": "Commençons par votre profil : votre CV et le poste que vous visez. Ensuite, je cherche les offres pour vous.",
+        "sendCv": "Envoyer mon CV",
+        "sendCvDetail": "PDF ou Word, je le lis pour créer votre profil",
+        "noCv": "Je n'ai pas de CV à jour",
+        "noCvDetail": "Quelques questions, une à la fois, sur jobbbox.ai"
+      }
     }
   },
   "coachProposals": {

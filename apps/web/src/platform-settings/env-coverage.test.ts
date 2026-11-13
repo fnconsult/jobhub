@@ -112,6 +112,7 @@ describe("the guard on the Platform Settings", () => {
         "REVIEW_SIGN_IN",
         "REVIEW_SIGN_IN_EMAILS",
         "REVIEW_SIGN_IN_CODE",
+        "EXTENSION_ORIGINS",
         "STRIPE_PRICE_STANDARD",
         "STRIPE_PRICE_PREMIUM",
         "STRIPE_PRICE_COACHING_SESSION",

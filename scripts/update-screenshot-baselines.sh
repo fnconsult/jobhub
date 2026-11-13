@@ -43,6 +43,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# On a machine whose outbound TLS is re-terminated (a proxy with its own CA), the container needs that CA too, or its
+# npm install fails on a self-signed certificate: the bundle NODE_EXTRA_CA_CERTS names is mounted read-only.
+trust=()
+if [ -n "${NODE_EXTRA_CA_CERTS:-}" ] && [ -f "${NODE_EXTRA_CA_CERTS}" ]; then
+  trust=(-v "${NODE_EXTRA_CA_CERTS}:/ca-bundle.crt:ro" -e NODE_EXTRA_CA_CERTS=/ca-bundle.crt -e NPM_CONFIG_CAFILE=/ca-bundle.crt)
+fi
+
 docker network create "$name" >/dev/null
 docker run -d --name "$name-pg" --network "$name" \
   -e POSTGRES_USER=jobhub -e POSTGRES_PASSWORD=jobhub -e POSTGRES_DB=jobhub postgres:17-alpine >/dev/null
@@ -53,7 +60,7 @@ until docker exec "$name-pg" pg_isready -U jobhub -d jobhub >/dev/null 2>&1; do 
 files() { git ls-files -z --cached --others --exclude-standard | while IFS= read -r -d '' file; do [ -e "$file" ] && printf '%s\0' "$file"; done; }
 files | COPYFILE_DISABLE=1 tar --no-xattrs --null -T - -cf - | docker run -i --name "$name-run" --network "$name" --ipc=host \
   -e DATABASE_URL="postgres://jobhub:jobhub@$name-pg:5432/jobhub" -e NEXT_TELEMETRY_DISABLED=1 -e E2E_SCREENSHOTS=1 -e CI=1 \
-  "$image" bash -euo pipefail -c '
+  "${trust[@]}" "$image" bash -euo pipefail -c '
     mkdir -p /work/e2e/__screenshots__
     tar -C /work -xf -
     cd /work

@@ -9,6 +9,7 @@ loadRootEnv();
 const nextConfig: NextConfig = {
   // Self-contained server bundle, deployable as a container in an EU region (ADR-0007).
   output: "standalone",
+  serverExternalPackages:["libxml2-wasm"],
   experimental: {
     // forbidden() and its forbidden.tsx (#542): the only way a page answers a real 403 (still experimental in Next 16).
     authInterrupts: true,

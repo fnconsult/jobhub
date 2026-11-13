@@ -248,11 +248,14 @@ export function createWithdrawals(database: Pool, deps: WithdrawalsDeps): Withdr
     let paymentId = refund.stripe_payment_id;
     let outcome: { status: RefundState; refundId: string | null; failureReason: string | null };
     try {
-      if (!paymentId && refund.stripe_checkout_session_id) paymentId = (await deps.billing.coachingSessionPayment(refund.stripe_checkout_session_id))?.id ?? null;
+      // Resolve Checkout on every attempt: a stored PaymentIntent alone loses its connected-account routing.
+      const resolved=refund.stripe_checkout_session_id?await deps.billing.coachingSessionPayment(refund.stripe_checkout_session_id):null;
+      if(refund.stripe_checkout_session_id&&(!resolved||(paymentId&&resolved.id!==paymentId)))throw new Error("Coaching refund payment context mismatch");
+      paymentId=resolved?.id??paymentId;
       if (!paymentId) {
         outcome = { status: "failed", refundId: null, failureReason: "payment_not_found" };
       } else {
-        const payment: Payment = { id: paymentId, amount: refund.amount, currency: refund.currency };
+        const payment: Payment = { ...resolved,id: paymentId, amount: refund.amount, currency: refund.currency };
         // A new key per attempt: a retry is a new refund, never the failed one replayed.
         // Part of the payment when some is kept for the service provided (#512); in full otherwise.
         const result = await deps.billing.refund(

@@ -1,5 +1,6 @@
 import { toolById, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
+import { PROVIDER_SECRET_NAMES } from "../provider-secrets/catalog";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
 import { ADD_TYPES, addTypeFor, keyHref, legacyRedirect, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, providerSheetHref, settingHref, sheetSettingsOf, type ProvidersState } from "./parametres";
 import { snapshotOfSettings, type StoredPlatformSettings } from "./resolver";
@@ -21,6 +22,25 @@ const tab = (slug: string) => parametresTab(slug);
 describe("Paramètres in tabs (#396, ADR-0042)", () => {
   it("has one tab per kind of Tool, then Extension and, last, Environnement", () => {
     expect(PARAMETRES_TABS.map((tab) => tab.slug)).toEqual(["recherche-web", "ia", "sources", "enrichissement", "e-mail", "paiement", "connexion", "extension", "environnement"]);
+  });
+
+  it("routes every editable Provider Secret to a provider sheet", () => {
+    expect(PROVIDER_SECRET_NAMES.filter((name) => !keyHref(name))).toEqual([]);
+  });
+
+  it("keeps Cal keys and booking controls together under Paiement rather than IA", () => {
+    const sheet = "/admin/parametres?tab=paiement&fournisseur=cal-com";
+    expect(providerSheetHref(tool("cal-com"))).toBe(sheet);
+    for (const name of ["CAL_COM_API_KEY", "CAL_COM_WEBHOOK_SECRET"]) expect(keyHref(name)).toBe(sheet);
+    for (const name of ["CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"]) {
+      expect(sheetSettingsOf(tool("cal-com"))).toContain(name);
+      expect(settingHref(name)).toBe(`${sheet}#setting-${name}`);
+      expect(tab("ia").settings).not.toContain(name);
+    }
+    const env = { CAL_COM_API_KEY: "test-key", CAL_COM_WEBHOOK_SECRET: "test-signature", CAL_COM_TEAM_ID: "7", CAL_COM_REMINDERS_DISABLED: "true" };
+    expect(possibleProviders(tab("paiement"), stateOf(env)).find((row) => row.tool.id === "cal-com")).toMatchObject({ status: "configured", usedBy: ["coaching_booking"] });
+    expect(possibleProviders(tab("paiement"), stateOf({ ...env, CAL_COM_TEAM_ID: "0" })).find((row) => row.tool.id === "cal-com")).toMatchObject({ status: "setting_missing" });
+    expect(possibleProviders(tab("paiement"), stateOf({ ...env, CAL_COM_TEAM_ID: "" })).find((row) => row.tool.id === "cal-com")).toMatchObject({ status: "setting_missing" });
   });
 
   it("reads the tab from the address, the first one when it names none or an unknown one", () => {
@@ -93,6 +113,7 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
       expect(legacyRedirect("cles", { key: "MISTRAL_API_KEY" })).toBe("/admin/parametres?tab=ia&fournisseur=mistral");
       expect(legacyRedirect("cles", { key: "FANTASTIC_JOBS_API_KEY" })).toBe("/admin/parametres?tab=sources&fournisseur=fantastic-jobs");
       expect(legacyRedirect("cles", { key: "STRIPE_WEBHOOK_SECRET" })).toBe("/admin/parametres?tab=paiement&fournisseur=stripe");
+      expect(legacyRedirect("cles", { key: "STRIPE_CONNECT_WEBHOOK_SECRET" })).toBe("/admin/parametres?tab=paiement&fournisseur=stripe");
       expect(legacyRedirect("cles", { key: "NOT_A_KEY" })).toBe("/admin/parametres?tab=recherche-web");
       expect(legacyRedirect("cles", {})).toBe("/admin/parametres?tab=recherche-web");
     });
@@ -156,8 +177,8 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
     });
 
     it("says what each other Tool serves while it can be called", () => {
-      expect(possibleProviders(tab("paiement"), stateOf({ STRIPE_SECRET_KEY: "sk", STRIPE_WEBHOOK_SECRET: "whsec" }))[0]).toMatchObject({ usedBy: ["billing"] });
-      expect(possibleProviders(tab("paiement"), stateOf())[0]).toMatchObject({ usedBy: [], status: "key_missing" });
+      expect(possibleProviders(tab("paiement"), stateOf({ STRIPE_SECRET_KEY: "sk", STRIPE_WEBHOOK_SECRET: "whsec" })).find((row) => row.tool.id === "stripe")).toMatchObject({ usedBy: ["billing"] });
+      expect(possibleProviders(tab("paiement"), stateOf()).find((row) => row.tool.id === "stripe")).toMatchObject({ usedBy: [], status: "key_missing" });
       expect(possibleProviders(tab("sources"), stateOf()).find((row) => row.tool.id === "greenhouse")).toMatchObject({ usedBy: ["job_discovery"] });
     });
 

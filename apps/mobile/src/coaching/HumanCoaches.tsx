@@ -1,3 +1,6 @@
+import { CoachProfile } from "./CoachProfile";
+import { SessionJoin } from "./SessionJoin";
+import { coachingTime } from "@jobhub/shared/coaching-time";
 import { coachingResponseSchema, type CoachingResponse } from "@jobhub/shared/reads";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -5,24 +8,25 @@ import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Linking, View } from "react-native";
 import { useRead } from "../api/reads";
 import { FRENCH_TIME_ZONE } from "../agenda/french-time";
+import { useCoachSpaceV2 } from "../navigation/human-coach";
 import { paths } from "../navigation/pages";
 import { radius, space, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
 import { paymentReturn, paymentWait, readAgainWhileWaiting, usePendingCheckout, type PaymentWait } from "./payment-return";
+import { LegacyLoaded } from "./LegacyHumanCoaches";
 import { SessionForm } from "./SessionForm";
 
 type Session = CoachingResponse["sessions"][number];
 type Coach = CoachingResponse["coaches"][number];
 
 /** How the page writes its dates, in the Interface Language, in French time (ADR-0028), as the web's page does. */
-function coachingFormats(locale: string) {
+function coachingFormats(locale: string, timeZone = FRENCH_TIME_ZONE) {
   const zone = { timeZone: FRENCH_TIME_ZONE };
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", ...zone });
-  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short", ...zone });
   return {
     date: (instant: string) => date.format(new Date(instant)),
-    dateTime: (instant: string) => dateTime.format(new Date(instant)),
+    dateTime: (instant: string) => coachingTime(new Date(instant), locale, timeZone),
     money: (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount / 100),
   };
 }
@@ -61,6 +65,8 @@ export function HumanCoaches() {
   const pending = usePendingCheckout();
   const coaching = useCoaching();
   const wait = usePaymentWait(coaching);
+  // « Espace coach v2 » off (ADR-0107): main's page, as before the Human Coach epic.
+  const coachSpaceV2 = useCoachSpaceV2();
   // Back from Checkout: read at once, whatever was read before it opened.
   const back = pending?.how ?? null;
   const { refetch } = coaching;
@@ -73,7 +79,10 @@ export function HumanCoaches() {
       void refetch();
     }, [refetch]),
   );
-  if (coaching.data) return <Loaded coaching={coaching.data} wait={wait} onRefresh={() => void refetch()} />;
+  if (coaching.data) {
+    const Page = coachSpaceV2 ? Loaded : LegacyLoaded;
+    return <Page coaching={coaching.data} wait={wait} onRefresh={() => void refetch()} />;
+  }
   return (
     <View style={{ gap: space[3], alignItems: "flex-start" }}>
       {coaching.isError ? (
@@ -90,17 +99,19 @@ export function HumanCoaches() {
 
 function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wait: PaymentWait; onRefresh: () => void }) {
   const { t, i18n } = useTranslation();
-  const formats = useMemo(() => coachingFormats(i18n.language), [i18n.language]);
+  const router = useRouter();
+  const formats = useMemo(() => coachingFormats(i18n.language, coaching.timeZone), [i18n.language, coaching.timeZone]);
   return (
     <View style={{ gap: space[6] }}>
       <View style={{ gap: space[3] }}>
         <AppText variant="h3" heading>
           {t("humanCoaches.sessionsTitle")}
         </AppText>
+        {coaching.cancellationPath ? <><AppText>{t("coachingCancellation.notice")}</AppText><Control label={t("coachingCancellation.title")} onPress={() => router.navigate(coaching.cancellationPath!)} /></> : null}
         <PaymentNotice wait={wait} onRefresh={onRefresh} />
         {coaching.sessions.length === 0 ? <AppText tone="secondary">{t("humanCoachesMenu.sessionsNone")}</AppText> : null}
         {coaching.sessions.map((session) => (
-          <SessionCard key={session.id} session={session} formats={formats} onSaved={onRefresh} />
+          <SessionCard key={session.id} session={session} formats={formats} timeZone={coaching.timeZone} onSaved={onRefresh} />
         ))}
       </View>
       <View style={{ gap: space[3] }}>
@@ -108,10 +119,12 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
           {t("humanCoaches.listTitle")}
         </AppText>
         <AppText tone="secondary">{t("humanCoaches.accessIntro")}</AppText>
-        <AppText>{coaching.price ? t("humanCoaches.price", { price: formats.money(coaching.price.amount, coaching.price.currency) }) : t("humanCoaches.unavailable")}</AppText>
+        <AppText>
+          {coaching.price ? t("humanCoaches.price", { price: formats.money(coaching.price.amount, coaching.price.currency) }) : t("humanCoaches.unavailable")}
+        </AppText>
         {coaching.coaches.length === 0 ? <AppText tone="secondary">{t("humanCoaches.none")}</AppText> : null}
         {coaching.coaches.map((coach) => (
-          <CoachCard key={coach.id} coach={coach} bookable={coaching.price !== null} />
+          <CoachCard key={coach.id} coach={coach} bookable={coach.offer !== undefined ? coach.offer !== null : coaching.price !== null} />
         ))}
       </View>
     </View>
@@ -121,7 +134,10 @@ function Loaded({ coaching, wait, onRefresh }: { coaching: CoachingResponse; wai
 function Card({ label, children }: { label: string; children: ReactNode }) {
   const { colors } = useTheme();
   return (
-    <View aria-label={label} style={{ gap: space[2], padding: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }}>
+    <View
+      aria-label={label}
+      style={{ gap: space[2], padding: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }}
+    >
       {children}
     </View>
   );
@@ -131,7 +147,7 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
  * A Coaching Session: dated (its date, duration, video link, note, « modifié par » the coach), or to schedule on Cal.com;
  * its date to enter or correct (SessionForm), and « Renoncer au contrat ici » while it can still be withdrawn from.
  */
-function SessionCard({ session, formats, onSaved }: { session: Session; formats: Formats; onSaved: () => void }) {
+function SessionCard({ session, formats, timeZone, onSaved }: { session: Session; formats: Formats; timeZone?: string; onSaved: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -155,7 +171,11 @@ function SessionCard({ session, formats, onSaved }: { session: Session; formats:
         onPress={() => setEditing(true)}
       />
       {session.withdrawable ? (
-        <Control label={t("withdrawals.page.title")} accessibleName={t("withdrawals.agenda.label", { name })} onPress={() => router.navigate(paths.withdrawal(`coaching-session:${session.id}`))} />
+        <Control
+          label={t("withdrawals.page.title")}
+          accessibleName={t("withdrawals.agenda.label", { name })}
+          onPress={() => router.navigate(paths.withdrawal(`coaching-session:${session.id}`))}
+        />
       ) : null}
     </View>
   );
@@ -164,7 +184,11 @@ function SessionCard({ session, formats, onSaved }: { session: Session; formats:
       <Card label={paidOn}>
         <AppText weight="semiBold">{paidOn}</AppText>
         <AppText tone="secondary">{t("humanCoaches.toSchedule")}</AppText>
-        <Control look="primary" label={t("humanCoaches.pickSlot", { name })} onPress={() => void Linking.openURL(session.coach.bookingUrl).catch(() => {})} />
+        <Control
+          look="primary"
+          label={t("humanCoaches.pickSlot", { name })}
+          onPress={() => (session.bookingPath ? router.navigate(session.bookingPath) : void Linking.openURL(session.coach.bookingUrl).catch(() => {}))}
+        />
         {actions}
       </Card>
     );
@@ -175,6 +199,8 @@ function SessionCard({ session, formats, onSaved }: { session: Session; formats:
       <AppText weight="semiBold">{on}</AppText>
       {session.durationMinutes ? <AppText>{t("humanCoaches.sessionDuration", { count: session.durationMinutes })}</AppText> : null}
       {session.note ? <AppText>{session.note}</AppText> : null}
+      {session.bookingPath ? <Control label={t("coachingBooking.manage")} onPress={() => router.navigate(session.bookingPath!)} /> : null}
+      {session.changedBy === "cal_com" ? <AppText variant="meta">{t("coachingBooking.viaCal")}</AppText> : null}
       {session.changedBy === "coach" ? (
         <AppText variant="meta" tone="accent">
           {t("humanCoaches.changedByCoach", { name })}
@@ -183,7 +209,12 @@ function SessionCard({ session, formats, onSaved }: { session: Session; formats:
       <AppText variant="meta" tone="secondary">
         {paidOn}
       </AppText>
-      {session.videoLink ? <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} /> : null}
+      {session.meeting !== undefined ? <Control label={t("coachReports.open")} onPress={() => router.navigate(`/coachs/seances/${session.id}`)} /> : null}
+      {session.meeting !== undefined ? (
+        <SessionJoin timeZone={timeZone} meeting={session.meeting} scheduledAt={session.scheduledAt} durationMinutes={session.durationMinutes} />
+      ) : session.videoLink ? (
+        <Control label={t("humanCoaches.joinVideo", { name })} onPress={() => void Linking.openURL(session.videoLink!).catch(() => {})} />
+      ) : null}
       {actions}
     </Card>
   );
@@ -221,14 +252,38 @@ function PaymentNotice({ wait, onRefresh }: { wait: PaymentWait; onRefresh: () =
 
 /** A Human Coach: their bio, whether they have Coach Access, and « Réserver une séance avec … » while one can be paid. */
 function CoachCard({ coach, bookable }: { coach: Coach; bookable: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
+  const price = coach.offer
+    ? new Intl.NumberFormat(i18n.language, { style: "currency", currency: coach.offer.currency }).format(coach.offer.amount / 100)
+    : null;
   return (
     <Card label={coach.name}>
       <AppText variant="h3">{coach.name}</AppText>
-      {coach.bio ? <AppText>{coach.bio}</AppText> : null}
+      {coach.association ? <AppText>{t("association.proposedBy", { name: coach.association.name })}</AppText> : null}
+      {coach.seller ? (
+        <>
+          <AppText>{t("coachingOffers.soldBy", { name: coach.seller.name })}</AppText>
+          {coach.seller.kind !== "jobbbox" ? (
+            <>
+              <AppText>
+                {coach.seller.status} · {t("coachingOffers.siret", { siret: coach.seller.siret })}
+              </AppText>
+              <AppText>{t("coachingOffers.marketplace")}</AppText>
+            </>
+          ) : null}
+        </>
+      ) : null}
+      {coach.offer ? (
+        <AppText>
+          {price} · {t("humanCoaches.sessionDuration", { count: coach.offer.durationMinutes })}
+        </AppText>
+      ) : null}
+      {coach.profile ? <CoachProfile name={coach.name} page={coach.profile} /> : coach.bio ? <AppText>{coach.bio}</AppText> : null}
       <AppText tone="secondary">{t(coach.accessGranted ? "humanCoaches.accessGranted" : "humanCoaches.accessNotGranted", { name: coach.name })}</AppText>
-      {bookable ? <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} /> : null}
+      {bookable ? (
+        <Control look="primary" label={t("humanCoaches.book", { name: coach.name })} onPress={() => router.navigate(paths.coachingOrder(coach.id))} />
+      ) : null}
     </Card>
   );
 }

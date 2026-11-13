@@ -1,3 +1,4 @@
+import { coachingTime } from "@jobhub/shared/coaching-time";
 import type { InterviewFormat } from "@jobhub/shared";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { INTERVIEW_TIME_ZONE } from "../applications";
@@ -16,9 +17,18 @@ export type ReminderEmailItem = {
 /**
  * The Appointment Reminder: the next day's Agenda Items (all on one day, French time), one card each, in time
  * order as given; the button opens the Agenda; the footer links to the Rappels Section, which switches them off.
+ * With « Espace coach v2 » on (`coachSpaceV2`, ADR-0107), a Coaching Session's time is in the Candidate's `timeZone`
+ * with its zone (ADR-0096); off (the default), French time like an Interview's, as before the Human Coach epic.
  */
 export function appointmentReminderEmail(
-  { items, agendaUrl, settingsUrl, preferredName }: { items: ReminderEmailItem[]; agendaUrl: string; settingsUrl: string; preferredName?: string | null },
+  {
+    items,
+    agendaUrl,
+    settingsUrl,
+    preferredName,
+    timeZone,
+    coachSpaceV2 = false,
+  }: { items: ReminderEmailItem[]; agendaUrl: string; settingsUrl: string; preferredName?: string | null; timeZone?: string; coachSpaceV2?: boolean },
   language: Locale,
 ): RenderedEmail {
   const i18n = createI18n(language);
@@ -27,7 +37,7 @@ export function appointmentReminderEmail(
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: "full", timeZone: INTERVIEW_TIME_ZONE }).format(items[0]!.scheduledAt);
   const count = items.length;
   const cards = items.map((item) => {
-    const at = time.format(item.scheduledAt);
+    const at = item.table === "coaching_session" && coachSpaceV2 ? coachingTime(item.scheduledAt, language, timeZone) : time.format(item.scheduledAt);
     const details =
       item.table === "interview"
         ? [

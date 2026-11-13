@@ -1,0 +1,82 @@
+/* « Espace coach v2 » off (ADR-0107): copied from origin/main before the Human Coach epic (#867); retired with the old Coach space (#888). */
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { LegacyCoachSpaceShell as CoachSpaceShell } from "./LegacyCoachSpaceShell";
+import { MasterCvView } from "@/components/MasterCvView";
+import { getHumanCoaches, requireHumanCoach } from "@/human-coaches/server";
+import { getRequestLocale, getServerT } from "@/i18n/server";
+import { routes } from "@/routes";
+
+type Params = { params: Promise<{ candidateId: string }> };
+
+/** The Candidate's file in the old Coach space: /espace-coach/{candidateId}, as `routes.coachSpaceCandidate` read before the epic. */
+export const legacyCandidateUrl = (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`;
+
+/** The Candidate's file, or 404 without Coach Access. */
+async function candidateFile(params: Params["params"]) {
+  const coach = await requireHumanCoach();
+  const file = await getHumanCoaches().candidateFile(coach.id, decodeURIComponent((await params).candidateId));
+  if (!file) notFound();
+  return file;
+}
+
+export async function legacyCoachedCandidateMetadata({ params }: Params): Promise<Metadata> {
+  const { candidate } = await candidateFile(params);
+  const t = await getServerT();
+  return { title: `${candidate.name || candidate.email} · ${t("coachSpace.title")}`, robots: { index: false } };
+}
+
+/**
+ * What a Human Coach reads of a Candidate who granted them Coach Access: their name, « Marie Dupont », with « se fait
+ * appeler Mimi » under it when their Preferred Name differs from their Given Name (#922); their Profiles and
+ * Applications, read only.
+ */
+export async function LegacyCoachedCandidatePage({ params }: Params) {
+  const { candidate, profiles, applications } = await candidateFile(params);
+  const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" });
+  return (
+    <CoachSpaceShell>
+      <p>
+        <Link href={routes.coachSpace}>{t("coachSpace.back")}</Link>
+      </p>
+      <h1>{candidate.name || candidate.email}</h1>
+      {candidate.calledBy ? (
+        <p className="hint">{t("coachSpace.calledBy", { name: candidate.calledBy })}</p>
+      ) : null}
+      <p className="notice">{t("coachSpace.readOnly")}</p>
+
+      <section className="stack" aria-labelledby="applications-title">
+        <h2 id="applications-title">{t("coachSpace.applicationsTitle")}</h2>
+        {applications.length === 0 ? (
+          <p>{t("coachSpace.applicationsNone")}</p>
+        ) : (
+          <ul>
+            {applications.map((application) => (
+              <li key={application.id}>
+                <Link href={routes.coachSpaceApplication(candidate.id, application.id)}>
+                  {application.jobOffer.employer ? `${application.jobOffer.title} · ${application.jobOffer.employer}` : application.jobOffer.title}
+                </Link>{" "}
+                {t("coachSpace.applicationStatus", { status: t(`applicationStatuses.${application.status}`), date: date.format(application.statusChangedAt) })}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="stack" aria-labelledby="profiles-title">
+        <h2 id="profiles-title">{t("coachSpace.profilesTitle")}</h2>
+        {profiles.map((profile) => (
+          <article key={profile.id} className="stack" aria-labelledby={`profile-${profile.id}`}>
+            <h3 id={`profile-${profile.id}`}>
+              {profile.archived ? `${profile.name} ${t("coachSpace.archived")}` : profile.name}
+            </h3>
+            {profile.searchCriteria.targetRole ? <p>{t("coachSpace.targetRole", { role: profile.searchCriteria.targetRole })}</p> : null}
+            <MasterCvView cv={profile.masterCv.content} t={t} />
+          </article>
+        ))}
+      </section>
+    </CoachSpaceShell>
+  );
+}

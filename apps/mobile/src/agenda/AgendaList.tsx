@@ -1,8 +1,11 @@
+import { coachingTime } from "@jobhub/shared/coaching-time";
 import { useRouter } from "expo-router";
 import { CalendarPlus } from "lucide-react-native";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Linking, Pressable, ScrollView, View } from "react-native";
+import { SessionJoin } from "../coaching/SessionJoin";
+import { useCoachSpaceV2 } from "../navigation/human-coach";
 import { INTERVIEWS, paths } from "../navigation/pages";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
 import { AppText, CappedTextScale, ROW_MAX_SCALE } from "../ui/AppText";
@@ -40,9 +43,10 @@ export function AgendaList({
 }) {
   const { t, i18n } = useTranslation();
   const formats = useMemo(() => agendaFormats(i18n.language), [i18n.language]);
+  const coachSpaceV2 = useCoachSpaceV2();
   const add = (item: AgendaItem) => {
-    // A sheet that cannot open leaves the Agenda as it is: nothing was added.
-    addToCalendar(item, { sheets, t, now }).catch(() => {});
+    // A sheet that cannot open leaves the Agenda as it is: nothing was added. « Espace coach v2 » off: in French time.
+    addToCalendar(coachSpaceV2 ? item : withoutCoachSpaceV2(item), { sheets, t, now }).catch(() => {});
   };
   const empty = agenda.toSchedule.length === 0 && agenda.days.length === 0;
   const Container = scrolls ? ListScroll : ListInCard;
@@ -78,6 +82,15 @@ export function AgendaList({
       {empty ? <AppText tone="secondary">{t("agenda.none")}</AppText> : null}
     </Container>
   );
+}
+
+/** An Agenda Item as before the Human Coach epic (« Espace coach v2 » off): no time zone, no meeting. */
+function withoutCoachSpaceV2(item: AgendaItem): AgendaItem {
+  if (item.kind !== "coachingSession") return item;
+  const before = { ...item };
+  delete before.timeZone;
+  delete before.meeting;
+  return before;
 }
 
 const ListScroll = ({ children }: { children: React.ReactNode }) => (
@@ -187,7 +200,8 @@ function AddToCalendar({
   formats: Formats;
   onAdd: (item: AgendaItem) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const coachSpaceV2 = useCoachSpaceV2();
   if (!canAddToCalendar(item)) return null;
   return (
     <View style={{ alignSelf: "flex-start" }}>
@@ -195,7 +209,7 @@ function AddToCalendar({
         label={t("agenda.calendarFile.add")}
         accessibleName={t("agenda.calendarFile.addFor", {
           what,
-          date: formats.dateTime(item.scheduledAt),
+          date: coachSpaceV2 && item.kind === "coachingSession" ? coachingTime(new Date(item.scheduledAt), i18n.language, item.timeZone) : formats.dateTime(item.scheduledAt),
         })}
         icon={CalendarPlus}
         onPress={() => onAdd(item)}
@@ -265,12 +279,15 @@ function CoachingSessionRow({
   formats: Formats;
   onAdd: (item: AgendaItem) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // « Espace coach v2 » off (ADR-0107): the time alone, in French time, beside the session, as before the epic.
+  const coachSpaceV2 = useCoachSpaceV2();
   return (
     <Card>
       <ItemLink href={paths.coachingSession(item.id)}>
-        <AppText weight="semiBold">{formats.time(item.scheduledAt)}</AppText>
+        {coachSpaceV2 ? null : <AppText weight="semiBold">{formats.time(item.scheduledAt)}</AppText>}
         <View style={{ flex: 1 }}>
+          {coachSpaceV2 ? <AppText weight="semiBold">{coachingTime(new Date(item.scheduledAt), i18n.language, item.timeZone)}</AppText> : null}
           <AppText variant="meta" tone="secondary">
             {t("agenda.coachingSession")}
           </AppText>
@@ -282,6 +299,7 @@ function CoachingSessionRow({
               {t("agenda.duration", { count: item.durationMinutes })}
             </AppText>
           ) : null}
+          {coachSpaceV2 && item.changedBy === "cal_com" ? <AppText variant="meta">{t("coachingBooking.viaCal")}</AppText> : null}
           {item.changedBy === "coach" ? (
             <AppText variant="meta" tone="accent">
               {t("agenda.changedByCoach")}
@@ -289,6 +307,7 @@ function CoachingSessionRow({
           ) : null}
         </View>
       </ItemLink>
+      {coachSpaceV2 && item.meeting !== undefined ? <SessionJoin meeting={item.meeting} scheduledAt={item.scheduledAt} durationMinutes={item.durationMinutes} timeZone={item.timeZone} /> : null}
       <AddToCalendar
         item={item}
         what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })}

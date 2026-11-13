@@ -528,6 +528,39 @@ describe("Jobbbox app, signing in (#685)", () => {
     mockWeb.app.humanCoach(EMAIL, false);
   });
 
+  it("opens only the Association workspace for its member and preserves an invitation token in the native WebView",async()=>{
+    mockWeb.app.associationMember(EMAIL);
+    mockWeb.app.coachSpaceV2();
+    try {
+      await launch();const user=userEvent.setup();await user.press(button("Menu"));
+      expect(screen.queryByRole("link",{name:"Mon espace coach",hidden:true})).toBeNull();
+      await user.press(await screen.findByRole("link",{name:"Espace association",hidden:true}));
+      expect((await webView()).source).toEqual({uri:`${mockWeb.app.baseURL}/espace-association`});
+    }finally{mockWeb.app.associationMember(EMAIL,false);mockWeb.app.coachSpaceV2(false);}
+  });
+  it("keeps an email invitation's signature when a native universal link opens it",async()=>{
+    mockWeb.app.coachSpaceV2();
+    try {
+      const path="/espace-association/invitations/00000000-0000-4000-8000-000000000100";
+      await launch(`${path}?token=signature-only-for-test`);
+      expect((await webView()).source).toEqual({uri:`${mockWeb.app.baseURL}${path}?token=signature-only-for-test`});
+    }finally{mockWeb.app.coachSpaceV2(false);}
+  });
+  it("« Espace coach v2 » off: no Association entry, and its addresses are unknown to the app, as before the epic (ADR-0107)", async () => {
+    mockWeb.app.associationMember(EMAIL);
+    try {
+      await launch();
+      await userEvent.setup().press(button("Menu"));
+      await screen.findByRole("link", { name: "Mon compte", hidden: true });
+      expect(screen.queryByRole("link", { name: "Espace association", hidden: true })).toBeNull();
+    } finally {
+      mockWeb.app.associationMember(EMAIL, false);
+    }
+    await launch("/espace-association/invitations/00000000-0000-4000-8000-000000000100?token=t");
+    expect(await screen.findByText("Unmatched Route")).toBeOnTheScreen();
+    expect(screen.queryByTestId("web-view")).toBeNull();
+  });
+
   it("asks a CGU version to accept after sign-in, natively, before the conversation, and records it from the app (#689)", async () => {
     const { shownLegalText } = jest.requireActual("../src/session/testing");
     await signedIn();

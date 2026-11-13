@@ -1,3 +1,6 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import {CoachingNoticeSettings} from "@/coaching-notifications/Settings";
+import {getCoachingNotifications,coachingNoticesOn} from "@/coaching-notifications/server";
 import { getAppointmentReminders } from "@/appointment-reminders/server";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { AppointmentRemindersForm } from "@/components/AppointmentRemindersForm";
@@ -10,6 +13,7 @@ import { getPushNotifications } from "@/push-notifications/server";
  * Mon compte's Rappels Section: the Appointment Reminder by email, the default, then the app's Push notifications
  * (#698), one switch per event: a Candidate's, and a Human Coach's own too. The same page in the app's WebView.
  */
+const CANDIDATE="candidate";
 export default async function AccountRemindersPage() {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
@@ -18,7 +22,9 @@ export default async function AccountRemindersPage() {
   return (
     <>
       <AppointmentRemindersForm enabled={enabled} />
-      <PushNotificationsForm events={pushEventsFor(pushAudiencesOf(coach !== null))} settings={settings} devices={devices.length} />
+      {/* Coaching notices are part of « Espace coach v2 » (ADR-0107): off, none, as before it. */}
+      {coachSpaceV2On()&&coachingNoticesOn()?<CoachingNoticeSettings initial={await getCoachingNotifications().settings(candidate.id)} audience={CANDIDATE}/>:null}
+      <PushNotificationsForm events={pushEventsFor(pushAudiencesOf(coach !== null), coachSpaceV2On())} settings={settings} devices={devices.length} />
     </>
   );
 }

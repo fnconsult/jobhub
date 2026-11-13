@@ -7,6 +7,7 @@ import type { ContractType, MasterCvContent, Provenance, RemoteWork, SearchCrite
 import type { CvDraft } from "@/cv";
 import { useAutoGrow } from "@/design/auto-grow";
 import { helpLocale, onThisPage } from "@/coach-help";
+import { useHelpSettings } from "@/coach-help/settings";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
 import { useConversationFirst } from "@/components/conversation-first";
@@ -729,7 +730,7 @@ function OnboardingHelp({ onOpen }: { onOpen?: () => void }) {
   const { t, i18n } = useTranslation();
   const pathname = usePathname();
   const pane = useWorkPane();
-  const here = onThisPage(pathname, helpLocale(i18n.language), "candidate");
+  const here = onThisPage(pathname, helpLocale(i18n.language), "candidate", useHelpSettings());
   if (!here || !pane) return null;
   return (
     <p>

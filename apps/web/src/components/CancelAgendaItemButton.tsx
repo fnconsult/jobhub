@@ -20,12 +20,14 @@ export function CancelAgendaItemButton({ url, label, name, question }: { url: st
   const [asking, setAsking] = useState(false);
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [tooLate, setTooLate] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
 
   async function cancel() {
     setWorking(true);
     setFailed(false);
-    const { ok } = await send(url, "POST");
+    const { ok, result } = await send(url, "POST");
+    setTooLate(!ok && result.error === "too_late");
     setWorking(false);
     if (ok) {
       setAsking(false);
@@ -60,7 +62,7 @@ export function CancelAgendaItemButton({ url, label, name, question }: { url: st
       </div>
       {failed ? (
         <p className="field-error" role="alert">
-          {t("agendaChanges.error")}
+          {t(tooLate ? "coachingCancellation.tooLate" : "agendaChanges.error")}
         </p>
       ) : null}
     </div>

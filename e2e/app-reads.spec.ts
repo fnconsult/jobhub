@@ -1,3 +1,4 @@
+import { approvedLegacyCoach } from "./support/legacy-coach";
 import {
   API_CLIENT_HEADER,
   API_VERSION,
@@ -170,6 +171,7 @@ async function seedCandidate(page: Page, email: string): Promise<Seed> {
       `${unique()}@coachs.e2e.jobbbox.test`,
       `https://cal.com/${unique()}/seance`,
     ]);
+    await approvedLegacyCoach(coach.rows[0].id);
     await db.query("INSERT INTO coach_access (candidate_id, coach_id) VALUES ($1, $2)", [candidate, coach.rows[0].id]);
     await db.query("INSERT INTO coaching_session (stripe_checkout_session_id, candidate_id, coach_id, amount, currency) VALUES ($1, $2, $3, 9000, 'eur')", [`cs_${unique()}`, candidate, coach.rows[0].id]);
     const scheduled = await db.query(

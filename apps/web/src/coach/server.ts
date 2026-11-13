@@ -5,6 +5,7 @@ import { getIdentityNames } from "@/candidate-identity/server";
 import { getCoachActions } from "@/coach-actions/server";
 import { getCoachMemory } from "@/coach-memory/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
+import { helpSettings } from "@/coach-help/server";
 import { getGuardrails } from "@/guardrails/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobOfferLinks } from "@/job-offer-links/server";
@@ -31,6 +32,8 @@ export function getCoach(): Coach {
       guardrails: getGuardrails(),
       jobOfferLinks: getJobOfferLinks(),
       coachActions: getCoachActions(),
+      // The Help Article the Candidate read, as « Espace coach v2 » serves it at the time of the reply (#867).
+      helpSettings,
       profiles: getProfiles(),
       applications: getApplications(),
       jobOffers: getJobOffers(),

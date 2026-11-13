@@ -10,6 +10,8 @@ import { CONTEXT_CATEGORIES, DEFAULT_COACH_CONTEXT_LIMITS, type ContextCategory,
 import type { CoachProposalCard } from "../coach-proposals/card";
 
 export interface CoachMessage {
+  /** A published human-written Session Report, visibly signed and never labelled as AI. */
+  humanCoach?: { id: string; name: string; photoUrl: string | null };
   from: "candidate" | "coach";
   text: string;
   /**

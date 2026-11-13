@@ -6,6 +6,7 @@ import type { HelpArticle } from "@jobhub/help";
 import { useAttach } from "../attach/use-attach";
 import { Conversation } from "../conversation/Conversation";
 import { HelpArticleView, HelpForUnanswered, HelpIntro, HelpSuggestions, helpLocaleOf, ReplyFeedback, useHelpSuggestions } from "../help/Help";
+import { useCoachSpaceV2 } from "../navigation/human-coach";
 import { useWorkPane } from "../shell/Shell";
 import { SignalementForm, type SignalementStart } from "../signalement/SignalementForm";
 import { radius, space, useTheme } from "../theme/theme";
@@ -59,6 +60,8 @@ export const useCoachBox = () => useContext(CoachBox);
  */
 export function CoachConversation(page: PagePlacement) {
   const { t, i18n } = useTranslation();
+  // « Espace coach v2 » off (ADR-0107): no message is a Human Coach's, as before the epic.
+  const coachSpaceV2 = useCoachSpaceV2();
   const language = i18n.language === "en" ? "en" : "fr";
   const locale = helpLocaleOf(i18n.language);
   const workPane = useWorkPane();
@@ -172,7 +175,7 @@ export function CoachConversation(page: PagePlacement) {
             {message.from === "coach" && message.cards?.length
               ? message.cards.map((card) => <ProposalCard key={card.id} card={card} onChange={(changed) => coach.cardChanged(index, changed)} />)
               : null}
-            {message.from === "coach" && !message.blocked && !message.jobOffer ? (
+            {message.from === "coach" && !(coachSpaceV2 && message.humanCoach) && !message.blocked && !message.jobOffer ? (
               <ReplyFeedback
                 couldNotAnswer={message.couldNotAnswer === true}
                 satisfied={message.satisfied}
@@ -248,6 +251,7 @@ function CoachSays({ children }: { children: ReactNode }) {
 
 function Message({ message, language }: { message: ShownMessage; language: "fr" | "en" }) {
   const { t } = useTranslation();
+  const coachSpaceV2 = useCoachSpaceV2();
   const { colors } = useTheme();
   if (message.from === "candidate")
     return (
@@ -273,6 +277,7 @@ function Message({ message, language }: { message: ShownMessage; language: "fr" 
           {t("coachPanel.blocked")}
         </AppText>
       ) : null}
+      {coachSpaceV2 && message.humanCoach ? <AppText weight="semiBold">{t("coachReports.author", { name: message.humanCoach.name })}</AppText> : null}
       <AppText>{message.text}</AppText>
       {message.jobOffer ? (
         <AppText weight="semiBold">{`${t("coachPanel.jobOfferLink.card")} · ${[message.jobOffer.title, message.jobOffer.employer].filter(Boolean).join(" · ")} · ${t(message.jobOffer.followed ? "coachPanel.jobOfferLink.followed" : "coachPanel.jobOfferLink.toProcess")}`}</AppText>

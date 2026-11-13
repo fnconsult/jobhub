@@ -1,0 +1,394 @@
+import { Pool } from "pg";
+import { approvedLegacyCoach, paidHistoricalSession } from "../support/legacy-coach";
+import { readFileSync } from "node:fs";
+import { expect, test, type Browser, type Page } from "@playwright/test";
+import { fakeCustomerId } from "../../apps/web/src/billing/fake-stripe";
+import { signInWithMagicLink } from "../support/candidate";
+import { newAddress } from "../support/mailbox";
+import { subscribe } from "../support/plan";
+
+// Issue #25 / ADR-0010: from their account page, the Candidate downloads all
+// their data (Profiles, every Master CV Version, Applications, Tailored
+// Documents and, since #171, everything else tied to them: consent, Coach
+// Conversations, Coach Access...) and deletes their account: everything tied to
+// them goes, the Job Offers stay.
+const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
+const origin = process.env.E2E_WEB_ORIGIN!;
+
+// Its own Administrator: two sign-ins of one address at once, from other spec files, can pick up each other's link.
+const ADMINISTRATOR = "account-office@e2e.jobbbox.test";
+const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
+
+const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const masterCv = {
+  fullName: "Marie Dupont",
+  headline: "Directrice financière",
+  email: "marie.dupont@example.fr",
+  phone: "",
+  location: "Lyon",
+  summary: "",
+  experience: [{ title: "Directrice financière", employer: "Groupe Seb", location: "Lyon", period: "2005 – 2024", description: "Pilotage financier." }],
+  education: [],
+  skills: ["IFRS", "SAP"],
+  languages: [],
+};
+
+/** Signs a new Candidate in with a Profile (Master CV edited once) and an Application with a Cover Letter. */
+async function candidateWithData(page: Page, email: string) {
+  await signInWithMagicLink(page, email);
+  const profile = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } }, headers: { origin } });
+  expect(profile.status(), await profile.text()).toBe(201);
+  const profileId = (await profile.json()).id as string;
+  const edited = await page.request.put(`/api/profiles/${profileId}/master-cv`, {
+    data: { basedOnVersion: 1, content: { ...masterCv, summary: "25 ans de finance." } },
+    headers: { origin },
+  });
+  expect(edited.ok(), await edited.text()).toBe(true);
+  const captured = await page.request.post("/api/job-offers", {
+    data: { source: { url: `https://www.apec.fr/offres/${unique()}` }, title: "DAF H/F", content: "Acme Industrie recrute son DAF pour piloter la clôture des comptes.", employer: "Acme Industrie" },
+    headers: { origin },
+  });
+  expect(captured.status(), await captured.text()).toBe(200);
+  const jobOfferId = (await captured.json()).id as string;
+  const saved = await page.request.post("/api/applications", { data: { jobOfferId, profileId }, headers: { origin } });
+  expect(saved.ok(), await saved.text()).toBe(true);
+  const applicationId = (await saved.json()).id as string;
+  const drafted = await page.request.post(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter" }, headers: { origin } });
+  expect(drafted.ok(), await drafted.text()).toBe(true);
+  return { profileId, jobOfferId, applicationId };
+}
+
+/** A signed-in page of its own (cookies apart), as for another person on another computer. */
+async function personPage(browser: Browser, email: string): Promise<Page> {
+  const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+  const page = await context.newPage();
+  await signInWithMagicLink(page, email);
+  return page;
+}
+
+/** The Administrator adds a Human Coach in the Back Office; returns their name and id. */
+async function addCoach(admin: Page, email: string): Promise<{ name: string; id: string }> {
+  const name = `Sophie Martin ${unique()}`;
+  await admin.goto("/admin/coachs");
+  await admin.getByLabel(fr.admin.humanCoaches.name).fill(name);
+  await admin.getByLabel(fr.admin.humanCoaches.email).fill(email);
+  await admin.getByLabel(fr.admin.humanCoaches.bookingUrl).fill(`https://cal.com/sophie-${unique()}/seance`);
+  await admin.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
+  await expect(admin.getByRole("status")).toHaveText(tr(fr.admin.humanCoaches.added, { name }));
+  const form = admin.locator("form").filter({ has: admin.getByRole("button", { name: tr(fr.admin.humanCoaches.retire, { name }) }) });
+  const id = await form.locator('input[name="coachId"]').inputValue();
+  await approvedLegacyCoach(id);
+  return { name, id };
+}
+
+test.describe("exporting my data and deleting my account", () => {
+  test("the Candidate downloads all their data from their account page", async ({ page }) => {
+    const email = newAddress("account-export");
+    const { profileId, applicationId } = await candidateWithData(page, email);
+    await page.goto("/compte/donnees");
+
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
+
+    expect(file.suggestedFilename()).toMatch(/^jobbbox-donnees-\d{4}-\d{2}-\d{2}\.json$/);
+    const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
+    expect(exported.account).toMatchObject({ email });
+    expect(exported.profiles).toEqual([
+      expect.objectContaining({ id: profileId, masterCvVersions: [expect.objectContaining({ version: 2 }), expect.objectContaining({ version: 1 })] }),
+    ]);
+    expect(exported.applications).toEqual([
+      expect.objectContaining({
+        id: applicationId,
+        jobOffer: expect.objectContaining({ title: "DAF H/F" }),
+        tailoredDocuments: expect.objectContaining({ coverLetter: expect.objectContaining({ text: expect.any(String) }) }),
+      }),
+    ]);
+  });
+
+  test("the export holds every Profile (archived ones too), every Master CV Version, and every Tailored Document, and nothing of another Candidate", async ({ page, browser }) => {
+    const email = newAddress("account-export-full");
+    const { profileId, applicationId } = await candidateWithData(page, email);
+    await subscribe(page, email, "standard");
+
+    // A second Profile (the Standard Plan allows more than one), archived.
+    const second = await page.request.post("/api/profiles", { data: { masterCv: { ...masterCv, headline: "DAF de transition" }, searchCriteria: { targetRole: "DAF de transition", locations: ["Paris"] } }, headers: { origin } });
+    expect(second.status(), await second.text()).toBe(201);
+    const archivedId = (await second.json()).id as string;
+    const archived = await page.request.patch(`/api/profiles/${archivedId}`, { data: { archived: true }, headers: { origin } });
+    expect(archived.ok(), await archived.text()).toBe(true);
+    // A third Master CV Version on the first Profile.
+    const edited = await page.request.put(`/api/profiles/${profileId}/master-cv`, {
+      data: { basedOnVersion: 2, content: { ...masterCv, summary: "25 ans de finance, dont 10 en groupe coté." } },
+      headers: { origin },
+    });
+    expect(edited.ok(), await edited.text()).toBe(true);
+    // The other Tailored Documents: a saved Tailored CV and an Outreach Message.
+    const proposed = await page.request.post(`/api/applications/${applicationId}/tailored-cv`, { data: { language: "fr" }, headers: { origin } });
+    expect(proposed.ok(), await proposed.text()).toBe(true);
+    const { revision, changes } = (await proposed.json()).proposal as { revision: string; changes: { id: string }[] };
+    const savedCv = await page.request.post(`/api/applications/${applicationId}/tailored-cv/save`, {
+      data: { revision, accepted: changes.map((change) => change.id) },
+      headers: { origin },
+    });
+    expect(savedCv.ok(), await savedCv.text()).toBe(true);
+    const outreach = await page.request.post(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "outreach_message", channel: "email" }, headers: { origin } });
+    expect(outreach.ok(), await outreach.text()).toBe(true);
+
+    // Another Candidate's data never shows in this export.
+    const other = await browser.newPage();
+    const { profileId: otherProfileId, applicationId: otherApplicationId } = await candidateWithData(other, newAddress("account-export-other"));
+    await other.close();
+
+    await page.goto("/compte/donnees");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
+    const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
+
+    expect(exported.profiles.map((p: { id: string }) => p.id).sort()).toEqual([profileId, archivedId].sort());
+    const first = exported.profiles.find((p: { id: string }) => p.id === profileId);
+    expect(first.masterCvVersions.map((v: { version: number }) => v.version)).toEqual([3, 2, 1]);
+    expect(first.searchCriteria).toMatchObject({ targetRole: "DAF", locations: ["Lyon"] });
+    expect(exported.profiles.find((p: { id: string }) => p.id === archivedId)).toMatchObject({ archived: true, masterCvVersions: [expect.objectContaining({ version: 1 })] });
+
+    expect(exported.applications).toHaveLength(1);
+    expect(exported.applications[0].tailoredDocuments).toMatchObject({
+      tailoredCv: expect.objectContaining({ language: "fr", content: expect.objectContaining({ fullName: "Marie Dupont" }) }),
+      coverLetter: expect.objectContaining({ text: expect.any(String) }),
+      outreachMessage: expect.objectContaining({ text: expect.any(String) }),
+    });
+
+    const raw = JSON.stringify(exported);
+    expect(raw).not.toContain(otherProfileId);
+    expect(raw).not.toContain(otherApplicationId);
+  });
+
+  test("the export also holds the Candidate's EU AI consent, Follow-up Delays and Coach Conversations, and the account page says what it contains (#171)", async ({ page }) => {
+    const email = newAddress("account-export-more");
+    await candidateWithData(page, email);
+    expect((await page.request.put("/api/account/eu-ai-consent", { headers: { origin } })).ok()).toBe(true);
+    const delays = await page.request.put("/api/follow-up-delays", { data: { afterApplied: 5, afterFollowUp: 12 }, headers: { origin } });
+    expect(delays.ok(), await delays.text()).toBe(true);
+    const talked = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Comment relancer Acme ?" } });
+    expect(talked.status(), await talked.text()).toBe(200);
+
+    await page.goto("/compte/donnees");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    for (const item of Object.values(fr.accountData.exportContents) as string[]) await expect(section.getByRole("listitem").filter({ hasText: item })).toHaveCount(1);
+    await expect(section.getByText(fr.accountData.exportLeftOut)).toBeVisible();
+    const [file] = await Promise.all([page.waitForEvent("download"), section.getByRole("link", { name: fr.accountData.export }).click()]);
+    const exported = JSON.parse(readFileSync((await file.path())!, "utf8"));
+
+    expect(exported.euAiConsent).toEqual({ givenAt: expect.any(String) });
+    expect(exported.followUpDelays).toEqual({ afterApplied: 5, afterFollowUp: 12 });
+    expect(exported.coachConversations).toEqual([
+      expect.objectContaining({
+        id: (await talked.json()).conversation.id,
+        messages: [expect.objectContaining({ from: "candidate", text: "Comment relancer Acme ?" }), expect.objectContaining({ from: "coach", text: expect.any(String) })],
+      }),
+    ]);
+    expect(exported).toMatchObject({ coachAccess: [], coachingSessions: [], actionCards: expect.any(Array), quotaUsage: expect.any(Array) });
+    expect(exported).toHaveProperty("plan");
+    expect(exported.account.sessions).toEqual(expect.arrayContaining([expect.objectContaining({ createdAt: expect.any(String) })]));
+    expect(JSON.stringify(exported)).not.toMatch(/"token"|unsubscribe|stripe/i);
+  });
+
+  test("the export holds the Candidate's ATS Score, Action Cards, Job Digest settings, Enriched Contacts and Coach Access, and none of another Candidate's (#171)", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coach = await addCoach(admin, newAddress("account-export-coach"));
+    await admin.context().close();
+
+    const email = newAddress("account-export-derived");
+    const { profileId, applicationId } = await candidateWithData(page, email);
+    await subscribe(page, email, "premium");
+
+    // ATS Score and the ATS Fixes proposed as Action Cards.
+    const scored = await page.request.post(`/api/profiles/${profileId}/ats-score`, { headers: { origin } });
+    expect(scored.ok(), await scored.text()).toBe(true);
+    // Job Digest settings.
+    const digest = await page.request.put(`/api/profiles/${profileId}/job-digest`, { headers: { origin }, data: { frequency: "weekly" } });
+    expect(digest.ok(), await digest.text()).toBe(true);
+    // Enriched Contacts: found through the Company Dossier, one revealed.
+    const dossier = await page.request.post(`/api/applications/${applicationId}/company-dossier`, { headers: { origin } });
+    expect(dossier.ok(), await dossier.text()).toBe(true);
+    const finding = await page.request.post(`/api/applications/${applicationId}/enriched-contacts`, { headers: { origin } });
+    expect(finding.ok(), await finding.text()).toBe(true);
+    const { found } = await (await page.request.get(`/api/applications/${applicationId}/enriched-contacts`)).json();
+    expect(found.length).toBeGreaterThan(0);
+    const revealed = await page.request.post(`/api/applications/${applicationId}/enriched-contacts/${found[0].id}`, { headers: { origin } });
+    expect(revealed.ok(), await revealed.text()).toBe(true);
+    // Coach Access.
+    await page.goto("/coachs");
+    await page.getByRole("button", { name: tr(fr.humanCoaches.grant, { name: coach.name }) }).click();
+    await expect(page.getByText(tr(fr.humanCoaches.accessGranted, { name: coach.name }))).toBeVisible();
+
+    // Another Candidate with their own ATS Score.
+    const other = await browser.newPage({ baseURL: origin });
+    const otherData = await candidateWithData(other, newAddress("account-export-derived-other"));
+    expect((await other.request.post(`/api/profiles/${otherData.profileId}/ats-score`, { headers: { origin } })).ok()).toBe(true);
+    await other.close();
+
+    const exportRes = await page.request.get("/api/account/export");
+    expect(exportRes.status()).toBe(200);
+    const exported = await exportRes.json();
+
+    const profile = exported.profiles.find((p: { id: string }) => p.id === profileId);
+    expect(profile.atsScore).toMatchObject({ version: 2, score: { score: expect.any(Number) }, computedAt: expect.any(String) });
+    expect(profile.jobDigest).toMatchObject({ frequency: "weekly", subscribedAt: expect.any(String), unsubscribedAt: null });
+    expect(exported.actionCards.length).toBeGreaterThan(0);
+    expect(exported.actionCards[0]).toMatchObject({ id: expect.any(String), title: expect.any(String) });
+    const contacts = exported.applications[0].enrichedContacts as { id: string; emails: string[]; provider: string; foundAt: string; retrievedAt: string | null }[];
+    expect(contacts.map((c) => c.id)).toContain(found[0].id);
+    expect(contacts.find((c) => c.id === found[0].id)).toMatchObject({ provider: "apollo", foundAt: expect.any(String), retrievedAt: expect.any(String) });
+    expect(contacts.some((c) => c.emails.length > 0)).toBe(true);
+    expect(exported.coachAccess).toEqual([expect.objectContaining({ coach: { id: coach.id, name: coach.name }, grantedAt: expect.any(String) })]);
+    // The one revealed contact counts against this week's Plan Quota, by the Monday the week starts on (ADR-0032).
+    expect(exported.quotaUsage).toContainEqual({ quota: "enrichedContacts", week: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), used: 1 });
+
+    const raw = JSON.stringify(exported);
+    expect(raw).not.toContain(otherData.profileId);
+    expect(raw).not.toContain(otherData.applicationId);
+  });
+
+  test("only a signed-in Candidate can download their data", async ({ request }) => {
+    expect((await request.get("/api/account/export")).status()).toBe(401);
+  });
+
+  test("the Candidate deletes their account after confirming their email: they are signed out, their data is gone, the Job Offer stays", async ({ page, browser }) => {
+    const email = newAddress("account-delete");
+    const { jobOfferId } = await candidateWithData(page, email);
+    await subscribe(page, email, "standard");
+    // A saved Coach Conversation (#124) goes too.
+    const talked = await page.request.post("/api/coach", { headers: { origin }, data: { message: "Bonjour" } });
+    expect(talked.status()).toBe(200);
+    const conversationId = (await talked.json()).conversation.id;
+    const stripe = process.env.E2E_STRIPE_URL!;
+    await page.goto("/compte/donnees");
+
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    await section.getByLabel(fr.accountData.confirmLabel).fill("someone.else@example.fr");
+    await section.getByRole("button", { name: fr.accountData.delete }).click();
+    await expect(section.getByRole("alert")).toHaveText(fr.accountData.confirmMismatch);
+    await expect(page).toHaveURL(/\/compte\/donnees$/);
+
+    await section.getByLabel(fr.accountData.confirmLabel).fill(email);
+    await section.getByRole("button", { name: fr.accountData.delete }).click();
+
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.accountDeleted.title);
+    const calls = (await (await page.request.get(`${stripe}/__calls`)).json()) as { method: string; path: string }[];
+    expect(calls).toContainEqual(expect.objectContaining({ method: "DELETE", path: `/v1/customers/${fakeCustomerId(email)}` }));
+    await page.goto("/compte");
+    await expect(page).toHaveURL(/\/connexion(\?|$)/);
+    expect((await page.request.get("/api/profiles")).status()).toBe(401);
+
+    // Another Candidate still finds the Job Offer.
+    const other = await browser.newPage();
+    await signInWithMagicLink(other, newAddress("account-delete-other"));
+    await other.goto(`/offres/${jobOfferId}`);
+    await expect(other.getByRole("heading", { level: 1 })).toHaveText("DAF H/F");
+    await other.close();
+
+    // Signing up again with the same email starts an empty account.
+    await signInWithMagicLink(page, email);
+    await expect(page.getByText(fr.profiles.none)).toBeVisible();
+    expect((await (await page.request.get("/api/coach/conversations")).json()).conversations).toEqual([]);
+    expect((await page.request.get(`/api/coach/conversations/${conversationId}`)).status()).toBe(404);
+  });
+
+  test("deletion takes effect at once: every session is signed out and nothing of the Candidate's data can be reached again", async ({ page, browser }) => {
+    const email = newAddress("account-delete-everything");
+    const { profileId, applicationId, jobOfferId } = await candidateWithData(page, email);
+    // The same Candidate, signed in on another device.
+    const elsewhere = await browser.newPage();
+    await signInWithMagicLink(elsewhere, email);
+    expect((await elsewhere.request.get(`/api/applications/${applicationId}`)).status()).toBe(200);
+
+    const deleted = await page.request.delete("/api/account", { data: { email: email.toUpperCase() }, headers: { origin } });
+    expect(deleted.status(), await deleted.text()).toBe(204);
+
+    // Signed out everywhere, at once (not merely scheduled for later).
+    expect((await elsewhere.request.get("/api/profiles")).status()).toBe(401);
+    expect((await elsewhere.request.get("/api/account/export")).status()).toBe(401);
+    await elsewhere.close();
+
+    // Signing up again with the same email finds nothing of the old account.
+    await signInWithMagicLink(page, email);
+    expect((await page.request.get(`/api/profiles/${profileId}/master-cv/export?format=pdf&template=classic`)).status()).toBe(404);
+    expect((await page.request.get(`/api/applications/${applicationId}`)).status()).toBe(404);
+    expect((await page.request.get(`/api/applications/${applicationId}/tailored-cv`)).status()).toBe(404);
+    const fresh = await page.request.get("/api/account/export");
+    expect(fresh.status()).toBe(200);
+    expect(await fresh.json()).toMatchObject({ account: { email }, profiles: [], applications: [] });
+    // The shared Job Offer is still there.
+    await page.goto(`/offres/${jobOfferId}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF H/F");
+  });
+
+  test("deletion removes the Candidate's Coach Access, Coach Reviews and Coaching Sessions; the Human Coach keeps their own account", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coachEmail = newAddress("account-delete-coach");
+    const coach = await addCoach(admin, coachEmail);
+    await admin.context().close();
+
+    const email = newAddress("account-delete-coached");
+    const { applicationId, jobOfferId } = await candidateWithData(page, email);
+
+    // Coach Access, granted from the Candidate's Human Coaches page.
+    await page.goto("/coachs");
+    await page.getByRole("button", { name: tr(fr.humanCoaches.grant, { name: coach.name }) }).click();
+    await expect(page.getByText(tr(fr.humanCoaches.accessGranted, { name: coach.name }))).toBeVisible();
+
+    // A paid Coaching Session, recorded from Stripe's signed webhook.
+    const { candidateId } = await paidHistoricalSession(page, coach.id);
+    await page.goto("/coachs?session=paid");
+    await expect(page.getByRole("link", { name: tr(fr.humanCoaches.pickSlot, { name: coach.name }) })).toHaveCount(1);
+
+    // Historical review fixture: its creation UI is covered by the isolated contracted-workspace
+    // tests. This privacy regression keeps the production contract gate closed.
+    const database = new Pool({ connectionString: process.env.E2E_DATABASE_URL });
+    await database.query("INSERT INTO coach_review(candidate_id,application_id,coach_id,document,text) VALUES($1,$2,$3,'cover_letter',$4)", [candidateId, applicationId, coach.id, "Ouvrez sur votre dernier poste de DAF."]);
+    const coachPage = await personPage(browser, coachEmail);
+    await page.goto(`/candidatures/${applicationId}/avis`);
+    await expect(page.getByRole("region", { name: fr.coachReviews.title })).toContainText("Ouvrez sur votre dernier poste de DAF.");
+
+    // The Candidate deletes their account from their account page.
+    await page.goto("/compte/donnees");
+    const section = page.getByRole("region", { name: fr.accountData.title });
+    await section.getByLabel(fr.accountData.confirmLabel).fill(email);
+    await section.getByRole("button", { name: fr.accountData.delete }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.accountDeleted.title);
+
+    // Account deletion removed the historical private rows, while an uncontracted Coach still
+    // cannot enter the workspace. No test-only legal text is loaded on this server.
+    for (const table of ["coach_access", "coach_review", "coaching_session"]) {
+      expect((await database.query(`SELECT count(*)::int AS n FROM ${table} WHERE candidate_id=$1`, [candidateId])).rows[0].n).toBe(0);
+    }
+    await database.end();
+    await coachPage.goto("/espace-coach");
+    await expect(coachPage).toHaveURL(`${origin}/espace-coach/contrat`);
+    // The Human Coach's own account stays, and so does the shared Job Offer.
+    await coachPage.goto(`/offres/${jobOfferId}`);
+    await expect(coachPage.getByRole("heading", { level: 1 })).toHaveText("DAF H/F");
+    await coachPage.context().close();
+
+    // Signing up again with the same email: no Coach Access, no paid Coaching Session, nothing in the export.
+    await signInWithMagicLink(page, email);
+    await page.goto("/coachs?session=paid");
+    await expect(page.getByText(tr(fr.humanCoaches.accessNotGranted, { name: coach.name }))).toBeVisible();
+    await expect(page.getByRole("link", { name: tr(fr.humanCoaches.pickSlot, { name: coach.name }) })).toHaveCount(0);
+    const fresh = await page.request.get("/api/account/export");
+    expect(fresh.status()).toBe(200);
+    const raw = await fresh.text();
+    expect(raw).not.toContain("Ouvrez sur votre dernier poste de DAF.");
+    expect(raw).not.toContain(applicationId);
+  });
+
+  test("deleting an account needs the Candidate's own email, from the app itself", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("account-delete-guard"));
+
+    expect((await page.request.delete("/api/account", { data: { email: "someone.else@example.fr" }, headers: { origin } })).status()).toBe(400);
+    expect((await page.request.delete("/api/account", { data: { email: "x" }, headers: { origin: "https://evil.example" } })).status()).toBe(403);
+    await page.goto("/compte");
+    await expect(page).toHaveURL(/\/compte$/);
+  });
+});

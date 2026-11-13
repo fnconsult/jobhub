@@ -1,5 +1,5 @@
 import { parisDay, privacyPolicyCoverage } from "@jobhub/help";
-import { toolById } from "@jobhub/shared";
+import { toolById, toolKeys } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -94,9 +94,9 @@ export default async function ToolPage({ params, searchParams }: Params) {
               {row.status === "awaiting_access" ? <span className="section-meta">{t("admin.tools.accessRefused", { provider: row.tool.name })}</span> : null}
             </Property>
             <Property term={t("admin.tools.keys")}>
-              {tool.keys.length === 0
+              {toolKeys(tool).length === 0
                 ? t("admin.tools.noKeys")
-                : tool.keys.map((name, index) => (
+                : toolKeys(tool).map((name, index) => (
                     <span key={name}>
                       {index > 0 ? ", " : null}
                       {readsSecrets && isProviderSecretName(name) ? (

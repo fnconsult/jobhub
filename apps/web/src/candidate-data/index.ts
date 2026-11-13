@@ -1,3 +1,19 @@
+import {secretCipherFromEnv,type SecretCipher} from "../provider-secrets/cipher";
+import {taxDataOf} from "../coaching-tax";
+import {contentReportsOf} from "../coaching-content-reports";
+import {coachingNotificationsOf} from "../coaching-notifications";
+import { cancellationsOf, preserveCancellationRefunds } from "../coaching-cancellations";
+import {coachingRefundsOf} from "../coaching-refunds";
+import {bookingDataOf} from "../coaching-booking";
+import {archiveEarningsService} from "../coaching-earnings";
+import {connectDataOf,deleteConnectDataOf} from "../coaching-connect";
+import {coachPagesOf,deleteCoachPagesOf} from "../coach-pages";
+import {associationDataOf} from "../coach-associations";
+import {coachContractAcceptancesOf,coachContractNoticesOf} from "../coach-contracts";
+import {inTransaction} from "../database/pool";
+import {coachEnrolmentsOf,associationsManagedBy} from "../coach-enrolments";
+import type {CoachingSale} from "@jobhub/shared/coaching-offers";
+import type { Meeting } from "../coach-space/meeting";
 /**
  * A Candidate's own data, as a whole (ADR-0010): exported for them to keep, and
  * deleted with their account.
@@ -46,7 +62,8 @@ import type { KeptAtsScore } from "../ats-score";
 import type { AssistantMessage, ExplainedItem } from "../back-office-assistant";
 import { SAVED_ASSISTANT_REPLY_COLUMNS, savedAssistantReplyProvenance, type SavedAssistantReply } from "../back-office-assistant/conversations";
 import type { CoachMessage } from "../coach";
-import { attachedProfileFrom, SAVED_REPLY_COLUMNS, savedReplyProvenance, SUBJECT_COLUMNS, SUBJECT_JOINS, subjectFrom, type FocusKind, type SavedReply, type Subject, type SubjectRow } from "../coach-conversations";
+import { attachedProfileFrom, SAVED_REPLY_COLUMNS, savedReplyProvenance, SUBJECT_COLUMNS, SUBJECT_JOINS, subjectFrom, type FocusKind, type SavedReply, type Subject, type SubjectRow,
+} from "../coach-conversations";
 import type { CompanyDossier } from "../company-dossiers";
 import { discoveryRunsOf, type ExportedDiscoveryRun } from "../discovery-runs";
 import { emailIntakeOf, type ExportedEmailIntake } from "../email-intake";
@@ -160,6 +177,7 @@ export interface ExportedAccount {
   familyName: string | null;
   preferredName: string | null;
   interfaceLanguage: string;
+  coachingTimeZone: string | null;
   createdAt: Date;
   /** The sign-in providers linked to the account (e.g. Google), besides the magic link; oldest first. */
   signInMethods: { provider: string; linkedAt: Date }[];
@@ -346,7 +364,25 @@ export interface CandidateDataExport {
    * The Coaching Sessions the Candidate paid for, newest first, with the date, duration, video link and note entered, who last changed the date,
    * and their Reschedule history (cancellations included); never the Human Coach's booking link.
    */
-  coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed })[];
+  coachingSessions: (Omit<CoachingSession, "coach"> & { coach: CoachNamed; meeting: Meeting | null })[];
+  coachingTax:Awaited<ReturnType<typeof taxDataOf>>;
+  contentReports:Awaited<ReturnType<typeof contentReportsOf>>;
+  coachingNotifications:Awaited<ReturnType<typeof coachingNotificationsOf>>;
+  coachingCancellations: Awaited<ReturnType<typeof cancellationsOf>>;
+  coachingRefunds:Awaited<ReturnType<typeof coachingRefundsOf>>;
+  calBookings:Awaited<ReturnType<typeof bookingDataOf>>;
+  connectMoney:Awaited<ReturnType<typeof connectDataOf>>;
+  coachPages:Awaited<ReturnType<typeof coachPagesOf>>;
+  associationActivity:Awaited<ReturnType<typeof associationDataOf>>;
+  coachContractAcceptances:Awaited<ReturnType<typeof coachContractAcceptancesOf>>;
+  coachContractNotices:Awaited<ReturnType<typeof coachContractNoticesOf>>;
+  coachEnrolments:Awaited<ReturnType<typeof coachEnrolmentsOf>>;
+  managedAssociations:Awaited<ReturnType<typeof associationsManagedBy>>;
+  coachingSales: {sessionId:string;sale:CoachingSale}[];
+  coachingQuotes:{sale:CoachingSale;createdAt:Date}[];
+  sharedReading: { sessionId: string; presenter: string; document: unknown; source: unknown; page: number; scroll: number; startedAt: Date }[];
+  sessionReports: { id:string;sessionId:string;covered:string;nextSteps:string;resources:string;publishedAt:Date|null }[];
+  privateCoachNotes: { coachName: string; sessionId: string | null; text: string; updatedAt: Date }[];
   /** Every Action Card the AI Coach proposed, pending or decided, newest first. */
   actionCards: ExportedActionCard[];
   /**
@@ -479,6 +515,47 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
+  candidate_coaching_time_zone: "account.coachingTimeZone",
+  coaching_session_contact: "coachingSessions[].meeting (session contact)",
+  coaching_service_refund:"coachingRefunds.refunds (owned refund entitlement, no processor routing)",
+  coaching_cancellation: "coachingCancellations.cancellations",
+  coaching_cancellation_event: "coachingCancellations.events",
+  coaching_tax_identity:"coachingTax.identities/submissions (current business ownership only)",
+  coaching_tax_report:"coachingTax.annual/preparations (only authorized Seller slices)",
+  coaching_tax_copy:"coachingTax.deliveries",
+  coaching_content_case:"contentReports.reports (own public target and decision while reporter data remains)",
+  coaching_content_report:"contentReports (own authenticated submissions only)",
+  coaching_content_report_notice:"contentReports (recipient delivery facts erased with the personal submission)",
+  coaching_notice_setting:"coachingNotifications.settings",
+  coaching_notice:"coachingNotifications.notices",
+  coaching_notice_channel:"coachingNotifications.channels",
+  coaching_notice_event:"coachingNotifications.events (owned session facts)",
+  coaching_cancellation_delivery:"coachingCancellations.deliveries (own recipient/channel delivery facts only)",
+  coaching_cancellation_notice: "coachingCancellations.notices",
+  coaching_service_refund_attempt:"coachingRefunds.attempts",
+  coaching_service_refund_resource:"coachingRefunds.resources",
+  coaching_cal_pending:"calBookings.pending (authenticated minimal routing/date facts awaiting a predecessor)",
+  coaching_cal_booking:"calBookings.bookings (owned session routing facts, no token)",
+  coaching_cal_delivery:"calBookings.deliveries (owned session receipt/rejection facts, no raw payload)",
+  coaching_cal_notice:"calBookings.notices (owned change notifications)",
+  coaching_cal_cancellation:"calBookings (pending provider cancellation; session detached on erasure)",
+  coaching_connect_account:"connectMoney (owned Seller summaries, no Stripe credentials)",
+  coaching_connect_payment:"connectMoney.purchases and earnings (pseudonymous accounting)",
+  coaching_connect_earning:"connectMoney.earnings",
+  coaching_connect_batch:"connectMoney.payouts",
+  coaching_connect_allocation:"connectMoney.payouts and earnings",
+  coach_page_version:"coachPages (owned professional profile versions and normalized portraits)",
+  coach_association_invitation:"associationActivity.invitationsReceived / invitationsSent (no recipient data for sent invitations)",
+  coach_association_activity:"associationActivity.activity",
+  coach_contract_acceptance:"coachContractAcceptances (pseudonymous proof retained after deletion)",
+  coach_contract_notice:"coachContractNotices",
+  coach_enrolment:"coachEnrolments (including original professional proof and refusal reason)",
+  coach_association_manager:"managedAssociations (business identity and manager role)",
+  coaching_offer_quote:"coachingQuotes (immutable prepayment offer snapshot)",
+  coaching_session_sale:"coachingSales (paid Seller and Commission snapshot)",
+  shared_reading: "sharedReading (active temporary document, excluding coach PDF bytes)",
+  session_report: "sessionReports (drafts marked unpublished; published reports also in coachConversations)",
+  private_coach_note: "privateCoachNotes (author’s given name, date and text; per Candidate or session)",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
   coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
   action_card: "actionCards (a Coach proposal's in a thread with its conversation, what it proposed before and after, what was edited, its decision and « Annuler », #715)",
@@ -504,10 +581,76 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
  * The same test checks every other table tied to a Candidate is exported and deleted with them.
  */
 export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
+  coach_contract_acceptance:"Private B2B proof (#880): pseudonymous, detached after account deletion; purged five years afterwards; exported while owned",
+  coach_association_activity:"Association business audit (#876): actor detached on deletion, retained two years and exported while owned",
   back_office_audit: "Back Office Audit (#203): the changes an Administrator made, with the email they had then; not exported; purged after 3 years",
   legal_acceptance:
     "Acceptances (#510, ADR-0062, ADR-0073): proof of each CGU and CGV version accepted, kept by a pseudonym (no email, no name); exported while the account lives; purged 5 years after the deletion (CGU), 10 years (CGV)",
 };
+
+/** Business obligations survive one user's departure. Explicit erasure removes contact payloads and detaches account FKs. */
+export const RETAINED_BUSINESS_TABLES:Readonly<Record<string,string>>={
+ coaching_tax_identity:"#887: encrypted fiscal identity retained ten calendar years after its reporting year; actor detached on erasure",
+ coaching_tax_report:"#887: encrypted annual preparation retained ten calendar years after its reporting year; preparer detached on erasure",
+ coaching_tax_copy:"#887: annual-copy delivery proof retained with its report; recipient detached on erasure",
+ coaching_content_case:"#886: anonymous public-content restriction, independent of reporter; restored/empty cases removed after personal case erasure",
+  coaching_service_refund:"#883: financial refund entitlement, Candidate/session detached on erasure, resolved records purged after ten years",
+  coaching_service_refund_attempt:"#883: financial refund attempts, retained through their entitlement until reconciled",
+  coaching_service_refund_resource:"#883: observed processor refund identities, retained through their entitlement for bank-failure reconciliation",
+  coaching_cal_cancellation:"#881: detach erased sessions, retain unresolved cancellation routing until reconciliation, purge resolved after 30 days",
+ coach_association_invitation:"Association invitations (#876): owned contacts explicitly erased at account deletion; seven-day validity, purge thirty days after expiry",
+ coaching_connect_account:"Seller Stripe routing (#878): owner detached on deletion; contains no KYC or bank details",
+ coaching_connect_payment:"Pseudonymous money owed to the Seller (#878): purchaser/quote detached, Checkout email erased; ten-year proposed accounting retention, human #890",
+ coaching_connect_earning:"Seller amounts, refunds and allocations (#878), same financial retention; no Candidate identity",
+ coaching_connect_allocation:"Reconciles money already paid to a Seller (#878), same financial retention; no Candidate identity",
+ coaching_connect_batch:"Seller monthly bank payouts (#878), same financial retention; no Candidate identity",
+};
+
+/** The export's sections the Human Coach epic added (#867). */
+const COACH_SPACE_V2_SECTIONS = [
+  "coachingTax",
+  "contentReports",
+  "coachingNotifications",
+  "coachingCancellations",
+  "coachingRefunds",
+  "calBookings",
+  "connectMoney",
+  "coachPages",
+  "associationActivity",
+  "coachContractAcceptances",
+  "coachContractNotices",
+  "coachEnrolments",
+  "managedAssociations",
+  "coachingSales",
+  "coachingQuotes",
+  "sharedReading",
+  "sessionReports",
+  "privateCoachNotes",
+] as const satisfies readonly (keyof CandidateDataExport)[];
+
+/** Nothing in it: null, an empty list, or an object of empty values only. */
+function holdsNothing(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object" && !(value instanceof Date)) return Object.values(value).every(holdsNothing);
+  return false;
+}
+
+/**
+ * The export as main writes it, « Espace coach v2 » off (ADR-0107): the Human Coach epic's sections and fields are left
+ * out when they hold nothing, so a Candidate who never met it gets main's export; any data it did leave is still exported.
+ */
+export function asBeforeCoachSpaceV2(data: CandidateDataExport): CandidateDataExport {
+  const out: Record<string, unknown> = { ...data };
+  for (const section of COACH_SPACE_V2_SECTIONS) if (holdsNothing(out[section])) delete out[section];
+  if (data.account && data.account.coachingTimeZone === null) {
+    const account: Partial<ExportedAccount> = { ...data.account };
+    delete account.coachingTimeZone;
+    out.account = account;
+  }
+  out.coachingSessions = data.coachingSessions.map(({ meeting, ...session }) => (meeting === null ? session : { ...session, meeting }));
+  return out as unknown as CandidateDataExport;
+}
 
 export interface CandidateData {
   /** All the Candidate's data. */
@@ -521,6 +664,13 @@ export interface CandidateData {
 }
 
 export interface CandidateDataDeps {
+  fiscalCipher?:()=>SecretCipher|null;
+  coachingCancellationOn?: () => Promise<boolean>;
+  /**
+   * Whether « Espace coach v2 » (ADR-0107) is on, read at each export. Off, the export is main's (`asBeforeCoachSpaceV2`):
+   * the Human Coach epic's sections only when they hold data. Without it, on. Deletion never depends on it.
+   */
+  coachSpaceV2?: () => boolean;
   profiles: Pick<Profiles, "list" | "get" | "masterCvVersions">;
   applications: Pick<Applications, "list" | "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
@@ -671,7 +821,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportAccount(candidateId: string): Promise<ExportedAccount | null> {
     const [account, signInMethods, sessions, backOfficeRoles] = await Promise.all([
-      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, given_name AS "givenName", family_name AS "familyName", preferred_name AS "preferredName", "interfaceLanguage", "createdAt" FROM candidate WHERE id = $1`, candidateId),
+      rowOf<Omit<ExportedAccount, "signInMethods" | "sessions" | "backOfficeRoles">>(`SELECT email, name, given_name AS "givenName", family_name AS "familyName", preferred_name AS "preferredName", "interfaceLanguage", "createdAt", (SELECT time_zone FROM candidate_coaching_time_zone WHERE candidate_id = candidate.id) AS "coachingTimeZone" FROM candidate WHERE id = $1`, candidateId,
+      ),
       rowsOf<ExportedAccount["signInMethods"][number]>(
         `SELECT "providerId" AS provider, "createdAt" AS "linkedAt" FROM account WHERE "userId" = $1 ORDER BY "createdAt", id`,
         candidateId,
@@ -714,7 +865,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportAppointmentReminders(candidateId: string): Promise<ExportedAppointmentReminders> {
     const [setting, sent] = await Promise.all([
-      rowOf<{ enabled: boolean; changedAt: Date }>(`SELECT enabled, changed_at AS "changedAt" FROM appointment_reminder_setting WHERE candidate_id = $1`, candidateId),
+      rowOf<{ enabled: boolean; changedAt: Date }>(`SELECT enabled, changed_at AS "changedAt" FROM appointment_reminder_setting WHERE candidate_id = $1`, candidateId,
+      ),
       rowsOf<ExportedAppointmentReminders["sent"][number]>(
         `SELECT json_build_object('kind', CASE WHEN interview_id IS NOT NULL THEN 'interview' ELSE 'coachingSession' END, 'id', coalesce(interview_id, coaching_session_id)) AS "agendaItem",
                 scheduled_at AS "scheduledAt", sent_at AS "sentAt"
@@ -735,9 +887,15 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       ),
       grouped<
         Pick<ExportedCoachConversation["messages"][number], "from" | "text" | "sentAt"> &
-          SavedReply & { blocked: true | null; jobOfferId: string | null; focusKind: FocusKind | null; focusId: string | null }
+          SavedReply & {
+            humanCoach: CoachMessage["humanCoach"];
+            blocked: true | null;
+            jobOfferId: string | null;
+            focusKind: FocusKind | null;
+            focusId: string | null;
+          }
       >(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt",
+        `SELECT m.human_coach AS "humanCoach", m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt",
                 m.focus_kind AS "focusKind", m.focus_id AS "focusId", ${SAVED_REPLY_COLUMNS}
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
@@ -759,6 +917,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           from: message.from,
           text: message.text,
           sentAt: message.sentAt,
+          ...(message.humanCoach ? { humanCoach: message.humanCoach } : {}),
           ...(message.blocked ? { blocked: message.blocked } : {}),
           ...(message.jobOfferId ? { jobOfferId: message.jobOfferId } : {}),
           ...(provenance ? { provenance } : {}),
@@ -771,7 +930,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   async function exportCoachingSessions(candidateId: string): Promise<CandidateDataExport["coachingSessions"]> {
     const sessions = await rowsOf<Omit<CandidateDataExport["coachingSessions"][number], "reschedules">>(
       `SELECT s.id, json_build_object('id', h.id, 'name', h.name) AS coach, s.amount, s.currency, s.paid_at AS "paidAt",
-              s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note, s.changed_by AS "changedBy"
+              s.scheduled_at AS "scheduledAt", s.duration_minutes AS "durationMinutes", s.video_link AS "videoLink", s.note, s.changed_by AS "changedBy", (SELECT contact FROM coaching_session_contact WHERE session_id=s.id) AS meeting
          FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id WHERE s.candidate_id = $1 ORDER BY s.paid_at DESC, s.id`,
       candidateId,
     );
@@ -790,7 +949,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
            FROM back_office_assistant_conversation WHERE candidate_id = $1 ORDER BY last_message_at DESC, id`,
         candidateId,
       ),
-      grouped<Pick<ExportedAssistantConversation["messages"][number], "from" | "text" | "sentAt"> & SavedAssistantReply & { blocked: true | null; explained: ExplainedItem | null }>(
+      grouped<
+        Pick<ExportedAssistantConversation["messages"][number], "from" | "text" | "sentAt"> &
+          SavedAssistantReply & { blocked: true | null; explained: ExplainedItem | null }
+      >(
         `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.explained, m.created_at AS "sentAt", ${SAVED_ASSISTANT_REPLY_COLUMNS}
            FROM back_office_assistant_message m JOIN back_office_assistant_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
@@ -801,14 +963,54 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       ...conversation,
       messages: messagesOf(conversation.id).map((message) => {
         const provenance = message.from === "assistant" ? savedAssistantReplyProvenance(message) : null;
-        return { from: message.from, text: message.text, sentAt: message.sentAt, ...(message.blocked ? { blocked: message.blocked } : {}), ...(message.explained ? { explained: message.explained } : {}), ...(provenance ? { provenance } : {}) };
+        return {
+          from: message.from,
+          text: message.text,
+          sentAt: message.sentAt,
+          ...(message.blocked ? { blocked: message.blocked } : {}),
+          ...(message.explained ? { explained: message.explained } : {}),
+          ...(provenance ? { provenance } : {}),
+        };
       }),
     }));
   }
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox, profiles, applications] = await Promise.all([
+      const [
+        account,
+        acceptances,
+        plan,
+        coachContextLimits,
+        quotaUsage,
+        quotaReductionNotices,
+        euAiConsent,
+        twoStepVerification,
+        legalTextNotices,
+        nouveautesEmail,
+        coachProposalsDisplay,
+        consumption,
+        emailIntake,
+        followUpDelays,
+        appointmentReminders,
+        pushNotifications,
+        welcomeClosed,
+        coachConversations,
+        backOfficeAssistantConversations,
+        coachAccess,
+        coachingSessions,
+        actionCards,
+        coachMemory,
+        aiMessageLog,
+        signalements,
+        extensionEvents,
+        orders,
+        withdrawals,
+        privateJobOffers,
+        offerBox,
+        profiles,
+        applications,
+      ] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -816,7 +1018,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         coachContextLimitsOf(candidateId),
-        rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
+        rowsOf<CandidateDataExport["quotaUsage"][number]>(
+          `SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`,
+          candidateId,
+        ),
         rowsOf<CandidateDataExport["quotaReductionNotices"][number]>(
           `SELECT r.plan, r.quotas, r.removed_features AS "removedFeatures", r.reason, to_char(r.effective_on, 'YYYY-MM-DD') AS "effectiveOn",
                   n.sent_at AS "sentAt", n.resolved_at AS "resolvedAt",
@@ -837,7 +1042,10 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         coachProposalsDisplayOf(database, candidateId),
         consumptionOf(database, candidateId),
         emailIntakeOf(database, candidateId),
-        rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
+        rowOf<FollowUpDelays>(
+          `SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`,
+          candidateId,
+        ),
         exportAppointmentReminders(candidateId),
         pushNotificationsOf(database, candidateId),
         rowOf<{ closedAt: Date }>(`SELECT closed_at AS "closedAt" FROM coach_welcome_closed WHERE candidate_id = $1`, candidateId),
@@ -885,11 +1093,13 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
              FROM ai_message_log m JOIN ai_usage u ON u.id = m.usage_id WHERE m.candidate_id = $1 ORDER BY m.at DESC, m.id`,
           candidateId,
         ).then((logs) =>
-          logs.map(({ reason, warnings, ...log }): ExportedAiMessageLog => ({
-            ...log,
-            reason: isFailureReason(reason) ? worded(reason) : null,
-            warnings: warnings.filter(isFailureReason).map(worded),
-          })),
+          logs.map(
+            ({ reason, warnings, ...log }): ExportedAiMessageLog => ({
+              ...log,
+              reason: isFailureReason(reason) ? worded(reason) : null,
+              warnings: warnings.filter(isFailureReason).map(worded),
+            }),
+          ),
         ),
         signalementsOf(database, candidateId),
         extensionEventsOf(database, candidateId),
@@ -900,12 +1110,99 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, coachContextLimits, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, consumption, emailIntake, followUpDelays, appointmentReminders, pushNotifications, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, extensionEvents, orders, withdrawals, privateJobOffers, offerBox };
+      const full: CandidateDataExport = {
+        coachingTax:await taxDataOf(database,candidateId,deps.fiscalCipher?deps.fiscalCipher():secretCipherFromEnv(process.env)),
+        contentReports:await contentReportsOf(database,candidateId),
+        coachingNotifications:await coachingNotificationsOf(database,candidateId),
+        coachingCancellations: await cancellationsOf(database, candidateId),
+        coachingRefunds: await coachingRefundsOf(database, candidateId),
+        calBookings: await bookingDataOf(database, candidateId),
+        connectMoney: await connectDataOf(database, candidateId),
+        coachPages: await coachPagesOf(database, candidateId),
+        associationActivity: await associationDataOf(database, candidateId),
+        coachContractAcceptances: await coachContractAcceptancesOf(database, candidateId),
+        coachContractNotices: await coachContractNoticesOf(database, candidateId),
+        coachEnrolments: await coachEnrolmentsOf(database, candidateId),
+        managedAssociations: await associationsManagedBy(database, candidateId),
+        coachingSales: await rowsOf<CandidateDataExport["coachingSales"][number]>(
+          `SELECT x.session_id AS "sessionId",x.snapshot AS sale FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id WHERE s.candidate_id=$1 ORDER BY s.paid_at,s.id`,
+          candidateId,
+        ),
+        coachingQuotes: await rowsOf<CandidateDataExport["coachingQuotes"][number]>(
+          `SELECT snapshot AS sale,created_at AS "createdAt" FROM coaching_offer_quote WHERE candidate_id=$1 ORDER BY created_at,id`,
+          candidateId,
+        ),
+        sharedReading: await rowsOf<CandidateDataExport["sharedReading"][number]>(
+          `SELECT r.session_id AS "sessionId",r.presenter,r.payload AS document,r.source,r.page,r.scroll,r.started_at AS "startedAt" FROM shared_reading r JOIN coaching_session s ON s.id=r.session_id WHERE s.candidate_id=$1 ORDER BY r.started_at`,
+          candidateId,
+        ),
+        sessionReports: await rowsOf<CandidateDataExport["sessionReports"][number]>(
+          `SELECT id,session_id AS "sessionId",covered,next_steps AS "nextSteps",resources,published_at AS "publishedAt" FROM session_report WHERE candidate_id=$1 ORDER BY created_at,id`,
+          candidateId,
+        ),
+        privateCoachNotes: await rowsOf<{ coachName: string; sessionId: string | null; text: string; updatedAt: Date }>(
+          `SELECT split_part(h.name, ' ', 1) AS "coachName", n.session_id AS "sessionId", n.text, n.updated_at AS "updatedAt" FROM private_coach_note n JOIN human_coach h ON h.id=n.coach_id WHERE n.candidate_id=$1 ORDER BY n.updated_at,n.id`,
+          candidateId,
+        ),
+        exportedAt: new Date(),
+        account,
+        acceptances,
+        plan,
+        coachContextLimits,
+        quotaUsage,
+        quotaReductionNotices,
+        euAiConsent,
+        twoStepVerification,
+        legalTextNotices,
+        nouveautesEmail,
+        coachProposalsDisplay,
+        consumption,
+        emailIntake,
+        followUpDelays,
+        appointmentReminders,
+        pushNotifications,
+        profiles,
+        applications,
+        coachConversations,
+        coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null },
+        backOfficeAssistantConversations,
+        coachAccess,
+        coachingSessions,
+        actionCards,
+        coachMemory,
+        aiMessageLog,
+        signalements,
+        extensionEvents,
+        orders,
+        withdrawals,
+        privateJobOffers,
+        offerBox,
+      };
+      return (deps.coachSpaceV2?.() ?? true) ? full : asBeforeCoachSpaceV2(full);
     },
 
     async delete(candidateId) {
       await deps.billing?.closeAccount(candidateId);
-      await database.query(`DELETE FROM candidate WHERE id = $1`, [candidateId]);
+      await inTransaction(database, async (within) => {
+        await preserveCancellationRefunds(database, within, candidateId, (await deps.coachingCancellationOn?.()) ?? false);
+        await archiveEarningsService(within, candidateId);
+        await deleteConnectDataOf(within, candidateId);
+        await deleteCoachPagesOf(within, candidateId);
+        await within.query(
+          "DELETE FROM coach_association_invitation i USING candidate c WHERE c.id=$1 AND (i.email=lower(c.email) OR i.recipient_id=c.id OR i.invited_by=c.id)",
+          [candidateId],
+        );
+        await within.query(
+          "UPDATE human_coach h SET retired_at=clock_timestamp() FROM candidate c WHERE c.id=$1 AND h.email=lower(c.email) AND h.contract_pending AND h.retired_at IS NULL",
+          [candidateId],
+        );
+        await within.query(
+          "UPDATE coach_association a SET retired_at=clock_timestamp() WHERE a.contract_pending AND a.retired_at IS NULL AND EXISTS(SELECT 1 FROM coach_association_manager m WHERE m.association_id=a.id AND m.candidate_id=$1) AND NOT EXISTS(SELECT 1 FROM coach_association_manager m WHERE m.association_id=a.id AND m.candidate_id<>$1)",
+          [candidateId],
+        );
+        await within.query("DELETE FROM coach_enrolment e USING candidate c WHERE c.id=$1 AND e.state='awaiting_email' AND e.email=c.email", [candidateId]);
+        await within.query(`DELETE FROM candidate WHERE id = $1`, [candidateId]);
+      });
     },
   };
 }

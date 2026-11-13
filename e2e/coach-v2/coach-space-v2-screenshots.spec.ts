@@ -345,26 +345,36 @@ test.describe("Espace coach v2 in the Design System (#867)", () => {
     await page.close();
   });
 
-  // #1020: a form's fields as wide as their Card or column, so a Meet link and an e-mail show whole, at the desktop width
-  // and at 390 pixels, at the largest Text Size too.
-  test("the Meet link and the contact e-mail show whole in their fields (#1020)", async () => {
+  // #1020: a form's fields as wide as their form (their Card, or the page's column), alike, at every width and at the
+  // largest Text Size; at the desktop width a Meet link and an e-mail then show whole (at 390 pixels nothing that long
+  // can).
+  test("form fields take their form's width, and the Meet link and the contact e-mail show whole on a desktop (#1020)", async () => {
+    const fills = (field: Locator) =>
+      field.evaluate((input: HTMLInputElement) => Math.abs(input.getBoundingClientRect().width - input.closest("form")!.getBoundingClientRect().width) <= 1);
     const whole = (field: Locator) => field.evaluate((input: HTMLInputElement) => input.scrollWidth <= input.clientWidth);
     for (const textSize of [null, "xlarge"]) {
-      for (const { width, height } of [DESKTOP, PHONE]) {
+      for (const { name, width, height } of [DESKTOP, PHONE]) {
         const coach = await contexts.coach.newPage();
         const candidate = await contexts.candidate.newPage();
         for (const page of [coach, candidate]) {
           await page.setViewportSize({ width, height });
           if (textSize) await page.addInitScript((size) => localStorage.setItem("jobbbox.textSize", size), textSize);
         }
+        const label = `at ${width}px, text size ${textSize ?? "default"}`;
         await coach.goto(`/espace-coach/seances/${ids.session}`);
         const link = coach.getByLabel(fr.coachMeeting.target);
         await expect(link).toHaveValue("https://meet.google.com/abc-defg-hij");
-        expect(await whole(link), `the Meet link at ${width}px, text size ${textSize ?? "default"}`).toBe(true);
+        expect(await fills(link), `the Meet link's field ${label}`).toBe(true);
+        expect(await fills(coach.getByLabel(fr.coachMeeting.kind)), `the contact's kind ${label}`).toBe(true);
         await candidate.goto("/devenir-coach");
         const email = candidate.getByLabel(fr.coachEnrolment.fields.email);
         await expect(email).toHaveValue(CANDIDATE);
-        expect(await whole(email), `the e-mail at ${width}px, text size ${textSize ?? "default"}`).toBe(true);
+        expect(await fills(email), `the e-mail's field ${label}`).toBe(true);
+        expect(await fills(candidate.getByLabel(fr.coachEnrolment.fields.siret)), `the SIRET's field ${label}`).toBe(true);
+        if (name === "desktop") {
+          expect(await whole(link), `the Meet link ${label}`).toBe(true);
+          expect(await whole(email), `the e-mail ${label}`).toBe(true);
+        }
         await coach.close();
         await candidate.close();
       }

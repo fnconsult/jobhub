@@ -65,6 +65,7 @@ export function Conversation({
   belowBox,
   inputRef,
   lead,
+  opensAtTop = false,
   children,
 }: {
   draft: string;
@@ -80,6 +81,11 @@ export function Conversation({
   /** The box, for its caller to put the focus in it. */
   inputRef?: RefObject<ComponentRef<typeof TextInput> | null>;
   lead?: ReactNode;
+  /**
+   * The page opens on the top of its thread, not its latest message, until something is sent: the home page, whose
+   * Introduction holds « Votre point du jour » (#979), cut at its top on an iPhone SE when the thread opened at its end.
+   */
+  opensAtTop?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -89,8 +95,9 @@ export function Conversation({
   const thread = useRef<ComponentRef<typeof ScrollView>>(null);
   // Whether the person reads the latest message: the thread follows it as it grows (a message, the reply streaming), but
   // stays where they scrolled back to when the window changes and the messages wrap again (Split View, a foldable).
-  // Under a page's own view (`lead`), the page opens on it: nothing follows until something is sent.
-  const following = useRef(lead === undefined);
+  // Under a page's own view (`lead`), or on a page that `opensAtTop`, the page opens on its top: nothing follows until
+  // something is sent.
+  const following = useRef(lead === undefined && !opensAtTop);
   const [scrollY] = useState(() => new Animated.Value(0));
   useEffect(() => {
     if (!thread.current) return;

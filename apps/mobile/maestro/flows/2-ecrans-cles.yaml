@@ -17,7 +17,23 @@ tags:
       - extendedWaitUntil:
           visible: "Recherches d'offres, .+ à traiter"
           timeout: 20000
-- runFlow: ../subflows/conversation-end.yaml
+# The home page opens on the top of its thread (#979), the same each run: captured there, as a person sees it, not
+# scrolled to its end. First its AI disclosure, at its top; then, but at the largest text size, where the card starts
+# below the screen and its loading changes nothing of it, « Votre point du jour » with its first line read (the seeded
+# offers à traiter).
+- extendedWaitUntil:
+    visible: "Je suis un coach IA, pas une personne.*"
+    timeout: 20000
+- runFlow:
+    when:
+      true: ${CAPTURE_DIR.indexOf('largest-text') < 0}
+    commands:
+      - extendedWaitUntil:
+          visible: "Votre point du jour"
+          timeout: 20000
+      - extendedWaitUntil:
+          visible: "\\d+ offres? à traiter"
+          timeout: 20000
 - runFlow:
     file: ../subflows/capture.yaml
     env:

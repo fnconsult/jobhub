@@ -8,12 +8,12 @@
 export const STORE_ICON = { accent: "#4f5fe0", soft: "#eef0fd", line: "#c9cff7", ink: "#1b1b26" } as const;
 
 /**
- * The key screens shown in the stores, in the listing's order, with the French caption of the iPhone set.
- * Two key screens are left out until a seed made for the stores exists (docs/ops/mobile.md): « accueil », whose
- * introduction still says « L'application est en cours de construction. », and « conversation », whose reply is the
- * test stack's fake provider's. They come back after #979, which replaces the provisional home screen.
+ * The key screens shown in the stores, in the listing's order, with the French caption of the iPhone set. « accueil »
+ * came back with #979, which replaced the provisional home screen. « conversation » is still left out until a seed
+ * made for the stores exists (docs/ops/mobile.md): its reply is the test stack's fake provider's.
  */
 export const STORE_SCREENS = [
+  { id: "accueil", caption: "Votre point du jour, dès l'ouverture" },
   { id: "candidatures", caption: "Vos candidatures et votre coach IA, au même endroit" },
   { id: "fiche", caption: "Chaque candidature a sa fiche : statut, entretiens, documents" },
   { id: "recherches", caption: "Les offres trouvées pour vous, à suivre ou à écarter" },

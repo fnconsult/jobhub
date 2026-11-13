@@ -228,7 +228,7 @@ Elles viennent des captures de référence claires des écrans clés (`maestro/c
 
 Trois limites connues, à lever avant la soumission en production (elles ne bloquent ni TestFlight ni le test fermé) :
 
-- **Deux écrans clés sont écartés** : `accueil`, dont l'introduction dit encore « L'application est en cours de construction. » (un texte de l'app à retirer avant la revue : Apple refuse une app qui se dit inachevée, règle 2.2), et `conversation`, dont la réponse est celle du faux fournisseur de la pile de test. Il faut un jeu de données fait pour les stores (une vraie réponse du coach, des scores de correspondance variés) avant de les y remettre. Ils reviennent après #979, qui remplace l'écran d'accueil provisoire.
+- **Un écran clé est écarté** : `conversation`, dont la réponse est celle du faux fournisseur de la pile de test (« Je ne vois aucun profil. »). Il faut un jeu de données fait pour les stores (une vraie réponse du coach, des scores de correspondance variés) avant de l'y remettre. `accueil` est revenu en tête avec #979, qui a remplacé l'écran d'accueil provisoire et sa phrase « L'application est en cours de construction. » (Apple refuse une app qui se dit inachevée, règle 2.2).
 - **Le lot iPhone est agrandi** depuis l'iPhone SE (750 × 1334), seul téléphone iOS de la matrice Maestro : un peu flou. Un iPhone de 6,9 pouces dans `devices.ts` donnerait des captures nettes.
 - **Les captures sont en français seulement** : les simulateurs parlent français. La fiche anglaise montre celles de la langue par défaut, ce que les deux stores font d'eux-mêmes.
 
@@ -272,7 +272,7 @@ Rien de ce qui suit n'est faisable par un agent : ce sont des comptes, des contr
 20. Google Play : la fiche depuis `fr.md` et `en.md`, l'icône, l'image de présentation et les captures de `screenshots/google-play-*`, puis « Contenu de l'application » : politique de confidentialité, accès à l'app (le compte de démonstration), annonces (aucune), classification du contenu, public cible, Sécurité des données, suppression du compte, les cinq pays.
 21. Ajouter `NSPrivacyCollectedDataTypes` au manifeste de confidentialité (`app.json`) d'après le tableau validé par #707.
 22. **Compte de démonstration** : un Candidate seul, aux données inventées, et le code de revue des stores pour s'y connecter (#981, « Code de revue des stores » ci-dessus). Aucun compte Human Coach pour la revue (product owner, 2026-11-12). Si un relecteur demande un accès coach, le product owner décide alors (par exemple un compte coach temporaire, sa deuxième étape donnée en privé dans App Store Connect).
-23. Après #979 (l'écran d'accueil provisoire remplacé) : remettre `accueil` et `conversation` dans `STORE_SCREENS` et redessiner les captures.
+23. `accueil` est revenu dans `STORE_SCREENS` avec #979. Reste `conversation`, à remettre quand un jeu de données fait pour les stores existe, puis redessiner les captures (`npx tsx apps/mobile/store/screenshots.ts`).
 
 **F. La soumission**
 

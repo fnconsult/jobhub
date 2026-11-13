@@ -362,6 +362,40 @@ test("a Candidate grants Coach Access; the Human Coach reads their Profiles and 
     }
   });
 
+  // #1026, « Espace coach v2 » on: on the Agenda, a Coaching Session that has ended (10 days ago) offers neither
+  // « Modifier la date » nor « Annuler la séance »; one in 3 days still offers both. Dates are relative to the server's
+  // clock, so the test holds at any hour.
+  test("the Agenda offers neither date change nor cancellation for a Coaching Session that has ended", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coach = await addCoach(admin, newAddress("coach-agenda-ended"));
+    const coachId = await coachIdOf(admin, coach.name);
+    await admin.context().close();
+    await signIn(page, newAddress("agenda-ended"));
+    const database = new Pool({ connectionString: own.databaseUrl });
+    let ended = "";
+    let toCome = "";
+    try {
+      await paidFixture(page, coachId, database);
+      await paidFixture(page, coachId, database);
+      [ended, toCome] = ((await (await page.request.get("/api/coaching")).json()).sessions as { id: string }[]).map((session) => session.id) as [string, string];
+      await database.query("UPDATE coaching_session SET scheduled_at=now()-interval '10 days',duration_minutes=45 WHERE id=$1", [ended]);
+      await database.query("UPDATE coaching_session SET scheduled_at=now()+interval '3 days',duration_minutes=60 WHERE id=$1", [toCome]);
+    } finally {
+      await database.end();
+    }
+    const itemOf = (id: string) => page.locator("li.agenda-item", { has: page.locator(`a.agenda-item-link[href="/coachs#seance-${id}"]`) });
+    const actions = [tr(fr.coachingSession.editFor, { name: coach.name }), tr(fr.agendaChanges.cancelSessionFor, { name: coach.name })];
+
+    await page.goto("/agenda?vue=liste&periode=passes");
+    await expect(itemOf(ended)).toBeVisible();
+    await expect(itemOf(ended)).toContainText(tr(fr.agenda.withCoach, { name: coach.name }));
+    await expect(itemOf(ended).getByRole("button")).toHaveCount(0);
+    await expect(itemOf(ended).getByText(fr.coachingCancellation.tooLate)).toHaveCount(0);
+
+    await page.goto("/agenda?vue=liste");
+    for (const name of actions) await expect(itemOf(toCome).getByRole("button", { name })).toBeVisible();
+  });
+
   test("the daily workspace links a paid Candidate, privately autosaves notes, exports them, and joins a confirmed session", async ({ page, browser }) => {
     test.setTimeout(120_000);
     const database = new Pool({ connectionString: own.databaseUrl });

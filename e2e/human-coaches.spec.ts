@@ -309,7 +309,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     expect(JSON.stringify(exported)).not.toContain(coach.bookingUrl);
   });
 
-  // Issue #1022 (« Espace coach v2 » off, main's page): a Coaching Session that has ended stays listed with its date,
+  // Issue #1022 (« Espace coach v2 » off, main's page) and #1026 (its Agenda): a Coaching Session that has ended stays listed with its date,
   // without « Modifier la date » or « Annuler la séance », and both routes refuse it, 409 « too_late », its date intact.
   // Dates are days in Paris, 10 days before and 3 days after today, so the test holds at any hour.
   test("a Coaching Session that has ended can no longer be moved or cancelled; one to come still can", async ({ page, browser }) => {
@@ -351,6 +351,14 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await page.reload();
     await expect(endedItem.getByRole("button")).toHaveCount(0);
     await expect(endedItem.getByText(hc.toSchedule)).toHaveCount(0);
+    // #1026: the Agenda, too, offers neither action for the session that has ended, and both for the one to come.
+    const agendaItem = (id: string) => page.locator("li.agenda-item", { has: page.locator(`a.agenda-item-link[href="/coachs#seance-${id}"]`) });
+    await page.goto("/agenda?vue=liste&periode=passes");
+    await expect(agendaItem(ended!.id)).toContainText(tr(fr.agenda.withCoach, { name: coach.name }));
+    await expect(agendaItem(ended!.id).getByRole("button")).toHaveCount(0);
+    await page.goto("/agenda?vue=liste");
+    await expect(agendaItem(toCome!.id).getByRole("button", { name: tr(fr.coachingSession.editFor, { name: coach.name }) })).toBeVisible();
+    await expect(agendaItem(toCome!.id).getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: coach.name }) })).toBeVisible();
   });
 
   // Issue #249: the Human Coach enters or corrects the date and video link of their own Coaching

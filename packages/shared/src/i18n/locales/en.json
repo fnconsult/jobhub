@@ -5280,7 +5280,8 @@
     "invalidNote": "The note must be 500 characters at most.",
     "error": "Saving failed. Check your connection and try again.",
     "coachEnterDate": "Enter the date",
-    "coachEnterDateFor": "Enter the date of the session with {{name}}"
+    "coachEnterDateFor": "Enter the date of the session with {{name}}",
+    "over": "This session is over: it can no longer be changed or cancelled."
   },
   "coachReviews": {
     "title": "Your coaches' reviews",

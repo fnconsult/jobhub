@@ -5280,7 +5280,8 @@
     "invalidNote": "La note ne doit pas dépasser 500 caractères.",
     "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
     "coachEnterDate": "Saisir la date",
-    "coachEnterDateFor": "Saisir la date de la séance avec {{name}}"
+    "coachEnterDateFor": "Saisir la date de la séance avec {{name}}",
+    "over": "Cette séance est passée : elle ne peut plus être modifiée ni annulée."
   },
   "coachReviews": {
     "title": "Avis de vos coachs",

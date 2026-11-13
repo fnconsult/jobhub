@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coachingCalendarZone, coachingDay, coachingTime, coachingTimeZone, zonedClock } from "./coaching-time";
+import { coachingCalendarZone, coachingDay, coachingTime, coachingTimeZone, zonedClock, coachingSessionOver } from "./coaching-time";
 import { calendarFileText } from "./calendar-file";
 
 describe("Coaching Session clocks (ADR-0096)", () => {
@@ -34,5 +34,18 @@ describe("Coaching Session clocks (ADR-0096)", () => {
     const file = calendarFileText({ uid: "session-1", timeZone: "America/Montreal", start: at, end: new Date(+at + 3_600_000), sequence: 0, summary: "Séance", description: "" }, { now: at });
     expect(file).toContain("DTSTART;TZID=America/Montreal:20260710T103000");
     expect(file).toContain("TZID:America/Montreal");
+  });
+});
+describe("a session that has ended (#1019)", () => {
+  const session = { scheduledAt: new Date("2026-06-04T08:00:00Z"), durationMinutes: 45 };
+  it("is over at its end, its start plus its duration, an hour when unknown; an Unscheduled one never is", () => {
+    expect(coachingSessionOver(session, new Date("2026-06-04T07:59:59Z"))).toBe(false);
+    expect(coachingSessionOver(session, new Date("2026-06-04T08:44:59Z"))).toBe(false);
+    expect(coachingSessionOver(session, new Date("2026-06-04T08:45:00Z"))).toBe(true);
+    expect(coachingSessionOver({ ...session, durationMinutes: null }, new Date("2026-06-04T08:59:59Z"))).toBe(false);
+    expect(coachingSessionOver({ ...session, durationMinutes: null }, new Date("2026-06-04T09:00:00Z"))).toBe(true);
+    // As the app reads it: an ISO string.
+    expect(coachingSessionOver({ scheduledAt: "2026-06-04T08:00:00.000Z", durationMinutes: 45 }, new Date("2026-06-04T08:45:00Z"))).toBe(true);
+    expect(coachingSessionOver({ scheduledAt: null, durationMinutes: 60 }, new Date("2030-01-01T00:00:00Z"))).toBe(false);
   });
 });

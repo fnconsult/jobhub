@@ -1385,7 +1385,28 @@
     "confirming": "Enregistrement…",
     "invalid": "Certains champs sont à compléter ou à corriger : {{fields}}. Corrigez-les dans « Voir le détail ».",
     "saved": "C'est noté : votre profil est enregistré, avec ses critères de recherche et son CV de référence.",
-    "toProfile": "Continuer vers mon profil"
+    "toProfile": "Continuer vers mon profil",
+    "editing": "Modification",
+    "editLabel": "Votre recherche d'offres, avec vos mots",
+    "editHint": "Écrivez-le comme vous l'expliqueriez à un recruteur.",
+    "cancel": "Annuler",
+    "done": "Terminé",
+    "understanding": "Je relis votre texte…",
+    "understood": "J'ai compris : {{changes}}",
+    "validate": "Valider ces changements",
+    "other": "Le reste (une compétence, une expérience, un poste occupé) ne se change pas ici : utilisez « Voir le détail ».",
+    "changes": {
+      "targetRole": "Poste recherché : {{value}}",
+      "salary": "Salaire minimum : {{value}}",
+      "noSalary": "− Salaire minimum"
+    },
+    "notices": {
+      "applied": "C'est noté : voici votre résumé mis à jour. Ai-je bien compris ?",
+      "unchanged": "Je ne vois aucun changement de vos critères de recherche : votre résumé reste tel quel.",
+      "other": "Je ne vois aucun changement de vos critères de recherche. Une compétence, une expérience ou un poste occupé ne se change pas ici : utilisez « Voir le détail ».",
+      "unusable": "Je n'ai pas réussi à traduire votre texte en changements de critères : votre résumé reste tel quel. Réessayez, ou utilisez « Voir le détail ».",
+      "tooManyPlaces": "Au plus {{max}} lieux par profil : retirez-en avant d'en ajouter. Votre résumé reste tel quel."
+    }
   },
   "newProfile": {
     "title": "Créer un profil",
@@ -5570,6 +5591,7 @@
     "cv_reading_fallback": "CV lu par les règles, sans l'IA",
     "onboarding_interview_fallback": "Entretien d'accueil poursuivi par les questions écrites, sans l'IA",
     "tailored_cv_refused": "Réponse refusée : aucun Tailored CV proposé à partir d'elle",
+    "summary_changes_unusable": "Réécriture du résumé non comprise : le résumé reste tel quel",
     "match_score_text_unread": "Texte de l'offre non lu : Match Score sur ses seules données structurées",
     "match_score_too_slow": "Lecture de l'offre trop lente : Match Score sur ses seules données structurées",
     "test_failed": "Test de connexion échoué",
@@ -5694,6 +5716,7 @@
       "profile_creation": "Création du profil",
       "questionnaire": "Questionnaire d'accueil",
       "review": "Relecture",
+      "summary_changes": "Modification du résumé",
       "profile_created": "Profil créé"
     },
     "live": {

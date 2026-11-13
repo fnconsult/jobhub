@@ -33,6 +33,10 @@
 // so tests can watch the fallback to the rule-based reading; one containing
 // "E2E_CV_SLOW" takes 30 s, so tests can stop the reading (#335).
 //
+// For « Modifier » on the onboarding summary (#1005, "Tu traduis la réécriture"), it reads the rewriting against the
+// summary by rules (see summaryChanges below): a contract type or a known place named is added, a place no longer named,
+// or named after « plutôt qu'à », removed; "E2E_SUMMARY_GARBLED" gets prose, no JSON.
+//
 // For the AI Coach in the Coach Panel (task coaching), it says which Profile
 // the system prompt put in view, if any, and how many messages it was sent, so
 // tests can check the AI Coach knows what the Candidate is looking at.
@@ -299,6 +303,7 @@ globalThis.fetch = async (input, init) => {
       else if (kind === "bad_json") content = `{"headline": "${cv.headline}", "summary": "${first?.description ?? ""}", }`;
     }
   }
+  if (system.startsWith("Tu traduis la réécriture")) return completion(body, summaryChanges(prompt));
   if (prompt.startsWith("CV :\n")) {
     // A CV holding "E2E_CV_SLOW" takes 30 s to read, or rejects at once when the Candidate stops it (#335).
     if (prompt.includes("E2E_CV_SLOW")) await answerAfter(30_000, input instanceof Request ? input.signal : init?.signal);
@@ -341,6 +346,50 @@ globalThis.fetch = async (input, init) => {
   }
   return completion(body, content);
 };
+
+/** The places the rewritten summary's fake reading knows (#1005), as a Candidate names them. */
+const SUMMARY_PLACES = ["Paris", "Lyon", "Bordeaux", "Lille", "Nantes", "Rennes", "Grenoble"];
+/** Each contract type's code, and how a rewriting names it. */
+const SUMMARY_CONTRACTS = { cdi: /\bCDI\b/i, cdd: /\bCDD\b/i, freelance: /\bfreelance\b/i, interim: /\bint[ée]rim\b/i };
+
+/**
+ * The changes a rewritten onboarding summary makes (#1005), read by rules as a model would read them: a contract type the
+ * rewriting names that the summary did not is added, one the summary named that it no longer names is removed; a known
+ * place it names is added, and one of the criteria's places it no longer names, or names after « plutôt qu'à » / « pas à »,
+ * is removed (as written in the criteria). "Je maîtrise" or « compétence » is something else than Search Criteria.
+ * A rewriting holding "E2E_SUMMARY_GARBLED" gets prose, no JSON: the reply the app cannot use.
+ */
+function summaryChanges(prompt) {
+  const section = (name, next) => {
+    const start = prompt.indexOf(`${name} :\n`);
+    if (start < 0) return "";
+    const end = next ? prompt.indexOf(`\n\n${next} :\n`, start) : -1;
+    return prompt.slice(start + name.length + 3, end < 0 ? undefined : end);
+  };
+  const current = JSON.parse(section("Critères actuels", "Résumé") || "{}");
+  const summary = section("Résumé", "Réécriture");
+  const rewritten = section("Réécriture");
+  if (rewritten.includes("E2E_SUMMARY_GARBLED")) return "Vous voulez un autre contrat, ailleurs.";
+  const changes = {};
+  const contracts = new Set(current.contractTypes ?? []);
+  for (const [code, named] of Object.entries(SUMMARY_CONTRACTS)) {
+    if (named.test(rewritten) && !named.test(summary)) contracts.add(code);
+    if (!named.test(rewritten) && named.test(summary)) contracts.delete(code);
+  }
+  if (contracts.size !== (current.contractTypes ?? []).length || [...contracts].some((code) => !(current.contractTypes ?? []).includes(code))) changes.contractTypes = [...contracts];
+  const plain = (text) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const refused = (place) => new RegExp(`(?:plutot qu'a|pas a) ${plain(place)}`).test(plain(rewritten));
+  const names = (text, place) => new RegExp(`\\b${plain(place)}\\b`).test(plain(text));
+  const locations = current.locations ?? [];
+  const removeLocations = locations.filter((location) => {
+    const place = SUMMARY_PLACES.find((known) => plain(location).startsWith(plain(known)));
+    return place ? !names(rewritten, place) || refused(place) : false;
+  });
+  const addLocations = SUMMARY_PLACES.filter((place) => names(rewritten, place) && !refused(place) && !locations.some((location) => plain(location).startsWith(plain(place))));
+  if (removeLocations.length > 0) changes.removeLocations = removeLocations;
+  if (addLocations.length > 0) changes.addLocations = addLocations;
+  return JSON.stringify({ changements: changes, autre: /je ma[iî]trise|comp[ée]tence/i.test(rewritten) });
+}
 
 /**
  * The reply E2E_COACH_TOOL scripts (see above), when the latest Candidate message holds it and the AI Coach was offered

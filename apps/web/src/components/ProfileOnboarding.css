@@ -36,3 +36,15 @@
 .onb-detail-link {
   margin-right: auto;
 }
+
+/* « Modifier » (#1005): the summary as plain text, to rewrite in the Candidate's own words, in the Design System's
+   Field and Textarea; only its height here. */
+.onb-textarea {
+  min-height: 11rem;
+  resize: vertical;
+}
+
+.onb-understanding {
+  margin: var(--space-4) 0 0;
+  color: var(--color-secondary);
+}

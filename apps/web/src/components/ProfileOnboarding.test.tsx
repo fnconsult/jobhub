@@ -172,8 +172,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Comptable.");
     expect(within(summary()).getByText("Comptable").tagName).toBe("STRONG");
 
-    // Opened again, it keeps what was changed; « Modifier » opens it too until #1005.
-    await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+    // Opened again, it keeps what was changed.
+    await user.click(within(summary()).getByRole("button", { name: "Voir le détail" }));
     expect((within(reviewPane()).getByLabelText("Nom et prénom") as HTMLInputElement).value).toBe("Marie Dupont");
   });
 
@@ -638,6 +638,183 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(await within(thread()).findByRole("link", { name: "Continuer vers mon profil" })).toBeTruthy();
       expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual(["PATCH /api/profiles/p1", "POST /api/profiles/p1/onboarding"]);
       expect(calls[0]!.body).toMatchObject({ searchCriteria: { contractTypes: ["cdi"] } });
+    });
+  });
+
+  describe("« Modifier »: the summary rewritten in the Candidate's words, translated by the AI into changes to validate (#1005)", () => {
+    type Call = { url: string; method: string; body: Record<string, unknown> };
+    let calls: Call[];
+    /** What the AI route answers: its status and body. */
+    let understood: { status: number; body: Record<string, unknown> };
+    const provenance = {
+      v: 1,
+      steps: [
+        {
+          kind: "ai",
+          activity: "think_write",
+          ms: 900,
+          at: "2026-11-12T10:00:00.000Z",
+          outcome: "success",
+          count: 1,
+          task: "coaching",
+          provider: "mistral",
+          endpoint: "api.eu.mistral.ai",
+          model: "mistral-medium-3-5",
+          tokens: { input: 300, output: 40 },
+        },
+      ],
+      sites: [{ kind: "candidate", links: [] }],
+      startedAt: "2026-11-12T10:00:00.000Z",
+      wallMs: 900,
+    };
+
+    beforeEach(() => {
+      calls = [];
+      understood = {
+        status: 200,
+        body: {
+          searchCriteria: { targetRole: "Directrice financière", locations: ["Paris (75)"], contractTypes: ["cdd"], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+          changed: ["locations", "contractTypes"],
+          other: false,
+          provenance,
+        },
+      };
+      vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+        if (url === "/api/reference-data") return new Response(null, { status: 404 });
+        calls.push({ url, method: init.method ?? "GET", body: JSON.parse(String(init.body ?? "{}")) });
+        if (url === "/api/onboarding/summary-changes") return Response.json(understood.body, { status: understood.status });
+        if (url === "/api/profiles") return Response.json({ id: "p1" }, { status: 201 });
+        if (url === "/api/profiles/p1/onboarding") return Response.json({ id: "p1", version: 2 });
+        return Response.json({ id: "p1" });
+      });
+    });
+
+    /** Up to the summary, by the Questionnaire: « Vous recherchez un poste de Directrice financière ; lieu : Lyon. » */
+    async function toSummary(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      while (!within(thread()).queryByRole("region", { name: "Votre recherche d'offres" })) {
+        await user.click(screen.getByRole("button", { name: "Passer cette question" }));
+      }
+    }
+    const textBox = () => within(summary()).getByRole("textbox", { name: "Votre recherche d'offres, avec vos mots" }) as HTMLTextAreaElement;
+    const asked = () => calls.filter((call) => call.url === "/api/onboarding/summary-changes");
+
+    it("puts the card in « Modification », the summary as plain text; « Annuler » changes nothing and asks no AI", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await toSummary(user);
+      await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+
+      expect(within(summary()).getByText("Modification")).toBeTruthy();
+      expect(within(summary()).getByText("Écrivez-le comme vous l'expliqueriez à un recruteur.")).toBeTruthy();
+      expect(textBox().value).toBe("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
+      expect(document.activeElement).toBe(textBox());
+      // The detail form does not open.
+      expect(screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeNull();
+
+      await user.type(textBox(), " Et en CDD.");
+      await user.click(within(summary()).getByRole("button", { name: "Annuler" }));
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
+      expect(within(summary()).queryByRole("textbox")).toBeNull();
+      expect(document.activeElement).toBe(within(summary()).getByRole("button", { name: "Modifier" }));
+      expect(asked()).toEqual([]);
+    });
+
+    it("« Terminé » shows the changes understood, made once validated: the summary composed again and asked again, then saved", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await toSummary(user);
+      await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+      await user.clear(textBox());
+      await user.type(textBox(), "Je cherche un poste de Directrice financière en CDD, à Paris plutôt qu'à Lyon.");
+      await user.click(within(summary()).getByRole("button", { name: "Terminé" }));
+
+      expect(await within(summary()).findByText("J'ai compris : + CDD, − Lyon, + Paris (75)")).toBeTruthy();
+      expect(asked()).toEqual([
+        {
+          url: "/api/onboarding/summary-changes",
+          method: "POST",
+          body: {
+            criteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+            summaryText: "Vous recherchez un poste de Directrice financière ; lieu : Lyon.",
+            rewritten: "Je cherche un poste de Directrice financière en CDD, à Paris plutôt qu'à Lyon.",
+          },
+        },
+      ]);
+      // Nothing changed before it is validated.
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
+
+      await user.click(within(summary()).getByRole("button", { name: "Valider ces changements" }));
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière en CDD ; lieu : Paris (75).");
+      expect(within(summary()).getByText("C'est noté : voici votre résumé mis à jour. Ai-je bien compris ?")).toBeTruthy();
+
+      await user.click(within(summary()).getByRole("button", { name: "Cela semble correct" }));
+      expect(await within(thread()).findByRole("link", { name: "Continuer vers mon profil" })).toBeTruthy();
+      const patch = calls.find((call) => call.method === "PATCH" && call.url === "/api/profiles/p1");
+      expect(patch?.body).toMatchObject({ searchCriteria: { locations: ["Paris (75)"], contractTypes: ["cdd"] } });
+    });
+
+    it("« Annuler » on the changes understood leaves the summary as it was", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await toSummary(user);
+      await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+      await user.type(textBox(), " En CDD, à Paris.");
+      await user.click(within(summary()).getByRole("button", { name: "Terminé" }));
+      await within(summary()).findByText(/J'ai compris/);
+      await user.click(within(summary()).getByRole("button", { name: "Annuler" }));
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
+      expect(within(summary()).queryByText(/J'ai compris/)).toBeNull();
+    });
+
+    it("says so, and keeps the summary, when the AI's answer is unusable; sends to « Voir le détail » what is not a Search Criterion", async () => {
+      const user = userEvent.setup();
+      understood = { status: 422, body: { error: "unusable", provenance: null } };
+      renderInFrench(<NewProfilePage />);
+      await toSummary(user);
+      await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+      await user.type(textBox(), " En CDD.");
+      await user.click(within(summary()).getByRole("button", { name: "Terminé" }));
+      expect(await within(summary()).findByText(/Je n'ai pas réussi à traduire votre texte en changements de critères : votre résumé reste tel quel/)).toBeTruthy();
+      expect(summary().querySelector(".onb-summary")!.textContent).toBe("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
+
+      understood = {
+        status: 200,
+        body: { searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] }, changed: [], other: true, provenance },
+      };
+      await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+      await user.type(textBox(), " Je maîtrise SAP.");
+      await user.click(within(summary()).getByRole("button", { name: "Terminé" }));
+      expect(await within(summary()).findByText(/ne se change pas ici : utilisez « Voir le détail »/)).toBeTruthy();
+    });
+
+    it("asks no AI for the summary sent back as it was", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await toSummary(user);
+      await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+      await user.click(within(summary()).getByRole("button", { name: "Terminé" }));
+      expect(within(summary()).getByText(/Je ne vois aucun changement de vos critères de recherche/)).toBeTruthy();
+      expect(asked()).toEqual([]);
+    });
+
+    it("shows the step in « Création du profil », with its model and tokens", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await toSummary(user);
+      await user.click(within(summary()).getByRole("button", { name: "Modifier" }));
+      await user.type(textBox(), " En CDD, à Paris.");
+      await user.click(within(summary()).getByRole("button", { name: "Terminé" }));
+      await within(summary()).findByText(/J'ai compris/);
+
+      const activity = screen.getByRole("complementary", { name: "Activité" });
+      const row = within(activity).getByRole("button", { name: /Création du profil/ });
+      await user.click(row);
+      const detail = document.getElementById(row.getAttribute("aria-controls")!)!;
+      expect(detail.textContent).toMatch(/Modification du résumé/);
+      expect(detail.textContent).toMatch(/Mistral Medium 3\.5/);
+      expect(detail.textContent).toMatch(/Modification du résumé340 jetons/);
     });
   });
 

@@ -41,6 +41,7 @@ const GLYPH: Record<EntryKind, Activity> = {
   onboarding_interview: "think_write",
   questionnaire: "write",
   review: "write",
+  summary_changes: "think",
   profile_created: "write",
 };
 

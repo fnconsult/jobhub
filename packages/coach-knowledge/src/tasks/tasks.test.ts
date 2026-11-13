@@ -12,8 +12,8 @@ describe("task Playbooks as written in this repo (ADR-0026)", () => {
     }
   });
 
-  it("are imported validated, but for the new Job Offer Summary and sector, the reading of offer emails (ADR-0052) and the onboarding interview (#1002)", () => {
-    expect(TASK_PLAYBOOKS.filter((task) => !task.validatedAtImport).map((task) => task.id)).toEqual(["job-offer-reading", "job-offer-email-reading", "onboarding-interview"]);
+  it("are imported validated, but for the new Job Offer Summary and sector, the reading of offer emails (ADR-0052), the onboarding interview (#1002) and the onboarding summary's changes (#1005)", () => {
+    expect(TASK_PLAYBOOKS.filter((task) => !task.validatedAtImport).map((task) => task.id)).toEqual(["job-offer-reading", "job-offer-email-reading", "onboarding-interview", "onboarding-summary-changes"]);
     expect(TASK_PLAYBOOKS.filter((task) => !task.agent).map((task) => task.id)).toEqual(["company-news-search"]);
     expect(TASK_PLAYBOOKS.filter((task) => task.search).map((task) => task.id)).toEqual(["company-facts-search", "company-news-search", "job-search-queries"]);
   });

@@ -537,6 +537,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                 edits={edits}
                 born={() => born.current ?? Promise.resolve(null)}
                 onDetail={() => setReviewOpening((opening) => opening + 1)}
+                onEdits={setEdits}
                 onSaved={confirmed}
               />
             ) : null}

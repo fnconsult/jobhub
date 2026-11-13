@@ -12,7 +12,9 @@ import { getTaskPlaybooks } from "@/task-playbooks/server";
  * challenges a vague answer and proposes what it deduces. Signed-in Candidates only: a Guest has no Profile to create.
  * No Plan Quota; its calls are counted in AI Usage (task `onboarding_interview`). Saves nothing, and the exchange is not
  * kept as a Coach Conversation: the page applies to the Profile only what the Candidate answers or validates.
- * Body: { language, draft: { masterCv, searchCriteria }, exchange: ExchangeTurn[], opener? }.
+ * With a CV (#1003), `cv` holds the target role and places it read, to confirm, and the draft the Master CV it read: only
+ * what a CV does not say is asked after them, and the code asks its own question when the AI gives no turn.
+ * Body: { language, draft: { masterCv, searchCriteria }, exchange: ExchangeTurn[], opener?, cv?: { targetRole, locations } }.
  * 200 { turn: InterviewTurn, provenance } · 200 { fallback: true }: the AI could not give a turn, the scripted questions
  * take over · 400 { error: "invalid" } · 401 · 403 · 499 { error: "stopped" }
  *

@@ -47,9 +47,18 @@ const CV_FILE_ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformat
  * Uploading a PDF or Word CV and reading it into a draft, in the Design System's File upload (#468): dropped or
  * chosen, refused at once when the File upload's rules say so. Saves nothing. The AI Coach's reading shows live, on
  * the file's row and in AI Activity, and the Candidate can stop it (#335): nothing is then drafted. Without a CV, the
- * Candidate starts from scratch (`onFromScratch`).
+ * Candidate starts from scratch (`onFromScratch`). `onReading` hears the reading start and end.
  */
-export function CvUpload({ onDraft, onFromScratch }: { onDraft: (draft: CvDraft) => void; onFromScratch?: () => void }) {
+export function CvUpload({
+  onDraft,
+  onFromScratch,
+  onReading,
+}: {
+  onDraft: (draft: CvDraft) => void;
+  onFromScratch?: () => void;
+  /** Told when the reading starts and when it ends (read, stopped or failed): « Profil en construction » follows it (#1003). */
+  onReading?: (reading: boolean) => void;
+}) {
   const { t, i18n } = useTranslation();
   const action = useStreamedAction("cv_reading");
   const [chosen, setChosen] = useState(false);
@@ -61,7 +70,9 @@ export function CvUpload({ onDraft, onFromScratch }: { onDraft: (draft: CvDraft)
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setState({});
+    onReading?.(true);
     const outcome = await action.run("/api/cv/draft", { method: "POST", body: form });
+    onReading?.(false);
     if (outcome.ok) onDraft(outcome.body as unknown as CvDraft);
     else if (outcome.stopped) setState({ stoppedAt: outcome.at });
     else setState({ error: FILE_ERRORS.has(String(outcome.body.error)) ? (outcome.body.error as CvFileErrorCode) : "unknown" });

@@ -710,6 +710,45 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     });
   }
 
+  // Issue #1003 (ADR-0106): a CV read on « Créer un profil », « Profil en construction » in the thread: « Lecture de votre
+  // profil » done, the fields read, those a CV does not give said absent in italics; then folded into one line, and the
+  // interview from it proposing the target role read, to confirm. The fields all appear at once (prefers-reduced-motion);
+  // the card's pause before it folds (READ_PAUSE_MS, a timer of 1200 ms) is held until the card's shots are taken.
+  test("a CV read: « Profil en construction », then its line and the target role to confirm (#1003)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("shots-cv-reading"));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    // The welcome panel closed for good (« Ne plus afficher »): the thread opens on the CV's card.
+    await page.goto("/profils/nouveau");
+    await page.getByRole("button", { name: fr.conversationFirst.closeWelcome }).click();
+    const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
+    await page.addInitScript(() => {
+      const held: (() => void)[] = [];
+      const setTimeout = window.setTimeout.bind(window);
+      Object.assign(window, {
+        setTimeout: (callback: () => void, ms?: number, ...rest: unknown[]) =>
+          ms === 1200 ? (held.push(() => callback(...(rest as []))), 0) : setTimeout(callback, ms, ...rest),
+        releaseHeldTimers: () => held.splice(0).forEach((callback) => callback()),
+      });
+    });
+    for (const { name, width, height } of SCREENSHOT_WIDTHS) {
+      await page.setViewportSize({ width, height });
+      await page.goto("/profils/nouveau");
+      await page.waitForLoadState("networkidle");
+      await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "CV-Marie-Dupont.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) });
+      await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+      const building = thread.getByRole("region", { name: fr.newProfile.fromCv.building });
+      await expect(building.getByRole("term")).toHaveCount(6);
+      await expect(building.getByRole("definition").filter({ hasText: fr.newProfile.fromCv.missing })).toHaveCount(2);
+      await check(page, page.locator("#main"), "#main", `cv-reading-${name}`, width);
+
+      await page.setViewportSize({ width, height });
+      await page.evaluate(() => (window as unknown as { releaseHeldTimers: () => void }).releaseHeldTimers());
+      await expect(page.getByRole("button", { name: /^Oui, / })).toBeVisible();
+      await expect(building).toHaveCount(0);
+      await check(page, page.locator("#main"), "#main", `cv-read-${name}`, width);
+    }
+  });
+
   // Issue #1004 (ADR-0106): at the end of creating a Profile, « Ai-je bien compris ? » and the summary Jobbbox composes, its
   // key items strong, « Voir le détail », « Modifier » and « Cela semble correct ». A Profile born and not finished is
   // resumed at it; its jobs dated to a closed year, so the years of experience do not change from one year to the next.

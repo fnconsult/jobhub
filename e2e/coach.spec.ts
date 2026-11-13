@@ -9,7 +9,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { placeNames } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { toConversation } from "./support/conversation";
-import { onboardingSummary, openReviewDetail } from "./support/onboarding-summary";
+import { onboardingSummary, openReviewDetail, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #5: a Candidate without a CV builds their Master CV with the AI Coach's
 // Onboarding Questionnaire; the Coach Panel is on every page and knows the
@@ -409,7 +409,8 @@ test.describe("onboarding with the AI Coach", () => {
     expect(await offered()).toHaveLength(2);
   });
 
-  test("the questionnaire and an uploaded CV produce the same Master CV structure", async ({ page }) => {
+  test("the questionnaire and an uploaded CV produce the same Master CV structure", async ({ page: uploading, browser }) => {
+    let page = uploading;
     /** Every field of the review form, by its accessible name, in order. */
     const reviewFields = async () => {
       await openReviewDetail(page);
@@ -423,9 +424,13 @@ test.describe("onboarding with the AI Coach", () => {
     await page.goto("/profils/nouveau");
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) });
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await throughCvInterview(page);
     const fromUpload = await reviewFields();
 
-    // One job, one degree, one language: as many entries as the uploaded CV was read into.
+    // One job, one degree, one language: as many entries as the uploaded CV was read into. Another Candidate: the
+    // Profile born from the CV (#1003) takes the free Plan's one Profile.
+    page = await (await browser.newContext({ baseURL: origin })).newPage();
+    await signInWithMagicLink(page, newAddress("same-structure-questions"));
     await page.goto("/profils/nouveau");
     await startScriptedQuestions(page);
     await reply(page, q.fullName, "Marie Dupont");

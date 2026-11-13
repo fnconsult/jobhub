@@ -6,7 +6,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { placeInput, placeNames, placeOptions, removePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { openSearchCriteria, profileSectionLink } from "./support/conversation";
-import { onboardingSummary, openReviewDetail } from "./support/onboarding-summary";
+import { onboardingSummary, openReviewDetail, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #4: a signed-in Candidate uploads a PDF or Word CV; it is read into a
 // Master CV and Search Criteria they review and correct, then saved as their
@@ -16,13 +16,18 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 const PDF = "application/pdf";
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-/** Uploads a CV on /profils/nouveau and, once read (`review`), opens the review form. */
+/**
+ * Uploads a CV on /profils/nouveau and, once read (`review`), goes through the interview from it (#1003) and opens the
+ * review form.
+ */
 async function uploadCv(page: Page, file: { name: string; mimeType: string; buffer: Buffer }, review = true) {
   await page.goto("/profils/nouveau");
   await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(file);
   await page.getByRole("button", { name: fr.cvUpload.submit }).click();
-  // The summary first (#1004), then the review form by « Voir le détail ».
-  if (review) await openReviewDetail(page);
+  if (!review) return;
+  // The target role and place read, confirmed, the rest skipped (#1003); the summary (#1004), then the review form by « Voir le détail ».
+  await throughCvInterview(page);
+  await openReviewDetail(page);
 }
 
 /** The Search Criteria part of the review form. */
@@ -42,6 +47,26 @@ test.describe("creating the first Profile from a CV", () => {
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
 
+    // « Profil en construction » in the thread while it is read (#1003): the fields read, one absent said absent.
+    const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
+    const building = thread.getByRole("region", { name: fr.newProfile.fromCv.building });
+    await expect(building.getByRole("definition").filter({ hasText: "Directrice financière (lu par l'IA)" })).toBeVisible();
+    await expect(building.getByRole("definition").filter({ hasText: fr.newProfile.fromCv.missing }).first()).toBeVisible();
+    // Then folded into one line, and the interview from what it read: the target role and the place to confirm, no
+    // question on what the CV gave; then only contracts (a deduction proposed), remote work and salary, each skippable.
+    await expect(thread.locator("details.onb-read summary")).toHaveText(/^Profil construit à partir de votre CV · \d+ informations lues$/);
+    await expect(building).toHaveCount(0);
+    const suggestions = page.getByRole("group", { name: fr.conversationFirst.suggestions });
+    await expect(suggestions.getByRole("button", { name: fr.questionnaire.skip, exact: true })).toHaveCount(0);
+    await suggestions.getByRole("button", { name: "Oui, Directrice financière (lu par l'IA)" }).click();
+    await suggestions.getByRole("button", { name: "Oui, Lyon" }).click();
+    await expect(suggestions.getByRole("button", { name: "Oui, CDI" })).toBeVisible();
+    for (let question = 0; question < 3; question++) {
+      const answered = await thread.locator("li.chat-candidate").count();
+      await suggestions.getByRole("button", { name: fr.questionnaire.skip, exact: true }).click();
+      await expect(thread.locator("li.chat-candidate")).toHaveCount(answered + 1);
+    }
+
     // What was read, summed up in the thread (#1004): « Ai-je bien compris ? ».
     await expect(page.getByRole("list", { name: fr.questionnaire.transcript })).toContainText(fr.onboardingSummary.question);
     await expect(onboardingSummary(page)).toContainText("Directrice financière (lu par l'IA)");
@@ -59,11 +84,11 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page.getByRole("group", { name: "Compétence 2" }).getByLabel(fr.cvReview.skill)).toHaveValue("IFRS");
     await expect(page.getByRole("group", { name: "Langue 1" }).getByLabel(fr.cvReview.language)).toHaveValue("Anglais");
 
-    // Nothing is saved before the Candidate confirms.
+    // The Profile is born at the target role and place confirmed (ADR-0106, #999), named after its target role until finished.
     const elsewhere = await browser.newContext({ baseURL: origin, storageState: await page.context().storageState() });
     const accountPage = await elsewhere.newPage();
     await accountPage.goto("/compte");
-    await expect(accountPage.getByText(fr.profiles.none)).toBeVisible();
+    await expect(accountPage.getByRole("link", { name: "Directrice financière (lu par l'IA)", exact: true })).toBeVisible();
 
     // The Candidate corrects and completes the draft.
     await criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true }).fill("Directrice administrative et financière");
@@ -104,16 +129,16 @@ test.describe("creating the first Profile from a CV", () => {
     await page.keyboard.press("Escape");
     // Its Master CV, in the Work Pane (#605).
     await profileSectionLink(page, fr.profilePage.sections["cv-de-reference"]).click();
-    await expect(page.getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 1 · /)).toBeVisible();
+    await expect(page.getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 2 · /)).toBeVisible();
     // The whole Master CV, as its version page shows it.
-    await page.goto(`${new URL(page.url()).pathname.replace(/\/cv-de-reference$/, "")}/versions/1`);
+    await page.goto(`${new URL(page.url()).pathname.replace(/\/cv-de-reference$/, "")}/versions/2`);
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2025")).toBeVisible();
     await expect(page.getByText("Contrôleuse de gestion · Renault")).toBeVisible();
     await expect(page.getByRole("listitem").filter({ hasText: "SAP" })).toBeVisible();
     await expect(page.getByRole("heading", { name: fr.cvReview.languages })).toHaveCount(0);
 
     await accountPage.reload();
-    await expect(accountPage.getByRole("link", { name: "Directrice administrative et financière" })).toBeVisible();
+    await expect(accountPage.getByRole("link", { name: "Directrice administrative et financière", exact: true })).toBeVisible();
     await expect(accountPage.getByRole("link", { name: fr.profiles.create })).toHaveCount(0);
     await elsewhere.close();
   });
@@ -166,8 +191,9 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page.locator(".notice[role=alert]")).toHaveText(`Certains champs sont à compléter ou à corriger : ${fr.cvReview.targetRole}, ${fr.cvReview.locations}.`);
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveAttribute("aria-invalid", "true");
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveAccessibleDescription(fr.cvReview.required);
+    // The Profile born at the confirmed role and place (#999) keeps them: the refused save changed nothing.
     await page.goto("/compte");
-    await expect(page.getByText(fr.profiles.none)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Directrice financière (lu par l'IA)", exact: true })).toBeVisible();
   });
 
   test("a filled salary that is not a whole number is called invalid, not missing", async ({ page }) => {
@@ -240,6 +266,7 @@ test.describe("creating the first Profile from a CV", () => {
     }
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await throughCvInterview(page);
     await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     for (const t of await renderedTexts(page)) {

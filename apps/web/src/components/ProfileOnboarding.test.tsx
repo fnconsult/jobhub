@@ -599,6 +599,129 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       });
     });
 
+    describe("from a CV (#1003): « Profil en construction », then the interview from what it read", () => {
+      const READ_CV = {
+        masterCv: {
+          fullName: "Marie Dupont",
+          headline: "Directrice financière",
+          email: "marie.dupont@example.fr",
+          phone: "",
+          location: "Lyon",
+          summary: "",
+          experience: [{ title: "DAF", employer: "Groupe Seb", location: "Lyon", period: "2015 – 2024", description: "" }],
+          education: [],
+          skills: ["Consolidation", "IFRS", "Trésorerie", "Contrôle de gestion", "SAP", "Management", "Fiscalité"],
+          languages: [],
+        },
+        searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] },
+        provenance: { v: 1, steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-medium-2508", ms: 900, at: new Date().toISOString(), outcome: "ok", count: 1 }], sites: [], startedAt: new Date().toISOString(), wallMs: 900 },
+      };
+      let readCv: (draft: object) => void;
+      /** Whether the device lets things move (prefers-reduced-motion: no-preference). */
+      let motion: boolean;
+      const card = () => within(thread()).getByRole("region", { name: "Profil en construction" });
+
+      beforeEach(() => {
+        interviewCalls.length = 0;
+        motion = true;
+        // The folded line's glyph measures its strokes, which jsdom cannot.
+        Object.assign(SVGElement.prototype, { getTotalLength: () => 10, getPointAtLength: () => ({ x: 12, y: 12 }) });
+        vi.stubGlobal("matchMedia", (query: string) => ({ matches: motion && query.includes("no-preference"), media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+        const inner = globalThis.fetch;
+        vi.stubGlobal("fetch", (url: string, init?: RequestInit) =>
+          url === "/api/cv/draft" ? new Promise<Response>((resolve) => (readCv = (draft) => resolve(new Response(`${JSON.stringify({ type: "done", ...draft })}\n`, { headers: { "content-type": "application/x-ndjson" } })))) : inner(url, init),
+        );
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+      });
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      async function uploadCv(user: ReturnType<typeof userEvent.setup>) {
+        await user.upload(screen.getByLabelText("Votre CV"), new File(["%PDF"], "cv.pdf", { type: "application/pdf" }));
+        await user.click(screen.getByRole("button", { name: "Lire mon CV" }));
+      }
+
+      it("shows the step under way while the CV is read, then the fields read one by one, an absent one said absent, and folds into one line", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        turns = [{ ...ROLE, proposal: { field: "targetRole", value: "Directrice financière", because: "C'est ce que j'ai lu dans votre CV.", shown: "Directrice financière" } }];
+        renderInFrench(<NewProfilePage />);
+        await uploadCv(user);
+
+        const reading = await within(thread()).findByRole("list", { name: "Profil en construction" });
+        expect(within(reading).getByRole("listitem").getAttribute("aria-current")).toBe("step");
+        expect(within(reading).getByRole("listitem").textContent).toMatch(/Lecture de votre profil \(en cours\)/);
+        expect(within(card()).queryByRole("term")).toBeNull();
+
+        readCv(READ_CV);
+        await waitFor(() => expect(within(card()).getByText("Poste visé")).toBeTruthy());
+        expect(within(card()).getAllByRole("term").map((term) => term.textContent)).toEqual(["Poste visé"]);
+        await vi.advanceTimersByTimeAsync(350 * 5);
+        expect(within(card()).getAllByRole("term")).toHaveLength(6);
+        const values = within(card()).getAllByRole("definition").map((value) => value.textContent);
+        expect(values).toEqual(["Directrice financière", "9 ans", "Lyon", "Consolidation, IFRS, Trésorerie, Contrôle de gestion, SAP et 2 autres", "Pas encore dans votre profil", "Pas encore dans votre profil"]);
+        expect(within(card()).getAllByText("Pas encore dans votre profil")[0]!.tagName).toBe("EM");
+        expect(within(card()).getByRole("listitem").getAttribute("aria-current")).toBeNull();
+
+        // Shown a while, then folded as the interview starts.
+        await vi.advanceTimersByTimeAsync(1200 + 350);
+        await waitFor(() => expect(within(thread()).queryByRole("region", { name: "Profil en construction" })).toBeNull());
+        const line = within(thread()).getByText("Profil construit à partir de votre CV · 4 informations lues");
+        expect(line.closest("details")).toBeTruthy();
+        expect(await within(thread()).findByText("Je propose : Directrice financière. C'est ce que j'ai lu dans votre CV.")).toBeTruthy();
+      });
+
+      it("shows the fields all at once under prefers-reduced-motion", async () => {
+        motion = false;
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        renderInFrench(<NewProfilePage />);
+        await uploadCv(user);
+        await within(thread()).findByRole("region", { name: "Profil en construction" });
+        readCv(READ_CV);
+        await waitFor(() => expect(within(card()).getByText("Poste visé")).toBeTruthy());
+        expect(within(card()).getAllByRole("term")).toHaveLength(6);
+      });
+
+      it("starts the interview from the CV's draft: the role and place to confirm, the Profile born at them with what read it, then only what a CV does not say", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const because = "C'est ce que j'ai lu dans votre CV.";
+        turns = [
+          { ...ROLE, proposal: { field: "targetRole", value: "Directrice financière", because, shown: "Directrice financière" } },
+          { ...PLACE, proposal: { field: "locations", value: ["Lyon"], because, shown: "Lyon" } },
+          CONTRACT,
+          DONE,
+        ];
+        renderInFrench(<NewProfilePage />);
+        await uploadCv(user);
+        await within(thread()).findByRole("region", { name: "Profil en construction" });
+        readCv(READ_CV);
+        await vi.advanceTimersByTimeAsync(350 * 6 + 1200);
+
+        await screen.findByRole("button", { name: "Oui, Directrice financière" });
+        expect(interviewCalls[0]).toMatchObject({
+          exchange: [],
+          cv: { targetRole: "Directrice financière", locations: ["Lyon"] },
+          draft: { masterCv: { skills: READ_CV.masterCv.skills, experience: READ_CV.masterCv.experience }, searchCriteria: { targetRole: "", locations: [] } },
+        });
+        expect(interviewCalls[0]).not.toHaveProperty("opener");
+        // No candidate's opening line: the coach says it read the CV.
+        expect(within(thread()).getByText(/J'ai lu votre CV/)).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+        await user.click(screen.getByRole("button", { name: "Oui, Directrice financière" }));
+        await user.click(await screen.findByRole("button", { name: "Oui, Lyon" }));
+
+        await waitFor(() => expect(calls.filter((call) => call.url === "/api/profiles")).toHaveLength(1));
+        expect(calls.find((call) => call.url === "/api/profiles")).toMatchObject({
+          body: { onboarding: "in_progress", searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] }, masterCv: { fullName: "Marie Dupont", skills: READ_CV.masterCv.skills }, provenance: { steps: [{ task: "cv_parsing" }] } },
+        });
+        await user.click(await screen.findByRole("button", { name: "Passer cette question" }));
+        await within(thread()).findByRole("region", { name: "Votre recherche d'offres" });
+        // The CV's line and the exchange stay in the thread at the summary.
+        expect(within(thread()).getByText("Profil construit à partir de votre CV · 4 informations lues")).toBeTruthy();
+        expect(within(thread()).getByText("Oui, Lyon")).toBeTruthy();
+      });
+    });
+
     it("creates the Profile at the review's save from scratch, its onboarding done", async () => {
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);

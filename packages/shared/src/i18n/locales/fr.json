@@ -1426,6 +1426,36 @@
       "no": "Non, plutôt…",
       "proposal": "Je propose : {{value}}. {{because}}",
       "fallback": "Je continue avec mes questions habituelles, sans l'IA : je ne vous redemande pas ce que vous m'avez déjà dit."
+    },
+    "fromCv": {
+      "building": "Profil en construction",
+      "readingStep": "Lecture de votre profil",
+      "fields": {
+        "targetRole": "Poste visé",
+        "experience": "Expérience en années",
+        "location": "Basé à",
+        "skills": "Compétences",
+        "contractTypes": "Types de contrat",
+        "minSalary": "Salaire souhaité"
+      },
+      "missing": "Pas encore dans votre profil",
+      "years_one": "{{count}} an",
+      "years_other": "{{count}} ans",
+      "moreSkills_one": "{{skills}} et {{count}} autre",
+      "moreSkills_other": "{{skills}} et {{count}} autres",
+      "built_one": "Profil construit à partir de votre CV · {{count}} information lue",
+      "built_other": "Profil construit à partir de votre CV · {{count}} informations lues",
+      "questionsStart": "J'ai lu votre CV. Je vous fais confirmer le poste et le lieu que j'y ai lus, puis je vous demande seulement ce qu'il ne dit pas. Vous pouvez passer ce qui ne vous concerne pas.",
+      "confirm": {
+        "targetRole": "Quel poste recherchez-vous ?",
+        "locations": "Où souhaitez-vous travailler ?",
+        "because": "C'est ce que j'ai lu dans votre CV."
+      },
+      "ask": {
+        "contractTypes": "Quel type de contrat recherchez-vous ?",
+        "remoteWorkOptions": "Quel rythme de télétravail vous convient ?",
+        "minSalary": "Quel salaire annuel brut minimum visez-vous ?"
+      }
     }
   },
   "onboardingSearch": {

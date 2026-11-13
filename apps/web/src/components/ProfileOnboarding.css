@@ -44,6 +44,17 @@
   resize: vertical;
 }
 
+/* « Profil en construction » (#1003): the fields read under the Stepper's one step, and, folded, under its line. */
+.onb-reading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.onb-read .ds-props {
+  margin-top: var(--space-3);
+}
+
 .onb-understanding {
   margin: var(--space-4) 0 0;
   color: var(--color-secondary);

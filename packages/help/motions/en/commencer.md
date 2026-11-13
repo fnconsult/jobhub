@@ -60,4 +60,4 @@ In the pane that opens beside the conversation, check your CV and search criteri
 - click button « That looks right »
 - click link « Continue to my profile »
 
-If the summary is right, click « That looks right », then « Continue to my profile ». Your first profile is ready: your coach can look for offers for you.
+If the summary is right, click « That looks right ». Your first job offers show in « Activity », at the end of the search on us your coach started: « In Activity » takes you there. Without waiting, click « Continue to my profile »: your first profile is ready.

@@ -60,4 +60,4 @@ Dans le volet qui s'ouvre à côté de la conversation, vérifiez votre CV et vo
 - click button « Cela semble correct »
 - click link « Continuer vers mon profil »
 
-Si le résumé est juste, cliquez sur « Cela semble correct », puis sur « Continuer vers mon profil ». Votre premier profil est prêt : votre coach peut chercher des offres pour vous.
+Si le résumé est juste, cliquez sur « Cela semble correct ». Vos premières offres s'affichent dans « Activité », à la fin de la recherche offerte que votre coach a lancée : « Dans l'activité » vous y mène. Sans attendre, cliquez sur « Continuer vers mon profil » : votre premier profil est prêt.

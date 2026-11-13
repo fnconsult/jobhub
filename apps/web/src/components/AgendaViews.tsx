@@ -1,7 +1,7 @@
 import { CancellationWindow } from "@/coaching-cancellations/Window";
 import type { Meeting } from "@jobhub/shared/coaching-meeting";
 import { MeetingLink } from "@/coach-space/MeetingLink";
-import { coachingTime } from "@jobhub/shared/coaching-time";
+import { coachingSessionOver, coachingTime } from "@jobhub/shared/coaching-time";
 import Link from "next/link";
 import { useId } from "react";
 import type { AgendaDay, AgendaItem, CoachingSessionAgendaItem, InterviewAgendaItem, UnscheduledCoachingSession } from "@/agenda";
@@ -78,6 +78,8 @@ export interface Formats {
   range: (first: string, last: string) => string;
   /** Whether an Agenda Item is past: before today, as in the list. */
   isPast: (item: AgendaItem) => boolean;
+  /** Whether a Coaching Session has ended (`coachingSessionOver`, #1026): it is then neither moved nor cancelled. */
+  over: (item: CoachingSessionAgendaItem) => boolean;
   /** When a date changed, and the dates changed from and to: "22 octobre 2026 à 14:30". */
   changedAt: Intl.DateTimeFormat;
   /** The day an item was cancelled, or a session paid: "22 octobre 2026". */
@@ -114,6 +116,7 @@ export function formatsFor(locale: string, now: Date, coachSpaceV2?: { timeZone?
     month: dayIn({ month: "long", year: "numeric" }),
     range: (first, last) => range.formatRange(noonOf(first), noonOf(last)),
     isPast: (item) => agendaPeriod(item.scheduledAt, now) === "past",
+    over: (item) => coachingSessionOver({ scheduledAt: item.scheduledAt, durationMinutes: item.durationMinutes ?? null }, now),
     changedAt: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", ...zone }),
     day: new Intl.DateTimeFormat(locale, { dateStyle: "long", ...zone }),
   };
@@ -435,7 +438,7 @@ function Items({ items, scope, withdrawable, formats, t }: { items: AgendaItem[]
 /**
  * A dated Coaching Session: its time, its Human Coach and duration, and « modifié par le coach » when
  * the Human Coach was the last to change its date, leading to them on the Human Coaches page;
- * its Reschedule history, and its date can be edited, or the session cancelled, here.
+ * its Reschedule history, and, until it has ended, its date can be edited, or the session cancelled, here.
  */
 function CoachingSessionItem({
   item,
@@ -452,6 +455,7 @@ function CoachingSessionItem({
   formats: Formats;
   t: T;
 }) {
+  const over = formats.over(item);
   return (
     <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"} data-kind={item.kind}>
       <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
@@ -477,33 +481,40 @@ function CoachingSessionItem({
           timeZone={formats.coachingZone}
         />
       ) : null}
-      <CancellationWindow at={formats.cancellationPolicy ? item.scheduledAt.toISOString() : null}>
-        <CoachingSessionDialog
-          coachSpaceV2={formats.coachSpaceV2}
-          withVideoLink={!formats.meetings}
-          session={{
-            id: item.id,
-            scheduledAt: interviewWallClock(item.scheduledAt),
-            durationMinutes: item.durationMinutes ?? null,
-            videoLink: item.videoLink ?? null,
-            note: item.note ?? null,
-          }}
-          withName={item.coach.name}
-          className={buttonClass({ variant: "quiet" })}
-        />
-      </CancellationWindow>
+      {/* Ended, it is neither moved nor cancelled (#1026), « Espace coach v2 » on or off: the routes refuse it too. */}
+      {over ? null : (
+        <CancellationWindow at={formats.cancellationPolicy ? item.scheduledAt.toISOString() : null}>
+          <CoachingSessionDialog
+            coachSpaceV2={formats.coachSpaceV2}
+            withVideoLink={!formats.meetings}
+            session={{
+              id: item.id,
+              scheduledAt: interviewWallClock(item.scheduledAt),
+              durationMinutes: item.durationMinutes ?? null,
+              videoLink: item.videoLink ?? null,
+              note: item.note ?? null,
+            }}
+            withName={item.coach.name}
+            className={buttonClass({ variant: "quiet" })}
+          />
+        </CancellationWindow>
+      )}
       {past ? null : (
         <CalendarFileLink item={item} scope={scope} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />
       )}
       <RescheduleHistory reschedules={item.reschedules} coachName={item.coach.name} dateTime={formats.changedAt} t={t} />
-      <CancellationWindow at={formats.cancellationPolicy ? item.scheduledAt.toISOString() : null}>
-        <CancelAgendaItemButton
-          url={`/api/coaching/sessions/${item.id}/cancel`}
-          label={t("agendaChanges.cancelSession")}
-          name={t("agendaChanges.cancelSessionFor", { name: item.coach.name })}
-          question={t(formats.cancellationPolicy ? "coachingCancellation.confirmationRefund" : "agendaChanges.cancelSessionConfirm")}
-        />
-      </CancellationWindow>
+      {over ? null : (
+        <CancellationWindow at={formats.cancellationPolicy ? item.scheduledAt.toISOString() : null}>
+          <CancelAgendaItemButton
+            url={`/api/coaching/sessions/${item.id}/cancel`}
+            label={t("agendaChanges.cancelSession")}
+            name={t("agendaChanges.cancelSessionFor", { name: item.coach.name })}
+            question={t(formats.cancellationPolicy ? "coachingCancellation.confirmationRefund" : "agendaChanges.cancelSessionConfirm")}
+            tooLate={t("coachingSession.over")}
+            session={{ scheduledAt: item.scheduledAt.toISOString(), durationMinutes: item.durationMinutes ?? null }}
+          />
+        </CancellationWindow>
+      )}
       {withdrawable ? <WithdrawalLink sessionId={item.id} coachName={item.coach.name} t={t} /> : null}
     </li>
   );

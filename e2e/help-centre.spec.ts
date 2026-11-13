@@ -48,7 +48,7 @@ test.describe("the Help Centre, for a Visitor", () => {
     await expect(article.getByRole("navigation", { name: fr.helpCentre.breadcrumb }).getByRole("link")).toHaveText([fr.helpCentre.title, fr.helpCentre.topics.extension.title]);
     // A tutorial's steps: a numbered list, the interface's labels word for word.
     const steps = article.locator(".help-centre__body ol > li");
-    await expect(steps).toHaveCount(6);
+    await expect(steps).toHaveCount(7);
     await expect(steps.nth(1)).toContainText(`« ${fr.extension.badge} »`);
     await expect(main(page).getByRole("heading", { name: fr.helpCentre.related })).toBeVisible();
     // Reached by a link: Next streams the page's <title> after its content, so axe waits for it (else « document-title »).
@@ -155,6 +155,7 @@ test.describe("« Découvrir Jobbbox », for a Visitor (#552)", () => {
     await expect(steps.nth(0)).toContainText(`« ${fr.signIn.submit} »`);
     await expect(steps.nth(3)).toContainText(`« ${fr.profiles.create} »`);
     await expect(steps.nth(5)).toContainText(`« ${fr.onboardingSummary.confirm} »`);
+    await expect(steps.nth(6)).toContainText(`« ${fr.aiActivity.history.inActivity} »`);
     expect(await axeViolations(page)).toEqual([]);
   });
 

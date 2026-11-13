@@ -22,7 +22,7 @@ test.describe("Task Playbook « Lire un email d'offres d'emploi »", () => {
     const r = run("task-playbooks-harness.ts", [], {});
     const playbooks = resultOf<{ id: string; aiTask: string; validatedAtImport: boolean; problems: string[] }[]>("TP_RESULT", r.stdout, r.stderr);
 
-    expect(playbooks.filter((p) => !p.validatedAtImport).map((p) => p.id)).toEqual(["job-offer-reading", "job-offer-email-reading", "onboarding-interview"]);
+    expect(playbooks.filter((p) => !p.validatedAtImport).map((p) => p.id)).toEqual(["job-offer-reading", "job-offer-email-reading", "onboarding-interview", "onboarding-summary-changes"]);
     expect(playbooks.find((p) => p.id === "job-offer-email-reading")).toMatchObject({ aiTask: "offer_email_reading", problems: [] });
   });
 });

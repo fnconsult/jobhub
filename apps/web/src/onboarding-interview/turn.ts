@@ -1,5 +1,6 @@
 /**
- * The onboarding interview the AI Coach leads without a CV (#1002, ADR-0106), as the page and the route share it: its
+ * The onboarding interview the AI Coach leads, without a CV (#1002, ADR-0106) or from what a CV read (#1003), as the page
+ * and the route share it: its
  * fields, a turn (what the coach asks, what it proposes, what it challenges), the Candidate's reply to a turn, and the
  * draft each reply makes. Pure, and safe in the browser.
  *
@@ -56,6 +57,21 @@ export const isInterviewField = (field: unknown): field is InterviewField => typ
 
 /** What a Profile cannot be born without (#999): never skipped. */
 export const REQUIRED_FIELDS: readonly InterviewField[] = ["targetRole", "locations"];
+/**
+ * With a CV (#1003), what the interview asks once the target role and a place are confirmed: what a CV does not say and
+ * the Match Score weighs. Each asked once, each skippable; nothing else, the CV giving the rest.
+ */
+export const AFTER_CV_FIELDS: readonly InterviewField[] = ["contractTypes", "remoteWorkOptions", "minSalary"];
+
+/**
+ * With a CV (#1003), the target role and places it read, sent beside the draft until the Candidate confirms them: they
+ * enter the draft only through « Oui, … » or the Candidate's own answer (ADR-0006).
+ */
+export interface CvRead {
+  targetRole: string;
+  locations: string[];
+}
+
 /** Never proposed: the AI cannot deduce who the Candidate is or how to reach them. */
 export const NOT_PROPOSED: readonly InterviewField[] = ["fullName", "email", "phone"];
 /** The fields answered by a choice, and their choices: the codes the Search Criteria take. */

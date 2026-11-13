@@ -32,14 +32,32 @@ In My account, under Profiles, click « Create my first profile ». Your coach w
 
 Drop your CV in the « I have a CV » card, as a PDF or a Word file, then click « Read my CV ». Without a CV, click « Answer my coach's questions » instead.
 
-## Check and save
+## Confirm what your coach read
+- fill label « Your answer » « Responsable comptable »
+- click button « Send to the coach »
+- fill label « Your answer » « Lyon »
+- click button « Send to the coach »
+- click button « Skip this question »
+- click button « Skip this question »
+- click button « Skip this question »
+
+While it reads, « Activity » shows what your coach finds in your CV, in the « Profile creation » row. It then has you confirm the target role and the place it read: click « Yes, … », or write your own. It then asks only what a CV does not say, the contract type, remote work and the minimum salary, and each question can be skipped with « Skip this question ».
+
+## Read the summary
+- zoom region « Your job search »
+- click button « See the details »
+
+Your coach sums up what it understood in the « Your job search » card. Click « See the details » to check your CV and search criteria.
+
+## Check the details
 - zoom complementary « Check your CV and your search criteria »
 - click checkbox « Permanent (CDI) »
-- click button « Save my profile »
 
-In the pane that opens beside the conversation, check your CV and search criteria, such as the « Target role » and the « Location ». Correct what needs it, here the contract type, then click « Save my profile ».
+In the pane that opens beside the conversation, check your CV and search criteria, such as the « Target role » and the « Location ». Correct what needs it, here the contract type: the summary updates.
 
 ## Your profile is ready
 - zoom off
+- click button « That looks right »
+- click link « Continue to my profile »
 
-Your first profile is ready: your coach can look for offers for you.
+If the summary is right, click « That looks right », then « Continue to my profile ». Your first profile is ready: your coach can look for offers for you.

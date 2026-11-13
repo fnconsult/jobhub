@@ -1,12 +1,14 @@
 import { TEST_BUILD_EXTENSION_ID, TEST_BUILD_EXTENSION_ORIGIN } from "@jobhub/shared/extension-test-build";
+import Link from "next/link";
 import { currentIsAdministrator } from "@/admin/server";
+import { testBuildTrust } from "@/auth/extension-origins";
 import { ExternalLink } from "@/components/ExternalLink";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Note } from "@/design/Note";
 import { Properties, Property } from "@/design/Properties";
 import { extensionTestBuild } from "@/extension-version";
-import { hasExtensionZip, recognisesTestBuild } from "@/extension-version/server";
+import { hasExtensionZip } from "@/extension-version/server";
 import { getServerT } from "@/i18n/server";
 import { extensionStorePage } from "@/platform-settings/extension-store";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
@@ -44,16 +46,21 @@ export default async function AccountToolsPage() {
   );
 }
 
+/** EXTENSION_ORIGINS' row on Paramètres › Environnement, which says the same of the test zip. */
+const ENVIRONMENT_TAB = "/admin/parametres?tab=environnement#setting-EXTENSION_ORIGINS";
+
 /**
  * « Dernière version de l'extension » (#920, decided in #913): the Extension Version this deployment carries and the
  * API Version it serves, its zip tied to this environment, served by this server (#989: apps/web/Dockerfile builds it
  * into the image, so no GitHub access is needed), and how to load it unpacked in Chrome. A server with no zip
  * (outside an image) says so. The zip's id is fixed (@jobhub/shared/extension-test-build): the Section says whether this
- * server's EXTENSION_ORIGINS lists it, without which the extension loaded reads the session but every Capture is refused.
+ * server trusts it and why, as Paramètres › Environnement does (testBuildTrust: listed in EXTENSION_ORIGINS, automatic
+ * outside Production, or not recognised, when the extension loaded reads the session but every Capture is refused).
  */
 async function ExtensionTestBuildSection({ t }: { t: Awaited<ReturnType<typeof getServerT>> }) {
   const build = extensionTestBuild(currentRelease());
   const available = await hasExtensionZip(build.zip);
+  const trust = testBuildTrust();
   return (
     <section className="stack" aria-labelledby="extension-test-build-title">
       <h3 id="extension-test-build-title">{t("account.tools.testBuild.title")}</h3>
@@ -65,13 +72,16 @@ async function ExtensionTestBuildSection({ t }: { t: Awaited<ReturnType<typeof g
           <code>{TEST_BUILD_EXTENSION_ID}</code>
         </Property>
       </Properties>
-      {recognisesTestBuild() ? (
-        <Note tone="success">{t("account.tools.testBuild.recognised")}</Note>
-      ) : (
+      {trust === "not_recognised" ? (
         <Note tone="warn" title={t("account.tools.testBuild.notRecognisedTitle")}>
           {t("account.tools.testBuild.notRecognised", { origin: TEST_BUILD_EXTENSION_ORIGIN })}
         </Note>
+      ) : (
+        <Note tone="success">{t(trust === "listed" ? "account.tools.testBuild.recognisedListed" : "account.tools.testBuild.recognisedAutomatic")}</Note>
       )}
+      <p>
+        <Link href={ENVIRONMENT_TAB}>{t("account.tools.testBuild.seeEnvironment")}</Link>
+      </p>
       {available ? (
         <div className="actions">
           <a className={buttonClass({ variant: "secondary" })} href={build.downloadUrl} download={build.zip}>

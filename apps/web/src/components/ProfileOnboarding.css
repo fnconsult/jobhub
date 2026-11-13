@@ -1,0 +1,50 @@
+/* Creating a Profile (ADR-0106): the onboarding's own cards in the thread. Beside its component (ADR-0053), from the
+   prototype of #995 (`prototype/onboarding`, never merged). */
+
+/* The summary (#1004): a paragraph in plain words, its key items strong. */
+.onb-summary {
+  margin: 0;
+  font-size: var(--font-size-lead);
+  line-height: var(--line-height-body);
+}
+
+.onb-summary strong {
+  font-weight: 600;
+}
+
+.onb-summary-empty {
+  margin: 0;
+  color: var(--color-secondary);
+}
+
+/* « Voir le détail » at the start, the buttons at the end; they wrap on a phone. */
+.onb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: var(--space-6);
+}
+
+.onb-actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.onb-detail-link {
+  margin-right: auto;
+}
+
+/* « Modifier » (#1005): the summary as plain text, to rewrite in the Candidate's own words, in the Design System's
+   Field and Textarea; only its height here. */
+.onb-textarea {
+  min-height: 11rem;
+  resize: vertical;
+}
+
+.onb-understanding {
+  margin: var(--space-4) 0 0;
+  color: var(--color-secondary);
+}

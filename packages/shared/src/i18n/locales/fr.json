@@ -702,9 +702,11 @@
         "extensionVersion": "Version de l'extension",
         "apiVersion": "Version d'API servie",
         "extensionId": "Identifiant de l'extension",
-        "recognised": "Ce serveur reconnaît ce zip : une fois chargé, l'extension capture et envoie ses erreurs à Jobbbox.",
+        "recognisedListed": "Ce serveur reconnaît ce zip : son origine est listée dans le réglage de déploiement EXTENSION_ORIGINS. Une fois chargé, l'extension capture et envoie ses erreurs à Jobbbox.",
+        "recognisedAutomatic": "Ce serveur reconnaît ce zip automatiquement, hors production : une fois chargé, l'extension capture et envoie ses erreurs à Jobbbox, sans rien ajouter à EXTENSION_ORIGINS.",
         "notRecognisedTitle": "Ce serveur ne reconnaît pas encore ce zip",
-        "notRecognised": "Une fois chargée, l'extension lirait votre session mais ne pourrait rien capturer : Jobbbox refuserait ses envois. Ajoutez {{origin}} au réglage de déploiement EXTENSION_ORIGINS de cet environnement, puis redéployez.",
+        "notRecognised": "Une fois chargée, l'extension lirait votre session mais ne pourrait rien capturer : Jobbbox refuserait ses envois. En production, ce zip n'est reconnu que si {{origin}} est ajouté au réglage de déploiement EXTENSION_ORIGINS, puis l'environnement redéployé.",
+        "seeEnvironment": "Paramètres › Environnement montre aussi EXTENSION_ORIGINS et pourquoi ce zip est reconnu ou non.",
         "download": "Télécharger {{zip}}",
         "unavailable": "Ce serveur ne sert pas de zip de l'extension : seule l'image d'un déploiement contient {{zip}}. En local, construisez-le avec npm run zip -w @jobhub/extension (ou zip:beta).",
         "stepsLabel": "Charger l'extension dans Chrome",
@@ -1076,7 +1078,6 @@
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
-    "intro": "Voici ce que nous avons lu dans votre CV. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
     "searchCriteria": "Critères de recherche",
     "targetRole": "Poste recherché",
     "location": "Lieu",
@@ -1139,7 +1140,6 @@
     "invalidValue": "Cette valeur n'est pas valide.",
     "tooLong": "Ce champ ne peut pas dépasser {{max}} caractères.",
     "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer.",
-    "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil.",
     "locations": "Lieux",
     "locationsHint": "Jusqu'à 5 lieux : une offre proche de l'un d'eux vous correspond.",
     "removeLocation": "Retirer {{place}}",
@@ -1335,6 +1335,79 @@
     "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Les modifier ne renomme pas le profil.",
     "archived": "Ce profil est archivé : restaurez-le pour modifier ses critères de recherche."
   },
+  "profileSummary": {
+    "search": "Vous recherchez un poste de {{role}}",
+    "searchElided": "Vous recherchez un poste d'{{role}}",
+    "searchWithoutRole": "Vous recherchez un poste",
+    "contracts": " en {{contracts}}",
+    "locations_one": " ; lieu : {{locations}}",
+    "locations_other": " ; lieux : {{locations}}",
+    "remote": ", {{remote}}",
+    "salary": ", à partir de {{salary}} brut par an",
+    "end": ".",
+    "contractTypes": {
+      "cdi": "CDI",
+      "cdd": "CDD",
+      "freelance": "freelance",
+      "interim": "intérim"
+    },
+    "remoteWorkOptions": {
+      "on_site": "sur site",
+      "hybrid": "en télétravail partiel",
+      "full_remote": "en télétravail complet"
+    },
+    "years_one": "{{count}} an d'expérience",
+    "years_other": "{{count}} ans d'expérience",
+    "experienceAndSkills_one": "Avec {{years}}, vous mettez en avant votre compétence {{skills}}.",
+    "experienceAndSkills_other": "Avec {{years}}, vous mettez en avant vos compétences {{skills}}.",
+    "experience": "Vous avez {{years}}.",
+    "skills_one": "Vous mettez en avant votre compétence {{skills}}.",
+    "skills_other": "Vous mettez en avant vos compétences {{skills}}.",
+    "roleAt": "{{title}} chez {{employer}}",
+    "latestRoles_one": "Votre dernier poste : {{roles}}.",
+    "latestRoles_other": "Vos derniers postes : {{roles}}.",
+    "or": {
+      "two": " ou ",
+      "last": " ou "
+    },
+    "and": {
+      "two": " et ",
+      "last": " et "
+    }
+  },
+  "onboardingSummary": {
+    "question": "Voici comment je comprends ce que vous recherchez. Ai-je bien compris ?",
+    "title": "Votre recherche d'offres",
+    "empty": "Je ne sais encore rien de ce que vous recherchez : ouvrez « Voir le détail » pour l'indiquer.",
+    "detail": "Voir le détail",
+    "edit": "Modifier",
+    "confirm": "Cela semble correct",
+    "confirming": "Enregistrement…",
+    "invalid": "Certains champs sont à compléter ou à corriger : {{fields}}. Corrigez-les dans « Voir le détail ».",
+    "saved": "C'est noté : votre profil est enregistré, avec ses critères de recherche et son CV de référence.",
+    "toProfile": "Continuer vers mon profil",
+    "editing": "Modification",
+    "editLabel": "Votre recherche d'offres, avec vos mots",
+    "editHint": "Écrivez-le comme vous l'expliqueriez à un recruteur.",
+    "cancel": "Annuler",
+    "done": "Terminé",
+    "understanding": "Je relis votre texte…",
+    "understood": "J'ai compris : {{changes}}",
+    "validate": "Valider ces changements",
+    "other": "Le reste (une compétence, une expérience, un poste occupé) ne se change pas ici : utilisez « Voir le détail ».",
+    "changes": {
+      "targetRole": "Poste recherché : {{value}}",
+      "salary": "Salaire minimum : {{value}}",
+      "noSalary": "− Salaire minimum"
+    },
+    "notices": {
+      "applied": "C'est noté : voici votre résumé mis à jour. Ai-je bien compris ?",
+      "unchanged": "Je ne vois aucun changement de vos critères de recherche : votre résumé reste tel quel.",
+      "other": "Je ne vois aucun changement de vos critères de recherche. Une compétence, une expérience ou un poste occupé ne se change pas ici : utilisez « Voir le détail ».",
+      "unusable": "Je n'ai pas réussi à traduire votre texte en changements de critères : votre résumé reste tel quel. Réessayez, ou utilisez « Voir le détail ».",
+      "tooManyPlaces": "Au plus {{max}} lieux par profil : retirez-en avant d'en ajouter. Votre résumé reste tel quel."
+    }
+  },
   "newProfile": {
     "title": "Créer un profil",
     "intro": "Je vous aide à construire votre CV de référence et vos critères de recherche. Importez votre CV, ou, si vous n'en avez pas à jour, répondez à mes questions : vous pourrez tout vérifier et corriger avant d'enregistrer.",
@@ -1342,9 +1415,9 @@
     "withoutCvIntro": "Je vous pose mes questions une à une. Quand je peux deviner une réponse, je vous la propose : rien n'entre dans votre profil sans votre réponse ou votre accord. Vous pouvez passer ce qui ne vous concerne pas.",
     "startQuestionnaire": "Répondre aux questions de mon coach",
     "conversation": "Créer un profil avec votre coach",
-    "openReview": "Relire et enregistrer",
     "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
     "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
+    "savedOnly": "Votre profil est enregistré : cliquez sur « Continuer vers mon profil » pour l'ouvrir. Vous pourrez m'en parler sur sa page.",
     "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
     "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
     "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",
@@ -1353,6 +1426,35 @@
       "no": "Non, plutôt…",
       "proposal": "Je propose : {{value}}. {{because}}",
       "fallback": "Je continue avec mes questions habituelles, sans l'IA : je ne vous redemande pas ce que vous m'avez déjà dit."
+    },
+    "fromCv": {
+      "building": "Profil en construction",
+      "readingStep": "Lecture de votre profil",
+      "fields": {
+        "targetRole": "Poste visé",
+        "experience": "Expérience en années",
+        "location": "Basé à",
+        "skills": "Compétences",
+        "contractTypes": "Types de contrat",
+        "minSalary": "Salaire souhaité"
+      },
+      "missing": "Pas encore dans votre profil",
+      "years_one": "{{count}} an",
+      "years_other": "{{count}} ans",
+      "moreSkills_one": "{{skills}} et {{count}} autre",
+      "moreSkills_other": "{{skills}} et {{count}} autres",
+      "questionsStart": "J'ai lu votre CV. Je vous fais confirmer le poste et le lieu que j'y ai lus, puis je vous demande seulement ce qu'il ne dit pas. Vous pouvez passer ce qui ne vous concerne pas.",
+      "confirm": {
+        "targetRole": "Quel poste recherchez-vous ?",
+        "locations": "Où souhaitez-vous travailler ?",
+        "because": "C'est ce que j'ai lu dans votre CV."
+      },
+      "ask": {
+        "contractTypes": "Quel type de contrat recherchez-vous ?",
+        "remoteWorkOptions": "Quel rythme de télétravail vous convient ?",
+        "minSalary": "Quel salaire annuel brut minimum visez-vous ?"
+      },
+      "reading": "Je lis votre CV. Suivez la lecture dans « Activité » : ce que j'y trouve s'y affiche, et ce qui manque encore."
     }
   },
   "onboardingSearch": {
@@ -1424,7 +1526,6 @@
       "required": "Cette réponse est nécessaire pour créer votre profil.",
       "yes_or_no": "Répondez par oui ou par non."
     },
-    "reviewIntro": "Voici votre CV de référence et vos critères de recherche, construits à partir de vos réponses. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
     "startOver": "Recommencer"
   },
   "coachPanel": {
@@ -2679,7 +2780,12 @@
         "unreadable": "Défini, illisible",
         "keyVersions": "Défini (versions : {{versions}})",
         "mailToConsole": "MAIL_TRANSPORT=console : les e-mails ne partent pas, ils sont seulement écrits dans la sortie du serveur.",
-        "why": "Pourquoi ces réglages restent-ils dans l'environnement ?"
+        "why": "Pourquoi ces réglages restent-ils dans l'environnement ?",
+        "testBuild": {
+          "listed": "Origine du zip de test ({{origin}}) : listée",
+          "automatic": "Origine du zip de test ({{origin}}) : automatique hors production",
+          "not_recognised": "Origine du zip de test ({{origin}}) : non reconnue"
+        }
       },
       "elsewhere": {
         "title": "Réglés dans leur propre section",
@@ -2808,7 +2914,8 @@
         "why": "Pourquoi dans l'environnement",
         "kinds": {
           "bootstrap": "Nécessaire au démarrage, avant que la base de données soit lue, ou pour ouvrir ce qu'elle garde.",
-          "read_only": "Encore lu dans l'environnement : pas encore réglable dans le back office."
+          "read_only": "Encore lu dans l'environnement : pas encore réglable dans le back office.",
+          "deployment_only": "Réglé au déploiement, jamais dans le back office : il décide quelles extensions agissent avec la session d'un candidat."
         },
         "retired": {
           "title": "Variables qui ne servent plus",
@@ -2868,6 +2975,7 @@
         "REVIEW_SIGN_IN": "Code de revue des stores allumé (on)",
         "REVIEW_SIGN_IN_EMAILS": "Comptes de démonstration du code de revue des stores",
         "REVIEW_SIGN_IN_CODE": "Code de revue des stores",
+        "EXTENSION_ORIGINS": "Extensions reconnues (origines chrome-extension://)",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
@@ -5512,6 +5620,7 @@
     "cv_reading_fallback": "CV lu par les règles, sans l'IA",
     "onboarding_interview_fallback": "Entretien d'accueil poursuivi par les questions écrites, sans l'IA",
     "tailored_cv_refused": "Réponse refusée : aucun Tailored CV proposé à partir d'elle",
+    "summary_changes_unusable": "Réécriture du résumé non comprise : le résumé reste tel quel",
     "match_score_text_unread": "Texte de l'offre non lu : Match Score sur ses seules données structurées",
     "match_score_too_slow": "Lecture de l'offre trop lente : Match Score sur ses seules données structurées",
     "test_failed": "Test de connexion échoué",
@@ -5636,6 +5745,7 @@
       "profile_creation": "Création du profil",
       "questionnaire": "Questionnaire d'accueil",
       "review": "Relecture",
+      "summary_changes": "Modification du résumé",
       "profile_created": "Profil créé"
     },
     "live": {

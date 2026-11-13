@@ -196,3 +196,87 @@ describe("the next turn from the AI (#1002): task onboarding_interview, its Prov
     expect(interviewInputSchema.safeParse({ language: "fr", draft: BORN, exchange: [{ ask: { field: "age", question: "?" }, reply: { kind: "skipped" } }] }).success).toBe(false);
   });
 });
+
+describe("the interview from a CV (#1003): the target role and place read to confirm, then only what a CV does not say", () => {
+  const CV_MASTER = {
+    ...BLANK_MASTER_CV,
+    fullName: "Marie Dupont",
+    headline: "Directrice financière",
+    experience: [{ title: "DAF", employer: "Groupe Seb", location: "Lyon", period: "2015 – 2024", description: "Consolidation." }],
+    skills: ["Consolidation", "IFRS"],
+  };
+  const FROM_CV = interviewDraft({ masterCv: CV_MASTER, searchCriteria: { targetRole: "", locations: [] } });
+  const READ = { targetRole: "Directrice financière", locations: ["Lyon"] };
+  const usage = createMemoryUsageLog();
+  const turnFrom = (exchange: ExchangeTurn[], draft: InterviewDraft, reply: string | Error = "{}", read = READ) => {
+    const provider = reply instanceof Error ? createFakeProvider({ id: "mistral", fail: reply }) : createFakeProvider({ id: "mistral", reply });
+    const ai = createAiLayer({ providers: [provider], routes: { onboarding_interview: "mistral" }, usage });
+    const input = interviewInputSchema.parse({ language: "fr", draft, exchange, cv: read });
+    return { provider, next: nextInterviewTurn(input, { ai: () => ai, candidateId: "cand-1", places, industries: async () => NO_INDUSTRY_REFERENCE }) };
+  };
+  const confirmed = (field: string, value: unknown, shown: string): ExchangeTurn => ({ ask: { field: field as never, question: "?" }, proposal: { field: field as never, value: value as never, shown }, reply: { kind: "accepted" } });
+  const skipped = (field: string): ExchangeTurn => ({ ask: { field: field as never, question: "?" }, reply: { kind: "skipped" } });
+
+  it("proposes the target role read, then the place read, to confirm, without calling the AI; never skippable", async () => {
+    const role = turnFrom([], FROM_CV);
+    const first = await role.next;
+    expect(role.provider.calls).toHaveLength(0);
+    expect(first).toEqual({
+      turn: {
+        ask: { field: "targetRole", question: "Quel poste recherchez-vous ?", kind: "text", optional: false },
+        proposal: { field: "targetRole", value: "Directrice financière", because: "C'est ce que j'ai lu dans votre CV.", shown: "Directrice financière" },
+        done: false,
+      },
+      provenance: null,
+    });
+    const withRole = replied(FROM_CV, first!.turn, { kind: "accepted" });
+    const place = turnFrom([confirmed("targetRole", "Directrice financière", "Directrice financière")], withRole);
+    expect((await place.next)?.turn).toMatchObject({ ask: { field: "locations", question: "Où souhaitez-vous travailler ?", optional: false }, proposal: { value: ["Lyon"], shown: "Lyon" } });
+    expect(place.provider.calls).toHaveLength(0);
+  });
+
+  it("asks the AI the target role when the CV read none, or once the Candidate said « Non, plutôt… » to it", async () => {
+    const none = turnFrom(
+      [],
+      FROM_CV,
+      '{"ask":{"field":"targetRole","question":"Quel poste visez-vous ?","kind":"text"},"proposal":{"field":"targetRole","value":"Directrice financière","because":"Votre dernier poste."},"done":false}',
+      { targetRole: "", locations: ["Lyon"] },
+    );
+    expect((await none.next)?.turn).toMatchObject({ ask: { field: "targetRole", question: "Quel poste visez-vous ?" }, proposal: { value: "Directrice financière" } });
+    expect(none.provider.calls).toHaveLength(1);
+    const declined: ExchangeTurn = { ...confirmed("targetRole", "Directrice financière", "Directrice financière"), reply: { kind: "answer", text: "Finance", declined: true } };
+    const again = turnFrom([declined], FROM_CV, '{"ask":{"field":"targetRole","question":"Quel intitulé exactement ?","kind":"text"},"done":false}');
+    expect((await again.next)?.turn.ask.question).toBe("Quel intitulé exactement ?");
+  });
+
+  it("then asks only the contracts, remote work and minimum salary, each once, skippable, the AI's deduction kept on its own field", async () => {
+    const born = { ...FROM_CV, searchCriteria: { ...FROM_CV.searchCriteria, targetRole: "Directrice financière", locations: ["Lyon"] } };
+    const asked = [confirmed("targetRole", "Directrice financière", "Directrice financière"), confirmed("locations", ["Lyon"], "Lyon")];
+    // The AI asks about the CV's skills: the code asks the first field a CV does not say instead, its deduction dropped.
+    const skills = turnFrom(asked, born, '{"ask":{"field":"skills","question":"Vos compétences ?","kind":"text"},"proposal":{"field":"skills","value":["Excel"],"because":"?"},"done":true}');
+    expect((await skills.next)?.turn).toEqual({
+      ask: { field: "contractTypes", question: "Quel type de contrat recherchez-vous ?", kind: "choice", choices: ["cdi", "cdd", "freelance", "interim"], optional: true },
+      done: false,
+    });
+    const sent = JSON.stringify(skills.provider.calls[0]);
+    expect(sent).toContain("ne lui demande rien de ce que son CV donne déjà");
+    expect(sent).toContain("contractTypes, remoteWorkOptions, minSalary");
+    expect(sent).not.toContain("Marie Dupont");
+
+    const contract = turnFrom(asked, born, '{"ask":{"field":"contractTypes","question":"Un CDI ?","kind":"choice"},"proposal":{"field":"contractTypes","value":["cdi"],"because":"Votre parcours."},"done":false}');
+    expect((await contract.next)?.turn).toMatchObject({ ask: { field: "contractTypes", question: "Un CDI ?", optional: true }, proposal: { value: ["cdi"], shown: "CDI" } });
+
+    // The AI down: the code asks the next one itself, no scripted questionnaire.
+    const salary = turnFrom([...asked, skipped("contractTypes"), skipped("remoteWorkOptions")], born, new AiProviderError("mistral", "HTTP 503", 503));
+    expect(await salary.next).toEqual({ turn: { ask: { field: "minSalary", question: "Quel salaire annuel brut minimum visez-vous ?", kind: "text", optional: true }, done: false }, provenance: null });
+
+    const over = turnFrom([...asked, skipped("contractTypes"), skipped("remoteWorkOptions"), skipped("minSalary")], born);
+    expect((await over.next)?.turn.done).toBe(true);
+    expect(over.provider.calls).toHaveLength(0);
+  });
+
+  it("lets an AI turn with a CV through only on the fields left, never done before they are asked", async () => {
+    const turn = await checkedTurn(aiTurn({ ask: { field: "summary", question: "?", kind: "text" }, done: true }), BORN, [], deps, ["remoteWorkOptions", "minSalary"]);
+    expect(turn).toMatchObject({ ask: { field: "remoteWorkOptions", kind: "choice" }, done: false });
+  });
+});

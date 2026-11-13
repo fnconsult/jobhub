@@ -47,9 +47,18 @@ const CV_FILE_ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformat
  * Uploading a PDF or Word CV and reading it into a draft, in the Design System's File upload (#468): dropped or
  * chosen, refused at once when the File upload's rules say so. Saves nothing. The AI Coach's reading shows live, on
  * the file's row and in AI Activity, and the Candidate can stop it (#335): nothing is then drafted. Without a CV, the
- * Candidate starts from scratch (`onFromScratch`).
+ * Candidate starts from scratch (`onFromScratch`). `onReading` hears the reading start and end.
  */
-export function CvUpload({ onDraft, onFromScratch }: { onDraft: (draft: CvDraft) => void; onFromScratch?: () => void }) {
+export function CvUpload({
+  onDraft,
+  onFromScratch,
+  onReading,
+}: {
+  onDraft: (draft: CvDraft) => void;
+  onFromScratch?: () => void;
+  /** Told when the reading starts and when it ends (read, stopped or failed): « Profil en construction » follows it (#1003). */
+  onReading?: (reading: boolean) => void;
+}) {
   const { t, i18n } = useTranslation();
   const action = useStreamedAction("cv_reading");
   const [chosen, setChosen] = useState(false);
@@ -61,7 +70,9 @@ export function CvUpload({ onDraft, onFromScratch }: { onDraft: (draft: CvDraft)
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setState({});
+    onReading?.(true);
     const outcome = await action.run("/api/cv/draft", { method: "POST", body: form });
+    onReading?.(false);
     if (outcome.ok) onDraft(outcome.body as unknown as CvDraft);
     else if (outcome.stopped) setState({ stoppedAt: outcome.at });
     else setState({ error: FILE_ERRORS.has(String(outcome.body.error)) ? (outcome.body.error as CvFileErrorCode) : "unknown" });
@@ -139,6 +150,76 @@ export interface BornProfile {
   version: number;
 }
 
+/** Why a reviewed draft was not saved: its field errors, the Plan Quota (with its Upgrade Prompt), or a failure. */
+export interface SaveRefusal {
+  errors: ProfileFieldError[];
+  failed: boolean;
+  quotaReached: boolean;
+  upgradePrompt: Prompt | null;
+}
+
+/** A reviewed draft saved, at its Profile's page, or refused. */
+export type SaveOutcome = { ok: true; href: string } | { ok: false; refusal: SaveRefusal };
+
+/**
+ * Saving a reviewed draft (`edits`, what the review shows), as the review form's « Enregistrer mon profil » and the
+ * summary's « Cela semble correct » (#1004) both do. When the Profile was born during the onboarding (`born`, #999), its
+ * Search Criteria are changed as on its page, then one Master CV Version finishes it; otherwise the Profile is created,
+ * its onboarding done.
+ */
+export async function saveReviewedProfile({
+  draft,
+  edits,
+  born: bornProfile,
+}: {
+  draft: CvDraft;
+  edits: ReviewEdits;
+  born?: () => Promise<BornProfile | null>;
+}): Promise<SaveOutcome> {
+  const { masterCv } = edits;
+  const searchCriteria = searchCriteriaInput(edits.criteria);
+  const saved = (id: string): SaveOutcome => ({ ok: true, href: routes.profile(id) });
+  const refused = (body: { errors?: unknown }): SaveOutcome => ({
+    ok: false,
+    refusal: { errors: Array.isArray(body.errors) ? body.errors : [], failed: !Array.isArray(body.errors), quotaReached: false, upgradePrompt: null },
+  });
+  try {
+    const born = (await bornProfile?.()) ?? null;
+    if (born) {
+      // Born during the onboarding (#999): its Search Criteria changed as on its page, then one Master CV Version.
+      const changed = await fetch(`/api/profiles/${born.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) });
+      if (!changed.ok) return refused(await changed.json().catch(() => ({})));
+      const finished = await fetch(`/api/profiles/${born.id}/onboarding`, {
+        method: "POST",
+        headers: JSON_BODY,
+        body: JSON.stringify({ masterCv, basedOnVersion: born.version }),
+      });
+      if (finished.ok) return saved(born.id);
+      return refused(await finished.json().catch(() => ({})));
+    }
+    const response = await fetch("/api/profiles", {
+      method: "POST",
+      headers: JSON_BODY,
+      // What read the CV, when the AI Coach did (#335): kept with the Master CV's first version.
+      body: JSON.stringify({ masterCv, searchCriteria, onboarding: ONBOARDING_DONE, ...(draft.provenance ? { provenance: draft.provenance } : {}) }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 201) return saved(body.id);
+    const quotaReached = body.error === "plan_quota_reached";
+    return {
+      ok: false,
+      refusal: {
+        errors: Array.isArray(body.errors) ? body.errors : [],
+        failed: !Array.isArray(body.errors) && !quotaReached,
+        quotaReached,
+        upgradePrompt: quotaReached ? upgradePromptIn(body) : null,
+      },
+    };
+  } catch {
+    return { ok: false, refusal: { errors: [], failed: true, quotaReached: false, upgradePrompt: null } };
+  }
+}
+
 /**
  * Reviewing a draft Master CV and Search Criteria, whether read from an uploaded
  * CV, built by the Onboarding Questionnaire or left blank to start from scratch,
@@ -162,7 +243,8 @@ export function CvReview(props: {
   const router = useRouter();
   const [review, setReview] = useState<ReviewState>(() => ({
     masterCv: props.kept?.masterCv ?? props.draft.masterCv,
-    criteria: props.kept?.criteria ?? criteriaFieldsOf({ targetRole: props.draft.searchCriteria.targetRole, locations: props.draft.searchCriteria.locations }),
+    // The whole Search Criteria the draft holds: a resumed Profile's contracts, salary… as well as its role and places.
+    criteria: props.kept?.criteria ?? criteriaFieldsOf(props.draft.searchCriteria),
     saving: false,
     errors: [],
     failed: false,
@@ -178,48 +260,11 @@ export function CvReview(props: {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const { criteria, masterCv } = review;
-    const searchCriteria = searchCriteriaInput(criteria);
     update({ saving: true, failed: false, quotaReached: false, upgradePrompt: null, errors: [] });
-    const done = (id: string) => {
-      props.onSaved?.(routes.profile(id));
-      router.push(routes.profile(id));
-    };
-    const refused = (body: { errors?: unknown }) =>
-      update({ saving: false, errors: Array.isArray(body.errors) ? body.errors : [], failed: !Array.isArray(body.errors) });
-    try {
-      const born = (await props.born?.()) ?? null;
-      if (born) {
-        // Born during the onboarding (#999): its Search Criteria changed as on its page, then one Master CV Version.
-        const changed = await fetch(`/api/profiles/${born.id}`, { method: "PATCH", headers: JSON_BODY, body: JSON.stringify({ searchCriteria }) });
-        if (!changed.ok) return refused(await changed.json().catch(() => ({})));
-        const finished = await fetch(`/api/profiles/${born.id}/onboarding`, {
-          method: "POST",
-          headers: JSON_BODY,
-          body: JSON.stringify({ masterCv, basedOnVersion: born.version }),
-        });
-        if (finished.ok) return done(born.id);
-        return refused(await finished.json().catch(() => ({})));
-      }
-      const response = await fetch("/api/profiles", {
-        method: "POST",
-        headers: JSON_BODY,
-        // What read the CV, when the AI Coach did (#335): kept with the Master CV's first version.
-        body: JSON.stringify({ masterCv, searchCriteria, onboarding: ONBOARDING_DONE, ...(props.draft.provenance ? { provenance: props.draft.provenance } : {}) }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (response.status === 201) return done(body.id);
-      const quotaReached = body.error === "plan_quota_reached";
-      update({
-        saving: false,
-        errors: Array.isArray(body.errors) ? body.errors : [],
-        failed: !Array.isArray(body.errors) && !quotaReached,
-        quotaReached,
-        upgradePrompt: quotaReached ? upgradePromptIn(body) : null,
-      });
-    } catch {
-      update({ saving: false, failed: true });
-    }
+    const outcome = await saveReviewedProfile({ draft: props.draft, edits: review, ...(props.born ? { born: props.born } : {}) });
+    if (!outcome.ok) return update({ saving: false, ...outcome.refusal });
+    props.onSaved?.(outcome.href);
+    router.push(outcome.href);
   }
 
   const fieldLabels = useSearchCriteriaLabels();

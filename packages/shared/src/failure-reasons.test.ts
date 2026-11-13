@@ -115,6 +115,7 @@ describe("Failure Reason catalog", () => {
       "cv_reading_fallback",
       "onboarding_interview_fallback",
       "tailored_cv_refused",
+      "summary_changes_unusable",
       "match_score_text_unread",
       "match_score_too_slow",
       "test_failed",
@@ -232,6 +233,7 @@ describe("Failure Reason catalog", () => {
       "cv_reading_fallback",
       "onboarding_interview_fallback",
       "tailored_cv_refused",
+      "summary_changes_unusable",
       "match_score_text_unread",
       "match_score_too_slow",
     ]);

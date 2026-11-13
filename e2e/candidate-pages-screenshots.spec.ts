@@ -10,7 +10,7 @@ import {
 import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
-import { chooseInTopBarMore } from "./support/conversation";
+import { chooseInTopBarMore, unfoldedEntryOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
@@ -709,6 +709,89 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       await expect(upload.locator(".ds-upload__step")).toHaveCount(0);
     });
   }
+
+  // Issue #1003 (ADR-0106): a CV read on « Créer un profil » shows in Activité, not in the thread (which says so in one
+  // line of the coach). On a computer, the side panel opens by itself as the reading starts: « Lecture de votre profil »
+  // under way in « En ce moment » (the fake reading takes 30 s: E2E_CV_SLOW); once read, « Création du profil »'s part
+  // « Lecture du CV » with the fields read, those a CV does not give said absent in italics. The motion is reduced, so the
+  // fields show at once and the glyphs stand still; the time so far and the times of day are fixed or masked.
+  test("a CV read in Activité: « Lecture de votre profil » in « En ce moment », then the fields read (#1003)", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const desktop = SCREENSHOT_WIDTHS.find((each) => each.name === "desktop")!;
+    await signInWithMagicLink(page, newAddress("shots-cv-reading"));
+    await page.setViewportSize({ width: desktop.width, height: 1400 });
+    await page.goto("/profils/nouveau");
+    await page.waitForLoadState("networkidle");
+    const icon = page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
+    await expect(icon).toHaveAttribute("aria-expanded", "false");
+    await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({
+      name: "CV-Marie-Dupont.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from(pdfCv([...MARIE_DUPONT_CV, "Divers", "E2E_CV_SLOW"])),
+    });
+    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    // Opened by itself on a wide screen, as for the offered search (#1001).
+    await expect(icon).toHaveAttribute("aria-expanded", "true");
+    const activity = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
+    const now = activity.getByRole("region", { name: fr.aiActivity.live.now });
+    await expect(now.getByRole("list", { name: fr.newProfile.fromCv.building })).toBeVisible();
+    await expect(page.getByText(fr.newProfile.fromCv.reading)).toBeVisible();
+    await check(page, page.locator("body"), "body", "cv-reading-activity-now", desktop.width, false);
+
+    await expect(page.getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 60_000 });
+    const entry = await unfoldedEntryOf(page, new RegExp(`^${fr.aiActivity.kinds.profile_creation}$`));
+    const part = entry.locator('[data-kind="cv_reading"]');
+    await expect(part.getByRole("term")).toHaveCount(6);
+    await expect(part.getByRole("definition").filter({ hasText: fr.newProfile.fromCv.missing })).toHaveCount(2);
+    await fixTimesOfDay(page);
+    await check(page, page.locator("body"), "body", "cv-reading-activity-read", desktop.width, false);
+  });
+
+  // Issue #1004 (ADR-0106): at the end of creating a Profile, « Ai-je bien compris ? » and the summary Jobbbox composes, its
+  // key items strong, « Voir le détail », « Modifier » and « Cela semble correct ». A Profile born and not finished is
+  // resumed at it; its jobs dated to a closed year, so the years of experience do not change from one year to the next.
+  test("the onboarding's summary: « Ai-je bien compris ? » and its card (#1004)", async ({
+    page,
+  }) => {
+    await signInWithMagicLink(page, newAddress("shots-onboarding-summary"));
+    const created = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: {
+        masterCv: {
+          ...profileMasterCv,
+          experience: profileMasterCv.experience.map((job) => ({
+            ...job,
+            period: job.period.replace("aujourd'hui", "2025"),
+          })),
+        },
+        searchCriteria: {
+          targetRole: "Directrice administrative et financière",
+          locations: ["Lyon", "Grenoble"],
+          minSalary: 85000,
+          contractTypes: ["cdi"],
+          remoteWorkOptions: ["hybrid"],
+        },
+        onboarding: "in_progress",
+      },
+    });
+    expect(created.status(), await created.text()).toBe(201);
+    const { id } = await created.json();
+    // The welcome panel closed for good (« Ne plus afficher »): the thread opens on the summary, not on the panel.
+    await page.goto(`/profils/nouveau?profil=${id}`);
+    await page.getByRole("button", { name: fr.conversationFirst.closeWelcome }).click();
+    for (const { name, width } of SCREENSHOT_WIDTHS) {
+      // A screen tall enough for the whole card in the thread, which scrolls within the page.
+      await page.setViewportSize({ width, height: 1400 });
+      await page.goto(`/profils/nouveau?profil=${id}`);
+      await page.waitForLoadState("networkidle");
+      await expect(
+        page.getByRole("region", { name: fr.onboardingSummary.title }),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: fr.conversationFirst.closeWelcome })).toHaveCount(0);
+      await check(page, page.locator("#main"), "#main", `onboarding-summary-${name}`, width);
+    }
+  });
 
   // Issue #808 (ADR-0086), #980: the side panel's « Activité » view holds Activity's history, by day, one row per
   // entry, an entry unfolding its detail. On a Profile's page, « Création du profil » (#810): Version 1 of its Master CV and

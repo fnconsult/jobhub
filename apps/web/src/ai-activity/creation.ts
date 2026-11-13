@@ -12,22 +12,30 @@
  */
 import type { Provenance } from "@jobhub/shared";
 import { routes } from "../routes";
+import type { ReadFieldValue } from "./cv-reading";
 import type { CreationGiven } from "./entries";
 
 /**
  * What the creation page says as the Candidate goes: a creation started (or started over: nothing known), the CV read
  * with its draft's Provenance, the interview's answers so far with its turns' Provenance (#1002), the questionnaire's
- * answers so far, the Profile born once its target role and location are
- * answered (#999, `href` its page), the review opened, the Profile saved at its page.
+ * answers so far, the Profile born once its target role and location are answered (#999, `href` its page), the review
+ * opened, a rewritten summary translated by the AI (#1005, with its Provenance), the Profile saved at its page.
  */
 export type CreationNote =
   | { type: "started" }
-  | { type: "read"; provenance: Provenance | null }
+  | { type: "read"; provenance: Provenance | null; fields?: ReadFieldValue[] }
   | { type: "interviewed"; answered: number; skipped: number; provenance: Provenance | null }
   | { type: "answered"; answered: number; skipped: number }
   | { type: "created"; href: string }
   | { type: "reviewed" }
+  | { type: "summaryChanged"; provenance: Provenance | null }
   | { type: "saved"; href: string };
+
+/** Two Provenances of the same part as one: its steps and sites in turn, from the first start, the times added. */
+function together(was: Provenance | null, more: Provenance | null): Provenance | null {
+  if (!was || !more) return was ?? more;
+  return { v: 1, steps: [...was.steps, ...more.steps], sites: [...was.sites, ...more.sites], startedAt: was.startedAt, wallMs: was.wallMs + more.wallMs };
+}
 
 /** What is known after `note`: the questionnaire from when it started, the review from when it first opened. */
 export function nextCreation(was: CreationGiven | null, note: CreationNote, at: string): CreationGiven {
@@ -36,7 +44,7 @@ export function nextCreation(was: CreationGiven | null, note: CreationNote, at: 
     case "started":
       return {};
     case "read":
-      return { ...known, reading: { provenance: note.provenance } };
+      return { ...known, reading: { provenance: note.provenance, at, ...(note.fields ? { fields: note.fields } : {}) } };
     case "interviewed":
       return { ...known, interview: { at: known.interview?.at ?? at, answered: note.answered, skipped: note.skipped, provenance: note.provenance } };
     case "answered":
@@ -45,6 +53,8 @@ export function nextCreation(was: CreationGiven | null, note: CreationNote, at: 
       return { ...known, created: known.created ?? { at, href: note.href } };
     case "reviewed":
       return { ...known, review: known.review ?? { at } };
+    case "summaryChanged":
+      return { ...known, summaryChanges: { at: known.summaryChanges?.at ?? at, provenance: together(known.summaryChanges?.provenance ?? null, note.provenance) } };
     case "saved":
       return { ...known, href: note.href };
   }

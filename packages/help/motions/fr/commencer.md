@@ -32,14 +32,32 @@ Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ». 
 
 Déposez votre CV dans la carte « J'ai un CV », en PDF ou en Word, puis cliquez sur « Lire mon CV ». Sans CV, cliquez plutôt sur « Répondre aux questions de mon coach ».
 
-## Vérifier et enregistrer
+## Confirmer ce que votre coach a lu
+- fill label « Votre réponse » « Responsable comptable »
+- click button « Envoyer au coach »
+- fill label « Votre réponse » « Lyon »
+- click button « Envoyer au coach »
+- click button « Passer cette question »
+- click button « Passer cette question »
+- click button « Passer cette question »
+
+Pendant la lecture, « Activité » montre ce que votre coach trouve dans votre CV, à la ligne « Création du profil ». Il vous fait ensuite confirmer le poste visé et le lieu qu'il a lus : cliquez sur « Oui, … », ou écrivez le vôtre. Il ne vous demande ensuite que ce qu'un CV ne dit pas, le type de contrat, le télétravail et le salaire minimum, et chaque question se passe avec « Passer cette question ».
+
+## Lire le résumé
+- zoom region « Votre recherche d'offres »
+- click button « Voir le détail »
+
+Votre coach résume ce qu'il a compris dans la carte « Votre recherche d'offres ». Cliquez sur « Voir le détail » pour vérifier votre CV et vos critères de recherche.
+
+## Vérifier le détail
 - zoom complementary « Vérifiez votre CV et vos critères de recherche »
 - click checkbox « CDI »
-- click button « Enregistrer mon profil »
 
-Dans le volet qui s'ouvre à côté de la conversation, vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu ». Corrigez ce qui doit l'être, ici le type de contrat, puis cliquez sur « Enregistrer mon profil ».
+Dans le volet qui s'ouvre à côté de la conversation, vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu ». Corrigez ce qui doit l'être, ici le type de contrat : le résumé se met à jour.
 
 ## Votre profil est prêt
 - zoom off
+- click button « Cela semble correct »
+- click link « Continuer vers mon profil »
 
-Votre premier profil est prêt : votre coach peut chercher des offres pour vous.
+Si le résumé est juste, cliquez sur « Cela semble correct », puis sur « Continuer vers mon profil ». Votre premier profil est prêt : votre coach peut chercher des offres pour vous.

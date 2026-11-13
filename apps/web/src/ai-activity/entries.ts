@@ -22,6 +22,7 @@
  * ATS Score); the browser adds what it alone knows while it is being created (`creation`): the questionnaire and the
  * review, never kept, so gone once the page is loaded again.
  */
+import type { ReadFieldValue } from "./cv-reading";
 import type { Provenance, ProvenanceSite, ProvenanceStep, ReplyCost, StepLabel, WeeklyQuota } from "@jobhub/shared";
 import { describeModel, markOf, stepLabel } from "@jobhub/shared";
 import type { ActionCardStatus } from "../action-cards";
@@ -98,7 +99,7 @@ export interface VersionGiven {
 }
 
 /** The parts of a Profile's creation (#810), in their order: an ATS Score is Version 1's. */
-export const CREATION_PARTS = ["cv_reading", "onboarding_interview", "questionnaire", "review", "profile_created", "ats_score"] as const;
+export const CREATION_PARTS = ["cv_reading", "onboarding_interview", "questionnaire", "review", "summary_changes", "profile_created", "ats_score"] as const;
 export type CreationPartKind = (typeof CREATION_PARTS)[number];
 
 /**
@@ -114,7 +115,11 @@ export type EntryKind = ElementKind | "master_cv_version" | "change" | "profile_
  */
 export interface CreationGiven {
   href?: string;
-  reading?: { provenance: Provenance | null };
+  /**
+   * The uploaded CV read: its draft's Provenance, and, read on `/profils/nouveau` (#1003), when and the fields it gave in
+   * words, which its part shows (« Profil en construction »).
+   */
+  reading?: { provenance: Provenance | null; at?: string; fields?: ReadFieldValue[] };
   /** The AI Coach's onboarding interview without a CV (#1002): when it started, the answers given and skipped, its turns' Provenance. */
   interview?: { at: string; answered: number; skipped: number; provenance: Provenance | null };
   /** The scripted questions: the onboarding without AI, or after the interview when the AI was unavailable (#1002). */
@@ -122,6 +127,8 @@ export interface CreationGiven {
   /** The Profile born during the questionnaire, once its target role and location were answered (ADR-0106, #999): its Version 1. */
   created?: { at: string; href: string };
   review?: { at: string };
+  /** « Modifier » on the summary (#1005): the rewritings the AI translated into Search Criteria changes, from the first, their steps together. */
+  summaryChanges?: { at: string; provenance: Provenance | null };
 }
 
 /**
@@ -224,6 +231,8 @@ export interface ActivityEntry {
   parts?: ActivityEntry[];
   /** A Job Search the page followed (#1001): its best Job Offers, the best first, its object's page listing them all. */
   offers?: EntryOffer[];
+  /** A CV read on `/profils/nouveau` (#1003): when it was read, and the fields it gave in words, null for one it did not. */
+  fields?: { at: string | null; values: ReadFieldValue[] };
 }
 
 export interface ActivityInput {
@@ -512,8 +521,10 @@ function keptParts(first: VersionGiven, score: PageElement | undefined): Activit
  * during it (#999: « Profil créé » with its Version 1, before the review) and the review.
  */
 function knownParts(creation: CreationGiven): ActivityEntry[] {
-  const { reading, interview, questionnaire, created, review } = creation;
-  const read = reading ? (reading.provenance ? readingPart(reading.provenance) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null }))) : null;
+  const { reading, interview, questionnaire, created, review, summaryChanges } = creation;
+  const readOnly = reading ? (reading.provenance ? readingPart(reading.provenance, reading.at) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null, ...(reading.at ? { at: reading.at } : {}) }))) : null;
+  // With the fields it gave (#1003), shown under its part.
+  const read = readOnly && reading?.fields ? { ...readOnly, fields: { at: reading.at ?? null, values: reading.fields } } : readOnly;
   return [
     ...(read ? [read] : []),
     // Once a turn came from the AI: an interview that fell back at once made nothing but the scripted questions.
@@ -521,6 +532,7 @@ function knownParts(creation: CreationGiven): ActivityEntry[] {
     ...(questionnaire ? [part("questionnaire", questionnaire.at, "jobbbox", { answered: questionnaire.answered, skipped: questionnaire.skipped })] : []),
     ...(created ? [part("profile_created", created.at, "candidate", { version: FIRST }, created.href)] : []),
     ...(review ? [part("review", review.at, "candidate")] : []),
+    ...(summaryChanges ? [asPart("summary_changes", elementEntry({ kind: "master_cv", provenance: summaryChanges.provenance, at: summaryChanges.at }))] : []),
   ];
 }
 
@@ -544,7 +556,8 @@ function creationTokens(parts: readonly ActivityEntry[]): EntryCost["tokens"] {
  */
 function creationEntry(given: readonly ActivityEntry[], href: string | null): Built {
   const parts = CREATION_PARTS.flatMap((kind) => given.filter((each) => each.kind === kind).slice(0, 1));
-  const withAi = parts.filter((each) => each.kind === "cv_reading" || each.kind === "onboarding_interview");
+  // Its AI: the CV read, the interview (#1002) and the rewritten summary translated (#1005).
+  const withAi = parts.filter((each) => each.kind === "cv_reading" || each.kind === "onboarding_interview" || each.kind === "summary_changes");
   const created = parts.find((each) => each.kind === "profile_created");
   const at = parts.flatMap((each) => (each.at ? [each.at] : [])).sort()[0] ?? null;
   return {

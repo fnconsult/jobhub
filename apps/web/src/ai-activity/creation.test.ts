@@ -22,7 +22,7 @@ describe("what the browser knows of a Profile's creation (#810), never kept", ()
         [{ type: "reviewed" }, at("10:35")],
         [{ type: "saved", href: "/profils/p" }, at("10:38")],
       ]),
-    ).toEqual({ reading: { provenance: reading }, review: { at: at("10:32") }, href: "/profils/p" });
+    ).toEqual({ reading: { provenance: reading, at: at("10:32") }, review: { at: at("10:32") }, href: "/profils/p" });
   });
 
   it("knows the Profile born during the questionnaire (#999), when first, and still shows on `/profils/nouveau` only", () => {
@@ -33,6 +33,18 @@ describe("what the browser knows of a Profile's creation (#810), never kept", ()
     ]);
     expect(born).toEqual({ questionnaire: { at: at("10:31"), answered: 3, skipped: 0 }, created: { at: at("10:32"), href: "/profils/p/versions/1" } });
     expect(creationOnPage(born, "/")).toBeUndefined();
+  });
+
+  it("knows each rewritten summary the AI translated (#1005), from the first, their steps and times together", () => {
+    const first: Provenance = { v: 1, steps: [], sites: [{ kind: "candidate", links: [] }], startedAt: at("10:40"), wallMs: 900 };
+    const second: Provenance = { ...first, startedAt: at("10:42"), wallMs: 1_100 };
+    expect(
+      replay([
+        [{ type: "summaryChanged", provenance: first }, at("10:40")],
+        [{ type: "summaryChanged", provenance: null }, at("10:41")],
+        [{ type: "summaryChanged", provenance: second }, at("10:42")],
+      ]),
+    ).toEqual({ summaryChanges: { at: at("10:40"), provenance: { ...first, sites: [...first.sites, ...second.sites], wallMs: 2_000 } } });
   });
 
   it("knows the AI Coach's interview (#1002): its answers and its turns' Provenance so far, from when it started", () => {

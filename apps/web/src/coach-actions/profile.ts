@@ -81,6 +81,7 @@ async function activeProfile(sources: ProfileActionSources, candidateId: string,
 /** The criteria a proposal can change, in the order its card tells them. */
 const CRITERIA = ["targetRole", "locations", "minSalary", "contractTypes", "remoteWorkOptions", "sectors", "subsectors", "domains"] as const;
 type Criterion = (typeof CRITERIA)[number];
+export type SearchCriterion = Criterion;
 /** Each criterion's label, as the Search Criteria's form names it. */
 const CRITERION_LABELS = {
   targetRole: "cvReview.targetRole",
@@ -95,8 +96,11 @@ const CRITERION_LABELS = {
 /** The ones « Modifier avant d'appliquer » offers as the page's form does: text; the others are chosen on the page. */
 const EDITABLE: readonly Criterion[] = ["targetRole", "locations", "minSalary"];
 
-const searchCriteriaArgs = z.object({
-  profileId: id.describe("L'id du profil (actif) dont les critères changent."),
+/**
+ * A change of Search Criteria, as the AI Coach proposes it and as the onboarding's « Modifier » reads a rewritten summary
+ * (#1005): the same schema and the same validation (`changedSearchCriteria`), ADR-0077.
+ */
+export const searchCriteriaChangeArgs = z.object({
   targetRole: z.string().trim().min(1).max(120).optional().describe("Le nouveau poste recherché."),
   addLocations: z.array(z.string().trim().min(1).max(100)).max(MAX_SEARCH_LOCATIONS).optional().describe("Les lieux à ajouter (ville, département, région)."),
   removeLocations: z.array(z.string().trim().min(1).max(100)).max(MAX_SEARCH_LOCATIONS).optional().describe("Les lieux à retirer, tels qu'écrits dans les critères."),
@@ -107,6 +111,62 @@ const searchCriteriaArgs = z.object({
   subsectors: z.array(z.string().max(4)).optional().describe("Les codes NAF des sous-secteurs voulus, tous (remplace la liste)."),
   domains: z.array(z.string().max(4)).optional().describe("Les codes ROME des domaines voulus, tous (remplace la liste)."),
 });
+export type SearchCriteriaChange = z.output<typeof searchCriteriaChangeArgs>;
+
+const searchCriteriaArgs = z.object({
+  profileId: id.describe("L'id du profil (actif) dont les critères changent."),
+  ...searchCriteriaChangeArgs.shape,
+});
+
+/** Why a change of Search Criteria is not proposed: too many places, criteria the Search Criteria refuse, or nothing changed. */
+export type CriteriaChangeRefusal = { reason: "too_many_locations" } | { reason: "invalid"; paths: string[] } | { reason: "unchanged" };
+
+/** The fields of Search Criteria a validation refuses, by their first key. */
+function refusedPaths(criteria: Record<string, unknown>): string[] {
+  const parsed = searchCriteriaSchema.safeParse(criteria);
+  return parsed.success ? [] : [...new Set(parsed.error.issues.map((issue) => issue.path.join(".")))];
+}
+
+/**
+ * `current` with `change` made: the places added named as Place suggestion offers them (« Lyon » → « Lyon (69) »), those
+ * removed compared without case nor accents, then validated as the page's route validates them, and the criteria that
+ * changed, in the order a card tells them. Criteria not yet complete (an onboarding's draft without a place, #1005) are
+ * refused only for what the change itself makes invalid.
+ */
+export async function changedSearchCriteria(
+  current: SearchCriteria,
+  change: SearchCriteriaChange,
+  places: PlaceSuggestions,
+): Promise<{ ok: true; next: SearchCriteria; changed: Criterion[] } | ({ ok: false } & CriteriaChangeRefusal)> {
+  const added = await Promise.all((change.addLocations ?? []).map((place) => placeOf(places, place)));
+  const removed = new Set((change.removeLocations ?? []).map(folded));
+  const locations = [...current.locations.filter((place) => !removed.has(folded(place))), ...added];
+  const wanted: Record<string, unknown> = {
+    ...current,
+    locations,
+    ...(change.targetRole !== undefined ? { targetRole: change.targetRole } : {}),
+    ...(change.contractTypes ? { contractTypes: change.contractTypes } : {}),
+    ...(change.remoteWorkOptions ? { remoteWorkOptions: change.remoteWorkOptions } : {}),
+    ...(change.sectors ? { sectors: change.sectors } : {}),
+    ...(change.subsectors ? { subsectors: change.subsectors } : {}),
+    ...(change.domains ? { domains: change.domains } : {}),
+  };
+  if (change.minSalary === null) delete wanted.minSalary;
+  else if (change.minSalary !== undefined) wanted.minSalary = change.minSalary;
+  if (distinctLocations(locations).length > MAX_SEARCH_LOCATIONS) return { ok: false, reason: "too_many_locations" };
+  const parsed = searchCriteriaSchema.safeParse(wanted);
+  let next: SearchCriteria;
+  if (parsed.success) next = parsed.data as SearchCriteria;
+  else {
+    const before = new Set(refusedPaths(current as unknown as Record<string, unknown>));
+    const paths = refusedPaths(wanted).filter((path) => !before.has(path));
+    if (paths.length > 0) return { ok: false, reason: "invalid", paths };
+    next = { ...(wanted as unknown as SearchCriteria), locations: distinctLocations(locations) };
+  }
+  const changed = CRITERIA.filter((criterion) => JSON.stringify(current[criterion] ?? null) !== JSON.stringify(next[criterion] ?? null));
+  if (changed.length === 0) return { ok: false, reason: "unchanged" };
+  return { ok: true, next, changed };
+}
 
 /** `name` as Place suggestion would offer it: the suggestion named the same (« Lyon » → « Lyon (69) »), else as written. */
 export async function placeOf(places: PlaceSuggestions, name: string): Promise<string> {
@@ -179,27 +239,13 @@ function searchCriteriaAction(sources: ProfileActionSources): CoachAction {
       const profile = await activeProfile(sources, candidateId, args.profileId);
       if (!profile) return NOT_FOUND;
       const current = profile.searchCriteria;
-      const added = await Promise.all((args.addLocations ?? []).map((place) => placeOf(sources.places, place)));
-      const removed = new Set((args.removeLocations ?? []).map(folded));
-      const locations = [...current.locations.filter((place) => !removed.has(folded(place))), ...added];
-      const wanted: Record<string, unknown> = {
-        ...current,
-        locations,
-        ...(args.targetRole !== undefined ? { targetRole: args.targetRole } : {}),
-        ...(args.contractTypes ? { contractTypes: args.contractTypes } : {}),
-        ...(args.remoteWorkOptions ? { remoteWorkOptions: args.remoteWorkOptions } : {}),
-        ...(args.sectors ? { sectors: args.sectors } : {}),
-        ...(args.subsectors ? { subsectors: args.subsectors } : {}),
-        ...(args.domains ? { domains: args.domains } : {}),
-      };
-      if (args.minSalary === null) delete wanted.minSalary;
-      else if (args.minSalary !== undefined) wanted.minSalary = args.minSalary;
-      if (distinctLocations(locations).length > MAX_SEARCH_LOCATIONS) return refused(`Au plus ${MAX_SEARCH_LOCATIONS} lieux par profil : propose d'en retirer avant d'en ajouter.`);
-      const parsed = searchCriteriaSchema.safeParse(wanted);
-      if (!parsed.success) return refused(`Ces critères ne conviennent pas (${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}) : rien n'a été proposé.`);
-      const next = parsed.data as SearchCriteria;
-      const changed = CRITERIA.filter((criterion) => JSON.stringify(current[criterion] ?? null) !== JSON.stringify(next[criterion] ?? null));
-      if (changed.length === 0) return refused("Ces critères sont déjà ceux du profil : rien à proposer.");
+      const made = await changedSearchCriteria(current, args, sources.places);
+      if (!made.ok) {
+        if (made.reason === "too_many_locations") return refused(`Au plus ${MAX_SEARCH_LOCATIONS} lieux par profil : propose d'en retirer avant d'en ajouter.`);
+        if (made.reason === "invalid") return refused(`Ces critères ne conviennent pas (${made.paths.join(", ")}) : rien n'a été proposé.`);
+        return refused("Ces critères sont déjà ceux du profil : rien à proposer.");
+      }
+      const { next, changed } = made;
 
       const { t } = createI18n(language);
       const industries = (await sources.industries?.().catch(() => NO_INDUSTRY_REFERENCE)) ?? NO_INDUSTRY_REFERENCE;

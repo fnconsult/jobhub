@@ -1,5 +1,3 @@
-import { TEST_BUILD_EXTENSION_ORIGIN } from "@jobhub/shared/extension-test-build";
-import { extensionOriginsFromEnv } from "@/auth/extension-origins";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -34,13 +32,4 @@ export async function hasExtensionZip(zip: string, env: Record<string, string | 
   } catch {
     return false;
   }
-}
-
-/**
- * Whether this server recognises the test zip (2026-11-13 regression): its fixed origin is among the extension origins
- * the web app trusts (EXTENSION_ORIGINS). Without it, the zip loaded reads the session, and every call that acts with
- * it, a Capture or an error report, is refused (403).
- */
-export function recognisesTestBuild(extensionOrigins: readonly string[] = extensionOriginsFromEnv()): boolean {
-  return extensionOrigins.includes(TEST_BUILD_EXTENSION_ORIGIN);
 }

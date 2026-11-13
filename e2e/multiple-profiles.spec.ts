@@ -5,6 +5,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { editCriteriaOf, ficheOf, openSearchCriteria, profileSectionLink } from "./support/conversation";
 import { placeNames, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
+import { openReviewDetail } from "./support/onboarding-summary";
 import { subscribe } from "./support/plan";
 
 // Issue #7: a Candidate has several Profiles (positionings). They create one
@@ -115,6 +116,7 @@ test.describe("several Profiles per Candidate", () => {
 
     await page.goto("/profils/nouveau");
     await page.getByRole("button", { name: fr.cvUpload.fromScratch }).click();
+    await openReviewDetail(page);
     await expect(page.getByLabel(fr.cvReview.targetRole)).toHaveAttribute("maxlength", "120");
 
     const id = await createProfile(page, "x".repeat(118));
@@ -177,6 +179,7 @@ test.describe("several Profiles per Candidate", () => {
     await expect(page).toHaveURL(`${origin}/profils/nouveau`);
 
     await page.getByRole("button", { name: fr.cvUpload.fromScratch }).click();
+    await openReviewDetail(page);
     const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("");
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("");

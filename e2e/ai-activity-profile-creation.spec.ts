@@ -4,6 +4,7 @@ import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { activityOf, openActivity, unfoldedEntryOf } from "./support/conversation";
+import { confirmSummary, onboardingSummary } from "./support/onboarding-summary";
 
 // Issue #810 (ADR-0086, ADR-0070): a Profile's creation is one Activité entry, « Création du profil », on `/profils/nouveau`
 // and then on the new Profile's page: the CV read (its Provenance, the only AI), the Onboarding Questionnaire (« Questions
@@ -62,15 +63,15 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await expect(nowOf(page)).toContainText(kinds.cv_reading);
     await expect(nowOf(page)).toContainText(fr.aiActivity.steps.read);
 
-    // Read: the review in the Work Pane; the history's one entry, the reading and the review.
-    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible({ timeout: 60_000 });
+    // Read: the review, its summary first (#1004); the history's one entry, the reading and the review.
+    await expect(onboardingSummary(page)).toBeVisible({ timeout: 60_000 });
     await openActivity(page);
     const before = await creationOf(page);
     await expect(before.entry.locator(".activity-entry-row")).toContainText(history.results.creating);
     expect(await partKinds(before.parts)).toEqual(["cv_reading", "review"]);
     await expect(before.parts.first()).toContainText("Mistral");
 
-    await page.getByRole("button", { name: fr.cvReview.save }).click();
+    await confirmSummary(page);
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     const id = new URL(page.url()).pathname.split("/").pop()!;
     // On the Profile's page: the review still known, « Profil créé » with Version 1; the Context bar still empty.
@@ -140,8 +141,8 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await expect.poll(async () => partKinds((await creationOf(page)).parts)).toEqual(["questionnaire", "profile_created"]);
     // Every other question skipped.
     for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
-    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
-    await page.getByRole("button", { name: fr.cvReview.save }).click();
+    await expect(onboardingSummary(page)).toBeVisible();
+    await confirmSummary(page);
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
 
     await openActivity(page);

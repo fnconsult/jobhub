@@ -6,6 +6,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { placeInput, placeNames, placeOptions, removePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { openSearchCriteria, profileSectionLink } from "./support/conversation";
+import { onboardingSummary, openReviewDetail } from "./support/onboarding-summary";
 
 // Issue #4: a signed-in Candidate uploads a PDF or Word CV; it is read into a
 // Master CV and Search Criteria they review and correct, then saved as their
@@ -15,10 +16,13 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 const PDF = "application/pdf";
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-async function uploadCv(page: Page, file: { name: string; mimeType: string; buffer: Buffer }) {
+/** Uploads a CV on /profils/nouveau and, once read (`review`), opens the review form. */
+async function uploadCv(page: Page, file: { name: string; mimeType: string; buffer: Buffer }, review = true) {
   await page.goto("/profils/nouveau");
   await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(file);
   await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+  // The summary first (#1004), then the review form by « Voir le détail ».
+  if (review) await openReviewDetail(page);
 }
 
 /** The Search Criteria part of the review form. */
@@ -38,9 +42,12 @@ test.describe("creating the first Profile from a CV", () => {
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
 
-    // The parsed CV and pre-filled Search Criteria, ready for review in the Work Pane beside the page's conversation (ADR-0070).
+    // What was read, summed up in the thread (#1004): « Ai-je bien compris ? ».
+    await expect(page.getByRole("list", { name: fr.questionnaire.transcript })).toContainText(fr.onboardingSummary.question);
+    await expect(onboardingSummary(page)).toContainText("Directrice financière (lu par l'IA)");
+    // The parsed CV and pre-filled Search Criteria, by « Voir le détail », in the Work Pane beside the page's conversation (ADR-0070).
+    await openReviewDetail(page);
     await expect(page.locator("aside.work-pane").getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
-    await expect(page.getByRole("list", { name: fr.questionnaire.transcript })).toContainText(fr.cvReview.intro);
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière (lu par l'IA)");
     await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon"]);
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
@@ -197,10 +204,10 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page.locator(".ds-note[role=alert]")).toHaveText(fr.cvUpload.errors.unsupported_format);
     await expect(page.getByRole("button", { name: fr.cvUpload.submit })).toHaveCount(0);
 
-    await uploadCv(page, pdfFile([], "scan.pdf"));
+    await uploadCv(page, pdfFile([], "scan.pdf"), false);
     await expect(page.locator(".ds-note[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
 
-    await uploadCv(page, { name: "blank.pdf", mimeType: PDF, buffer: Buffer.alloc(0) });
+    await uploadCv(page, { name: "blank.pdf", mimeType: PDF, buffer: Buffer.alloc(0) }, false);
     await expect(page.locator(".ds-note[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
     await expect(page.getByLabel(fr.cvUpload.fileLabel)).toBeVisible();
   });
@@ -233,6 +240,7 @@ test.describe("creating the first Profile from a CV", () => {
     }
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     for (const t of await renderedTexts(page)) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);

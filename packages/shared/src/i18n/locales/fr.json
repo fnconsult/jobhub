@@ -1078,7 +1078,6 @@
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
-    "intro": "Voici ce que nous avons lu dans votre CV. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
     "searchCriteria": "Critères de recherche",
     "targetRole": "Poste recherché",
     "location": "Lieu",
@@ -1141,7 +1140,6 @@
     "invalidValue": "Cette valeur n'est pas valide.",
     "tooLong": "Ce champ ne peut pas dépasser {{max}} caractères.",
     "error": "Votre profil n'a pas pu être enregistré. Veuillez réessayer.",
-    "scratchIntro": "Remplissez votre CV de référence et vos critères de recherche, puis enregistrez votre profil.",
     "locations": "Lieux",
     "locationsHint": "Jusqu'à 5 lieux : une offre proche de l'un d'eux vous correspond.",
     "removeLocation": "Retirer {{place}}",
@@ -1337,6 +1335,58 @@
     "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Les modifier ne renomme pas le profil.",
     "archived": "Ce profil est archivé : restaurez-le pour modifier ses critères de recherche."
   },
+  "profileSummary": {
+    "search": "Vous recherchez un poste de {{role}}",
+    "searchElided": "Vous recherchez un poste d'{{role}}",
+    "searchWithoutRole": "Vous recherchez un poste",
+    "contracts": " en {{contracts}}",
+    "locations_one": " ; lieu : {{locations}}",
+    "locations_other": " ; lieux : {{locations}}",
+    "remote": ", {{remote}}",
+    "salary": ", à partir de {{salary}} brut par an",
+    "end": ".",
+    "contractTypes": {
+      "cdi": "CDI",
+      "cdd": "CDD",
+      "freelance": "freelance",
+      "interim": "intérim"
+    },
+    "remoteWorkOptions": {
+      "on_site": "sur site",
+      "hybrid": "en télétravail partiel",
+      "full_remote": "en télétravail complet"
+    },
+    "years_one": "{{count}} an d'expérience",
+    "years_other": "{{count}} ans d'expérience",
+    "experienceAndSkills_one": "Avec {{years}}, vous mettez en avant votre compétence {{skills}}.",
+    "experienceAndSkills_other": "Avec {{years}}, vous mettez en avant vos compétences {{skills}}.",
+    "experience": "Vous avez {{years}}.",
+    "skills_one": "Vous mettez en avant votre compétence {{skills}}.",
+    "skills_other": "Vous mettez en avant vos compétences {{skills}}.",
+    "roleAt": "{{title}} chez {{employer}}",
+    "latestRoles_one": "Votre dernier poste : {{roles}}.",
+    "latestRoles_other": "Vos derniers postes : {{roles}}.",
+    "or": {
+      "two": " ou ",
+      "last": " ou "
+    },
+    "and": {
+      "two": " et ",
+      "last": " et "
+    }
+  },
+  "onboardingSummary": {
+    "question": "Voici comment je comprends ce que vous recherchez. Ai-je bien compris ?",
+    "title": "Votre recherche d'offres",
+    "empty": "Je ne sais encore rien de ce que vous recherchez : ouvrez « Voir le détail » pour l'indiquer.",
+    "detail": "Voir le détail",
+    "edit": "Modifier",
+    "confirm": "Cela semble correct",
+    "confirming": "Enregistrement…",
+    "invalid": "Certains champs sont à compléter ou à corriger : {{fields}}. Corrigez-les dans « Voir le détail ».",
+    "saved": "C'est noté : votre profil est enregistré, avec ses critères de recherche et son CV de référence.",
+    "toProfile": "Continuer vers mon profil"
+  },
   "newProfile": {
     "title": "Créer un profil",
     "intro": "Je vous aide à construire votre CV de référence et vos critères de recherche. Importez votre CV, ou, si vous n'en avez pas à jour, répondez à mes questions : vous pourrez tout vérifier et corriger avant d'enregistrer.",
@@ -1344,9 +1394,9 @@
     "withoutCvIntro": "Je vous pose mes questions une à une. Quand je peux deviner une réponse, je vous la propose : rien n'entre dans votre profil sans votre réponse ou votre accord. Vous pouvez passer ce qui ne vous concerne pas.",
     "startQuestionnaire": "Répondre aux questions de mon coach",
     "conversation": "Créer un profil avec votre coach",
-    "openReview": "Relire et enregistrer",
     "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
     "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
+    "savedOnly": "Votre profil est enregistré : cliquez sur « Continuer vers mon profil » pour l'ouvrir. Vous pourrez m'en parler sur sa page.",
     "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
     "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
     "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",
@@ -1426,7 +1476,6 @@
       "required": "Cette réponse est nécessaire pour créer votre profil.",
       "yes_or_no": "Répondez par oui ou par non."
     },
-    "reviewIntro": "Voici votre CV de référence et vos critères de recherche, construits à partir de vos réponses. Corrigez ou complétez chaque champ si besoin, puis enregistrez votre profil.",
     "startOver": "Recommencer"
   },
   "coachPanel": {

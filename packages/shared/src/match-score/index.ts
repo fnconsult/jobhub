@@ -245,14 +245,17 @@ const ONGOING = /aujourd|present|actuel|en cours|ce jour|now|current|today|depui
  * the dated jobs on the CV (an ongoing one runs to `today`); undefined when no
  * job is dated.
  */
-export function yearsOfExperience(cv: CvContent, today: Date = new Date()): number | undefined {
-  const years: number[] = [];
-  for (const { period } of cv.experience) {
-    const text = normalise(period);
-    years.push(...[...text.matchAll(/\b(19|20)\d{2}\b/g)].map((match) => Number(match[0])));
-    if (ONGOING.test(text)) years.push(today.getFullYear());
-  }
+export function yearsOfExperience(cv: Pick<CvContent, "experience">, today: Date = new Date()): number | undefined {
+  const years = cv.experience.flatMap(({ period }) => periodYears(period, today));
   return years.length === 0 ? undefined : Math.max(...years) - Math.min(...years);
+}
+
+/** The years a job's period names ("2015 – 2024": 2015 and 2024), this year for an ongoing one; none when it is not dated. */
+export function periodYears(period: string, today: Date = new Date()): number[] {
+  const text = normalise(period);
+  const years = [...text.matchAll(/\b(19|20)\d{2}\b/g)].map((match) => Number(match[0]));
+  if (ONGOING.test(text)) years.push(today.getFullYear());
+  return years;
 }
 
 const REQUIRED_YEARS = [/(\d{1,2}) ?\+? ?ans? (?:minimum )?d ?(?:experience|exp)/, /(\d{1,2}) ?\+? ?years? (?:of )?(?:relevant |professional )?experience/];

@@ -1078,7 +1078,6 @@
   },
   "cvReview": {
     "title": "Check your CV and your search criteria",
-    "intro": "Here is what we read in your CV. Correct or complete any field if needed, then save your profile.",
     "searchCriteria": "Search criteria",
     "targetRole": "Target role",
     "location": "Location",
@@ -1141,7 +1140,6 @@
     "invalidValue": "This value is not valid.",
     "tooLong": "This field cannot be longer than {{max}} characters.",
     "error": "Your profile could not be saved. Please try again.",
-    "scratchIntro": "Fill in your master CV and search criteria, then save your profile.",
     "locations": "Locations",
     "locationsHint": "Up to 5 places: a job offer near any one of them suits you.",
     "removeLocation": "Remove {{place}}",
@@ -1337,6 +1335,58 @@
     "hint": "Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search. Changing them does not rename the profile.",
     "archived": "This profile is archived: restore it to change its search criteria."
   },
+  "profileSummary": {
+    "search": "You are looking for a position as {{role}}",
+    "searchElided": "You are looking for a position as {{role}}",
+    "searchWithoutRole": "You are looking for a position",
+    "contracts": " on a {{contracts}} contract",
+    "locations_one": ", in {{locations}}",
+    "locations_other": ", in {{locations}}",
+    "remote": ", {{remote}}",
+    "salary": ", from {{salary}} gross a year",
+    "end": ".",
+    "contractTypes": {
+      "cdi": "permanent",
+      "cdd": "fixed-term",
+      "freelance": "freelance",
+      "interim": "temporary"
+    },
+    "remoteWorkOptions": {
+      "on_site": "on site",
+      "hybrid": "partly remote",
+      "full_remote": "fully remote"
+    },
+    "years_one": "{{count}} year of experience",
+    "years_other": "{{count}} years of experience",
+    "experienceAndSkills_one": "With {{years}}, you highlight your skill in {{skills}}.",
+    "experienceAndSkills_other": "With {{years}}, you highlight your skills in {{skills}}.",
+    "experience": "You have {{years}}.",
+    "skills_one": "You highlight your skill in {{skills}}.",
+    "skills_other": "You highlight your skills in {{skills}}.",
+    "roleAt": "{{title}} at {{employer}}",
+    "latestRoles_one": "Your latest role: {{roles}}.",
+    "latestRoles_other": "Your latest roles: {{roles}}.",
+    "or": {
+      "two": " or ",
+      "last": ", or "
+    },
+    "and": {
+      "two": " and ",
+      "last": ", and "
+    }
+  },
+  "onboardingSummary": {
+    "question": "Here is how I understand what you are looking for. Did I get it right?",
+    "title": "Your job search",
+    "empty": "I don't know anything yet about what you are looking for: open « See the details » to say it.",
+    "detail": "See the details",
+    "edit": "Edit",
+    "confirm": "That looks right",
+    "confirming": "Saving…",
+    "invalid": "Some fields need completing or correcting: {{fields}}. Correct them in « See the details ».",
+    "saved": "Noted: your profile is saved, with its search criteria and its reference CV.",
+    "toProfile": "Continue to my profile"
+  },
   "newProfile": {
     "title": "Create a profile",
     "intro": "I'll help you build your reference CV and search criteria. Upload your CV or, if yours isn't up to date, answer my questions: you can check and correct everything before saving.",
@@ -1344,9 +1394,9 @@
     "withoutCvIntro": "I ask my questions one at a time. When I can guess an answer, I suggest it: nothing enters your profile without your answer or your approval. You can skip what does not apply to you.",
     "startQuestionnaire": "Answer my coach's questions",
     "conversation": "Creating a profile with your coach",
-    "openReview": "Review and save",
     "questionsStart": "Fine. I'll ask my questions one at a time; answer in your own words, you can read it all again and correct it at the end.",
     "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page.",
+    "savedOnly": "Your profile is saved: click “Continue to my profile” to open it. You can talk to me about it on its page.",
     "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it.",
     "offeredSearchStarted": "Your profile is created: I'm starting a first job search right away, on us, which does not count toward your quota. Let's carry on while it searches.",
     "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too.",
@@ -1426,7 +1476,6 @@
       "required": "This answer is needed to create your profile.",
       "yes_or_no": "Please answer yes or no."
     },
-    "reviewIntro": "Here are your reference CV and search criteria, built from your answers. Correct or complete each field if needed, then save your profile.",
     "startOver": "Start again"
   },
   "coachPanel": {

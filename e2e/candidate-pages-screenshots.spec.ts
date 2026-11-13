@@ -710,6 +710,51 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     });
   }
 
+  // Issue #1004 (ADR-0106): at the end of creating a Profile, « Ai-je bien compris ? » and the summary Jobbbox composes, its
+  // key items strong, « Voir le détail », « Modifier » and « Cela semble correct ». A Profile born and not finished is
+  // resumed at it; its jobs dated to a closed year, so the years of experience do not change from one year to the next.
+  test("the onboarding's summary: « Ai-je bien compris ? » and its card (#1004)", async ({
+    page,
+  }) => {
+    await signInWithMagicLink(page, newAddress("shots-onboarding-summary"));
+    const created = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: {
+        masterCv: {
+          ...profileMasterCv,
+          experience: profileMasterCv.experience.map((job) => ({
+            ...job,
+            period: job.period.replace("aujourd'hui", "2025"),
+          })),
+        },
+        searchCriteria: {
+          targetRole: "Directrice administrative et financière",
+          locations: ["Lyon", "Grenoble"],
+          minSalary: 85000,
+          contractTypes: ["cdi"],
+          remoteWorkOptions: ["hybrid"],
+        },
+        onboarding: "in_progress",
+      },
+    });
+    expect(created.status(), await created.text()).toBe(201);
+    const { id } = await created.json();
+    // The welcome panel closed for good (« Ne plus afficher »): the thread opens on the summary, not on the panel.
+    await page.goto(`/profils/nouveau?profil=${id}`);
+    await page.getByRole("button", { name: fr.conversationFirst.closeWelcome }).click();
+    for (const { name, width } of SCREENSHOT_WIDTHS) {
+      // A screen tall enough for the whole card in the thread, which scrolls within the page.
+      await page.setViewportSize({ width, height: 1400 });
+      await page.goto(`/profils/nouveau?profil=${id}`);
+      await page.waitForLoadState("networkidle");
+      await expect(
+        page.getByRole("region", { name: fr.onboardingSummary.title }),
+      ).toBeVisible();
+      await expect(page.getByRole("button", { name: fr.conversationFirst.closeWelcome })).toHaveCount(0);
+      await check(page, page.locator("#main"), "#main", `onboarding-summary-${name}`, width);
+    }
+  });
+
   // Issue #808 (ADR-0086), #980: the side panel's « Activité » view holds Activity's history, by day, one row per
   // entry, an entry unfolding its detail. On a Profile's page, « Création du profil » (#810): Version 1 of its Master CV and
   // the ATS Score Jobbbox's rules gave it, its parts: no AI, so nothing changes from run to run but the time of day, set to

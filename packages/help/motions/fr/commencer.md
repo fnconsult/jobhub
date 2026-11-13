@@ -32,14 +32,21 @@ Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ». 
 
 Déposez votre CV dans la carte « J'ai un CV », en PDF ou en Word, puis cliquez sur « Lire mon CV ». Sans CV, cliquez plutôt sur « Répondre aux questions de mon coach ».
 
-## Vérifier et enregistrer
+## Lire le résumé
+- zoom region « Votre recherche d'offres »
+- click button « Voir le détail »
+
+Votre coach résume ce qu'il a compris dans la carte « Votre recherche d'offres ». Cliquez sur « Voir le détail » pour vérifier votre CV et vos critères de recherche.
+
+## Vérifier le détail
 - zoom complementary « Vérifiez votre CV et vos critères de recherche »
 - click checkbox « CDI »
-- click button « Enregistrer mon profil »
 
-Dans le volet qui s'ouvre à côté de la conversation, vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu ». Corrigez ce qui doit l'être, ici le type de contrat, puis cliquez sur « Enregistrer mon profil ».
+Dans le volet qui s'ouvre à côté de la conversation, vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu ». Corrigez ce qui doit l'être, ici le type de contrat : le résumé se met à jour.
 
 ## Votre profil est prêt
 - zoom off
+- click button « Cela semble correct »
+- click link « Continuer vers mon profil »
 
-Votre premier profil est prêt : votre coach peut chercher des offres pour vous.
+Si le résumé est juste, cliquez sur « Cela semble correct », puis sur « Continuer vers mon profil ». Votre premier profil est prêt : votre coach peut chercher des offres pour vous.

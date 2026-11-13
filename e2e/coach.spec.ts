@@ -77,6 +77,26 @@ async function reply(page: Page, question: string, value: string | "skip" | "yes
   }
 }
 
+/**
+ * Starts the questions with the AI unavailable: fake-mistral fails the interview once "E2E_AI_DOWN" is in what it is sent,
+ * here the opening line, so the scripted Onboarding Questionnaire takes over from its first question (#1002's fallback).
+ */
+async function startScriptedQuestions(page: Page) {
+  await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV à jour E2E_AI_DOWN");
+  await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+  await expect(transcript(page)).toContainText(fr.newProfile.interview.fallback);
+}
+
+/** The AI Coach's interview as fake-mistral leads it (#1002): its questions, in its order. */
+const interview = {
+  role: "Quel poste recherchez-vous ?",
+  roleAgain: "Quel intitulé de poste visez-vous exactement ?",
+  place: "Dans quelle ville souhaitez-vous travailler ?",
+  contract: "Quel type de contrat recherchez-vous ?",
+  remote: "Quel rythme de télétravail vous convient ?",
+  salary: "Quel salaire annuel brut minimum visez-vous ?",
+};
+
 const coachPanel = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 
 async function askCoach(page: Page, text: string) {
@@ -85,7 +105,7 @@ async function askCoach(page: Page, text: string) {
 }
 
 test.describe("onboarding with the AI Coach", () => {
-  test("onboarding offers two paths: upload a CV, or answer the questionnaire", async ({ page }) => {
+  test("onboarding offers two paths: upload a CV, or answer the AI Coach's questions", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("two-paths"));
     await expect(page.getByText(fr.profiles.none)).toBeVisible();
     await page.getByRole("link", { name: fr.profiles.create }).click();
@@ -100,14 +120,77 @@ test.describe("onboarding with the AI Coach", () => {
     await conversation.getByRole("group", { name: fr.conversationFirst.suggestions }).getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
 
     await expect(transcript(page)).toContainText(fr.newProfile.questionsStart);
-    await expect(transcript(page).getByRole("listitem").last()).toContainText(q.fullName);
+    // The AI Coach leads the interview (#1002): its first question, the target role the Profile is born with.
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(interview.role);
     await expect(answerBox(page)).toBeFocused();
   });
 
-  test("a Candidate without a CV answers the questionnaire, reviews the Master CV it built, and saves it as their Profile", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("questionnaire"));
+  test("without a CV, the AI Coach leads the interview: one question at a time, a vague answer challenged, a deduction validated in one click (#1002)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("interview"));
     await page.goto("/profils/nouveau");
     await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+
+    // The target role cannot be skipped; a one-word answer is challenged.
+    await reply(page, interview.role, "Finance");
+    await expect(transcript(page).getByRole("listitem").last()).toContainText("« Finance » est trop vague");
+    await expect(page.getByRole("button", { name: fr.questionnaire.skip })).toHaveCount(0);
+    await reply(page, interview.roleAgain, "Directrice financière");
+    expect(await (await page.request.get("/api/profiles")).json()).toEqual([]);
+    await reply(page, interview.place, "Lyon");
+    // Born at its target role and place (#999).
+    await expect.poll(async () => (await (await page.request.get("/api/profiles")).json()).length).toBe(1);
+
+    // A deduction proposed: « Oui, CDI » validates it in one click.
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(interview.contract);
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(fr.newProfile.interview.proposal.replace("{{value}}", "CDI").replace(" {{because}}", ""));
+    const suggestions = page.getByRole("region", { name: fr.newProfile.conversation }).getByRole("group", { name: fr.conversationFirst.suggestions });
+    await expect(suggestions.getByRole("button", { name: fr.newProfile.interview.no })).toBeVisible();
+    await suggestions.getByRole("button", { name: fr.newProfile.interview.yes.replace("{{value}}", "CDI") }).click();
+    // A choice by its options; the salary skipped.
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(interview.remote);
+    await suggestions.getByRole("button", { name: fr.cvReview.remoteWorkOptions.hybrid, exact: true }).click();
+    await reply(page, interview.salary, "skip");
+
+    // Done: the review shows what was answered or validated, nothing else.
+    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
+    await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
+    await expect(placeNames(criteria)).toHaveText(["Lyon"]);
+    await expect(criteria.getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi })).toBeChecked();
+    await expect(criteria.getByRole("checkbox", { name: fr.cvReview.contractTypes.cdd })).not.toBeChecked();
+    await expect(criteria.getByRole("checkbox", { name: fr.cvReview.remoteWorkOptions.hybrid })).toBeChecked();
+    // Saved on the Profile as each was validated: its Search Criteria hold the CDI already.
+    const [{ id }] = await (await page.request.get("/api/profiles")).json();
+    await page.getByLabel(fr.cvReview.fullName).fill("Marie Dupont");
+    await page.getByRole("button", { name: fr.cvReview.save }).click();
+    await expect(page).toHaveURL(`${origin}/profils/${id}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
+  });
+
+  test("the AI down during the interview: the scripted questions take over at the next question, never asking again what was answered (#1002)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("interview-ai-down"));
+    await page.goto("/profils/nouveau");
+    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await reply(page, interview.role, "Directrice financière");
+    await reply(page, interview.place, "Lyon");
+    // The AI unavailable from now on (fake-mistral fails a call that holds E2E_AI_DOWN).
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(interview.contract);
+    await answerBox(page).fill("E2E_AI_DOWN");
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+
+    await expect(transcript(page)).toContainText(fr.newProfile.interview.fallback);
+    // No dead end: the next question is the scripted one, the target role and place not asked again.
+    await reply(page, q.fullName, "Marie Dupont");
+    await reply(page, q.email, "skip");
+    await expect(transcript(page).getByText(q.targetRole)).toHaveCount(0);
+    await expect(transcript(page).getByText(q.location)).toHaveCount(0);
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(q.phone);
+  });
+
+  test("with the AI down, a Candidate without a CV answers the scripted questionnaire, reviews the Master CV it built, and saves it as their Profile", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("questionnaire"));
+    await page.goto("/profils/nouveau");
+    await startScriptedQuestions(page);
 
     // A name, a target role and a location are needed for a Profile.
     await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
@@ -182,7 +265,7 @@ test.describe("onboarding with the AI Coach", () => {
     await page.setViewportSize({ width: 1600, height: 1000 });
     await signInWithMagicLink(page, newAddress("questionnaire-resume"));
     await page.goto("/profils/nouveau");
-    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await startScriptedQuestions(page);
     await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");
     expect(await (await page.request.get("/api/profiles")).json()).toEqual([]);
@@ -227,9 +310,9 @@ test.describe("onboarding with the AI Coach", () => {
     const email = newAddress("questionnaire-offered-search");
     await signInWithMagicLink(page, email);
     await page.goto("/profils/nouveau");
-    /** Answers up to the review: a name, `targetRole` and Lyon, every other question skipped. */
+    /** Answers the scripted questions (#1002's fallback) up to the review: a name, `targetRole` and Lyon, every other question skipped. */
     const answerUpToReview = async (targetRole: string) => {
-      await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+      await startScriptedQuestions(page);
       await reply(page, q.fullName, "Marie Dupont");
       await reply(page, q.targetRole, targetRole);
       await reply(page, q.location, "Lyon");
@@ -248,7 +331,7 @@ test.describe("onboarding with the AI Coach", () => {
       });
 
     // Born, its search starts at once, offered; the coach says so in one line of the thread, no card (#1001).
-    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await startScriptedQuestions(page);
     await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");
     await reply(page, q.location, "Lyon");
@@ -320,7 +403,7 @@ test.describe("onboarding with the AI Coach", () => {
 
     // One job, one degree, one language: as many entries as the uploaded CV was read into.
     await page.goto("/profils/nouveau");
-    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    await startScriptedQuestions(page);
     await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");
     await reply(page, q.location, "Lyon");
@@ -345,12 +428,14 @@ test.describe("onboarding with the AI Coach", () => {
     expect(fromQuestionnaire).toEqual(fromUpload);
   });
 
-  test("the questionnaire uses catalogue strings and meets the ADR-0009 floor", async ({ page }) => {
+  test("the questions use catalogue strings, but for the AI Coach's own, and meet the ADR-0009 floor", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("questionnaire-floor"));
     await page.goto("/profils/nouveau");
     await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
     await expect(answerBox(page)).toBeVisible();
     const allowed = new Set(catalogueStrings(fr));
+    // The AI Coach's question (#1002), written by the AI: fake-mistral's.
+    allowed.add(interview.role);
     // The Usage Meter's percentage, a catalogue string with the week's number in it.
     allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
     for (const t of await renderedTexts(page)) {

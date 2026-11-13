@@ -830,7 +830,10 @@ test.describe("the onboarding's search in Activity (#1001)", () => {
       await signInWithMagicLink(page, email);
       await page.setViewportSize({ width, height });
       await page.goto("/profils/nouveau");
-      await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+      // The scripted questions (#1002's fallback, the AI unavailable): the same answers, so the same Activity, every run.
+      await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV à jour E2E_AI_DOWN");
+      await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+      await expect(page.getByText(fr.newProfile.interview.fallback)).toBeVisible();
       for (const said of ["Catherine Morel", "Directrice administrative et financière", "Lyon"]) {
         await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
         await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();

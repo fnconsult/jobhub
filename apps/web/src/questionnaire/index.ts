@@ -4,7 +4,8 @@
  *
  * One deep module, pure (it runs in the browser and on the server alike).
  * Callers get:
- *  - `startQuestionnaire()` — an interview with nothing answered yet;
+ *  - `startQuestionnaire(known?)` — an interview with nothing answered yet; given what the AI Coach's interview already
+ *    has (`known`, #1002), its questions skip what it knows, so the scripted questions take over at the next one;
  *  - `currentQuestion(q)` — the question to ask now, or null once it is over;
  *  - `answer(q, value)` — the interview with the current question answered, or
  *    an error code when the answer cannot be taken (`required`, `yes_or_no`);
@@ -50,6 +51,8 @@ export interface Question {
 /** An interview in progress. Treat as opaque: only this module reads it. */
 export interface Questionnaire {
   readonly answers: readonly string[];
+  /** What was known before its first question (the AI Coach's interview, #1002): those questions are not asked. */
+  readonly known?: CvDraft;
 }
 
 export type AnswerError = "required" | "yes_or_no";
@@ -61,22 +64,32 @@ const MAX_ENTRIES = 10;
 const text = (id: QuestionId, optional: boolean, number?: number): Question => ({ id, kind: "text", optional, ...(number ? { number } : {}) });
 
 /** Replays the answers given so far; returns the draft they make and the question to ask next. */
-function replay(answers: readonly string[]): { draft: CvDraft; next: Question | null } {
-  const cv: MasterCvContent = { fullName: "", headline: "", email: "", phone: "", location: "", summary: "", experience: [], education: [], skills: [], languages: [] };
-  const criteria: CvDraft["searchCriteria"] = { targetRole: "", locations: [] };
+function replay(answers: readonly string[], known?: CvDraft): { draft: CvDraft; next: Question | null } {
+  const cv: MasterCvContent = known
+    ? structuredClone(known.masterCv)
+    : { fullName: "", headline: "", email: "", phone: "", location: "", summary: "", experience: [], education: [], skills: [], languages: [] };
+  const criteria: CvDraft["searchCriteria"] = known ? structuredClone(known.searchCriteria) : { targetRole: "", locations: [] };
   let index = 0;
   /** The next answer, or undefined when the interview has reached this question. */
   const take = () => (index < answers.length ? answers[index++]! : undefined);
 
   function* script(): Generator<Question, void, string> {
-    cv.fullName = yield text("fullName", false);
-    criteria.targetRole = cv.headline = yield text("targetRole", false);
-    cv.location = yield text("location", false);
-    criteria.locations = distinctLocations([cv.location]);
-    cv.email = yield text("email", true);
-    cv.phone = yield text("phone", true);
+    // What is known already is not asked again (#1002): a text field filled, a section with an entry.
+    if (!cv.fullName) cv.fullName = yield text("fullName", false);
+    if (!criteria.targetRole) {
+      criteria.targetRole = yield text("targetRole", false);
+      cv.headline ||= criteria.targetRole;
+    }
+    if (criteria.locations.length === 0) {
+      const location = yield text("location", false);
+      cv.location ||= location;
+      criteria.locations = distinctLocations([location]);
+    }
+    if (!cv.email) cv.email = yield text("email", true);
+    if (!cv.phone) cv.phone = yield text("phone", true);
 
-    for (let number = 1; number <= MAX_ENTRIES; number++) {
+    const knownJobs = cv.experience.length > 0;
+    for (let number = 1; !knownJobs && number <= MAX_ENTRIES; number++) {
       const title = yield text("jobTitle", true, number);
       if (!title) break;
       const job: CvExperience = { title, employer: "", location: "", period: "", description: "" };
@@ -88,7 +101,8 @@ function replay(answers: readonly string[]): { draft: CvDraft; next: Question | 
       if (number === MAX_ENTRIES || (yield { id: "moreExperience", kind: "yesNo", optional: false, number }) === "no") break;
     }
 
-    for (let number = 1; number <= MAX_ENTRIES; number++) {
+    const knownDegrees = cv.education.length > 0;
+    for (let number = 1; !knownDegrees && number <= MAX_ENTRIES; number++) {
       const degree = yield text("degree", true, number);
       if (!degree) break;
       const item: CvEducation = { degree, institution: "", year: "" };
@@ -98,9 +112,9 @@ function replay(answers: readonly string[]): { draft: CvDraft; next: Question | 
       if (number === MAX_ENTRIES || (yield { id: "moreEducation", kind: "yesNo", optional: false, number }) === "no") break;
     }
 
-    cv.skills = splitList(yield { id: "skills", kind: "multiline", optional: true });
-    cv.languages = splitList(yield { id: "languages", kind: "multiline", optional: true }).map(language);
-    cv.summary = yield { id: "summary", kind: "multiline", optional: true };
+    if (cv.skills.length === 0) cv.skills = splitList(yield { id: "skills", kind: "multiline", optional: true });
+    if (cv.languages.length === 0) cv.languages = splitList(yield { id: "languages", kind: "multiline", optional: true }).map(language);
+    if (!cv.summary) cv.summary = yield { id: "summary", kind: "multiline", optional: true };
   }
 
   const interview = script();
@@ -114,7 +128,7 @@ function replay(answers: readonly string[]): { draft: CvDraft; next: Question | 
 }
 
 /** "Consolidation, IFRS\nSAP" → ["Consolidation", "IFRS", "SAP"]. */
-function splitList(value: string): string[] {
+export function splitList(value: string): string[] {
   return value
     .split(/[,;\n]/)
     .map((item) => item.trim())
@@ -122,17 +136,17 @@ function splitList(value: string): string[] {
 }
 
 /** "Anglais : courant" or "Espagnol - courant" → { name, level }; "Anglais" alone has no level. */
-function language(value: string): CvLanguage {
+export function language(value: string): CvLanguage {
   const match = /^(.+?)\s*(?::|\s-\s|–|—)\s*(.*)$/.exec(value);
   return match ? { name: match[1]!.trim(), level: match[2]!.trim() } : { name: value, level: "" };
 }
 
-export function startQuestionnaire(): Questionnaire {
-  return { answers: [] };
+export function startQuestionnaire(known?: CvDraft): Questionnaire {
+  return known ? { answers: [], known } : { answers: [] };
 }
 
 export function currentQuestion(questionnaire: Questionnaire): Question | null {
-  return replay(questionnaire.answers).next;
+  return replay(questionnaire.answers, questionnaire.known).next;
 }
 
 export function answer(questionnaire: Questionnaire, value: string): AnswerResult {
@@ -141,9 +155,9 @@ export function answer(questionnaire: Questionnaire, value: string): AnswerResul
   const trimmed = value.trim();
   if (question.kind === "yesNo" && trimmed !== "yes" && trimmed !== "no") return { ok: false, error: "yes_or_no" };
   if (!question.optional && !trimmed) return { ok: false, error: "required" };
-  return { ok: true, questionnaire: { answers: [...questionnaire.answers, trimmed] } };
+  return { ok: true, questionnaire: { ...questionnaire, answers: [...questionnaire.answers, trimmed] } };
 }
 
 export function draftFromQuestionnaire(questionnaire: Questionnaire): CvDraft {
-  return replay(questionnaire.answers).draft;
+  return replay(questionnaire.answers, questionnaire.known).draft;
 }

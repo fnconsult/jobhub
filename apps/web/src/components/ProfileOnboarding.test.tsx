@@ -34,6 +34,33 @@ function NewProfilePage() {
   );
 }
 
+/**
+ * The AI Coach's interview as `/api/onboarding/interview` streams it (#1002): each call the next of `turns`, a turn with
+ * its Provenance, or "down" (the AI unavailable: the scripted questions take over). Past them, the AI is down too.
+ */
+function interviewReply(turns: (object | "down")[]): Response {
+  const next = turns.shift() ?? "down";
+  if (next === "down") return Response.json({ error: "failed", reason: "provider_unavailable" }, { status: 500 });
+  const provenance = {
+    v: 1,
+    steps: [{ kind: "ai", activity: "think_write", task: "onboarding_interview", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-medium-2508", ms: 800, at: new Date().toISOString(), outcome: "ok", count: 1, tokens: { input: 1200, output: 80 } }],
+    sites: [{ kind: "candidate", links: [] }],
+    startedAt: new Date().toISOString(),
+    wallMs: 800,
+  };
+  return new Response(`${JSON.stringify({ type: "done", turn: next, provenance })}\n`, { headers: { "content-type": "application/x-ndjson" } });
+}
+
+/** A turn of the coach, as the route gives it once the code checked it. */
+const ask = (field: string, question: string, extra: object = {}) => ({ ask: { field, question, kind: "text", optional: !["targetRole", "locations"].includes(field), ...extra }, done: false });
+const ROLE = ask("targetRole", "Quel poste recherchez-vous ?");
+const PLACE = ask("locations", "Dans quelle ville souhaitez-vous travailler ?");
+const CONTRACT = {
+  ...ask("contractTypes", "Quel type de contrat recherchez-vous ?", { kind: "choice", choices: ["cdi", "cdd", "freelance", "interim"] }),
+  proposal: { field: "contractTypes", value: ["cdi"], because: "Un poste de direction est le plus souvent en CDI.", shown: "CDI" },
+};
+const DONE = { ...ask("summary", "Merci."), done: true };
+
 const conversation = () => screen.getByRole("region", { name: "Créer un profil avec votre coach" });
 const thread = () => screen.getByRole("list", { name: "Votre échange avec le coach" });
 const reviewPane = () => screen.getByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" });
@@ -42,6 +69,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
   beforeEach(() => {
     push.mockClear();
     vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    // The AI unavailable: the scripted questions (#1002's fallback), unless a test says otherwise.
+    vi.stubGlobal("fetch", async (url: string) => (url === "/api/onboarding/interview" ? interviewReply([]) : new Response(null, { status: 404 })));
   });
   afterEach(() => {
     // Unmounted first: AI Activity's Job Search poll renders nothing more once the stubs are gone.
@@ -58,16 +87,18 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     expect(within(suggestions).getByRole("button", { name: "Répondre aux questions de mon coach" })).toBeTruthy();
   });
 
-  it("asks the Questionnaire in the thread and takes the answers in the box at the foot", async () => {
+  it("asks the scripted questions in the thread when the AI cannot lead the interview, and takes the answers in the box at the foot", async () => {
     const user = userEvent.setup();
     renderInFrench(<NewProfilePage />);
     await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
 
-    const box = screen.getByLabelText("Votre réponse");
-    expect(document.activeElement).toBe(box);
+    const box = await screen.findByLabelText("Votre réponse");
+    expect(within(thread()).getByText(/Je continue avec mes questions habituelles, sans l'IA/)).toBeTruthy();
+    expect(within(thread()).getByText("Pour commencer, quels sont vos prénom et nom ?")).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(box));
     expect(box.getAttribute("rows")).toBe("1");
     expect(box.closest(".coach-panel-composer-inline")).toBeTruthy();
-    expect(within(thread()).getByText(/Je vous pose mes questions une à une/)).toBeTruthy();
+    expect(within(thread()).getByText(/Très bien. Je vous pose mes questions une à une/)).toBeTruthy();
     expect(within(thread()).getByText("Répondre aux questions de mon coach")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "J'ai un CV" })).toBeNull();
 
@@ -77,7 +108,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
 
     await user.type(box, "Marie Dupont{Enter}");
     expect(within(thread()).getByText("Marie Dupont")).toBeTruthy();
-    expect(document.activeElement).toBe(screen.getByLabelText("Votre réponse"));
+    expect(document.activeElement).toBe((await screen.findByLabelText("Votre réponse")));
   });
 
   it("has the coach's look of every conversation (#997): the welcome panel, the « Coach IA » badge, « Envoyer au coach »", async () => {
@@ -102,10 +133,10 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     await user.type(screen.getByLabelText("Votre message"), "Je n'ai pas de CV à jour{Enter}");
     expect(within(thread()).getByText("Je n'ai pas de CV à jour")).toBeTruthy();
     for (const said of ["Marie Dupont", "Directrice financière", "Lyon", "", "", "Directrice financière", "Acme", "Lyon", "2019 - 2024", "Pilotage"]) {
-      if (said) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      if (said) await user.type((await screen.findByLabelText("Votre réponse")), `${said}{Enter}`);
       else await user.click(screen.getByRole("button", { name: "Passer cette question" }));
     }
-    await user.type(screen.getByRole("textbox", { name: "Votre réponse" }), "Non{Enter}");
+    await user.type((await screen.findByRole("textbox", { name: "Votre réponse" })), "Non{Enter}");
     expect(within(thread()).getAllByText("Non").length).toBeGreaterThan(0);
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -145,8 +176,10 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
 
   describe("the Profile born at its target role and location (ADR-0106, #999)", () => {
     type Call = { url: string; method: string; body: Record<string, unknown> };
+    const interviewCalls: Record<string, unknown>[] = [];
     let calls: Call[];
     let created: number;
+    let turns: (object | "down")[];
     let searches: number;
     let polled: string[];
     const measures = {
@@ -166,10 +199,15 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       calls = [];
       polled = [];
       created = 201;
+      turns = [];
       searches = 0;
       vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
         // The Sectors' and Domains' labels: none here.
         if (url === "/api/reference-data") return new Response(null, { status: 404 });
+        if (url === "/api/onboarding/interview") {
+          interviewCalls.push(JSON.parse(String(init.body)));
+          return interviewReply(turns);
+        }
         // AI Activity's poll (#1001): the offered Job Search, searching, its run's measures; then the Job Offers it found.
         if (url === "/api/job-searches/notifications") {
           polled.push(url);
@@ -205,7 +243,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     /** Answers the Questionnaire's first questions in the box, then skips each question left, to its review. */
     async function answerUpToReview(user: ReturnType<typeof userEvent.setup>, answers: string[]) {
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
-      for (const said of answers) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      for (const said of answers) await user.type((await screen.findByLabelText("Votre réponse")), `${said}{Enter}`);
       while (!screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })) {
         await user.click(screen.getByRole("button", { name: "Passer cette question" }));
       }
@@ -215,11 +253,11 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
-      await user.type(screen.getByLabelText("Votre réponse"), "Marie Dupont{Enter}");
-      await user.type(screen.getByLabelText("Votre réponse"), "Directrice financière{Enter}");
+      await user.type((await screen.findByLabelText("Votre réponse")), "Marie Dupont{Enter}");
+      await user.type((await screen.findByLabelText("Votre réponse")), "Directrice financière{Enter}");
       expect(calls).toEqual([]);
 
-      await user.type(screen.getByLabelText("Votre réponse"), "Lyon{Enter}");
+      await user.type((await screen.findByLabelText("Votre réponse")), "Lyon{Enter}");
       await waitFor(() => expect(calls).toHaveLength(2));
       expect(calls[1]).toMatchObject({ url: "/api/profiles/p1/onboarding-search", method: "POST" });
       expect(calls[0]).toMatchObject({
@@ -232,7 +270,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
         },
       });
 
-      await user.type(screen.getByLabelText("Votre réponse"), "marie.dupont@example.fr{Enter}");
+      await user.type((await screen.findByLabelText("Votre réponse")), "marie.dupont@example.fr{Enter}");
       expect(calls).toHaveLength(2);
 
       // Its Activity says « Profil créé » as soon as it is born, still « En cours ».
@@ -286,7 +324,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
-      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type((await screen.findByLabelText("Votre réponse")), `${said}{Enter}`);
 
       // Asked at once, the page unchanged; then the Job Offers found, once the run says it analysed some.
       const entry = await within(now()).findByRole("article", { name: "Recherche d'offres · Directrice financière" });
@@ -325,7 +363,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
-      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type((await screen.findByLabelText("Votre réponse")), `${said}{Enter}`);
       await waitFor(() => expect(calls.map((call) => call.url)).toEqual(["/api/profiles", "/api/profiles/p1/onboarding-search"]));
       expect(within(thread()).queryByRole("link", { name: "Voir la recherche" })).toBeNull();
       expect(screen.getByLabelText("Votre réponse")).toBeTruthy();
@@ -336,9 +374,171 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
-      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type((await screen.findByLabelText("Votre réponse")), `${said}{Enter}`);
       expect(await within(thread()).findByText(/Vous avez atteint le nombre de profils/)).toBeTruthy();
       expect(calls).toHaveLength(1);
+    });
+
+    describe("the AI Coach leads the interview (#1002)", () => {
+      beforeEach(() => {
+        interviewCalls.length = 0;
+      });
+
+      it("asks one question at a time in the thread, challenges a vague answer, and the Profile is born at its target role and place", async () => {
+        turns = [ROLE, { ...ROLE, challenge: "« Finance » est trop vague : quel intitulé de poste ?" }, PLACE, DONE];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.type(screen.getByLabelText("Votre message"), "Je n'ai pas de CV{Enter}");
+
+        expect(await within(thread()).findByText("Quel poste recherchez-vous ?")).toBeTruthy();
+        expect(interviewCalls[0]).toMatchObject({ language: "fr", exchange: [], opener: "Je n'ai pas de CV" });
+        // Not optional: no « Passer », and an empty answer is refused.
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+        await user.click(screen.getByRole("button", { name: "Envoyer au coach" }));
+        expect(screen.getByRole("alert").textContent).toMatch(/nécessaire/);
+
+        await user.type(await screen.findByLabelText("Votre réponse"), "Finance{Enter}");
+        expect(await within(thread()).findByText(/« Finance » est trop vague/)).toBeTruthy();
+        expect(interviewCalls[1]).toMatchObject({ exchange: [{ ask: { field: "targetRole" }, reply: { kind: "answer", text: "Finance" } }] });
+        await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+        await within(thread()).findByText("Dans quelle ville souhaitez-vous travailler ?");
+        expect(calls.filter((call) => call.url.startsWith("/api/profiles"))).toEqual([]);
+
+        await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+        await waitFor(() => expect(calls.filter((call) => call.url === "/api/profiles")).toHaveLength(1));
+        expect(calls.find((call) => call.url === "/api/profiles")).toMatchObject({
+          method: "POST",
+          body: { onboarding: "in_progress", searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: [] }, masterCv: { headline: "Directrice financière" } },
+        });
+        expect(await screen.findByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeTruthy();
+      });
+
+      it("never offers « Passer » on the target role or the place, even asked again after a vague answer and said optional by the AI", async () => {
+        const optionally = (turn: { ask: object }) => ({ ...turn, ask: { ...turn.ask, optional: true } });
+        turns = [optionally(ROLE), { ...optionally(ROLE), challenge: "« Finance » est trop vague : quel intitulé de poste ?" }, optionally(PLACE), DONE];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+
+        await within(thread()).findByText("Quel poste recherchez-vous ?");
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+        await user.type(await screen.findByLabelText("Votre réponse"), "Finance{Enter}");
+        expect(await within(thread()).findByText(/« Finance » est trop vague/)).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+        // An empty answer is refused, not taken as skipped.
+        await user.click(screen.getByRole("button", { name: "Envoyer au coach" }));
+        expect(screen.getByRole("alert").textContent).toMatch(/nécessaire/);
+        expect(interviewCalls).toHaveLength(2);
+
+        await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+        await within(thread()).findByText("Dans quelle ville souhaitez-vous travailler ?");
+        expect(screen.queryByRole("button", { name: "Passer cette question" })).toBeNull();
+      });
+
+      it("proposes a deduction as suggestions: « Oui, … » puts it in the Profile, and a choice by its options", async () => {
+        turns = [PLACE, CONTRACT, ask("remoteWorkOptions", "Quel rythme de télétravail vous convient ?", { kind: "choice", choices: ["on_site", "hybrid", "full_remote"] }), DONE];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+        await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+
+        expect(await within(thread()).findByText("Je propose : CDI. Un poste de direction est le plus souvent en CDI.")).toBeTruthy();
+        const suggestions = within(conversation()).getByRole("group", { name: "Suggestions" });
+        expect(within(suggestions).getAllByRole("button").map((button) => button.textContent)).toEqual(["Oui, CDI", "Non, plutôt…", "CDI", "CDD", "Indépendant (freelance)", "Intérim", "Passer cette question"]);
+        await waitFor(() => expect(document.activeElement).toBe(within(suggestions).getByRole("button", { name: "Oui, CDI" })));
+        await user.click(within(suggestions).getByRole("button", { name: "Oui, CDI" }));
+        expect(await within(thread()).findByText("Oui, CDI")).toBeTruthy();
+
+        await user.click(await screen.findByRole("button", { name: "Hybride" }));
+        await screen.findByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" });
+        expect(interviewCalls.at(-1)).toMatchObject({ draft: { searchCriteria: { contractTypes: ["cdi"], remoteWorkOptions: ["hybrid"] } } });
+        // The review shows what was validated, the Profile born when target role and place are known.
+        expect((within(reviewPane()).getByRole("checkbox", { name: "CDI" }) as HTMLInputElement).checked).toBe(true);
+        expect((within(reviewPane()).getByRole("checkbox", { name: "Hybride" }) as HTMLInputElement).checked).toBe(true);
+      });
+
+      it("never puts a proposal refused or ignored in the Profile: « Non, plutôt… » hands over to the box", async () => {
+        turns = [{ ...ROLE, proposal: { field: "targetRole", value: "Directrice financière", because: "Votre dernier poste.", shown: "Directrice financière" } }, CONTRACT, PLACE, DONE];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+
+        await user.click(await screen.findByRole("button", { name: "Non, plutôt…" }));
+        expect(document.activeElement).toBe(screen.getByLabelText("Votre réponse"));
+        expect(screen.queryByRole("button", { name: "Oui, Directrice financière" })).toBeNull();
+        await user.type(screen.getByLabelText("Votre réponse"), "Contrôleuse de gestion{Enter}");
+        expect(await within(thread()).findByText("Contrôleuse de gestion")).toBeTruthy();
+
+        // The CDI proposed, then ignored: the Candidate skips the question.
+        await user.click(await screen.findByRole("button", { name: "Passer cette question" }));
+        await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+        await screen.findByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" });
+
+        await waitFor(() => expect(calls.filter((call) => call.url === "/api/profiles")).toHaveLength(1));
+        const born = calls.find((call) => call.url === "/api/profiles")!;
+        expect(born.body).toMatchObject({ searchCriteria: { targetRole: "Contrôleuse de gestion", contractTypes: [] } });
+        expect(JSON.stringify(calls)).not.toContain("Directrice financière");
+        expect(JSON.stringify(calls)).not.toContain('"cdi"');
+        expect(interviewCalls.at(-1)).toMatchObject({
+          exchange: [
+            { reply: { kind: "answer", text: "Contrôleuse de gestion", declined: true } },
+            { proposal: { value: ["cdi"] }, reply: { kind: "skipped" } },
+            { reply: { kind: "answer", text: "Lyon" } },
+          ],
+        });
+      });
+
+      it("saves a criterion validated after the Profile is born on it, through its Search Criteria", async () => {
+        turns = [ROLE, PLACE, CONTRACT, DONE];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+        await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+        await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+        // The search in « En ce moment » counts the CDI proposed, « (supposé) » until it is validated (#1001).
+        const card = await within(now()).findByRole("article", { name: "Recherche d'offres · Directrice financière" });
+        await waitFor(() => expect(within(card).getByText(/Affinée avec :/).textContent).toBe("Affinée avec : Directrice financière · Lyon · CDI (supposé)"));
+        await user.click(await screen.findByRole("button", { name: "Oui, CDI" }));
+        await waitFor(() =>
+          expect(calls.map(({ url, method }) => `${method} ${url}`)).toEqual(["POST /api/profiles", "POST /api/profiles/p1/onboarding-search", "PATCH /api/profiles/p1"]),
+        );
+        expect(calls[2]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: ["cdi"] } });
+        // Validated, it narrows the search: in « Affinée avec », no longer supposed; the search is not started again.
+        await waitFor(() => expect(within(card).getByText(/Affinée avec :/).textContent).toBe("Affinée avec : Directrice financière · Lyon · CDI"));
+      });
+
+      it("hands over to the scripted questions at the next question when the AI fails, not asking again what it knows", async () => {
+        turns = [ROLE, PLACE, "down"];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+        await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+        await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+
+        expect(await within(thread()).findByText(/Je continue avec mes questions habituelles, sans l'IA/)).toBeTruthy();
+        expect(within(thread()).getByText("Pour commencer, quels sont vos prénom et nom ?")).toBeTruthy();
+        await user.type(await screen.findByLabelText("Votre réponse"), "Marie Dupont{Enter}");
+        expect(await within(thread()).findByText("À quelle adresse e-mail les recruteurs peuvent-ils vous écrire ?")).toBeTruthy();
+      });
+
+      it("shows the interview in Activity: « Entretien d'accueil » with its model and tokens, no longer « Sans IA »", async () => {
+        turns = [ROLE, PLACE];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+        await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+        await within(thread()).findByText("Dans quelle ville souhaitez-vous travailler ?");
+
+        const activity = screen.getByRole("complementary", { name: "Activité" });
+        const row = within(activity).getByRole("button", { name: /Création du profil/ });
+        expect(row.textContent).not.toMatch(/Sans IA/);
+        await user.click(row);
+        const detail = document.getElementById(row.getAttribute("aria-controls")!)!;
+        expect(detail.textContent).toMatch(/Entretien d'accueil/);
+        expect(detail.textContent).toMatch(/1 réponse/);
+        expect(detail.textContent).toMatch(/Mistral/);
+        expect(detail.textContent).not.toMatch(/Questionnaire d'accueil/);
+      });
     });
 
     it("creates the Profile at the review's save from scratch, its onboarding done", async () => {
@@ -395,8 +595,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
-      await user.type(screen.getByLabelText("Votre réponse"), "Marie Dupont{Enter}");
-      await user.type(screen.getByLabelText("Votre réponse"), "Directrice financière{Enter}");
+      await user.type((await screen.findByLabelText("Votre réponse")), "Marie Dupont{Enter}");
+      await user.type((await screen.findByLabelText("Votre réponse")), "Directrice financière{Enter}");
 
       const detail = await creation(user);
       expect(detail.textContent).toMatch(/Questionnaire d'accueilQuestions écrites par Jobbbox · 2 réponses · Sans IA/);

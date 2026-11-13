@@ -236,6 +236,8 @@ test.describe("the Back Office's Coaching Playbooks", () => {
       await expect(row(id)).toContainText("François Nader");
     }
     await expect(row("job-offer-reading")).toContainText(playbooks.notValidated);
+    // #1002: the onboarding interview, new, imported not validated.
+    await expect(row("onboarding-interview")).toContainText(playbooks.notValidated);
     // #405: its version 2, whose Playbook Agent reads the pages found, imported not validated after its validated version 1.
     await expect(row("company-facts-search")).toContainText(`${tr(playbooks.version, { version: "2" })}, ${playbooks.notValidated}`);
     await expect(tasks.getByRole("row").filter({ hasText: "company-news-search" })).toContainText(playbooks.tasks.webSearch);

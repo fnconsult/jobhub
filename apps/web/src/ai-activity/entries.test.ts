@@ -309,6 +309,27 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
       expect(creation!.cost).toEqual({ quota: null, tokens: { count: 9_600, calls: null, partial: false }, noAi: false });
     });
 
+    it("without a CV, holds the AI Coach's interview (#1002, ADR-0106): its model and tokens, its answers, no longer « Sans IA »", () => {
+      const interview: Provenance = {
+        v: 1,
+        steps: [{ kind: "ai", activity: "think_write", task: "onboarding_interview", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 6_000, output: 400 }, ms: 4_000, at: at("10:31", day), outcome: "ok", count: 5 }],
+        sites: [{ kind: "candidate", links: [] }],
+        startedAt: at("10:31", day),
+        wallMs: 4_000,
+      };
+      const [creation] = activityEntries({ page: "any", creation: { interview: { at: at("10:31", day), answered: 4, skipped: 1, provenance: interview }, review: { at: at("10:36", day) } } });
+      expect(creation!.parts!.map(({ kind, origin, result, cost }) => ({ kind, origin, result, noAi: cost.noAi }))).toEqual([
+        { kind: "onboarding_interview", origin: "candidate", result: { end: { state: "done" }, answered: 4, skipped: 1 }, noAi: false },
+        { kind: "review", origin: "candidate", result: { end: { state: "done" } }, noAi: true },
+      ]);
+      expect(creation!.models.map((model) => model.name)).toEqual(["Mistral Medium 3.5"]);
+      expect(creation!.cost).toEqual({ quota: null, tokens: { count: 6_400, calls: null, partial: false }, noAi: false });
+      // An interview that fell back at once (no turn from the AI) is left out: the scripted questions, « Sans IA ».
+      const [scripted] = activityEntries({ page: "any", creation: { interview: { at: at("10:31", day), answered: 0, skipped: 0, provenance: null }, questionnaire: { at: at("10:31", day), answered: 3, skipped: 0 } } });
+      expect(scripted!.parts!.map(({ kind }) => kind)).toEqual(["questionnaire"]);
+      expect(scripted!.cost.noAi).toBe(true);
+    });
+
     it("on the Profile's page, after a reload, makes it again from what is kept: the CV read, the Profile created with Version 1, its first ATS Score", () => {
       const later: VersionGiven = { version: 2, savedAt: new Date(at("11:00", day)), restoredFrom: null, href: `${PAGE}/versions/2` };
       const entries = activityEntries({ page: "profile", elements: [firstScore], versions: [later, first], creation: { href: PAGE } });

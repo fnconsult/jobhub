@@ -331,7 +331,7 @@ A commune, département or région offered while the Candidate types a location,
 _Avoid_: Autocomplete (alone)
 
 **Onboarding interview**:
-How a Candidate creates a Profile on `/profils/nouveau` (ADR-0106): an interview with the AI Coach, one question at a time. Without a CV it builds the Master CV and Search Criteria; with one, it asks only what the CV left missing. The AI Coach challenges a vague answer and proposes what it can deduce for the Candidate to validate; nothing enters the Profile that does not come from an answer or a validation. The Profile is born once the target role and a location are validated and is completed as the answers are validated. Its scripted fallback, the Onboarding Questionnaire (Jobbbox's own questions, without AI), runs when the AI cannot; until #1002 it is the interview itself.
+How a Candidate creates a Profile on `/profils/nouveau` (ADR-0106): an interview with the AI Coach, one question at a time. Without a CV it builds the Master CV and Search Criteria; with one, it asks only what the CV left missing. The AI Coach challenges a vague answer and proposes what it can deduce for the Candidate to validate; nothing enters the Profile that does not come from an answer or a validation. The Profile is born once the target role and a location are validated and is completed as the answers are validated. Its scripted fallback, the Onboarding Questionnaire (Jobbbox's own questions, without AI), takes over at the next question when the AI cannot give one, never asking again what is known. The interview's exchange is not a Coach Conversation and uses no Plan Quota; on screen it is the « Entretien d'accueil ».
 _Avoid_: Onboarding Questionnaire (its scripted fallback only), form, survey
 
 ### Job offers

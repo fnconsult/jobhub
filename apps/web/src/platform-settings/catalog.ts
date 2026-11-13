@@ -322,6 +322,9 @@ export const ENV_ONLY_SETTINGS = {
   REVIEW_SIGN_IN: { kind: "read_only", shown: "value" },
   REVIEW_SIGN_IN_EMAILS: { kind: "read_only", shown: "value" },
   REVIEW_SIGN_IN_CODE: { kind: "read_only", shown: "set_or_missing" },
+  // The extension builds the web app trusts (ADR-0033 amendment of 2026-11-13): shown with whether the test zip's fixed
+  // origin is trusted and why (auth/extension-origins.ts, testBuildTrust); never editable here, a public key is at stake.
+  EXTENSION_ORIGINS: { kind: "read_only", shown: "value" },
   // Fallbacks on their way out (#206), and the Coaching Session Prices.
   STRIPE_PRICE_STANDARD: { kind: "read_only", shown: "value" },
   STRIPE_PRICE_PREMIUM: { kind: "read_only", shown: "value" },
@@ -342,9 +345,10 @@ export const ENV_ONLY_SETTINGS = {
   // The commit .github/workflows/deploy.yml bakes into the image (#559): the Version's « (main·sha) » on the Beta, /api/health.
   JOBHUB_COMMIT: { kind: "deployment", shown: false },
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
-  EXTENSION_ORIGINS: { kind: "deployment", shown: false },
   // The folder holding the extension's zips that apps/web/Dockerfile builds into the image (#989), served to Administrators in Outils.
   EXTENSION_ZIP_DIR: { kind: "deployment", shown: false },
+  // Set by apps/web/Dockerfile's extension stage: its zips carry the test zip's fixed key, so their id is the one EXTENSION_ORIGINS lists, or the web app trusts outside Production (apps/extension/src/build-target.ts).
+  JOBBBOX_EXTENSION_TEST_BUILD: { kind: "deployment", shown: false },
   // The native app's domain association files (#685, ADR-0076): its Apple team and its Android signing certificates.
   APPLE_TEAM_ID: { kind: "deployment", shown: false },
   // The Key ID of the .p8 key APNs' Push notifications are signed with (APNS_AUTH_KEY, #698); with APPLE_TEAM_ID.

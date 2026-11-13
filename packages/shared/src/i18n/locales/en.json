@@ -429,6 +429,7 @@
     "capturing": "Capturing the page…",
     "captureImpossible": "This page cannot be captured. Open the job offer's page and try again.",
     "unreachable": "Jobbbox cannot be reached right now. Check your connection and try again.",
+    "installationNotRecognised": "Jobbbox does not recognise this installation of the extension: the page was not sent. Install the extension from the Chrome Web Store, then try again.",
     "badge": "Analyse this offer",
     "badgeLabel": "Analyse this job offer with Jobbbox",
     "detected": "Job offer found on this page.",
@@ -700,6 +701,12 @@
         "intro": "For administrators only: load the extension this server serves, before it is published on the Chrome Web Store.",
         "extensionVersion": "Extension version",
         "apiVersion": "API version served",
+        "extensionId": "Extension ID",
+        "recognisedListed": "This server recognises this zip: its origin is listed in the EXTENSION_ORIGINS deployment setting. Once loaded, the extension captures and sends its errors to Jobbbox.",
+        "recognisedAutomatic": "This server recognises this zip automatically, outside production: once loaded, the extension captures and sends its errors to Jobbbox, with nothing added to EXTENSION_ORIGINS.",
+        "notRecognisedTitle": "This server does not recognise this zip yet",
+        "notRecognised": "Once loaded, the extension would read your session but could capture nothing: Jobbbox would refuse what it sends. In production, this zip is recognised only once {{origin}} is added to the EXTENSION_ORIGINS deployment setting and the environment redeployed.",
+        "seeEnvironment": "Settings › Environment also shows EXTENSION_ORIGINS and why this zip is recognised or not.",
         "download": "Download {{zip}}",
         "unavailable": "This server serves no extension zip: only a deployment's image holds {{zip}}. Locally, build it with npm run zip -w @jobhub/extension (or zip:beta).",
         "stepsLabel": "Load the extension in Chrome",
@@ -2744,7 +2751,12 @@
         "unreadable": "Set, unreadable",
         "keyVersions": "Set (versions: {{versions}})",
         "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server output.",
-        "why": "Why do these settings stay in the environment?"
+        "why": "Why do these settings stay in the environment?",
+        "testBuild": {
+          "listed": "Test zip's origin ({{origin}}): listed",
+          "automatic": "Test zip's origin ({{origin}}): automatic outside production",
+          "not_recognised": "Test zip's origin ({{origin}}): not recognised"
+        }
       },
       "elsewhere": {
         "title": "Set in their own section",
@@ -2873,7 +2885,8 @@
         "why": "Why in the environment",
         "kinds": {
           "bootstrap": "Needed at start-up, before the database can be read, or to open what it holds.",
-          "read_only": "Still read from the environment: not yet settable in the back office."
+          "read_only": "Still read from the environment: not yet settable in the back office.",
+          "deployment_only": "Set at deployment, never in the back office: it decides which extensions act with a candidate's session."
         },
         "retired": {
           "title": "Variables no longer used",
@@ -2933,6 +2946,7 @@
         "REVIEW_SIGN_IN": "Store review sign-in code switched on (on)",
         "REVIEW_SIGN_IN_EMAILS": "Demo accounts of the store review sign-in code",
         "REVIEW_SIGN_IN_CODE": "Store review sign-in code",
+        "EXTENSION_ORIGINS": "Recognised extensions (chrome-extension:// origins)",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
@@ -5345,7 +5359,8 @@
     "invalidNote": "The note must be 500 characters at most.",
     "error": "Saving failed. Check your connection and try again.",
     "coachEnterDate": "Enter the date",
-    "coachEnterDateFor": "Enter the date of the session with {{name}}"
+    "coachEnterDateFor": "Enter the date of the session with {{name}}",
+    "over": "This session is over: it can no longer be changed or cancelled."
   },
   "coachReviews": {
     "title": "Your coaches' reviews",

@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { API_VERSION } from "@jobhub/shared";
+import { TEST_BUILD_EXTENSION_ORIGIN } from "@jobhub/shared/extension-test-build";
 import { expect, test } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -77,6 +78,25 @@ test.describe("« Dernière version de l'extension » in Outils (#920, #989)", (
     ]);
     expect(download.suggestedFilename()).toBe(zip);
     expect(readFileSync((await download.path())!)).toEqual(bytes);
+    await context.close();
+  });
+
+  // ADR-0033, amended 2026-11-13: the e2e server is not Production, so it trusts the test zip's fixed origin with no
+  // EXTENSION_ORIGINS change; Outils says so and why, as Paramètres › Environnement does, which it links to.
+  test("Outils says the test zip is recognised automatically outside Production, as Paramètres › Environnement does", async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: origin, locale: "fr-FR" });
+    const page = await context.newPage();
+    await signInWithMagicLink(page, ADMINISTRATOR);
+    await page.goto("/compte/outils");
+    const block = page.getByRole("region", { name: texts.title });
+    await expect(block.getByText(texts.recognisedAutomatic)).toBeVisible();
+    await expect(block.getByText(texts.notRecognisedTitle)).toHaveCount(0);
+    await block.getByRole("link", { name: texts.seeEnvironment }).click();
+    await expect(page).toHaveURL(/\/admin\/parametres\?tab=environnement#setting-EXTENSION_ORIGINS$/);
+    const row = page.locator('tr[data-setting="EXTENSION_ORIGINS"]');
+    await expect(row.locator('[data-test-build="automatic"]')).toHaveText(
+      fr.admin.platformSettings.envOnly.testBuild.automatic.replace("{{origin}}", TEST_BUILD_EXTENSION_ORIGIN),
+    );
     await context.close();
   });
 

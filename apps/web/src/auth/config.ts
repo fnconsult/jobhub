@@ -2,6 +2,7 @@ import { permanentSuperAdminsFromEnv } from "../admin/access";
 import { sharedPool } from "../database/pool";
 import { configurationFromEnv } from "../sign-in-providers/index";
 import { mustHaveTwoStepVerification } from "../two-step-verification/obligation";
+import { extensionOriginsFromEnv } from "./extension-origins";
 import type { AuthConfig, Mailer } from "./index";
 import { mailerFromEnv } from "./mailers";
 import { reviewSignInFromEnv } from "./review-sign-in";
@@ -37,10 +38,7 @@ export function authConfigFromEnv(env: Env, options: { mailer?: Mailer } = {}): 
     secret: required("AUTH_SECRET", DEV_SECRET),
     mailer: options.mailer ?? mailerFromEnv(env),
     signIn: { configuration: configurationFromEnv(env), isAdministrator: async (person) => permanentSuperAdmin(person) },
-    extensionOrigins: (env.EXTENSION_ORIGINS ?? "")
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean),
+    extensionOrigins: extensionOriginsFromEnv(env),
     mustHaveTwoStepVerification: (candidateId) => mustHaveTwoStepVerification(database, candidateId, permanentSuperAdmin.emails),
     // Off unless REVIEW_SIGN_IN=on (#981, docs/ops/mobile.md).
     reviewSignIn: reviewSignInFromEnv(env),

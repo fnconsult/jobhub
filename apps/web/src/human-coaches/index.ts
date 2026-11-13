@@ -143,7 +143,9 @@ export type ScheduleSessionResult =
   | { ok: true; session: CoachingSession }
   | { ok: false; errors: FieldError[] }
   /** No such Coaching Session of this Candidate. */
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" }
+  /** « Espace coach v2 » (ADR-0107): the session is over, or past the cancellation window (#883, #1019). */
+  | { ok: false; error: "too_late" };
 
 /** A Coaching Session payment Stripe confirmed. */
 export interface PaidCoachingSession {
@@ -187,7 +189,8 @@ export interface HumanCoachesDeps {
    */
   coachSpaceV2On?: () => boolean | Promise<boolean>;
   coachingNotificationsOwned?:()=>boolean|Promise<boolean>;
-  mayChangeSession?: (within: Queryable, sessionId: string, by: RescheduledBy, to: Date | null) => Promise<boolean>;
+  /** Whether `by` may change the session's date now; "too_late" when it may not because the session is over (#1019). */
+  mayChangeSession?: (within: Queryable, sessionId: string, by: RescheduledBy, to: Date | null) => Promise<boolean | "too_late">;
   contractualCancellationOn?: () => Promise<boolean>;
 
   publicProfileApprovalRequired?:()=>boolean;
@@ -522,7 +525,8 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   /**
    * Sets the date of the Coaching Session `sessionId` names, if `owned` (a condition on `coaching_session s`
    * with `$1` the session's id) finds it, and `fields`: its duration, video link and note, when given. The
-   * date goes through `setAgendaItemDate`, which keeps its Reschedules. False when not found.
+   * date goes through `setAgendaItemDate`, which keeps its Reschedules. False when not found; "too_late" when
+   * `mayChangeSession` refuses it as too late.
    */
   async function setSessionDate(
     sessionId: string,
@@ -532,14 +536,18 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       by: RescheduledBy;
       fields?: { durationMinutes?: number | null | undefined; videoLink?: string | null | undefined; note?: string | null | undefined };
     },
-  ): Promise<boolean> {
+  ): Promise<boolean | "too_late"> {
+    let refused: "too_late" | undefined;
     const set = await inTransaction(database, async (client) => {
       const { rows } = await client.query<{ scheduled_at: Date | null; candidate_id: string; coach_id: string }>(
         `SELECT s.scheduled_at, s.candidate_id, s.coach_id FROM coaching_session s WHERE s.id = $1 AND s.withdrawn_at IS NULL AND s.cancelled_at IS NULL AND ${owned.where} FOR UPDATE OF s`,
         [sessionId, ...owned.params],
       );
       const session = rows[0];
-      if (!session || (deps.mayChangeSession && !(await deps.mayChangeSession(client, sessionId, change.by, change.to)))) return null;
+      if (!session) return null;
+      const may = deps.mayChangeSession ? await deps.mayChangeSession(client, sessionId, change.by, change.to) : true;
+      if (may === "too_late") refused = may;
+      if (may !== true) return null;
       if (change.fields) {
         const updates = (
           [
@@ -558,7 +566,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       return changed ? { ...session, moved: session.scheduled_at?.getTime() !== change.to?.getTime() } : null;
     });
     if (set?.moved) await sessionDateChanged(sessionId, set, change.by, change.to);
-    return set !== null;
+    return refused ?? set !== null;
   }
 
   /** Queues `notification` for the person, under its key, once; a failure is logged, never thrown at what was done. */
@@ -595,14 +603,15 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
   }
 
   /** The Candidate's own session, after a change: the result to give back. */
-  async function sessionResult(candidateId: string, sessionId: string, changed: boolean): Promise<ScheduleSessionResult> {
+  async function sessionResult(candidateId: string, sessionId: string, changed: boolean | "too_late"): Promise<ScheduleSessionResult> {
+    if (changed === "too_late") return { ok: false, error: "too_late" };
     const session = changed ? (await sessionsOf(candidateId, sessionId))[0] : undefined;
     return session ? { ok: true, session } : { ok: false, error: "not_found" };
   }
 
   /** The Human Coach's own session, after a change: the result to give back. */
-  async function coachSessionResult(coachId: string, sessionId: string, changed: boolean): Promise<ScheduleCoachedSessionResult> {
-    const session = changed ? (await coachSessionsOf(coachId, sessionId))[0] : undefined;
+  async function coachSessionResult(coachId: string, sessionId: string, changed: boolean | "too_late"): Promise<ScheduleCoachedSessionResult> {
+    const session = changed === true ? (await coachSessionsOf(coachId, sessionId))[0] : undefined;
     return session ? { ok: true, session } : { ok: false, error: "not_found" };
   }
 
@@ -810,7 +819,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
         { where: "s.coach_id = $2 AND EXISTS (SELECT 1 FROM human_coach h WHERE h.id = s.coach_id AND h.retired_at IS NULL)", params: [coachId] },
         { to: null, by: "coach" },
       );
-      return changed ? { ok: true } : { ok: false, error: "not_found" };
+      return changed === true ? { ok: true } : { ok: false, error: "not_found" };
     },
 
     async withdrawSession(candidateId, sessionId, options = {}) {

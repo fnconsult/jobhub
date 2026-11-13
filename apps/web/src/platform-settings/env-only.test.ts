@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TEST_BUILD_EXTENSION_ORIGIN } from "@jobhub/shared/extension-test-build";
 import { envOnlySettingsShown, retiredSettingsSet } from "./env-only";
 
 const AUTH_SECRET = "a-very-secret-session-signing-key-0123456789";
@@ -33,6 +34,7 @@ describe("the settings only env holds, as Paramètres shows them", () => {
       "REVIEW_SIGN_IN",
       "REVIEW_SIGN_IN_EMAILS",
       "REVIEW_SIGN_IN_CODE",
+      "EXTENSION_ORIGINS",
       "STRIPE_PRICE_STANDARD",
       "STRIPE_PRICE_PREMIUM",
       "STRIPE_PRICE_COACHING_SESSION",
@@ -55,6 +57,15 @@ describe("the settings only env holds, as Paramètres shows them", () => {
     expect(rows.REVIEW_SIGN_IN_EMAILS?.shown).toEqual({ kind: "value", value: "demo@jobbbox.ai" });
     expect(rows.REVIEW_SIGN_IN_CODE?.shown).toEqual({ kind: "set" });
     expect(JSON.stringify(envOnlySettingsShown({ REVIEW_SIGN_IN_CODE: "482915" }))).not.toContain("482915");
+  });
+
+  it("shows EXTENSION_ORIGINS with whether the test zip's origin is trusted and why (ADR-0033), on its row alone", () => {
+    const production = shown({ JOBHUB_TARGET: "production", EXTENSION_ORIGINS: "chrome-extension://storelistingid" });
+    expect(production.EXTENSION_ORIGINS).toMatchObject({ shown: { kind: "value", value: "chrome-extension://storelistingid" }, testBuild: "not_recognised" });
+    expect(shown({ JOBHUB_TARGET: "production", EXTENSION_ORIGINS: `chrome-extension://storelistingid,${TEST_BUILD_EXTENSION_ORIGIN}` }).EXTENSION_ORIGINS?.testBuild).toBe("listed");
+    const beta = shown({ JOBHUB_TARGET: "staging" });
+    expect(beta.EXTENSION_ORIGINS).toMatchObject({ shown: { kind: "missing" }, testBuild: "automatic" });
+    expect(beta.APP_URL?.testBuild).toBeNull();
   });
 
   it("says what is missing, and a master key list or database URL it cannot read without showing it", () => {

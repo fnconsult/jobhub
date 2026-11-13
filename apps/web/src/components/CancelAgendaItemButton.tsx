@@ -1,33 +1,55 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { coachingSessionOver } from "@jobhub/shared/coaching-time";
 import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { send } from "@/components/ApplicationControls";
 import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
 
 /**
  * « Annuler » for an Agenda Item: an Interview (it stays, struck through) or a Coaching Session (back to
  * « À planifier »). It asks first, in place: `question` says what cancelling does, then « Oui, annuler »
  * posts to `url` and the page refreshes, or « Non, garder » goes back. `label` is the button's text and
  * `name` its accessible name, naming the item so that several buttons are told apart. Focus moves to the
- * question's first answer, and back to the button when the Candidate keeps the item.
+ * question's first answer, and back to the button when the Candidate keeps the item. `tooLate`, when given, is what a
+ * « too_late » refusal says, in a Note (a session that ended while the page was open, #1022). With `session`, the
+ * Coaching Session cancelled, it says so only once that session has ended (#1026): before, « too_late » is the
+ * cancellation policy's 24 hours (#883) and keeps its own text.
  */
-export function CancelAgendaItemButton({ url, label, name, question }: { url: string; label: string; name: string; question: string }) {
+export function CancelAgendaItemButton({
+  url,
+  label,
+  name,
+  question,
+  tooLate: tooLateText,
+  session,
+}: {
+  url: string;
+  label: string;
+  name: string;
+  question: string;
+  tooLate?: string;
+  session?: { scheduledAt: string; durationMinutes: number | null };
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
   const [asking, setAsking] = useState(false);
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [tooLate, setTooLate] = useState(false);
+  /** A « too_late » refusal: "over" when `tooLateText` tells it (the session has ended), else the 24 hours. */
+  const [tooLate, setTooLate] = useState<false | "over" | "window">(false);
   const button = useRef<HTMLButtonElement>(null);
 
   async function cancel() {
     setWorking(true);
     setFailed(false);
     const { ok, result } = await send(url, "POST");
-    setTooLate(!ok && result.error === "too_late");
+    const refusedTooLate = !ok && result.error === "too_late";
+    const over = Boolean(tooLateText) && (!session || coachingSessionOver(session, new Date()));
+    setTooLate(refusedTooLate ? (over ? "over" : "window") : false);
     setWorking(false);
     if (ok) {
       setAsking(false);
@@ -60,7 +82,11 @@ export function CancelAgendaItemButton({ url, label, name, question }: { url: st
           {t("agendaChanges.keep")}
         </button>
       </div>
-      {failed ? (
+      {failed && tooLate === "over" ? (
+        <Note tone="warn" role="alert">
+          {tooLateText}
+        </Note>
+      ) : failed ? (
         <p className="field-error" role="alert">
           {t(tooLate ? "coachingCancellation.tooLate" : "agendaChanges.error")}
         </p>

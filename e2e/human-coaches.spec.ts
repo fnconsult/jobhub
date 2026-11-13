@@ -309,6 +309,58 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     expect(JSON.stringify(exported)).not.toContain(coach.bookingUrl);
   });
 
+  // Issue #1022 (« Espace coach v2 » off, main's page) and #1026 (its Agenda): a Coaching Session that has ended stays listed with its date,
+  // without « Modifier la date » or « Annuler la séance », and both routes refuse it, 409 « too_late », its date intact.
+  // Dates are days in Paris, 10 days before and 3 days after today, so the test holds at any hour.
+  test("a Coaching Session that has ended can no longer be moved or cancelled; one to come still can", async ({ page, browser }) => {
+    const admin = await personPage(browser, ADMINISTRATOR);
+    const coach = await addCoach(admin, newAddress("coach-ended"));
+    const coachId = await coachIdOf(admin, coach.name);
+    await admin.context().close();
+    await signInWithMagicLink(page, newAddress("coaching-ended"));
+    await page.request.post("/api/coaching/checkout", { form: { coachId }, headers: { origin }, maxRedirects: 0 });
+    const [started] = await checkoutsFor(coachId);
+    for (const id of [`cs_e2e_${unique()}`, `cs_e2e_${unique()}`]) {
+      const { payload, signature } = signedEvent(
+        checkoutSessionEvent("checkout.session.completed", { id, candidateId: started!["metadata[candidate_id]"]!, coachId, amount: 9000, currency: "eur", paymentStatus: "paid" }),
+      );
+      expect((await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } })).status()).toBe(200);
+    }
+    const parisDay = (days: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(Date.now() + days * 86_400_000));
+    const [ended, toCome] = (await (await page.request.get("/api/account/export")).json()).coachingSessions as { id: string }[];
+    const pastDay = parisDay(-10);
+    // Unscheduled, a session is never over: its date, past or not, can be entered.
+    expect((await page.request.patch(`/api/coaching/sessions/${ended!.id}`, { data: { scheduledAt: `${pastDay}T10:00`, durationMinutes: 45 }, headers: { origin } })).ok()).toBe(true);
+    expect((await page.request.patch(`/api/coaching/sessions/${toCome!.id}`, { data: { scheduledAt: `${parisDay(3)}T10:00` }, headers: { origin } })).ok()).toBe(true);
+
+    await page.goto("/coachs");
+    const endedItem = page.locator(`#seance-${ended!.id}`);
+    const toComeItem = page.locator(`#seance-${toCome!.id}`);
+    await expect(endedItem.getByText(new RegExp(`^${tr(hc.sessionOn, { name: coach.name, date: ".+" })}$`))).toBeVisible();
+    await expect(endedItem.getByRole("link", { name: hc.seeInAgenda })).toBeVisible();
+    await expect(endedItem.getByRole("button")).toHaveCount(0);
+    await expect(toComeItem.getByRole("button", { name: tr(fr.coachingSession.editFor, { name: coach.name }) })).toBeVisible();
+    await expect(toComeItem.getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: coach.name }) })).toBeVisible();
+
+    const moved = await page.request.patch(`/api/coaching/sessions/${ended!.id}`, { data: { scheduledAt: `${parisDay(5)}T10:00` }, headers: { origin } });
+    expect([moved.status(), await moved.json()]).toEqual([409, { error: "too_late" }]);
+    const cancelled = await page.request.post(`/api/coaching/sessions/${ended!.id}/cancel`, { headers: { origin } });
+    expect([cancelled.status(), await cancelled.json()]).toEqual([409, { error: "too_late" }]);
+    const [after] = ((await (await page.request.get("/api/account/export")).json()).coachingSessions as { id: string; scheduledAt: string }[]).filter((s) => s.id === ended!.id);
+    expect(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(after!.scheduledAt))).toBe(pastDay);
+    await page.reload();
+    await expect(endedItem.getByRole("button")).toHaveCount(0);
+    await expect(endedItem.getByText(hc.toSchedule)).toHaveCount(0);
+    // #1026: the Agenda, too, offers neither action for the session that has ended, and both for the one to come.
+    const agendaItem = (id: string) => page.locator("li.agenda-item", { has: page.locator(`a.agenda-item-link[href="/coachs#seance-${id}"]`) });
+    await page.goto("/agenda?vue=liste&periode=passes");
+    await expect(agendaItem(ended!.id)).toContainText(tr(fr.agenda.withCoach, { name: coach.name }));
+    await expect(agendaItem(ended!.id).getByRole("button")).toHaveCount(0);
+    await page.goto("/agenda?vue=liste");
+    await expect(agendaItem(toCome!.id).getByRole("button", { name: tr(fr.coachingSession.editFor, { name: coach.name }) })).toBeVisible();
+    await expect(agendaItem(toCome!.id).getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: coach.name }) })).toBeVisible();
+  });
+
   // Issue #249: the Human Coach enters or corrects the date and video link of their own Coaching
   // Sessions in the Coach space, without Coach Access; the Candidate's Agenda says the coach changed
   // it. Another Human Coach and a Retired Human Coach are refused.

@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PATCH } from "./route";
 import { POST } from "./cancel/route";
 
-// The Candidate's own session routes (#1019): « Espace coach v2 » on, a session that has ended answers 409 « too_late »,
-// as the cancellation policy's « trop tard » (#883); off, they answer as on main.
+// The Candidate's own session routes: a session that has ended answers 409 « too_late », as the cancellation policy's
+// « trop tard » (#883), « Espace coach v2 » on (#1019) as off (#1022).
 const state = vi.hoisted(() => ({
   v2: true,
   policy: false,

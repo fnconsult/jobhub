@@ -130,7 +130,6 @@ function CoachingSessionForm({
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [failed, setFailed] = useState<boolean | "over">(false);
   const [useCal, setUseCal] = useState(false);
-  const [over, setOver] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -171,11 +170,6 @@ function CoachingSessionForm({
     const result: { errors?: FieldError[]; error?: string } = response ? await response.json().catch(() => ({})) : {};
     if (coachSpaceV2 && result.error === "use_cal") {
       setUseCal(true);
-      return;
-    }
-    // The session ended while the page was open (« Espace coach v2 », #1019).
-    if (coachSpaceV2 && result.error === "too_late") {
-      setOver(true);
       return;
     }
     if (Array.isArray(result.errors)) setErrors(result.errors);
@@ -235,11 +229,6 @@ function CoachingSessionForm({
           {t("coachingSession.cancel")}
         </button>
       </div>
-      {over ? (
-        <Note tone="warn" role="alert">
-          {t("coachingSession.over")}
-        </Note>
-      ) : null}
       {failed ? (
         // « over »: the session ended while the page was open (#1022).
         <Note tone={failed === "over" ? "warn" : "danger"} role="alert">

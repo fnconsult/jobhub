@@ -112,6 +112,68 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Déposez votre CV dans la carte « J'ai un CV », en PDF ou en Word, puis cliquez sur « Lire mon CV ». Sans CV, cliquez plutôt sur « Répondre aux questions de mon coach »."
         },
         {
+          "title": "Confirmer ce que votre coach a lu",
+          "actions": [
+            {
+              "action": "fill",
+              "target": {
+                "by": "label",
+                "text": "Votre réponse"
+              },
+              "text": "Responsable comptable"
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Envoyer au coach"
+              }
+            },
+            {
+              "action": "fill",
+              "target": {
+                "by": "label",
+                "text": "Votre réponse"
+              },
+              "text": "Lyon"
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Envoyer au coach"
+              }
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Passer cette question"
+              }
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Passer cette question"
+              }
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Passer cette question"
+              }
+            }
+          ],
+          "narration": "Pendant la lecture, « Activité » montre ce que votre coach trouve dans votre CV, à la ligne « Création du profil ». Il vous fait ensuite confirmer le poste visé et le lieu qu'il a lus : cliquez sur « Oui, … », ou écrivez le vôtre. Il ne vous demande ensuite que ce qu'un CV ne dit pas, le type de contrat, le télétravail et le salaire minimum, et chaque question se passe avec « Passer cette question »."
+        },
+        {
           "title": "Lire le résumé",
           "actions": [
             {
@@ -182,7 +244,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Si le résumé est juste, cliquez sur « Cela semble correct », puis sur « Continuer vers mon profil ». Votre premier profil est prêt : votre coach peut chercher des offres pour vous."
         }
       ],
-      "hash": "3e989c5c62b6"
+      "hash": "64f172d34eb8"
     },
     {
       "id": "extension-analyser-offre",
@@ -1013,6 +1075,68 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Drop your CV in the « I have a CV » card, as a PDF or a Word file, then click « Read my CV ». Without a CV, click « Answer my coach's questions » instead."
         },
         {
+          "title": "Confirm what your coach read",
+          "actions": [
+            {
+              "action": "fill",
+              "target": {
+                "by": "label",
+                "text": "Your answer"
+              },
+              "text": "Responsable comptable"
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Send to the coach"
+              }
+            },
+            {
+              "action": "fill",
+              "target": {
+                "by": "label",
+                "text": "Your answer"
+              },
+              "text": "Lyon"
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Send to the coach"
+              }
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Skip this question"
+              }
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Skip this question"
+              }
+            },
+            {
+              "action": "click",
+              "target": {
+                "by": "role",
+                "role": "button",
+                "name": "Skip this question"
+              }
+            }
+          ],
+          "narration": "While it reads, « Activity » shows what your coach finds in your CV, in the « Profile creation » row. It then has you confirm the target role and the place it read: click « Yes, … », or write your own. It then asks only what a CV does not say, the contract type, remote work and the minimum salary, and each question can be skipped with « Skip this question »."
+        },
+        {
           "title": "Read the summary",
           "actions": [
             {
@@ -1083,7 +1207,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "If the summary is right, click « That looks right », then « Continue to my profile ». Your first profile is ready: your coach can look for offers for you."
         }
       ],
-      "hash": "dbd06f162bda"
+      "hash": "ed42595f6988"
     },
     {
       "id": "extension-analyser-offre",

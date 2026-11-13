@@ -8,14 +8,18 @@ import { useTranslation } from "react-i18next";
 import { formatDuration, formatTimeOfDay } from "@jobhub/shared";
 import { enCeMoment, type NowItem } from "@/ai-activity/en-ce-moment";
 import { followedOn, type FollowedSearch } from "@/ai-activity/followed-search";
-import type { LiveAction, LiveStep } from "@/ai-activity/live";
+import type { LiveAction, LiveStep, RequestKind } from "@/ai-activity/live";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { StopButton } from "@/components/AiActivity";
 import { useAiActivityLive } from "@/components/AiActivityLive";
+import { CvReadingNow } from "@/components/CvReading";
 import { FollowedSearchNow } from "@/components/FollowedSearchNow";
 import { Icons } from "@/components/icons";
+import { routes } from "@/routes";
 
 type Language = "fr" | "en";
+
+const CV_READING: RequestKind = "cv_reading";
 
 const NO_ACTIONS: readonly LiveAction[] = [];
 
@@ -128,6 +132,8 @@ function NowAction({ item, elsewhere, stop, now, followed = null }: { item: NowI
       </div>
       {item.live ? <StopButton action={action} stop={stop} /> : null}
       {followed ? <FollowedSearchNow action={action} followed={followed} /> : null}
+      {/* A CV read on « Créer un profil » (#1003): « Lecture de votre profil », its fields in the history once read. */}
+      {!elsewhere && action.kind === CV_READING && action.href === routes.newProfile ? <CvReadingNow running={item.live} /> : null}
     </article>
   );
 }

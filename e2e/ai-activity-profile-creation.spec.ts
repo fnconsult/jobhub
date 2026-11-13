@@ -4,7 +4,7 @@ import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { activityOf, openActivity, unfoldedEntryOf } from "./support/conversation";
-import { confirmSummary, onboardingSummary } from "./support/onboarding-summary";
+import { confirmSummary, onboardingSummary, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #810 (ADR-0086, ADR-0070): a Profile's creation is one Activité entry, « Création du profil », on `/profils/nouveau`
 // and then on the new Profile's page: the CV read (its Provenance, the only AI), the Onboarding Questionnaire (« Questions
@@ -63,12 +63,16 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await expect(nowOf(page)).toContainText(kinds.cv_reading);
     await expect(nowOf(page)).toContainText(fr.aiActivity.steps.read);
 
-    // Read: the review, its summary first (#1004); the history's one entry, the reading and the review.
-    await expect(onboardingSummary(page)).toBeVisible({ timeout: 60_000 });
+    // Read: the interview from it (#1003), the role and place confirmed and the rest skipped; then the review, its summary
+    // first (#1004); the history's one entry, the reading, the interview and the review.
+    await expect(transcript(page).getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 60_000 });
+    await throughCvInterview(page);
+    await expect(onboardingSummary(page)).toBeVisible();
     await openActivity(page);
     const before = await creationOf(page);
-    await expect(before.entry.locator(".activity-entry-row")).toContainText(history.results.creating);
-    expect(await partKinds(before.parts)).toEqual(["cv_reading", "review"]);
+    // Born at the role and place confirmed (#999): « Profil créé » with Version 1, before the review.
+    await expect(before.entry.locator(".activity-entry-row")).toContainText(history.results.created.replace("{{version}}", "1"));
+    expect(await partKinds(before.parts)).toEqual(["cv_reading", "onboarding_interview", "review", "profile_created"]);
     await expect(before.parts.first()).toContainText("Mistral");
 
     await confirmSummary(page);
@@ -78,7 +82,7 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await openActivity(page);
     const saved = await creationOf(page);
     await expect(saved.entry.locator(".activity-entry-row")).toContainText(history.results.created.replace("{{version}}", "1"));
-    expect(await partKinds(saved.parts)).toEqual(["cv_reading", "review", "profile_created"]);
+    expect(await partKinds(saved.parts)).toEqual(["cv_reading", "onboarding_interview", "review", "profile_created"]);
     await expect(saved.entry.getByRole("link", { name: history.open.profile_creation })).toHaveAttribute("href", `/profils/${id}`);
     await expect(contextBarOf(page)).toContainText(fr.contextBar.noReply);
 

@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { docxCv, MARIE_DUPONT_CV } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { openReviewDetail } from "./support/onboarding-summary";
+import { openReviewDetail, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #260: the degraded paths of an AI feature become warnings on the related AI call, seen by a
 // super-admin in the Journaux IA. Each case is driven from the Candidate's side through the public
@@ -114,6 +114,7 @@ test.describe("AI call warnings in the Journaux IA (#260)", () => {
     const lines = [...MARIE_DUPONT_CV, "Centres d'intérêt", `E2E_AI_DOWN ${secret}`];
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.docx", mimeType: DOCX, buffer: Buffer.from(await docxCv(lines)) });
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await throughCvInterview(page);
     await openReviewDetail(page);
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
 

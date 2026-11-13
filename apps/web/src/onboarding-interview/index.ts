@@ -14,6 +14,12 @@
  * places as Place suggestion names them, the contract types and remote work options, a salary), never the Candidate's
  * name or contact; the target role and a place asked first, as the Profile is born with them (#999); the interview done
  * only once they are known. Nothing is saved here: the page applies only what the Candidate answers or validates.
+ *
+ * With a CV (#1003, `input.cv`), the interview starts from the Master CV it read: the code itself proposes the target role,
+ * then the places, the CV read, for the Candidate to confirm (no AI call); then the AI asks only what a CV does not say and
+ * the Match Score weighs (AFTER_CV_FIELDS: contracts, remote work, minimum salary), each once and each skippable, proposing
+ * a deduction from the career when it can; done once they are asked. When the AI gives no turn, the code asks the next one
+ * itself, without a proposal, rather than handing over to the scripted questionnaire.
  */
 import { createProvenanceRecorder, type AiLayer } from "@jobhub/ai";
 import {
@@ -35,6 +41,7 @@ import type { PlaceSuggestions } from "../places/geo-api";
 import { searchCriteriaSchema } from "../profiles";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import {
+  AFTER_CV_FIELDS,
   CHOICES,
   INTERVIEW_FIELDS,
   isChoiceField,
@@ -45,6 +52,7 @@ import {
   NOT_PROPOSED,
   REQUIRED_FIELDS,
   canBeBorn,
+  type CvRead,
   type ExchangeTurn,
   type InterviewAsk,
   type InterviewDraft,
@@ -107,6 +115,8 @@ export const interviewInputSchema = z.object({
   draft: z.object({ masterCv: cvSchema, searchCriteria: criteriaSchema }),
   exchange: z.array(exchangeTurnSchema).max(MAX_TURNS),
   opener: z.string().max(MAX_TEXT).optional(),
+  /** With a CV (#1003): the target role and places it read, to confirm; the draft holds the Master CV it read. */
+  cv: z.object({ targetRole: text(300), locations: z.array(z.string().max(200)).max(MAX_SEARCH_LOCATIONS).catch([]) }).optional(),
 });
 export type InterviewInput = z.output<typeof interviewInputSchema>;
 
@@ -202,10 +212,24 @@ function exchangeInWords(exchange: readonly ExchangeTurn[], opener: string | und
 }
 
 function promptOf(input: InterviewInput, draft: InterviewDraft): string {
+  const left = input.cv ? leftAfterCv(draft, input.exchange) : [];
   return [
     "Entretien d'accueil",
     `Langue de l'entretien : ${input.language === "en" ? "anglais" : "français"}`,
-    `Brouillon (seulement ce que le candidat a répondu ou validé) : ${draftInWords(draft)}`,
+    input.cv
+      ? `Brouillon (le Master CV lu dans le CV du candidat, puis ce qu'il a répondu ou validé) : ${draftInWords(draft)}`
+      : `Brouillon (seulement ce que le candidat a répondu ou validé) : ${draftInWords(draft)}`,
+    // With a CV (#1003): only what it does not say, a deduction from the career proposed when the AI can make one.
+    ...(input.cv
+      ? [
+          [
+            "Le candidat a importé son CV : ne lui demande rien de ce que son CV donne déjà.",
+            left.length > 0 ? `Pose seulement une question sur l'un de ces champs : ${left.join(", ")}, en proposant une déduction d'après son parcours quand tu peux.` : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+        ]
+      : []),
     `Échange :\n${exchangeInWords(input.exchange, input.opener)}`,
   ].join("\n\n");
 }
@@ -221,9 +245,21 @@ export interface CheckDeps {
 /** The first of the fields the Profile is born with that is not known yet; null once both are. */
 const missingRequired = (draft: InterviewDraft): InterviewField | null => REQUIRED_FIELDS.find((field) => !isFilled(draft, field)) ?? null;
 
-/** A question the code asks itself, in the scripted questions' words. */
+/**
+ * With a CV (#1003), the fields still to ask once the Profile can be born: those a CV does not say (AFTER_CV_FIELDS), not
+ * yet known and not yet asked, each asked once.
+ */
+export function leftAfterCv(draft: InterviewDraft, exchange: readonly ExchangeTurn[]): InterviewField[] {
+  return AFTER_CV_FIELDS.filter((field) => !isFilled(draft, field) && !exchange.some((turn) => turn.ask.field === field));
+}
+
+/** A question the code asks itself, in the scripted questions' words; with a CV, on a field a CV does not say (#1003). */
 function scriptedAsk(field: InterviewField, draft: InterviewDraft, language: Language): InterviewAsk {
   const { t } = createI18n(language);
+  if (field === "contractTypes" || field === "remoteWorkOptions") {
+    return { field, question: t(`newProfile.fromCv.ask.${field}`), kind: "choice", choices: [...CHOICES[field]], optional: isOptional(draft, field) };
+  }
+  if (field === "minSalary") return { field, question: t("newProfile.fromCv.ask.minSalary"), kind: "text", optional: isOptional(draft, field) };
   const question = field === "locations" ? t("questionnaire.questions.location") : t("questionnaire.questions.targetRole");
   return { field, question, kind: "text", optional: isOptional(draft, field) };
 }
@@ -309,12 +345,23 @@ function codeLabel(entries: readonly ReferenceEntry[], code: string, language: L
  * field's own codes, a proposal only with a value its field takes (dropped otherwise), never done before the Profile can be
  * born; until then, only its target role or a place is asked.
  */
-export async function checkedTurn(reply: AiTurn, draft: InterviewDraft, exchange: readonly ExchangeTurn[], deps: CheckDeps): Promise<InterviewTurn> {
+export async function checkedTurn(
+  reply: AiTurn,
+  draft: InterviewDraft,
+  exchange: readonly ExchangeTurn[],
+  deps: CheckDeps,
+  /** With a CV (#1003), once the Profile can be born: the only fields it may ask (`leftAfterCv`), not done before they are. */
+  only?: readonly InterviewField[],
+): Promise<InterviewTurn> {
   const missing = missingRequired(draft);
   const asked = isInterviewField(reply.ask.field) ? reply.ask.field : null;
   // Until the Profile can be born, its target role and a place come first (#999): the AI's question stands if it asks one.
-  const field: InterviewField | null = missing ? (asked && REQUIRED_FIELDS.includes(asked) ? asked : missing) : asked;
-  const done = (reply.done || field === null || exchange.length >= MAX_TURNS) && missing === null;
+  // With a CV, then, only what it does not say: the AI's question stands if it is one of them, else the first left.
+  const allowed = only && only.length > 0 ? only : null;
+  let field: InterviewField | null = asked;
+  if (missing) field = asked && REQUIRED_FIELDS.includes(asked) ? asked : missing;
+  else if (allowed) field = asked && allowed.includes(asked) ? asked : allowed[0]!;
+  const done = !allowed && (reply.done || field === null || exchange.length >= MAX_TURNS) && missing === null;
   let ask: InterviewAsk;
   if (field === null) ask = scriptedAsk("targetRole", draft, deps.language);
   else if (field !== asked) ask = scriptedAsk(field, draft, deps.language);
@@ -329,7 +376,7 @@ export async function checkedTurn(reply: AiTurn, draft: InterviewDraft, exchange
 
   let proposal: InterviewProposal | undefined;
   const proposed = reply.proposal;
-  if (proposed && isInterviewField(proposed.field) && (!missing || proposed.field === ask.field)) {
+  if (proposed && isInterviewField(proposed.field) && (!(missing || allowed) || proposed.field === ask.field)) {
     const value = await checkedValue(proposed.field, proposed.value, draft, deps);
     if (value !== null) proposal = { field: proposed.field, value, because: proposed.because.trim().slice(0, 300), shown: valueInWords(proposed.field, value, deps) };
   }
@@ -362,7 +409,15 @@ export async function nextInterviewTurn(input: InterviewInput, deps: InterviewDe
   if (input.exchange.length >= MAX_TURNS && canBeBorn(draft)) {
     return { turn: { ask: scriptedAsk("targetRole", draft, input.language), done: true }, provenance: null };
   }
+  // With a CV (#1003), the code asks itself what needs no AI: a target role or place read, to confirm; done once
+  // nothing a CV does not say is left to ask.
+  if (input.cv) {
+    const own = cvTurn(input.cv, draft, input.exchange, check);
+    if (own) return { turn: own, provenance: null };
+  }
   const { signal, onEvent } = deps;
+  // With a CV, an AI that gives no turn leaves the code's own question on the next field: no scripted questionnaire.
+  const withoutAi = () => (input.cv && !signal?.aborted ? { turn: codeTurn(draft, input.exchange, input.language), provenance: null } : null);
   let reply: string;
   let recorder: ReturnType<typeof createProvenanceRecorder>;
   try {
@@ -383,14 +438,52 @@ export async function nextInterviewTurn(input: InterviewInput, deps: InterviewDe
   } catch (error) {
     if (signal?.aborted) return null;
     console.warn("[onboarding-interview] the AI turn failed, the scripted questions take over:", error instanceof Error ? error.message : error);
-    return null;
+    return withoutAi();
   }
   const parsed = aiTurnSchema.safeParse(jsonIn(reply));
   if (!parsed.success) {
     console.warn("[onboarding-interview] the AI turn was not usable, the scripted questions take over");
-    return null;
+    return withoutAi();
   }
-  const turn = await checkedTurn(parsed.data, draft, input.exchange, check);
+  const turn = await checkedTurn(parsed.data, draft, input.exchange, check, input.cv ? leftAfterCv(draft, input.exchange) : undefined);
   // Made of the Candidate's own answers: their data, with no page to link to.
   return { turn, provenance: { ...recorder.provenance(), sites: [{ kind: "candidate", links: [] }] } };
+}
+
+// ——— With a CV (#1003) ———
+
+/**
+ * The turn the code asks itself with a CV, or null when the AI asks: the target role, then a place, the CV read, to
+ * confirm (« Oui, … » or « Non, plutôt… »), each proposed once; done once the Profile can be born and nothing a CV does not
+ * say is left to ask.
+ */
+export function cvTurn(read: CvRead, draft: InterviewDraft, exchange: readonly ExchangeTurn[], deps: CheckDeps): InterviewTurn | null {
+  const missing = missingRequired(draft);
+  if (!missing) return leftAfterCv(draft, exchange).length === 0 ? { ask: scriptedAsk("targetRole", draft, deps.language), done: true } : null;
+  if (exchange.some((turn) => turn.ask.field === missing)) return null;
+  const value = confirmable(missing, read, draft);
+  if (value === null) return null;
+  const { t } = createI18n(deps.language);
+  return {
+    ask: { field: missing, question: t(missing === "locations" ? "newProfile.fromCv.confirm.locations" : "newProfile.fromCv.confirm.targetRole"), kind: "text", optional: false },
+    proposal: { field: missing, value, because: t("newProfile.fromCv.confirm.because"), shown: valueInWords(missing, value, deps) },
+    done: false,
+  };
+}
+
+/** What the CV read for `field` (the target role, or its places), as the Search Criteria take it; null when it read none. */
+function confirmable(field: InterviewField, read: CvRead, draft: InterviewDraft): ProposalValue | null {
+  if (field === "targetRole") {
+    const role = read.targetRole.trim();
+    return role && criteriaWith(draft, "targetRole", role) ? role : null;
+  }
+  const places = read.locations.map((place) => place.trim()).filter(Boolean);
+  const checked = places.length > 0 ? criteriaWith(draft, "locations", places) : null;
+  return checked ? (checked.locations as string[]) : null;
+}
+
+/** With a CV, the code's own question when the AI gives no turn: a field the Profile needs, then one a CV does not say; else done. */
+function codeTurn(draft: InterviewDraft, exchange: readonly ExchangeTurn[], language: Language): InterviewTurn {
+  const next = missingRequired(draft) ?? leftAfterCv(draft, exchange)[0] ?? null;
+  return next ? { ask: scriptedAsk(next, draft, language), done: false } : { ask: scriptedAsk("targetRole", draft, language), done: true };
 }

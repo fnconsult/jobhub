@@ -1426,6 +1426,35 @@
       "no": "No, rather…",
       "proposal": "I suggest: {{value}}. {{because}}",
       "fallback": "I'll go on with my usual questions, without the AI: I won't ask again what you have already told me."
+    },
+    "fromCv": {
+      "building": "Profile in progress",
+      "readingStep": "Reading your profile",
+      "fields": {
+        "targetRole": "Target role",
+        "experience": "Experience in years",
+        "location": "Based in",
+        "skills": "Skills",
+        "contractTypes": "Contract types",
+        "minSalary": "Desired salary"
+      },
+      "missing": "Not in your profile yet",
+      "years_one": "{{count}} year",
+      "years_other": "{{count}} years",
+      "moreSkills_one": "{{skills}} and {{count}} more",
+      "moreSkills_other": "{{skills}} and {{count}} more",
+      "questionsStart": "I've read your CV. I'll ask you to confirm the role and the place I read in it, then only what it doesn't say. You can skip what doesn't apply to you.",
+      "confirm": {
+        "targetRole": "What role are you looking for?",
+        "locations": "Where would you like to work?",
+        "because": "That's what I read in your CV."
+      },
+      "ask": {
+        "contractTypes": "What type of contract are you looking for?",
+        "remoteWorkOptions": "How much remote work suits you?",
+        "minSalary": "What minimum gross annual salary are you aiming for?"
+      },
+      "reading": "I'm reading your CV. Follow the reading in « Activity »: what I find in it shows there, and what is still missing."
     }
   },
   "onboardingSearch": {

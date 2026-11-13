@@ -32,6 +32,17 @@ Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ». 
 
 Déposez votre CV dans la carte « J'ai un CV », en PDF ou en Word, puis cliquez sur « Lire mon CV ». Sans CV, cliquez plutôt sur « Répondre aux questions de mon coach ».
 
+## Confirmer ce que votre coach a lu
+- fill label « Votre réponse » « Responsable comptable »
+- click button « Envoyer au coach »
+- fill label « Votre réponse » « Lyon »
+- click button « Envoyer au coach »
+- click button « Passer cette question »
+- click button « Passer cette question »
+- click button « Passer cette question »
+
+Pendant la lecture, « Activité » montre ce que votre coach trouve dans votre CV, à la ligne « Création du profil ». Il vous fait ensuite confirmer le poste visé et le lieu qu'il a lus : cliquez sur « Oui, … », ou écrivez le vôtre. Il ne vous demande ensuite que ce qu'un CV ne dit pas, le type de contrat, le télétravail et le salaire minimum, et chaque question se passe avec « Passer cette question ».
+
 ## Lire le résumé
 - zoom region « Votre recherche d'offres »
 - click button « Voir le détail »

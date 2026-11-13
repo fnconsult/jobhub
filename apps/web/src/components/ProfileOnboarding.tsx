@@ -24,6 +24,7 @@ import {
   questionnaireDraft,
   replied,
   REQUIRED_FIELDS,
+  type CvRead,
   type ExchangeTurn,
   type InterviewDraft,
   type InterviewField,
@@ -45,6 +46,8 @@ import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
 import type { RefiningCriterion } from "@/ai-activity/followed-search";
 import { CoachLine } from "./CoachLine";
+import { useActivityColumn } from "./activity-column";
+import { readFields, type T as ReadT } from "@/ai-activity/cv-reading";
 import { searchedWith, useFollowedSearch } from "./followed-search";
 import { OnboardingSummary } from "./OnboardingSummary";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
@@ -53,7 +56,11 @@ import "./QuickActions.css";
 
 type From = "cv" | "interview" | "questionnaire" | "scratch" | "resumed";
 /** At the review, the summary first (#1004); `saved` once « Cela semble correct » has saved the Profile, at its page. */
-type Step = { kind: "choose" } | { kind: "interview" } | { kind: "questionnaire" } | { kind: "review"; draft: CvDraft; from: From; saved?: string };
+type Step =
+  | { kind: "choose" }
+  | { kind: "interview" }
+  | { kind: "questionnaire" }
+  | { kind: "review"; draft: CvDraft; from: From; saved?: string };
 
 /** A Profile born during its onboarding and not finished (#999), resumed at its review on `/profils/nouveau?profil=<id>`. */
 export interface ResumedProfile extends BornProfile {
@@ -75,6 +82,8 @@ interface Interview {
   turn: InterviewTurn | null;
   provenance: Provenance | null;
   declining: boolean;
+  /** With a CV (#1003): the target role and places it read, to confirm, sent with each turn asked. */
+  cv?: CvRead;
 }
 
 const IN_PROGRESS: OnboardingState = "in_progress";
@@ -119,10 +128,16 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
  * as a Coach Conversation. When the AI cannot give the next turn (it fails, it is stopped, its reply is unusable), the
  * scripted Onboarding Questionnaire takes over at the next question, skipping what is already known: no dead end.
  *
- * The Profile is born as soon as its target role and location are answered (ADR-0106, #999): created with its onboarding
- * in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the review's save
- * finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its review. From a
- * CV or from scratch, the Profile is still created at the review's save (#1003 changes it).
+ * With a CV (#1003), the reading shows in Activité, as the offered search does (#1001), the thread saying so in one line
+ * of the coach: « Lecture de votre profil » under way in « En ce moment » while `/api/cv/draft` reads it, the side panel
+ * opened on a wide screen; then « Création du profil »'s part « Lecture du CV » with the fields it read, appearing one by
+ * one, an absent one said absent (CvReading). The interview then starts from the CV's draft: the target role and places it read proposed to confirm, then only what a CV does not say
+ * (contracts, remote work, minimum salary), each skippable.
+ *
+ * The Profile is born as soon as its target role and location are answered or confirmed (ADR-0106, #999): created with its
+ * onboarding in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the
+ * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
+ * review. From scratch, the Profile is still created at the review's save.
  * Born, it gets its first Job Search, offered outside the Plan Quota (#1000), started again once when an answer changes
  * its target role or locations; a coach line in the thread says so, text only. Its progress is AI Activity's: the page
  * follows it (useFollowedSearch), so « En ce moment » counts it « ici », with its run's measures and the Job Offers that
@@ -154,6 +169,20 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const offeredStarts = useRef(0);
   // The offered Job Search the page follows in AI Activity (#1001): the latest started, kept when the Candidate starts over.
   const [followedId, setFollowedId] = useState<string | null>(null);
+  // The CV read (#1003): its draft once `/api/cv/draft` gave it, kept for the line the reading card folds into; and
+  // whether it is being read, for the card to show its step under way.
+  const [cvRead, setCvRead] = useState<CvDraft | null>(null);
+  const [cvReading, setCvReading] = useState(false);
+  // On a wide screen, Activité opens beside the conversation as the CV's reading starts, as for the offered search (#1001);
+  // on a phone nothing opens: the compact Top Bar already shows « Activité » while it runs (ADR-0101).
+  const column = useActivityColumn();
+  const openColumn = column?.open;
+  const wide = column?.wide ?? false;
+  /** The CV's reading starts or ends (#1003): on a wide screen, Activité opens as it starts. */
+  function reading(started: boolean) {
+    setCvReading(started);
+    if (started && wide) openColumn?.();
+  }
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState("");
@@ -196,7 +225,6 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   }, [step.kind, turns.length, question?.kind, turn, suggested, interview.declining]);
 
   function review(draft: CvDraft, from: From, kept: ReviewEdits | null = null) {
-    if (from === FROM_CV) noteCreation?.({ type: "read", provenance: draft.provenance ?? null });
     noteCreation?.({ type: "reviewed" });
     setEdits(kept);
     setStep({ kind: "review", draft, from });
@@ -210,6 +238,34 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   function confirmed(href: string) {
     saved(href);
     setStep((current) => (current.kind === "review" ? { ...current, saved: href } : current));
+  }
+
+  /**
+   * The CV read (#1003): « Création du profil » in Activité shows the fields it gave (« Profil en construction »), and the
+   * interview starts from it (`startFromCv`).
+   */
+  function read(draft: CvDraft) {
+    noteCreation?.({ type: "read", provenance: draft.provenance ?? null, fields: readFields(draft, t as unknown as ReadT, language) });
+    setCvRead(draft);
+    startFromCv(draft);
+  }
+
+  /**
+   * The interview from the CV read (#1003): its Master CV in the draft, its target role and places only to confirm, not in
+   * it until the Candidate does (« Oui, … »); then only what a CV does not say. No opening line: the CV said it.
+   */
+  function startFromCv(draft: CvDraft) {
+    setOpener("");
+    setValue("");
+    const started: Interview = {
+      ...newInterview(),
+      draft: interviewDraft({ masterCv: draft.masterCv, searchCriteria: { targetRole: "", locations: [] } }),
+      cv: { targetRole: draft.searchCriteria.targetRole, locations: draft.searchCriteria.locations },
+    };
+    setInterview(started);
+    setStep({ kind: "interview" });
+    noteCreation?.({ type: "interviewed", answered: 0, skipped: 0, provenance: null });
+    void askNext(started, "");
   }
 
   /** The questions start: the AI Coach's interview, its first turn asked at once. */
@@ -229,7 +285,10 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
    */
   async function askNext(now: Interview, said = opener) {
     const mine = ++run.current;
-    const outcome = await asking.run(INTERVIEW_URL, { method: "POST", json: { language, draft: now.draft, exchange: now.exchange, ...(said ? { opener: said } : {}) } });
+    const outcome = await asking.run(INTERVIEW_URL, {
+      method: "POST",
+      json: { language, draft: now.draft, exchange: now.exchange, ...(said ? { opener: said } : {}), ...(now.cv ? { cv: now.cv } : {}) },
+    });
     if (mine !== run.current) return;
     const next = outcome.ok ? (outcome.body.turn as InterviewTurn | undefined) : undefined;
     if (!next) return fallBack(now);
@@ -237,6 +296,8 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     noteCreation?.({ type: "interviewed", ...answerCounts(now.exchange), provenance });
     if (next.done) {
       setInterview({ ...now, turn: null, provenance });
+      // From a CV, its draft keeps what read it (#335), saved with the Master CV's first version.
+      if (now.cv) return review({ ...questionnaireDraft(now.draft), ...(cvRead?.provenance ? { provenance: cvRead.provenance } : {}) }, FROM_CV, reviewEditsOf(now.draft));
       return review(questionnaireDraft(now.draft), "interview", reviewEditsOf(now.draft));
     }
     setInterview({ ...now, turn: next, provenance, declining: false });
@@ -294,6 +355,8 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setRefused(null);
     setReviewOpening(0);
     setOfferedSearch(null);
+    setCvRead(null);
+    setCvReading(false);
   }
 
   /**
@@ -346,7 +409,8 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
       const response = await fetch("/api/profiles", {
         method: "POST",
         headers: JSON_BODY,
-        body: JSON.stringify({ masterCv, searchCriteria, onboarding: IN_PROGRESS }),
+        // From a CV, what read it (#335), kept with the Master CV's first version.
+        body: JSON.stringify({ masterCv, searchCriteria, onboarding: IN_PROGRESS, ...(cvRead?.provenance ? { provenance: cvRead.provenance } : {}) }),
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 201 && typeof body.id === "string") {
@@ -425,7 +489,9 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   };
   const fromQuestions = step.kind === "review" && (step.from === "questionnaire" || step.from === "interview");
   const startOverLabel = fromQuestions ? t("questionnaire.startOver") : t("cvReview.startOver");
-  const answering = step.kind === "questionnaire" || step.kind === "interview" || fromQuestions;
+  // From a CV (#1003), its interview stays in the thread at the review too, after the line its reading card folded into.
+  const fromCvInterview = cvRead !== null && step.kind !== "choose";
+  const answering = step.kind === "questionnaire" || step.kind === "interview" || fromQuestions || fromCvInterview;
   const optional = question?.optional || turnOptional;
   const described = [optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
 
@@ -460,19 +526,36 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
               <li className="chat-message chat-card">
                 <Card title={t("newProfile.withCv")}>
                   <p>{t("cvUpload.intro")}</p>
-                  <CvUpload onDraft={(draft) => review(draft, FROM_CV)} onFromScratch={() => review(BLANK_DRAFT, FROM_SCRATCH)} />
+                  <CvUpload onDraft={read} onReading={reading} onFromScratch={() => review(BLANK_DRAFT, FROM_SCRATCH)} />
                 </Card>
               </li>
             ) : null}
+            {/* The CV being read, then read (#1003): one line of the coach, the reading itself in Activité. */}
+            {(step.kind === "choose" && cvReading) || fromCvInterview ? (
+              <CoachLine>
+                <p>{t("newProfile.fromCv.reading")}</p>
+              </CoachLine>
+            ) : null}
+            {fromCvInterview && cvRead ? (
+              <>
+                <CoachLine>
+                  <p>{t("newProfile.fromCv.questionsStart")}</p>
+                </CoachLine>
+              </>
+            ) : null}
             {answering ? (
               <>
-                <li className="chat-message chat-candidate">
-                  <span className="visually-hidden">{t("questionnaire.you")}</span>
-                  <p>{opener || t("newProfile.startQuestionnaire")}</p>
-                </li>
-                <CoachLine>
-                  <p>{t("newProfile.questionsStart")}</p>
-                </CoachLine>
+                {fromCvInterview ? null : (
+                  <>
+                    <li className="chat-message chat-candidate">
+                      <span className="visually-hidden">{t("questionnaire.you")}</span>
+                      <p>{opener || t("newProfile.startQuestionnaire")}</p>
+                    </li>
+                    <CoachLine>
+                      <p>{t("newProfile.questionsStart")}</p>
+                    </CoachLine>
+                  </>
+                )}
                 {interview.exchange.flatMap((said, index) => [
                   <CoachLine key={`turn-${index}`}>
                     <TurnWords turn={said} />

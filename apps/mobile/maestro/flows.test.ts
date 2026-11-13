@@ -212,8 +212,9 @@ describe("the Maestro flows (#705)", () => {
 
   // A page opens on its latest message only if it had loaded when its thread was laid out: the foldable's home page was
   // captured at its end on one run and at its start on the next (93 % alike), and a scroll from there stopped elsewhere.
-  // Every conversation's key screen starts from the thread's end, after the page is opened (#705).
-  it("brings the conversation to its end before each conversation's key screen", () => {
+  // Every conversation's key screen starts from the thread's end, after the page is opened (#705), but the home page:
+  // it opens on the top of its thread (#979), the same each run, and is captured there, « Votre point du jour » read.
+  it("brings the conversation to its end before each conversation's key screen but the home page", () => {
     const { commands } = parse(join(ROOT, "flows", "2-ecrans-cles.yaml"));
     const fromEnd: string[] = [];
     let atEnd = false;
@@ -227,7 +228,9 @@ describe("the Maestro flows (#705)", () => {
         atEnd = false;
       }
     }
-    expect(fromEnd).toEqual(["accueil", "candidatures", "agenda", "conversation"]);
+    expect(fromEnd).toEqual(["candidatures", "agenda", "conversation"]);
+    const waits = (valuesOf(commands, ["extendedWaitUntil"]) as { visible?: string }[]).map((wait) => wait.visible);
+    expect(waits).toContain("Votre point du jour");
   });
 
   // Android exposes the coach's whole reply as one text, its paragraphs joined: « FIN DE LA RÉPONSE », matched against

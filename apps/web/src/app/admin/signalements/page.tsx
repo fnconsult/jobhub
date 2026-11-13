@@ -1,3 +1,4 @@
+import {ContentReportsAdmin} from "@/coaching-content-reports/Admin";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { IntroPage } from "@/admin/page-intro";
@@ -56,6 +57,7 @@ export default async function SignalementsPage({ searchParams }: { searchParams:
 
   return (
     <BackOfficeLayout access={access} title={t("admin.signalements.title")}>
+      <ContentReportsAdmin canWrite={canWrite}/>
       <div className="section-page">
         <PageIntro t={t} page={INTRO} subject={t("admin.signalements.title")}>
           {canWrite ? null : <p>{t("admin.signalements.questionsOnly")}</p>}

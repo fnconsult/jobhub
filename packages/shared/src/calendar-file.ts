@@ -1,9 +1,12 @@
+import { coachingCalendarZone, coachingTimeZone, zonedClock } from "./coaching-time";
+
 /**
  * The Calendar file's iCalendar text (ADR-0029, RFC 5545, written by hand, no ics package): one event in a
  * VCALENDAR, for the web's « Ajouter à mon calendrier » download and the app's share sheet alike (#693), so both
  * write the same file. What the event says (its title, place, description) is each caller's; this module writes it.
  *
- * Times are French time: DTSTART and DTEND name TZID=Europe/Paris, with its VTIMEZONE block, never converted to UTC.
+ * Times use the viewer’s IANA zone (Paris by default), with its VTIMEZONE. Repeated DST clocks use exact UTC
+ * instants and retain zone metadata so calendar imports cannot choose the wrong occurrence.
  * No METHOD: the file informs, it schedules nothing. Text is escaped and lines are folded at 75 octets, never inside a
  * UTF-8 character.
  */
@@ -15,6 +18,11 @@ export const FRENCH_TIME_ZONE = "Europe/Paris";
 export interface CalendarFileEvent {
   /** Stable per Agenda Item, so a later file names the same event. */
   uid: string;
+  /**
+   * Coaching Sessions use the viewer’s zone; Interviews keep the Paris default. Named (even Paris), a repeated DST
+   * clock is written in UTC; left out, the file is the one before « Espace coach v2 » (ADR-0107).
+   */
+  timeZone?: string;
   start: Date;
   end: Date;
   /** The revision: a later file with a higher one replaces the event. */
@@ -105,20 +113,41 @@ function fold(line: string): string {
   return folded.join("\r\n");
 }
 
+/** RFC 5545 chooses the first occurrence of a repeated local clock. Use UTC when either occurrence is ambiguous. */
+function ambiguousClock(at: Date, zone: string): boolean {
+  const instant = Math.floor(+at / 1000) * 1000;
+  const wall = zonedClock(new Date(instant), zone);
+  const epoch = Date.parse(`${wall}Z`);
+  return [-86_400_000, 0, 86_400_000].some((delta) => {
+    const adjacent = instant + delta;
+    const offset = Date.parse(`${zonedClock(new Date(adjacent), zone)}Z`) - adjacent;
+    const alternative = epoch - offset;
+    return alternative !== instant && zonedClock(new Date(alternative), zone) === wall;
+  });
+}
+
 /** The Calendar file of `event`, made at `now` (its DTSTAMP), with CRLF line breaks. */
 export function calendarFileText(event: CalendarFileEvent, { now }: { now: Date }): string {
+  const zone = coachingTimeZone(event.timeZone) ?? FRENCH_TIME_ZONE;
+  // Without a named zone, the file is written as before ADR-0096 (TZID=Europe/Paris, even on a repeated clock).
+  const utc = event.timeZone !== undefined && (ambiguousClock(event.start, zone) || ambiguousClock(event.end, zone));
+  const clock = (at: Date) => zonedClock(at, zone).replace(/[-:]/g, "");
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Jobbbox//Agenda//FR",
     "CALSCALE:GREGORIAN",
-    ...PARIS_TIMEZONE,
+    ...(zone === FRENCH_TIME_ZONE ? PARIS_TIMEZONE : coachingCalendarZone(zone, event.start)),
     "BEGIN:VEVENT",
     `UID:${event.uid}`,
     `DTSTAMP:${utcDateTime(now)}`,
     `SEQUENCE:${event.sequence}`,
-    `DTSTART;TZID=${FRENCH_TIME_ZONE}:${frenchDateTime(event.start)}`,
-    `DTEND;TZID=${FRENCH_TIME_ZONE}:${frenchDateTime(event.end)}`,
+    ...(utc
+      ? [`X-JOBBBOX-TIMEZONE:${zone}`, `DTSTART:${utcDateTime(event.start)}`, `DTEND:${utcDateTime(event.end)}`]
+      : [
+          `DTSTART;TZID=${zone}:${zone === FRENCH_TIME_ZONE ? frenchDateTime(event.start) : clock(event.start)}`,
+          `DTEND;TZID=${zone}:${zone === FRENCH_TIME_ZONE ? frenchDateTime(event.end) : clock(event.end)}`,
+        ]),
     `SUMMARY:${text(event.summary)}`,
     ...(event.location ? [`LOCATION:${text(event.location)}`] : []),
     ...(event.url ? [`URL:${event.url}`] : []),

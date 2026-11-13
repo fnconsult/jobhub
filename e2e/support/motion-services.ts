@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { Pool } from "pg";
+import { migrateCoachPages } from "../../apps/web/src/coach-pages";
 import { expect, type Browser, type Locator, type Page } from "@playwright/test";
 import type { MotionScript } from "@jobhub/help";
 import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, signedEvent } from "../../apps/web/src/billing/fake-stripe";
@@ -113,9 +115,18 @@ export async function addDemoCoach(browser: Browser): Promise<void> {
     await admin.getByLabel("Nom", { exact: true }).fill(DEMO_COACH.name);
     await admin.getByLabel("Adresse e-mail de connexion").fill(DEMO_COACH.email);
     await admin.getByLabel("Lien de réservation Cal.com").fill(DEMO_COACH.bookingUrl);
-    await admin.getByLabel("Présentation (facultatif)").fill(DEMO_COACH.bio);
     await admin.getByRole("button", { name: "Ajouter le coach" }).click();
     await expect(admin.getByRole("status")).toHaveText(`Coach ${DEMO_COACH.name} ajouté.`);
+  }
+  // The Back Office's form no longer takes a biography (#867, not gated: the Back Office is the same whatever « Espace
+  // coach v2 »): the demo coach's is written in this run's throwaway database, as an already approved legacy biography,
+  // without inventing a legal approval.
+  const database = new Pool({ connectionString: process.env.E2E_DATABASE_URL });
+  try {
+    await database.query("UPDATE human_coach SET public_ready=true,bio=$2 WHERE email=$1", [DEMO_COACH.email, DEMO_COACH.bio]);
+    await migrateCoachPages(database);
+  } finally {
+    await database.end();
   }
   await context.close();
   coachAdded = true;

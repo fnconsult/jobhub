@@ -1,11 +1,13 @@
+import {linkedBookingConflict} from "@/coaching-booking/manual";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 
 /**
  * The signed-in Human Coach enters or corrects the date of one of their own Coaching Sessions, from
  * the Coach space (ADR-0027). Body: { scheduledAt (French time without an offset), durationMinutes?,
- * videoLink? (http or https) }; it replaces those three and keeps the Candidate's note. No Coach Access
+ * videoLink? (http or https) }; only supplied optional fields change and it keeps the Candidate's note. No Coach Access
  * is needed: the session is the relationship.
  * 200 { id } · 400 { errors } · 401 · 403 · 404 (not a Human Coach, retired, or not their session).
  */
@@ -18,7 +20,8 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/coa
   if (!coach) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const { sessionId } = await params;
   const body: unknown = await request.json().catch(() => undefined);
-  const result = await coaches.scheduleCoachedSession(coach.id, sessionId, body);
+  let result;
+  try{result=await coaches.scheduleCoachedSession(coach.id, sessionId, body);}catch(error){if(coachSpaceV2On()&&linkedBookingConflict(error))return NextResponse.json({error:"use_cal"},{status:409});throw error;}
   if (result.ok) return NextResponse.json({ id: result.session.id });
   if ("errors" in result) return NextResponse.json({ errors: result.errors }, { status: 400 });
   return NextResponse.json({ error: result.error }, { status: 404 });

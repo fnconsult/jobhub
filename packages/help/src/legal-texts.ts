@@ -6,11 +6,16 @@ import type { HelpLocale } from "./types";
  * text is written, are in the catalogues (`legal.texts.<id>`); the texts are the team's, never an AI's.
  */
 export const LEGAL_TEXTS = ["cgu", "cgv", "confidentialite", "mentions-legales"] as const;
-export type LegalTextId = (typeof LEGAL_TEXTS)[number];
+export const ALL_LEGAL_TEXTS = [...LEGAL_TEXTS, "contrat-coach"] as const;
+export type LegalTextId = (typeof ALL_LEGAL_TEXTS)[number];
+/** Private B2B contracts never appear on public Legal pages or in the sitemap. */
+export function isPublicLegalTextId(value: unknown): value is (typeof LEGAL_TEXTS)[number] {
+  return (LEGAL_TEXTS as readonly unknown[]).includes(value);
+}
 
 /** Whether `value` names a Legal Text. */
 export function isLegalTextId(value: unknown): value is LegalTextId {
-  return (LEGAL_TEXTS as readonly unknown[]).includes(value);
+  return (ALL_LEGAL_TEXTS as readonly unknown[]).includes(value);
 }
 
 /**
@@ -23,6 +28,7 @@ export const LEGAL_TEXT_ANCHORS: Record<LegalTextId, readonly string[]> = {
   cgv: ["retractation"],
   confidentialite: ["cookies", "ia"],
   "mentions-legales": [],
+  "contrat-coach": [],
 };
 
 /**
@@ -34,6 +40,10 @@ export type LegalTextChange = (typeof LEGAL_TEXT_CHANGES)[number];
 
 /** A day, `YYYY-MM-DD`: a Legal Text Version's id, and the day it takes effect. */
 export const LEGAL_TEXT_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Rollout coverage is declared only in the human-authored, immutable Legal Text file. */
+export const COACHING_LEGAL_CAPABILITIES = ["stripe-connect", "marketplace", "cal-com", "dac7", "coach-space", "cancellations"] as const;
+export type CoachingLegalCapability = (typeof COACHING_LEGAL_CAPABILITIES)[number];
 
 /**
  * One Legal Text Version in one language: the file `legal/<text>/<effective>.<locale>.md`, never edited once in
@@ -55,6 +65,7 @@ export interface LegalTextVersion {
    * (`recipients_outside_eu`, #548). Switching on any other such recipient is a warning in Paramètres (ADR-0064).
    */
   recipientsOutsideEu?: string[];
+  coachingCapabilities?: CoachingLegalCapability[];
   /** « En bref »: the few lines that sum it up; none when the text has no such section. */
   inBrief: string[];
   /** Its numbered sections, in order: `id` is their anchor (« Sur cette page »), stable when the file names it. */
@@ -71,6 +82,7 @@ export interface LegalTextVersionRecord {
   url: string;
   sha256: string;
   change: LegalTextChange;
+  coachingCapabilities?: CoachingLegalCapability[];
 }
 
 /** One line of the version history: a version in effect so far. */
@@ -83,7 +95,7 @@ export interface LegalTextHistoryEntry {
 
 /** The permanent URL of a Legal Text Version: `/legal/<text>/<YYYY-MM-DD>`. */
 export function legalTextVersionUrl(text: LegalTextId, version: string): string {
-  return `/legal/${text}/${version}`;
+  return text === "contrat-coach" ? `/espace-coach/contrat/versions/${version}` : `/legal/${text}/${version}`;
 }
 
 /** Today's day in France (Europe/Paris), `YYYY-MM-DD`: the day effective dates are compared with. */

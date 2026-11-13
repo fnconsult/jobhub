@@ -6,6 +6,7 @@ import type { HelpArticle } from "@jobhub/help";
 import { useAttach } from "../attach/use-attach";
 import { Conversation } from "../conversation/Conversation";
 import { HelpArticleView, HelpForUnanswered, HelpIntro, HelpSuggestions, helpLocaleOf, ReplyFeedback, useHelpSuggestions } from "../help/Help";
+import { useCoachSpaceV2 } from "../navigation/human-coach";
 import { useWorkPane } from "../shell/Shell";
 import { SignalementForm, type SignalementStart } from "../signalement/SignalementForm";
 import { radius, space, useTheme } from "../theme/theme";
@@ -35,10 +36,17 @@ export type PagePlacement = {
   suggestions?: ReactNode;
   lead?: ReactNode;
   onSaved?: (conversation: ConversationSummary) => void;
+  /**
+   * The AI disclosure in its short words (the home page, #979, so its card fits on an iPhone SE), the full one its
+   * accessible name. It still says the AI Coach is an AI, not a person, and that a Human Coach can be booked.
+   */
+  shortDisclosure?: boolean;
+  /** The page opens on the top of its thread, its Introduction, rather than its end (the home page's card, #979). */
+  opensAtTop?: boolean;
 };
 
-/** What a page's suggestions do with its conversation: put the focus in the box. */
-const CoachBox = createContext<{ focus: () => void }>({ focus: () => {} });
+/** What a page's suggestions and cards do with its conversation: put the focus in the box, or open its « Joindre un CV ». */
+const CoachBox = createContext<{ focus: () => void; pickCv: () => void }>({ focus: () => {}, pickCv: () => {} });
 
 /** The page's box, from a suggestion above it or a card in its thread. */
 export const useCoachBox = () => useContext(CoachBox);
@@ -59,6 +67,8 @@ export const useCoachBox = () => useContext(CoachBox);
  */
 export function CoachConversation(page: PagePlacement) {
   const { t, i18n } = useTranslation();
+  // « Espace coach v2 » off (ADR-0107): no message is a Human Coach's, as before the epic.
+  const coachSpaceV2 = useCoachSpaceV2();
   const language = i18n.language === "en" ? "en" : "fr";
   const locale = helpLocaleOf(i18n.language);
   const workPane = useWorkPane();
@@ -93,7 +103,6 @@ export function CoachConversation(page: PagePlacement) {
     stop: coach.stop,
   });
   const input = useRef<ComponentRef<typeof TextInput>>(null);
-  const box = useMemo(() => ({ focus: () => input.current?.focus() }), []);
   const empty = !coach.restoring && coach.messages.length === 0;
   // The latest Job Offer card of the thread, while it is still to process: « Scorer contre mon profil » is suggested (#697).
   const offerToScore = coach.messages.flatMap((message) => (message.from === "coach" && message.jobOffer ? [message.jobOffer] : [])).at(-1);
@@ -128,6 +137,8 @@ export function CoachConversation(page: PagePlacement) {
       if (!(await coach.send(url))) setDraft((typed) => (typed.trim() ? `${typed.trimEnd()} ${url}` : url));
     },
   });
+  const pickCv = attach.pickCv;
+  const box = useMemo(() => ({ focus: () => input.current?.focus(), pickCv }), [pickCv]);
   const askTeam = (question: string, coachReply: string) => openSignalement({ kind: "question", question, coachReply });
   const intro = empty ? <HelpIntro pathname={page.route} locale={locale} onOpen={openArticle} showOftenAsked={page.suggestions === undefined} /> : null;
 
@@ -142,6 +153,7 @@ export function CoachConversation(page: PagePlacement) {
         attach={attach}
         inputRef={input}
         lead={page.lead}
+        opensAtTop={page.opensAtTop}
         // The help's articles, while the Candidate types, take the page's suggestions' place (shown until something is sent).
         aboveBox={
           found.length > 0 ? (
@@ -158,7 +170,13 @@ export function CoachConversation(page: PagePlacement) {
           <AppText tone="secondary">{t("coachPanel.loading")}</AppText>
         ) : (
           <CoachSays>
-            <AppText>{t(coach.aiDisclosure ? "coachPanel.aiDisclosure" : "coachPanel.welcome")}</AppText>
+            {coach.aiDisclosure && page.shortDisclosure ? (
+              <View accessible aria-label={t("coachPanel.aiDisclosure")}>
+                <AppText>{t("mobile.home.aiDisclosure")}</AppText>
+              </View>
+            ) : (
+              <AppText>{t(coach.aiDisclosure ? "coachPanel.aiDisclosure" : "coachPanel.welcome")}</AppText>
+            )}
             {page.introduction}
             {page.card ? null : intro}
           </CoachSays>
@@ -172,7 +190,7 @@ export function CoachConversation(page: PagePlacement) {
             {message.from === "coach" && message.cards?.length
               ? message.cards.map((card) => <ProposalCard key={card.id} card={card} onChange={(changed) => coach.cardChanged(index, changed)} />)
               : null}
-            {message.from === "coach" && !message.blocked && !message.jobOffer ? (
+            {message.from === "coach" && !(coachSpaceV2 && message.humanCoach) && !message.blocked && !message.jobOffer ? (
               <ReplyFeedback
                 couldNotAnswer={message.couldNotAnswer === true}
                 satisfied={message.satisfied}
@@ -248,6 +266,7 @@ function CoachSays({ children }: { children: ReactNode }) {
 
 function Message({ message, language }: { message: ShownMessage; language: "fr" | "en" }) {
   const { t } = useTranslation();
+  const coachSpaceV2 = useCoachSpaceV2();
   const { colors } = useTheme();
   if (message.from === "candidate")
     return (
@@ -273,6 +292,7 @@ function Message({ message, language }: { message: ShownMessage; language: "fr" 
           {t("coachPanel.blocked")}
         </AppText>
       ) : null}
+      {coachSpaceV2 && message.humanCoach ? <AppText weight="semiBold">{t("coachReports.author", { name: message.humanCoach.name })}</AppText> : null}
       <AppText>{message.text}</AppText>
       {message.jobOffer ? (
         <AppText weight="semiBold">{`${t("coachPanel.jobOfferLink.card")} · ${[message.jobOffer.title, message.jobOffer.employer].filter(Boolean).join(" · ")} · ${t(message.jobOffer.followed ? "coachPanel.jobOfferLink.followed" : "coachPanel.jobOfferLink.toProcess")}`}</AppText>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { articleFor, articles, backOfficeHelpArticle, backOfficeHelpTopics, helpCentreArticle, helpCentreTopics, isPublic, relatedArticles, search } from "./index";
+import { articleFor, articles, articlesFor, backOfficeHelpArticle, backOfficeHelpTopics, helpCentreArticle, helpCentreTopics, isPublic, relatedArticles, search } from "./index";
 import { PUBLIC_HELP_TOPICS, type HelpArticle } from "./types";
 
 // Issue #549 (ADR-0065): the public Help Centre's topics, articles, search and addresses, and the Coach Panel's scope.
@@ -97,6 +97,8 @@ const EXTENSION_ARTICLES = {
   "tutorial-extension-create-account": ["tutorial", "guest"],
   "tutorial-extension-save-job-offer": ["tutorial", "candidate"],
 } as const;
+/** « Espace coach v2 » on (#867): public intake and anonymous-report Help remains available before Coach or Candidate membership. */
+const COACH_PUBLIC_ARTICLES = ["page-content-report", "glossary-coach-enrolment", "page-confirm-coach-enrolment", "page-own-coach-enrolments", "page-coach-enrolment", "glossary-association"];
 /** #554's articles of « Espace coach », all a Human Coach's: no help in context for them (ADR-0065), the topic is theirs. */
 const COACH_SPACE_ARTICLES = {
   "page-coach-space": "page",
@@ -111,17 +113,64 @@ const COACH_SPACE_ARTICLES = {
   "tutorial-coach-session-date": "tutorial",
   "tutorial-coach-review": "tutorial",
 } as const;
+/** « Espace coach v2 » on (#867): the current Coach and Association workspace articles, all a Human Coach's. */
+const COACH_SPACE_V2_ARTICLES = {
+  "page-coach-space": "page",
+  "page-association-coachs": "page",
+  "page-association-invitation": "page",
+  "page-association-membres": "page",
+  "page-association-offres": "page",
+  "page-association-revenus": "page",
+  "page-association-space": "page",
+  "page-coach-availability": "page",
+  "page-coach-contract-version": "page",
+  "page-coach-contract": "page",
+  "page-coach-earnings": "page",
+  "page-coach-public-profile": "page",
+  "page-coach-reminders": "page",
+  "page-coach-session": "page",
+  "faq-coach-access": "faq",
+  "faq-retired-human-coach": "faq",
+  "faq-coach-two-step-verification": "faq",
+  "faq-coach-app-two-step-verification": "faq",
+  "faq-coach-app-notifications": "faq",
+  "faq-coach-cancel-session": "faq",
+  "faq-coach-contract": "faq",
+  "faq-coach-reminders": "faq",
+  "faq-coach-tax": "faq",
+  "tutorial-association-add-coach": "tutorial",
+  "tutorial-coach-availability": "tutorial",
+  "tutorial-coach-get-paid": "tutorial",
+  "tutorial-coach-meeting-contact": "tutorial",
+  "tutorial-coach-present-slides": "tutorial",
+  "tutorial-coach-review": "tutorial",
+  "tutorial-coach-session-date": "tutorial",
+  "tutorial-coach-session-report": "tutorial",
+  "tutorial-coach-shared-reading": "tutorial",
+  "tutorial-coach-tax": "tutorial",
+  "tutorial-coaching-reminders": "tutorial",
+  "tutorial-edit-coach-page": "tutorial",
+  "glossary-association-member": "glossary",
+  "glossary-coach-page": "glossary",
+} as const;
 
 describe("this build's Help Articles (#549)", () => {
-  it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`, a Back Office page's or glossary entry is an Administrator's", () => {
-    const english = new Map(articles("en").map((found) => [found.id, found]));
-    for (const found of articles("fr")) {
-      expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
-      const backOffice = found.route?.startsWith("/admin") === true || found.id.startsWith("glossary-admin-");
-      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id) && !(found.id in EXTENSION_ARTICLES) && !(found.id in COACH_SPACE_ARTICLES))
-        expect([found.id, found.audience]).toEqual([found.id, backOffice ? "administrator" : "candidate"]);
-    }
-  });
+  it.each([
+    ["off", {}, [], COACH_SPACE_ARTICLES],
+    ["on", { coachSpaceV2: true }, COACH_PUBLIC_ARTICLES, COACH_SPACE_V2_ARTICLES],
+  ] as const)(
+    "each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`, a Back Office page's or glossary entry is an Administrator's (« Espace coach v2 » %s)",
+    (_, settings, coachPublic: readonly string[], coachSpace) => {
+      const english = new Map(articles("en", settings).map((found) => [found.id, found]));
+      for (const found of articles("fr", settings)) {
+        expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
+        if (coachPublic.includes(found.id)) expect(found.audience).toBe("visitor");
+        const backOffice = found.route?.startsWith("/admin") === true || found.id.startsWith("glossary-admin-");
+        if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id) && !coachPublic.includes(found.id) && !(found.id in EXTENSION_ARTICLES) && !(found.id in coachSpace))
+          expect([found.id, found.audience]).toEqual([found.id, backOffice ? "administrator" : "candidate"]);
+      }
+    },
+  );
 
   it("has the « Découvrir Jobbbox » articles for a Visitor (#552, #338): 3 pages, 6 questions and 1 tutorial, in French and English", () => {
     const ids = { page: DECOUVRIR_PAGES, faq: DECOUVRIR_FAQ, tutorial: ["tutorial-getting-started"] };
@@ -163,6 +212,17 @@ describe("this build's Help Articles (#549)", () => {
     expect(articleFor("/espace-coach", "fr")?.id).toBe("page-coach-space");
   });
 
+  it("has the current Coach and Association workspace Help, in French and English, under the Human Coach topic (« Espace coach v2 » on)", () => {
+    for (const locale of ["fr", "en"] as const) {
+      const from = articlesFor(locale, { coachSpaceV2: true });
+      const topic = helpCentreTopics(locale, from).find((entry) => entry.topic === "espace-coach");
+      expect(topic?.articles.map((found) => found.id).sort()).toEqual(Object.keys(COACH_SPACE_V2_ARTICLES).sort());
+      for (const [id, kind] of Object.entries(COACH_SPACE_V2_ARTICLES))
+        expect([id, helpCentreArticle("espace-coach", id, locale, from)?.kind, helpCentreArticle("espace-coach", id, locale, from)?.audience]).toEqual([id, kind, "human-coach"]);
+    }
+    expect(articleFor("/espace-coach", "fr", { from: articlesFor("fr", { coachSpaceV2: true }) })?.id).toBe("page-coach-space");
+  });
+
   it.each([
     ["fr", "retirer l'accès coach", "faq-coach-access"],
     ["fr", "le candidat a retiré l'accès", "faq-coach-access"],
@@ -175,9 +235,11 @@ describe("this build's Help Articles (#549)", () => {
     ["en", "retired coach", "faq-retired-human-coach"],
     ["en", "video link", "tutorial-coach-session-date"],
     ["en", "coach review", "tutorial-coach-review"],
-  ] as const)("finds in the Help Centre, in %s, « %s »: %s (#554), never from a Candidate's Coach Panel", (locale, query, id) => {
-    expect(search(query, locale).map((article) => article.id)).toContain(id);
-    expect(search(query, locale, { scope: "coachPanel" }).map((article) => article.id)).not.toContain(id);
+  ] as const)("finds in the Help Centre, in %s, « %s »: %s (#554), never from a Candidate's Coach Panel, « Espace coach v2 » off and on", (locale, query, id) => {
+    for (const from of [articlesFor(locale), articlesFor(locale, { coachSpaceV2: true })]) {
+      expect(search(query, locale, { from }).map((article) => article.id)).toContain(id);
+      expect(search(query, locale, { scope: "coachPanel", from }).map((article) => article.id)).not.toContain(id);
+    }
   });
 
   it("has tutorials in French and English, each of two numbered steps or more", () => {

@@ -1,6 +1,6 @@
 import { routes } from "../routes";
 
-export type SidebarNavKey = "applications" | "agenda" | "jobSearches" | "jobDigests" | "humanCoaches" | "coachSpace" | "admin";
+export type SidebarNavKey = "applications" | "agenda" | "jobSearches" | "jobDigests" | "humanCoaches" | "associationSpace" | "coachSpace" | "admin";
 
 export interface SidebarNavItem {
   key: SidebarNavKey;
@@ -28,12 +28,14 @@ export function sidebarNav({
   profiles,
   currentProfileId,
   isHumanCoach = false,
+  isAssociationMember=false,
   isAdministrator = false,
 }: {
   pathname: string;
   profiles: ReadonlyArray<{ id: string; archived: boolean }>;
   currentProfileId?: string | undefined;
   isHumanCoach?: boolean;
+  isAssociationMember?:boolean;
   isAdministrator?: boolean;
 }): SidebarNavItem[] {
   const active = profiles.filter((profile) => !profile.archived);
@@ -50,6 +52,7 @@ export function sidebarNav({
   }
   items.push({ key: "humanCoaches", href: routes.coaching, current: isUnder(pathname, routes.coaching) });
   if (isHumanCoach) items.push({ key: "coachSpace", href: routes.coachSpace, current: isUnder(pathname, routes.coachSpace) });
+  if(isAssociationMember)items.push({key:"associationSpace",href:"/espace-association",current:isUnder(pathname,"/espace-association")});
   if (isAdministrator) items.push({ key: "admin", href: routes.admin, current: isUnder(pathname, routes.admin) });
   return items;
 }

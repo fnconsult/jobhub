@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { publicMetadata } from "@/public-pages/indexing-server";
+import { servedHelpArticles } from "@/coach-help/server";
 import { routes } from "@/routes";
 import { helpCentreHref, HelpArticleList, HelpSearchForm } from "./help-centre";
 
@@ -18,15 +19,17 @@ const SEARCH_LIMIT = 20;
 /**
  * The Help Centre (#549, ADR-0065), open to everyone, in the page's language: the search, without AI, over every
  * public Help Article (never an Administrator's), its results when `q` is given, then the four topics, named by task,
- * each leading to its articles, or saying « Bientôt des articles ici » while it has none.
+ * each leading to its articles, or saying « Bientôt des articles ici » while it has none. The articles served under
+ * « Espace coach v2 » (#867): main's while it is off.
  */
 export default async function HelpCentrePage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const asked = (await searchParams).q;
   const query = (Array.isArray(asked) ? asked[0] : asked)?.trim() ?? "";
-  const found = query ? search(query, locale, { limit: SEARCH_LIMIT }) : [];
-  const topics = await Promise.all(helpCentreTopics(locale).map(async (entry) => ({ ...entry, href: await helpCentreHref(routes.helpTopic(entry.topic)) })));
+  const from = servedHelpArticles(locale);
+  const found = query ? search(query, locale, { limit: SEARCH_LIMIT, from }) : [];
+  const topics = await Promise.all(helpCentreTopics(locale, from).map(async (entry) => ({ ...entry, href: await helpCentreHref(routes.helpTopic(entry.topic)) })));
   return (
     <PublicSite current="aide">
       <main id="main" className="ds-site__page">

@@ -21,6 +21,7 @@ import { systemSheets } from "../agenda/system-sheets";
 import { useAgenda, useRead } from "../api/reads";
 import { CoachConversation, useCoachBox } from "../coach/CoachConversation";
 import { HumanCoaches } from "../coaching/HumanCoaches";
+import { HomeCard, useHasProfile } from "../home/HomeCard";
 import { StartJobSearch } from "../job-searches/StartJobSearch";
 import type { SubjectRef } from "../coach/coach-reply";
 import { shareLinkAction } from "../navigation/links";
@@ -61,22 +62,28 @@ const SUGGESTED_TO_HANDLE = 2;
  * card in the thread, read by the GETs of #684; its suggestions above the box until the first message.
  */
 
-/** The home page: a new Free conversation, the tagline and what Jobbbox does, the Quick actions above the box. */
+/**
+ * The home page: a new Free conversation (#979), its AI disclosure in short words, then « Votre point du jour », what
+ * calls for the Candidate's action today, or « Pour commencer » while they have no Profile; the Quick actions above the
+ * box once they have one.
+ */
 export function HomePage({ onSaved }: { onSaved: (id: string) => void }) {
   const { t } = useTranslation();
+  const hasProfile = useHasProfile();
   return (
     <CoachConversation
       conversationId={null}
       route={paths.home}
+      shortDisclosure
+      opensAtTop
       onSaved={(saved) => onSaved(saved.id)}
       introduction={
         <>
-          <AppText>{t("app.tagline")}</AppText>
-          <AppText>{t("home.intro")}</AppText>
-          <AppText tone="secondary">{t("home.comingSoon")}</AppText>
+          {hasProfile === false ? <AppText>{t("mobile.home.start.intro")}</AppText> : <AppText>{t("mobile.home.ask")}</AppText>}
+          <HomeCard hasProfile={hasProfile} />
         </>
       }
-      suggestions={<QuickActions />}
+      suggestions={hasProfile === false ? null : <QuickActions />}
     />
   );
 }

@@ -142,3 +142,10 @@ describe("CI runs the check on the day of the merge on main, not only on the pul
     expect(check[0]).toContain("check-legal-immutability.ts HEAD^1");
   });
 });
+
+
+it("applies immutability and the 30-day notice to private Coach agreements",()=>{
+ const path="packages/help/legal/contrat-coach/2026-11-01.fr.md";
+ expect(legalImmutabilityViolations([{status:"A",path,change:"substantielle"}],today)).toHaveLength(1);
+ expect(legalImmutabilityViolations([{status:"M",path}],"2026-11-01")).toHaveLength(1);
+});

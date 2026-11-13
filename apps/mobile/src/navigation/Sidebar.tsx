@@ -13,7 +13,7 @@ import { isCurrent, MENUS, NEW_CONVERSATION, paths } from "./pages";
  * « Espace coach » for a Human Coach, Mon compte and Réglages de l'app. As a drawer or a column, as the shell decides.
  * « Recherches d'offres » carries « N », the Offer box's offers à traiter (#818, ADR-0090); nothing at 0.
  */
-export function Sidebar({ isHumanCoach = false, onNavigate }: { isHumanCoach?: boolean; onNavigate: () => void }) {
+export function Sidebar({ isHumanCoach = false, isAssociationMember=false,onNavigate }: { isHumanCoach?: boolean;isAssociationMember?:boolean; onNavigate: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const router = useRouter();
@@ -38,6 +38,7 @@ export function Sidebar({ isHumanCoach = false, onNavigate }: { isHumanCoach?: b
       <FreeConversations onNavigate={onNavigate} />
       <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space[2] }}>
         {isHumanCoach ? entry(paths.coachSpace, t("account.coachSpace"), ClipboardList) : null}
+        {isAssociationMember?entry(paths.associationSpace,t("association.title"),ClipboardList):null}
         {entry(paths.account, t("nav.account"), CircleUser)}
         {entry(paths.appSettings, t("mobile.appSettings"), Settings)}
       </View>

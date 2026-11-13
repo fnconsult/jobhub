@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { cancellationPolicyOn } from "@/coaching-cancellations/server";
+import { getCoachContacts } from "@/coach-space/contacts-server";
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import { calendarPeriod, frenchDay, type AgendaView, type CalendarView } from "@/agenda/calendar";
 import { readAgendaMenuAddress, type AgendaPane } from "@/agenda/menu";
 import { getAgenda } from "@/agenda/server";
@@ -47,18 +51,25 @@ export async function AgendaMenuPage({ candidateId, params }: { candidateId: str
   const now = new Date();
   const { past, pane } = readAgendaMenuAddress(params, now);
   const agenda = getAgenda();
+  // « Espace coach v2 » (ADR-0107): off, the Agenda is the one before the Human Coach epic (Paris time, no meetings, no policy).
+  const v2 = coachSpaceV2On();
+  const timeZone = v2 ? await candidateZone(candidateId) : undefined;
   const [t, locale, unscheduled, days, applications, contracts, subject] = await Promise.all([
     getServerT(),
     getRequestLocale(),
     agenda.unscheduled(candidateId),
-    agenda.days(candidateId, { period: past ? "past" : "upcoming", now }),
+    agenda.days(candidateId, { period: past ? "past" : "upcoming", now, ...(v2 ? { timeZone } : {}) }),
     getApplications().list(candidateId),
     getWithdrawals().contracts(candidateId),
     getCoachConversations().ofSubject(candidateId, SUBJECT),
   ]);
   // The Coaching Sessions « Renoncer au contrat ici » is offered on (#511): paid less than 14 days ago, not held yet.
   const withdrawable: Withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
-  const formats = formatsFor(locale, now);
+  const formats = formatsFor(locale, now, v2 ? { timeZone } : undefined);
+  if (v2) {
+    formats.cancellationPolicy = await cancellationPolicyOn();
+    formats.meetings = await getCoachContacts().forCandidate(candidateId);
+  }
   const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
   const back = routes.agenda(past);
   const addInterview = (
@@ -133,7 +144,8 @@ async function CalendarPane({
 }) {
   const view: CalendarView = pane.view;
   const period = calendarPeriod(view, pane.date);
-  const byDay = new Map((await getAgenda().daysBetween(candidateId, period)).map((day) => [day.day, day.items]));
+  const days = formats.coachSpaceV2 ? { ...period, timeZone: await candidateZone(candidateId) } : period;
+  const byDay = new Map((await getAgenda().daysBetween(candidateId, days)).map((day) => [day.day, day.items]));
   const today = frenchDay(now);
   const title = view === "semaine" ? t("agenda.weekTitle", { range: formats.range(period.first, period.last) }) : formats.month(period.first);
   return (
@@ -147,4 +159,9 @@ async function CalendarPane({
       </div>
     </InWorkPane>
   );
+}
+
+/** The Candidate's coaching time zone under « Espace coach v2 », or none (Paris). */
+async function candidateZone(candidateId: string): Promise<string | undefined> {
+  return (await getCoachingTimeZones().candidate(candidateId)) ?? undefined;
 }

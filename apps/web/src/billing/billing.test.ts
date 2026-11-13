@@ -784,10 +784,18 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
         "metadata[coach_id]": "coach-1",
         "metadata[candidate_id]": marie.id,
         locale: "en",
-        success_url: "http://localhost:3000/coachs?session=paid",
+        success_url: "http://localhost:3000/coachs?session=paid&checkout_id={CHECKOUT_SESSION_ID}",
         cancel_url: "http://localhost:3000/coachs",
       });
       expect(premium?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);
+    });
+
+    it("preserves a server-quoted Price and Offer quote in Checkout metadata (#874)", async () => {
+      const marie=await t.signUp("quoted-price@example.fr");
+      await t.billing.startCoachingSessionCheckout(marie,"coach-1","fr",{priceId:FAKE_STRIPE_COACHING_SESSION_PRICES.discounted,quoteId:"offer-quote-1"});
+      const checkout=t.stripe.callsTo("/v1/checkout/sessions").find(call=>call.params.get("mode")==="payment");
+      expect(checkout?.params.get("line_items[0][price]")).toBe(FAKE_STRIPE_COACHING_SESSION_PRICES.discounted);
+      expect(checkout?.params.get("metadata[coaching_quote_id]")).toBe("offer-quote-1");
     });
 
     it("sends a Candidate who books from the app back to it by its universal link, paid or not (#694)", async () => {

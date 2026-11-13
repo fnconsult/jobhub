@@ -1,4 +1,4 @@
-import { isLegalTextId, LEGAL_TEXT_DAY, legalText, parisDay } from "@jobhub/help";
+import { isPublicLegalTextId, LEGAL_TEXT_DAY, legalText, parisDay } from "@jobhub/help";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LegalTextView } from "@/design/LegalTextView";
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
   const { text } = await params;
   // A dated version is never indexed: only the version in effect, at /legal/<text>, is (#501).
-  return { title: `${isLegalTextId(text) ? t(`legal.texts.${text}`) : t("publicSite.legal")} · ${t("app.name")}`, robots: { index: false } };
+  return { title: `${isPublicLegalTextId(text) ? t(`legal.texts.${text}`) : t("publicSite.legal")} · ${t("app.name")}`, robots: { index: false } };
 }
 
 /**
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function LegalTextVersionPage({ params }: Params) {
   const { text, version } = await params;
-  if (!isLegalTextId(text) || !LEGAL_TEXT_DAY.test(version)) notFound();
+  if (!isPublicLegalTextId(text) || !LEGAL_TEXT_DAY.test(version)) notFound();
   const shown = legalText(text, await getRequestLocale(), { on: parisDay(), version });
   if (!shown) notFound();
   return (

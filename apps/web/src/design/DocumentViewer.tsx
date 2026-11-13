@@ -48,12 +48,19 @@ export function DocumentViewer({
   fileName,
   download,
   aside,
+  readOnly = false,
+  position,
+  onPositionChange,
 }: {
   /** The PDF's address, same origin. */
   src: string;
   fileName: string;
   download?: { href: string; fileName: string };
   aside?: ReactNode;
+  /** Shared Reading has no download control; the presenter alone sends its position. */
+  readOnly?: boolean;
+  position?: { page: number; scroll: number };
+  onPositionChange?: (position: { page: number; scroll: number }) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [state, dispatch] = useReducer(nextViewer, initialViewer);
@@ -81,7 +88,9 @@ export function DocumentViewer({
       })
       .then(async (document) => {
         if (!document || cancelled || !file) return;
-        const sizes = await Promise.all(Array.from({ length: document.numPages }, (_, i) => document.getPage(i + 1).then((page) => page.getViewport({ scale: 1 }).width)));
+        const sizes = await Promise.all(
+          Array.from({ length: document.numPages }, (_, i) => document.getPage(i + 1).then((page) => page.getViewport({ scale: 1 }).width)),
+        );
         if (cancelled) return;
         setRead({ src, pdf: document, widths: sizes, file });
         dispatch({ type: "loaded", pages: document.numPages });
@@ -110,7 +119,8 @@ export function DocumentViewer({
       if (element.offsetTop <= mark) inView = Number(element.dataset.page);
     });
     dispatch({ type: "page", page: inView });
-  }, []);
+    onPositionChange?.({ page: inView, scroll: container.scrollTop / Math.max(1, container.scrollHeight - container.clientHeight) });
+  }, [onPositionChange]);
 
   const show = useCallback((page: number) => {
     const container = pages.current;
@@ -118,6 +128,11 @@ export function DocumentViewer({
     if (container && element) container.scrollTop = element.offsetTop - PAGES_PADDING;
     dispatch({ type: "page", page });
   }, []);
+
+  useEffect(() => {
+    const container = pages.current;
+    if (container && position && pdf) container.scrollTop = position.scroll * Math.max(0, container.scrollHeight - container.clientHeight);
+  }, [position, pdf]);
 
   const choose = useCallback((event: MouseEvent<HTMLButtonElement>) => show(Number(event.currentTarget.dataset.thumb)), [show]);
 
@@ -140,25 +155,37 @@ export function DocumentViewer({
         </span>
         <span className="ds-viewer__spacer" />
         {aside ? <span className="ds-viewer__aside">{aside}</span> : null}
-        <span className="ds-viewer__count" data-viewer-page>
+        <span className="ds-viewer__count" data-viewer-page aria-live={readOnly ? "polite" : undefined}>
           {state.pages > 0 ? t("designSystem.viewer.pageOf", { page: state.page, pages: state.pages }) : null}
         </span>
         <span className="ds-viewer__zoom">
-          <button type="button" aria-label={t("designSystem.viewer.zoomOut")} disabled={!pdf || state.zoom <= MIN_ZOOM} onClick={() => dispatch({ type: "zoomOut" })}>
+          <button
+            type="button"
+            aria-label={t("designSystem.viewer.zoomOut")}
+            disabled={!pdf || state.zoom <= MIN_ZOOM}
+            onClick={() => dispatch({ type: "zoomOut" })}
+          >
             <Icons.minus />
           </button>
           <span data-viewer-zoom>{zoomLabel(state.zoom, i18n.language)}</span>
-          <button type="button" aria-label={t("designSystem.viewer.zoomIn")} disabled={!pdf || state.zoom >= MAX_ZOOM} onClick={() => dispatch({ type: "zoomIn" })}>
+          <button
+            type="button"
+            aria-label={t("designSystem.viewer.zoomIn")}
+            disabled={!pdf || state.zoom >= MAX_ZOOM}
+            onClick={() => dispatch({ type: "zoomIn" })}
+          >
             <Icons.add />
           </button>
         </span>
         <button className={buttonClass({ size: "sm" })} type="button" disabled={!pdf} onClick={fit}>
           {t("designSystem.viewer.fit")}
         </button>
-        <a className={buttonClass({ size: "sm" })} href={file.href} download={file.fileName}>
-          <Icons.download />
-          {t("designSystem.viewer.download")}
-        </a>
+        {!readOnly ? (
+          <a className={buttonClass({ size: "sm" })} href={file.href} download={file.fileName}>
+            <Icons.download />
+            {t("designSystem.viewer.download")}
+          </a>
+        ) : null}
       </div>
       {failed ? (
         <div className="ds-viewer__failed">
@@ -171,7 +198,14 @@ export function DocumentViewer({
           <nav className="ds-viewer__thumbs" aria-label={t("designSystem.viewer.pages")}>
             {pdf
               ? Array.from({ length: state.pages }, (_, i) => i + 1).map((page) => (
-                  <button key={page} type="button" aria-current={page === state.page ? "page" : undefined} aria-label={t("designSystem.viewer.page", { page })} data-thumb={page} onClick={choose}>
+                  <button
+                    key={page}
+                    type="button"
+                    aria-current={page === state.page ? "page" : undefined}
+                    aria-label={t("designSystem.viewer.page", { page })}
+                    data-thumb={page}
+                    onClick={choose}
+                  >
                     <PageCanvas pdf={pdf} page={page} width={THUMB_WIDTH} />
                     <span aria-hidden>{page}</span>
                   </button>
@@ -182,7 +216,12 @@ export function DocumentViewer({
             {pdf ? (
               widths.map((width, i) => (
                 <div key={i} className="ds-viewer__paper" data-page={i + 1}>
-                  <PageCanvas pdf={pdf} page={i + 1} width={(width * state.zoom) / 100} label={t("designSystem.viewer.pageOf", { page: i + 1, pages: state.pages })} />
+                  <PageCanvas
+                    pdf={pdf}
+                    page={i + 1}
+                    width={(width * state.zoom) / 100}
+                    label={t("designSystem.viewer.pageOf", { page: i + 1, pages: state.pages })}
+                  />
                 </div>
               ))
             ) : (

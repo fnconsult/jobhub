@@ -60,6 +60,9 @@ if (!process.env.E2E_DATABASE_URL) {
   process.env.E2E_DATABASE_URL = url.toString();
 }
 
+/** The Human Coach epic's specs (#867), run with « Espace coach v2 » on, in the coach-v2 project. */
+const COACH_SPACE_V2_SPECS = /\/(coach-v2\/[^/]+|coach-enrolments|coach-contracts|coach-associations|coach-pages|coaching-connect|coaching-earnings|coaching-booking|coaching-cancellations|coaching-notifications|coaching-content-reports)\.spec\.ts$/;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -78,9 +81,23 @@ export default defineConfig({
   // e2e/support/screenshots.css leaves out what changes with each Version and commit (#559).
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide", timeout: 20_000, stylePath: "e2e/support/screenshots.css" } },
   projects: [
+    // « Espace coach v2 » (ADR-0107): the Human Coach epic's specs, with the setting on. It is global to the suite's
+    // database, so the project runs after every web spec (CI gives it a shard of its own), between its setup
+    // and teardown, which turn it on and back off. Every other project runs with it off, as before the epic.
+    { name: "coach-v2-setup", testMatch: /coach-v2\/coach-space-v2\.setup\.ts/, teardown: "coach-v2-teardown" },
+    { name: "coach-v2-teardown", testMatch: /coach-v2\/coach-space-v2\.teardown\.ts/ },
+    {
+      name: "coach-v2",
+      testMatch: COACH_SPACE_V2_SPECS,
+      dependencies: process.env.CI ? ["coach-v2-setup"] : ["web", "coach-v2-setup"],
+      workers: 1,
+      use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
+    },
     {
       name: "web",
-      testMatch: /(web|landing|landing-coach|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-proposal-card|coach-agenda-actions|coach-application-actions|coach-job-search-actions|coach-document-actions|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-subject|conversation-first|coach-memory|coach-playbooks|coach-actions|coach-actions-profile|coach-never-writes|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|two-step-verification|email-intake|appointment-reminders|nouveautes-email|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|application-conversation|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|ai-activity-history|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|public-shell|public-site-en|help-centre|micro-animations|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer|withdrawal|withdrawal-coaching|subscription-cancellation|conversation-applications|version|conversation-objects|conversation-menus|offer-box|offer-box-arrival-source|offer-box-phone|conversation-activity|conversation-phone-a11y|conversation-scroll|back-office-help|exit-page|recipient-list|app-reads|push-notifications|coach-tool-activity|coach-reply-cost|push-notification-events|consumption|consumption-section|top-bar-compact|fiche-resize|ai-calls-for-whom|identity|origin-ai-calls|sidebar-account|preferred-name-ai-emails|ai-activity-profile-creation|message-box|extension-events-activite)\.spec\.ts/,
+      // The coach-v2 project's copies of web specs, with « Espace coach v2 » on, run there only.
+      testIgnore: /\/coach-v2\//,
+      testMatch: /(web|landing|landing-coach|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-proposal-card|coach-agenda-actions|coach-application-actions|coach-job-search-actions|coach-document-actions|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-subject|conversation-first|coach-memory|coach-playbooks|coach-actions|coach-actions-profile|coach-never-writes|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|two-step-verification|email-intake|appointment-reminders|nouveautes-email|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|application-conversation|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|ai-activity-history|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|public-shell|public-site-en|help-centre|micro-animations|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer|withdrawal|withdrawal-coaching|subscription-cancellation|conversation-applications|version|conversation-objects|conversation-menus|offer-box|offer-box-arrival-source|offer-box-phone|conversation-activity|conversation-phone-a11y|conversation-scroll|back-office-help|exit-page|recipient-list|app-reads|push-notifications|coach-tool-activity|coach-reply-cost|push-notification-events|consumption|consumption-section|top-bar-compact|fiche-resize|ai-calls-for-whom|identity|origin-ai-calls|sidebar-account|preferred-name-ai-emails|ai-activity-profile-creation|message-box|extension-events-activite)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     // Quota Reductions (#514) change Standard's and Free's quotas for real for a few seconds, and put them back: run after

@@ -1,3 +1,4 @@
+import { CancellationAdmin } from "@/coaching-cancellations/Admin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { IntroPage } from "@/admin/page-intro";
@@ -63,6 +64,7 @@ export default async function WithdrawalsPage({ searchParams }: { searchParams: 
   return (
     <BackOfficeLayout access={access} title={t("admin.withdrawals.title")}>
       <div className="section-page">
+        <CancellationAdmin canWrite={canWrite} />
         <PageIntro t={t} page={INTRO} subject={t("admin.withdrawals.title")}>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
@@ -87,13 +89,20 @@ export default async function WithdrawalsPage({ searchParams }: { searchParams: 
           <Table
             label={t("admin.withdrawals.caption")}
             columns={[
-              { header: t("admin.withdrawals.withdrawnAt"), rowHeader: true, cell: (withdrawal: ListedWithdrawal) => at.format(withdrawal.withdrawnAt), sort: NEWEST_FIRST },
+              {
+                header: t("admin.withdrawals.withdrawnAt"),
+                rowHeader: true,
+                cell: (withdrawal: ListedWithdrawal) => at.format(withdrawal.withdrawnAt),
+                sort: NEWEST_FIRST,
+              },
               { header: t("admin.withdrawals.candidate"), cell: (withdrawal) => withdrawal.candidateEmail },
               {
                 header: t("admin.withdrawals.contract"),
                 cell: (withdrawal) => (
                   <>
-                    {withdrawal.contract === "plan" ? t("withdrawals.email.plan", { plan: withdrawal.subject[locale] }) : t("withdrawals.email.coachingSession", { coach: withdrawal.subject[locale] })}
+                    {withdrawal.contract === "plan"
+                      ? t("withdrawals.email.plan", { plan: withdrawal.subject[locale] })
+                      : t("withdrawals.email.coachingSession", { coach: withdrawal.subject[locale] })}
                     <br />
                     <span className="section-meta">{t("admin.withdrawals.concludedAt", { date: at.format(withdrawal.concludedAt) })}</span>
                   </>
@@ -101,7 +110,10 @@ export default async function WithdrawalsPage({ searchParams }: { searchParams: 
               },
               {
                 header: t("admin.withdrawals.receipt"),
-                cell: (withdrawal) => (withdrawal.receiptSentAt ? t("admin.withdrawals.receiptSent", { email: withdrawal.receiptEmail, at: at.format(withdrawal.receiptSentAt) }) : t("admin.withdrawals.receiptNotSent", { email: withdrawal.receiptEmail })),
+                cell: (withdrawal) =>
+                  withdrawal.receiptSentAt
+                    ? t("admin.withdrawals.receiptSent", { email: withdrawal.receiptEmail, at: at.format(withdrawal.receiptSentAt) })
+                    : t("admin.withdrawals.receiptNotSent", { email: withdrawal.receiptEmail }),
               },
               {
                 header: t("admin.withdrawals.refunds"),

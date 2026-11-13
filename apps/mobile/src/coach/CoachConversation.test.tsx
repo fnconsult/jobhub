@@ -4,6 +4,7 @@ import { AccessibilityInfo, Platform } from "react-native";
 import { fakeNetwork } from "../offline/testing";
 import { Shell } from "../shell/Shell";
 import { hardwareKeyboard, renderInApp, setWindow } from "../testing";
+import { CoachSpaceV2Context } from "../navigation/human-coach";
 import { CoachConversation } from "./CoachConversation";
 import { aiStep, fakeCoachWeb, replyEvent, type FakeCoachWeb } from "./testing";
 
@@ -216,6 +217,37 @@ const PROPOSAL = {
   },
   undoable: false,
 };
+
+describe("a Human Coach's message in a Coach Conversation (« Espace coach v2 », ADR-0107)", () => {
+  const withReport = () =>
+    fakeCoachWeb({
+      conversations: [
+        {
+          id: "c8",
+          title: "Séance",
+          messages: [{ from: "coach", text: "Compte rendu de la séance.", at: "2026-11-04T10:00:00.000Z", humanCoach: { id: "coach-1", name: "Claire Martin", photoUrl: null } } as never],
+        },
+      ],
+    });
+
+  it("off: as before the Human Coach epic, no author line, the reply's feedback as any coach's", async () => {
+    web = withReport();
+    await renderInApp(<CoachConversation conversationId="c8" route="/conversations/c8" />, web.client);
+    expect(await screen.findByText("Compte rendu de la séance.")).toBeOnTheScreen();
+    expect(screen.queryByText("Claire Martin · Coach humain")).toBeNull();
+  });
+
+  it("on: names its Human Coach, and asks no feedback on it", async () => {
+    web = withReport();
+    await renderInApp(
+      <CoachSpaceV2Context.Provider value>
+        <CoachConversation conversationId="c8" route="/conversations/c8" />
+      </CoachSpaceV2Context.Provider>,
+      web.client,
+    );
+    expect(await screen.findByText("Claire Martin · Coach humain")).toBeOnTheScreen();
+  });
+});
 
 describe("the help in the conversation's box (ADR-0035)", () => {
   it("suggests Help Articles while the Candidate types, from the help bundled with the app", async () => {

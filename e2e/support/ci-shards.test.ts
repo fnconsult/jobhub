@@ -34,6 +34,8 @@ const listings = new Map<string, Promise<Map<string, number>>>();
 async function listing(args: string[]): Promise<Map<string, number>> {
   const { stdout } = await run(path.join(root, "node_modules/.bin/playwright"), ["test", "--list", "--reporter=json", ...args], {
     cwd: root,
+    // As CI lists them: a project's dependencies may differ outside CI (the coach-v2 project runs after every web spec locally).
+    env: { ...process.env, CI: "1" },
     maxBuffer: 64 * 1024 * 1024,
   });
   const ids = new Map<string, number>();
@@ -75,8 +77,8 @@ describe("CI's e2e shards", () => {
   const ci = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
   const commands = e2eCommands(ci);
 
-  it("are read from the workflow: eight shards, one of them running the Plans' quota projects first", () => {
-    expect(new Set(commands.map((command) => command.shard)).size).toBe(8);
+  it("are read from the workflow: nine shards, one of them running the Plans' quota projects first", () => {
+    expect(new Set(commands.map((command) => command.shard)).size).toBe(9);
     const others = commands.filter((command) => command.shard === "others").map((command) => command.args.join(" "));
     expect(others.slice(0, 2)).toEqual(["--project=plan-quotas --no-deps", "--project=plan-coach-context --no-deps"]);
   });

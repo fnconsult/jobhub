@@ -21,6 +21,7 @@ export * from "./provenance-marks";
 export * from "./provenance-line";
 export * from "./france-travail";
 export * from "./api-version";
+export * from "./extension-test-build";
 export * from "./native-app";
 export * from "./share-capture";
 export * from "./second-step";

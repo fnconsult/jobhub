@@ -13,6 +13,7 @@ import { getPushNotifications } from "@/push-notifications/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 import { createHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
+import { legacyMayChangeSession } from "./ended-session";
 let instance: HumanCoaches | undefined;
 /** The app's Human Coaches module, on the database named by DATABASE_URL. */
 export function getHumanCoaches(): HumanCoaches {
@@ -20,7 +21,9 @@ export function getHumanCoaches(): HumanCoaches {
     instance ??= createHumanCoaches(sharedPool(), {
         coachSpaceV2On,
         contractualCancellationOn: async () => coachSpaceV2On() && (await cancellationPolicyOn()),
-        mayChangeSession: (within, id, by, to) => (by === "cal_com" || !coachSpaceV2On() ? Promise.resolve(true) : getCoachingCancellations().maySchedule(within, id, by, to)),
+        // Off, main's rules, but a Candidate no longer changes a session that has ended (#1022).
+        mayChangeSession: (within, id, by, to) =>
+            by === "cal_com" ? Promise.resolve(true) : !coachSpaceV2On() ? legacyMayChangeSession(within, id, by, new Date()) : getCoachingCancellations().maySchedule(within, id, by, to),
         coachingNotificationsOwned: () => coachSpaceV2On() && coachingNoticesOn(),
         publicProfileApprovalRequired: () => true,
         publishedCoachIds: async (ids) => ((await getCoachPages().approved(ids)).map((p) => p.coachId)),

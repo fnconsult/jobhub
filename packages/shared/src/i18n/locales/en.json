@@ -429,6 +429,7 @@
     "capturing": "Capturing the page…",
     "captureImpossible": "This page cannot be captured. Open the job offer's page and try again.",
     "unreachable": "Jobbbox cannot be reached right now. Check your connection and try again.",
+    "installationNotRecognised": "Jobbbox does not recognise this installation of the extension: the page was not sent. Install the extension from the Chrome Web Store, then try again.",
     "badge": "Analyse this offer",
     "badgeLabel": "Analyse this job offer with Jobbbox",
     "detected": "Job offer found on this page.",
@@ -700,6 +701,10 @@
         "intro": "For administrators only: load the extension this server serves, before it is published on the Chrome Web Store.",
         "extensionVersion": "Extension version",
         "apiVersion": "API version served",
+        "extensionId": "Extension ID",
+        "recognised": "This server recognises this zip: once loaded, the extension captures and sends its errors to Jobbbox.",
+        "notRecognisedTitle": "This server does not recognise this zip yet",
+        "notRecognised": "Once loaded, the extension would read your session but could capture nothing: Jobbbox would refuse what it sends. Add {{origin}} to this environment's EXTENSION_ORIGINS deployment setting, then redeploy.",
         "download": "Download {{zip}}",
         "unavailable": "This server serves no extension zip: only a deployment's image holds {{zip}}. Locally, build it with npm run zip -w @jobhub/extension (or zip:beta).",
         "stepsLabel": "Load the extension in Chrome",
@@ -1334,7 +1339,7 @@
     "title": "Create a profile",
     "intro": "I'll help you build your reference CV and search criteria. Upload your CV or, if yours isn't up to date, answer my questions: you can check and correct everything before saving.",
     "withCv": "I have a CV",
-    "withoutCvIntro": "My questions are about your career, one at a time. You can skip the ones that don't apply to you. It takes about ten minutes.",
+    "withoutCvIntro": "I ask my questions one at a time. When I can guess an answer, I suggest it: nothing enters your profile without your answer or your approval. You can skip what does not apply to you.",
     "startQuestionnaire": "Answer my coach's questions",
     "conversation": "Creating a profile with your coach",
     "openReview": "Review and save",
@@ -1342,7 +1347,13 @@
     "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page.",
     "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it.",
     "offeredSearchStarted": "Your profile is created: I'm starting a first job search right away, on us, which does not count toward your quota. Let's carry on while it searches.",
-    "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too."
+    "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too.",
+    "interview": {
+      "yes": "Yes, {{value}}",
+      "no": "No, rather…",
+      "proposal": "I suggest: {{value}}. {{because}}",
+      "fallback": "I'll go on with my usual questions, without the AI: I won't ask again what you have already told me."
+    }
   },
   "onboardingSearch": {
     "stepsLabel": "Steps of the search",
@@ -3227,6 +3238,7 @@
         "writing": "Writing",
         "coaching": "Coaching",
         "cv_parsing": "CV reading",
+        "onboarding_interview": "Onboarding interview",
         "offer_analysis": "Job Offer analysis",
         "offer_email_reading": "Offer email reading",
         "job_titles": "Job title variants",
@@ -5498,6 +5510,7 @@
     "job_titles_unavailable": "Searching with the Search Criteria title alone",
     "company_news_unavailable": "Company Dossier built without news",
     "cv_reading_fallback": "CV read by rules, without the AI",
+    "onboarding_interview_fallback": "Onboarding interview continued with the written questions, without the AI",
     "tailored_cv_refused": "Reply refused: no Tailored CV proposed from it",
     "match_score_text_unread": "Job Offer text unread: Match Score from its structured data only",
     "match_score_too_slow": "Job Offer reading too slow: Match Score from its structured data only",
@@ -5619,6 +5632,7 @@
       "ats_score": "ATS Score",
       "master_cv": "Master CV, read from your file",
       "cv_reading": "CV reading",
+      "onboarding_interview": "Onboarding interview",
       "profile_creation": "Profile creation",
       "questionnaire": "Onboarding questionnaire",
       "review": "Review",
@@ -5666,6 +5680,7 @@
         "coach_reply": "Stop the coach's reply",
         "company_dossier": "Stop the company dossier",
         "cv_reading": "Stop reading the CV",
+        "onboarding_interview": "Stop the coach's question",
         "tailored_cv": "Stop the Tailored CV proposal",
         "tailored_documents": "Stop drafting the document"
       },
@@ -5674,6 +5689,7 @@
         "coach_reply": "Open the page",
         "company_dossier": "Open the dossier",
         "cv_reading": "Open the page",
+        "onboarding_interview": "Open the page",
         "tailored_cv": "Open the documents",
         "tailored_documents": "Open the documents"
       },
@@ -5683,6 +5699,7 @@
           "coach_reply": "Coach reply on its way",
           "company_dossier": "Company dossier under way",
           "cv_reading": "Reading the CV",
+          "onboarding_interview": "The coach is preparing its question",
           "tailored_cv": "Tailored CV proposal on its way",
           "tailored_documents": "Document being drafted"
         },
@@ -5691,6 +5708,7 @@
           "coach_reply": "Coach reply received",
           "company_dossier": "Company dossier done",
           "cv_reading": "CV read",
+          "onboarding_interview": "Coach's question received",
           "tailored_cv": "Tailored CV proposed",
           "tailored_documents": "Document drafted"
         },
@@ -5699,6 +5717,7 @@
           "coach_reply": "Coach reply stopped",
           "company_dossier": "Company dossier stopped",
           "cv_reading": "CV reading stopped",
+          "onboarding_interview": "Coach's question stopped",
           "tailored_cv": "Tailored CV proposal stopped",
           "tailored_documents": "Document drafting stopped"
         },
@@ -5707,6 +5726,7 @@
           "coach_reply": "Coach reply failed",
           "company_dossier": "Company dossier failed",
           "cv_reading": "CV reading failed",
+          "onboarding_interview": "Coach's question failed",
           "tailored_cv": "Tailored CV proposal failed",
           "tailored_documents": "Document drafting failed"
         }

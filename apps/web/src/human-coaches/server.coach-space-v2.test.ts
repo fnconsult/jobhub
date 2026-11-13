@@ -71,6 +71,18 @@ describe("the app's Human Coaches and « Espace coach v2 »", () => {
       expect(await d.mayEnter?.({ email: "claire@example.com", emailVerified: true }, "coach")).toBe(true);
       expect(await d.mayChangeSession?.({} as never, "session", "coach", null)).toBe(true);
     });
+    it("refuses a Candidate's change to a session that has ended, too_late, and not one to come (#1022)", async () => {
+      vi.useFakeTimers({ now: new Date("2026-11-13T12:00:00Z"), toFake: ["Date"] });
+      try {
+        const within = (scheduledAt: string) => ({ query: async () => ({ rows: [{ scheduledAt: new Date(scheduledAt), durationMinutes: 60 }] }) }) as never;
+        const d = deps();
+        expect(await d.mayChangeSession?.(within("2026-11-13T10:00:00Z"), "session", "candidate", null)).toBe("too_late");
+        expect(await d.mayChangeSession?.(within("2026-11-13T11:30:00Z"), "session", "candidate", null)).toBe(true);
+        expect(await d.mayChangeSession?.(within("2026-11-13T10:00:00Z"), "session", "cal_com", null)).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
     it("answers 404 to a person whose contract is pending: no redirect to /espace-coach/contrat", async () => {
       await expect(requireHumanCoach()).rejects.toThrow("404");
     });

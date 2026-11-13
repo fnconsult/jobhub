@@ -345,6 +345,8 @@ export const ENV_ONLY_SETTINGS = {
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
   // The folder holding the extension's zips that apps/web/Dockerfile builds into the image (#989), served to Administrators in Outils.
   EXTENSION_ZIP_DIR: { kind: "deployment", shown: false },
+  // Set by apps/web/Dockerfile's extension stage: its zips carry the test zip's fixed key, so EXTENSION_ORIGINS lists their id once (apps/extension/src/build-target.ts).
+  JOBBBOX_EXTENSION_TEST_BUILD: { kind: "deployment", shown: false },
   // The native app's domain association files (#685, ADR-0076): its Apple team and its Android signing certificates.
   APPLE_TEAM_ID: { kind: "deployment", shown: false },
   // The Key ID of the .p8 key APNs' Push notifications are signed with (APNS_AUTH_KEY, #698); with APPLE_TEAM_ID.

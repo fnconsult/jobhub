@@ -368,6 +368,10 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
   const DURATION = "Durée en minutes (facultatif)";
   const VIDEO = "Lien de la visio (facultatif)";
   const NOTE = "Note (facultatif)";
+  // The clock is fixed before Claire Martin's session (23 October 2026, 11:00 in Paris): the app offers no
+  // « Modifier la date » once a session has ended (#1019, #1022). Only Date is faked; timers run as usual.
+  const ONLY_DATE = ["nextTick", "setImmediate", "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout", "queueMicrotask", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "performance", "hrtime"] as const;
+  beforeEach(() => jest.useFakeTimers({ now: new Date("2026-10-20T08:00:00.000Z"), doNotFake: [...ONLY_DATE] }));
 
   it("enters the date booked on Cal.com, in French time, with its duration, video link and note", async () => {
     v2 = true;
@@ -416,6 +420,24 @@ describe("a Coaching Session's date, entered or corrected in the app (ADR-0027, 
 
     expect(web.edits).toEqual([{ id: "s1", body: { scheduledAt: "2026-10-23T15:00", durationMinutes: 60, videoLink: "https://meet.google.com/exemple", note: "Préparer l'entretien Aéroline" } }]);
     expect(await screen.findByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 15:00")).toBeOnTheScreen();
+  });
+
+  it("« Espace coach v2 » off: offers no « Modifier la date » once the session has ended, still listed with its date (#1022)", async () => {
+    // 23 October 2026, 12:00 in Paris: Claire Martin's session, 11:00 for 60 minutes, has just ended.
+    jest.setSystemTime(new Date("2026-10-23T10:00:00.000Z"));
+    await openCoaches();
+
+    expect(screen.getByLabelText("Séance avec Claire Martin, le vendredi 23 octobre 2026 à 11:00")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Modifier la date de la séance avec Claire Martin" })).toBeNull();
+    // An Unscheduled session is never over: its date can still be entered.
+    expect(button("J'ai réservé : saisir la date de la séance avec Paul Durand")).toBeOnTheScreen();
+  });
+
+  it("« Espace coach v2 » off: still offers « Modifier la date » while the session is under way (#1022)", async () => {
+    jest.setSystemTime(new Date("2026-10-23T09:59:59.000Z"));
+    await openCoaches();
+
+    expect(button("Modifier la date de la séance avec Claire Martin")).toBeOnTheScreen();
   });
 
   it("corrects a dated Coaching Session, its fields filled in as last read, the hour in French time", async () => {

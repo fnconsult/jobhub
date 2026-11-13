@@ -132,4 +132,16 @@ describe("the Onboarding Questionnaire", () => {
     expect(currentQuestion(questionnaire)).toMatchObject({ id: "degree", number: 1 });
     expect(draftFromQuestionnaire(questionnaire).masterCv.experience).toHaveLength(10);
   });
+
+  it("takes over from the AI Coach's interview at the next question, not asking again what it knows (#1002)", () => {
+    const known = {
+      masterCv: { fullName: "", headline: "DAF", email: "", phone: "", location: "Lyon", summary: "", experience: [{ title: "DAF", employer: "Seb", location: "", period: "", description: "" }], education: [], skills: ["IFRS"], languages: [] },
+      searchCriteria: { targetRole: "DAF", locations: ["Lyon"] },
+    };
+    const questionnaire = answerAll(["Marie Dupont", "", ""], startQuestionnaire(known));
+    expect(currentQuestion(questionnaire)).toMatchObject({ id: "degree", number: 1 });
+    const done = answerAll(["", "", ""], questionnaire);
+    expect(currentQuestion(done)).toBeNull();
+    expect(draftFromQuestionnaire(done)).toMatchObject({ masterCv: { fullName: "Marie Dupont", headline: "DAF", experience: [{ employer: "Seb" }], skills: ["IFRS"] }, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
+  });
 });

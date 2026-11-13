@@ -5,15 +5,29 @@ import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { send } from "@/components/ApplicationControls";
 import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
 
 /**
  * « Annuler » for an Agenda Item: an Interview (it stays, struck through) or a Coaching Session (back to
  * « À planifier »). It asks first, in place: `question` says what cancelling does, then « Oui, annuler »
  * posts to `url` and the page refreshes, or « Non, garder » goes back. `label` is the button's text and
  * `name` its accessible name, naming the item so that several buttons are told apart. Focus moves to the
- * question's first answer, and back to the button when the Candidate keeps the item.
+ * question's first answer, and back to the button when the Candidate keeps the item. `tooLate`, when given, is what a
+ * « too_late » refusal says, in a Note (a session that ended while the page was open, #1022).
  */
-export function CancelAgendaItemButton({ url, label, name, question }: { url: string; label: string; name: string; question: string }) {
+export function CancelAgendaItemButton({
+  url,
+  label,
+  name,
+  question,
+  tooLate: tooLateText,
+}: {
+  url: string;
+  label: string;
+  name: string;
+  question: string;
+  tooLate?: string;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
@@ -60,7 +74,11 @@ export function CancelAgendaItemButton({ url, label, name, question }: { url: st
           {t("agendaChanges.keep")}
         </button>
       </div>
-      {failed ? (
+      {failed && tooLate && tooLateText ? (
+        <Note tone="warn" role="alert">
+          {tooLateText}
+        </Note>
+      ) : failed ? (
         <p className="field-error" role="alert">
           {t(tooLate ? "coachingCancellation.tooLate" : "agendaChanges.error")}
         </p>

@@ -1,7 +1,7 @@
 /**
  * AI Activity's live actions (CONTEXT.md « AI Activity », ADR-0034, #333): the Candidate's AI actions running now, each
  * with its steps as they land, fed by one event shape whatever the transport: a Coach reply's, a Tailored CV's, a
- * Tailored Document's (#334), a Company Dossier's or a CV reading's (#335) steps streamed on its own POST, a Job Search's
+ * Tailored Document's (#334), a Company Dossier's, a CV reading's (#335) or an onboarding interview turn's (#1002) steps streamed on its own POST, a Job Search's
  * Run progress polled by the page.
  *
  *   nextLive(actions, change)     the actions after a change: an action started, a step's event, a Stop asked, an end,
@@ -29,7 +29,7 @@ export function failedReason(body: unknown): string | null {
 export type LiveKind = "job_search" | RequestKind;
 
 /** An action run in the page's own request, its steps streamed on it, the request's abort its Stop (#333, #334, #335). */
-export type RequestKind = "coach_reply" | "tailored_cv" | "tailored_documents" | "company_dossier" | "cv_reading";
+export type RequestKind = "coach_reply" | "tailored_cv" | "tailored_documents" | "company_dossier" | "cv_reading" | "onboarding_interview";
 
 /** One step of a live action: running, or ended with what it took. */
 export interface LiveStep {

@@ -42,6 +42,9 @@ COPY packages/shared packages/shared
 COPY apps/extension apps/extension
 # The Side Panel imports the design system's styles from the web app (entrypoints/sidepanel/main.ts).
 COPY apps/web/src/design apps/web/src/design
+# Test zips, loaded unpacked: the manifest's `key` gives them one id wherever they are unpacked, which EXTENSION_ORIGINS
+# lists (packages/shared/src/extension-test-build.ts). The store's zips, extension.yml's, carry none.
+ENV JOBBBOX_EXTENSION_TEST_BUILD=1
 RUN npm run zip --workspace @jobhub/extension && npm run zip:beta --workspace @jobhub/extension \
   && version=$(node -p 'require("./apps/extension/package.json").version') \
   && mkdir /extension \

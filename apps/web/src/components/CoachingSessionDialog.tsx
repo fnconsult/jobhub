@@ -128,7 +128,7 @@ function CoachingSessionForm({
   const [note, setNote] = useState(session.note ?? "");
   const [working, setWorking] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<boolean | "over">(false);
   const [useCal, setUseCal] = useState(false);
   const [over, setOver] = useState(false);
 
@@ -179,7 +179,7 @@ function CoachingSessionForm({
       return;
     }
     if (Array.isArray(result.errors)) setErrors(result.errors);
-    else setFailed(true);
+    else setFailed(result.error === "too_late" ? "over" : true);
   }
 
   /** The error under `field`, if the app refused it. */
@@ -241,8 +241,9 @@ function CoachingSessionForm({
         </Note>
       ) : null}
       {failed ? (
-        <Note tone="danger" role="alert">
-          {t("coachingSession.error")}
+        // « over »: the session ended while the page was open (#1022).
+        <Note tone={failed === "over" ? "warn" : "danger"} role="alert">
+          {t(failed === "over" ? "coachingSession.over" : "coachingSession.error")}
         </Note>
       ) : null}
     </form>

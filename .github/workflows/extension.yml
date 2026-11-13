@@ -68,6 +68,8 @@ jobs:
             test "$(jq -r .version <<< "$manifest")" = "$VERSION" || { echo "::error::$1 is not at $VERSION"; exit 1; }
             test "$(jq -r '.host_permissions[0]' <<< "$manifest")" = "$2/*" || { echo "::error::$1 does not call $2"; exit 1; }
             test "$(jq -r .name <<< "$manifest")" = "$3" || { echo "::error::$1 is not named $3"; exit 1; }
+            # The Chrome Web Store refuses a `key` that is not its listing's: only the test zips (apps/web/Dockerfile) carry one.
+            test "$(jq -r 'has("key")' <<< "$manifest")" = "false" || { echo "::error::$1 carries a key"; exit 1; }
             echo "$1: $VERSION, $2, $3"
           }
           check "jobbbox-extension-$VERSION-chrome.zip" https://jobbbox.ai __MSG_extName__

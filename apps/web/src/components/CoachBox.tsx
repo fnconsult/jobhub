@@ -6,6 +6,7 @@ import { Icons } from "@/components/icons";
 import { buttonClass } from "@/design/Button";
 import { InfoDialog } from "@/design/Dialog";
 import { useDwellReveal } from "@/design/dwell-reveal";
+import "@/design/Pill.css";
 
 /**
  * The AI Coach's look on every page that is a conversation (ADR-0070, #652, #997): the welcome panel at the top of the
@@ -36,8 +37,8 @@ export function WelcomePanel({ opening = "coachPanel.aiDisclosure", onClose, chi
 }
 
 /**
- * The « Coach IA » badge in the box (#324): says the one answering is an AI, and opens the welcome panel again in a
- * dialog, AI disclosure first, then `children` (the page's Introduction and the help).
+ * The « Coach IA » badge in the box (#324), drawn as the Design System's accent Pill: says the one answering is an AI,
+ * and opens the welcome panel again in a dialog, AI disclosure first, then `children` (the page's Introduction and the help).
  */
 export function CoachBadge({ open, onOpenChange, children }: { open: boolean; onOpenChange: (open: boolean) => void; children?: ReactNode }) {
   const { t } = useTranslation();
@@ -48,7 +49,7 @@ export function CoachBadge({ open, onOpenChange, children }: { open: boolean; on
       onOpenChange={onOpenChange}
       title={t("conversationFirst.welcomeTitle")}
       trigger={
-        <button className="pill coach-panel-badge" data-tone="accent" type="button" aria-label={t("conversationFirst.welcomeOpen")} {...dwell}>
+        <button className="ds-pill coach-panel-badge" data-tone="accent" type="button" aria-label={t("conversationFirst.welcomeOpen")} {...dwell}>
           <span className="composer-label">{t("coachPanel.badge")}</span>
           {/* While the Candidate writes, « IA » in place of « Coach IA » (#933): still says an AI answers. */}
           <span className="composer-short" aria-hidden="true">

@@ -18,6 +18,7 @@ import { fetchConversation } from "@/components/chat-conversation";
 import { Icons } from "@/components/icons";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { buttonClass } from "@/design/Button";
+import "@/design/Pill.css";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { replyActivity, type Provenance } from "@jobhub/shared";
 
@@ -567,7 +568,7 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                   />
                   <div className="coach-panel-composer-actions">
                     {/* Says, by the message box, that the one answering is an AI (#324). */}
-                    <span className="pill coach-panel-badge" data-tone="accent">
+                    <span className="ds-pill coach-panel-badge" data-tone="accent">
                       {t("backOfficeAssistant.badge")}
                     </span>
                     {/* Where its AI runs and on what (#338, #320 § 12): « IA dans Jobbbox », in the privacy policy. */}

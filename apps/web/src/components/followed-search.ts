@@ -11,7 +11,7 @@ import { useAiActivityLive } from "@/components/AiActivityLive";
 import type { ScoredJobOffer } from "@/job-searches";
 
 /** The Job Offers the page has of the followed Job Search, and the ids its run found, in its order. */
-type Found = { jobSearchId: string; offers: ReadonlyMap<string, ScoredJobOffer>; ids: readonly string[] };
+type Found = { jobSearchId: string; offers: ReadonlyMap<string, ScoredJobOffer>; ids: readonly string[]; over: boolean };
 
 /**
  * The page follows a Job Search as its own (#1001, ADR-0106: the onboarding's offered one on `/profils/nouveau`, `href`):
@@ -26,17 +26,21 @@ type Found = { jobSearchId: string; offers: ReadonlyMap<string, ScoredJobOffer>;
  * On a wide screen, the side panel opens on « Activité » as each offered search starts (ADR-0106 amendment); on a
  * phone, nothing opens.
  *
+ * `profileId`: its Profile, for what its entry offers when it ends with no Job Offer that matches (#1006).
+ *
  * `jobSearchId` null: nothing more is followed than before (a search started earlier keeps being followed). The page's
  * first render lets go of any search an earlier visit followed.
  */
 export function useFollowedSearch({
   jobSearchId,
+  profileId = null,
   href,
   criteria,
   cv,
   assumed = [],
 }: {
   jobSearchId: string | null;
+  profileId?: string | null;
   href: string;
   criteria: SearchCriteria;
   cv: CvContent;
@@ -79,7 +83,7 @@ export function useFollowedSearch({
       const read = readFound(body);
       const offers = new Map(known);
       for (const jobOffer of read.jobOffers) offers.set(jobOffer.id, jobOffer);
-      setFound({ jobSearchId, offers, ids: read.ids ?? [...offers.keys()] });
+      setFound({ jobSearchId, offers, ids: read.ids ?? [...offers.keys()], over });
     })();
     return () => {
       cancelled = true;
@@ -106,8 +110,10 @@ export function useFollowedSearch({
       matching: matchingCount(list),
       refining: refiningOf(counted, assumedKey ? (assumedKey.split(",") as RefiningCriterion[]) : [], { t, locale: language }),
       best: bestOffers(jobSearchId, list),
+      profileId,
+      settled: found?.jobSearchId === jobSearchId && found.over,
     };
-  }, [jobSearchId, href, found, counting, counted, assumedKey, t, language]);
+  }, [jobSearchId, profileId, href, found, counting, counted, assumedKey, t, language]);
 
   // Told to AI Activity as it changes; the same again is not told.
   const followedKey = followed ? JSON.stringify(followed) : null;

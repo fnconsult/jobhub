@@ -12,7 +12,8 @@ import { AiActivityLiveProvider, useAiActivityLive } from "./AiActivityLive";
 import { ActivityColumnControl, type ActivityColumn } from "./activity-column";
 import { useFollowedSearch } from "./followed-search";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/profils/nouveau", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ usePathname: () => "/profils/nouveau", useRouter: () => ({ push, refresh: vi.fn() }) }));
 
 type Live = NonNullable<ReturnType<typeof useAiActivityLive>>;
 const id = "3f1c2a4e-0000-4000-8000-000000000001";
@@ -32,7 +33,7 @@ const running = (offersAnalysed: number) => [{ jobSearchId: id, profile: { id: "
 
 /** The page that follows the search, its criteria given; and AI Activity, its history included. */
 function Page({ given, onLive }: { given: SearchCriteria; onLive: (live: Live) => void }) {
-  useFollowedSearch({ jobSearchId: id, href: "/profils/nouveau", criteria: given, cv });
+  useFollowedSearch({ jobSearchId: id, profileId: "p1", href: "/profils/nouveau", criteria: given, cv });
   const live = useAiActivityLive();
   useEffect(() => {
     if (live) onLive(live);
@@ -125,6 +126,61 @@ describe("the onboarding's page follows its offered Job Search (#1001)", () => {
     expect(within(offers[0]!).getByRole("link").getAttribute("href")).toBe(`/recherches/${id}/offres/o1`);
     expect(within(detail).getByRole("link", { name: "Voir toutes les offres" }).getAttribute("href")).toBe(`/recherches/${id}`);
     expect(detail.textContent).not.toMatch(/consommation/);
+  });
+
+  /** Its history entry, once it ended and the poll let it go, unfolded. */
+  async function endedEntry(user: ReturnType<typeof userEvent.setup>) {
+    const activity = screen.getByRole("complementary", { name: "Activité" });
+    const row = await within(activity).findByRole("button", { name: /Recherche d'offres · Directrice financière/ });
+    await user.click(row);
+    return document.getElementById(row.getAttribute("aria-controls")!)!;
+  }
+
+  it("ended with no Job Offer that matches (#1006): says so, with « Voir mon profil » and « Relancer une recherche », counted in the Plan Quota", async () => {
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+      asked.push(`${init.method ?? "GET"} ${url}`);
+      if (url === "/api/job-searches") return Response.json({ id: "s2" }, { status: 201 });
+      return Response.json({ id, status: "done", failure: null, live: { ...measured(0), jobOfferIds: [] }, jobOffers: [] });
+    });
+    const user = userEvent.setup();
+    const page = show();
+    act(() => page.live().jobSearches(running(0), []));
+    act(() => page.live().jobSearches([], [{ jobSearchId: id, outcome: { status: "done", at: new Date().toISOString(), found: 0, steps: [] } }]));
+
+    const detail = await endedEntry(user);
+    expect(detail.textContent).toMatch(/Aucune offre trouvée ne correspond à vos critères pour l'instant/);
+    expect(within(detail).queryByText("Vos meilleures offres :")).toBeNull();
+    expect(within(detail).getByRole("link", { name: "Voir mon profil" }).getAttribute("href")).toBe("/profils/p1");
+    // Unlike the offered one, a new search counts in the Plan Quota, and says so before its button.
+    expect(detail.textContent).toMatch(/Contrairement à la première, une nouvelle recherche compte dans les recherches d'offres de votre forfait/);
+    await user.click(within(detail).getByRole("button", { name: "Relancer une recherche" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/recherches/s2"));
+    expect(asked).toContain("POST /api/job-searches");
+  });
+
+  it("ended with Job Offers that match: no « Relancer une recherche », its best Job Offers instead", async () => {
+    const user = userEvent.setup();
+    const page = show();
+    act(() => page.live().jobSearches(running(3), []));
+    await waitFor(() => expect(page.live().followed?.best).toHaveLength(3));
+    act(() => page.live().jobSearches([], [{ jobSearchId: id, outcome: { status: "done", at: new Date().toISOString(), found: 3, steps: [] } }]));
+    await waitFor(() => expect(page.live().followed?.settled).toBe(true));
+    const detail = await endedEntry(user);
+    expect(within(detail).getByText("Vos meilleures offres :")).toBeTruthy();
+    expect(within(detail).queryByRole("button", { name: "Relancer une recherche" })).toBeNull();
+  });
+
+  it("failed: says it failed and why, with no « Relancer une recherche » offered as if it found nothing", async () => {
+    vi.stubGlobal("fetch", async () => Response.json({ id, status: "failed", failure: "timeout", live: { ...measured(0), jobOfferIds: [] }, jobOffers: [] }));
+    const user = userEvent.setup();
+    const page = show();
+    act(() => page.live().jobSearches(running(0), []));
+    act(() => page.live().jobSearches([], [{ jobSearchId: id, outcome: { status: "failed", at: new Date().toISOString(), found: 0, steps: [], failure: "timeout", step: null } }]));
+    const activity = screen.getByRole("complementary", { name: "Activité" });
+    const row = await within(activity).findByRole("button", { name: /Recherche d'offres · Directrice financière/ });
+    expect(row.textContent).toMatch(/Échec à \d{2}:\d{2}/);
+    const detail = await endedEntry(user);
+    expect(within(detail).queryByRole("button", { name: "Relancer une recherche" })).toBeNull();
   });
 
   it.each([

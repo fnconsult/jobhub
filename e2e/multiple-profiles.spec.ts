@@ -5,11 +5,11 @@ import { signInWithMagicLink } from "./support/candidate";
 import { editCriteriaOf, ficheOf, openSearchCriteria, profileSectionLink } from "./support/conversation";
 import { placeNames, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
-import { openReviewDetail } from "./support/onboarding-summary";
+import { confirmSummary, onboardingSummary, openReviewDetail } from "./support/onboarding-summary";
 import { subscribe } from "./support/plan";
 
 // Issue #7: a Candidate has several Profiles (positionings). They create one
-// from scratch or from a CV, duplicate, rename and archive them, and move
+// by answering the coach's questions or from a CV, duplicate, rename and archive them, and move
 // between them with the Profile switcher. A Free Candidate holds one active
 // Profile (Plan Quota, issue #22): tests that need more subscribe first. A Profile's
 // page is its conversation (#605, ADR-0070): its Fiche's card holds its status and
@@ -114,8 +114,13 @@ test.describe("several Profiles per Candidate", () => {
     expect(tooLong.status()).toBe(400);
     expect((await tooLong.json()).errors).toEqual([{ field: "searchCriteria.targetRole", code: "too_long" }]);
 
-    await page.goto("/profils/nouveau");
-    await page.getByRole("button", { name: fr.cvUpload.fromScratch }).click();
+    // The review form of a Profile born and not finished, resumed at its summary (« Partir de zéro » is gone, #1006).
+    const born = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] }, onboarding: "in_progress" },
+    });
+    expect(born.status()).toBe(201);
+    await page.goto(`/profils/nouveau?profil=${(await born.json()).id}`);
     await openReviewDetail(page);
     await expect(page.getByLabel(fr.cvReview.targetRole)).toHaveAttribute("maxlength", "120");
 
@@ -171,22 +176,33 @@ test.describe("several Profiles per Candidate", () => {
     await expect(switcher.getByRole("menuitem", { name: "Contrôleuse de gestion" })).toBeVisible();
   });
 
-  test("a Candidate who has a Profile can add another, from scratch, without a CV", async ({ page }) => {
-    await signInOn(page, "scratch");
+  test("a Candidate who has a Profile can add another without a CV, answering the coach's questions", async ({ page }) => {
+    await signInOn(page, "no-cv");
     await createProfile(page, "Directrice financière");
     await page.goto("/compte");
     await page.getByRole("link", { name: fr.profiles.add }).click();
     await expect(page).toHaveURL(`${origin}/profils/nouveau`);
 
-    await page.getByRole("button", { name: fr.cvUpload.fromScratch }).click();
-    await openReviewDetail(page);
-    const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
-    await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("");
-    await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("");
-    await criteria.getByLabel(fr.cvReview.targetRole, { exact: true }).fill("Consultante transformation");
-    await typePlace(criteria, "Paris");
-    await page.getByLabel(fr.cvReview.fullName).fill("Marie Dupont");
-    await page.getByRole("button", { name: fr.cvReview.save }).click();
+    // The scripted questions (the AI unavailable, #1002's fallback): the same every run. « Partir de zéro » is gone (#1006).
+    const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
+    await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV à jour E2E_AI_DOWN");
+    await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+    await expect(thread).toContainText(fr.newProfile.interview.fallback);
+    for (const said of ["Marie Dupont", "Consultante transformation", "Paris"]) {
+      const answered = await thread.locator("li.chat-candidate").count();
+      await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
+      await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+      await expect(thread.locator("li.chat-candidate")).toHaveCount(answered + 1);
+    }
+    const skip = page.getByRole("button", { name: fr.questionnaire.skip });
+    for (let question = 0; question < 12; question++) {
+      await expect(onboardingSummary(page).or(skip)).toBeVisible();
+      if (await onboardingSummary(page).isVisible()) break;
+      const answered = await thread.locator("li.chat-candidate").count();
+      await skip.click();
+      await expect(thread.locator("li.chat-candidate")).toHaveCount(answered + 1);
+    }
+    await confirmSummary(page);
 
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Consultante transformation");
@@ -244,7 +260,7 @@ test.describe("several Profiles per Candidate", () => {
 
     // So does the new Profile page, instead of the forms.
     await page.goto("/profils/nouveau");
-    await expect(page.getByRole("button", { name: fr.cvUpload.fromScratch })).toHaveCount(0);
+    await expect(page.getByLabel(fr.cvUpload.fileLabel)).toHaveCount(0);
     await page.getByRole("alert").filter({ hasText: upgrade.message }).getByRole("link", { name: upgrade.action }).click();
     await expect(page).toHaveURL(`${origin}/abonnement`);
 

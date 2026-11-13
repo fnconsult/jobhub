@@ -1071,10 +1071,8 @@
       "empty": "We found no text in this file. If it is a scanned CV, upload the original PDF or Word version instead.",
       "unknown": "Something went wrong. Please try again."
     },
-    "fromScratch": "Start from scratch",
     "stopped": "Reading stopped at {{time}}: nothing was read or saved.",
-    "drop": "Drop your CV here",
-    "noCv": "No CV at hand?"
+    "drop": "Drop your CV here"
   },
   "cvReview": {
     "title": "Check your CV and your search criteria",
@@ -1421,6 +1419,7 @@
     "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it.",
     "offeredSearchStarted": "Your profile is created: I'm starting a first job search right away, on us, which does not count toward your quota. Let's carry on while it searches.",
     "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too.",
+    "firstOffers": "Your first job offers show in “Activity”, at the end of the search on us: the best first, then “See all job offers”. If it is still searching, you can go on to your profile: a notification will tell you when it is over.",
     "interview": {
       "yes": "Yes, {{value}}",
       "no": "No, rather…",
@@ -1476,6 +1475,8 @@
     },
     "refined": "Narrowed with:",
     "assumed": "assumed",
+    "bestSoFar": "Your best job offers so far:",
+    "running": "Job offers are added as they are found. You can carry on: a notification will tell you when the search is over.",
     "minSalary": "from {{amount}}",
     "sourcesLabel": "Sources of the search",
     "sources": {
@@ -5935,6 +5936,12 @@
       "bestOffers": "Your best job offers:",
       "noBestOffers": "No job offer found yet.",
       "allOffers": "See all job offers",
+      "noMatch": {
+        "text": "No job offer found matches your criteria yet. Check them on your profile, or search again.",
+        "profile": "See my profile",
+        "quota": "Unlike the first one, a new search counts toward your plan's job searches this week.",
+        "searchAgain": "Search again"
+      },
       "matchScore": "Match Score {{score}}/100"
     }
   },

@@ -8,6 +8,7 @@ import type { CvDraft } from "@/cv";
 import { useAutoGrow } from "@/design/auto-grow";
 import { helpLocale, onThisPage } from "@/coach-help";
 import { useHelpSettings } from "@/coach-help/settings";
+import { useShowInActivity } from "@/components/AiActivity";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
 import { useConversationFirst } from "@/components/conversation-first";
@@ -45,7 +46,7 @@ import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
 import type { RefiningCriterion } from "@/ai-activity/followed-search";
-import { CoachLine } from "./CoachLine";
+import { CoachLine, InActivity } from "./CoachLine";
 import { CvReadingCard, CvReadLine } from "./CvReadingCard";
 import { searchedWith, useFollowedSearch } from "./followed-search";
 import { OnboardingSummary } from "./OnboardingSummary";
@@ -53,7 +54,7 @@ import { criteriaFieldsOf } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 import "./QuickActions.css";
 
-type From = "cv" | "interview" | "questionnaire" | "scratch" | "resumed";
+type From = "cv" | "interview" | "questionnaire" | "resumed";
 /** At the review, the summary first (#1004); `saved` once « Cela semble correct » has saved the Profile, at its page. */
 /** `reading`: the CV read (#1003), its fields appearing on « Profil en construction » before the interview starts from it. */
 type Step =
@@ -101,7 +102,6 @@ interface Turn {
 
 /** Where each draft comes from. */
 const FROM_CV: From = "cv";
-const FROM_SCRATCH: From = "scratch";
 
 /** The review form in the Work Pane: a form, at the page's own address, the draft living in the page. */
 const REVIEW: AddressedKind = "form";
@@ -115,8 +115,8 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
  * Creating a Profile under « Conversation au centre » (ADR-0070): the page is a conversation with the AI Coach, its
  * thread at its reading width, centred, the box at its foot, with the coach's look of every page (#997): the welcome panel,
  * the « Coach IA » badge and « Envoyer au coach » (CoachBox). The Coach's Introduction offers two paths: uploading a CV,
- * a card in the thread (« Partir de zéro » under its drop zone, #468), or answering the coach's questions, the suggestion
- * above the box. Either path gives the same draft Master CV and Search Criteria, summed up in plain words by Jobbbox
+ * a card in the thread (#468), or answering the coach's questions, the suggestion above the box, which replaced « Partir de
+ * zéro » (#1006). Either path gives the same draft Master CV and Search Criteria, summed up in plain words by Jobbbox
  * (OnboardingSummary, #1004): « Ai-je bien compris ? ». « Cela semble correct » saves it; « Voir le détail » opens the
  * review form in the Work Pane, where what the Candidate changes is kept while the pane is closed and shows in the
  * summary. Its Activity groups it in one entry, « Création du profil » (#810): the page tells AI Activity the CV read,
@@ -138,11 +138,12 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
  * The Profile is born as soon as its target role and location are answered or confirmed (ADR-0106, #999): created with its
  * onboarding in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the
  * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
- * review. From scratch, the Profile is still created at the review's save.
+ * review.
  * Born, it gets its first Job Search, offered outside the Plan Quota (#1000), started again once when an answer changes
  * its target role or locations; a coach line in the thread says so, text only. Its progress is AI Activity's: the page
  * follows it (useFollowedSearch), so « En ce moment » counts it « ici », with its run's measures and the Job Offers that
- * match the criteria of the moment, and keeps it in the history once over (#1001).
+ * match the criteria of the moment, and keeps it in the history once over (#1001). Once « Cela semble correct » has saved
+ * the Profile, a coach line says the first offers are there and opens Activity on it (#1006).
  */
 export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const { t, i18n } = useTranslation();
@@ -169,7 +170,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const [offeredSearch, setOfferedSearch] = useState<{ restarted: boolean; after: number } | null>(null);
   const offeredStarts = useRef(0);
   // The offered Job Search the page follows in AI Activity (#1001): the latest started, kept when the Candidate starts over.
-  const [followedId, setFollowedId] = useState<string | null>(null);
+  const [followed, setFollowed] = useState<{ id: string; profileId: string } | null>(null);
   // The CV read (#1003): its draft once `/api/cv/draft` gave it, kept for the line the reading card folds into; and
   // whether it is being read, for the card to show its step under way.
   const [cvRead, setCvRead] = useState<CvDraft | null>(null);
@@ -384,7 +385,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
       const body = await response.json().catch(() => ({}));
       if (response.status === 201 && typeof body.id === "string") {
         setOfferedSearch({ restarted: body.offered === "restart", after });
-        setFollowedId(body.id);
+        setFollowed({ id: body.id, profileId });
       }
       else if (response.status === 409) offeredStarts.current = OFFERED_SEARCHES;
     } catch {
@@ -491,7 +492,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const proposed = turn?.proposal && !interview.declining && isRefining(turn.proposal.field) ? turn.proposal.field : null;
   const searchedDraft = turn && proposed ? replied(interview.draft, turn, { kind: "accepted" }) : answersDraft;
   // The offered Job Search, live in AI Activity's « En ce moment », counted « ici » (#1001).
-  useFollowedSearch({ jobSearchId: followedId, href: routes.newProfile, assumed: proposed ? [proposed] : [], ...searchedWith(searchedDraft) });
+  useFollowedSearch({ jobSearchId: followed?.id ?? null, profileId: followed?.profileId ?? null, href: routes.newProfile, assumed: proposed ? [proposed] : [], ...searchedWith(searchedDraft) });
 
   /** The Job Search the onboarding offers (#1000), told after the answer that started it (the `after`-th): one line (#1001). */
   const offeredSearchAfter = (answers: number): ReactNode[] =>
@@ -514,7 +515,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
               <li className="chat-message chat-card">
                 <Card title={t("newProfile.withCv")}>
                   <p>{t("cvUpload.intro")}</p>
-                  <CvUpload onDraft={read} onReading={setCvReading} onFromScratch={() => review(BLANK_DRAFT, FROM_SCRATCH)} />
+                  <CvUpload onDraft={read} onReading={setCvReading} />
                 </Card>
               </li>
             ) : null}
@@ -610,6 +611,8 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                 onSaved={confirmed}
               />
             ) : null}
+            {/* Saved, the first offers are Activity's (#1006): the end of the offered search's entry, which this line opens. */}
+            {step.kind === "review" && step.saved && followed ? <FirstOffersLine /> : null}
             {asides.map((aside, index) => [
               <li key={`aside-${index}`} className="chat-message chat-candidate">
                 <span className="visually-hidden">{t("questionnaire.you")}</span>
@@ -789,6 +792,22 @@ function TurnSuggestions(props: {
         </button>
       ) : null}
     </Suggestions>
+  );
+}
+
+/**
+ * After « Cela semble correct » (#1006, ADR-0106): the first offers are not a card of the thread but the end of the offered
+ * Job Search's entry in Activity (#1001). One line of the coach says so, and « Dans l'activité » opens Activity on it, as
+ * under a reply of every conversation (#808); « Continuer vers mon profil » stays above it.
+ */
+function FirstOffersLine() {
+  const { t } = useTranslation();
+  const show = useShowInActivity();
+  return (
+    <CoachLine>
+      <p>{t("newProfile.firstOffers")}</p>
+      {show ? <InActivity onShow={() => show({ followed: true })} /> : null}
+    </CoachLine>
   );
 }
 

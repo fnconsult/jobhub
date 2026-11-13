@@ -24,7 +24,7 @@ import { CoachReplyText, replyWordCount } from "@/components/CoachReplyText";
 import { namesByPage, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "@/components/coach-tool-steps";
 import { CoachLiveSteps, CoachToolsConsulted } from "@/components/CoachToolSteps";
 import { useConversationFirst } from "@/components/conversation-first";
-import { Icons } from "@/components/icons";
+import { InActivity } from "@/components/CoachLine";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { useOpenSignalement } from "@/components/Signalement";
 import { showLatest } from "@/components/thread-scroll";
@@ -811,17 +811,6 @@ export function CoachConversationPage(page: PagePlacement) {
         </div>
       </section>
     </BoxControl.Provider>
-  );
-}
-
-/** « Dans l'activité » under a reply or a card of the thread (#808): opens the page's Activity on its entry. */
-function InActivity({ onShow }: { onShow: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <button type="button" className="chat-in-activity" onClick={onShow}>
-      <Icons.aiActivity />
-      {t("aiActivity.history.inActivity")}
-    </button>
   );
 }
 

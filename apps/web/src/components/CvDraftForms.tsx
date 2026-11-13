@@ -28,7 +28,7 @@ const BLANK_MASTER_CV: MasterCvContent = {
   languages: [],
 };
 
-/** The draft a Candidate starts from when they start from scratch: the review form left blank. */
+/** The empty draft the AI Coach's interview starts from, without a CV (#1002). */
 export const BLANK_DRAFT: CvDraft = { masterCv: BLANK_MASTER_CV, searchCriteria: { targetRole: "", locations: [] } };
 
 const JSON_BODY = { "content-type": "application/json" };
@@ -47,15 +47,14 @@ const CV_FILE_ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformat
  * Uploading a PDF or Word CV and reading it into a draft, in the Design System's File upload (#468): dropped or
  * chosen, refused at once when the File upload's rules say so. Saves nothing. The AI Coach's reading shows live, on
  * the file's row and in AI Activity, and the Candidate can stop it (#335): nothing is then drafted. Without a CV, the
- * Candidate starts from scratch (`onFromScratch`). `onReading` hears the reading start and end.
+ * Candidate answers the AI Coach's questions instead (« Partir de zéro » is gone, #1006). `onReading` hears the reading
+ * start and end.
  */
 export function CvUpload({
   onDraft,
-  onFromScratch,
   onReading,
 }: {
   onDraft: (draft: CvDraft) => void;
-  onFromScratch?: () => void;
   /** Told when the reading starts and when it ends (read, stopped or failed): « Profil en construction » follows it (#1003). */
   onReading?: (reading: boolean) => void;
 }) {
@@ -114,14 +113,6 @@ export function CvUpload({
         {state.stoppedAt ? (
           <p className="notice notice-stopped" role="status">
             {t("cvUpload.stopped", { time: formatTimeOfDay(state.stoppedAt, new Date(), i18n.language === "en" ? "en" : "fr") })}
-          </p>
-        ) : null}
-        {onFromScratch ? (
-          <p className="ds-upload__meta">
-            {t("cvUpload.noCv")}{" "}
-            <button className="link-button" type="button" onClick={onFromScratch}>
-              {t("cvUpload.fromScratch")}
-            </button>
           </p>
         ) : null}
       </FileUpload>

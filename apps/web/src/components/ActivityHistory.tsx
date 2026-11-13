@@ -13,6 +13,7 @@ import { useActivityColumn } from "@/components/activity-column";
 import { ConsultedLabel } from "@/components/CoachToolSteps";
 import { ExternalLink } from "@/components/ExternalLink";
 import { Icons } from "@/components/icons";
+import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { routes } from "@/routes";
 
 type Language = "fr" | "en";
@@ -396,7 +397,7 @@ function Detail({
           {t("aiActivity.history.after")} <EntryLink to={entry.after} byKey={byKey} reveal={reveal} />
         </p>
       ) : null}
-      {entry.offers ? <BestOffers offers={entry.offers} /> : null}
+      {entry.noMatch ? <NoMatch profileId={entry.noMatch.profileId} /> : entry.offers ? <BestOffers offers={entry.offers} /> : null}
       <p className="activity-entry-links">
         {entry.object.href ? (
           <Link href={entry.object.href}>{entry.offers ? t("aiActivity.history.allOffers") : t(`aiActivity.history.open.${entry.kind}`, { label: entry.object.label ?? "" })}</Link>
@@ -518,12 +519,12 @@ function Proposals({ proposals, byKey, reveal }: { proposals: readonly EntryProp
  * A followed Job Search's best Job Offers (#1001), the best first: each its title, linked to its page in the Job Search, its
  * employer and its Match Score in words. None found: said.
  */
-function BestOffers({ offers }: { offers: readonly EntryOffer[] }) {
+export function BestOffers({ offers, label }: { offers: readonly EntryOffer[]; label?: string }) {
   const t = useT();
   if (offers.length === 0) return <p className="activity-entry-line">{t("aiActivity.history.noBestOffers")}</p>;
   return (
     <div className="activity-entry-line activity-entry-offers">
-      <span className="activity-entry-label">{t("aiActivity.history.bestOffers")}</span>
+      <span className="activity-entry-label">{label ?? t("aiActivity.history.bestOffers")}</span>
       <ul className="ai-activity-list">
         {offers.map((offer) => (
           <li key={offer.href}>
@@ -532,6 +533,25 @@ function BestOffers({ offers }: { offers: readonly EntryOffer[] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * The onboarding's offered Job Search done with no Job Offer that matches (#1006): it says so, and offers « Voir mon
+ * profil » and « Relancer une recherche », which, unlike the offered one, counts in the Plan Quota, as it says before the
+ * button (an Upgrade Prompt when the week's searches are used up, as everywhere a Job Search starts).
+ */
+function NoMatch({ profileId }: { profileId: string }) {
+  const t = useT();
+  return (
+    <div className="activity-entry-line activity-entry-no-match">
+      <p>{t("aiActivity.history.noMatch.text")}</p>
+      <p>
+        <Link href={routes.profile(profileId)}>{t("aiActivity.history.noMatch.profile")}</Link>
+      </p>
+      <p className="ai-activity-meta">{t("aiActivity.history.noMatch.quota")}</p>
+      <StartJobSearchButton profileId={profileId} label={t("aiActivity.history.noMatch.searchAgain")} variant="secondary" size="sm" icon={<Icons.searchAgain />} />
     </div>
   );
 }

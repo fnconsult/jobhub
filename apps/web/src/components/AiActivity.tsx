@@ -23,7 +23,11 @@ import { followedOn, followedSearchEntry } from "@/ai-activity/followed-search";
 type Language = "fr" | "en";
 
 /** « Dans l'activité » under a reply, or one of its cards (its place under the reply). */
-export type ActivityTarget = { messageId: string; card?: number };
+/**
+ * What « Dans l'activité » opens Activity on: a reply of the thread or one of its cards (#808); or the Job Search the page
+ * follows (#1006), its entry once over, « En ce moment » at the top while it runs.
+ */
+export type ActivityTarget = { messageId: string; card?: number } | { followed: true };
 
 type Control = {
   /** The page's Activité entries, newest first: the server's, with the replies its thread shows (ADR-0086, #808). */
@@ -34,7 +38,7 @@ type Control = {
   usage: readonly QuotaUse[] | null;
   /** The entry « Dans l'activité » last asked for, counted so asking again brings it back into view. */
   asked: { key: string; n: number } | null;
-  /** Opens Activity on the entry of a reply or of one of its cards. */
+  /** Opens Activity on the entry of a reply or of one of its cards, or on the Job Search the page follows. */
   show: (target: ActivityTarget) => void;
   /** The Candidate's AI actions running, or stopped or failed lately: this page's, and those « En cours ailleurs » (#333). */
   live: LiveView;
@@ -81,12 +85,14 @@ export function AiActivityProvider({ served = NO_ENTRIES, usage = null, children
   const openColumn = column?.open;
   const show = useCallback(
     (target: ActivityTarget) => {
-      const key = entryToOpen(entries, target);
-      if (!key) return;
-      setAsked((was) => ({ key, n: (was?.n ?? 0) + 1 }));
+      const followedSearch = "followed" in target;
+      const key = followedSearch ? (followedEntry?.key ?? null) : entryToOpen(entries, target);
+      // The followed search still running has no entry yet: Activity opens on « En ce moment », where it is.
+      if (!key && !followedSearch) return;
+      if (key) setAsked((was) => ({ key, n: (was?.n ?? 0) + 1 }));
       openColumn?.();
     },
-    [entries, openColumn],
+    [entries, followedEntry, openColumn],
   );
   const control: Control = { entries, inThread, usage: quotas, asked, show, live, stop };
   return <AiActivityControl.Provider value={control}>{children}</AiActivityControl.Provider>;

@@ -4,7 +4,8 @@
  * shows it there with its run's measures (ai-activity/live, `measured`) and what the page alone counts: « offres qui vous
  * correspondent », by Match Score (rules, no AI) against the Search Criteria of the moment at FUNNEL_MATCH_SCORE, the
  * criteria it is narrowed with (« Affinée avec : … », an assumed one said so in words) and, once over, its best Job Offers.
- * Once it ended, the page's history keeps it as an entry of its own, with those Job Offers.
+ * Once it ended, the page's history keeps it as an entry of its own, with those Job Offers, or, when none matches, what
+ * to do next (#1006).
  *
  *   followedOn(followed, pathname)        the key of the action the page at `pathname` follows, or null
  *   scored(offers, ids, cv, criteria)     the Job Offers found, each with its Match Score, the best first
@@ -40,8 +41,12 @@ export interface FollowedSearch {
   matching: number;
   /** The Search Criteria of the moment, in words. */
   refining: readonly Refining[];
-  /** Its best Job Offers so far, the best first: shown once it ended. */
+  /** Its best Job Offers so far, the best first: listed while it runs, as they are found, and once it ended (#1006). */
   best: readonly EntryOffer[];
+  /** Its Profile, for « Voir mon profil » and « Relancer une recherche » when it ends with no Job Offer that matches (#1006). */
+  profileId?: string | null;
+  /** Whether the page has the Job Offers it ended with: until then, « offres qui vous correspondent » is not its last word. */
+  settled?: boolean;
 }
 
 /** How many Job Offers it ends with: the 5 best that match, or the 3 best when fewer match. */
@@ -112,23 +117,29 @@ function stepsOf(action: LiveAction): EntryStep[] {
 /**
  * The followed Job Search's history entry once it ended (done, stopped or failed), on the page that follows it: its
  * Profile, its steps, the Job Offers it found, its best ones and its page (« Voir toutes les offres »). Offered, it used no
- * Plan Quota and is not counted in « Votre consommation » (ADR-0106). Null while it runs, or when the page follows none.
+ * Plan Quota and is not counted in « Votre consommation » (ADR-0106). Done with no Job Offer that matches the criteria of
+ * the moment, once the page has those it found (or it found none), it says so with its Profile (`noMatch`, #1006): « Voir
+ * mon profil » and « Relancer une recherche », which counts in the Plan Quota. Null while it runs, or when the page follows
+ * none.
  */
 export function followedSearchEntry(followed: FollowedSearch | null, action: LiveAction | null): ActivityEntry | null {
   if (!followed || !action || action.key !== jobSearchKey(followed.jobSearchId) || isRunning(action)) return null;
   const end = action.status === "stopped" || action.status === "failed" ? { state: action.status, at: action.endedAt, reason: action.failure?.reason ?? null } : { state: "done" as const };
+  const analysed = action.measured?.offersAnalysed ?? 0;
+  const noMatch = end.state === "done" && followed.profileId && followed.matching === 0 && (followed.settled || analysed === 0) ? { profileId: followed.profileId } : null;
   return {
     key: `offered_search:${followed.jobSearchId}`,
     kind: "job_search",
     at: action.startedAt,
     object: { href: routes.jobSearch(followed.jobSearchId), label: action.name },
     origin: "jobbbox",
-    result: { end, offers: action.measured?.offersAnalysed ?? 0 },
+    result: { end, offers: analysed },
     steps: stepsOf(action),
     sites: [],
     tools: [],
     models: [],
     cost: { quota: null, tokens: action.tokens === null ? null : { count: action.tokens, calls: null, partial: false }, noAi: false, offered: true },
     offers: [...followed.best],
+    ...(noMatch ? { noMatch } : {}),
   };
 }

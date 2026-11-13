@@ -226,6 +226,8 @@ export interface ActivityEntry {
   parts?: ActivityEntry[];
   /** A Job Search the page followed (#1001): its best Job Offers, the best first, its object's page listing them all. */
   offers?: EntryOffer[];
+  /** A Job Search the page followed (#1006), done with no Job Offer that matches: its Profile, to see it or search again. */
+  noMatch?: { profileId: string };
 }
 
 export interface ActivityInput {

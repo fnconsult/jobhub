@@ -1,0 +1,15 @@
+.shared-reading {
+  min-width: 0;
+}
+.shared-reading-document {
+  max-height: 60vh;
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+.shared-reading-document :is(input, textarea, button) {
+  pointer-events: none;
+}

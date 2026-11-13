@@ -2,7 +2,7 @@ import type { CandidateIdentity } from "@jobhub/ai";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
-import { createUnansweredQuestions, migrateUnansweredQuestions, purgeUnansweredQuestions, type NoticedReply, type UnansweredQuestions } from "./index";
+import { createUnansweredQuestions, helpMissed, migrateUnansweredQuestions, purgeUnansweredQuestions, type NoticedReply, type UnansweredQuestions } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -247,5 +247,20 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
       expect(await purgeUnansweredQuestions(database, new Date("2028-01-01T10:00:00Z"))).toBe(1);
       expect(await questions.open()).toEqual([]);
     });
+  });
+});
+
+// #867: whether the help missed a question is read against the Help Articles « Espace coach v2 » serves, main's while off.
+describe("helpMissed, « Espace coach v2 » off and on", () => {
+  // « déplacement »: a word of the epic's cancellation question alone (« Annuler ou déplacer une séance »).
+  const cancel = replied("Et un déplacement ?");
+
+  it("off (the default): a question only the epic's articles answer is the help's miss", () => {
+    expect(helpMissed(cancel)).toBe(true);
+    expect(helpMissed(cancel, { coachSpaceV2: false })).toBe(true);
+  });
+
+  it("on: its articles answer it", () => {
+    expect(helpMissed(cancel, { coachSpaceV2: true })).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { OrderForm } from "@/components/OrderForm";
@@ -24,8 +25,10 @@ export default async function CoachingOrderPage({ searchParams }: { searchParams
   const t = await getServerT(locale);
   const query = await searchParams;
   const coachId = typeof query[ORDER_PARAMS.coach] === "string" ? (query[ORDER_PARAMS.coach] as string) : "";
+  // A Peer remedy (« Espace coach v2 », ADR-0107): off, none, as before the Human Coach epic.
+  const remedyId = coachSpaceV2On() && typeof query.remedy === "string" ? query.remedy : undefined;
   const terms = await getOrders()
-    .terms(candidate.id, { kind: "coachingSession", coachId })
+    .terms(candidate.id, { kind: "coachingSession", coachId, remedyId })
     .catch((cause: unknown) => {
       console.error("[orders] Coaching Session order unavailable", cause);
       return null;
@@ -38,7 +41,7 @@ export default async function CoachingOrderPage({ searchParams }: { searchParams
           <OrderForm
             terms={terms}
             action={ORDER_ACTIONS.coachingSession}
-            hidden={{ coachId }}
+            hidden={{ coachId, ...(remedyId ? { remedyId } : {}) }}
             back={routes.coaching}
             error={query[ORDER_PARAMS.error] === ORDER_CGV_ERROR}
             locale={locale}

@@ -14,11 +14,12 @@ export async function POST(request: Request) {
   if (!candidate) return seeOther(routes.signIn, request);
   const form = await request.formData();
   const coachId = form.get("coachId");
+  const remedyId = typeof form.get("remedyId") === "string" ? String(form.get("remedyId")) : undefined;
   if (typeof coachId !== "string" || !coachId) return seeOther(routes.coaching, request);
   try {
     const placed = await getOrders().place(
       candidate,
-      { kind: "coachingSession", coachId },
+      { kind: "coachingSession", coachId, remedyId },
       { cgv: form.get(ORDER_FIELDS.cgv), immediateExecution: form.get(ORDER_FIELDS.immediateExecution) },
       candidate.locale,
     );

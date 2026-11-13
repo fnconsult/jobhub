@@ -8,7 +8,7 @@
  */
 
 /** Who a Provider Secret is for; keys of one provider are tested together. */
-export const SECRET_PROVIDERS = ["mistral", "perplexity", "brave", "tavily", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo", "email-intake", "github", "apns", "fcm"] as const;
+export const SECRET_PROVIDERS = ["mistral", "perplexity", "brave", "tavily", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "cal-com", "brevo", "email-intake", "github", "apns", "fcm"] as const;
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 
 export const PROVIDER_SECRETS = [
@@ -30,6 +30,9 @@ export const PROVIDER_SECRETS = [
   { name: "APOLLO_API_KEY", provider: "apollo" },
   { name: "STRIPE_SECRET_KEY", provider: "stripe" },
   { name: "STRIPE_WEBHOOK_SECRET", provider: "stripe" },
+  { name: "STRIPE_CONNECT_WEBHOOK_SECRET", provider: "stripe" },
+  { name: "CAL_COM_API_KEY", provider: "cal-com" },
+  { name: "CAL_COM_WEBHOOK_SECRET", provider: "cal-com" },
   // Brevo: its transactional email API key, used over its SMTP relay (whose URL carries its credentials).
   { name: "BREVO_API_KEY", provider: "brevo" },
   { name: "SMTP_URL", provider: "brevo" },

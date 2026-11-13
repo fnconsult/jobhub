@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { apiVersionRefusal, UPGRADE_REQUIRED } from "@/api-version";
 import { contentSecurityPolicy } from "@/help-media";
-import { currentHelpMediaOrigin } from "@/help-media/origin";
+import { currentCoachSpaceV2, currentHelpMediaOrigin } from "@/help-media/origin";
 import { ENGLISH_PREFIX, LOCALE_HEADER, splitLocalePrefix, URL_LOCALE_HEADER, urlLocale, VISITOR_LOCALE_HEADER } from "@/i18n/locale-header";
 import { maintenanceOf, maintenanceResponse, staysOpen } from "@/maintenance";
 import { inAppRedirect } from "@/native-app/in-app";
@@ -70,7 +70,7 @@ const BETA_ROBOTS = betaRobotsHeader(currentRelease(process.env).beta);
  */
 function withCommonHeaders(response: NextResponse): NextResponse {
   if (BETA_ROBOTS) response.headers.set("X-Robots-Tag", BETA_ROBOTS);
-  response.headers.set("Content-Security-Policy", contentSecurityPolicy(currentHelpMediaOrigin()));
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy(currentHelpMediaOrigin(), currentCoachSpaceV2()));
   return response;
 }
 

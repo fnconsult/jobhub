@@ -25,6 +25,7 @@ describe("legalTextInEffect (#550)", () => {
   });
 
   it("knows no text that does not exist", () => {
+    expect(legalTextInEffect("contrat-coach", "2026-11-02", [record("contrat-coach", "2026-01-01")])).toBeNull();
     expect(legalTextInEffect("conditions", "2026-11-02", registry)).toBeNull();
   });
 });

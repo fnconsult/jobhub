@@ -47,6 +47,7 @@ const TOOL_OF: Record<SecretProvider, ExternalApiProvider | null> = {
   kaspr: "kaspr",
   apollo: "apollo",
   stripe: "stripe",
+  "cal-com":"cal_com",
   brevo: "brevo",
   "email-intake": null,
   github: "github",
@@ -151,6 +152,10 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
     (env.CONTACT_ENRICHMENT_PROVIDER?.trim().toLowerCase() === provider && env.CONTACT_ENRICHMENT_API_URL?.trim()) || CONTACT_API[provider];
 
   const TESTS: Record<SecretProvider, (env: Env, io: Io) => Promise<ConnectionTestResult>> = {
+    async "cal-com"(env,{call}) {
+      const found=keys(env,"CAL_COM_API_KEY");
+      return "missing" in found?failed(`missing ${found.missing}`):call("https://api.cal.com/v2/me",{method:"GET",headers:{authorization:`Bearer ${found.CAL_COM_API_KEY}`,"cal-api-version":"2024-06-14"}});
+    },
     async mistral(env, { bearer }) {
       const found = keys(env, "MISTRAL_API_KEY");
       return "missing" in found ? failed(`missing ${found.missing}`) : bearer("https://api.eu.mistral.ai/v1/models", found.MISTRAL_API_KEY);

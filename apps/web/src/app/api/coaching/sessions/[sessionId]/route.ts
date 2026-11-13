@@ -1,3 +1,5 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import {linkedBookingConflict} from "@/coaching-booking/manual";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -5,7 +7,7 @@ import { getHumanCoaches } from "@/human-coaches/server";
 /**
  * The Candidate enters or edits the date of one of their own Coaching Sessions, booked on the
  * Human Coach's Cal.com page (ADR-0027). Body: { scheduledAt (French time without an offset),
- * durationMinutes?, videoLink? (http or https), note? }; it replaces all four.
+ * durationMinutes?, videoLink? (http or https), note? }; only supplied optional fields change.
  * 200 { id } · 400 { errors } · 401 · 403 · 404 (no such session of this Candidate).
  * There is no DELETE: a Candidate never deletes a Coaching Session.
  */
@@ -15,7 +17,10 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/coa
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { sessionId } = await params;
   const body: unknown = await request.json().catch(() => undefined);
-  const result = await getHumanCoaches().scheduleSession(candidate.id, sessionId, body);
+  let result;
+  // A booking linked to Cal.com is changed there (« Espace coach v2 », ADR-0107); off, as before the Human Coach epic.
+  if (!coachSpaceV2On()) result = await getHumanCoaches().scheduleSession(candidate.id, sessionId, body);
+  else try{result=await getHumanCoaches().scheduleSession(candidate.id, sessionId, body);}catch(error){if(linkedBookingConflict(error))return NextResponse.json({error:"use_cal"},{status:409});throw error;}
   if (result.ok) return NextResponse.json({ id: result.session.id });
   if ("errors" in result) return NextResponse.json({ errors: result.errors }, { status: 400 });
   return NextResponse.json({ error: result.error }, { status: 404 });

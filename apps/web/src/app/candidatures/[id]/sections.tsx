@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { ShareDocumentButton } from "@/shared-reading/ShareDocumentButton";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import type { ActionCard } from "@/action-cards";
@@ -142,6 +144,9 @@ function resultTitle(result: ApplicationResult, t: T): string {
   return t(result === "cover_letter" ? "tailoredDocuments.coverLetter.title" : "tailoredDocuments.outreachMessage.title");
 }
 
+/** The Tailored Documents Shared Reading can share (« Espace coach v2 », ADR-0107). */
+const SHARED_KINDS = ["tailored_cv", "cover_letter", "outreach_message"] as const;
+
 function SectionView({ data, section, result }: { data: ApplicationPageData; section: ApplicationSection; result?: ApplicationResult }) {
   const { application, t, locale } = data;
   switch (section) {
@@ -156,7 +161,15 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
         ...(jobTitle && { jobTitle }),
         ...(emails[0] && { email: emails[0] }),
       }));
-      return (
+      // Shared Reading is part of « Espace coach v2 » (ADR-0107): off, not offered, as before it.
+      const shared = coachSpaceV2On() ? (
+        <div className="actions shared-reading-actions">
+          {SHARED_KINDS.filter((kind) => (kind === "tailored_cv" ? tailoredCv?.saved : kind === "cover_letter" ? drafts?.coverLetter : drafts?.outreachMessage)).map((kind) => (
+            <ShareDocumentButton key={kind} source={{ kind, id: application.id }} />
+          ))}
+        </div>
+      ) : null;
+      const documents = (
         <TailoredDocuments
           key={`documents-${application.id}`}
           applicationId={application.id}
@@ -168,6 +181,14 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
           target={{ title: application.jobOffer.title, ...(application.jobOffer.employer && { employer: application.jobOffer.employer }) }}
           {...(result ? { only: result } : {})}
         />
+      );
+      return shared ? (
+        <>
+          {shared}
+          {documents}
+        </>
+      ) : (
+        documents
       );
     }
     case "correspondance":

@@ -1,3 +1,6 @@
+import type {PublicCoachPage} from "@jobhub/shared/coaching-profiles";
+import type {CoachingSale} from "@jobhub/shared/coaching-offers";
+import type { Meeting } from "@jobhub/shared/coaching-meeting";
 /**
  * The Candidate's reads over HTTP (ADR-0076, #684): what the GETs of the `/api/*` routes answer the Jobbbox app, the
  * menus' cards and the objects they lead to, each in its type from `@jobhub/shared/reads`.
@@ -113,6 +116,14 @@ export interface CandidateReads {
 }
 
 export interface CandidateReadsDeps {
+  /**
+   * « Espace coach v2 » (ADR-0107), read per call: off (or absent), the reads answer as before the Human Coach epic, none
+   * of the deps below is asked, and no message names its Human Coach.
+   */
+  coachSpaceV2?: () => boolean;
+  coachPages?(ids:string[]):Promise<{coachId:string;page:PublicCoachPage}[]>;
+  coachAssociations?(ids:string[]):Promise<{coachId:string;id:string;name:string}[]>;
+  coachingOffer?(candidateId:string,coachId:string):Promise<CoachingSale|null>;
   applications: Pick<Applications, "list" | "get" | "matchScores">;
   followUps: Pick<FollowUps, "notices">;
   profiles: Pick<Profiles, "list" | "get">;
@@ -131,6 +142,10 @@ export interface CandidateReadsDeps {
   offerBox: OfferBox;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
+  coachingCancellations?: () => Promise<boolean>;
+  coachingBookings?:(candidateId:string)=>Promise<Record<string,string>>;
+  coachingMeetings?: (candidateId: string) => Promise<Record<string, Meeting | null> | null>;
+  coachingTimeZone?: (candidateId: string) => Promise<string | null>;
 }
 
 const iso = (date: Date): string => date.toISOString();
@@ -194,12 +209,13 @@ const conversationSummary = (conversation: CoachConversationSummary): CoachConve
   lastMessageAt: iso(conversation.lastMessageAt),
 });
 
-const conversationRead = (conversation: CoachConversation): CoachConversationRead => ({
+const conversationRead = (conversation: CoachConversation, coachSpaceV2: boolean): CoachConversationRead => ({
   ...conversationSummary(conversation),
   aiDisclosure: conversation.aiDisclosure,
   messages: conversation.messages.map((message) => ({
     from: message.from,
     text: message.text,
+    ...(coachSpaceV2 && message.humanCoach ? { humanCoach: message.humanCoach } : {}),
     ...(message.provenance !== undefined && { provenance: message.provenance }),
     ...(message.at !== undefined && { at: message.at }),
     ...(message.sent !== undefined && { sent: message.sent }),
@@ -240,7 +256,12 @@ const jobOfferLine = (offer: JobOfferFacts): JobOfferLine => ({
 
 /** A Job Offer a Job Search found or a Job Digest brought, with what its Work Pane shows in the app (#692). */
 const foundJobOffer = (result: { jobOffer: JobOffer; matchScore: MatchScore; applicationId: string | null; dismissed?: boolean }): FoundJobOffer => ({
-  jobOffer: { ...jobOfferLine(result.jobOffer), contractType: result.jobOffer.contractType ?? null, summary: result.jobOffer.summary ?? null, content: result.jobOffer.content },
+  jobOffer: {
+    ...jobOfferLine(result.jobOffer),
+    contractType: result.jobOffer.contractType ?? null,
+    summary: result.jobOffer.summary ?? null,
+    content: result.jobOffer.content,
+  },
   matchScore: figure(result.matchScore),
   matchScoreDetail: matchScoreDetail(result.matchScore),
   // « Suivie »: saved as an Application; « Écartée »: from the Offer box (#816).
@@ -278,6 +299,7 @@ const NO_DAY_LABEL = () => "";
 
 export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
   const now = deps.now ?? (() => new Date());
+  const coachSpaceV2 = (): boolean => deps.coachSpaceV2?.() ?? false;
 
   /** The Candidate's active Profiles, in their order: the cards leave an Archived Profile out. */
   async function activeProfiles(candidateId: string) {
@@ -337,7 +359,13 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       return {
         profiles: menu.groups.map(({ profile, searches: ofProfile }) => ({
           profile,
-          searches: ofProfile.map((search) => ({ id: search.id, status: search.status, startedAt: iso(search.startedAt), found: search.found, unseen: search.unseen })),
+          searches: ofProfile.map((search) => ({
+            id: search.id,
+            status: search.status,
+            startedAt: iso(search.startedAt),
+            found: search.found,
+            unseen: search.unseen,
+          })),
         })),
         unseen: menu.unseen,
       };
@@ -376,7 +404,9 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
 
     async jobDigests(candidateId) {
       const [profiles, digests] = await Promise.all([activeProfiles(candidateId), deps.jobDigests.list(candidateId)]);
-      const settings = new Map(await Promise.all(profiles.map(async (profile) => [profile.id, await deps.jobDigests.settings(candidateId, profile.id)] as const)));
+      const settings = new Map(
+        await Promise.all(profiles.map(async (profile) => [profile.id, await deps.jobDigests.settings(candidateId, profile.id)] as const)),
+      );
       const menu = jobDigestsMenu({ profiles, digests, dateLabel: NO_DAY_LABEL });
       return {
         profiles: menu.groups.map(({ profile, digests: sent }) => {
@@ -395,11 +425,22 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     async jobDigest(candidateId, jobDigestId) {
       const digest = await deps.jobDigests.get(candidateId, jobDigestId);
       if (!digest) return null;
-      return { id: digest.id, profile: { id: digest.profile.id, name: digest.profile.name }, sentAt: iso(digest.sentAt), jobOffers: digest.results.map(foundJobOffer) };
+      return {
+        id: digest.id,
+        profile: { id: digest.profile.id, name: digest.profile.name },
+        sentAt: iso(digest.sentAt),
+        jobOffers: digest.results.map(foundJobOffer),
+      };
     },
 
     async agenda(candidateId, { past = false } = {}) {
-      const [unscheduled, days] = await Promise.all([deps.agenda.unscheduled(candidateId), deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now() })]);
+      const v2 = coachSpaceV2();
+      const timeZone = v2 ? ((await deps.coachingTimeZone?.(candidateId)) ?? undefined) : undefined;
+      const meetings = v2 ? ((await deps.coachingMeetings?.(candidateId)) ?? null) : null;
+      const [unscheduled, days] = await Promise.all([
+        deps.agenda.unscheduled(candidateId),
+        deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now(), ...(v2 ? { timeZone } : {}) }),
+      ]);
       return {
         toSchedule: unscheduled.map((session) => ({
           id: session.id,
@@ -407,11 +448,22 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           paidAt: iso(session.paidAt),
           reschedules: session.reschedules.map(reschedule),
         })),
-        days: days.map(({ day, items }) => ({ day, items: items.map(agendaItem) })),
+        days: days.map(({ day, items }) => ({
+          day,
+          items: items.map((item) => ({
+            ...agendaItem(item),
+            ...(item.kind === "coachingSession" && timeZone ? { timeZone } : {}),
+            ...(item.kind === "coachingSession" && meetings ? { meeting: meetings[item.id] ?? null } : {}),
+          })),
+        })),
       };
     },
 
     async coaching(candidateId) {
+      const v2 = coachSpaceV2();
+      const bookingPaths = v2 ? await deps.coachingBookings?.(candidateId) : undefined;
+      const timeZone = v2 ? ((await deps.coachingTimeZone?.(candidateId)) ?? undefined) : undefined;
+      const meetings = v2 ? ((await deps.coachingMeetings?.(candidateId)) ?? null) : null;
       const [coaches, granted, sessions, contracts, price] = await Promise.all([
         deps.humanCoaches.list(),
         deps.humanCoaches.accessGranted(candidateId),
@@ -423,11 +475,35 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           return null;
         }),
       ]);
+      const pages = new Map(((v2 ? await deps.coachPages?.(coaches.map((c) => c.id)) : undefined) ?? []).map((p) => [p.coachId, p.page]));
+      const associations = new Map(
+        ((v2 ? await deps.coachAssociations?.(coaches.map((c) => c.id)) : undefined) ?? []).map((a) => [a.coachId, { id: a.id, name: a.name }]),
+      );
+      const offers = v2 && deps.coachingOffer
+        ? new Map(await Promise.all(coaches.map(async (coach) => [coach.id, await deps.coachingOffer!(candidateId, coach.id)] as const)))
+        : null;
       // As the Agenda: the sessions still in their Withdrawal period, and not held under the Immediate Performance Request.
       const withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
       return {
+        ...(timeZone ? { timeZone } : {}),
+        ...(v2 && (await deps.coachingCancellations?.()) ? { cancellationPath: "/coachs/annulations" } : {}),
         // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
-        coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id) })),
+        coaches: coaches.map((coach) => ({
+          id: coach.id,
+          name: coach.name,
+          bio: coach.bio,
+          accessGranted: granted.includes(coach.id),
+          ...(pages.has(coach.id) ? { profile: pages.get(coach.id) } : {}),
+          ...(associations.has(coach.id) ? { association: associations.get(coach.id) } : {}),
+          ...(offers
+            ? {
+                seller: offers.get(coach.id)?.seller,
+                offer: offers.get(coach.id)
+                  ? { durationMinutes: offers.get(coach.id)!.durationMinutes, amount: offers.get(coach.id)!.amount, currency: offers.get(coach.id)!.currency }
+                  : null,
+              }
+            : {}),
+        })),
         sessions: sessions.map((session) => ({
           id: session.id,
           coach: { id: session.coach.id, name: session.coach.name, bookingUrl: session.coach.bookingUrl },
@@ -439,6 +515,8 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           changedBy: session.changedBy,
           reschedules: session.reschedules.map(reschedule),
           withdrawable: withdrawable.has(session.id),
+          ...(meetings ? { meeting: meetings[session.id] ?? null } : {}),
+          ...(bookingPaths?.[session.id] ? { bookingPath: bookingPaths[session.id] } : {}),
         })),
         price: price && { amount: price.amount, regularAmount: price.regularAmount, currency: price.currency },
       };
@@ -450,6 +528,7 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
       const { summary, cgv } = terms;
       return {
         coach: { id: coachId, name: summary.subject.fr },
+        ...(coachSpaceV2() && summary.sale ? { seller: summary.sale.seller, durationMinutes: summary.sale.durationMinutes } : {}),
         price: summary.price && { amount: summary.price.amount, currency: summary.price.currency },
         cgv: cgv && { version: cgv.version, url: cgv.url },
       };
@@ -474,7 +553,10 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     },
 
     async tailoredDocuments(candidateId, applicationId) {
-      const [tailoredCv, drafts] = await Promise.all([deps.tailoredCvs.get(candidateId, applicationId), deps.tailoredDocuments.get(candidateId, applicationId)]);
+      const [tailoredCv, drafts] = await Promise.all([
+        deps.tailoredCvs.get(candidateId, applicationId),
+        deps.tailoredDocuments.get(candidateId, applicationId),
+      ]);
       if (!tailoredCv || !drafts) return null;
       const { saved } = tailoredCv;
       const { coverLetter, outreachMessage } = drafts;
@@ -482,9 +564,27 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
         documentLanguage: drafts.documentLanguage,
         // Only what the Candidate has: the saved Tailored CV (never a proposal under review), the drafts written.
         documents: [
-          ...(saved ? [{ kind: "tailored_cv" as const, language: saved.language, updatedAt: iso(saved.savedAt), downloads: downloads(applicationId, "tailored_cv"), message: null }] : []),
+          ...(saved
+            ? [
+                {
+                  kind: "tailored_cv" as const,
+                  language: saved.language,
+                  updatedAt: iso(saved.savedAt),
+                  downloads: downloads(applicationId, "tailored_cv"),
+                  message: null,
+                },
+              ]
+            : []),
           ...(coverLetter
-            ? [{ kind: "cover_letter" as const, language: coverLetter.language, updatedAt: iso(coverLetter.updatedAt), downloads: downloads(applicationId, "cover_letter"), message: null }]
+            ? [
+                {
+                  kind: "cover_letter" as const,
+                  language: coverLetter.language,
+                  updatedAt: iso(coverLetter.updatedAt),
+                  downloads: downloads(applicationId, "cover_letter"),
+                  message: null,
+                },
+              ]
             : []),
           ...(outreachMessage
             ? [
@@ -509,12 +609,12 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
     async coachConversationOfSubject(candidateId, subject) {
       const result = await deps.coachConversations.ofSubject(candidateId, subject);
       if (!result.ok) return { error: result.error };
-      return { conversation: result.conversation && conversationRead(result.conversation) };
+      return { conversation: result.conversation && conversationRead(result.conversation, coachSpaceV2()) };
     },
 
     async coachConversation(candidateId, conversationId) {
       const conversation = await deps.coachConversations.open(candidateId, conversationId);
-      return conversation && { conversation: conversationRead(conversation) };
+      return conversation && { conversation: conversationRead(conversation, coachSpaceV2()) };
     },
   };
 }

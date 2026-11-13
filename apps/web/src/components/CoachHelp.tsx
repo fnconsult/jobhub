@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { backOfficeHelpAddress, helpCentreAddress, helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpAudience, type HelpLocale } from "@/coach-help";
+import { useHelpSettings } from "@/coach-help/settings";
 
 /**
  * The help in the Coach Panel's single box (#342, ADR-0035): Help Articles, written by the Jobbbox team and found
@@ -157,8 +158,9 @@ export function HelpIntro({
   oftenAsked?: boolean;
 }) {
   const { t } = useTranslation();
-  const here = onThisPage(pathname, locale, audience);
-  const often = oftenAsked(locale, audience);
+  const settings = useHelpSettings();
+  const here = onThisPage(pathname, locale, audience, settings);
+  const often = oftenAsked(locale, audience, settings);
   return (
     <div className="help-intro" data-help>
       <p>{t(audience === "administrator" ? "backOfficeAssistant.help.greeting" : "coachPanel.help.greeting")}</p>
@@ -215,7 +217,7 @@ export function HelpForUnanswered({
   audience?: HelpAudience;
 }) {
   const { t } = useTranslation();
-  const found = helpForUnanswered(question, locale, audience);
+  const found = helpForUnanswered(question, locale, audience, useHelpSettings());
   return (
     <div className="help-unanswered" data-help>
       {found.length > 0 ? (

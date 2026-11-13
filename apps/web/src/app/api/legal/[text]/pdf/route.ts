@@ -1,4 +1,4 @@
-import { isLegalTextId, legalText, parisDay } from "@jobhub/help";
+import { isPublicLegalTextId, legalText, parisDay } from "@jobhub/help";
 import { isSupportedLocale } from "@jobhub/shared/i18n";
 import { NextResponse } from "next/server";
 import { contentDisposition } from "@/export";
@@ -16,7 +16,7 @@ type Params = { params: Promise<{ text: string }> };
  */
 export async function GET(request: Request, { params }: Params) {
   const { text } = await params;
-  if (!isLegalTextId(text)) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!isPublicLegalTextId(text)) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const query = new URL(request.url).searchParams;
   const lang = query.get("lang");
   const shown = legalText(text, isSupportedLocale(lang) ? lang : await getRequestLocale(), { on: parisDay(), version: query.get("version") ?? undefined });

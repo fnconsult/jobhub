@@ -18,6 +18,14 @@ const currentTheme = () => document.documentElement.dataset.theme;
 const noTheme = () => undefined;
 
 /**
+ * The theme the document is drawn in, « dark » or « light », following <html data-theme> as it changes: for what draws
+ * itself, such as an embedded booking page (#867). « light » until the head's script has set it.
+ */
+export function useDocumentTheme(): "dark" | "light" {
+  return useSyncExternalStore(subscribe, currentTheme, noTheme) === "dark" ? "dark" : "light";
+}
+
+/**
  * The document's <html>, at the Standard Text Size until the head's script sets the remembered one, and with the
  * theme the head's script set before first paint (#473) among its attributes. When React draws the whole document on the client (Next's bare error shell for a page not found, or after a hydration
  * mismatch), it clears <html>'s attributes and sets the ones it renders: rendering the theme there keeps it on, so no

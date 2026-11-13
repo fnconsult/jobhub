@@ -13,6 +13,7 @@ export type ShownMessage =
   | { from: "candidate"; text: string; blocked?: true }
   | {
       from: "coach";
+      humanCoach?: { id:string;name:string;photoUrl:string|null };
       text: string;
       blocked?: true;
       provenance?: Provenance | null;

@@ -2617,7 +2617,8 @@
         "stripe": "Stripe",
         "brevo": "Brevo",
         "email-intake": "Email intake (Jobbbox's MTA)",
-        "github": "GitHub"
+        "github": "GitHub",
+        "cal-com": "Cal.com"
       },
       "replaceLegend": "Replace {{name}}",
       "newValue": "New value of {{name}}",
@@ -2677,6 +2678,7 @@
         "extension": "Browser extension",
         "public_site": "Public site",
         "help_centre": "Help Centre",
+        "coach_space": "Coach space v2",
         "maintenance": "Maintenance"
       },
       "setting": "Setting",
@@ -2820,6 +2822,7 @@
           "job_discovery": "Job discovery",
           "enriched_contacts": "Enriched contacts",
           "email": "Emails",
+          "coaching_booking": "Coaching session booking",
           "billing": "Payments",
           "sign_in": "Sign-in"
         }
@@ -2924,7 +2927,10 @@
         "COACH_TOOL_ROUNDS_MAX": "Rounds of Coach Action calls per reply, at most",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
-        "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email"
+        "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email",
+        "CAL_COM_TEAM_ID": "Jobbbox Cal.com team",
+        "CAL_COM_REMINDERS_DISABLED": "Cal.com reminders and workflows disabled (operator confirmation)",
+        "COACH_SPACE_V2": "Coach space v2 on (new Coach space, Human Coach offers, booking and payment)"
       },
       "aiTasks": {
         "providerDefault": "default model",
@@ -3889,7 +3895,8 @@
         "sign_in": "Sign-in",
         "geolocation": "Geolocation",
         "reference_data": "Reference data",
-        "delivery": "Delivery"
+        "delivery": "Delivery",
+        "scheduling": "Scheduling"
       },
       "tool": "Tool",
       "purpose": "Purpose",
@@ -6337,7 +6344,8 @@
       "cgu": "Terms of use",
       "cgv": "Terms of sale",
       "confidentialite": "Privacy policy",
-      "mentions-legales": "Legal notice"
+      "mentions-legales": "Legal notice",
+      "contrat-coach": "Coach agreement"
     },
     "effective": "In effect since {{date}}",
     "effectiveFrom": "In effect from {{date}}",
@@ -6391,7 +6399,8 @@
       "then": {
         "cgu": "The first time you sign in from {{date}}, Jobbbox will ask you to accept this new version. Until then, nothing changes for you.",
         "cgv": "It will apply to your purchases from {{date}}. A purchase already made keeps the terms accepted then.",
-        "confidentialite": "You have nothing to accept: it applies from {{date}}."
+        "confidentialite": "You have nothing to accept: it applies from {{date}}.",
+        "contrat-coach": "From {{date}}, you must accept this version to continue in your workspace."
       },
       "read": "Read the new version",
       "history": "Version history",
@@ -7070,6 +7079,30 @@
       "test": {
         "title": "Test notification",
         "body": "Jobbbox notifications reach this device."
+      },
+      "coaching_cancellation": {
+        "title": "Cancellations and refunds",
+        "body": "Open the session follow-up"
+      },
+      "coaching_session_hour": {
+        "title": "Your session starts soon",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_session_hour_for_coach": {
+        "title": "Your session starts soon",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_session_eve": {
+        "title": "An upcoming coaching session",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_session_updated": {
+        "title": "A coaching session was updated",
+        "body": "Open Jobbbox to see your sessions."
+      },
+      "coaching_day": {
+        "title": "Your coaching day",
+        "body": "Open Jobbbox to see your sessions."
       }
     },
     "settings": {
@@ -7092,7 +7125,13 @@
       "follow_up_due": "Follow-up due",
       "coach_access_granted": "Access given by a candidate",
       "coaching_session_paid": "Coaching session paid",
-      "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate"
+      "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate",
+      "coaching_cancellation": "Cancellations and refunds",
+      "coaching_session_hour": "Your session starts soon",
+      "coaching_session_hour_for_coach": "Your session starts soon",
+      "coaching_session_eve": "An upcoming coaching session",
+      "coaching_session_updated": "A coaching session was updated",
+      "coaching_day": "Your coaching day"
     }
   },
   "coachingPayment": {
@@ -7129,5 +7168,604 @@
     "scored": "Match Score: {{score}} / 100 against “{{profile}}”",
     "noProfile": "To score this job offer, first create a profile on jobbbox.ai.",
     "scoreFailed": "The score could not be computed. Try again."
+  },
+  "coachSpaceV2": {
+    "pages": {
+      "aujourdhui": "Today",
+      "candidates": "My Candidates",
+      "seances": "My sessions",
+      "disponibilites": "Availability",
+      "profil": "Public page",
+      "revenus": "Earnings",
+      "contrat": "Contract",
+      "aide": "Help",
+      "rappels": "Reminders"
+    },
+    "notifications": "Notifications",
+    "noNotifications": "No notifications.",
+    "helpCentre": "Help Centre",
+    "empty": {
+      "aujourdhui": "No sessions today.",
+      "candidates": "No Candidates yet.",
+      "seances": "No sessions yet.",
+      "disponibilites": "Your availability will appear here.",
+      "profil": "Your public page will appear here.",
+      "revenus": "No earnings yet.",
+      "contrat": "No contract to accept yet.",
+      "aide": "Find guidance for using your Coach space.",
+      "rappels": "Your coaching reminder settings."
+    }
+  },
+  "coachingTime": {
+    "label": "Your time zone",
+    "hint": "Sessions follow your IANA time zone (for example Europe/Paris or America/Montreal), with Paris time alongside. Interviews stay in Paris time. On your first visit we suggest your device’s zone.",
+    "save": "Save time zone",
+    "invalid": "Enter a valid IANA time zone and try again."
+  },
+  "coachWorkspace": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "noTomorrow": "No sessions tomorrow.",
+    "todo": "To do",
+    "nothingTodo": "Nothing to do",
+    "schedule": "Schedule the session with {{name}}",
+    "confirm": "Confirm the date with {{name}}",
+    "recent": "Recent Candidates",
+    "access": "Coach Access granted",
+    "noAccess": "Without Coach Access: sessions and private notes only.",
+    "notes": "Your Private Coach Notes",
+    "notesExport": "The Candidate can obtain these notes by exporting their data.",
+    "noteStatus": {
+      "idle": "Changes save as you type.",
+      "saving": "Saving…",
+      "saved": "Notes saved.",
+      "failed": "Unable to save. Edit the text to try again.",
+      "conflict": "These notes changed in another tab. Reload before retrying; keep a copy of your text."
+    },
+    "tabs": {
+      "upcoming": "Upcoming",
+      "unscheduled": "To schedule",
+      "past": "Past"
+    },
+    "phase": {
+      "before": "Before the session",
+      "during": "During the session",
+      "after": "After the session"
+    },
+    "soldByJobbbox": "Sold by Jobbbox",
+    "prepare": "Prepare: open the Candidate’s page"
+  },
+  "coachMeeting": {
+    "join": {
+      "zoom": "Join on Zoom",
+      "meet": "Join on Google Meet",
+      "teams": "Join on Microsoft Teams",
+      "video": "Join the video call"
+    },
+    "available": "The link becomes available on {{date}}.",
+    "coachCalls": "The coach will call you on {{phone}}.",
+    "call": "Call {{phone}}.",
+    "kind": "How to join the session",
+    "video": "Video call",
+    "phone": "Phone",
+    "target": "HTTPS link or phone number",
+    "direction": "Who calls?",
+    "candidateCallsOption": "The Candidate calls the coach",
+    "coachCallsOption": "The coach calls the Candidate",
+    "confirmHost": "I confirm this video-call host.",
+    "save": "Save contact",
+    "invalid": "Check the HTTPS link or phone number. Confirm an unrecognised host.",
+    "permanent": "Your permanent contact",
+    "sessionContact": "This session’s contact",
+    "candidateCalls": "The Candidate will call you on {{phone}}.",
+    "tools": {
+      "zoom": "Zoom",
+      "meet": "Google Meet",
+      "teams": "Microsoft Teams",
+      "video": "Video call"
+    }
+  },
+  "coachReports": {
+    "title": "Session Report",
+    "author": "{{name}} · Human Coach",
+    "forCandidate": "Report of the session with {{name}}",
+    "covered": "What we covered",
+    "nextSteps": "Next steps",
+    "resources": "Resources",
+    "resourcesHint": "One HTTPS link per line.",
+    "save": "Save draft",
+    "publish": "Publish",
+    "published": "Published report",
+    "write": "Write the Session Report",
+    "immutable": "A published report cannot be edited. To correct it, publish a new message.",
+    "open": "Read the report and continue the conversation",
+    "status": {
+      "saving": "Saving…",
+      "saved": "Draft saved.",
+      "published": "Report published in the Candidate’s conversation.",
+      "failed": "Check the fields: the session must have ended and resources must be HTTPS links. Try again."
+    }
+  },
+  "sharedReading": {
+    "title": "Shared Reading",
+    "private": "One read-only document, only during this session. No download or annotation.",
+    "document": "Shared document",
+    "choose": "Choose a document",
+    "show": "Show my coach",
+    "stop": "Stop",
+    "none": "No document shared.",
+    "page": "Page {{page}}",
+    "pdf": "PDF to present",
+    "pdfPrompt": "Choose or drop your PDF",
+    "pdfHint": "PDF only, up to 10 MB and 200 pages. Deleted at the end of the session.",
+    "present": "Present PDF",
+    "badPdf": "Choose a valid PDF.",
+    "tooLarge": "The PDF exceeds 10 MB.",
+    "failed": "Shared Reading is unavailable or the session has ended. Try again.",
+    "sources": {
+      "profile": "Master CV",
+      "tailored_cv": "Tailored CV",
+      "cover_letter": "Cover Letter",
+      "outreach_message": "Outreach Message"
+    }
+  },
+  "coachingOffers": {
+    "soldBy": "Sold by {{name}}",
+    "soldByLabel": "Sold by",
+    "identity": "Seller identity",
+    "siret": "SIRET {{siret}}",
+    "marketplaceLabel": "Jobbbox’s role",
+    "marketplace": "Jobbbox is the marketplace that connects you and collects payment on the seller’s behalf.",
+    "adminTitle": "Coaching Offers and Sellers",
+    "seller": "Seller",
+    "sellerName": "Seller legal identity",
+    "status": "Legal status",
+    "siretLabel": "SIRET",
+    "commission": "Jobbbox Commission (basis points, 100 = 1%)",
+    "duration": "Session duration (minutes)",
+    "amount": "Seller price (EUR cents)",
+    "kind": "Seller type",
+    "coach": "Human Coach",
+    "association": "Association",
+    "save": "Save offer",
+    "addSeller": "Add seller",
+    "saveCommission": "Save Commission",
+    "locked": "Third-party offers cannot be ordered until payments and legal conditions are activated.",
+    "invalid": "The offer or seller details are invalid."
+  },
+  "coachEnrolment": {
+    "title": "Become a coach on Jobbbox",
+    "intro": "Tell us about your activity and qualifications. The team reviews every application. You must then accept the current contract before supporting Candidates.",
+    "kind": "You represent",
+    "coach": "An independent coach",
+    "association": "An Association",
+    "fields": {
+      "contactName": "Your full name",
+      "legalName": "Legal name of your activity or Association",
+      "email": "Contact email address",
+      "status": "Legal status",
+      "siret": "SIRET",
+      "specialties": "Specialties, separated by commas",
+      "languages": "Languages, separated by commas",
+      "presentation": "Your introduction"
+    },
+    "proof": "Professional supporting document",
+    "proofPrompt": "Choose or drop your supporting PDF",
+    "proofHint": "PDF only, up to 10 MB and 200 pages. Include a diploma, certification or useful evidence of your activity, without Candidate information.",
+    "proofInvalid": "Choose a valid supporting PDF.",
+    "proofLarge": "The supporting document exceeds 10 MB.",
+    "submit": "Submit my application",
+    "sending": "Submitting…",
+    "sent": "If confirmation is needed, check your inbox and open the sign-in link. Your application will be reviewed after confirmation.",
+    "failed": "Check the fields and supporting document. If the problem persists, try again later.",
+    "tooMany": "Too many applications. Try again in an hour.",
+    "ownTitle": "My coach applications",
+    "confirmTitle": "Confirm your application",
+    "confirmIntro": "Check the information below before confirming your application.",
+    "confirm": "Confirm my application",
+    "withdraw": "Withdraw my application",
+    "withdrawn": "Your application has been withdrawn.",
+    "contract": "Read and accept the contract",
+    "awaitingContract": "Your application is approved. You can access the workspace after accepting the contract, which will appear here once available.",
+    "noRequests": "You have no application to display.",
+    "state": {
+      "awaiting_email": "Email to confirm",
+      "pending": "Under review",
+      "approved": "Approved",
+      "refused": "Declined"
+    },
+    "reason": "Reason for declining",
+    "adminTitle": "Coach applications",
+    "approve": "Approve application",
+    "refuse": "Decline with this reason",
+    "invalidDecision": "The decision was not saved. Declining requires a reason; an already active identity cannot be created twice.",
+    "adminProof": "Read supporting document",
+    "adminEmpty": "No confirmed application.",
+    "notConfirmed": "The applicant must confirm their application before review.",
+    "email": {
+      "approved": "Your coach application is approved",
+      "refused": "Your coach application was declined",
+      "next": "The team approved your application. Before supporting Candidates, you must accept the current contract in your workspace.",
+      "reason": "Here is the reason provided by the team:",
+      "footer": "You receive this email in response to your application to become a coach on Jobbbox."
+    },
+    "bookingPending": "Configure after accepting the contract"
+  },
+  "coachContract": {
+    "stale": "The version to accept has changed. Read the agreement and try again.",
+    "agree": "I have read and accept the Coach agreement, version {{version}}.",
+    "accept": "Accept agreement",
+    "upToDate": "Your agreement is up to date.",
+    "history": "Your acceptances",
+    "accepted": "Version {{version}} · accepted on {{date}}"
+  },
+  "association": {
+    "title": "Association workspace",
+    "pages": {
+      "coachs": "My coaches",
+      "offres": "Offers",
+      "revenus": "Earnings",
+      "membres": "Members"
+    },
+    "inviteCoach": "Invite a coach",
+    "inviteMember": "Invite a member",
+    "name": "Full name",
+    "emailAddress": "Email address",
+    "invite": "Send invitation",
+    "pendingInvitations": "Pending invitations",
+    "cancelInvitation": "Cancel invitation",
+    "invalid": "The information could not be saved. Check the fields and your permissions, then try again.",
+    "invited": "The invitation was recorded. The recipient will receive it by email.",
+    "coachRetired": "The coach has been retired from Jobbbox.",
+    "noCandidateAccess": "This workspace gives no access to Candidates, their documents or your coaches’ notes.",
+    "noCoaches": "You have no coaches yet.",
+    "retired": "Retired from Jobbbox",
+    "active": "Active coach",
+    "contractPending": "Agreement awaiting acceptance",
+    "retireWarning": "Removing this coach from your Association also retires them from Jobbbox. Past sessions are kept.",
+    "retireCoach": "Retire {{name}} from Jobbbox",
+    "memberRights": "Members manage the Association’s coaches and offers after accepting its agreement. They never read Candidate data.",
+    "offerSaved": "The offer was saved.",
+    "offersHint": "Jobbbox pricing follows its terms and Premium discount. Your Association can also be the seller; its price becomes bookable once its payments and obligations have been validated.",
+    "seller": "Seller",
+    "duration": "Duration in minutes",
+    "amount": "Association price in euros",
+    "earningsEmpty": "Your sessions, commissions and payouts will be grouped here.",
+    "invitationTitle": "Invitation from {{name}}",
+    "joinCoachHint": "Accepting joins this Association’s coaches. It will manage your offer and can retire you from Jobbbox. It cannot read Candidate documents or your notes. Your personal agreement remains required.",
+    "joinMemberHint": "Accepting makes you an Association member who manages its coaches and offers. You must accept its agreement before entering its workspace.",
+    "acceptInvitation": "Accept invitation",
+    "proposedBy": "Offered by {{name}}",
+    "email": {
+      "subject": "Invitation from {{name}} on Jobbbox",
+      "coach": "{{name}} invites you to join its coaches. You can review and accept this invitation from your own account.",
+      "manager": "{{name}} invites you to become a member of its Association workspace. You can manage coaches and offers, without access to Candidates.",
+      "expiry": "This invitation is valid for seven days. Sign in with the email address that received this message.",
+      "open": "Read invitation",
+      "footer": "You received this email because a partner Association invited you to Jobbbox."
+    },
+    "save": "Save offer"
+  },
+  "coachPage": {
+    "edit": "Edit your public profile",
+    "validationHint": "Every change requires approval. Your last approved version stays visible meanwhile.",
+    "presentation": "About you",
+    "specialties": "Specialties",
+    "languages": "Languages",
+    "commas": "Separate items with commas.",
+    "photo": "Professional photo",
+    "photoPrompt": "Drop your portrait here",
+    "photoHint": "JPEG, PNG or WebP, up to 10 MB and 20 megapixels. The portrait will be cropped square.",
+    "photoTooLarge": "Choose a photo no larger than 10 MB.",
+    "photoInvalid": "Choose a valid, non-animated JPEG, PNG or WebP photo up to 20 megapixels.",
+    "removePhoto": "Remove current photo",
+    "photoAlt": "Portrait of {{name}}",
+    "conflict": "Your profile has changed since this page opened. Reload it before submitting again.",
+    "reload": "Reload profile",
+    "invalid": "Your profile could not be saved. Check the fields and try again.",
+    "submitting": "Sending…",
+    "submit": "Send for approval",
+    "preview": "Candidate preview",
+    "visible": "Currently visible version",
+    "notPublished": "Your profile has not been approved yet. Candidates cannot see it.",
+    "status": {
+      "pending": "Awaiting approval",
+      "approved": "Approved",
+      "refused": "Refused",
+      "superseded": "Replaced by a newer proposal"
+    },
+    "adminTitle": "Coach profiles to approve",
+    "adminEmpty": "No profiles are awaiting approval.",
+    "approve": "Approve profile",
+    "refuse": "Refuse profile",
+    "reason": "Reason for refusal",
+    "offers": "Your offer and its seller",
+    "jobbboxPrice": "Jobbbox pricing depends on the Candidate’s Plan.",
+    "email": {
+      "approved": "Your coach profile was approved",
+      "refused": "Your coach profile needs changes",
+      "visible": "Your new version was approved.",
+      "reason": "Reason provided by the team:",
+      "footer": "You received this email following review of your coach profile."
+    }
+  },
+  "coachConnect": {
+    "legalPending": "Payments and payouts await approved Legal Texts in effect.",
+    "identityPending": "The team must complete your Seller identity before you can connect Stripe.",
+    "accountTitle": "Payout account",
+    "hostedKyc": "Stripe collects your identity documents and bank details directly. Jobbbox does not store these documents.",
+    "start": "Set up my Stripe account",
+    "complete": "Complete my Stripe information",
+    "dashboard": "Open Stripe",
+    "compensation": "Coach share of a Jobbbox sale (basis points)",
+    "compensationHint": "10000 = 100%. Explicit compensation agreement; empty: no new Jobbbox sale through Connect. Paid sales keep their original agreement.",
+    "email": {
+      "subject": "Your Jobbbox payout",
+      "amount": "Payout amount: {{amount}}.",
+      "obligations": "Your activity income may entail tax and social obligations. Consult the official DGFiP and Urssaf information; your statement is available in Earnings.",
+      "footer": "You receive this service email for each payout."
+    },
+    "payee": "Coach compensation recipient (Jobbbox sales)"
+  },
+  "coachEarnings": {
+    "title": "Your monthly statement",
+    "monthBasis": "The month groups payments in the French calendar. Held sessions are counted at their end; related payouts may take place later.",
+    "month": "Payment month",
+    "show": "Show",
+    "pdf": "Download the PDF statement",
+    "heldSessions": "Held sessions",
+    "heldCount_one": "{{count}} session held this month.",
+    "heldCount_other": "{{count}} sessions held this month.",
+    "empty": "No payments in this month.",
+    "currency": "Amounts in {{currency}}",
+    "collected": "Amount collected",
+    "commission": "Commission",
+    "refunds": "Refunds",
+    "refundedCommission": "Refunded Commission",
+    "fees": "Stripe fees",
+    "withheld": "Pending holds",
+    "net": "Net for payout",
+    "outstanding": "Matured balance to pay or carry forward",
+    "expected": "Next scheduled eligibility date: {{date}}.",
+    "netBasis": "Net uses the settlement calculation: collections less Commission, refunds, fees and holds, including returned application fees. The matured balance also includes other months and amounts already allocated to payouts.",
+    "offers": "By offer and Seller",
+    "offer": "Offer and Seller",
+    "payouts": "Payouts",
+    "payoutBasis": "These payouts relate to the selected payments or were paid during this month. Cancelled attempts are not money paid out.",
+    "noPayout": "No payout recorded.",
+    "support": "Check Stripe and contact Support for reconciliation before another attempt.",
+    "statementTitle": "Earnings statement · {{month}}",
+    "generated": "Generated on {{date}}.",
+    "states": {
+      "pending": "Processing",
+      "paid": "Paid",
+      "failed": "Failed · reconciliation required",
+      "needs_review": "Outcome to check with Support",
+      "cancelling": "Cancellation and funds return processing",
+      "cancelled": "Cancelled attempt"
+    },
+    "beneficiaries": "Recipient at payment"
+  },
+  "coachingBooking": {
+    "book": "Choose my appointment",
+    "afterPayment": "Your session is paid. Choose a time in your coach’s calendar, now or later.",
+    "later": "Choose later",
+    "waiting": "We are waiting for payment confirmation. Your session will appear in your Agenda.",
+    "alreadyBooked": "This session is linked to Cal.com. Change it in Cal.com to keep both calendars synchronized.",
+    "manage": "Change the booking in Cal.com",
+    "viaCal": "via Cal.com",
+    "adminTitle": "Cal.com team booking",
+    "adminIntro": "Set the Jobbbox team in Settings. Attach a Collective or Round Robin event with one host and the same duration as the offer. Also disable the team’s reminder workflows in Cal.com, then confirm this in Settings. Personal events and Templates are refused.",
+    "eventId": "Team event ID",
+    "hostId": "Cal.com host ID",
+    "duration": "Duration in minutes",
+    "attach": "Verify and attach event",
+    "create": "Create a Collective event",
+    "configured": "Event {{id}} · host {{host}} · {{minutes}} minutes",
+    "saved": "Cal.com configuration saved.",
+    "failed": "Configuration not confirmed. Check IDs and duration. After failed creation, find the event in Cal.com and attach it; no second automatic creation is attempted.",
+    "reviewLegacy": "Old cal.eu link: check migration with the coach.",
+    "legalPending": "Embedded booking awaits the required human Legal Texts, Cal.com coverage, its 30-day notice and confirmed disabling of Cal.com reminders.",
+    "availability": "Your availability",
+    "availabilityIntro": "Set availability and connect your calendar directly at Cal.com. Jobbbox stores no calendar OAuth token. The preview does not create a Jobbbox session.",
+    "openAvailability": "Set my availability in Cal.com",
+    "notConfigured": "The preview becomes available once the team event and activation conditions are configured.",
+    "useCal": "This session is linked to Cal.com: change its date in Cal.com.",
+    "waitingBooking": "Booking received at Cal.com. We are waiting for confirmation to update your Agenda."
+  },
+  "coachingCancellation": {
+    "title": "Cancellations and refunds",
+    "choices": "The coach cancelled. Choose a full refund, a booking with the same coach without another payment, or another approved coach at the same or a lower price. Without a choice, a refund is requested after seven days.",
+    "reason": "Coach’s reason",
+    "refund": "Request a full refund",
+    "same": "Continue with the same coach",
+    "peer": "Choose another coach",
+    "peerExplanation": "The original payment will be refunded. You can then accept a new order with the selected coach. This choice does not trigger another payment.",
+    "choosePeer": "Choose {{name}}",
+    "noPeer": "No other approved coach at an eligible price is currently available.",
+    "error": "The action could not be completed. Refresh the page and check the conditions shown.",
+    "cancelCoach": "Cancel the session with a reason",
+    "confirmCoach": "Confirm cancellation",
+    "keep": "Keep the session",
+    "confirmation": "Cal.com reported a cancellation. The coach must confirm their reason in Jobbbox to open the three choices. The Candidate’s 24-hour limit still uses the original date. Contact support if you disagree.",
+    "sameConfirmed": "The Candidate chose to continue with the same coach, without another payment.",
+    "candidateCancelled": "The Candidate cancelled the session.",
+    "refundPending": "A full refund has been requested. Bank processing is still in progress.",
+    "refunded": "Stripe confirmed the full refund. Receipt time depends on your bank.",
+    "refundProblem": "The refund needs support intervention. No further payment is requested.",
+    "open": "Open the session follow-up",
+    "emailReason": "Contractual follow-up for your coaching session.",
+    "original": "Original date",
+    "deadline": "Choose until {{date}}. A full refund is requested automatically afterwards.",
+    "bookSame": "Book without another payment",
+    "newOrder": "Review and accept the new order",
+    "notice": "Cancellation and rescheduling are available until 24 hours before the session. Cancelling in Jobbbox requests a full refund. After the deadline, contact your coach or support.",
+    "tooLate": "The 24-hour deadline has passed. Contact your coach or support.",
+    "confirmationRefund": "Cancel this session and request a full refund?"
+  },
+  "coachingNotices": {
+    "join": "Join",
+    "open": "Open my workspace",
+    "settings": {
+      "title": "Coaching reminders",
+      "hourEmail": "Email me one hour before my session",
+      "coachEmail": "Email me about session payments, bookings, changes and reminders",
+      "daily": "Receive my summary at 07:30 in my time zone",
+      "independent": "App notifications have their own switches below.",
+      "saved": "Saved.",
+      "error": "The setting could not be saved.",
+      "contract": "Messages from “Cancellations and refunds” are not switched off here. The morning summary also has its own setting."
+    },
+    "email": {
+      "reason": "Follow-up for your coaching sessions.",
+      "paid": {
+        "title": "A coaching session was paid",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "booked": {
+        "title": "A session was booked",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "rescheduled": {
+        "title": "A session was rescheduled",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "cancelled": {
+        "title": "A session was cancelled",
+        "body": "Find sessions and their current status in your private workspace."
+      },
+      "hour_before": {
+        "title": "Your session starts within an hour",
+        "body": "Find details in your private workspace. The call link becomes available ten minutes before the session starts."
+      },
+      "day_before": {
+        "title": "Your upcoming coaching session",
+        "body": "Find details in your private workspace. The call link becomes available ten minutes before the session starts."
+      },
+      "daily": {
+        "title": "Your coaching day",
+        "body": "Find sessions and their current status in your private workspace."
+      }
+    }
+  },
+  "contentReport": {
+    "title": "Report coaching content",
+    "reportPage": "Report this Coach page",
+    "reportOffer": "Report this offer",
+    "pageTarget": "Coach page: {{name}}",
+    "offerTarget": "Coaching offer: {{name}}",
+    "intro": "Anyone can use this form without an account. Describe the content precisely and explain your report. The team reviews your request; removal is never automatic. Do not include unnecessary sensitive data.",
+    "reason": "Reason for reporting",
+    "explanation": "Explanation and location of the content",
+    "contactRule": "Your name and email are required except for “Child abuse”. Without email, keep the displayed reference; no receipt or decision can be sent to you.",
+    "name": "Your name",
+    "emailAddress": "Your email address",
+    "goodFaith": "I declare in good faith that the information provided is accurate and complete.",
+    "send": "Send report",
+    "received": "Your report was recorded. A receipt is sent if you provided an email.",
+    "reference": "Reference: {{id}}",
+    "invalid": "Check the fields or try again later.",
+    "help": "Help",
+    "reasons": {
+      "illegal": "Illegal content",
+      "misleading": "Misleading information",
+      "discrimination": "Discrimination or hatred",
+      "child_abuse": "Child abuse",
+      "other": "Other reason"
+    },
+    "outcomes": {
+      "remove": "Remove content",
+      "suspend": "Suspend content",
+      "keep": "Keep content available"
+    },
+    "email": {
+      "receipt": "Your content report was received",
+      "decision": "Decision about coaching content",
+      "reference": "Report {{id}} — {{coach}}",
+      "received": "Our team will review your report. This receipt does not anticipate its decision.",
+      "human": "A person made this reasoned decision. You may ask for clarification or contest it by replying to this message.",
+      "footer": "You receive this message as the reporter or the person responsible for the content."
+    },
+    "admin": {
+      "title": "Coaching content reports",
+      "intro": "Examine the content and evidence. Every decision requires a reason sent to the reporter and the content owner. Restrictions block visibility or new orders; paid sessions remain accessible.",
+      "none": "No content reports.",
+      "pending": "Awaiting review",
+      "outcome": "Decision",
+      "reason": "Decision reason (sent to both parties)",
+      "decide": "Record and notify decision",
+      "erased": "Report data was erased. Its restriction remains effective until a new reasoned decision."
+    }
+  },
+  "coachTax": {
+    "title": "Tax information",
+    "identityIntro": "Enter your tax identity for {{year}} before continuing payout-account onboarding. This information is used to prepare DAC7 reporting.",
+    "kind": "Seller type",
+    "kinds": {
+      "individual": "Individual (including sole trader)",
+      "entity": "Legal entity"
+    },
+    "saveIdentity": "Save my tax information",
+    "saved": "Tax information saved.",
+    "error": "The information could not be saved. Check the fields or contact the team.",
+    "legalPending": "Tax collection and preparation remain unavailable until the necessary texts are effective.",
+    "adminTitle": "DAC7: annual preparation",
+    "year": "Income year",
+    "prepare": "Prepare annual report",
+    "prepareError": "Preparation unavailable: check the closed year, complete identities, reconciliation and configuration. An existing prepared report remains unchanged.",
+    "preparedNotFiled": "Prepared document, not filed. Preparation proves neither filing nor acceptance by DGFiP.",
+    "schemaPending": "The official schema is unavailable or the file has not validated. Only a draft can be downloaded; copy notifications remain pending.",
+    "schemaValid": "XML structure validated against the available schema. Business checks and filing remain the authorized person’s responsibility.",
+    "validateSchema": "Check XML schema",
+    "downloadDraft": "Download draft XML",
+    "downloadXml": "Download prepared XML",
+    "copyTitle": "DAC7 copy — {{year}} income",
+    "downloadCopy": "Download my private copy",
+    "emailReason": "This copy concerns income from your Seller activity on Jobbbox.",
+    "basis": "Credited consideration is grouped by quarter, separately from bank payouts. Jobbbox sales are not reported as your third-party Seller sales. No goods-sale threshold is applied to coaching services.",
+    "rounding": "The data above retains cents. XML rounds each quarterly total to the nearest euro, with a fraction of €0.50 rounded to €1.",
+    "quarter": "Quarter {{number}}",
+    "consideration": "Net credited consideration",
+    "fees": "Deducted fees and commissions",
+    "taxes": "Taxes withheld by the platform",
+    "payouts": "Recorded bank payouts",
+    "activities_one": "{{count}} remunerated activity",
+    "activities_other": "{{count}} remunerated activities",
+    "tin": "TIN",
+    "iban": "IBAN",
+    "permanentEstablishments": "Permanent-establishment countries (comma-separated two-letter codes, if applicable)",
+    "fields": {
+      "legalName": "Legal name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "birthDate": "Date of birth",
+      "residence": "Tax residence country (two-letter code)",
+      "tin": "Professional TIN",
+      "tinCountry": "TIN issuing country (two-letter code)",
+      "siret": "SIRET",
+      "vat": "VAT number (if issued)",
+      "street": "Primary address: street and number",
+      "postalCode": "Postal code",
+      "city": "City",
+      "addressCountry": "Address country (two-letter code)",
+      "iban": "Payout account IBAN",
+      "accountHolder": "Account holder"
+    },
+    "operator": {
+      "legalName": "Operator legal name",
+      "tin": "Operator SIREN",
+      "platformName": "Platform business name",
+      "street": "Operator address: street and number",
+      "postalCode": "Operator postal code",
+      "city": "Operator city",
+      "vat": "Operator VAT (if issued)"
+    },
+    "showYear": "Show this year",
+    "supportedScope": "This flow currently supports French tax identities without a permanent establishment outside France. For another situation, contact the team before continuing.",
+    "superseded": "This preparation was replaced before filing. Do not use it for a new initial return.",
+    "downloadReconciliation": "Download credit and payout reconciliation",
+    "rebuild": "Replace unfiled preparation",
+    "rebuildExplanation": "Recalculates data and retains the previous preparation as a superseded archive. If an initial file has already been filed, use the corrective procedure with its references; do not create another initial packet.",
+    "confirmUnfiled": "I confirm that no initial file for this year has been filed and this preparation may be replaced."
   }
 }

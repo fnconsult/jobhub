@@ -1,3 +1,5 @@
+// @ts-expect-error TS5097 -- the E2E server imports this fixture through native Node strip-types, which requires the source extension.
+import {fakeConnectStripe} from "../coaching-connect/fake-stripe.ts";
 /**
  * A stand-in for the Stripe API over HTTP, for tests and the e2e suite. The
  * billing module talks to it through the real Stripe SDK (STRIPE_API_URL), so
@@ -15,6 +17,7 @@ export interface StripeCall {
   method: string;
   path: string;
   params: URLSearchParams;
+  account?:string;
 }
 
 export const FAKE_STRIPE_SECRET_KEY = "sk_test_fake";
@@ -129,6 +132,7 @@ type FakePaidPeriod = { invoice: string; amount: number; paymentIntent: string |
 /** Starts the fake on `port` (any free port by default). */
 export async function startFakeStripe(port = 0) {
   const calls: StripeCall[] = [];
+  const connect=fakeConnectStripe();
   const coupons = new Map<string, FakeCoupon>();
   const promotionCodes = new Map<string, FakePromotionCode>();
   const promotionCodeJson = (promotionCode: FakePromotionCode) => ({
@@ -293,13 +297,14 @@ export async function startFakeStripe(port = 0) {
     request.on("end", () => {
       const path = new URL(request.url ?? "/", "http://stripe.test").pathname;
       const params = new URLSearchParams(body);
-      calls.push({ method: request.method ?? "GET", path, params });
+      calls.push({ method: request.method ?? "GET", path, params,...typeof request.headers["stripe-account"]==="string"?{account:request.headers["stripe-account"]}:{} });
       if (silent) return; // an outage where Stripe takes the request and never answers
       const id = ++sequence;
       const reply = (status: number, json: unknown) => {
         response.writeHead(status, { "content-type": "application/json", "request-id": `req_${id}` });
         response.end(JSON.stringify(json));
       };
+      if(connect(request,params,reply))return;
       if (request.method === "POST" && path === "/v1/customers") {
         return reply(200, { id: fakeCustomerId(params.get("email") ?? ""), object: "customer", email: params.get("email") });
       }
@@ -418,6 +423,7 @@ export async function startFakeStripe(port = 0) {
         if (!paid) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such checkout.session: '${checkoutSession}'` } });
         return reply(200, { id: checkoutSession, object: "checkout.session", mode: "payment", payment_status: "paid", payment_intent: paid.paymentIntent, amount_total: paid.amount, currency: "eur" });
       }
+      if(request.method==='GET'&&path==='/v1/refunds'){const query=new URL(request.url??'/', 'http://stripe.test').searchParams;return reply(200,{object:'list',has_more:false,url:'/v1/refunds',data:refunds.filter(r=>!query.get('payment_intent')||r.payment_intent===query.get('payment_intent'))});}
       if (request.method === "POST" && path === "/v1/refunds") {
         const key = request.headers["idempotency-key"];
         const answer = (typeof key === "string" && refundAnswers.get(key)) || createRefund(params);
@@ -645,6 +651,7 @@ export function checkoutSessionEvent(
     id: string;
     candidateId: string;
     coachId?: string;
+    quoteId?:string;
     amount: number;
     currency: string;
     paymentStatus: "paid" | "unpaid" | "no_payment_required";
@@ -671,7 +678,7 @@ export function checkoutSessionEvent(
         amount_total: session.amount,
         currency: session.currency,
         subscription: session.subscription ?? null,
-        metadata: mode === "payment" ? { purpose: "coaching_session", coach_id: session.coachId ?? "", candidate_id: session.candidateId } : {},
+        metadata: mode === "payment" ? { purpose: "coaching_session", coach_id: session.coachId ?? "", candidate_id: session.candidateId, ...(session.quoteId?{coaching_quote_id:session.quoteId}:{}) } : {},
       },
     },
   };

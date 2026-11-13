@@ -1,7 +1,17 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createPushNotifications, migratePushNotifications, purgeExpiredPushFailures, pushNotificationsOf, PUSH_EVENT_IDS, PUSH_NOTIFICATIONS_QUEUE, type PushEvent, type PushNotification, type PushNotifications } from "./index";
+import {
+  createPushNotifications,
+  migratePushNotifications,
+  purgeExpiredPushFailures,
+  pushNotificationsOf,
+  PUSH_EVENT_IDS,
+  PUSH_NOTIFICATIONS_QUEUE,
+  type PushEvent,
+  type PushNotification,
+  type PushNotifications,
+} from "./index";
 import type { PushDevice, PushOutcome, PushPlatform, PushSender } from "./senders";
 import type { PushMessage } from "./messages";
 
@@ -61,7 +71,12 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
 
     it("refuses what is not a device: an unknown platform, an empty token, a language the app does not speak", async () => {
       const marie = await signIn("marie@example.fr");
-      for (const device of [{ platform: "windows", token: IPHONE, language: "fr" }, { platform: "ios", token: " ", language: "fr" }, { platform: "ios", token: IPHONE, language: "de" }, null]) {
+      for (const device of [
+        { platform: "windows", token: IPHONE, language: "fr" },
+        { platform: "ios", token: " ", language: "fr" },
+        { platform: "ios", token: IPHONE, language: "de" },
+        null,
+      ]) {
         expect(await push.register(marie, device)).toEqual({ ok: false, error: "invalid" });
       }
       expect(await push.devices(marie.id)).toEqual([]);
@@ -114,6 +129,16 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
   });
 
   describe("the switches in Rappels", () => {
+    it("preserves the old Coach activity opt-out when upgrading, without replacing a later choice", async () => {
+      const marie = await signIn("marie@example.fr");
+      await push.setEnabled(marie.id, "coaching_session_changed_by_candidate", false);
+      await migratePushNotifications(database);
+      expect((await push.settings(marie.id)).coaching_session_updated).toBe(false);
+      await push.setEnabled(marie.id, "coaching_session_updated", true);
+      await migratePushNotifications(database);
+      expect((await push.settings(marie.id)).coaching_session_updated).toBe(true);
+    });
+
     it("has every event on until switched off", async () => {
       const marie = await signIn("marie@example.fr");
       const settings = await push.settings(marie.id);
@@ -131,14 +156,20 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
       await push.register(marie, { platform: "ios", token: IPAD, language: "en", environment: "development" });
       await push.register(marie, { platform: "android", token: PIXEL, language: "fr" });
-      expect(await push.send(marie.id, { event: "job_search_results", jobSearchId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({ sent: 3, failed: 0, removed: 0 });
+      expect(await push.send(marie.id, { event: "job_search_results", jobSearchId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({
+        sent: 3,
+        failed: 0,
+        removed: 0,
+      });
       expect(apns.sent.map(({ token, environment, message }) => [token, environment, message.title])).toEqual(
         expect.arrayContaining([
           [IPHONE, "production", "Nouveaux résultats pour une recherche"],
           [IPAD, "development", "New results for a search"],
         ]),
       );
-      expect(fcm.sent).toEqual([{ token: PIXEL, environment: "production", message: expect.objectContaining({ path: "/recherches/7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" }) }]);
+      expect(fcm.sent).toEqual([
+        { token: PIXEL, environment: "production", message: expect.objectContaining({ path: "/recherches/7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" }) },
+      ]);
     });
 
     it("carries the person's offers à traiter at sending, the app icon's badge (#818); none when it cannot be counted", async () => {
@@ -146,14 +177,22 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
       await push.register(marie, { platform: "android", token: PIXEL, language: "fr" });
       const counted: string[] = [];
-      const badged = createPushNotifications(database, { senders: () => senders, now: () => clock.now, badge: async (personId) => (counted.push(personId), 4) });
+      const badged = createPushNotifications(database, {
+        senders: () => senders,
+        now: () => clock.now,
+        badge: async (personId) => (counted.push(personId), 4),
+      });
       await badged.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" });
 
       expect([...apns.sent, ...fcm.sent].map(({ message }) => message.badge)).toEqual([4, 4]);
       expect(counted).toEqual([marie.id]);
 
       const failing = createPushNotifications(database, { senders: () => senders, now: () => clock.now, badge: async () => Promise.reject(new Error("down")) });
-      expect(await failing.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({ sent: 2, failed: 0, removed: 0 });
+      expect(await failing.send(marie.id, { event: "job_digest", jobDigestId: "7f1c2a0e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" })).toEqual({
+        sent: 2,
+        failed: 0,
+        removed: 0,
+      });
       expect(apns.sent.at(-1)!.message).not.toHaveProperty("badge");
     });
 
@@ -185,7 +224,11 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
       await push.register(marie, { platform: "ios", token: IPHONE, language: "fr" });
       await push.register(marie, { platform: "android", token: PIXEL, language: "fr" });
       apns.answer(IPHONE, { ok: false, reason: "device_token_invalid", tokenInvalid: true, status: 410, message: "Unregistered" });
-      expect(await push.send(marie.id, { event: "coach_review", applicationId: "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b" })).toEqual({ sent: 1, failed: 1, removed: 1 });
+      expect(await push.send(marie.id, { event: "coach_review", applicationId: "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b" })).toEqual({
+        sent: 1,
+        failed: 1,
+        removed: 1,
+      });
       expect((await push.devices(marie.id)).map((device) => device.platform)).toEqual(["android"]);
       expect(await push.failures()).toEqual([{ at: clock.now, platform: "ios", event: "coach_review", reason: "device_token_invalid", httpStatus: 410 }]);
     });
@@ -236,7 +279,13 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
     let notifying: PushNotifications;
     beforeEach(() => {
       queued = [];
-      notifying = createPushNotifications(database, { senders: () => senders, now: () => clock.now, queue: { send: async (name, data) => void queued.push({ name, data }) } });
+      notifying = createPushNotifications(database, {
+        // Every event of the catalogue, the Human Coach epic's too (ADR-0107).
+        coachSpaceV2: () => true,
+        senders: () => senders,
+        now: () => clock.now,
+        queue: { send: async (name, data) => void queued.push({ name, data }) },
+      });
     });
 
     it("queues an event once: notified again under the same key (a run started again, a webhook delivered twice), nothing more is queued", async () => {
@@ -256,6 +305,12 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
         appointment_reminder: { event: "appointment_reminder" },
         coach_review: { event: "coach_review", applicationId: OBJECT },
         coaching_session_changed: { event: "coaching_session_changed" },
+        coaching_cancellation: { event: "coaching_cancellation" },
+  coaching_session_hour:{event:'coaching_session_hour',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_hour_for_coach:{event:'coaching_session_hour_for_coach',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_eve:{event:'coaching_session_eve',sessionId:'session-1',noticeKey:'e'.repeat(64)},
+  coaching_session_updated:{event:'coaching_session_updated'},
+  coaching_day:{event:'coaching_day',noticeKey:'e'.repeat(64)},
         follow_up_due: { event: "follow_up_due", applicationId: OBJECT },
         coach_access_granted: { event: "coach_access_granted", candidateId: OBJECT },
         coaching_session_paid: { event: "coaching_session_paid" },
@@ -340,7 +395,10 @@ describe.skipIf(!connectionString)("Push notifications (needs Postgres: DATABASE
 describe("queueing a Push notification for the worker", () => {
   it("queues the person, the notification and the platform, sending nothing itself", async () => {
     const queued: { name: string; data: object }[] = [];
-    const push = createPushNotifications({ query: async () => ({ rows: [] }) } as unknown as Pool, { senders: () => ({}), queue: { send: async (name, data) => void queued.push({ name, data }) } });
+    const push = createPushNotifications({ query: async () => ({ rows: [] }) } as unknown as Pool, {
+      senders: () => ({}),
+      queue: { send: async (name, data) => void queued.push({ name, data }) },
+    });
     await push.notify("cand_marie", { event: "job_digest", jobDigestId: "digest-1" });
     await push.notify("cand_admin", { event: "test" }, { platform: "android" });
     expect(queued).toEqual([
@@ -352,5 +410,72 @@ describe("queueing a Push notification for the worker", () => {
   it("refuses to queue without a queue: the worker's side never queues", async () => {
     const push = createPushNotifications({} as Pool, { senders: () => ({}) });
     await expect(push.notify("cand_marie", { event: "test" })).rejects.toThrow(/queue/);
+  });
+});
+
+describe("« Espace coach v2 » (ADR-0107)", () => {
+  /** A database that has the person's switches all on and one iPhone, with what was asked of it. */
+  function fakeDatabase() {
+    const queries: string[] = [];
+    const database = {
+      query: async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("FROM push_device d")) return { rows: [{ id: "device-1", platform: "ios", environment: "production", token: "token-1", language: "fr" }] };
+        return { rows: [], rowCount: 1 };
+      },
+    } as unknown as Pool;
+    return { database, queries };
+  }
+  const sender = () => {
+    const sent: PushMessage[] = [];
+    const ios: PushSender = { send: async (_device: PushDevice, message: PushMessage): Promise<PushOutcome> => (sent.push(message), { ok: true }) };
+    return { sent, senders: () => ({ ios }) as Partial<Record<PushPlatform, PushSender>> };
+  };
+  const HOUR: PushNotification = { event: "coaching_session_hour", sessionId: "session-1", noticeKey: "e".repeat(64) };
+  const GRANTED: PushNotification = { event: "coach_access_granted", candidateId: "cand_marie" };
+
+  for (const coachSpaceV2 of [undefined, () => false]) {
+    it(`off${coachSpaceV2 ? "" : " (not given)"}: queues and sends no event of the Human Coach epic, and opens the paths before it`, async () => {
+      const { database, queries } = fakeDatabase();
+      const { sent, senders } = sender();
+      const queued: object[] = [];
+      const asked: string[] = [];
+      const push = createPushNotifications(database, {
+        ...(coachSpaceV2 ? { coachSpaceV2 } : {}),
+        senders,
+        queue: { send: async (_name, data) => void queued.push(data) },
+        eligibleNotification: async (_id, notification) => (asked.push(notification.event), true),
+      });
+      expect(await push.notify("cand_marie", HOUR, { once: "hour-1" })).toBe(false);
+      expect(queued).toEqual([]);
+      expect(queries).toEqual([]);
+      expect(await push.send("cand_marie", HOUR)).toEqual({ sent: 0, failed: 0, removed: 0 });
+      expect(sent).toEqual([]);
+      expect(await push.send("cand_marie", GRANTED)).toEqual({ sent: 1, failed: 0, removed: 0 });
+      expect(sent.map((message) => message.path)).toEqual(["/espace-coach/cand_marie"]);
+      expect(asked).toEqual([]);
+    });
+  }
+
+  it("on, asked at each notify and send: queues and sends the epic's events, asks whether each is still current, opens the new paths", async () => {
+    const { database } = fakeDatabase();
+    const { sent, senders } = sender();
+    let on = false;
+    const queued: object[] = [];
+    const asked: string[] = [];
+    const push = createPushNotifications(database, {
+      coachSpaceV2: () => on,
+      senders,
+      queue: { send: async (_name, data) => void queued.push(data) },
+      eligibleNotification: async (_id, notification) => (asked.push(notification.event), true),
+    });
+    expect(await push.notify("cand_marie", HOUR)).toBe(false);
+    on = true;
+    expect(await push.notify("cand_marie", HOUR)).toBe(true);
+    expect(queued).toEqual([{ personId: "cand_marie", notification: HOUR }]);
+    expect(await push.send("cand_marie", HOUR)).toEqual({ sent: 1, failed: 0, removed: 0 });
+    expect(await push.send("cand_marie", GRANTED)).toEqual({ sent: 1, failed: 0, removed: 0 });
+    expect(sent.map((message) => message.path)).toEqual(["/coachs/seances/session-1", "/espace-coach/candidates/cand_marie"]);
+    expect(asked).toEqual(["coaching_session_hour", "coach_access_granted"]);
   });
 });

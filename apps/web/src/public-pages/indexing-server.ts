@@ -1,7 +1,8 @@
-import { articles, legalText, parisDay, type LegalTextId } from "@jobhub/help";
+import { articlesFor, legalText, parisDay, type LegalTextId } from "@jobhub/help";
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getUrlLocale } from "@/i18n/server";
 import { currentRelease } from "@/release";
 import { readHumanCoachPath } from "@/landing/server";
@@ -13,10 +14,13 @@ export async function requestOrigin(): Promise<string> {
   return siteOrigin(process.env);
 }
 
-/** The sources of the indexed pages, as this build carries them, on today's date in France. */
-export function indexSources(on: string = parisDay()): IndexSources {
+/**
+ * The sources of the indexed pages, as this build carries them, on today's date in France: the Help Articles served
+ * under « Espace coach v2 » (#867), main's while it is off, so no address of the epic's articles is indexed then.
+ */
+export function indexSources(on: string = parisDay(), coachSpaceV2: boolean = coachSpaceV2On()): IndexSources {
   return {
-    helpArticles: articles("fr"),
+    helpArticles: articlesFor("fr", { coachSpaceV2 }),
     legalTextInEffect: (text, locale) => legalText(text, locale, { on })?.inEffect === true,
     humanCoachPath: readHumanCoachPath(),
   };

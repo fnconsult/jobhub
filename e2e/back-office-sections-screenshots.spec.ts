@@ -153,7 +153,7 @@ test.describe("every other Back Office section in the Design System (#466)", () 
         expect((await shoot(target)).equals(before), `the ${section.name} shot moves with ${section.leaveOut.join(", ")}`).toBe(true);
       }
       if (comparesScreenshots()) {
-        await expect(target).toHaveScreenshot(`${section.name}-desktop.png`, { mask: (section.mask ?? []).map((selector) => page.locator(selector)) });
+        await expect.soft(target).toHaveScreenshot(`${section.name}-desktop.png`, { mask: (section.mask ?? []).map((selector) => page.locator(selector)) });
       }
       // The same section in dark (#473): axe and every text at AA, then its own baseline.
       await showInTheme(page, "dark");
@@ -161,7 +161,7 @@ test.describe("every other Back Office section in the Design System (#466)", () 
       await expectNoAxeViolations(page);
       await expectTextContrast(page, section.name);
       if (comparesScreenshots()) {
-        await expect(target).toHaveScreenshot(`${themedName(`${section.name}-desktop`, "dark")}.png`, { mask: (section.mask ?? []).map((selector) => page.locator(selector)) });
+        await expect.soft(target).toHaveScreenshot(`${themedName(`${section.name}-desktop`, "dark")}.png`, { mask: (section.mask ?? []).map((selector) => page.locator(selector)) });
       }
       await page.close();
     });

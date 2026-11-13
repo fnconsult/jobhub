@@ -6,6 +6,7 @@ import { Pill, Status } from "@/design/Pill";
 import { getServerT, getUrlLocale } from "@/i18n/server";
 import { COACH_ENROLMENT_PATH } from "@/landing";
 import { localePath } from "@/public-pages/public-shell";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { LandingAudience, LandingDoors } from "./LandingAudience";
 import { LandingStory } from "./LandingStory";
 import "./Landing.css";
@@ -197,7 +198,7 @@ export async function LandingCoach() {
   const locale = await getUrlLocale();
   const screens = { request: <RequestScreen />, profile: <ProfileScreen />, sessions: <SessionScreen />, earnings: <EarningsScreen /> };
   const action = (
-    <Link className={`${buttonClass({ variant: "primary" })} landing-action`} href={localePath(COACH_ENROLMENT_PATH, locale)}>
+    <Link className={`${buttonClass({ variant: "primary" })} landing-action`} href={enrolmentHref(locale)}>
       {t("landing.coachPath.cta")}
     </Link>
   );
@@ -287,4 +288,12 @@ export async function LandingCoach() {
       </section>
     </main>
   );
+}
+
+/**
+ * « Devenir coach » (#875) is a public page, served under `/en`, only with « Espace coach v2 » on (ADR-0107); off, the
+ * link is main's unprefixed address, a page that does not exist yet.
+ */
+function enrolmentHref(locale: Parameters<typeof localePath>[1]): string {
+  return coachSpaceV2On() ? localePath(COACH_ENROLMENT_PATH, locale) : COACH_ENROLMENT_PATH;
 }

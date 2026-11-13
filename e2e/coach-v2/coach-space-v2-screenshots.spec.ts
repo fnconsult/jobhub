@@ -60,7 +60,7 @@ type Screen = {
 let own: OwnServer;
 let database: Pool;
 const contexts = {} as Record<Who, BrowserContext>;
-const ids = { candidate: "", session: "" };
+const ids = { candidate: "", session: "", held: "" };
 /** The relative session's day as the pages write it (« vendredi 13 novembre 2026 »). */
 let sessionDay = "";
 
@@ -259,10 +259,12 @@ async function seed(browser: Browser) {
     [payment, ids.candidate, coachId, seller.id, { ...snapshot, seller }, seller, `cs_${payment}`],
   );
   await database.query("INSERT INTO coaching_connect_earning(payment_id,amount,commission,available) VALUES($1,9000,1800,true)", [payment]);
-  await database.query(
-    "INSERT INTO coaching_session(candidate_id,coach_id,stripe_checkout_session_id,amount,currency,paid_at,scheduled_at,duration_minutes) VALUES($1,$2,$3,9000,'eur','2026-06-01T08:00:00Z','2026-06-04T08:00:00Z',60)",
-    [ids.candidate, coachId, `cs_${payment}`],
-  );
+  ids.held = (
+    await database.query<{ id: string }>(
+      "INSERT INTO coaching_session(candidate_id,coach_id,stripe_checkout_session_id,amount,currency,paid_at,scheduled_at,duration_minutes) VALUES($1,$2,$3,9000,'eur','2026-06-01T08:00:00Z','2026-06-04T08:00:00Z',60) RETURNING id",
+      [ids.candidate, coachId, `cs_${payment}`],
+    )
+  ).rows[0]!.id;
 
   // Marie gives Sophie Coach Access; Sophie writes a private note.
   await page.goto("/coachs");
@@ -311,6 +313,62 @@ test.describe("Espace coach v2 in the Design System (#867)", () => {
     for (const context of Object.values(contexts)) await context.close();
     await database?.end();
     await own?.stop();
+  });
+
+  // #1018: the session's line names the Seller frozen with its sale, here Sophie's own business, not Jobbbox.
+  test("a session's page names the Seller of its sale (#1018)", async () => {
+    const page = await contexts.coach.newPage();
+    await page.goto(`/espace-coach/seances/${ids.session}`);
+    await expect(page.getByText(tr(fr.coachingOffers.soldBy, { name: "Sophie Martin Conseil" }), { exact: true })).toBeVisible();
+    await expect(page.getByText(fr.coachWorkspace.soldByJobbbox, { exact: true })).toHaveCount(0);
+    await page.close();
+  });
+
+  // #1019: the session held in June stays listed with its date, without « Modifier la date » or « Annuler la séance »;
+  // the one tomorrow keeps both. The routes refuse the held one too, as « trop tard » (#883).
+  test("a session that has ended is neither moved nor cancelled, on the page or through the routes (#1019)", async () => {
+    const page = await contexts.candidate.newPage();
+    await page.goto("/coachs");
+    const held = page.locator(`#seance-${ids.held}`);
+    const next = page.locator(`#seance-${ids.session}`);
+    await expect(held.getByText(/4 juin 2026/)).toBeVisible();
+    await expect(held.getByRole("button", { name: new RegExp(fr.coachingSession.edit) })).toHaveCount(0);
+    await expect(held.getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: COACH_NAME }) })).toHaveCount(0);
+    await expect(next.getByRole("button", { name: new RegExp(fr.coachingSession.edit) })).toBeVisible();
+    await expect(next.getByRole("button", { name: tr(fr.agendaChanges.cancelSessionFor, { name: COACH_NAME }) })).toBeVisible();
+    const headers = { origin: own.origin };
+    const moved = await page.request.patch(`/api/coaching/sessions/${ids.held}`, { data: { scheduledAt: "2030-03-20T10:00" }, headers });
+    expect([moved.status(), await moved.json()]).toEqual([409, { error: "too_late" }]);
+    const cancelled = await page.request.post(`/api/coaching/sessions/${ids.held}/cancel`, { data: {}, headers });
+    expect([cancelled.status(), await cancelled.json()]).toEqual([409, { error: "too_late" }]);
+    expect((await database.query("SELECT scheduled_at FROM coaching_session WHERE id=$1", [ids.held])).rows[0].scheduled_at).toEqual(new Date("2026-06-04T08:00:00Z"));
+    await page.close();
+  });
+
+  // #1020: a form's fields as wide as their Card or column, so a Meet link and an e-mail show whole, at the desktop width
+  // and at 390 pixels, at the largest Text Size too.
+  test("the Meet link and the contact e-mail show whole in their fields (#1020)", async () => {
+    const whole = (field: Locator) => field.evaluate((input: HTMLInputElement) => input.scrollWidth <= input.clientWidth);
+    for (const textSize of [null, "xlarge"]) {
+      for (const { width, height } of [DESKTOP, PHONE]) {
+        const coach = await contexts.coach.newPage();
+        const candidate = await contexts.candidate.newPage();
+        for (const page of [coach, candidate]) {
+          await page.setViewportSize({ width, height });
+          if (textSize) await page.addInitScript((size) => localStorage.setItem("jobbbox.textSize", size), textSize);
+        }
+        await coach.goto(`/espace-coach/seances/${ids.session}`);
+        const link = coach.getByLabel(fr.coachMeeting.target);
+        await expect(link).toHaveValue("https://meet.google.com/abc-defg-hij");
+        expect(await whole(link), `the Meet link at ${width}px, text size ${textSize ?? "default"}`).toBe(true);
+        await candidate.goto("/devenir-coach");
+        const email = candidate.getByLabel(fr.coachEnrolment.fields.email);
+        await expect(email).toHaveValue(CANDIDATE);
+        expect(await whole(email), `the e-mail at ${width}px, text size ${textSize ?? "default"}`).toBe(true);
+        await coach.close();
+        await candidate.close();
+      }
+    }
   });
 
   for (const screen of SCREENS) {

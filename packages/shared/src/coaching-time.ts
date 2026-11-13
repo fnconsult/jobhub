@@ -68,3 +68,12 @@ export function coachingDayStart(day: string, timeZone = COACHING_DEFAULT_ZONE):
   }
   return new Date(instant);
 }
+
+/**
+ * Whether a Coaching Session has ended (#1019): its end, its start plus its duration (an hour when unknown), is past.
+ * An Unscheduled one never has. Ended, its Candidate neither moves nor cancels it.
+ */
+export function coachingSessionOver(session: { scheduledAt: Date | string | null; durationMinutes: number | null }, now: Date): boolean {
+  if (session.scheduledAt === null) return false;
+  return new Date(session.scheduledAt).getTime() + (session.durationMinutes ?? 60) * 60_000 <= now.getTime();
+}

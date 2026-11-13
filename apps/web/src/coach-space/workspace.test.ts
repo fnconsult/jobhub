@@ -9,6 +9,21 @@ import { createApplications } from "../applications";
 import { createJobOffers } from "../job-offers";
 import { coachWorkspace, sessionPhase } from "./workspace";
 import { meetingTool, meetingWindow, parseMeeting } from "./meeting";
+import { sessionSellerLine } from "./session-seller";
+import { JOBBBOX_SELLER, type CoachingSeller } from "@jobhub/shared/coaching-offers";
+
+const COACH_SELLER: CoachingSeller = { id: "00000000-0000-4000-8000-0000000000aa", kind: "human_coach", name: "Sophie Martin Conseil", status: "EI", siret: "12345678901234" };
+const ASSOCIATION_SELLER: CoachingSeller = { id: "00000000-0000-4000-8000-0000000000bb", kind: "association", name: "Transitions Solidaires", status: "Association loi 1901", siret: "11111111111111" };
+
+describe("the session's seller line (#1018)", () => {
+  const t = ((key: string, values?: { name?: string }) => (key === "coachWorkspace.soldByJobbbox" ? "Vendue par Jobbbox" : `Vendu par ${values?.name}`)) as never;
+  it("names Jobbbox, the coach or the Association as frozen with the sale, and nobody without a sale", () => {
+    expect(sessionSellerLine(JOBBBOX_SELLER, t)).toBe("Vendue par Jobbbox");
+    expect(sessionSellerLine(COACH_SELLER, t)).toBe("Vendu par Sophie Martin Conseil");
+    expect(sessionSellerLine(ASSOCIATION_SELLER, t)).toBe("Vendu par Transitions Solidaires");
+    expect(sessionSellerLine(null, t)).toBeNull();
+  });
+});
 
 describe("session phases and joining window", () => {
   const session = { scheduledAt: new Date("2026-11-10T10:00:00Z"), durationMinutes: 60 };
@@ -136,5 +151,28 @@ describe.skipIf(!connectionString)("the coach's private workspace", () => {
     await auth.database.query("UPDATE human_coach SET retired_at=now() WHERE id=$1", [coachId]);
     expect(await contacts.save(coachId, null, { kind: "video", target: "https://meet.google.com/test" })).toBe(false);
     expect(await contacts.ofSession(coachId, sessionId)).toBeNull();
+  });
+  it("reads the Seller frozen with the session's sale, never an assumed one (#1018)", async () => {
+    const sale = (seller: CoachingSeller) => JSON.stringify({ offerId: sessionId, coachId, seller, durationMinutes: 60, amount: 9000, currency: "eur", commissionBps: 2000 });
+    const freeze = (seller: CoachingSeller, source: string) =>
+      auth.database.query(
+        "INSERT INTO coaching_session_sale(session_id,snapshot,source) VALUES($1,$2::jsonb,$3) ON CONFLICT(session_id) DO UPDATE SET snapshot=EXCLUDED.snapshot,source=EXCLUDED.source",
+        [sessionId, sale(seller), source],
+      );
+    // Paid before Coaching Offers: no sale of its own, no line.
+    expect(await space.seller(coachId, sessionId)).toBeNull();
+    await freeze(JOBBBOX_SELLER, "legacy_backfill");
+    expect(await space.seller(coachId, sessionId)).toBeNull();
+    await freeze(JOBBBOX_SELLER, "legacy_payment");
+    expect(await space.seller(coachId, sessionId)).toMatchObject({ kind: "jobbbox", name: "Jobbbox" });
+    await freeze(COACH_SELLER, "quote");
+    expect(await space.seller(coachId, sessionId)).toEqual(COACH_SELLER);
+    await freeze(ASSOCIATION_SELLER, "quote");
+    expect(await space.seller(coachId, sessionId)).toEqual(ASSOCIATION_SELLER);
+    // Only to the session's own coach, while active.
+    expect(await space.seller(otherCoachId, sessionId)).toBeNull();
+    expect(await space.seller(coachId, "not-a-session")).toBeNull();
+    await auth.database.query("UPDATE human_coach SET retired_at=now() WHERE id=$1", [coachId]);
+    expect(await space.seller(coachId, sessionId)).toBeNull();
   });
 });

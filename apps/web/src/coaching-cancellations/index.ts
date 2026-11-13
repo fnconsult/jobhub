@@ -4,6 +4,7 @@ import type { Pool } from "pg";
 import { inTransaction, type Queryable } from "../database/pool";
 import { coachingRefunds } from "../coaching-refunds";
 import { setAgendaItemDate } from "../reschedules";
+import { coachingSessionOver } from "@jobhub/shared/coaching-time";
 export const CANCELLATION_NOTICE_MS = 24 * 3600000,
   COACH_CHOICE_MS = 7 * 86400000;
 export const candidateMayCancel = (scheduledAt: Date | null, now: Date) =>
@@ -334,14 +335,16 @@ export function coachingCancellations(
       for (const row of rows)
         await begin({ sessionId: row.id, actorId: row.coachId, source: "retirement", reason: "Coach retired", requestKey: `retirement:${row.id}` });
     },
-    async maySchedule(within: Queryable, sessionId: string, by: "candidate" | "coach", to: Date | null) {
+    async maySchedule(within: Queryable, sessionId: string, by: "candidate" | "coach", to: Date | null): Promise<boolean | "too_late"> {
       const session = (
-        await within.query<{ scheduledAt: Date | null; cancelledAt: Date | null; retiredAt: Date | null }>(
-          `SELECT s.scheduled_at AS "scheduledAt",s.cancelled_at AS "cancelledAt",h.retired_at AS "retiredAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id WHERE s.id=$1`,
+        await within.query<{ scheduledAt: Date | null; durationMinutes: number | null; cancelledAt: Date | null; retiredAt: Date | null }>(
+          `SELECT s.scheduled_at AS "scheduledAt",s.duration_minutes AS "durationMinutes",s.cancelled_at AS "cancelledAt",h.retired_at AS "retiredAt" FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id WHERE s.id=$1`,
           [sessionId],
         )
       ).rows[0];
       if (!session || session.cancelledAt || session.retiredAt) return false;
+      // A session that has ended is neither moved nor cancelled by its Candidate, cancellation policy or not (#1019).
+      if (by === "candidate" && coachingSessionOver(session, now())) return "too_late";
       if (!(await permitted())) return true;
       if ((await within.query("SELECT 1 FROM coaching_cancellation WHERE session_id=$1 AND choice='awaiting'", [sessionId])).rowCount) return false;
       return by === "coach" || session.scheduledAt?.getTime() === to?.getTime() || candidateMayCancel(session.scheduledAt, now());

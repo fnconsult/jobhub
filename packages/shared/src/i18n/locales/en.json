@@ -5268,7 +5268,8 @@
     "invalidNote": "The note must be 500 characters at most.",
     "error": "Saving failed. Check your connection and try again.",
     "coachEnterDate": "Enter the date",
-    "coachEnterDateFor": "Enter the date of the session with {{name}}"
+    "coachEnterDateFor": "Enter the date of the session with {{name}}",
+    "over": "This session is over: it can no longer be changed or cancelled."
   },
   "coachReviews": {
     "title": "Your coaches' reviews",
@@ -7408,7 +7409,9 @@
     "validationHint": "Every change requires approval. Your last approved version stays visible meanwhile.",
     "presentation": "About you",
     "specialties": "Specialties",
+    "specialtiesList": "Specialties: {{list}}",
     "languages": "Languages",
+    "languagesList": "Languages: {{list}}",
     "commas": "Separate items with commas.",
     "photo": "Professional photo",
     "photoPrompt": "Drop your portrait here",
@@ -7552,7 +7555,7 @@
     "refundProblem": "The refund needs support intervention. No further payment is requested.",
     "open": "Open the session follow-up",
     "emailReason": "Contractual follow-up for your coaching session.",
-    "original": "Original date",
+    "originalOn": "Original date: {{date}}",
     "deadline": "Choose until {{date}}. A full refund is requested automatically afterwards.",
     "bookSame": "Book without another payment",
     "newOrder": "Review and accept the new order",

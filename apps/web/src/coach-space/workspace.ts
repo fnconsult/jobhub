@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { nameForCoach } from "../candidate-identity/names";
 import type { HumanCoaches } from "../human-coaches";
 import { coachingDay, COACHING_DEFAULT_ZONE } from "@jobhub/shared/coaching-time";
+import type { CoachingSeller } from "@jobhub/shared/coaching-offers";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACTIVE = "EXISTS (SELECT 1 FROM human_coach h WHERE h.id = $1 AND h.retired_at IS NULL)";
@@ -90,6 +91,20 @@ export function coachWorkspace(database: Pool, coaches: Pick<HumanCoaches, "coac
     },
     async session(coachId: string, sessionId: string) {
       return (await sessions(coachId)).find((session) => session.id === sessionId) ?? null;
+    },
+    /**
+     * The Seller frozen with the sale of this coach's session (#874, #1018), as « Revenus » and the order read it; null
+     * when the session has no sale of its own: one paid before Coaching Offers, whose Seller the migration only assumed
+     * (`legacy_backfill`), names no Seller rather than a supposed one.
+     */
+    async seller(coachId: string, sessionId: string): Promise<CoachingSeller | null> {
+      if (!UUID.test(coachId) || !UUID.test(sessionId)) return null;
+      const { rows } = await database.query<{ seller: CoachingSeller }>(
+        `SELECT x.snapshot->'seller' AS seller FROM coaching_session_sale x JOIN coaching_session s ON s.id=x.session_id
+         WHERE s.id=$2 AND s.coach_id=$1 AND x.source<>'legacy_backfill' AND x.snapshot ? 'seller' AND ${ACTIVE}`,
+        [coachId, sessionId],
+      );
+      return rows[0]?.seller ?? null;
     },
     async today(coachId: string, now: Date, timeZone = COACHING_DEFAULT_ZONE) {
       const [all, people] = await Promise.all([sessions(coachId), candidates(coachId)]);

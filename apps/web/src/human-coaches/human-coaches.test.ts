@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -412,6 +413,24 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
           session: { scheduledAt: null, reschedules: [{ previousAt: new Date("2026-10-22T12:00:00.000Z"), newAt: null, by: "candidate", at: now }] },
         });
         expect((await clocked.sessions(marie))[0]).toMatchObject({ scheduledAt: null });
+      });
+
+      it("« Espace coach v2 »: a session refused as too late is neither moved nor cancelled, and says so (#1019)", async () => {
+        const { marie, session } = await datedSession();
+        const over = createHumanCoaches(database, {
+          profiles,
+          applications,
+          tailoredDocuments: { get: async () => null },
+          tailoredCvs: { get: async () => null },
+          now: () => now,
+          mayChangeSession: async (_within, _id, by) => (by === "candidate" ? "too_late" : true),
+        });
+        later(60 * 24 * 3);
+        expect(await over.scheduleSession(marie, session.id, { scheduledAt: "2026-10-30T14:00" })).toEqual({ ok: false, error: "too_late" });
+        expect(await over.cancelSession(marie, session.id)).toEqual({ ok: false, error: "too_late" });
+        expect((await clocked.sessions(marie))[0]).toMatchObject({ scheduledAt: new Date("2026-10-22T12:00:00.000Z"), reschedules: [] });
+        // Another Candidate's session is still not found.
+        expect(await over.cancelSession(randomUUID(), session.id)).toEqual({ ok: false, error: "not_found" });
       });
 
       describe("a Withdrawal (#511)", () => {

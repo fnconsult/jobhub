@@ -278,6 +278,27 @@ describe.skipIf(!connectionString)("contractual cancellation remedies", () => {
     expect((await auth.database.query("SELECT scheduled_at FROM coaching_session WHERE id=$1", [session])).rows[0].scheduled_at).toBeNull();
     expect(await service.maySchedule(auth.database, session, "candidate", new Date("2026-12-01T12:00Z"))).toBe(false);
   });
+  it("refuses the Candidate a change to a session that has ended, policy on or off; to come or under way, as before (#1019)", async () => {
+    // The session: 13 November 2026, 12:00 to 13:00 UTC (no duration: an hour).
+    const to = new Date("2026-12-01T12:00Z");
+    for (const policy of [false, true]) {
+      enabled = policy;
+      clock = new Date("2026-11-13T13:00Z");
+      expect(await service.maySchedule(auth.database, session, "candidate", to)).toBe("too_late");
+      expect(await service.maySchedule(auth.database, session, "candidate", null)).toBe("too_late");
+      // The coach's own changes are not the Candidate's.
+      expect(await service.maySchedule(auth.database, session, "coach", to)).toBe(true);
+    }
+    enabled = false;
+    clock = new Date("2026-11-13T12:59:59Z");
+    expect(await service.maySchedule(auth.database, session, "candidate", to)).toBe(true);
+    clock = new Date("2026-11-11T12:00Z");
+    expect(await service.maySchedule(auth.database, session, "candidate", to)).toBe(true);
+    // Policy on, under way: the 24-hour window already refuses it, as before.
+    enabled = true;
+    clock = new Date("2026-11-13T12:30Z");
+    expect(await service.maySchedule(auth.database, session, "candidate", to)).toBe(false);
+  });
   it("rechecks the 24-hour boundary under the session lock and makes completed request replay idempotent", async () => {
     clock = new Date("2026-11-12T12:01Z");
     expect(await service.candidateCancel(candidate, session, randomUUID())).toMatchObject({ ok: false, error: "too_late" });

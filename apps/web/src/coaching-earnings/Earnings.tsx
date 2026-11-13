@@ -77,6 +77,7 @@ export async function Earnings({ statement, path, locale, timeZone }: { statemen
           <p>{t("coachEarnings.empty")}</p>
         ) : (
           <Table
+            data-earnings-offers=""
             label={t("coachEarnings.offers")}
             rows={statement.offers}
             rowKey={(offer) => offer.key}

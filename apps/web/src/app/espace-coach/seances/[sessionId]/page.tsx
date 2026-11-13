@@ -19,6 +19,7 @@ import { Pill, type Tone } from "@/design/Pill";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { PrivateNotes } from "@/coach-space/PrivateNotes";
 import { SessionCard, coachCandidateUrl } from "@/coach-space/SessionCard";
+import { sessionSellerLine } from "@/coach-space/session-seller";
 import { requireCoachSpace } from "@/coach-space/server";
 import { sessionPhase } from "@/coach-space/workspace";
 import { getCoachWorkspace } from "@/coach-space/workspace-server";
@@ -34,23 +35,25 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   const space = getCoachWorkspace();
   const session = await space.session(coach.id, (await params).sessionId);
   if (!session) notFound();
-  const [t, locale, timeZone, note] = await Promise.all([
+  const [t, locale, timeZone, note, seller] = await Promise.all([
     getServerT(),
     getRequestLocale(),
     getCoachingTimeZones().coach(coach.id),
     space.note(coach.id, session.candidateId, session.id),
+    space.seller(coach.id, session.id),
   ]);
   if (!note) notFound();
   const canRead = await getSharedReading().canUse({ candidateId: "", coachId: coach.id }, session.id);
   const phase = sessionPhase(session, new Date());
   const reports = await getSessionReports().forCoach(coach.id, session.id);
   const draft = reports?.find((report) => !report.publishedAt) ?? null;
+  const soldBy = sessionSellerLine(seller, t);
   return (
     <CoachSpaceShell>
       <SessionBoundaryRefresh scheduledAt={session.scheduledAt?.toISOString() ?? null} durationMinutes={session.durationMinutes} />
       <Card title={<Pill tone={PHASE_TONE[phase]}>{t(`coachWorkspace.phase.${phase}`)}</Pill>}>
         <div className="stack">
-          <p>{t("coachWorkspace.soldByJobbbox")}</p>
+          {soldBy ? <p>{soldBy}</p> : null}
           <Link href={coachCandidateUrl(session.candidateId)}>{t("coachWorkspace.prepare")}</Link>
           {session.scheduledAt ? <p>{coachingTime(session.scheduledAt, locale, timeZone)}</p> : null}
           {(await cancellationPolicyOn()) ? <CoachCancel sessionId={session.id} /> : null}

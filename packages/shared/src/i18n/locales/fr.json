@@ -5268,7 +5268,8 @@
     "invalidNote": "La note ne doit pas dépasser 500 caractères.",
     "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
     "coachEnterDate": "Saisir la date",
-    "coachEnterDateFor": "Saisir la date de la séance avec {{name}}"
+    "coachEnterDateFor": "Saisir la date de la séance avec {{name}}",
+    "over": "Cette séance est passée : elle ne peut plus être modifiée ni annulée."
   },
   "coachReviews": {
     "title": "Avis de vos coachs",
@@ -7408,7 +7409,9 @@
     "validationHint": "Chaque modification attend une validation. Votre dernière version approuvée reste visible entre-temps.",
     "presentation": "Présentation",
     "specialties": "Spécialités",
+    "specialtiesList": "Spécialités : {{list}}",
     "languages": "Langues",
+    "languagesList": "Langues : {{list}}",
     "commas": "Séparez les éléments par des virgules.",
     "photo": "Photo professionnelle",
     "photoPrompt": "Glissez votre portrait ici",
@@ -7552,7 +7555,7 @@
     "refundProblem": "Le remboursement nécessite une intervention du support. Aucun nouveau paiement n’est demandé.",
     "open": "Ouvrir le suivi de la séance",
     "emailReason": "Suivi contractuel de votre séance de coaching.",
-    "original": "Date initiale",
+    "originalOn": "Date initiale : {{date}}",
     "deadline": "Choisissez jusqu’au {{date}}. Ensuite, le remboursement intégral est demandé automatiquement.",
     "bookSame": "Réserver sans nouveau paiement",
     "newOrder": "Voir et accepter la nouvelle commande",

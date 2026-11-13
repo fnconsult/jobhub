@@ -105,6 +105,8 @@ async function showBadge(ctx: ContentScriptContext): Promise<void> {
       // A failed call is reported by the background, which made it.
       if (!reply.ok) {
         if (reply.error === "invalid") captureImpossible();
+        // Jobbbox does not recognise this installation: the page is not the problem, and no report would be accepted.
+        else if (reply.error === "refused") status.textContent = t("extension.installationNotRecognised");
         else status.textContent = t("extension.unreachable");
       }
     } catch {

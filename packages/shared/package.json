@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./api-version": "./src/api-version.ts",
+    "./extension-test-build": "./src/extension-test-build.ts",
     "./i18n": "./src/i18n/index.ts",
     "./design": "./src/design/index.ts",
     "./design/tokens": "./src/design/tokens.ts",

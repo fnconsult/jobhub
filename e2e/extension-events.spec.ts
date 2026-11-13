@@ -16,7 +16,16 @@ import { subscribe } from "./support/plan";
 const origin = process.env.E2E_WEB_ORIGIN!;
 const databaseUrl = process.env.E2E_DATABASE_URL!;
 const extensionOrigin = `chrome-extension://${unpackedExtensionId(e2eExtensionDir)}`;
-const VERSION = "9.9.9";
+/**
+ * Each test's own Extension Version (#1031): the rows a test reads are those that carry it. A Guest's row names no one, and
+ * other specs write Guests' rows at the same time, on another worker: e2e/extension-unrecognised.spec.ts captures a
+ * posting from the real extension, whose version is never 9.x.y. A test's calls refused or from the web carry it too, so
+ * a row wrongly written by one of them would be one of the test's.
+ */
+let version = "";
+test.beforeEach(() => {
+  version = `9.${1 + Math.floor(Math.random() * 9999)}.${Math.floor(Math.random() * 10_000)}`;
+});
 
 const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const byte = () => 1 + Math.floor(Math.random() * 254);
@@ -41,9 +50,9 @@ const offer = () => ({
   employer: "Acme Industrie",
 });
 
-/** What the caller sends: the extension's Origin and headers, or the web app's. A Guest has no cookies. */
-const fromExtension = { origin: extensionOrigin, [API_VERSION_HEADER]: String(API_VERSION), [EXTENSION_VERSION_HEADER]: VERSION };
-const fromWeb = { origin };
+/** What the caller sends: the extension's Origin and headers, or the web app's Origin (the Origin alone decides). A Guest has no cookies. */
+const fromExtension = () => ({ origin: extensionOrigin, [API_VERSION_HEADER]: String(API_VERSION), [EXTENSION_VERSION_HEADER]: version });
+const fromWeb = () => ({ origin, [EXTENSION_VERSION_HEADER]: version });
 
 let database: pg.Client;
 test.beforeAll(async () => {
@@ -58,8 +67,8 @@ type Row = { kind: string; candidate_id: string | null; extension_version: strin
 const rowsSince = async (since: Date, candidateId: string | null, where = "TRUE") =>
   (
     await database.query<Row>(
-      `SELECT * FROM extension_event WHERE at >= $1 AND candidate_id IS NOT DISTINCT FROM $2 AND ${where} ORDER BY id`,
-      [since, candidateId],
+      `SELECT * FROM extension_event WHERE at >= $1 AND candidate_id IS NOT DISTINCT FROM $2 AND extension_version = $3 AND ${where} ORDER BY id`,
+      [since, candidateId, version],
     )
   ).rows;
 const kindsSince = async (since: Date, candidateId: string | null) => (await rowsSince(since, candidateId)).map((row) => row.kind);
@@ -95,13 +104,13 @@ test.describe("Extension Events: actions", () => {
     const api = await guest();
     const since = new Date();
 
-    await doEveryAction(api, fromWeb, false);
+    await doEveryAction(api, fromWeb(), false);
     expect(await kindsSince(since, null)).toEqual([]);
 
-    await doEveryAction(api, fromExtension, false);
+    await doEveryAction(api, fromExtension(), false);
     const rows = await rowsSince(since, null);
     expect(rows.map((row) => row.kind)).toEqual(["capture", "match_score", "cv_draft"]);
-    for (const row of rows) expect(row).toMatchObject({ candidate_id: null, extension_version: VERSION });
+    for (const row of rows) expect(row).toMatchObject({ candidate_id: null, extension_version: version });
     expect(rows[0]).toMatchObject({ object_type: "job_offer" });
     await api.dispose();
   });
@@ -113,13 +122,13 @@ test.describe("Extension Events: actions", () => {
     const candidateId = await candidateIdOf(email);
     const since = new Date();
 
-    await doEveryAction(page.request, fromWeb, true);
+    await doEveryAction(page.request, fromWeb(), true);
     expect(await kindsSince(since, candidateId)).toEqual([]);
 
-    await doEveryAction(page.request, fromExtension, true);
+    await doEveryAction(page.request, fromExtension(), true);
     const rows = await rowsSince(since, candidateId);
     expect(rows.map((row) => row.kind).sort()).toEqual(["application_created", "capture", "cv_draft", "match_score", "profile_created"]);
-    for (const row of rows) expect(row).toMatchObject({ candidate_id: candidateId, extension_version: VERSION });
+    for (const row of rows) expect(row).toMatchObject({ candidate_id: candidateId, extension_version: version });
   });
 });
 
@@ -130,9 +139,9 @@ test.describe("Extension Events: POST /api/extension/events", () => {
     const api = await guest();
     const since = new Date();
     const body = { errorCode: "captureImpossible", place: "page_button", pageDomain: "example.com" };
-    expect((await report(api, fromWeb, body)).status()).toBe(403);
-    expect((await report(api, { origin: "https://evil.example" }, body)).status()).toBe(403);
-    expect((await report(api, {}, body)).status()).toBe(403);
+    expect((await report(api, fromWeb(), body)).status()).toBe(403);
+    expect((await report(api, { origin: "https://evil.example", [EXTENSION_VERSION_HEADER]: version }, body)).status()).toBe(403);
+    expect((await report(api, { [EXTENSION_VERSION_HEADER]: version }, body)).status()).toBe(403);
     expect(await kindsSince(since, null)).toEqual([]);
     await api.dispose();
   });
@@ -141,7 +150,7 @@ test.describe("Extension Events: POST /api/extension/events", () => {
     const api = await guest();
     const since = new Date();
     for (const body of [{}, { errorCode: "captureImpossible" }, { errorCode: "x y", place: "page_button" }, { errorCode: "boom", place: "elsewhere" }, { errorCode: "boom", place: "side_panel", pageDomain: "https://a.example/p?q=1" }, { errorCode: "boom", place: "side_panel", httpStatus: "500" }, []]) {
-      const response = await report(api, fromExtension, body);
+      const response = await report(api, fromExtension(), body);
       expect(response.status(), JSON.stringify(body)).toBe(400);
     }
     expect(await kindsSince(since, null)).toEqual([]);
@@ -151,7 +160,7 @@ test.describe("Extension Events: POST /api/extension/events", () => {
   test("keeps the domain alone: a `url` sent is ignored, never written; the Guest's row has no Candidate", async () => {
     const api = await guest();
     const since = new Date();
-    const response = await report(api, fromExtension, {
+    const response = await report(api, fromExtension(), {
       errorCode: "captureImpossible",
       messageKey: "extension.captureImpossible",
       place: "page_button",
@@ -161,7 +170,7 @@ test.describe("Extension Events: POST /api/extension/events", () => {
     expect(response.status()).toBe(204);
     const [row, ...others] = await rowsSince(since, null);
     expect(others).toEqual([]);
-    expect(row).toMatchObject({ kind: "error", candidate_id: null, error_code: "captureImpossible", place: "page_button", page_domain: "www.example-jobs.com", extension_version: VERSION });
+    expect(row).toMatchObject({ kind: "error", candidate_id: null, error_code: "captureImpossible", place: "page_button", page_domain: "www.example-jobs.com", extension_version: version });
     expect(JSON.stringify(row)).not.toMatch(/secret-path|token=abc|https?:/);
     await api.dispose();
   });
@@ -213,9 +222,9 @@ test.describe("Extension Events: retention, Data export and Account deletion", (
     const other = await browserlessOther();
     const since = new Date();
 
-    await ok(await page.request.post("/api/job-offers", { data: offer(), headers: fromExtension }), 200);
-    await ok(await page.request.post("/api/extension/events", { data: { errorCode: "captureImpossible", place: "page_button", pageDomain: "example.com" }, headers: fromExtension }), 204);
-    await ok(await other.post("/api/extension/events", { data: { errorCode: "boom", place: "side_panel" }, headers: fromExtension }), 204);
+    await ok(await page.request.post("/api/job-offers", { data: offer(), headers: fromExtension() }), 200);
+    await ok(await page.request.post("/api/extension/events", { data: { errorCode: "captureImpossible", place: "page_button", pageDomain: "example.com" }, headers: fromExtension() }), 204);
+    await ok(await other.post("/api/extension/events", { data: { errorCode: "boom", place: "side_panel" }, headers: fromExtension() }), 204);
 
     const exported = await exportOf(page);
     expect(exported.extensionEvents.map((event: { kind: string }) => event.kind).sort()).toEqual(["capture", "error"]);

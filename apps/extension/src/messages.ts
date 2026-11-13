@@ -19,4 +19,5 @@ export type ExtensionMessage =
    */
   | { type: "report-error"; report: ErrorReport };
 
-export type AnalyseReply = { ok: true } | { ok: false; error: "invalid" | "unreachable" };
+/** The Capture's answer: "refused", Jobbbox does not recognise this installation of the extension (src/jobbbox-api.ts). */
+export type AnalyseReply = { ok: true } | { ok: false; error: "invalid" | "refused" | "unreachable" };

@@ -53,6 +53,8 @@ export default defineConfig({
       // the badge's matches already cover: so Capture may read a job site's iframe in another site's page
       // (gestmax.fr, #187), where activeTab covers only the page itself.
       host_permissions: [`${target.webOrigin}/*`, ...JOB_SITES],
+      // The test zip's fixed id (src/build-target.ts): EXTENSION_ORIGINS lists it once, wherever the zip is unpacked.
+      ...(target.key ? { key: target.key } : {}),
     };
   },
 });

@@ -239,13 +239,24 @@ function inViewNote(shown?: JobOffer): HTMLElement[] {
       const reply = await capture(posting);
       analyse.disabled = false;
       // Captured: the Guest session changed, and the panel shows the new Job Offer.
-      progress.textContent = reply.ok ? "" : t(reply.error === "invalid" ? "extension.captureImpossible" : "extension.unreachable");
+      progress.textContent = reply.ok ? "" : t(captureFailure(reply.error));
       if (!reply.ok && reply.error === "invalid") captureImpossible(posting.source.url);
     },
     "primary",
     true,
   );
   return [note("success", element("p", t("extension.detected")), element("strong", posting.title), analyse, progress)];
+}
+
+/**
+ * What a failed Capture says. « Ne reconnaît pas cette installation » when Jobbbox refused this installation (a zip loaded
+ * unpacked from a folder whose id EXTENSION_ORIGINS does not list): the page is not the problem, and saying it was
+ * sent the product owner looking at the page (2026-11-13). Not reported: Jobbbox would refuse the report alike.
+ */
+function captureFailure(error: "invalid" | "refused" | "unreachable" | "impossible") {
+  if (error === "refused") return "extension.installationNotRecognised" as const;
+  if (error === "unreachable") return "extension.unreachable" as const;
+  return "extension.captureImpossible" as const;
 }
 
 /** A Capture, by the background (which keeps the Job Offer in the Guest session, src/side-panel.ts). */
@@ -281,8 +292,8 @@ function capturePage(): HTMLElement {
     const page = tab?.id === undefined ? null : await readTab(tab.id);
     const reply: AnalyseReply | { ok: false; error: "impossible" } = page ? await capture(page.jobOffer) : { ok: false, error: "impossible" };
     trigger.disabled = false;
-    progress.textContent = reply.ok ? "" : t(reply.error === "unreachable" ? "extension.unreachable" : "extension.captureImpossible");
-    if (!reply.ok && reply.error !== "unreachable") captureImpossible(page?.jobOffer.source.url ?? tab?.url);
+    progress.textContent = reply.ok ? "" : t(captureFailure(reply.error));
+    if (!reply.ok && (reply.error === "invalid" || reply.error === "impossible")) captureImpossible(page?.jobOffer.source.url ?? tab?.url);
   });
   node.append(element("p", t("extension.description")), trigger, progress);
   return node;

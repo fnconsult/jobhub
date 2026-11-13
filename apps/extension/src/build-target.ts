@@ -4,6 +4,8 @@
  * `wxt zip` for the public one, `--mode beta` for the beta one); the web app it talks to comes from the build, never
  * from a setting the person could change.
  */
+import { TEST_BUILD_PUBLIC_KEY } from "@jobhub/shared/extension-test-build";
+
 export type StoreTarget = "public" | "beta";
 
 export interface BuildTarget {
@@ -15,6 +17,12 @@ export interface BuildTarget {
   name: string;
   /** Where the toolbar and store icons are, under `public/`. */
   iconDir: string;
+  /**
+   * The manifest's `key`, for the test zip alone (JOBBBOX_EXTENSION_TEST_BUILD=1, apps/web/Dockerfile): Chrome then gives
+   * it TEST_BUILD_EXTENSION_ID wherever it is unpacked (@jobhub/shared/extension-test-build). Never in a store zip: the
+   * Chrome Web Store refuses a `key` that is not its listing's.
+   */
+  key?: string;
 }
 
 /** Production and the Beta: the only origins a store build may talk to. */
@@ -32,9 +40,11 @@ export const ICON_SIZES = [16, 32, 48, 128] as const;
  * (`development`, `e2e`) talks to WXT_WEB_ORIGIN, the local web app by default.
  */
 export function buildTarget(mode: string, env: Record<string, string | undefined> = {}): BuildTarget {
-  if (mode === "beta") return { store: "beta", webOrigin: STORE_ORIGINS.beta, name: "__MSG_extNameBeta__", iconDir: "icon-beta" };
+  // The test zip: a store build an Administrator loads unpacked, its id fixed by the key.
+  const key = env.JOBBBOX_EXTENSION_TEST_BUILD === "1" ? { key: TEST_BUILD_PUBLIC_KEY } : {};
+  if (mode === "beta") return { store: "beta", webOrigin: STORE_ORIGINS.beta, name: "__MSG_extNameBeta__", iconDir: "icon-beta", ...key };
   const base = { name: "__MSG_extName__", iconDir: "icon" };
-  if (mode === "production") return { store: "public", webOrigin: STORE_ORIGINS.public, ...base };
+  if (mode === "production") return { store: "public", webOrigin: STORE_ORIGINS.public, ...base, ...key };
   return { store: null, webOrigin: env.WXT_WEB_ORIGIN || "http://localhost:3000", ...base };
 }
 

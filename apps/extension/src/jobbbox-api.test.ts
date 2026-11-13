@@ -29,6 +29,18 @@ describe("the Jobbbox API, from the extension", () => {
     expect(app.calls[0]?.init).toMatchObject({ method: "POST", credentials: "include", body: JSON.stringify(captured) });
   });
 
+  // An installation whose chrome-extension:// origin the web app does not list in EXTENSION_ORIGINS (an unpacked zip
+  // loaded from another folder, whose id Chrome derives from that folder): its calls are refused with a 403, whatever
+  // the page. Not « invalid »: the page is not the problem, and the Side Panel must not say it is.
+  it("tells a Capture refused for this installation's origin (403) apart from a posting the web app finds invalid (400)", async () => {
+    const refused = webApp({ "/api/job-offers": Response.json({ error: "forbidden" }, { status: 403 }) });
+    const invalid = webApp({ "/api/job-offers": Response.json({ errors: [{ field: "title", code: "too_small" }] }, { status: 400 }) });
+    const posting = { source: { url: "https://jobs.example.fr/job/account-executive-ia-senior-paris/" }, title: "Account Executive IA", content: "Mission & Résultats attendus." };
+
+    expect(await createJobbboxApi(WEB_ORIGIN, refused.fetch).capture(posting)).toEqual({ ok: false, error: "refused" });
+    expect(await createJobbboxApi(WEB_ORIGIN, invalid.fetch).capture(posting)).toEqual({ ok: false, error: "invalid" });
+  });
+
   it("states the API Version it speaks on every call (#564)", async () => {
     const app = webApp({
       "/api/job-offers": () => Response.json(jobOffer),

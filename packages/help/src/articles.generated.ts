@@ -3718,6 +3718,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Cette page s'affiche quand Jobbbox redémarre, par exemple pendant une mise à jour, ou ne répond pas pour le moment. Elle titre « Jobbbox revient dans un instant », en français puis en anglais (en anglais d'abord sur une page en anglais), avec le code de l'erreur (502, 503 ou 504) au-dessus. Vos données sont en sécurité et rien n'est perdu.\n\nVous n'avez rien à faire : la page se recharge toute seule toutes les 15 secondes et vous ramène à la page demandée dès que Jobbbox répond. Pour réessayer tout de suite, cliquez sur le bouton « Réessayer ».\n\nSi vous étiez en train d'écrire, ce que vous n'aviez pas encore enregistré peut être à saisir de nouveau.\n\nLa page dure plus de quelques minutes ? Voyez « Comment nous contacter ? »."
     },
     {
+      "id": "faq-extension-not-recognised",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Que faire quand l'extension affiche « Jobbbox ne reconnaît pas cette installation de l'extension » ?",
+      "synonyms": [
+        "ne reconnaît pas",
+        "installation",
+        "capture refusée",
+        "capturer cette page",
+        "ne peut pas être capturée",
+        "extension",
+        "chrome web store",
+        "non empaquetée",
+        "zip"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Jobbbox n'accepte que les envois de son extension telle que publiée sur le Chrome Web Store. Une copie installée autrement, par exemple chargée depuis un dossier sur votre ordinateur, peut lire votre connexion mais pas envoyer d'offre : le panneau de l'extension l'indique par « Jobbbox ne reconnaît pas cette installation de l'extension : la page n'a pas été envoyée. »\n\nLa page que vous consultez n'est pas en cause. Retirez cette copie dans chrome://extensions, installez l'extension Jobbbox depuis le Chrome Web Store, puis cliquez de nouveau sur « Capturer cette page » ou sur « Analyser cette offre »."
+    },
+    {
       "id": "faq-extension-update",
       "locale": "fr",
       "kind": "faq",
@@ -4491,6 +4514,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "extension",
         "version de test",
+        "identifiant",
+        "EXTENSION_ORIGINS",
+        "ne reconnaît pas",
         "dernière version",
         "extension version",
         "zip",
@@ -4506,7 +4532,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Avant sa publication sur le Chrome Web Store, un administrateur peut charger dans Chrome la dernière version de l'extension, celle que sert le serveur. Les candidats ne voient pas ce bloc.\n\n1. Dans Mon compte, ouvrez « Outils ». Sous le bouton du Chrome Web Store, le bloc « Dernière version de l'extension » indique la « Version de l'extension » et la « Version d'API servie ».\n2. Cliquez sur « Télécharger », suivi du nom du zip : `-chrome-beta.zip` sur la Beta (branché sur staging.jobbbox.ai), `-chrome.zip` en Production. Le serveur le fournit lui-même : aucun accès à GitHub n'est nécessaire. Décompressez-le.\n3. Ouvrez chrome://extensions et activez le « Mode développeur ».\n4. Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé.\n\nUne extension chargée ainsi ne se met pas à jour seule : recommencez à chaque nouvelle version. Si le serveur ne sert plus sa version d'API, l'extension demande de se mettre à jour. Si le bloc indique que ce serveur ne sert pas de zip, c'est un serveur de développement : seuls les déploiements en portent un."
+      "body": "Avant sa publication sur le Chrome Web Store, un administrateur peut charger dans Chrome la dernière version de l'extension, celle que sert le serveur. Les candidats ne voient pas ce bloc.\n\n1. Dans Mon compte, ouvrez « Outils ». Sous le bouton du Chrome Web Store, le bloc « Dernière version de l'extension » indique la « Version de l'extension », la « Version d'API servie » et l'« Identifiant de l'extension ». S'il affiche « Ce serveur ne reconnaît pas encore ce zip », ajoutez l'origine indiquée au réglage de déploiement EXTENSION_ORIGINS et redéployez avant de continuer : sans cela, l'extension chargée affiche « Jobbbox ne reconnaît pas cette installation de l'extension » à chaque capture.\n2. Cliquez sur « Télécharger », suivi du nom du zip : `-chrome-beta.zip` sur la Beta (branché sur staging.jobbbox.ai), `-chrome.zip` en Production. Le serveur le fournit lui-même : aucun accès à GitHub n'est nécessaire. Décompressez-le.\n3. Ouvrez chrome://extensions et activez le « Mode développeur ».\n4. Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier décompressé.\n\nLe zip garde le même identifiant quel que soit le dossier où vous le décompressez : une fois l'origine ajoutée, chaque nouvelle version est reconnue. Une extension chargée ainsi ne se met pas à jour seule : recommencez à chaque nouvelle version. Si le serveur ne sert plus sa version d'API, l'extension demande de se mettre à jour. Si le bloc indique que ce serveur ne sert pas de zip, c'est un serveur de développement : seuls les déploiements en portent un."
     },
     {
       "id": "tutorial-getting-started",
@@ -8928,6 +8954,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "The Match Score compares a job offer with your CV and your search criteria, on five criteria: « Skills », « Experience », « Location », « Salary » and « Contract type ». It is out of 100.\n\n« Why …? », beside a job offer's score in Jobbbox, opens the breakdown: one line per criterion, with what matches and what does not. In the extension's panel, the breakdown shows under the score, in « Match Score breakdown ». A criterion the job offer says nothing about does not count: the score is then partial, or « not computable » if no criterion could be compared.\n\n« Rescore », in the extension's panel, works out the job offer's score again. Signed in, a new calculation uses one Match Score of your weekly plan: the extension asks you first, and you confirm with « Confirm the recalculation ». The result only changes if the job offer or your profile has changed; the panel tells you whether it is unchanged, or what the score was before.\n\nRescore, for example, after updating your master CV, or when the panel tells you to because the job offer's text could not be read."
     },
     {
+      "id": "faq-extension-not-recognised",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "What do I do when the extension says « Jobbbox does not recognise this installation of the extension »?",
+      "synonyms": [
+        "not recognised",
+        "not recognized",
+        "installation",
+        "capture refused",
+        "capture this page",
+        "cannot be captured",
+        "extension",
+        "chrome web store",
+        "unpacked",
+        "zip"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Jobbbox only accepts what its extension sends as published on the Chrome Web Store. A copy installed another way, for instance loaded from a folder on your computer, can read your sign-in but cannot send a job offer: the extension's panel says so with « Jobbbox does not recognise this installation of the extension: the page was not sent. »\n\nThe page you are viewing is not the problem. Remove that copy in chrome://extensions, install the Jobbbox extension from the Chrome Web Store, then click « Capture this page » or « Analyse this offer » again."
+    },
+    {
       "id": "faq-extension-update",
       "locale": "en",
       "kind": "faq",
@@ -10189,6 +10239,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "synonyms": [
         "extension",
         "test version",
+        "extension ID",
+        "EXTENSION_ORIGINS",
+        "does not recognise",
         "latest version",
         "extension version",
         "zip",
@@ -10204,7 +10257,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Before it is published on the Chrome Web Store, an administrator can load in Chrome the latest version of the extension, the one the server serves. Candidates do not see this block.\n\n1. In My account, open « Tools ». Under the Chrome Web Store button, the « Latest version of the extension » block gives the « Extension version » and the « API version served ».\n2. Click « Download », followed by the zip's name: `-chrome-beta.zip` on the Beta (tied to staging.jobbbox.ai), `-chrome.zip` in Production. The server provides it itself: no GitHub access is needed. Unzip it.\n3. Open chrome://extensions and turn on « Developer mode ».\n4. Click « Load unpacked » and choose the unzipped folder.\n\nAn extension loaded this way does not update itself: do it again for each new version. If the server no longer serves its API version, the extension asks to be updated. If the block says this server serves no extension zip, it is a development server: only deployments carry one."
+      "body": "Before it is published on the Chrome Web Store, an administrator can load in Chrome the latest version of the extension, the one the server serves. Candidates do not see this block.\n\n1. In My account, open « Tools ». Under the Chrome Web Store button, the « Latest version of the extension » block gives the « Extension version », the « API version served » and the « Extension ID ». If it shows « This server does not recognise this zip yet », add the origin it gives to the EXTENSION_ORIGINS deployment setting and redeploy before going on: otherwise the loaded extension shows « Jobbbox does not recognise this installation of the extension » on every capture.\n2. Click « Download », followed by the zip's name: `-chrome-beta.zip` on the Beta (tied to staging.jobbbox.ai), `-chrome.zip` in Production. The server provides it itself: no GitHub access is needed. Unzip it.\n3. Open chrome://extensions and turn on « Developer mode ».\n4. Click « Load unpacked » and choose the unzipped folder.\n\nThe zip keeps the same ID whatever folder you unzip it into: once the origin is added, each new version is recognised. An extension loaded this way does not update itself: do it again for each new version. If the server no longer serves its API version, the extension asks to be updated. If the block says this server serves no extension zip, it is a development server: only deployments carry one."
     },
     {
       "id": "tutorial-admin-coaching-offers",

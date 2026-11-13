@@ -34,8 +34,12 @@ export interface UpgradePrompt {
 }
 
 export interface JobbboxApi {
-  /** Stores the captured Job Offer, or returns the one already stored for this posting. */
-  capture(jobOffer: CapturedJobOffer): Promise<Result<{ jobOffer: JobOffer }, "invalid" | "unreachable">>;
+  /**
+   * Stores the captured Job Offer, or returns the one already stored for this posting. "refused": the web app does not
+   * recognise this installation (403: its chrome-extension:// origin is not in EXTENSION_ORIGINS, as for a zip loaded
+   * unpacked from a folder whose id it does not list), whatever the page; "invalid": the posting itself was refused.
+   */
+  capture(jobOffer: CapturedJobOffer): Promise<Result<{ jobOffer: JobOffer }, "invalid" | "refused" | "unreachable">>;
   /** Reads a CV file (PDF or .docx), and the Search Criteria it suggests, with the reading's Provenance when the AI read it. The web app keeps nothing. */
   readCv(file: File): Promise<Result<{ cv: CvContent; searchCriteria: SearchCriteriaDraft; provenance?: CvReadingProvenance }, ReadCvError>>;
   /**
@@ -149,6 +153,7 @@ export function createJobbboxApi(
     async capture(jobOffer) {
       const reply = await postJson("/api/job-offers", jobOffer);
       if (!reply) return { ok: false, error: "unreachable" };
+      if (reply.status === 403) return { ok: false, error: "refused" };
       if (reply.status !== 200) return { ok: false, error: "invalid" };
       return { ok: true, jobOffer: reply.body as unknown as JobOffer };
     },

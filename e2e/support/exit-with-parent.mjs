@@ -15,22 +15,27 @@
 // with: a shell in between, which has no watchdog of its own, cannot keep next-server
 // running after web-server.mjs is gone.
 import { fileURLToPath } from "node:url";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const CHECK_EVERY_MS = 500;
 const WATCHED = "E2E_EXIT_WITH_PID";
 
+/** Whether this machine has procfs: Linux does, macOS does not. */
+const procfs = existsSync("/proc/self/stat");
+
 const alive = (pid) => {
   try {
     process.kill(pid, 0);
-    // A launcher adopted by a container's init can stay a zombie: kill(pid, 0) alone calls it alive.
-    try {
-      return readFileSync(`/proc/${pid}/stat`, "utf8").split(") ")[1]?.[0] !== "Z";
-    } catch {
-      return true; // No procfs (macOS), or no permission to read it: retain the portable liveness check.
-    }
   } catch (error) {
     return error.code === "EPERM";
+  }
+  if (!procfs) return true; // The portable liveness check alone.
+  // A launcher adopted by a container's init can stay a zombie: kill(pid, 0) alone calls it alive.
+  try {
+    return readFileSync(`/proc/${pid}/stat`, "utf8").split(") ")[1]?.[0] !== "Z";
+  } catch (error) {
+    // Reaped since kill(pid, 0): gone (#1033). No permission to read it: retain the portable liveness check.
+    return error.code !== "ENOENT";
   }
 };
 

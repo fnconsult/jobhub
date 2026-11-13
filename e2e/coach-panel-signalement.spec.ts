@@ -180,8 +180,11 @@ test.describe("Signalement from a conversation (#345, #608)", () => {
     // full screen (#608).
     await page.setViewportSize({ width: 375, height: 812 });
     const topbar = page.locator(".topbar");
-    const names = await topbar.locator("button:visible, a:visible").evaluateAll((elements) => elements.map((element) => element.getAttribute("title") ?? (element as HTMLElement).innerText.trim()));
-    expect(names).toEqual([fr.sidebar.menu, fr.aiActivity.label, fr.sidebar.moreActions]);
+    // Polled: the compact Top Bar is drawn once the page hears its new width (matchMedia's `change`, at the browser's next
+    // rendering step, then React's render), after setViewportSize returns; until then app.css already hides the wide
+    // bar's buttons, and a single read finds none (#1029).
+    const names = () => topbar.locator("button:visible, a:visible").evaluateAll((elements) => elements.map((element) => element.getAttribute("title") ?? (element as HTMLElement).innerText.trim()));
+    await expect.poll(names).toEqual([fr.sidebar.menu, fr.aiActivity.label, fr.sidebar.moreActions]);
     await expect(topbar.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(topbar.getByRole("button", { name: s.open })).toHaveCount(0);
     await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();

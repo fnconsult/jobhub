@@ -91,8 +91,14 @@ describe("the Job Search a page follows as its own (#1001)", () => {
 
   it("done with no Job Offer that matches, once the page has those it found, names its Profile for what to do next (#1006)", () => {
     const action = searchAction();
-    const ended = (status: "done" | "failed" | "stopped") =>
-      nextLive([action], { type: "job_searches", running: [], ended: [{ jobSearchId: id, outcome: { status, at: "2026-11-12T09:01:00.000Z", found: 4, steps: [], ...(status === "failed" ? { failure: "timeout", step: null } : {}) } }], at })[0]!;
+    const endedAt = "2026-11-12T09:01:00.000Z";
+    type Outcome = Extract<LiveChange, { type: "job_searches" }>["ended"][number]["outcome"];
+    const outcomes: Record<"done" | "stopped" | "failed", Outcome> = {
+      done: { status: "done", at: endedAt, found: 4, steps: [] },
+      stopped: { status: "stopped", at: endedAt, found: 4 },
+      failed: { status: "failed", failure: "timeout", at: endedAt, step: null, found: 4 },
+    };
+    const ended = (status: keyof typeof outcomes) => nextLive([action], { type: "job_searches", running: [], ended: [{ jobSearchId: id, outcome: outcomes[status] }], at })[0]!;
     // It analysed 4: not until the page has them, they might match.
     expect(followedSearchEntry(followed({ profileId: "p1" }), ended("done"))!.noMatch).toBeUndefined();
     expect(followedSearchEntry(followed({ profileId: "p1", settled: true }), ended("done"))!.noMatch).toEqual({ profileId: "p1" });

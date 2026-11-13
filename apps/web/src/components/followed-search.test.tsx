@@ -175,7 +175,7 @@ describe("the onboarding's page follows its offered Job Search (#1001)", () => {
     const user = userEvent.setup();
     const page = show();
     act(() => page.live().jobSearches(running(0), []));
-    act(() => page.live().jobSearches([], [{ jobSearchId: id, outcome: { status: "failed", at: new Date().toISOString(), found: 0, steps: [], failure: "timeout", step: null } }]));
+    act(() => page.live().jobSearches([], [{ jobSearchId: id, outcome: { status: "failed", at: new Date().toISOString(), found: 0, failure: "timeout", step: null } }]));
     const activity = screen.getByRole("complementary", { name: "Activité" });
     const row = await within(activity).findByRole("button", { name: /Recherche d'offres · Directrice financière/ });
     expect(row.textContent).toMatch(/Échec à \d{2}:\d{2}/);

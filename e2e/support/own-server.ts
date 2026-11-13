@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { expect, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { fromNewAddress, requestSignInLink, setUpTwoStepVerificationIfAsked } from "./candidate";
 import { emailsIn, linkIn } from "./mailbox";
@@ -22,6 +22,18 @@ const adminClient = async (databaseUrl: URL) => {
 };
 
 /**
+ * « Espace coach v2 » (ADR-0107) for a server started by a spec of the coach-v2 project: on, through env, since its fresh
+ * database has none of the suite's Platform Settings. Every other project's servers keep it off, its default.
+ */
+function coachSpaceV2Env(): NodeJS.ProcessEnv {
+  try {
+    return test.info().project.name === "coach-v2" ? { COACH_SPACE_V2: "true" } : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
  * The built web app on E2E_WEB_PORT + `offset`, on a fresh database named after the suite's with `suffix`, with `env`
  * over the suite's environment (DATABASE_URL and APP_URL are set here). Its emails are in its own output.
  */
@@ -36,7 +48,7 @@ export async function startOwnServer(offset: number, suffix: string, env: NodeJS
   await admin.query(`CREATE DATABASE ${name}`);
   await admin.end();
 
-  const serverEnv: NodeJS.ProcessEnv = { ...process.env, NEXT_TELEMETRY_DISABLED: "1", ...env, DATABASE_URL: databaseUrl.toString(), APP_URL: origin };
+  const serverEnv: NodeJS.ProcessEnv = { ...process.env, NEXT_TELEMETRY_DISABLED: "1", ...coachSpaceV2Env(), ...env, DATABASE_URL: databaseUrl.toString(), APP_URL: origin };
   const migrate = spawnSync("npm", ["run", "db:migrate"], { env: { ...serverEnv, NODE_OPTIONS: "" }, encoding: "utf8" });
   if (migrate.status !== 0) throw new Error(`migration failed:\n${migrate.stdout}\n${migrate.stderr}`);
 

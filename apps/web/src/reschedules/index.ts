@@ -21,7 +21,7 @@ import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
 
 /** Who changed an Agenda Item's date: the Candidate, or for a Coaching Session its Human Coach. */
-export type RescheduledBy = "candidate" | "coach";
+export type RescheduledBy = "candidate" | "coach" | "cal_com";
 
 /** One entry of a Reschedule history. `newAt` is null for a Coaching Session's cancellation: its date was cleared. */
 export interface Reschedule {

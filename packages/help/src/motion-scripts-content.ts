@@ -31,7 +31,8 @@ import {
   type MotionTarget,
   type MotionViewer,
 } from "./motion-scripts";
-import { HELP_LOCALES, type HelpLocale } from "./types";
+import { HELP_SETTINGS_STATES, servedArticles } from "./requirements";
+import { HELP_LOCALES, type HelpArticle, type HelpLocale } from "./types";
 
 export type MotionScripts = Record<HelpLocale, MotionScript[]>;
 
@@ -261,22 +262,28 @@ export function readAppRoutes(appDir: string = webAppDir): string[] {
  * Tutorial, and each declared route is a page of the app. Throws `HelpContentError` listing every problem.
  */
 export function checkMotionLinks(content: HelpContent, scripts: MotionScripts, appRoutes: readonly string[]): void {
-  const problems: string[] = [];
+  const problems = new Set<string>();
   for (const locale of HELP_LOCALES) {
     const ids = new Set(scripts[locale].map((script) => script.id));
-    const owners = new Map<string, string>();
-    for (const article of content[locale]) {
-      if (!article.motion) continue;
-      if (!ids.has(article.motion)) problems.push(`${locale}/${article.id}.md: its motion ${article.motion} names no Motion Script (motions/${locale}/${article.motion}.md)`);
-      const other = owners.get(article.motion);
-      if (other) problems.push(`${locale}/${article.id}.md: the Motion Script ${article.motion} already belongs to ${other}`);
-      owners.set(article.motion, article.id);
+    // Checked « Espace coach v2 » off and on (#867): a Tutorial and its `.v2` may name the same script, each in its state.
+    for (const settings of HELP_SETTINGS_STATES) {
+      const owners = new Map<string, string>();
+      const file = (article: HelpArticle) => `${locale}/${article.id}.md${article.requires ? ` (requires ${article.requires})` : ""}`;
+      for (const article of servedArticles(content[locale], settings)) {
+        if (!article.motion) continue;
+        if (!ids.has(article.motion)) problems.add(`${file(article)}: its motion ${article.motion} names no Motion Script (motions/${locale}/${article.motion}.md)`);
+        const other = owners.get(article.motion);
+        if (other) problems.add(`${file(article)}: the Motion Script ${article.motion} already belongs to ${other}`);
+        owners.set(article.motion, article.id);
+      }
+      for (const script of scripts[locale])
+        if (!owners.has(script.id))
+          problems.add(`motions/${locale}/${script.id}.md: no Tutorial names it in its motion field${settings.coachSpaceV2 ? " (« Espace coach v2 » on)" : ""}`);
     }
     for (const script of scripts[locale]) {
-      if (!owners.has(script.id)) problems.push(`motions/${locale}/${script.id}.md: no Tutorial names it in its motion field`);
       for (const route of script.routes)
-        if (!appRoutes.includes(withoutEnglishPrefix(route))) problems.push(`motions/${locale}/${script.id}.md: route ${route} is no page of the web app`);
+        if (!appRoutes.includes(withoutEnglishPrefix(route))) problems.add(`motions/${locale}/${script.id}.md: route ${route} is no page of the web app`);
     }
   }
-  if (problems.length > 0) throw new HelpContentError(problems.join("\n"));
+  if (problems.size > 0) throw new HelpContentError([...problems].join("\n"));
 }

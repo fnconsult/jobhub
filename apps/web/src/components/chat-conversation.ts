@@ -12,6 +12,7 @@ import type { Provenance } from "@jobhub/shared";
 
 /** A message as either server gives it back: the person's own (`candidate`, `administrator`), or the AI's reply. */
 export type ServerMessage = {
+  humanCoach?: CoachMessage["humanCoach"];
   from: "candidate" | "coach" | "administrator" | "assistant";
   text: string;
   blocked?: true;
@@ -31,6 +32,7 @@ export type ServerMessage = {
 export const asShownMessage = (message: ServerMessage): CoachMessage => ({
   from: message.from === "candidate" || message.from === "administrator" ? "candidate" : "coach",
   text: message.text,
+  ...(message.humanCoach ? { humanCoach: message.humanCoach } : {}),
   ...(message.blocked ? { blocked: true as const } : {}),
   ...(message.jobOffer ? { jobOffer: message.jobOffer } : {}),
   ...(message.at ? { provenance: message.provenance ?? null, at: message.at, ...(message.sent !== undefined ? { sent: message.sent } : {}) } : {}),

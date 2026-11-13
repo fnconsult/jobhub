@@ -15,3 +15,5 @@ Each row shows the date, the message, the page it came from, the Jobbbox version
 The Candidate sees the reply signed « L'équipe Jobbbox », never with your name, and a notification when the team replied or marked it « Handled ». A question is marked « Handled » only once replied to. Feedback cannot be deleted from the back office.
 
 Support and super-admins change the status and reply. Help editors see the questions only, without the Candidate's email or Plan. Each status change and each reply written are recorded in Administrator actions, without their words.
+
+“Coaching content reports”, available to people allowed to handle feedback, also receives requests without an account. Every removal, suspension or keep decision requires a reason notified to the reporter and content owner. The reporter’s contact details and original explanation are not shared with the owner.

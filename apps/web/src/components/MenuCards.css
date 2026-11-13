@@ -40,3 +40,10 @@ table[data-row-links] tbody th a::after {
 .chat-card > .ds-card + .ds-card {
   margin-top: var(--space-4);
 }
+
+/* Mes coachs humains with « Espace coach v2 » on (#867): its sessions and its Human Coaches use the card's whole width,
+   so a line's buttons (« Donner l'accès à … ») fit on one line on a phone. */
+.coaching-list {
+  padding: 0;
+  list-style: none;
+}

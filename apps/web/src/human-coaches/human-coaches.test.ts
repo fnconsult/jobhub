@@ -339,7 +339,9 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       expect(await coaches.sessions(marie)).toEqual([expect.objectContaining(expected)]);
 
       await coaches.scheduleSession(marie, session.id, { scheduledAt: "2026-10-23T10:00" });
-      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: new Date("2026-10-23T08:00:00.000Z"), durationMinutes: null, videoLink: null, note: null })]);
+      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({ scheduledAt: new Date("2026-10-23T08:00:00.000Z"), durationMinutes: 60, videoLink: "https://meet.google.com/abc-defg-hij", note: "Préparer mon pitch." })]);
+      await coaches.scheduleSession(marie,session.id,{scheduledAt:"2026-10-23T10:00",durationMinutes:null,videoLink:null,note:null});
+      expect(await coaches.sessions(marie)).toEqual([expect.objectContaining({durationMinutes:null,videoLink:null,note:null})]);
     });
 
     it("refuses a missing or unreadable date, a video link that is not http(s) and a duration that is not a number of minutes", async () => {

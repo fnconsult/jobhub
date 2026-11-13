@@ -25,7 +25,7 @@ export function RescheduleHistory({ reschedules, coachName, dateTime, t }: { res
         <summary>{t("agendaChanges.history")}</summary>
         <ol>
           {reschedules.map((entry, index) => {
-            const by = entry.by === "coach" ? (coachName ?? t("agendaChanges.byCoach")) : t("agendaChanges.byYou");
+            const by = entry.by === "cal_com"?t("coachingBooking.viaCal"):entry.by === "coach" ? (coachName ?? t("agendaChanges.byCoach")) : t("agendaChanges.byYou");
             return (
               <li key={index}>
                 {entry.newAt

@@ -23,7 +23,7 @@ export type ConversationContext = { messages: number; tokens: number };
 export type CoachProposalCard = z.infer<typeof coachProposalCardSchema>;
 
 /** What a page's conversation is about (ADR-0070): one of the Candidate's objects, or a Sidebar menu. */
-export type SubjectRef = { kind: "application" | "profile" | "job_search" | "job_digest" | "menu"; id: string };
+export type SubjectRef = { kind: "application" | "profile" | "job_search" | "job_digest" | "coaching_session" | "menu"; id: string };
 
 /** What goes with the Candidate's message (the route's body). */
 export type CoachRequest = {

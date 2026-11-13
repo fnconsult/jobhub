@@ -126,7 +126,7 @@ export function createLegalTextNotices(database: Pool, deps: LegalTextNoticesDep
       const at = now();
       let emails = 0;
       let failed = 0;
-      for (const version of legalNoticesDue(parisDay(at), written("fr"))) {
+      for (const version of legalNoticesDue(parisDay(at), written("fr")).filter((entry) => entry.text !== "contrat-coach")) {
         const { rows } = await database.query<{ id: string; email: string; interfaceLanguage: string | null; preferredName: string | null }>(
           `SELECT c.id, c.email, c."interfaceLanguage", c.preferred_name AS "preferredName" FROM candidate c
             WHERE c."emailVerified"

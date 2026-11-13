@@ -7,16 +7,21 @@ import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { publicContactEmail } from "@/public-pages/contact-email";
 import { publicMetadata } from "@/public-pages/indexing-server";
+import { servedHelpArticles } from "@/coach-help/server";
 import { routes } from "@/routes";
 import { helpArticleLinks, HelpArticleList, HelpBreadcrumb, topicOrNotFound } from "../../help-centre";
 
 type Params = { params: Promise<{ topic: string; article: string }> };
 
-/** The public article an address names, in the page's language; a 404 for any other, an Administrator's above all. */
+/**
+ * The public article an address names, in the page's language, as served under « Espace coach v2 » (#867): an article
+ * the epic added is a 404 while it is off, and one it rewrote shows main's text; a 404 for any other, an Administrator's
+ * above all.
+ */
 async function shown({ params }: Params) {
   const { topic, article: id } = await params;
   const locale = await getRequestLocale();
-  const found = helpCentreArticle(topicOrNotFound(topic), id, locale);
+  const found = helpCentreArticle(topicOrNotFound(topic), id, locale, servedHelpArticles(locale));
   if (!found) notFound();
   return found;
 }
@@ -35,7 +40,7 @@ export async function generateMetadata(props: Params): Promise<Metadata> {
 export default async function HelpArticlePage(props: Params) {
   const article = await shown(props);
   const t = await getServerT(article.locale);
-  const related = relatedArticles(article);
+  const related = relatedArticles(article, { from: servedHelpArticles(article.locale) });
   return (
     <PublicSite current="aide">
       <main id="main" className="ds-site__page">

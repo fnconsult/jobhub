@@ -50,6 +50,10 @@ describe("threadReplies (#808): the AI Coach replies the page's thread shows, as
   });
 });
 
+it("keeps a Human Coach's signed Session Report out of AI Activity", () => {
+  expect(threadReplies([{ from: "coach", text: "Session Report", at: "2026-11-10T15:00:00Z", humanCoach: { id: "h", name: "Sophie Martin", photoUrl: null } }])).toEqual([]);
+});
+
 describe("messageAnchor", () => {
   it("names a reply's place in the thread by its message, for « Voir dans la conversation »", () => {
     expect(messageAnchor("2026-11-05T14:00:00.000Z")).toBe('[data-message-id="2026-11-05T14:00:00.000Z"]');

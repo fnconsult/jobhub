@@ -15,3 +15,5 @@ Chaque ligne montre la date, le message, la page d'où il vient, la version de J
 Le candidat voit la réponse signée « L'équipe Jobbbox », jamais avec votre nom, et une notification quand l'équipe a répondu ou marqué « Traité ». Une question ne se marque « Traité » qu'une fois répondue. Un signalement ne se supprime pas depuis le back office.
 
 Le Support et les super-admins changent le statut et répondent. Les rédacteurs de l'aide voient les questions seulement, sans l'e-mail ni l'offre du candidat. Chaque statut changé et chaque réponse écrite sont inscrits dans Actions des administrateurs, sans leurs mots.
+
+La rubrique « Signalements de contenus de coaching », réservée aux personnes qui peuvent traiter les signalements, reçoit aussi les demandes sans compte. Toute décision de retrait, suspension ou maintien exige un motif notifié au signaleur et au responsable du contenu. Les coordonnées et l’explication originale du signaleur ne sont pas transmises au responsable.

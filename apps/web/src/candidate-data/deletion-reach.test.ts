@@ -7,7 +7,7 @@ import { CGU_RETENTION_YEARS, createAcceptances, purgeExpiredAcceptances } from 
 import { createJobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
-import { EXPORTED_TABLES, OPERATIONS_RECORD_TABLES } from "./index";
+import { EXPORTED_TABLES, OPERATIONS_RECORD_TABLES, RETAINED_BUSINESS_TABLES } from "./index";
 
 /** Tables kept when a Candidate is deleted (ADR-0010): shared, not personal data. */
 const KEPT = ["plan_quota"];
@@ -62,7 +62,7 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
 
   /** The tables of the Candidate's own data: those tied to them, but Jobbbox's operations record. */
   function candidateDataTables(): string[] {
-    return [...tablesTiedToCandidate()].filter((table) => !(table in OPERATIONS_RECORD_TABLES));
+    return [...tablesTiedToCandidate()].filter((table) => !(table in OPERATIONS_RECORD_TABLES)&&!(table in RETAINED_BUSINESS_TABLES));
   }
 
   it("every table tied to a Candidate, directly or through their Profiles, Applications..., is deleted with them", () => {
@@ -111,6 +111,15 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
       expect(foreignKeys.filter((key) => key.references === table)).toEqual([]);
     }
     expect(Object.keys(OPERATIONS_RECORD_TABLES)).toEqual(expect.arrayContaining(["back_office_audit", "legal_acceptance"]));
+  });
+
+  it("retained business records detach every Candidate/workspace foreign key and document their own erasure",()=>{
+    for(const table of Object.keys(RETAINED_BUSINESS_TABLES)){
+      expect(RETAINED_BUSINESS_TABLES[table]).toMatch(/#[0-9]+/);
+      expect(EXPORTED_TABLES).toHaveProperty(table);
+      const personalLinks=foreignKeys.filter(key=>key.table===table&&tablesTiedToCandidate().has(key.references)&&!(key.references in RETAINED_BUSINESS_TABLES));
+      expect(personalLinks.every(key=>key.onDelete==='set null')).toBe(true);
+    }
   });
 
   it("the Back Office Audit is not exported; the Acceptances are, while the account lives (#510)", () => {

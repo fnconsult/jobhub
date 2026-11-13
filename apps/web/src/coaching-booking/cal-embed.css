@@ -1,0 +1,12 @@
+/* A Cal.com booking page embedded in Jobbbox (#867): the column's width, tall enough for its month view. In rem, so it
+   grows with the Text Size. */
+.cal-embed {
+  width: 100%;
+  min-width: 0;
+  min-height: 37.5rem;
+}
+
+/* The paid session's booking page scrolls in its own frame rather than widening the page. */
+.cal-embed--booking {
+  overflow: auto;
+}

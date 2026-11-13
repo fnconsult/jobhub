@@ -216,3 +216,15 @@ describe("this package's Legal Text Versions", () => {
     expect(readFileSync(legalTextsModulePath, "utf8")).toBe(renderLegalTextsModule(readLegalTexts()));
   });
 });
+
+
+describe("human-authored coaching rollout metadata",()=>{
+ it("carries explicit capabilities into the immutable French-file registry and requires equal translation coverage",()=>{
+  const withCoverage=(markdown:string)=>markdown.replace("summary:","coaching_capabilities: [stripe-connect, marketplace]\nsummary:");
+  const result=readLegalTexts(legalDir({"cgu/2026-12-01.fr.md":withCoverage(cguFr),"cgu/2026-12-01.en.md":withCoverage(cguEn)}));
+  expect(()=>readLegalTexts(legalDir({"cgu/2026-12-01.fr.md":withCoverage(cguFr).replace("change: substantielle","change: mineure"),"cgu/2026-12-01.en.md":withCoverage(cguEn).replace("change: substantielle","change: mineure")}))).toThrow(/require a substantial version/);
+  expect(result.registry[0]?.coachingCapabilities).toEqual(["stripe-connect","marketplace"]);
+  expect(()=>readLegalTexts(legalDir({"cgu/2026-12-01.fr.md":withCoverage(cguFr),"cgu/2026-12-01.en.md":cguEn}))).toThrow(/coaching_capabilities differ/);
+  expect(()=>readLegalTexts(legalDir({"cgu/2026-12-01.fr.md":withCoverage(cguFr).replace("stripe-connect","invented-capability"),"cgu/2026-12-01.en.md":withCoverage(cguEn)}))).toThrow(/supported coaching rollout capabilities/);
+ });
+});

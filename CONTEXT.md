@@ -104,6 +104,10 @@ _Avoid_: Comment, annotation
 A Human Coach's pages, under their own Sidebar (Aujourd'hui, Mes Candidates, Mes séances, Disponibilités, Profil public, Revenus, Contrat, Aide), each a single column of cards (ADR-0099): today's sessions and what needs action; each Candidate's page (their sessions with this coach and the coach's Private Coach Notes; under Coach Access only, their Profiles, Applications and Tailored Documents, read-only, and the form for Coach Reviews); their own Coaching Sessions (the Candidate shown as Prénom and Nom initial, « Marie D. », plus « se fait appeler Mimi » when the Preferred Name differs from the Prénom, no Coach Access needed; the Coach Access pages show « Marie Dupont · se fait appeler Mimi », falling back to the account's name, then to the email), before, during (Shared Reading) and after (Session Report); availability, their Coach Page, Coach Earnings and the B2B contract to accept by version. They see no Agenda and no Coach Conversation. An Association has a space of the same kind, without Candidates.
 _Avoid_: Coach dashboard
 
+**Espace coach v2**:
+The Platform Setting (`COACH_SPACE_V2`, ADR-0107) the Human Coach epic (#867) is built behind, off by default, in Paramètres' « Environnement » tab. Off, Coaches, Candidates, visitors, e-mails, push notifications, the worker, the apps and the Help Centre see what they saw before the epic: the former Coach space (its Coaching Sessions and Coach Access list), no Coach Enrolment, Association, Coach Page, Coaching Offer, booking, Shared Reading or Session Report, and the epic's new routes answer 404. On, the Coach space above and the marketplace. The Back Office's coaching pages, its Outils and its setup do not depend on it. Turning it on approves nothing: the legal, provider and fiscal gates still apply. #888 turns it on, then retires the former Coach space and the setting.
+_Avoid_: Coach space flag, feature flag
+
 **Retired Human Coach**:
 A Human Coach no longer listed to Candidates and who can no longer read anything. Past Coaching Sessions and Coach Reviews are kept.
 _Avoid_: Deleted coach

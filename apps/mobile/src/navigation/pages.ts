@@ -45,6 +45,7 @@ export const paths = {
   withdrawal: (contract: string) => `/abonnement/retractation?contrat=${encodeURIComponent(contract)}`,
   legal: "/legal",
   coachSpace: "/espace-coach",
+  associationSpace:"/espace-association",
   /** Réglages de l'app, the device's own settings: the app's alone, the web has no such page. */
   appSettings: "/reglages",
   /** The capture screen of Share capture (#697), which the share sheet opens: the app's alone too. */
@@ -123,6 +124,7 @@ export function pageFor(
   if (under(pathname, paths.account)) return page(t("nav.account"), null);
   if (under(pathname, paths.subscription)) return page(t("account.plan"), null);
   if (under(pathname, paths.legal)) return page(t("legal.documentsNav"), null);
+  if (under(pathname, paths.associationSpace)) return page(t("association.title"),null);
   if (under(pathname, paths.coachSpace)) return page(t("account.coachSpace"), null);
   if (under(pathname, paths.appSettings)) return page(t("mobile.appSettings"), null);
   if (under(pathname, paths.share)) return page(t("shareCapture.title"), null);

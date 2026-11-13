@@ -1,3 +1,4 @@
+import {JOBBBOX_SELLER} from "../coaching-offers";
 import type { LegalTextVersionRecord } from "@jobhub/help";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { acceptancesOf, createAcceptances, migrateAcceptances } from "../acceptances";
@@ -52,6 +53,14 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
     await t.stop();
   }, 60_000);
 
+  it('rejects a Peer quote repriced above the original payment before creating any Checkout',async()=>{
+    const candidate={id:'candidate',email:'peer-buyer@example.test'};
+    const sale={offerId:COACH.id,coachId:COACH.id,seller:JOBBBOX_SELLER,durationMinutes:60,amount:8000,currency:'eur',commissionBps:0};
+    const peerOrders=createOrders(t.database,{billing:t.billing,coaches:{list:async()=>[COACH]},offers:{sale:async()=>sale,quote:async()=>({id:'quote',sale:{...sale,amount:10000}})},peerOrderCap:async()=>({amount:9000,currency:'eur'}),acceptances:createAcceptances(t.database,{registry:()=>registry,secret,now:()=>t.clock.now}),mailer:{send:async()=>{}},baseURL:'https://example.test',registry:()=>registry});
+    expect(await peerOrders.terms(candidate.id,{kind:'coachingSession',coachId:COACH.id,remedyId:'owned-remedy'})).not.toBeNull();
+    expect(await peerOrders.place(candidate,{kind:'coachingSession',coachId:COACH.id,remedyId:'owned-remedy'},{cgv:CGV.version},'fr')).toEqual({ok:false,error:'not_orderable'});
+    expect(checkoutCalls()).toHaveLength(0);
+  });
   const ticked = { cgv: CGV.version, immediateExecution: "yes" };
   const checkoutCalls = () => t.stripe.callsTo("/v1/checkout/sessions");
 
@@ -213,6 +222,7 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
 
       expect(sent).toHaveLength(1);
       expect(sent[0]!.subject).toBe(`Your order is confirmed: a coaching session with ${COACH.name}`);
+      expect(sent[0]!.text).toContain("Sold by Jobbbox");
       expect(sent[0]!.text).toContain("refunded in full");
       expect(sent[0]!.text).not.toContain("You asked for the service to start at once");
       expect(sent[0]!.text).toContain("https://app.jobbbox.fr/agenda");

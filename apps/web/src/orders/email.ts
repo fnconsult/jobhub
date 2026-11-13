@@ -1,3 +1,4 @@
+import type {CoachingSeller} from "@jobhub/shared/coaching-offers";
 import { LEGAL_TEXT_ANCHORS } from "@jobhub/help";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import type { BillingInterval } from "../billing";
@@ -13,6 +14,10 @@ const WITHDRAWAL_FORM_ANCHOR = LEGAL_TEXT_ANCHORS.cgv[0];
 /** What the Order Confirmation says of an Order Stripe confirmed. */
 export interface OrderConfirmation {
   kind: "plan" | "coachingSession";
+  /** Who sold the Coaching Session (marketplace, #867): none while « Espace coach v2 » is off (ADR-0107), as before the epic. */
+  seller?:CoachingSeller|undefined;
+  /** Whether « Espace coach v2 » is on (ADR-0107). False: the email says no seller, whatever `seller` holds, as before the Human Coach epic. */
+  coachSpaceV2?: boolean;
   /** The Plan's name in this language, or the Human Coach's. */
   subject: string;
   paidAt: Date;
@@ -54,6 +59,7 @@ export function orderConfirmationEmail(order: OrderConfirmation, language: Local
         card: {
           title,
           details: [
+            ...(order.seller&&order.coachSpaceV2!==false?[t("coachingOffers.soldBy",{name:order.seller.name}),...(order.seller.kind!=="jobbbox"?[`${order.seller.status} · SIRET ${order.seller.siret}`,t("coachingOffers.marketplace")]:[])]:[]),
             ...(price ? [t("orders.email.price", { price })] : []),
             t("orders.email.paid", { amount: money(order.paid.amount, order.paid.currency, i18n.language) }),
             !plan ? t("orders.renewal.session") : order.price?.interval ? t("orders.renewal.plan", { every: t(`orders.every.${order.price.interval}`) }) : t("orders.renewal.planUnknown"),

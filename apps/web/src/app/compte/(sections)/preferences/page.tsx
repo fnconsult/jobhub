@@ -1,3 +1,6 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { TimeZoneForm } from "@/coaching-time/TimeZoneForm";
+import { getCoachingTimeZones } from "@/coaching-time/server";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getCoachProposalsDisplays } from "@/coach-proposals-display/server";
 import { AccountSettings } from "@/components/AccountSettings";
@@ -21,10 +24,14 @@ export default async function AccountPreferencesPage() {
   if (!candidate) return signInRedirect();
   const t = await getServerT();
   const [nouveautesEmail, coachProposalsDisplay] = await Promise.all([getNouveautesEmails().setting(candidate.id), getCoachProposalsDisplays().of(candidate.id)]);
+  // The coaching time zone is part of « Espace coach v2 » (ADR-0107): off, not offered, as before it.
+  const coachSpaceV2 = coachSpaceV2On();
+  const timeZone = coachSpaceV2 ? await getCoachingTimeZones().candidate(candidate.id) : null;
   return (
     <Card title={t("account.sections.preferences")} headingId={PREFERENCES_TITLE_ID}>
       <div className="stack">
         <AccountSettings interfaceLanguage={candidate.interfaceLanguage} />
+        {coachSpaceV2 ? <TimeZoneForm value={timeZone} /> : null}
         <ThemeChoice />
         <TextSizeSlider />
         <NouveautesEmailForm subscribedAt={nouveautesEmail.subscribedAt?.toISOString() ?? null} />

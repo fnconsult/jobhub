@@ -1,3 +1,6 @@
+import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { randomUUID } from "node:crypto";
+import { getCoachingCancellations, cancellationPolicyOn } from "@/coaching-cancellations/server";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -12,6 +15,15 @@ export async function POST(request: Request, { params }: RouteContext<"/api/coac
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { sessionId } = await params;
+  // The cancellation policy is part of « Espace coach v2 » (ADR-0107): off, a cancellation is the one before it.
+  if (coachSpaceV2On() && (await cancellationPolicyOn())) {
+    const body = await request.json().catch(() => ({}));
+    const key = typeof body.requestKey === "string" ? body.requestKey : randomUUID();
+    const result = await getCoachingCancellations().candidateCancel(candidate.id, sessionId, key);
+    return NextResponse.json(result.ok ? { id: sessionId, cancellationId: result.cancellation.id } : result, {
+      status: result.ok ? 200 : result.error === "not_found" ? 404 : 409,
+    });
+  }
   const result = await getHumanCoaches().cancelSession(candidate.id, sessionId);
   if (result.ok) return NextResponse.json({ id: result.session.id });
   return NextResponse.json({ error: "not_found" }, { status: 404 });

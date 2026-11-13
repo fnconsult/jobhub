@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { Client } from "pg";
+import { TEST_BUILD_EXTENSION_ORIGIN } from "@jobhub/shared/extension-test-build";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { exitHref } from "./support/exit-page";
@@ -92,6 +93,13 @@ test.describe("Platform Settings (Paramètres)", () => {
     await expect(row(page, "MAIL_TRANSPORT").getByRole("cell").nth(0)).toHaveText("console");
     await expect(row(page, "MAIL_TRANSPORT").getByRole("cell").nth(1)).toHaveText(texts.environment.kinds.read_only);
     await expect(page.getByText(texts.envOnly.mailToConsole)).toHaveCount(0);
+    // EXTENSION_ORIGINS (ADR-0033, 2026-11-13): the e2e build's origin, and the test zip's trusted automatically outside
+    // Production; set at deployment, never here.
+    const extensionOrigins = row(page, "EXTENSION_ORIGINS");
+    await expect(extensionOrigins.getByRole("cell").nth(0)).toContainText("chrome-extension://");
+    await expect(extensionOrigins.locator('[data-test-build="automatic"]')).toHaveText(tr(texts.envOnly.testBuild.automatic, { origin: TEST_BUILD_EXTENSION_ORIGIN }));
+    await expect(extensionOrigins.getByRole("cell").nth(1)).toHaveText(texts.environment.kinds.deployment_only);
+    await expect(extensionOrigins.getByRole("button", { name: texts.change })).toHaveCount(0);
     const databaseUrl = await row(page, "DATABASE_URL").getByRole("cell").nth(0).innerText();
     expect(new URL(databaseUrl).password).toBe("");
     // Links to the settings with a section of their own; the keys are on each provider's sheet now.

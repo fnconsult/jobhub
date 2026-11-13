@@ -702,9 +702,11 @@
         "extensionVersion": "Version de l'extension",
         "apiVersion": "Version d'API servie",
         "extensionId": "Identifiant de l'extension",
-        "recognised": "Ce serveur reconnaît ce zip : une fois chargé, l'extension capture et envoie ses erreurs à Jobbbox.",
+        "recognisedListed": "Ce serveur reconnaît ce zip : son origine est listée dans le réglage de déploiement EXTENSION_ORIGINS. Une fois chargé, l'extension capture et envoie ses erreurs à Jobbbox.",
+        "recognisedAutomatic": "Ce serveur reconnaît ce zip automatiquement, hors production : une fois chargé, l'extension capture et envoie ses erreurs à Jobbbox, sans rien ajouter à EXTENSION_ORIGINS.",
         "notRecognisedTitle": "Ce serveur ne reconnaît pas encore ce zip",
-        "notRecognised": "Une fois chargée, l'extension lirait votre session mais ne pourrait rien capturer : Jobbbox refuserait ses envois. Ajoutez {{origin}} au réglage de déploiement EXTENSION_ORIGINS de cet environnement, puis redéployez.",
+        "notRecognised": "Une fois chargée, l'extension lirait votre session mais ne pourrait rien capturer : Jobbbox refuserait ses envois. En production, ce zip n'est reconnu que si {{origin}} est ajouté au réglage de déploiement EXTENSION_ORIGINS, puis l'environnement redéployé.",
+        "seeEnvironment": "Paramètres › Environnement montre aussi EXTENSION_ORIGINS et pourquoi ce zip est reconnu ou non.",
         "download": "Télécharger {{zip}}",
         "unavailable": "Ce serveur ne sert pas de zip de l'extension : seule l'image d'un déploiement contient {{zip}}. En local, construisez-le avec npm run zip -w @jobhub/extension (ou zip:beta).",
         "stepsLabel": "Charger l'extension dans Chrome",
@@ -2679,7 +2681,12 @@
         "unreadable": "Défini, illisible",
         "keyVersions": "Défini (versions : {{versions}})",
         "mailToConsole": "MAIL_TRANSPORT=console : les e-mails ne partent pas, ils sont seulement écrits dans la sortie du serveur.",
-        "why": "Pourquoi ces réglages restent-ils dans l'environnement ?"
+        "why": "Pourquoi ces réglages restent-ils dans l'environnement ?",
+        "testBuild": {
+          "listed": "Origine du zip de test ({{origin}}) : listée",
+          "automatic": "Origine du zip de test ({{origin}}) : automatique hors production",
+          "not_recognised": "Origine du zip de test ({{origin}}) : non reconnue"
+        }
       },
       "elsewhere": {
         "title": "Réglés dans leur propre section",
@@ -2808,7 +2815,8 @@
         "why": "Pourquoi dans l'environnement",
         "kinds": {
           "bootstrap": "Nécessaire au démarrage, avant que la base de données soit lue, ou pour ouvrir ce qu'elle garde.",
-          "read_only": "Encore lu dans l'environnement : pas encore réglable dans le back office."
+          "read_only": "Encore lu dans l'environnement : pas encore réglable dans le back office.",
+          "deployment_only": "Réglé au déploiement, jamais dans le back office : il décide quelles extensions agissent avec la session d'un candidat."
         },
         "retired": {
           "title": "Variables qui ne servent plus",
@@ -2868,6 +2876,7 @@
         "REVIEW_SIGN_IN": "Code de revue des stores allumé (on)",
         "REVIEW_SIGN_IN_EMAILS": "Comptes de démonstration du code de revue des stores",
         "REVIEW_SIGN_IN_CODE": "Code de revue des stores",
+        "EXTENSION_ORIGINS": "Extensions reconnues (origines chrome-extension://)",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",

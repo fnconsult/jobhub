@@ -1,9 +1,10 @@
 /**
  * The settings only env holds, as Paramètres shows them, read-only (ADR-0033): the
- * bootstrap settings, MAIL_TRANSPORT and the Stripe Prices. A secret never leaves this
+ * bootstrap settings, MAIL_TRANSPORT, EXTENSION_ORIGINS and the Stripe Prices. A secret never leaves this
  * module: DATABASE_URL loses its password, AUTH_SECRET is only set or missing, and
  * SECRETS_MASTER_KEYS only gives its versions.
  */
+import { testBuildTrust, type TestBuildTrust } from "../auth/extension-origins";
 import { secretCipherFromEnv } from "../provider-secrets/cipher";
 import { ENV_ONLY_SETTINGS, RETIRED_SETTINGS, type EnvOnlyKind, type EnvOnlySettingName, type RetiredBy, type RetiredSettingName } from "./catalog";
 
@@ -24,6 +25,8 @@ export interface EnvOnlyRow {
   shown: ShownValue;
   /** `mail_to_console`: MAIL_TRANSPORT=console outside e2e, emails only go to the server log. */
   warning: "mail_to_console" | null;
+  /** EXTENSION_ORIGINS alone: whether the test zip's fixed origin is trusted, and why (ADR-0033); null on every other row. */
+  testBuild: TestBuildTrust | null;
 }
 
 /** A query parameter that may carry a credential. */
@@ -67,7 +70,8 @@ export function envOnlySettingsShown(env: Env): EnvOnlyRow[] {
               ? withoutPassword(raw)
               : { kind: "value", value: raw };
     const mailToConsole = name === "MAIL_TRANSPORT" && raw === "console" && env.JOBHUB_TARGET?.trim() !== "e2e";
-    return [{ name, kind: setting.kind, shown, warning: mailToConsole ? "mail_to_console" : null }];
+    const testBuild = name === "EXTENSION_ORIGINS" ? testBuildTrust(env) : null;
+    return [{ name, kind: setting.kind, shown, warning: mailToConsole ? "mail_to_console" : null, testBuild }];
   });
 }
 

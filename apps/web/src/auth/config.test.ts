@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TEST_BUILD_EXTENSION_ORIGIN } from "@jobhub/shared/extension-test-build";
 import { authConfigFromEnv } from "./config";
 
 const base = {
@@ -17,12 +18,12 @@ describe("authConfigFromEnv", () => {
     ]);
   });
 
-  it("trusts the comma-separated extension origins", () => {
-    const config = authConfigFromEnv({
-      ...base,
-      EXTENSION_ORIGINS: "chrome-extension://aaa, chrome-extension://bbb",
-    });
-    expect(config.extensionOrigins).toEqual(["chrome-extension://aaa", "chrome-extension://bbb"]);
+  it("trusts the comma-separated extension origins and, outside Production alone, the test zip's (ADR-0033)", () => {
+    const EXTENSION_ORIGINS = "chrome-extension://aaa, chrome-extension://bbb";
+    const production = authConfigFromEnv({ ...base, NODE_ENV: "production", JOBHUB_TARGET: "production", MAIL_TRANSPORT: "console", EXTENSION_ORIGINS });
+    expect(production.extensionOrigins).toEqual(["chrome-extension://aaa", "chrome-extension://bbb"]);
+    const beta = authConfigFromEnv({ ...base, NODE_ENV: "production", JOBHUB_TARGET: "staging", MAIL_TRANSPORT: "console", EXTENSION_ORIGINS });
+    expect(beta.extensionOrigins).toEqual(["chrome-extension://aaa", "chrome-extension://bbb", TEST_BUILD_EXTENSION_ORIGIN]);
   });
 
   it("refuses to run in production without a secret or an SMTP server", () => {

@@ -6085,7 +6085,8 @@ textarea.title-edit {
 }
 
 .en-ce-moment-followed .ai-activity-list,
-.en-ce-moment-refined {
+.en-ce-moment-refined,
+.en-ce-moment-note {
   margin: 0;
 }
 

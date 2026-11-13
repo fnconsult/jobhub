@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
-import { activityOf, closeActivity } from "./support/conversation";
+import { activityOf, closeActivity, unfoldedEntryOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { onboardingSummary, throughCvInterview } from "./support/onboarding-summary";
 
@@ -96,8 +96,8 @@ async function done(jobSearchId: string, jobOfferIds: string[]): Promise<void> {
 }
 
 /**
- * Signs a new Candidate in, sends Marie Dupont's CV, confirms the target role and the place it read and skips what a CV
- * does not say (#1003), up to the summary (#1004); returns the offered Job Search the Profile born started (#1000).
+ * Signs a new Candidate in, sends Marie Dupont's CV, checks its reading in Activité, confirms the target role and the
+ * place it read and skips what a CV does not say (#1003), up to the summary (#1004); returns the offered Job Search the Profile born started (#1000).
  */
 async function upToSummary(page: Page, label: string): Promise<{ email: string; jobSearchId: string; profileId: string; targetRole: string }> {
   const email = newAddress(label);
@@ -105,6 +105,12 @@ async function upToSummary(page: Page, label: string): Promise<{ email: string; 
   await page.goto("/profils/nouveau");
   await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(CV);
   await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+  // The CV read in Activité (#1003): « Création du profil »'s part « Lecture du CV », with the fields it read.
+  const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
+  await expect(thread.getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 15_000 });
+  const reading = (await unfoldedEntryOf(page, new RegExp(`^${fr.aiActivity.kinds.profile_creation}$`))).locator('[data-kind="cv_reading"]');
+  await expect(reading.getByRole("definition").filter({ hasText: "Directrice financière (lu par l'IA)" })).toBeVisible();
+  // Then the questions on what it does not say, up to the summary.
   await throughCvInterview(page);
   await expect(onboardingSummary(page).locator(".onb-summary")).toContainText("Directrice financière");
   let search: { id: string; profile_id: string; target_role: string } | undefined;

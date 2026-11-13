@@ -22,6 +22,7 @@
  * ATS Score); the browser adds what it alone knows while it is being created (`creation`): the questionnaire and the
  * review, never kept, so gone once the page is loaded again.
  */
+import type { ReadFieldValue } from "./cv-reading";
 import type { Provenance, ProvenanceSite, ProvenanceStep, ReplyCost, StepLabel, WeeklyQuota } from "@jobhub/shared";
 import { describeModel, markOf, stepLabel } from "@jobhub/shared";
 import type { ActionCardStatus } from "../action-cards";
@@ -114,7 +115,11 @@ export type EntryKind = ElementKind | "master_cv_version" | "change" | "profile_
  */
 export interface CreationGiven {
   href?: string;
-  reading?: { provenance: Provenance | null };
+  /**
+   * The uploaded CV read: its draft's Provenance, and, read on `/profils/nouveau` (#1003), when and the fields it gave in
+   * words, which its part shows (« Profil en construction »).
+   */
+  reading?: { provenance: Provenance | null; at?: string; fields?: ReadFieldValue[] };
   /** The AI Coach's onboarding interview without a CV (#1002): when it started, the answers given and skipped, its turns' Provenance. */
   interview?: { at: string; answered: number; skipped: number; provenance: Provenance | null };
   /** The scripted questions: the onboarding without AI, or after the interview when the AI was unavailable (#1002). */
@@ -226,6 +231,8 @@ export interface ActivityEntry {
   parts?: ActivityEntry[];
   /** A Job Search the page followed (#1001): its best Job Offers, the best first, its object's page listing them all. */
   offers?: EntryOffer[];
+  /** A CV read on `/profils/nouveau` (#1003): when it was read, and the fields it gave in words, null for one it did not. */
+  fields?: { at: string | null; values: ReadFieldValue[] };
   /** A Job Search the page followed (#1006), done with no Job Offer that matches: its Profile, to see it or search again. */
   noMatch?: { profileId: string };
 }
@@ -517,7 +524,9 @@ function keptParts(first: VersionGiven, score: PageElement | undefined): Activit
  */
 function knownParts(creation: CreationGiven): ActivityEntry[] {
   const { reading, interview, questionnaire, created, review, summaryChanges } = creation;
-  const read = reading ? (reading.provenance ? readingPart(reading.provenance) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null }))) : null;
+  const readOnly = reading ? (reading.provenance ? readingPart(reading.provenance, reading.at) : asPart("cv_reading", elementEntry({ kind: "master_cv", provenance: null, ...(reading.at ? { at: reading.at } : {}) }))) : null;
+  // With the fields it gave (#1003), shown under its part.
+  const read = readOnly && reading?.fields ? { ...readOnly, fields: { at: reading.at ?? null, values: reading.fields } } : readOnly;
   return [
     ...(read ? [read] : []),
     // Once a turn came from the AI: an interview that fell back at once made nothing but the scripted questions.

@@ -47,7 +47,8 @@ import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
 import type { RefiningCriterion } from "@/ai-activity/followed-search";
 import { CoachLine, InActivity } from "./CoachLine";
-import { CvReadingCard, CvReadLine } from "./CvReadingCard";
+import { useActivityColumn } from "./activity-column";
+import { readFields, type T as ReadT } from "@/ai-activity/cv-reading";
 import { searchedWith, useFollowedSearch } from "./followed-search";
 import { OnboardingSummary } from "./OnboardingSummary";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
@@ -56,10 +57,8 @@ import "./QuickActions.css";
 
 type From = "cv" | "interview" | "questionnaire" | "resumed";
 /** At the review, the summary first (#1004); `saved` once « Cela semble correct » has saved the Profile, at its page. */
-/** `reading`: the CV read (#1003), its fields appearing on « Profil en construction » before the interview starts from it. */
 type Step =
   | { kind: "choose" }
-  | { kind: "reading"; draft: CvDraft }
   | { kind: "interview" }
   | { kind: "questionnaire" }
   | { kind: "review"; draft: CvDraft; from: From; saved?: string };
@@ -129,10 +128,10 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
  * as a Coach Conversation. When the AI cannot give the next turn (it fails, it is stopped, its reply is unusable), the
  * scripted Onboarding Questionnaire takes over at the next question, skipping what is already known: no dead end.
  *
- * With a CV (#1003), « Profil en construction » shows the reading in the thread (CvReadingCard): « Lecture de votre
- * profil » under way while `/api/cv/draft` reads it, then the fields it read appearing one by one, an absent one said
- * absent; then it folds into one line, « Profil construit à partir de votre CV · N informations lues », and the interview
- * starts from the CV's draft: the target role and places it read proposed to confirm, then only what a CV does not say
+ * With a CV (#1003), the reading shows in Activité, as the offered search does (#1001), the thread saying so in one line
+ * of the coach: « Lecture de votre profil » under way in « En ce moment » while `/api/cv/draft` reads it, the side panel
+ * opened on a wide screen; then « Création du profil »'s part « Lecture du CV » with the fields it read, appearing one by
+ * one, an absent one said absent (CvReading). The interview then starts from the CV's draft: the target role and places it read proposed to confirm, then only what a CV does not say
  * (contracts, remote work, minimum salary), each skippable.
  *
  * The Profile is born as soon as its target role and location are answered or confirmed (ADR-0106, #999): created with its
@@ -175,6 +174,16 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   // whether it is being read, for the card to show its step under way.
   const [cvRead, setCvRead] = useState<CvDraft | null>(null);
   const [cvReading, setCvReading] = useState(false);
+  // On a wide screen, Activité opens beside the conversation as the CV's reading starts, as for the offered search (#1001);
+  // on a phone nothing opens: the compact Top Bar already shows « Activité » while it runs (ADR-0101).
+  const column = useActivityColumn();
+  const openColumn = column?.open;
+  const wide = column?.wide ?? false;
+  /** The CV's reading starts or ends (#1003): on a wide screen, Activité opens as it starts. */
+  function reading(started: boolean) {
+    setCvReading(started);
+    if (started && wide) openColumn?.();
+  }
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState("");
@@ -232,11 +241,14 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     setStep((current) => (current.kind === "review" ? { ...current, saved: href } : current));
   }
 
-  /** The CV read (#1003): « Profil en construction » shows its fields, then the interview starts from it (`startFromCv`). */
+  /**
+   * The CV read (#1003): « Création du profil » in Activité shows the fields it gave (« Profil en construction »), and the
+   * interview starts from it (`startFromCv`).
+   */
   function read(draft: CvDraft) {
-    noteCreation?.({ type: "read", provenance: draft.provenance ?? null });
+    noteCreation?.({ type: "read", provenance: draft.provenance ?? null, fields: readFields(draft, t as unknown as ReadT, language) });
     setCvRead(draft);
-    setStep({ kind: "reading", draft });
+    startFromCv(draft);
   }
 
   /**
@@ -479,7 +491,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const fromQuestions = step.kind === "review" && (step.from === "questionnaire" || step.from === "interview");
   const startOverLabel = fromQuestions ? t("questionnaire.startOver") : t("cvReview.startOver");
   // From a CV (#1003), its interview stays in the thread at the review too, after the line its reading card folded into.
-  const fromCvInterview = cvRead !== null && step.kind !== "choose" && step.kind !== "reading";
+  const fromCvInterview = cvRead !== null && step.kind !== "choose";
   const answering = step.kind === "questionnaire" || step.kind === "interview" || fromQuestions || fromCvInterview;
   const optional = question?.optional || turnOptional;
   const described = [optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
@@ -515,16 +527,18 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
               <li className="chat-message chat-card">
                 <Card title={t("newProfile.withCv")}>
                   <p>{t("cvUpload.intro")}</p>
-                  <CvUpload onDraft={read} onReading={setCvReading} />
+                  <CvUpload onDraft={read} onReading={reading} />
                 </Card>
               </li>
             ) : null}
-            {/* « Profil en construction » (#1003): its step under way while the CV is read, then the fields it read. */}
-            {step.kind === "choose" && cvReading ? <CvReadingCard draft={null} /> : null}
-            {step.kind === "reading" ? <CvReadingCard draft={step.draft} onRead={() => startFromCv(step.draft)} /> : null}
+            {/* The CV being read, then read (#1003): one line of the coach, the reading itself in Activité. */}
+            {(step.kind === "choose" && cvReading) || fromCvInterview ? (
+              <CoachLine>
+                <p>{t("newProfile.fromCv.reading")}</p>
+              </CoachLine>
+            ) : null}
             {fromCvInterview && cvRead ? (
               <>
-                <CvReadLine draft={cvRead} />
                 <CoachLine>
                   <p>{t("newProfile.fromCv.questionsStart")}</p>
                 </CoachLine>

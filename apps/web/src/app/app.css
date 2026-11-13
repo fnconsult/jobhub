@@ -6090,6 +6090,22 @@ textarea.title-edit {
   margin: 0;
 }
 
+/* The fields of a CV read (#1003) in Activité's narrow column: each term above its value, as Properties lays them out on a
+   phone, so a value keeps the column's width. */
+.en-ce-moment-followed .ds-props {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+
+.en-ce-moment-followed .ds-prop > dt,
+.en-ce-moment-followed .ds-prop > dd {
+  grid-column: 1;
+}
+
+.en-ce-moment-followed .ds-prop > dt:not(:first-child) {
+  margin-top: var(--space-2);
+}
+
 /* Its best Job Offers so far (#1006): under their label, as in its history entry. */
 .en-ce-moment-followed .activity-entry-offers .ai-activity-list {
   margin-top: var(--space-1);

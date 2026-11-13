@@ -65,7 +65,7 @@ test.describe("« Création du profil » in Activity (#810)", () => {
 
     // Read: the interview from it (#1003), the role and place confirmed and the rest skipped; then the review, its summary
     // first (#1004); the history's one entry, the reading, the interview and the review.
-    await expect(transcript(page).locator("details.onb-read")).toBeVisible({ timeout: 60_000 });
+    await expect(transcript(page).getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 60_000 });
     await throughCvInterview(page);
     await expect(onboardingSummary(page)).toBeVisible();
     await openActivity(page);

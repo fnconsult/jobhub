@@ -41,7 +41,7 @@ Déposez votre CV dans la carte « J'ai un CV », en PDF ou en Word, puis clique
 - click button « Passer cette question »
 - click button « Passer cette question »
 
-Pendant la lecture, la carte « Profil en construction » montre ce que votre coach trouve dans votre CV, puis se replie. Il vous fait confirmer le poste visé et le lieu qu'il a lus : cliquez sur « Oui, … », ou écrivez le vôtre. Il ne vous demande ensuite que ce qu'un CV ne dit pas, le type de contrat, le télétravail et le salaire minimum, et chaque question se passe avec « Passer cette question ».
+Pendant la lecture, « Activité » montre ce que votre coach trouve dans votre CV, à la ligne « Création du profil ». Il vous fait ensuite confirmer le poste visé et le lieu qu'il a lus : cliquez sur « Oui, … », ou écrivez le vôtre. Il ne vous demande ensuite que ce qu'un CV ne dit pas, le type de contrat, le télétravail et le salaire minimum, et chaque question se passe avec « Passer cette question ».
 
 ## Lire le résumé
 - zoom region « Votre recherche d'offres »

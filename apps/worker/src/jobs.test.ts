@@ -1,5 +1,5 @@
 import { createProvenanceRecorder, type AiLayer } from "@jobhub/ai";
-import type { MasterCvContent, Provenance, ProvenanceEvent, SearchCriteria } from "@jobhub/shared";
+import type { LiveDiscoveryMetrics, MasterCvContent, Provenance, ProvenanceEvent, SearchCriteria } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
@@ -147,6 +147,8 @@ function setup(
   /** Each write of a Job Search's live steps, and each outcome, in the order they came. */
   const written: string[] = [];
   const progressed: [string, ProvenanceEvent[]][] = [];
+  /** Each write of a Job Search's live metrics (#1001). */
+  const measuredLive: [string, LiveDiscoveryMetrics][] = [];
   const enqueued: { name: string; data: object }[] = [];
   /** Per delivery: the Candidate, the Profile, and what Job discovery gave the Job Digest (or how it failed). */
   const delivered: [string, string, string[] | string | null][] = [];
@@ -169,6 +171,10 @@ function setup(
       progress: async (id, steps) => {
         progressed.push([id, steps]);
         written.push(`progress ${id}`);
+      },
+      live: async (id, metrics) => {
+        measuredLive.push([id, metrics]);
+        written.push(`live ${id}`);
       },
       stopRequested: async () => stop.requested,
       expireTimedOut: async () => 0,
@@ -212,7 +218,7 @@ function setup(
     log: (line) => logs.push(line),
     now,
   });
-  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, written, progressed, enqueued, delivered, handed, recordedRuns };
+  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, written, progressed, measuredLive, enqueued, delivered, handed, recordedRuns };
 }
 
 describe("the Job discovery job", () => {
@@ -388,6 +394,54 @@ describe("the Job discovery job, for a Job Search the Candidate started: its Pro
 
     expect(runs[0]!.onEvent).toBeUndefined();
     expect(progressed).toEqual([]);
+  });
+});
+
+describe("the Job discovery job, for a Job Search the Candidate started: its live metrics (#1001)", () => {
+  const searching: LiveDiscoveryMetrics = {
+    step: "search",
+    sources: [{ source: "france_travail", state: "searched" }, { source: "web_search", state: "searching" }],
+    pagesRead: 4,
+    offersAnalysed: 2,
+    matched: null,
+    jobOfferIds: [strongMatch.id, weakMatch.id],
+  };
+
+  it("writes on the Job Search what the run measured while it runs, then its analysis with the Job Offers matched, before its outcome", async () => {
+    const { run, measuredLive, written } = setup(async (request) => {
+      request.onMetrics?.({ ...searching, sources: [{ source: "france_travail", state: "searching" }], pagesRead: 0, offersAnalysed: 0, jobOfferIds: [] });
+      request.onMetrics?.(searching);
+      return discoveryReport({ jobOffers: [strongMatch, weakMatch], funnel: { providerUrls: 6, fetched: 5, extracted: 2, alreadyStored: 0 } });
+    });
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(measuredLive.every(([id]) => id === "search-1")).toBe(true);
+    expect(measuredLive.map(([, live]) => live.step)).toContain("search");
+    // The last write is the analysis: what the report counted, the sources as they stood, the strong match only.
+    expect(measuredLive.at(-1)![1]).toEqual({ ...searching, step: "analysis", pagesRead: 5, offersAnalysed: 2, matched: 1 });
+    expect(written.lastIndexOf("live search-1")).toBeLessThan(written.indexOf("outcome search-1"));
+  });
+
+  it("writes the analysis of what a failed run had found, before saying it failed", async () => {
+    const { run, measuredLive, recorded } = setup(async (request) => {
+      request.onMetrics?.(searching);
+      throw new JobDiscoveryError(discoveryReport({ jobOffers: [strongMatch] }), new Error("LLM down"));
+    });
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(measuredLive.at(-1)![1]).toMatchObject({ step: "analysis", offersAnalysed: 1, matched: 1, jobOfferIds: [strongMatch.id] });
+    expect(recorded[0]![1]).toMatchObject({ failed: "discovery_failed" });
+  });
+
+  it("measures nothing live for a run no Candidate is waiting on", async () => {
+    const { run, runs, measuredLive } = setup(async () => discoveryReport({ jobOffers: [strongMatch] }));
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(runs[0]!.onMetrics).toBeUndefined();
+    expect(measuredLive).toEqual([]);
   });
 });
 
@@ -621,7 +675,7 @@ describe("the worker without an AI layer", () => {
       database: noDatabase,
       discovery: { unavailable: "Missing environment variable PERPLEXITY_API_KEY" },
       profiles: { get: async () => ({ archived: false, searchCriteria: criteria, masterCv: { content: masterCv } }) },
-      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
+      jobSearches: { record: async (id, outcome) => void recorded.push([id, outcome]), progress: async () => {}, live: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
       followUps: { proposeDue: async () => {} },
       jobDigests: {
         claimDue: async () => [],
@@ -676,7 +730,7 @@ describe("Job discovery asked for on each job (#208)", () => {
 const otherDeps = {
   discovery: { unavailable: "not under test" },
   profiles: { get: async () => null },
-  jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
+  jobSearches: { record: async () => {}, progress: async () => {}, live: async () => {}, stopRequested: async () => false, expireTimedOut: async () => 0 },
   followUps: { proposeDue: async () => {} },
   jobDigests: noJobDigests,
   enqueue: async () => {},
@@ -1028,7 +1082,7 @@ describe("the Job Search timeouts job", () => {
     const job = createJobs({
       ...otherDeps,
       database: noDatabase,
-      jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => ++expired },
+      jobSearches: { record: async () => {}, progress: async () => {}, live: async () => {}, stopRequested: async () => false, expireTimedOut: async () => ++expired },
       log: (line) => void logs.push(line),
     })[JOB_SEARCH_TIMEOUTS];
 
@@ -1042,7 +1096,7 @@ describe("the Job Search timeouts job", () => {
     const job = createJobs({
       ...otherDeps,
       database: noDatabase,
-      jobSearches: { record: async () => {}, progress: async () => {}, stopRequested: async () => false, expireTimedOut: async () => Promise.reject(Object.assign(new Error("no table"), { code: "42P01" })) },
+      jobSearches: { record: async () => {}, progress: async () => {}, live: async () => {}, stopRequested: async () => false, expireTimedOut: async () => Promise.reject(Object.assign(new Error("no table"), { code: "42P01" })) },
     })[JOB_SEARCH_TIMEOUTS];
 
     await expect(job!.handler({})).resolves.toBeUndefined();

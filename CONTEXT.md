@@ -466,6 +466,7 @@ France Travail's code for a job, derived from the Search Criteria title; a title
 
 **Discovery metrics**:
 What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
+While a Job Search runs, what it has measured so far is kept on its row too, its **Live discovery metrics** (#1001): each active source's state (to come, under way, consulted, refused, failed), the pages read, the Job Offers found so far, then its analysis with the Job Offers matched. AI Activity's poll brings them with its steps, and « En ce moment » shows them for the onboarding's offered Job Search, which `/profils/nouveau` follows as its own (« ici » there, ADR-0106): its sources' states, pages read and Job Offers analysed, with « offres qui vous correspondent », counted by the page itself, by Match Score against the Search Criteria of the moment; once over, its entry in that page's history lists its best Job Offers. Nothing in them is estimated, and they name no one.
 
 **Discovery run**:
 One run of Job discovery (a Job Search or a Job Digest top-up) as the Back Office's Recherches tab lists it, failed and stopped ones included: its Discovery metrics, its web searches (kind: plan, Target Company or site) with the query texts they actually sent, how many **new Job Offers** it stored for the first time, and its **Stop reason**. Its figures name no one and are kept 24 months; its Profile pseudonym, Search Criteria, query texts and link to the Job Search are kept 30 days, are part of the Candidate's Data export and go with their account or Profile (ADR-0047). A failure to record a run never stops the Job Search or Job Digest.
@@ -740,7 +741,7 @@ The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle c
 _Avoid_: Navigation bar, workspace header
 
 **Side panel** (« Volet de la page »):
-The one column beside a Coach Conversation, never over it, that shows one view at a time, the one its icon in the Top Bar chose (ADR-0070, #980): « Activité » (the page's Activity, ADR-0086), and on an object's page its « Fiche », an Application's « L'offre » and its Results, « Documents » (« Offres trouvées » for a Job Search or a Job Digest). Its head names its view and has ✕ « Fermer le volet ». It opens on the Fiche when an object's page loads on a wide screen and is closed otherwise; its left edge resizes it; it gives way to the Work Pane for want of room, and opens full screen below 64rem.
+The one column beside a Coach Conversation, never over it, that shows one view at a time, the one its icon in the Top Bar chose (ADR-0070, #980): « Activité » (the page's Activity, ADR-0086), and on an object's page its « Fiche », an Application's « L'offre » and its Results, « Documents » (« Offres trouvées » for a Job Search or a Job Digest). Its head names its view and has ✕ « Fermer le volet ». It opens on the Fiche when an object's page loads on a wide screen and is closed otherwise (on `/profils/nouveau`, it opens on « Activité » on a wide screen when the offered Job Search starts, #1001); its left edge resizes it; it gives way to the Work Pane for want of room, and opens full screen below 64rem.
 _Avoid_: Sidebar (that is the left one), drawer, inspector
 
 **Fiche**:
@@ -760,7 +761,7 @@ The bar in Activity showing how much of a Coach Conversation the AI Coach reads:
 _Avoid_: Memory gauge, quota bar (that is the Usage Meter)
 
 **Activité column**:
-The side panel of the home page and the menus, where there is no object: « Activité » its only view (the Context bar, « En ce moment », then the history, ADR-0086). Closed when the page loads; gives way to the Work Pane; never over the conversation.
+The side panel of the home page and the menus, where there is no object: « Activité » its only view (the Context bar, « En ce moment », then the history, ADR-0086). Closed when the page loads; on `/profils/nouveau`, it opens on a wide screen when the onboarding's offered Job Search starts (ADR-0106, #1001), never on a phone; gives way to the Work Pane; never over the conversation.
 _Avoid_: Activity pane
 
 **Top Bar**:
@@ -806,6 +807,10 @@ _Avoid_: Modal, popup, dialog (a Dialog only confirms)
 **ConfirmDialog**:
 The Design System's small centred box that asks the person to confirm or cancel one action before it happens, with focus starting on « Annuler ». Forms never use it; they open in a Drawer.
 _Avoid_: Modal, popup, confirmation page
+
+**Stepper**:
+The Design System's vertical list of steps known in advance (the onboarding's offered Job Search in « En ce moment », #1001): a marker each on a hairline, ✓ once done, a pulsing dot for the step under way, an empty circle to come, each step's state said in words to screen readers. Its pulse stops when the device asks for less motion. Steps not known in advance (the AI Coach's live steps) are not a Stepper.
+_Avoid_: Progress bar, timeline, wizard
 
 **Toast**:
 The Design System's short message that appears briefly at the screen's edge to say an action worked or failed, without moving focus. Not a place for text the person must act on.
@@ -1325,7 +1330,7 @@ An Activité entry the server builds from what only it reads (the page's element
 _Avoid_: Row
 
 **En ce moment**:
-The top of an Activity, under the Context bar: the Candidate's AI actions under way, this page's then « En cours ailleurs », each with its live Activity glyph, current step, finished steps, time so far and stop icon; an AI Coach reply under way is one of them. « Rien ne tourne sur cette page. » when none runs. A finished action becomes the first Activité entry of « Aujourd'hui ».
+The top of an Activity, under the Context bar: the Candidate's AI actions under way, this page's then « En cours ailleurs », each with its live Activity glyph, current step, finished steps, time so far and stop icon; an AI Coach reply under way is one of them. A page may follow an action of another page as its own: `/profils/nouveau` follows its offered Job Search (#1001), counted there among this page's, with its four steps, its Live discovery metrics, its sources' states, « offres qui vous correspondent » and the criteria it is narrowed with (« Affinée avec : … »); no other page changes. « Rien ne tourne sur cette page. » when none runs. A finished action becomes the first Activité entry of « Aujourd'hui »; the followed Job Search's, kept by the browser, lists its 3 to 5 best Job Offers and « Voir toutes les offres ».
 _Avoid_: Live pane, running tasks
 
 **End state**:

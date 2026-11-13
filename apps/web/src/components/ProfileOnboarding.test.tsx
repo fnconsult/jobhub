@@ -1,20 +1,23 @@
 // @vitest-environment jsdom
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
 import { AiActivityContent, AiActivityProvider } from "./AiActivity";
 import { AiActivityLiveProvider } from "./AiActivityLive";
+import { EnCeMoment } from "./EnCeMoment";
+import { JobSearchNotifications } from "./JobSearchNotifications";
 import { ProfileOnboarding } from "./ProfileOnboarding";
 import { WorkPane, WorkPaneProvider } from "./WorkPane";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: () => "/profils/nouveau", useRouter: () => ({ push, refresh: vi.fn() }) }));
 
-/** /profils/nouveau: the conversation in the page, the Work Pane beside it, and its Activity (#810). */
+/** /profils/nouveau: the conversation in the page, the Work Pane beside it, and its Activity (#810), fed by the Job Search poll. */
 function NewProfilePage() {
   return (
     <AiActivityLiveProvider>
+      <JobSearchNotifications initial={{ notifications: [], searching: false, running: [] }} everyMs={20} />
       <AiActivityProvider>
         <WorkPaneProvider version="1.2.3">
           <main>
@@ -22,6 +25,7 @@ function NewProfilePage() {
           </main>
           <WorkPane />
           <aside aria-label="Activité">
+            <EnCeMoment />
             <AiActivityContent />
           </aside>
         </WorkPaneProvider>
@@ -39,7 +43,11 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     push.mockClear();
     vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    // Unmounted first: AI Activity's Job Search poll renders nothing more once the stubs are gone.
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it("opens on the Coach's Introduction, the CV's drop zone a card in the thread, the Questionnaire a suggestion above the box", () => {
     renderInFrench(<NewProfilePage />);
@@ -140,14 +148,49 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     let calls: Call[];
     let created: number;
     let searches: number;
+    let polled: string[];
+    const measures = {
+      step: "search",
+      sources: [
+        { source: "france_travail", state: "searched" },
+        { source: "web_search", state: "searching" },
+      ],
+      pagesRead: 3,
+      offersAnalysed: 2,
+      matched: null,
+    };
+    const activity = () => screen.getByRole("complementary", { name: "Activité" });
+    const now = () => within(activity()).getByRole("region", { name: "En ce moment" });
 
     beforeEach(() => {
       calls = [];
+      polled = [];
       created = 201;
       searches = 0;
       vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
         // The Sectors' and Domains' labels: none here.
         if (url === "/api/reference-data") return new Response(null, { status: 404 });
+        // AI Activity's poll (#1001): the offered Job Search, searching, its run's measures; then the Job Offers it found.
+        if (url === "/api/job-searches/notifications") {
+          polled.push(url);
+          const running = searches > 0 ? [{ jobSearchId: `s${searches}`, profile: { id: "p1", name: "Directrice financière" }, startedAt: new Date().toISOString(), steps: [], live: measures }] : [];
+          return Response.json({ notifications: [], searching: running.length > 0, running });
+        }
+        if (url.startsWith("/api/job-searches/")) {
+          polled.push(url);
+          return Response.json({
+            id: "s1",
+            status: "searching",
+            failure: null,
+            live: { ...measures, jobOfferIds: ["o1", "o2"] },
+            jobOffers: url.includes("known=")
+              ? []
+              : [
+                  { id: "o1", title: "DAF", content: "Directrice financière à Lyon.", location: "Lyon", contractType: "cdi" },
+                  { id: "o2", title: "DAF", content: "Directrice financière à Lyon.", location: "Lyon", contractType: "cdd" },
+                ],
+          });
+        }
         calls.push({ url, method: init.method ?? "GET", body: JSON.parse(String(init.body ?? "{}")) });
         if (url === "/api/profiles") return Response.json(created === 201 ? { id: "p1" } : { error: "plan_quota_reached", prompt: null }, { status: created });
         if (url === "/api/profiles/p1/onboarding") return Response.json({ id: "p1", version: 2 });
@@ -216,26 +259,65 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(calls[3]!.body).toMatchObject({ basedOnVersion: 1, masterCv: { fullName: "Marie Dupont", email: "marie.dupont@example.fr" } });
     });
 
-    it("tells in the thread that the offered Job Search started, with its link, and starts it again once when the target role changes (#1000)", async () => {
+    it("tells in the thread that the offered Job Search started, in one line, and starts it again once when the target role changes (#1000)", async () => {
       const user = userEvent.setup();
       renderInFrench(<NewProfilePage />);
       await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon"]);
 
-      expect(await within(thread()).findByText(/je lance dès maintenant une première recherche d'offres, offerte/)).toBeTruthy();
-      expect(within(thread()).getByRole("link", { name: "Voir la recherche" }).getAttribute("href")).toBe("/recherches/s1");
+      const line = await within(thread()).findByText(/je lance dès maintenant une première recherche d'offres, offerte/);
+      // Text only, no framed card: its progress is in Activity (#1001).
+      expect(line.closest(".chat-coach")).toBeTruthy();
+      expect(within(thread()).queryByRole("link", { name: "Ouvrir la recherche" })).toBeNull();
+      expect(thread().querySelector(".ds-card, .ds-stats")).toBeNull();
 
       // Started over, another target role: its Search Criteria changed, the search started again, offered too.
       await user.click(within(reviewPane()).getByRole("button", { name: "Recommencer" }));
       await answerUpToReview(user, ["Marie Dupont", "Contrôleuse de gestion", "Lyon"]);
       expect(await within(thread()).findByText(/je relance la recherche, offerte elle aussi/)).toBeTruthy();
-      expect(within(thread()).getByRole("link", { name: "Voir la recherche" }).getAttribute("href")).toBe("/recherches/s2");
 
       // A third change asks for nothing more: the restart is spent.
       await user.click(within(reviewPane()).getByRole("button", { name: "Recommencer" }));
       await answerUpToReview(user, ["Marie Dupont", "Comptable", "Lyon"]);
       await waitFor(() => expect(calls.filter((call) => call.url === "/api/profiles/p1" && call.method === "PATCH")).toHaveLength(2));
       expect(calls.filter((call) => call.url === "/api/profiles/p1/onboarding-search")).toHaveLength(2);
-      expect(within(thread()).queryByRole("link", { name: "Voir la recherche" })).toBeNull();
+    });
+
+    it("shows the offered Job Search « ici » in Activity's « En ce moment », with its run's measures and the Job Offers matching its criteria (#1001)", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      for (const said of ["Marie Dupont", "Directrice financière", "Lyon"]) await user.type(screen.getByLabelText("Votre réponse"), `${said}{Enter}`);
+
+      // Asked at once, the page unchanged; then the Job Offers found, once the run says it analysed some.
+      const entry = await within(now()).findByRole("article", { name: "Recherche d'offres · Directrice financière" });
+      expect(polled[0]).toBe("/api/job-searches/notifications");
+      await waitFor(() => expect(polled).toContain("/api/job-searches/s1/live"));
+      expect(within(now()).queryByText("Rien ne tourne sur cette page.")).toBeNull();
+
+      const stats = entry.querySelector<HTMLElement>(".ds-stats[aria-label='Ce que la recherche a mesuré']")!;
+      const figure = (label: string) => within(stats).getByText(label).parentElement!.querySelector(".ds-stat__value")!.textContent;
+      expect(figure("sources consultées")).toBe("2 sur 2");
+      expect(figure("pages lues")).toBe("3");
+      expect(figure("offres analysées")).toBe("2");
+      // Counted by the page, by Match Score against the Search Criteria of the moment: the CDD one too, no contract asked yet.
+      await waitFor(() => expect(figure("offres qui vous correspondent")).toBe("2"));
+      const sources = within(entry).getByRole("list", { name: "Sources de la recherche" });
+      expect(within(sources).getAllByRole("listitem").map((item) => item.textContent)).toEqual(["France Travail · consultée", "Recherche web · en cours…"]);
+      expect(sources.querySelector(".ds-status[data-tone='success']")).toBeTruthy();
+      expect(within(entry).getByRole("list", { name: "Étapes de la recherche" })).toBeTruthy();
+      expect(within(entry).getByText(/Affinée avec :/).textContent).toBe("Affinée avec : Directrice financière · Lyon");
+
+    });
+
+    it("closes the review without leaving the page: no new load of it, which would meet the Plan Quota the Profile born counts in", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage />);
+      await answerUpToReview(user, ["Marie Dupont", "Directrice financière", "Lyon"]);
+      await user.click(within(reviewPane()).getByRole("button", { name: "Fermer" }));
+      await waitFor(() => expect(screen.queryByRole("complementary", { name: "Vérifiez votre CV et vos critères de recherche" })).toBeNull());
+      expect(push).not.toHaveBeenCalled();
+      // The thread is still there, with the coach's line on the search.
+      expect(within(thread()).getByText(/je lance dès maintenant une première recherche d'offres/)).toBeTruthy();
     });
 
     it("goes on without a word when the offered Job Search cannot start (#1000)", async () => {

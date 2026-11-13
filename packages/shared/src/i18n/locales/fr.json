@@ -1342,8 +1342,42 @@
     "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
     "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
     "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
-    "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",
-    "offeredSearchLink": "Voir la recherche"
+    "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi."
+  },
+  "onboardingSearch": {
+    "stepsLabel": "Étapes de la recherche",
+    "countersLabel": "Ce que la recherche a mesuré",
+    "steps": {
+      "profile": "Lecture de votre profil",
+      "search": "Recherche sur France Travail, les sites carrières et le web",
+      "analysis": "Analyse des offres trouvées",
+      "selection": "Sélection de vos meilleures offres"
+    },
+    "counters": {
+      "sources": "sources consultées",
+      "pages": "pages lues",
+      "analysed": "offres analysées",
+      "matching": "offres qui vous correspondent",
+      "outOf": "{{count}} sur {{total}}"
+    },
+    "refined": "Affinée avec :",
+    "assumed": "supposé",
+    "minSalary": "à partir de {{amount}}",
+    "sourcesLabel": "Sources de la recherche",
+    "sources": {
+      "france_travail": "France Travail",
+      "fantastic_jobs": "Sites carrières des employeurs",
+      "web_search": "Recherche web",
+      "ats_apis": "API d'ATS",
+      "target_companies": "Entreprises cibles"
+    },
+    "sourceStates": {
+      "waiting": "à venir",
+      "searching": "en cours…",
+      "searched": "consultée",
+      "refused": "refusée",
+      "failed": "indisponible"
+    }
   },
   "questionnaire": {
     "transcript": "Votre échange avec le coach",
@@ -5762,9 +5796,14 @@
         "calls_other": "{{count}} appels · {{tokens}} jetons envoyés",
         "tokens": "{{tokens}} jetons",
         "partial": "dernier appel seulement",
-        "noAi": "Sans IA"
+        "noAi": "Sans IA",
+        "offered": "Offerte, hors forfait"
       },
-      "sources": "Sources :"
+      "sources": "Sources :",
+      "bestOffers": "Vos meilleures offres :",
+      "noBestOffers": "Aucune offre trouvée pour l'instant.",
+      "allOffers": "Voir toutes les offres",
+      "matchScore": "Match Score {{score}}/100"
     }
   },
   "signalement": {
@@ -5903,6 +5942,12 @@
       "componentsSubtitle": "Chaque composant et ses états, tels que les écrans les utilisent."
     },
     "gallery": {
+      "stepper": "Étapes",
+      "stepRead": "Lecture de votre profil",
+      "stepReadDetail": "Contrôleuse de gestion · Nantes",
+      "stepSearch": "Recherche des offres",
+      "stepSearchDetail": "Sources consultées : 2 sur 3",
+      "stepSelect": "Sélection de vos meilleures offres",
       "eyebrow": "Design System",
       "title": "Composants",
       "subtitle": "Chaque composant du Design System sur une page, pour les vérifications d'accessibilité.",
@@ -6020,6 +6065,11 @@
       "loading": "Ouverture du document…",
       "failed": "Ce document n'a pas pu s'afficher. Téléchargez-le pour l'ouvrir.",
       "title": "Visionneuse"
+    },
+    "stepper": {
+      "done": "terminé",
+      "current": "en cours",
+      "pending": "à venir"
     }
   },
   "emails": {

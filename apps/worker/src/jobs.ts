@@ -1,5 +1,5 @@
 import { purgeExpiredSharedReading } from "@jobhub/web/shared-reading";
-import { createRunProgress, FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type SearchCriteria,
+import { createLatestWrite, createRunProgress, FUNNEL_MATCH_SCORE, noDiscoveryMetrics, scoreMatch, type CvContent, type DiscoveryMetrics, type ExternalApiLog, type LiveDiscoveryMetrics, type SearchCriteria,
 } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
@@ -332,6 +332,22 @@ function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): Discover
 }
 
 /**
+ * The live metrics of a run once Job discovery is over (#1001): its `analysis` step, with what its report counted and the
+ * Job Offers the Profile matches; a source still `searching` when it ended (the run stopped, failed or out of budget
+ * mid-search) is left as it stood. Without any earlier measure (no source active), its sources are none.
+ */
+function analysed(before: LiveDiscoveryMetrics | null, report: DiscoveryReport, metrics: DiscoveryMetrics): LiveDiscoveryMetrics {
+  return {
+    step: "analysis",
+    sources: before?.sources ?? [],
+    pagesRead: report.funnel.fetched,
+    offersAnalysed: report.jobOffers.length,
+    matched: metrics.funnel.matched,
+    jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id),
+  };
+}
+
+/**
  * Asks `requested` every `everyMs` until it says yes, then aborts `signal`; `end` stops asking.
  * A question that fails is asked again next time.
  */
@@ -424,6 +440,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }
         // The Candidate is waiting for this Job Search: each step of the run is written on it as it starts and ends.
         const progress = jobSearchId ? createRunProgress((steps) => deps.jobSearches.progress(jobSearchId, steps)) : null;
+        // And what it has measured so far, per source and step (#1001): AI Activity shows it on the onboarding's page.
+        const live = jobSearchId ? createLatestWrite<LiveDiscoveryMetrics>((metrics) => deps.jobSearches.live(jobSearchId, metrics)) : null;
         const startedAt = now();
         /**
          * What the run measured, its Match Scores recorded as a step of it, and its Provenance; the live steps written first.
@@ -431,7 +449,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
          */
         const measured = async (found: DiscoveryReport) => {
           const metrics = await found.run.step({ rule: "match_score" }, () => metricsOf(found, profile));
-          await progress?.flush();
+          live?.set(analysed(live.latest(), found, metrics));
+          await Promise.all([progress?.flush(), live?.flush()]);
           await recordRun({
             trigger: "job_search",
             candidateId: target.candidateId,
@@ -455,6 +474,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             profileId: target.profileId,
             criteria: profile.searchCriteria,
             onEvent: progress?.onEvent,
+            onMetrics: live?.set,
             signal: stop?.signal,
           });
         } catch (error) {
@@ -470,7 +490,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             }
             await deps.jobSearches.record(jobSearchId, { failed: "discovery_failed", ...partial });
           } else {
-            await progress?.flush();
+            await Promise.all([progress?.flush(), live?.flush()]);
             await fail("discovery_failed");
           }
           return log(`[job-discovery] profile ${target.profileId}: failed (${error instanceof Error ? error.message : String(error)})`);

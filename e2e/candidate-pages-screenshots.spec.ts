@@ -437,6 +437,8 @@ async function check(
       mask: [
         target.getByText(MONTHS),
         target.locator(".provenance-line, .sidebar-count"),
+        // An action's time so far in « En ce moment », which ticks (#1001).
+        target.locator(".en-ce-moment .ai-activity-meta"),
       ],
     });
   }
@@ -809,6 +811,68 @@ test.describe("Candidate pages in the Design System (#468)", () => {
         `documents-${name}`,
         width,
       );
+    }
+  });
+});
+
+// Issue #1001 (ADR-0106): the offered Job Search on /profils/nouveau is AI Activity's, « ici » in « En ce moment » with its
+// steps, its run's measures, its sources and the criteria it is narrowed with; the thread keeps one line of the coach. The
+// page shot whole with its side panel on « Activité », on a computer (beside the conversation) and on a phone (over it).
+// Nothing runs the worker here: the run's measures are written on the Job Search as the worker writes them, with three Job
+// Offers found, and the motion is reduced so that the live glyphs stand still; its time so far is masked.
+test.describe("the onboarding's search in Activity (#1001)", () => {
+  const PHONE_AND_COMPUTER = SCREENSHOT_WIDTHS.filter(({ name }) => name !== "tablet");
+
+  test("« ici » in « En ce moment », its counters the run's own measures", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    for (const { name, width, height } of PHONE_AND_COMPUTER) {
+      const email = newAddress(`shots-search-activity-${name}`);
+      await signInWithMagicLink(page, email);
+      await page.setViewportSize({ width, height });
+      await page.goto("/profils/nouveau");
+      await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+      for (const said of ["Catherine Morel", "Directrice administrative et financière", "Lyon"]) {
+        await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
+        await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
+      }
+      await expect(page.getByText(fr.newProfile.offeredSearchStarted)).toBeVisible();
+
+      // The worker's measures, written as it writes them while it searches.
+      const [search] = await query<{ id: string }>(
+        "SELECT s.id FROM job_search s JOIN candidate c ON c.id = s.candidate_id WHERE c.email = $1 AND s.offered = 'first'",
+        [email],
+      );
+      const jobOfferIds = await insertJobOffers(OFFERS.slice(0, 3), `activity-${name}-`);
+      const live = {
+        step: "search",
+        sources: [
+          { source: "france_travail", state: "searched" },
+          { source: "fantastic_jobs", state: "searched" },
+          { source: "web_search", state: "searching" },
+          { source: "ats_apis", state: "waiting" },
+        ],
+        pagesRead: 27,
+        offersAnalysed: 3,
+        matched: null,
+        jobOfferIds,
+      };
+      await query("UPDATE job_search SET live = $2::jsonb WHERE id = $1", [search!.id, JSON.stringify(live)]);
+
+      // AI Activity's icon (on a phone, the compact Top Bar's « Activité », shown while an action runs, ADR-0101).
+      const icon = page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
+      if ((await icon.getAttribute("aria-expanded")) !== "true") await icon.click();
+      const activity = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
+      const entry = activity
+        .getByRole("region", { name: fr.aiActivity.live.now })
+        .getByRole("article", { name: `${fr.aiActivity.kinds.job_search} · Directrice administrative et financière` });
+      await expect(entry.locator(".ds-stat__value")).toHaveText(["3 sur 4", "27", "3", /^\d$/]);
+      await fixTimesOfDay(page);
+      // A screen tall enough for the whole entry in the panel, which scrolls on its own: its steps, figures, sources and
+      // criteria, under the Context bar.
+      await page.setViewportSize({ width, height: 1800 });
+      await expect(entry.getByText(fr.onboardingSearch.refined)).toBeInViewport();
+      await check(page, page.locator("body"), "body", `onboarding-search-activity-${name}`, width, false);
+      await page.context().clearCookies();
     }
   });
 });

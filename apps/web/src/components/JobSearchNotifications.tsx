@@ -26,7 +26,8 @@ export interface JobSearchNotificationsState {
  * stopped it, or when it failed, at which step and why in plain words, with the
  * Job Offers it kept (#331). Each stays until they close it or open the Job Search.
  *
- * It checks again on every page change (a Job Search may just have started) and,
+ * It checks again on every page change (a Job Search may just have started), when a page follows a Job Search it started
+ * (the onboarding's offered one, #1001), and,
  * while one is searching, every 1.5 s, which also brings each running search's
  * steps so far (#330); it stops once none is searching (done, failed or stopped). One polite live region, present
  * from the start, so a screen reader announces each new notification. Left out
@@ -45,7 +46,10 @@ export function JobSearchNotifications({ initial, everyMs = JOB_SEARCH_POLL_MS }
   }
   const region = useRef<HTMLDivElement>(null);
   const shownPath = useRef(pathname);
-  const feedAiActivity = useAiActivityLive()?.jobSearches;
+  const store = useAiActivityLive();
+  const feedAiActivity = store?.jobSearches;
+  // A Job Search a page follows (the onboarding's offered one, #1001) started there, the page unchanged: asked at once.
+  const followedId = store?.followed?.jobSearchId ?? null;
 
   useEffect(() => {
     feedAiActivity?.(state.running ?? [], state.notifications);
@@ -57,6 +61,13 @@ export function JobSearchNotifications({ initial, everyMs = JOB_SEARCH_POLL_MS }
     const next: JobSearchNotificationsState | null = await response.json().catch(() => null);
     if (next) setState(next);
   }, []);
+
+  const askedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!followedId || askedFor.current === followedId) return;
+    askedFor.current = followedId;
+    void refresh();
+  }, [followedId, refresh]);
 
   useEffect(() => {
     const left = shownPath.current;

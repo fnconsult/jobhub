@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,6 +29,7 @@ import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
+import { searchedWith, useFollowedSearch } from "./followed-search";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 import "./QuickActions.css";
@@ -84,7 +84,9 @@ const HELP = "help" as const;
  * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
  * review. From a CV or from scratch, the Profile is still created at the review's save (#1003 changes it).
  * Born, it gets its first Job Search, offered outside the Plan Quota (#1000), started again once when an answer changes
- * its target role or locations; a coach line in the thread says so, with a link to the Job Search (its card is #1001).
+ * its target role or locations; a coach line in the thread says so, text only. Its progress is AI Activity's: the page
+ * follows it (useFollowedSearch), so « En ce moment » counts it « ici », with its run's measures and the Job Offers that
+ * match the criteria of the moment, and keeps it in the history once over (#1001).
  */
 export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const { t } = useTranslation();
@@ -102,8 +104,10 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const [refused, setRefused] = useState<Refused | null>(null);
   // The Job Search the onboarding offers (#1000), once started: told in the thread after the answer that started it
   // (`after`: how many answers then); and how many times it was asked for.
-  const [offeredSearch, setOfferedSearch] = useState<{ id: string; restarted: boolean; after: number } | null>(null);
+  const [offeredSearch, setOfferedSearch] = useState<{ restarted: boolean; after: number } | null>(null);
   const offeredStarts = useRef(0);
+  // The offered Job Search the page follows in AI Activity (#1001): the latest started, kept when the Candidate starts over.
+  const [followedId, setFollowedId] = useState<string | null>(null);
   const [questionnaire, setQuestionnaire] = useState<Questionnaire>(startQuestionnaire);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState("");
@@ -203,7 +207,10 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     try {
       const response = await fetch(`/api/profiles/${profileId}/onboarding-search`, { method: "POST" });
       const body = await response.json().catch(() => ({}));
-      if (response.status === 201 && typeof body.id === "string") setOfferedSearch({ id: body.id, restarted: body.offered === "restart", after });
+      if (response.status === 201 && typeof body.id === "string") {
+        setOfferedSearch({ restarted: body.offered === "restart", after });
+        setFollowedId(body.id);
+      }
       else if (response.status === 409) offeredStarts.current = OFFERED_SEARCHES;
     } catch {
       // Not started: nothing to tell.
@@ -285,6 +292,9 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const described = [question?.optional ? `${id}-hint` : "", error ? `${id}-error` : ""].filter(Boolean).join(" ") || undefined;
 
   const asking = question !== null;
+  // The offered Job Search, live in AI Activity's « En ce moment », counted « ici » (#1001): its matching Job Offers
+  // counted against the Search Criteria of the moment.
+  useFollowedSearch({ jobSearchId: followedId, href: routes.newProfile, ...searchedWith(draftFromQuestionnaire(questionnaire)) });
   const boxLabel = asking ? t("questionnaire.answerLabel") : t("coachPanel.messageLabel");
 
   return (
@@ -318,15 +328,15 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                     <span className="visually-hidden">{t("questionnaire.you")}</span>
                     <p>{answerText(turn)}</p>
                   </li>,
-                  // The Job Search the onboarding offers (#1000), told after the answer that started it.
-                  offeredSearch?.after === index + 1 ? (
-                    <CoachLine key="offered-search">
-                      <p>
-                        {offeredSearch.restarted ? t("newProfile.offeredSearchRestarted") : t("newProfile.offeredSearchStarted")}{" "}
-                        <Link href={routes.jobSearch(offeredSearch.id)}>{t("newProfile.offeredSearchLink")}</Link>
-                      </p>
-                    </CoachLine>
-                  ) : null,
+                  // The Job Search the onboarding offers (#1000), told after the answer that started it: one line; its progress
+                  // is in AI Activity's « En ce moment » (#1001).
+                  ...(offeredSearch?.after === index + 1
+                    ? [
+                        <CoachLine key="offered-search">
+                          <p>{offeredSearch.restarted ? t("newProfile.offeredSearchRestarted") : t("newProfile.offeredSearchStarted")}</p>
+                        </CoachLine>,
+                      ]
+                    : []),
                 ])}
               </>
             ) : null}

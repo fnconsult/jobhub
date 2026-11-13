@@ -98,6 +98,9 @@
  * search, page read and the model that read it), each told to the request's `onEvent` as it starts and ends,
  * and kept, folded, in the report's `run`, which the caller goes on recording into (its Match Scores) before
  * it stores the run's Provenance. A failed run's partial report has it too.
+ *
+ * What the run has measured so far is told to the request's `onMetrics` each time it changes (#1001): where each active
+ * source stands, the pages read and the Job Offers found until then, for AI Activity's « En ce moment » on the onboarding's page.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
 import { createProvenanceRecorder, createWebSearchRun, readJobPage, WebSearchUnavailable, type AiLayer, type SearchFallback, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
@@ -111,8 +114,12 @@ import {
   isPostingTooOld,
   joinProvenance,
   NO_INDUSTRY_REFERENCE,
+  DISCOVERY_SOURCES,
   type DiscoveryMetrics,
   type DiscoverySearch,
+  type DiscoverySource,
+  type LiveDiscoveryMetrics,
+  type LiveSourceState,
   type TargetCompaniesMetrics,
   type DiscoveryStopReason,
   type IndustryReference,
@@ -236,6 +243,11 @@ export interface DiscoverRequest {
   criteria: SearchCriteria;
   /** Where each step of the run goes as it starts and ends (the Job Search's progress). Default: nowhere. */
   onEvent?: (event: ProvenanceEvent) => void;
+  /**
+   * Where what the run has measured so far goes, each time it changes (#1001): a source starting or ending, a page read,
+   * a Job Offer found. Only its `search` step: the caller says when it analyses. Default: nowhere.
+   */
+  onMetrics?: (live: LiveDiscoveryMetrics) => void;
   /**
    * Stops the run (the Candidate stopped their Job Search, #331): once it aborts, no step starts any more, the AI call
    * on its way is stopped (its step `stopped`), and the run reports what it found until then, as when its budget is spent.
@@ -378,7 +390,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const forbiddenSites: readonly string[] = options.forbiddenSites ?? FORBIDDEN_SITES;
 
   return {
-    async discover({ candidateId, profileId, criteria, onEvent, signal }) {
+    async discover({ candidateId, profileId, criteria, onEvent, onMetrics, signal }) {
       const startedAt = clock.now();
       const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
       const web: WebSearchSettings = { ...DEFAULT_WEB_SEARCH_SETTINGS, ...(typeof options.search === "function" ? options.search() : options.search) };
@@ -462,6 +474,50 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         console.warn("[job-discovery] the web search is unavailable (its Search provider's key is missing): skipped, the other sources are searched");
       }
       const { funnel, skipped } = report;
+      /**
+       * Where each active source stands (#1001), in DISCOVERY_SOURCES' order: the job APIs configured and on, the web
+       * search when it can run, the ATS APIs when on and something can lead to them (the web search, Target Companies);
+       * the Target Companies join once the run has some to visit.
+       */
+      const sourceStates = new Map<DiscoverySource, LiveSourceState>();
+      const targetsConfigured = Boolean(profileId && (typeof options.targetCompanies === "function" ? options.targetCompanies() : options.targetCompanies));
+      const active: Record<DiscoverySource, boolean> = {
+        france_travail: Boolean(franceTravail),
+        fantastic_jobs: Boolean(fantasticJobs),
+        web_search: webSearch,
+        ats_apis: settings.sources.ats_apis && (webSearch || targetsConfigured),
+        target_companies: false,
+      };
+      for (const source of DISCOVERY_SOURCES) if (active[source]) sourceStates.set(source, "waiting");
+      /** What the run has measured so far, to `onMetrics`. */
+      const measuredSoFar = () =>
+        onMetrics?.({
+          step: "search",
+          sources: DISCOVERY_SOURCES.flatMap((source) => {
+            const state = sourceStates.get(source);
+            return state ? [{ source, state }] : [];
+          }),
+          pagesRead: funnel.fetched,
+          offersAnalysed: found.size,
+          matched: null,
+          jobOfferIds: [...found.keys()],
+        });
+      /** The sources searched at least once: one refusing or failing for another location still was (as its metrics say). */
+      const searchedOnce = new Set<DiscoverySource>();
+      /** A source's new state, measured. */
+      const sourceIs = (source: DiscoverySource, state: LiveSourceState) => {
+        if (state === "searched") searchedOnce.add(source);
+        const now = (state === "refused" || state === "failed") && searchedOnce.has(source) ? "searched" : state;
+        if (sourceStates.get(source) === now) return;
+        sourceStates.set(source, now);
+        measuredSoFar();
+      };
+      /** A page read: counted, and measured. */
+      const pageRead = () => {
+        funnel.fetched++;
+        measuredSoFar();
+      };
+      measuredSoFar();
       /** The share of the budget the location being searched may use up to (k/n for the k-th of n locations). */
       let share = 1;
       // The Candidate stopping the run spends it too: no step starts after.
@@ -496,6 +552,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         }
         found.set(jobOffer.id, jobOffer);
         funnel.alreadyStored++;
+        measuredSoFar();
       };
 
       /**
@@ -531,6 +588,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           found.set(captured.jobOffer.id, captured.jobOffer);
           if (captured.created) created.add(captured.jobOffer.id);
           report.newJobOffers = created.size;
+          measuredSoFar();
         }
       };
 
@@ -555,12 +613,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const reading = recording();
         const atsTool = settings.sources.ats_apis ? atsToolOf(url) : null;
         const ats = atsTool ? await reading.step({ tool: atsTool }, () => readAtsPosting(url, { fetchJson: fetchAtsJson, now: new Date(clock.now()), maxAgeDays: web.maxPostingAgeDays })) : null;
+        // Its API answered (a posting, or why none) or could not be read: consulted either way (#1001).
+        if (atsTool) sourceIs("ats_apis", ats ? "searched" : "failed");
         if (ats) {
           if (!ats.ok) {
             skipped.push({ url, reason: ats.reason });
             return;
           }
-          funnel.fetched++;
+          pageRead();
           await capture(url, ats.details, searchDate, joinProvenance(howFound, reading.provenance()));
           return;
         }
@@ -574,7 +634,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           skipped.push({ url, reason: page.reason });
           return;
         }
-        funnel.fetched++;
+        pageRead();
         // The postings of a listing page are read too, one level only, while the budget lasts.
         const links = follow ? listingPageLinks(page) : [];
         const followListing = async () => {
@@ -612,7 +672,10 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const before = found.size;
         const max = Math.max(Math.ceil(budget.jobOffers * share) - found.size, 1);
         const searching = recording();
+        const source: DiscoverySource = tool === "france-travail" ? "france_travail" : "fantastic_jobs";
+        sourceIs(source, "searching");
         const result = await searching.step({ tool }, () => api.search(criteria, { max, now: new Date(clock.now()), location }));
+        sourceIs(source, result.ok ? "searched" : result.reason);
         const searched = searching.provenance();
         metrics.calls += result.calls;
         if (result.ok && result.costEur !== undefined && "costEur" in metrics) metrics.costEur = Math.round((metrics.costEur + result.costEur) * 1e6) / 1e6;
@@ -659,6 +722,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const now = () => new Date(clock.now());
         const forRun = await targets.forRun({ candidateId, profileId, criteria, now: now(), step: (work) => recording().step({ tool: "france-travail" }, work) });
         Object.assign(metrics, { laBonneBoite: forRun.laBonneBoite.status, calls: forRun.laBonneBoite.calls });
+        // A source of the run only when the Profile has Target Companies to visit (#1001).
+        if (forRun.visits.length > 0) sourceIs("target_companies", "searching");
         const visited: TargetCompanyVisit[] = [];
         /** Those the register said are not companies: not visited, but recorded as such, never to be picked again. */
         const notCompanies: TargetCompanyVisit[] = [];
@@ -725,6 +790,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           }
         }
         metrics.visited = visited.length;
+        if (forRun.visits.length > 0) sourceIs("target_companies", "searched");
         metrics.offers = found.size - before;
         await targets.visited(profileId, visited, now());
         await targets.notACompany(profileId, notCompanies, now());
@@ -738,6 +804,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const tool = settings.sources.ats_apis ? atsBoardToolOf(site) : null;
         const reading = recording();
         const answer = tool ? await reading.step({ tool }, () => readAtsBoard(site, { fetchJson: fetchAtsJson, now: new Date(clock.now()), maxAgeDays: web.maxPostingAgeDays })) : null;
+        if (tool) sourceIs("ats_apis", answer ? "searched" : "failed");
         if (!answer) {
           // No board, or its API could not be read: the page itself, as a listing page.
           await read(site, true, undefined, null);
@@ -752,7 +819,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           if (budgetSpent()) break;
           if (seen.has(posting.url)) continue;
           seen.add(posting.url);
-          funnel.fetched++;
+          pageRead();
           const known = await storedAt(posting.url);
           if (known) alreadyStored(posting.url, known);
           else await capture(posting.url, posting.details, undefined, howFound);
@@ -838,11 +905,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           }
           if (!budgetSpent() && webSearch) {
             try {
+              sourceIs("web_search", "searching");
               await searchTheWeb(location);
+              sourceIs("web_search", "searched");
             } catch (error) {
               // Its key cleared during the run: the web search is skipped from now on, as when unavailable at its start.
               if (!(error instanceof WebSearchUnavailable)) throw error;
               webSearch = false;
+              sourceIs("web_search", "failed");
               console.warn(`[job-discovery] the web search became unavailable during the run: ${error.message}`);
             }
           }

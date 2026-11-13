@@ -1342,8 +1342,42 @@
     "reviewOnly": "Here I only help you create this profile: review it, correct what needs correcting and save it. Once it's saved, you can talk to me about it on its page.",
     "resumeIntro": "Let's pick up creating your profile where you left off. Here is what is already saved: complete it, correct what needs correcting and save it.",
     "offeredSearchStarted": "Your profile is created: I'm starting a first job search right away, on us, which does not count toward your quota. Let's carry on while it searches.",
-    "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too.",
-    "offeredSearchLink": "See the search"
+    "offeredSearchRestarted": "The target role or location changed: I'm starting the search again, on us too."
+  },
+  "onboardingSearch": {
+    "stepsLabel": "Steps of the search",
+    "countersLabel": "What the search measured",
+    "steps": {
+      "profile": "Reading your profile",
+      "search": "Searching France Travail, careers sites and the web",
+      "analysis": "Analysing the job offers found",
+      "selection": "Picking your best job offers"
+    },
+    "counters": {
+      "sources": "sources consulted",
+      "pages": "pages read",
+      "analysed": "job offers analysed",
+      "matching": "job offers that fit you",
+      "outOf": "{{count}} of {{total}}"
+    },
+    "refined": "Narrowed with:",
+    "assumed": "assumed",
+    "minSalary": "from {{amount}}",
+    "sourcesLabel": "Sources of the search",
+    "sources": {
+      "france_travail": "France Travail",
+      "fantastic_jobs": "Employers' careers sites",
+      "web_search": "Web search",
+      "ats_apis": "ATS APIs",
+      "target_companies": "Target companies"
+    },
+    "sourceStates": {
+      "waiting": "to come",
+      "searching": "in progress…",
+      "searched": "consulted",
+      "refused": "refused",
+      "failed": "unavailable"
+    }
   },
   "questionnaire": {
     "transcript": "Your conversation with the coach",
@@ -5762,9 +5796,14 @@
         "calls_other": "{{count}} calls · {{tokens}} tokens sent",
         "tokens": "{{tokens}} tokens",
         "partial": "last call only",
-        "noAi": "No AI"
+        "noAi": "No AI",
+        "offered": "Offered, outside your plan"
       },
-      "sources": "Sources:"
+      "sources": "Sources:",
+      "bestOffers": "Your best job offers:",
+      "noBestOffers": "No job offer found yet.",
+      "allOffers": "See all job offers",
+      "matchScore": "Match Score {{score}}/100"
     }
   },
   "signalement": {
@@ -5903,6 +5942,12 @@
       "componentsSubtitle": "Every component and its states, as screens use them."
     },
     "gallery": {
+      "stepper": "Steps",
+      "stepRead": "Reading your profile",
+      "stepReadDetail": "Management controller · Nantes",
+      "stepSearch": "Searching for job offers",
+      "stepSearchDetail": "Sources consulted: 2 of 3",
+      "stepSelect": "Picking your best job offers",
       "eyebrow": "Design System",
       "title": "Components",
       "subtitle": "Every Design System component on one page, for the accessibility checks.",
@@ -6020,6 +6065,11 @@
       "loading": "Opening the document…",
       "failed": "This document could not be shown. Download it to open it.",
       "title": "Viewer"
+    },
+    "stepper": {
+      "done": "done",
+      "current": "in progress",
+      "pending": "to come"
     }
   },
   "emails": {

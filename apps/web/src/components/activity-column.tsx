@@ -19,6 +19,11 @@ export type ActivityColumn = {
   open: () => void;
   /** On a phone, where it covers the conversation, closes it; beside the conversation, nothing. */
   closeOverConversation: () => void;
+  /**
+   * Wide enough for it beside the conversation (64rem); below, it opens over it, full screen. The onboarding opens it as
+   * its offered Job Search starts on a wide screen only (#1001, ADR-0106).
+   */
+  wide: boolean;
 };
 
 export const ActivityColumnControl = createContext<ActivityColumn | null>(null);

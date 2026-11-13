@@ -497,7 +497,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   profile: "profiles (the Search Criteria's Origin, #719; where its onboarding stands, #999)",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it; its Origin, #719)",
   ats_score: "profiles[].atsScore",
-  job_search: "profiles[].jobSearches (each one's Provenance, not its live steps; offered by the onboarding or not, #1000)",
+  job_search: "profiles[].jobSearches (each one's Provenance, not its live steps nor its run's live measures, #1001; offered by the onboarding or not, #1000)",
   discovery_run_detail: "profiles[].jobDiscoveryRuns (the last 30 days' runs: criteria and each search's query texts; their figures are of no one)",
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",

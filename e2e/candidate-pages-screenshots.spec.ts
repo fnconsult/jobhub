@@ -640,13 +640,16 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     }
   });
 
-  test("the File upload's states: empty, a file chosen, a file refused, a file being read", async ({
-    page,
-  }) => {
-    await signInWithMagicLink(page, newAddress("shots-upload"));
-    const upload = page.locator(".ds-upload");
-    const input = page.getByLabel(fr.cvUpload.fileLabel);
-    for (const { name, width, height } of SCREENSHOT_WIDTHS) {
+  // One test per width (PR #1021): its four states in both themes, axe on each, are 8 checks. All three widths in one test
+  // took 44 s to 56 s on CI as /profils/nouveau grew into the onboarding (#1009, #1010), and a slower runner went past the
+  // 60 s timeout.
+  for (const { name, width, height } of SCREENSHOT_WIDTHS) {
+    test(`the File upload's states: empty, a file chosen, a file refused, a file being read (${name})`, async ({
+      page,
+    }) => {
+      await signInWithMagicLink(page, newAddress(`shots-upload-${name}`));
+      const upload = page.locator(".ds-upload");
+      const input = page.getByLabel(fr.cvUpload.fileLabel);
       await page.setViewportSize({ width, height });
       await page.goto("/profils/nouveau");
       await page.waitForLoadState("networkidle");
@@ -702,8 +705,8 @@ test.describe("Candidate pages in the Design System (#468)", () => {
         .getByRole("button", { name: fr.aiActivity.live.stop.cv_reading })
         .click();
       await expect(upload.locator(".ds-upload__step")).toHaveCount(0);
-    }
-  });
+    });
+  }
 
   // Issue #808 (ADR-0086), #980: the side panel's « Activité » view holds Activity's history, by day, one row per
   // entry, an entry unfolding its detail. On a Profile's page, « Création du profil » (#810): Version 1 of its Master CV and
@@ -721,6 +724,26 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     const activity = page
       .getByRole("banner")
       .getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
+    const fiche = page.getByRole("complementary", {
+      name: fr.fiche.views.activity,
+      exact: true,
+    });
+    // « Aujourd'hui » is the day of the browser's clock, in its time zone: the Candidate's (CI's: UTC). A run across its
+    // midnight, between the creation and the shots, would find « Création du profil » under « Le 12/11 » instead (PR
+    // #1021). The browser's clock is held at the creation's own time, read in the history, so it is « today » whenever the
+    // suite runs; its timers still run.
+    const desktop = SCREENSHOT_WIDTHS.find((each) => each.name === "desktop")!;
+    await page.setViewportSize({ width: desktop.width, height: desktop.height });
+    await page.goto(`/profils/${id}`);
+    await page.waitForLoadState("networkidle");
+    if ((await activity.getAttribute("aria-expanded")) !== "true") await activity.click();
+    const createdAt = await fiche
+      .locator(".activity-entry-row")
+      .filter({ hasText: fr.aiActivity.kinds.profile_creation })
+      .locator("time")
+      .getAttribute("datetime");
+    expect(createdAt, "the creation's time").toBeTruthy();
+    await page.clock.setFixedTime(new Date(createdAt!));
     for (const { name, width, height } of SCREENSHOT_WIDTHS) {
       await page.setViewportSize({ width, height });
       await page.goto(`/profils/${id}`);
@@ -728,10 +751,6 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       // stays as it was left: on « Activité » already at a width where it was shown before. On a phone, « Activité » is
       // under the compact Top Bar's « … » (#897).
       await page.waitForLoadState("networkidle");
-      const fiche = page.getByRole("complementary", {
-        name: fr.fiche.views.activity,
-        exact: true,
-      });
       if (name === "phone") {
         await chooseInTopBarMore(page, fr.fiche.activity);
         await expect(fiche).toBeVisible();

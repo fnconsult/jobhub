@@ -133,7 +133,9 @@ test.describe("Extension Events: POST /api/extension/events", () => {
     expect((await report(api, fromWeb, body)).status()).toBe(403);
     expect((await report(api, { origin: "https://evil.example" }, body)).status()).toBe(403);
     expect((await report(api, {}, body)).status()).toBe(403);
-    expect(await kindsSince(since, null)).toEqual([]);
+    // Only what this body would have written: a Guest's row from another spec running beside this one (the real
+    // extension's Capture, e2e/extension-unrecognised.spec.ts) falls in the same window, and rows do not name their caller.
+    expect(await rowsSince(since, null, "kind = 'error' AND page_domain = 'example.com'")).toEqual([]);
     await api.dispose();
   });
 
@@ -144,7 +146,8 @@ test.describe("Extension Events: POST /api/extension/events", () => {
       const response = await report(api, fromExtension, body);
       expect(response.status(), JSON.stringify(body)).toBe(400);
     }
-    expect(await kindsSince(since, null)).toEqual([]);
+    // Only what these bodies would have written (see the test above): an error with one of their codes.
+    expect(await rowsSince(since, null, "kind = 'error' AND (error_code IN ('x y', 'boom') OR (error_code = 'captureImpossible' AND place IS NULL))")).toEqual([]);
     await api.dispose();
   });
 

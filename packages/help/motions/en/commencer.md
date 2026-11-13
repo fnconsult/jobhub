@@ -32,6 +32,17 @@ In My account, under Profiles, click « Create my first profile ». Your coach w
 
 Drop your CV in the « I have a CV » card, as a PDF or a Word file, then click « Read my CV ». Without a CV, click « Answer my coach's questions » instead.
 
+## Confirm what your coach read
+- fill label « Your answer » « Responsable comptable »
+- click button « Send to the coach »
+- fill label « Your answer » « Lyon »
+- click button « Send to the coach »
+- click button « Skip this question »
+- click button « Skip this question »
+- click button « Skip this question »
+
+While it reads, the « Profile in progress » card shows what your coach finds in your CV, then folds. It has you confirm the target role and the place it read: click « Yes, … », or write your own. It then asks only what a CV does not say, the contract type, remote work and the minimum salary, and each question can be skipped with « Skip this question ».
+
 ## Read the summary
 - zoom region « Your job search »
 - click button « See the details »

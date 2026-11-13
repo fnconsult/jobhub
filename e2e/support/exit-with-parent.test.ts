@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -37,24 +37,35 @@ const launcher = spawn(process.execPath, [${JSON.stringify(launcherFile)}], { st
 launcher.stdout.on("data", (chunk) => process.stdout.write(chunk));
 `;
 
-/** Running: a zombie (exited, not yet reaped by whoever adopted it, e.g. a subreaper on Linux) is not. */
+/** Whether this machine has procfs: Linux does, macOS (whose zombies launchd reaps at once) does not. */
+const procfs = existsSync("/proc/self/stat");
+
+/**
+ * Running: a zombie (exited, not yet reaped by whoever adopted it, e.g. a subreaper on Linux) is not, nor is a process
+ * reaped between kill(pid, 0) and the read of its /proc entry, which is then gone (ENOENT, #1033).
+ */
 const alive = (pid: number) => {
   try {
     process.kill(pid, 0);
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "EPERM";
   }
+  if (!procfs) return true;
   try {
     return readFileSync(`/proc/${pid}/stat`, "utf8").split(") ")[1]?.[0] !== "Z";
-  } catch {
-    return true; // No /proc (macOS): its zombies are reaped by launchd at once.
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== "ENOENT";
   }
 };
 
+/** Whether `pid` stops running within `withinMs`: the first time it is seen not running, never looked at again (#1033). */
 async function gone(pid: number, withinMs = 10_000) {
   const deadline = Date.now() + withinMs;
-  while (alive(pid) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
-  return !alive(pid);
+  for (;;) {
+    if (!alive(pid)) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 }
 
 /** The launcher's pid, the server's and its parent's (npx, or a shell npx started), once the chain has printed them. */

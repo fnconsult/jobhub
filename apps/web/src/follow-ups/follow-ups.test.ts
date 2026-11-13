@@ -56,8 +56,11 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     const statusBefore = (await applications.get(candidateId, applicationId))?.status;
     clock = on;
     expect(await actionCards.decide(candidateId, card.id, "accept")).toMatchObject({ ok: true });
-    // Arrange only: the Applications module stamps a status change with the real time.
+    // Arrange only: the Applications module stamps a status change with the real time, and the Follow-up sent is recorded
+    // no earlier than it: both are moved back to that day, or the next one would be counted from the real date (red from
+    // Friday 13 November 2026, Paris time, the day after the fixture's).
     if (statusBefore !== "followed_up") await database.query(`UPDATE application SET status_changed_at = $2 WHERE id = $1`, [applicationId, on]);
+    await database.query(`UPDATE follow_up_sent SET sent_at = $2 WHERE application_id = $1 AND sent_at > $2`, [applicationId, on]);
   }
 
   const followUpFocus = () => ({ kind: "application", id: applicationId }) as const;

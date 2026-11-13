@@ -345,13 +345,31 @@ test.describe("Espace coach v2 in the Design System (#867)", () => {
     await page.close();
   });
 
-  // #1020: a form's fields as wide as their form (their Card, or the page's column), alike, at every width and at the
-  // largest Text Size; at the desktop width a Meet link and an e-mail then show whole (at 390 pixels nothing that long
-  // can).
-  test("form fields take their form's width, and the Meet link and the contact e-mail show whole on a desktop (#1020)", async () => {
-    const fills = (field: Locator) =>
-      field.evaluate((input: HTMLInputElement) => Math.abs(input.getBoundingClientRect().width - input.closest("form")!.getBoundingClientRect().width) <= 1);
-    const whole = (field: Locator) => field.evaluate((input: HTMLInputElement) => input.scrollWidth <= input.clientWidth);
+  // #1020: a form's fields as wide as the form, and the form as wide as what holds it, at every width and Text Size, so
+  // no field is left at its label's width; at the desktop width the whole Meet link and the whole e-mail then show.
+  // (An input's scrollWidth equals its clientWidth however long its value is, so the text is measured in the page's font.)
+  const measure = (field: Locator) =>
+    field.evaluate((input: HTMLInputElement) => {
+      const style = getComputedStyle(input);
+      const ruler = document.createElement("span");
+      ruler.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${style.font};letter-spacing:${style.letterSpacing}`;
+      ruler.textContent = input.value;
+      document.body.append(ruler);
+      const text = ruler.getBoundingClientRect().width;
+      ruler.remove();
+      const form = input.closest("form")!;
+      const holder = form.parentElement!;
+      const holderStyle = getComputedStyle(holder);
+      return {
+        field: input.closest(".ds-field")!.getBoundingClientRect().width,
+        form: form.getBoundingClientRect().width,
+        holder: holder.clientWidth - parseFloat(holderStyle.paddingLeft) - parseFloat(holderStyle.paddingRight),
+        text,
+        room: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+      };
+    });
+
+  test("form fields take their form's width, and the whole Meet link and e-mail show on a desktop (#1020)", async () => {
     for (const textSize of [null, "xlarge"]) {
       for (const { name, width, height } of [DESKTOP, PHONE]) {
         const coach = await contexts.coach.newPage();
@@ -364,19 +382,24 @@ test.describe("Espace coach v2 in the Design System (#867)", () => {
         await coach.goto(`/espace-coach/seances/${ids.session}`);
         const link = coach.getByLabel(fr.coachMeeting.target);
         await expect(link).toHaveValue("https://meet.google.com/abc-defg-hij");
-        expect(await fills(link), `the Meet link's field ${label}`).toBe(true);
-        expect(await fills(coach.getByLabel(fr.coachMeeting.kind)), `the contact's kind ${label}`).toBe(true);
+        const meeting = await measure(link);
+        expect(meeting, `the Meet link's field ${label}`).toMatchObject({ field: meeting.form, form: meeting.holder });
         await candidate.goto("/devenir-coach");
         const email = candidate.getByLabel(fr.coachEnrolment.fields.email);
         await expect(email).toHaveValue(CANDIDATE);
-        expect(await fills(email), `the e-mail's field ${label}`).toBe(true);
-        expect(await fills(candidate.getByLabel(fr.coachEnrolment.fields.siret)), `the SIRET's field ${label}`).toBe(true);
+        const enrolment = await measure(email);
+        expect(enrolment, `the e-mail's field ${label}`).toMatchObject({ field: enrolment.form, form: enrolment.holder });
+        // Every Field of one form is as wide as the next: the SIRET's too.
+        expect((await measure(candidate.getByLabel(fr.coachEnrolment.fields.siret))).field, `the SIRET's field ${label}`).toBe(enrolment.field);
         if (name === "desktop") {
-          expect(await whole(link), `the Meet link ${label}`).toBe(true);
-          expect(await whole(email), `the e-mail ${label}`).toBe(true);
+          expect(meeting.text, `the whole Meet link ${label}`).toBeLessThanOrEqual(meeting.room);
+          expect(enrolment.text, `the whole e-mail ${label}`).toBeLessThanOrEqual(enrolment.room);
         }
-        await coach.close();
-        await candidate.close();
+        // The Text Size is kept per browser: cleared, so it stays out of the screens shot from these same contexts.
+        for (const page of [coach, candidate]) {
+          await page.evaluate(() => localStorage.removeItem("jobbbox.textSize"));
+          await page.close();
+        }
       }
     }
   });

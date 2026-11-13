@@ -951,7 +951,7 @@ textarea.input {
 }
 
 /* Once the Candidate writes (`data-writing`), the badge and Send shrink to their icons, side by side at the right: the
-   badge to its AI dot, Send to the Enter key (an exception to ADR-0009, in its amendment of #933). Their words stay in
+   badge to « IA », Send to the Enter key (an exception to ADR-0009, in its amendment of #933). Their words stay in
    the page for screen readers, and show on the keyboard's focus at once, or once the pointer has rested on one for 2
    seconds (useDwellReveal, `data-revealed`): the action then floats over the text, anchored at its right, without
    moving it. Emptied (sent), the box shows them in words again. */
@@ -959,11 +959,7 @@ textarea.input {
   display: none;
 }
 
-/* Writing, the badge says « IA » (« AI »), not its dot alone: the AI disclosure stays in words (AI Act art. 50(1)). */
-.coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed])::before {
-  display: none;
-}
-
+/* Writing, the badge says « IA » (« AI »): the AI disclosure stays in words (AI Act art. 50(1)). */
 .coach-panel-composer-inline[data-writing] .coach-panel-badge:not([data-revealed]) .composer-short {
   display: inline;
   font-weight: 600;
@@ -1158,15 +1154,23 @@ html:has(.page-conversation) {
   background: var(--color-hover);
 }
 
-/* « Coach IA », a button that shows the welcome panel again: a 44px target (ADR-0009), the pill drawn as before. */
+/* The « Coach IA » badge by the message box: the Design System's accent Pill (`.ds-pill`), as tall as Send beside it. */
+.coach-panel-badge {
+  min-height: var(--size-control);
+}
+
+/* On a conversation page it is a button that shows the welcome panel again: a 44px target (ADR-0009), at the message
+   box's control height, so it lines up with « Envoyer au coach ». Its focus ring is the global one. */
 button.coach-panel-badge {
-  min-height: 44px;
-  font: inherit;
+  justify-content: center;
+  min-height: var(--control-height);
+  font-family: inherit;
   cursor: pointer;
 }
 
 button.coach-panel-badge:hover {
   text-decoration: underline;
+  border-color: var(--color-accent);
 }
 
 .page-conversation-thread {

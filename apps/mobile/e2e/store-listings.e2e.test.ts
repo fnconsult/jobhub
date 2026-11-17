@@ -6,7 +6,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEVICES } from "../maestro/devices";
 import { KEY_SCREENS } from "../maestro/seed";
-import { STORE_SCREENS, STORE_SETS } from "../store/screenshot-sets";
+import { designTokens } from "@jobhub/shared/design";
+import { STORE_ICON, STORE_SCREENS, STORE_SETS } from "../store/screenshot-sets";
 
 const ROOT = join(__dirname, "..", "..", "..");
 const APP = join(ROOT, "apps", "mobile");
@@ -159,12 +160,25 @@ describe("The App Store's metadata for `eas metadata:push` (store.config.json)",
 describe("The app's metadata the stores read (app.json)", () => {
   const { expo } = json("app.json");
 
-  it("has its provisional icon: 1024 px for iOS, an adaptive one on the accent for Android", () => {
+  it("has the logo for its icon (#988): 1024 px for iOS, opaque; for Android, adaptive and monochrome (Android 13)", () => {
     expect(pngSize(join(APP, expo.icon))).toEqual({ width: 1024, height: 1024 });
-    expect(pngSize(join(APP, expo.android.adaptiveIcon.foregroundImage))).toEqual({ width: 1024, height: 1024 });
-    expect(expo.android.adaptiveIcon.backgroundColor).toBe("#4f5fe0");
     // The App Store refuses an icon with an alpha channel: colour type 2 (RGB) in the PNG's header.
     expect(readFileSync(join(APP, expo.icon))[25]).toBe(2);
+    const adaptive = expo.android.adaptiveIcon;
+    for (const layer of ["foregroundImage", "backgroundImage", "monochromeImage"]) expect(pngSize(join(APP, adaptive[layer]))).toEqual({ width: 1024, height: 1024 });
+    // The foreground and the monochrome layer are drawn over what the launcher puts behind: transparent (RGBA, type 6).
+    expect(readFileSync(join(APP, adaptive.foregroundImage))[25]).toBe(6);
+    expect(readFileSync(join(APP, adaptive.monochromeImage))[25]).toBe(6);
+    expect(adaptive.backgroundColor).toBe(STORE_ICON.soft);
+  });
+
+  it("opens on the logo's symbol, on the page's background in the light and in the dark theme (#988)", () => {
+    const splash = expo.plugins.find((plugin: unknown) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen")?.[1];
+    expect(splash).toBeDefined();
+    expect(pngSize(join(APP, splash.image))).toEqual({ width: 1024, height: 1024 });
+    expect(splash.backgroundColor).toBe(designTokens.color.background.light);
+    expect(splash.dark.backgroundColor).toBe(designTokens.color.background.dark);
+    expect(splash.dark.image).toBe(splash.image);
   });
 
   it("answers the export compliance question once: only the system's encryption (declarations.md)", () => {

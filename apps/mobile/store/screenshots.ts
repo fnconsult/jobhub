@@ -1,6 +1,6 @@
 /**
- * Draws the stores' screenshots and the provisional icon of the Jobbbox app (#708) into `store/screenshots/` and
- * `assets/`. Run after the reference captures change (docs/ops/mobile.md « Les captures des stores »), then commit:
+ * Draws the stores' screenshots and the Jobbbox app's icons and splash screen (#708; the logo « La boîte qui répond »,
+ * #988, ADR-0105, from @jobhub/shared/logo) into `store/screenshots/` and `assets/`. Run after the reference captures change (docs/ops/mobile.md « Les captures des stores »), then commit:
  *
  *   npx tsx apps/mobile/store/screenshots.ts
  *
@@ -19,6 +19,7 @@
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { logoIconSvg, logoSvg, type LogoIcon } from "@jobhub/shared/logo";
 import { chromium, type Browser } from "playwright";
 import { STORE_ICON, STORE_SCREENS, STORE_SETS, type StoreSet } from "./screenshot-sets";
 
@@ -58,9 +59,22 @@ function upright(set: StoreSet, source: string) {
   return `<img src="${dataUrl(source)}" style="display:block;image-orientation:from-image;width:${set.size.width}px;height:${set.size.height}px">`;
 }
 
-/** The provisional icon (ADR-0053: no logo yet): the word « Jobbbox » on the accent. */
-const wordmark = (size: { width: number; height: number }, fontSize: number, background: string) =>
-  `<div style="width:${size.width}px;height:${size.height}px;background:${background};display:flex;align-items:center;justify-content:center;font-family:Inter;font-weight:700;font-size:${fontSize}px;letter-spacing:-0.03em;color:#fff">Jobbbox</div>`;
+/** An icon made of the logo (#988): its symbol, on the accent's soft tint unless it is a transparent layer. */
+const icon = (logo: LogoIcon) => logoIconSvg(logo).replace("<svg ", '<svg style="display:block" ');
+
+/**
+ * The feature graphic: the symbol and the name « Jobbbox », on the accent's soft tint.
+ */
+const featureGraphic = (size: { width: number; height: number }) =>
+  `<div style="width:${size.width}px;height:${size.height}px;background:${STORE_ICON.soft};display:flex;align-items:center;justify-content:center;gap:40px;font-family:Inter;font-weight:700;font-size:150px;letter-spacing:-0.03em;color:${STORE_ICON.ink}">${logoSvg("symbol").replace("<svg ", '<svg width="220" height="220" ')}Jobbbox</div>`;
+
+/** A transparent PNG of `html`. */
+async function layer(browser: Browser, size: number, html: string, path: string) {
+  const page = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: 1 });
+  await page.setContent(`<style>html,body{margin:0;background:transparent}</style>${html}`);
+  await page.screenshot({ path, omitBackground: true });
+  await page.close();
+}
 
 async function main() {
   rmSync(out, { recursive: true, force: true });
@@ -78,16 +92,19 @@ async function main() {
         manifest[name] = { source, sha256: createHash("sha256").update(readFileSync(`${root}${source}`)).digest("hex") };
       }
     }
-    // The app's icon (app.json): opaque for iOS; Android's adaptive foreground keeps the word inside its safe zone.
-    await draw(browser, { width: 1024, height: 1024 }, wordmark({ width: 1024, height: 1024 }, 212, STORE_ICON.accent), `${root}assets/icon.png`);
-    const foreground = await browser.newPage({ viewport: { width: 1024, height: 1024 }, deviceScaleFactor: 1 });
-    await foreground.setContent(`<style>${font}html,body{margin:0;background:transparent}</style>${wordmark({ width: 1024, height: 1024 }, 148, "transparent")}`);
-    await foreground.evaluate(() => document.fonts.ready);
-    await foreground.screenshot({ path: `${root}assets/adaptive-icon.png`, omitBackground: true });
-    await foreground.close();
+    // The app's icon (app.json): opaque for iOS, which rounds its corners itself.
+    await draw(browser, { width: 1024, height: 1024 }, icon({ size: 1024, background: STORE_ICON.soft, shape: "square", inset: 0.16 }), `${root}assets/icon.png`);
+    // Android's adaptive icon: the launcher masks it to its shape and shows the middle 66 % (of 108 dp) at most, so the
+    // symbol stays inside the safe circle; its background layer is the soft tint, its monochrome one (Android 13's
+    // themed icons) the symbol in one colour, the slot cut out.
+    await layer(browser, 1024, icon({ size: 1024, inset: 0.29 }), `${root}assets/adaptive-icon.png`);
+    await draw(browser, { width: 1024, height: 1024 }, `<div style="width:1024px;height:1024px;background:${STORE_ICON.soft}"></div>`, `${root}assets/adaptive-icon-background.png`);
+    await layer(browser, 1024, icon({ size: 1024, inset: 0.29, monochrome: true }), `${root}assets/adaptive-icon-monochrome.png`);
+    // The splash screen's symbol (expo-splash-screen in app.json), on the page's background in either theme.
+    await layer(browser, 1024, icon({ size: 1024, inset: 0.02 }), `${root}assets/splash-icon.png`);
     // Google Play's own graphics: its 512 px icon and the 1024 × 500 feature graphic.
-    await draw(browser, { width: 512, height: 512 }, wordmark({ width: 512, height: 512 }, 106, STORE_ICON.accent), `${out}google-play-icon.png`);
-    await draw(browser, { width: 1024, height: 500 }, wordmark({ width: 1024, height: 500 }, 150, STORE_ICON.accent), `${out}google-play-feature-graphic.png`);
+    await draw(browser, { width: 512, height: 512 }, icon({ size: 512, background: STORE_ICON.soft, shape: "square", inset: 0.16 }), `${out}google-play-icon.png`);
+    await draw(browser, { width: 1024, height: 500 }, featureGraphic({ width: 1024, height: 500 }), `${out}google-play-feature-graphic.png`);
   } finally {
     await browser.close();
   }

@@ -35,7 +35,12 @@
     },
     "android": {
       "package": "ai.jobbbox.app",
-      "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#4f5fe0" },
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "backgroundColor": "#eef0fd",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
+      },
       "blockedPermissions": [
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
@@ -72,6 +77,16 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": { "image": "./assets/splash-icon.png", "backgroundColor": "#121219" }
+        }
+      ],
       "expo-localization",
       "expo-screen-orientation",
       [

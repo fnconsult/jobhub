@@ -8,6 +8,7 @@ import { space, radius, TARGET, useTheme } from "../theme/theme";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { AppText, BAR_MAX_SCALE, CappedTextScale } from "../ui/AppText";
 import { Control } from "../ui/Control";
+import { Logo } from "../ui/Logo";
 import { usePointerHover } from "../ui/pointer";
 import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
 import { CompactTopBarActions, TOP_BAR_RANK, TopBarPrimaryProvider, useTopBarPrimaryOffers, type TopBarAction } from "./top-bar";
@@ -382,7 +383,10 @@ function FullPage({ title, covered, fill, onClose, children }: { title: string; 
   );
 }
 
-/** The Sidebar over the page, below 64rem or wherever the conversation would keep less than 28rem beside it. */
+/**
+ * The Sidebar over the page, below 64rem or wherever the conversation would keep less than 28rem beside it: under its
+ * head, the logo (its symbol, then the name « Jobbbox », #988) and « Fermer le menu ».
+ */
 function Drawer({ width, onClose, children }: { width: number; onClose: () => void; children: ReactNode }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -390,7 +394,13 @@ function Drawer({ width, onClose, children }: { width: number; onClose: () => vo
   return (
     <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, flexDirection: "row" }}>
       <View aria-modal style={{ width, backgroundColor: colors.nav, paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left }}>
-        <View style={{ alignItems: "flex-start", padding: space[2] }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space[2], padding: space[2] }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingLeft: space[1], flexShrink: 1 }}>
+            <Logo size={28} testID="drawer-logo" />
+            <AppText variant="h3" weight="bold" lines={1}>
+              {t("app.name")}
+            </AppText>
+          </View>
           <Control label={t("sidebar.close")} icon={X} onPress={onClose} />
         </View>
         <ScrollView contentContainerStyle={{ padding: space[3], paddingTop: 0 }}>{children}</ScrollView>

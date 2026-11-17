@@ -61,7 +61,7 @@ if (!process.env.E2E_DATABASE_URL) {
 }
 
 /** The Human Coach epic's specs (#867), run with « Espace coach v2 » on, in the coach-v2 project. */
-const COACH_SPACE_V2_SPECS = /\/(coach-v2\/[^/]+|coach-enrolments|coach-contracts|coach-associations|coach-pages|coaching-connect|coaching-earnings|coaching-booking|coaching-cancellations|coaching-notifications|coaching-content-reports)\.spec\.ts$/;
+const COACH_SPACE_V2_SPECS = /\/(coach-v2\/[^/]+|coach-enrolments|coach-contracts|coach-associations|coach-pages|coaching-connect|coaching-dac7|coaching-earnings|coaching-booking|coaching-cancellations|coaching-notifications|coaching-content-reports)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",

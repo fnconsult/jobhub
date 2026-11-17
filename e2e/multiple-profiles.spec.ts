@@ -272,6 +272,38 @@ test.describe("several Profiles per Candidate", () => {
     expect(await restore.json()).toMatchObject({ error: "plan_quota_reached", prompt: { upgradeTo: "standard", href: "/abonnement" } });
   });
 
+  test("a Free Candidate whose Profile « Création à terminer » holds the quota resumes it on the new Profile page, not the Upgrade Prompt (#1048)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("free-unfinished"));
+    const freeQuotaReached = "L'offre Gratuit comprend 1 profil.";
+    const born = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] }, onboarding: "in_progress" },
+    });
+    expect(born.status()).toBe(201);
+    const bornId: string = (await born.json()).id;
+
+    // Back on « Créer un profil », the unfinished Profile reopens at its review instead of the Upgrade Prompt.
+    await page.goto("/profils/nouveau");
+    await expect(page).toHaveURL(`${origin}/profils/nouveau?profil=${bornId}`);
+    await expect(page.getByRole("alert").filter({ hasText: freeQuotaReached })).toHaveCount(0);
+    await openReviewDetail(page);
+    await expect(page.getByLabel(fr.cvReview.targetRole)).toHaveValue("DAF");
+
+    // It still counts in the Plan Quota: a second Profile is refused.
+    const refused = await page.request.post("/api/profiles", {
+      headers: { origin },
+      data: { masterCv, searchCriteria: { targetRole: "Consultante", locations: ["Lyon"] }, onboarding: "in_progress" },
+    });
+    expect(refused.status()).toBe(409);
+
+    // Once the quota is held by a finished Profile, the Upgrade Prompt shows as before.
+    expect((await page.request.patch(`/api/profiles/${bornId}`, { headers: { origin }, data: { archived: true } })).status()).toBe(200);
+    await createProfile(page, "Directrice financière");
+    await page.goto("/profils/nouveau");
+    await expect(page).toHaveURL(`${origin}/profils/nouveau`);
+    await expect(page.getByRole("alert").filter({ hasText: freeQuotaReached })).toBeVisible();
+  });
+
   // Issue #133: the switcher is a Radix dropdown menu (ADR-0018), so it follows the WAI-ARIA menu button pattern.
   test("the Profile switcher is a menu button a Candidate can use with the keyboard and a screen reader", async ({ page }) => {
     await signInOn(page, "switcher-keyboard");

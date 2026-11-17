@@ -184,6 +184,11 @@ export interface Profiles {
   restore(candidateId: string, profileId: string): Promise<ProfileChangeResult>;
   /** Every Profile of the Candidate, archived ones included, oldest first. */
   list(candidateId: string): Promise<ProfileSummary[]>;
+  /**
+   * The id of the Candidate's most recently created active Profile whose onboarding is in progress (« Création à
+   * terminer », #999), the one `/profils/nouveau` resumes when the Plan Quota is reached (#1048); null when none.
+   */
+  creationToResume(candidateId: string): Promise<string | null>;
   /** The Profile, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, profileId: string): Promise<Profile | null>;
   /**
@@ -653,6 +658,14 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
         [candidateId],
       );
       return rows;
+    },
+
+    async creationToResume(candidateId) {
+      const { rows } = await database.query<{ id: string }>(
+        `SELECT id FROM profile WHERE candidate_id = $1 AND onboarding = 'in_progress' AND archived_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1`,
+        [candidateId],
+      );
+      return rows[0]?.id ?? null;
     },
   };
 }

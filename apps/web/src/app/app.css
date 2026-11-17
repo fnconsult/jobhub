@@ -1250,21 +1250,30 @@ button.coach-panel-badge:hover {
   box-shadow: var(--shadow-card);
 }
 
+.work-pane {
+  position: relative;
+}
+
 .work-pane-head {
   display: flex;
   flex: none;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
   border-bottom: 1px solid var(--color-border);
 }
 
-.work-pane-head h2 {
+/* A column's head names what it shows, at the size of a panel's heading rather than a page's (the lead step, under h3):
+   the content below it is what the Candidate came for. Shared by the Work Pane and the side panel. */
+:is(.work-pane-head, .fiche-head) h2 {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: var(--font-size-h3);
+  font-size: var(--font-size-lead);
+  font-weight: 600;
+  line-height: var(--line-height-heading);
+  overflow-wrap: anywhere;
 }
 
 .work-pane-head h2:focus {
@@ -1296,6 +1305,14 @@ button.coach-panel-badge:hover {
 /* Its ✕ and its actions, and the Fiche's ✕ on a phone, reach the 44px target floor of the Candidate's pages (ADR-0009). */
 :is(.work-pane-head, .fiche-head) .ds-button {
   min-height: var(--control-height);
+}
+
+/* Beside the conversation the 44px target spills over the head's padding rather than setting its height: the head stays
+   a slim row, its ✕ centred on the title's line. */
+@media (width >= 64rem) {
+  :is(.work-pane-head, .fiche-head) .ds-button {
+    margin-block: calc(-1 * var(--space-2));
+  }
 }
 
 .work-pane-body {
@@ -1341,9 +1358,25 @@ button.coach-panel-badge:hover {
     position: sticky;
     top: calc(var(--topbar-height, 3.5rem) + var(--space-4));
     align-self: start;
-    width: clamp(20rem, 32vw, 32rem);
+    /* 32% of the window between 20rem and 32rem, or as wide as the Candidate dragged it (#932): `--work-pane-width` on
+       <html>, up to `--work-pane-max`, which the pane sets from what it measures (panel-width.ts); before that, half the
+       window, 56rem, and 28rem for the conversation and its 3rem of gutters, less the side panel when it is open. */
+    --work-pane-room: calc(100vw - var(--sidebar-width) - 31rem);
+    width: clamp(20rem, var(--work-pane-width, clamp(20rem, 32vw, 32rem)), var(--work-pane-max, min(56rem, 50vw, var(--work-pane-room))));
     max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-4));
     margin: var(--space-4) var(--space-4) var(--space-4) 0;
+  }
+
+  html[data-sidebar="closed"] .work-pane {
+    --work-pane-room: calc(100vw - 31rem);
+  }
+
+  .workspace:has(> .fiche:not([hidden])) > .work-pane {
+    --work-pane-room: calc(100vw - var(--sidebar-width) - 32rem - clamp(20rem, var(--fiche-width, 20rem), 44rem));
+  }
+
+  html[data-sidebar="closed"] .workspace:has(> .fiche:not([hidden])) > .work-pane {
+    --work-pane-room: calc(100vw - 32rem - clamp(20rem, var(--fiche-width, 20rem), 44rem));
   }
 }
 
@@ -1386,10 +1419,11 @@ button.coach-panel-badge:hover {
   scrollbar-width: thin;
 }
 
-/* The Fiche's resize handle (#932), on its left edge: a strip 24px wide (the target floor, WCAG 2.2), mostly over the
-   Fiche's own edge so the conversation's scrollbar, just left of it, stays within reach. A short grip says it is there;
+/* The resize handle of a column beside the conversation (#932): the side panel's and the Work Pane's, on its left edge: a
+   strip 24px wide (the target floor, WCAG 2.2), mostly over the column's own edge so the scrollbar just left of it stays
+   within reach. A short grip says it is there;
    hovered or dragged, a line the Fiche's height. */
-.fiche-resize {
+.panel-resize {
   position: absolute;
   inset-block: 0;
   left: -0.25rem;
@@ -1400,7 +1434,7 @@ button.coach-panel-badge:hover {
   border-radius: var(--radius-md);
 }
 
-.fiche-resize::after {
+.panel-resize::after {
   position: absolute;
   top: calc(50% - 1.25rem);
   left: calc(0.25rem - 1.5px);
@@ -1411,18 +1445,18 @@ button.coach-panel-badge:hover {
   border-radius: 2px;
 }
 
-.fiche-resize:is(:hover, :active, :focus-visible)::after {
+.panel-resize:is(:hover, :active, :focus-visible)::after {
   top: var(--space-2);
   height: calc(100% - 2 * var(--space-2));
 }
 
-.fiche-resize:focus {
+.panel-resize:focus {
   outline: none;
 }
 
 /* Focused from the keyboard, the line itself is the focus indicator, in the accent with the focus ring round it: a frame
    the handle's width would cover the Fiche's first letters. */
-.fiche-resize:focus-visible::after {
+.panel-resize:focus-visible::after {
   left: calc(0.25rem - 2px);
   width: 4px;
   background: var(--color-accent);
@@ -1431,18 +1465,18 @@ button.coach-panel-badge:hover {
 
 /* In forced colours a background and a shadow are dropped: the line in the text's colour, the focus as an outline. */
 @media (forced-colors: active) {
-  .fiche-resize::after {
+  .panel-resize::after {
     background: CanvasText;
   }
 
-  .fiche-resize:focus-visible {
+  .panel-resize:focus-visible {
     outline: 3px solid Highlight;
     outline-offset: -3px;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .fiche-resize::after {
+  .panel-resize::after {
     transition:
       top 120ms ease-out,
       height 120ms ease-out;
@@ -1701,7 +1735,7 @@ button.coach-panel-badge:hover {
 @media (width >= 64rem) {
   .side-panel > .fiche-head {
     padding-inline: 0;
-    padding-top: var(--space-4);
+    padding-top: var(--space-2);
   }
 }
 
@@ -1825,11 +1859,11 @@ button.coach-panel-badge:hover {
   }
 
   .workspace:has(> .work-pane) > .fiche {
-    --fiche-room: calc(100vw - var(--sidebar-width) - 32rem - clamp(20rem, 32vw, 32rem));
+    --fiche-room: calc(100vw - var(--sidebar-width) - 32rem - clamp(20rem, var(--work-pane-width, clamp(20rem, 32vw, 32rem)), 56rem));
   }
 
   html[data-sidebar="closed"] .workspace:has(> .work-pane) > .fiche {
-    --fiche-room: calc(100vw - 32rem - clamp(20rem, 32vw, 32rem));
+    --fiche-room: calc(100vw - 32rem - clamp(20rem, var(--work-pane-width, clamp(20rem, 32vw, 32rem)), 56rem));
   }
 
   .workspace:has(> .page > .page-conversation):not(:has(> :is(.work-pane, .fiche))) {
@@ -1844,8 +1878,11 @@ button.coach-panel-badge:hover {
     box-shadow: none;
   }
 
+  /* Its rows' hover background bleeds half a rem past their text (.side-panel .fiche-links a): the body reaches that far
+     too, so it never scrolls sideways for it. */
   .fiche-body {
-    padding: 0;
+    padding: 0 var(--space-2);
+    margin-inline: calc(-1 * var(--space-2));
   }
 }
 
@@ -2090,18 +2127,11 @@ button.coach-panel-badge:hover {
   flex: none;
   gap: var(--space-2);
   align-items: center;
-  padding: var(--space-2) 0;
+  padding: var(--space-1) 0;
   margin-inline: calc(-1 * var(--space-2));
   padding-inline: var(--space-2);
   background: var(--color-background);
   border-bottom: 1px solid var(--color-border);
-}
-
-.fiche-head h2 {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: var(--font-size-h3);
 }
 
 .fiche-head h2:focus {
@@ -6852,5 +6882,45 @@ textarea.title-edit {
   to {
     opacity: 0;
     transform: scale(1.6);
+  }
+}
+
+/* ---------- Tabs in a column beside the conversation (#932) ----------
+   The Work Pane and the side panel are as narrow as 20rem: their tabs (« CV adapté », « Lettre de motivation »,
+   « Message d'approche ») go on a second row rather than being cut or scrolled sideways, each row on its own hairline
+   (each tab draws its stretch of it, the list the rest of the last row's); a label breaks only when it alone is wider
+   than the column. The active tab is underlined under its label, as elsewhere. */
+:is(.work-pane, .fiche) .ds-tabs__list {
+  flex-wrap: wrap;
+  gap: 0;
+  overflow: visible;
+}
+
+:is(.work-pane, .fiche) .ds-tabs__list--links > li {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+:is(.work-pane, .fiche) .ds-tabs__tab {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-inline-end: var(--space-4);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+  border-bottom: 0;
+  box-shadow: inset 0 -1px 0 var(--color-border);
+}
+
+:is(.work-pane, .fiche) .ds-tabs__tab[data-state="active"],
+:is(.work-pane, .fiche) .ds-tabs__tab[aria-current="page"] {
+  background: linear-gradient(var(--color-text), var(--color-text)) left bottom / calc(100% - var(--space-4)) 2px no-repeat;
+}
+
+@media (forced-colors: active) {
+  :is(.work-pane, .fiche) .ds-tabs__tab[data-state="active"],
+  :is(.work-pane, .fiche) .ds-tabs__tab[aria-current="page"] {
+    text-decoration: underline 2px;
+    text-underline-offset: 0.35em;
   }
 }

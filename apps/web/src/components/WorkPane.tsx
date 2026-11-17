@@ -13,8 +13,10 @@ import { HelpArticleText } from "@/components/HelpArticleText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { SignalementPane, SignalementPaneForm, SignalementPaneTitle } from "@/components/Signalement";
+import { PanelResizeHandle, useColumnsBeside } from "@/components/PanelResizeHandle";
 import { WorkPaneContext, askCoachAddress, type AddressedKind, type WorkPaneItem, type WorkPaneOpenOptions } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
+import { WORK_PANE_WIDTH } from "@/design/panel-width";
 
 const MAIN_ID = "main";
 const PANE_CLASS = "work-pane";
@@ -92,6 +94,7 @@ export function WorkPane() {
   const opening = shown?.opening;
   // Opened without the focus (a form opened by itself as a reply arrives, #775): the focus stays where the Candidate is.
   const takesFocus = shown?.focus !== false;
+  const beside = useColumnsBeside();
 
   useEffect(() => {
     if (opening && takesFocus) title.current?.focus();
@@ -108,6 +111,8 @@ export function WorkPane() {
 
   const pane = (
     <aside className={PANE_CLASS} aria-labelledby={titleId} onKeyDown={onKeyDown}>
+      {/* Its left edge widens it, as the side panel's does (#932). */}
+      {beside ? <PanelResizeHandle spec={WORK_PANE_WIDTH} label={t("conversationFirst.resize")} /> : null}
       <div className="work-pane-head">
         <h2 id={titleId} ref={title} tabIndex={-1}>
           <ItemTitle item={shown.item} />

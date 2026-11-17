@@ -537,3 +537,40 @@
   border: 1.5px solid var(--color-background);
   border-radius: 50%;
 }
+
+/* A Job Search's or a Job Digest's « Offres trouvées » in the side panel (FoundOffers): the same lines, without the box's
+   header, so its day and tier headings stick to the top of the panel's scrolling body; the day's heading at the panel's
+   size. Its lines wrap within the panel's width, never past its edge. */
+.offer-box--found {
+  --offer-box-head: 0px;
+  --offer-box-top: 0px;
+  --offer-box-day: 2.25rem;
+
+  max-width: none;
+  padding-block: var(--space-2) 0;
+}
+
+.offer-box--found:focus {
+  outline: none;
+}
+
+.offer-box--found .offer-box-day:first-of-type {
+  margin-top: 0;
+}
+
+.offer-box--found .offer-box-day-heading {
+  font-size: var(--font-size-lead);
+}
+
+.offer-box--found .offer-box-title,
+.offer-box--found .offer-box-facts {
+  overflow-wrap: anywhere;
+}
+
+.offer-box--found .offer-box-source {
+  white-space: normal;
+}
+
+.offer-box--found > .fiche-links {
+  margin-top: var(--space-3);
+}

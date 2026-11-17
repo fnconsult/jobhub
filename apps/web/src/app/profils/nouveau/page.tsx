@@ -6,7 +6,7 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { OnboardingWelcome, ProfileOnboarding, type ResumedProfile } from "@/components/ProfileOnboarding";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { getServerT } from "@/i18n/server";
-import { getProfiles, profileUpgradePromptFor } from "@/profiles/server";
+import { getProfiles, newProfileStartFor } from "@/profiles/server";
 import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,14 +19,17 @@ export async function generateMetadata(): Promise<Metadata> {
  * ADR-0001), the page a conversation with the AI Coach (ADR-0070, see ProfileOnboarding). When the Plan allows no more
  * Profiles, the conversation's card is the Upgrade prompt, after the same welcome panel (#997). With `?profil=<id>`, a
  * Profile of the Candidate born during its onboarding and not finished (ADR-0106, #999) resumes at its review: it counts
- * in the Plan Quota already. Any other Profile of theirs opens its own page.
+ * in the Plan Quota already. Any other Profile of theirs opens its own page. Without it, once the Plan allows no more
+ * Profiles, their most recent Profile « Création à terminer » resumes there instead of the Upgrade prompt (#1048).
  */
 export default async function NewProfilePage({ searchParams }: { searchParams: Promise<{ profil?: string | string[] }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
   const [t, { profil }] = await Promise.all([getServerT(), searchParams]);
   const resumed = typeof profil === "string" ? await resumedProfile(candidate.id, profil) : null;
-  const upgradePrompt = resumed ? null : await profileUpgradePromptFor(candidate);
+  const start = resumed ? null : await newProfileStartFor(candidate);
+  if (start?.start === "resume") redirect(routes.resumeProfileCreation(start.profileId));
+  const upgradePrompt = start?.start === "upgrade" ? start.prompt : null;
   return (
     <CandidateLayout candidateId={candidate.id} title={t("newProfile.title")}>
       {upgradePrompt ? (

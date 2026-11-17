@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Icons } from "@/components/icons";
 import { RefreshWhileSearching, StartJobSearchButton, StopJobSearchButton } from "@/components/JobSearchControls";
+import { FoundOffersPanel } from "@/components/FoundOffersPanel";
 import { ObjectConversation } from "@/components/ObjectConversation";
 import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
@@ -23,6 +24,7 @@ export function JobSearchConversation({ data, children }: { data: JobSearchPageD
   const { candidateId, jobSearch, t, locale, aiActivity, inView } = data;
   const { profile } = jobSearch;
   const day = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: TIME_ZONE }).format(jobSearch.startedAt);
+  const links = jobSearchFicheLinks(jobSearch, t);
   return (
     <ObjectConversation
       candidateId={candidateId}
@@ -31,7 +33,7 @@ export function JobSearchConversation({ data, children }: { data: JobSearchPageD
       title={t("jobSearch.title", { profile: profile.name })}
       currentProfileId={profile.id}
       aiActivity={aiActivity}
-      fiche={{ card: <JobSearchCard data={data} />, ...jobSearchFicheLinks(jobSearch, t) }}
+      fiche={{ card: <JobSearchCard data={data} />, ...links, offers: <FoundOffersPanel candidateId={candidateId} of={{ kind: JOB_SEARCH, id: jobSearch.id }} results={links.results} /> }}
       introduction={<p>{t("jobSearch.conversation.introduction", { date: day, profile: profile.name })}</p>}
       suggestions={SUGGESTIONS.map((suggestion) => ({
         label: t(`jobSearch.conversation.suggestions.${suggestion}.label`),

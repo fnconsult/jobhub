@@ -5,7 +5,7 @@ import { getBilling } from "@/billing/server";
 import type { UpgradePrompt } from "@/billing/upgrade-prompt";
 import { localeOf } from "@/i18n/server";
 import { createProfiles, type Profile, type Profiles } from "./index";
-import { profilePlanQuota, profileUpgradePrompt } from "./plan-quota";
+import { newProfileStart, profilePlanQuota, profileUpgradePrompt, type NewProfileStart } from "./plan-quota";
 
 let instance: Profiles | undefined;
 
@@ -18,6 +18,11 @@ export function getProfiles(): Profiles {
 /** The Upgrade Prompt, in the Candidate's Interface Language, if their Plan allows no more active Profiles; otherwise null. */
 export function profileUpgradePromptFor(candidate: { id: string; interfaceLanguage?: unknown }): Promise<UpgradePrompt | null> {
   return profileUpgradePrompt(getBilling(), getProfiles(), candidate.id, localeOf(candidate));
+}
+
+/** How `/profils/nouveau` opens for the Candidate (#1048), the Upgrade Prompt in their Interface Language. */
+export function newProfileStartFor(candidate: { id: string; interfaceLanguage?: unknown }): Promise<NewProfileStart> {
+  return newProfileStart(getBilling(), getProfiles(), candidate.id, localeOf(candidate));
 }
 
 /**

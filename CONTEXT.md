@@ -267,7 +267,7 @@ _Avoid_: Error message, refusal
 ### Positioning
 
 **Profile**:
-One professional positioning of a Candidate (e.g. "Directeur Financier" vs "Consultant transformation"), made of a Master CV and Search Criteria. One created by the Onboarding interview is born as soon as its target role and a location are validated, and counts toward the Plan Quota from then on; until the Candidate finishes it, it may be incomplete, is named after its target role and shows « Création à terminer » with « Reprendre la création ».
+One professional positioning of a Candidate (e.g. "Directeur Financier" vs "Consultant transformation"), made of a Master CV and Search Criteria. One created by the Onboarding interview is born as soon as its target role and a location are validated, and counts toward the Plan Quota from then on; until the Candidate finishes it, it may be incomplete, is named after its target role and shows « Création à terminer » with « Reprendre la création ». Once the Plan Quota of Profiles is reached, `/profils/nouveau` reopens the review of the most recent active Profile showing « Création à terminer » (never an archived one) instead of the Upgrade Prompt; with none, the Upgrade Prompt shows (#1048).
 _Avoid_: Account, persona, CV version
 
 **Archived Profile**:
@@ -1056,6 +1056,7 @@ _Avoid_: Promo code, voucher, discount code
 
 **Upgrade Prompt**:
 What a Candidate is shown when a Plan Quota stops them: what they reached and the lowest-ranked offered Plan above theirs that would let them go on, or when the quota renews if no Plan offers more.
+Exception: `/profils/nouveau` at the Plan Quota of Profiles resumes the most recent active unfinished Profile (« Création à terminer ») instead (#1048).
 The plan comparison marks that same Plan « Conseillée » (recommended Plan) beside the Candidate's own, « Votre offre ».
 _Avoid_: Paywall, upsell, upgrade popup
 

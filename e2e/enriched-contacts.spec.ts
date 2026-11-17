@@ -202,7 +202,7 @@ test.describe("Enriched Contacts configuration", () => {
 
   const off = [
     { name: "a provider and its key, but the DPA not confirmed signed", offset: 700, env: { CONTACT_ENRICHMENT_PROVIDER: "apollo", APOLLO_API_KEY: "e2e-apollo-key", CONTACT_ENRICHMENT_DPA_SIGNED: "false" } },
-    { name: "the DPA flag set, but no provider", offset: 720, env: { CONTACT_ENRICHMENT_DPA_SIGNED: "true" } },
+    { name: "the DPA flag set, but no provider", offset: 710, env: { CONTACT_ENRICHMENT_DPA_SIGNED: "true" } },
   ];
   for (const { name, offset, env } of off) {
     test(`off with ${name}: no section, nobody looked up`, async ({ page }) => {
@@ -352,7 +352,7 @@ test.describe("Enriched Contacts set on Paramètres (#302)", () => {
 
   test("off until the DPA is marked signed and confirmed, then on the provider chosen there, without a restart; both changes in the Journal", async ({ page, browser }) => {
     const { id } = await openApplication(page, { plan: "premium" });
-    const server = await startConfiguredServer(780, {
+    const server = await startConfiguredServer(770, {
       CONTACT_ENRICHMENT_PROVIDER: "lusha",
       LUSHA_API_KEY: "e2e-lusha-key",
       APOLLO_API_KEY: "e2e-apollo-key",

@@ -47,6 +47,11 @@ export type FicheContent = {
   results: readonly FicheLink[];
   offer?: ReactNode;
   resultsLabel?: "documents" | "offers";
+  /**
+   * A Job Search's or a Job Digest's Job Offers as Recherches d'offres shows them (FoundOffers), in place of the list of
+   * `results` in its « Offres trouvées » view; « Activité » still lists the latest three.
+   */
+  offers?: ReactNode;
 };
 
 /**
@@ -423,7 +428,7 @@ export function Fiche({ content }: { content: FicheContent | null }) {
           </>
         ) : null}
         {view === "offer" && content?.offer ? <div className="panel-offer">{content.offer}</div> : null}
-        {view === "results" && content ? (results.length > 0 ? links(results) : <p className="hint">{t("fiche.noResults")}</p>) : null}
+        {view === "results" && content ? (content.offers ?? (results.length > 0 ? links(results) : <p className="hint">{t("fiche.noResults")}</p>)) : null}
       </div>
     </aside>
   );

@@ -138,6 +138,16 @@ describe("the side panel and its views (#980, ADR-0070)", () => {
     expect(within(topBar()).queryByRole("button", { name: "L'offre" })).toBeNull();
   });
 
+  it("shows a Job Search's Job Offers as Recherches d'offres does in « Offres trouvées », « Activité » still listing the latest", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<Page content={{ ...CONTENT, resultsLabel: "offers", offers: <p>Les cartes des offres</p> }} />);
+
+    await user.click(icon("Offres trouvées"));
+    const offers = panel("Offres trouvées");
+    expect(within(offers).getByText("Les cartes des offres")).toBeTruthy();
+    expect(within(offers).queryByRole("list")).toBeNull();
+  });
+
   it("closes with its ✕, the focus back on the icon that opened it", async () => {
     const user = userEvent.setup();
     renderInFrench(<Page />);

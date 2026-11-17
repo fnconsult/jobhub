@@ -48,6 +48,12 @@ const OfferBoxPageHandle = createContext<{ returnFocus: NonNullable<ToastMessage
 });
 
 /**
+ * Where a line's title and « Lire l'offre » open its Job Offer: Recherches d'offres' Work Pane by default; a Job Search's
+ * or a Job Digest's own (« Offres trouvées », FoundOffers), on its page.
+ */
+const OfferHref = createContext<(jobOfferId: string) => string>(routes.offerBoxOffer);
+
+/**
  * The source chip and, on a phone, whether the header is open as a panel under the Top Bar (#898): shared by the box and
  * its filter icon in the Top Bar when OfferBoxFilterProvider holds them both. `toHandle` names the icon.
  */
@@ -290,6 +296,77 @@ function OfferBoxPage({ box }: { box: OfferBoxResponse }) {
   );
 }
 
+/**
+ * A Job Search's or a Job Digest's « Offres trouvées » (#932 follow-up), in the side panel: its Job Offers as Recherches
+ * d'offres shows them, each with its Match Score, its source, its age and « Suivre », « Écarter », « Plus tard », « Lire
+ * l'offre », under « Aujourd'hui » and « Précédemment » by Importance tier, then folded « Plus tard », « Expirées sans
+ * décision » and « Écartées »; without the header, its count and source chips (the Job Offers are this object's alone).
+ * `box` holds this object's entries of the Candidate's Offer box; each opens in the Work Pane at its address on the page
+ * of `of`, the Job Search or the Job Digest.
+ * `rest`: the Job Offers found that have no entry (shown as before, under the entries).
+ */
+export function FoundOffers({ box, of, rest }: { box: OfferBoxResponse; of: { kind: "job_search" | "job_digest"; id: string }; rest?: ReactNode }) {
+  const offerHref = useMemo(
+    () => (jobOfferId: string) => (of.kind === "job_search" ? routes.jobSearchOffer(of.id, jobOfferId) : routes.jobDigestOffer(of.id, jobOfferId)),
+    [of.kind, of.id],
+  );
+  return (
+    <ToastProvider>
+      <OfferHref.Provider value={offerHref}>
+        <FoundOffersList box={box} rest={rest} />
+      </OfferHref.Provider>
+    </ToastProvider>
+  );
+}
+
+function FoundOffersList({ box, rest }: { box: OfferBoxResponse; rest?: ReactNode }) {
+  const { t } = useTranslation();
+  const view = offerBoxView(box);
+  const root = useRef<HTMLDivElement>(null);
+  const [undoFailed, setUndoFailed] = useState<string | null>(null);
+  // The toast closed, the focus goes back to the list (its button is gone).
+  const [handle] = useState(() => ({ returnFocus: () => root.current, undoFailed: setUndoFailed }));
+  return (
+    <OfferBoxPageHandle.Provider value={handle}>
+      <div ref={root} className="offer-box offer-box--found" tabIndex={-1}>
+        {undoFailed ? (
+          <p className="field-error" role="alert">
+            {undoFailed}
+          </p>
+        ) : null}
+        {box.entries.length > 0 ? (
+          <>
+            {view.today.tiers.length > 0 || view.today.followed.length > 0 ? (
+              <OfferBoxDaySection
+                name={t("offerBox.today")}
+                day={view.today}
+                today={box.today}
+                nothing={t("offerBox.nothingToday")}
+                followed={(count) => t("offerBox.followedToday", { count })}
+              />
+            ) : null}
+            {view.earlier.tiers.length > 0 || view.earlier.followed.length > 0 ? (
+              <OfferBoxDaySection
+                name={t("offerBox.earlier")}
+                day={view.earlier}
+                today={box.today}
+                nothing={t("offerBox.nothingEarlier")}
+                followed={(count) => t("offerBox.followedEarlier", { count })}
+                showDay
+                dismissAll
+              />
+            ) : null}
+            <FoldedEntries className="offer-box-later" summary={t("offerBox.laterBlock", { count: view.later.length })} hint={t("offerBox.laterHint")} entries={view.later} today={box.today} />
+            <FoldedEntries className="offer-box-expired" summary={t("offerBox.expiredBlock", { count: view.expired.length })} hint={t("offerBox.expiredHint")} entries={view.expired} today={box.today} />
+            <FoldedEntries className="offer-box-dismissed" summary={t("offerBox.dismissedBlock", { count: view.dismissed.length })} hint={t("offerBox.dismissedHint")} entries={view.dismissed} today={box.today} />
+          </>
+        ) : null}
+        {rest}
+      </div>
+    </OfferBoxPageHandle.Provider>
+  );
+}
+
 /** « Plus tard », « Expirées sans décision » or « Écartées »: folded at the foot of the box, absent when empty. */
 function FoldedEntries({ className, summary, hint, entries, today }: { className: string; summary: string; hint: string; entries: OfferBoxEntryRead[]; today: string }) {
   if (entries.length === 0) return null;
@@ -388,6 +465,7 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
   const facts = [jobOffer.employer, jobOffer.location, jobOffer.contractType ? t(`cvReview.contractTypes.${jobOffer.contractType}`) : null].filter((fact): fact is string => Boolean(fact));
   const posted = age.postedDaysAgo === null ? null : age.postedDaysAgo === 0 ? t("offerBox.postedToday") : t("offerBox.postedAgo", { count: age.postedDaysAgo });
   const titleId = useId();
+  const offerHref = useContext(OfferHref);
   return (
     <li className="offer-box-entry" data-tier={tier} data-state={entry.state} aria-label={jobOffer.title}>
       <span className="offer-box-score" aria-label={entry.matchScore === null ? t("offerBox.noScore") : t("offerBox.score", { score: entry.matchScore })} role="img">
@@ -395,7 +473,7 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
         <small aria-hidden>{entry.matchScore === null ? t("offerBox.notComputable") : "/100"}</small>
       </span>
       <p className="offer-box-title" id={titleId}>
-        <Link href={routes.offerBoxOffer(jobOffer.id)}>{jobOffer.title}</Link>
+        <Link href={offerHref(jobOffer.id)}>{jobOffer.title}</Link>
         {entry.state === "followed" ? <Pill tone="success">{t("offerBox.followed")}</Pill> : null}
         {entry.state === "later" && entry.laterUntil ? <Pill tone="accent">{t("offerBox.laterUntil", { date: parisDate(entry.laterUntil, i18n.language) })}</Pill> : null}
         {entry.state === "dismissed" ? (
@@ -429,7 +507,7 @@ function OfferBoxLine({ entry, today, showDay }: { entry: OfferBoxEntryRead; tod
         ) : null}
         {entry.state === "to_handle" || entry.state === "later" || entry.state === "expired" ? <DismissButton entry={entry} describedBy={titleId} /> : null}
         {entry.state === "to_handle" ? <LaterButton entry={entry} /> : null}
-        <Link className={buttonClass({ variant: "quiet", size: "sm" })} href={routes.offerBoxOffer(jobOffer.id)} aria-describedby={titleId}>
+        <Link className={buttonClass({ variant: "quiet", size: "sm" })} href={offerHref(jobOffer.id)} aria-describedby={titleId}>
           {t("offerBox.read")}
         </Link>
       </div>

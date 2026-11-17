@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { FoundOffersPanel } from "@/components/FoundOffersPanel";
 import { ObjectConversation } from "@/components/ObjectConversation";
 import { OffersToHandleLine } from "@/components/OffersToHandleLine";
 import { jobDigestFicheLinks } from "@/fiches";
@@ -22,6 +23,7 @@ export function JobDigestConversation({ data, children }: { data: JobDigestPageD
   const { candidateId, jobDigest, t, locale, aiActivity, inView, offersToHandle } = data;
   const { profile } = jobDigest;
   const sentOn = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: TIME_ZONE }).format(jobDigest.sentAt);
+  const links = jobDigestFicheLinks(jobDigest, t);
   return (
     <ObjectConversation
       candidateId={candidateId}
@@ -52,7 +54,8 @@ export function JobDigestConversation({ data, children }: { data: JobDigestPageD
             <OffersToHandleLine count={offersToHandle} t={t} />
           </>
         ),
-        ...jobDigestFicheLinks(jobDigest, t),
+        ...links,
+        offers: <FoundOffersPanel candidateId={candidateId} of={{ kind: JOB_DIGEST, id: jobDigest.id }} results={links.results} />,
       }}
       introduction={<p>{t("jobDigest.conversation.introduction", { date: sentOn, profile: profile.name })}</p>}
       suggestions={SUGGESTIONS.map((suggestion) => ({

@@ -129,20 +129,21 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV E2E_AI_DOWN");
     await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
     await expect(transcript(page)).toContainText(fr.newProfile.interview.fallback);
-    // Two answers: « Création du profil » counts them, the questions written by Jobbbox, without AI.
-    await reply(page, q.fullName, "Marie Dupont");
+    // One answer: « Création du profil » counts it, the questions written by Jobbbox, without AI.
     await reply(page, q.targetRole, "Directrice financière");
     await expect(transcript(page).getByRole("listitem").last()).toContainText(q.location);
     await openActivity(page);
     const answering = await creationOf(page);
     expect(await partKinds(answering.parts)).toEqual(["questionnaire"]);
-    await expect(answering.parts.first()).toContainText(`${history.writtenByJobbbox} · ${history.results.answered_other.replace("{{count}}", "2")} · ${history.cost.noAi}`);
+    await expect(answering.parts.first()).toContainText(`${history.writtenByJobbbox} · ${history.results.answered_one.replace("{{count}}", "1")} · ${history.cost.noAi}`);
 
-    // The third answer a Profile needs: it is born (#999), « Profil créé » before the review.
+    // The second answer a Profile needs, the location (#1047): it is born (#999), « Profil créé » before the name and the review.
     await reply(page, q.location, "Lyon");
-    await expect(transcript(page).getByRole("listitem").last()).toContainText(q.email);
+    await expect(transcript(page).getByRole("listitem").last()).toContainText(q.fullName);
     await openActivity(page);
     await expect.poll(async () => partKinds((await creationOf(page)).parts)).toEqual(["questionnaire", "profile_created"]);
+    await expect((await creationOf(page)).parts.first()).toContainText(`${history.writtenByJobbbox} · ${history.results.answered_other.replace("{{count}}", "2")} · ${history.cost.noAi}`);
+    await reply(page, q.fullName, "Marie Dupont");
     // Every other question skipped.
     for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
     await expect(onboardingSummary(page)).toBeVisible();

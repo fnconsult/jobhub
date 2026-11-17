@@ -10,8 +10,14 @@ export function fakeConnectStripe() {
     transfers = new Map<string, Json>(),
     payouts = new Map<string, { account: string | null; value: Json }>(),
     refunds = new Map<string, { account: string | null; value: Json }>(),
-    idempotent = new Map<string, Json>();
-  let sequence = 0;
+    idempotent = new Map<string, Json>(),
+    /** Refunds' balance transactions, in their connected account; application fees' refunds, on the platform. */
+    balances = new Map<string, { account: string | null; value: Json }>(),
+    feeRefunds = new Map<string, Json[]>();
+  let sequence = 0,
+    /** The fake's clock for `created` (unix seconds), set with POST /__connect/clock; the real time until then. */
+    clock: number | null = null;
+  const created = () => clock ?? Math.floor(Date.now() / 1000);
   const list = (data: Json[]) => ({ object: "list", has_more: false, data });
   const accountOf = (request: IncomingMessage) => (typeof request.headers["stripe-account"] === "string" ? request.headers["stripe-account"] : null);
   const metadata = (params: URLSearchParams, prefix = "metadata") =>
@@ -45,6 +51,11 @@ export function fakeConnectStripe() {
         transfers: [...transfers.values()],
         payouts: [...payouts.values()],
       });
+    if (method === "POST" && path === "/__connect/clock") {
+      const at = Date.parse(params.get("at") ?? "");
+      clock = Number.isFinite(at) ? Math.floor(at / 1000) : null;
+      return respond({ clock });
+    }
     if (method === "POST" && path === "/__connect/activate") {
       const found = accounts.get(params.get("account") ?? "");
       if (!found) return failure();
@@ -156,6 +167,9 @@ export function fakeConnectStripe() {
           object: "payment_intent",
           status: "succeeded",
           amount,
+          currency: value.currency,
+          created: created(),
+          metadata: metadata(params, "payment_intent_data\\[metadata\\]"),
           latest_charge: {
             id: charge,
             object: "charge",
@@ -167,13 +181,18 @@ export function fakeConnectStripe() {
               id: `txn_${sequence}`,
               object: "balance_transaction",
               status: "available",
+              created: created(),
+              amount,
+              currency: value.currency,
+              net: amount - commission,
               fee: commission,
               fee_details: account ? [{ type: "application_fee", amount: commission }] : [],
             },
           },
         },
       });
-      if (account) fees.set(fee, { id: fee, object: "application_fee", amount: commission, amount_refunded: 0 });
+      if (account)
+        fees.set(fee, { id: fee, object: "application_fee", amount: commission, amount_refunded: 0, charge, currency: value.currency, created: created() });
       return respond(value);
     }
     const sessionId = /^\/v1\/checkout\/sessions\/(cs_connect_[^/]+)$/.exec(path)?.[1];
@@ -197,7 +216,12 @@ export function fakeConnectStripe() {
       if (!payment || payment.account !== account) return failure();
       const charge = payment.value.latest_charge as Json,
         amount = Number(params.get("amount") ?? payment.value.amount),
-        id = `re_connect_${++sequence}`;
+        id = `re_connect_${++sequence}`,
+        balance = `txn_re_connect_${sequence}`;
+      balances.set(balance, {
+        account,
+        value: { id: balance, object: "balance_transaction", status: "available", created: created(), amount: -amount, currency: "eur", net: -amount, fee: 0, fee_details: [] },
+      });
       const value = {
         id,
         object: "refund",
@@ -206,18 +230,32 @@ export function fakeConnectStripe() {
         payment_intent: intent,
         charge: charge.id,
         status: "succeeded",
+        created: created(),
+        balance_transaction: balance,
         metadata: metadata(params),
       };
       refunds.set(id, { account, value });
       const fee = typeof charge.application_fee === "string" ? fees.get(charge.application_fee) : undefined;
-      if (fee && params.get("refund_application_fee") === "true")
-        fee.amount_refunded = Math.min(
-          Number(fee.amount),
-          Number(fee.amount_refunded) + Math.round((Number(fee.amount) * amount) / Number(payment.value.amount)),
-        );
+      if (fee && params.get("refund_application_fee") === "true") {
+        const before = Number(fee.amount_refunded);
+        fee.amount_refunded = Math.min(Number(fee.amount), before + Math.round((Number(fee.amount) * amount) / Number(payment.value.amount)));
+        const refundedFee = Number(fee.amount_refunded) - before;
+        if (refundedFee)
+          feeRefunds.set(String(fee.id), [
+            ...(feeRefunds.get(String(fee.id)) ?? []),
+            { id: `fr_connect_${++sequence}`, object: "fee_refund", amount: refundedFee, currency: "eur", fee: fee.id, created: created() },
+          ]);
+      }
       return respond(value);
     }
     if(method==='GET'&&path==='/v1/refunds'&&url.searchParams.get('payment_intent')?.startsWith('pi_connect_'))return respond(list([...refunds.values()].filter(r=>r.account===account&&r.value.payment_intent===url.searchParams.get('payment_intent')).map(r=>r.value)));
+    const feeRefundsOf = /^\/v1\/application_fees\/(fee_connect_[^/]+)\/refunds$/.exec(path)?.[1];
+    if (method === "GET" && feeRefundsOf) return fees.has(feeRefundsOf) && account === null ? respond(list(feeRefunds.get(feeRefundsOf) ?? [])) : failure();
+    const balanceId = /^\/v1\/balance_transactions\/([^/]+)$/.exec(path)?.[1];
+    if (method === "GET" && balanceId) {
+      const found = balances.get(balanceId);
+      return found && found.account === account ? respond(found.value) : failure();
+    }
     if (method === "GET" && path === "/v1/refunds" && url.searchParams.get("charge")?.startsWith("ch_connect_"))
       return respond(list([...refunds.values()].filter((r) => r.account === account && r.value.charge === url.searchParams.get("charge")).map((r) => r.value)));
     if (method === "GET" && path === "/v1/transfers")
@@ -232,6 +270,7 @@ export function fakeConnectStripe() {
           amount: Number(params.get("amount")),
           currency: params.get("currency"),
           destination: params.get("destination"),
+          created: created(),
           amount_reversed: 0,
           metadata: metadata(params),
           reversals: [],
@@ -246,11 +285,22 @@ export function fakeConnectStripe() {
       const reversals = transfer.reversals as Json[];
       if (method === "GET") return respond(list(reversals));
       if (method === "POST") {
-        const value = { id: `trr_connect_${++sequence}`, object: "transfer_reversal", amount: Number(params.get("amount")), metadata: metadata(params) };
+        const value = {
+          id: `trr_connect_${++sequence}`,
+          object: "transfer_reversal",
+          amount: Number(params.get("amount")),
+          created: created(),
+          metadata: metadata(params),
+        };
         reversals.push(value);
         transfer.amount_reversed = Number(transfer.amount_reversed) + Number(value.amount);
         return respond(value);
       }
+    }
+    const transferOf = /^\/v1\/transfers\/(tr_connect_[^/]+)$/.exec(path)?.[1];
+    if (method === "GET" && transferOf) {
+      const found = transfers.get(transferOf);
+      return found && account === null ? respond({ ...found, reversals: list(found.reversals as Json[]) }) : failure();
     }
     if (method === "GET" && path === "/v1/payouts") return respond(list([...payouts.values()].filter((p) => p.account === account).map((p) => p.value)));
     if (method === "POST" && path === "/v1/payouts") {

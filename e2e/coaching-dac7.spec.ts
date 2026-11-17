@@ -98,8 +98,8 @@ test.beforeAll(async () => {
   database = new Pool({ connectionString: own.databaseUrl });
 });
 test.afterAll(async () => {
-  // The fake Stripe is the suite's: back on the real time for the specs after this one.
-  await fetch(`${stripeUrl()}/__connect/clock`, { method: "POST", body: new URLSearchParams({ at: "" }) }).catch(() => undefined);
+  // The fake Stripe is the suite's, and this worker's globals the next specs': back on the real time for them.
+  await clock?.reset().catch(() => undefined);
   await database?.end();
   await own?.stop();
 });

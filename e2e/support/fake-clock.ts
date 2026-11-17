@@ -11,6 +11,8 @@ export type Clock = {
   server(iso: string): Promise<void>;
   /** Moves Stripe's `created` dates alone, to `iso`: a sale of the story's past. */
   stripe(iso: string): Promise<void>;
+  /** Back on the real time, Stripe's and this process's: the next spec of the worker must not read this one's date. */
+  reset(): Promise<void>;
   /** A Stripe webhook's signature header, as of the real time the server still tells. */
   sign(payload: string, secret: string): string;
 };
@@ -26,6 +28,10 @@ export function fakeClock(file: string, stripeUrl: string): Clock {
       await stripe(iso);
       // The server reads its clock file every 20 ms.
       await new Promise((resolve) => setTimeout(resolve, 150));
+    },
+    async reset() {
+      delete (globalThis as Record<symbol, unknown>)[E2E_NOW];
+      await stripe("");
     },
     sign: (payload, secret) => new Stripe("sk_test_fake").webhooks.generateTestHeaderString({ payload, secret }),
   };

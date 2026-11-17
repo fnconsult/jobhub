@@ -125,7 +125,7 @@ test.describe("the Chrome extension's icons and the Chrome Web Store's visuals",
       context.drawImage(image, 0, 0);
       const { data: pixels } = context.getImageData(0, 0, 16, 16);
       let opaque = 0;
-      let corner = pixels[3]!;
+      const corner = pixels[3]!;
       let blue = 0;
       for (let i = 0; i < pixels.length; i += 4) {
         if (pixels[i + 3]! > 200) {

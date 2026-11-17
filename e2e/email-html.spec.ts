@@ -43,9 +43,15 @@ for (const name of EMAILS) {
   for (const colorScheme of ["light", "dark"] as const) {
     test(`${name}, ${colorScheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme });
+      // The logo's PNG (#988), as the site hosting it serves it: no network in the test.
+      await page.route("**/brand/email-logo@2x.png", (route) => route.fulfill({ path: "apps/web/public/brand/email-logo@2x.png", contentType: "image/png" }));
       await page.setContent(emails[name]!);
       await page.addStyleTag({ content: inter });
-      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await Promise.all([...document.images].map((image) => image.decode()));
+      });
+      await expect(page.getByRole("img", { name: "Jobbbox" })).toBeVisible();
 
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       if (comparesEmailScreenshots()) {

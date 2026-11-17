@@ -14,6 +14,7 @@ are the interface's, word for word.
 - **Privacy policy**: https://jobbbox.ai/legal/confidentialite
 - **Support URL**: https://jobbbox.ai/aide/extension (Help Centre, « The extension » topic)
 - **Website**: https://jobbbox.ai
+- **Visuals**: the listing's icon, `store/icon-128.png`, and the small promo tile, `store/promo-tile-440x280.png`: the Jobbbox logo, the letterbox shaped as a speech bubble (#988)
 
 ## Summary (132 characters at most)
 
@@ -53,7 +54,7 @@ Save into Jobbbox the job offer being read and work out its match score with the
 # Beta listing
 
 - **Visibility**: unlisted (reachable by its link, for testers)
-- **Name**: Jobbbox (beta) (`__MSG_extNameBeta__`), with the orange icon marked β
+- **Name**: Jobbbox (beta) (`__MSG_extNameBeta__`), its icon marked with an orange β
 - **Build**: `jobbbox-extension-X.Y.Z-chrome-beta.zip`, tied to the Beta (`https://staging.jobbbox.ai`)
 - **Category**: Productivity
 - **Privacy policy**: https://staging.jobbbox.ai/legal/confidentialite

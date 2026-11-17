@@ -9,11 +9,11 @@ Chaque Extension Version a **deux builds**, chacun sur sa fiche du Chrome Web St
 | Build | Fiche | Branchée sur | Nom | Commande |
 | --- | --- | --- | --- | --- |
 | publique | publique | la Production, `https://jobbbox.ai` | Jobbbox | `npm run zip -w @jobhub/extension` |
-| beta | non répertoriée | la Beta, `https://staging.jobbbox.ai` | Jobbbox (bêta), icône orange marquée β | `npm run zip:beta -w @jobhub/extension` |
+| beta | non répertoriée | la Beta, `https://staging.jobbbox.ai` | Jobbbox (bêta), icône marquée d'un β orange | `npm run zip:beta -w @jobhub/extension` |
 
 Le domaine du web vient du build (`apps/extension/src/build-target.ts`), jamais d'un réglage de l'utilisateur : une variable `WXT_WEB_ORIGIN` restée dans l'environnement ne change pas un build de store. `npm run dev -w @jobhub/extension` et les tests e2e (`--mode e2e`) parlent, eux, à `WXT_WEB_ORIGIN`.
 
-Les textes des deux fiches, en français (qui fait foi) et en anglais, sont dans `apps/extension/store/fr.md` et `en.md` : description, résumé, liens vers la politique de confidentialité (`/legal/confidentialite`) et vers l'aide (`/aide/extension`, rubrique « L'extension »), justification des autorisations. Les icônes sont dessinées depuis `apps/extension/icons/*.svg` par `npx tsx apps/extension/scripts/draw-icons.ts`.
+Les textes des deux fiches, en français (qui fait foi) et en anglais, sont dans `apps/extension/store/fr.md` et `en.md` : description, résumé, liens vers la politique de confidentialité (`/legal/confidentialite`) et vers l'aide (`/aide/extension`, rubrique « L'extension »), justification des autorisations. Les icônes (le logo « La boîte qui répond », ADR-0105 ; celui de la beta marqué d'un β orange) et les visuels de la fiche (`apps/extension/store/icon-128.png`, `promo-tile-440x280.png`) sont dessinés depuis `@jobhub/shared/logo` par `npx tsx apps/extension/scripts/draw-icons.ts` (#988).
 
 ## Publier une Extension Version
 
@@ -44,7 +44,7 @@ Une règle de dépôt (Settings → Rules) qui réserve au product owner les tag
 
 # Publishing the extension (EN)
 
-The extension has its own **Extension Version** `X.Y.Z`, digits only, in `apps/extension/package.json`, which the manifest repeats; it moves apart from the web app's Version. Each Extension Version has **two builds**: the public one (`npm run zip -w @jobhub/extension`), tied to Production (`https://jobbbox.ai`), for the public listing; and the beta one (`npm run zip:beta -w @jobhub/extension`), « Jobbbox (beta) » with an orange β icon, tied to the Beta (`https://staging.jobbbox.ai`), for the unlisted beta listing. The web app's origin comes from the build (`apps/extension/src/build-target.ts`), never from a user setting nor from a stray `WXT_WEB_ORIGIN`. The listings' texts, French (prevailing) and English, are in `apps/extension/store/`.
+The extension has its own **Extension Version** `X.Y.Z`, digits only, in `apps/extension/package.json`, which the manifest repeats; it moves apart from the web app's Version. Each Extension Version has **two builds**: the public one (`npm run zip -w @jobhub/extension`), tied to Production (`https://jobbbox.ai`), for the public listing; and the beta one (`npm run zip:beta -w @jobhub/extension`), « Jobbbox (beta) », its icon marked with an orange β, tied to the Beta (`https://staging.jobbbox.ai`), for the unlisted beta listing. The web app's origin comes from the build (`apps/extension/src/build-target.ts`), never from a user setting nor from a stray `WXT_WEB_ORIGIN`. The listings' texts, French (prevailing) and English, are in `apps/extension/store/`, with the store's visuals: its 128 px icon and small promo tile, drawn with the toolbar icons from the logo (`@jobhub/shared/logo`) by `npx tsx apps/extension/scripts/draw-icons.ts` (#988).
 
 Only the product owner publishes: raise the Extension Version through a merged pull request; run the `extension` workflow on `main`, which checks the version, tests the extension, builds and checks both zips, and creates the GitHub Release `extension-vX.Y.Z` (never the repo's latest) with both attached; upload each zip to its listing in the Chrome Web Store dashboard and submit it for review; once a listing is first published, set its URL in the Back Office setting `EXTENSION_STORE_URL` (the public listing in Production, the beta one on the Beta). An Extension Version a Candidate can see gets its Release Note through the delivering pull request's fragment, tagged `extension` in Nouveautés. Publishing stays manual while no Chrome Web Store API key is provided.
 

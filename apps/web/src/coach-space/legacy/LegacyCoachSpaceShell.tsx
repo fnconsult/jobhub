@@ -1,6 +1,7 @@
 /* « Espace coach v2 » off (ADR-0107): copied from origin/main before the Human Coach epic (#867); retired with the old Coach space (#888). */
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Logo } from "@/design/Logo";
 import { PublicFooter } from "@/design/PublicSite";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -14,6 +15,7 @@ export async function LegacyCoachSpaceHeader() {
   return (
     <header className="page-header">
       <Link className="brand" href={routes.coachSpace}>
+        <Logo />
         {`${t("app.name")} · ${t("coachSpace.title")}`}
       </Link>
       <div className="page-nav">

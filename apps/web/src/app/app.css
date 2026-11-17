@@ -27,7 +27,11 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* The logo (#988, ADR-0105): its symbol, then the name « Jobbbox » in text. */
 .brand {
+  display: inline-flex;
+  gap: 0.36em;
+  align-items: center;
   font-size: var(--font-size-h3);
   font-weight: 600;
 }
@@ -3091,7 +3095,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   background: var(--color-hover);
 }
 
-/* The workspace at the top: the « Jobbbox » wordmark, in text (the logo's stand-in, #542). */
+/* The workspace at the top: the logo, its symbol then the name « Jobbbox » in text (#988, ADR-0105). */
 .sidebar-head {
   display: flex;
   flex-wrap: wrap;
@@ -3514,13 +3518,35 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: inline-flex;
 }
 
+/* The Sidebar collapsed on a wide screen (#988): the logo's symbol alone, after the Menu button, leads home. */
+.topbar .topbar-brand {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-control);
+  min-height: var(--size-control);
+  font-size: var(--font-size-h3);
+  border-radius: var(--radius-md);
+}
+
+.topbar .topbar-brand:hover {
+  background: var(--color-hover);
+}
+
+@media (width >= 64rem) {
+  html[data-sidebar="closed"] .topbar .topbar-brand {
+    display: inline-flex;
+  }
+}
+
 /* Inside the Jobbbox app's WebView (#689): the app's own drawer stands for the Sidebar, which is neither shown nor
    brought back. */
 html[data-in-app] .app-shell {
   grid-template-columns: minmax(0, 1fr);
 }
 
-html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
+html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle, .topbar .topbar-brand) {
   display: none;
 }
 
@@ -4160,6 +4186,10 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle) {
   }
 
   html[data-sidebar="closed"] [data-dock-at="48rem"] .topbar .menu-toggle {
+    display: inline-flex;
+  }
+
+  html[data-sidebar="closed"]:not([data-in-app]) [data-dock-at="48rem"] .topbar .topbar-brand {
     display: inline-flex;
   }
 }

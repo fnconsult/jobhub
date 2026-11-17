@@ -5,15 +5,32 @@
  * The HTML is what mail clients read: table-based, every style inline (Gmail drops a `<style>` in the body, Outlook
  * ignores most CSS), its colours and sizes taken from the tokens, never copied by hand. A `<style>` in the head only
  * adds the dark theme's token values for clients that follow `prefers-color-scheme`; the light palette stays legible
- * when a client inverts it. No image, no external stylesheet, no web font: the « Jobbbox » wordmark is bold text.
+ * when a client inverts it. No external stylesheet, no web font. One image, the logo's symbol (#988, ADR-0105): a PNG
+ * at twice its size, hosted on Jobbbox's own site with no tracking (EMAIL_LOGO), its colours the brand's, which read on
+ * the light and on the dark background; `alt="Jobbbox"`, and the name beside it in bold text, hidden from screen readers
+ * so it is read once, stays when a client blocks images.
  *
- * Every email: a header (the « Jobbbox » wordmark), a body (its title, greeting, text, cards and at most one
+ * Every email: a header (the logo: its symbol, then the name « Jobbbox »), a body (its title, greeting, text, cards and at most one
  * primary button, then the signature; the greeting names the Candidate by their Preferred Name when the email gives it,
  * « Bonjour Mimi, », else « Bonjour, », #921), a footer (why the email came, its unsubscribe or settings link, and the
  * sender's address, which the mailer writes in with `withSenderAddress`).
  */
 import { designTokens } from "@jobhub/shared/design";
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
+import { EMAIL_LOGO, EMAIL_LOGO_SIZE } from "../brand/files";
+
+export { EMAIL_LOGO_SIZE };
+
+/** Where the emails' logo is served, on the site. */
+export const EMAIL_LOGO_PATH = EMAIL_LOGO.path;
+
+/** Production's site: the logo's home when APP_URL is not set. */
+const PRODUCTION_ORIGIN = "https://jobbbox.ai";
+
+/** The emails' logo, on the site that sends them (APP_URL), else on Production's. */
+export function emailLogoUrl(env: Record<string, string | undefined> = process.env): string {
+  return new URL(EMAIL_LOGO_PATH, env.APP_URL?.trim() || PRODUCTION_ORIGIN).href;
+}
 
 /** A link: its words and an http(s) URL. */
 export interface EmailLink {
@@ -202,7 +219,8 @@ ${darkStyle()}
 <table ${TABLE} width="600" class="jb-card" style="${css({ width: "100%", maxWidth: 600, borderCollapse: "separate", backgroundColor: light("background"), border: `1px solid ${light("border")}`, borderRadius: radius.card })}">
 <tr><td class="jb-line" style="${css({ padding: "20px 24px", borderBottom: `1px solid ${light("border")}` })}">
 <table ${TABLE}><tr>
-<td class="jb-text" style="${css({ ...font, fontSize: 18, fontWeight: "700", letterSpacing: "-0.02em", color: light("text") })}">Jobbbox</td>
+<td style="${css({ paddingRight: 8, lineHeight: "0" })}"><img src="${escape(emailLogoUrl())}" width="${EMAIL_LOGO_SIZE}" height="${EMAIL_LOGO_SIZE}" alt="Jobbbox" style="${css({ display: "block", width: EMAIL_LOGO_SIZE, height: EMAIL_LOGO_SIZE, border: 0, outline: "none" })}"></td>
+<td aria-hidden="true" class="jb-text" style="${css({ ...font, fontSize: 18, fontWeight: "700", letterSpacing: "-0.02em", color: light("text") })}">Jobbbox</td>
 </tr></table>
 </td></tr>
 <tr><td style="padding:24px">

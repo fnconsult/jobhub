@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MailMessage } from "../auth";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
+import { emailLogoUrl } from "../emails";
 import { mailClientLint } from "../emails/mail-client-lint";
 import { nouveautesEmail, plainText } from "./email";
 import { unsubscribeResponse } from "./http";
@@ -61,11 +62,12 @@ describe("nouveautesEmail — the email of an announced Release Note", () => {
     expect(mailClientLint(email.html)).toEqual([]);
   });
 
-  it("tracks nothing: no image, no pixel, and every link goes straight to Jobbbox", () => {
+  it("tracks nothing: no pixel, one image (the logo, the same for everyone, #988), and every link goes straight to Jobbbox", () => {
     for (const language of ["fr", "en"] as const) {
       const { html } = render(language);
-      expect(html).not.toMatch(/<img|background=|url\(/i);
-      const links = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map((match) => match[1]);
+      expect([...html.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/gi)].map((match) => match[1])).toEqual([emailLogoUrl()]);
+      expect(html).not.toMatch(/background=|url\(/i);
+      const links = [...html.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
       expect(links).toHaveLength(2);
       for (const link of links) expect(link).toMatch(/^https:\/\/app\.jobbbox\.fr\/(nouveautes|desabonnement)\//);
     }

@@ -13,6 +13,7 @@ import { choosePage } from "../../src/frame-choice";
 import { createGuestSession } from "../../src/guest-session";
 import { GUEST_TERMS_LINKS, guestTermsToAccept, sentenceParts, SIDE_PANEL_LINKS, siteHref, siteLanguage, versionDay, type CguVersion } from "../../src/guest-terms";
 import type { JobPage } from "../../src/job-page";
+import { panelLogo } from "../../src/panel-logo";
 import { createJobbboxApi, type ProfileOption, type ScoreAgainst, type UpgradePrompt } from "../../src/jobbbox-api";
 import { describeMatchScore, describeRescore, type MatchScoreView } from "../../src/match-score-view";
 import { chooseScoreAgainst, createMatchScoring, type ScoringChoice } from "../../src/match-scoring";
@@ -615,10 +616,10 @@ function eraseTime(expiresAt: number): HTMLElement {
   return node;
 }
 
-/** The panel's header: the « Jobbbox » wordmark, its title, and « Invité » for a Guest. */
+/** The panel's header: the logo (its symbol and the name « Jobbbox », #988), its title, and « Invité » for a Guest. */
 function header(): HTMLElement {
   const head = element("header", "", "panel-head");
-  head.append(element("span", t("app.name"), "wordmark"), element("h1", t("extension.analysis.title")));
+  head.append(panelLogo(document, t("app.name")), element("h1", t("extension.analysis.title")));
   if (!candidate.signedIn && !secondStepPending) {
     const pill = element("span", t("extension.guest"), "ds-pill");
     pill.dataset.tone = "accent";

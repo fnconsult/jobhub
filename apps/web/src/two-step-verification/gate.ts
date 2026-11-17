@@ -29,11 +29,12 @@ export const SETUP_ENDPOINT = "/api/two-step-verification/setup";
 const AUTH_OPEN = ["/api/auth/sign-out", "/api/auth/magic-link/verify", APP_SIGN_IN_PATH];
 
 /**
- * What the second step's page is drawn with, which holds no one's data: Next's own files, the public files; and the
+ * What the second step's page is drawn with, which holds no one's data: Next's own files, the public files, the logo's
+ * files (the manifest and its icons, the favicons, the emails' logo, #988); and the
  * domain association files the native app's links are verified with (#685).
  */
-const FILES = ["/_next/", "/logos/"];
-const FILE_PATHS: readonly string[] = ["/robots.txt", "/sitemap.xml", ...DOMAIN_ASSOCIATION_FILES];
+const FILES = ["/_next/", "/logos/", "/brand/"];
+const FILE_PATHS: readonly string[] = ["/robots.txt", "/sitemap.xml", "/manifest.webmanifest", "/icon.svg", "/apple-icon.png", ...DOMAIN_ASSOCIATION_FILES];
 
 export type GateDecision = "open" | "redirect" | "refuse";
 

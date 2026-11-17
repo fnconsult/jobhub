@@ -63,7 +63,7 @@ What a Visitor reads at `/` (and `/en`) before signing in (ADR-0105): what Jobbb
 _Avoid_: Home page (for the Visitor's), marketing site, splash page
 
 **Logo**:
-« La boîte qui répond » (ADR-0105): a letterbox in the shape of a speech bubble, the offer in its slot and three dots for the coach answering, beside the name « Jobbbox » in text. On the public pages and the favicons; elsewhere the name in text still stands in for it.
+« La boîte qui répond » (ADR-0105): a letterbox in the shape of a speech bubble, the offer in its slot and three dots for the coach answering, beside the name « Jobbbox » in text. On every surface where Jobbbox presents itself (ADR-0105, ADR-0108): the Sidebar, the sign-in and error pages, the emails, the extension, the app and its store listings. Drawn in two forms from `@jobhub/shared/logo`: the `symbol` and, below 40 px, the flat `small` form. The beta extension's mark carries an orange β. Its files live in the public path `/brand`, untracked and open during the second sign-in step and during maintenance. The theme colour of the web manifest is the accent.
 _Avoid_: Icon (that is a Lucide icon), the « J » (AI Activity's provenance mark)
 
 **Visitor**:
@@ -781,7 +781,7 @@ How tightly a surface of the Design System is set. Confort on the Candidate's pa
 _Avoid_: Compact mode, zoom
 
 **Email layout**:
-The one frame every email Jobbbox sends is written in (« Mise en page des emails »): a header (the « Jobbbox » wordmark), a title, text, Job Offer cards and at most one primary button, the signature, and a footer giving the reason the person got the email, an unsubscribe or settings link where there is one, and the sender address. It follows the Confort Density and carries no image and no web font. The plain-text part and the HTML part say the same thing.
+The one frame every email Jobbbox sends is written in (« Mise en page des emails »): a header (the Logo and the « Jobbbox » wordmark), a title, text, Job Offer cards and at most one primary button, the signature, and a footer giving the reason the person got the email, an unsubscribe or settings link where there is one, and the sender address. It follows the Confort Density and carries no web font and one image, the Logo, the same for every recipient (ADR-0108). The plain-text part and the HTML part say the same thing.
 _Avoid_: Email template, newsletter design
 
 **Design System page**:

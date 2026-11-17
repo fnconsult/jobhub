@@ -214,8 +214,10 @@ Un champ qui attend le nom de l'entité porte `[ENTITÉ À CONFIRMER]`. Tant que
 ### Les captures des stores
 
 ```sh
-npx tsx apps/mobile/store/screenshots.ts   # redessine apps/mobile/store/screenshots/ et l'icône, à committer
+npx tsx apps/mobile/store/screenshots.ts   # redessine apps/mobile/store/screenshots/, les icônes et l'écran de démarrage, à committer
 ```
+
+Les icônes et l'écran de démarrage sont le logo « La boîte qui répond » (ADR-0105, #988), dessiné depuis `@jobhub/shared/logo` dans `apps/mobile/assets/` : l'icône iOS (1024 px, opaque), l'icône adaptative Android (avant-plan, arrière-plan, monochrome pour les icônes à thème d'Android 13), et le symbole de l'écran de démarrage (`expo-splash-screen` dans `app.json`, sur le fond clair ou sombre de l'appareil). Les changer est un changement natif : une build des stores.
 
 Elles viennent des captures de référence claires des écrans clés (`maestro/captures/<appareil>/light/`, données inventées de `maestro/seed.ts`). Le test échoue quand une capture de référence a été redessinée sans relancer le script.
 

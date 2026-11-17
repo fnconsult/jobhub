@@ -87,6 +87,16 @@ describe("Shell, below 64rem", () => {
     expect(screen.queryByText("Mes candidatures")).toBeNull();
   });
 
+  it("heads the drawer with the logo, its symbol then the name « Jobbbox » (#988)", async () => {
+    await renderShell();
+    await userEvent.setup().press(button("Menu"));
+    const name = screen.getByText("Jobbbox");
+    expect(name).toBeOnTheScreen();
+    expect(screen.getByTestId("drawer-logo", { includeHiddenElements: true })).toBeTruthy();
+    // Read once: the symbol is decorative, the name in text.
+    expect(screen.queryByTestId("drawer-logo")).toBeNull();
+  });
+
   it("puts « Nouvelle conversation » under the Top Bar's « … »", async () => {
     const onNewConversation = jest.fn();
     await renderShell(application, onNewConversation);

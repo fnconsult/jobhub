@@ -1,10 +1,11 @@
 /**
  * A whole HTML page with nothing to load (#542): inline styles from the design tokens, no React, no font file, no
- * session. For the answers given when what renders the app's pages may be down: maintenance's 503 (`src/maintenance`),
+ * session; the logo's flat symbol drawn in the page (#988). For the answers given when what renders the app's pages may be down: maintenance's 503 (`src/maintenance`),
  * and the pages the proxy serves while the web app does not answer (`src/edge`, deploy/edge). Both languages, in the
  * order asked, in both themes.
  */
 import { designTokens } from "@jobhub/shared/design";
+import { logoSvg } from "@jobhub/shared/logo";
 
 export interface SelfContainedPage {
   /** The language of the document: the one of its first section. */
@@ -38,7 +39,8 @@ ${page.head ?? ""}<title>${page.title}</title>
 @media (prefers-color-scheme: dark){:root{--bg:${color.background.dark};--text:${color.text.dark};--secondary:${color.secondary.dark};--border:${color.border.dark};--accent:${color.accent.dark};--on-accent:${color.onAccent.dark}}}
 body{margin:0;background:var(--bg);color:var(--text);font-family:${fontFamily.sans};font-size:1.125rem;line-height:1.6}
 main{max-width:36rem;margin:0 auto;padding:4rem 1rem}
-.wordmark{margin:0 0 2.5rem;font-size:1.25rem;font-weight:700;letter-spacing:-0.02em}
+.wordmark{display:flex;gap:.45rem;align-items:center;margin:0 0 2.5rem;font-size:1.25rem;font-weight:700;letter-spacing:-0.02em}
+.wordmark svg{width:1.6em;height:1.6em}
 .code{margin:0;color:var(--secondary);font-size:2.5rem;font-weight:300;font-variant-numeric:tabular-nums}
 h1{margin:.5rem 0;font-size:1.5rem;font-weight:500;line-height:1.3}
 p{margin:0 0 .75rem}
@@ -49,7 +51,7 @@ a{display:inline-block;margin-top:2rem;padding:.625rem 1.25rem;border-radius:999
 </head>
 <body>
 <main>
-<p class="wordmark">Jobbbox</p>
+<p class="wordmark">${logoSvg("small")}Jobbbox</p>
 <p class="code" aria-hidden="true">${page.code}</p>
 ${page.sections.map((section) => `<section lang="${section.lang}">${section.html}</section>`).join("\n")}
 <a href="">${page.action}</a>

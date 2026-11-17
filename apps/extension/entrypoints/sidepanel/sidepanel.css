@@ -44,11 +44,19 @@ body {
   margin-left: auto;
 }
 
-/* The « Jobbbox » wordmark, in text: the logo's stand-in (#542). */
+/* The logo (#988, ADR-0105): its symbol, still, then the name « Jobbbox » in text. */
 .wordmark {
+  display: inline-flex;
   flex: none;
+  gap: 0.36em;
+  align-items: center;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.wordmark svg {
+  width: 1.55em;
+  height: 1.55em;
 }
 
 .panel-body {

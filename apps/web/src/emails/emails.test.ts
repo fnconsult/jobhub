@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import { designTokens } from "@jobhub/shared/design";
 import { describe, expect, it } from "vitest";
-import { renderEmail, withSenderAddress, type Email } from "./index";
+import { EMAIL_LOGO_PATH, EMAIL_LOGO_SIZE, emailLogoUrl, renderEmail, withSenderAddress, type Email } from "./index";
 import { mailClientLint } from "./mail-client-lint";
 
 const digest: Email = {
@@ -68,9 +69,23 @@ describe("renderEmail: the HTML part", () => {
     expect(html).not.toMatch(/<div|display:\s*(flex|grid)/i);
   });
 
-  it("draws the header: the « Jobbbox » wordmark in bold text, no « J » square", () => {
-    expect(html).toMatch(/font-weight:700[^>]*>Jobbbox</);
+  it("draws the header: the logo, its symbol a hosted PNG named « Jobbbox », then the name in bold text (#988)", () => {
+    const logo = /<img\b[^>]*>/.exec(html)![0];
+    expect(logo).toContain(`src="${emailLogoUrl()}"`);
+    expect(logo).toContain('alt="Jobbbox"');
+    expect(logo).toContain(`width="${EMAIL_LOGO_SIZE}"`);
+    expect(logo).toContain(`height="${EMAIL_LOGO_SIZE}"`);
+    // The name beside it says what the image's alt text says: read once.
+    expect(html).toMatch(/<td aria-hidden="true"[^>]*font-weight:700[^>]*>Jobbbox</);
     expect(html).not.toContain(">J<");
+  });
+
+  it("hosts the symbol at twice its size (@2x), on Jobbbox's own site, with no tracking", () => {
+    const png = readFileSync(`apps/web/public${EMAIL_LOGO_PATH}`);
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([2 * EMAIL_LOGO_SIZE, 2 * EMAIL_LOGO_SIZE]);
+    expect(emailLogoUrl({ APP_URL: "https://staging.jobbbox.ai" })).toBe(`https://staging.jobbbox.ai${EMAIL_LOGO_PATH}`);
+    expect(emailLogoUrl({})).toBe(`https://jobbbox.ai${EMAIL_LOGO_PATH}`);
+    expect(emailLogoUrl({ APP_URL: "https://jobbbox.ai" })).not.toContain("?");
   });
 
   it("draws the title, the text, each offer card and one primary button to its link", () => {

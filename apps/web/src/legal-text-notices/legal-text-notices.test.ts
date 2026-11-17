@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MailMessage } from "../auth";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
+import { emailLogoUrl } from "../emails";
 import { mailClientLint } from "../emails/mail-client-lint";
 import { createLegalTextNotices, legalTextNoticesOf, migrateLegalTextNotices, sendsLegalTextNotices, type LegalTextNoticesDeps } from "./index";
 
@@ -121,11 +122,11 @@ describe.skipIf(!connectionString)("Legal Text notices: the email 30 days ahead,
       expect(outbox.find((message) => message.to === "john@example.com")!.text.startsWith("Hello,\n\n")).toBe(true);
     });
 
-    it("tracks nothing: no image, no pixel, and every link goes straight to Jobbbox", async () => {
+    it("tracks nothing: no pixel, one image (the logo, the same for everyone, #988), and every link goes straight to Jobbbox", async () => {
       await notices(written(both("confidentialite", "2026-12-15", "substantielle"))).sendDue();
 
       for (const message of outbox) {
-        expect(message.html).not.toMatch(/<img/i);
+        expect([...message.html!.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/gi)].map((match) => match[1])).toEqual([emailLogoUrl()]);
         const links = [...message.html!.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
         expect(links.length).toBeGreaterThan(0);
         for (const link of links) expect(link).toMatch(/^https:\/\/app\.jobbbox\.fr\/legal\//);

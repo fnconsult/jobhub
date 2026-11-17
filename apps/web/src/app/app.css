@@ -27,7 +27,11 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* The logo (#988, ADR-0105): its symbol, then the name « Jobbbox » in text. */
 .brand {
+  display: inline-flex;
+  gap: 0.36em;
+  align-items: center;
   font-size: var(--font-size-h3);
   font-weight: 600;
 }

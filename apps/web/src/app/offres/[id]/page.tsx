@@ -11,6 +11,7 @@ import { ExpiredJobOfferNotice, JobOfferView } from "@/components/JobOfferView";
 import { matchScoreFigure, matchScoreReasons } from "@/components/job-search-words";
 import { ProfileMatchScore } from "@/components/MatchScoreWhy";
 import { TextSizeControl } from "@/components/TextSizeControl";
+import { Logo } from "@/design/Logo";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobOffers } from "@/job-offers/server";
 import { jobOfferMatch } from "@/match-score/job-offer-match";
@@ -73,6 +74,7 @@ export default async function JobOfferPage({ params, searchParams }: Params & Se
     <main className="page">
       <header className="page-header">
         <Link className="brand" href={routes.home}>
+          <Logo />
           {t("app.name")}
         </Link>
         <nav className="page-nav">

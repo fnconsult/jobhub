@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { DocumentHead } from "@/design/document-head";
 import "@/design/Button.css";
 import { ErrorView } from "@/design/ErrorView";
+import { Logo } from "@/design/Logo";
 import { ThemedHtml } from "@/design/ThemedHtml";
 import "./app.css";
 
@@ -42,6 +43,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
       <body>
         <main id="main" className="ds-error-page">
           <a className="ds-error-page__wordmark" href="/">
+            <Logo />
             {COPY.wordmark}
           </a>
           <ErrorView

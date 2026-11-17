@@ -2,13 +2,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import { Logo } from "./Logo";
 import "./SignInStage.css";
 
 const TERMS = routes.legal("cgu");
 const PRIVACY = routes.legal("confidentialite");
 
 /**
- * A sign-in page's stage (#470, prototype `#connexion`): a centred column on the accent-tinted canvas, the « Jobbbox » wordmark, the
+ * A sign-in page's stage (#470, prototype `#connexion`): a centred column on the accent-tinted canvas, the logo (its symbol, still, and the name, #988), the
  * `title` and `intro`, the `notices` (Notes: a failed sign-in, the Back Office's SSO required), the form in a card,
  * then the legal line, its links leading to the Légal page; not on the Acceptance screen (`legalLine` false, #510),
  * where the CGU are accepted with a box.
@@ -30,7 +31,10 @@ export async function SignInStage({
   return (
     <main id="main" className="ds-sign-in">
       <div className="ds-sign-in__column">
-        <p className="ds-sign-in__wordmark">{t("app.name")}</p>
+        <p className="ds-sign-in__wordmark">
+          <Logo />
+          {t("app.name")}
+        </p>
         <h1 className="ds-sign-in__title">{title}</h1>
         {intro ? <p className="ds-sign-in__intro">{intro}</p> : null}
         {notices}

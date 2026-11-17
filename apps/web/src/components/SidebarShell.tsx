@@ -9,6 +9,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { CompactTopBarActions, TopBarActionsProvider, useTopBarState } from "@/components/top-bar";
 import { buttonClass } from "@/design/Button";
 import { Drawer, DrawerTitle } from "@/design/Drawer";
+import { Logo } from "@/design/Logo";
 import { SIDEBAR_CLOSED, SIDEBAR_OPEN, SIDEBAR_STORAGE_KEY } from "@/design/sidebar-state";
 
 /** `aria-current` of the link to the page shown. */
@@ -63,7 +64,7 @@ function setHidden(hidden: boolean) {
 
 /**
  * The sidebar layout (#132, #134), whatever the sidebar holds: a skip link, the
- * sidebar (brand and the button hiding it, `top` and the `nav` scrolling under it, the foot pinned at the bottom,
+ * sidebar (brand, the logo's symbol and its name (#988), and the button hiding it, `top` and the `nav` scrolling under it, the foot pinned at the bottom,
  * signing out), the Top
  * Bar with the Menu button, the page's `title` and `topBarEnd` (the Candidate's « Fiche », AI Activity's button, « Effacer »
  * or « Aide », #809; the Back Office Assistant's button), and the page as `<main>`, `beside` it (the Work Pane, the Fiche or
@@ -72,7 +73,7 @@ function setHidden(hidden: boolean) {
  * box's filter icon, OfferBoxTopBarTitle, #898). Pages never render their own (ADR-0024).
  *
  * On a wide screen the sidebar sits beside the page and can be hidden
- * (remembered by this browser); the Menu button brings it back. Below 64rem
+ * (remembered by this browser); the Menu button brings it back, the logo's symbol alone beside it. Below 64rem
  * it is a drawer: a modal dialog (Radix, ADR-0018) the Menu button opens, and
  * Escape, its close button or any link closes. `nav` gets the function its
  * links call to close the drawer, and `closeDrawerThen` for what opens beside the page
@@ -220,6 +221,7 @@ export function SidebarShell({
     <>
       <div className="sidebar-head">
         <Link className="brand" href={brand.href}>
+          <Logo />
           {brand.label}
         </Link>
         {inDrawer ? (
@@ -356,6 +358,10 @@ export function SidebarShell({
                   <Icons.menu />
                 </button>
               ) : null}
+              {/* The Sidebar collapsed (#988): its logo's symbol alone leads home, named by the brand's words. */}
+              <Link className="topbar-brand" href={brand.href} aria-label={brand.label} title={brand.label}>
+                <Logo />
+              </Link>
               <div className="topbar-title">
                 {/* A Section alone on a phone: the title leads back to the list, behind an arrow, as on iOS. */}
                 {typeof title === "string" ? (

@@ -5,7 +5,8 @@
  * the same geometry and colours, taken from here, with its moving parts.
  *
  * Two forms: the `symbol` (the offer in the slot, the three dots of the coach answering) from 40 px, and the `small`
- * one below (flat: no gradient, no dots, no lines on the offer, which do not survive 16 px). Its colours are the
+ * one below (flat: no gradient, no dots, no lines on the offer, which do not survive 16 px; the offer outlined, so it
+ * keeps its shape on a white background). Its colours are the
  * brand's, the same in both themes: they read on the light and on the dark background.
  *
  *   logoSvg("symbol")                                   decorative: the name beside it says « Jobbbox »
@@ -59,7 +60,8 @@ function shapes(form: LogoForm, id: string): string {
     return (
       `<path fill="${c.flatSide}" transform="translate(0 6)" d="${BUBBLE}"/>` +
       `<path fill="${c.flat}" d="${BUBBLE}"/>` +
-      `<rect fill="${c.paper}" x="33" y="12" width="30" height="24" rx="3"/>` +
+      // The offer's edge in the bubble's side colour: it keeps its shape above the bubble on a white toolbar.
+      `<rect fill="${c.paper}" stroke="${c.flatSide}" stroke-width="3.500" x="33" y="12" width="30" height="24" rx="3"/>` +
       `<rect fill="${c.slot}" x="26" y="33" width="44" height="7" rx="3.500"/>`
     );
   }

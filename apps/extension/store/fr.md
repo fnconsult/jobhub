@@ -14,6 +14,7 @@ anglaise est en.md. Les libellés entre « » sont ceux de l'interface, mot pour
 - **Politique de confidentialité** : https://jobbbox.ai/legal/confidentialite
 - **URL d'assistance** : https://jobbbox.ai/aide/extension (Centre d'aide, rubrique « L'extension »)
 - **Site web** : https://jobbbox.ai
+- **Visuels** : l'icône de la fiche, `store/icon-128.png`, et la petite vignette promotionnelle, `store/promo-tile-440x280.png` : le logo de Jobbbox, la boîte aux lettres en forme de bulle (#988)
 
 ## Résumé (132 caractères au plus)
 
@@ -53,7 +54,7 @@ Enregistrer dans Jobbbox l'offre d'emploi consultée et en calculer le score de 
 # Fiche beta
 
 - **Visibilité** : non répertoriée (accessible par son lien, pour les testeurs)
-- **Nom** : Jobbbox (bêta) (`__MSG_extNameBeta__`), avec l'icône orange marquée β
+- **Nom** : Jobbbox (bêta) (`__MSG_extNameBeta__`), avec l'icône marquée d'un β orange
 - **Build** : `jobbbox-extension-X.Y.Z-chrome-beta.zip`, branchée sur la Beta (`https://staging.jobbbox.ai`)
 - **Catégorie** : Productivité
 - **Politique de confidentialité** : https://staging.jobbbox.ai/legal/confidentialite

@@ -298,18 +298,19 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(fiche).toContainText(fr.profilePage.onboarding.unfinished);
     await fiche.getByRole("link", { name: fr.profilePage.onboarding.resume }).click();
 
-    // Resumed at its review, on what is saved: the e-mail answered after it was born is not.
+    // Resumed at its review, on what is saved: the name and the e-mail, answered after it was born (#1047), are not.
     await expect(page).toHaveURL(`${origin}/profils/nouveau?profil=${id}`);
     await expect(transcript(page)).toContainText(fr.newProfile.resumeIntro);
     await expect(onboardingSummary(page).locator(".onb-summary")).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
     // The review form, by « Voir le détail »; its own « Enregistrer mon profil » saves as « Cela semble correct » does.
     await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
-    await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
+    await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("");
     await expect(page.getByLabel(fr.cvReview.email)).toHaveValue("");
     const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
     await expect(placeNames(criteria)).toHaveText(["Lyon"]);
+    await page.getByLabel(fr.cvReview.fullName).fill("Marie Dupont");
     await page.getByLabel(fr.cvReview.email).fill("marie.dupont@example.fr");
     await criteria.getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi }).check();
     await page.getByRole("button", { name: fr.cvReview.save }).click();

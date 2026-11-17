@@ -7,6 +7,7 @@ import { placeNames, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { confirmSummary, onboardingSummary, openReviewDetail } from "./support/onboarding-summary";
 import { subscribe } from "./support/plan";
+import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
 
 // Issue #7: a Candidate has several Profiles (positionings). They create one
 // by answering the coach's questions or from a CV, duplicate, rename and archive them, and move
@@ -302,6 +303,34 @@ test.describe("several Profiles per Candidate", () => {
     await page.goto("/profils/nouveau");
     await expect(page).toHaveURL(`${origin}/profils/nouveau`);
     await expect(page.getByRole("alert").filter({ hasText: freeQuotaReached })).toBeVisible();
+  });
+
+  test("with several unfinished Profiles holding the quota, the most recent one is resumed (#1048)", async ({ page }) => {
+    // Standard allows several Profiles; once back on Free (1 Profile) the quota is reached by all of them.
+    const email = newAddress("free-several-unfinished");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
+    const born = async (targetRole: string): Promise<string> => {
+      const response = await page.request.post("/api/profiles", {
+        headers: { origin },
+        data: { masterCv, searchCriteria: { targetRole, locations: ["Lyon"] }, onboarding: "in_progress" },
+      });
+      expect(response.status()).toBe(201);
+      return (await response.json()).id;
+    };
+    await born("Ancien poste");
+    const latestId = await born("Poste le plus récent");
+    const { payload, signature } = signedEvent(
+      subscriptionEvent("customer.subscription.deleted", { customer: fakeCustomerId(email), price: FAKE_STRIPE_PRICES.standard, status: "canceled" }, new Date(Date.now() + 60_000)),
+    );
+    const cancelled = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
+    expect(cancelled.status()).toBe(200);
+
+    await page.goto("/profils/nouveau");
+    await expect(page).toHaveURL(`${origin}/profils/nouveau?profil=${latestId}`);
+    await expect(page.getByRole("alert").filter({ hasText: "L'offre Gratuit comprend 1 profil." })).toHaveCount(0);
+    await openReviewDetail(page);
+    await expect(page.getByLabel(fr.cvReview.targetRole)).toHaveValue("Poste le plus récent");
   });
 
   // Issue #133: the switcher is a Radix dropdown menu (ADR-0018), so it follows the WAI-ARIA menu button pattern.

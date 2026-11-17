@@ -38,9 +38,9 @@ export function maintenanceOf(snapshot: PlatformSettingsSnapshot): Maintenance |
 
 /**
  * What stays open during maintenance: the Back Office and its API (so Administrators can check and switch it off),
- * sign-in, the health check, the webhooks other services call (Stripe, Email intake's MTA), and Next's assets.
+ * sign-in, the health check, the webhooks other services call (Stripe, Email intake's MTA), Next's assets, and the logo's files (`/brand`: an email opened then still shows it, #988).
  */
-const OPEN_PREFIXES = ["/admin", "/api/admin", "/api/auth", "/api/health", "/api/billing/webhook", "/api/email-intake/inbound", "/_next"];
+const OPEN_PREFIXES = ["/admin", "/api/admin", "/api/auth", "/api/health", "/api/billing/webhook", "/api/email-intake/inbound", "/_next", "/brand"];
 
 export function staysOpen(path: string): boolean {
   return OPEN_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));

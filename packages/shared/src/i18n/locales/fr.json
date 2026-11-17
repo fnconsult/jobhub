@@ -1498,7 +1498,7 @@
     "coach": "Votre coach",
     "you": "Vous",
     "questions": {
-      "fullName": "Pour commencer, quels sont vos prénom et nom ?",
+      "fullName": "Quels sont vos prénom et nom ?",
       "targetRole": "Quel poste recherchez-vous ? Par exemple : « Directeur financier ».",
       "location": "Dans quelle ville habitez-vous, ou souhaitez-vous travailler ?",
       "email": "À quelle adresse e-mail les recruteurs peuvent-ils vous écrire ?",

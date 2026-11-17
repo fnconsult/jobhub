@@ -1498,7 +1498,7 @@
     "coach": "Your coach",
     "you": "You",
     "questions": {
-      "fullName": "To start with, what is your full name?",
+      "fullName": "What is your full name?",
       "targetRole": "Which position are you looking for? For example: \"Chief Financial Officer\".",
       "location": "Which city do you live in, or would you like to work in?",
       "email": "Which email address can recruiters write to?",

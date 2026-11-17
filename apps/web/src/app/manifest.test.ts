@@ -39,7 +39,7 @@ describe("the web manifest (#988)", () => {
   it("is reached by anyone, even mid sign-in or during maintenance, as its icons and the emails' logo are", () => {
     for (const path of ["/manifest.webmanifest", ...(web.icons ?? []).map((icon) => icon.src), "/brand/email-logo@2x.png", "/icon.svg", "/apple-icon.png"]) {
       expect(pendingSessionGate(path, "GET"), path).toBe("open");
+      expect(staysOpen(path), path).toBe(true);
     }
-    expect(staysOpen("/brand/email-logo@2x.png")).toBe(true);
   });
 });

@@ -11,9 +11,9 @@ function answerAll(values: string[], questionnaire = startQuestionnaire()): Ques
 }
 
 const MARIE = [
-  "Marie Dupont", // fullName
   "Directrice financière", // targetRole
   "Lyon", // location
+  "Marie Dupont", // fullName
   "marie.dupont@example.fr", // email
   "06 12 34 56 78", // phone
   "Directrice financière", // jobTitle 1
@@ -38,8 +38,17 @@ const MARIE = [
 ];
 
 describe("the Onboarding Questionnaire", () => {
-  it("asks for the Candidate's name first", () => {
-    expect(currentQuestion(startQuestionnaire())).toEqual({ id: "fullName", kind: "text", optional: false });
+  it("asks for the target role first, then the location, then the Candidate's name (#1047)", () => {
+    expect(currentQuestion(startQuestionnaire())).toEqual({ id: "targetRole", kind: "text", optional: false });
+    expect(currentQuestion(answerAll(["Directrice financière"]))).toEqual({ id: "location", kind: "text", optional: false });
+    expect(currentQuestion(answerAll(["Directrice financière", "Lyon"]))).toEqual({ id: "fullName", kind: "text", optional: false });
+  });
+
+  it("has the Search Criteria a Profile is born with as soon as the target role and location are answered (#1047)", () => {
+    expect(draftFromQuestionnaire(answerAll(["Directrice financière", "Lyon"]))).toMatchObject({
+      masterCv: { fullName: "", headline: "Directrice financière", location: "Lyon" },
+      searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] },
+    });
   });
 
   it("builds the same Master CV and Search Criteria an uploaded CV gives", () => {
@@ -80,10 +89,10 @@ describe("the Onboarding Questionnaire", () => {
     expect(currentQuestion(secondJob)).toEqual({ id: "jobTitle", kind: "text", optional: true, number: 2 });
   });
 
-  it("refuses to go on without a name, a target role and a location", () => {
+  it("refuses to go on without a target role, a location and a name", () => {
     expect(answer(startQuestionnaire(), "   ")).toEqual({ ok: false, error: "required" });
-    const atLocation = answerAll(["Marie Dupont", "DAF"]);
-    expect(answer(atLocation, "")).toEqual({ ok: false, error: "required" });
+    expect(answer(answerAll(["DAF"]), "")).toEqual({ ok: false, error: "required" });
+    expect(answer(answerAll(["DAF", "Lyon"]), "")).toEqual({ ok: false, error: "required" });
   });
 
   it("only takes yes or no to “another job?”", () => {
@@ -93,7 +102,7 @@ describe("the Onboarding Questionnaire", () => {
   });
 
   it("lets the Candidate skip optional questions, and skips a whole job or degree when its title is skipped", () => {
-    const finished = answerAll(["Jean Martin", "Chef de projet SI", "Nantes", "", "", "", "", "", "", ""]);
+    const finished = answerAll(["Chef de projet SI", "Nantes", "Jean Martin", "", "", "", "", "", "", ""]);
 
     expect(currentQuestion(finished)).toBeNull();
     expect(draftFromQuestionnaire(finished)).toEqual({
@@ -114,7 +123,7 @@ describe("the Onboarding Questionnaire", () => {
   });
 
   it("reads a language without a level, and trims every answer", () => {
-    const finished = answerAll(["  Jean Martin ", "DSI", "Nantes", "", "", "", "", " Voile ;  ", "Anglais\nEspagnol - courant", ""]);
+    const finished = answerAll(["DSI", "Nantes", "  Jean Martin ", "", "", "", "", " Voile ;  ", "Anglais\nEspagnol - courant", ""]);
     expect(draftFromQuestionnaire(finished).masterCv).toMatchObject({
       fullName: "Jean Martin",
       skills: ["Voile"],
@@ -127,7 +136,7 @@ describe("the Onboarding Questionnaire", () => {
 
   it("stops asking for more jobs after ten", () => {
     const job = ["Poste", "Employeur", "", "", ""];
-    let questionnaire = answerAll(["Jean Martin", "DSI", "Nantes", "", ""]);
+    let questionnaire = answerAll(["DSI", "Nantes", "Jean Martin", "", ""]);
     for (let i = 0; i < 10; i++) questionnaire = answerAll(i < 9 ? [...job, "yes"] : job, questionnaire);
     expect(currentQuestion(questionnaire)).toMatchObject({ id: "degree", number: 1 });
     expect(draftFromQuestionnaire(questionnaire).masterCv.experience).toHaveLength(10);
@@ -143,5 +152,14 @@ describe("the Onboarding Questionnaire", () => {
     const done = answerAll(["", "", ""], questionnaire);
     expect(currentQuestion(done)).toBeNull();
     expect(draftFromQuestionnaire(done)).toMatchObject({ masterCv: { fullName: "Marie Dupont", headline: "DAF", experience: [{ employer: "Seb" }], skills: ["IFRS"] }, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } });
+  });
+
+  it("skips the target role and location already known, and asks only the rest in order (#1047)", () => {
+    const blank = { fullName: "", headline: "", email: "", phone: "", location: "", summary: "", experience: [], education: [], skills: [], languages: [] };
+    const roleKnown = startQuestionnaire({ masterCv: blank, searchCriteria: { targetRole: "DAF", locations: [] } });
+    expect(currentQuestion(roleKnown)).toMatchObject({ id: "location" });
+    expect(currentQuestion(answerAll(["Lyon"], roleKnown))).toMatchObject({ id: "fullName", optional: false });
+    const nameKnown = startQuestionnaire({ masterCv: { ...blank, fullName: "Marie Dupont" }, searchCriteria: { targetRole: "", locations: [] } });
+    expect(currentQuestion(answerAll(["DAF", "Lyon"], nameKnown))).toMatchObject({ id: "email" });
   });
 });

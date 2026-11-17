@@ -6391,7 +6391,8 @@
     "help": "Help",
     "howThisPageWorks": "How does this page work?",
     "askCoach": "Ask the coach",
-    "close": "Close"
+    "close": "Close",
+    "resize": "Resize the pane"
   },
   "publicSite": {
     "nav": "Public pages",

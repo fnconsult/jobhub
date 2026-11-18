@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BLOCK_COUNT, blockNumber, blockOf, blockProgress, INTERVIEW_BLOCKS } from "./blocks";
-import type { InterviewField } from "./turn";
+import type { InterviewField } from "./fields";
 
 describe("the four blocks of the interview without a CV, once the Profile is born (#1046)", () => {
   it("are criteria, career, skills and presentation, in that order", () => {

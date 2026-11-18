@@ -8,7 +8,7 @@
  *   blockProgress(fields, from?)      for the fields asked, in order: the block each question starts (else null), and
  *                                     the block reached; never back to an earlier one, from the block resumed at
  */
-import type { InterviewField } from "./turn";
+import type { InterviewField } from "./fields";
 
 export const INTERVIEW_BLOCKS = ["criteria", "career", "skills", "presentation"] as const;
 export type InterviewBlock = (typeof INTERVIEW_BLOCKS)[number];

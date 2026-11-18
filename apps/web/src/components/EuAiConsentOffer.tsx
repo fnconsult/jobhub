@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { buttonClass } from "@/design/button-class";
 import { Note } from "@/design/Note";
@@ -91,15 +91,22 @@ export function useEuAiConsentOffer(givenBefore: boolean): EuAiConsentOffer {
 /**
  * The question in the thread: one line of the coach, the sentence Mon compte › IA européenne's validated text starts
  * with, word for word (no new wording, #1052), « votre accord » opening its glossary article; then the Candidate's answer.
+ * Asked, the line is brought into view, so that it is read before the choice (on a phone, the CV's card pushes it under the
+ * box).
  */
 export function EuAiConsentQuestion({ offer }: { offer: EuAiConsentOffer }) {
   const { t } = useTranslation();
+  const line = useRef<HTMLParagraphElement>(null);
+  const { asking } = offer;
+  useEffect(() => {
+    if (asking) line.current?.scrollIntoView?.({ block: "center" });
+  }, [asking]);
   if (!offer.asked) return null;
   const { answer } = offer.asked;
   return (
     <>
       <CoachLine>
-        <p>
+        <p ref={line}>
           <HelpText terms={{ euAiConsent: t("helpTerms.words.euAiConsent") }}>{t("euAiConsent.offer")}</HelpText>
         </p>
       </CoachLine>

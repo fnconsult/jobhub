@@ -35,7 +35,7 @@ Drop your CV in the « I have a CV » card, as a PDF or a Word file, then click 
 ## Answer about European AI
 - click button « Not now »
 
-Before reading your CV, your coach offers you European AI. « Give my consent » has Mistral AI process the requests that contain your identity data; « Not now » reads your CV once your identity is taken out of it. Choose either: you can change your mind in My account, « European AI » section.
+Before reading your CV, your coach offers you European AI. « Give my consent » has Mistral AI process the requests that contain your identity data; « Not now » leaves them to our usual provider. Either way, Jobbbox removes your identity from every request before sending it. Choose either: you can change your mind in My account, « European AI » section.
 
 ## Confirm what your coach read
 - fill label « Your answer » « Responsable comptable »

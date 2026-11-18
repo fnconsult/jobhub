@@ -123,7 +123,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "Avant de lire votre CV, votre coach vous propose l'IA européenne. « Donner mon accord » fait traiter par Mistral AI les demandes qui contiennent vos données d'identité ; « Pas maintenant » lit votre CV après en avoir retiré votre identité. Choisissez l'un ou l'autre : vous pourrez changer d'avis dans Mon compte, rubrique « IA européenne »."
+          "narration": "Avant de lire votre CV, votre coach vous propose l'IA européenne. « Donner mon accord » fait traiter par Mistral AI les demandes qui contiennent vos données d'identité ; « Pas maintenant » les laisse à notre fournisseur habituel. Dans les deux cas, Jobbbox retire votre identité de chaque demande avant l'envoi. Choisissez l'un ou l'autre : vous pourrez changer d'avis dans Mon compte, rubrique « IA européenne »."
         },
         {
           "title": "Confirmer ce que votre coach a lu",
@@ -258,7 +258,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Si le résumé est juste, cliquez sur « Cela semble correct ». Vos premières offres s'affichent dans « Activité », à la fin de la recherche offerte que votre coach a lancée : « Dans l'activité » vous y mène. Sans attendre, cliquez sur « Continuer vers mon profil » : votre premier profil est prêt."
         }
       ],
-      "hash": "7582f137f2f4"
+      "hash": "a081c6802e66"
     },
     {
       "id": "extension-analyser-offre",
@@ -1100,7 +1100,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "Before reading your CV, your coach offers you European AI. « Give my consent » has Mistral AI process the requests that contain your identity data; « Not now » reads your CV once your identity is taken out of it. Choose either: you can change your mind in My account, « European AI » section."
+          "narration": "Before reading your CV, your coach offers you European AI. « Give my consent » has Mistral AI process the requests that contain your identity data; « Not now » leaves them to our usual provider. Either way, Jobbbox removes your identity from every request before sending it. Choose either: you can change your mind in My account, « European AI » section."
         },
         {
           "title": "Confirm what your coach read",
@@ -1235,7 +1235,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "If the summary is right, click « That looks right ». Your first job offers show in « Activity », at the end of the search on us your coach started: « In Activity » takes you there. Without waiting, click « Continue to my profile »: your first profile is ready."
         }
       ],
-      "hash": "dcff0437ee5a"
+      "hash": "05eaaa741916"
     },
     {
       "id": "extension-analyser-offre",

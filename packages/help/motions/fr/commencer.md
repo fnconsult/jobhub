@@ -35,7 +35,7 @@ Déposez votre CV dans la carte « J'ai un CV », en PDF ou en Word, puis clique
 ## Répondre pour l'IA européenne
 - click button « Pas maintenant »
 
-Avant de lire votre CV, votre coach vous propose l'IA européenne. « Donner mon accord » fait traiter par Mistral AI les demandes qui contiennent vos données d'identité ; « Pas maintenant » lit votre CV après en avoir retiré votre identité. Choisissez l'un ou l'autre : vous pourrez changer d'avis dans Mon compte, rubrique « IA européenne ».
+Avant de lire votre CV, votre coach vous propose l'IA européenne. « Donner mon accord » fait traiter par Mistral AI les demandes qui contiennent vos données d'identité ; « Pas maintenant » les laisse à notre fournisseur habituel. Dans les deux cas, Jobbbox retire votre identité de chaque demande avant l'envoi. Choisissez l'un ou l'autre : vous pourrez changer d'avis dans Mon compte, rubrique « IA européenne ».
 
 ## Confirmer ce que votre coach a lu
 - fill label « Votre réponse » « Responsable comptable »

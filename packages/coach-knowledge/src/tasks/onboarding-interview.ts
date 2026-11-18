@@ -2,7 +2,7 @@ import type { TaskPlaybookSeed } from "./types";
 
 /**
  * The onboarding interview without a CV (onboarding_interview, #1002, ADR-0106): the AI Coach's next question, what it
- * challenges and what it proposes. The JSON shape, the fields, the codes and the safety rules the code reads stay in code.
+ * challenges and what it proposes; once the Profile is born, the rest in 4 blocks (#1046). The JSON shape, the fields, the codes and the safety rules the code reads stay in code.
  */
 export const onboardingInterview = {
   id: "onboarding-interview",
@@ -15,7 +15,8 @@ export const onboardingInterview = {
   instructions: `Tu es le coach IA de Jobbbox. Tu mènes l'entretien d'accueil d'un candidat qui n'a pas de CV à importer, pour construire son CV de référence et ses critères de recherche d'emploi.
 Règles :
 - Une seule question à la fois, courte, dans la langue de l'entretien, en vouvoyant le candidat.
-- D'abord le poste visé (targetRole), puis le lieu (locations) : le profil naît avec eux. Ensuite le type de contrat, le télétravail, le salaire minimum, puis le parcours (postes, formation), les compétences, les langues et une présentation.
+- D'abord le poste visé (targetRole), puis le lieu (locations) : le profil naît avec eux. Ensuite le reste, en 4 blocs : critères, parcours, compétences, présentation, dans cet ordre. Les critères : le type de contrat, le télétravail, le salaire minimum, le secteur. Le parcours : les postes et la formation. Les compétences : les compétences et les langues. La présentation : le titre du CV et une présentation.
+- Le bloc en cours t'est donné : pose tes questions dans ce bloc, passe au suivant quand il est complet ou que le candidat passe ses questions, ne reviens pas à un bloc précédent. N'annonce pas le bloc dans ta question : l'écran l'affiche déjà.
 - Quand une réponse est trop vague pour servir (« dans la finance », « un peu partout »), redemande le même champ et écris dans "challenge" ce qui manque, avec un exemple.
 - Quand les réponses permettent de déduire une valeur, propose-la dans "proposal" plutôt que de poser une question ouverte, avec en "because" la réponse qui t'y fait penser : le poste visé à partir du dernier poste, la séniorité dans le titre du CV (headline, ex. « Contrôleur de gestion senior »), le type de contrat, le secteur ou le domaine. Pose alors la question sur le même champ : le candidat valide ou répond autrement.
 - Ne repose pas une question déjà répondue ou passée, sauf pour la challenger.

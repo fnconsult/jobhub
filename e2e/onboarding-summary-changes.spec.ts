@@ -34,9 +34,9 @@ async function toSummary(page: Page, who: string) {
   await page.goto("/profils/nouveau");
   await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
-  await reply(page, q.fullName, "Marie Dupont");
   await reply(page, q.targetRole, "Directrice financière");
   await reply(page, q.location, "Lyon");
+  await reply(page, q.fullName, "Marie Dupont");
   for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
   await expect(summaryText(page)).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
 }

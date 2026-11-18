@@ -194,14 +194,14 @@ test.describe("onboarding with the AI Coach", () => {
     await page.goto("/profils/nouveau");
     await startScriptedQuestions(page);
 
-    // A name, a target role and a location are needed for a Profile.
+    // A target role, a location and a name are needed for a Profile, asked in that order (#1047).
     await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
     await expect(page.locator(".field-error[role=alert]")).toHaveText(fr.questionnaire.errors.required);
     await expect(page.getByRole("button", { name: fr.questionnaire.skip })).toHaveCount(0);
 
-    await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");
     await reply(page, q.location, "Lyon");
+    await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.email, "marie.dupont@example.fr");
     await reply(page, q.phone, "skip");
     await reply(page, q.jobTitle.replace("{{number}}", "1"), "Directrice financière");
@@ -283,10 +283,10 @@ test.describe("onboarding with the AI Coach", () => {
     await signInWithMagicLink(page, newAddress("questionnaire-resume"));
     await page.goto("/profils/nouveau");
     await startScriptedQuestions(page);
-    await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");
     expect(await (await page.request.get("/api/profiles")).json()).toEqual([]);
     await reply(page, q.location, "Lyon");
+    await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.email, "marie.dupont@example.fr");
 
     // Born once the target role and location are answered: the Candidate leaves the page before the end.
@@ -298,18 +298,19 @@ test.describe("onboarding with the AI Coach", () => {
     await expect(fiche).toContainText(fr.profilePage.onboarding.unfinished);
     await fiche.getByRole("link", { name: fr.profilePage.onboarding.resume }).click();
 
-    // Resumed at its review, on what is saved: the e-mail answered after it was born is not.
+    // Resumed at its review, on what is saved: the name and the e-mail, answered after it was born (#1047), are not.
     await expect(page).toHaveURL(`${origin}/profils/nouveau?profil=${id}`);
     await expect(transcript(page)).toContainText(fr.newProfile.resumeIntro);
     await expect(onboardingSummary(page).locator(".onb-summary")).toHaveText("Vous recherchez un poste de Directrice financière ; lieu : Lyon.");
     // The review form, by « Voir le détail »; its own « Enregistrer mon profil » saves as « Cela semble correct » does.
     await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
-    await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
+    await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("");
     await expect(page.getByLabel(fr.cvReview.email)).toHaveValue("");
     const criteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
     await expect(criteria.getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière");
     await expect(placeNames(criteria)).toHaveText(["Lyon"]);
+    await page.getByLabel(fr.cvReview.fullName).fill("Marie Dupont");
     await page.getByLabel(fr.cvReview.email).fill("marie.dupont@example.fr");
     await criteria.getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi }).check();
     await page.getByRole("button", { name: fr.cvReview.save }).click();
@@ -330,12 +331,12 @@ test.describe("onboarding with the AI Coach", () => {
     const email = newAddress("questionnaire-offered-search");
     await signInWithMagicLink(page, email);
     await page.goto("/profils/nouveau");
-    /** Answers the scripted questions (#1002's fallback) up to the review: a name, `targetRole` and Lyon, every other question skipped. */
+    /** Answers the scripted questions (#1002's fallback) up to the review: `targetRole`, Lyon and a name, every other question skipped. */
     const answerUpToReview = async (targetRole: string) => {
       await startScriptedQuestions(page);
-      await reply(page, q.fullName, "Marie Dupont");
       await reply(page, q.targetRole, targetRole);
       await reply(page, q.location, "Lyon");
+      await reply(page, q.fullName, "Marie Dupont");
       for (const question of [q.email, q.phone, q.jobTitle.replace("{{number}}", "1"), q.degree.replace("{{number}}", "1"), q.skills, q.languages, q.summary]) await reply(page, question, "skip");
       await expect(onboardingSummary(page)).toBeVisible();
     };
@@ -355,9 +356,9 @@ test.describe("onboarding with the AI Coach", () => {
 
     // Born, its search starts at once, offered; the coach says so in one line of the thread, no card (#1001).
     await startScriptedQuestions(page);
-    await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");
     await reply(page, q.location, "Lyon");
+    await reply(page, q.fullName, "Marie Dupont");
     await expect(transcript(page)).toContainText(fr.newProfile.offeredSearchStarted);
     await expect(transcript(page).locator(".ds-card, .ds-stats")).toHaveCount(0);
     await expect.poll(async () => (await offered()).map((search) => search.offered)).toEqual(["first"]);
@@ -433,9 +434,9 @@ test.describe("onboarding with the AI Coach", () => {
     await signInWithMagicLink(page, newAddress("same-structure-questions"));
     await page.goto("/profils/nouveau");
     await startScriptedQuestions(page);
-    await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.targetRole, "Directrice financière");
     await reply(page, q.location, "Lyon");
+    await reply(page, q.fullName, "Marie Dupont");
     await reply(page, q.email, "skip");
     await reply(page, q.phone, "skip");
     await reply(page, q.jobTitle.replace("{{number}}", "1"), "Directrice financière");

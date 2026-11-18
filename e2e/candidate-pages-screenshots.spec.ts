@@ -917,7 +917,7 @@ test.describe("the onboarding's search in Activity (#1001)", () => {
       await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV à jour E2E_AI_DOWN");
       await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
       await expect(page.getByText(fr.newProfile.interview.fallback)).toBeVisible();
-      for (const said of ["Catherine Morel", "Directrice administrative et financière", "Lyon"]) {
+      for (const said of ["Directrice administrative et financière", "Lyon", "Catherine Morel"]) {
         await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
         await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
       }

@@ -18,7 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * Creating a Profile from an uploaded CV, the Onboarding Questionnaire or from scratch (no LinkedIn import of any kind,
  * ADR-0001), the page a conversation with the AI Coach (ADR-0070, see ProfileOnboarding). When the Plan allows no more
  * Profiles, the conversation's card is the Upgrade prompt, after the same welcome panel (#997). With `?profil=<id>`, a
- * Profile of the Candidate born during its onboarding and not finished (ADR-0106, #999) resumes at its review: it counts
+ * Profile of the Candidate born during its onboarding and not finished (ADR-0106, #999) resumes at its review, or, left
+ * with « Continuer plus tard », in its interview at the block it reached (#1046): it counts
  * in the Plan Quota already. Any other Profile of theirs opens its own page. Without it, once the Plan allows no more
  * Profiles, their most recent Profile « Création à terminer » resumes there instead of the Upgrade prompt (#1048).
  */
@@ -58,5 +59,12 @@ async function resumedProfile(candidateId: string, id: string): Promise<ResumedP
   const profile = await getProfiles().get(candidateId, id);
   if (!profile) return null;
   if (profile.onboarding !== "in_progress" || profile.archived) redirect(routes.profile(profile.id));
-  return { id: profile.id, version: profile.masterCv.version, masterCv: profile.masterCv.content, searchCriteria: profile.searchCriteria };
+  return {
+    id: profile.id,
+    version: profile.masterCv.version,
+    masterCv: profile.masterCv.content,
+    searchCriteria: profile.searchCriteria,
+    // Left with « Continuer plus tard » (#1046): its interview reopens at the block it reached.
+    ...(profile.onboardingResumesAt ? { resumesAt: profile.onboardingResumesAt } : {}),
+  };
 }

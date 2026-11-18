@@ -11,7 +11,7 @@
  *    an error code when the answer cannot be taken (`required`, `yes_or_no`);
  *  - `draftFromQuestionnaire(q)` — the answers as a `CvDraft`, the very shape
  *    `draftFromCv` gives for an uploaded CV, for the same review and save.
- * The order of questions, the loops over jobs and degrees and how a free-text
+ * The target role and location come first, then the name (#1047). The order of questions, the loops over jobs and degrees and how a free-text
  * answer becomes a CV section all stay behind it. The questions' wording lives
  * in the interface catalogue (`questionnaire.questions.<id>`).
  */
@@ -75,7 +75,8 @@ function replay(answers: readonly string[], known?: CvDraft): { draft: CvDraft; 
 
   function* script(): Generator<Question, void, string> {
     // What is known already is not asked again (#1002): a text field filled, a section with an entry.
-    if (!cv.fullName) cv.fullName = yield text("fullName", false);
+    // The target role and location first (#1047): the Profile is born and its offered Job Search starts on them alone,
+    // as in the AI Coach's interview; the name, as required, comes next.
     if (!criteria.targetRole) {
       criteria.targetRole = yield text("targetRole", false);
       cv.headline ||= criteria.targetRole;
@@ -85,6 +86,7 @@ function replay(answers: readonly string[], known?: CvDraft): { draft: CvDraft; 
       cv.location ||= location;
       criteria.locations = distinctLocations([location]);
     }
+    if (!cv.fullName) cv.fullName = yield text("fullName", false);
     if (!cv.email) cv.email = yield text("email", true);
     if (!cv.phone) cv.phone = yield text("phone", true);
 

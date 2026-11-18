@@ -93,3 +93,14 @@
   color: var(--color-secondary);
   font-size: var(--font-size-meta);
 }
+
+/* Saved (#1053): the onboarding's thread leads the Profile's Coach Conversation, which goes on right under it. */
+.page-conversation-thread.onb-thread-done {
+  flex: none;
+  padding-bottom: 0;
+}
+
+/* « Et maintenant ? »: its two actions in a row, wrapping on a phone, the line to the help under them. */
+.onb-next.quick-actions {
+  margin: var(--space-3) 0 0;
+}

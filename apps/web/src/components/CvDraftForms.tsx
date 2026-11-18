@@ -150,7 +150,8 @@ export interface SaveRefusal {
 }
 
 /** A reviewed draft saved, at its Profile's page, or refused. */
-export type SaveOutcome = { ok: true; href: string } | { ok: false; refusal: SaveRefusal };
+/** Saved: the Profile's id and its page's address; or why not. */
+export type SaveOutcome = { ok: true; id: string; href: string } | { ok: false; refusal: SaveRefusal };
 
 /**
  * Saving a reviewed draft (`edits`, what the review shows), as the review form's « Enregistrer mon profil » and the
@@ -169,7 +170,7 @@ export async function saveReviewedProfile({
 }): Promise<SaveOutcome> {
   const { masterCv } = edits;
   const searchCriteria = searchCriteriaInput(edits.criteria);
-  const saved = (id: string): SaveOutcome => ({ ok: true, href: routes.profile(id) });
+  const saved = (id: string): SaveOutcome => ({ ok: true, id, href: routes.profile(id) });
   const refused = (body: { errors?: unknown }): SaveOutcome => ({
     ok: false,
     refusal: { errors: Array.isArray(body.errors) ? body.errors : [], failed: !Array.isArray(body.errors), quotaReached: false, upgradePrompt: null },

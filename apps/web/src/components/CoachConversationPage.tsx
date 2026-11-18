@@ -47,6 +47,8 @@ type Control = {
   focusBox: () => void;
   /** Sends `text` in the page's conversation (a suggestion, #603). */
   say: (text: string) => void;
+  /** Opens the help of the Coach Panel (#1053): the welcome panel again, in the « Coach IA » badge's dialog. */
+  openHelp: () => void;
 };
 
 const BoxControl = createContext<Control | null>(null);
@@ -62,6 +64,14 @@ export function useAskCoach(): ((text: string) => void) | null {
 /** Puts the focus in the page's message box (the home page's Quick actions, #467). Null outside a page that is a conversation. */
 export function useFocusCoachBox(): (() => void) | null {
   return useContext(BoxControl)?.focusBox ?? null;
+}
+
+/**
+ * Opens the Coach Panel's help (#1053): « Sur cette page », « Souvent demandé », in the « Coach IA » badge's dialog, as the
+ * badge does. Null outside a page that is a conversation.
+ */
+export function useOpenCoachHelp(): (() => void) | null {
+  return useContext(BoxControl)?.openHelp ?? null;
 }
 
 type Status = "idle" | "sending" | "unavailable" | "invalid";
@@ -153,7 +163,9 @@ const tokensOf = (step: ProvenanceStep) => (step.kind === "ai" && step.tokens ? 
  * in the thread after it (the list of Applications), which stays; `suggestions`, shown above the box while nothing is sent
  * (the Quick actions, an object's suggestions); `lead`, the page's own view before the thread, the conversation following
  * it with its box at the foot (Recherches d'offres' Offer box, ADR-0090): a restored conversation then stays on it rather
- * than scrolling to its latest message, until a message is sent.
+ * than scrolling to its latest message, until a message is sent. `continues`: the `lead` is a thread of its own that opened
+ * with the welcome panel (« Créer un profil » once the Profile is saved, #1053): the conversation goes on under it, without a
+ * welcome panel of its own; `label`, then, the region's name, the lead's. The badge still opens the welcome panel.
  */
 export type PagePlacement = {
   conversationId: string | null;
@@ -163,6 +175,8 @@ export type PagePlacement = {
   card?: ReactNode;
   suggestions?: ReactNode;
   lead?: ReactNode;
+  continues?: boolean;
+  label?: string;
 };
 
 /** « Réponse arrêtée » (#328), in light red, with the tokens and time the stopped reply had spent: no confirmation, no reply saved. */
@@ -607,14 +621,15 @@ export function CoachConversationPage(page: PagePlacement) {
   // The conversation's first message: the AI disclosure, or the welcome of a conversation saved before it.
   const opening = aiDisclosure ? "coachPanel.aiDisclosure" : "coachPanel.welcome";
 
-  const control: Control = { focusBox: () => setFocusInput((n) => n + 1), say: (text: string) => void sendMessage(text) };
+  // The welcome panel asked for again, in the « Coach IA » badge's dialog (by the badge, or by `useOpenCoachHelp`).
+  const [welcomeAsked, setWelcomeAsked] = useState(false);
+  const control: Control = { focusBox: () => setFocusInput((n) => n + 1), say: (text: string) => void sendMessage(text), openHelp: () => setWelcomeAsked(true) };
   // An empty conversation opens on the help (#342): nothing sent.
   const showIntro = !restoring && messages.length === 0;
   // The welcome panel (the AI disclosure, the page's Introduction and the help): until the Candidate closes it for good,
   // then on demand from the « Coach IA » badge, in a dialog.
   const welcome = conversationFirst?.welcome ?? null;
-  const welcomeShown = !(welcome?.closed ?? false);
-  const [welcomeAsked, setWelcomeAsked] = useState(false);
+  const welcomeShown = !(welcome?.closed ?? false) && !page.continues;
   const helpIntro = (onOpen: (article: HelpArticle) => void) => (
     <HelpIntro pathname={pathname} locale={locale} onOpen={onOpen} howThisPageWorks={workPane !== null} oftenAsked={page.suggestions === undefined} />
   );
@@ -632,7 +647,7 @@ export function CoachConversationPage(page: PagePlacement) {
       {/* The conversation, the page's main region (#608): its thread at its reading width, centred, the box at the page's foot. */}
       <section
         className="page-conversation"
-        aria-label={t("conversationFirst.label")}
+        aria-label={page.label ?? t("conversationFirst.label")}
         onKeyDown={(event) => {
           // Escape in the help brings the Candidate back to the message box (#342).
           if (event.key === "Escape" && event.target instanceof Element && event.target.closest("[data-help]")) {

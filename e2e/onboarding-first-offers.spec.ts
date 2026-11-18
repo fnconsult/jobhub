@@ -188,6 +188,40 @@ test.describe("creating a Profile, end to end: from the CV to the first offers i
     await expect(page).toHaveURL(`${origin}/recherches/${jobSearchId}`);
   });
 
+  test("« Et maintenant ? » (#1053): the two actions, the line to the help, then a message the AI Coach answers in the Profile's conversation", async ({ page }) => {
+    const { profileId } = await upToSummary(page, "first-offers-next");
+    await onboardingSummary(page).getByRole("button", { name: fr.onboardingSummary.confirm, exact: true }).click();
+
+    // Two actions in a labelled group, « Voir mes offres à traiter » first, focused; then « Continuer vers mon profil ».
+    const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
+    const next = thread.getByRole("group", { name: fr.newProfile.next.label, exact: true });
+    const offers = next.getByRole("link", { name: fr.newProfile.next.offers, exact: true });
+    const toProfile = next.getByRole("link", { name: fr.onboardingSummary.toProfile, exact: true });
+    await expect(offers).toHaveAttribute("href", `/recherches?profil=${profileId}`);
+    await expect(toProfile).toHaveAttribute("href", `/profils/${profileId}`);
+    await expect(offers).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(toProfile).toBeFocused();
+
+    // Under them, the help: the Coach Panel's, in the « Coach IA » dialog.
+    await thread.getByRole("button", { name: fr.newProfile.next.help, exact: true }).click();
+    const help = page.getByRole("dialog", { name: fr.conversationFirst.welcomeTitle });
+    await expect(help.getByText(fr.coachPanel.help.greeting)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(help).toBeHidden();
+
+    // A message sent now gets the AI Coach's reply, the Profile in view: no scripted line any more.
+    const box = page.getByLabel(fr.coachPanel.messageLabel);
+    await box.fill("Par quoi je commence ?");
+    await box.press("Enter");
+    const conversation = page.getByRole("region", { name: fr.newProfile.conversation });
+    await expect(conversation.getByRole("list", { name: fr.coachPanel.messagesLabel }).getByText(/^Je vois votre profil « .+ »/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(fr.newProfile.reviewOnly)).toHaveCount(0);
+    // Kept as the Profile's own Coach Conversation, which its page shows.
+    const [kept] = await query<{ count: number }>("SELECT count(*)::int AS count FROM coach_conversation WHERE subject_kind = 'profile' AND profile_id = $1", [profileId]);
+    expect(kept!.count).toBe(1);
+  });
+
   test("no Job Offer that matches: the entry says so, with « Voir mon profil » and « Relancer une recherche », which counts in the Plan Quota", async ({ page }) => {
     const { email, jobSearchId, profileId } = await upToSummary(page, "first-offers-none");
     const line = await confirm(page);

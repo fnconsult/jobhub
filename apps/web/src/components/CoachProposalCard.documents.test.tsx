@@ -47,7 +47,7 @@ const LETTER: Card = {
     fields: [],
     launches: true,
     runs: { kind: "tailored_documents", url: "/api/applications/a1/tailored-documents", body: { document: "cover_letter", language: "fr" }, opens: OPENS_LETTER },
-    replaces: "Votre brouillon actuel sera remplacé, vos modifications comprises.",
+    replaces: "Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.",
   },
   undoable: false,
 };
@@ -153,13 +153,13 @@ describe("a « Documents » proposal's card (#721)", () => {
       renderInFrench(<Thread card={LETTER} />);
       const card = cardNamed(/Lettre de motivation/);
 
-      expect(card.textContent).toContain("Votre brouillon actuel sera remplacé, vos modifications comprises.");
+      expect(card.textContent).toContain("Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.");
       expect(buttonsOf(card)).toEqual(["Rédiger", "Ignorer"]);
 
       await userEvent.click(within(card).getByRole("button", { name: "Rédiger" }));
 
       expect(sent).toEqual([]);
-      expect(within(card).getByRole("group", { name: "Remplacer votre brouillon actuel, vos modifications comprises ?" })).toBeTruthy();
+      expect(within(card).getByRole("group", { name: "Remplacer votre brouillon actuel ? Il restera dans « Versions »." })).toBeTruthy();
       expect(buttonsOf(card)).toEqual(["Remplacer et rédiger", "Garder mon brouillon"]);
       expect(document.activeElement?.textContent).toBe("Remplacer et rédiger");
     });

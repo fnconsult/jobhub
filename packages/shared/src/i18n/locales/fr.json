@@ -5237,7 +5237,7 @@
     "copied": "Texte copié",
     "copyFailed": "La copie a échoué : sélectionnez le texte et copiez-le vous-même.",
     "redraft": "Rédiger à nouveau",
-    "redraftHint": "Une nouvelle rédaction remplace le texte actuel, vos modifications comprises.",
+    "redraftHint": "Une nouvelle rédaction remplace le texte actuel, qui reste dans « Versions ».",
     "drafting": "Rédaction en cours…",
     "drafted": "Brouillon prêt",
     "required": "Le texte ne peut pas être vide.",
@@ -5255,6 +5255,32 @@
       "downloadWord": "Télécharger en Word",
       "savedOn": "Enregistré le {{date}}"
     }
+  },
+  "documentVersions": {
+    "toggle": "Versions",
+    "intro": "Chaque rédaction, chaque enregistrement de vos modifications, chaque retouche de votre coach IA appliquée et chaque restauration garde une version. Les {{max}} dernières versions de ce document sont conservées.",
+    "loading": "Chargement des versions…",
+    "loadError": "Les versions n'ont pas pu être chargées. Vérifiez votre connexion et réessayez.",
+    "none": "Aucune version pour l'instant.",
+    "listLabel": "Versions de ce document, de la plus récente à la plus ancienne",
+    "version": "Version {{version}}",
+    "current": "Version actuelle",
+    "sources": {
+      "drafted": "Rédigée par votre coach IA",
+      "draftedCv": "Proposée par votre coach IA, enregistrée par vous",
+      "candidate": "Modifiée par vous",
+      "coach": "Retouche de votre coach IA, appliquée par vous",
+      "restored": "Restauration de la version {{version}}",
+      "restoredEarlier": "Restauration d'une version précédente"
+    },
+    "open": "Voir la version {{version}}",
+    "readOnly": "Version {{version}}, en lecture seule",
+    "subject": "Objet : {{subject}}",
+    "restore": "Restaurer cette version",
+    "restoreHint": "Elle redevient la version actuelle sous un nouveau numéro : la version actuelle reste dans « Versions ».",
+    "restoring": "Restauration en cours…",
+    "restored": "Version {{version}} restaurée : elle est désormais la version actuelle.",
+    "restoreError": "Cette version n'a pas pu être restaurée. Vérifiez votre connexion et réessayez."
   },
   "tailoredCv": {
     "title": "CV adapté à l'offre",
@@ -7073,7 +7099,7 @@
       "draftOf": "Brouillon du {{date}}",
       "draftEdited": "Brouillon du {{date}}, modifié depuis",
       "newDraft": "Un nouveau brouillon que votre coach IA rédigera quand vous lancerez la rédaction · {{language}}",
-      "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises.",
+      "replacesDraft": "Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.",
       "replacesTailoredCvProposal": "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises."
     },
     "quota": {
@@ -7090,7 +7116,7 @@
     "launch": "Lancer",
     "prepare": "Préparer",
     "draft": "Rédiger",
-    "confirmReplace": "Remplacer votre brouillon actuel, vos modifications comprises ?",
+    "confirmReplace": "Remplacer votre brouillon actuel ? Il restera dans « Versions ».",
     "confirmYes": "Remplacer et rédiger",
     "confirmNo": "Garder mon brouillon",
     "confirmReplaceProposal": "Remplacer votre proposition de CV adapté en cours de relecture, vos réponses comprises ?",

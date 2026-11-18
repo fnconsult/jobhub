@@ -5237,7 +5237,7 @@
     "copied": "Text copied",
     "copyFailed": "Copying failed: select the text and copy it yourself.",
     "redraft": "Draft again",
-    "redraftHint": "A new draft replaces the current text, your changes included.",
+    "redraftHint": "A new draft replaces the current text, which stays in “Versions”.",
     "drafting": "Drafting…",
     "drafted": "Draft ready",
     "required": "The text cannot be empty.",
@@ -5255,6 +5255,32 @@
       "downloadWord": "Download as Word",
       "savedOn": "Saved on {{date}}"
     }
+  },
+  "documentVersions": {
+    "toggle": "Versions",
+    "intro": "Each draft, each save of your changes, each edit by your AI coach that you apply and each restore keeps a version. The last {{max}} versions of this document are kept.",
+    "loading": "Loading the versions…",
+    "loadError": "The versions could not be loaded. Check your connection and try again.",
+    "none": "No versions yet.",
+    "listLabel": "Versions of this document, newest first",
+    "version": "Version {{version}}",
+    "current": "Current version",
+    "sources": {
+      "drafted": "Drafted by your AI coach",
+      "draftedCv": "Proposed by your AI coach, saved by you",
+      "candidate": "Changed by you",
+      "coach": "Edit by your AI coach, applied by you",
+      "restored": "Restore of version {{version}}",
+      "restoredEarlier": "Restore of an earlier version"
+    },
+    "open": "View version {{version}}",
+    "readOnly": "Version {{version}}, read-only",
+    "subject": "Subject: {{subject}}",
+    "restore": "Restore this version",
+    "restoreHint": "It becomes the current version again under a new number: the current version stays in “Versions”.",
+    "restoring": "Restoring…",
+    "restored": "Version {{version}} restored: it is now the current version.",
+    "restoreError": "This version could not be restored. Check your connection and try again."
   },
   "tailoredCv": {
     "title": "CV tailored to the offer",
@@ -7073,7 +7099,7 @@
       "draftOf": "Draft of {{date}}",
       "draftEdited": "Draft of {{date}}, edited since",
       "newDraft": "A new draft your AI coach will write once you start the drafting · {{language}}",
-      "replacesDraft": "Your current draft will be replaced, your edits included.",
+      "replacesDraft": "Your current draft will be replaced: it will stay in “Versions”, edits included.",
       "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included."
     },
     "quota": {
@@ -7090,7 +7116,7 @@
     "launch": "Launch",
     "prepare": "Prepare",
     "draft": "Draft",
-    "confirmReplace": "Replace your current draft, your edits included?",
+    "confirmReplace": "Replace your current draft? It will stay in “Versions”.",
     "confirmYes": "Replace and draft",
     "confirmNo": "Keep my draft",
     "confirmReplaceProposal": "Replace your Tailored CV proposal under review, your answers included?",

@@ -267,7 +267,8 @@ const COACH_ACTIONS_RULES = `Coach Actions :
 - Tu ne crées ni ne supprimes de profil : un profil se crée depuis la page « Créer un profil » (/profils/nouveau), où tu peux l'accompagner ; il s'archive, il ne se supprime pas.
 - Une modification du CV de référence ne reprend que ce qu'il dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; demande au candidat ce qui manque.
 - Le CV de référence ne se réécrit jamais dans ta réponse, pas même en partie (une rubrique, une liste de compétences) : propose la modification avec l'outil prévu, ou, pour ce que le CV ne dit pas encore (une compétence, un outil), dis au candidat de l'ajouter lui-même dans la section « CV de référence » de son profil.
-- Un CV adapté, une lettre de motivation ou un message d'approche ne s'écrit jamais dans ta réponse, pas même en partie : propose de le préparer avec l'outil prévu ; le candidat le lance sous ta réponse et le relit dans les documents de sa candidature.`;
+- Un CV adapté, une lettre de motivation ou un message d'approche ne s'écrit jamais dans ta réponse, pas même en partie : propose de le préparer avec l'outil prévu ; le candidat le lance sous ta réponse et le relit dans les documents de sa candidature.
+- Un CV, une lettre ou un message dans une autre langue (« mets mon CV en anglais ») se prépare pour une candidature avec l'outil prévu et son argument language : il est alors rédigé entièrement dans cette langue. Le CV de référence reste dans sa langue : ne propose jamais de le traduire par des modifications ; sans candidature consultée, demande pour laquelle, ou explique que la « Langue des documents » se choisit dans les documents d'une candidature.`;
 
 /** Told when untrusted text is In view (#713): the Coach Actions that copy text are not offered. */
 const NARROWED_RULE =
